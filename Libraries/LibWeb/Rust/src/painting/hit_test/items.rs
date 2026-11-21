@@ -522,8 +522,8 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
     }
 
     /// The character cells of a text element, as one path, which it's hit-tested by rather than by its glyphs.
-    /// FIXME: The cells of text on a path aren't laid along the path, so text on a path, and a <text> with a <textPath>
-    ///        in it, are still hit-tested by their glyphs.
+    /// FIXME: The cells of text on a path aren't laid along the path, so text on a path, a <text> with a <textPath> in
+    ///        it, and a <tspan> in a <textPath> are still hit-tested by their glyphs.
     fn svg_text_character_cells_path(&self, paintable: NodeSlotId) -> Option<libgfx_rust::path::Path> {
         if self.rows.node_kind_if_live(paintable) != Some(NodeKind::SVGTextBox)
             || self
@@ -532,6 +532,14 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
                 .any(|child| self.rows.node_kind_if_live(child) == Some(NodeKind::SVGTextPathBox))
         {
             return None;
+        }
+        let mut ancestor = self.rows.node_parent_if_live(paintable);
+        while let Some(element) = ancestor {
+            match self.rows.node_kind_if_live(element) {
+                Some(NodeKind::SVGTextPathBox) => return None,
+                Some(NodeKind::SVGTextBox) => ancestor = self.rows.node_parent_if_live(element),
+                _ => break,
+            }
         }
         // NB: Each element is hit-tested by its own characters, so that the elements inside it keep their own visibility and
         //     pointer-events.

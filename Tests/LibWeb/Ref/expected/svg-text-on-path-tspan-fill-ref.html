@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="150">
+    <text x="10" y="50" fill="black">AB<tspan fill="blue">CD<tspan fill="green">E</tspan>F</tspan>G</text>
+    <text x="10" y="100" fill="black">A<tspan fill="blue" dy="10">BC</tspan>D</text>
+    <text x="200" y="130" fill="red" stroke="red" stroke-width="8"><tspan fill="blue" stroke="blue">X</tspan>X</text>
+</svg>

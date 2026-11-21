@@ -5,5 +5,7 @@ above the cells: svg
 past the last cell: svg
 over the text: text
 over a hidden tspan in the text: svg
+on a glyph of a tspan on a path: tspan
+where the tspan would be off the path: svg
 SVG link: text-decoration-line none, cursor pointer
 HTML link: text-decoration-line underline, cursor pointer
