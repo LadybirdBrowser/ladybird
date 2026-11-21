@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    td { padding: 0; }
+    .tall { height: 100px; }
+    .box { width: 20px; height: 20px; }
+</style>
+<table cellspacing="0">
+    <thead valign="bottom"><tr><td class="tall"></td><td><div class="box" id="thead-bottom"></div></td></tr></thead>
+    <tbody valign="TOP"><tr><td class="tall"></td><td><div class="box" id="tbody-top"></div></td></tr></tbody>
+    <tbody valign="top"><tr valign="bottom"><td class="tall"></td><td><div class="box" id="tr-overrides-tbody"></div></td></tr></tbody>
+    <tbody valign="top"><tr><td class="tall"></td><td valign="middle"><div class="box" id="td-overrides-tbody"></div></td></tr></tbody>
+    <tfoot valign="middle"><tr><td class="tall"></td><td><div class="box" id="tfoot-middle"></div></td></tr></tfoot>
+</table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["thead-bottom", "tbody-top", "tr-overrides-tbody", "td-overrides-tbody", "tfoot-middle"]) {
+            const box = document.getElementById(id);
+            const cell = box.parentElement;
+            const offset = box.getBoundingClientRect().top - cell.getBoundingClientRect().top;
+            println(`${id}: vertical-align ${getComputedStyle(cell).verticalAlign}, offset ${Math.round(offset)}`);
+        }
+    });
+</script>
