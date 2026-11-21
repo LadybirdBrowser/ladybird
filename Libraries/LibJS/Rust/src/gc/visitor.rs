@@ -8,9 +8,10 @@ use core::cell::Cell;
 use core::ptr::NonNull;
 
 use super::capi::{
-    GCMarker, GCVisitor, gc_marker_pin_cell, gc_marker_visit_cell, gc_marker_visit_interior_pointer,
-    gc_marker_visit_member, gc_marker_visit_self_pointer, gc_marker_visit_values, gc_visitor_visit_cell,
-    gc_visitor_visit_ephemeron, gc_visitor_visit_values,
+    GCMarker, GCVisitor, gc_marker_pin_cell, gc_marker_visit_cell, gc_marker_visit_ephemeron_without_pinning,
+    gc_marker_visit_interior_pointer, gc_marker_visit_member, gc_marker_visit_owned_values,
+    gc_marker_visit_self_pointer, gc_marker_visit_values, gc_visitor_visit_cell, gc_visitor_visit_ephemeron,
+    gc_visitor_visit_values,
 };
 use crate::layout::cell::Gc;
 use crate::layout::member::{Member, NullableMember};
@@ -127,10 +128,53 @@ impl Visitor {
         unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
     }
 
-    /// Visits a value that is reachable only while `key` is, such as a WeakMap entry's.
+    /// Visits values in memory that the cell being visited owns outside the heap, such as malloc storage, which a
+    /// collection that moves cells rewrites where they are rather than keeping their cells where they are.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may free, move or write the values until the collection is over: no finalizer, destructor or sweep
+    /// callback may touch them.
+    pub unsafe fn visit_owned_values(&mut self, values: &[Value]) {
+        if let Some(marker) = self.marker() {
+            if !values.is_empty() {
+                // SAFETY: The marker is the visitor's, Value is a NaN-boxed u64, and the caller vouches for the memory.
+                unsafe { gc_marker_visit_owned_values(marker.as_ptr(), values.as_ptr().cast(), values.len()) };
+            }
+            return;
+        }
+        // SAFETY: The visitor is live, and Value is a NaN-boxed u64.
+        unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
+    }
+
+    /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.
     pub fn visit_ephemeron<T>(&mut self, key: Gc<T>, value: &Value) {
         // SAFETY: The visitor is live, a Gc points to a live cell, and Value is a NaN-boxed u64.
         unsafe { gc_visitor_visit_ephemeron(self.0.as_ptr(), key.as_ptr().cast(), core::ptr::from_ref(value).cast()) };
+    }
+
+    /// Visits a value that is reachable only while `key` is, such as a WeakMap entry's, without keeping either from
+    /// moving.
+    ///
+    /// # Safety
+    ///
+    /// If the entry survives a collection that moves cells, its holder must hand the slots of the key and the value to
+    /// Sweep::record_slot() and Sweep::record_value_slot().
+    pub unsafe fn visit_ephemeron_without_pinning<T>(&mut self, key: Gc<T>, value: &Value) {
+        let Some(marker) = self.marker() else {
+            self.visit_ephemeron(key, value);
+            return;
+        };
+        if value.is_cell() {
+            // SAFETY: The marker is the visitor's, and both are live cells.
+            unsafe {
+                gc_marker_visit_ephemeron_without_pinning(
+                    marker.as_ptr(),
+                    key.as_ptr().cast(),
+                    value.as_cell().as_ptr().cast(),
+                );
+            }
+        }
     }
 }
 

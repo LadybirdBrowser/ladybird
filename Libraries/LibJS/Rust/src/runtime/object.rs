@@ -333,7 +333,14 @@ unsafe impl Trace for Object {
             debug_assert!(property_count <= self.named_storage_capacity() as usize);
             // SAFETY: The storage holds at least one slot per property of the shape, and nothing writes it during
             // a collection.
-            visitor.visit_values(unsafe { ak::slice_from_raw_parts(named_properties, property_count) });
+            let values = unsafe { ak::slice_from_raw_parts(named_properties, property_count) };
+            if self.has_flag(object_flag::HAS_MALLOC_NAMED_STORAGE) {
+                // SAFETY: Malloc storage is the object's own, which only the object's own methods change, and only its
+                //         destructor frees.
+                unsafe { visitor.visit_owned_values(values) };
+            } else {
+                visitor.visit_values(values);
+            }
         }
         // NB: The pointers to the storage are visited as slots, so that a collection that moves the object or its
         //     storage cell keeps them pointing into it.
@@ -4037,7 +4044,14 @@ impl Object {
             return;
         }
         // SAFETY: The count is within the elements buffer, and nothing writes it during a collection.
-        visitor.visit_values(unsafe { ak::slice_from_raw_parts(self.indexed_elements.get(), count as usize) });
+        let values = unsafe { ak::slice_from_raw_parts(self.indexed_elements.get(), count as usize) };
+        if self.has_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE) {
+            // SAFETY: Malloc storage is the object's own, which only the object's own methods change, and only its
+            //         destructor frees.
+            unsafe { visitor.visit_owned_values(values) };
+        } else {
+            visitor.visit_values(values);
+        }
     }
 
     /// Storage for at least `capacity` elements, all empty.

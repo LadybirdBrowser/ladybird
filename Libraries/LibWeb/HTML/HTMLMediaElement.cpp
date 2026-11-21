@@ -209,20 +209,8 @@ struct HTMLMediaElement::RemoteFetchData {
         if (stream)
             stream->set_data_request_callback(nullptr);
 
-        if (!fetch_controller)
-            return;
-        // NB: Stopping the fetch allocates, which no destructor may do while a collection is in progress, as a
-        //     collection that moves cells destroys the cells that died before it is over. Stop it once the
-        //     collection is over.
-        auto& heap = fetch_controller->heap();
-        if (heap.is_marking_for_collection()) {
-            heap.enqueue_post_gc_task([fetch_controller = fetch_controller] {
-                if (fetch_controller)
-                    fetch_controller->stop_fetch();
-            });
-            return;
-        }
-        fetch_controller->stop_fetch();
+        if (fetch_controller)
+            fetch_controller->stop_fetch();
     }
 };
 

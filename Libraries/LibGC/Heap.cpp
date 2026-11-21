@@ -186,6 +186,7 @@ struct CompactionStats {
 
     bool active { false };
     size_t evacuated_blocks { 0 };
+    // The evacuated blocks that no cell stays in, which the sweep that follows lets go of.
     size_t freed_blocks { 0 };
     // What selection expected to recover and move, see rust_gc_compaction_select().
     size_t recoverable_bytes { 0 };
@@ -197,7 +198,6 @@ struct CompactionStats {
     size_t recorded_slots { 0 };
     size_t rewritten_slots { 0 };
     i64 select_us { 0 };
-    i64 sweep_us { 0 };
     i64 copy_us { 0 };
     i64 fix_up_us { 0 };
     i64 release_us { 0 };
@@ -311,11 +311,11 @@ thread_local bool g_recording_phase_timings { false };
 void print_compaction_summary(CompactionStats const& stats)
 {
     auto pinned_bytes = [&](CompactionStats::PinReason reason) { return human_readable_size(stats.pinned[reason].bytes); };
-    dbgln("Compaction: {} source blocks, {} freed; moved {} of {} expected; pinned {} by edge, {} by root, {} non-movable; {} recoverable before; {} slots recorded, {} rewritten; select {} us, sweep {} us, compaction {} us (copy {}, fix up {}, release {})",
+    dbgln("Compaction: {} source blocks, {} freed; moved {} of {} expected; pinned {} by edge, {} by root, {} non-movable; {} recoverable before; {} slots recorded, {} rewritten; select {} us, compaction {} us (copy {}, fix up {}, release {})",
         stats.evacuated_blocks, stats.freed_blocks, human_readable_size(stats.moved.bytes), human_readable_size(stats.bytes_to_move),
         pinned_bytes(CompactionStats::ByValueEdge), pinned_bytes(CompactionStats::ByValueRoot),
         pinned_bytes(CompactionStats::NonMovableAllocator),
-        human_readable_size(stats.recoverable_bytes), stats.recorded_slots, stats.rewritten_slots, stats.select_us, stats.sweep_us,
+        human_readable_size(stats.recoverable_bytes), stats.recorded_slots, stats.rewritten_slots, stats.select_us,
         stats.select_us + stats.copy_us + stats.fix_up_us + stats.release_us, stats.copy_us, stats.fix_up_us, stats.release_us);
 }
 
@@ -382,7 +382,6 @@ void print_gc_report(i64 total_us, size_t live_block_count, bool scan_stack, siz
         dbgln("  recorded slots              {:>10}", stats.recorded_slots);
         dbgln("  rewritten slots             {:>10}", stats.rewritten_slots);
         dbgln("  select                      {:>10} us", stats.select_us);
-        dbgln("  sweep for compaction        {:>10} us", stats.sweep_us);
         dbgln("  copy                        {:>10} us", stats.copy_us);
         dbgln("  fix up                      {:>10} us", stats.fix_up_us);
         dbgln("  release                     {:>10} us", stats.release_us);
@@ -1167,25 +1166,26 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         m_weak_pointers_to_dead_cells_are_cleared = false;
         m_mark_duration_ns = MonotonicTime::now().nanoseconds() - mark_start_ns;
 
+        // NB: A collection that moves cells moves them before it sweeps, into slots that are free already. The sweep
+        //     that follows frees the dead cells and lets go of the blocks that were emptied, as after any collection, so
+        //     destructors run once the collection is over, where they may allocate, and the memory that they free is
+        //     still there when the slots that marking recorded are rewritten. Only finalize() may reach other cells,
+        //     and it runs before any cell moves. A destructor that reaches another cell may only reach one defined in
+        //     C++, which never moves.
+        if (m_evacuation) {
+            evacuate();
+            end_evacuation();
+            if (libgc_log_level() >= 1)
+                print_compaction_summary(*m_compaction_stats);
+        }
+
         // For CollectEverything we must finish sweeping synchronously so that
         // every cell is collected before the Heap destructor returns. All
         // other collection types defer sweeping to incremental work below,
         // unless incremental sweeping is disabled (no event loop to run it).
-        // NB: A collection that moves cells sweeps first as well, so that the dead cells are gone before any cell
-        //     moves, and their slots are free for the cells that move. Otherwise a dead cell's destructor could reach a
-        //     live cell through a pointer that no longer points at it.
-        if (collection_type == CollectionType::CollectEverything || !m_incremental_sweep_enabled || m_evacuation) {
+        if (collection_type == CollectionType::CollectEverything || !m_incremental_sweep_enabled) {
             ScopedPhaseTimer timer { report, g_phase_timings.sweep_dead_cells_us };
             sweep_dead_cells(report, collection_measurement_timer);
-        }
-        if (m_evacuation) {
-            m_compaction_stats->sweep_us = g_phase_timings.sweep_dead_cells_us;
-            evacuate();
-            end_evacuation();
-            // NB: The blocks this freed go back to the system once the decommit worker gets to them.
-            BlockAllocator::wake_decommit_worker_async();
-            if (libgc_log_level() >= 1)
-                print_compaction_summary(*m_compaction_stats);
         }
 
         if (report) {
@@ -1205,7 +1205,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // Arm incremental sweep before running post-GC tasks so any cells those
     // tasks allocate get tagged as allocated-during-sweep and aren't freed
     // by sweep_block before the next mark phase reaches them.
-    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled && !m_compaction_stats->active)
+    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled)
         start_incremental_sweep();
     else
         g_next_incremental_sweep_should_report = false;
@@ -1390,8 +1390,8 @@ Cell* Heap::allocate_destination_for_moved_cell(CellAllocator& allocator)
 
 // Moves the live cells of the evacuated blocks that nothing pinned to free slots of other blocks of their allocator:
 // takes their new slots, rewrites the slots that marking recorded and the weak pointers, copies the cells, and frees
-// the old slots without destroying their cells. The dead cells are swept already, so their slots are free to take, and
-// no destructor of a dead cell sees a cell that moved.
+// the old slots without destroying their cells. Nothing is swept yet, so the slots of dead cells are not free to take,
+// and the sweep that follows frees the dead cells of every block, the evacuated ones included.
 void Heap::evacuate()
 {
     auto& stats = *m_compaction_stats;
@@ -1417,12 +1417,6 @@ void Heap::evacuate()
     Vector<HeapBlock*> blocks_kept_by_pins;
 
     auto copy_start_ns = MonotonicTime::now().nanoseconds();
-    // NB: The sweep let go of the evacuated blocks whose cells all died, and a block it let go of may have come back
-    //     since, which publishes it again without an evacuation.
-    m_evacuated_blocks.remove_all_matching([this](HeapBlock* block) {
-        auto const& descriptor = block_descriptor_for(block);
-        return descriptor.heap != this || !descriptor.evacuation;
-    });
     // NB: The blocks of an allocator come one after another, see begin_evacuation().
     for (size_t first_block_of_allocator = 0; first_block_of_allocator < m_evacuated_blocks.size();) {
         auto& allocator = m_evacuated_blocks[first_block_of_allocator]->cell_allocator();
@@ -1435,12 +1429,19 @@ void Heap::evacuate()
         for (size_t i = exchange(first_block_of_allocator, end); i < end; ++i) {
             auto& block = *m_evacuated_blocks[i];
             auto& descriptor = block_descriptor_for(&block);
+            // NB: The cells that stay are the marked ones that do not move. The allocated cells that are not marked died,
+            //     and the sweep frees them.
+            size_t staying_cells = 0;
             if (count_by_type || !allocator.descriptor().is_movable()) {
                 for_each_allocated_cell(block, [&](Cell* cell) {
-                    if (!allocator.descriptor().is_movable())
+                    if (!is_marked(descriptor, cell))
+                        return;
+                    if (!allocator.descriptor().is_movable()) {
                         count_pinned(cell, cell_size, CompactionStats::NonMovableAllocator);
-                    else if (auto reason = FFI::rust_gc_evacuation_pin_reason(m_evacuation, cell); reason != FFI::PinReason::Unpinned)
+                        ++staying_cells;
+                    } else if (auto reason = FFI::rust_gc_evacuation_pin_reason(m_evacuation, cell); reason != FFI::PinReason::Unpinned) {
                         stats.pinned_by_type.ensure(class_name_of(*cell))[reason == FFI::PinReason::Root ? CompactionStats::ByValueRoot : CompactionStats::ByValueEdge].add(cell_size);
+                    }
                 });
             }
             if (allocator.descriptor().is_movable()) {
@@ -1455,21 +1456,21 @@ void Heap::evacuate()
                 auto& by_root = stats.pinned[CompactionStats::ByValueRoot];
                 by_root.cells += pinned.by_root;
                 by_root.bytes += pinned.by_root * cell_size;
-                if (pinned.by_edge + pinned.by_root > 0)
+                staying_cells = pinned.by_edge + pinned.by_root;
+                if (staying_cells > 0)
                     blocks_kept_by_pins.append(&block);
-                // NB: Nothing allocates during a collection (see allocate_cell()), and the sweep freed every cell that
-                //     marking did not reach, so every cell left in the block is marked, and either moves or is pinned.
-                //     A cell allocated after marking would hold slots that marking never recorded.
-                VERIFY(block.allocated_cell_count() == count + pinned.by_edge + pinned.by_root);
             }
-            clear_marks(descriptor);
+            if (staying_cells == 0)
+                ++stats.freed_blocks;
         }
         if (moves.is_empty())
             continue;
 
-        // NB: Every destination is taken before any cell moves, so no cell moves twice, and no old slot is free yet.
+        // NB: Every destination is taken before any cell moves, so no cell moves twice, and no old slot is free yet. A
+        //     cell that moves is marked where it goes, so that the sweep that follows keeps it.
         for (auto& cell_move : moves) {
             cell_move.to = allocate_destination_for_moved_cell(allocator);
+            set_marked(cell_move.to);
             stats.moved.add(cell_size);
         }
         FFI::rust_gc_evacuation_forward_cells(m_evacuation, moves.data(), moves.size(), cell_size);
@@ -1507,12 +1508,6 @@ void Heap::evacuate()
     //     rust_gc_compaction_select().
     for (auto* block : blocks_kept_by_pins)
         FFI::rust_gc_allocator_keep_cells_pinned(block->cell_allocator().rust_allocator({}), block);
-
-    // Lets go of the evacuated blocks that are empty now, and lists the others as usable again.
-    for (auto* block : m_evacuated_blocks) {
-        if (FFI::rust_gc_allocator_finish_evacuated_block(block->cell_allocator().rust_allocator({}), block))
-            ++stats.freed_blocks;
-    }
     stats.release_us = (MonotonicTime::now().nanoseconds() - release_start_ns) / 1000;
 }
 
@@ -2170,15 +2165,11 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_iteration_us };
-        // NB: A collection that moves cells is an ordinary one that sweeps synchronously, and gives its empty blocks
-        //     back to the system like the incremental sweep does. Only the collection of a heap that goes away keeps
-        //     them for whoever comes next.
-        bool defer_decommit = m_evacuation;
         for (auto& allocator : m_all_cell_allocators) {
             auto* rust_allocator = allocator.rust_allocator({});
             FFI::SweepStats stats {};
             FFI::rust_gc_allocator_start_sweep(rust_allocator);
-            while (FFI::rust_gc_allocator_sweep_next_block(rust_allocator, defer_decommit, &stats)) { }
+            while (FFI::rust_gc_allocator_sweep_next_block(rust_allocator, false, &stats)) { }
             collected_cells += stats.collected_cells;
             live_cells += stats.live_cells;
             collected_cell_bytes += stats.collected_cells * allocator.cell_size();

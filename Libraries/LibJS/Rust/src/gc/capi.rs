@@ -6,7 +6,7 @@
 
 //! Declarations of Libraries/LibGC/CAPI.h.
 
-use core::ffi::{c_char, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 use super::class::CellTypeInfo;
 
@@ -45,6 +45,9 @@ pub struct GCWeakImpl {
 
 pub const GC_COLLECTION_TYPE_COLLECT_GARBAGE: i32 = 0;
 pub const GC_COLLECTION_TYPE_COLLECT_EVERYTHING: i32 = 1;
+
+pub const GC_RECORDED_SLOT_VALUE: c_int = 0;
+pub const GC_RECORDED_SLOT_CELL_POINTER: c_int = 1;
 
 #[derive(Default)]
 #[repr(C)]
@@ -143,13 +146,16 @@ unsafe extern "C" {
     pub fn gc_cell_is_marked(cell: *const c_void) -> bool;
     pub fn gc_cell_will_move(cell: *const c_void) -> bool;
     pub safe fn gc_heap_is_moving_cells(heap: &GCHeap) -> bool;
+    pub fn gc_heap_record_slot(heap: *mut GCHeap, slot: *const c_void, kind: c_int);
     pub fn gc_cell_identity_hash(cell: *const c_void) -> u32;
     pub fn gc_marker_visit_cell(marker: *mut GCMarker, cell: *mut c_void);
     pub fn gc_marker_visit_values(marker: *mut GCMarker, values: *const u64, count: usize);
+    pub fn gc_marker_visit_owned_values(marker: *mut GCMarker, values: *const u64, count: usize);
     pub fn gc_marker_visit_member(marker: *mut GCMarker, slot: *const u32);
     pub fn gc_marker_visit_interior_pointer(marker: *mut GCMarker, slot: *const usize, cell: *mut c_void);
     pub fn gc_marker_visit_self_pointer(marker: *mut GCMarker, slot: *const usize);
     pub fn gc_marker_pin_cell(marker: *mut GCMarker, cell: *const c_void);
+    pub fn gc_marker_visit_ephemeron_without_pinning(marker: *mut GCMarker, key: *mut c_void, value: *mut c_void);
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;
     pub fn gc_root_destroy(root: *mut GCRoot);

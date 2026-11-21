@@ -13,6 +13,12 @@ const holder = {
     })(),
 };
 holder.counter();
+// An environment with this many bindings keeps their values outside its cell.
+const wideBindingCount = 40;
+holder.wide = new Function(
+    `let ${Array.from({ length: wideBindingCount }, (_, i) => `b${i} = { v: ${i} }`).join(", ")};` +
+        `return () => [${Array.from({ length: wideBindingCount }, (_, i) => `b${i}`).join(", ")}];`
+)();
 holder.rope = "x".repeat(30) + "y".repeat(30);
 holder.substring = holder.rope.substring(25, 35);
 holder.flat = String(holder.rope.length) + "!";
@@ -26,11 +32,68 @@ const before = {
     hashed: addressOf(holder.hashed),
     hash: identityHashOf(holder.hashed),
     counter: addressOf(holder.counter),
+    wideBinding: addressOf(holder.wide()[wideBindingCount - 1]),
     rope: addressOf(holder.rope),
 };
 
 const map = new Map([[holder.mapKey, "map value"]]);
+
+// The entries of maps and sets, the elements of arrays too large for a storage cell, the values of environments with
+// more bindings than fit in one, and the target and arguments of bound functions are all slots the collector can
+// rewrite, so their cells move too.
+const entryCount = 40;
+const bigMap = new Map();
+const bigSet = new Set();
+for (let i = 0; i < entryCount; ++i) {
+    bigMap.set({ k: i }, { v: i });
+    bigSet.add({ s: i });
+}
+const smallSet = new Set([{ s: "only" }]);
+const hugeArray = Array.from({ length: 2000 }, (_, i) => ({ e: i }));
+const hugeBindingCount = 1500;
+const huge = new Function(
+    `let ${Array.from({ length: hugeBindingCount }, (_, i) => `h${i} = { v: ${i} }`).join(", ")};` +
+        `return () => h${hugeBindingCount - 1};`
+)();
+const bound = function (a, b) {
+    return [this.t, a.x, b];
+}.bind({ t: "this" }, { x: "argument" });
+const movedBefore = {
+    mapKey: addressOf(bigMap.keys().next().value),
+    mapValue: addressOf(bigMap.values().next().value),
+    setValue: addressOf(bigSet.values().next().value),
+    smallSetValue: addressOf(smallSet.values().next().value),
+    hugeElement: addressOf(hugeArray[1999]),
+    hugeBinding: addressOf(huge()),
+};
 const weakMap = new WeakMap([[holder.weakMapKey, "weak map value"]]);
+
+// Weak collections hand the slots of the cells that survive to the collector once they forgot the dead ones, so their
+// keys, values and targets move too.
+const weakHolder = {
+    key: {},
+    primitiveKey: {},
+    setValue: {},
+    refTarget: {},
+    registryTarget: {},
+    registryToken: {},
+};
+const weakValueMap = new WeakMap([
+    [weakHolder.key, { value: "weak value" }],
+    [weakHolder.primitiveKey, 42],
+]);
+const weakSet = new WeakSet([weakHolder.setValue]);
+const weakRef = new WeakRef(weakHolder.refTarget);
+const registry = new FinalizationRegistry(() => {});
+registry.register(weakHolder.registryTarget, "held", weakHolder.registryToken);
+const weakBefore = {
+    key: addressOf(weakHolder.key),
+    primitiveKey: addressOf(weakHolder.primitiveKey),
+    value: addressOf(weakValueMap.get(weakHolder.key)),
+    setValue: addressOf(weakHolder.setValue),
+    refTarget: addressOf(weakHolder.refTarget),
+    registryTarget: addressOf(weakHolder.registryTarget),
+};
 
 runAfterMovingCollection(() => {
     test("objects with inline storage keep their properties when they move", () => {
@@ -68,6 +131,12 @@ runAfterMovingCollection(() => {
         expect(holder.counter()).toBe(3);
     });
 
+    test("environments with many bindings keep their values when the values move", () => {
+        const values = holder.wide();
+        expect(addressOf(values[wideBindingCount - 1])).not.toBe(before.wideBinding);
+        expect(values.map(value => value.v)).toEqual(Array.from({ length: wideBindingCount }, (_, i) => i));
+    });
+
     test("strings keep their contents when they move", () => {
         expect(addressOf(holder.rope)).not.toBe(before.rope);
         expect(holder.rope).toBe("x".repeat(30) + "y".repeat(30));
@@ -79,6 +148,55 @@ runAfterMovingCollection(() => {
         expect(map.get(holder.mapKey)).toBe("map value");
         expect(weakMap.get(holder.weakMapKey)).toBe("weak map value");
         expect(map.has({})).toBeFalse();
+    });
+
+    test("map and set entries move, and keep their order and lookups", () => {
+        const keys = [...bigMap.keys()];
+        expect(addressOf(keys[0])).not.toBe(movedBefore.mapKey);
+        expect(addressOf(bigMap.get(keys[0]))).not.toBe(movedBefore.mapValue);
+        expect(keys.map(key => key.k)).toEqual(Array.from({ length: entryCount }, (_, i) => i));
+        for (const key of keys) expect(bigMap.get(key).v).toBe(key.k);
+        const values = [...bigSet];
+        expect(addressOf(values[0])).not.toBe(movedBefore.setValue);
+        for (const value of values) expect(bigSet.has(value)).toBeTrue();
+        expect(values.map(value => value.s)).toEqual(Array.from({ length: entryCount }, (_, i) => i));
+        bigMap.delete(keys[0]);
+        expect(bigMap.has(keys[0])).toBeFalse();
+        expect(bigMap.size).toBe(entryCount - 1);
+        const [only] = smallSet;
+        expect(addressOf(only)).not.toBe(movedBefore.smallSetValue);
+        expect(smallSet.has(only)).toBeTrue();
+    });
+
+    test("elements and bindings in storage too large for a cell move", () => {
+        expect(addressOf(hugeArray[1999])).not.toBe(movedBefore.hugeElement);
+        expect(hugeArray[1999].e).toBe(1999);
+        expect(addressOf(huge())).not.toBe(movedBefore.hugeBinding);
+        expect(huge().v).toBe(hugeBindingCount - 1);
+    });
+
+    test("bound functions keep their target, this and arguments", () => {
+        expect(bound(2)).toEqual(["this", "argument", 2]);
+    });
+
+    test("weak map keys and values move, and keep their lookups", () => {
+        expect(addressOf(weakHolder.key)).not.toBe(weakBefore.key);
+        expect(addressOf(weakHolder.primitiveKey)).not.toBe(weakBefore.primitiveKey);
+        expect(addressOf(weakValueMap.get(weakHolder.key))).not.toBe(weakBefore.value);
+        expect(weakValueMap.get(weakHolder.key).value).toBe("weak value");
+        expect(weakValueMap.get(weakHolder.primitiveKey)).toBe(42);
+        expect(weakValueMap.has({})).toBeFalse();
+        expect(weakValueMap.delete(weakHolder.primitiveKey)).toBeTrue();
+        expect(weakValueMap.has(weakHolder.primitiveKey)).toBeFalse();
+    });
+
+    test("weak set values, weak ref targets and finalization registry targets move", () => {
+        expect(addressOf(weakHolder.setValue)).not.toBe(weakBefore.setValue);
+        expect(weakSet.has(weakHolder.setValue)).toBeTrue();
+        expect(addressOf(weakHolder.refTarget)).not.toBe(weakBefore.refTarget);
+        expect(weakRef.deref()).toBe(weakHolder.refTarget);
+        expect(addressOf(weakHolder.registryTarget)).not.toBe(weakBefore.registryTarget);
+        expect(registry.unregister(weakHolder.registryToken)).toBeTrue();
     });
 });
 

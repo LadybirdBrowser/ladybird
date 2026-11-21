@@ -1087,6 +1087,19 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 else {
                     return Ok(None);
                 };
+                // NB: The code embeds the bound values as constants, so it lists the cells among them, which keeps them
+                //     where they are.
+                let bound_values = core::iter::once(forwarded.bound_this).chain(bound_arguments.iter().copied());
+                let (pattern, base, mask) = (
+                    self.runtime.shifted_is_cell_pattern,
+                    self.runtime.heap_region_base,
+                    self.runtime.heap_region_offset_mask,
+                );
+                for bits in bound_values.filter(|bits| bits & pattern == pattern) {
+                    if !self.graph.embedded_cells.contains(&CellId(base + (bits & mask))) {
+                        self.graph.embedded_cells.push(CellId(base + (bits & mask)));
+                    }
+                }
                 InlinedCallSite {
                     callee: Some(*callee),
                     expected_callee: Some(bound_function),
