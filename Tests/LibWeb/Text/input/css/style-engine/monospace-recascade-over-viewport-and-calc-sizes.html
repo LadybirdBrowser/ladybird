@@ -10,8 +10,8 @@
 <div id="calc"><div><code id="under-calc">b</code></div></div>
 <script>
     test(() => {
-        // The monospace font-size recascade reads the viewport through its ancestors, and skips a
-        // calc() it cannot recascade.
+        // The monospace font-size recascade reads the viewport through its ancestors, and goes on
+        // from the size a calc() computed to, which carries no keyword through.
         for (const id of ["under-viewport", "under-calc"])
             println(`${id}: ${getComputedStyle(document.getElementById(id)).fontSize}`);
     });

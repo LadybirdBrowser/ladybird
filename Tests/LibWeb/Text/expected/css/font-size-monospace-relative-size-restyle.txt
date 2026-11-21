@@ -1,0 +1,6 @@
+200% of 20px: 40px
+150% of 20px: 30px
+150% of 22px: 33px
+150% of medium: 19.5px
+inherit of medium: 13px
+inherit of large: 16px

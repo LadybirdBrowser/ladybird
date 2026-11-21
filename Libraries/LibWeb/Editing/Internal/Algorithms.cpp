@@ -2096,7 +2096,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
             [&](GC::Ref<DOM::Node> sibling) {
                 return is_simple_modifiable_element(sibling)
                     && values_are_equivalent(command, optional_utf16_view(specified_command_value(as<DOM::Element>(*sibling), command)), new_value)
-                    && values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(sibling, command)), new_value);
+                    && values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(sibling, command)), new_value, *sibling);
             },
             [] -> GC::Ptr<DOM::Node> { return {}; });
     }
@@ -2106,7 +2106,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         return;
 
     // 6. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value, *node))
         return;
 
     // 7. If node is not an allowed child of "span":
@@ -2135,7 +2135,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     }
 
     // 8. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value, *node))
         return;
 
     // 9. Let new parent be null.
@@ -2249,7 +2249,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
     //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
     //     value would be valid).
-    if (!values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(new_parent, command)), new_value)) {
+    if (!values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(new_parent, command)), new_value, *new_parent)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style();
@@ -2280,7 +2280,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     // 21. If node is an Element and the effective command value of command for node is not loosely equivalent to new
     //     value:
     if (is<DOM::Element>(*node)
-        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value)) {
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value, *node)) {
         // 1. Insert node into the parent of new parent before new parent, preserving ranges.
         move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
 
@@ -3538,7 +3538,7 @@ DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint boundary_point)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#legacy-font-size-for
-Utf16String legacy_font_size(int pixel_size)
+Utf16String legacy_font_size(int pixel_size, CSSPixels medium_font_size)
 {
     // 1. Let returned size be 1.
     int returned_size = 1;
@@ -3547,11 +3547,11 @@ Utf16String legacy_font_size(int pixel_size)
     while (returned_size < 7) {
         // 1. Let lower bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
         //    set to returned size.
-        auto lower_bound = font_size_to_pixel_size(Utf16String::number(returned_size)).to_float();
+        auto lower_bound = font_size_to_pixel_size(Utf16String::number(returned_size), medium_font_size).to_float();
 
         // 2. Let upper bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
         //    set to one plus returned size.
-        auto upper_bound = font_size_to_pixel_size(Utf16String::number(returned_size + 1)).to_float();
+        auto upper_bound = font_size_to_pixel_size(Utf16String::number(returned_size + 1), medium_font_size).to_float();
 
         // 3. Let average be the average of upper bound and lower bound.
         auto average = (lower_bound + upper_bound) / 2;
@@ -3967,7 +3967,7 @@ void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Op
         return;
 
     // 3. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value))
+    if (values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(node, command)), new_value, *node))
         return;
 
     // 4. Let current ancestor be node's parent.
@@ -3980,7 +3980,7 @@ void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Op
     //    equivalent to new value on it, append current ancestor to ancestor list, then set current ancestor to its
     //    parent.
     while (is<DOM::Element>(current_ancestor.ptr()) && current_ancestor->is_editable()
-        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(current_ancestor, command)), new_value)) {
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(current_ancestor, command)), new_value, *current_ancestor)) {
         ancestor_list.append(*current_ancestor);
         current_ancestor = current_ancestor->parent();
     }
@@ -4008,7 +4008,7 @@ void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Op
                return display.has_value() && display->is_inline_outside() && display->is_flow_inside();
            });
     if (!can_replace_inline_font_size && new_value.has_value() && ancestor_list.last()->parent()
-        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(ancestor_list.last()->parent(), command)), new_value))
+        && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(ancestor_list.last()->parent(), command)), new_value, *ancestor_list.last()->parent()))
         return;
 
     // 11. While ancestor list is not empty:
@@ -4260,7 +4260,7 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, Utf16FlyString cons
     if (candidate == node
         || !is_simple_modifiable_element(*candidate)
         || !values_are_equivalent(command, optional_utf16_view(specified_command_value(static_cast<DOM::Element&>(*candidate), command)), new_value)
-        || !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(candidate, command)), new_value))
+        || !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(candidate, command)), new_value, *candidate))
         return;
 
     // 4. While candidate has children, insert the first child of candidate into candidate's parent immediately before
@@ -4336,11 +4336,12 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
                         && !values_are_loosely_equivalent(
                             CommandNames::fontSize,
                             optional_utf16_view(effective_command_value(node, CommandNames::fontSize)),
-                            override.value.get<Utf16String>().utf16_view())))) {
+                            override.value.get<Utf16String>().utf16_view(), *node)))) {
                 // 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
                 //    result.
-                auto override_pixel_size = font_size_to_pixel_size(override.value.get<Utf16String>());
-                override.value = legacy_font_size(override_pixel_size.to_int());
+                auto medium_font_size = medium_font_size_at(*node);
+                auto override_pixel_size = font_size_to_pixel_size(override.value.get<Utf16String>(), medium_font_size);
+                override.value = legacy_font_size(override_pixel_size.to_int(), medium_font_size);
 
                 // 2. Take the action for "fontSize", with value equal to override.
                 take_the_action_for_command(document, CommandNames::fontSize, override.value.get<Utf16String>());
@@ -5262,7 +5263,7 @@ bool values_are_equivalent(Utf16FlyString const& command, Optional<Utf16View> a,
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#loosely-equivalent-values
-bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16View> a, Optional<Utf16View> b)
+bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16View> a, Optional<Utf16View> b, GC::Ref<DOM::Node> context)
 {
     // Two quantities are loosely equivalent values for a command if either they are equivalent values for the command,
     if (values_are_equivalent(command, a, b))
@@ -5285,12 +5286,14 @@ bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16
             return true;
 
         // NB: Compare the resolved value of "font-size" with the font sizes of font elements with each size attribute.
-        auto resolved_value_index = [](Utf16View quantity) -> Optional<size_t> {
+        // NB: The font elements are taken to sit where context does, so they share its font family.
+        auto medium_font_size = medium_font_size_at(context);
+        auto resolved_value_index = [&](Utf16View quantity) -> Optional<size_t> {
             if (!quantity.ends_with(u"px"sv))
                 return {};
-            auto pixel_size = font_size_to_pixel_size(quantity).to_float();
+            auto pixel_size = font_size_to_pixel_size(quantity, medium_font_size).to_float();
             for (size_t index = 0; index < 7; ++index) {
-                if (fabsf(font_size_to_pixel_size(Utf16String::number(index + 1)).to_float() - pixel_size) < 0.05f)
+                if (fabsf(font_size_to_pixel_size(Utf16String::number(index + 1), medium_font_size).to_float() - pixel_size) < 0.05f)
                     return index;
             }
             return {};
@@ -5511,7 +5514,19 @@ GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Ran
     return node;
 }
 
-CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
+// The size of medium at node, which absolute-size keywords and legacy font sizes scale: 13px where node's font-family is
+// just monospace, as it is for every font size there, and the default font size otherwise.
+CSSPixels medium_font_size_at(GC::Ref<DOM::Node> node)
+{
+    if (auto font_family = resolved_value(node, CSS::PropertyID::FontFamily); font_family && font_family->is_value_list()) {
+        auto const& values = font_family->as_value_list().values();
+        if (values.size() == 1 && values[0]->is_keyword() && values[0]->to_keyword() == CSS::Keyword::Monospace)
+            return 13;
+    }
+    return CSS::StyleComputer::default_user_font_size();
+}
+
+CSSPixels font_size_to_pixel_size(Utf16View const& font_size, CSSPixels medium_font_size)
 {
     // If the font size ends in 'px', interpret the preceding as a number and return it.
     if (font_size.ends_with(u"px"sv)) {
@@ -5528,7 +5543,7 @@ CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
         keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size);
 
     // If that also failed, give up
-    auto pixel_size = CSS::StyleComputer::default_user_font_size();
+    auto pixel_size = medium_font_size;
     if (!keyword.has_value())
         return pixel_size;
 

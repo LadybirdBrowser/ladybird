@@ -909,12 +909,13 @@ pub(crate) fn recascade_font_size_batch<'a>(
         };
         match value {
             StyleValueData::Keyword { keyword } => {
-                if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
+                if *keyword == keyword::INITIAL {
                     current_size = zoomed_default_size;
                     depends_on_viewport_metrics = false;
                     continue;
                 }
-                if *keyword == keyword::INHERIT {
+                // NB: font-size is an inherited property, so unset inherits it.
+                if *keyword == keyword::INHERIT || *keyword == keyword::UNSET {
                     continue;
                 }
                 if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
@@ -993,6 +994,13 @@ pub(crate) fn recascade_font_size_batch<'a>(
                 }
                 current_size = result.px;
                 depends_on_viewport_metrics = result.resolved_viewport_relative_length;
+                continue;
+            }
+            calculated @ StyleValueData::Calculated { .. } if calculated_font_size_is_percentage(calculated) => {
+                if let Some(px) = crate::css::calc::resolve_calculated_length_without_context(calculated, current_size)
+                {
+                    current_size = px;
+                }
                 continue;
             }
             StyleValueData::Calculated { .. } => {
@@ -1555,6 +1563,62 @@ fn compute_corner_shape_parameter(value: &StyleValueData) -> Option<f64> {
         StyleValueData::Superellipse { .. } => None,
         _ => unreachable!("a corner shape is a keyword or a superellipse"),
     }
+}
+
+/// Whether a calc() font size is a percentage alone, which scales the inherited size as a percentage
+/// does, and so carries a keyword size through to the element.
+pub(crate) fn calculated_font_size_is_percentage(value: &StyleValueData) -> bool {
+    use crate::css::calc::{BASE_TYPE_PERCENT, CalcNumericType};
+    let StyleValueData::Calculated(payload) = value else {
+        return false;
+    };
+    // NB: The type the calculation has with its percentages kept as percentages, rather than as the lengths they
+    //     resolve to.
+    let mut percentage = CalcNumericType::default();
+    percentage.exponents[BASE_TYPE_PERCENT] = Some(1);
+    payload
+        .rust_calculation
+        .node()
+        .numeric_type(&percentage)
+        .is_some_and(|numeric_type| {
+            numeric_type.percent_hint.is_none()
+                && numeric_type
+                    .exponents
+                    .iter()
+                    .enumerate()
+                    .all(|(base, exponent)| match base {
+                        BASE_TYPE_PERCENT => *exponent == Some(1),
+                        _ => matches!(exponent, None | Some(0)),
+                    })
+        })
+}
+
+/// The font size a cascaded font-size computes to from `inherited_font_size`, where it's relative
+/// to it: a percentage, alone or in a calc(), an `em` length, `larger` or `smaller`, or the size
+/// itself through `inherit` or `unset`.
+pub(crate) fn font_size_relative_to_inherited_size(value: &StyleValueData, inherited_font_size: f64) -> Option<f64> {
+    let size = match value {
+        StyleValueData::Percentage { value } => Some(inherited_font_size * (value / 100.0)),
+        calculated @ StyleValueData::Calculated { .. } if calculated_font_size_is_percentage(calculated) => {
+            crate::css::calc::resolve_calculated_length_without_context(calculated, inherited_font_size)
+        }
+        StyleValueData::Keyword { keyword } if matches!(*keyword, keyword::INHERIT | keyword::UNSET) => {
+            Some(inherited_font_size)
+        }
+        StyleValueData::Keyword { keyword } => {
+            relative_size_font_ratio(*keyword).map(|ratio| inherited_font_size * ratio)
+        }
+        StyleValueData::Length { value, unit } => matches!(
+            length_unit_kinds().get(usize::from(*unit)),
+            Some(LengthUnitKind::FontRelative {
+                metric: FontMetricSelector::FontSize,
+                root: false,
+            })
+        )
+        .then(|| value * inherited_font_size),
+        _ => None,
+    };
+    size.map(single_precision_font_size)
 }
 
 /// Whether a font-family value is a single monospace keyword, which triggers
@@ -2327,6 +2391,9 @@ pub struct FfiStyleComputationEnvironment {
     pub color_scheme_input: FfiEffectiveColorSchemeInput,
     pub is_th_element: bool,
     pub has_new_font_size: bool,
+    /// Whether the new font size already accounts for the element's own cascaded `font-size`, which
+    /// the drive then leaves alone.
+    pub new_font_size_includes_cascaded_value: bool,
     pub has_tree_counting_context: bool,
     pub sibling_count: u64,
     pub sibling_index: u64,
@@ -3145,6 +3212,7 @@ pub(crate) unsafe fn drive_property_computation(
     let color_scheme_input = &environment.color_scheme_input;
     let is_th_element = environment.is_th_element;
     let has_new_font_size = environment.has_new_font_size;
+    let new_font_size_includes_cascaded_value = has_new_font_size && environment.new_font_size_includes_cascaded_value;
     let device_pixels_per_css_pixel = environment.device_pixels_per_css_pixel;
     let initial_font_size_raw = environment.initial_font_size_raw;
     let default_font_size_raw = environment.default_font_size_raw;
@@ -3280,13 +3348,15 @@ pub(crate) unsafe fn drive_property_computation(
         let mut source_slot = -1;
         let mut has_style_sheet_context = false;
         let mut external_dependencies = None;
+        let winning_declaration = store.winning_declaration(cascaded_property_id);
+        let has_winning_declaration = winning_declaration.is_some();
         if let Some((
             value_data,
             important,
             cascaded_source_slot,
             cascaded_has_style_sheet_context,
             cascaded_external_dependencies,
-        )) = store.winning_declaration(cascaded_property_id)
+        )) = winning_declaration
         {
             // An empty winning value cascades nothing, as no declaration would.
             value = Some(value_data).filter(|value| value.optional_data().is_some());
@@ -3299,7 +3369,11 @@ pub(crate) unsafe fn drive_property_computation(
             if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
                 writer.flags_mut().set_raw_cascaded_font_size(Some(value_data.clone()));
             }
-        } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && has_new_font_size {
+        }
+        if property_id == crate::css::property_metadata::property_id::FONT_SIZE
+            && has_new_font_size
+            && (!has_winning_declaration || new_font_size_includes_cascaded_value)
+        {
             // NB: The recascade walks the ancestors. The inherited result still takes this element's own zoom.
             if zoom.length_zoom() != 1.0 {
                 let recascaded = writer.get(property_id).and_then(|value| {
@@ -3314,7 +3388,7 @@ pub(crate) unsafe fn drive_property_computation(
                 }
             }
             continue;
-        } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
+        } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && !has_winning_declaration {
             writer.flags_mut().set_raw_cascaded_font_size(None);
         }
 
@@ -6151,6 +6225,7 @@ unsafe fn create_document_style_record(
         color_scheme_input: input.color_scheme_input,
         is_th_element: false,
         has_new_font_size: false,
+        new_font_size_includes_cascaded_value: false,
         has_tree_counting_context: false,
         sibling_count: 0,
         sibling_index: 0,
