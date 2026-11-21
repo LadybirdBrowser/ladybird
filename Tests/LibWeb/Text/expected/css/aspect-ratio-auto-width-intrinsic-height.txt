@@ -1,0 +1,10 @@
+auto/min-content: border 60x64; computed 28pxx32px
+auto/auto: border 60x64; computed 28pxx32px
+fit-content/min-content: border 60x64; computed 28pxx32px
+auto/max-content: border 60x64; computed 28pxx32px
+auto/fit-content: border 60x64; computed 28pxx32px
+min-content/min-content: border 60x64; computed 28pxx32px
+auto/min-content no ratio: border 60x64; computed 28pxx32px
+auto/32px: border 64x64; computed 32pxx32px
+auto/min-content no padding: border 28x32; computed 28pxx32px
+auto/min-content border-box: border 60x64; computed 60pxx64px
