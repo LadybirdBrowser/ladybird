@@ -7,10 +7,11 @@
 //! When the frames of the contexts are presented, the frames in flight on the GPU, and whom each is delivered to.
 
 use super::CompositorCore;
+use crate::backing_stores::{StorePublication, StoreResizeOutcome};
 use crate::context_state::ContextState;
 use crate::host::{PendingFrame, PresentScheduling, PresentationId};
 use crate::presenting::{ContextPresenting, NestedContexts, PresentingEnvironment};
-use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, StorePublication, StoreResizeOutcome, SublayersHandle};
+use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, SublayersHandle};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{CompositedContexts, NoCompositedContexts, ResolvedCompositedContext};
@@ -330,10 +331,7 @@ impl CompositorCore {
         let Some(presenting) = self.presenting_of(context_id) else {
             return;
         };
-        if !presenting
-            .borrow()
-            .can_schedule_pending_present_frame_if_unblocked(&self.raster, context_id)
-        {
+        if !presenting.borrow().can_schedule_pending_present_frame_if_unblocked() {
             return;
         }
         if self.try_present_frame_during_resize(context_id, now) {
@@ -355,9 +353,7 @@ impl CompositorCore {
         if !self.context_is_effectively_visible_inner(context_id) {
             return false;
         }
-        let pending_frame = presenting
-            .borrow_mut()
-            .take_pending_present_frame_if_unblocked(&self.raster, context_id);
+        let pending_frame = presenting.borrow_mut().take_pending_present_frame_if_unblocked();
         let Some(pending_frame) = pending_frame else {
             return false;
         };
@@ -528,7 +524,6 @@ impl CompositorCore {
         else {
             return;
         };
-        let environment = self.environment(context_id, now, &NoCompositedContexts);
         let viewport_size = IntSize {
             width: delivery.viewport_rect.width,
             height: delivery.viewport_rect.height,
@@ -538,7 +533,7 @@ impl CompositorCore {
             if delivery.keeps_shown_store {
                 presenting.did_deliver_frame_without_store();
             } else {
-                presenting.did_finish_gpu_present(&environment, delivery.bitmap_id, viewport_size);
+                presenting.did_finish_gpu_present(delivery.bitmap_id, viewport_size);
             }
             presenting.presents_to_client
         };
@@ -582,16 +577,28 @@ impl CompositorCore {
 
     fn show_frame_in_remote_layer(&self, delivery: &mut Delivery, viewport_size: IntSize, now: MonotonicTime) {
         let context_id = delivery.context_id;
-        let laid_out_by_page = self
-            .presenting_of(context_id)
+        let presenting = self.presenting_of(context_id);
+        let laid_out_by_page = presenting
+            .as_ref()
             .is_some_and(|presenting| presenting.borrow().size_laid_out_by_page == viewport_size);
+        let store = if delivery.keeps_shown_store {
+            None
+        } else {
+            let store = presenting.as_ref().and_then(|presenting| {
+                presenting
+                    .borrow()
+                    .window_server_surface_of_latest_rendered_store()
+                    .cloned()
+            });
+            Some(store.expect("a frame shown in a remote layer was rendered into a store the window server shows"))
+        };
         // The sublayers go with the frame, which keeps them.
         let sublayers = delivery
             .sublayers
             .take()
             .unwrap_or_else(|| self.raster.build_sublayers(context_id, &[]));
         let frame = FfiRemoteLayerFrame {
-            uses_store: !delivery.keeps_shown_store,
+            store: store.as_ref().map_or(std::ptr::null(), |store| store.as_ffi()),
             painted_size: viewport_size,
             device_pixel_ratio: delivery.device_pixel_ratio,
             laid_out_by_page,
@@ -636,8 +643,7 @@ impl CompositorCore {
         };
         presenting.borrow_mut().shown_in_remote_layer = false;
         self.stop_delivering_in_flight_frames_to_their_viewer(context_id);
-        let environment = self.environment(context_id, now, &NoCompositedContexts);
-        presenting.borrow_mut().invalidate_backing_stores(&environment);
+        presenting.borrow_mut().invalidate_backing_stores();
         self.resize_backing_stores_if_needed(context_id, now);
         self.schedule_pending_present_frame_if_unblocked(context_id, now);
     }
@@ -649,9 +655,10 @@ impl CompositorCore {
         presenting.borrow_mut().shown_in_remote_layer = true;
         self.stop_delivering_in_flight_frames_to_their_viewer(context_id);
         // The presentation no longer shows the stores it was given, so none of them is waiting to be released by it.
-        self.raster.release_all_presented_stores(context_id);
-        let environment = self.environment(context_id, now, &NoCompositedContexts);
-        presenting.borrow_mut().invalidate_backing_stores(&environment);
+        if let Some(presenting) = self.presenting_of(context_id) {
+            presenting.borrow_mut().release_all_presented_stores();
+        }
+        presenting.borrow_mut().invalidate_backing_stores();
         self.resize_backing_stores_if_needed(context_id, now);
         self.schedule_pending_present_frame_if_unblocked(context_id, now);
     }
@@ -729,16 +736,17 @@ impl CompositorCore {
         if bound_presentation.is_none() && !presenting.shown_in_remote_layer {
             return;
         }
-        if !presenting.wants_backing_store_for_pending_frame(display_list.as_ref(), &self.raster, context_id) {
+        if !presenting.wants_backing_store_for_pending_frame(display_list.as_ref()) {
             return;
         }
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        if self
-            .raster
-            .add_store_if_window_server_reads_every_released_store(context_id, publishing_presentation)
-        {
+        if presenting.add_store_if_window_server_still_reads_every_released_store(
+            &self.raster,
+            context_id,
+            publishing_presentation,
+        ) {
             presenting.schedule_surplus_store_retirement(context_id, &self.host);
         }
     }
@@ -754,10 +762,7 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        if self
-            .raster
-            .retire_idle_surplus_stores(context_id, publishing_presentation)
-        {
+        if presenting.retire_idle_surplus_stores(&self.raster, context_id, publishing_presentation) {
             presenting.schedule_surplus_store_retirement(context_id, &self.host);
         }
     }
@@ -779,10 +784,7 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        if self
-            .raster
-            .retire_stores_of_hidden_context(context_id, publishing_presentation)
-        {
+        if presenting.retire_stores_of_hidden_context(&self.raster, context_id, publishing_presentation) {
             presenting.retry_hidden_store_retirement(context_id, &self.host);
         }
     }
@@ -809,14 +811,14 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.borrow().store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        if self
-            .raster
-            .restore_stores_retired_while_hidden(context_id, publishing_presentation)
-        {
+        if presenting.borrow_mut().restore_stores_retired_while_hidden(
+            &self.raster,
+            context_id,
+            publishing_presentation,
+        ) {
             return;
         }
-        let environment = self.environment(context_id, now, &NoCompositedContexts);
-        presenting.borrow_mut().invalidate_backing_stores(&environment);
+        presenting.borrow_mut().invalidate_backing_stores();
         self.resize_backing_stores_if_needed(context_id, now);
     }
 
@@ -858,11 +860,12 @@ impl CompositorCore {
             }
         }
         // Nobody is left to release the buffers the presentation was showing.
-        self.raster.release_all_presented_stores(context_id);
+        if let Some(presenting) = self.presenting_of(context_id) {
+            presenting.borrow_mut().release_all_presented_stores();
+        }
         self.update_scroll_capabilities();
         if let Some(presenting) = self.presenting_of(context_id) {
-            let environment = self.environment(context_id, now, &NoCompositedContexts);
-            presenting.borrow_mut().invalidate_backing_stores(&environment);
+            presenting.borrow_mut().invalidate_backing_stores();
         }
         self.resize_backing_stores_if_needed(context_id, now);
         self.schedule_pending_present_frame_if_unblocked(context_id, now);
@@ -1156,9 +1159,7 @@ impl CompositorCore {
             }
 
             self.add_backing_store_for_pending_frame_if_needed(context_id);
-            let pending_frame = presenting
-                .borrow_mut()
-                .take_pending_present_frame_if_unblocked(&self.raster, context_id);
+            let pending_frame = presenting.borrow_mut().take_pending_present_frame_if_unblocked();
             let Some(pending_frame) = pending_frame else {
                 let present_is_scheduled = {
                     let presenting = presenting.borrow();

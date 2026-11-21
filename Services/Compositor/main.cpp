@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Compositor/BackingStoreManager.h>
+#include <Compositor/BackingStoreFactory.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/MainDispatchQueue.h>
@@ -79,7 +79,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 return Error::from_string_literal("Malformed DRM format modifier");
             modifiers.append(*value);
         }
-        Compositor::BackingStoreManager::set_presentation_drm_format_modifiers(move(modifiers));
+        Compositor::set_presentation_drm_format_modifiers(move(modifiers));
     }
 
     if (crash_report_fd >= 0) {

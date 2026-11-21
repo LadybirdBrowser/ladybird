@@ -1,6 +1,6 @@
 set(SOURCES
     AnimatedImage.cpp
-    BackingStoreManager.cpp
+    BackingStoreFactory.cpp
     BitmapExport.cpp
     Canvas2DCommandPlayer.cpp
     CanvasHost.cpp

@@ -8,6 +8,7 @@
 //! stores of each context, the surfaces the window server shows, the media that live content comes from, GPU
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
+use crate::backing_stores::{FfiNewStore, NewStore, Publication, SharedImageToPublish, StoreKind};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
@@ -40,63 +41,12 @@ pub enum PaintingResources {
     Overlays,
 }
 
-/// Who shows the backing stores of a context.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum StorePublication {
-    #[default]
-    Unpublished,
-    /// The presentation shows the stores, and releases each when it shows another.
-    Published,
-    /// The compositor shows the stores itself, in a remote layer, so a store is replaced on screen by the next one.
-    ShownInRemoteLayer,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum StoreResizeOutcome {
-    Unchanged,
-    /// The stores were reallocated, and nothing that shows them was given them.
-    ReallocatedOffscreen,
-    /// The presentation or the remote layer that shows the stores was given the new ones.
-    ReallocatedForViewer,
-    /// The stores of a remote layer could not be allocated.
-    Failed,
-}
-
 /// When a frame can be handed to whoever shows it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FrameHandOff {
     OnceGpuWorkIsScheduled,
     OnceGpuWorkIsFinished,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiStoreState {
-    pub is_valid: bool,
-    pub is_rendering: bool,
-    pub has_available_store: bool,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiStoreResize {
-    pub raster_size: IntSize,
-    pub window_resize_in_progress: bool,
-    pub publication: StorePublication,
-    pub gpu_sharing_allowed: bool,
-    pub has_presentation: bool,
-    pub presentation_id: u64,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiAcquiredStore {
-    pub bitmap_id: i32,
-    /// Lent for as long as the store lives.
-    pub surface: *const PaintingSurface,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -192,8 +142,8 @@ pub struct FfiSublayer {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRemoteLayerFrame {
-    /// Without the store, the frame shown before stays, and only the sublayers change.
-    pub uses_store: bool,
+    /// Lent for the call. Without the store, the frame shown before stays, and only the sublayers change.
+    pub store: *const PresentableSurface,
     pub painted_size: IntSize,
     pub device_pixel_ratio: f64,
     /// Whether the page laid out the frame at the size it is painted at.
@@ -232,27 +182,13 @@ pub struct FfiRasterHost {
     /// Lets the raster caches of the context's page drop what the frames before the one that starts did not use.
     pub start_raster_cache_frame: unsafe extern "C" fn(*mut c_void, u64),
 
-    pub store_state: unsafe extern "C" fn(*mut c_void, u64) -> FfiStoreState,
-    pub resize_stores: unsafe extern "C" fn(*mut c_void, u64, *const FfiStoreResize) -> StoreResizeOutcome,
-    pub invalidate_stores: unsafe extern "C" fn(*mut c_void, u64),
-    pub acquire_store: unsafe extern "C" fn(*mut c_void, u64, *mut FfiAcquiredStore) -> bool,
-    pub complete_rendering: unsafe extern "C" fn(*mut c_void, u64, i32),
-    pub release_store: unsafe extern "C" fn(*mut c_void, u64, i32) -> bool,
-    pub release_all_presented_stores: unsafe extern "C" fn(*mut c_void, u64),
-    /// Lent; null before any store was rendered into.
-    pub latest_rendered_store_surface: unsafe extern "C" fn(*mut c_void, u64) -> *const PaintingSurface,
-    /// Arguments: the context, and the presentation that shows its stores, if it has one. Answers whether a store was
-    /// added.
-    pub add_store_if_window_server_reads_every_released_store:
-        unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
-    /// The same arguments. Answers whether surplus stores are left.
-    pub retire_idle_surplus_stores: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
-    /// The same arguments. Retires every store but the one that holds the latest frame, and answers whether a store
-    /// is left that can be retired once nothing renders into, shows or reads it.
-    pub retire_stores_of_hidden_context: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
-    /// The same arguments. Answers false where the stores could not be added back to the one kept, so that the context
-    /// needs a whole new allocation.
-    pub restore_stores_retired_while_hidden: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
+    /// Makes a store of the context, writing what it made. Answers false where none could be made.
+    pub create_store: unsafe extern "C" fn(*mut c_void, u64, StoreKind, IntSize, *mut FfiNewStore) -> bool,
+    /// Arguments: the presentation, the context, whether the stores were added to those it has rather than replacing
+    /// them, and the stores with their images, which it takes over.
+    pub publish_stores: unsafe extern "C" fn(*mut c_void, u64, u64, bool, ak::Span<'_, i32>, ak::Span<'_, *mut c_void>),
+    /// Arguments: the presentation, the context, and the stores that it no longer has.
+    pub retire_published_stores: unsafe extern "C" fn(*mut c_void, u64, u64, ak::Span<'_, i32>),
 
     /// A new surface of the size, made like the one given, with one reference that the caller takes over, or null
     /// where none could be made.
@@ -460,117 +396,45 @@ impl RasterHost {
         unsafe { (self.0.end_painting)(self.host()) };
     }
 
-    pub fn store_state(&self, context_id: CompositorContextId) -> FfiStoreState {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.store_state)(self.host(), context_id.0) }
-    }
-
-    pub fn resize_stores(&self, context_id: CompositorContextId, resize: &FfiStoreResize) -> StoreResizeOutcome {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.resize_stores)(self.host(), context_id.0, resize) }
-    }
-
-    pub fn invalidate_stores(&self, context_id: CompositorContextId) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.invalidate_stores)(self.host(), context_id.0) };
-    }
-
-    pub fn acquire_store(&self, context_id: CompositorContextId) -> Option<(i32, Rc<PaintingSurface>)> {
-        let mut acquired = FfiAcquiredStore {
-            bitmap_id: -1,
-            surface: std::ptr::null(),
-        };
-        // SAFETY: The host outlives this.
-        if !unsafe { (self.0.acquire_store)(self.host(), context_id.0, &raw mut acquired) }
-            || acquired.surface.is_null()
-        {
+    pub fn create_store(&self, context_id: CompositorContextId, kind: StoreKind, size: IntSize) -> Option<NewStore> {
+        let mut store = FfiNewStore::default();
+        // SAFETY: The host outlives this, and writes the store it made.
+        if !unsafe { (self.0.create_store)(self.host(), context_id.0, kind, size, &raw mut store) } {
             return None;
         }
-        // SAFETY: The host lends the live surface of the store.
-        Some((acquired.bitmap_id, unsafe {
-            PaintingSurface::retained_from_ffi(acquired.surface)
-        }))
+        // SAFETY: The host handed the store over.
+        unsafe { NewStore::adopt(store) }
     }
 
-    pub fn complete_rendering(&self, context_id: CompositorContextId, bitmap_id: i32) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.complete_rendering)(self.host(), context_id.0, bitmap_id) };
-    }
-
-    pub fn release_store(&self, context_id: CompositorContextId, bitmap_id: i32) -> bool {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.release_store)(self.host(), context_id.0, bitmap_id) }
-    }
-
-    pub fn release_all_presented_stores(&self, context_id: CompositorContextId) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.release_all_presented_stores)(self.host(), context_id.0) };
-    }
-
-    pub fn latest_rendered_store_surface(&self, context_id: CompositorContextId) -> Option<Rc<PaintingSurface>> {
-        // SAFETY: The host outlives this.
-        let surface = unsafe { (self.0.latest_rendered_store_surface)(self.host(), context_id.0) };
-        // SAFETY: The host lends the live surface of the store, or null.
-        (!surface.is_null()).then(|| unsafe { PaintingSurface::retained_from_ffi(surface) })
-    }
-
-    pub fn add_store_if_window_server_reads_every_released_store(
+    pub fn publish_stores(
         &self,
+        presentation_id: u64,
         context_id: CompositorContextId,
-        presentation_id: Option<u64>,
-    ) -> bool {
-        // SAFETY: The host outlives this.
+        added: bool,
+        publication: Publication,
+    ) {
+        let shared_images: Vec<*mut c_void> = publication
+            .shared_images
+            .into_iter()
+            .map(SharedImageToPublish::into_raw)
+            .collect();
+        // SAFETY: The host outlives this, and takes the images over.
         unsafe {
-            (self.0.add_store_if_window_server_reads_every_released_store)(
+            (self.0.publish_stores)(
                 self.host(),
+                presentation_id,
                 context_id.0,
-                presentation_id.is_some(),
-                presentation_id.unwrap_or_default(),
-            )
+                added,
+                ak::Span::new(&publication.bitmap_ids),
+                ak::Span::new(&shared_images),
+            );
         }
     }
 
-    pub fn retire_idle_surplus_stores(&self, context_id: CompositorContextId, presentation_id: Option<u64>) -> bool {
+    pub fn retire_published_stores(&self, presentation_id: u64, context_id: CompositorContextId, bitmap_ids: &[i32]) {
         // SAFETY: The host outlives this.
         unsafe {
-            (self.0.retire_idle_surplus_stores)(
-                self.host(),
-                context_id.0,
-                presentation_id.is_some(),
-                presentation_id.unwrap_or_default(),
-            )
-        }
-    }
-
-    pub fn retire_stores_of_hidden_context(
-        &self,
-        context_id: CompositorContextId,
-        presentation_id: Option<u64>,
-    ) -> bool {
-        // SAFETY: The host outlives this.
-        unsafe {
-            (self.0.retire_stores_of_hidden_context)(
-                self.host(),
-                context_id.0,
-                presentation_id.is_some(),
-                presentation_id.unwrap_or_default(),
-            )
-        }
-    }
-
-    pub fn restore_stores_retired_while_hidden(
-        &self,
-        context_id: CompositorContextId,
-        presentation_id: Option<u64>,
-    ) -> bool {
-        // SAFETY: The host outlives this.
-        unsafe {
-            (self.0.restore_stores_retired_while_hidden)(
-                self.host(),
-                context_id.0,
-                presentation_id.is_some(),
-                presentation_id.unwrap_or_default(),
-            )
+            (self.0.retire_published_stores)(self.host(), presentation_id, context_id.0, ak::Span::new(bitmap_ids));
         }
     }
 
