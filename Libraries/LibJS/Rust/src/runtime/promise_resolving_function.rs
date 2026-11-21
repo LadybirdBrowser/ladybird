@@ -147,6 +147,11 @@ impl PromiseResolvingFunction {
         })
     }
 
+    /// Sets [[AlreadyResolved]] to true, and returns whether it was false.
+    pub fn mark_already_resolved(&self) -> bool {
+        !self.already_resolved_owner().already_resolved.replace(true)
+    }
+
     /// The function whose [[AlreadyResolved]] this one uses: the resolve function keeps the bit both share.
     fn already_resolved_owner(&self) -> Gc<PromiseResolvingFunction> {
         if self.kind == PromiseResolvingFunctionKind::Resolve {
