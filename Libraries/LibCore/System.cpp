@@ -109,6 +109,28 @@ ErrorOr<struct stat> fstat(int fd)
     return st;
 }
 
+#if defined(AK_OS_LINUX) || defined(AK_OS_MACOS)
+ErrorOr<struct statfs> statfs(StringView path)
+{
+    if (!path.characters_without_null_termination())
+        return Error::from_syscall("statfs"sv, EFAULT);
+
+    struct statfs file_system = {};
+    ByteString path_string = path;
+    if (::statfs(path_string.characters(), &file_system) < 0)
+        return Error::from_syscall("statfs"sv, errno);
+    return file_system;
+}
+
+ErrorOr<struct statfs> fstatfs(int fd)
+{
+    struct statfs file_system = {};
+    if (::fstatfs(fd, &file_system) < 0)
+        return Error::from_syscall("fstatfs"sv, errno);
+    return file_system;
+}
+#endif
+
 ErrorOr<struct stat> fstatat(int fd, StringView path, int flags)
 {
     if (!path.characters_without_null_termination())
