@@ -18,6 +18,7 @@ set(SOURCES
     FFmpeg/FFmpegFunctions.cpp
     FFmpeg/FFmpegHelpers.cpp
     FFmpeg/FFmpegVideoDecoder.cpp
+    FFmpeg/MallocTuning.cpp
     HardwareVideoDecoders.cpp
     NonReferenceFrameDetector.cpp
     VideoDecoderRegistry.cpp
