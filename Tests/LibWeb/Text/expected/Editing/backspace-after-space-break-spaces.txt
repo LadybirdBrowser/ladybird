@@ -1,0 +1,3 @@
+break-spaces: "hello wor"
+break-spaces: "aaaa bbbb cccc dddd eeee ffff ggg wor"
+pre-wrap: "aaaa bbbb cccc dddd eeee ffff ggg word"
