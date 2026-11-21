@@ -1237,6 +1237,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             return true;
         }
         if facts.has_preferred_aspect_ratio() || facts.has_auto_content_box_size() {
+            // An intrinsic block size depends on content layout, so it can't determine an automatic inline size
+            // through the aspect ratio. Non-replaced boxes use their normal inline sizing rules in that case.
+            if !facts.is_replaced_box()
+                && self.should_treat_inline_size_as_auto(sized, available_space)
+                && self
+                    .preferred_block_size(node, constraints)
+                    .is_intrinsic_sizing_constraint()
+            {
+                return false;
+            }
             // From CSS2:
             // If height and width both have computed values of auto and the element has an intrinsic ratio but no intrinsic height or width,
             // then the used value of width is undefined in CSS 2.
