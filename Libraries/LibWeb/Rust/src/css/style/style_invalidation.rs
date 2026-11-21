@@ -1216,6 +1216,12 @@ fn record_move_damage(
         result.any_computed_value_changed = true;
         result.ensure_level(INVALIDATION_RELAYOUT);
     }
+    // Which margins the user agent's style sheet sets decides which margins a quirks-mode body or table cell
+    // ignores, which no longhand's value says.
+    if old_values.user_agent_margin_sides() != new_values.user_agent_margin_sides() {
+        result.any_computed_value_changed = true;
+        result.ensure_level(INVALIDATION_RELAYOUT);
+    }
     if !can_skip {
         if old_values.misc_interaction().implicit_will_change != new_values.misc_interaction().implicit_will_change {
             result.merge(property_invalidation(property_id::WILL_CHANGE, old_values, new_values));

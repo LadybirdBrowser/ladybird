@@ -792,6 +792,25 @@ impl TableGridOccupancy {
     fn finish_row(&mut self) {
         self.first_range_of_row.push(self.covered_columns.len());
     }
+
+    /// Ends a row group, whose cells cover no row after it.
+    fn finish_row_group(&mut self) {
+        self.cells_spanning_later_rows.clear();
+    }
+}
+
+/// Ends the row group whose cells start at `first_cell_of_group` in `cells`, now that every one of its rows is built:
+/// No cell spans a row past the last row of its group.
+fn finish_row_group(
+    cells: &mut [TableCell],
+    first_cell_of_group: usize,
+    row_count: usize,
+    occupancy: &mut TableGridOccupancy,
+) {
+    for cell in &mut cells[first_cell_of_group..] {
+        cell.row_span = cell.row_span.min(row_count - cell.row_index);
+    }
+    occupancy.finish_row_group();
 }
 
 #[derive(Clone)]
@@ -958,8 +977,19 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         rows.push(Row::new(row, tree.row_is_collapsed(row, row_group)));
     };
 
+    // https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
+    // Each row group (and each run of rows that are children of the table itself) forms its own block of rows, which
+    // the "algorithm for ending a row group" closes off. So, a cell's row span ends at the last row of its group.
+    let mut first_cell_of_group = 0usize;
+    let mut in_run_of_rows = false;
     for child in row_containers_in_layout_order(tree, table) {
-        if tree.display(child).is_table_row() {
+        let is_row = tree.display(child).is_table_row();
+        if !(is_row && in_run_of_rows) {
+            finish_row_group(&mut cells, first_cell_of_group, rows.len(), &mut occupancy);
+            first_cell_of_group = cells.len();
+        }
+        in_run_of_rows = is_row;
+        if is_row {
             process_row(
                 tree,
                 child,
@@ -984,8 +1014,9 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         }
     }
 
+    finish_row_group(&mut cells, first_cell_of_group, rows.len(), &mut occupancy);
+
     for cell in &mut cells {
-        cell.row_span = cell.row_span.min(rows.len() - cell.row_index);
         cell.column_span = cell.column_span.min(column_count - cell.column_index);
     }
 
@@ -1342,6 +1373,25 @@ impl<'pass> TableFormattingContext<'pass> {
         ranges
     }
 
+    /// Whether the columns of the table run from right to left: "Column boxes are placed next to each other in the
+    /// order they occur. The first column box may be either on the left or on the right, depending on the value of
+    /// the 'direction' property of the table."
+    /// https://www.w3.org/TR/CSS22/tables.html#table-layout
+    /// The columns are counted in the table's column order, from its first column, so only where they are placed
+    /// do they count from the left (see `physical_columns`).
+    fn is_right_to_left(&self) -> bool {
+        self.style(self.run.box_).direction() == direction::RTL
+    }
+
+    /// The columns `columns` of the table's column order, as physical columns counted from the left.
+    fn physical_columns(&self, columns: Range<usize>) -> Range<usize> {
+        if !self.is_right_to_left() {
+            return columns;
+        }
+        let column_count = self.columns.len();
+        column_count - columns.end..column_count - columns.start
+    }
+
     /// The box whose style gives the width specified for the columns of a range, which is also the one that makes
     /// them constrained and gives them a percentage contribution.
     fn column_sizing_box(&self, range: ColumnTrackRange) -> Node {
@@ -1492,18 +1542,20 @@ impl<'pass> TableFormattingContext<'pass> {
             next_source_order += 1;
             source_order
         };
-        // Cells, column by column so that on ties the cell further to the left, then further to the
-        // top, wins. TableCell spans are already clipped to the table end by TableGrid.
+        // Cells, column by column in the table's column order, so that on ties the cell further to the left (to the
+        // right, in a right-to-left table), then further to the top, wins. TableCell spans are already clipped to the
+        // table end by TableGrid. The border grid counts its columns from the left.
         let mut cells = self.cells.clone();
         cells.sort_by_key(|cell| (cell.column_index, cell.row_index));
         for cell in cells {
             let source_order = take_source_order();
+            let columns = self.physical_columns(cell.column_index..cell.column_index + cell.column_span);
             if cell.row_span > 1 || cell.column_span > 1 {
                 grid.hide_segments_inside_span(
                     cell.row_index,
                     cell.row_index + cell.row_span,
-                    cell.column_index,
-                    cell.column_index + cell.column_span,
+                    columns.start,
+                    columns.end,
                     source_order,
                 );
             }
@@ -1512,8 +1564,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 borders,
                 cell.row_index,
                 cell.row_index + cell.row_span,
-                cell.column_index,
-                cell.column_index + cell.column_span,
+                columns.start,
+                columns.end,
                 source_order,
             );
         }
@@ -1559,14 +1611,18 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             let borders = self.element_borders(range.box_);
             let source_order = take_source_order();
+            // A column spanning several columns applies its borders to them in the table's column order, so that where two
+            // of them tie, the one further to the left (to the right, in a right-to-left table) wins.
             for column_index in range.start..range.end {
-                grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, source_order);
+                let column = self.physical_columns(column_index..column_index + 1).start;
+                grid.apply_borders(borders, 0, row_count, column, column + 1, source_order);
             }
         }
         for (column_group, group_start, group_end) in column_group_ranges {
             if group_start < group_end {
                 let borders = self.element_borders(column_group);
-                grid.apply_borders(borders, 0, row_count, group_start, group_end, take_source_order());
+                let columns = self.physical_columns(group_start..group_end);
+                grid.apply_borders(borders, 0, row_count, columns.start, columns.end, take_source_order());
             }
         }
         let table_borders = self.element_borders(self.run.box_);
@@ -1607,8 +1663,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 continue;
             }
             let row_end = cell.row_index + cell.row_span;
-            let column_end = cell.column_index + cell.column_span;
-            let widths = grid.resolve_used_widths_for_cell(cell.row_index, row_end, cell.column_index, column_end);
+            let columns = self.physical_columns(cell.column_index..cell.column_index + cell.column_span);
+            let widths = grid.resolve_used_widths_for_cell(cell.row_index, row_end, columns.start, columns.end);
             let cell_box = &mut self.cell_layouts[cell_index].box_cells;
             cell_box.border_top = widths.top;
             cell_box.border_right = widths.right;
@@ -2337,17 +2393,29 @@ impl<'pass> TableFormattingContext<'pass> {
                 let growing_max = growing_tracks
                     .iter()
                     .fold(CssPixels::default(), |sum, &index| sum + self.track_max(axis, index));
-                let share_beyond_max = |index: usize, beyond_max: CssPixels| {
-                    if !growing_tracks.contains(&index) {
-                        CssPixels::default()
-                    } else if growing_max != CssPixels::default() {
-                        CssPixels::nearest_value_for(self.track_max(axis, index).to_double() / growing_max.to_double())
-                            * beyond_max
+                // Each growing track takes its share of what the cell needs beyond the baseline max-content size, in
+                // proportion to its max-content size. The shares are the differences between the rounded running totals
+                // of those proportions, so that they always add up to all of it, however many tracks share it.
+                // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
+                //         This matches how undefined ratios are handled elsewhere.
+                let mut growing_fractions_before = Vec::with_capacity(growing_tracks.len() + 1);
+                growing_fractions_before.push(0.0);
+                let mut fraction_so_far = 0.0;
+                for &index in &growing_tracks {
+                    fraction_so_far += if growing_max != CssPixels::default() {
+                        self.track_max(axis, index).to_double() / growing_max.to_double()
                     } else {
-                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
-                        //         This matches how undefined ratios are handled elsewhere.
-                        beyond_max / growing_tracks.len()
-                    }
+                        1.0 / growing_tracks.len() as f64
+                    };
+                    growing_fractions_before.push(fraction_so_far);
+                }
+                let share_beyond_max = |index: usize, beyond_max: CssPixels| {
+                    let Ok(position) = growing_tracks.binary_search(&index) else {
+                        return CssPixels::default();
+                    };
+                    let running_total = |fraction: f64| CssPixels::nearest_value_for(fraction * beyond_max.to_double());
+                    running_total(growing_fractions_before[position + 1])
+                        - running_total(growing_fractions_before[position])
                 };
                 // Add contribution from all rows / columns, since we've weighted the gap to the desired spanned size by the the
                 // ratio of the max-content size based on cells of span up to N-1 of the row / column to the baseline max-content width.
@@ -3001,6 +3069,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 .show
                 .hidden_by_collapsed_columns = hidden_by_collapsed_columns;
             let height = style.height();
+            let mut specified_outer_block_size = None;
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
                 let cell_size = self.cell_specified_outer_block_size(
@@ -3010,7 +3079,13 @@ impl<'pass> TableFormattingContext<'pass> {
                     offsets,
                 );
                 cell_box.set_content_block_size(cell_size - offsets);
-                self.rows[cell.row_index].base_block_size = self.rows[cell.row_index].base_block_size.max(cell_size);
+                specified_outer_block_size = Some(cell_size);
+                // Only a cell that spans its row exclusively gives the row its specified block size (see below). A
+                // cell spanning several rows reaches them through the row measures instead, as its minimum.
+                if cell.row_span == 1 {
+                    self.rows[cell.row_index].base_block_size =
+                        self.rows[cell.row_index].base_block_size.max(cell_size);
+                }
             }
             // Compute cell inline size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
             // The position of any table cell, track, or track group is defined by the sums of its spanned columns and rows:
@@ -3045,7 +3120,11 @@ impl<'pass> TableFormattingContext<'pass> {
             );
             let cell_box = self.cell_layouts[cell_index].box_cells;
             if self.needs_row_measurement {
-                let measured = cell_box.border_box_block_size(collapsed);
+                // The outer min-content block size of a cell is the larger of its laid-out block size and its
+                // specified one.
+                let measured = cell_box
+                    .border_box_block_size(collapsed)
+                    .max(specified_outer_block_size.unwrap_or_default());
                 self.cells[cell_index].outer_min_block_size = measured;
                 self.cells[cell_index].outer_max_block_size = measured;
             }
@@ -3703,7 +3782,11 @@ impl<'pass> TableFormattingContext<'pass> {
             // - for top: the height reserved for top captions (including margins), if any
             // - the padding-left/padding-top and border-left-width/border-top-width of the table
             // - the border spacing after each visible column before the cell (in its column's offset)
-            let x = row_content_offset.x + cell_box.border_box_left(collapsed) + self.column_offsets[cell.column_index];
+            let x = row_content_offset.x
+                + cell_box.border_box_left(collapsed)
+                + self.column_offsets[self
+                    .physical_columns(cell.column_index..cell.column_index + cell.column_span)
+                    .start];
             let y = row_content_offset.y + cell_box.border_box_top(collapsed);
             // A relatively positioned cell is offset from where the table places it, as any in-flow box is.
             let insets = abspos_engine::compute_inset_native(
@@ -3788,7 +3871,8 @@ impl<'pass> TableFormattingContext<'pass> {
         debug_assert_eq!(placements.len(), self.column_group_and_column_boxes.len());
         for (placement_index, (node, group_placement, start, end)) in placements.into_iter().enumerate() {
             let inline_size = if (start..end).any(|index| !self.columns[index].is_collapsed) {
-                column_offsets[end] - column_offsets[start] - inline_spacing
+                let columns = self.physical_columns(start..end);
+                column_offsets[columns.end] - column_offsets[columns.start] - inline_spacing
             } else {
                 CssPixels::default()
             };
@@ -3808,7 +3892,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = &column_box.cells;
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(block_size);
-            let mut x = inline_offset + column_offsets[start];
+            let mut x = inline_offset + column_offsets[self.physical_columns(start..end).start];
             let mut y = block_start;
             if let Some((group, group_box)) =
                 group_placement.map(|group_placement| &self.column_group_and_column_boxes[group_placement])
@@ -3900,13 +3984,19 @@ impl<'pass> TableFormattingContext<'pass> {
         distribute_inline_size(&mut self.columns, assignable, fixed);
         self.remove_collapsed_columns();
         let inline_spacing = self.border_spacing_inline();
-        self.column_offsets = grid_line_offsets(self.columns.iter().map(|column| {
+        // The offsets of the columns are physical ones, from the left, as those of the collapsed borders are.
+        let column_inline_size = |column: &Column| {
             if column.is_collapsed {
                 CssPixels::default()
             } else {
                 column.used_inline_size + inline_spacing
             }
-        }));
+        };
+        self.column_offsets = if self.is_right_to_left() {
+            grid_line_offsets(self.columns.iter().rev().map(column_inline_size))
+        } else {
+            grid_line_offsets(self.columns.iter().map(column_inline_size))
+        };
         self.compute_table_block_size(run);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();

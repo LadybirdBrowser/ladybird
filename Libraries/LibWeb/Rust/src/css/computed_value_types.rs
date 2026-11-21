@@ -467,6 +467,14 @@ pub struct RetainedWillChangePropertyList {
     pub length: usize,
 }
 
+/// The bits of [`MiscLayoutValues::user_agent_margin_sides`], one per physical side.
+pub mod user_agent_margin_side {
+    pub const TOP: u8 = 1 << 0;
+    pub const RIGHT: u8 = 1 << 1;
+    pub const BOTTOM: u8 = 1 << 2;
+    pub const LEFT: u8 = 1 << 3;
+}
+
 /// The non-inherited values of how a box lays out and outlines that no more specific group holds:
 /// appearance, fragmentation breaks, columns, object fitting, outlines, overflow clip margins and
 /// float shapes.
@@ -485,6 +493,9 @@ pub struct MiscLayoutValues {
     pub computed_appearance: u8,
     /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
     pub native_appearance_disabled: bool,
+    /// The physical sides whose margins the user agent's style sheet sets, as [`user_agent_margin_side`] bits.
+    /// Only a quirks-mode document records them, for its margin collapsing quirks.
+    pub user_agent_margin_sides: u8,
     pub outline_style: u8,
     pub object_fit: u8,
     pub column_height: ComputedSize,

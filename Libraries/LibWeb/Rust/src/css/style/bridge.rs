@@ -784,6 +784,10 @@ pub mod element_construction_fact {
     pub const IS_SVG_GEOMETRY_ELEMENT: u32 = 1 << 8;
     pub const IS_HTML_SELECT_ELEMENT: u32 = 1 << 9;
     pub const IS_HTML_PROGRESS_OR_METER_ELEMENT: u32 = 1 << 10;
+    /// The element's default block-start or block-end margin is one a quirks-mode body or table cell ignores where it
+    /// collapses into the cell's or the body's own start or end.
+    pub const HAS_QUIRKY_BLOCK_START_MARGIN: u32 = 1 << 11;
+    pub const HAS_QUIRKY_BLOCK_END_MARGIN: u32 = 1 << 12;
     /// The layout algorithm a MathML element's tag name selects, as a `MathLayoutKind` in these bits.
     pub const MATHML_LAYOUT_KIND_SHIFT: u32 = 16;
     pub const MATHML_LAYOUT_KIND_MASK: u32 = 0x1f << MATHML_LAYOUT_KIND_SHIFT;

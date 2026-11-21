@@ -1237,6 +1237,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             return true;
         }
         if facts.has_preferred_aspect_ratio() || facts.has_auto_content_box_size() {
+            // An intrinsic block size depends on content layout, so it can't determine an automatic inline size
+            // through the aspect ratio. Non-replaced boxes use their normal inline sizing rules in that case.
+            if !facts.is_replaced_box()
+                && self.should_treat_inline_size_as_auto(sized, available_space)
+                && self
+                    .preferred_block_size(node, constraints)
+                    .is_intrinsic_sizing_constraint()
+            {
+                return false;
+            }
             // From CSS2:
             // If height and width both have computed values of auto and the element has an intrinsic ratio but no intrinsic height or width,
             // then the used value of width is undefined in CSS 2.
@@ -4047,8 +4057,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             table_wrapper_containing_block_inline_size.unwrap_or_else(|| available_space.inline_size.to_px_or_zero());
 
         // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
-        let margin_left = style.margin_left().to_px(containing_block_inline_size);
-        let margin_right = style.margin_right().to_px(containing_block_inline_size);
+        // Percentage margins resolve against the containing block, even where the space the wrapper has is only what
+        // the floats next to it leave, as placing the wrapper resolves them.
+        let margin_percentage_basis = match table_wrapper_inline_size_mode {
+            formatting_context::TableWrapperInlineSizeMode::ShrinkToAvailableInlineSize => table_wrapper_constraints
+                .percentage_basis_inline_size
+                .unwrap_or(containing_block_inline_size),
+            _ => containing_block_inline_size,
+        };
+        let margin_left = style.margin_left().to_px(margin_percentage_basis);
+        let margin_right = style.margin_right().to_px(margin_percentage_basis);
 
         // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
         let available_inline_size = containing_block_inline_size - margin_left - margin_right;
@@ -4071,7 +4089,23 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     table_cells,
                     table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
                 );
-                let table_available = table_cells.available_inner_space_or_constraints_from(available_space);
+                let mut table_available = table_cells.available_inner_space_or_constraints_from(available_space);
+                // The table box of an auto-width table fills its containing block before sizing, which may be wider
+                // than the space the wrapper has (next to floats, e.g.); the table shrinks to fit that space instead.
+                if table_wrapper_inline_size_mode
+                    == formatting_context::TableWrapperInlineSizeMode::ShrinkToAvailableInlineSize
+                    && self.style(table_run.box_).width().is_auto()
+                    && let (AvailableSize::Definite(_), AvailableSize::Definite(table_inline_size)) =
+                        (available_space.inline_size, table_available.inline_size)
+                {
+                    let offsets = table_cells.border_left
+                        + table_cells.padding_left
+                        + table_cells.padding_right
+                        + table_cells.border_right;
+                    table_available.inline_size = AvailableSize::definite(
+                        table_inline_size.min((available_inline_size - offsets).max(CssPixels::default())),
+                    );
+                }
                 table.run_until_inline_size_calculation(
                     LayoutInput::new(
                         table_available,
@@ -4084,11 +4118,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 let table_used = table.table_box_cells();
                 let table_used_inline_size =
                     table_used.border_box_inline_size(table_used.uses_collapsing_borders_model());
-                let inline_size = if table_wrapper_inline_size_mode
-                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSize
-                    || (table_wrapper_inline_size_mode
-                        == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
-                        && !self.style(table_run.box_).width().is_auto())
+                let inline_size = if matches!(
+                    table_wrapper_inline_size_mode,
+                    formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSize
+                        | formatting_context::TableWrapperInlineSizeMode::ShrinkToAvailableInlineSize
+                ) || (table_wrapper_inline_size_mode
+                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
+                    && !self.style(table_run.box_).width().is_auto())
                 {
                     table_used_inline_size
                 } else if matches!(available_space.inline_size, AvailableSize::Definite(_)) {

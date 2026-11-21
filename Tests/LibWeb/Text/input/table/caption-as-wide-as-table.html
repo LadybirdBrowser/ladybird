@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  body { font: 16px/20px monospace; }
+  .scroll { width: 300px; overflow: auto; border: 1px solid; margin-bottom: 8px; }
+  td { white-space: nowrap; border: 1px solid; padding: 0; }
+  caption { background: #cde; text-align: center; }
+</style>
+<div class="scroll"><table id="content"><caption>Caption</caption><tr><td>A long cell that makes the table wider than its container</td></tr></table></div>
+<div class="scroll"><table id="fixed" style="width: 600px"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="bottom" style="width: 600px; caption-side: bottom"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="margin-auto" style="width: 600px; margin: 0 auto"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="narrow" style="width: 100px"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="caption-margins" style="width: 600px"><caption style="margin: 0 20px">Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="caption-width-pct" style="width: 600px"><caption style="width: 50%">Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="float" style="width: 600px; float: left"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll" style="display: flex"><table id="flex-item" style="width: 600px; flex-shrink: 0"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="long-caption" style="width: 600px"><caption>word word word word word word word word word word word word</caption><tr><td>x</td></tr></table></div>
+<div class="scroll"><table id="inline-table" style="width: 600px; display: inline-table"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<div class="scroll" style="direction: rtl"><table id="rtl" style="width: 600px"><caption>Caption</caption><tr><td>x</td></tr></table></div>
+<script src="../include.js"></script>
+<script>
+  test(() => {
+    const lines = [];
+    for (const t of document.querySelectorAll("table")) {
+      const tr = t.getBoundingClientRect(), cr = t.caption.getBoundingClientRect(), sr = t.parentElement.getBoundingClientRect();
+      lines.push(`${t.id}: table x ${Math.round(tr.left - sr.left)} w ${Math.round(tr.width)}, caption x ${Math.round(cr.left - sr.left)} w ${Math.round(cr.width)} h ${Math.round(cr.height)}`);
+    }
+    for (const line of lines) println(line);
+  });
+</script>
