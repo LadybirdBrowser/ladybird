@@ -11,7 +11,6 @@
 use super::base::Parser;
 use super::token::*;
 use super::unit::*;
-use crate::utf16::Utf16View;
 
 const fn keyword_kinds() -> [T; 36] {
     let mut kinds = [T::Eof; 36];
@@ -59,10 +58,10 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     /// The source text from `start` up to `end`.
-    pub(crate) fn source_view(&self, start: usize, end: usize) -> Utf16View<'_> {
+    pub(crate) fn source_view(&self, start: usize, end: usize) -> &[U] {
         debug_assert!(start <= end && end <= self.len as usize);
         // SAFETY: The range is within the source.
-        U::view(unsafe { ak::slice_from_raw_parts(self.src.add(start), end - start) })
+        unsafe { ak::slice_from_raw_parts(self.src.add(start), end - start) }
     }
 
     #[inline(always)]
