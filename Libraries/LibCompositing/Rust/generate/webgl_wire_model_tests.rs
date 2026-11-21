@@ -162,3 +162,46 @@ fn a_name_hash_is_fnv_1a() {
     assert_eq!(wire_layout_name_hash("a"), 0xE40C_292C);
     assert_eq!(wire_layout_name_hash("Commands::ActiveTexture"), 0x9B0F_0F7C);
 }
+
+#[test]
+fn what_the_replayer_needs_is_read_from_the_json() {
+    let functions = parse_functions(
+        r#"[
+            {"name": "glDeleteBuffers", "return": "void", "category": "command", "deletes_objects": true, "args": [
+                {"type": "GLsizei", "name": "n"},
+                {"type": "GLuint const*", "name": "buffers", "object": true, "payload": "n * sizeof(GLuint)"}]},
+            {"name": "glBindFramebuffer", "return": "void", "category": "command", "args": [
+                {"type": "GLenum", "name": "target"},
+                {"type": "GLuint", "name": "framebuffer", "object": true, "zero_means_default": "default_framebuffer"}]},
+            {"name": "glClientWaitSync", "return": "GLenum", "category": "sync", "args": [
+                {"type": "GLsync", "name": "sync", "object": true},
+                {"type": "GLuint64", "name": "timeout", "host_override": "0"}]},
+            {"name": "glClearBufferfv", "return": "void", "category": "command", "args": [
+                {"type": "GLenum", "name": "buffer"},
+                {"type": "GLfloat const*", "name": "value", "payload": "(buffer == GL_COLOR ? 4 : 1) * sizeof(GLfloat)"}]}
+        ]"#,
+    )
+    .unwrap();
+    assert!(functions[0].deletes_objects);
+    assert!(!functions[1].deletes_objects);
+    assert_eq!(
+        functions[0].payload_size(&functions[0].arguments[1]).unwrap(),
+        [PayloadFactor::Argument(0), PayloadFactor::Constant(4)]
+    );
+    assert_eq!(
+        functions[1].arguments[1].zero_means_default,
+        Some(DefaultObject::Framebuffer)
+    );
+    assert_eq!(functions[2].arguments[1].host_override.as_deref(), Some("0"));
+    assert_eq!(
+        functions[3].payload_size(&functions[3].arguments[1]).unwrap(),
+        [PayloadFactor::ColorBufferComponents(0), PayloadFactor::Constant(4)]
+    );
+    let unknown_default = r#"[{"name": "glBindTexture", "return": "void", "category": "command", "args": [
+        {"type": "GLuint", "name": "texture", "object": true, "zero_means_default": "default_texture"}]}]"#;
+    assert!(
+        parse_functions(unknown_default)
+            .unwrap_err()
+            .contains("default object \"default_texture\"")
+    );
+}

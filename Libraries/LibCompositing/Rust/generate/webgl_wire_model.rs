@@ -21,6 +21,23 @@ pub enum Category {
     BuiltinCommand,
 }
 
+/// The object that the replayer passes for the object id 0.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DefaultObject {
+    Framebuffer,
+    Renderbuffer,
+}
+
+/// A factor of the number of bytes that a pointer argument points at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PayloadFactor {
+    Constant(u64),
+    /// The value of the argument of this index.
+    Argument(usize),
+    /// 4 where the argument of this index is GL_COLOR, and 1 otherwise.
+    ColorBufferComponents(usize),
+}
+
 #[derive(Debug)]
 pub struct Argument {
     pub cpp_type: String,
@@ -32,6 +49,9 @@ pub struct Argument {
     pub is_offset: bool,
     pub is_string: bool,
     pub is_nullable: bool,
+    pub zero_means_default: Option<DefaultObject>,
+    /// What the replayer passes instead of what the recorder sent.
+    pub host_override: Option<String>,
 }
 
 impl Argument {
@@ -64,6 +84,7 @@ pub struct Function {
     /// The built-in commands, which are no GL functions, have none.
     pub return_type: Option<String>,
     pub arguments: Vec<Argument>,
+    pub deletes_objects: bool,
     wire_command: Option<Vec<FieldSpec>>,
     wire_request: Option<Vec<FieldSpec>>,
     wire_reply: Option<Vec<FieldSpec>>,
@@ -74,7 +95,6 @@ const FUNCTION_KEYS: [&str; 8] = [
     "category",
     "return",
     "args",
-    // What the replayer does with the objects that a function deletes, which the recorder has no part in.
     "deletes_objects",
     "wire_command",
     "wire_request",
@@ -90,7 +110,6 @@ const ARGUMENT_KEYS: [&str; 10] = [
     "offset",
     "string",
     "nullable",
-    // How the replayer resolves an argument, which the recorder has no part in.
     "zero_means_default",
     "host_override",
 ];
@@ -128,7 +147,19 @@ fn parse_argument(value: &Value, function_name: &str) -> Result<Argument, String
     let what = format!("an argument of {function_name}");
     let object = value.as_object().ok_or_else(|| format!("{what} is not an object"))?;
     reject_unknown_keys(object, &ARGUMENT_KEYS, &what)?;
+    let zero_means_default = match string_member(object, "zero_means_default", &what)?.as_deref() {
+        None => None,
+        Some("default_framebuffer") => Some(DefaultObject::Framebuffer),
+        Some("default_renderbuffer") => Some(DefaultObject::Renderbuffer),
+        Some(other) => {
+            return Err(format!(
+                "{what} has the default object {other:?}, which the model does not know"
+            ));
+        }
+    };
     Ok(Argument {
+        zero_means_default,
+        host_override: string_member(object, "host_override", &what)?,
         cpp_type: required_string_member(object, "type", &what)?,
         name: required_string_member(object, "name", &what)?,
         payload: string_member(object, "payload", &what)?,
@@ -195,6 +226,7 @@ fn parse_function(value: &Value) -> Result<Function, String> {
     let function = Function {
         return_type: string_member(object, "return", &name)?,
         arguments,
+        deletes_objects: flag(object, "deletes_objects", &name)?,
         wire_command: parse_wire_fields(object, "wire_command", &name)?,
         wire_request: parse_wire_fields(object, "wire_request", &name)?,
         wire_reply: parse_wire_fields(object, "wire_reply", &name)?,
@@ -273,6 +305,52 @@ impl Function {
 
     pub fn is_sync_call(&self) -> bool {
         self.category == Category::Sync || self.wire_request.is_some()
+    }
+
+    /// The factors of the number of bytes that an argument with a payload points at.
+    pub fn payload_size(&self, argument: &Argument) -> Result<Vec<PayloadFactor>, String> {
+        let payload = argument.payload.as_deref().ok_or_else(|| {
+            format!(
+                "the argument {} of {} points at data without a size",
+                argument.name, self.name
+            )
+        })?;
+        let unknown = |factor: &str| {
+            format!(
+                "the size {payload:?} of the argument {} of {} has the factor {factor:?}, which the model does not know",
+                argument.name, self.name
+            )
+        };
+        let argument_index = |name: &str| {
+            self.arguments
+                .iter()
+                .position(|other| other.name == name && !other.is_out && !other.is_pointer())
+        };
+        payload
+            .split(" * ")
+            .map(|factor| {
+                if let Ok(constant) = factor.parse() {
+                    return Ok(PayloadFactor::Constant(constant));
+                }
+                if let Some(gl_type) = factor.strip_prefix("sizeof(").and_then(|rest| rest.strip_suffix(')')) {
+                    let size = match gl_type {
+                        "GLchar" | "GLboolean" => 1,
+                        "GLint" | "GLuint" | "GLfloat" | "GLenum" => 4,
+                        "GLint64" => 8,
+                        _ => return Err(unknown(factor)),
+                    };
+                    return Ok(PayloadFactor::Constant(size));
+                }
+                if factor == "(buffer == GL_COLOR ? 4 : 1)" {
+                    return argument_index("buffer")
+                        .map(PayloadFactor::ColorBufferComponents)
+                        .ok_or_else(|| unknown(factor));
+                }
+                argument_index(factor)
+                    .map(PayloadFactor::Argument)
+                    .ok_or_else(|| unknown(factor))
+            })
+            .collect()
     }
 
     fn unhandled_pointer(&self, argument: &Argument) -> String {

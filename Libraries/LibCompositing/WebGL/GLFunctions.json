@@ -2011,6 +2011,21 @@
         "category": "sync"
     },
     {
+        "name": "glGetFloatv",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLenum",
+                "name": "pname"
+            },
+            {
+                "type": "GLfloat*",
+                "name": "data"
+            }
+        ],
+        "category": "custom"
+    },
+    {
         "name": "glGetFloatvRobustANGLE",
         "return": "void",
         "args": [
@@ -2061,6 +2076,21 @@
             }
         ],
         "category": "sync"
+    },
+    {
+        "name": "glGetIntegerv",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLenum",
+                "name": "pname"
+            },
+            {
+                "type": "GLint*",
+                "name": "data"
+            }
+        ],
+        "category": "custom"
     },
     {
         "name": "glGetIntegervRobustANGLE",

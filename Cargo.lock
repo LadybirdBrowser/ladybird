@@ -628,6 +628,7 @@ dependencies = [
  "libgfx_rust",
  "libipc_rust",
  "rustc-demangle",
+ "serde_json",
 ]
 
 [[package]]
