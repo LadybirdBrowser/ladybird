@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const order = [];
+    function log(entry) {
+        order.push(entry);
+    }
+</script>
+<svg>
+    <rect id="rect" width="10" height="10" onclick="log('click at the rect')"></rect>
+</svg>
+<script>
+    test(() => {
+        const rect = document.getElementById("rect");
+        println(`rect.onclick is a function: ${typeof rect.onclick === "function"}`);
+        rect.dispatchEvent(new MouseEvent("click"));
+
+        rect.setAttribute("onclick", "log('click at the rect, after the attribute changed')");
+        rect.dispatchEvent(new MouseEvent("click"));
+        rect.removeAttribute("onclick");
+        println(`rect.onclick after removing the attribute: ${rect.onclick}`);
+        rect.dispatchEvent(new MouseEvent("click"));
+
+        for (const entry of order)
+            println(entry);
+    });
+</script>
