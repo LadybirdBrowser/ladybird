@@ -70,40 +70,11 @@ ALWAYS_INLINE void clear_marks(FFI::BlockDescriptor& descriptor)
 }
 
 // A cell is allocated from when it is handed out until the sweep or a move frees its slot. While an allocator has taken
-// the free cells of a block to hand them out itself, they all count as allocated, see HeapBlock::take_free_cells(). Only
+// a run of free cells of a block to hand them out, they all count as allocated, see CellAllocator::LocalFreeCells. Only
 // the thread that owns the block's heap reads and writes these bits.
 ALWAYS_INLINE bool is_allocated(FFI::BlockDescriptor const& descriptor, size_t index)
 {
     return descriptor.allocated[index / 64] & cell_bit(index);
-}
-
-ALWAYS_INLINE void set_allocated(FFI::BlockDescriptor& descriptor, size_t index)
-{
-    descriptor.allocated[index / 64] |= cell_bit(index);
-}
-
-ALWAYS_INLINE void clear_allocated(FFI::BlockDescriptor& descriptor, size_t index)
-{
-    descriptor.allocated[index / 64] &= ~cell_bit(index);
-}
-
-// The bits of the word of a bitmap whose first bit is at `first` that are for indices below `limit`.
-ALWAYS_INLINE u64 bits_below(size_t limit, size_t first)
-{
-    if (limit <= first)
-        return 0;
-    if (limit >= first + 64)
-        return ~static_cast<u64>(0);
-    return cell_bit(limit - first) - 1;
-}
-
-// The cells of a block are the ones from first_cell_index on, see cell_index().
-ALWAYS_INLINE void set_all_allocated(FFI::BlockDescriptor& descriptor)
-{
-    size_t begin = descriptor.first_cell_index;
-    size_t end = begin + descriptor.cell_count;
-    for (size_t word = 0; word < FFI::CELL_BITMAP_WORDS; ++word)
-        descriptor.allocated[word] = bits_below(end, word * 64) & ~bits_below(begin, word * 64);
 }
 
 ALWAYS_INLINE u32 allocated_cell_count_of(FFI::BlockDescriptor const& descriptor)
@@ -133,9 +104,5 @@ ALWAYS_INLINE void* allocated_cell_containing(void const* heap, FlatPtr address,
         return nullptr;
     return bit_cast<void*>(cell);
 }
-
-// Fills in the descriptor of a block that is about to hold cells, and empties it once the block goes away.
-void publish_block_descriptor(HeapBlock&, CellAllocator&);
-void retire_block_descriptor(HeapBlock&);
 
 }

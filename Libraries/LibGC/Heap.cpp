@@ -141,28 +141,22 @@ i32 libgc_log_level()
 // LIBGC_MOVE_EVERYTHING=1 has every collection that may move cells (one that does not scan the stack) evacuate every
 // block of cells defined outside of C++, moving each cell that can move to another slot. This tests that moving cells
 // is safe, and its report tells what keeps cells from moving.
-bool read_libgc_move_everything()
-{
-    char const* env = getenv("LIBGC_MOVE_EVERYTHING");
-    return env && *env && atoi(env) != 0;
-}
-
 bool libgc_move_everything()
 {
-    static bool const value = read_libgc_move_everything();
+    static bool const value = [] {
+        char const* env = getenv("LIBGC_MOVE_EVERYTHING");
+        return env && *env && atoi(env) != 0;
+    }();
     return value;
 }
 
 // LIBGC_COMPACT=0 turns compaction off, so that collections never move cells unless LIBGC_MOVE_EVERYTHING asks them to.
-bool read_libgc_compact()
-{
-    char const* env = getenv("LIBGC_COMPACT");
-    return !env || !*env || atoi(env) != 0;
-}
-
 bool libgc_compact()
 {
-    static bool const value = read_libgc_compact();
+    static bool const value = [] {
+        char const* env = getenv("LIBGC_COMPACT");
+        return !env || !*env || atoi(env) != 0;
+    }();
     return value;
 }
 
@@ -518,7 +512,7 @@ CellAllocator& Heap::create_cell_allocator(CellAllocatorDescriptorBase& descript
         m_cell_allocators_by_descriptor_index.resize(index + 1);
     auto& allocator = m_cell_allocators_by_descriptor_index[index];
     VERIFY(!allocator);
-    allocator = make<CellAllocator>(descriptor);
+    allocator = make<CellAllocator>(*this, descriptor);
     return *allocator;
 }
 
@@ -582,8 +576,8 @@ void Heap::add_stats(AK::JsonObject& values) const
     VERIFY(m_stats);
     values.set("gc.allocated_bytes_total"sv, m_total_allocated_bytes);
     values.set("gc.allocated_bytes_since_gc"sv, m_allocated_bytes_since_last_gc);
-    values.set("gc.heap_blocks"sv, m_block_count);
-    values.set("gc.heap_block_bytes"sv, m_block_count * HeapBlock::BLOCK_SIZE);
+    values.set("gc.heap_blocks"sv, block_count());
+    values.set("gc.heap_block_bytes"sv, block_count() * HeapBlock::BLOCK_SIZE);
     values.set("gc.cell_allocators"sv, m_all_cell_allocators.size_slow());
     values.set("gc.threshold_bytes"sv, m_gc_bytes_threshold);
     values.set("gc.live_cell_bytes"sv, m_stats->live_cell_bytes);
@@ -608,7 +602,7 @@ void Heap::finish_stats_collection()
         data.set("pause_duration_ns"sv, stats.pause_duration_ns);
         data.set("sweep_duration_ns"sv, stats.sweep_duration_ns);
         data.set("bytes_before"sv, stats.bytes_before);
-        data.set("bytes_after"sv, m_block_count * HeapBlock::BLOCK_SIZE);
+        data.set("bytes_after"sv, block_count() * HeapBlock::BLOCK_SIZE);
         data.set("live_cell_bytes"sv, stats.live_cell_bytes);
         data.set("live_external_bytes"sv, stats.live_external_bytes);
         log->event("gc"sv, move(data));
@@ -713,6 +707,18 @@ void Heap::update_gc_bytes_threshold()
 }
 
 // The part of the heap region that can hold cells, read once per scan.
+// Calls the callback for each allocated cell of the block, which includes the cells of a run that an allocator has out.
+template<typename Callback>
+static void for_each_allocated_cell(HeapBlock& block, Callback callback)
+{
+    auto& descriptor = block_descriptor_for(&block);
+    auto first_cell = bit_cast<FlatPtr>(&block) + HeapBlock::cells_offset();
+    for (size_t index = descriptor.first_cell_index; index < descriptor.first_cell_index + descriptor.cell_count; ++index) {
+        if (is_allocated(descriptor, index))
+            callback(bit_cast<Cell*>(first_cell + (index - descriptor.first_cell_index) * descriptor.cell_size));
+    }
+}
+
 struct PossiblePointerBounds {
     static PossiblePointerBounds current()
     {
@@ -1042,9 +1048,6 @@ void Heap::clear_weak_pointers_to_dead_cells(bool report)
 
 void Heap::run_post_mark_phases(bool report)
 {
-    // NB: The side table keeps the identity hashes of cells by address, which other cells may take once these are swept.
-    FFI::rust_gc_identity_hashes_drop_dead(m_identity_hashes, heap_region_base());
-
     {
         ScopedPhaseTimer timer { report, g_phase_timings.finalize_unmarked_cells_us };
         finalize_unmarked_cells();
@@ -1142,7 +1145,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         }
         if (m_stats) {
             ++m_stats->collections;
-            m_stats->bytes_before = m_block_count * HeapBlock::BLOCK_SIZE;
+            m_stats->bytes_before = block_count() * HeapBlock::BLOCK_SIZE;
             m_stats->sweep_duration_ns = 0;
         }
         compaction_stats().active = false;
@@ -1255,6 +1258,14 @@ bool Heap::should_move_cells(CollectionType collection_type, bool scan_stack) co
     return m_moves_everything || m_should_compact;
 }
 
+size_t Heap::block_count() const
+{
+    size_t count = 0;
+    for (auto& allocator : m_all_cell_allocators)
+        count += allocator.block_count();
+    return count;
+}
+
 // The blocks of the movable allocators, as candidates for compaction, see rust_gc_compaction_select().
 static Vector<FFI::CompactionCandidate> compaction_candidates(CellAllocator::List& allocators, size_t block_count)
 {
@@ -1265,8 +1276,8 @@ static Vector<FFI::CompactionCandidate> compaction_candidates(CellAllocator::Lis
         if (!allocator.descriptor().is_movable())
             continue;
         auto cell_size = static_cast<u32>(allocator.cell_size());
-        auto cell_count = static_cast<u32>((HeapBlock::BLOCK_SIZE - sizeof(HeapBlock)) / cell_size);
         allocator.for_each_block([&](HeapBlock& block) {
+            auto cell_count = static_cast<u32>(block.cell_count());
             candidates.unchecked_append({
                 .block = &block,
                 .allocator = allocator_index,
@@ -1297,7 +1308,7 @@ void Heap::schedule_compaction_if_worthwhile()
         if (last.freed_blocks * HeapBlock::BLOCK_SIZE >= GC_COMPACTION_MIN_RECOVERABLE_BYTES)
             recoverable_blocks = last.blocks_left_by_budget;
     } else {
-        auto candidates = compaction_candidates(m_all_cell_allocators, m_block_count);
+        auto candidates = compaction_candidates(m_all_cell_allocators, block_count());
         recoverable_blocks = FFI::rust_gc_compaction_select(candidates.data(), candidates.size(), 0).fitting_blocks;
     }
     if (recoverable_blocks * HeapBlock::BLOCK_SIZE < GC_COMPACTION_MIN_RECOVERABLE_BYTES) {
@@ -1307,7 +1318,7 @@ void Heap::schedule_compaction_if_worthwhile()
     }
     m_should_compact = true;
     if (libgc_log_level() >= 1)
-        dbgln("Scheduling a collection that compacts: {} of {} recoverable", human_readable_size(recoverable_blocks * HeapBlock::BLOCK_SIZE), human_readable_size(m_block_count * HeapBlock::BLOCK_SIZE));
+        dbgln("Scheduling a collection that compacts: {} of {} recoverable", human_readable_size(recoverable_blocks * HeapBlock::BLOCK_SIZE), human_readable_size(block_count() * HeapBlock::BLOCK_SIZE));
     schedule_collection_that_moves_cells();
 }
 
@@ -1341,7 +1352,7 @@ void Heap::begin_evacuation()
     } else {
         m_should_compact = false;
         auto select_start_ns = MonotonicTime::now().nanoseconds();
-        auto candidates = compaction_candidates(m_all_cell_allocators, m_block_count);
+        auto candidates = compaction_candidates(m_all_cell_allocators, block_count());
         auto selection = FFI::rust_gc_compaction_select(candidates.data(), candidates.size(), GC_COMPACTION_BUDGET_BYTES);
         for (auto const& candidate : candidates) {
             if (candidate.selected)
@@ -1372,19 +1383,9 @@ void Heap::begin_evacuation()
 
 Cell* Heap::allocate_destination_for_moved_cell(CellAllocator& allocator)
 {
-    for (;;) {
-        if (allocator.m_usable_blocks.is_empty()) {
-            auto block = HeapBlock::create(*this, allocator);
-            allocator.m_usable_blocks.append(*block.leak_ptr());
-            ++compaction_stats().new_blocks;
-        }
-        auto& block = *allocator.m_usable_blocks.first();
-        auto* cell = block.allocate();
-        if (block.is_full())
-            allocator.m_full_blocks.append(block);
-        if (cell)
-            return cell;
-    }
+    auto* cell = static_cast<Cell*>(FFI::rust_gc_allocator_allocate_destination(allocator.rust_allocator({})));
+    ASAN_UNPOISON_MEMORY_REGION(cell, allocator.cell_size());
+    return cell;
 }
 
 // Moves the live cells of the evacuated blocks that nothing pinned to free slots of other blocks of their allocator:
@@ -1413,8 +1414,6 @@ void Heap::evacuate()
     };
     Vector<AllocatorMoves> all_moves;
     Array<void*, FFI::MAX_CELLS_PER_BLOCK> cells;
-    // NB: The evacuated blocks wait here while cells move, so that no cell moves into one of them.
-    CellAllocator::BlockList blocks_being_evacuated;
     Vector<HeapBlock*> blocks_kept_by_pins;
 
     auto copy_start_ns = MonotonicTime::now().nanoseconds();
@@ -1435,10 +1434,9 @@ void Heap::evacuate()
         Vector<Cell*> cells_to_move;
         for (size_t i = exchange(first_block_of_allocator, end); i < end; ++i) {
             auto& block = *m_evacuated_blocks[i];
-            blocks_being_evacuated.append(block);
             auto& descriptor = block_descriptor_for(&block);
             if (count_by_type || !allocator.descriptor().is_movable()) {
-                block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+                for_each_allocated_cell(block, [&](Cell* cell) {
                     if (!allocator.descriptor().is_movable())
                         count_pinned(cell, cell_size, CompactionStats::NonMovableAllocator);
                     else if (auto reason = FFI::rust_gc_evacuation_pin_reason(m_evacuation, cell); reason != FFI::PinReason::Unpinned)
@@ -1503,38 +1501,20 @@ void Heap::evacuate()
     stats.copy_us += (release_start_ns - copy_start_again_ns) / 1000;
 
     for (auto& [allocator, moves] : all_moves) {
-        for (auto& cell_move : moves) {
-            auto* cell = static_cast<Cell*>(cell_move.from);
-            HeapBlock::from_cell(cell)->release_moved_cell(cell);
-        }
+        for (auto& cell_move : moves)
+            FFI::rust_gc_allocator_release_moved_cell(allocator->rust_allocator({}), cell_move.from);
     }
 
     // NB: What is left in these blocks is what pins kept there, and evacuating them again would not free them, see
     //     rust_gc_compaction_select().
-    for (auto* block : blocks_kept_by_pins) {
-        auto& descriptor = block_descriptor_for(block);
-        static_assert(cell_bitmap_words == FFI::CELL_BITMAP_WORDS);
-        Array<u64, cell_bitmap_words> kept {};
-        for (size_t i = 0; i < cell_bitmap_words; ++i)
-            kept[i] = descriptor.allocated[i];
-        m_cells_kept_by_pins.set(block, kept);
-        descriptor.kept_by_pins = true;
-    }
+    for (auto* block : blocks_kept_by_pins)
+        FFI::rust_gc_allocator_keep_cells_pinned(block->cell_allocator().rust_allocator({}), block);
 
-    // Puts the evacuated blocks back with their allocators, and lets go of the ones that are empty now.
-    for (auto* evacuated_block : m_evacuated_blocks) {
-        auto& block = *evacuated_block;
-        auto& allocator = block.cell_allocator();
-        if (block.allocated_cell_count() == 0) {
-            allocator.block_did_become_empty({}, block, DeferDecommit::Yes);
+    // Lets go of the evacuated blocks that are empty now, and lists the others as usable again.
+    for (auto* block : m_evacuated_blocks) {
+        if (FFI::rust_gc_allocator_finish_evacuated_block(block->cell_allocator().rust_allocator({}), block))
             ++stats.freed_blocks;
-        } else if (block.is_full()) {
-            allocator.m_full_blocks.append(block);
-        } else {
-            allocator.m_usable_blocks.append(block);
-        }
     }
-    VERIFY(blocks_being_evacuated.is_empty());
     stats.release_us = (MonotonicTime::now().nanoseconds() - release_start_ns) / 1000;
 }
 
@@ -1546,28 +1526,9 @@ bool Heap::is_live_cell(Cell const* cell) const
     auto address = bit_cast<FlatPtr>(cell);
     if (address < heap_region_base() + HEAP_REGION_LOW_GUARD_SIZE || address >= BlockAllocator::heap_region_committed_end())
         return false;
-    // NB: A cell that an allocator took along with the other free cells of its block counts as allocated, but it is
-    //     still a free cell until the allocator hands it out.
+    // NB: A cell of a run that an allocator took counts as allocated, but it is still a free cell until the allocator
+    //     hands it out. Every collection gives the runs back before it marks.
     return allocated_cell_containing(this, address, HeapBlock::cells_offset()) == cell && cell->state() == Cell::State::Live;
-}
-
-void Heap::forget_cells_kept_by_pins(HeapBlock& block)
-{
-    auto& descriptor = block_descriptor_for(&block);
-    if (!descriptor.kept_by_pins)
-        return;
-    descriptor.kept_by_pins = false;
-    m_cells_kept_by_pins.remove(&block);
-}
-
-void Heap::cell_in_block_kept_by_pins_died(HeapBlock& block, Cell const* cell)
-{
-    auto& descriptor = block_descriptor_for(&block);
-    auto index = cell_index(descriptor, cell);
-    auto kept = m_cells_kept_by_pins.get(&block);
-    VERIFY(kept.has_value());
-    if (kept.value()[index / 64] & (static_cast<u64>(1) << (index % 64)))
-        forget_cells_kept_by_pins(block);
 }
 
 void Heap::end_evacuation()
@@ -1640,8 +1601,8 @@ void Heap::run_post_gc_tasks()
 
 void Heap::dump_allocators()
 {
-    // NB: While an allocator has a block's never-allocated cells out, the block counts them as cells. Give them back,
-    //     so that they are the block's lazy region again and are not counted.
+    // NB: While an allocator has a run of a block's free cells out, they count as allocated. Give them back, so that
+    //     they are not counted.
     give_back_local_free_lists();
 
     size_t total_in_committed_blocks = 0;
@@ -1662,14 +1623,11 @@ void Heap::dump_allocators()
         allocator.for_each_block([&](HeapBlock& heap_block) {
             BlockStats block { heap_block };
 
-            heap_block.for_each_cell([&](Cell* cell) {
-                if (cell->state() == Cell::State::Live)
-                    ++block.live_cells;
-                else if (cell->state() == Cell::State::Dead)
-                    ++block.dead_cells;
-                else
-                    VERIFY_NOT_REACHED();
+            for_each_allocated_cell(heap_block, [&](Cell* cell) {
+                VERIFY(cell->state() == Cell::State::Live);
+                ++block.live_cells;
             });
+            block.dead_cells = heap_block.cell_count() - block.live_cells;
             total_live_cells += block.live_cells;
             total_dead_cells += block.dead_cells;
 
@@ -1730,8 +1688,8 @@ AK::JsonObject Heap::census()
 {
     VERIFY(!m_collecting_garbage);
 
-    // NB: Unswept cells of the last collection are still in the Live state, and cells an allocator has taken out of
-    //     its block's lazy region would count as dead ones, so finish the sweep and give those back first.
+    // NB: Unswept cells of the last collection are still allocated, and so are the cells of the runs that allocators
+    //     have out, so finish the sweep and give those back first.
     finish_pending_incremental_sweep();
     give_back_local_free_lists();
 
@@ -1754,9 +1712,7 @@ AK::JsonObject Heap::census()
         allocator.for_each_block([&](HeapBlock& block) {
             ++blocks;
             cell_slots += block.cell_count();
-            block.for_each_cell([&](Cell* cell) {
-                if (cell->state() != Cell::State::Live)
-                    return;
+            for_each_allocated_cell(block, [&](Cell* cell) {
                 ++live_cells;
                 auto edges_before = visitor.cell_edges;
                 type_info.visit_edges(cell, &visitor);
@@ -1827,7 +1783,7 @@ void Heap::register_sweep_callback(AK::Function<void()> callback)
 void Heap::gather_roots(ConservativeScanOrigin const& origin, HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>* out_stack_frames, IncludeIncomingCrossHeapMembers include_incoming_cross_heap_members)
 {
     for (auto& allocator : m_all_cell_allocators)
-        VERIFY(!allocator.m_local_block);
+        VERIFY(!FFI::rust_gc_allocator_local_block(allocator.rust_allocator({})));
 
     // Cross-heap members targeting this heap act as roots for local collections (as the foreign holder is invisible to a local mark).
     if (include_incoming_cross_heap_members == IncludeIncomingCrossHeapMembers::Yes) {
@@ -2115,7 +2071,7 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         for (auto* root : roots.keys())
             root_cells.unchecked_append(root);
         for (auto* heap : heaps)
-            heap_bytes += heap->m_block_count * HeapBlock::BLOCK_SIZE;
+            heap_bytes += heap->block_count() * HeapBlock::BLOCK_SIZE;
     }
 
     Vector<size_t, 1> marked_cell_bytes;
@@ -2179,7 +2135,7 @@ void Heap::finalize_unmarked_cells()
         if (!finalize)
             return IterationDecision::Continue;
         auto& descriptor = block_descriptor_for(&block);
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+        for_each_allocated_cell(block, [&](Cell* cell) {
             if (!is_marked(descriptor, cell))
                 finalize(cell);
         });
@@ -2207,71 +2163,30 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 {
     dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
     auto sweep_start_ns = MonotonicTime::now().nanoseconds();
-    Vector<HeapBlock*, 32> empty_blocks;
-    Vector<HeapBlock*, 32> full_blocks_that_became_usable;
 
     size_t collected_cells = 0;
     size_t live_cells = 0;
     size_t collected_cell_bytes = 0;
     size_t live_cell_bytes = 0;
+    size_t freed_blocks = 0;
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_iteration_us };
-        for_each_block([&](auto& block) {
-            u32 block_live_cells = 0;
-            bool block_was_full = block.is_full();
-            auto& descriptor = block_descriptor_for(&block);
-            block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-                if (!is_marked(descriptor, cell)) {
-                    dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
-                    if (descriptor.kept_by_pins)
-                        cell_in_block_kept_by_pins_died(block, cell);
-                    block.deallocate(cell);
-                    ++collected_cells;
-                    collected_cell_bytes += block.cell_size();
-                } else {
-                    ++block_live_cells;
-                    ++live_cells;
-                    live_cell_bytes += block.cell_size();
-                }
-            });
-            bool block_has_live_cells = block_live_cells > 0;
-            // NB: An evacuated block keeps its marks until its cells have moved, which tells the cells that marking
-            //     knows about from the ones allocated since.
-            if (!descriptor.evacuation)
-                clear_marks(descriptor);
-            if (!block_has_live_cells)
-                empty_blocks.append(&block);
-            else if (block_was_full != block.is_full())
-                full_blocks_that_became_usable.append(&block);
-            return IterationDecision::Continue;
-        });
-    }
-
-    {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_reclassify_us };
         // NB: A collection that moves cells is an ordinary one that sweeps synchronously, and gives its empty blocks
         //     back to the system like the incremental sweep does. Only the collection of a heap that goes away keeps
         //     them for whoever comes next.
-        auto defer_decommit = m_evacuation ? DeferDecommit::Yes : DeferDecommit::No;
-        for (auto* block : empty_blocks) {
-            dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
-            if (block_descriptor_for(block).evacuation)
-                clear_marks(block_descriptor_for(block));
-            block->cell_allocator().block_did_become_empty({}, *block, defer_decommit);
+        bool defer_decommit = m_evacuation;
+        for (auto& allocator : m_all_cell_allocators) {
+            auto* rust_allocator = allocator.rust_allocator({});
+            FFI::SweepStats stats {};
+            FFI::rust_gc_allocator_start_sweep(rust_allocator);
+            while (FFI::rust_gc_allocator_sweep_next_block(rust_allocator, defer_decommit, &stats)) { }
+            collected_cells += stats.collected_cells;
+            live_cells += stats.live_cells;
+            collected_cell_bytes += stats.collected_cells * allocator.cell_size();
+            live_cell_bytes += stats.live_cells * allocator.cell_size();
+            freed_blocks += stats.freed_blocks;
         }
-
-        for (auto* block : full_blocks_that_became_usable) {
-            dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", block, block->cell_size());
-            block->cell_allocator().block_did_become_usable({}, *block);
-        }
-    }
-
-    if constexpr (HEAP_DEBUG) {
-        for_each_block([&](auto& block) {
-            dbgln(" > Live HeapBlock @ {}: cell_size={}", &block, block.cell_size());
-            return IterationDecision::Continue;
-        });
     }
 
     {
@@ -2287,7 +2202,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
             .collected_cell_bytes = collected_cell_bytes,
             .live_cell_bytes = live_cell_bytes,
             .live_external_bytes = m_marked_external_bytes,
-            .freed_block_count = empty_blocks.size(),
+            .freed_block_count = freed_blocks,
         };
     }
     (void)measurement_timer;
@@ -2299,61 +2214,24 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
 void Heap::sweep_block(HeapBlock& block)
 {
-    // A destructor can allocate and sweep another block. Its time is included in the outermost sweep.
-    bool record_duration = m_block_sweeps_in_progress == 0;
-    auto start_ns = record_duration ? MonotonicTime::now().nanoseconds() : 0;
-    ScopeGuard record_duration_guard = [&] {
-        if (!record_duration)
-            return;
-        auto duration_ns = MonotonicTime::now().nanoseconds() - start_ns;
-        m_sweep_duration_ns += duration_ns;
-        if (m_stats)
-            m_stats->sweep_duration_ns += duration_ns;
-    };
-    ++m_block_sweeps_in_progress;
-    ScopeGuard finish_block_sweep = [&] { --m_block_sweeps_in_progress; };
+    auto start_ns = MonotonicTime::now().nanoseconds();
+    FFI::SweepStats stats {};
+    FFI::rust_gc_allocator_sweep_pending_block(block.cell_allocator().rust_allocator({}), &block, &stats);
+    did_sweep(stats.swept_blocks, MonotonicTime::now().nanoseconds() - start_ns);
+}
 
-    // Remove from the allocator's pending sweep list.
-    block.m_sweep_list_node.remove();
-    ++m_blocks_swept;
+void Heap::did_sweep(size_t swept_blocks, i64 duration_ns)
+{
+    m_blocks_swept += swept_blocks;
+    m_sweep_duration_ns += duration_ns;
+    if (m_stats)
+        m_stats->sweep_duration_ns += duration_ns;
+}
 
-    block.set_being_swept(true);
-    bool block_has_live_cells = false;
-    bool block_was_full = block.is_full();
-    size_t collected_cells = 0;
-    size_t live_cells = 0;
-
-    auto& descriptor = block_descriptor_for(&block);
-    block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-        if (!is_marked(descriptor, cell)) {
-            dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
-            if (descriptor.kept_by_pins)
-                cell_in_block_kept_by_pins_died(block, cell);
-            block.deallocate(cell);
-            ++collected_cells;
-        } else {
-            block_has_live_cells = true;
-            ++live_cells;
-        }
-    });
-    block.set_being_swept(false);
-    // NB: This also clears the marks of the cells that were allocated in the block while it was swept.
-    clear_marks(descriptor);
-
-    if (!block_has_live_cells) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
-        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Block @ {} freed ({} cells collected)",
-            &block, collected_cells);
-        block.cell_allocator().block_did_become_empty({}, block);
-    } else if (block_was_full && !block.is_full()) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", &block, block.cell_size());
-        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Block @ {} now usable (live: {}, collected: {})",
-            &block, live_cells, collected_cells);
-        block.cell_allocator().block_did_become_usable({}, block);
-    } else if constexpr (INCREMENTAL_SWEEP_DEBUG) {
-        dbgln("[sweep] Block @ {} swept (live: {}, collected: {})",
-            &block, live_cells, collected_cells);
-    }
+void Heap::did_sweep_blocks_for_allocation(Badge<CellAllocator>, size_t swept_blocks, i64 duration_ns)
+{
+    // NB: An allocation from a destructor that a sweep runs is part of that sweep, whose time already counts.
+    did_sweep(swept_blocks, m_block_sweeps_in_progress == 0 ? duration_ns : 0);
 }
 
 bool Heap::sweep_next_block()
@@ -2366,8 +2244,10 @@ bool Heap::sweep_next_block()
 
     // Find the next allocator that has blocks pending sweep.
     while (auto* allocator = m_allocators_to_sweep.first()) {
-        if (auto* block = allocator->m_blocks_pending_sweep.first()) {
-            sweep_block(*block);
+        auto start_ns = MonotonicTime::now().nanoseconds();
+        FFI::SweepStats stats {};
+        if (FFI::rust_gc_allocator_sweep_next_block(allocator->rust_allocator({}), true, &stats)) {
+            did_sweep(stats.swept_blocks, MonotonicTime::now().nanoseconds() - start_ns);
             if (!allocator->has_blocks_pending_sweep())
                 allocator->m_sweep_list_node.remove();
             return false;
@@ -2397,13 +2277,9 @@ void Heap::start_incremental_sweep()
     // and don't need sweeping.
     size_t total_blocks = 0;
     for (auto& allocator : m_all_cell_allocators) {
-        VERIFY(!allocator.m_local_block);
-        allocator.for_each_block([&](HeapBlock& block) {
-            allocator.m_blocks_pending_sweep.append(block);
-            ++total_blocks;
-            return IterationDecision::Continue;
-        });
-        if (allocator.has_blocks_pending_sweep())
+        auto blocks = FFI::rust_gc_allocator_start_sweep(allocator.rust_allocator({}));
+        total_blocks += blocks;
+        if (blocks)
             m_allocators_to_sweep.append(allocator);
     }
     incremental_sweep_stats().total_blocks = total_blocks;

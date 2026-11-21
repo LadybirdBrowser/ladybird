@@ -11,8 +11,8 @@
 //! LibGC leaves free tell where the hash is: in an unhashed cell nowhere yet, in a hashed cell in the cell's address, and
 //! in a cell that was hashed and then moved in the side table of its heap. Hashing an unhashed cell sets "hashed", so
 //! that the collector knows to keep its hash when it moves the cell: under the copy's address in the side table, with
-//! "moved" set on the copy. A copy that moves again has its entry rekeyed, and the entries of cells that died are
-//! dropped after marking.
+//! "moved" set on the copy. A copy that moves again has its entry rekeyed, and the entry of a cell that died is dropped
+//! when the sweep frees its slot.
 //!
 //! Every hash of a cell's identity goes through identity_hash(), or through the inline copies of its fast path in C++
 //! (GC::identity_hash()) and in LibJS's runtime, which hand the cells that moved to it.
@@ -67,14 +67,6 @@ pub struct IdentityHashes {
 }
 
 impl IdentityHashes {
-    pub fn len(&self) -> usize {
-        self.hashes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.hashes.is_empty()
-    }
-
     /// Notes that a cell with identity hash state `state` moved from `from` to `to`, and returns the state of the copy.
     pub fn did_move(&mut self, state: u8, from: CompressedAddress, to: CompressedAddress) -> u8 {
         if state & IDENTITY_HASH_HASHED == 0 {
@@ -91,9 +83,16 @@ impl IdentityHashes {
         state | IDENTITY_HASH_MOVED
     }
 
-    /// Drops the entries of the cells that `is_live` says died.
-    pub fn retain_live(&mut self, mut is_live: impl FnMut(CompressedAddress) -> bool) {
-        self.hashes.retain(|&address, _| is_live(address));
+    /// Drops the entry of a cell that moved since it was hashed, whose slot is freed.
+    fn forget(&mut self, address: CompressedAddress) {
+        self.hashes
+            .remove(&address)
+            .expect("a cell that moved since it was hashed has an entry");
+        // NB: The table gives its room back once most of its entries are gone, and keeps enough to grow again without
+        //     shrinking and growing over and over.
+        if self.hashes.capacity() > 64 && self.hashes.len() < self.hashes.capacity() / 4 {
+            self.hashes.shrink_to(self.hashes.len() * 2);
+        }
     }
 
     fn get(&self, address: CompressedAddress) -> IdentityHash {
@@ -107,6 +106,17 @@ impl IdentityHashes {
 unsafe extern "C" {
     /// Where a LibGC heap keeps its side table, which CAPI.cpp defines.
     fn gc_heap_identity_hashes(heap: *mut c_void) -> *mut *mut c_void;
+}
+
+/// The tests of this crate link without CAPI.cpp, and none of their cells is hashed.
+#[cfg(test)]
+mod capi_for_tests {
+    use core::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn gc_heap_identity_hashes(_: *mut c_void) -> *mut *mut c_void {
+        unreachable!("no cell of the tests is hashed")
+    }
 }
 
 /// The side table of `heap`, which this creates if it has none yet.
@@ -144,9 +154,9 @@ pub unsafe extern "C" fn rust_gc_identity_hashes_destroy(table: *mut IdentityHas
 ///
 /// `cell` must be a live cell, of a heap that this thread uses.
 #[inline]
-pub unsafe fn identity_hash(heap_region_base: usize, cell: usize) -> IdentityHash {
-    let state = (cell + IDENTITY_HASH_STATE_OFFSET) as *mut u8;
-    let compressed = CompressedAddress((cell >> COMPRESSED_POINTER_SHIFT) as u32);
+pub unsafe fn identity_hash(heap_region_base: usize, cell: *const c_void) -> IdentityHash {
+    let state = cell.cast::<u8>().cast_mut().wrapping_add(IDENTITY_HASH_STATE_OFFSET);
+    let compressed = CompressedAddress((cell.addr() >> COMPRESSED_POINTER_SHIFT) as u32);
     // SAFETY: The caller passes a live cell, whose header has the state byte, and which only this thread touches.
     unsafe {
         let value = state.read();
@@ -156,7 +166,7 @@ pub unsafe fn identity_hash(heap_region_base: usize, cell: usize) -> IdentityHas
             }
             return IdentityHash(compressed.0);
         }
-        let heap = descriptor_for(heap_region_base, cell).heap();
+        let heap = descriptor_for(heap_region_base, cell.addr()).heap();
         identity_hashes_of(heap).get(compressed)
     }
 }
@@ -173,23 +183,28 @@ pub unsafe extern "C" fn rust_gc_cell_identity_hash(heap_region_base: usize, cel
         "a cell is never at the start of its block"
     );
     // SAFETY: The caller passes a live cell.
-    unsafe { identity_hash(heap_region_base, cell.addr()) }.0
+    unsafe { identity_hash(heap_region_base, cell) }.0
 }
 
-/// Drops the entries of the cells that the collection that just marked found dead, from a heap's side table.
+/// Whether the cell at `cell` moved since it was hashed, so that the side table of its heap has an entry for it.
 ///
 /// # Safety
 ///
-/// `table` must be null or the side table of the heap that just marked, while its marks are valid.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_gc_identity_hashes_drop_dead(table: *mut IdentityHashes, heap_region_base: usize) {
-    // SAFETY: The caller passes null or a live table.
-    let Some(table) = (unsafe { table.as_mut() }) else {
-        return;
-    };
-    table.retain_live(|address| {
-        let cell = heap_region_base + ((address.0 as usize) << COMPRESSED_POINTER_SHIFT);
-        // SAFETY: Every entry is of a cell of the heap that marked, whose block is live until the cell is swept.
-        unsafe { descriptor_for(heap_region_base, cell) }.is_marked(cell)
-    });
+/// `cell` must be an allocated cell.
+pub unsafe fn has_moved_since_hashed(cell: usize) -> bool {
+    // NB: Cells are in the heap region, whose provenance rust_gc_heap_region_init() exposed.
+    let state = core::ptr::with_exposed_provenance::<u8>(cell + IDENTITY_HASH_STATE_OFFSET);
+    // SAFETY: The caller passes an allocated cell, whose header has the state byte.
+    unsafe { state.read() & IDENTITY_HASH_MOVED != 0 }
+}
+
+/// Drops the entry of the cell at `cell` from the side table of `heap`, as the sweep frees the cell's slot, which the
+/// next cell there must not inherit.
+///
+/// # Safety
+///
+/// `heap` must be a live LibGC heap, used on this thread, and `cell` a cell of it that has_moved_since_hashed().
+pub unsafe fn forget_identity_hash(heap: *mut c_void, cell: usize) {
+    // SAFETY: The caller passes a live heap.
+    unsafe { identity_hashes_of(heap) }.forget(CompressedAddress((cell >> COMPRESSED_POINTER_SHIFT) as u32));
 }

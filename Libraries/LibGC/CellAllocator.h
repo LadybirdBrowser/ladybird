@@ -7,12 +7,17 @@
 #pragma once
 
 #include <AK/IntrusiveList.h>
+#include <AK/IterationDecision.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellTypeInfo.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/Ptr.h>
+
+#ifdef HAS_ADDRESS_SANITIZER
+#    include <sanitizer/asan_interface.h>
+#endif
 
 // The default allocator, which isolates different Cell types from being allocated in the same blocks.
 #define GC_DECLARE_ALLOCATOR(ClassName)    \
@@ -21,6 +26,12 @@
 
 #define GC_DEFINE_ALLOCATOR(ClassName) \
     GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv }
+
+namespace GC::FFI {
+
+struct Allocator;
+
+}
 
 namespace GC {
 
@@ -72,11 +83,16 @@ private:
     bool m_movable { false };
 };
 
+// The cells of one type in one heap. LibGC's Rust core keeps the allocator's blocks, hands out their free cells in runs
+// and sweeps them, see allocator.rs. This keeps the run that cells are allocated from inline.
 class GC_API CellAllocator {
+    AK_MAKE_NONCOPYABLE(CellAllocator);
+    AK_MAKE_NONMOVABLE(CellAllocator);
+
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit CellAllocator(CellAllocatorDescriptorBase&);
+    CellAllocator(Heap&, CellAllocatorDescriptorBase&);
     ~CellAllocator();
 
     CellAllocatorDescriptorBase const& descriptor() const { return m_descriptor; }
@@ -85,23 +101,21 @@ public:
     CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
     void const* foreign_type() const { return m_descriptor.foreign_type(); }
 
-    // Cells come from the free cells that the allocator took from one of its
-    // blocks (the local block) at once, so allocating is usually just popping
-    // a list of freed cells, or bumping a cursor over cells that were never
-    // allocated.
+    // Cells come from a run of free cells that the allocator took from one
+    // of its blocks (the local block) at once, so allocating is usually just
+    // bumping a cursor.
     //
     // Invariants of the local free cells:
-    // - They are dead and belong to the local block, which is in the full
-    //   block list while it has local free cells.
+    // - They are free cells of the local block, whose allocated bits are set
+    //   while they are out, see BlockDescriptor.h.
     // - The local block is never pending incremental sweep: they come from
     //   swept or new blocks only, and are handed back to their block whenever
     //   a collection starts. So cells from them never need marking.
-    // - The list is empty when its head is at the start of a block (or null),
-    //   which is where following the link of the last cell leads (see
-    //   HeapBlock::follow_freelist_link()).
-    // - The cells from the cursor up to the end are cells of the local block
-    //   that were never allocated, and cell_size apart. There are none when the
-    //   cursor is at the end.
+    // - The list is always empty, which its head being null says. It is only
+    //   there for code that allocates from it itself, which still checks it,
+    //   see gc_heap_allocator_local_free_list().
+    // - The cells from the cursor up to the end are cell_size apart. There
+    //   are none when the cursor is at the end.
     struct LocalFreeCells {
         RawPtr<Cell> free_list;
         FlatPtr cursor { 0 };
@@ -111,11 +125,6 @@ public:
 
     ALWAYS_INLINE Cell* allocate_cell(Heap& heap)
     {
-        if (auto* cell = m_local.free_list.ptr(); !HeapBlock::is_end_of_freelist(cell)) [[likely]] {
-            m_local.free_list = HeapBlock::next_free_cell(cell);
-            ASAN_UNPOISON_MEMORY_REGION(cell, cell_size());
-            return cell;
-        }
         if (m_local.cursor < m_local.end) [[likely]] {
             auto* cell = bit_cast<Cell*>(m_local.cursor);
             m_local.cursor += m_local.cell_size;
@@ -134,23 +143,16 @@ public:
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)
     {
-        for (auto& block : m_full_blocks) {
-            if (callback(block) == IterationDecision::Break)
-                return IterationDecision::Break;
-        }
-        for (auto& block : m_usable_blocks) {
-            if (callback(block) == IterationDecision::Break)
+        for (size_t i = 0; i < block_count(); ++i) {
+            if (callback(*block_at(i)) == IterationDecision::Break)
                 return IterationDecision::Break;
         }
         return IterationDecision::Continue;
     }
 
-    void block_did_become_empty(Badge<Heap>, HeapBlock&, DeferDecommit = DeferDecommit::Yes);
-    void block_did_become_usable(Badge<Heap>, HeapBlock&);
-
-    bool is_local_block(HeapBlock const& block) const { return m_local_block == &block; }
-
-    bool has_blocks_pending_sweep() const { return !m_blocks_pending_sweep.is_empty(); }
+    size_t block_count() const;
+    bool is_local_block(HeapBlock const&) const;
+    bool has_blocks_pending_sweep() const;
 
     IntrusiveListNode<CellAllocator> m_list_node;
     using List = IntrusiveList<&CellAllocator::m_list_node>;
@@ -159,23 +161,21 @@ public:
     using SweepList = IntrusiveList<&CellAllocator::m_sweep_list_node>;
 
     BlockAllocator& block_allocator() { return m_block_allocator; }
+    FFI::Allocator* rust_allocator(Badge<Heap>) { return m_allocator; }
 
 private:
-    friend class Heap;
+    friend class HeapBlock;
 
+    HeapBlock* block_at(size_t index) const;
     Cell* allocate_cell_slow(Heap&);
+    static void initialize_block(void* context, void* block);
+    static void free_cell(void* context, void* cell, bool destroy);
 
     CellAllocatorDescriptorBase& m_descriptor;
     LocalFreeCells m_local;
-    HeapBlock* m_local_block { nullptr };
-
     BlockAllocator& m_block_allocator;
-
-    using BlockList = IntrusiveList<&HeapBlock::m_list_node>;
-    using SweepBlockList = IntrusiveList<&HeapBlock::m_sweep_list_node>;
-    BlockList m_full_blocks;
-    BlockList m_usable_blocks;
-    SweepBlockList m_blocks_pending_sweep;
+    Heap& m_heap;
+    FFI::Allocator* m_allocator { nullptr };
 };
 
 template<typename T>

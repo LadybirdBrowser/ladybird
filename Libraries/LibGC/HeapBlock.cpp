@@ -4,12 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Assertions.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
 #include <LibGC/BlockDescriptor.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/Forward.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 
@@ -23,25 +20,6 @@ static_assert(HeapBlock::min_possible_cell_size >= FFI::MIN_CELL_SIZE);
 
 FFI::BlockDescriptor* const g_block_descriptors = FFI::rust_gc_block_descriptor_table(HEAP_REGION_SIZE);
 
-void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
-{
-    auto& descriptor = block_descriptor_for(&block);
-    descriptor.type_info = &allocator.type_info();
-    descriptor.cell_size = allocator.cell_size();
-    descriptor.cell_index_magic = static_cast<u32>(((static_cast<u64>(1) << 32) + descriptor.cell_size - 1) / descriptor.cell_size);
-    descriptor.traced_on_owner_thread_only = allocator.descriptor().trace_thread() == TraceThread::OwnerThreadOnly;
-    descriptor.movable = allocator.descriptor().is_movable();
-    descriptor.kept_by_pins = false;
-    descriptor.cell_count = static_cast<u16>(block.cell_count());
-    descriptor.first_cell_index = static_cast<u16>(cell_index(descriptor, bit_cast<u8 const*>(&block) + HeapBlock::cells_offset()));
-    for (auto& word : descriptor.allocated)
-        word = 0;
-    descriptor.evacuation = nullptr;
-    clear_marks(descriptor);
-    // NB: Markers of other heaps read the heap of any block their cells point into, to leave it alone if it is not theirs.
-    __atomic_store_n(&descriptor.heap, static_cast<void*>(&block.heap()), __ATOMIC_RELEASE);
-}
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 size_t HeapBlock::cells_offset()
@@ -53,18 +31,9 @@ size_t HeapBlock::cells_offset()
 }
 #pragma GCC diagnostic pop
 
-void retire_block_descriptor(HeapBlock& block)
+void HeapBlock::initialize(void* block, Heap& heap, CellAllocator& cell_allocator)
 {
-    __atomic_store_n(&block_descriptor_for(&block).heap, static_cast<void*>(nullptr), __ATOMIC_RELEASE);
-}
-
-NonnullOwnPtr<HeapBlock> HeapBlock::create(Heap& heap, CellAllocator& cell_allocator)
-{
-    char const* name = nullptr;
-    auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
     new (block) HeapBlock(heap, cell_allocator);
-    ++heap.m_block_count;
-    return adopt_own(*block);
 }
 
 HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
@@ -73,120 +42,23 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
     , m_cell_size(cell_allocator.cell_size())
     , m_cell_count((BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size)
 {
-    VERIFY(m_cell_size >= sizeof(FreelistEntry));
-    VERIFY(m_cell_size >= FFI::MIN_CELL_SIZE);
-    publish_block_descriptor(*this, cell_allocator);
+    VERIFY(m_cell_size >= min_possible_cell_size);
     ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));
 }
 
-HeapBlock::~HeapBlock()
+bool HeapBlock::is_pending_sweep() const
 {
-    retire_block_descriptor(*this);
+    return block_descriptor_for(this).pending_sweep;
 }
 
-Cell* HeapBlock::allocate()
+bool HeapBlock::is_being_swept() const
 {
-    Cell* allocated_cell = nullptr;
-    if (auto* head = freelist_head(); !is_end_of_freelist(head)) {
-        VERIFY(is_valid_cell_pointer(head));
-        m_freelist = static_cast<FreelistEntry*>(head)->next;
-        allocated_cell = head;
-    } else if (has_lazy_freelist()) {
-        allocated_cell = cell(m_next_lazy_freelist_index++);
-    }
-
-    if (allocated_cell) {
-        ASAN_UNPOISON_MEMORY_REGION(allocated_cell, m_cell_size);
-        auto& descriptor = block_descriptor_for(this);
-        set_allocated(descriptor, cell_index(descriptor, allocated_cell));
-    }
-    return allocated_cell;
+    return block_descriptor_for(this).being_swept;
 }
 
 u32 HeapBlock::allocated_cell_count() const
 {
     return allocated_cell_count_of(block_descriptor_for(this));
-}
-
-HeapBlock::FreeCells HeapBlock::take_free_cells()
-{
-    FreeCells free_cells {
-        .free_list = freelist_head(),
-        .lazy_start = bit_cast<FlatPtr>(cell(m_next_lazy_freelist_index)),
-        .lazy_end = bit_cast<FlatPtr>(cell(cell_count())),
-    };
-    // NB: Inline allocators bump through these cells without further checks, so make sure they are within the block.
-    VERIFY(free_cells.lazy_start <= free_cells.lazy_end);
-    VERIFY(free_cells.lazy_end <= bit_cast<FlatPtr>(this) + BLOCK_SIZE);
-    m_freelist = 0;
-    m_next_lazy_freelist_index = cell_count();
-    set_all_allocated(block_descriptor_for(this));
-    return free_cells;
-}
-
-void HeapBlock::give_back_free_cells(Cell* free_list, FlatPtr lazy_cursor)
-{
-    // NB: take_free_cells() left the block without free cells of its own, and nothing frees cells in a block while
-    //     its free cells are out, so the list becomes the block's free list as it is. Its links can only lead into
-    //     this block (see follow_freelist_link()).
-    VERIFY(is_end_of_freelist(freelist_head()));
-    VERIFY(!has_lazy_freelist());
-    VERIFY(is_end_of_freelist(free_list) || is_valid_cell_pointer(free_list));
-    m_freelist = bit_cast<FlatPtr>(free_list);
-
-    auto storage = reinterpret_cast<FlatPtr>(m_storage);
-    VERIFY(lazy_cursor >= storage);
-    VERIFY((lazy_cursor - storage) % m_cell_size == 0);
-    auto lazy_index = (lazy_cursor - storage) / m_cell_size;
-    VERIFY(lazy_index <= cell_count());
-    m_next_lazy_freelist_index = lazy_index;
-
-    // NB: The cells that come back were never handed out, so they are not allocated after all.
-    auto& descriptor = block_descriptor_for(this);
-    for (auto* free_cell = freelist_head(); !is_end_of_freelist(free_cell); free_cell = next_free_cell(free_cell))
-        clear_allocated(descriptor, cell_index(descriptor, free_cell));
-    for (auto index = lazy_index; index < cell_count(); ++index)
-        clear_allocated(descriptor, cell_index(descriptor, cell(index)));
-}
-
-void HeapBlock::deallocate(Cell* cell)
-{
-    // NB: The cell is one of this block's, since for_each_cell() found it, and the free list only ever holds cells
-    //     that this function or give_back_free_cells() put there.
-    VERIFY(cell->state() == Cell::State::Live);
-    VERIFY(!GC::is_marked(cell));
-
-    if (auto* destroy = type_info().destroy)
-        destroy(cell);
-    free_slot(cell);
-}
-
-void HeapBlock::release_moved_cell(Cell* cell)
-{
-    VERIFY(cell->state() == Cell::State::Live);
-    VERIFY(is_valid_cell_pointer(cell));
-    free_slot(cell);
-}
-
-void HeapBlock::free_slot(Cell* cell)
-{
-    auto* freelist_entry = new (cell) FreelistEntry();
-    freelist_entry->set_state(Cell::State::Dead);
-    freelist_entry->next = m_freelist;
-    m_freelist = bit_cast<FlatPtr>(freelist_entry);
-    auto& descriptor = block_descriptor_for(this);
-    clear_allocated(descriptor, cell_index(descriptor, cell));
-
-#ifdef HAS_ADDRESS_SANITIZER
-    auto dword_after_freelist = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(freelist_entry) + sizeof(FreelistEntry), 8);
-    VERIFY((dword_after_freelist - reinterpret_cast<uintptr_t>(freelist_entry)) <= m_cell_size);
-    VERIFY(m_cell_size >= sizeof(FreelistEntry));
-    VERIFY(m_cell_size >= FFI::MIN_CELL_SIZE);
-    // We can't poision the cell tracking data, nor the FreeListEntry's vtable or next pointer
-    // This means there's sizeof(FreelistEntry) data at the front of each cell that is always read/write
-    // On x86_64, this ends up being 24 bytes due to the size of the FreeListEntry's vtable, while on x86, it's only 12 bytes.
-    ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(dword_after_freelist), m_cell_size - sizeof(FreelistEntry));
-#endif
 }
 
 }
