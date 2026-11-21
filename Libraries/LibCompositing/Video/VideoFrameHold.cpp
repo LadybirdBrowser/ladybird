@@ -5,8 +5,6 @@
  */
 
 #include <LibCompositing/Video/VideoFrameHold.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 
 namespace Compositing {
 
@@ -39,28 +37,6 @@ VideoFrameHold::~VideoFrameHold()
         return;
     if (m_release_through_compositor)
         m_release_through_compositor(m_sink_handle, m_generation);
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::CapturedVideoFrame const& frame)
-{
-    TRY(encoder.encode(frame.sink_handle));
-    TRY(encoder.encode(frame.generation));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::CapturedVideoFrame> decode(Decoder& decoder)
-{
-    return Compositing::CapturedVideoFrame {
-        .sink_handle = TRY(decoder.decode<Media::VideoSinkHandle>()),
-        .generation = TRY(decoder.decode<u64>()),
-        .hold = nullptr,
-    };
 }
 
 }

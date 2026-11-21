@@ -11,6 +11,9 @@ use super::{CompositorCore, ContextOwnerCheckResult};
 use crate::canvas_2d_contexts::ContextCreation;
 use crate::display_list_chunk_stores::chunks_of_list_sent_whole;
 use crate::host::{PresentationId, WebContentClientId};
+use crate::raster_host::SharedMemory;
+use crate::webgl::host::{ContextOptions, MappedMemory};
+use crate::webgl::replay::ReplayError;
 use libcompositing_rust::display_list::commands::CanvasId;
 use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
@@ -27,19 +30,23 @@ use libcompositing_rust::ipc_types::compositor_web_content_client::messages::Did
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
     ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, CreateCanvas2dContext,
-    DestroyCanvas2dContext, InvalidateKeyboardScrollState, InvalidateKeyboardScrollStateResponse,
-    InvalidateWheelEventListenerState, RasterizeDisplayList, ReserveCanvasIds, ReserveCanvasIdsResponse,
-    RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse, ScrollStateForTesting,
-    ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
-    TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
-    TakeWheelEventFromMainThreadResponse, UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState,
-    UpdateVisualContextTree, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
+    CreateWebglContext, CreateWebglContextResponse, DestroyCanvas2dContext, DestroyWebglContext,
+    InvalidateKeyboardScrollState, InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState,
+    RasterizeDisplayList, ReserveCanvasIds, ReserveCanvasIdsResponse, RouteFirstWheelStepForTesting,
+    RouteFirstWheelStepForTestingResponse, ScrollStateForTesting, ScrollStateForTestingResponse,
+    TakeInputTraceForTesting, TakeInputTraceForTestingResponse, TakePendingAsyncScrollUpdates,
+    TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread, TakeWheelEventFromMainThreadResponse,
+    UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree, WebglClearDrawingBuffer,
+    WebglCommands, WebglCommandsFromSharedBuffer, WebglDrainCommandBuffer, WebglDrainCommandBufferResponse,
+    WebglPresentCanvas, WebglReadBackDrawingBuffer, WebglReadBackDrawingBufferResponse, WebglReadBufferSubData,
+    WebglReadBufferSubDataResponse, WebglReadPixels, WebglReadPixelsResponse, WebglSetCommandBuffer, WebglSyncCall,
+    WebglSyncCallResponse, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
 };
 use libcompositing_rust::ipc_types::{
-    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind,
+    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Compositing_WebGL_WebGLVersion,
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
-    LayerPlanOnWire, SharedDisplayList, compositor_control_server, compositor_presentation_server,
-    compositor_web_content_server,
+    Core_AnonymousBuffer, LayerPlanOnWire, SharedDisplayList, compositor_control_server,
+    compositor_presentation_server, compositor_web_content_server,
 };
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
@@ -48,7 +55,7 @@ use libcompositing_rust::scrolling::{
     PinchEvent, ScrollRequest,
 };
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::{FloatPoint, IntSize};
+use libgfx_rust::{FloatPoint, IntRect, IntSize};
 use libipc_rust::Misbehavior;
 use std::io::Write;
 use std::rc::Rc;
@@ -285,6 +292,18 @@ impl MessagesFromWebContent<'_> {
     }
 }
 
+fn misbehavior(error: ReplayError) -> Misbehavior {
+    Misbehavior(error.0)
+}
+
+impl MessagesFromWebContent<'_> {
+    fn map_shared_memory(&self, buffer: Core_AnonymousBuffer) -> Result<Option<SharedMemory>, Misbehavior> {
+        self.core.raster().map_shared_memory(buffer).ok_or(Misbehavior(
+            "WebContent sent shared memory that does not hold as much as it claims",
+        ))
+    }
+}
+
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     fn reserve_canvas_ids(&mut self, _: ReserveCanvasIds) -> Result<ReserveCanvasIdsResponse, Misbehavior> {
         let reserved_ids = self
@@ -324,6 +343,184 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             .canvas_2d_contexts()
             .destroy(self.client_id, self.core.raster(), message.canvas_id);
         Ok(())
+    }
+
+    fn create_webgl_context(&mut self, message: CreateWebglContext) -> Result<CreateWebglContextResponse, Misbehavior> {
+        let options = ContextOptions {
+            webgl2: message.webgl_version == Compositing_WebGL_WebGLVersion::WebGL2,
+            depth: message.depth,
+            stencil: message.stencil,
+            antialias: message.antialias,
+            size: message.size,
+        };
+        let created = self
+            .core
+            .webgl_contexts()
+            .create(self.core.raster(), self.client_id, options);
+        Ok(match created {
+            Some(created) => CreateWebglContextResponse {
+                success: true,
+                canvas_id: created.canvas_id,
+                supported_extensions: created.supported_extensions.into_iter().map(Into::into).collect(),
+            },
+            None => CreateWebglContextResponse {
+                success: false,
+                canvas_id: CanvasId(0),
+                supported_extensions: Vec::new(),
+            },
+        })
+    }
+
+    fn destroy_webgl_context(&mut self, message: DestroyWebglContext) -> Result<(), Misbehavior> {
+        self.core
+            .webgl_contexts()
+            .destroy(self.core.raster(), self.client_id, message.canvas_id);
+        Ok(())
+    }
+
+    fn webgl_set_command_buffer(&mut self, message: WebglSetCommandBuffer) -> Result<(), Misbehavior> {
+        let command_buffer = self.map_shared_memory(message.command_buffer)?;
+        self.core
+            .webgl_contexts()
+            .set_command_buffer(
+                self.client_id,
+                message.canvas_id,
+                command_buffer.map(|memory| Box::new(memory) as Box<dyn MappedMemory>),
+            )
+            .map_err(misbehavior)
+    }
+
+    fn webgl_commands_from_shared_buffer(&mut self, message: WebglCommandsFromSharedBuffer) -> Result<(), Misbehavior> {
+        self.core
+            .webgl_contexts()
+            .execute_commands_from_shared_buffer(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                message.offset,
+                message.size_in_bytes,
+                message.flush_sequence_number,
+                &message.image_sources,
+            )
+            .map_err(misbehavior)
+    }
+
+    fn webgl_drain_command_buffer(
+        &mut self,
+        _: WebglDrainCommandBuffer,
+    ) -> Result<WebglDrainCommandBufferResponse, Misbehavior> {
+        Ok(WebglDrainCommandBufferResponse)
+    }
+
+    fn webgl_commands(&mut self, message: WebglCommands) -> Result<(), Misbehavior> {
+        let commands = self.map_shared_memory(message.commands)?;
+        self.core
+            .webgl_contexts()
+            .execute_commands(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                commands.as_ref().map(|memory| memory as &dyn MappedMemory),
+                &message.image_sources,
+            )
+            .map_err(misbehavior)
+    }
+
+    fn webgl_present_canvas(&mut self, message: WebglPresentCanvas) -> Result<(), Misbehavior> {
+        self.core
+            .webgl_contexts()
+            .present(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                message.preserve_drawing_buffer,
+            )
+            .map_err(misbehavior)
+    }
+
+    fn webgl_clear_drawing_buffer(&mut self, message: WebglClearDrawingBuffer) -> Result<(), Misbehavior> {
+        self.core
+            .webgl_contexts()
+            .clear_drawing_buffer(self.core.raster(), self.client_id, message.canvas_id);
+        Ok(())
+    }
+
+    fn webgl_sync_call(&mut self, message: WebglSyncCall) -> Result<WebglSyncCallResponse, Misbehavior> {
+        let reply = self
+            .core
+            .webgl_contexts()
+            .execute_sync_call(self.core.raster(), self.client_id, message.canvas_id, &message.request)
+            .map_err(misbehavior)?;
+        Ok(WebglSyncCallResponse { reply })
+    }
+
+    fn webgl_read_pixels(&mut self, message: WebglReadPixels) -> Result<WebglReadPixelsResponse, Misbehavior> {
+        let pixels = self.map_shared_memory(message.pixels)?;
+        let rect = IntRect {
+            x: message.x,
+            y: message.y,
+            width: message.width,
+            height: message.height,
+        };
+        let result = self
+            .core
+            .webgl_contexts()
+            .read_pixels(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                rect,
+                message.format,
+                message.r#type,
+                message.buf_size,
+                pixels.as_ref().map(|memory| memory as &dyn MappedMemory),
+            )
+            .map_err(misbehavior)?;
+        Ok(WebglReadPixelsResponse {
+            length: result.length,
+            columns: result.columns,
+            rows: result.rows,
+        })
+    }
+
+    fn webgl_read_buffer_sub_data(
+        &mut self,
+        message: WebglReadBufferSubData,
+    ) -> Result<WebglReadBufferSubDataResponse, Misbehavior> {
+        let data = self.map_shared_memory(message.data)?;
+        let success = self
+            .core
+            .webgl_contexts()
+            .read_buffer_sub_data(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                message.target,
+                message.offset,
+                message.size,
+                data.as_ref().map(|memory| memory as &dyn MappedMemory),
+            )
+            .map_err(misbehavior)?;
+        Ok(WebglReadBufferSubDataResponse { success })
+    }
+
+    fn webgl_read_back_drawing_buffer(
+        &mut self,
+        message: WebglReadBackDrawingBuffer,
+    ) -> Result<WebglReadBackDrawingBufferResponse, Misbehavior> {
+        let pixels = self.map_shared_memory(message.pixels)?;
+        let size = self
+            .core
+            .webgl_contexts()
+            .read_back_drawing_buffer(
+                self.core.raster(),
+                self.client_id,
+                message.canvas_id,
+                message.rect,
+                pixels.as_ref().map(|memory| memory as &dyn MappedMemory),
+            )
+            .map_err(misbehavior)?;
+        Ok(WebglReadBackDrawingBufferResponse { size })
     }
 
     fn update_display_list(&mut self, message: UpdateDisplayList) -> Result<(), Misbehavior> {

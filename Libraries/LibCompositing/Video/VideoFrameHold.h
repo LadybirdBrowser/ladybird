@@ -12,7 +12,6 @@
 #include <AK/Weakable.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
-#include <LibIPC/Forward.h>
 #include <LibMedia/VideoSinkHandle.h>
 
 namespace Compositing {
@@ -47,15 +46,5 @@ struct COMPOSITING_API CapturedVideoFrame {
     u64 generation { 0 };
     RefPtr<VideoFrameHold> hold;
 };
-
-}
-
-namespace IPC {
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::CapturedVideoFrame const&);
-
-template<>
-COMPOSITING_API ErrorOr<Compositing::CapturedVideoFrame> decode(Decoder&);
 
 }

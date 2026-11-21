@@ -18,7 +18,7 @@ use libcompositing_rust::webgl::SHARED_DATA_REGION_OFFSET;
 use libcompositing_rust::webgl::vocabulary::{CommandType, SyncCallType, commands, sync_calls};
 use libcompositing_rust::webgl::wire::{Command, DataSpan, HEADER_SIZE, WireStruct};
 
-use super::recorder::{MAX_PENDING_COMMAND_BYTES, Proxy, bytes_of};
+use super::recorder::{MAX_PENDING_COMMAND_BYTES, MAX_PENDING_FRAMES, Proxy, bytes_of};
 use super::transport::{ReadPixelsResult, SharedMemory, Transport};
 use crate::web_gl::constants::{GL_ARRAY_BUFFER, GL_INVALID_ENUM, GL_OUT_OF_MEMORY, GL_RGBA, GL_UNSIGNED_BYTE};
 
@@ -131,7 +131,6 @@ struct MockReplayer {
     refuses_shared_memory: Cell<bool>,
     executes_at_once: Cell<bool>,
     wait_succeeds: Cell<bool>,
-    max_frames_per_message: Cell<usize>,
     sync_replies: RefCell<VecDeque<Vec<u8>>>,
     read_data: RefCell<Vec<u8>>,
     read_pixels_result: Cell<ReadPixelsResult>,
@@ -149,7 +148,6 @@ impl MockReplayer {
             refuses_shared_memory: Cell::new(false),
             executes_at_once: Cell::new(true),
             wait_succeeds: Cell::new(true),
-            max_frames_per_message: Cell::new(16),
             sync_replies: RefCell::new(VecDeque::new()),
             read_data: RefCell::new(Vec::new()),
             read_pixels_result: Cell::new(ReadPixelsResult::default()),
@@ -237,10 +235,6 @@ impl Transport for MockTransport {
     type SharedMemory = MockMemory;
     type Frame = u32;
     type DrawingBufferPixels = (i32, i32, i32, i32);
-
-    fn max_frames_per_message(&self) -> usize {
-        self.replayer.max_frames_per_message.get()
-    }
 
     fn create_shared_memory(&self, size: usize) -> Option<MockMemory> {
         (!self.replayer.refuses_shared_memory.get()).then(|| MockMemory::new(size))
@@ -607,6 +601,29 @@ fn a_record_larger_than_the_region_is_sent_on_its_own() {
 }
 
 #[test]
+fn a_flush_comes_before_the_frame_that_would_exceed_the_pending_frames() {
+    let replayer = MockReplayer::new();
+    let recorder = replayer.recorder(SMALL_CAPACITY * 1024);
+    replayer.take_calls();
+
+    for frame in 0..=MAX_PENDING_FRAMES as u32 {
+        upload_frame(&recorder, frame);
+    }
+    let calls = replayer.take_calls();
+    let [Call::SendFromSharedBuffer { records, frames, .. }] = calls.as_slice() else {
+        panic!("{} calls", calls.len());
+    };
+    assert_eq!(records.len(), MAX_PENDING_FRAMES);
+    assert_eq!(*frames, (0..MAX_PENDING_FRAMES as u32).collect::<Vec<_>>());
+
+    recorder.flush_commands();
+    let calls = replayer.take_calls();
+    assert!(
+        matches!(calls.as_slice(), [Call::SendFromSharedBuffer { frames, .. }] if *frames == [MAX_PENDING_FRAMES as u32])
+    );
+}
+
+#[test]
 fn without_a_shared_buffer_commands_are_sent_as_bytes() {
     let replayer = MockReplayer::new();
     replayer.refuses_shared_memory.set(true);
@@ -688,37 +705,6 @@ fn a_frame_is_published_with_the_command_that_names_it() {
             records: vec![frame_record(0)],
             flush_sequence_number: 2,
             frames: vec![80],
-        }]
-    );
-}
-
-#[test]
-fn a_message_carries_no_more_frames_than_the_transport_allows() {
-    let replayer = MockReplayer::new();
-    replayer.max_frames_per_message.set(2);
-    let recorder = replayer.recorder(SMALL_CAPACITY);
-    replayer.take_calls();
-
-    for frame in [70, 80, 90] {
-        upload_frame(&recorder, frame);
-    }
-    assert_eq!(
-        replayer.take_calls(),
-        [Call::SendFromSharedBuffer {
-            offset: 0,
-            records: vec![frame_record(0), frame_record(1)],
-            flush_sequence_number: 1,
-            frames: vec![70, 80],
-        }]
-    );
-    recorder.flush_commands();
-    assert_eq!(
-        replayer.take_calls(),
-        [Call::SendFromSharedBuffer {
-            offset: 0,
-            records: vec![frame_record(0)],
-            flush_sequence_number: 2,
-            frames: vec![90],
         }]
     );
 }

@@ -9,7 +9,6 @@
 
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
-use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 use std::rc::Rc;
 
@@ -21,14 +20,12 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
-use libipc_rust::cpp_connection::{FfiThreadSafeMessagePoster, ThreadSafeMessagePoster};
-use libipc_rust::wire::EndpointMessage;
+
+use crate::compositor_connection::CompositorConnection;
 
 use super::stream::{Canvas2DStream, flush, shared_stream};
 
 unsafe extern "C" {
-    fn web_canvas_2d_connection_unref(connection: *mut c_void);
-    fn web_canvas_2d_connection_poster(connection: *mut c_void, out_poster: *mut FfiThreadSafeMessagePoster) -> bool;
     fn web_canvas_2d_connection_reserve_context_id(
         connection: *mut c_void,
         width: i32,
@@ -42,7 +39,6 @@ unsafe extern "C" {
         image_frames: *const *const c_void,
         image_frame_count: usize,
     ) -> bool;
-    fn web_canvas_2d_connection_did_fail_to_post(connection: *mut c_void);
     fn web_canvas_2d_connection_read_back_pixels(
         connection: *mut c_void,
         canvas_id: u64,
@@ -58,42 +54,13 @@ unsafe extern "C" {
     fn web_canvas_2d_video_frame_hold_note_sent_to_compositor(hold: *mut c_void);
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct CompositorConnection(NonNull<c_void>);
-
 // SAFETY (of every call below): The connection is live, and the fonts and image frames are lent for the call, in which
 // C++ takes references of its own.
 impl CompositorConnection {
-    /// # Safety
-    ///
-    /// `connection` must be a CompositorConnection that outlives the value.
-    pub(crate) unsafe fn lent(connection: NonNull<c_void>) -> Self {
-        Self(connection)
-    }
-
-    pub(crate) fn poster_while_compositor_is_reachable(self) -> Option<ThreadSafeMessagePoster> {
-        let mut poster = MaybeUninit::<FfiThreadSafeMessagePoster>::uninit();
-        let reachable = unsafe { web_canvas_2d_connection_poster(self.0.as_ptr(), poster.as_mut_ptr()) };
-        // SAFETY: C++ sets the poster to one reference to the poster of the connection where it answers true.
-        reachable.then(|| unsafe { ThreadSafeMessagePoster::adopt(poster.assume_init()) })
-    }
-
-    pub(crate) fn post_or_lose_compositor<M: EndpointMessage>(
-        self,
-        poster: &ThreadSafeMessagePoster,
-        message: M,
-    ) -> bool {
-        let posted = poster.try_post(message).expect("a message of a 2D canvas encodes");
-        if !posted {
-            unsafe { web_canvas_2d_connection_did_fail_to_post(self.0.as_ptr()) };
-        }
-        posted
-    }
-
     fn reserve_context_id(self, size: IntSize) -> Option<CanvasId> {
         let mut canvas_id = 0;
         unsafe {
-            web_canvas_2d_connection_reserve_context_id(self.0.as_ptr(), size.width, size.height, &raw mut canvas_id)
+            web_canvas_2d_connection_reserve_context_id(self.as_ptr(), size.width, size.height, &raw mut canvas_id)
         }
         .then_some(CanvasId(canvas_id))
     }
@@ -107,7 +74,7 @@ impl CompositorConnection {
         let image_frames: Vec<*const c_void> = image_frames.iter().map(|frame| frame.as_raw()).collect();
         unsafe {
             web_canvas_2d_connection_post_stream_batch_fonts_and_image_frames(
-                self.0.as_ptr(),
+                self.as_ptr(),
                 fonts.as_ptr(),
                 fonts.len(),
                 image_frames.as_ptr(),
@@ -125,7 +92,7 @@ impl CompositorConnection {
     ) -> Option<ImageFrameHandle> {
         let frame = unsafe {
             web_canvas_2d_connection_read_back_pixels(
-                self.0.as_ptr(),
+                self.as_ptr(),
                 canvas_id.0,
                 rect.x,
                 rect.y,
@@ -220,7 +187,7 @@ impl CompositorTransport {
 impl Drop for CompositorTransport {
     fn drop(&mut self) {
         // SAFETY: The value owns a reference to the connection.
-        unsafe { web_canvas_2d_connection_unref(self.connection.0.as_ptr()) };
+        unsafe { self.connection.release() };
     }
 }
 

@@ -16,7 +16,8 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::Upd
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 
-use super::host::{CompositorConnection, VideoFrameHold};
+use super::host::VideoFrameHold;
+use crate::compositor_connection::CompositorConnection;
 
 #[derive(Default)]
 pub(crate) struct Canvas2DStream {

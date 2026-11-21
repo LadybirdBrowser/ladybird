@@ -9,10 +9,15 @@
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
 use crate::backing_stores::{FfiNewStore, NewStore, Publication, SharedImageToPublish, StoreKind};
-use crate::cpp_object::FfiCppObject;
+use crate::cpp_object::{CppObject, FfiCppObject};
+use crate::host::WebContentClientId;
 use crate::remote_layers::{RemoteLayerHost, RemoteLayerObject, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
+use crate::webgl::host::{
+    ContextOptions, DefaultBuffers, ImageConversion, ImageConversionOutcome, PresentOutcome, VideoFrameCopy, WebGLHost,
+};
+use libcompositing_rust::display_list::commands::VideoSinkHandle;
 use libcompositing_rust::display_list::commands::{CanvasId, CompositorContextId, DisplayListCommandType};
 use libcompositing_rust::display_list::storage::{
     ListChunk, PackedChunkSize, receive_packed_chunks_from_shared_memory,
@@ -23,9 +28,10 @@ use libcompositing_rust::ipc_types::{
     Web_Bindings_PredefinedColorSpace,
 };
 use libcompositing_rust::time::MonotonicTime;
+use libcompositing_rust::webgl::ImageSource;
 use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
-use std::ffi::c_void;
+use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
 use std::rc::Rc;
 
@@ -325,6 +331,87 @@ pub struct FfiRasterHost {
     pub present_canvas_2d_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId) -> bool,
     /// Arguments: the client and canvases of its contexts. Submits the GPU work drawn into their surfaces.
     pub flush_canvas_2d_contexts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, CanvasId>),
+
+    /// Answers the address of the GL function of the name, or null.
+    pub gl_proc_address: unsafe extern "C" fn(*mut c_void, *const c_char) -> *const c_void,
+    /// Arguments: the client, the canvas, and what its context is made with. Answers whether a GL context with a
+    /// drawing buffer could be made.
+    pub create_webgl_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId, ContextOptions) -> bool,
+    pub destroy_webgl_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId),
+    /// Makes the GL context of the client's canvas current, and writes its default framebuffer and renderbuffer.
+    pub make_webgl_context_current: unsafe extern "C" fn(*mut c_void, u64, CanvasId, *mut DefaultBuffers),
+    pub set_webgl_drawing_buffer_size: unsafe extern "C" fn(*mut c_void, u64, CanvasId, IntSize),
+    /// Arguments: the client, the canvas, whether the drawing buffer is preserved, and whether the frame presented last
+    /// goes on being shown where there is one.
+    pub present_webgl_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId, bool, bool) -> PresentOutcome,
+    /// Arguments: the client, the canvas, whether the frame presented last is read rather than the drawing buffer, the
+    /// rect, where the pixels go, how many bytes fit there, and where the size of what was read is written.
+    pub read_back_webgl_drawing_buffer:
+        unsafe extern "C" fn(*mut c_void, u64, CanvasId, bool, IntRect, *mut u8, usize, *mut IntSize) -> bool,
+    pub webgl_can_copy_images_into_textures: unsafe extern "C" fn(*mut c_void, u64, CanvasId) -> bool,
+    /// Arguments: the client, the sink of the video, the generation of its frame, and where the frame and its size are
+    /// written. Answers whether the client holds that frame.
+    pub held_video_frame: unsafe extern "C" fn(*mut c_void, u64, u64, u64, *mut FfiCppObject, *mut IntSize) -> bool,
+    /// Writes an image of the frame on the GPU, which is null where there cannot be one.
+    pub video_frame_image: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiCppObject),
+    pub copy_video_frame_image_into_bound_texture:
+        unsafe extern "C" fn(*mut c_void, u64, CanvasId, *mut c_void, VideoFrameCopy) -> bool,
+    pub convert_image_source_for_webgl: unsafe extern "C" fn(
+        *mut c_void,
+        u64,
+        FfiImageSource,
+        FfiImageConversion,
+        *mut FfiConvertedPixels,
+    ) -> FfiImageConversionOutcome,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiImageSource {
+    pub is_held_video_frame: bool,
+    pub id: u64,
+    pub generation: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiImageConversion {
+    /// A `Gfx::ExportFormat`.
+    pub export_format: u8,
+    pub flip_y: bool,
+    pub premultiply_alpha: bool,
+    pub has_target_size: bool,
+    pub target_size: IntSize,
+}
+
+#[repr(C)]
+pub struct FfiConvertedPixels {
+    pub pixels: FfiCppObject,
+    pub data: *const u8,
+    pub size: usize,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FfiImageConversionOutcome {
+    Converted,
+    UnknownImageFrame,
+    Failed,
+}
+
+pub struct ConvertedPixels {
+    _owner: CppObject,
+    data: *const u8,
+    size: usize,
+}
+
+impl AsRef<[u8]> for ConvertedPixels {
+    fn as_ref(&self) -> &[u8] {
+        // SAFETY: The owner keeps the bytes for as long as this lives, and nothing writes them.
+        unsafe { ak::slice_from_raw_parts(self.data, self.size) }
+    }
 }
 
 /// Shared memory that WebContent sent, mapped until this is dropped.
@@ -884,6 +971,198 @@ impl RasterHost {
     pub fn flush_canvas_2d_contexts(&self, client: u64, canvas_ids: &[CanvasId]) {
         // SAFETY: The host outlives this, and reads the IDs during the call.
         unsafe { (self.0.flush_canvas_2d_contexts)(self.host(), client, ak::Span::new(canvas_ids)) };
+    }
+}
+
+impl WebGLHost for RasterHost {
+    type Pixels = ConvertedPixels;
+    type VideoFrame = CppObject;
+    type VideoFrameImage = CppObject;
+
+    fn gl_proc_address(&self, name: &CStr) -> *const c_void {
+        // SAFETY: The host outlives this, and reads the name during the call.
+        unsafe { (self.0.gl_proc_address)(self.host(), name.as_ptr()) }
+    }
+
+    fn allocate_canvas_id(&self) -> CanvasId {
+        CanvasId(self.reserve_canvas_ids(1))
+    }
+
+    fn create_webgl_context(&self, client: WebContentClientId, canvas_id: CanvasId, options: ContextOptions) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.create_webgl_context)(self.host(), client.0, canvas_id, options) }
+    }
+
+    fn destroy_webgl_context(&self, client: WebContentClientId, canvas_id: CanvasId) {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.destroy_webgl_context)(self.host(), client.0, canvas_id) };
+    }
+
+    fn make_webgl_context_current(&self, client: WebContentClientId, canvas_id: CanvasId) -> DefaultBuffers {
+        let mut defaults = DefaultBuffers::default();
+        // SAFETY: The host outlives this, and writes the default buffers.
+        unsafe { (self.0.make_webgl_context_current)(self.host(), client.0, canvas_id, &raw mut defaults) };
+        defaults
+    }
+
+    fn set_webgl_drawing_buffer_size(&self, client: WebContentClientId, canvas_id: CanvasId, size: IntSize) {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.set_webgl_drawing_buffer_size)(self.host(), client.0, canvas_id, size) };
+    }
+
+    fn present_webgl_context(
+        &self,
+        client: WebContentClientId,
+        canvas_id: CanvasId,
+        preserve_drawing_buffer: bool,
+        show_presented_frame: bool,
+    ) -> PresentOutcome {
+        // SAFETY: The host outlives this.
+        unsafe {
+            (self.0.present_webgl_context)(
+                self.host(),
+                client.0,
+                canvas_id,
+                preserve_drawing_buffer,
+                show_presented_frame,
+            )
+        }
+    }
+
+    unsafe fn read_back_webgl_drawing_buffer(
+        &self,
+        client: WebContentClientId,
+        canvas_id: CanvasId,
+        from_presented_frame: bool,
+        rect: IntRect,
+        pixels: *mut u8,
+        pixels_size: usize,
+    ) -> Option<IntSize> {
+        let mut size = IntSize::default();
+        // SAFETY: The host outlives this, the caller passes as many writable bytes, and the host writes the size.
+        unsafe {
+            (self.0.read_back_webgl_drawing_buffer)(
+                self.host(),
+                client.0,
+                canvas_id,
+                from_presented_frame,
+                rect,
+                pixels,
+                pixels_size,
+                &raw mut size,
+            )
+        }
+        .then_some(size)
+    }
+
+    fn webgl_can_copy_images_into_textures(&self, client: WebContentClientId, canvas_id: CanvasId) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.webgl_can_copy_images_into_textures)(self.host(), client.0, canvas_id) }
+    }
+
+    fn held_video_frame(
+        &self,
+        client: WebContentClientId,
+        sink_handle: VideoSinkHandle,
+        generation: u64,
+    ) -> Option<(CppObject, IntSize)> {
+        let mut frame = FfiCppObject::default();
+        let mut size = IntSize::default();
+        // SAFETY: The host outlives this, and writes the frame and its size where it answers true.
+        let held = unsafe {
+            (self.0.held_video_frame)(
+                self.host(),
+                client.0,
+                sink_handle.0,
+                generation,
+                &raw mut frame,
+                &raw mut size,
+            )
+        };
+        if !held {
+            return None;
+        }
+        // SAFETY: The host handed the frame over.
+        unsafe { CppObject::adopt(frame) }.map(|frame| (frame, size))
+    }
+
+    fn video_frame_image(&self, frame: &CppObject) -> Option<CppObject> {
+        let mut image = FfiCppObject::default();
+        // SAFETY: The host outlives this, the frame is one it made, and it writes an image or null.
+        unsafe { (self.0.video_frame_image)(self.host(), frame.as_ptr(), &raw mut image) };
+        // SAFETY: The host handed the image over, if there is one.
+        unsafe { CppObject::adopt(image) }
+    }
+
+    fn copy_video_frame_image_into_bound_texture(
+        &self,
+        client: WebContentClientId,
+        canvas_id: CanvasId,
+        image: &CppObject,
+        copy: VideoFrameCopy,
+    ) -> bool {
+        // SAFETY: The host outlives this, and the image is one it made.
+        unsafe {
+            (self.0.copy_video_frame_image_into_bound_texture)(self.host(), client.0, canvas_id, image.as_ptr(), copy)
+        }
+    }
+
+    fn convert_image_source(
+        &self,
+        client: WebContentClientId,
+        source: ImageSource,
+        conversion: ImageConversion,
+    ) -> ImageConversionOutcome<ConvertedPixels> {
+        let source = match source {
+            ImageSource::RegisteredImageFrame(id) => FfiImageSource {
+                is_held_video_frame: false,
+                id: id.0,
+                generation: 0,
+            },
+            ImageSource::HeldVideoFrame {
+                sink_handle,
+                generation,
+            } => FfiImageSource {
+                is_held_video_frame: true,
+                id: sink_handle.0,
+                generation,
+            },
+        };
+        let conversion = FfiImageConversion {
+            export_format: conversion.export_format as u8,
+            flip_y: conversion.flip_y,
+            premultiply_alpha: conversion.premultiply_alpha,
+            has_target_size: conversion.target_size.is_some(),
+            target_size: conversion.target_size.unwrap_or_default(),
+        };
+        let mut converted = FfiConvertedPixels {
+            pixels: FfiCppObject::default(),
+            data: std::ptr::null(),
+            size: 0,
+            width: 0,
+            height: 0,
+        };
+        // SAFETY: The host outlives this, and writes the converted pixels where it answers that it converted them.
+        let outcome = unsafe {
+            (self.0.convert_image_source_for_webgl)(self.host(), client.0, source, conversion, &raw mut converted)
+        };
+        match outcome {
+            FfiImageConversionOutcome::Converted => {
+                // SAFETY: The host handed the pixels over.
+                let owner = unsafe { CppObject::adopt(converted.pixels) }.expect("converted pixels have an owner");
+                ImageConversionOutcome::Converted {
+                    pixels: ConvertedPixels {
+                        _owner: owner,
+                        data: converted.data,
+                        size: converted.size,
+                    },
+                    width: converted.width,
+                    height: converted.height,
+                }
+            }
+            FfiImageConversionOutcome::UnknownImageFrame => ImageConversionOutcome::UnknownImageFrame,
+            FfiImageConversionOutcome::Failed => ImageConversionOutcome::Failed,
+        }
     }
 }
 

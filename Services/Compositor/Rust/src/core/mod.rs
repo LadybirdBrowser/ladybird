@@ -52,6 +52,7 @@ pub struct CompositorCore {
     display_list_chunk_stores: RefCell<crate::display_list_chunk_stores::DisplayListChunkStores>,
     remote_layers: RefCell<RemoteLayers>,
     canvas_2d_contexts: RefCell<crate::canvas_2d_contexts::Canvas2DContexts>,
+    webgl_contexts: RefCell<crate::webgl::WebGLContexts>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,6 +127,7 @@ impl CompositorCore {
             display_list_chunk_stores: RefCell::default(),
             remote_layers: RefCell::default(),
             canvas_2d_contexts: RefCell::default(),
+            webgl_contexts: RefCell::default(),
         }
     }
 
@@ -150,6 +152,10 @@ impl CompositorCore {
 
     pub fn canvas_2d_contexts(&self) -> std::cell::RefMut<'_, crate::canvas_2d_contexts::Canvas2DContexts> {
         self.canvas_2d_contexts.borrow_mut()
+    }
+
+    pub fn webgl_contexts(&self) -> std::cell::RefMut<'_, crate::webgl::WebGLContexts> {
+        self.webgl_contexts.borrow_mut()
     }
 
     /// Schedules what a message the core took asked for.

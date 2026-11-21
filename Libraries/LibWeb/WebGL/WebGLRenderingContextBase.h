@@ -10,6 +10,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibCompositing/WebGL/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
@@ -19,9 +20,10 @@
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
+
+using Compositing::WebGL::WebGLVersion;
 
 using CanvasOwner = Variant<GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>>;
 HTML::CanvasHost& canvas_host_for(CanvasOwner const&);

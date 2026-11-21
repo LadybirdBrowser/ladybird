@@ -12,7 +12,9 @@
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
+#include <Compositor/OpenGLContext.h>
 #include <Compositor/SkiaUtils.h>
+#include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasColorSpace.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/RegisteredImageFrames.h>
@@ -21,7 +23,9 @@
 #include <LibCore/StatsLog.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ExportFormat.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoSurface.h>
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
@@ -1386,6 +1390,28 @@ VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> displ
 
 namespace {
 
+struct VideoFrameForRust {
+    AK_ALLOC_WITH_KMALLOC;
+
+    NonnullRefPtr<Media::VideoFrame> frame;
+};
+
+struct VideoFrameImageForRust {
+    AK_ALLOC_WITH_KMALLOC;
+
+    sk_sp<SkImage> image;
+};
+
+struct ConvertedPixelsForRust {
+    AK_ALLOC_WITH_KMALLOC;
+
+    ByteBuffer buffer;
+};
+
+// NB: `ExportFormat` of libcompositing_rust lists the formats in this order.
+static_assert(to_underlying(Gfx::ExportFormat::Luminance8) == 0);
+static_assert(to_underlying(Gfx::ExportFormat::RGBA8888) == 7);
+
 struct SharedMemoryMapping {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -1560,6 +1586,84 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .end_canvas_2d_painting = [](void* host) { return state_of(host).end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu(); },
         .present_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { return state_of(host).canvas_host_of(WebContentClientId { client }).try_present_2d_context(canvas_id); },
         .flush_canvas_2d_contexts = [](void* host, u64 client, ReadonlySpan<Compositing::CanvasId> canvas_ids) { state_of(host).canvas_host_of(WebContentClientId { client }).flush_2d_contexts(canvas_ids); },
+        .gl_proc_address = [](void*, char const* name) { return OpenGLContext::address_of_function(name); },
+        .create_webgl_context = [](void* host, u64 client, Compositing::CanvasId canvas_id, RustFFI::ContextOptions options) {
+            auto version = options.webgl2 ? Compositing::WebGL::WebGLVersion::WebGL2 : Compositing::WebGL::WebGLVersion::WebGL1;
+            return state_of(host).canvas_host_of(WebContentClientId { client }).create_webgl_context(canvas_id, version, { .depth = options.depth, .stencil = options.stencil, .antialias = options.antialias }, options.size); },
+        .destroy_webgl_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { state_of(host).canvas_host_of(WebContentClientId { client }).destroy_webgl_context(canvas_id); },
+        .make_webgl_context_current = [](void* host, u64 client, Compositing::CanvasId canvas_id, RustFFI::DefaultBuffers* defaults) {
+            auto& gl_context = state_of(host).canvas_host_of(WebContentClientId { client }).webgl_context(canvas_id);
+            gl_context.make_current();
+            *defaults = { .framebuffer = gl_context.default_framebuffer(), .renderbuffer = gl_context.default_renderbuffer() }; },
+        .set_webgl_drawing_buffer_size = [](void* host, u64 client, Compositing::CanvasId canvas_id, Gfx::IntSize size) { state_of(host).canvas_host_of(WebContentClientId { client }).webgl_context(canvas_id).set_size(size); },
+        .present_webgl_context = [](void* host, u64 client, Compositing::CanvasId canvas_id, bool preserve_drawing_buffer, bool show_presented_frame) {
+            switch (state_of(host).canvas_host_of(WebContentClientId { client }).present_webgl_context(canvas_id, preserve_drawing_buffer, show_presented_frame)) {
+            case CanvasHost::WebGLPresentOutcome::Presented:
+                return RustFFI::PresentOutcome::Presented;
+            case CanvasHost::WebGLPresentOutcome::ShowedPresentedFrame:
+                return RustFFI::PresentOutcome::ShowedPresentedFrame;
+            case CanvasHost::WebGLPresentOutcome::NoDrawingBuffer:
+                return RustFFI::PresentOutcome::NoDrawingBuffer;
+            }
+            VERIFY_NOT_REACHED(); },
+        .read_back_webgl_drawing_buffer = [](void* host, u64 client, Compositing::CanvasId canvas_id, bool from_presented_frame, Gfx::IntRect rect, u8* pixels, size_t pixels_size, Gfx::IntSize* size) {
+            auto read_size = state_of(host).canvas_host_of(WebContentClientId { client }).read_back_webgl_drawing_buffer(canvas_id, from_presented_frame, rect, { pixels, pixels_size });
+            if (!read_size.has_value())
+                return false;
+            *size = *read_size;
+            return true; },
+        .webgl_can_copy_images_into_textures = [](void* host, u64 client, Compositing::CanvasId canvas_id) { return state_of(host).canvas_host_of(WebContentClientId { client }).webgl_context(canvas_id).can_copy_images_into_textures(); },
+        .held_video_frame = [](void* host, u64 client, u64 sink_handle, u64 generation, RustFFI::FfiCppObject* frame, Gfx::IntSize* size) {
+            auto held_frame = state_of(host).canvas_host_of(WebContentClientId { client }).held_video_frame(Media::VideoSinkHandle { sink_handle }, generation);
+            if (!held_frame)
+                return false;
+            *size = held_frame->size().to_type<int>();
+            frame->object = make<VideoFrameForRust>(held_frame.release_nonnull()).leak_ptr();
+            frame->destroy = [](void* object) { delete static_cast<VideoFrameForRust*>(object); };
+            return true; },
+        .video_frame_image = [](void* host, void* frame, RustFFI::FfiCppObject* image) {
+            auto sk_image = sk_image_from_video_frame(*static_cast<VideoFrameForRust*>(frame)->frame, state_of(host).m_skia_backend_context);
+            if (!sk_image)
+                return;
+            image->object = make<VideoFrameImageForRust>(move(sk_image)).leak_ptr();
+            image->destroy = [](void* object) { delete static_cast<VideoFrameImageForRust*>(object); }; },
+        .copy_video_frame_image_into_bound_texture = [](void* host, u64 client, Compositing::CanvasId canvas_id, void* image, RustFFI::VideoFrameCopy copy) {
+            auto& gl_context = state_of(host).canvas_host_of(WebContentClientId { client }).webgl_context(canvas_id);
+            return gl_context.copy_image_into_bound_texture(*static_cast<VideoFrameImageForRust*>(image)->image, copy.source_size, copy.size, copy.target, copy.level, copy.xoffset, copy.yoffset, copy.flip_y, copy.premultiply_alpha); },
+        .convert_image_source_for_webgl = [](void* host, u64 client_id, RustFFI::FfiImageSource source, RustFFI::FfiImageConversion conversion, RustFFI::FfiConvertedPixels* converted) {
+            auto* client = state_of(host).web_content_client_if_present(WebContentClientId { client_id });
+            VERIFY(client);
+            VERIFY(conversion.export_format <= to_underlying(Gfx::ExportFormat::RGBA8888));
+            auto image_source = source.is_held_video_frame
+                ? CanvasHost::WebGLImageSource { CanvasHost::HeldVideoFrame { Media::VideoSinkHandle { source.id }, source.generation } }
+                : CanvasHost::WebGLImageSource { Compositing::ImageFrameResourceId { source.id } };
+            int export_flags = 0;
+            if (conversion.flip_y)
+                export_flags |= Gfx::ExportFlags::FlipY;
+            if (conversion.premultiply_alpha)
+                export_flags |= Gfx::ExportFlags::PremultiplyAlpha;
+            Optional<Gfx::IntSize> target_size;
+            if (conversion.has_target_size)
+                target_size = conversion.target_size;
+            Gfx::BitmapExportResult pixels;
+            switch (client->canvas_host().convert_image_for_webgl_upload(image_source, client->registered_image_frames(), static_cast<Gfx::ExportFormat>(conversion.export_format), export_flags, target_size, pixels)) {
+            case CanvasHost::WebGLImageConversion::UnknownImageFrame:
+                return RustFFI::FfiImageConversionOutcome::UnknownImageFrame;
+            case CanvasHost::WebGLImageConversion::Failed:
+                return RustFFI::FfiImageConversionOutcome::Failed;
+            case CanvasHost::WebGLImageConversion::Converted:
+                break;
+            }
+            auto owned_pixels = make<ConvertedPixelsForRust>(move(pixels.buffer));
+            *converted = {
+                .pixels = { .object = owned_pixels.ptr(), .destroy = [](void* object) { delete static_cast<ConvertedPixelsForRust*>(object); } },
+                .data = owned_pixels->buffer.data(),
+                .size = owned_pixels->buffer.size(),
+                .width = pixels.width,
+                .height = pixels.height,
+            };
+            (void)owned_pixels.leak_ptr();
+            return RustFFI::FfiImageConversionOutcome::Converted; },
     };
 }
 

@@ -25,6 +25,9 @@ use crate::web_gl::constants::GL_OUT_OF_MEMORY;
 
 pub(crate) const MAX_PENDING_COMMAND_BYTES: usize = 4 * 1024 * 1024;
 
+/// Each frame that waits for a flush holds the descriptor of its pixels.
+pub(crate) const MAX_PENDING_FRAMES: usize = 64;
+
 /// What is kept free in the region of records for the command that names a frame, before the frame is added to the
 /// pending ones. Making room only when the command is recorded could flush in between, and that flush would publish
 /// the frame with the wrong batch.
@@ -56,7 +59,6 @@ pub(crate) struct Proxy<T: Transport> {
     sync_reply_bytes: Cell<Vec<u8>>,
     /// By GL name. The strings do not change while a context lives.
     string_cache: RefCell<Vec<(u32, Rc<[u8]>)>>,
-    max_frames_per_message: Cell<usize>,
 
     transport_calls_are_deferred: Cell<bool>,
     deferred_record_count: Cell<usize>,
@@ -72,7 +74,6 @@ impl<T: Transport> Proxy<T> {
 
     pub(super) fn with_shared_data_capacity(transport: T, shared_data_capacity: usize) -> Self {
         let proxy = Self {
-            max_frames_per_message: Cell::new(transport.max_frames_per_message()),
             transport: RefCell::new(Rc::new(transport)),
             lost: Cell::new(false),
             pending_local_error: Cell::new(0),
@@ -100,7 +101,6 @@ impl<T: Transport> Proxy<T> {
 
     /// Nothing that was recorded for the lost context reaches the new one.
     pub(crate) fn restore(&self, transport: T) {
-        self.max_frames_per_message.set(transport.max_frames_per_message());
         self.transport.replace(Rc::new(transport));
         self.lost.set(false);
         self.out_of_line_commands.take();
@@ -405,7 +405,7 @@ impl<T: Transport> Proxy<T> {
 
     /// Returns the index that the command which uses the frame names it by.
     pub(super) fn append_pending_frame(&self, frame: T::Frame) -> u32 {
-        if self.with_pending_frames(|frames| frames.len()) >= self.max_frames_per_message.get() {
+        if self.with_pending_frames(|frames| frames.len()) >= MAX_PENDING_FRAMES {
             self.flush_commands();
         }
         if self.has_shared_command_buffer() {

@@ -613,8 +613,9 @@ pub extern "C" fn compositor_core_set_ui_overlays(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_forget_web_content_client(core: &CompositorCore, web_content_client_id: u64) {
-    core.canvas_2d_contexts()
-        .forget_client(WebContentClientId(web_content_client_id));
+    let client = WebContentClientId(web_content_client_id);
+    core.canvas_2d_contexts().forget_client(client);
+    core.webgl_contexts().forget_client(client);
 }
 
 #[unsafe(no_mangle)]

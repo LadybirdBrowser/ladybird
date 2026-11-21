@@ -122,6 +122,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "src/cpp_object.rs",
         "src/surfaces/painting_surface.rs",
         "src/surfaces/presentable_surface.rs",
+        "src/webgl/host.rs",
     ] {
         println!("cargo:rerun-if-changed={source}");
         builder = builder.with_src(manifest_dir.join(source));

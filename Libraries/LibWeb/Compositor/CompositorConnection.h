@@ -15,7 +15,6 @@
 #include <Compositor/CompositorWebContentServerEndpoint.h>
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Types.h>
-#include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -74,7 +73,8 @@ public:
     Optional<Compositing::CanvasId> reserve_canvas_2d_context_id(Gfx::IntSize);
     bool post_canvas_2d_stream_batch_fonts_and_image_frames(ReadonlySpan<Gfx::Font const*>, ReadonlySpan<Gfx::DecodedImageFrame const*>);
     void did_fail_to_post_canvas_2d_message();
-    void destroy_webgl_context(Compositing::CanvasId);
+    bool register_image_frames(ReadonlySpan<Gfx::DecodedImageFrame const*>);
+    bool can_send_message_to_compositor() const;
     Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
     Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas();
     void release_placeholder_canvas(Compositing::CanvasId);
@@ -104,17 +104,6 @@ public:
     // Has the processes that own the context's descendants in other processes paint them, and calls `callback` once the
     // compositor has their frames, or once it is lost.
     void prepare_remote_descendants_for_screenshot(Web::CompositorContextId, Function<void()>&& callback);
-
-    Optional<Compositing::CanvasId> create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions);
-    void set_webgl_command_buffer(Compositing::CanvasId, Core::AnonymousBuffer const&);
-    void send_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames);
-    bool drain_webgl_command_buffer(Compositing::CanvasId);
-    void send_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const& frames);
-    void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
-    void clear_webgl_drawing_buffer(Compositing::CanvasId);
-    ByteBuffer webgl_sync_call(Compositing::CanvasId, ByteBuffer request);
-    Compositing::WebGL::ReadPixelsResult read_webgl_pixels(Compositing::CanvasId, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer const& pixels);
-    bool read_webgl_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer const& data);
 
     void ensure_video_presentation_channel();
     void ensure_image_decoder_channel();
@@ -154,7 +143,6 @@ private:
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
     virtual void overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility>) override;
 
-    bool can_send_message_to_compositor() const;
     void merge_async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates);
     Optional<PendingScreenshot> take_screenshot(Compositing::ScreenshotRequestId);
 

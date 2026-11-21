@@ -66,6 +66,8 @@ pub(crate) mod canvas_2d;
 )]
 pub(crate) mod clipboard;
 #[cfg(not(test))]
+pub(crate) mod compositor_connection;
+#[cfg(not(test))]
 #[cfg_attr(
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")

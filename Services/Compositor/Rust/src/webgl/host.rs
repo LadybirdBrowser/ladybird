@@ -57,6 +57,7 @@ pub enum ImageConversionOutcome<P> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub struct VideoFrameCopy {
     /// The part of the frame to copy, from its top left.
     pub source_size: IntSize,

@@ -15,7 +15,7 @@ use ak::Utf16String;
 
 use super::canvas::Canvas;
 use super::fingerprint::verify_that_rust_and_cpp_agree_on_layouts_and_constants;
-use super::host::CppTransport;
+use super::host::{ContextCreation, RemoteContext};
 use super::proxy::recorder::Proxy;
 use super::state::{
     ContextParameters, ContextRef, ContextState, RenderingContext, WebGL1, WebGL2, WebGLVersion,
@@ -26,11 +26,6 @@ use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
 use crate::bindings::interface::{Interface, allocate, cell_into_abi, realm_arguments};
 use crate::dom::event::EventInit;
-
-/// The bytes of the names of the extensions C++ lends.
-fn extension_names(names: ak::Span<'_, ak::Span<'_, u8>>) -> Vec<Vec<u8>> {
-    names.as_slice().iter().map(|name| name.as_slice().to_vec()).collect()
-}
 
 /// Mirrors `Web::WebGL::ContextAttributes`.
 #[derive(Clone, Copy)]
@@ -91,16 +86,34 @@ impl From<WebGLContextAttributes> for ContextAttributes {
 
 /// Mirrors `Web::WebGL::ContextCreationArguments`.
 #[repr(C)]
-pub struct ContextCreationArguments<'a> {
-    /// A RemoteWebGLTransport that has created its context, with a reference that the new context takes over.
-    transport: *mut c_void,
+pub struct ContextCreationArguments {
     is_webgl2: bool,
     realm: *mut c_void,
     canvas: *mut c_void,
     canvas_host: *mut c_void,
     canvas_is_offscreen: bool,
     context_attributes: ContextAttributes,
-    supported_extensions: ak::Span<'a, ak::Span<'a, u8>>,
+}
+
+fn create_remote_context(
+    canvas: Canvas,
+    webgl2: bool,
+    context_attributes: &WebGLContextAttributes,
+) -> Option<(RemoteContext, Vec<Vec<u8>>)> {
+    let (width, height) = canvas.bitmap_size();
+    let creation = ContextCreation {
+        webgl2,
+        size: libgfx_rust::IntSize {
+            width: drawing_buffer_dimension(width),
+            height: drawing_buffer_dimension(height),
+        },
+        depth: context_attributes.depth,
+        stencil: context_attributes.stencil,
+        antialias: context_attributes.antialias,
+    };
+    let connection = canvas.compositor_connection()?;
+    // SAFETY: The canvas handed over a reference to the connection.
+    unsafe { RemoteContext::create(connection, &creation) }
 }
 
 /// The cell of a WebGLRenderingContext or of a WebGL2RenderingContext, which only C++ lends out, for as long as the
@@ -133,13 +146,12 @@ fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_create(
     vm: *mut c_void,
-    arguments: &ContextCreationArguments<'_>,
+    arguments: &ContextCreationArguments,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, arguments.realm) };
     verify_that_rust_and_cpp_agree_on_layouts_and_constants();
 
-    let transport = NonNull::new(arguments.transport).expect("C++ passes the transport");
     let canvas = Canvas {
         cell: NonNull::new(arguments.canvas).expect("C++ passes the canvas"),
         host: NonNull::new(arguments.canvas_host).expect("C++ passes the canvas"),
@@ -150,14 +162,19 @@ pub unsafe extern "C" fn web_webgl_context_create(
     } else {
         WebGLVersion::WebGL1
     };
+    let context_attributes: WebGLContextAttributes = arguments.context_attributes.into();
+    let Some((remote_context, supported_opengl_extensions)) =
+        create_remote_context(canvas, version == WebGLVersion::WebGL2, &context_attributes)
+    else {
+        return core::ptr::null_mut();
+    };
     let parameters = ContextParameters {
-        // SAFETY: The caller hands over a reference to the transport.
-        proxy: Proxy::new(unsafe { CppTransport::from_raw(transport) }),
+        proxy: Proxy::new(remote_context),
         version,
         realm,
         canvas,
-        context_attributes: arguments.context_attributes.into(),
-        supported_opengl_extensions: extension_names(arguments.supported_extensions),
+        context_attributes,
+        supported_opengl_extensions,
     };
     match version {
         WebGLVersion::WebGL1 => {
@@ -180,11 +197,6 @@ pub unsafe extern "C" fn web_webgl_context_create(
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_canvas_host(context: &ContextCell) -> *mut c_void {
     with_context(context, |context| context.canvas().host.as_ptr())
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_is_webgl2(context: &ContextCell) -> bool {
-    with_context(context, ContextState::is_webgl2)
 }
 
 #[unsafe(no_mangle)]
@@ -255,32 +267,18 @@ pub extern "C" fn web_webgl_context_wants_restoring(context: &ContextCell) -> bo
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_actual_context_parameters(
-    context: &ContextCell,
-    out_context_attributes: &mut ContextAttributes,
-) {
-    let context_attributes = with_context(context, |context| context.actual_context_parameters);
-    *out_context_attributes = context_attributes.into();
-}
-
-/// The context takes over the reference to `transport`.
-///
-/// # Safety
-///
-/// `transport` is a RemoteWebGLTransport that has created its context.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_restore(
-    context: &ContextCell,
-    transport: *mut c_void,
-    supported_extensions: ak::Span<'_, ak::Span<'_, u8>>,
-) {
-    let transport = NonNull::new(transport).expect("C++ passes the transport");
-    // SAFETY: The caller hands over a reference to the transport.
-    let transport = unsafe { CppTransport::from_raw(transport) };
-    let supported_opengl_extensions = extension_names(supported_extensions);
+pub extern "C" fn web_webgl_context_restore(context: &ContextCell) -> bool {
     with_context(context, |context| {
-        context.restore(transport, supported_opengl_extensions);
-    });
+        let Some((remote_context, supported_opengl_extensions)) = create_remote_context(
+            context.canvas(),
+            context.is_webgl2(),
+            &context.actual_context_parameters,
+        ) else {
+            return false;
+        };
+        context.restore(remote_context, supported_opengl_extensions);
+        true
+    })
 }
 
 /// Converts the options of getContext() to the dictionary, and answers true with the exception that the conversion

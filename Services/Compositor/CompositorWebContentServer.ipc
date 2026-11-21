@@ -5,8 +5,6 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
-#include <LibCompositing/WebGL/ImageSourceFrame.h>
-#include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -81,17 +79,21 @@ endpoint CompositorWebContentServer
     stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::ImageFrameResourceId> image_frame_ids, Gfx::ShareableBitmap target_bitmap) =|
     [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree) =|
 
-    create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
-    destroy_webgl_context(Compositing::CanvasId canvas_id) =|
-    webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|
-    webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) =|
-    webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()
-    webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSourceFrame> frames) =|
-    webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) =|
-    webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) =|
-    webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)
-    webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
-    webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => (bool success)
+    // Only Rust sends and receives the messages of WebGL contexts. The commands of a context name the images that they
+    // upload by their position among the image sources sent with them.
+    [RustReceiver, RustSender] create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
+    [RustReceiver, RustSender] destroy_webgl_context(Compositing::CanvasId canvas_id) =|
+    [RustReceiver, RustSender] webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|
+    [RustReceiver, RustSender] webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSource> image_sources) =|
+    [RustReceiver, RustSender] webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()
+    [RustReceiver, RustSender] webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSource> image_sources) =|
+    [RustReceiver, RustSender] webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) =|
+    [RustReceiver, RustSender] webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) =|
+    [RustReceiver, RustSender] webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)
+    [RustReceiver, RustSender] webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
+    [RustReceiver, RustSender] webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => (bool success)
+    // The pixels of the drawing buffer that the rect covers, as premultiplied BGRA8888 rows of the size answered.
+    [RustReceiver, RustSender] webgl_read_back_drawing_buffer(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Core::AnonymousBuffer pixels) => (Gfx::IntSize size)
 
     [RustReceiver] invalidate_wheel_event_listener_state(Web::CompositorContextId context_id, u64 generation) =|
     [RustReceiver] invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation) => ()

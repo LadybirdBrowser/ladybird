@@ -28,7 +28,6 @@ pub(crate) trait Transport {
     type Frame;
     type DrawingBufferPixels;
 
-    fn max_frames_per_message(&self) -> usize;
     fn create_shared_memory(&self, size: usize) -> Option<Self::SharedMemory>;
 
     fn canvas_id(&self) -> Option<u64>;
