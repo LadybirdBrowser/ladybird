@@ -8,7 +8,6 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
@@ -216,8 +215,7 @@ void CrossOriginPropertyDescriptorMap::remove_dead_cells(Badge<GC::Heap>)
 {
     m_descriptors.remove_all_matching([&](CrossOriginKey const& key, JS::PropertyDescriptor const&) {
         auto const& current_settings_object = *key.current_settings_object;
-        auto* block = GC::HeapBlock::from_cell(&current_settings_object);
-        return !heap().is_live_heap_block(block) || current_settings_object.state() != Cell::State::Live || !current_settings_object.is_marked();
+        return !heap().is_live_cell(&current_settings_object) || !current_settings_object.is_marked();
     });
 }
 

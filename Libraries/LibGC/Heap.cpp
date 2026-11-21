@@ -582,8 +582,8 @@ void Heap::add_stats(AK::JsonObject& values) const
     VERIFY(m_stats);
     values.set("gc.allocated_bytes_total"sv, m_total_allocated_bytes);
     values.set("gc.allocated_bytes_since_gc"sv, m_allocated_bytes_since_last_gc);
-    values.set("gc.heap_blocks"sv, m_live_heap_blocks.size());
-    values.set("gc.heap_block_bytes"sv, m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE);
+    values.set("gc.heap_blocks"sv, m_block_count);
+    values.set("gc.heap_block_bytes"sv, m_block_count * HeapBlock::BLOCK_SIZE);
     values.set("gc.cell_allocators"sv, m_all_cell_allocators.size_slow());
     values.set("gc.threshold_bytes"sv, m_gc_bytes_threshold);
     values.set("gc.live_cell_bytes"sv, m_stats->live_cell_bytes);
@@ -608,7 +608,7 @@ void Heap::finish_stats_collection()
         data.set("pause_duration_ns"sv, stats.pause_duration_ns);
         data.set("sweep_duration_ns"sv, stats.sweep_duration_ns);
         data.set("bytes_before"sv, stats.bytes_before);
-        data.set("bytes_after"sv, m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE);
+        data.set("bytes_after"sv, m_block_count * HeapBlock::BLOCK_SIZE);
         data.set("live_cell_bytes"sv, stats.live_cell_bytes);
         data.set("live_external_bytes"sv, stats.live_external_bytes);
         log->event("gc"sv, move(data));
@@ -765,16 +765,15 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
 }
 
 template<typename Callback>
-static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& all_live_heap_blocks, PossiblePointers& possible_pointers, Callback callback)
+static void for_each_cell_among_possible_pointers(Heap const& heap, PossiblePointers& possible_pointers, Callback callback)
 {
+    // NB: No block is in the low guard of the region, whose descriptors are never backed by memory.
+    auto first_block = heap_region_base() + HEAP_REGION_LOW_GUARD_SIZE;
     auto visit = [&](HashMap<FlatPtr, HeapRoot>& candidates, bool must_be_cell_start) {
         for (auto possible_pointer : candidates.keys()) {
-            if (!possible_pointer)
+            if (possible_pointer < first_block)
                 continue;
-            auto* possible_heap_block = HeapBlock::from_cell(reinterpret_cast<Cell const*>(possible_pointer));
-            if (!all_live_heap_blocks.contains(possible_heap_block))
-                continue;
-            auto* cell = possible_heap_block->cell_from_possible_pointer(possible_pointer);
+            auto* cell = static_cast<Cell*>(allocated_cell_containing(&heap, possible_pointer, HeapBlock::cells_offset()));
             if (!cell)
                 continue;
             if (must_be_cell_start && reinterpret_cast<FlatPtr>(cell) != possible_pointer)
@@ -1143,7 +1142,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         }
         if (m_stats) {
             ++m_stats->collections;
-            m_stats->bytes_before = m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE;
+            m_stats->bytes_before = m_block_count * HeapBlock::BLOCK_SIZE;
             m_stats->sweep_duration_ns = 0;
         }
         compaction_stats().active = false;
@@ -1271,7 +1270,9 @@ static Vector<FFI::CompactionCandidate> compaction_candidates(CellAllocator::Lis
             candidates.unchecked_append({
                 .block = &block,
                 .allocator = allocator_index,
-                .live_cells = block.live_cell_count().value_or(cell_count),
+                // NB: The free cells that the allocator took from its local block count as allocated, so the block
+                //     counts as full. Every other block knows exactly which of its cells are allocated.
+                .live_cells = allocator.is_local_block(block) ? cell_count : block.allocated_cell_count(),
                 .cell_count = cell_count,
                 .cell_size = cell_size,
                 .kept_by_pins = block_descriptor_for(&block).kept_by_pins,
@@ -1296,7 +1297,7 @@ void Heap::schedule_compaction_if_worthwhile()
         if (last.freed_blocks * HeapBlock::BLOCK_SIZE >= GC_COMPACTION_MIN_RECOVERABLE_BYTES)
             recoverable_blocks = last.blocks_left_by_budget;
     } else {
-        auto candidates = compaction_candidates(m_all_cell_allocators, m_live_heap_blocks.size());
+        auto candidates = compaction_candidates(m_all_cell_allocators, m_block_count);
         recoverable_blocks = FFI::rust_gc_compaction_select(candidates.data(), candidates.size(), 0).fitting_blocks;
     }
     if (recoverable_blocks * HeapBlock::BLOCK_SIZE < GC_COMPACTION_MIN_RECOVERABLE_BYTES) {
@@ -1306,7 +1307,7 @@ void Heap::schedule_compaction_if_worthwhile()
     }
     m_should_compact = true;
     if (libgc_log_level() >= 1)
-        dbgln("Scheduling a collection that compacts: {} of {} recoverable", human_readable_size(recoverable_blocks * HeapBlock::BLOCK_SIZE), human_readable_size(m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE));
+        dbgln("Scheduling a collection that compacts: {} of {} recoverable", human_readable_size(recoverable_blocks * HeapBlock::BLOCK_SIZE), human_readable_size(m_block_count * HeapBlock::BLOCK_SIZE));
     schedule_collection_that_moves_cells();
 }
 
@@ -1340,7 +1341,7 @@ void Heap::begin_evacuation()
     } else {
         m_should_compact = false;
         auto select_start_ns = MonotonicTime::now().nanoseconds();
-        auto candidates = compaction_candidates(m_all_cell_allocators, m_live_heap_blocks.size());
+        auto candidates = compaction_candidates(m_all_cell_allocators, m_block_count);
         auto selection = FFI::rust_gc_compaction_select(candidates.data(), candidates.size(), GC_COMPACTION_BUDGET_BYTES);
         for (auto const& candidate : candidates) {
             if (candidate.selected)
@@ -1461,8 +1462,7 @@ void Heap::evacuate()
                 // NB: Nothing allocates during a collection (see allocate_cell()), and the sweep freed every cell that
                 //     marking did not reach, so every cell left in the block is marked, and either moves or is pinned.
                 //     A cell allocated after marking would hold slots that marking never recorded.
-                if (auto live_cells = block.live_cell_count(); live_cells.has_value())
-                    VERIFY(live_cells.value() == count + pinned.by_edge + pinned.by_root);
+                VERIFY(block.allocated_cell_count() == count + pinned.by_edge + pinned.by_root);
             }
             clear_marks(descriptor);
         }
@@ -1511,14 +1511,12 @@ void Heap::evacuate()
 
     // NB: What is left in these blocks is what pins kept there, and evacuating them again would not free them, see
     //     rust_gc_compaction_select().
-    static_assert(cell_bitmap_words == FFI::MARK_BITMAP_WORDS);
     for (auto* block : blocks_kept_by_pins) {
-        Array<u64, cell_bitmap_words> kept {};
         auto& descriptor = block_descriptor_for(block);
-        block->for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            auto index = mark_bit_index(descriptor, cell);
-            kept[index / 64] |= static_cast<u64>(1) << (index % 64);
-        });
+        static_assert(cell_bitmap_words == FFI::CELL_BITMAP_WORDS);
+        Array<u64, cell_bitmap_words> kept {};
+        for (size_t i = 0; i < cell_bitmap_words; ++i)
+            kept[i] = descriptor.allocated[i];
         m_cells_kept_by_pins.set(block, kept);
         descriptor.kept_by_pins = true;
     }
@@ -1527,7 +1525,7 @@ void Heap::evacuate()
     for (auto* evacuated_block : m_evacuated_blocks) {
         auto& block = *evacuated_block;
         auto& allocator = block.cell_allocator();
-        if (!block.has_live_cells()) {
+        if (block.allocated_cell_count() == 0) {
             allocator.block_did_become_empty({}, block, DeferDecommit::Yes);
             ++stats.freed_blocks;
         } else if (block.is_full()) {
@@ -1538,6 +1536,19 @@ void Heap::evacuate()
     }
     VERIFY(blocks_being_evacuated.is_empty());
     stats.release_us = (MonotonicTime::now().nanoseconds() - release_start_ns) / 1000;
+}
+
+bool Heap::is_live_cell(Cell const* cell) const
+{
+    VERIFY(m_collecting_garbage);
+    if (!cell)
+        return false;
+    auto address = bit_cast<FlatPtr>(cell);
+    if (address < heap_region_base() + HEAP_REGION_LOW_GUARD_SIZE || address >= BlockAllocator::heap_region_committed_end())
+        return false;
+    // NB: A cell that an allocator took along with the other free cells of its block counts as allocated, but it is
+    //     still a free cell until the allocator hands it out.
+    return allocated_cell_containing(this, address, HeapBlock::cells_offset()) == cell && cell->state() == Cell::State::Live;
 }
 
 void Heap::forget_cells_kept_by_pins(HeapBlock& block)
@@ -1552,7 +1563,7 @@ void Heap::forget_cells_kept_by_pins(HeapBlock& block)
 void Heap::cell_in_block_kept_by_pins_died(HeapBlock& block, Cell const* cell)
 {
     auto& descriptor = block_descriptor_for(&block);
-    auto index = mark_bit_index(descriptor, cell);
+    auto index = cell_index(descriptor, cell);
     auto kept = m_cells_kept_by_pins.get(&block);
     VERIFY(kept.has_value());
     if (kept.value()[index / 64] & (static_cast<u64>(1) << (index % 64)))
@@ -2030,7 +2041,7 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_cell_lookup_us };
-        for_each_cell_among_possible_pointers(m_live_heap_blocks, possible_pointers, [&](Cell* cell, HashMap<FlatPtr, HeapRoot>& candidates, FlatPtr possible_pointer) {
+        for_each_cell_among_possible_pointers(*this, possible_pointers, [&](Cell* cell, HashMap<FlatPtr, HeapRoot>& candidates, FlatPtr possible_pointer) {
             if (cell->state() == Cell::State::Live) {
                 dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
                 roots.set(cell, *candidates.get(possible_pointer));
@@ -2104,7 +2115,7 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         for (auto* root : roots.keys())
             root_cells.unchecked_append(root);
         for (auto* heap : heaps)
-            heap_bytes += heap->m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE;
+            heap_bytes += heap->m_block_count * HeapBlock::BLOCK_SIZE;
     }
 
     Vector<size_t, 1> marked_cell_bytes;
@@ -2224,7 +2235,6 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
                     live_cell_bytes += block.cell_size();
                 }
             });
-            block.set_live_cell_count(block_live_cells);
             bool block_has_live_cells = block_live_cells > 0;
             // NB: An evacuated block keeps its marks until its cells have moved, which tells the cells that marking
             //     knows about from the ones allocated since.
@@ -2327,7 +2337,6 @@ void Heap::sweep_block(HeapBlock& block)
         }
     });
     block.set_being_swept(false);
-    block.set_live_cell_count(static_cast<u32>(live_cells));
     // NB: This also clears the marks of the cells that were allocated in the block while it was swept.
     clear_marks(descriptor);
 

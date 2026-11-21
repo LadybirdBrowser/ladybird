@@ -148,6 +148,8 @@ public:
     void block_did_become_empty(Badge<Heap>, HeapBlock&, DeferDecommit = DeferDecommit::Yes);
     void block_did_become_usable(Badge<Heap>, HeapBlock&);
 
+    bool is_local_block(HeapBlock const& block) const { return m_local_block == &block; }
+
     bool has_blocks_pending_sweep() const { return !m_blocks_pending_sweep.is_empty(); }
 
     IntrusiveListNode<CellAllocator> m_list_node;

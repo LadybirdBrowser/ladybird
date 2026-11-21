@@ -25,15 +25,17 @@ FFI::BlockDescriptor* const g_block_descriptors = FFI::rust_gc_block_descriptor_
 
 void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
 {
-    auto index = (bit_cast<FlatPtr>(&block) - heap_region_base()) / HeapBlockBase::BLOCK_SIZE;
-    FFI::rust_gc_block_descriptor_commit(index);
-    auto& descriptor = g_block_descriptors[index];
+    auto& descriptor = block_descriptor_for(&block);
     descriptor.type_info = &allocator.type_info();
     descriptor.cell_size = allocator.cell_size();
     descriptor.cell_index_magic = static_cast<u32>(((static_cast<u64>(1) << 32) + descriptor.cell_size - 1) / descriptor.cell_size);
     descriptor.traced_on_owner_thread_only = allocator.descriptor().trace_thread() == TraceThread::OwnerThreadOnly;
     descriptor.movable = allocator.descriptor().is_movable();
     descriptor.kept_by_pins = false;
+    descriptor.cell_count = static_cast<u16>(block.cell_count());
+    descriptor.first_cell_index = static_cast<u16>(cell_index(descriptor, bit_cast<u8 const*>(&block) + HeapBlock::cells_offset()));
+    for (auto& word : descriptor.allocated)
+        word = 0;
     descriptor.evacuation = nullptr;
     clear_marks(descriptor);
     // NB: Markers of other heaps read the heap of any block their cells point into, to leave it alone if it is not theirs.
@@ -44,6 +46,9 @@ void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 size_t HeapBlock::cells_offset()
 {
+    static_assert(offsetof(HeapBlock, m_storage) == 112);
+    // NB: A block counts its cells from its size, and the Rust core from this offset, so the two have to match.
+    static_assert(sizeof(HeapBlock) == offsetof(HeapBlock, m_storage));
     return offsetof(HeapBlock, m_storage);
 }
 #pragma GCC diagnostic pop
@@ -58,7 +63,7 @@ NonnullOwnPtr<HeapBlock> HeapBlock::create(Heap& heap, CellAllocator& cell_alloc
     char const* name = nullptr;
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
     new (block) HeapBlock(heap, cell_allocator);
-    heap.m_live_heap_blocks.set(block);
+    ++heap.m_block_count;
     return adopt_own(*block);
 }
 
@@ -79,6 +84,30 @@ HeapBlock::~HeapBlock()
     retire_block_descriptor(*this);
 }
 
+Cell* HeapBlock::allocate()
+{
+    Cell* allocated_cell = nullptr;
+    if (auto* head = freelist_head(); !is_end_of_freelist(head)) {
+        VERIFY(is_valid_cell_pointer(head));
+        m_freelist = static_cast<FreelistEntry*>(head)->next;
+        allocated_cell = head;
+    } else if (has_lazy_freelist()) {
+        allocated_cell = cell(m_next_lazy_freelist_index++);
+    }
+
+    if (allocated_cell) {
+        ASAN_UNPOISON_MEMORY_REGION(allocated_cell, m_cell_size);
+        auto& descriptor = block_descriptor_for(this);
+        set_allocated(descriptor, cell_index(descriptor, allocated_cell));
+    }
+    return allocated_cell;
+}
+
+u32 HeapBlock::allocated_cell_count() const
+{
+    return allocated_cell_count_of(block_descriptor_for(this));
+}
+
 HeapBlock::FreeCells HeapBlock::take_free_cells()
 {
     FreeCells free_cells {
@@ -91,7 +120,7 @@ HeapBlock::FreeCells HeapBlock::take_free_cells()
     VERIFY(free_cells.lazy_end <= bit_cast<FlatPtr>(this) + BLOCK_SIZE);
     m_freelist = 0;
     m_next_lazy_freelist_index = cell_count();
-    m_live_cell_count = unknown_live_cell_count;
+    set_all_allocated(block_descriptor_for(this));
     return free_cells;
 }
 
@@ -111,6 +140,13 @@ void HeapBlock::give_back_free_cells(Cell* free_list, FlatPtr lazy_cursor)
     auto lazy_index = (lazy_cursor - storage) / m_cell_size;
     VERIFY(lazy_index <= cell_count());
     m_next_lazy_freelist_index = lazy_index;
+
+    // NB: The cells that come back were never handed out, so they are not allocated after all.
+    auto& descriptor = block_descriptor_for(this);
+    for (auto* free_cell = freelist_head(); !is_end_of_freelist(free_cell); free_cell = next_free_cell(free_cell))
+        clear_allocated(descriptor, cell_index(descriptor, free_cell));
+    for (auto index = lazy_index; index < cell_count(); ++index)
+        clear_allocated(descriptor, cell_index(descriptor, cell(index)));
 }
 
 void HeapBlock::deallocate(Cell* cell)
@@ -138,8 +174,8 @@ void HeapBlock::free_slot(Cell* cell)
     freelist_entry->set_state(Cell::State::Dead);
     freelist_entry->next = m_freelist;
     m_freelist = bit_cast<FlatPtr>(freelist_entry);
-    if (m_live_cell_count != unknown_live_cell_count)
-        --m_live_cell_count;
+    auto& descriptor = block_descriptor_for(this);
+    clear_allocated(descriptor, cell_index(descriptor, cell));
 
 #ifdef HAS_ADDRESS_SANITIZER
     auto dword_after_freelist = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(freelist_entry) + sizeof(FreelistEntry), 8);
