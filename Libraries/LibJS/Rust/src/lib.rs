@@ -166,6 +166,7 @@ pub mod unicode;
 pub mod utf16;
 #[cfg(not(test))]
 pub mod utilities;
+mod work_zone;
 
 #[cfg(test)]
 mod test_host;

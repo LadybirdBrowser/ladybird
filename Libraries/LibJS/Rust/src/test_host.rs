@@ -147,3 +147,6 @@ extern "C" fn ladybird_utf16_string_create_uninitialized(length: usize, has_lati
 
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
+
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_set_idle_thread_memory_release(_release: extern "C" fn()) {}

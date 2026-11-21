@@ -2425,6 +2425,7 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     if vm.heap.get().is_some_and(Heap::is_returning_memory_to_system) {
         crate::source_text::park_all_source_texts();
         crate::runtime::regexp_prototype::clear_regex_cache();
+        crate::work_zone::release_idle_memory();
     } else {
         crate::source_text::park_idle_source_texts();
     }
