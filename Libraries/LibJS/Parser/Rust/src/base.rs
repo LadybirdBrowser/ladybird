@@ -50,7 +50,7 @@ pub enum Mode {
 
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
-pub(crate) struct NameState {
+pub struct NameState {
     use_head: u32,
     use_scope: u32,
     decl_head: u32,
@@ -231,20 +231,24 @@ pub struct PendingError<'z> {
 pub(crate) struct ZoneText<'z>(ZoneVec<'z, u8>);
 
 impl<'z> ZoneText<'z> {
+    #[inline]
     pub(crate) fn new(zone: &'z Zone) -> Self {
         Self(ZoneVec::new_in(zone))
     }
 
+    #[inline]
     pub(crate) fn push_str(&mut self, text: &str) {
         self.0.extend_from_slice(text.as_bytes());
     }
 
+    #[inline]
     pub(crate) fn finish(self) -> &'z str {
         core::str::from_utf8(self.0.into_slice()).expect("the text is made of strings")
     }
 }
 
 impl fmt::Write for ZoneText<'_> {
+    #[inline]
     fn write_str(&mut self, text: &str) -> fmt::Result {
         self.push_str(text);
         Ok(())
@@ -268,16 +272,16 @@ impl fmt::Display for LossyText<'_> {
 
 /// What the first parse of a top level went by, which parsing it again has to go by too.
 #[derive(Clone, Copy)]
-pub(crate) struct ProgramContext {
-    pub(crate) context: u32,
-    pub(crate) starts_in_strict_mode: bool,
-    pub(crate) initiated_by_eval: bool,
+pub struct ProgramContext {
+    pub context: u32,
+    pub starts_in_strict_mode: bool,
+    pub initiated_by_eval: bool,
     /// Whether no name means a global binding.
-    pub(crate) has_no_globals: bool,
+    pub has_no_globals: bool,
 }
 
 /// The state of a name that no scope declares or uses.
-pub(crate) const UNUSED_NAME: NameState = NameState {
+pub const UNUSED_NAME: NameState = NameState {
     use_head: NONE,
     use_scope: NONE,
     decl_head: NONE,
@@ -292,7 +296,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     /// Where in `rows_by_params_start` the last lookup ended up.
     row_cursor: core::cell::Cell<usize>,
     /// Whether the tree is one for a sweep: rows get marks, and change their tag where a mark is about them.
-    pub(crate) marks: bool,
+    pub marks: bool,
     /// The row in the index of the code of a class that was parsed last, and what it knows of that code by now.
     pub(crate) pseudo_function_row: u32,
     pub(crate) pseudo_function_flags: u32,
@@ -302,9 +306,9 @@ pub struct Parser<'a, 'k, U: Unit> {
     /// Whether the list of arguments that was parsed last is evaluated into an array for a sweep.
     pub(crate) arguments_in_array: bool,
     /// How many arguments a sweep can keep as separate operands before putting them into an array.
-    pub(crate) inline_argument_limit: usize,
+    pub inline_argument_limit: usize,
     /// Whether anything uses what scopes declare and what code refers to, which a sweep with a summary does not.
-    pub(crate) tracks_scopes: bool,
+    pub tracks_scopes: bool,
     pub(crate) validate_regex: ValidateRegex,
     /// How many bindings of the function being parsed have a place in its summary.
     pub(crate) summary_ordinal: u32,
@@ -336,7 +340,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) ctx: u32,
     pub(crate) labels: ZoneVec<'a, Label>,
     pub(crate) labels_base: u32,
-    pub(crate) stack_limit: usize,
+    pub stack_limit: usize,
     recursion_depth: u32,
     pub(crate) potential_arrow_at: u32,
     pub(crate) cover_error: u32,
@@ -436,7 +440,7 @@ const MAX_RECURSION_DEPTH: u32 = 2000;
 /// chain in a loop, so the recursion limit does not apply to it.
 pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 
-pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
+pub const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
 /// A function could not be parsed or compiled, because the stack that is left does not hold it.
 #[derive(Clone, Copy, Debug)]
@@ -454,7 +458,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
-    pub(super) unsafe fn new(
+    pub unsafe fn new(
         zone: &'a Zone,
         source: &'a [U],
         module: bool,
@@ -519,7 +523,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// `zone`. The names of the source with their states come from the reparse context of the source, and the parser
     /// works with them in place. Its source comes with the function.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn for_reparsing(
+    pub fn for_reparsing(
         zone: &'a Zone,
         module: bool,
         interner: Interner<'k>,
@@ -699,7 +703,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     /// Goes through the top level once more with marks for a sweep, past all functions, after a parse that went well.
-    pub(crate) fn parse_top_level_rows(
+    pub fn parse_top_level_rows(
         &mut self,
         context: ProgramContext,
         index: FunctionIndexView<'a>,
@@ -789,6 +793,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
 
     /// Writes out the summaries of all functions, now that all of their scopes closed.
     fn group_summaries(&mut self) {
+        #[inline]
         fn write_varint(bytes: &mut ZoneVec<'_, u8>, mut value: u32) {
             while value >= 0x80 {
                 bytes.push(value as u8 | 0x80);
@@ -2269,14 +2274,14 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// # Safety
     /// What the lexer may read of the source, up to `length` and the padding after it if it gets that far, must stay
     /// valid for as long as the parser reads it.
-    pub(crate) unsafe fn set_reparse_source(&mut self, source: *const U, offset: u32, length: u32) {
+    pub unsafe fn set_reparse_source(&mut self, source: *const U, offset: u32, length: u32) {
         self.src = source.wrapping_sub(offset as usize);
         self.len = length;
     }
 
     /// Ends the parse of a function again, whether it went well or not. Gives back the tree, and the stamp for the
     /// reparse context, whose name states are clean again.
-    pub(crate) fn end_reparse(mut self) -> (Ast<'a>, u32) {
+    pub fn end_reparse(mut self) -> (Ast<'a>, u32) {
         self.finish_reparse();
         (self.ast, self.stamp)
     }
@@ -2320,7 +2325,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// Parses one function again, on its own, from where the first parse found it. The functions nested in it get
     /// skipped by what the first parse recorded about them, so that nothing is parsed further than one level down.
     /// Returns the function's node, or the element of its class if the function is the code of a class.
-    pub(crate) fn reparse_function(&mut self, row: u32) -> u32 {
+    pub fn reparse_function(&mut self, row: u32) -> u32 {
         use function_flag::*;
         let index = self.first_pass_index();
         let row_index = row as usize;

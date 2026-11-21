@@ -7,10 +7,10 @@
 //! Turning the source text of literals into their values. The lexer only validates literals, and a value gets computed
 //! when something needs it.
 
-pub use super::escapes::EscapeMode;
-use super::escapes::decode_escape_sequences;
 use crate::utf16::Utf16View;
 use ak::Utf16String;
+pub use libjs_parser::escapes::EscapeMode;
+use libjs_parser::escapes::decode_escape_sequences;
 
 const fn ch(c: u8) -> u16 {
     c as u16

@@ -16,6 +16,9 @@ pub trait Unit: Copy + Eq + 'static {
     const WIDE: bool;
     fn code(self) -> u32;
     /// Loads a block of units as bytes.
+    ///
+    /// # Safety
+    /// A whole block of units must be readable at `p`.
     unsafe fn load(p: *const Self) -> Block;
 }
 
@@ -90,7 +93,7 @@ fn first_bytes(word: u64, len: usize) -> u64 {
 
 /// The first 16 narrowed units with everything from `len` on cleared, as two little-endian words.
 #[inline(always)]
-pub unsafe fn key_of(x: Block, len: usize) -> (u64, u64) {
+pub(crate) unsafe fn key_of(x: Block, len: usize) -> (u64, u64) {
     let (k0, k1) = unsafe { block::first_words(x) };
     if len <= 8 {
         (first_bytes(k0, len), 0)
@@ -99,7 +102,8 @@ pub unsafe fn key_of(x: Block, len: usize) -> (u64, u64) {
     }
 }
 
-pub use block::{BLOCK, Block, eq_mask, high_mask, ident_mask};
+pub use block::Block;
+pub(crate) use block::{BLOCK, eq_mask, high_mask, ident_mask};
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 mod block {

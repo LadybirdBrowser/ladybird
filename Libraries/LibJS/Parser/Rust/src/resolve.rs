@@ -14,9 +14,9 @@
 //! A tree only holds the code of one compile job, so this only walks that code. A function nested in it is not in the
 //! tree, but what its names resolve to depends on the scopes around it, and those are here now and gone by the time it
 //! gets compiled. So every such function leaves a reference behind for each name that it captures, which resolves like
-//! any other, and the results stay around as `OuterResolutions` (see `enclosing.rs`) for when it does get compiled. A
-//! name it uses that the code around it binds further out is a capture of a function further out. `EnclosingCode` links
-//! them up.
+//! any other, and the results stay around as `OuterResolutions` (see `enclosing.rs` in LibJS) for when it does get
+//! compiled. A name it uses that the code around it binds further out is a capture of a function further out.
+//! `EnclosingCode` links them up.
 
 use super::base::SCOPE_ROW_EVAL_IN_FUNCTION;
 use super::base::SCOPE_ROW_POISONED;
@@ -416,25 +416,26 @@ struct BoundName {
 
 /// What the resolver reads of what is kept of the source of a tree.
 #[derive(Clone, Copy)]
-pub(crate) struct ScriptView<'t> {
-    pub(crate) index: FunctionIndexView<'t>,
+pub struct ScriptView<'t> {
+    pub index: FunctionIndexView<'t>,
     /// The name of an anonymous default export.
-    pub(crate) default_export_name: Name,
-    pub(crate) is_module: bool,
+    pub default_export_name: Name,
+    pub is_module: bool,
     /// The undeclared names that something in a `with` uses, which are not simply globals, sorted.
-    pub(crate) global_names_used_in_with: &'t [u32],
+    pub global_names_used_in_with: &'t [u32],
 }
 
 impl ScriptView<'_> {
-    pub(crate) fn is_global_name_used_in_with(&self, name: Name) -> bool {
+    #[inline]
+    pub fn is_global_name_used_in_with(&self, name: Name) -> bool {
         self.global_names_used_in_with.binary_search(&name.0).is_ok()
     }
 }
 
 /// How identifiers resolve, which the code around the program decides.
-pub(super) struct ResolveOptions {
-    pub(super) initiated_by_eval: bool,
-    pub(super) suppress_globals: bool,
+pub struct ResolveOptions {
+    pub initiated_by_eval: bool,
+    pub suppress_globals: bool,
 }
 
 /// The scope table that a resolver fills in.
@@ -445,18 +446,18 @@ struct ScopeColumns<'z> {
 }
 
 /// What resolving found out about a tree, in the work zone, for the tree to refer to.
-pub(super) struct Resolved<'z> {
-    pub(super) resolutions: &'z [Resolution],
-    pub(super) scopes: ScopeTable<'z>,
-    pub(super) program_scope_row: u32,
-    pub(super) function_scope_rows: &'z [(u32, u32)],
+pub struct Resolved<'z> {
+    pub resolutions: &'z [Resolution],
+    pub scopes: ScopeTable<'z>,
+    pub program_scope_row: u32,
+    pub function_scope_rows: &'z [(u32, u32)],
     /// The resolutions for the functions nested in the tree, as (key, resolution), with keys from `outer_key()`. Every
     /// function nested in the code leaves a reference behind, so that without any there are none.
-    pub(super) outer_entries: &'z mut [(u64, Resolution)],
+    pub outer_entries: &'z mut [(u64, Resolution)],
 }
 
 /// The key of the resolution of `name` for the function at `row`.
-pub(crate) fn outer_key(row: u32, name: Name) -> u64 {
+pub fn outer_key(row: u32, name: Name) -> u64 {
     u64::from(row) << 32 | u64::from(name.0)
 }
 
@@ -549,7 +550,7 @@ impl<'t, 'z> Resolver<'t, 'z> {
 
 /// Resolves the identifiers of the tree of a program that the parser just finished, with the work data and the results
 /// in `zone`.
-pub(super) fn resolve_program<'z>(
+pub fn resolve_program<'z>(
     zone: &'z Zone,
     tree: &TreeView<'_>,
     script: &ScriptView<'_>,

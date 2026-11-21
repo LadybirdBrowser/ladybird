@@ -7,12 +7,12 @@
 //! What the code that a compile job compiled leaves for the functions nested in it, which get compiled later: how the
 //! names that they capture resolve (see `resolve.rs`, which works it out for a program).
 
-use super::columns::NONE;
-use super::resolve::outer_key;
-use super::token::N_DOT_UNBOUND;
 use crate::ast::Name;
 use crate::ast::Resolution;
 use crate::ast::SyntaxTree;
+use libjs_parser::columns::NONE;
+use libjs_parser::resolve::outer_key;
+use libjs_parser::token::N_DOT_UNBOUND;
 use std::sync::Arc;
 
 /// What a name means from inside a function that a tree did not hold the code of, by function row and name.

@@ -10,6 +10,7 @@ members = [
     "Libraries/LibIPC/Rust",
     "Libraries/LibJS/ABI",
     "Libraries/LibJS/JIT/Rust",
+    "Libraries/LibJS/Parser/Rust",
     "Libraries/LibJS/Rust",
     "Libraries/LibJS/Rust/embedding_headers",
     "Libraries/LibJS/Rust/macros",

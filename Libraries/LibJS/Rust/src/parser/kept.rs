@@ -7,13 +7,13 @@
 //! What the first parse of a source keeps on the heap, at its final size, for the compile jobs that come later, maybe
 //! on other threads.
 
-use super::columns::FunctionIndexView;
-use super::intern::Interner;
-use super::intern::LongRow;
-use super::intern::NameTables;
-use super::intern::NameTablesMut;
-use super::intern::Row;
 use ak::Zone;
+use libjs_parser::columns::FunctionIndexView;
+use libjs_parser::intern::Interner;
+use libjs_parser::intern::LongRow;
+use libjs_parser::intern::NameTables;
+use libjs_parser::intern::NameTablesMut;
+use libjs_parser::intern::Row;
 use std::sync::OnceLock;
 
 /// The tables of an interner on the heap, at the size they have, which the reparse context of a source keeps.

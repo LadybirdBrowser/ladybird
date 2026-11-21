@@ -5,7 +5,8 @@
  */
 
 //! The tree of a parse as plain data: its columns and what scope analysis found out about it, all in slices. The
-//! resolver reads the tree through [`TreeView`], and the syntax tree of `ast.rs` wraps it with what is kept of the source.
+//! resolver reads the tree through [`TreeView`], and the `SyntaxTree` of LibJS wraps it with what is kept of the
+//! source.
 
 use super::columns::AstColumns;
 use super::columns::tag;
@@ -55,7 +56,7 @@ pub enum PatternMode {
 
 /// An interned name of a source. Equal names of a source have equal ids.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-pub struct Name(pub(crate) u32);
+pub struct Name(pub u32);
 
 // =============================================================================
 // Resolution
@@ -64,7 +65,7 @@ pub struct Name(pub(crate) u32);
 /// What scope analysis found out about one identifier, packed into a `u32` of the tree's resolution column. An
 /// identifier that it did not look at has the value zero.
 #[derive(Clone, Copy, Default)]
-pub(crate) struct Resolution(pub(crate) u32);
+pub struct Resolution(pub u32);
 
 impl Resolution {
     const LOCAL_TYPE_MASK: u32 = 0b11;
@@ -79,10 +80,10 @@ impl Resolution {
     const IS_INSIDE_TREE_SCOPE_WITH_EVAL: u32 = 1 << 8;
     const LOCAL_INDEX_SHIFT: u32 = 9;
     /// A binding with a higher index stays in its environment.
-    pub(crate) const MAX_LOCAL_INDEX: u32 = u32::MAX >> Self::LOCAL_INDEX_SHIFT;
+    pub const MAX_LOCAL_INDEX: u32 = u32::MAX >> Self::LOCAL_INDEX_SHIFT;
 
     #[inline]
-    pub(crate) fn set_local(&mut self, binding: LocalBinding) {
+    pub fn set_local(&mut self, binding: LocalBinding) {
         let local_type = match binding.local_type {
             LocalType::Argument => Self::LOCAL_ARGUMENT,
             LocalType::Variable => Self::LOCAL_VARIABLE,
@@ -93,64 +94,64 @@ impl Resolution {
     }
 
     #[inline]
-    pub(crate) fn set_declaration_kind(&mut self, kind: DeclarationKind) {
+    pub fn set_declaration_kind(&mut self, kind: DeclarationKind) {
         self.0 = (self.0 & !Self::DECLARATION_KIND_MASK) | ((kind as u32) << Self::DECLARATION_KIND_SHIFT);
     }
 
     #[inline]
-    pub(crate) fn set_is_global(&mut self) {
+    pub fn set_is_global(&mut self) {
         self.0 |= Self::IS_GLOBAL;
     }
 
     #[inline]
-    pub(crate) fn set_is_inside_scope_with_eval(&mut self) {
+    pub fn set_is_inside_scope_with_eval(&mut self) {
         self.0 |= Self::IS_INSIDE_SCOPE_WITH_EVAL;
     }
 
     #[inline]
-    pub(crate) fn is_inside_scope_with_eval(self) -> bool {
+    pub fn is_inside_scope_with_eval(self) -> bool {
         self.0 & Self::IS_INSIDE_SCOPE_WITH_EVAL != 0
     }
 
     /// Whether a scope with an eval around the identifier is one of the tree being resolved.
     #[inline]
-    pub(crate) fn set_is_inside_tree_scope_with_eval(&mut self) {
+    pub fn set_is_inside_tree_scope_with_eval(&mut self) {
         self.0 |= Self::IS_INSIDE_TREE_SCOPE_WITH_EVAL;
     }
 
     #[inline]
-    pub(crate) fn is_inside_tree_scope_with_eval(self) -> bool {
+    pub fn is_inside_tree_scope_with_eval(self) -> bool {
         self.0 & Self::IS_INSIDE_TREE_SCOPE_WITH_EVAL != 0
     }
 
     #[inline]
-    pub(crate) fn clear_is_global(&mut self) {
+    pub fn clear_is_global(&mut self) {
         self.0 &= !Self::IS_GLOBAL;
     }
 
     #[inline]
-    pub(crate) fn set_is_hoisted(&mut self) {
+    pub fn set_is_hoisted(&mut self) {
         self.0 |= Self::IS_HOISTED;
     }
 
     #[inline]
-    pub(crate) fn is_hoisted(self) -> bool {
+    pub fn is_hoisted(self) -> bool {
         self.0 & Self::IS_HOISTED != 0
     }
 
     /// Marks the resolution of a function node as being that of the name of its declaration.
     #[inline]
-    pub(crate) fn set_is_declared_function(&mut self) {
+    pub fn set_is_declared_function(&mut self) {
         self.0 |= Self::IS_DECLARED_FUNCTION;
     }
 
     #[inline]
-    pub(crate) fn is_declared_function(self) -> bool {
+    pub fn is_declared_function(self) -> bool {
         self.0 & Self::IS_DECLARED_FUNCTION != 0
     }
 
     #[inline]
-    pub(crate) fn local_type(self) -> Option<LocalType> {
+    pub fn local_type(self) -> Option<LocalType> {
         match self.0 & Self::LOCAL_TYPE_MASK {
             Self::LOCAL_ARGUMENT => Some(LocalType::Argument),
             Self::LOCAL_VARIABLE => Some(LocalType::Variable),
@@ -159,12 +160,12 @@ impl Resolution {
     }
 
     #[inline]
-    pub(crate) fn local_index(self) -> u32 {
+    pub fn local_index(self) -> u32 {
         self.0 >> Self::LOCAL_INDEX_SHIFT
     }
 
     #[inline]
-    pub(crate) fn declaration_kind(self) -> Option<DeclarationKind> {
+    pub fn declaration_kind(self) -> Option<DeclarationKind> {
         match (self.0 & Self::DECLARATION_KIND_MASK) >> Self::DECLARATION_KIND_SHIFT {
             1 => Some(DeclarationKind::Var),
             2 => Some(DeclarationKind::Let),
@@ -174,7 +175,7 @@ impl Resolution {
     }
 
     #[inline]
-    pub(crate) fn is_global(self) -> bool {
+    pub fn is_global(self) -> bool {
         self.0 & Self::IS_GLOBAL != 0
     }
 }
@@ -186,10 +187,10 @@ pub struct LocalVariable {
     pub kind: LocalVarKind,
     pub is_mutable: bool,
     /// Where the block that declares it starts and ends, if a block does.
-    pub(crate) scope_offsets: Option<(u32, u32)>,
+    pub scope_offsets: Option<(u32, u32)>,
     /// How many loops of its function the scope that declares it is in the body of, which is how often that scope can
     /// start again.
-    pub(crate) enclosing_loops: u32,
+    pub enclosing_loops: u32,
 }
 
 /// A resolved local binding: the operand type and index assigned by scope analysis.
@@ -201,44 +202,44 @@ pub struct LocalBinding {
 
 /// A range of one of the columns of scope analysis results.
 #[derive(Clone, Copy, Default)]
-pub(crate) struct ColumnRange {
-    pub(crate) start: u32,
-    pub(crate) end: u32,
+pub struct ColumnRange {
+    pub start: u32,
+    pub end: u32,
 }
 
 impl ColumnRange {
-    pub(crate) fn of<T>(self, column: &[T]) -> &[T] {
+    pub fn of<T>(self, column: &[T]) -> &[T] {
         &column[self.start as usize..self.end as usize]
     }
 }
 
 /// What scope analysis found out about a function, a static block or a program.
 #[derive(Clone, Copy, Default)]
-pub(crate) struct ScopeRow {
-    pub(crate) local_variables: ColumnRange,
-    pub(crate) annexb_function_names: ColumnRange,
-    pub(crate) non_local_var_count: u32,
-    pub(crate) non_local_var_count_for_parameter_expressions: u32,
-    pub(crate) has_function_scope_data: bool,
-    pub(crate) has_function_named_arguments: bool,
-    pub(crate) has_argument_parameter: bool,
-    pub(crate) has_lexically_declared_arguments: bool,
-    pub(crate) uses_this: bool,
-    pub(crate) uses_this_from_environment: bool,
-    pub(crate) contains_direct_call_to_eval: bool,
-    pub(crate) contains_access_to_arguments_object: bool,
+pub struct ScopeRow {
+    pub local_variables: ColumnRange,
+    pub annexb_function_names: ColumnRange,
+    pub non_local_var_count: u32,
+    pub non_local_var_count_for_parameter_expressions: u32,
+    pub has_function_scope_data: bool,
+    pub has_function_named_arguments: bool,
+    pub has_argument_parameter: bool,
+    pub has_lexically_declared_arguments: bool,
+    pub uses_this: bool,
+    pub uses_this_from_environment: bool,
+    pub contains_direct_call_to_eval: bool,
+    pub contains_access_to_arguments_object: bool,
     /// Whether the code of the scope, which is everything but what its declaration instantiation does, can change the
     /// running environment. The code of nested functions has its own.
-    pub(crate) creates_environment: bool,
+    pub creates_environment: bool,
 }
 
 /// The results of scope analysis, which are the same for the whole life of a tree.
 #[derive(Clone, Copy, Default)]
-pub(crate) struct ScopeTable<'t> {
+pub struct ScopeTable<'t> {
     /// One per function of the function index, then one per static block, then the program's.
-    pub(crate) rows: &'t [ScopeRow],
-    pub(crate) local_variables: &'t [LocalVariable],
-    pub(crate) annexb_function_names: &'t [Name],
+    pub rows: &'t [ScopeRow],
+    pub local_variables: &'t [LocalVariable],
+    pub annexb_function_names: &'t [Name],
 }
 
 // =============================================================================
@@ -248,49 +249,49 @@ pub(crate) struct ScopeTable<'t> {
 /// The tree of the code of a compile job and the results of scope analysis on that code, as slices of plain data.
 #[derive(Clone, Copy)]
 pub struct TreeView<'t> {
-    pub(crate) ast: AstColumns<'t>,
-    pub(crate) root: u32,
-    pub(crate) first_token_start: u32,
-    pub(crate) is_strict_mode: bool,
-    pub(crate) has_top_level_await: bool,
-    pub(crate) eval_referenced_private_names: &'t [Name],
+    pub ast: AstColumns<'t>,
+    pub root: u32,
+    pub first_token_start: u32,
+    pub is_strict_mode: bool,
+    pub has_top_level_await: bool,
+    pub eval_referenced_private_names: &'t [Name],
     /// The resolution of the identifier at each node, if there is one.
-    pub(crate) resolutions: &'t [Resolution],
-    pub(crate) scopes: ScopeTable<'t>,
+    pub resolutions: &'t [Resolution],
+    pub scopes: ScopeTable<'t>,
     /// The row of the program in `scopes`.
-    pub(crate) program_scope_row: u32,
+    pub program_scope_row: u32,
     /// The row in `scopes` of each function node of the tree whose code the tree holds, sorted by node.
-    pub(crate) function_scope_rows: &'t [(u32, u32)],
+    pub function_scope_rows: &'t [(u32, u32)],
 }
 
 impl TreeView<'_> {
     #[inline]
-    pub(crate) fn tag(&self, node: u32) -> u8 {
+    pub fn tag(&self, node: u32) -> u8 {
         self.ast.tag[node as usize]
     }
 
     #[inline]
-    pub(crate) fn a(&self, node: u32) -> u32 {
+    pub fn a(&self, node: u32) -> u32 {
         self.ast.a[node as usize]
     }
 
     #[inline]
-    pub(crate) fn b(&self, node: u32) -> u32 {
+    pub fn b(&self, node: u32) -> u32 {
         self.ast.b[node as usize]
     }
 
     #[inline]
-    pub(crate) fn pos(&self, node: u32) -> u32 {
+    pub fn pos(&self, node: u32) -> u32 {
         self.ast.pos[node as usize]
     }
 
     #[inline]
-    pub(crate) fn extra(&self, index: u32) -> u32 {
+    pub fn extra(&self, index: u32) -> u32 {
         self.ast.extra[index as usize]
     }
 
     #[inline]
-    pub(crate) fn list(&self, start: u32) -> &[u32] {
+    pub fn list(&self, start: u32) -> &[u32] {
         let start = start as usize;
         let count = self.ast.extra[start] as usize;
         &self.ast.extra[start + 1..start + 1 + count]
@@ -298,27 +299,27 @@ impl TreeView<'_> {
 
     /// Where the block statement at `node` ends.
     #[inline]
-    pub(crate) fn end_of_block(&self, node: u32) -> u32 {
+    pub fn end_of_block(&self, node: u32) -> u32 {
         self.block_end(self.a(node))
     }
 
     /// Where the code after a block starts, given the list of the block's statements.
     #[inline]
-    pub(crate) fn block_end(&self, list: u32) -> u32 {
+    pub fn block_end(&self, list: u32) -> u32 {
         self.extra(list + 1 + self.extra(list))
     }
 
     #[inline]
-    pub(crate) fn resolution(&self, node: u32) -> Resolution {
+    pub fn resolution(&self, node: u32) -> Resolution {
         self.resolutions[node as usize]
     }
 
     #[inline]
-    pub(crate) fn scope_row(&self, row: u32) -> &ScopeRow {
+    pub fn scope_row(&self, row: u32) -> &ScopeRow {
         &self.scopes.rows[row as usize]
     }
 
-    pub(crate) fn function_scope(&self, function: u32) -> &ScopeRow {
+    pub fn function_scope(&self, function: u32) -> &ScopeRow {
         let index = self
             .function_scope_rows
             .binary_search_by_key(&function, |&(node, _)| node)
@@ -328,12 +329,12 @@ impl TreeView<'_> {
 
     /// What scope analysis found out about the program.
     #[inline]
-    pub(crate) fn program_scope(&self) -> &ScopeRow {
+    pub fn program_scope(&self) -> &ScopeRow {
         self.scope_row(self.program_scope_row)
     }
 
     /// Whether the pattern at `node` has a computed key or an initializer, nested patterns included.
-    pub(crate) fn pattern_contains_expression(&self, node: u32) -> bool {
+    pub fn pattern_contains_expression(&self, node: u32) -> bool {
         self.list(self.a(node)).iter().any(|&item| {
             let item_tag = self.tag(item);
             if item_tag == tag::COMPUTED_PROPERTY {
@@ -358,7 +359,7 @@ impl TreeView<'_> {
 
     /// The optional chain at `node`, which reaches down to its innermost optional link, and what is below that is its
     /// base. Hands the links to `push_link`, outermost first, and returns the base.
-    pub(crate) fn optional_chain(&self, node: u32, mut push_link: impl FnMut(u32)) -> u32 {
+    pub fn optional_chain(&self, node: u32, mut push_link: impl FnMut(u32)) -> u32 {
         let mut base = node;
         let mut remaining_optional_links = 0;
         let mut probe = node;
@@ -391,7 +392,7 @@ fn is_optional_chain_link(node_tag: u8) -> bool {
 }
 
 /// Whether a link of an optional chain with this tag is an optional one.
-pub(crate) fn is_optional_link(node_tag: u8) -> bool {
+pub fn is_optional_link(node_tag: u8) -> bool {
     matches!(
         node_tag,
         tag::OPT_MEMBER | tag::OPT_INDEX | tag::OPT_PRIVATE_MEMBER | tag::OPT_CALL

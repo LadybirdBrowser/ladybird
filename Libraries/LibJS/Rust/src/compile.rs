@@ -31,7 +31,6 @@ use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::executable_data::PendingSharedFunctionData;
 use crate::parser::EnclosingCode;
 use crate::parser::FunctionRow;
-use crate::parser::OutOfStack;
 use crate::parser::ParseError;
 use crate::parser::ParseOptions;
 use crate::parser::ScriptData;
@@ -41,6 +40,7 @@ use crate::parser::with_parsed_tree;
 use crate::utf16::Utf16View;
 use crate::work_zone::with_work_zone;
 use ak::Utf16String;
+use libjs_parser::base::OutOfStack;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -246,7 +246,7 @@ pub fn compile_script(parsed: ParsedProgram) -> CompiledScript {
 fn stack_limit_of_this_thread() -> usize {
     match crate::parser::vm_stack_limit_of_this_thread() {
         Some(limit) => limit.saturating_add(STACK_FOR_SMALL_WALKS),
-        None => crate::parser::stack_limit_for_budget(crate::parser::base::DEFAULT_STACK_BUDGET),
+        None => libjs_parser::base::stack_limit_for_budget(libjs_parser::base::DEFAULT_STACK_BUDGET),
     }
 }
 
@@ -1301,7 +1301,7 @@ pub(crate) fn pending_function_of_row(
     enclosing_environment_scope: Option<Arc<bytecode::codegen::EnclosingEnvironmentScope>>,
     enclosing_code: &Arc<EnclosingCode>,
 ) -> PendingSharedFunctionData {
-    use crate::parser::columns::function_flag;
+    use libjs_parser::columns::function_flag;
     let index = &script.index;
     let at = row as usize;
     let flags = index.flags[at];
@@ -1663,7 +1663,7 @@ fn collect_var_scoped_declarations(tree: &SyntaxTree<'_>) -> VarScopedDeclaratio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::stack_limit_for_budget;
+    use libjs_parser::base::stack_limit_for_budget;
 
     const SOURCE: &str = "function outer() { return function inner() { return 1; }; }";
 

@@ -27,6 +27,7 @@ libc = "0.2"
 libcompress_rust = { path = "../../LibCompress/Rust" }
 libjs_abi = { path = "../ABI" }
 libjs_jit = { path = "../JIT/Rust", optional = true }
+libjs_parser = { path = "../Parser/Rust" }
 libjs_runtime_macros = { path = "macros" }
 memchr = "2"
 libregex_rust = { path = "../../LibRegex/Rust", default-features = false }

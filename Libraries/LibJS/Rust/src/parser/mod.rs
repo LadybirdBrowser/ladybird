@@ -7,25 +7,23 @@
 //! The JavaScript parser. Lexing is driven by the parser, the syntax tree is a set of flat columns, and scope analysis
 //! happens while parsing, with no map per scope. [`crate::ast`] is how everything after the parser reads the tree.
 //!
+//! The parser itself is the `libjs_parser` crate, which does all of its work in the work zone of its thread. This
+//! starts the parse jobs, and copies what they keep out of the zone.
+//!
 //! A source is parsed once for all of its early errors. That leaves a [`ScriptData`], which is all that is kept of the
 //! source, and the tree of its top-level code, which lives as long as the job of the parse, so the work that needs it is
 //! part of that job. A function is parsed again on its own when it is first called. Its tree lives as long as the
 //! compile job that needs it, and nested functions are skipped by what the first parse recorded.
 
-pub(crate) mod base;
-pub(crate) mod columns;
 mod enclosing;
-pub(crate) mod escapes;
-pub(crate) mod expr;
-mod intern;
 mod kept;
-mod lexer;
 pub(crate) mod literals;
-pub(crate) mod resolve;
-mod stmt;
-pub(crate) mod token;
-pub(crate) mod tree;
-pub(crate) mod unit;
+
+use libjs_parser::base;
+use libjs_parser::columns;
+use libjs_parser::intern;
+use libjs_parser::resolve;
+use libjs_parser::unit;
 
 use crate::ast::Name;
 use crate::ast::NameTable;
@@ -40,10 +38,9 @@ use crate::work_zone::with_work_zone;
 use ak::Zone;
 use ak::ZoneVec;
 use base::Mode;
-pub use base::OutOfStack;
+use base::OutOfStack;
 use base::Parser;
 use base::SOURCE_PADDING;
-pub use base::stack_limit_for_budget;
 use columns::Ast;
 use columns::AstColumns;
 use columns::FunctionIndexBuilder;
