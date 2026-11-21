@@ -61,15 +61,15 @@ ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpeci
     if (output.sample_rate() > NumericLimits<int>::max())
         return Error::from_string_literal("Output sample rate is too high");
 
-    auto input_channel_layout = TRY(channel_map_to_av_channel_layout(FFmpegFunctions::bundled(), input.channel_map()));
+    auto input_channel_layout = TRY(FFmpegChannelLayout::from_channel_map(FFmpegFunctions::bundled(), input.channel_map()));
     auto input_sample_rate = static_cast<int>(input.sample_rate());
 
-    auto output_channel_layout = TRY(channel_map_to_av_channel_layout(FFmpegFunctions::bundled(), output.channel_map()));
+    auto output_channel_layout = TRY(FFmpegChannelLayout::from_channel_map(FFmpegFunctions::bundled(), output.channel_map()));
     auto output_sample_rate = static_cast<int>(output.sample_rate());
 
     auto allocation_result = swr_alloc_set_opts2(&m_context,
-        &output_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLTP, output_sample_rate,
-        &input_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLTP, input_sample_rate,
+        &output_channel_layout.layout(), AVSampleFormat::AV_SAMPLE_FMT_FLTP, output_sample_rate,
+        &input_channel_layout.layout(), AVSampleFormat::AV_SAMPLE_FMT_FLTP, input_sample_rate,
         0, nullptr);
     if (allocation_result < 0)
         return Error::from_string_view(av_error_code_to_string(allocation_result));
