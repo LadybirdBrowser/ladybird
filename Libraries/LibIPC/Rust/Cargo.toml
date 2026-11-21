@@ -14,6 +14,7 @@ crate-type = ["rlib", "staticlib"]
 ak = { path = "../../../AK/Rust" }
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"
+libipc_rust_macros = { path = "macros" }
 rustc-demangle = { version = "0.1", optional = true }
 
 [features]

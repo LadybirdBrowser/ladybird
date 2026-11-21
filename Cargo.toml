@@ -8,6 +8,7 @@ members = [
     "Libraries/LibHTTP/Rust",
     "Libraries/LibImageDecoders/Rust",
     "Libraries/LibIPC/Rust",
+    "Libraries/LibIPC/Rust/macros",
     "Libraries/LibJS/ABI",
     "Libraries/LibJS/JIT/Rust",
     "Libraries/LibJS/Parser/Rust",
