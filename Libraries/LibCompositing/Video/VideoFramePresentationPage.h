@@ -57,6 +57,7 @@ public:
         SharedMemoryValue<MonotonicTime> presentation_time;
         u32 width { 0 };
         u32 height { 0 };
+        bool frame_is_up_to_date { false };
     };
     void publish_presented_frame(PresentedFrame const&);
     Optional<PresentedFrame> presented_frame() const;

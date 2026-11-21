@@ -118,6 +118,20 @@ public:
         m_hold_for_video_frame_callbacks = nullptr;
     }
 
+    bool frame_is_up_to_date() const
+    {
+        if (!m_presentation_page)
+            return true;
+        auto presented_frame = m_presentation_page->presented_frame();
+        return presented_frame.has_value() && presented_frame->frame_is_up_to_date;
+    }
+
+    void bring_frame_up_to_date(Optional<MonotonicTime> deadline)
+    {
+        if (m_compositor_host)
+            m_compositor_host->bring_video_sink_up_to_date(m_handle, deadline);
+    }
+
     Optional<Compositing::CapturedVideoFrame> capture_current_frame()
     {
         if (!m_compositor_host || !m_presentation_page)
@@ -2259,6 +2273,19 @@ Optional<Compositing::CapturedVideoFrame> HTMLMediaElement::capture_current_vide
     if (!m_active_video_sink)
         return {};
     note_frame_captured();
+
+    // NB: If the sink doesn't have an up-to-date frame, give it some time to catch up before capturing a stale or
+    //     missing one instead. This blocks the main thread, so it must be bounded. After this initial wait, the
+    //     sink will be kept ticking for a certain time, so subsequent captures won't block. Tests wait without a
+    //     bound, so that a sink that never catches up times the test out rather than depending on load.
+    static constexpr auto capture_catch_up_limit = AK::Duration::from_milliseconds(500);
+    if (m_ready_state >= ReadyState::HaveCurrentData && !m_active_video_sink->frame_is_up_to_date()) {
+        sync_video_sink_ticking();
+        Optional<MonotonicTime> deadline;
+        if (!Window::in_test_mode())
+            deadline = MonotonicTime::now() + capture_catch_up_limit;
+        m_active_video_sink->bring_frame_up_to_date(deadline);
+    }
     return m_active_video_sink->capture_current_frame();
 }
 

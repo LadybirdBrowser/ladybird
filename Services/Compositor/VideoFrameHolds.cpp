@@ -59,6 +59,15 @@ void VideoFrameHolds::present_frame(Media::VideoSinkHandle handle, RefPtr<Media:
     sink->page->publish_presented_frame(presented_frame);
 }
 
+void VideoFrameHolds::set_frame_is_up_to_date(Media::VideoSinkHandle handle, bool frame_is_up_to_date)
+{
+    auto sink = m_sinks.get(handle);
+    if (!sink.has_value() || sink->presented_frame.frame_is_up_to_date == frame_is_up_to_date)
+        return;
+    sink->presented_frame.frame_is_up_to_date = frame_is_up_to_date;
+    sink->page->publish_presented_frame(sink->presented_frame);
+}
+
 void VideoFrameHolds::add_frame_counts(Media::VideoSinkHandle handle, Media::DisplayingVideoSinkFrameCounts new_frame_counts)
 {
     auto sink = m_sinks.get(handle);

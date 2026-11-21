@@ -69,6 +69,8 @@ public:
     void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
+    // Waits for the compositor to say that the sink's frame follows its clock, until the deadline if there is one.
+    void bring_video_sink_up_to_date(Media::VideoSinkHandle, Optional<MonotonicTime> deadline);
     RefPtr<IPC::ThreadSafeMessagePoster> poster_while_compositor_is_reachable();
     bool post_canvas_2d_stream_batch_fonts_and_image_frames(ReadonlySpan<Gfx::Font const*>, ReadonlySpan<Gfx::DecodedImageFrame const*>);
     void did_fail_to_post_canvas_2d_message();
@@ -133,6 +135,7 @@ private:
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
     bool did_rasterize(Layout::RustFFI::RasterizationOutcome);
+    virtual void video_sink_is_up_to_date(u64 token) override;
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId>) override;
@@ -155,6 +158,7 @@ private:
     u64 m_next_screenshot_request_id { 1 };
     Atomic<u64> m_next_rasterization_token { 1 };
     u64 m_serial { 0 };
+    u64 m_next_video_sink_up_to_date_token { 1 };
     bool m_has_lost_compositor { false };
     // The media server whose presentation channel the Compositor holds; a replacement server needs a new channel.
     Optional<u64> m_video_presentation_channel_media_client_generation;

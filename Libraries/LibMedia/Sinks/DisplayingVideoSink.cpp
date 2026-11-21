@@ -22,6 +22,7 @@ ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(Medi
 DisplayingVideoSink::DisplayingVideoSink(MediaTimeReader time_reader)
     : m_time_reader(move(time_reader))
 {
+    m_reported_freshness = freshness();
 }
 
 DisplayingVideoSink::~DisplayingVideoSink()
@@ -90,6 +91,13 @@ void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& i
 
 void DisplayingVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
+    begin_seek(timestamp, invalidate_held_data, SeekStatus::InProgress);
+    report_freshness_if_changed();
+}
+
+void DisplayingVideoSink::begin_seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data, SeekStatus seek_status)
+{
+    VERIFY(seek_status != SeekStatus::None);
     m_seek_id++;
     m_latest_status = PipelineStatus::Pending;
     m_last_dispatched_status = PipelineStatus::Pending;
@@ -129,8 +137,7 @@ void DisplayingVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invali
 
     if (m_input != nullptr)
         m_input->seek(timestamp, invalidate_held_data);
-    if (m_seek_status == SeekStatus::None)
-        m_seek_status = SeekStatus::InProgress;
+    m_seek_status = seek_status;
     m_next_frame = nullptr;
 }
 
@@ -148,6 +155,8 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 {
     if (m_input == nullptr)
         return {};
+    if (is_ticking())
+        m_has_updated_since_ticking_began = true;
 
     auto time_state = m_time_reader.time_state(now);
     auto current_time = time_state.time;
@@ -166,7 +175,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             last_status = output.status;
             m_input_checkpoint = output.checkpoint;
             if (output.frame == nullptr) {
-                if (is_terminal(last_status) && m_seek_status == SeekStatus::InProgress) {
+                if (is_terminal(last_status) && m_seek_status != SeekStatus::None) {
                     m_seek_status = SeekStatus::None;
                     new_frame_available = true;
                 }
@@ -255,7 +264,8 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         auto time_is_changing = time_state.is_advancing || m_seek_status != SeekStatus::None;
         if (time_is_changing) {
             m_next_frame = nullptr;
-            m_seek_status = SeekStatus::InProgress;
+            if (m_seek_status == SeekStatus::None)
+                m_seek_status = SeekStatus::CatchingUp;
             m_seek_resolution_is_pending_frame_at_target = true;
             m_input->seek(current_time);
             status_to_dispatch = PipelineStatus::Pending;
@@ -292,6 +302,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     if (may_require_updates && updates_were_stopped && !new_frame_available && m_on_present_needed)
         m_on_present_needed();
 
+    report_freshness_if_changed();
     return {
         .new_frame_available = new_frame_available,
         .may_require_updates = may_require_updates,
@@ -308,13 +319,29 @@ void DisplayingVideoSink::set_ticking(bool ticking)
     auto was_ticking = exchange(m_is_ticking, ticking);
     if (ticking == was_ticking)
         return;
-    if (ticking)
-        seek_back_to_current_time();
-    if (m_on_ticking_changed)
-        m_on_ticking_changed();
+    if (ticking) {
+        m_has_updated_since_ticking_began = false;
+        catch_up_to_clock();
+    }
+    report_freshness_if_changed();
 }
 
-void DisplayingVideoSink::seek_back_to_current_time()
+DisplayingVideoSink::Freshness DisplayingVideoSink::freshness() const
+{
+    return { .is_ticking = is_ticking(), .is_catching_up = is_catching_up(), .frame_is_up_to_date = frame_is_up_to_date() };
+}
+
+void DisplayingVideoSink::report_freshness_if_changed()
+{
+    auto freshness = this->freshness();
+    if (freshness == m_reported_freshness)
+        return;
+    m_reported_freshness = freshness;
+    if (m_on_freshness_changed)
+        m_on_freshness_changed();
+}
+
+void DisplayingVideoSink::catch_up_to_clock()
 {
     if (m_seek_status != SeekStatus::None)
         return;
@@ -324,7 +351,8 @@ void DisplayingVideoSink::seek_back_to_current_time()
     if (m_current_frame != nullptr && m_current_frame->contains_timestamp(current_time))
         return;
 
-    seek(current_time);
+    begin_seek(current_time, InvalidateHeldData::No, SeekStatus::CatchingUp);
+    report_freshness_if_changed();
 }
 
 RefPtr<VideoFrame> DisplayingVideoSink::current_frame() const

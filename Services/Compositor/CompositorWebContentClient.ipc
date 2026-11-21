@@ -16,6 +16,7 @@ endpoint CompositorWebContentClient
     [RustSender] animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds) =|
     [RustSender] overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
+    video_sink_is_up_to_date(u64 token) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
     paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> context_ids) =|
     remote_descendants_prepared_for_screenshot(u64 request_id) =|

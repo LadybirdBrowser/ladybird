@@ -299,6 +299,12 @@ void CompositorHost::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
         connection->remove_video_sink(video_sink_handle);
 }
 
+void CompositorHost::bring_video_sink_up_to_date(Media::VideoSinkHandle video_sink_handle, Optional<MonotonicTime> deadline)
+{
+    if (auto* connection = compositor_connection())
+        connection->bring_video_sink_up_to_date(video_sink_handle, deadline);
+}
+
 Compositing::VideoFrameHold::ReleaseThroughCompositor CompositorHost::video_frame_hold_releaser_for_current_connection() const
 {
     auto* connection = compositor_connection();
