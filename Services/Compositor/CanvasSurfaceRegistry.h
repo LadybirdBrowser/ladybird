@@ -9,7 +9,6 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/WeakPtr.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/PresentableSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
@@ -52,7 +51,7 @@ public:
     // The canvas shows the content of a surface that the window server can show as it is.
     void set_canvas_surface(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, PresentableSurface& surface)
     {
-        set_entry(owner_id, id, surface.painting_surface(), surface.make_weak_ptr());
+        set_entry(owner_id, id, surface.painting_surface(), WeakPresentableSurface { surface });
     }
 
     void remove_canvas_surface(Compositing::CanvasId id)
@@ -83,11 +82,11 @@ private:
     struct Entry {
         Compositing::CanvasSurfaceOwnerId owner_id;
         NonnullRefPtr<Gfx::PaintingSurface> surface;
-        WeakPtr<PresentableSurface> presentable_surface;
+        WeakPresentableSurface presentable_surface;
         u64 content_generation { 0 };
     };
 
-    void set_entry(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, NonnullRefPtr<Gfx::PaintingSurface> surface, WeakPtr<PresentableSurface> presentable_surface)
+    void set_entry(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, NonnullRefPtr<Gfx::PaintingSurface> surface, WeakPresentableSurface presentable_surface)
     {
         if (auto existing = m_entries.get(id); existing.has_value())
             VERIFY(existing->owner_id == owner_id);

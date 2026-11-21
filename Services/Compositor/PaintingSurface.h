@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
+#include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/kmalloc.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
@@ -44,7 +45,12 @@ namespace Gfx {
 
 class SharedImage;
 
-class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
+// A surface that the Compositor paints into. A pointer to it is the Rust core's surface itself, which the core and the
+// C++ around it share by reference counting. Only the Compositor's main thread may reference or release it.
+class PaintingSurface {
+    AK_MAKE_NONCOPYABLE(PaintingSurface);
+    AK_MAKE_NONMOVABLE(PaintingSurface);
+
 public:
     enum class Origin {
         TopLeft,
@@ -55,8 +61,6 @@ public:
         Grayscale,
         LCD,
     };
-
-    Function<void(PaintingSurface&)> on_flush;
 
     // A surface whose pixels are in the color space, which is sRGB unless one is given.
     static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {}, TextAntialiasing = TextAntialiasing::Grayscale);
@@ -98,16 +102,25 @@ public:
     // Whether the surface draws into an image shared with another process, rather than one Skia allocated.
     bool wraps_shared_image() const;
 
+    // Runs after every flush.
+    void set_on_flush(Function<void(PaintingSurface&)>);
     void flush();
 
-    ~PaintingSurface();
+    void ref() const;
+    void unref() const;
+
+    PaintingSurface() = delete;
+    ~PaintingSurface() = delete;
 
 private:
     struct Impl;
 
-    PaintingSurface(NonnullOwnPtr<Impl>&&);
-
-    NonnullOwnPtr<Impl> m_impl;
+    static NonnullRefPtr<PaintingSurface> adopt_impl(IntSize, NonnullOwnPtr<Impl>);
+    static void destroy_impl(void*);
+    Impl& impl() const;
 };
 
 }
+
+template<>
+inline constexpr bool AllocatedWithCustomAllocator<Gfx::PaintingSurface> = true;

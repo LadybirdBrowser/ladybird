@@ -19,7 +19,8 @@ use crate::host::{
 };
 use crate::overlays::UIOverlays;
 use crate::presenting::ContextPresenting;
-use crate::raster_host::{RasterHost, SurfaceHandle};
+use crate::raster_host::RasterHost;
+use crate::surfaces::painting_surface::PaintingSurface;
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
 use libcompositing_rust::scrolling::{
@@ -684,7 +685,7 @@ impl CompositorCore {
     pub fn paint_screenshot(
         &self,
         context_id: CompositorContextId,
-        target: &SurfaceHandle,
+        target: &Rc<PaintingSurface>,
         now: MonotonicTime,
     ) -> bool {
         let _entered = self.enter();
@@ -698,7 +699,7 @@ impl CompositorCore {
         &self,
         context_id: CompositorContextId,
         now: MonotonicTime,
-    ) -> Option<(SurfaceHandle, IntSize)> {
+    ) -> Option<(Rc<PaintingSurface>, IntSize)> {
         let _entered = self.enter();
 
         self.presented_frame_for_snapshot_inner(context_id, now)

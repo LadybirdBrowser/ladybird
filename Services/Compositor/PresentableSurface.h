@@ -6,19 +6,21 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
-#include <AK/RefCounted.h>
-#include <AK/Vector.h>
-#include <AK/Weakable.h>
+#include <AK/RefPtr.h>
 #include <AK/kmalloc.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 
 namespace Compositor {
+
+// The Rust core's halves of a weak surface reference and of a pool, which only it defines.
+struct FfiWeakPresentableSurface;
+struct FfiPresentableSurfacePool;
 
 class WindowServerSurface {
 public:
@@ -31,10 +33,10 @@ public:
 
 // A surface whose content the window server can show as it is, instead of after it is composited into a frame. While a
 // lease of it is held, as by a frame on its way to the window server and by the layer that shows it, or while the
-// window server still reads it, the surface is busy, and its content must stay as it is.
-class PresentableSurface final
-    : public RefCounted<PresentableSurface>
-    , public Weakable<PresentableSurface> {
+// window server still reads it, the surface is busy, and its content must stay as it is. A pointer to it is the Rust
+// core's surface itself, which the core and the C++ around it share by reference counting. Only the Compositor's main
+// thread may use it.
+class PresentableSurface {
     AK_MAKE_NONCOPYABLE(PresentableSurface);
     AK_MAKE_NONMOVABLE(PresentableSurface);
 
@@ -60,31 +62,42 @@ public:
     };
 
     static NonnullRefPtr<PresentableSurface> create(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface> = {});
-    ~PresentableSurface();
 
-    Gfx::PaintingSurface& painting_surface() const { return *m_painting_surface; }
-    Gfx::IntSize size() const { return m_painting_surface->size(); }
-    bool content_is_upside_down() const { return m_origin == Gfx::PaintingSurface::Origin::BottomLeft; }
+    Gfx::PaintingSurface& painting_surface() const;
+    Gfx::IntSize size() const { return painting_surface().size(); }
+    bool content_is_upside_down() const;
 
     // Null for a surface that draws into memory the window server cannot read.
-    WindowServerSurface const* window_server_surface() const { return m_window_server_surface.ptr(); }
+    WindowServerSurface const* window_server_surface() const;
 
     // GPU work in flight on a surface counts as use too, so only a surface handed to the window server is checked.
-    void did_hand_to_window_server() { m_was_handed_to_window_server = true; }
+    void did_hand_to_window_server();
     bool is_read_by_window_server() const;
     Lease lease() { return Lease { *this }; }
-    bool is_busy() const { return m_lease_count > 0 || is_read_by_window_server(); }
+    bool is_busy() const;
+
+    void ref() const;
+    void unref() const;
+
+    PresentableSurface() = delete;
+    ~PresentableSurface() = delete;
+};
+
+// A weak reference to a surface, which tells whether anything still holds it.
+class WeakPresentableSurface {
+    AK_MAKE_NONCOPYABLE(WeakPresentableSurface);
+
+public:
+    WeakPresentableSurface() = default;
+    explicit WeakPresentableSurface(PresentableSurface const&);
+    WeakPresentableSurface(WeakPresentableSurface&&);
+    WeakPresentableSurface& operator=(WeakPresentableSurface&&);
+    ~WeakPresentableSurface();
+
+    RefPtr<PresentableSurface> strong_ref() const;
 
 private:
-    friend class PresentableSurfacePool;
-
-    PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface>);
-
-    NonnullRefPtr<Gfx::PaintingSurface> m_painting_surface;
-    Gfx::PaintingSurface::Origin m_origin { Gfx::PaintingSurface::Origin::TopLeft };
-    bool m_was_handed_to_window_server { false };
-    size_t m_lease_count { 0 };
-    OwnPtr<WindowServerSurface> m_window_server_surface;
+    FfiWeakPresentableSurface* m_weak { nullptr };
 };
 
 // The surfaces that one piece of content, such as a canvas, is presented from in turn. The content goes into its
@@ -92,26 +105,25 @@ private:
 // surface.
 class PresentableSurfacePool {
     AK_MAKE_NONCOPYABLE(PresentableSurfacePool);
-    AK_MAKE_DEFAULT_MOVABLE(PresentableSurfacePool);
 
 public:
-    // A surface is only added while every other one is busy, so a pool holds about as many as are on their way to the
-    // window server or still read by it at once, which is a few. The limit only stops a pool whose surfaces never stop
-    // being busy from growing without end.
-    static constexpr size_t maximum_surface_count = 8;
-
-    PresentableSurfacePool() = default;
-    ~PresentableSurfacePool() = default;
+    PresentableSurfacePool();
+    PresentableSurfacePool(PresentableSurfacePool&&);
+    PresentableSurfacePool& operator=(PresentableSurfacePool&&);
+    ~PresentableSurfacePool();
 
     // A surface of the size for the next content, which is never one that is busy. Fails when every surface is busy and
     // the pool is full, or when no surface can be allocated, and the content then has to wait for a later turn.
     ErrorOr<NonnullRefPtr<PresentableSurface>> surface_for_next_content(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
 
-private:
+    // A surface the window server can show by itself where it can, and one in memory or on the GPU otherwise.
     static ErrorOr<NonnullRefPtr<PresentableSurface>> create_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
 
-    // In the order the content went into them, the latest last.
-    Vector<NonnullRefPtr<PresentableSurface>> m_surfaces;
+private:
+    FfiPresentableSurfacePool* m_pool { nullptr };
 };
 
 }
+
+template<>
+inline constexpr bool AllocatedWithCustomAllocator<Compositor::PresentableSurface> = true;

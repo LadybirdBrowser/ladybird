@@ -284,11 +284,11 @@ bool CompositorCore::paint_screenshot(Web::CompositorContextId context_id, Gfx::
 
 Optional<CompositorCore::PresentedFrame> CompositorCore::presented_frame_for_snapshot(Web::CompositorContextId context_id)
 {
-    void* surface = nullptr;
     Gfx::IntSize frame_size;
-    if (!RustFFI::compositor_core_presented_frame_for_snapshot(m_core, context_id.value(), now().nanoseconds(), &surface, &frame_size))
+    auto const* surface = RustFFI::compositor_core_presented_frame_for_snapshot(m_core, context_id.value(), now().nanoseconds(), &frame_size);
+    if (!surface)
         return {};
-    return PresentedFrame { adopt_ref(*static_cast<Gfx::PaintingSurface*>(surface)), frame_size };
+    return PresentedFrame { adopt_ref(const_cast<Gfx::PaintingSurface&>(*surface)), frame_size };
 }
 
 void CompositorCore::timer_fired(Web::CompositorContextId context_id, ContextTimer timer)

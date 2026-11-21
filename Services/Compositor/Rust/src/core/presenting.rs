@@ -10,9 +10,8 @@ use super::CompositorCore;
 use crate::context_state::ContextState;
 use crate::host::{PendingFrame, PresentScheduling, PresentationId};
 use crate::presenting::{ContextPresenting, NestedContexts, PresentingEnvironment};
-use crate::raster_host::{
-    FfiRemoteLayerFrame, FrameHandOff, StorePublication, StoreResizeOutcome, SublayersHandle, SurfaceHandle,
-};
+use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, StorePublication, StoreResizeOutcome, SublayersHandle};
+use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{CompositedContexts, NoCompositedContexts, ResolvedCompositedContext};
 use libcompositing_rust::ipc_types::{
@@ -23,6 +22,7 @@ use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{FloatMatrix4x4, FloatRect, IntRect, IntSize};
 use std::cell::RefCell;
 use std::io::Write;
+use std::rc::Rc;
 
 /// A frame submitted to the GPU, which is delivered once its work is done, or once it is scheduled where the window
 /// server waits for it.
@@ -1183,7 +1183,7 @@ impl CompositorCore {
     pub(super) fn paint_screenshot_inner(
         &self,
         context_id: CompositorContextId,
-        target: &SurfaceHandle,
+        target: &Rc<PaintingSurface>,
         now: MonotonicTime,
     ) -> bool {
         let (Some(context), Some(presenting)) = (self.context_if_present(context_id), self.presenting_of(context_id))
@@ -1223,7 +1223,7 @@ impl CompositorCore {
         &self,
         context_id: CompositorContextId,
         now: MonotonicTime,
-    ) -> Option<(SurfaceHandle, IntSize)> {
+    ) -> Option<(Rc<PaintingSurface>, IntSize)> {
         let presenting = self.presenting_of(context_id)?;
         if !presenting.borrow().presents_to_client {
             return None;

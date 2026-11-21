@@ -28,9 +28,9 @@ static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitm
 {
     auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context, {}, Gfx::PaintingSurface::TextAntialiasing::LCD);
     auto bitmap = buffer.bitmap();
-    surface->on_flush = [bitmap = move(bitmap)](auto& surface) {
+    surface->set_on_flush([bitmap = move(bitmap)](auto& surface) {
         surface.read_into_bitmap(*bitmap);
-    };
+    });
     return surface;
 }
 #endif
