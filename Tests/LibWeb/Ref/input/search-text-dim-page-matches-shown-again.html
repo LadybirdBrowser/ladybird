@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-dim-page-matches-shown-again-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-20">
+<style>
+div {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<div>
+<p><span id="current">needle</span></p>
+<p><span id="invisible">needle</span></p>
+<p><span id="hidden">needle</span></p>
+</div>
+<script>
+internals.findInPage("needle", false, true);
+requestAnimationFrame(() => {
+    current.style.visibility = "hidden";
+    invisible.style.visibility = "hidden";
+    hidden.style.display = "none";
+    requestAnimationFrame(() => {
+        current.style.visibility = "";
+        invisible.style.visibility = "";
+        hidden.style.display = "";
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+});
+</script>
+</html>

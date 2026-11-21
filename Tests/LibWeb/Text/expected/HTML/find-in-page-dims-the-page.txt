@@ -1,0 +1,5 @@
+After a find without matches: not dimmed
+After a find with a match: dimmed
+After the find ended: not dimmed
+After a find and a mouse press on the page: not dimmed
+After a find and an edit that removed the match: not dimmed

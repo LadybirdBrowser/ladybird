@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 20px;
+}
+.dim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-color: rgb(26 26 26 / calc(64 / 255));
+}
+.hole,
+.current {
+    position: absolute;
+    z-index: 2;
+    border-radius: 3px;
+}
+.hole {
+    box-shadow: 0 0 0 1px white, 0 0 1px 1px rgb(0 0 0 / 50%);
+}
+.hole > div {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background-color: white;
+}
+.current {
+    margin: -2px;
+    padding: 2px;
+    box-shadow: 0 0 0 1px white, 0 1px 4px 1px rgb(0 0 0 / 40%);
+}
+.background {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background-color: yellow;
+}
+.glyphs {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.over-dim {
+    z-index: 3;
+}
+.over-dim text:first-of-type {
+    visibility: hidden;
+}
+</style>
+<svg width="600" height="100">
+<text x="20" y="40"><tspan>nee</tspan>dle</text>
+<text x="20" y="80"><tspan>nee</tspan>dle</text>
+</svg>
+<div class="dim"></div>
+<script>
+const svg = document.querySelector("svg");
+
+function showMatch(className, element, start, length) {
+    const toScreen = element.getScreenCTM();
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (let index = start; index < start + length; ++index) {
+        const extent = element.getExtentOfChar(index);
+        for (const x of [extent.left, extent.right]) {
+            for (const y of [extent.top, extent.bottom]) {
+                const corner = new DOMPoint(x, y).matrixTransform(toScreen);
+                left = Math.min(left, Math.round(corner.x));
+                top = Math.min(top, Math.round(corner.y));
+                right = Math.max(right, Math.round(corner.x));
+                bottom = Math.max(bottom, Math.round(corner.y));
+            }
+        }
+    }
+    const match = document.createElement("div");
+    match.className = className;
+    match.style.left = `${left}px`;
+    match.style.top = `${top}px`;
+    match.style.width = `${right - left}px`;
+    match.style.height = `${bottom - top}px`;
+    document.body.append(match);
+    return match;
+}
+
+// The match's glyphs are clipped to its rect on its background, and a clip changes how their edges are antialiased.
+function showCurrentMatch(text, start) {
+    const match = showMatch("current", text, start, "needle".length);
+    const background = document.createElement("div");
+    background.className = "background";
+    const glyphs = document.createElement("div");
+    glyphs.className = "glyphs";
+    const page = svg.cloneNode(true);
+    page.style.left = `${svg.getBoundingClientRect().left - parseInt(match.style.left)}px`;
+    page.style.top = `${svg.getBoundingClientRect().top - parseInt(match.style.top)}px`;
+    glyphs.append(page);
+    match.append(background, glyphs);
+}
+
+const [first, second] = svg.querySelectorAll("text");
+showCurrentMatch(first, 0);
+showMatch("hole", second, 0, "needle".length).append(document.createElement("div"));
+const overDim = svg.cloneNode(true);
+overDim.classList.add("over-dim");
+document.body.append(overDim);
+</script>

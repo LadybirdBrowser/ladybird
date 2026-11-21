@@ -241,6 +241,7 @@ impl GlyphRunRecord {
 #[derive(Default)]
 pub struct ClusterGeometry {
     clusters: Vec<ClusterExtent>,
+    advances_in_text_order: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -289,7 +290,13 @@ impl ClusterGeometry {
             }
         }
         clusters.sort_by_key(|cluster| cluster.start);
-        Self { clusters }
+        let advances_in_text_order = clusters
+            .windows(2)
+            .all(|pair| pair[0].end <= pair[1].start && pair[0].left <= pair[1].left);
+        Self {
+            clusters,
+            advances_in_text_order,
+        }
     }
 
     /// The inline coordinate of the caret at `offset`. Where one cluster ends and another starts, `downstream` picks
@@ -310,6 +317,23 @@ impl ClusterGeometry {
     /// for each piece of the line they are drawn in: a cluster of other code units between two of theirs, as in text
     /// that mixes directions, starts a new piece. Clusters that do not advance are left out.
     pub fn range_extents(&self, start: usize, end: usize, length: usize) -> Vec<(f32, f32)> {
+        // OPTIMIZATION: Clusters that advance in the order of their text draw a range of it in one piece, and are
+        //               found without sorting them.
+        if self.advances_in_text_order {
+            let end = end.min(length);
+            let first = self.clusters.partition_point(|cluster| cluster.end <= start);
+            let mut extent: Option<(f32, f32)> = None;
+            for cluster in self.clusters[first..].iter().take_while(|cluster| cluster.start < end) {
+                let (from, to) = (start.max(cluster.start), end.min(cluster.end));
+                if cluster.right <= cluster.left || from >= to {
+                    continue;
+                }
+                let (a, b) = (cluster.x_at(from), cluster.x_at(to));
+                let (left, right) = extent.unwrap_or((f32::INFINITY, f32::NEG_INFINITY));
+                extent = Some((left.min(a.min(b)), right.max(a.max(b))));
+            }
+            return extent.into_iter().collect();
+        }
         let mut clusters_left_to_right: Vec<&ClusterExtent> = self
             .clusters
             .iter()

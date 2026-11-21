@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-zero-advance-match-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+p {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    margin: 0;
+    font: 20px/1 Ahem;
+    letter-spacing: -20px;
+    color: green;
+}
+</style>
+<p>x</p>
+<script>
+internals.findInPage("x", false, true);
+</script>

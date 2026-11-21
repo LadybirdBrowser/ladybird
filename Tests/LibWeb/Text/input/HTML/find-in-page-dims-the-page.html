@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="target">needle</p>
+<script>
+    promiseTest(async () => {
+        const find = query => internals.findInPage(query, false, true);
+        const dimmed = () => (internals.isDimmedForFindInPage() ? "dimmed" : "not dimmed");
+
+        find("thimble");
+        println(`After a find without matches: ${dimmed()}`);
+
+        find("needle");
+        println(`After a find with a match: ${dimmed()}`);
+
+        internals.findInPageEnd();
+        println(`After the find ended: ${dimmed()}`);
+
+        find("needle");
+        internals.mouseDown(400, 300);
+        internals.mouseUp(400, 300);
+        println(`After a find and a mouse press on the page: ${dimmed()}`);
+
+        find("needle");
+        await animationFrame();
+        target.textContent = "thread";
+        await animationFrame();
+        println(`After a find and an edit that removed the match: ${dimmed()}`);
+    });
+</script>

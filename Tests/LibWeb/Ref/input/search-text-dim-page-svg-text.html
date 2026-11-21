@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-svg-text-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-27">
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 20px;
+    fill: green;
+}
+</style>
+<svg width="600" height="100">
+<text x="20" y="40">
+    needle   <tspan>needle</tspan>
+    <tspan>needle</tspan>
+</text>
+</svg>
+<script>
+internals.findInPage("needle", false, true);
+</script>

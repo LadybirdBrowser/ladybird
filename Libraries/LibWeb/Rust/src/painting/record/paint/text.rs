@@ -8,18 +8,22 @@ use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::svg_paint::svg_paint_color;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
-use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId, TextShadowLayer};
-use crate::painting::display_list::recorder::GlyphRunForRecording;
+use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId, PaintOuterBoxShadow, TextShadowLayer};
+use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::display_list::recorder::{FillPathParams, GlyphRunForRecording, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::CaretTarget;
-use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
+use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::path::Path;
-use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
+use libgfx_rust::{
+    AffineTransform, Color, CornerRadii, FloatPoint, IntPoint, IntRect, Orientation, ShouldAntiAlias, WindingRule,
+};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -260,16 +264,7 @@ fn highlight_offsets_for_fragment<O: Observer>(
         HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
             let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
             let highlights = &recorder.paint_state.search_text;
-            let Some(touching) = highlights.by_node.get(&fragment.layout_node) else {
-                return Vec::new();
-            };
-            let offsets_in_node =
-                |&(match_index, state): &(u32, u8)| highlights.matches[match_index as usize].offsets_in_node(state);
-            // A match that ends before the fragment starts, or starts after it ends, has no part in it.
-            let first = touching.partition_point(|entry| offsets_in_node(entry).1 < fragment.dom_start_offset_in_node);
-            let end = touching
-                .partition_point(|entry| offsets_in_node(entry).0 <= fragment.dom_end_offset_with_trailing_whitespace);
-            touching[first..end.max(first)]
+            search_text_matches_touching_fragment(highlights, fragment)
                 .iter()
                 .filter_map(|&(match_index, state)| {
                     let found = &highlights.matches[match_index as usize];
@@ -293,6 +288,22 @@ fn highlight_offsets_for_fragment<O: Observer>(
         .collect()
 }
 
+pub(crate) fn search_text_matches_touching_fragment<'a>(
+    highlights: &'a SearchTextHighlights,
+    fragment: &FragmentRecord,
+) -> &'a [(u32, u8)] {
+    let Some(touching) = highlights.by_node.get(&fragment.layout_node) else {
+        return &[];
+    };
+    let offsets_in_node =
+        |&(match_index, state): &(u32, u8)| highlights.matches[match_index as usize].offsets_in_node(state);
+    // A match that ends before the fragment starts, or starts after it ends, has no part in it.
+    let first = touching.partition_point(|entry| offsets_in_node(entry).1 < fragment.dom_start_offset_in_node);
+    let end =
+        touching.partition_point(|entry| offsets_in_node(entry).0 <= fragment.dom_end_offset_with_trailing_whitespace);
+    &touching[first..end.max(first)]
+}
+
 fn highlight_style<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     layer: HighlightLayer,
@@ -302,7 +313,7 @@ fn highlight_style<O: Observer>(
         HighlightLayer::BuiltIn(HighlightPseudoElement::Selection) => recorder.selection_style(node),
         HighlightLayer::BuiltIn(
             highlight @ (HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent),
-        ) => recorder.search_text_style(node, highlight),
+        ) => recorder.search_text_style(node, highlight)?,
         HighlightLayer::BuiltIn(HighlightPseudoElement::SpellingError) => recorder.spelling_error_style(node),
         HighlightLayer::Custom(layer) => recorder.custom_highlight_style(node, layer)?,
         HighlightLayer::TextFragmentIndication => Arc::new(SelectionStyleAnswer {
@@ -324,6 +335,7 @@ fn compute_render_spans<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     owned_fragment_indices: &[u32],
+    paints_under_own_effects: bool,
 ) -> Vec<RenderSpan> {
     let arena = recorder.source;
     let layout_arena = recorder.source;
@@ -340,7 +352,7 @@ fn compute_render_spans<O: Observer>(
         let parent_retains_animated_content =
             arena.node_flags_if_live(fragment.style_source) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
         if parent_style.visibility() != crate::css::css_enums::visibility::VISIBLE
-            || (parent_style.effects().opacity == 0.0 && !parent_retains_animated_content)
+            || (paints_under_own_effects && parent_style.effects().opacity == 0.0 && !parent_retains_animated_content)
         {
             continue;
         }
@@ -524,7 +536,7 @@ pub(crate) fn paint_fragments_foreground<O: Observer>(recorder: &mut PaintRecord
 }
 
 pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: NodeSlotId, indices: &[u32]) {
-    let spans = compute_render_spans(recorder, block, indices);
+    let spans = compute_render_spans(recorder, block, indices, true);
 
     // https://drafts.csswg.org/css-pseudo-4/#highlight-painting
     // A highlight pseudo-element suppresses the normal drawing of any associated text, and the text
@@ -582,7 +594,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         let clip = PendingInlineClip::subtracting_path(&highlight_path, WindingRule::Nonzero);
         let clip_depth = recorder.recorder.ambient_inline_clip_depth();
         recorder.recorder.push_ambient_inline_clips(&[clip]);
-        paint_text_fragment(recorder, block, &normal_span, &[], true);
+        paint_text_fragment(recorder, block, &normal_span, &[], true, None);
         recorder.recorder.truncate_ambient_inline_clips(clip_depth);
         stroked_highlights.insert(span.fragment_index);
     }
@@ -595,6 +607,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
             span,
             &sets,
             !stroked_highlights.contains(&span.fragment_index),
+            None,
         );
     }
 
@@ -608,6 +621,11 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         .collect();
     layers.sort_unstable_by_key(|layer| layer.stacking_order());
     layers.dedup();
+    // AD-HOC: While find-in-page dims the page, its current match is painted over the dim.
+    let paints_current_search_text = !recorder.inputs.dims_page_for_find_in_page;
+    if !paints_current_search_text {
+        layers.retain(|layer| *layer != HighlightLayer::BuiltIn(HighlightPseudoElement::SearchTextCurrent));
+    }
     for highlight in layers {
         let overlays = || {
             spans.iter().flat_map(move |span| {
@@ -642,11 +660,254 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         }
     }
 
-    for span in spans.iter().filter(|span| !span.highlights.is_empty()) {
+    for span in spans
+        .iter()
+        .filter(|span| !span.highlights.is_empty())
+        .filter(|span| paints_current_search_text || current_search_text_overlay(span).is_none())
+    {
         let sets =
             crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder.source, block, span);
-        paint_text_fragment(recorder, block, span, &sets, true);
+        paint_text_fragment(recorder, block, span, &sets, true, None);
     }
+}
+
+fn current_search_text_overlay(span: &RenderSpan) -> Option<&HighlightOverlay> {
+    span.highlights
+        .iter()
+        .find(|overlay| overlay.highlight == HighlightLayer::BuiltIn(HighlightPseudoElement::SearchTextCurrent))
+}
+
+pub(crate) fn joined_along_lines<Key: Copy + PartialEq>(mut rects: Vec<(IntRect, Key)>) -> Vec<(IntRect, Key)> {
+    rects.sort_by_key(|(rect, _)| (rect.x, rect.y));
+    let mut joined: Vec<(IntRect, Key)> = Vec::new();
+    let mut joinable: Vec<usize> = Vec::new();
+    for (rect, key) in rects {
+        joinable.retain(|&index| joined[index].0.right() >= rect.x);
+        let continued = joinable.iter().copied().find(|&index| {
+            let (other, other_key) = joined[index];
+            let overlap = other.bottom().min(rect.bottom()) - other.y.max(rect.y);
+            // Text of two font sizes on one line gives rects of different heights.
+            other_key == key && overlap * 2 >= other.height.min(rect.height)
+        });
+        match continued {
+            Some(index) => joined[index].0 = joined[index].0.united(rect),
+            None => {
+                joinable.push(joined.len());
+                joined.push((rect, key));
+            }
+        }
+    }
+    joined.sort_by_key(|(rect, _)| (rect.y, rect.x));
+    joined
+}
+
+pub(crate) fn search_text_match_rects<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    fragments: &[(NodeSlotId, u32)],
+) -> Vec<IntRect> {
+    let converter = recorder.converter;
+    let source = recorder.source;
+    let mut rects: Vec<(IntRect, ())> = Vec::new();
+    for &(block, fragment_index) in fragments {
+        let side = source.committed_side_data(block);
+        let fragment = &side.fragments()[fragment_index as usize];
+        for highlight in [
+            HighlightPseudoElement::SearchText,
+            HighlightPseudoElement::SearchTextCurrent,
+        ] {
+            for offsets in highlight_offsets_for_fragment(recorder, HighlightLayer::BuiltIn(highlight), fragment) {
+                for rect in text_fragment::rects_for_selection_offsets(source, fragment, offsets) {
+                    let rect = converter.rounded_device_rect(rect);
+                    if !rect.is_empty() {
+                        rects.push((rect, ()));
+                    }
+                }
+            }
+        }
+    }
+    joined_along_lines(rects).into_iter().map(|(rect, ())| rect).collect()
+}
+
+pub(crate) fn search_text_corner_radius(converter: DevicePixelConverter) -> i32 {
+    converter.rounded_device_pixels(CssPixels::from_integer(3))
+}
+
+pub(crate) fn paint_search_text_ring<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    rect: IntRect,
+    color: Color,
+    blur_radius: i32,
+    offset_y: i32,
+) {
+    let ring_width = recorder.converter.rounded_device_pixels(CssPixels::from_integer(1));
+    let radius = search_text_corner_radius(recorder.converter);
+    let mut shadow_rect = rect.inflated_edges(ring_width, ring_width, ring_width, ring_width);
+    shadow_rect.y += offset_y;
+    recorder.recorder.paint_outer_box_shadow(
+        PaintOuterBoxShadow {
+            color,
+            blur_radius,
+            device_content_rect: rect,
+            content_corner_radii: CornerRadii::uniform(radius),
+            shadow_rect,
+            shadow_corner_radii: CornerRadii::uniform(radius + ring_width),
+        },
+        ForceDarkRole::None,
+    );
+}
+
+struct CurrentMatchBackground {
+    rect: IntRect,
+    color: Color,
+}
+
+fn paint_current_match_backgrounds<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    background_rects: Vec<(IntRect, Color)>,
+) {
+    let converter = recorder.converter;
+    let device_pixels = |css_pixels: i64| converter.rounded_device_pixels(CssPixels::from_integer(css_pixels));
+    let outset = device_pixels(2);
+    let backgrounds: Vec<CurrentMatchBackground> = joined_along_lines(background_rects)
+        .into_iter()
+        .map(|(rect, background_color)| CurrentMatchBackground {
+            rect: rect.inflated_edges(outset, outset, outset, outset),
+            color: background_color,
+        })
+        .collect();
+    let scale = recorder.inputs.find_in_page_current_match_scale;
+    if scale != 1.0
+        && let Some(bounds) = backgrounds
+            .iter()
+            .map(|background| background.rect)
+            .reduce(IntRect::united)
+    {
+        let center_x = bounds.x as f32 + bounds.width as f32 / 2.0;
+        let center_y = bounds.y as f32 + bounds.height as f32 / 2.0;
+        let unscaled_transform = recorder.recorder.ambient_inline_transform();
+        recorder.recorder.set_ambient_inline_transform(Some(
+            unscaled_transform
+                .unwrap_or_else(AffineTransform::identity)
+                .translated(center_x, center_y)
+                .scaled(scale, scale)
+                .translated(-center_x, -center_y),
+        ));
+    }
+    for (color, blur_radius, offset_y) in [
+        (Color::from_rgba(0, 0, 0, 102), device_pixels(4), device_pixels(1)),
+        (Color::from_rgb(255, 255, 255), 0, 0),
+    ] {
+        for background in &backgrounds {
+            paint_search_text_ring(recorder, background.rect, color, blur_radius, offset_y);
+        }
+    }
+    let background_radii = CornerRadii::uniform(search_text_corner_radius(converter));
+    for background in &backgrounds {
+        recorder.recorder.fill_rect_with_rounded_corners(
+            background.rect,
+            background.color,
+            background_radii,
+            ForceDarkRole::Selection,
+        );
+    }
+}
+
+pub(crate) fn paint_current_search_text_match<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    fragments: &[(NodeSlotId, u32)],
+) {
+    let converter = recorder.converter;
+    let mut background_rects: Vec<(IntRect, Color)> = Vec::new();
+    let mut matched_spans = Vec::new();
+    for &(block, fragment_index) in fragments {
+        for span in compute_render_spans(recorder, block, &[fragment_index], false) {
+            let Some(overlay) = current_search_text_overlay(&span) else {
+                continue;
+            };
+            let background_color = Color(overlay.background_color);
+            for rect in highlight_rects(recorder, block, &span) {
+                let rect = converter.rounded_device_rect(rect);
+                if !rect.is_empty() {
+                    background_rects.push((rect, background_color));
+                }
+            }
+            matched_spans.push((block, span));
+        }
+    }
+
+    let unscaled_transform = recorder.recorder.ambient_inline_transform();
+    paint_current_match_backgrounds(recorder, background_rects);
+    let scale_transform = recorder.recorder.ambient_inline_transform();
+    for (block, span) in &matched_spans {
+        if let Some(overlay) = current_search_text_overlay(span) {
+            paint_text_shadow(recorder, *block, span, &overlay.shadow_layers);
+        }
+    }
+    for (block, span) in &matched_spans {
+        let sets =
+            crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder.source, *block, span);
+        paint_text_fragment(recorder, *block, span, &sets, true, scale_transform);
+    }
+    recorder.recorder.set_ambient_inline_transform(unscaled_transform);
+}
+
+pub(crate) fn current_svg_search_text_colors<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    text_box: NodeSlotId,
+    text_node: NodeSlotId,
+) -> Option<(Color, Color)> {
+    let own_color = recorder
+        .source
+        .node_style_if_live(text_box)
+        .and_then(|style| svg_paint_color(&style.inherited_svg().fill, style.current_color()))
+        .map_or(Color::from_rgb(0, 0, 0), Color);
+    let answer = recorder.search_text_style(text_node, HighlightPseudoElement::SearchTextCurrent)?;
+    let facts = &answer.facts;
+    let text_color = if facts.text_color.has_value {
+        facts.text_color.value
+    } else {
+        own_color
+    };
+    let background_color = if facts.background_color_is_current_color {
+        text_color
+    } else {
+        facts.background_color
+    };
+    Some((background_color, text_color))
+}
+
+pub(crate) fn paint_current_svg_search_text_match<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    backgrounds: &[(IntRect, Color)],
+    glyphs: &[(Path, Color)],
+) {
+    let unscaled_transform = recorder.recorder.ambient_inline_transform();
+    paint_current_match_backgrounds(recorder, backgrounds.to_vec());
+    let transform = recorder
+        .recorder
+        .ambient_inline_transform()
+        .unwrap_or_else(AffineTransform::identity);
+    let rects = joined_along_lines(backgrounds.iter().map(|&(rect, _)| (rect, ())).collect());
+    for (rect, ()) in rects {
+        recorder.recorder.record_with_inline_clips(
+            &[PendingInlineClip::intersecting_float_rect(
+                transform.map_rect(rect.to_float()),
+            )],
+            |recorder| {
+                for (path, color) in glyphs {
+                    recorder.fill_path(FillPathParams {
+                        force_dark_role: ForceDarkRole::Foreground,
+                        path,
+                        opacity: 1.0,
+                        paint_style_or_color: PaintStyleOrColor::Color(*color),
+                        winding_rule: WindingRule::Nonzero,
+                        should_anti_alias: ShouldAntiAlias::Yes,
+                    });
+                }
+            },
+        );
+    }
+    recorder.recorder.set_ambient_inline_transform(unscaled_transform);
 }
 
 fn highlight_rects<O: Observer>(
@@ -812,6 +1073,7 @@ fn paint_text_fragment<O: Observer>(
     span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
     draw_glyphs: bool,
+    inline_transform: Option<AffineTransform>,
 ) {
     if span.start_code_unit == span.end_code_unit {
         return;
@@ -921,8 +1183,18 @@ fn paint_text_fragment<O: Observer>(
         let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets);
         for range_rect in &range_rects {
             let span_rect = converter.rounded_device_rect(*range_rect);
-            if draw_glyphs {
-                recorder.recorder.record_clipped_to(span_rect, paint_glyphs);
+            if !draw_glyphs {
+                continue;
+            }
+            // An ambient inline transform does not move inline clips.
+            match inline_transform {
+                Some(transform) => recorder.recorder.record_with_inline_clips(
+                    &[PendingInlineClip::intersecting_float_rect(
+                        transform.map_rect(span_rect.to_float()),
+                    )],
+                    paint_glyphs,
+                ),
+                None => recorder.recorder.record_clipped_to(span_rect, paint_glyphs),
             }
         }
         let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets);

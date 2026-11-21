@@ -10,7 +10,7 @@ use crate::layout::{
     formatting_context, grid_formatting_context, svg_formatting_context, table_formatting_context, used_values,
 };
 use crate::painting::node_painting;
-use crate::painting::paint_read::GeometryRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
 
 pub(crate) fn committed_offset(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
@@ -182,6 +182,77 @@ pub(crate) fn committed_svg_text_character_cells(
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.svg()?.text_character_cells.clone())
     })
+}
+
+pub(crate) struct SvgTextCharacter {
+    pub text_node: NodeSlotId,
+    pub offset_in_text_node: usize,
+    pub cell: svg_formatting_context::FfiSvgTextCharacterCell,
+}
+
+pub(crate) fn committed_svg_text_characters(arena: &impl PaintRead, text_element: NodeSlotId) -> Vec<SvgTextCharacter> {
+    use crate::layout::node_data::NodeKind;
+    let Some(cells) = committed_svg_text_character_cells(arena, text_element) else {
+        return Vec::new();
+    };
+    let mut text_nodes = Vec::new();
+    arena.for_each_node_in_layout_subtree_in_pre_order_with_pruning(text_element, |node| {
+        let kind = arena.node_kind_if_live(node);
+        if kind.is_some_and(crate::layout::node_facts::kind_is_text) {
+            text_nodes.push(node);
+        }
+        matches!(kind, Some(NodeKind::SVGTextBox | NodeKind::SVGTextPathBox))
+    });
+    let sources: Vec<(&[u16], u8)> = text_nodes
+        .iter()
+        .map(|&node| {
+            let text = arena
+                .rendered_text(node)
+                .and_then(|rendered| rendered.svg_source_text.as_deref())
+                .unwrap_or_default();
+            let white_space_collapse = arena
+                .node_parent_if_live(node)
+                .and_then(|parent| arena.node_style_if_live(parent))
+                .map_or(crate::css::css_enums::white_space_collapse::COLLAPSE, |style| {
+                    style.white_space_collapse()
+                });
+            (text, white_space_collapse)
+        })
+        .collect();
+    // A text path whose path does not resolve has no cells, but its text still takes part in white space processing.
+    let has_cells: Vec<bool> = text_nodes
+        .iter()
+        .map(|&node| {
+            let mut ancestor = arena.node_parent_if_live(node);
+            while let Some(box_node) = ancestor
+                && box_node != text_element
+            {
+                if arena.node_kind_if_live(box_node) == Some(NodeKind::SVGTextPathBox) {
+                    return committed_svg_text_character_cells(arena, box_node).is_some_and(|cells| !cells.is_empty());
+                }
+                ancestor = arena.node_parent_if_live(box_node);
+            }
+            true
+        })
+        .collect();
+    let mut code_units = Vec::with_capacity(cells.len());
+    svg_formatting_context::for_each_processed_svg_text_code_unit(&sources, |index, offset_in_text_node, _| {
+        if has_cells[index] {
+            code_units.push((text_nodes[index], offset_in_text_node));
+        }
+    });
+    if code_units.len() != cells.len() {
+        return Vec::new();
+    }
+    code_units
+        .into_iter()
+        .zip(cells.iter())
+        .map(|((text_node, offset_in_text_node), &cell)| SvgTextCharacter {
+            text_node,
+            offset_in_text_node,
+            cell,
+        })
+        .collect()
 }
 
 pub(crate) fn committed_svg_viewport_transform(

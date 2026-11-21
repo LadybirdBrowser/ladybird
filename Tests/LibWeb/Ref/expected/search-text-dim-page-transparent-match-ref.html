@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+.layer {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.dim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-color: rgb(26 26 26 / calc(64 / 255));
+}
+.over-dim {
+    z-index: 2;
+    visibility: hidden;
+}
+.current {
+    visibility: visible;
+    box-shadow: 0 0 0 1px white, 0 1px 4px 1px rgb(0 0 0 / 40%);
+}
+.current,
+.current span {
+    margin: -2px;
+    padding: 2px;
+    border-radius: 3px;
+}
+.current span {
+    background-color: orange;
+}
+</style>
+<div class="dim"></div>
+<div class="layer over-dim">
+<p>The first <span class="current"><span>needle</span></span></p>
+</div>

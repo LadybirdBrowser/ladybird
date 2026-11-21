@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<style>
+.layer {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.dim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-color: rgb(26 26 26 / calc(64 / 255));
+}
+.over-dim {
+    z-index: 2;
+    visibility: hidden;
+}
+.hole,
+.current {
+    visibility: visible;
+}
+.hole,
+.hole > span,
+.current,
+.current > span {
+    border-radius: 3px;
+}
+.hole {
+    box-shadow: 0 0 0 1px white, 0 0 1px 1px rgb(0 0 0 / 50%);
+}
+.current {
+    box-shadow: 0 0 0 1px white, 0 1px 4px 1px rgb(0 0 0 / 40%);
+}
+.current,
+.current > span {
+    margin: -2px;
+    padding: 2px;
+}
+.match,
+.hole > span {
+    background-color: lime;
+    color: blue;
+}
+.current > span {
+    background-color: orange;
+    color: blue;
+}
+</style>
+<div class="layer">
+<p>needle</p>
+<p><span class="match">nee<b>dl</b>e</span> <span class="match">needle</span></p>
+</div>
+<div class="dim"></div>
+<div class="layer over-dim">
+<p><span class="current"><span>needle</span></span></p>
+<p><span class="hole"><span>nee<b>dl</b>e</span></span> <span class="hole"><span>needle</span></span></p>
+</div>

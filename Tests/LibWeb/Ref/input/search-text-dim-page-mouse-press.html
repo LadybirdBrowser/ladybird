@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-dim-page-mouse-press-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::search-text {
+    background-color: lime;
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<p>The first needle</p>
+<p>The second needle</p>
+<script>
+internals.findInPage("needle", false, true);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        internals.mouseDown(400, 300);
+        internals.mouseUp(400, 300);
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+});
+</script>
+</html>

@@ -148,9 +148,10 @@ public:
     void set_long_stack_traces_enabled(bool);
     Optional<Vector<String>> complete_console_input(Utf16String const& input);
 
-    void find_in_page(Utf16String const& query, bool highlight_all);
+    void find_in_page(Utf16String const& query, bool highlight_all, bool dim_page);
     void find_in_page_next_match();
     void find_in_page_end();
+    bool is_dimmed_for_find_in_page();
 
     WebIDL::ExceptionOr<void> set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data);
 

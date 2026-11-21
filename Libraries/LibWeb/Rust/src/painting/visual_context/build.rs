@@ -301,6 +301,8 @@ pub(crate) struct FreshTree {
     pub viewport_assignment: PaintableVisualContextAssignment,
 }
 
+pub(crate) const FIND_IN_PAGE_DIM_EFFECT: EffectNodeIndex = EffectNodeIndex(1);
+
 pub(crate) fn create_fresh_tree_with_viewport_nodes(
     layout_arena: &impl PaintableRowsRead,
     viewport: NodeSlotId,
@@ -314,6 +316,19 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
         ClipNodeIndex::NONE,
     );
     tree.root_isolation_effect = Some(root_isolation_effect);
+    let find_in_page_dim_effect = tree.append_effect(
+        EffectNodeData::Effects(EffectsData {
+            isolation: true,
+            opacity: 1.0,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: None,
+            backdrop_filter: None,
+        }),
+        root_isolation_effect,
+        VISUAL_VIEWPORT_NODE_INDEX,
+        ClipNodeIndex::NONE,
+    );
+    assert_eq!(find_in_page_dim_effect, FIND_IN_PAGE_DIM_EFFECT);
     let root_context = ContextRef {
         spatial: VISUAL_VIEWPORT_NODE_INDEX,
         clip: ClipNodeIndex::NONE,

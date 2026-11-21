@@ -1170,9 +1170,9 @@ Utf16String Internals::selected_text_for_clipboard()
     return {};
 }
 
-void Internals::find_in_page(Utf16String const& query, bool highlight_all)
+void Internals::find_in_page(Utf16String const& query, bool highlight_all, bool dim_page)
 {
-    page().find_in_page({ .string = query, .highlight_all_matches = highlight_all });
+    page().find_in_page({ .string = query, .highlight_all_matches = highlight_all, .dim_page = dim_page });
 }
 
 void Internals::find_in_page_next_match()
@@ -1183,6 +1183,11 @@ void Internals::find_in_page_next_match()
 void Internals::find_in_page_end()
 {
     page().find_in_page_end();
+}
+
+bool Internals::is_dimmed_for_find_in_page()
+{
+    return page().is_dimmed_for_find_in_page(window().associated_document());
 }
 
 WebIDL::ExceptionOr<void> Internals::set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data)

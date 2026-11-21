@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="first">needle</p>
+<p id="transparent" style="opacity: 0">needle</p>
+<p id="last">needle</p>
+<script>
+    test(() => {
+        const selectedElementId = () => getSelection().anchorNode?.parentElement?.id ?? "(none)";
+        const matches = [];
+        internals.findInPage("needle");
+        for (let i = 0; i < 3; ++i) {
+            internals.findInPageEnd();
+            matches.push(selectedElementId());
+            internals.findInPageNextMatch();
+        }
+        internals.findInPageEnd();
+        println(`Matches: ${matches.join(", ")}`);
+    });
+</script>

@@ -771,13 +771,17 @@ impl Default for SvgTextChunkMeasurement {
 
 /// Processes the white space in the character data of a text content block element: `sources` holds the text of each
 /// of its text nodes, in document order, with the 'white-space-collapse' value of the element the text node is in.
-/// Returns the characters each text node renders.
+/// Calls `visit` for each code unit the text nodes render, in the order they render them, with the index of the text
+/// node that renders it, the offset in that text node's own text it comes from, and the code unit.
 /// https://svgwg.org/svg2-draft/text.html#WhiteSpace
 /// Rendering of white space in SVG 2 is controlled by the white-space property. [...] Values and
 /// their meanings are defined in CSS Text Module Level 3.
 /// NB: SVG text is laid out as one line, so both phases of CSS Text's white space processing
 ///     happen here, on the characters themselves, before they are shaped.
-fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
+pub(crate) fn for_each_processed_svg_text_code_unit(
+    sources: &[(&[u16], u8)],
+    mut visit: impl FnMut(usize, usize, u16),
+) {
     const SPACE: u16 = b' ' as u16;
     const TAB: u16 = b'\t' as u16;
     const LINE_FEED: u16 = b'\n' as u16;
@@ -788,12 +792,11 @@ fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
     let is_segment_break = |unit: u16| unit == LINE_FEED || unit == CARRIAGE_RETURN;
     let is_white_space = |unit: u16| unit == SPACE || unit == TAB || is_segment_break(unit);
 
-    let mut processed: Vec<Vec<u16>> = sources.iter().map(|(text, _)| Vec::with_capacity(text.len())).collect();
     // The text node that holds the first character of a run of collapsible white space the line hasn't ended in yet.
-    let mut collapsible_space_owner: Option<usize> = None;
+    let mut collapsible_space_owner: Option<(usize, usize)> = None;
     let mut at_line_start = true;
     for (index, (text, white_space_collapse)) in sources.iter().enumerate() {
-        for &unit in *text {
+        for (offset, &unit) in text.iter().enumerate() {
             if is_white_space(unit) {
                 match *white_space_collapse {
                     // https://drafts.csswg.org/css-text-4/#valdef-white-space-collapse-discard
@@ -825,7 +828,7 @@ fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
                     //         line breaking here, so its segment breaks collapse like collapse's do.
                     white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS => {
                         if !at_line_start && collapsible_space_owner.is_none() {
-                            collapsible_space_owner = Some(index);
+                            collapsible_space_owner = Some((index, offset));
                         }
                         continue;
                     }
@@ -841,13 +844,18 @@ fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
                     _ => {}
                 }
             }
-            if let Some(owner) = collapsible_space_owner.take() {
-                processed[owner].push(SPACE);
+            if let Some((owner, offset_in_owner)) = collapsible_space_owner.take() {
+                visit(owner, offset_in_owner, SPACE);
             }
             at_line_start = false;
-            processed[index].push(if is_white_space(unit) { SPACE } else { unit });
+            visit(index, offset, if is_white_space(unit) { SPACE } else { unit });
         }
     }
+}
+
+fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
+    let mut processed: Vec<Vec<u16>> = sources.iter().map(|(text, _)| Vec::with_capacity(text.len())).collect();
+    for_each_processed_svg_text_code_unit(sources, |index, _, unit| processed[index].push(unit));
     processed
 }
 

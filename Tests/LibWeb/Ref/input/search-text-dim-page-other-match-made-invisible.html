@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-dim-page-other-match-made-invisible-ref.html">
+<style>
+div {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<div>
+<p>needle</p>
+<p><span id="target">needle</span></p>
+</div>
+<script>
+internals.findInPage("needle", false, true);
+requestAnimationFrame(() => {
+    target.style.visibility = "hidden";
+    requestAnimationFrame(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    });
+});
+</script>
+</html>

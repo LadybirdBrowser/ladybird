@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-dim-page-scroller-wheel-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-16">
+<style>
+#scroller,
+#scroller-over-dim {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 300px;
+    height: 70px;
+    overflow: auto;
+    scrollbar-width: none;
+    font-size: 20px;
+    line-height: 30px;
+}
+</style>
+<div id="scroller">needle<br><br>needle<br>needle<br><br></div>
+<script>
+internals.findInPage("needle", false, true);
+(async () => {
+    await internals.wheel(100, 40, 0, 60);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+    });
+})();
+</script>
+</html>

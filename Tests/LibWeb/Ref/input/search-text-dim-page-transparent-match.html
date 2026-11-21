@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-transparent-match-ref.html">
+<style>
+div {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.transparent {
+    opacity: 0;
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<div>
+<p class="transparent">The first needle</p>
+</div>
+<script>
+internals.findInPage("needle", false, true);
+</script>
