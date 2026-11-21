@@ -552,6 +552,7 @@ public:
         m_help_menu->addSeparator();
         m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
         auto* check_for_updates_action = make_action("Check for Updates…");
         // NB: On macOS, this moves the item into the application menu, below About Ladybird.
         check_for_updates_action->setMenuRole(QAction::ApplicationSpecificRole);
@@ -559,13 +560,18 @@ public:
             HubConnection::the().async_check_for_updates(WebView::UpdateCheckTrigger::UserInitiated);
         });
         m_help_menu->addAction(check_for_updates_action);
+#endif
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK) || defined(AK_OS_LINUX)
+        m_debug_menu->addSeparator();
+#endif
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
         auto* simulate_update_action = make_action("Simulate Available Update");
         QObject::connect(simulate_update_action, &QAction::triggered, this, [] {
             HubConnection::the().async_check_for_updates(WebView::UpdateCheckTrigger::Debug);
         });
-        m_debug_menu->addSeparator();
         m_debug_menu->addAction(simulate_update_action);
+#endif
 #if defined(AK_OS_LINUX)
         auto* simulate_replaced_installation_action = make_action("Simulate Replaced Installation");
         QObject::connect(simulate_replaced_installation_action, &QAction::triggered, this, [] {
@@ -2442,6 +2448,7 @@ void Application::display_error_dialog(StringView error_message) const
     create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
 }
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 void Application::display_update_check_result(WebView::UpdateCheckResult::Kind kind, Optional<String> const& version, WebView::InstallMethod install_method, WebView::UpdateCheckTrigger trigger)
 {
     static constexpr auto current_version = BROWSER_VERSION ""sv;
@@ -2489,7 +2496,7 @@ void Application::display_update_check_result(WebView::UpdateCheckResult::Kind k
     if (first_is_one_of(install_method, WebView::InstallMethod::DEB, WebView::InstallMethod::RPM, WebView::InstallMethod::Flatpak)) {
         text = qformatted("You have Ladybird {}. Update it with your system's software updater.", current_version);
         buttons.append({ "Remind me later", PageCard::ButtonRole::Primary, {} });
-#if defined(LADYBIRD_HAS_SPARKLE)
+#    if defined(LADYBIRD_HAS_SPARKLE)
     } else if (install_method == WebView::InstallMethod::MacOSApp) {
         buttons.append({ "Remind me later", PageCard::ButtonRole::Secondary, {} });
         buttons.append({ "Install update", PageCard::ButtonRole::Primary, [trigger] {
@@ -2501,7 +2508,7 @@ void Application::display_update_check_result(WebView::UpdateCheckResult::Kind k
                             else
                                 software_updater->install_update();
                         } });
-#endif
+#    endif
     } else {
         buttons.append({ "Remind me later", PageCard::ButtonRole::Secondary, {} });
         buttons.append({ "View release", PageCard::ButtonRole::Primary, [url = WebView::release_page_url(*version)] {
@@ -2512,6 +2519,7 @@ void Application::display_update_check_result(WebView::UpdateCheckResult::Kind k
 
     window->show_page_card(BrowserWindow::PageCardSlot::Update, qformatted("Ladybird {} is available", *version), text, move(buttons));
 }
+#endif
 
 #if defined(AK_OS_LINUX)
 // The system replaces the files of a package that it updates while Ladybird runs from the ones that it started with. The

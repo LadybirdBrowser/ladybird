@@ -24,7 +24,14 @@ document.addEventListener("WebUIMessage", event => {
     allowServicesNetworkAccess.checked = settings.enabled;
     filterListUpdates.checked = settings.features.contentBlockerSubscriptionUpdates;
     filterListUpdates.disabled = !settings.enabled;
-    updateChecks.checked = settings.features.updateChecks;
-    updateChecks.disabled = !settings.enabled;
+    if (Object.hasOwn(settings.features, "updateChecks")) {
+        updateChecks.checked = settings.features.updateChecks;
+        updateChecks.disabled = !settings.enabled;
+    } else {
+        updateChecks.checked = false;
+        updateChecks.disabled = true;
+        document.querySelector("#update-checks-description").textContent =
+            "Updates for this build of Ladybird are managed externally.";
+    }
     document.querySelector("#services-paused-note").classList.toggle("hidden", settings.enabled);
 });

@@ -689,16 +689,20 @@ void ConnectionFromUI::stop_request(u64 request_id)
         (*request)->stop();
 }
 
-void ConnectionFromUI::check_for_updates(WebView::UpdateCheckTrigger trigger)
+void ConnectionFromUI::check_for_updates([[maybe_unused]] WebView::UpdateCheckTrigger trigger)
 {
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     if (auto* update_checker = Application::the().update_checker())
         update_checker->check(trigger);
+#endif
 }
 
-void ConnectionFromUI::skip_update_version(String version)
+void ConnectionFromUI::skip_update_version([[maybe_unused]] String version)
 {
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     if (auto* update_checker = Application::the().update_checker())
         update_checker->skip_version(version);
+#endif
 }
 
 void ConnectionFromUI::toggle_devtools_enabled()

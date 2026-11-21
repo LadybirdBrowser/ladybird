@@ -247,6 +247,7 @@ void Application::display_error_dialog(StringView error_message) const
         WebView::Application::display_error_dialog(error_message);
 }
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 void Application::display_update_check_result(WebView::UpdateCheckResult const& result, WebView::UpdateCheckTrigger trigger)
 {
     auto* ui = ConnectionFromUI::the();
@@ -261,6 +262,7 @@ void Application::display_update_check_result(WebView::UpdateCheckResult const& 
     }
     ui->async_app_display_update_check_result(result.kind, move(version), install_method, trigger);
 }
+#endif
 
 void Application::set_clipboard_text(String text, ClipboardType type)
 {
