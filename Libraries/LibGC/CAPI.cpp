@@ -7,6 +7,7 @@
 #include <AK/StdLibExtras.h>
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/CAPI.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
@@ -69,6 +70,7 @@ public:
     CAPICellAllocator(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type)
         : CellAllocatorDescriptorBase(type_info, class_name, foreign_type)
     {
+        set_trace_thread(TraceThread::AnyThread);
     }
 
     ~CAPICellAllocator()
@@ -81,14 +83,13 @@ public:
 
 struct CAPI {
     static_assert(offsetof(ForeignCell, m_word_owned_by_the_foreign_implementation) == 0);
-    static_assert(offsetof(ForeignCell, m_mark) == offsetof(Cell, m_mark));
+    static_assert(offsetof(ForeignCell, m_unused_header_byte) == offsetof(Cell, m_unused_header_byte));
     static_assert(offsetof(ForeignCell, m_state) == offsetof(Cell, m_state));
     static_assert(offsetof(ForeignCell, m_cell_kind) == offsetof(Cell, m_cell_kind));
 
     static void get_layout(GCLayout& layout)
     {
         layout = {
-            .cell_mark_offset = offsetof(Cell, m_mark),
             .cell_state_offset = offsetof(Cell, m_state),
             .cell_kind_offset = offsetof(Cell, m_cell_kind),
             .min_cell_size = HeapBlock::min_possible_cell_size,
@@ -108,20 +109,21 @@ struct CAPI {
             .block_foreign_type_offset = offsetof(HeapBlockBase, m_foreign_type),
             .heap_region_offset_mask = HEAP_REGION_OFFSET_MASK,
             .primitive_storage_cage_offset_mask = PrimitiveStorage::cage_offset_mask,
+            .visitor_marker_offset = static_cast<uint32_t>(Cell::Visitor::marker_offset()),
         };
     }
 
-    static Cell* allocate_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor, bool& must_mark)
+    static Cell* allocate_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor)
     {
         auto* cell = heap.allocate_cell(descriptor);
-        must_mark = heap.mark_if_allocated_during_incremental_sweep(*cell);
+        heap.mark_if_allocated_during_incremental_sweep(*cell);
         return cell;
     }
 
-    static Cell* allocate_storage_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor, bool& must_mark)
+    static Cell* allocate_storage_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor)
     {
         auto* cell = heap.allocate_cell(descriptor, Heap::TriggersCollection::No);
-        must_mark = heap.mark_if_allocated_during_incremental_sweep(*cell);
+        heap.mark_if_allocated_during_incremental_sweep(*cell);
         return cell;
     }
 
@@ -321,16 +323,21 @@ void gc_allocator_destroy(GCAllocator* allocator)
     delete reinterpret_cast<CAPICellAllocator*>(allocator);
 }
 
-GCCell* gc_heap_allocate_cell(GCHeap* heap, GCAllocator* allocator, bool* must_mark)
+void gc_allocator_set_traced_on_owner_thread_only(GCAllocator* allocator)
 {
-    auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
-    return as_gc_cell(CAPI::allocate_cell(as_heap(heap), descriptor, *must_mark));
+    reinterpret_cast<CAPICellAllocator*>(allocator)->set_trace_thread(TraceThread::OwnerThreadOnly);
 }
 
-GCCell* gc_heap_allocate_storage_cell(GCHeap* heap, GCAllocator* allocator, bool* must_mark)
+GCCell* gc_heap_allocate_cell(GCHeap* heap, GCAllocator* allocator)
 {
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
-    return as_gc_cell(CAPI::allocate_storage_cell(as_heap(heap), descriptor, *must_mark));
+    return as_gc_cell(CAPI::allocate_cell(as_heap(heap), descriptor));
+}
+
+GCCell* gc_heap_allocate_storage_cell(GCHeap* heap, GCAllocator* allocator)
+{
+    auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
+    return as_gc_cell(CAPI::allocate_storage_cell(as_heap(heap), descriptor));
 }
 
 GCCell** gc_heap_allocator_local_free_list(GCHeap* heap, GCAllocator* allocator)
@@ -353,6 +360,11 @@ void* gc_cell_heap_context(GCCell const* cell)
 GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)
 {
     return reinterpret_cast<GCCellTypeInfo const*>(&reinterpret_cast<Cell const*>(cell)->type_info());
+}
+
+bool gc_cell_is_marked(GCCell const* cell)
+{
+    return GC::is_marked(cell);
 }
 
 GCRoot* gc_root_create(GCCell* cell)
@@ -414,6 +426,16 @@ void gc_visitor_visit_values(GCVisitor* visitor, uint64_t const* values, size_t 
 void gc_visitor_visit_ephemeron(GCVisitor* visitor, GCCell* key, uint64_t const* value)
 {
     as_visitor(visitor).visit_ephemeron(*from_gc_cell(key), *reinterpret_cast<NanBoxedValue const*>(value));
+}
+
+void gc_marker_visit_cell(GCMarker* marker, GCCell* cell)
+{
+    FFI::rust_gc_marker_visit_cell(reinterpret_cast<FFI::Marker*>(marker), cell);
+}
+
+void gc_marker_visit_values(GCMarker* marker, uint64_t const* values, size_t count)
+{
+    FFI::rust_gc_marker_visit_values(reinterpret_cast<FFI::Marker*>(marker), values, count);
 }
 
 bool gc_primitive_storage_allocate(size_t size, bool zero_fill, GCPrimitiveStorageHandle* out_handle, GCPrimitiveStorageLayout* out_layout)

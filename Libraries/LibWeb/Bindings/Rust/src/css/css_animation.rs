@@ -37,6 +37,7 @@ impl Inherits<Animation> for CSSAnimation {
 }
 
 impl Wrappable for CSSAnimation {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn relevant_realm(&self) -> Option<Gc<Realm>> {
         self.animation.relevant_realm()
     }

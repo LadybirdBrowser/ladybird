@@ -108,6 +108,12 @@ impl<T: Trace + 'static> EmbedderClass<T> {
         self.class.type_info.finalize = Some(finalize);
         self
     }
+
+    /// The class with its cells traced on the thread that owns their heap only, see Class::traced_on_owner_thread_only().
+    pub const fn traced_on_owner_thread_only(mut self) -> Self {
+        self.class = self.class.traced_on_owner_thread_only();
+        self
+    }
 }
 
 impl<T: Trace + ExternalMemorySize + 'static> EmbedderClass<T> {

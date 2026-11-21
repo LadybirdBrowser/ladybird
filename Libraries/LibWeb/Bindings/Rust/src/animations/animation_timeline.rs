@@ -50,7 +50,9 @@ unsafe impl Trace for AnimationTimeline {
     }
 }
 
-impl Wrappable for AnimationTimeline {}
+impl Wrappable for AnimationTimeline {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
+}
 
 impl AnimationTimeline {
     /// The timeline's state, which lives as long as the timeline.

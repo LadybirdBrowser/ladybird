@@ -298,6 +298,7 @@ unsafe impl Trace for Animation {
 }
 
 impl Wrappable for Animation {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn relevant_realm(&self) -> Option<Gc<Realm>> {
         Some(self.realm)
     }

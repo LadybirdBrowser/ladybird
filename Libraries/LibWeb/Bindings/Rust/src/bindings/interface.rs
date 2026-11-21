@@ -64,6 +64,12 @@ pub(crate) trait Wrappable {
         0
     }
 
+    /// Whether LibGC may only trace the object, and ask for its external_memory_size(), on the thread that owns its heap,
+    /// as it does C++ objects. LibGC traces other objects on several threads at once while that thread is stopped, so
+    /// this must be true for an object whose tracing reaches C++ objects, thread-local state, or state that it shares
+    /// with other objects without synchronization.
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = false;
+
     /// Whether LibGC finalizes the object before it destroys it, which it does through finalize(), as it does a C++
     /// implementation object that overrides Cell::finalize().
     const FINALIZES: bool = false;
@@ -146,6 +152,11 @@ pub(crate) const fn cell_class<T: Wrappable + Trace + 'static>(name: &'static st
         EmbedderClass::new_with_external_memory_size(name)
     } else {
         EmbedderClass::new(name)
+    };
+    let class = if T::TRACED_ON_OWNER_THREAD_ONLY {
+        class.traced_on_owner_thread_only()
+    } else {
+        class
     };
     if T::FINALIZES {
         class.with_finalize(finalize_object::<T>)

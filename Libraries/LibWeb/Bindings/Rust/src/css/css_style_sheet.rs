@@ -66,6 +66,7 @@ pub(crate) struct CSSStyleSheet {
 }
 
 impl Wrappable for CSSStyleSheet {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     const OWNS_EXTERNAL_MEMORY: bool = true;
 
     fn external_memory_size(&self) -> usize {

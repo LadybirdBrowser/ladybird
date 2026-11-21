@@ -281,7 +281,6 @@ pub fn generate() -> LayoutHeader {
     let mut w = HeaderWriter::new();
 
     w.section("Cell header, at the start of every cell");
-    offset!(w, "CELL_MARK", CellHeader, mark);
     offset!(w, "CELL_STATE", CellHeader, state);
     offset!(w, "CELL_KIND", CellHeader, kind);
     for kind in [CellKind::Other, CellKind::Object, CellKind::PrimitiveString, CellKind::Symbol, CellKind::BigInt, CellKind::Accessor] {

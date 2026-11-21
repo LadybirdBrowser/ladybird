@@ -85,6 +85,8 @@ pub(crate) fn native_rules_of_sheet(sheet: &CppCell) -> Rc<NativeRuleList> {
 macro_rules! impl_rule_wrappable {
     ($type:ty) => {
         impl crate::bindings::interface::Wrappable for $type {
+            // NB: The native rules and their lists share state with the whole document's style without synchronization.
+            const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
             const OWNS_EXTERNAL_MEMORY: bool = true;
 
             fn external_memory_size(&self) -> usize {
@@ -112,7 +114,9 @@ pub(crate) struct CSSRule {
     declarations: GcRefCell<Option<CppCell>>,
 }
 
-impl Wrappable for CSSRule {}
+impl Wrappable for CSSRule {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
+}
 
 impl CSSRule {
     pub(crate) fn new(native_rule: Rc<NativeRule>) -> Self {

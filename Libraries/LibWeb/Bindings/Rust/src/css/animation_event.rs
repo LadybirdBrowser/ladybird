@@ -89,6 +89,7 @@ pub(crate) struct AnimationEvent {
 }
 
 impl Wrappable for AnimationEvent {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.event.as_cpp_parent()
     }

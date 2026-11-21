@@ -83,6 +83,7 @@ impl Inherits<ScrollTimeline> for ViewTimeline {
 }
 
 impl Wrappable for ViewTimeline {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     const FINALIZES: bool = true;
 
     fn finalize(object: Ref<Self>) {

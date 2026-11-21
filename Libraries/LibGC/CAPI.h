@@ -74,7 +74,6 @@ typedef struct GCCellTypeInfo {
 
 // Everything a foreign implementation of cells needs to agree on with this build of LibGC.
 typedef struct GCLayout {
-    uint32_t cell_mark_offset;
     uint32_t cell_state_offset;
     uint32_t cell_kind_offset;
     uint32_t min_cell_size;
@@ -99,6 +98,9 @@ typedef struct GCLayout {
     uint32_t block_foreign_type_offset;
     uint64_t heap_region_offset_mask;
     uint64_t primitive_storage_cage_offset_mask;
+    // Where a GCVisitor keeps a pointer to the marker it marks for, which is null in visitors that do not mark. Code that
+    // visits can hand cells to the marker directly, with gc_marker_visit_cell() and gc_marker_visit_values().
+    uint32_t visitor_marker_offset;
 } GCLayout;
 
 GC_API void gc_get_layout(GCLayout*);
@@ -143,15 +145,19 @@ GC_API void gc_heap_did_free_external_memory(GCHeap*, size_t);
 // be destroyed.
 GC_API GCAllocator* gc_allocator_create(GCCellTypeInfo const*, char const* name, size_t name_length, void const* foreign_type);
 GC_API void gc_allocator_destroy(GCAllocator*);
+// Cells of allocators created here may be traced on any thread while the collector marks, as long as the thread that
+// owns their heap is stopped. This has the cells of an allocator traced only on that thread instead, for types whose
+// visit_edges() or external_memory_size() reach state that is not their own. It must be called before the allocator
+// allocates a cell.
+GC_API void gc_allocator_set_traced_on_owner_thread_only(GCAllocator*);
 
-// Returns uninitialized storage for one cell. *must_mark tells the caller what to store as the cell's mark: cells that
-// are allocated while an incremental sweep is in progress have to start out marked.
-GC_API GCCell* gc_heap_allocate_cell(GCHeap*, GCAllocator*, bool* must_mark);
+// Returns uninitialized storage for one cell.
+GC_API GCCell* gc_heap_allocate_cell(GCHeap*, GCAllocator*);
 // Like gc_heap_allocate_cell(), for cells that other cells keep their storage in instead of malloc memory: it never
 // collects garbage, so storage can grow while its owner is between states nothing may observe, and callers can hold on
 // to anything across the growth. It still counts towards the next collection, which the next allocation that may
 // collect starts.
-GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_mark);
+GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*);
 // Each allocator takes the free cells of one block at a time into the heap, as a local free list of the cells that were
 // freed and a range of cells that were never allocated, so that allocating is usually popping that list or bumping
 // the cursor of that range, and code that allocates cells itself (like the Rust heap) does either inline:
@@ -164,13 +170,12 @@ GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_m
 //   at local_cursor_offset, local_end_offset and local_cell_size_offset from the head of the list. While the cursor is
 //   below the end, the cell at the cursor is free, and taking it advances the cursor by the cell size. These words are
 //   outside the heap region.
-// - Cells from the list or the range never need marking.
 // - Before taking a cell of N bytes (the cell size of the allocator), such code checks that the heap's
 //   allocated_bytes_since_last_gc + N stays within its gc_bytes_threshold, and allocates through the heap otherwise
 //   (which may collect garbage). After taking it, it adds N to allocated_bytes_since_last_gc and total_allocated_bytes;
 //   storage cells (see gc_heap_allocate_storage_cell()) skip the check but add N to both as well. These
 //   are size_t fields of the heap, at the offsets gc_get_layout() reports.
-// - It then writes every byte of the cell, as after gc_heap_allocate_cell(), with a clear mark.
+// - It then writes every byte of the cell, as after gc_heap_allocate_cell().
 // Returns where the head of the allocator's list in the heap is, which stays valid as long as the heap. The list and
 // the range are always empty while the heap collects on every allocation. Returns null if cells must always be
 // allocated through the heap, as in builds that poison free cells for AddressSanitizer.
@@ -179,6 +184,9 @@ GC_API GCCell** gc_heap_allocator_local_free_list(GCHeap*, GCAllocator*);
 GC_API void* gc_cell_heap_context(GCCell const*);
 // The type info the cell's block was allocated with.
 GC_API GCCellTypeInfo const* gc_cell_type_info(GCCell const*);
+// Whether the last collection marked the cell. Only meaningful from the end of marking until the cell is swept, as in a
+// sweep callback.
+GC_API bool gc_cell_is_marked(GCCell const*);
 
 GC_API GCRoot* gc_root_create(GCCell*);
 GC_API void gc_root_destroy(GCRoot*);
@@ -196,6 +204,11 @@ GC_API void gc_visitor_visit_cells(GCVisitor*, GCCell* const*, size_t count);
 GC_API void gc_visitor_visit_values(GCVisitor*, uint64_t const*, size_t count);
 // Visits a NaN-boxed value that is reachable only while key is, such as a WeakMap entry's.
 GC_API void gc_visitor_visit_ephemeron(GCVisitor*, GCCell* key, uint64_t const* value);
+
+// The marker a marking GCVisitor points to (see GCLayout::visitor_marker_offset), which these hand cells to directly.
+typedef struct GCMarker GCMarker;
+GC_API void gc_marker_visit_cell(GCMarker*, GCCell*);
+GC_API void gc_marker_visit_values(GCMarker*, uint64_t const*, size_t count);
 
 // Primitive storage holds byte buffers inside the cage that starts at gc_primitive_storage_cage_base(), so that the
 // interpreter can reach any of their bytes as a cage offset masked with primitive_storage_cage_offset_mask. Like the

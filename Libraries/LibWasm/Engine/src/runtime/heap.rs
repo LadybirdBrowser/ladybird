@@ -35,7 +35,6 @@ pub struct CellTypeInfo {
 #[derive(Default, Clone, Copy)]
 #[repr(C)]
 pub struct GcLayout {
-    pub cell_mark_offset: u32,
     pub cell_state_offset: u32,
     pub cell_kind_offset: u32,
     pub min_cell_size: u32,
@@ -55,6 +54,7 @@ pub struct GcLayout {
     pub block_foreign_type_offset: u32,
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
+    pub visitor_marker_offset: u32,
 }
 
 /// Mirrors GCPrimitiveStorageLayout.
@@ -79,8 +79,8 @@ pub struct GcInterface {
         name_length: usize,
         foreign_type: *const c_void,
     ) -> *mut c_void,
-    pub gc_heap_allocate_cell:
-        unsafe extern "C" fn(heap: *mut c_void, allocator: *mut c_void, must_mark: *mut bool) -> *mut c_void,
+    pub gc_allocator_set_traced_on_owner_thread_only: unsafe extern "C" fn(allocator: *mut c_void),
+    pub gc_heap_allocate_cell: unsafe extern "C" fn(heap: *mut c_void, allocator: *mut c_void) -> *mut c_void,
     pub gc_heap_defer_gc: unsafe extern "C" fn(heap: *mut c_void),
     pub gc_heap_undefer_gc: unsafe extern "C" fn(heap: *mut c_void),
     pub gc_heap_collect_garbage: unsafe extern "C" fn(heap: *mut c_void, collection_type: i32, print_report: bool),
@@ -283,7 +283,12 @@ impl Allocators {
     fn new(interface: &GcInterface) -> Self {
         let create = |cell_type: CellType| {
             let (info, name) = type_info(cell_type);
-            unsafe { (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len(), core::ptr::null()) }
+            let allocator =
+                unsafe { (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len(), core::ptr::null()) };
+            // NB: Tracing reaches the host objects of the thread that owns the heap (see HOST_OBJECTS), and the
+            //     embedder's visit callbacks, so the cells of these allocators are only traced on that thread.
+            unsafe { (interface.gc_allocator_set_traced_on_owner_thread_only)(allocator) };
+            allocator
         };
         Self {
             objects: (0..OBJECT_CELL_SIZE_CLASSES.len())
@@ -343,17 +348,13 @@ impl Heap {
         let mut layout = GcLayout::default();
         unsafe { (interface.gc_get_layout)(&raw mut layout) };
         assert!(
-            layout.cell_mark_offset as usize >= 8 && (layout.cell_kind_offset as usize) < CELL_HEADER_SIZE,
+            layout.cell_state_offset as usize >= 8 && (layout.cell_kind_offset as usize) < CELL_HEADER_SIZE,
             "LibGC keeps its cell header in the second word"
         );
         assert!(
-            [
-                layout.cell_mark_offset,
-                layout.cell_state_offset,
-                layout.cell_kind_offset
-            ]
-            .iter()
-            .all(|&offset| (offset as usize) < CELL_FLAGS_OFFSET),
+            [layout.cell_state_offset, layout.cell_kind_offset]
+                .iter()
+                .all(|&offset| (offset as usize) < CELL_FLAGS_OFFSET),
             "the runtime's flags follow LibGC's cell header"
         );
         let allocators = ALLOCATORS.get_or_init(|| Allocators::new(&interface));
@@ -388,16 +389,10 @@ impl Heap {
                 cell
             }
             Self::Gc(heap) => unsafe {
-                let mut must_mark = false;
-                let cell: *mut u8 = (heap.interface.gc_heap_allocate_cell)(
-                    heap.interface.heap,
-                    heap.allocators.of(cell_type),
-                    &raw mut must_mark,
-                )
-                .cast();
+                let cell: *mut u8 =
+                    (heap.interface.gc_heap_allocate_cell)(heap.interface.heap, heap.allocators.of(cell_type)).cast();
                 assert!(!cell.is_null(), "LibGC allocates the cell");
                 core::ptr::write_bytes(cell, 0, size);
-                *cell.add(heap.layout.cell_mark_offset as usize) = u8::from(must_mark);
                 *cell.add(heap.layout.cell_state_offset as usize) = CELL_STATE_LIVE;
                 *cell.add(heap.layout.cell_kind_offset as usize) = CELL_KIND_OTHER;
                 cell

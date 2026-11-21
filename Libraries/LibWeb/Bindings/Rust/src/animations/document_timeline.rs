@@ -51,6 +51,7 @@ impl Inherits<AnimationTimeline> for DocumentTimeline {
 }
 
 impl Wrappable for DocumentTimeline {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     const FINALIZES: bool = true;
 
     fn finalize(object: Ref<Self>) {

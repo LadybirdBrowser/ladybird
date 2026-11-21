@@ -29,6 +29,11 @@ pub struct GCAllocator {
 }
 
 #[repr(C)]
+pub struct GCMarker {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
 pub struct GCRoot {
     _private: [u8; 0],
 }
@@ -44,7 +49,6 @@ pub const GC_COLLECTION_TYPE_COLLECT_EVERYTHING: i32 = 1;
 #[derive(Default)]
 #[repr(C)]
 pub struct GCLayout {
-    pub cell_mark_offset: u32,
     pub cell_state_offset: u32,
     pub cell_kind_offset: u32,
     pub min_cell_size: u32,
@@ -64,6 +68,7 @@ pub struct GCLayout {
     pub block_foreign_type_offset: u32,
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
+    pub visitor_marker_offset: u32,
 }
 
 /// The generation of the storage's table entry in the high 32 bits and the entry's index in the low 32 bits.
@@ -121,15 +126,15 @@ unsafe extern "C" {
         foreign_type: *const c_void,
     ) -> *mut GCAllocator;
     pub fn gc_allocator_destroy(allocator: *mut GCAllocator);
-    pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator, must_mark: *mut bool) -> *mut c_void;
-    pub fn gc_heap_allocate_storage_cell(
-        heap: *mut GCHeap,
-        allocator: *mut GCAllocator,
-        must_mark: *mut bool,
-    ) -> *mut c_void;
+    pub fn gc_allocator_set_traced_on_owner_thread_only(allocator: *mut GCAllocator);
+    pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
+    pub fn gc_heap_allocate_storage_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
     pub fn gc_heap_allocator_local_free_list(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut *mut c_void;
     pub fn gc_cell_heap_context(cell: *const c_void) -> *mut c_void;
     pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
+    pub fn gc_cell_is_marked(cell: *const c_void) -> bool;
+    pub fn gc_marker_visit_cell(marker: *mut GCMarker, cell: *mut c_void);
+    pub fn gc_marker_visit_values(marker: *mut GCMarker, values: *const u64, count: usize);
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;
     pub fn gc_root_destroy(root: *mut GCRoot);

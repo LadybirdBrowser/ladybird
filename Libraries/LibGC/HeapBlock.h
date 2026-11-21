@@ -29,6 +29,7 @@ class GC_API HeapBlock : public HeapBlockBase {
 public:
     using HeapBlockBase::BLOCK_SIZE;
     static NonnullOwnPtr<HeapBlock> create(Heap&, CellAllocator&);
+    ~HeapBlock();
 
     size_t cell_size() const { return m_cell_size; }
     size_t cell_count() const { return m_cell_count; }

@@ -863,6 +863,7 @@ impl Inherits<AnimationEffect> for KeyframeEffect {
 }
 
 impl Wrappable for KeyframeEffect {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn relevant_realm(&self) -> Option<Gc<Realm>> {
         self.effect.relevant_realm()
     }

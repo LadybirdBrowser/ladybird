@@ -7,7 +7,10 @@
 use core::cell::Cell;
 use core::ptr::NonNull;
 
-use super::capi::{GCVisitor, gc_visitor_visit_cell, gc_visitor_visit_ephemeron, gc_visitor_visit_values};
+use super::capi::{
+    GCMarker, GCVisitor, gc_marker_visit_cell, gc_marker_visit_values, gc_visitor_visit_cell,
+    gc_visitor_visit_ephemeron, gc_visitor_visit_values,
+};
 use crate::layout::cell::Gc;
 use crate::layout::member::{Member, NullableMember};
 use crate::layout::value::Value;
@@ -15,7 +18,25 @@ use crate::layout::value::Value;
 /// A LibGC visitor, which marks what it visits during a collection and roots it while roots are gathered.
 pub struct Visitor(NonNull<GCVisitor>);
 
+/// Where a visitor keeps the marker it marks for, right after the vtable pointer of the C++ Cell::Visitor, which
+/// check_layout() checks against GCLayout::visitor_marker_offset.
+pub(crate) const VISITOR_MARKER_OFFSET: usize = size_of::<usize>();
+
 impl Visitor {
+    /// The marker of a visitor that marks for a collection, which takes the cells it visits directly.
+    #[inline(always)]
+    fn marker(&self) -> Option<NonNull<GCMarker>> {
+        // SAFETY: The visitor is a live Cell::Visitor, which keeps a marker pointer at this offset.
+        NonNull::new(unsafe {
+            self.0
+                .as_ptr()
+                .cast::<u8>()
+                .add(VISITOR_MARKER_OFFSET)
+                .cast::<*mut GCMarker>()
+                .read()
+        })
+    }
+
     /// # Safety
     ///
     /// `visitor` must be a visitor LibGC passed in, and outlive the returned value.
@@ -29,6 +50,11 @@ impl Visitor {
     }
 
     pub fn visit<T>(&mut self, cell: Gc<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, and a Gc points to a live cell.
+            unsafe { gc_marker_visit_cell(marker.as_ptr(), cell.as_ptr().cast()) };
+            return;
+        }
         // SAFETY: The visitor is live, and a Gc points to a live cell.
         unsafe { gc_visitor_visit_cell(self.0.as_ptr(), cell.as_ptr().cast()) };
     }
@@ -47,6 +73,13 @@ impl Visitor {
     }
 
     pub fn visit_values(&mut self, values: &[Value]) {
+        if let Some(marker) = self.marker() {
+            if !values.is_empty() {
+                // SAFETY: The marker is the visitor's, and Value is a NaN-boxed u64.
+                unsafe { gc_marker_visit_values(marker.as_ptr(), values.as_ptr().cast(), values.len()) };
+            }
+            return;
+        }
         // SAFETY: The visitor is live, and Value is a NaN-boxed u64.
         unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
     }
