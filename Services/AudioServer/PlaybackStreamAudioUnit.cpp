@@ -19,6 +19,7 @@
 
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 #include <mach/mach_time.h>
 
 namespace Audio {
@@ -137,6 +138,34 @@ static ErrorOr<void> set_audio_unit_property(AudioComponentInstance& instance, u
     return {};
 }
 
+static ErrorOr<AudioDeviceID> output_device_of_audio_unit(AudioComponentInstance& audio_unit)
+{
+    AudioDeviceID device = kAudioObjectUnknown;
+    UInt32 size = sizeof(device);
+    AU_TRY(AudioUnitGetProperty(audio_unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, AUDIO_UNIT_OUTPUT_BUS, &device, &size));
+    return device;
+}
+
+static bool every_channel_has_a_known_position(ChannelMap const& channel_map)
+{
+    for (u8 i = 0; i < channel_map.channel_count(); i++) {
+        if (channel_map.channel_at(i) == Channel::Unknown)
+            return false;
+    }
+    return true;
+}
+
+static Optional<ChannelMap> channel_map_of_device_layout_if_every_channel_is_named(AudioComponentInstance& audio_unit, u32 device_channel_count)
+{
+    auto layout = get_audio_unit_property<AudioChannelLayout>(audio_unit, kAudioUnitProperty_AudioChannelLayout);
+    if (layout.is_error())
+        return {};
+    auto channel_map = core_audio_channel_layout_to_channel_map(*layout.value(), layout.value().size());
+    if (channel_map.is_error() || channel_map.value().channel_count() != device_channel_count || !every_channel_has_a_known_position(channel_map.value()))
+        return {};
+    return channel_map.release_value();
+}
+
 class AudioState : public RefCounted<AudioState> {
 public:
     static ErrorOr<NonnullRefPtr<AudioState>> create(PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
@@ -153,15 +182,34 @@ public:
         auto* component = AudioComponentFindNext(NULL, &component_description);
         AU_TRY(AudioComponentInstanceNew(component, &state->m_audio_unit));
 
+        // Without an output device the audio unit still starts but never asks for audio. Failing here lets the caller
+        // play into a stream whose clock keeps running instead.
+        if (TRY(output_device_of_audio_unit(state->m_audio_unit)) == kAudioObjectUnknown)
+            return Error::from_string_literal("No audio output device");
+
         auto description = TRY(get_audio_unit_property<AudioStreamBasicDescription>(state->m_audio_unit, kAudioUnitProperty_StreamFormat));
+        auto device_channel_count = description->mChannelsPerFrame;
+        auto device_channel_map = channel_map_of_device_layout_if_every_channel_is_named(state->m_audio_unit, device_channel_count);
+        // Audio can't be converted into a layout we can't name every channel of, so we render mono or stereo instead and
+        // let the audio unit place it on the device's speakers.
+        auto channel_map = device_channel_map.value_or(device_channel_count == 1 ? ChannelMap::mono() : ChannelMap::stereo());
 
         description->mFormatID = kAudioFormatLinearPCM;
         description->mFormatFlags = kLinearPCMFormatFlagIsFloat | kLinearPCMFormatFlagIsPacked;
-
+        description->mChannelsPerFrame = channel_map.channel_count();
+        description->mBitsPerChannel = sizeof(float) * 8;
+        description->mFramesPerPacket = 1;
+        description->mBytesPerFrame = channel_map.channel_count() * sizeof(float);
+        description->mBytesPerPacket = description->mBytesPerFrame;
         TRY(set_audio_unit_property(state->m_audio_unit, kAudioUnitProperty_StreamFormat, description));
 
-        auto layout = TRY(get_audio_unit_property<AudioChannelLayout>(state->m_audio_unit, kAudioUnitProperty_AudioChannelLayout));
-        auto channel_map = TRY(core_audio_channel_layout_to_channel_map(*layout, layout.size()));
+        if (!device_channel_map.has_value()) {
+            auto layout = TRY(CoreAudioPropertyValue<AudioChannelLayout>::create(sizeof(AudioChannelLayout)));
+            *layout = {};
+            layout->mChannelLayoutTag = channel_map.channel_count() == 1 ? kAudioChannelLayoutTag_Mono : kAudioChannelLayoutTag_Stereo;
+            // An audio unit that doesn't take the layout places the channels on the device's speakers in order.
+            (void)set_audio_unit_property(state->m_audio_unit, kAudioUnitProperty_AudioChannelLayout, layout);
+        }
         state->m_sample_specification = SampleSpecification(static_cast<u32>(description->mSampleRate), channel_map);
 
         AURenderCallbackStruct callbackStruct;
