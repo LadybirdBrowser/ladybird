@@ -18,8 +18,9 @@
         popup.close();
         println(`popup.closed: ${popup.closed}`);
 
-        // The response has arrived once a fetch of the same URL completes.
-        await fetch(url.href, { mode: "no-cors" });
+        // The response has arrived once a fetch of the same URL completes, as a network error where opaque-response
+        // blocking stops the page from reading it.
+        await fetch(url.href, { mode: "no-cors" }).catch(() => {});
         await timeout(100);
         println("opener survived");
     });

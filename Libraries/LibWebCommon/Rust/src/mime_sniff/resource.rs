@@ -22,11 +22,11 @@ pub enum SniffingContext {
     TextOrBinary,
 }
 
-struct BytePatternTableRow {
-    byte_pattern: &'static [u8],
-    pattern_mask: &'static [u8],
-    ignored_leading_bytes: &'static [u8],
-    mime_type: &'static str,
+pub(super) struct BytePatternTableRow {
+    pub(super) byte_pattern: &'static [u8],
+    pub(super) pattern_mask: &'static [u8],
+    pub(super) ignored_leading_bytes: &'static [u8],
+    pub(super) mime_type: &'static str,
 
     // NB: If the byte pattern has a tag-terminating byte, add a byte where this byte should be. The value itself is
     //     ignored in pattern_matching_algorithm() (see the NB in that algorithm for more details).
@@ -64,7 +64,7 @@ const NO_IGNORED_BYTES: &[u8] = &[];
 
 // https://mimesniff.spec.whatwg.org/#whitespace-byte
 // A whitespace byte (abbreviated 0xWS) is any one of the following bytes: 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), 0x20 (SP).
-const WHITESPACE_BYTES: &[u8] = &[0x09, 0x0A, 0x0C, 0x0D, 0x20];
+pub(super) const WHITESPACE_BYTES: &[u8] = &[0x09, 0x0A, 0x0C, 0x0D, 0x20];
 
 fn mime_type(essence: &str) -> MimeType {
     let (type_, subtype) = essence
@@ -86,8 +86,121 @@ fn is_binary_data_byte(byte: u8) -> bool {
     matches!(byte, 0x00..=0x08 | 0x0B | 0x0E..=0x1A | 0x1C..=0x1F)
 }
 
+// The patterns that identify a scriptable resource, for the sniff-scriptable flag of
+// https://mimesniff.spec.whatwg.org/#rules-for-identifying-an-unknown-mime-type
+pub(super) const SCRIPTABLE_PATTERN_TABLE: [BytePatternTableRow; 19] = [
+    // The case-insensitive string "<!DOCTYPE HTML" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x21\x44\x4F\x43\x54\x59\x50\x45\x20\x48\x54\x4D\x4C\x00",
+        b"\xFF\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xDF\xFF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<HTML" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x48\x54\x4D\x4C\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<HEAD" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x48\x45\x41\x44\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<SCRIPT" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x53\x43\x52\x49\x50\x54\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<IFRAME" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x49\x46\x52\x41\x4D\x45\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<H1" followed by a tag-terminating byte.
+    tag_terminated_row(b"\x3C\x48\x31\x00", b"\xFF\xDF\xFF\xFF", WHITESPACE_BYTES, "text/html"),
+    // The case-insensitive string "<DIV" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x44\x49\x56\x00",
+        b"\xFF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<FONT" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x46\x4F\x4E\x54\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<TABLE" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x54\x41\x42\x4C\x45\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<A" followed by a tag-terminating byte.
+    tag_terminated_row(b"\x3C\x41\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
+    // The case-insensitive string "<STYLE" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x53\x54\x59\x4C\x45\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<TITLE" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x54\x49\x54\x4C\x45\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<B" followed by a tag-terminating byte.
+    tag_terminated_row(b"\x3C\x42\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
+    // The case-insensitive string "<BODY" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x42\x4F\x44\x59\x00",
+        b"\xFF\xDF\xDF\xDF\xDF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The case-insensitive string "<BR" followed by a tag-terminating byte.
+    tag_terminated_row(b"\x3C\x42\x52\x00", b"\xFF\xDF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
+    // The case-insensitive string "<P" followed by a tag-terminating byte.
+    tag_terminated_row(b"\x3C\x50\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
+    // The string "<!--" followed by a tag-terminating byte.
+    tag_terminated_row(
+        b"\x3C\x21\x2D\x2D\x00",
+        b"\xFF\xFF\xFF\xFF\xFF",
+        WHITESPACE_BYTES,
+        "text/html",
+    ),
+    // The string "<?xml".
+    row(
+        b"\x3C\x3F\x78\x6D\x6C",
+        b"\xFF\xFF\xFF\xFF\xFF",
+        WHITESPACE_BYTES,
+        "text/xml",
+    ),
+    // The string "%PDF-", the PDF signature.
+    row(
+        b"\x25\x50\x44\x46\x2D",
+        b"\xFF\xFF\xFF\xFF\xFF",
+        NO_IGNORED_BYTES,
+        "application/pdf",
+    ),
+];
+
 // https://mimesniff.spec.whatwg.org/#pattern-matching-algorithm
-fn pattern_matching_algorithm(input: &[u8], row: &BytePatternTableRow) -> bool {
+pub(super) fn pattern_matching_algorithm(input: &[u8], row: &BytePatternTableRow) -> bool {
     let pattern = row.byte_pattern;
     let mask = row.pattern_mask;
     let ignored = row.ignored_leading_bytes;
@@ -168,7 +281,7 @@ fn match_a_pattern_table(input: &[u8], pattern_table: &[BytePatternTableRow]) ->
 }
 
 // https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern
-fn match_an_image_type_pattern(input: &[u8]) -> Option<MimeType> {
+pub(super) fn match_an_image_type_pattern(input: &[u8]) -> Option<MimeType> {
     const PATTERN_TABLE: [BytePatternTableRow; 8] = [
         // A Windows Icon signature.
         row(
@@ -480,7 +593,7 @@ fn matches_mp3_no_id3_signature(sequence: &[u8]) -> bool {
 }
 
 // https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
-fn match_an_audio_or_video_type_pattern(input: &[u8]) -> Option<MimeType> {
+pub(super) fn match_an_audio_or_video_type_pattern(input: &[u8]) -> Option<MimeType> {
     // 1. Execute the following steps for each row row in the following table:
     const PATTERN_TABLE: [BytePatternTableRow; 6] = [
         // The string "FORM" followed by four bytes followed by the string "AIFF", the AIFF signature.
@@ -749,122 +862,11 @@ impl Resource<'_> {
     fn rules_for_identifying_an_unknown_mime_type(&self, sniff_scriptable: bool) -> MimeType {
         // 1. If the sniff-scriptable flag is set, execute the following steps for each row row in the following table:
         if sniff_scriptable {
-            const PATTERN_TABLE: [BytePatternTableRow; 19] = [
-                // The case-insensitive string "<!DOCTYPE HTML" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x21\x44\x4F\x43\x54\x59\x50\x45\x20\x48\x54\x4D\x4C\x00",
-                    b"\xFF\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xDF\xFF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<HTML" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x48\x54\x4D\x4C\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<HEAD" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x48\x45\x41\x44\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<SCRIPT" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x53\x43\x52\x49\x50\x54\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<IFRAME" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x49\x46\x52\x41\x4D\x45\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<H1" followed by a tag-terminating byte.
-                tag_terminated_row(b"\x3C\x48\x31\x00", b"\xFF\xDF\xFF\xFF", WHITESPACE_BYTES, "text/html"),
-                // The case-insensitive string "<DIV" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x44\x49\x56\x00",
-                    b"\xFF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<FONT" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x46\x4F\x4E\x54\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<TABLE" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x54\x41\x42\x4C\x45\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<A" followed by a tag-terminating byte.
-                tag_terminated_row(b"\x3C\x41\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
-                // The case-insensitive string "<STYLE" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x53\x54\x59\x4C\x45\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<TITLE" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x54\x49\x54\x4C\x45\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<B" followed by a tag-terminating byte.
-                tag_terminated_row(b"\x3C\x42\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
-                // The case-insensitive string "<BODY" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x42\x4F\x44\x59\x00",
-                    b"\xFF\xDF\xDF\xDF\xDF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The case-insensitive string "<BR" followed by a tag-terminating byte.
-                tag_terminated_row(b"\x3C\x42\x52\x00", b"\xFF\xDF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
-                // The case-insensitive string "<P" followed by a tag-terminating byte.
-                tag_terminated_row(b"\x3C\x50\x00", b"\xFF\xDF\xFF", WHITESPACE_BYTES, "text/html"),
-                // The string "<!--" followed by a tag-terminating byte.
-                tag_terminated_row(
-                    b"\x3C\x21\x2D\x2D\x00",
-                    b"\xFF\xFF\xFF\xFF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/html",
-                ),
-                // The string "<?xml".
-                row(
-                    b"\x3C\x3F\x78\x6D\x6C",
-                    b"\xFF\xFF\xFF\xFF\xFF",
-                    WHITESPACE_BYTES,
-                    "text/xml",
-                ),
-                // The string "%PDF-", the PDF signature.
-                row(
-                    b"\x25\x50\x44\x46\x2D",
-                    b"\xFF\xFF\xFF\xFF\xFF",
-                    NO_IGNORED_BYTES,
-                    "application/pdf",
-                ),
-            ];
-
             // 1. Let patternMatched be the result of the pattern matching algorithm given resource’s resource header,
             //    the value in the first column of row, the value in the second column of row, and the value in the
             //    third column of row.
             // 2. If patternMatched is true, return the value in the fourth column of row.
-            if let Some(matched_type) = match_a_pattern_table(self.resource_header, &PATTERN_TABLE) {
+            if let Some(matched_type) = match_a_pattern_table(self.resource_header, &SCRIPTABLE_PATTERN_TABLE) {
                 return matched_type;
             }
         }

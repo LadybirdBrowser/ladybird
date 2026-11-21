@@ -26,7 +26,7 @@
                         method: "POST",
                         mode: "no-cors",
                         body: JSON.stringify({ method: "GET", path: "${urlPath}", status: 200, headers: ${JSON.stringify(corsHeaders)}, body: blobURL }),
-                    }).then(() => fetch("${httpServer.baseURL}/unblock/oop-blob-popup-${runId}", { mode: "no-cors" }));
+                    }).finally(() => fetch("${httpServer.baseURL}/unblock/oop-blob-popup-${runId}", { mode: "no-cors" }));
                 <\/script>`,
             })
         );

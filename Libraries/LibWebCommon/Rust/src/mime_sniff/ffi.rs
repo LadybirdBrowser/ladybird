@@ -256,3 +256,22 @@ pub unsafe extern "C" fn mime_sniff_sniff(
         unsafe { lend_mime_type(&computed_mime_type, ctx, on_mime_type) };
     });
 }
+
+/// Whether `data` matches an image type pattern, for the opaque-response-safelist check.
+#[unsafe(no_mangle)]
+pub extern "C" fn mime_sniff_matches_an_image_type_pattern(data: Span<'_, u8>) -> bool {
+    abort_on_panic(|| super::orb::matches_an_image_type_pattern(data.as_slice()))
+}
+
+/// Whether `data` matches an audio or video type pattern, for the opaque-response-safelist check.
+#[unsafe(no_mangle)]
+pub extern "C" fn mime_sniff_matches_an_audio_or_video_type_pattern(data: Span<'_, u8>) -> bool {
+    abort_on_panic(|| super::orb::matches_an_audio_or_video_type_pattern(data.as_slice()))
+}
+
+/// Whether `data`, the start of a response's body, shows a resource that is not a script (see
+/// [`super::orb::shows_a_resource_that_is_not_a_script`]).
+#[unsafe(no_mangle)]
+pub extern "C" fn mime_sniff_shows_a_resource_that_is_not_a_script(data: Span<'_, u8>) -> bool {
+    abort_on_panic(|| super::orb::shows_a_resource_that_is_not_a_script(data.as_slice()))
+}

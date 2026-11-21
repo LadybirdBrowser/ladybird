@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-19 Pass
-3 Fail
+21 Pass
+1 Fail
 Pass	Cache.add called with no arguments
 Pass	Cache.add called with relative URL specified as a string
 Pass	Cache.add called with non-HTTP/HTTPS URL
@@ -23,6 +23,6 @@ Pass	Cache.addAll with string URL arguments
 Pass	Cache.addAll with Request arguments
 Pass	Cache.addAll with a mix of succeeding and failing requests
 Pass	Cache.addAll called with the same Request object specified twice
-Fail	Cache.addAll should succeed when entries differ by vary header
-Fail	Cache.addAll should reject when entries are duplicate by vary header
+Pass	Cache.addAll should succeed when entries differ by vary header
+Pass	Cache.addAll should reject when entries are duplicate by vary header
 Fail	Cache.addAll should reject when one entry has a vary header matching another entry
