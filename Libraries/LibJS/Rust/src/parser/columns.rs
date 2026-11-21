@@ -151,21 +151,6 @@ impl Ast {
         ast
     }
 
-    /// Columns with no rows and no memory, which are not a tree yet.
-    pub fn unallocated() -> Self {
-        Self {
-            tag: Vec::new(),
-            pos: Vec::new(),
-            a: Vec::new(),
-            b: Vec::new(),
-            extra: Vec::new(),
-            binding_name: Vec::new(),
-            binding_flags: Vec::new(),
-            scope_first_binding: Vec::new(),
-            scope_flags: Vec::new(),
-        }
-    }
-
     /// Goes back to what a new tree starts with, keeping the memory.
     pub fn reset(&mut self) {
         self.truncate(&AstMarks {
@@ -258,8 +243,6 @@ pub struct FunctionIndex {
     /// about a function it skips. A name that only passes through on its way further out is not in here: it is a capture
     /// of the outer function that it passes through.
     pub capture_names: Vec<u32>,
-    /// While parsing: the captures in the order they got resolved, as (index row, name).
-    pub pending_captures: Vec<(u32, u32)>,
     /// The rows by `params_start`, unless that is the order they are in. It often is not, as an arrow function only gets
     /// its row after its parameters, and so after the functions in them. Worked out once functions get parsed again.
     pub(super) rows_by_params_start: OnceLock<Vec<u32>>,
@@ -273,12 +256,6 @@ pub struct FunctionIndex {
     pub summary_start: Vec<u32>,
     /// A bit for every name of the source that anything declares, which all other names are free everywhere.
     pub declared_names: Vec<u64>,
-    /// While parsing: (index row, entry) for a binding that comes up early, and with bit 31 of the row set, (index row,
-    /// ordinal) for one that is captured.
-    pub pending_summaries: Vec<(u32, u32)>,
-    /// While parsing: (index row, where the scope starts, entry) for a binding of a scope inside a function that has to
-    /// exist when the scope starts.
-    pub pending_scope_bindings: Vec<(u32, u32, u32)>,
     /// Where the summary of the top level ends, which is the first thing in the pool.
     pub program_summary_end: u32,
     /// Whether the top level has a direct `eval`, so that names may mean more than they seem to there.
@@ -418,11 +395,8 @@ impl FunctionIndex {
         self.capture_start.shrink_to_fit();
         self.capture_count.shrink_to_fit();
         self.capture_names.shrink_to_fit();
-        self.pending_captures = Vec::new();
         self.summaries.shrink_to_fit();
         self.summary_start.shrink_to_fit();
-        self.pending_summaries = Vec::new();
-        self.pending_scope_bindings = Vec::new();
     }
 }
 

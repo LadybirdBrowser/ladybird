@@ -59,15 +59,18 @@ const SOURCE_PADDING: usize = 64;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct FunctionRow(pub(crate) u32);
 
-/// A parser that keeps reparsing the functions of one source: it knows the names of the source.
-enum ReparseContext {
-    Narrow(Box<Parser<'static, u8>>),
-    Wide(Box<Parser<'static, u16>>),
+/// What the parses of the functions of one source again hand on to each other. A parse of a function has its work data
+/// in the work zone of its thread, and this on the heap.
+struct ReparseContext {
+    /// The names of the source.
+    interner: Interner,
+    /// The state of each name, which is clean between two parses.
+    names: Box<[base::NameState]>,
+    /// The last stamp of a name state.
+    stamp: u32,
+    /// What the parses write about the names they declare. Nothing reads it.
+    index: FunctionIndex,
 }
-
-// SAFETY: The parser of a context only points at what the ScriptData holding the context owns, or, during a reparse, into
-//         the memory of that reparse.
-unsafe impl Send for ReparseContext {}
 
 /// The sources that have a reparse context now, for [`release_idle_reparse_contexts()`].
 static SOURCES_WITH_REPARSE_CONTEXT: Mutex<Vec<Weak<ScriptData>>> = Mutex::new(Vec::new());
@@ -141,6 +144,15 @@ struct SpareTreeMemory {
     resolutions: Vec<Resolution>,
     scopes: ScopeTable,
     function_scope_rows: Vec<(u32, u32)>,
+}
+
+/// What a parse of a function again is for.
+struct Reparse {
+    /// The memory for the tree.
+    ast: Ast,
+    row: FunctionRow,
+    stack_limit: usize,
+    inline_argument_limit: usize,
 }
 
 /// The most nodes of a tree whose memory stays around.
@@ -262,7 +274,7 @@ impl ScriptData {
             function_scope_rows: Vec::new(),
         });
         let source = self.positions.source.get();
-        let (ast, node) = {
+        let (ast, node) = with_work_zone(|zone| {
             let mut context = self.reparse_context.lock().expect("a reparse does not panic");
             if context.is_none() {
                 *context = Some(self.make_reparse_context());
@@ -273,34 +285,22 @@ impl ScriptData {
             }
             self.reparse_context_idle_collections.store(0, Ordering::Relaxed);
             let context = context.as_mut().expect("the context was just filled in");
-            let result = match (context, source.as_units()) {
-                (
-                    ReparseContext::Narrow(parser),
-                    ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units),
-                ) => {
-                    parser.tracks_scopes = false;
-                    parser.marks = true;
-                    parser.inline_argument_limit = inline_argument_limit;
-                    let result = self.reparse_code_units(parser, memory.ast, units, row, stack_limit);
-                    parser.tracks_scopes = true;
-                    parser.marks = false;
-                    result
+            let reparse = Reparse {
+                ast: memory.ast,
+                row,
+                stack_limit,
+                inline_argument_limit,
+            };
+            let result = match source.as_units() {
+                ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+                    self.reparse_code_units(zone, context, units, reparse)
                 }
-                (ReparseContext::Wide(parser), ak::Utf16StringUnits::Utf16(units)) => {
-                    parser.tracks_scopes = false;
-                    parser.marks = true;
-                    parser.inline_argument_limit = inline_argument_limit;
-                    let result = self.reparse_code_units(parser, memory.ast, units, row, stack_limit);
-                    parser.tracks_scopes = true;
-                    parser.marks = false;
-                    result
-                }
-                _ => unreachable!("the storage of a source does not change"),
+                ak::Utf16StringUnits::Utf16(units) => self.reparse_code_units(zone, context, units, reparse),
             };
             // NB: Collections counted on while the context was held, and it was not idle then.
             self.reparse_context_idle_collections.store(0, Ordering::Relaxed);
             result
-        }?;
+        })?;
         let tree = SyntaxTree {
             script: self.clone(),
             source,
@@ -320,18 +320,13 @@ impl ScriptData {
     }
 
     fn make_reparse_context(&self) -> ReparseContext {
-        let module = self.program_type == ProgramType::Module;
-        let length = u32_from_usize(self.positions.source.length_in_code_units());
-        let is_wide = self.positions.source.is_wide();
         let interner = Interner::with_names(self.names.parser_names());
-        // SAFETY: The context lives in this ScriptData, whose index stays where it is, since it is shared by an Arc,
-        //         and never changes.
-        unsafe {
-            if is_wide {
-                ReparseContext::Wide(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
-            } else {
-                ReparseContext::Narrow(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
-            }
+        let names = vec![base::UNUSED_NAME; interner.len().next_power_of_two()].into_boxed_slice();
+        ReparseContext {
+            interner,
+            names,
+            stamp: 0,
+            index: FunctionIndex::default(),
         }
     }
 
@@ -340,21 +335,37 @@ impl ScriptData {
     /// to have.
     fn reparse_code_units<U: Unit + Default>(
         &self,
-        parser: &mut Parser<'static, U>,
-        ast: Ast,
+        zone: &Zone,
+        context: &mut ReparseContext,
         source: &[U],
-        row: FunctionRow,
-        stack_limit: usize,
+        reparse: Reparse,
     ) -> Result<(Ast, u32), OutOfStack> {
-        let row_index = row.0 as usize;
+        let row_index = reparse.row.0 as usize;
         let needs_padding = self.index.flags[row_index] & function_flag::REACHES_SOURCE_END != 0;
-        let mut tail = Vec::new();
+        let name_count = context.interner.len();
+        // SAFETY: The index of this ScriptData stays where it is, since the ScriptData is shared by an Arc, and never
+        //         changes.
+        let mut parser = unsafe {
+            Parser::for_reparsing(
+                zone,
+                self.program_type == ProgramType::Module,
+                &mut context.interner,
+                &mut context.names,
+                context.stamp,
+                core::mem::take(&mut context.index),
+                &self.index,
+                u32_from_usize(source.len()),
+            )
+        };
+        parser.tracks_scopes = false;
+        parser.marks = true;
+        parser.inline_argument_limit = reparse.inline_argument_limit;
         // SAFETY: The source outlives the parse, and the first parse found out that the lexer stays clear of its end
         //         unless the tail is what it reads.
         unsafe {
             if needs_padding {
                 let first_read = self.index.params_start[row_index] as usize;
-                tail.reserve_exact(source.len() - first_read + SOURCE_PADDING);
+                let mut tail = ZoneVec::with_capacity_in(source.len() - first_read + SOURCE_PADDING, zone);
                 tail.extend_from_slice(&source[first_read..]);
                 tail.resize(tail.capacity(), U::default());
                 parser.set_reparse_source(tail.as_ptr(), u32_from_usize(first_read), u32_from_usize(source.len()));
@@ -362,12 +373,19 @@ impl ScriptData {
                 parser.set_reparse_source(source.as_ptr(), 0, u32_from_usize(source.len()));
             }
         }
-        parser.stack_limit = stack_limit;
-        parser.ast = ast;
-        let node = parser.reparse_function(row.0);
+        parser.stack_limit = reparse.stack_limit;
+        parser.ast = reparse.ast;
+        let node = parser.reparse_function(reparse.row.0);
         let error = parser.err.take();
-        let ast = std::mem::replace(&mut parser.ast, Ast::unallocated());
-        parser.finish_reparse();
+        let (ast, index, stamp) = parser.end_reparse();
+        context.index = index;
+        context.stamp = stamp;
+        // NB: The name states of the context cover the names it has, and no others.
+        assert_eq!(
+            context.interner.len(),
+            name_count,
+            "a function has only names that the first parse of its source found"
+        );
         match error {
             None => Ok((ast, node)),
             Some(error) => {
@@ -596,7 +614,8 @@ struct ParserOutput {
     first_token_start: u32,
     is_strict_mode: bool,
     has_top_level_await: bool,
-    eval_referenced_private_names: Vec<u32>,
+    eval_referenced_private_names: Vec<Name>,
+    /// Sorted, without duplicates.
     global_names_used_in_with: Vec<u32>,
     lines: LineTable,
 }
@@ -611,9 +630,12 @@ fn parse_code_units<U: Unit + Default>(
     let mut padded = ZoneVec::with_capacity_in(source.len() + SOURCE_PADDING, zone);
     padded.extend_from_slice(source);
     padded.resize(source.len() + SOURCE_PADDING, U::default());
+    let mut interner = Interner::new(source.len());
     // SAFETY: The source is followed by the padding.
     let mut parser = unsafe {
         Parser::new(
+            zone,
+            &mut interner,
             &padded[..source.len()],
             options.program_type == ProgramType::Module,
             if options.keep_whole_tree {
@@ -638,7 +660,10 @@ fn parse_code_units<U: Unit + Default>(
     }
     let top_level_rows =
         (purpose == ParsePurpose::Compile).then(|| parser.parse_top_level_rows(options.program_context()));
-    Ok(ParserOutput {
+    let mut global_names_used_in_with = parser.global_names_used_in_with.take();
+    global_names_used_in_with.sort_unstable();
+    global_names_used_in_with.dedup();
+    let output = ParserOutput {
         top_level_rows,
         root,
         first_token_start: parser.first_token_start,
@@ -646,11 +671,16 @@ fn parse_code_units<U: Unit + Default>(
         has_top_level_await: parser.has_top_level_await,
         ast: parser.ast,
         index: parser.index,
-        interner: parser.interner,
-        eval_referenced_private_names: parser.eval_referenced_private_names,
-        global_names_used_in_with: parser.global_names_used_in_with,
+        eval_referenced_private_names: parser
+            .eval_referenced_private_names
+            .iter()
+            .map(|&name| Name(name))
+            .collect(),
+        global_names_used_in_with: global_names_used_in_with.to_vec(),
         lines,
-    })
+        interner,
+    };
+    Ok(output)
 }
 
 /// Parses `source` at the width of its storage, with the work zone of the thread for the work data of the parse.
@@ -674,9 +704,6 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
     let default_constructor_parameter_name = Name(output.interner.intern_bytes(b"args"));
     let names =
         NameTable::from_parser_names((0..output.interner.len()).map(|name| output.interner.text(u32_from_usize(name))));
-    let mut global_names_used_in_with = output.global_names_used_in_with;
-    global_names_used_in_with.sort_unstable();
-    global_names_used_in_with.dedup();
     output.index.shrink_to_fit();
     let script = Arc::new(ScriptData {
         index: output.index,
@@ -690,7 +717,7 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
         top_level_rows: Mutex::new(output.top_level_rows),
         default_export_name,
         default_constructor_parameter_name,
-        global_names_used_in_with,
+        global_names_used_in_with: output.global_names_used_in_with,
         reparse_context: Mutex::new(None),
         reparse_context_idle_collections: AtomicU8::new(0),
         retains_compiled_functions: AtomicBool::new(false),
@@ -704,11 +731,7 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
         first_token_start: output.first_token_start,
         is_strict_mode: output.is_strict_mode,
         has_top_level_await: options.program_type == ProgramType::Module && output.has_top_level_await,
-        eval_referenced_private_names: output
-            .eval_referenced_private_names
-            .iter()
-            .map(|&name| Name(name))
-            .collect(),
+        eval_referenced_private_names: output.eval_referenced_private_names,
         resolutions: Vec::new(),
         scopes: ScopeTable::default(),
         program_scope_row: 0,

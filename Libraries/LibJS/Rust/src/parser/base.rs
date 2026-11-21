@@ -22,6 +22,10 @@ use super::columns::*;
 use super::intern::Interner;
 use super::token::*;
 use super::unit::Unit;
+use ak::Zone;
+use ak::ZoneMap;
+use ak::ZoneSet;
+use ak::ZoneVec;
 
 pub const USE_DEAD: u32 = u32::MAX;
 /// On the function of a use: the use is inside a `with`.
@@ -223,7 +227,18 @@ pub(crate) struct ProgramContext {
     pub(crate) has_no_globals: bool,
 }
 
+/// The state of a name that no scope declares or uses.
+pub(crate) const UNUSED_NAME: NameState = NameState {
+    use_head: NONE,
+    use_scope: NONE,
+    decl_head: NONE,
+    stamp: 0,
+};
+
+/// A parser, whose work data is in a zone. It lives as long as one parse job: the first parse of a source, or the
+/// parse of one function again.
 pub struct Parser<'a, U: Unit> {
+    pub(crate) zone: &'a Zone,
     /// Where in `rows_by_params_start` the last lookup ended up.
     row_cursor: core::cell::Cell<usize>,
     /// Whether the tree is one for a sweep: rows get marks, and change their tag where a mark is about them.
@@ -258,19 +273,19 @@ pub struct Parser<'a, U: Unit> {
     pub(crate) prev_end: u32,
     pub(crate) prev_start: u32,
     pub(crate) regex_body_end: u32,
-    pub(crate) name_buffer: Vec<u8>,
-    pub interner: Interner,
+    pub(crate) name_buffer: ZoneVec<'a, u8>,
+    pub interner: &'a mut Interner,
 
     pub ast: Ast,
     pub index: FunctionIndex,
-    pub(crate) scratch: Vec<u32>,
+    pub(crate) scratch: ZoneVec<'a, u32>,
     pub(crate) mode: Mode,
     pub(crate) retain: bool,
 
     pub module: bool,
     pub strict: bool,
     pub(crate) ctx: u32,
-    pub(crate) labels: Vec<Label>,
+    pub(crate) labels: ZoneVec<'a, Label>,
     pub(crate) labels_base: u32,
     pub(crate) stack_limit: usize,
     recursion_depth: u32,
@@ -289,18 +304,20 @@ pub struct Parser<'a, U: Unit> {
     /// Whether this is the left side of `for await`, where `async of` is no arrow function.
     pub(crate) for_await_head: bool,
 
-    pub(crate) names: Vec<NameState>,
-    pub(crate) uses: Vec<UseRow>,
-    pub(crate) decls: Vec<DeclRow>,
-    pub(crate) scopes: Vec<Scope>,
+    /// The state of each name, by its id. A parse of a function again has the states of its reparse context, which
+    /// are all clean when it starts and ends.
+    pub(crate) names: &'a mut [NameState],
+    pub(crate) uses: ZoneVec<'a, UseRow>,
+    pub(crate) decls: ZoneVec<'a, DeclRow>,
+    pub(crate) scopes: ZoneVec<'a, Scope>,
     pub(crate) cur_scope: u32,
     pub(crate) cur_func: u32,
     pub(crate) next_scope: u32,
     pub(crate) next_func: u32,
     /// The index row of each function id, or NONE for what only counts as a function.
-    pub(crate) function_rows: Vec<u32>,
+    pub(crate) function_rows: ZoneVec<'a, u32>,
     /// The row whose summary tells of the scopes of each function id, which is that of the function around a `with`.
-    pub(crate) summary_rows: Vec<u32>,
+    pub(crate) summary_rows: ZoneVec<'a, u32>,
     pub(crate) stamp: u32,
 
     pub has_top_level_await: bool,
@@ -314,13 +331,21 @@ pub struct Parser<'a, U: Unit> {
     /// While reparsing: where the function being reparsed starts over.
     pub(crate) reparse_target: u32,
     pub(crate) with_depth: u32,
-    pub(crate) names_used_in_with: Vec<u32>,
-    pub(crate) free_names_scratch: Vec<u32>,
+    pub(crate) names_used_in_with: ZoneVec<'a, u32>,
+    pub(crate) free_names_scratch: ZoneVec<'a, u32>,
     /// The innermost label of each name, as its index in `labels`.
-    pub(crate) label_indices: std::collections::HashMap<u32, u32>,
+    pub(crate) label_indices: ZoneMap<'a, u32, u32>,
     /// The undeclared names that something in a `with` uses, which are not simply globals.
-    pub global_names_used_in_with: Vec<u32>,
-    pub(crate) hoists: Vec<Hoist>,
+    pub global_names_used_in_with: ZoneVec<'a, u32>,
+    pub(crate) hoists: ZoneVec<'a, Hoist>,
+    /// The captures in the order they got resolved, as (index row, name).
+    pub(crate) pending_captures: ZoneVec<'a, (u32, u32)>,
+    /// (index row, entry) for a binding that comes up early, and with bit 31 of the row set, (index row, ordinal) for
+    /// one that is captured.
+    pub(crate) pending_summaries: ZoneVec<'a, (u32, u32)>,
+    /// (index row, where the scope starts, entry) for a binding of a scope inside a function that has to exist when the
+    /// scope starts.
+    pub(crate) pending_scope_bindings: ZoneVec<'a, (u32, u32, u32)>,
     pub(crate) uses_this: bool,
     pub(crate) uses_this_from_environment: bool,
     pub(crate) might_need_arguments: bool,
@@ -338,17 +363,17 @@ pub struct Parser<'a, U: Unit> {
     pub(crate) in_arrow: bool,
 
     /// The private names of each open class, created when a class first declares one.
-    pub(crate) private_declared: Vec<std::collections::HashMap<u32, u8>>,
-    pub(crate) private_used: Vec<(u32, u32)>,
-    pub(crate) class_marks: Vec<(u32, u32)>,
-    pub(crate) export_names: std::collections::HashSet<u32>,
-    pub(crate) export_locals: Vec<(u32, u32)>,
+    pub(crate) private_declared: ZoneVec<'a, ZoneMap<'a, u32, u8>>,
+    pub(crate) private_used: ZoneVec<'a, (u32, u32)>,
+    pub(crate) class_marks: ZoneVec<'a, (u32, u32)>,
+    pub(crate) export_names: ZoneSet<'a, u32>,
+    pub(crate) export_locals: ZoneVec<'a, (u32, u32)>,
 
     pub err: Option<PendingError>,
     /// Whether this is the code of an eval, whose private names the code around it may declare.
     pub initiated_by_eval: bool,
     /// The private names that no class in this code declares, for an eval.
-    pub eval_referenced_private_names: Vec<u32>,
+    pub eval_referenced_private_names: ZoneVec<'a, u32>,
     _marker: core::marker::PhantomData<&'a [U]>,
 }
 
@@ -365,24 +390,54 @@ pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
 impl<'a, U: Unit> Parser<'a, U> {
+    /// A parser for the first parse of `source`, with its work data in `zone` and the names it finds in `interner`.
+    ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
-    pub unsafe fn new(source: &'a [U], module: bool, mode: Mode) -> Self {
+    pub unsafe fn new(zone: &'a Zone, interner: &'a mut Interner, source: &'a [U], module: bool, mode: Mode) -> Self {
         let estimated_nodes = match mode {
             Mode::Lazy => (source.len() / 3 + 16).min(1 << 16),
             Mode::Full => source.len() / 3 + 16,
         };
         let estimated_functions = source.len() / 128;
+        let estimated_uses = (source.len() / 8 + 16).min(1 << 16);
+        let estimated_names = if estimated_uses < 1 << 16 {
+            interner.len().next_power_of_two()
+        } else {
+            1 << 12
+        };
+        let index = FunctionIndex {
+            start: Vec::with_capacity(estimated_functions),
+            params_start: Vec::with_capacity(estimated_functions),
+            end: Vec::with_capacity(estimated_functions),
+            flags: Vec::with_capacity(estimated_functions),
+            length: Vec::with_capacity(estimated_functions),
+            parameter_count: Vec::with_capacity(estimated_functions),
+            ctx: Vec::with_capacity(estimated_functions),
+            name: Vec::with_capacity(estimated_functions),
+            capture_start: Vec::with_capacity(estimated_functions),
+            capture_count: Vec::with_capacity(estimated_functions),
+            capture_names: Vec::new(),
+            summaries: Vec::new(),
+            declared_names: Vec::new(),
+            summary_start: Vec::new(),
+            program_summary_end: 0,
+            program_has_direct_eval: false,
+            ..FunctionIndex::default()
+        };
         let mut parser = Self::with_capacities(
+            zone,
             source.as_ptr(),
             source.len(),
             module,
             mode,
-            Interner::new(source.len()),
+            interner,
+            zone.alloc_slice_fill(estimated_names, UNUSED_NAME),
+            index,
             estimated_nodes,
-            estimated_functions,
-            (source.len() / 8 + 16).min(1 << 16),
+            estimated_uses,
         );
+        parser.pending_captures.reserve(estimated_functions * 2);
         if source.len() >= u32::MAX as usize - 64 {
             parser.len = 0;
             parser.fail(0, "Source too long");
@@ -402,48 +457,55 @@ impl<'a, U: Unit> Parser<'a, U> {
         }
     }
 
-    /// A parser that only parses functions again, one at a time, knowing what the first parse of their source found.
-    /// Its source comes with each function.
+    /// A parser that parses one function again, knowing what the first parse of its source found, with its work data in
+    /// `zone`. The names of the source, their states and the index the parser writes to come from the reparse context
+    /// of the source, and go back to it when the parse ends (see `end_reparse()`). Its source comes with the function.
     ///
     /// # Safety
     /// `first_pass_index` must stay valid and unchanged for as long as the parser reparses functions.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn for_reparsing(
+        zone: &'a Zone,
         module: bool,
-        interner: Interner,
+        interner: &'a mut Interner,
+        names: &'a mut [NameState],
+        stamp: u32,
+        index: FunctionIndex,
         first_pass_index: &FunctionIndex,
         source_length: u32,
     ) -> Self {
         let mut parser = Self::with_capacities(
+            zone,
             core::ptr::null(),
             source_length as usize,
             module,
             Mode::Lazy,
             interner,
+            names,
+            index,
             256,
-            0,
             256,
         );
+        parser.stamp = stamp;
         parser.first_pass_index = first_pass_index;
         parser
     }
 
     #[allow(clippy::too_many_arguments)]
     fn with_capacities(
+        zone: &'a Zone,
         source: *const U,
         length: usize,
         module: bool,
         mode: Mode,
-        interner: Interner,
+        interner: &'a mut Interner,
+        names: &'a mut [NameState],
+        index: FunctionIndex,
         estimated_nodes: usize,
-        estimated_functions: usize,
         estimated_uses: usize,
     ) -> Self {
-        let estimated_names = if estimated_uses < 1 << 16 {
-            interner.len().next_power_of_two()
-        } else {
-            1 << 12
-        };
         let mut parser = Self {
+            zone,
             row_cursor: core::cell::Cell::new(0),
             marks: false,
             pseudo_function_row: NONE,
@@ -468,38 +530,17 @@ impl<'a, U: Unit> Parser<'a, U> {
             prev_end: 0,
             prev_start: 0,
             regex_body_end: 0,
-            name_buffer: Vec::new(),
+            name_buffer: ZoneVec::new_in(zone),
             interner,
             ast: Ast::with_capacity(estimated_nodes),
-            index: FunctionIndex {
-                start: Vec::with_capacity(estimated_functions),
-                params_start: Vec::with_capacity(estimated_functions),
-                end: Vec::with_capacity(estimated_functions),
-                flags: Vec::with_capacity(estimated_functions),
-                length: Vec::with_capacity(estimated_functions),
-                parameter_count: Vec::with_capacity(estimated_functions),
-                ctx: Vec::with_capacity(estimated_functions),
-                name: Vec::with_capacity(estimated_functions),
-                capture_start: Vec::with_capacity(estimated_functions),
-                capture_count: Vec::with_capacity(estimated_functions),
-                capture_names: Vec::new(),
-                pending_captures: Vec::with_capacity(estimated_functions * 2),
-                summaries: Vec::new(),
-                declared_names: Vec::new(),
-                summary_start: Vec::new(),
-                pending_summaries: Vec::new(),
-                pending_scope_bindings: Vec::new(),
-                program_summary_end: 0,
-                program_has_direct_eval: false,
-                ..FunctionIndex::default()
-            },
-            scratch: Vec::with_capacity(estimated_uses.min(4096)),
+            index,
+            scratch: ZoneVec::with_capacity_in(estimated_uses.min(4096), zone),
             mode,
             retain: true,
             module,
             strict: module,
             ctx: if module { ctx::CAN_AWAIT } else { 0 },
-            labels: Vec::new(),
+            labels: ZoneVec::new_in(zone),
             labels_base: 0,
             stack_limit: 0,
             recursion_depth: 0,
@@ -512,24 +553,16 @@ impl<'a, U: Unit> Parser<'a, U> {
             last_arrow: 0,
             parenthesized_expression_start: NONE,
             for_await_head: false,
-            names: vec![
-                NameState {
-                    use_head: NONE,
-                    use_scope: NONE,
-                    decl_head: NONE,
-                    stamp: 0
-                };
-                estimated_names
-            ],
-            uses: Vec::with_capacity(estimated_uses),
-            decls: Vec::with_capacity(estimated_uses / 16),
-            scopes: Vec::with_capacity((length / 64 + 1).min(256)),
+            names,
+            uses: ZoneVec::with_capacity_in(estimated_uses, zone),
+            decls: ZoneVec::with_capacity_in(estimated_uses / 16, zone),
+            scopes: ZoneVec::with_capacity_in((length / 64 + 1).min(256), zone),
             cur_scope: 0,
             cur_func: 0,
             next_scope: 1,
             next_func: 1,
-            function_rows: vec![NONE],
-            summary_rows: vec![PROGRAM_SUMMARY_ROW],
+            function_rows: ZoneVec::from_slice_in(&[NONE], zone),
+            summary_rows: ZoneVec::from_slice_in(&[PROGRAM_SUMMARY_ROW], zone),
             stamp: 0,
             has_top_level_await: false,
             first_token_start: 0,
@@ -540,11 +573,14 @@ impl<'a, U: Unit> Parser<'a, U> {
             first_pass_index: core::ptr::null(),
             reparse_target: NONE,
             with_depth: 0,
-            names_used_in_with: Vec::new(),
-            free_names_scratch: Vec::new(),
-            label_indices: std::collections::HashMap::new(),
-            global_names_used_in_with: Vec::new(),
-            hoists: Vec::new(),
+            names_used_in_with: ZoneVec::new_in(zone),
+            free_names_scratch: ZoneVec::new_in(zone),
+            label_indices: ZoneMap::new_in(zone),
+            global_names_used_in_with: ZoneVec::new_in(zone),
+            hoists: ZoneVec::new_in(zone),
+            pending_captures: ZoneVec::new_in(zone),
+            pending_summaries: ZoneVec::new_in(zone),
+            pending_scope_bindings: ZoneVec::new_in(zone),
             uses_this: false,
             uses_this_from_environment: false,
             might_need_arguments: false,
@@ -554,14 +590,14 @@ impl<'a, U: Unit> Parser<'a, U> {
             in_class_of_sloppy_function: false,
             in_arrow: false,
 
-            private_declared: Vec::new(),
-            private_used: Vec::new(),
-            class_marks: Vec::new(),
-            export_names: std::collections::HashSet::new(),
-            export_locals: Vec::new(),
+            private_declared: ZoneVec::new_in(zone),
+            private_used: ZoneVec::new_in(zone),
+            class_marks: ZoneVec::new_in(zone),
+            export_names: ZoneSet::new_in(zone),
+            export_locals: ZoneVec::new_in(zone),
             err: None,
             initiated_by_eval: false,
-            eval_referenced_private_names: Vec::new(),
+            eval_referenced_private_names: ZoneVec::new_in(zone),
             _marker: core::marker::PhantomData,
         };
         // NB: Code can start parsing with less stack left than the budget, as eval near the end of the stack does.
@@ -611,7 +647,7 @@ impl<'a, U: Unit> Parser<'a, U> {
     /// Goes through the top level once more with marks for a sweep, past all functions, after a parse that went well.
     pub(crate) fn parse_top_level_rows(&mut self, context: ProgramContext) -> Result<(Ast, u32), super::OutOfStack> {
         let tree = std::mem::replace(&mut self.ast, Ast::with_capacity(256));
-        let private_names = std::mem::take(&mut self.eval_referenced_private_names);
+        let private_names = self.eval_referenced_private_names.take();
         let (first_token_start, strict, has_top_level_await) =
             (self.first_token_start, self.strict, self.has_top_level_await);
         self.finish_reparse();
@@ -669,8 +705,8 @@ impl<'a, U: Unit> Parser<'a, U> {
 
     /// Groups the captures by function, now that all of them are known.
     fn group_captures(&mut self) {
+        let pending = self.pending_captures.take();
         let index = &mut self.index;
-        let pending = std::mem::take(&mut index.pending_captures);
         for &(row, _) in &pending {
             index.capture_count[row as usize] += 1;
         }
@@ -680,7 +716,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             next += index.capture_count[row];
         }
         index.capture_names.resize(next as usize, 0);
-        let mut filled = vec![0u32; index.capture_start.len()];
+        let filled = self.zone.alloc_slice_fill(index.capture_start.len(), 0u32);
         for (row, name) in pending {
             let slot = index.capture_start[row as usize] + filled[row as usize];
             filled[row as usize] += 1;
@@ -710,16 +746,16 @@ impl<'a, U: Unit> Parser<'a, U> {
                 }
             }
         }
+        let mut pending = self.pending_summaries.take();
         let index = &mut self.index;
-        let mut pending = std::mem::take(&mut index.pending_summaries);
         pending.sort_unstable();
         // NB: Rows with bit 31 set sort after all the others, so that each kind is a run of its own.
         let captured_start = pending.partition_point(|&(row, _)| row & SUMMARY_SLOT_EARLY == 0);
         let (mut early, mut captured) = (0, captured_start);
-        let mut scope_bindings = std::mem::take(&mut index.pending_scope_bindings);
+        let mut scope_bindings = self.pending_scope_bindings.take();
         scope_bindings.sort_unstable();
         let mut scope_binding = 0;
-        let mut bitmap = Vec::new();
+        let mut bitmap = ZoneVec::new_in(self.zone);
         // NB: The top level has no row of its own, so its summary comes first, and it has only scopes in it.
         let of_program = scope_bindings.partition_point(|binding| binding.0 != PROGRAM_SUMMARY_ROW);
         write_varint(&mut index.summaries, 0);
@@ -818,13 +854,12 @@ impl<'a, U: Unit> Parser<'a, U> {
         if scope.flags & scope_flag::VAR_SCOPE == 0 {
             // NB: A `case` can be skipped, so that a declaration in a switch is no sign of having been initialized.
             if is_early || is_captured || scope.flags & scope_flag::SWITCH != 0 {
-                self.index.pending_scope_bindings.push((index_row, scope.start, entry));
+                self.pending_scope_bindings.push((index_row, scope.start, entry));
             }
         } else if is_early {
-            self.index.pending_summaries.push((index_row, entry));
+            self.pending_summaries.push((index_row, entry));
         } else if is_captured {
-            self.index
-                .pending_summaries
+            self.pending_summaries
                 .push((index_row | SUMMARY_SLOT_EARLY, summary_slot));
         }
     }
@@ -889,11 +924,11 @@ impl<'a, U: Unit> Parser<'a, U> {
             return "Unexpected end of input".to_string();
         }
         let end = self.tok_end.min(self.tok_start + LONGEST_TOKEN_SHOWN);
-        let units: Vec<u16> = (self.tok_start..end)
-            .map(|index| self.at(index as usize) as u16)
+        let token: String = char::decode_utf16((self.tok_start..end).map(|index| self.at(index as usize) as u16))
+            .map(|unit| unit.unwrap_or(char::REPLACEMENT_CHARACTER))
             .collect();
         let ellipsis = if end < self.tok_end { "..." } else { "" };
-        format!("Unexpected token '{}{ellipsis}'", String::from_utf16_lossy(&units))
+        format!("Unexpected token '{token}{ellipsis}'")
     }
 
     #[inline(always)]
@@ -1137,15 +1172,9 @@ impl<'a, U: Unit> Parser<'a, U> {
     #[inline(never)]
     fn grow_names(&mut self, name: u32) {
         let new_len = ((name as usize + 1) * 2).next_power_of_two();
-        self.names.resize(
-            new_len,
-            NameState {
-                use_head: NONE,
-                use_scope: NONE,
-                decl_head: NONE,
-                stamp: 0,
-            },
-        );
+        let names = self.zone.alloc_slice_fill(new_len, UNUSED_NAME);
+        names[..self.names.len()].copy_from_slice(self.names);
+        self.names = names;
     }
 
     #[inline(always)]
@@ -1218,9 +1247,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             if use_func != func {
                 let index_row = self.function_rows[use_func as usize];
                 if index_row != NONE {
-                    self.index
-                        .pending_captures
-                        .push((index_row, name | (row.func & USE_IN_WITH)));
+                    self.pending_captures.push((index_row, name | (row.func & USE_IN_WITH)));
                 }
             }
             use_row = row.prev;
@@ -1388,7 +1415,7 @@ impl<'a, U: Unit> Parser<'a, U> {
                         // SAFETY: Every function id has a row here.
                         let index_row = unsafe { *self.function_rows.get_unchecked(func as usize) };
                         if index_row != NONE {
-                            self.index.pending_captures.push((index_row, name | in_with));
+                            self.pending_captures.push((index_row, name | in_with));
                         }
                     }
                     head = row.prev;
@@ -1564,7 +1591,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             if use_func != func {
                 let index_row = self.function_rows[use_func as usize];
                 if index_row != NONE {
-                    self.index.pending_captures.push((index_row, name | in_with));
+                    self.pending_captures.push((index_row, name | in_with));
                 }
             }
         }
@@ -2179,6 +2206,13 @@ impl<'a, U: Unit> Parser<'a, U> {
         self.len = length;
     }
 
+    /// Ends the parse of a function again, whether it went well or not. Gives back the tree, and the index and the stamp
+    /// for the reparse context, whose name states are clean again.
+    pub(crate) fn end_reparse(mut self) -> (Ast, FunctionIndex, u32) {
+        self.finish_reparse();
+        (self.ast, self.index, self.stamp)
+    }
+
     /// Gets ready for the next function, whether this one went well or not.
     pub(crate) fn finish_reparse(&mut self) {
         for row in &self.uses {
@@ -2246,7 +2280,7 @@ impl<'a, U: Unit> Parser<'a, U> {
         self.open_scope_with(0, 0);
         // The class around the function, if any, already checked its private names.
         self.class_marks.push((0, 0));
-        self.private_declared.push(std::collections::HashMap::new());
+        self.private_declared.push(ZoneMap::new_in(self.zone));
         self.pos = params_start;
         self.tok_end = params_start;
         self.prev_end = params_start;
@@ -2374,7 +2408,7 @@ impl<'a, U: Unit> Parser<'a, U> {
     pub(crate) fn note_uses_of_nested_functions(&mut self, mark: u32, func: u32) {
         self.stamp += 1;
         let stamp = self.stamp;
-        let mut nested_names = std::mem::take(&mut self.free_names_scratch);
+        let mut nested_names = self.free_names_scratch.take();
         nested_names.clear();
         for row in &self.uses[mark as usize..] {
             if row.name == USE_DEAD || row.func & !USE_IN_WITH == func {
@@ -2414,7 +2448,7 @@ impl<'a, U: Unit> Parser<'a, U> {
     fn collapse_uses(&mut self, mark: u32, func: u32) {
         self.stamp += 1;
         let stamp = self.stamp;
-        let mut free_names = std::mem::take(&mut self.free_names_scratch);
+        let mut free_names = self.free_names_scratch.take();
         free_names.clear();
         let mut i = self.uses.len();
         while i > mark as usize {
