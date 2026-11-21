@@ -103,7 +103,7 @@ pub(super) struct TextRenderingKey {
     locale: Option<Vec<u16>>,
 }
 
-fn transform_uses_locale(transform: u8) -> bool {
+pub(super) fn transform_uses_locale(transform: u8) -> bool {
     matches!(
         transform,
         text_transform::LOWERCASE | text_transform::UPPERCASE | text_transform::CAPITALIZE

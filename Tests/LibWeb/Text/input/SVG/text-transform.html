@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<svg width="600" height="300" font-family="SerenitySans" font-size="20">
+    <text id="uppercase" x="10" y="30" style="text-transform: uppercase">trees</text>
+    <text id="literal" x="10" y="60">TREES</text>
+    <text id="capitalize" x="10" y="90" style="text-transform: capitalize">hello world</text>
+    <text id="capitalized" x="10" y="120">Hello World</text>
+    <text id="with-tspan" x="10" y="150">a<tspan style="text-transform: uppercase">bcd</tspan>e</text>
+    <text id="literal-tspan" x="10" y="180">aBCDe</text>
+    <defs><path id="path" d="M 10 240 H 500" /></defs>
+    <text id="on-path"><textPath href="#path" style="text-transform: uppercase">trees</textPath></text>
+    <text id="expanding" x="10" y="270" style="text-transform: uppercase">straße!</text>
+    <text id="spaced" x="300" y="30" style="text-transform: uppercase"> a <tspan> b </tspan> c </text>
+</svg>
+<script>
+    test(() => {
+        const byId = id => document.getElementById(id);
+        const length = id => byId(id).getComputedTextLength();
+        println(`uppercase matches literal capitals: ${length("uppercase") === length("literal")}`);
+        println(`capitalize matches literal capitals: ${length("capitalize") === length("capitalized")}`);
+        println(`uppercase tspan matches literal capitals: ${length("with-tspan") === length("literal-tspan")}`);
+        println(`uppercase textPath matches literal capitals: ${length("on-path") === length("literal")}`);
+
+        // SVG DOM indices address the characters before the transform, so the two capitals that ß becomes make up
+        // the one cell of its character.
+        const expanding = byId("expanding");
+        println(`characters: ${expanding.getNumberOfChars()}`);
+        const starts = [];
+        for (let i = 0; i < expanding.getNumberOfChars(); ++i)
+            starts.push(expanding.getStartPositionOfChar(i).x);
+        println(`start positions: ${starts.join(" ")}`);
+        println(`ß is wider than one capital S: ${expanding.getExtentOfChar(4).width > expanding.getExtentOfChar(0).width}`);
+
+        // White space processing collapses the spaces around transformed characters as around any others.
+        println(`characters with spaces collapsed: ${byId("spaced").getNumberOfChars()}`);
+    });
+</script>
