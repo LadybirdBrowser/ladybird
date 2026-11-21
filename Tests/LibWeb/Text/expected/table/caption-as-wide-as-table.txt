@@ -1,0 +1,12 @@
+content: table x 1 w 475, caption x 1 w 475 h 20
+fixed: table x 1 w 600, caption x 1 w 600 h 20
+bottom: table x 1 w 600, caption x 1 w 600 h 20
+margin-auto: table x 1 w 600, caption x 1 w 600 h 20
+narrow: table x 1 w 100, caption x 1 w 100 h 20
+caption-margins: table x 1 w 600, caption x 21 w 560 h 20
+caption-width-pct: table x 1 w 600, caption x 1 w 300 h 20
+float: table x 1 w 600, caption x 1 w 600 h 20
+flex-item: table x 1 w 600, caption x 1 w 600 h 20
+long-caption: table x 1 w 600, caption x 1 w 600 h 20
+inline-table: table x 1 w 600, caption x 1 w 600 h 20
+rtl: table x -299 w 600, caption x -299 w 600 h 20

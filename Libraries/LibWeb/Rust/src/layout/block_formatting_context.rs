@@ -1986,15 +1986,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             replaced_inline_size
         } else if facts.is_table_wrapper() {
             // NB: An auto-width table shrinks to fit the space next to floats. A table with a specified width does not,
-            //     so clamp it against the containing block instead. That way a table which is too wide for the space
-            //     next to floats reports its real size and gets placed below the floats.
+            //     so its percentages resolve against the containing block instead. Either way, the wrapper reports the
+            //     real size of the table, so that a table too wide for the space next to floats is placed below them.
             let table_has_specified_inline_size = !self.style(sizing.table_box_inside_wrapper(node)).width().is_auto();
             let (inline_size, table_inline_layout) = sizing.compute_table_box_inline_size_inside_wrapper(
                 node,
                 remaining_available_space,
                 constraints,
                 table_has_specified_inline_size.then_some(available_inline_size),
-                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                formatting_context::TableWrapperInlineSizeMode::ShrinkToAvailableInlineSize,
             );
             if node != self.run.box_ {
                 self.keep_table_inline_layout_of(node, table_inline_layout);

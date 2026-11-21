@@ -1,0 +1,13 @@
+too-wide: x 0 y 100 w 485
+fits: x 0 y 0 w 194
+wraps-to-fit: x 0 y 0 w 400
+wider-than-line: x 0 y 100 w 679
+left-float-too-wide: x 0 y 100 w 485
+fixed-450: x 0 y 100 w 450
+pct-80: x 0 y 100 w 480
+two-floats-stepped: x 0 y 100 w 456
+caption: x 0 y 100 w 485
+rtl-too-wide: x 115 y 100 w 485
+pct-margin-left-wraps: x 60 y 0 w 340
+pct-margin-right-wraps: x 0 y 0 w 400
+left-float-pct-margin-wraps: x 200 y 0 w 400
