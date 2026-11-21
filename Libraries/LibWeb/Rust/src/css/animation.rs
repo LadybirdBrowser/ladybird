@@ -695,6 +695,7 @@ fn resolve_animation_declarations(
 
     let mut uses_tree_counting_function = false;
     let mut container_relative_length_unit_mask = 0;
+    let mut font_metric_reads = FontMetricReads::default();
     let mut needs_document_base_url = false;
     let mut random_sharing_sources = Vec::new();
     for property in &properties {
@@ -714,6 +715,21 @@ fn resolve_animation_declarations(
         let dependencies = crate::css::style_compute::external_value_dependencies(value);
         uses_tree_counting_function |= dependencies.uses_tree_counting_function;
         container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
+        // NB: A font-size reads the parent's font, and an `lh` in a line-height the parent's line height, which a
+        //     `normal` one takes from the parent's font. Any other length reads the element's own font.
+        if dependencies.font_metric_relative_length {
+            match property.physical_property_id {
+                crate::css::property_metadata::property_id::FONT_SIZE => font_metric_reads.parent = true,
+                crate::css::property_metadata::property_id::LINE_HEIGHT => {
+                    let (line_height_reads, glyph_metric_reads) =
+                        crate::css::style_compute::font_metric_length_reads(value);
+                    font_metric_reads.parent |= line_height_reads;
+                    font_metric_reads.own |= glyph_metric_reads;
+                }
+                _ => font_metric_reads.own = true,
+            }
+        }
+        font_metric_reads.root |= dependencies.root_font_reads == crate::css::style_compute::RootFontReads::Metrics;
         needs_document_base_url |= dependencies.needs_document_base_url;
         if dependencies.has_unfixed_random_sharing {
             crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut random_sharing_sources);
@@ -740,10 +756,20 @@ fn resolve_animation_declarations(
         value_plans,
         uses_tree_counting_function,
         container_relative_length_unit_mask,
+        font_metric_reads,
         needs_document_base_url,
         unfixed_random_sharings,
         ..ResolvedAnimationDeclarations::default()
     }
+}
+
+/// Which first available fonts the keyframe values of an element's effects resolve lengths against
+/// a metric of: the element's own, its parent's for its font-size, or the document element's.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct FontMetricReads {
+    pub(crate) own: bool,
+    pub(crate) parent: bool,
+    pub(crate) root: bool,
 }
 
 /// The declarations of the effects an element samples, resolved into what the animation core
@@ -757,6 +783,7 @@ pub(crate) struct ResolvedAnimationDeclarations {
     value_plans: Vec<AnimationValuePlan>,
     pub(crate) uses_tree_counting_function: bool,
     pub(crate) container_relative_length_unit_mask: u8,
+    pub(crate) font_metric_reads: FontMetricReads,
     pub(crate) needs_document_base_url: bool,
     pub(crate) unfixed_random_sharings: Vec<AnimationUnfixedRandomSharing>,
 }
@@ -8706,13 +8733,17 @@ impl AnimatedCustomProperties {
 
     /// The computed value of one resolved custom-property declaration: the value its source names,
     /// computed against a registration's syntax in the element's computation context, which is
-    /// what gives a registered name its typed interpolation, and as written otherwise.
+    /// what gives a registered name its typed interpolation, and as written otherwise. And what
+    /// computing it read of that context.
     pub(crate) fn computed_value(
         &self,
         registry: &Registry,
         property: &ResolvedAnimationProperty,
         finalization: &crate::css::custom_properties::CustomPropertyFinalization<'_>,
-    ) -> RetainedStyleValueData {
+    ) -> (
+        RetainedStyleValueData,
+        crate::css::custom_properties::RegisteredValueReads,
+    ) {
         let name_id = property.custom_name_id;
         let value = match property.value_source {
             FfiAnimationSpecifiedValueSource::Inherited => self.inherited_value(registry, name_id),
@@ -8721,7 +8752,7 @@ impl AnimatedCustomProperties {
             FfiAnimationSpecifiedValueSource::Value => property.value.clone(),
         };
         if !registry.name_has_syntax(self.units(name_id)) {
-            return value;
+            return (value, Default::default());
         }
         // SAFETY: The sample keeps the name alive while it is retained for the lookup.
         let name = unsafe { ak::Utf16FlyString::from_raw_borrowed(self.name(name_id).raw()) };
@@ -8733,7 +8764,7 @@ impl AnimatedCustomProperties {
                 CustomPropertyValueToFinalize::StyleValue(value),
                 finalization,
             )
-            .map_or_else(|fallback| fallback, |(value, _)| value)
+            .unwrap_or_else(|fallback| (fallback, Default::default()))
     }
 }
 
@@ -9197,6 +9228,7 @@ pub(crate) fn resolve_published_animation_declarations(
         .as_ref()
         .is_some_and(|dependencies| dependencies.sibling_position);
     resolved._base_urls = base_urls;
+    engine.want_first_available_font_loads_for(node, pseudo, resolved.font_metric_reads);
     PublishedAnimationDeclarations {
         resolved: Box::new(resolved),
         custom_properties,

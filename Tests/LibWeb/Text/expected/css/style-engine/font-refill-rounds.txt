@@ -4,7 +4,7 @@ grandchild: 92px, 184px
 before: 58px
 after: 62px
 warm margin: 7px
-metric observation finishes before load: unloaded
+metric observation finishes before load: loading
 explicit completion: loaded
 loaded metrics replace fallback: true
 removal restores fallback: true

@@ -128,15 +128,11 @@ StyleComputer::StyleComputer(DOM::Document& document)
 void StyleComputer::begin_style_update() const
 {
     ++m_style_update_depth;
-    begin_deferred_web_face_loads();
 }
 
 void StyleComputer::end_style_update() const
 {
     VERIFY(m_style_update_depth > 0);
-    // Loading a web face a style selected runs author callbacks and starts a fetch, so it waits for the outermost
-    // update to finish.
-    ScopeGuard load_deferred_web_faces = [] { end_deferred_web_face_loads(); };
     if (--m_style_update_depth != 0)
         return;
     m_style_update_ffi_media_environment.clear();

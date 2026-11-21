@@ -438,7 +438,6 @@ void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const
         fill_loaded_font_faces(move(loaded_face_fills));
     if (!invalidated_font_lists.is_empty() && m_document)
         record_font_input_changes({}, invalidated_font_lists);
-    request_wanted_web_faces();
 }
 
 // Has the style engine record an input change for every element whose style uses a font that resolves differently

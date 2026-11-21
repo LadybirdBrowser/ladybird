@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: RootFace; src: url(../wpt-import/fonts/Ahem.ttf?root); }
+    html { font-family: RootFace; }
+    body { font-family: serif; }
+    #container { container-type: size; width: 400px; height: 100px; }
+    @container (aspect-ratio > calc(2 + sign(1rcap - 30px)) / 1) { #container-child { color: green; } }
+</style>
+<!-- Nothing renders text in the document element's font, so only the rcap length in the
+     container query's ratio can want its face. -->
+<div id="container"><div id="container-child"></div></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const face of document.fonts)
+            println(`${face.family}: ${face.status}`);
+        done();
+    });
+</script>

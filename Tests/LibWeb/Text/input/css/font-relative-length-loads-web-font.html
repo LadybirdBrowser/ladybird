@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: CapFace; src: url(../wpt-import/fonts/Ahem.ttf?cap); }
+    @font-face { font-family: ExFace; src: url(../wpt-import/fonts/Ahem.ttf?ex); }
+    @font-face { font-family: ChFace; src: url(../wpt-import/fonts/Ahem.ttf?ch); }
+    @font-face { font-family: HiddenCapFace; src: url(../wpt-import/fonts/Ahem.ttf?hidden-cap); }
+    @font-face { font-family: ParentExFace; src: url(../wpt-import/fonts/Ahem.ttf?parent-ex); }
+    @font-face { font-family: UnusedFace; src: url(../wpt-import/fonts/Ahem.ttf?unused); }
+    @font-face { font-family: ChildOfParentExFace; src: url(../wpt-import/fonts/Ahem.ttf?child-of-parent-ex); }
+    @font-face { font-family: KeyframeFace; src: url(../wpt-import/fonts/Ahem.ttf?keyframe); }
+    @font-face { font-family: ContainerFace; src: url(../wpt-import/fonts/Ahem.ttf?container); }
+    @font-face { font-family: PseudoKeyframeFace; src: url(../wpt-import/fonts/Ahem.ttf?pseudo-keyframe); }
+    @font-face { font-family: PseudoHostFace; src: url(../wpt-import/fonts/Ahem.ttf?pseudo-host); }
+    @font-face { font-family: CustomPropertyKeyframeFace; src: url(../wpt-import/fonts/Ahem.ttf?custom-property-keyframe); }
+    @font-face { font-family: LineHeightParentFace; src: url(../wpt-import/fonts/Ahem.ttf?line-height-parent); }
+    @font-face { font-family: LineHeightChildFace; src: url(../wpt-import/fonts/Ahem.ttf?line-height-child); }
+    @font-face { font-family: AnimatedLineHeightParentFace; src: url(../wpt-import/fonts/Ahem.ttf?animated-line-height-parent); }
+    @font-face { font-family: AnimatedLineHeightChildFace; src: url(../wpt-import/fonts/Ahem.ttf?animated-line-height-child); }
+    @property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    @keyframes widen { from { width: 10ch; } to { width: 20ch; } }
+    @keyframes lengthen { from { --length: 10cap; } to { --length: 20cap; } }
+    #custom-property-keyframe { font-family: CustomPropertyKeyframeFace; animation: lengthen 100s paused; width: var(--length); }
+    #line-height-parent { font-family: LineHeightParentFace; }
+    #line-height-child { font-family: LineHeightChildFace, serif; line-height: 1lh; }
+    @keyframes heighten { from { line-height: 1lh; } to { line-height: 2lh; } }
+    #animated-line-height-parent { font-family: AnimatedLineHeightParentFace; }
+    #animated-line-height-child { font-family: AnimatedLineHeightChildFace, serif; animation: heighten 100s paused; }
+    #keyframe { font-family: KeyframeFace; animation: widen 100s paused; }
+    #container { font-family: ContainerFace; container-type: inline-size; width: 400px; }
+    @container (width > 10cap) { #container-child { color: green; } }
+    #pseudo-host { font-family: PseudoHostFace; }
+    #pseudo-host::before { content: ""; display: block; font-family: PseudoKeyframeFace; animation: widen 100s paused; }
+    div { font-size: 40px; height: 1px; }
+</style>
+<!-- None of these elements holds text, so only a font-relative length can want their faces: in a style, in an
+     animation's keyframes, or in a container query. A line-height in lh reads the parent's font. -->
+<div id="cap" style="font-family: CapFace; width: 10cap"></div>
+<div id="ex" style="font-family: ExFace; width: 10ex"></div>
+<div id="ch" style="font-family: ChFace; width: 10ch"></div>
+<div id="hidden-cap" style="font-family: HiddenCapFace; width: 10cap; display: none"></div>
+<div style="font-family: ParentExFace"><div id="parent-ex" style="font-family: ChildOfParentExFace, serif; font-size: 1ex"></div></div>
+<div id="unused" style="font-family: UnusedFace; width: 100px"></div>
+<div id="keyframe"></div>
+<div id="container"><div id="container-child"></div></div>
+<div id="pseudo-host"></div>
+<div id="custom-property-keyframe"></div>
+<div id="line-height-parent"><div id="line-height-child"></div></div>
+<div id="animated-line-height-parent"><div id="animated-line-height-child"></div></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const face of document.fonts)
+            println(`${face.family}: ${face.status}`);
+        println(`cap: ${getComputedStyle(document.getElementById("cap")).width}`);
+        println(`parent-ex: ${getComputedStyle(document.getElementById("parent-ex")).fontSize}`);
+        done();
+    });
+</script>
