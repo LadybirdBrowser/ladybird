@@ -200,6 +200,11 @@ impl<'a> ViewLonghands<'a> {
         self.0.payloads.inherited_values().effective_zoom()
     }
 
+    /// The physical sides whose margins the user agent's style sheet sets, in a quirks-mode document.
+    pub(crate) fn user_agent_margin_sides(self) -> u8 {
+        self.0.rare().value_facts.user_agent_margin_sides()
+    }
+
     /// The dependency flags of the record's table, without whether it is in a `display: none`
     /// subtree.
     pub(crate) fn dependency_flags(self) -> u8 {

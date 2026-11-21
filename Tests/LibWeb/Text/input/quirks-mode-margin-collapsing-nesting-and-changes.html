@@ -1,0 +1,56 @@
+<!DOCTYPE quirks>
+<html><head><meta charset="utf-8"><style>body, td, th, .cell { font: 16px/20px sans-serif; } td, th { padding: 0; } table { margin: 0 0 4px; } .m { margin-top: 16px; } .cell { display: table-cell; } .float { float: left; width: 30px; }</style></head>
+<body><div id="body-nested"><div><p>Nested in body</p></div></div>
+<table cellspacing="0"><tr><td id="deep"><div><div><p>Deep</p></div></div></td></tr></table>
+<table cellspacing="0"><tr><td id="blockquote-p"><blockquote><p>Quote</p></blockquote></td></tr></table>
+<table cellspacing="0"><tr><td id="padded-cell" style="padding: 5px 0"><p>Padded</p></td></tr></table>
+<table cellspacing="0"><tr><th id="th"><p>Header</p></th></tr></table>
+<div class="cell" id="css-cell"><p>CSS cell</p></div>
+<table cellspacing="0"><tr><td id="revert"><p style="margin: revert">Revert</p></td></tr></table>
+<table cellspacing="0"><tr><td id="revert-physical-over-logical"><p style="margin-block-start: 40px; margin-top: revert">Revert</p></td></tr></table>
+<table cellspacing="0"><tr><td id="revert-logical-over-physical"><p style="margin-top: 40px; margin-block-start: revert">Revert</p></td></tr></table>
+<table cellspacing="0"><tr><td id="div-border"><div style="border-top: 1px solid"><p>Bordered div</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="h1-then-p"><h1 style="font: inherit">H</h1><p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="br-then-p"><br><p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="clear-short-float"><div class="float" style="height: 16px"></div><div style="clear: left"><p>Clears</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="clear-tall-float"><div class="float" style="height: 30px"></div><div style="clear: left"><p>Clears</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="clear-nested"><div class="float" style="height: 20px"></div><div style="clear: left"><div><p>Clears</p></div></div></td></tr></table>
+<table cellspacing="0"><tr><td id="block-in-inline"><span><p>Block in inline</p></span></td></tr></table>
+<table cellspacing="0"><tr><td id="text-then-block-in-inline">Text<span><p>Block in inline</p></span></td></tr></table>
+<table cellspacing="0"><tr><td id="block-in-inline-then-text"><span><p>Block in inline</p>Text</span></td></tr></table>
+<table cellspacing="0"><tr><td id="vertical-rl-cell" style="writing-mode: vertical-rl"><p>V</p></td></tr></table>
+<table cellspacing="0"><tr><td id="vertical-lr-cell" style="writing-mode: vertical-lr"><p>V</p></td></tr></table>
+<table cellspacing="0"><tr><td id="vertical-rl-two-paragraphs" style="writing-mode: vertical-rl"><p>V</p><p>W</p></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-style"><p>Dynamic style</p></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-text"><p>Dynamic text</p></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-class"><p>Dynamic class</p></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-remove-text">Text<p>Removed text</p></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-float-gone"><div class="float" id="gone-float" style="height: 30px"></div><div style="clear: left"><p>Cleared</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="dyn-first-height"><div id="first-height" style="height: 0"></div><div><p>Sibling grows</p></div></td></tr></table>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    const h = id => Math.round(document.getElementById(id).getBoundingClientRect().height);
+    const lines = [`body-nested: top ${Math.round(document.querySelector("#body-nested p").getBoundingClientRect().top)}`];
+    for (const id of ["deep", "blockquote-p", "padded-cell", "th", "css-cell", "revert", "revert-physical-over-logical", "revert-logical-over-physical", "div-border", "h1-then-p", "br-then-p", "block-in-inline", "text-then-block-in-inline", "block-in-inline-then-text"]) lines.push(`${id}: height ${h(id)}`);
+    const p = id => document.querySelector(`#${id} p`);
+    for (const id of ["vertical-rl-cell", "vertical-lr-cell", "vertical-rl-two-paragraphs"]) lines.push(`${id}: width ${Math.round(document.getElementById(id).getBoundingClientRect().width)}`);
+    for (const id of ["clear-short-float", "clear-tall-float", "clear-nested"]) lines.push(`${id}: height ${h(id)}, p at ${Math.round(p(id).getBoundingClientRect().top - document.getElementById(id).getBoundingClientRect().top)}`);
+    lines.push(`dyn-style before: ${h("dyn-style")}`);
+    p("dyn-style").style.marginTop = "16px"; lines.push(`dyn-style author top: ${h("dyn-style")}`);
+    p("dyn-style").style.marginTop = ""; lines.push(`dyn-style removed: ${h("dyn-style")}`);
+    document.getElementById("dyn-text").prepend("Text"); lines.push(`dyn-text inserted: ${h("dyn-text")}`);
+    document.getElementById("dyn-text").firstChild.remove(); lines.push(`dyn-text removed: ${h("dyn-text")}`);
+    p("dyn-class").classList.add("m"); lines.push(`dyn-class added: ${h("dyn-class")}`);
+    p("dyn-class").classList.remove("m"); lines.push(`dyn-class removed: ${h("dyn-class")}`);
+    document.getElementById("dyn-remove-text").firstChild.remove(); lines.push(`dyn-remove-text: ${h("dyn-remove-text")}`);
+    lines.push(`dyn-float-gone before: ${h("dyn-float-gone")}`);
+    const goneFloat = document.getElementById("gone-float");
+    goneFloat.style.float = "none"; goneFloat.style.height = "0"; lines.push(`dyn-float-gone no longer floated: ${h("dyn-float-gone")}`);
+    lines.push(`dyn-first-height before: ${h("dyn-first-height")}`);
+    document.getElementById("first-height").style.height = "10px"; lines.push(`dyn-first-height 10px: ${h("dyn-first-height")}`);
+    document.getElementById("first-height").style.height = "0"; lines.push(`dyn-first-height 0: ${h("dyn-first-height")}`);
+    for (const line of lines) println(line);
+  });
+</script>
+</body></html>

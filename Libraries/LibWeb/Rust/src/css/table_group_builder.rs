@@ -213,6 +213,14 @@ impl<'a> LonghandSource<'a> {
             Self::Values { values, .. } => values.facts().native_appearance_disabled(),
         }
     }
+
+    /// The physical sides whose margins the user agent's style sheet sets, in a quirks-mode document.
+    fn user_agent_margin_sides(&self) -> u8 {
+        match self {
+            Self::Longhands { longhands, .. } => longhands.user_agent_margin_sides(),
+            Self::Values { values, .. } => values.facts().user_agent_margin_sides(),
+        }
+    }
 }
 
 /// The C++ Color::value() bit layout.
@@ -2521,9 +2529,11 @@ fn build_misc_layout_group(
     parent: GroupShares<'_>,
 ) -> *const c_void {
     let native_appearance_disabled = values.native_appearance_disabled();
+    let user_agent_margin_sides = values.user_agent_margin_sides();
 
-    // NB: The generic builder only decodes property values, which leaves native_appearance_disabled at its default.
-    if !native_appearance_disabled {
+    // NB: The generic builder only decodes property values, which leaves native_appearance_disabled and
+    //     user_agent_margin_sides at their defaults.
+    if !native_appearance_disabled && user_agent_margin_sides == 0 {
         let generic = build_generic_group(group_index::MISC_LAYOUT, values, input, used_color_scheme, parent);
         if !generic.is_null() {
             return generic;
@@ -2628,6 +2638,7 @@ fn build_misc_layout_group(
             payload.appearance = normalized_appearance;
             payload.computed_appearance = computed_appearance;
             payload.native_appearance_disabled = native_appearance_disabled;
+            payload.user_agent_margin_sides = user_agent_margin_sides;
             payload.column_height = ComputedSize::from_data(values.handle(property_id::COLUMN_HEIGHT));
             payload.outline_color = outline_color;
             payload.column_rule_color = column_rule_color;

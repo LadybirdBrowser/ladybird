@@ -36,6 +36,9 @@ pub(super) struct InFlowBlockKey {
     pub(super) initial_containing_block_size: (CssPixels, CssPixels),
     pub(super) document_in_quirks_mode: bool,
     pub(super) document_in_limited_quirks_mode: bool,
+    /// Whether the margins of the contents that collapse with the block-start margin of the box leave out the quirky
+    /// ones, as those collapsing into the block start of a quirks-mode body or table cell do.
+    pub(super) contents_ignore_quirky_margins: bool,
 }
 
 impl InFlowBlockKey {
@@ -46,6 +49,7 @@ impl InFlowBlockKey {
         container_style: StyleValues<'_>,
         stretch_fit_block_margins: (CssPixels, CssPixels),
         incoming_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
+        contents_ignore_quirky_margins: bool,
     ) -> Self {
         Self {
             input,
@@ -67,6 +71,7 @@ impl InFlowBlockKey {
             ),
             document_in_quirks_mode: run.pass.document_in_quirks_mode,
             document_in_limited_quirks_mode: run.pass.document_in_limited_quirks_mode,
+            contents_ignore_quirky_margins,
         }
     }
 }

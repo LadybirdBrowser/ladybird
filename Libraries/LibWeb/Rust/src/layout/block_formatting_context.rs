@@ -503,6 +503,18 @@ struct MarginsOfContents<'scan> {
     /// Answers whether one of the contents that clears the floats on the given sides would get clearance, where the
     /// given margins are those the scan found down to that one's own.
     gets_clearance: &'scan dyn Fn(FloatSides, CollapsedMargins) -> bool,
+    /// Whether the margins the scan finds collapse into the block start of a quirks-mode body or table cell, which
+    /// leaves out the quirky ones among them, as laying them out does.
+    ignores_quirky_margins: bool,
+}
+
+impl MarginsOfContents<'_> {
+    /// Adds a margin of a box, which is a quirky one where `is_quirky` says so.
+    fn add_margin_of_box(&mut self, margin: CssPixels, is_quirky: bool) {
+        if !(is_quirky && self.ignores_quirky_margins) {
+            self.margins = self.margins.with_margin_of_box(margin, is_quirky);
+        }
+    }
 }
 
 /// Where the block-start border edge of a box would go if the box cleared no float.
@@ -539,6 +551,9 @@ fn round_css_pixels(value: CssPixels) -> CssPixels {
 pub(crate) struct CollapsedMargins {
     largest_positive: CssPixels,
     most_negative: CssPixels,
+    /// The largest of the quirky margins among them, which a quirks-mode body or table cell leaves out where they
+    /// collapse into its block end (see `NodeFacts::ignores_quirky_margins_at_its_edges`).
+    largest_quirky: CssPixels,
 }
 
 impl CollapsedMargins {
@@ -556,14 +571,31 @@ impl CollapsedMargins {
         }
     }
 
+    /// These margins with a margin of a box, which is a quirky one where `is_quirky` says so.
+    fn with_margin_of_box(self, margin: CssPixels, is_quirky: bool) -> Self {
+        if !is_quirky || margin < CssPixels::default() {
+            return self.with_margin(margin);
+        }
+        Self {
+            largest_quirky: margin.max(self.largest_quirky),
+            ..self
+        }
+    }
+
     fn collapsed_with(self, other: Self) -> Self {
         Self {
             largest_positive: self.largest_positive.max(other.largest_positive),
             most_negative: self.most_negative.min(other.most_negative),
+            largest_quirky: self.largest_quirky.max(other.largest_quirky),
         }
     }
 
     fn collapsed_margin(self) -> CssPixels {
+        self.largest_positive.max(self.largest_quirky) + self.most_negative
+    }
+
+    /// The collapsed margin of these margins, leaving out the quirky ones.
+    fn collapsed_margin_without_quirky_margins(self) -> CssPixels {
         self.largest_positive + self.most_negative
     }
 }
@@ -593,6 +625,9 @@ pub(crate) struct BlockMarginState {
     continues_enclosing_margins: bool,
     top_margin_group: Option<TopMarginGroup>,
     box_last_in_flow_child_margin_bottom_collapsed: bool,
+    /// Whether the margins since the last reset collapse into the block start of a quirks-mode body or table cell,
+    /// which leaves the quirky ones among them out (see `NodeFacts::ignores_quirky_margins_at_its_edges`).
+    ignores_quirky_margins: bool,
 }
 
 /// Collapses the block-start margin of a reused child whose contents left `margins_left_by_contents` with the margins in
@@ -602,10 +637,11 @@ pub(crate) struct BlockMarginState {
 fn collapse_block_start_margin_of_reused_child(
     margin_state: &mut BlockMarginState,
     cells: &used_values::RootInputCells,
+    margin_top_is_quirky: bool,
     margins_left_by_contents: &mut BlockMarginState,
     introduces_clearance: bool,
 ) -> CssPixels {
-    margin_state.add_margin(cells.margin_top());
+    margin_state.add_margin_of_box(cells.margin_top(), margin_top_is_quirky);
     if introduces_clearance {
         margin_state.reset();
     }
@@ -638,6 +674,16 @@ impl BlockMarginState {
             continues_enclosing_margins: false,
             top_margin_group: None,
             box_last_in_flow_child_margin_bottom_collapsed: false,
+            ignores_quirky_margins: false,
+        }
+    }
+
+    /// This margin state, where the margins since its last reset collapse into the block start of a quirks-mode body or
+    /// table cell if `ignores_quirky_margins` says so.
+    fn ignoring_quirky_margins(self, ignores_quirky_margins: bool) -> Self {
+        Self {
+            ignores_quirky_margins,
+            ..self
         }
     }
 
@@ -685,12 +731,33 @@ impl BlockMarginState {
         }
     }
 
-    pub(crate) fn add_margin(&mut self, margin: CssPixels) {
-        self.margins_since_reset = self.margins_since_reset.with_margin(margin);
+    /// Adds a margin of a box, which is a quirky one where `is_quirky` says so. A quirky margin that collapses into the
+    /// block start of a quirks-mode body or table cell is left out.
+    pub(crate) fn add_margin_of_box(&mut self, margin: CssPixels, is_quirky: bool) {
+        if is_quirky && self.ignores_quirky_margins {
+            return;
+        }
+        self.margins_since_reset = self.margins_since_reset.with_margin_of_box(margin, is_quirky);
+    }
+
+    /// Whether a quirky margin added now would be left out, as it collapses into the block start of a quirks-mode body
+    /// or table cell.
+    pub(crate) fn ignores_quirky_margins(&self) -> bool {
+        self.ignores_quirky_margins
     }
 
     pub(crate) fn current_collapsed_margin(&self) -> CssPixels {
         self.margins_since_reset.collapsed_margin()
+    }
+
+    /// The collapsed margin that stays inside a block container at its block end, which leaves out the quirky margins
+    /// there in a quirks-mode body or table cell (see `NodeFacts::ignores_quirky_margins_at_its_edges`).
+    fn collapsed_margin_at_block_end_of(&self, facts: &NodeFacts<'_>) -> CssPixels {
+        if facts.ignores_quirky_margins_at_its_edges() {
+            self.margins_since_reset.collapsed_margin_without_quirky_margins()
+        } else {
+            self.current_collapsed_margin()
+        }
     }
 
     pub(crate) fn has_open_top_margin_group(&self) -> bool {
@@ -718,6 +785,7 @@ impl BlockMarginState {
         }
         self.margins_since_reset = CollapsedMargins::default();
         self.continues_enclosing_margins = false;
+        self.ignores_quirky_margins = false;
     }
 
     /// Takes in what the contents of a child left in their margin state, `contents`, once they are laid out.
@@ -738,6 +806,9 @@ impl BlockMarginState {
         if !contents.continues_enclosing_margins {
             self.continues_enclosing_margins = false;
         }
+        // Contents that ended the margins collapsing into the block start of a quirks-mode body or table cell end
+        // them here too.
+        self.ignores_quirky_margins &= contents.ignores_quirky_margins;
     }
 
     /// Collapses the margins after a block-level box of the flow: what the contents of the box left in their margin
@@ -751,6 +822,7 @@ impl BlockMarginState {
         collapses_through: bool,
         continues_in_next_fragment: bool,
         margin_bottom: CssPixels,
+        margin_bottom_is_quirky: bool,
     ) -> CssPixels {
         if let Some(contents) = margins_left_by_contents {
             self.take_in_margins_left_by_contents(contents);
@@ -761,7 +833,7 @@ impl BlockMarginState {
             self.reset();
         }
         let margin_before_block_end_margin = self.current_collapsed_margin();
-        self.add_margin(margin_bottom);
+        self.add_margin_of_box(margin_bottom, margin_bottom_is_quirky);
         self.update_open_top_margin_group();
         if collapses_through {
             self.current_collapsed_margin() - margin_before_block_end_margin
@@ -1407,7 +1479,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             previous_line_data: previous_line_data
                 .filter(|_| !aligns_content_in_block_axis(&NodeFacts::new(&run.pass, run.box_))),
             block_offset_of_current_block_container: Cell::new(None),
-            margin_states: RefCell::new(vec![BlockMarginState::of_flow_root(run.box_)]),
+            margin_states: RefCell::new(vec![BlockMarginState::of_flow_root(run.box_).ignoring_quirky_margins(
+                NodeFacts::new(&run.pass, run.box_).ignores_quirky_margins_at_its_edges(),
+            )]),
             outside_marker_line: Cell::new(None),
             outside_marker_line_box_block_size_of_root: Cell::new(None),
             floats: RefCell::new(Vec::new()),
@@ -1603,12 +1677,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         collapses_through: bool,
         continues_in_next_fragment: bool,
         margin_bottom: CssPixels,
+        margin_bottom_is_quirky: bool,
     ) {
         self.margin_state_mut().collapse_margins_after_block_level_box(
             margins_left_by_contents,
             collapses_through,
             continues_in_next_fragment,
             margin_bottom,
+            margin_bottom_is_quirky,
         );
     }
 
@@ -1616,6 +1692,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     /// margins after it. Margins that collapse through the box leave the flow where it is. And where they would but
     /// for its clearance, the flow goes on from where the margins of the box began, `margins_after_clearance` before
     /// its block end.
+    #[allow(clippy::too_many_arguments)]
     fn move_flow_past_block_level_box(
         &self,
         border_box_block_end: CssPixels,
@@ -1624,6 +1701,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         margins_after_clearance: Option<CollapsedMargins>,
         continues_in_next_fragment: bool,
         margin_bottom: CssPixels,
+        margin_bottom_is_quirky: bool,
     ) {
         if let Some(margins_after_clearance) = margins_after_clearance {
             self.block_offset_of_current_block_container
@@ -1644,6 +1722,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             collapses_through,
             continues_in_next_fragment,
             margin_bottom,
+            margin_bottom_is_quirky,
         );
     }
 
@@ -1657,6 +1736,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         margins_after_clearance: Option<CollapsedMargins>,
         continues_in_next_fragment: bool,
         margin_bottom: CssPixels,
+        margin_bottom_is_quirky: bool,
     ) -> CssPixels {
         let states = self.margin_states.borrow();
         let (enclosing, margins_left_by_contents) = if contents_are_in_this_flow {
@@ -1679,6 +1759,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 collapses_through,
                 continues_in_next_fragment,
                 margin_bottom,
+                margin_bottom_is_quirky,
             ),
         }
     }
@@ -3221,10 +3302,15 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .is_some()
         };
         let mut contents = MarginsOfContents {
-            margins: CollapsedMargins::default().with_margin(block_level_box.block_start_margin),
+            margins: CollapsedMargins::default(),
             passed_floats: FloatSides::default(),
             gets_clearance: &gets_clearance,
+            ignores_quirky_margins: self.margin_state().ignores_quirky_margins(),
         };
+        contents.add_margin_of_box(
+            block_level_box.block_start_margin,
+            self.facts(node).has_quirky_block_start_margin(),
+        );
         self.add_margins_of_contents_collapsing_with_block_start_margin(
             node,
             block_level_box.containing_block_inline_size,
@@ -3436,7 +3522,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let margins_before_child = contents.margins;
                 let mut child_sides = used_values::RootInputCells::default();
                 child_sides.resolve_vertical_box_model(&child_style, content_inline_size);
-                contents.margins = contents.margins.with_margin(child_sides.margin_top());
+                contents.add_margin_of_box(child_sides.margin_top(), child_facts.has_quirky_block_start_margin());
                 let margins_collapse_through_child = self.add_margins_of_contents_collapsing_with_block_start_margin(
                     child,
                     content_inline_size,
@@ -3454,7 +3540,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 if !margins_collapse_through_child {
                     return false;
                 }
-                contents.margins = contents.margins.with_margin(child_sides.margin_bottom());
+                contents.add_margin_of_box(child_sides.margin_bottom(), child_facts.has_quirky_block_end_margin());
             }
         }
         margins_can_collapse_through_box_itself(facts, false, || cells.border_box_block_size(false))
@@ -4203,11 +4289,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let is_in_flow_candidate = self.run.fragmentainer.is_some() && self.is_first_or_last_in_flow_candidate(node);
         let discards_block_start_margin =
             is_in_flow_candidate && self.discard_block_start_margin_of_next_child.replace(false);
+        // A quirky block-start margin that collapses into the block start of a quirks-mode body or table cell is left
+        // out, by clearance too.
+        let block_start_margin_is_quirky = self.facts(node).has_quirky_block_start_margin();
+        let ignores_block_start_margin = block_start_margin_is_quirky && self.margin_state().ignores_quirky_margins();
         if !discards_block_start_margin {
             self.margin_state_mut()
-                .add_margin(self.metrics_of(sized_child).margin_top());
+                .add_margin_of_box(self.metrics_of(sized_child).margin_top(), block_start_margin_is_quirky);
         }
-        let block_start_margin = if discards_block_start_margin {
+        let block_start_margin = if discards_block_start_margin || ignores_block_start_margin {
             CssPixels::default()
         } else {
             self.metrics_of(sized_child).margin_top()
@@ -4626,18 +4716,26 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.cells_laid_out_here(sized_child)
                     .available_inner_space_or_constraints_from(available_space)
             };
+            let is_quirky_margin_container = facts.ignores_quirky_margins_at_its_edges();
             let margin_state_of_contents = if self.cells_laid_out_here(sized_child).border_top() > CssPixels::default()
                 || self.cells_laid_out_here(sized_child).padding_top() > CssPixels::default()
             {
                 // margin-top of block container can't collapse with its children if it has non-zero border or padding.
                 self.margin_state_mut().reset();
                 BlockMarginState::of_contents_after_block_start_edge(node)
-            } else if box_opens_top_margin_group {
-                BlockMarginState::of_contents_collapsing_into_own_block_start_margin(node, introduced_clearance)
-            } else if self.margin_state().has_open_top_margin_group() {
-                BlockMarginState::of_contents_joining_enclosing_group(node)
+                    .ignoring_quirky_margins(is_quirky_margin_container)
             } else {
-                BlockMarginState::of_contents_continuing_margins_of(node, &self.margin_state())
+                // Contents whose margins collapse with those before them go on leaving out the quirky margins that
+                // collapse into the block start of a quirks-mode body or table cell.
+                let ignores_quirky_margins = is_quirky_margin_container || self.margin_state().ignores_quirky_margins();
+                if box_opens_top_margin_group {
+                    BlockMarginState::of_contents_collapsing_into_own_block_start_margin(node, introduced_clearance)
+                } else if self.margin_state().has_open_top_margin_group() {
+                    BlockMarginState::of_contents_joining_enclosing_group(node)
+                } else {
+                    BlockMarginState::of_contents_continuing_margins_of(node, &self.margin_state())
+                }
+                .ignoring_quirky_margins(ignores_quirky_margins)
             };
             self.enter_margin_state_of_contents(margin_state_of_contents);
             if is_in_flow_candidate {
@@ -4935,6 +5033,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 margins_after_clearance,
                 fragment_facts.breaks.continues_in_next,
                 metrics.margin_bottom(),
+                self.facts(node).has_quirky_block_end_margin(),
             ));
         let mut deferred_legend = None;
         let mut placed = match pending_position {
@@ -4977,6 +5076,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             margins_after_clearance,
             fragment_facts.breaks.continues_in_next,
             metrics.margin_bottom(),
+            self.facts(node).has_quirky_block_end_margin(),
         );
 
         let content_offset = pending_position.unwrap_or_default();
@@ -5045,8 +5145,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_container.cells.content_inline_size,
             input.containing_block_constraints,
         );
-        self.margin_state_mut()
-            .add_margin(self.metrics_of(sized_child).margin_top());
+        self.margin_state_mut().add_margin_of_box(
+            self.metrics_of(sized_child).margin_top(),
+            self.facts(node).has_quirky_block_start_margin(),
+        );
         self.margin_state_mut().update_open_top_margin_group();
         self.resolve_block_size_known_ahead_of_contents(sized_child, &input);
         let unplaced = self.lay_out_unplaced_block_level_box(
@@ -5170,12 +5272,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             && !container_facts.is_table_wrapper()
     }
 
+    /// The key of the layout of `node` in the flow, whose contents leave out quirky margins where
+    /// `contents_ignore_quirky_margins` says so.
     fn in_flow_block_key_of(
         &self,
         node: Node,
         block_container: Node,
         block_container_inline_size: CssPixels,
         input: LayoutInput,
+        contents_ignore_quirky_margins: bool,
     ) -> in_flow_block_cache::InFlowBlockKey {
         let stretch_fit_block_margins = sizing_context::stretch_fit_block_margins(
             &self.run.pass,
@@ -5189,6 +5294,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.style(block_container),
             stretch_fit_block_margins,
             self.outside_marker_line.get(),
+            contents_ignore_quirky_margins,
         )
     }
 
@@ -5237,7 +5343,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             {
                 return InFlowReuse::Ineligible;
             }
-            let key = self.in_flow_block_key_of(node, block_container, block_container_inline_size, input);
+            let key = self.in_flow_block_key_of(
+                node,
+                block_container,
+                block_container_inline_size,
+                input,
+                self.margin_state().ignores_quirky_margins(),
+            );
             let validity = fc_run_cache::run_root_validity(&self.run.pass, node);
             if fragmentainer.keeps_box_layouts {
                 return self.in_flow_reuse_storing_layout(key, validity, containing_block_position_in_root);
@@ -5267,7 +5379,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             return InFlowReuse::Ineligible;
         }
         let pass = &self.run.pass;
-        let key = self.in_flow_block_key_of(node, block_container, block_container_inline_size, input);
+        let key = self.in_flow_block_key_of(
+            node,
+            block_container,
+            block_container_inline_size,
+            input,
+            self.margin_state().ignores_quirky_margins(),
+        );
         let validity = fc_run_cache::run_root_validity(pass, node);
         let hit = self
             .stored_in_flow_layout_of(node, validity, &key)
@@ -5339,6 +5457,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             collapse_block_start_margin_of_reused_child(
                 &mut margin_state,
                 &entry.cells,
+                self.facts(node).has_quirky_block_start_margin(),
                 &mut margins_left_by_contents,
                 position_past_floats.is_some(),
             )
@@ -5371,8 +5490,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> bool {
         let floats_read = &entry.floats_read_by_contents;
+        // A box that got clearance where it was laid out gets none where no float is left, and clearance resets the
+        // margins its contents collapse with, so its stored layout doesn't stand here either.
         if self.floats.borrow().is_empty() {
-            return floats_read.floats_in_reach.is_empty();
+            return floats_read.floats_in_reach.is_empty() && !floats_read.introduced_clearance;
         }
         self.rebuild_float_bands();
         let flow_position = self.flow_position();
@@ -5404,6 +5525,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             collapse_block_start_margin_of_reused_child(
                 &mut margin_state,
                 &entry.cells,
+                self.facts(node).has_quirky_block_start_margin(),
                 &mut margins_left_by_contents,
                 position_past_floats.is_some(),
             )
@@ -5532,6 +5654,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let block_start_margin = collapse_block_start_margin_of_reused_child(
             &mut self.margin_state_mut(),
             &metrics,
+            self.facts(node).has_quirky_block_start_margin(),
             &mut margins_left_by_contents,
             introduces_clearance,
         );
@@ -5562,6 +5685,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     collapses_through,
                     false,
                     metrics.margin_bottom(),
+                    self.facts(node).has_quirky_block_end_margin(),
                 ),
             }
         };
@@ -5600,6 +5724,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             margins_after_clearance,
             false,
             metrics.margin_bottom(),
+            self.facts(node).has_quirky_block_end_margin(),
         );
         ReusedInFlowChild {
             content_offset,
@@ -5883,11 +6008,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             && !facts.is_list_item_marker_box()
             && self.in_flow_child_depends_only_on_its_key_and_floats(child, block_container.node, None)
         {
+            // A child laid out ahead of the walk is laid out in a flow of its own, from the block start of the run's
+            // root, where it may leave out quirky margins that its place in the walk keeps.
             let key = self.in_flow_block_key_of(
                 child,
                 block_container.node,
                 block_container.cells.content_inline_size,
                 child_input.clone(),
+                NodeFacts::new(pass, self.run.box_).ignores_quirky_margins_at_its_edges(),
             );
             let validity = fc_run_cache::run_root_validity(pass, child);
             if self.stored_in_flow_layout_of(child, validity, &key).is_some() {
@@ -6006,6 +6134,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             collapse_block_start_margin_of_reused_child(
                 &mut margin_state,
                 &entry.cells,
+                self.facts(node).has_quirky_block_start_margin(),
                 &mut margins_left_by_contents,
                 position_past_floats.is_some(),
             )
@@ -7472,7 +7601,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // aggregates margins of trailing collapse-through siblings laid out after that child was
         // placed. It is run output, not a property of that child: the child keeps its own placed
         // margin_bottom, and only the root's automatic block size consumes the aggregate.
-        let collapsed_margin = self.margin_state().current_collapsed_margin();
+        let collapsed_margin = self.margin_state().collapsed_margin_at_block_end_of(&root_facts);
         // NB: Only the automatic block size of a root with block-level children reads the trailing collapsed margin.
         if !root_facts.children_are_inline() {
             let index_of_last_child_margins_do_not_collapse_through =
@@ -7555,11 +7684,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             outcome.is_placed,
             "a block-level box is placed before its line takes it"
         );
+        // The margin after the block counts toward the block size of its block container only where the block ends it,
+        // where a quirks-mode body or table cell leaves out the quirky margins.
+        let block_end_margin = self
+            .margin_state()
+            .collapsed_margin_at_block_end_of(&self.facts(containing_block.node));
         line_builder.append_block_level_box(
             node,
             line_index,
             block_bottom,
-            self.margin_state().current_collapsed_margin(),
+            block_end_margin,
             line_box::BlockLevelBoxOnLine {
                 content_offset: outcome.content_offset,
                 cells: outcome.cells,
@@ -8213,7 +8347,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     if children.is_some_and(|children| children.pending_margins_collapse_through_block_start) {
                         CssPixels::default()
                     } else {
-                        margin_state.current_collapsed_margin()
+                        margin_state.collapsed_margin_at_block_end_of(&facts)
                     };
                 let metrics = self.metrics_of(sized_child);
                 if metrics.padding_bottom() == CssPixels::default() && metrics.border_bottom() == CssPixels::default() {
@@ -8234,7 +8368,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let mut margin_bottom = if self.line_clamp_reached() {
                 last_in_flow_child.margin_bottom
             } else {
-                margin_state.current_collapsed_margin()
+                margin_state.collapsed_margin_at_block_end_of(&facts)
             };
             // https://drafts.csswg.org/css2/#collapsing-margins
             // If the top and bottom margins of an element with clearance are adjoining, its margins collapse with the
