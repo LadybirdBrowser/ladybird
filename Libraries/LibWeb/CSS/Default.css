@@ -436,19 +436,19 @@ rt {
     display: ruby-text;
 }
 
-:link {
+html|*:link {
     color: LinkText;
 }
 
-:visited {
+html|*:visited {
     color: VisitedText;
 }
 
-:link:active, :visited:active {
+html|*:link:active, html|*:visited:active {
     color: ActiveText;
 }
 
-:link, :visited {
+html|*:link, html|*:visited {
     text-decoration: underline;
     cursor: pointer;
 }

@@ -15,6 +15,7 @@
 <svg id="hidden-svg" width="300" height="100" style="font: 40px Ahem">
     <text x="10" y="50">X<tspan visibility="hidden">XXX</tspan></text>
 </svg>
+<p><a id="html-link" href="#target">HTML link</a></p>
 <script>
     asyncTest(async done => {
         await document.fonts.ready;
@@ -34,6 +35,12 @@
         const hiddenBox = document.getElementById("hidden-svg").getBoundingClientRect();
         println(`over the text: ${hit(hiddenBox.left + 30, hiddenBox.top + 30)}`);
         println(`over a hidden tspan in the text: ${hit(hiddenBox.left + 100, hiddenBox.top + 30)}`);
+
+        // The link rules of the HTML rendering section are for HTML elements only.
+        const svgLink = getComputedStyle(document.getElementById("link"));
+        const htmlLink = getComputedStyle(document.getElementById("html-link"));
+        println(`SVG link: text-decoration-line ${svgLink.textDecorationLine}, cursor ${svgLink.cursor}`);
+        println(`HTML link: text-decoration-line ${htmlLink.textDecorationLine}, cursor ${htmlLink.cursor}`);
         done();
     });
 </script>
