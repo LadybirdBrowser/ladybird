@@ -298,6 +298,7 @@ void give_lookahead(RemoteVideoProducer& consumer, VideoFramePool& pool, Functio
 struct LentFrameRecorder : public AtomicRefCounted<LentFrameRecorder> {
     Mutex mutex;
     Vector<RemoteVideoSink::LentFrame> lent_frames;
+    Vector<bool> transmitted_ticking;
 
     size_t count()
     {
@@ -323,8 +324,14 @@ NonnullRefPtr<RemoteVideoSink> make_recorded_sink(LentFrameRecorder& recorder)
     delegates.notify_clock_resumed = [] { };
     delegates.transmit_seek = [](InvalidateHeldData) { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.transmit_ticking = [](bool) { };
-    return MUST(RemoteVideoSink::create(move(delegates)));
+    delegates.transmit_ticking = [recorder = NonnullRefPtr { recorder }](bool ticking) {
+        MutexLocker locker { recorder->mutex };
+        recorder->transmitted_ticking.append(ticking);
+    };
+    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
+    // The consumer these sinks stand in for ticks.
+    sink->set_ticking(true);
+    return sink;
 }
 
 NonnullRefPtr<RemoteVideoSink> make_sink_with_inert_delegates()
@@ -938,6 +945,26 @@ TEST_CASE(sink_seeks_its_input_directly_when_the_consumer_holds_nothing_for_the_
 
     sink->seek_upstream(AK::Duration::from_seconds(2), InvalidateHeldData::No, 0);
     EXPECT_EQ(producer->seek_count(), 2u);
+}
+
+// A consumer that doesn't tick may leave its suspended input be for a seek, so the seek waits for its request. The sink
+// passes the ticking on to the consumer.
+TEST_CASE(sink_leaves_seeks_to_a_consumer_that_does_not_tick)
+{
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
+    sink->set_ticking(false);
+    {
+        MutexLocker locker { recorder->mutex };
+        EXPECT_EQ(recorder->transmitted_ticking, (Vector { true, false }));
+    }
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    sink->seek(AK::Duration::from_seconds(1));
+    EXPECT_EQ(producer->seek_count(), 0u);
+    sink->seek_upstream(AK::Duration::from_seconds(1), InvalidateHeldData::No, 0);
+    EXPECT_EQ(producer->seek_count(), 1u);
 }
 
 // The consumer may seek on its own while a direct seek awaits its request, as when it starts ticking again. Its

@@ -84,6 +84,9 @@ private:
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineResizeHandler m_on_resize;
+    // A seek reaches the input directly, ahead of the consumer's request for it, only while the consumer ticks. One
+    // that doesn't may leave its suspended input be for the seek.
+    bool m_consumer_is_ticking { false };
 };
 
 }
