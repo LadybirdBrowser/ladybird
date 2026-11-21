@@ -1,0 +1,12 @@
+attribute: width 184; 1@123+61 2@62+61 3@1+61
+inherited: width 184; 1@123+61 2@62+61 3@1+61
+ltr-in-rtl-parent: width 184; 1@1+61 2@62+61 3@123+61
+separate: width 196; 1@132+60 2@68+60 3@4+60
+spans: width 196; 1@68+124 2@4+60 3@132+60 4@68+60
+columns: width 176; 1@72+100 2@38+30 3@4+30; colgroup@4+168 col@72+100 col@4+64
+collapsed-border-widths: width 196; 1@131+63 2@70+61 3@5+65
+missing-cell: width 196; 1@132+60 2@68+60 3@4+60 4@132+60
+percentages: width 200; 1@40+160 2@0+40
+three-percentages: width 300; 1@150+150 2@30+120 3@0+30
+span-originates-on-the-right: width 200; @20+180 @0+20; colgroup@0+200 col@20+180 col@20+0 col@0+20
+column-group: width 150; 1@120+30 2@70+50 3@0+70; colgroup@70+80 col@120+30 col@70+50 colgroup@0+70 col@0+70

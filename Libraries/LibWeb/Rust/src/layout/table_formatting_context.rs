@@ -1342,6 +1342,25 @@ impl<'pass> TableFormattingContext<'pass> {
         ranges
     }
 
+    /// Whether the columns of the table run from right to left: "Column boxes are placed next to each other in the
+    /// order they occur. The first column box may be either on the left or on the right, depending on the value of
+    /// the 'direction' property of the table."
+    /// https://www.w3.org/TR/CSS22/tables.html#table-layout
+    /// The columns are counted in the table's column order, from its first column, so only where they are placed
+    /// do they count from the left (see `physical_columns`).
+    fn is_right_to_left(&self) -> bool {
+        self.style(self.run.box_).direction() == direction::RTL
+    }
+
+    /// The columns `columns` of the table's column order, as physical columns counted from the left.
+    fn physical_columns(&self, columns: Range<usize>) -> Range<usize> {
+        if !self.is_right_to_left() {
+            return columns;
+        }
+        let column_count = self.columns.len();
+        column_count - columns.end..column_count - columns.start
+    }
+
     /// The box whose style gives the width specified for the columns of a range, which is also the one that makes
     /// them constrained and gives them a percentage contribution.
     fn column_sizing_box(&self, range: ColumnTrackRange) -> Node {
@@ -1492,18 +1511,20 @@ impl<'pass> TableFormattingContext<'pass> {
             next_source_order += 1;
             source_order
         };
-        // Cells, column by column so that on ties the cell further to the left, then further to the
-        // top, wins. TableCell spans are already clipped to the table end by TableGrid.
+        // Cells, column by column in the table's column order, so that on ties the cell further to the left (to the
+        // right, in a right-to-left table), then further to the top, wins. TableCell spans are already clipped to the
+        // table end by TableGrid. The border grid counts its columns from the left.
         let mut cells = self.cells.clone();
         cells.sort_by_key(|cell| (cell.column_index, cell.row_index));
         for cell in cells {
             let source_order = take_source_order();
+            let columns = self.physical_columns(cell.column_index..cell.column_index + cell.column_span);
             if cell.row_span > 1 || cell.column_span > 1 {
                 grid.hide_segments_inside_span(
                     cell.row_index,
                     cell.row_index + cell.row_span,
-                    cell.column_index,
-                    cell.column_index + cell.column_span,
+                    columns.start,
+                    columns.end,
                     source_order,
                 );
             }
@@ -1512,8 +1533,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 borders,
                 cell.row_index,
                 cell.row_index + cell.row_span,
-                cell.column_index,
-                cell.column_index + cell.column_span,
+                columns.start,
+                columns.end,
                 source_order,
             );
         }
@@ -1559,14 +1580,18 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             let borders = self.element_borders(range.box_);
             let source_order = take_source_order();
+            // A column spanning several columns applies its borders to them in the table's column order, so that where two
+            // of them tie, the one further to the left (to the right, in a right-to-left table) wins.
             for column_index in range.start..range.end {
-                grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, source_order);
+                let column = self.physical_columns(column_index..column_index + 1).start;
+                grid.apply_borders(borders, 0, row_count, column, column + 1, source_order);
             }
         }
         for (column_group, group_start, group_end) in column_group_ranges {
             if group_start < group_end {
                 let borders = self.element_borders(column_group);
-                grid.apply_borders(borders, 0, row_count, group_start, group_end, take_source_order());
+                let columns = self.physical_columns(group_start..group_end);
+                grid.apply_borders(borders, 0, row_count, columns.start, columns.end, take_source_order());
             }
         }
         let table_borders = self.element_borders(self.run.box_);
@@ -1607,8 +1632,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 continue;
             }
             let row_end = cell.row_index + cell.row_span;
-            let column_end = cell.column_index + cell.column_span;
-            let widths = grid.resolve_used_widths_for_cell(cell.row_index, row_end, cell.column_index, column_end);
+            let columns = self.physical_columns(cell.column_index..cell.column_index + cell.column_span);
+            let widths = grid.resolve_used_widths_for_cell(cell.row_index, row_end, columns.start, columns.end);
             let cell_box = &mut self.cell_layouts[cell_index].box_cells;
             cell_box.border_top = widths.top;
             cell_box.border_right = widths.right;
@@ -3703,7 +3728,11 @@ impl<'pass> TableFormattingContext<'pass> {
             // - for top: the height reserved for top captions (including margins), if any
             // - the padding-left/padding-top and border-left-width/border-top-width of the table
             // - the border spacing after each visible column before the cell (in its column's offset)
-            let x = row_content_offset.x + cell_box.border_box_left(collapsed) + self.column_offsets[cell.column_index];
+            let x = row_content_offset.x
+                + cell_box.border_box_left(collapsed)
+                + self.column_offsets[self
+                    .physical_columns(cell.column_index..cell.column_index + cell.column_span)
+                    .start];
             let y = row_content_offset.y + cell_box.border_box_top(collapsed);
             // A relatively positioned cell is offset from where the table places it, as any in-flow box is.
             let insets = abspos_engine::compute_inset_native(
@@ -3788,7 +3817,8 @@ impl<'pass> TableFormattingContext<'pass> {
         debug_assert_eq!(placements.len(), self.column_group_and_column_boxes.len());
         for (placement_index, (node, group_placement, start, end)) in placements.into_iter().enumerate() {
             let inline_size = if (start..end).any(|index| !self.columns[index].is_collapsed) {
-                column_offsets[end] - column_offsets[start] - inline_spacing
+                let columns = self.physical_columns(start..end);
+                column_offsets[columns.end] - column_offsets[columns.start] - inline_spacing
             } else {
                 CssPixels::default()
             };
@@ -3808,7 +3838,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = &column_box.cells;
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(block_size);
-            let mut x = inline_offset + column_offsets[start];
+            let mut x = inline_offset + column_offsets[self.physical_columns(start..end).start];
             let mut y = block_start;
             if let Some((group, group_box)) =
                 group_placement.map(|group_placement| &self.column_group_and_column_boxes[group_placement])
@@ -3900,13 +3930,19 @@ impl<'pass> TableFormattingContext<'pass> {
         distribute_inline_size(&mut self.columns, assignable, fixed);
         self.remove_collapsed_columns();
         let inline_spacing = self.border_spacing_inline();
-        self.column_offsets = grid_line_offsets(self.columns.iter().map(|column| {
+        // The offsets of the columns are physical ones, from the left, as those of the collapsed borders are.
+        let column_inline_size = |column: &Column| {
             if column.is_collapsed {
                 CssPixels::default()
             } else {
                 column.used_inline_size + inline_spacing
             }
-        }));
+        };
+        self.column_offsets = if self.is_right_to_left() {
+            grid_line_offsets(self.columns.iter().rev().map(column_inline_size))
+        } else {
+            grid_line_offsets(self.columns.iter().map(column_inline_size))
+        };
         self.compute_table_block_size(run);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
