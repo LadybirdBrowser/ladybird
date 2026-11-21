@@ -269,7 +269,7 @@ impl<'a> PlannedBox<'a> {
 
     /// Whether the box's display, as table fixup reads it, is table-internal or a caption.
     pub(crate) fn is_table_non_root_for_table_fixup(&self) -> bool {
-        if !self.is_out_of_flow()
+        if !(self.has_fact(box_fact::HAS_STYLE) && self.has_fact(box_fact::ABSOLUTELY_POSITIONED))
             || self.has_flag(NodeFlag::IsReplacedElement)
             || self.has_flag(NodeFlag::Anonymous)
             || self.has_flag(NodeFlag::UsesButtonLayout)
