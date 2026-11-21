@@ -21,6 +21,8 @@ pub(crate) mod buffer_source;
 #[cfg(not(test))]
 pub(crate) mod canvas;
 #[cfg(not(test))]
+pub(crate) mod context_loss;
+#[cfg(not(test))]
 pub(crate) mod exports;
 #[cfg(not(test))]
 pub(crate) mod extensions;

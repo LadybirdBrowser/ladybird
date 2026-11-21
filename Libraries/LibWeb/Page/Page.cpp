@@ -15,6 +15,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -66,6 +67,13 @@
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebCommon/Loader/ContentBlocking.h>
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/web_gl/exports.rs.
+void web_webgl_lose_contexts_of_this_thread(JSVM*);
+void web_webgl_restore_contexts_of_this_thread(JSVM*);
+}
 
 namespace Web {
 
@@ -2031,6 +2039,7 @@ void Page::prepare_canvas_contexts_for_compositing()
 
 void Page::notify_all_canvas_elements_of_lost_backing_storage()
 {
+    web_webgl_restore_contexts_of_this_thread(JS::HostABI::vm_to_abi(JS::VM::the()));
     for_each_canvas_element([](auto& canvas_element) {
         canvas_element.notify_compositor_backing_storage_lost();
     });
@@ -2038,9 +2047,7 @@ void Page::notify_all_canvas_elements_of_lost_backing_storage()
 
 void Page::notify_all_webgl_contexts_lost()
 {
-    for_each_canvas_element([](auto& canvas_element) {
-        canvas_element.notify_compositor_connection_lost();
-    });
+    web_webgl_lose_contexts_of_this_thread(JS::HostABI::vm_to_abi(JS::VM::the()));
 }
 
 void Page::record_context_menu_request(Badge<EventHandler>, ContextMenuRequest request)

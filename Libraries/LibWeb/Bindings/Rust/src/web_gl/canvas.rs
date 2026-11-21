@@ -14,6 +14,7 @@ use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use crate::bindings::conversions::CppInterface;
+use crate::bindings::event_target::CppEventTarget;
 use crate::canvas_2d::host::TransportAbi;
 use crate::compositor_connection::CompositorConnection;
 
@@ -28,6 +29,8 @@ pub(crate) enum TexImageSourceKind {
 
 unsafe extern "C" {
     fn web_webgl_canvas_did_change_content(canvas_host: *mut c_void);
+    fn web_webgl_canvas_did_create_backing_storage(canvas_host: *mut c_void);
+    fn web_webgl_canvas_event_target(canvas_host: *mut c_void) -> *mut c_void;
     fn web_webgl_canvas_bitmap_size(canvas_host: *mut c_void, out_width: *mut i32, out_height: *mut i32);
     fn web_webgl_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_webgl_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
@@ -49,6 +52,15 @@ pub(crate) struct Canvas {
 impl Canvas {
     pub(crate) fn did_change_content(self) {
         unsafe { web_webgl_canvas_did_change_content(self.host.as_ptr()) };
+    }
+
+    pub(crate) fn did_create_backing_storage(self) {
+        unsafe { web_webgl_canvas_did_create_backing_storage(self.host.as_ptr()) };
+    }
+
+    pub(crate) fn event_target(self) -> CppEventTarget {
+        // SAFETY: The event target of a canvas is the canvas.
+        unsafe { CppEventTarget::from_raw(web_webgl_canvas_event_target(self.host.as_ptr())) }
     }
 
     pub(crate) fn compositor_connection(self) -> Option<CompositorConnection> {

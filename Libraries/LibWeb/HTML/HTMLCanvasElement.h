@@ -86,8 +86,6 @@ public:
 
     void ensure_backing_storage();
 
-    void notify_compositor_connection_lost();
-
 private:
     HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
 

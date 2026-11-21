@@ -49,8 +49,6 @@ JS::ThrowCompletionOr<ContextAttributes> convert_to_context_attributes(JS::VM&, 
 // (Libraries/LibWeb/Bindings/Rust/src/web_gl): what the rest of LibWeb calls, and what the Rust code calls back.
 class WEB_API WebGLRenderingContextBase : public Bindings::RustInterfaceCell {
 public:
-    HTML::CanvasHost& canvas_host() const;
-
     bool is_context_lost() const;
     Optional<Compositing::CanvasId> canvas_id() const;
 
@@ -59,16 +57,6 @@ public:
     void prepare_for_compositing();
     void clear_drawing_buffer();
     Optional<Gfx::DecodedImageFrame> read_back_drawing_buffer(Gfx::IntRect const&);
-
-    // https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST
-    // The compositor process (and with it the GL state) went away: set the context lost
-    // flag, stop talking to the dead host, and fire webglcontextlost at the canvas.
-    void lose_context_from_compositor_loss();
-
-    // The compositor came back. If the page asked for restoration (called preventDefault on
-    // webglcontextlost), build a fresh remote context and fire webglcontextrestored so the
-    // page can re-create its now-lost GL resources.
-    void restore_context_after_compositor_reconnect();
 
 protected:
     static WebGLRenderingContextBase* create(JS::Realm&, CanvasOwner, ContextAttributes const&, WebGLVersion);

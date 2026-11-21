@@ -902,7 +902,6 @@ set(SOURCES
     WebDriver/JSON.cpp
     WebDriver/Screenshot.cpp
     WebDriver/UserPrompt.cpp
-    WebGL/EventNames.cpp
     WebGL/RemoteWebGLTransportFFI.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebIDL/AbstractOperations.cpp
