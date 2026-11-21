@@ -1,0 +1,8 @@
+ticking while far below the viewport: false
+frames presented while far below the viewport: 0
+playing while far below the viewport: true
+ticking 100px below the viewport: true
+ticking in the viewport: true
+ticking 400px below the viewport: false
+ticking 400px above the viewport: false
+playing after leaving the viewport: true

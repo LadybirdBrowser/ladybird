@@ -488,6 +488,11 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
 
     old_document.page().active_media_session_tracker().media_element_removed(*this);
 
+    if (auto* video_element = as_if<HTMLVideoElement>(this); video_element && m_active_video_sink) {
+        old_document.stop_observing_video_viewport_intersection(*video_element);
+        document().start_observing_video_viewport_intersection(*video_element);
+    }
+
     // NB: The element's relevant global follows its node document, so the old document's global stops keeping it alive.
     relevant_window_or_worker_global_scope(old_document).set_has_pending_activity(*this, false);
 
@@ -2330,6 +2335,8 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
     }));
     m_active_video_sink = make<ActiveVideoSink>(handle);
     m_video_sink_is_ticking = {};
+    if (auto* video_element = as_if<HTMLVideoElement>(this))
+        document().start_observing_video_viewport_intersection(*video_element);
     add_current_video_sink(handle);
     // NB: The input is not started until the sink's ticking state is decided, which a visible document does in the next
     //     rendering update.
@@ -2367,8 +2374,10 @@ void HTMLMediaElement::release_active_video_sink()
     m_active_video_sink.clear();
     if (m_playback_manager && handle.has_value())
         m_playback_manager->disable_video_sink_by_handle(*handle);
-    if (auto* video_element = as_if<HTMLVideoElement>(this))
+    if (auto* video_element = as_if<HTMLVideoElement>(this)) {
+        document().stop_observing_video_viewport_intersection(*video_element);
         Painting::push_video_paint_facts(*video_element);
+    }
 }
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
@@ -3262,7 +3271,12 @@ bool HTMLMediaElement::video_sink_should_tick(DocumentWasLaidOut document_was_la
     if (document_was_laid_out == DocumentWasLaidOut::No)
         return false;
     auto const* layout_node = this->layout_node(read);
-    return layout_node && Painting::has_committed_box(*layout_node) && Painting::is_visible(*layout_node);
+    if (!layout_node || !Painting::has_committed_box(*layout_node) || !Painting::is_visible(*layout_node))
+        return false;
+    // A video far enough outside the viewport isn't decoded, and resumes from the current time as it comes back.
+    if (auto const* video_element = as_if<HTMLVideoElement>(*this))
+        return document().video_intersects_viewport(*video_element);
+    return true;
 }
 
 void HTMLMediaElement::sync_video_sink_ticking(DocumentWasLaidOut document_was_laid_out) const

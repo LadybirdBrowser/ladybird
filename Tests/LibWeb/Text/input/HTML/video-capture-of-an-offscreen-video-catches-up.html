@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    video { display: block; width: 64px; height: 36px; }
+</style>
+<div style="height: 5000px"></div>
+<video id="video" muted></video>
+<script>
+    const video = document.getElementById("video");
+
+    // The left half of the video is blue, and the right half gray, 60 shades lighter each second.
+    function describeFrame(source) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 36;
+        const context = canvas.getContext("2d");
+        context.drawImage(source, 0, 0);
+        const [red, green, blue, alpha] = context.getImageData(10, 18, 1, 1).data;
+        if (alpha === 0)
+            return "no frame";
+        if (red > 100 || blue < 150)
+            return "not the video";
+        return `second ${Math.round(context.getImageData(54, 18, 1, 1).data[0] / 60)}`;
+    }
+
+    asyncTest(async done => {
+        await new Promise(resolve => {
+            video.addEventListener("canplaythrough", resolve, { once: true });
+            video.src = "../../../Assets/blue-with-second-in-gray-64x36.webm";
+        });
+
+        // An offscreen video starts without decoding a frame.
+        println(`ticking before capturing: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+        println(`frames presented before capturing: ${video.getVideoPlaybackQuality().totalVideoFrames}`);
+
+        println(`drawImage: ${describeFrame(video)}`);
+        println(`createImageBitmap: ${describeFrame(await createImageBitmap(video))}`);
+        done();
+    });
+</script>
