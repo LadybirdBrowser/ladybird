@@ -59,3 +59,34 @@ TEST_CASE(channel_bitmap_with_top_middle_speakers_names_every_channel)
             Audio::Channel::TopSideLeft,
             Audio::Channel::TopSideRight));
 }
+
+TEST_CASE(channel_bitmap_names_its_channels_in_bit_order)
+{
+    AudioChannelLayout layout {};
+    layout.mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelBitmap;
+    layout.mChannelBitmap = kAudioChannelBit_Left | kAudioChannelBit_Right | kAudioChannelBit_TopCenterSurround | kAudioChannelBit_LeftTopFront | kAudioChannelBit_TopBackLeft;
+
+    auto channel_map = MUST(Audio::core_audio_channel_layout_to_channel_map(layout, sizeof(layout)));
+    EXPECT_EQ(channel_map,
+        Audio::ChannelMap(
+            Audio::Channel::FrontLeft,
+            Audio::Channel::FrontRight,
+            Audio::Channel::TopCenter,
+            Audio::Channel::TopFrontLeft,
+            Audio::Channel::TopBackLeft));
+}
+
+TEST_CASE(channel_bitmap_names_bits_without_a_position_as_unknown_channels)
+{
+    AudioChannelLayout layout {};
+    layout.mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelBitmap;
+    constexpr u32 bit_without_a_position = 1u << 27;
+    layout.mChannelBitmap = kAudioChannelBit_Left | kAudioChannelBit_Right | static_cast<AudioChannelBitmap>(bit_without_a_position);
+
+    auto channel_map = MUST(Audio::core_audio_channel_layout_to_channel_map(layout, sizeof(layout)));
+    EXPECT_EQ(channel_map,
+        Audio::ChannelMap(
+            Audio::Channel::FrontLeft,
+            Audio::Channel::FrontRight,
+            Audio::Channel::Unknown));
+}
