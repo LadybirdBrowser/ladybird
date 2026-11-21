@@ -185,7 +185,7 @@ public:
         Yes,
     };
     void sync_video_sink_ticking(DocumentWasLaidOut = DocumentWasLaidOut::Yes) const;
-    void video_sink_ticking_inputs_changed() const;
+    void video_sink_ticking_inputs_changed();
     void detach_video_sink_edge();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language);
@@ -340,8 +340,9 @@ private:
     virtual bool is_shown_elsewhere() const { return false; }
     virtual HTMLMediaElement& media_element_for_controls() { return *this; }
 
-    // Mirrors what PlaybackManager was last told; a freshly reserved sink is assumed to tick.
-    mutable bool m_video_sink_is_ticking { true };
+    // Mirrors what PlaybackManager was last told. A freshly reserved sink is undecided, and leaves its input unstarted
+    // until the first decision.
+    mutable Optional<bool> m_video_sink_is_ticking;
     void note_frame_captured() const;
 
     bool is_eligible_for_autoplay() const;

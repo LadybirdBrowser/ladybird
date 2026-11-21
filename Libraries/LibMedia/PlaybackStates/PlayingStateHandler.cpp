@@ -46,7 +46,7 @@ void PlayingStateHandler::update_unticked_end_of_stream_timer()
 
     auto latest_verified_end_time = now;
     for (auto const& track_data : manager().m_video_track_datas) {
-        if (!track_data.handle.has_value() || track_data.ticking)
+        if (!track_data.handle.has_value() || track_data.ticking != VideoSinkTicking::No)
             continue;
         if (is_terminal(track_data.sink_status))
             continue;

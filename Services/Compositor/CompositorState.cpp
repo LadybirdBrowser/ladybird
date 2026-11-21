@@ -858,8 +858,8 @@ void CompositorState::catch_up_newly_drawn_screenshot_sinks(PendingScreenshot& s
             }
             screenshot.sinks[*index].is_drawn = true;
             auto& screenshot_sink = screenshot.sinks[*index];
-            // A sink found before its edge attached is caught up once it attaches.
-            if (screenshot_sink.was_asked_to_catch_up || !sink_state->sink)
+            // A sink found before its edge attached or its ticking was decided is caught up once it can be.
+            if (screenshot_sink.was_asked_to_catch_up || !sink_state->sink || !sink_state->sink->ticking_is_decided())
                 continue;
             screenshot_sink.was_asked_to_catch_up = true;
             if (!sink_state->sink->frame_is_up_to_date())
