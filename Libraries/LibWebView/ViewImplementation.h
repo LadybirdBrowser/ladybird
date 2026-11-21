@@ -606,7 +606,7 @@ public:
     void did_open_user_prompt(Badge<WebContentPage>);
 
     // NB: Under WebDriver, a renderer has some of the browser's powers only while it runs a command that needs them.
-    bool is_running_webdriver_command_to_select_file(WebContentPage const&, StringView path) const;
+    bool is_running_webdriver_command_to_select_file(WebContentPage const&, u64 command_id, StringView path) const;
     Optional<URL::URL> url_of_webdriver_cookie_command_running_in(WebContentClient const&) const;
     bool is_running_webdriver_input_command_in(WebContentPage const&) const;
     bool is_running_webdriver_window_command_in(WebContentPage const&) const;

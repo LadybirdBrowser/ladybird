@@ -242,6 +242,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_change_picture_in_picture_video_size(Web::PageId page_id, Gfx::IntSize video_size) =|
     did_change_picture_in_picture_player_controls_visibility(Web::PageId page_id, bool shown) =|
     did_request_file(Web::PageId page_id, ByteString path, i32 request_id) =|
+    did_request_file_for_webdriver(Web::PageId page_id, u64 command_id, ByteString path, i32 request_id) =|
     did_request_color_picker(Web::PageId page_id, Color current_color) =|
     did_request_date_picker(Web::PageId page_id, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum) =|
     did_request_geolocation_position(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId document_id) =|
