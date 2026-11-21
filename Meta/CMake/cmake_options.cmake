@@ -33,6 +33,7 @@ else()
 endif()
 
 option(ENABLE_GUI_TARGETS "Enable building GUI targets" ON)
+option(LADYBIRD_BUILD_QT "Build and bundle Qt with vcpkg on Linux" OFF)
 option(ENABLE_INSTALL_HEADERS "Enable installing headers" ON)
 option(ENABLE_INSTALL_FREEDESKTOP_FILES "Enable installing .desktop and .service files" ${freedesktop_files_default})
 option(LADYBIRD_ENABLE_CPPTRACE "Enable use of cpptrace as the default library for stacktraces. If not available falls back to backtrace.h" ON)
