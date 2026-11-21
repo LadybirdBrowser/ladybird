@@ -51,6 +51,9 @@ mod shape_flag {
     pub const HAS_WATCHED_SLOTS: u8 = 1 << 2;
     /// See `Shape::is_non_extensible()`.
     pub const NON_EXTENSIBLE: u8 = 1 << 3;
+    /// JIT code allocates objects of the shape from a template that holds its address (see
+    /// `Shape::note_in_allocation_template()`).
+    pub const IN_ALLOCATION_TEMPLATE: u8 = 1 << 4;
     /// The flags a shape gets from the shape it comes from.
     pub const INHERITED: u8 = HAS_PARAMETER_MAP | NON_EXTENSIBLE;
     /// An object may have left the shape (see `Shape::is_stable()`).
@@ -323,9 +326,9 @@ define_cell!(Shape, Other);
 // the storage owns.
 unsafe impl Trace for Shape {
     fn trace(&self, visitor: &mut Visitor) {
-        // NB: The VM keeps the compiled code that depends on a shape by the address of the shape, so such a shape
-        //     stays where it is.
-        if self.flags.get() & shape_flag::HAS_DEPENDENT_CODE != 0 {
+        // NB: The VM keeps the compiled code that depends on a shape by the address of the shape, and JIT code copies
+        //     the address from allocation templates, so such shapes stay where they are.
+        if self.flags.get() & (shape_flag::HAS_DEPENDENT_CODE | shape_flag::IN_ALLOCATION_TEMPLATE) != 0 {
             visitor.pin(Gc::from_ref(self));
         }
         self.realm.trace(visitor);
@@ -1318,6 +1321,12 @@ impl Shape {
     /// Notes that JIT code depends on the shape staying stable.
     pub fn set_has_dependent_code(&self) {
         self.flags.set(self.flags.get() | shape_flag::HAS_DEPENDENT_CODE);
+    }
+
+    /// Notes that the words of a template JIT code allocates cells from hold the address of the shape, which keeps the
+    /// shape from moving from now on.
+    pub fn note_in_allocation_template(&self) {
+        self.flags.set(self.flags.get() | shape_flag::IN_ALLOCATION_TEMPLATE);
     }
 
     /// Whether the objects of this shape are not extensible. Preventing extensions moves an object to such a shape, so
