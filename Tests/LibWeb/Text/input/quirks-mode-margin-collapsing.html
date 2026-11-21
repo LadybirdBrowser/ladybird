@@ -1,0 +1,32 @@
+<!DOCTYPE quirks>
+<html><head><meta charset="utf-8"><style>body, td { font: 16px/20px sans-serif; } td { padding: 0; } table { margin: 0 0 4px; }</style></head>
+<body><p id="body-first">First paragraph in the body</p>
+<table cellspacing="0"><tr><td id="one-p"><p>Paragraph</p></td></tr></table>
+<table cellspacing="0"><tr><td id="empty-p-then-text"><p></p>Text</td></tr></table>
+<table cellspacing="0"><tr><td id="two-p"><p>First</p><p>Second</p></td></tr></table>
+<table cellspacing="0"><tr><td id="p-in-div"><div><p>Nested</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="author-margin-same"><p style="margin: 16px 0">Author 16px</p></td></tr></table>
+<table cellspacing="0"><tr><td id="author-margin-top-only"><p style="margin-top: 16px">Author top</p></td></tr></table>
+<table cellspacing="0"><tr><td id="text-then-p">Text<p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="h1-last"><h1 style="font: inherit">H1</h1></td></tr></table>
+<table cellspacing="0"><tr><td id="ul"><ul><li>Item</li></ul></td></tr></table>
+<table cellspacing="0"><tr><td id="form"><form>Form</form></td></tr></table>
+<table cellspacing="0"><tr><td id="div-margin-then-p"><div style="margin-top: 10px"></div><p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="script-then-p"><script>/**/</script><p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="span-then-p"><span></span><p>P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="flex-cell"><div style="display: flex; flex-direction: column"><p>A</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="p-float"><p style="float: left">Float</p>&nbsp;</td></tr></table>
+<table cellspacing="0"><tr><td id="two-empty-p"><p></p><p></p>Text</td></tr></table>
+<table cellspacing="0"><tr><td id="p-then-comment"><p>P</p><!-- c --></td></tr></table>
+<table cellspacing="0"><tr><td id="p-bfc"><p style="overflow: hidden">P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="p-inline-block"><p style="display: inline-block">P</p></td></tr></table>
+<table cellspacing="0"><tr><td id="pre"><pre style="font: inherit">Pre</pre></td></tr></table>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    const lines = [`compatMode: ${document.compatMode}`, `body-first: top ${Math.round(document.getElementById("body-first").getBoundingClientRect().top)}`];
+    for (const td of document.querySelectorAll("td")) lines.push(`${td.id}: cell height ${Math.round(td.getBoundingClientRect().height)}`);
+    for (const line of lines) println(line);
+  });
+</script>
+</body></html>

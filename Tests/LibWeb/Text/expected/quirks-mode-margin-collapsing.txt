@@ -1,0 +1,22 @@
+compatMode: BackCompat
+body-first: top 8
+one-p: cell height 20
+empty-p-then-text: cell height 20
+two-p: cell height 56
+p-in-div: cell height 20
+author-margin-same: cell height 52
+author-margin-top-only: cell height 36
+text-then-p: cell height 56
+h1-last: cell height 31
+ul: cell height 36
+form: cell height 36
+div-margin-then-p: cell height 30
+script-then-p: cell height 20
+span-then-p: cell height 20
+flex-cell: cell height 52
+p-float: cell height 52
+two-empty-p: cell height 20
+p-then-comment: cell height 20
+p-bfc: cell height 20
+p-inline-block: cell height 52
+pre: cell height 20

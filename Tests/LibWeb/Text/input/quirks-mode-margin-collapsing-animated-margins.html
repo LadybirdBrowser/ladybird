@@ -1,0 +1,33 @@
+<!DOCTYPE quirks>
+<html><head><meta charset="utf-8"><style>
+body, td { font: 16px/20px sans-serif; } td { padding: 0; vertical-align: top; } table { margin: 0 0 4px; }
+td p { width: 10px; }
+@keyframes top { from, to { margin-top: 40px; } }
+@keyframes block-start { from, to { margin-block-start: 40px; } }
+@keyframes left { from, to { margin-left: 40px; } }
+.top { animation: top 1000s linear; }
+.block-start { animation: block-start 1000s linear; }
+.left { animation: left 1000s linear; }
+</style></head>
+<body>
+<table cellspacing="0"><tr><td id="animated-top"><p class="top">A</p></td></tr></table>
+<table cellspacing="0"><tr><td id="animated-top-nested"><div><p class="top">A</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="animated-block-start"><p class="block-start">A</p></td></tr></table>
+<table cellspacing="0"><tr><td id="animated-other-side"><p class="left">A</p></td></tr></table>
+<table cellspacing="0"><tr><td id="animated-block-start-vertical-rl" style="writing-mode: vertical-rl"><p class="block-start" style="height: 10px">A</p></td></tr></table>
+<table cellspacing="0"><tr><td id="canceled"><p class="top" id="canceled-p">A</p></td></tr></table>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    const size = id => {
+      const r = document.getElementById(id).getBoundingClientRect();
+      return `${Math.round(r.width)}x${Math.round(r.height)}`;
+    };
+    for (const id of ["animated-top", "animated-top-nested", "animated-block-start", "animated-other-side", "animated-block-start-vertical-rl"])
+      println(`${id}: ${size(id)}`);
+    println(`canceled before: ${size("canceled")}`);
+    for (const animation of document.getElementById("canceled-p").getAnimations()) animation.cancel();
+    println(`canceled after: ${size("canceled")}`);
+  });
+</script>
+</body></html>

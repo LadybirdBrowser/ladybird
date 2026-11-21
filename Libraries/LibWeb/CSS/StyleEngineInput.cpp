@@ -1518,6 +1518,10 @@ enum ElementConstructionFact : u32 {
     IsSvgGeometryElement = 1 << 8,
     IsHtmlSelectElement = 1 << 9,
     IsHtmlProgressOrMeterElement = 1 << 10,
+    // The element's default block-start or block-end margin is one a quirks-mode body or table cell ignores where it
+    // collapses into the cell's or the body's own start or end.
+    HasQuirkyBlockStartMargin = 1 << 11,
+    HasQuirkyBlockEndMargin = 1 << 12,
     // The layout algorithm a MathML element's tag name selects, as a MathMLLayoutKind in these bits.
     MathMLLayoutKindShift = 16,
     MathMLLayoutKindMask = 0x1f << MathMLLayoutKindShift,
@@ -1746,6 +1750,18 @@ static u32 kind_construction_facts(DOM::Element const& element)
     set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
     set(is<HTML::HTMLSelectElement>(element), ElementConstructionFact::IsHtmlSelectElement);
     set(is<HTML::HTMLProgressElement>(element) || is<HTML::HTMLMeterElement>(element), ElementConstructionFact::IsHtmlProgressOrMeterElement);
+    // https://html.spec.whatwg.org/multipage/rendering.html#concept-rendering-elements-with-margins
+    // The elements with default margins are the following elements: blockquote, dir, dl, h1, h2, h3, h4, h5, h6,
+    // listing, menu, ol, p, plaintext, pre, ul, xmp.
+    // AD-HOC: Only the block-end margins of p, and of the elements laid out as preformatted text, are quirky. See
+    //         https://github.com/whatwg/html/issues/10296.
+    if (html_element) {
+        auto const& local_name = element.local_name();
+        set(first_is_one_of(local_name, HTML::TagNames::blockquote, HTML::TagNames::dir, HTML::TagNames::dl, HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6, HTML::TagNames::listing, HTML::TagNames::menu, HTML::TagNames::ol, HTML::TagNames::p, HTML::TagNames::plaintext, HTML::TagNames::pre, HTML::TagNames::ul, HTML::TagNames::xmp),
+            ElementConstructionFact::HasQuirkyBlockStartMargin);
+        set(first_is_one_of(local_name, HTML::TagNames::listing, HTML::TagNames::p, HTML::TagNames::plaintext, HTML::TagNames::pre, HTML::TagNames::xmp),
+            ElementConstructionFact::HasQuirkyBlockEndMargin);
+    }
     facts |= to_underlying(mathml_layout_kind(element)) << ElementConstructionFact::MathMLLayoutKindShift;
     return facts;
 }

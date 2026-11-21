@@ -1,0 +1,18 @@
+<!DOCTYPE quirks>
+<html><head><meta charset="utf-8"><style>body, td { font: 16px/20px sans-serif; } td { padding: 0; vertical-align: top; } table { margin: 0 0 4px; } .float { float: left; width: 30px; height: 30px; }</style></head>
+<body><script>internals.forceParallelLayout();</script>
+<table cellspacing="0"><tr><td id="second-block"><div>A</div><div><p>B</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="second-block-nested"><div>A</div><div><div><p>B</p></div></div></td></tr></table>
+<table cellspacing="0"><tr><td id="many-blocks"><div>A</div><div><p>B</p></div><div><p>C</p></div><div><p>D</p></div><div><p>E</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="empty-first-block"><div style="height: 0"></div><div><p>B</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="first-block"><div><p>A</p></div><div><p>B</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="cleared-block"><div class="float"></div><div style="clear: left"><p>P</p></div><div><p>Q</p></div></td></tr></table>
+<table cellspacing="0"><tr><td id="cleared-block-past-short-float"><div class="float" style="height: 10px"></div><div style="clear: left"><p>P</p></div><div><p>Q</p></div></td></tr></table>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    for (const td of document.querySelectorAll("td"))
+      println(`${td.id}: height ${Math.round(td.getBoundingClientRect().height)}`);
+  });
+</script>
+</body></html>
