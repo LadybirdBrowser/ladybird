@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="a" contenteditable style="white-space: break-spaces">foobar</div>
+<div id="b" contenteditable style="white-space: pre-wrap">foobar</div>
+<script>
+    test(() => {
+        for (const id of ["a", "b"]) {
+            const editingHost = document.getElementById(id);
+            println(`Before: ${JSON.stringify(editingHost.innerHTML)}`);
+            getSelection().collapse(editingHost.firstChild, 3);
+            document.execCommand("insertLinebreak");
+            println(`After: ${JSON.stringify(editingHost.innerHTML)}`);
+        }
+    });
+</script>

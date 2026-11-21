@@ -1763,14 +1763,14 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
         MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
 
     // AD-HOC: In preformatted white-space contexts, use newlines instead of <br> for line breaks. This matches
-    //         Chrome behavior and WPT expectations. The white-space: pre, pre-wrap, and pre-line styles all preserve
-    //         newlines, so inserting a literal newline character is more appropriate than a <br> element.
+    //         Chrome behavior and WPT expectations. The white-space: pre, pre-wrap, pre-line, and break-spaces styles
+    //         all preserve newlines, so inserting a literal newline character is more appropriate than a <br> element.
     //         However, padding line breaks (needed for empty last lines) should still be <br> because they won't
     //         appear in .textContent, making the content easier to work with programmatically.
     // INTEROP: Browsers do insert a <br> if the white-space style comes from the default style of an element such as
     //          pre.
     auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
-    if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)
+    if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks, CSS::Keyword::BreakSpaces)
         && !white_space_is_from_default_style(*start_node)) {
         if (auto* text_node = as_if<DOM::Text>(*start_node)) {
             MUST(insert_data(*text_node, start_offset, "\n"_utf16));

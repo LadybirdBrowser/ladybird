@@ -1,0 +1,4 @@
+Before: "foobar"
+After: "foo\nbar"
+Before: "foobar"
+After: "foo\nbar"
