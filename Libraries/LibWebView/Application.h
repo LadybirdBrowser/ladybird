@@ -322,9 +322,11 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     virtual void display_update_check_result(UpdateCheckResult const&, UpdateCheckTrigger) { }
 
     UpdateChecker* update_checker() { return m_update_checker.ptr(); }
+#endif
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     enum class ClipboardType : u8 {
@@ -621,7 +623,9 @@ private:
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
     RefPtr<Core::Timer> m_content_blocker_list_update_timer;
     ByteString m_instance_data_directory;
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     OwnPtr<UpdateChecker> m_update_checker;
+#endif
     struct PendingContentBlockerListUpdate {
         String identifier;
         String name;
