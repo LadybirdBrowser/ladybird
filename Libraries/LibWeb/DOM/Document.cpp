@@ -5074,9 +5074,9 @@ void Document::queue_navigation_timing_entry()
 
 void Document::begin_smil_time_container_once_loaded(SVG::SMILTimeContainer& time_container)
 {
-    // The timeline of an SVG document fragment should begin when the load event for its outermost svg element is
-    // triggered, but that event is not fired. Like Blink, begin the timeline once the document has completely loaded
-    // instead, or right away for a fragment that is inserted after that.
+    // AD-HOC: The timeline of an SVG document fragment should begin when the load event for its outermost svg element
+    //         is triggered. Begin it once the document has completely loaded instead, which comes after that event,
+    //         or right away for a fragment that is inserted after that.
     if (is_completely_loaded()) {
         time_container.begin();
         return;
