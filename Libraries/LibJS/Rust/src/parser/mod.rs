@@ -31,6 +31,9 @@ use crate::ast::ScopeTable;
 use crate::ast::SyntaxTree;
 use crate::source_text::SourceText;
 use crate::u32_from_usize;
+use crate::work_zone::with_work_zone;
+use ak::Zone;
+use ak::ZoneVec;
 use base::Mode;
 use base::Parser;
 use columns::Ast;
@@ -415,9 +418,10 @@ impl LineTable {
         (self.line_starts.capacity() + self.low_surrogates.capacity()) * size_of::<u32>()
     }
 
-    fn new<U: Unit>(source: &[U], initial_line_number: u32) -> Self {
-        let mut line_starts = vec![0];
-        let mut low_surrogates = Vec::new();
+    /// The table of `source`, which is worked out in `zone` and copied out at its final size.
+    fn new<U: Unit>(zone: &Zone, source: &[U], initial_line_number: u32) -> Self {
+        let mut line_starts = ZoneVec::from_slice_in(&[0], zone);
+        let mut low_surrogates = ZoneVec::new_in(zone);
         let mut index = 0;
         while index < source.len() {
             let code_unit = source[index].code();
@@ -448,8 +452,8 @@ impl LineTable {
             [] => false,
         };
         Self {
-            line_starts,
-            low_surrogates,
+            line_starts: line_starts.to_vec(),
+            low_surrogates: low_surrogates.to_vec(),
             source_length: u32_from_usize(source.len()),
             ends_with_lone_line_terminator,
             initial_line_number,
@@ -597,13 +601,14 @@ struct ParserOutput {
     lines: LineTable,
 }
 
-/// Parses `source`, from a copy of it that is followed by the padding the lexer needs for as long as the parse takes.
+/// Parses `source`, from a copy of it in `zone` that is followed by the padding the lexer needs.
 fn parse_code_units<U: Unit + Default>(
+    zone: &Zone,
     source: &[U],
     options: &ParseOptions,
     purpose: ParsePurpose,
 ) -> Result<ParserOutput, Vec<ParseError>> {
-    let mut padded = Vec::with_capacity(source.len() + SOURCE_PADDING);
+    let mut padded = ZoneVec::with_capacity_in(source.len() + SOURCE_PADDING, zone);
     padded.extend_from_slice(source);
     padded.resize(source.len() + SOURCE_PADDING, U::default());
     // SAFETY: The source is followed by the padding.
@@ -622,7 +627,7 @@ fn parse_code_units<U: Unit + Default>(
     parser.initiated_by_eval = options.initiated_by_eval;
     parser.add_context(options.program_context().context);
     let root = parser.parse_program();
-    let lines = LineTable::new(source, options.initial_line_number);
+    let lines = LineTable::new(zone, source, options.initial_line_number);
     if let Some(error) = parser.err.take() {
         let position = lines.position(error.pos.min(u32_from_usize(source.len())));
         return Err(vec![ParseError {
@@ -648,18 +653,18 @@ fn parse_code_units<U: Unit + Default>(
     })
 }
 
-/// Parses `source` at the width of its storage.
+/// Parses `source` at the width of its storage, with the work zone of the thread for the work data of the parse.
 fn parse_source(
     source: &ak::Utf16String,
     options: &ParseOptions,
     purpose: ParsePurpose,
 ) -> Result<ParserOutput, Vec<ParseError>> {
-    match source.as_units() {
+    with_work_zone(|zone| match source.as_units() {
         ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
-            parse_code_units(units, options, purpose)
+            parse_code_units(zone, units, options, purpose)
         }
-        ak::Utf16StringUnits::Utf16(units) => parse_code_units(units, options, purpose),
-    }
+        ak::Utf16StringUnits::Utf16(units) => parse_code_units(zone, units, options, purpose),
+    })
 }
 
 /// Parses `source` into a tree of its top-level code with its identifiers resolved.
