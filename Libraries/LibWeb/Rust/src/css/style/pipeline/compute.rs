@@ -981,6 +981,22 @@ impl RetainedState {
             (length, font, author_disables_native_appearance)
         };
         writer.set_native_appearance_disabled(author_disables_native_appearance);
+        // https://html.spec.whatwg.org/multipage/rendering.html#margin-collapsing-quirks
+        // Layout ignores some margins the user agent's style sheet sets where they collapse into the start or end of
+        // a quirks-mode body or table cell, so it reads which margins those are. Only a quirks-mode document
+        // records them, so they split no style groups anywhere else.
+        if self.document_style_computation_inputs.in_quirks_mode {
+            let (writing_mode, direction) = crate::css::style_compute::writing_mode_and_direction_of(
+                writer.get(prop::WRITING_MODE),
+                writer.get(prop::DIRECTION),
+            );
+            writer.set_user_agent_margin_sides(user_agent_margin_sides(
+                winners,
+                |winner| cascade.priority_of(winner.source, winner.important),
+                writing_mode,
+                direction,
+            ));
+        }
         let required_moved = crate::css::style_compute::REQUIRED_DRIVER_INPUTS
             .iter()
             .filter(|&&property| writer.moved_from_seed(property, seeded_bits))
@@ -1049,9 +1065,9 @@ impl RetainedState {
         if initial.color != current_color {
             groups |= current_color_groups & !inherited_groups;
         }
-        // NB: The misc layout group holds whether an author declaration disables the native appearance, which no
-        //     longhand's value says.
-        if values.facts().native_appearance_disabled() {
+        // NB: The misc layout group holds whether an author declaration disables the native appearance, and which
+        //     margins the user agent's style sheet sets, which no longhand's value says.
+        if values.facts().native_appearance_disabled() || values.facts().user_agent_margin_sides() != 0 {
             groups |= 1 << group_index::MISC_LAYOUT;
         }
         // The document element's groups all build against no parent.
@@ -2113,7 +2129,8 @@ impl GroupCache {
         let inputs = [
             u64::from(scheme),
             u64::from(facts.display_before_box_type_transformation())
-                | (u64::from(facts.native_appearance_disabled()) << u32::BITS),
+                | (u64::from(facts.native_appearance_disabled()) << u32::BITS)
+                | (u64::from(facts.user_agent_margin_sides()) << (u32::BITS + 1)),
             u64::from(facts.effective_zoom().to_bits()),
             length.viewport_width.to_bits(),
             length.viewport_height.to_bits(),
@@ -3029,6 +3046,37 @@ impl WrittenValueChecks {
         }
         bits
     }
+}
+
+/// The physical sides of an element's margins whose cascaded values come from the user agent's style sheet, as
+/// `user_agent_margin_side` bits: those whose own winning declaration, or that of their flow-relative counterpart where
+/// that one wins over it, is the user agent's.
+fn user_agent_margin_sides(
+    winners: &[Winner],
+    priority_of: impl Fn(&Winner) -> CascadePriority,
+    writing_mode: u8,
+    direction: u8,
+) -> u8 {
+    use crate::css::cascaded_properties::CascadeOrigin;
+    use crate::css::computed_value_types::user_agent_margin_side as side;
+    use crate::css::property_metadata::property_id as prop;
+    [
+        (prop::MARGIN_TOP, side::TOP),
+        (prop::MARGIN_RIGHT, side::RIGHT),
+        (prop::MARGIN_BOTTOM, side::BOTTOM),
+        (prop::MARGIN_LEFT, side::LEFT),
+    ]
+    .into_iter()
+    .filter(|&(physical, _)| {
+        let flow_relative = crate::css::style_compute::map_physical_to_logical_alias(physical, writing_mode, direction);
+        // The winners come in the order the cascade resolved them, rollbacks included, so the first of the two is
+        // the one the logical pair takes its value from.
+        winners
+            .iter()
+            .find(|winner| winner.property == physical || winner.property == flow_relative)
+            .is_some_and(|winner| priority_of(winner).cascade_origin() == CascadeOrigin::UserAgent)
+    })
+    .fold(0, |sides, (_, bit)| sides | bit)
 }
 
 #[cfg(test)]

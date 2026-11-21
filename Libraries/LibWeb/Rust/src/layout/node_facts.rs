@@ -1648,6 +1648,64 @@ impl<'pass> NodeFacts<'pass> {
     pub(crate) fn is_html_body_element(&self) -> bool {
         has_flag(self.data(), NodeFlag::IsBody)
     }
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#margin-collapsing-quirks
+    // In quirks mode, any element with default margins that is the child of a body, td, or th element and has no
+    // substantial previous siblings is expected to have a user-agent level style sheet rule that sets its
+    // 'margin-block-start' property to zero.
+    // AD-HOC: Instead of that rule and the three after it, which zero the margins of the children of body, td and th by
+    //         their siblings, a quirks-mode body or table cell ignores the quirky margins that collapse into its own
+    //         start or end, however deep in it they are, and keeps a margin an author sets. See
+    //         https://github.com/whatwg/html/issues/10296.
+    /// Whether the box is a quirks-mode body or table cell, which ignores the quirky margins of its contents that
+    /// collapse into its own block-start or block-end.
+    pub(crate) fn ignores_quirky_margins_at_its_edges(&self) -> bool {
+        self.document_in_quirks_mode() && (self.is_html_body_element() || self.display().is_table_cell())
+    }
+
+    /// Whether the block-start margin of the box is a quirky one: one the user agent's style sheet gives an element
+    /// with default margins.
+    pub(crate) fn has_quirky_block_start_margin(&self) -> bool {
+        use crate::css::style::bridge::element_construction_fact;
+        self.has_quirky_margin(element_construction_fact::HAS_QUIRKY_BLOCK_START_MARGIN, true)
+    }
+
+    /// Whether the block-end margin of the box is a quirky one: one the user agent's style sheet gives a p element or
+    /// an element laid out as preformatted text.
+    pub(crate) fn has_quirky_block_end_margin(&self) -> bool {
+        use crate::css::style::bridge::element_construction_fact;
+        self.has_quirky_margin(element_construction_fact::HAS_QUIRKY_BLOCK_END_MARGIN, false)
+    }
+
+    fn has_quirky_margin(&self, construction_fact: u32, is_block_start: bool) -> bool {
+        use crate::css::computed_value_types::user_agent_margin_side;
+        use crate::css::css_enums::writing_mode;
+        if !self.document_in_quirks_mode() {
+            return false;
+        }
+        let Some(style) = self.computed_values_view_if_styled() else {
+            return false;
+        };
+        // The user agent's margins are recorded by physical side, so the block-start and block-end sides are those the
+        // box's writing mode puts there.
+        let (block_start, block_end) = match style.writing_mode() {
+            writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL => {
+                (user_agent_margin_side::RIGHT, user_agent_margin_side::LEFT)
+            }
+            writing_mode::VERTICAL_LR | writing_mode::SIDEWAYS_LR => {
+                (user_agent_margin_side::LEFT, user_agent_margin_side::RIGHT)
+            }
+            _ => (user_agent_margin_side::TOP, user_agent_margin_side::BOTTOM),
+        };
+        let side = if is_block_start { block_start } else { block_end };
+        if style.user_agent_margin_sides() & side == 0 {
+            return false;
+        }
+        let arena = self.pass.arena();
+        arena.dom_node_style_node(self.node).is_some_and(|element| {
+            arena.with_style_store(|engine| engine.element_construction_facts(element)) & construction_fact != 0
+        })
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,34 @@
+body-nested: top 8
+deep: height 20
+blockquote-p: height 36
+padded-cell: height 30
+th: height 20
+css-cell: height 20
+revert: height 20
+revert-physical-over-logical: height 20
+revert-logical-over-physical: height 20
+div-border: height 37
+h1-then-p: height 56
+br-then-p: height 56
+block-in-inline: height 20
+text-then-block-in-inline: height 56
+block-in-inline-then-text: height 56
+vertical-rl-cell: width 20
+vertical-lr-cell: width 20
+vertical-rl-two-paragraphs: width 56
+clear-short-float: height 36, p at 16
+clear-tall-float: height 50, p at 30
+clear-nested: height 40, p at 20
+dyn-style before: 20
+dyn-style author top: 36
+dyn-style removed: 20
+dyn-text inserted: 56
+dyn-text removed: 20
+dyn-class added: 36
+dyn-class removed: 20
+dyn-remove-text: 20
+dyn-float-gone before: 50
+dyn-float-gone no longer floated: 20
+dyn-first-height before: 20
+dyn-first-height 10px: 46
+dyn-first-height 0: 20

@@ -213,6 +213,61 @@ impl<'a> LonghandSource<'a> {
             Self::Values { values, .. } => values.facts().native_appearance_disabled(),
         }
     }
+
+    /// The physical sides whose margins the user agent's style sheet sets, in a quirks-mode document, and no animation
+    /// of the element overrides.
+    fn user_agent_margin_sides(&self) -> u8 {
+        match self {
+            Self::Longhands {
+                longhands,
+                animated_overlay,
+            } => {
+                let sides = longhands.user_agent_margin_sides();
+                let Some(overlay) = animated_overlay.filter(|_| sides != 0) else {
+                    return sides;
+                };
+                let (writing_mode, direction) = crate::css::style_compute::writing_mode_and_direction_of(
+                    Some(self.handle(property_id::WRITING_MODE)),
+                    Some(self.handle(property_id::DIRECTION)),
+                );
+                sides & !margin_sides_animated_by(overlay, writing_mode, direction)
+            }
+            Self::Values { values, .. } => values.facts().user_agent_margin_sides(),
+        }
+    }
+}
+
+/// Whether `property` is a margin longhand, physical or flow-relative.
+pub(crate) fn is_margin_longhand(property: u16) -> bool {
+    matches!(
+        property,
+        property_id::MARGIN_TOP
+            | property_id::MARGIN_RIGHT
+            | property_id::MARGIN_BOTTOM
+            | property_id::MARGIN_LEFT
+            | property_id::MARGIN_BLOCK_START
+            | property_id::MARGIN_BLOCK_END
+            | property_id::MARGIN_INLINE_START
+            | property_id::MARGIN_INLINE_END
+    )
+}
+
+/// The physical sides, as `user_agent_margin_side` bits, whose margins `overlay` animates, itself or through their
+/// flow-relative counterpart in the given writing mode and direction.
+fn margin_sides_animated_by(overlay: &AnimatedOverlay, writing_mode: u8, direction: u8) -> u8 {
+    use crate::css::computed_value_types::user_agent_margin_side as side;
+    [
+        (property_id::MARGIN_TOP, side::TOP),
+        (property_id::MARGIN_RIGHT, side::RIGHT),
+        (property_id::MARGIN_BOTTOM, side::BOTTOM),
+        (property_id::MARGIN_LEFT, side::LEFT),
+    ]
+    .into_iter()
+    .filter(|&(physical, _)| {
+        let flow_relative = crate::css::style_compute::map_physical_to_logical_alias(physical, writing_mode, direction);
+        overlay.get(physical).is_some() || overlay.get(flow_relative).is_some()
+    })
+    .fold(0, |sides, (_, bit)| sides | bit)
 }
 
 /// The C++ Color::value() bit layout.
@@ -2521,9 +2576,11 @@ fn build_misc_layout_group(
     parent: GroupShares<'_>,
 ) -> *const c_void {
     let native_appearance_disabled = values.native_appearance_disabled();
+    let user_agent_margin_sides = values.user_agent_margin_sides();
 
-    // NB: The generic builder only decodes property values, which leaves native_appearance_disabled at its default.
-    if !native_appearance_disabled {
+    // NB: The generic builder only decodes property values, which leaves native_appearance_disabled and
+    //     user_agent_margin_sides at their defaults.
+    if !native_appearance_disabled && user_agent_margin_sides == 0 {
         let generic = build_generic_group(group_index::MISC_LAYOUT, values, input, used_color_scheme, parent);
         if !generic.is_null() {
             return generic;
@@ -2628,6 +2685,7 @@ fn build_misc_layout_group(
             payload.appearance = normalized_appearance;
             payload.computed_appearance = computed_appearance;
             payload.native_appearance_disabled = native_appearance_disabled;
+            payload.user_agent_margin_sides = user_agent_margin_sides;
             payload.column_height = ComputedSize::from_data(values.handle(property_id::COLUMN_HEIGHT));
             payload.outline_color = outline_color;
             payload.column_rule_color = column_rule_color;

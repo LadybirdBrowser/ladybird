@@ -1,0 +1,7 @@
+animated-top: 10x60
+animated-top-nested: 10x60
+animated-block-start: 10x60
+animated-other-side: 50x20
+animated-block-start-vertical-rl: 50x10
+canceled before: 10x60
+canceled after: 10x20

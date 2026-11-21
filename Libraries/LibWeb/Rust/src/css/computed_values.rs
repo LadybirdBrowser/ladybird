@@ -305,6 +305,7 @@ impl_computed_payload_clone_and_eq!(MiscLayoutValues {
     appearance,
     computed_appearance,
     native_appearance_disabled,
+    user_agent_margin_sides,
     outline_style,
     object_fit,
     column_height,
@@ -4155,9 +4156,11 @@ pub(crate) struct GroupValueFacts {
     effective_zoom: f32,
     display_before_box_type_transformation: u32,
     effective_color_scheme: i8,
+    /// What the origins of the element's winning declarations decide for its box: whether an author declaration
+    /// disables its native appearance (`NATIVE_APPEARANCE_DISABLED_FACT`), and the physical sides whose margins the
+    /// user agent's style sheet sets in a quirks-mode document (`user_agent_margin_side` bits).
     /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
-    /// Whether an author declaration disables the element's native appearance.
-    native_appearance_disabled: bool,
+    origin_facts: u8,
     /// What of the recorded specified values a group build reads in place of computed values, by
     /// [`read_in_place_bits_of`], so that a build of another group mostly need not look through them.
     read_in_place_bits: u16,
@@ -4165,6 +4168,11 @@ pub(crate) struct GroupValueFacts {
     /// values or the inherited values that read it.
     current_color_groups: u32,
 }
+
+/// The bit of [`GroupValueFacts::origin_facts`] that says an author declaration disables the element's native
+/// appearance. The bits below it are `user_agent_margin_side` bits.
+const NATIVE_APPEARANCE_DISABLED_FACT: u8 = 1 << 7;
+const USER_AGENT_MARGIN_SIDES_FACTS: u8 = 0x0f;
 
 /// The bits standing for `groups` among the recorded values a group build reads in place: those of
 /// their indices, each group sharing its bit with any other sixteen indices away.
@@ -4198,7 +4206,7 @@ impl GroupValueFacts {
             effective_zoom: 1.0,
             display_before_box_type_transformation: 0,
             effective_color_scheme: -1,
-            native_appearance_disabled: false,
+            origin_facts: 0,
             read_in_place_bits: 0,
             current_color_groups: 0,
         }
@@ -4273,7 +4281,11 @@ impl GroupValueFacts {
     }
 
     pub(crate) fn native_appearance_disabled(&self) -> bool {
-        self.native_appearance_disabled
+        self.origin_facts & NATIVE_APPEARANCE_DISABLED_FACT != 0
+    }
+
+    pub(crate) fn user_agent_margin_sides(&self) -> u8 {
+        self.origin_facts & USER_AGENT_MARGIN_SIDES_FACTS
     }
 
     /// Whether these and `other` publish the same recorded specified values, zoom, box display
@@ -4289,7 +4301,7 @@ impl GroupValueFacts {
             && self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
             && self.display_before_box_type_transformation == other.display_before_box_type_transformation
             && self.effective_color_scheme == other.effective_color_scheme
-            && self.native_appearance_disabled == other.native_appearance_disabled
+            && self.origin_facts == other.origin_facts
             && (same_recorded_values
                 || (mine.len() == theirs.len()
                     && mine.iter().all(|held| {
@@ -4321,9 +4333,9 @@ impl GroupValueFacts {
         if self.effective_zoom.to_bits() != other.effective_zoom.to_bits()
             || self.display_before_box_type_transformation != other.display_before_box_type_transformation
             || self.effective_color_scheme != other.effective_color_scheme
-            || self.native_appearance_disabled != other.native_appearance_disabled
+            || self.origin_facts != other.origin_facts
         {
-            return Some("the zoom, box display, color scheme or native appearance".into());
+            return Some("the zoom, box display, color scheme, native appearance or user-agent margins".into());
         }
         None
     }
@@ -4831,6 +4843,8 @@ pub(crate) struct GroupValuesWriter<'a> {
     flags: crate::css::computed_longhand_table::LonghandTableFlags,
     /// What the computed values depend on, as `DEPENDS_ON_VIEWPORT_METRICS` and the like.
     dependency_flags: u8,
+    /// The physical sides whose margins the user agent's style sheet sets, where the computation records them.
+    user_agent_margin_sides: u8,
 }
 
 /// A value written over an element's seeded values, at its place among them.
@@ -4900,6 +4914,7 @@ impl<'a> GroupValuesWriter<'a> {
             effective_color_scheme: parent.facts.effective_color_scheme(),
             flags,
             dependency_flags,
+            user_agent_margin_sides: 0,
         }
     }
 
@@ -5204,6 +5219,11 @@ impl<'a> GroupValuesWriter<'a> {
         self.dependency_flags |= flags;
     }
 
+    /// Records the physical sides whose margins the user agent's style sheet sets, as `user_agent_margin_side` bits.
+    pub(crate) fn set_user_agent_margin_sides(&mut self, sides: u8) {
+        self.user_agent_margin_sides = sides;
+    }
+
     /// Records whether an author declaration disables the element's native appearance.
     pub(crate) fn set_native_appearance_disabled(&mut self, disabled: bool) {
         use crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED;
@@ -5335,7 +5355,12 @@ impl<'a> GroupValuesWriter<'a> {
                     display_before_box_type_transformation: self.display_before_box_type_transformation,
                     effective_color_scheme: i8::try_from(self.effective_color_scheme)
                         .expect("a color scheme is a small code"),
-                    native_appearance_disabled,
+                    origin_facts: self.user_agent_margin_sides
+                        | if native_appearance_disabled {
+                            NATIVE_APPEARANCE_DISABLED_FACT
+                        } else {
+                            0
+                        },
                     read_in_place_bits,
                     current_color_groups: 0,
                 },
@@ -6534,6 +6559,7 @@ impl MiscLayoutValues {
             appearance: 0,
             computed_appearance: 7,
             native_appearance_disabled: false,
+            user_agent_margin_sides: 0,
             outline_style: 1,
             object_fit: 0,
             column_height: ComputedSize::keyword(ComputedSizeKind::Auto),

@@ -233,6 +233,16 @@ impl RetainedState {
         if groups & (1 << group_index::ANCHOR) != 0 {
             groups |= 1 << group_index::SURROUND;
         }
+        // The misc layout group holds which margins the user agent's style sheet sets, which an animated margin
+        // overrides.
+        if longhands.user_agent_margin_sides() != 0
+            && overlay
+                .entries()
+                .iter()
+                .any(|entry| crate::css::table_group_builder::is_margin_longhand(entry.property))
+        {
+            groups |= 1 << group_index::MISC_LAYOUT;
+        }
 
         // Colors resolve against the element's font as it stood when the overlay was last
         // published, or against the animated font where the overlay rebuilds the font group.
