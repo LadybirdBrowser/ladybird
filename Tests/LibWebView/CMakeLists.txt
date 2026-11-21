@@ -96,11 +96,14 @@ set(TEST_SOURCES
     TestStorageJar.cpp
     TestTabIndicators.cpp
     TestTabPerformanceStats.cpp
-    TestUpdateCheck.cpp
     TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp
     TestWebWorkerClient.cpp
 )
+
+if (LADYBIRD_ENABLE_UPDATE_CHECK)
+    list(APPEND TEST_SOURCES TestUpdateCheck.cpp)
+endif()
 
 if (APPLE OR LINUX)
     list(APPEND TEST_SOURCES

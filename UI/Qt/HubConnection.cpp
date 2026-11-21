@@ -348,9 +348,11 @@ void HubConnection::app_display_error_dialog(String message)
     Application::the().display_error_dialog(message);
 }
 
-void HubConnection::app_display_update_check_result(WebView::UpdateCheckResult::Kind kind, Optional<String> version, WebView::InstallMethod install_method, WebView::UpdateCheckTrigger trigger)
+void HubConnection::app_display_update_check_result([[maybe_unused]] WebView::UpdateCheckResult::Kind kind, [[maybe_unused]] Optional<String> version, [[maybe_unused]] WebView::InstallMethod install_method, [[maybe_unused]] WebView::UpdateCheckTrigger trigger)
 {
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     Application::the().display_update_check_result(kind, version, install_method, trigger);
+#endif
 }
 
 void HubConnection::app_display_download_confirmation_dialog(String download_name, ByteString path)

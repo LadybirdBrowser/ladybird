@@ -74,6 +74,7 @@ TEST_CASE(feature_policy)
     remove_settings_file();
 }
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 TEST_CASE(update_check_policy)
 {
     remove_settings_file();
@@ -101,6 +102,7 @@ TEST_CASE(update_check_policy)
     EXPECT_EQ(reloaded.config_variable_as_integer<u32>(WebView::ConfigVariableID::UpdateCheckInterval), 5u);
     remove_settings_file();
 }
+#endif
 
 TEST_CASE(settings_are_persistent)
 {

@@ -23,7 +23,8 @@ if (DEFINED LADYBIRD_VCPKG_TYPE)
     # Each optional dependency is a feature of vcpkg.json that an option selects. The options are declared after
     # project(), so one that is not set yet has its default. Keep in sync with MANIFEST_FEATURE_OPTIONS in
     # Meta/Utils/vcpkg_deps.py.
-    if (NOT DEFINED LADYBIRD_ENABLE_SPARKLE OR LADYBIRD_ENABLE_SPARKLE)
+    if ((NOT DEFINED LADYBIRD_ENABLE_UPDATE_CHECK OR LADYBIRD_ENABLE_UPDATE_CHECK)
+        AND (NOT DEFINED LADYBIRD_ENABLE_SPARKLE OR LADYBIRD_ENABLE_SPARKLE))
         list(APPEND VCPKG_MANIFEST_FEATURES "sparkle")
     endif()
 
