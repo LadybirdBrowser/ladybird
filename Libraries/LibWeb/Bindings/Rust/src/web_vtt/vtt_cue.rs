@@ -278,6 +278,17 @@ impl VTTCue {
 
     // https://w3c.github.io/webvtt/#dom-vttcue-position
     pub(crate) fn set_position(&self, _: &mut CallContext, value: LineAndPositionSetting) -> WebIdlResult<()> {
+        // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
+        if let LineAndPositionSetting::Double(position) = value
+            && !(0.0..=100.0).contains(&position)
+        {
+            return Err(Exception::index_size_error(Utf16String::from_utf8(
+                "Value is negative or greater than 100",
+            )));
+        }
+
+        // Otherwise, the WebVTT cue position must be set to the new value; if the new value is the string "auto", then
+        // it must be interpreted as the special value auto.
         self.position.set(value);
         Ok(())
     }
@@ -300,6 +311,14 @@ impl VTTCue {
 
     // https://w3c.github.io/webvtt/#dom-vttcue-size
     pub(crate) fn set_size(&self, _: &mut CallContext, value: f64) -> WebIdlResult<()> {
+        // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
+        if !(0.0..=100.0).contains(&value) {
+            return Err(Exception::index_size_error(Utf16String::from_utf8(
+                "Value is negative or greater than 100",
+            )));
+        }
+
+        // Otherwise, the WebVTT cue size must be set to the new value.
         self.size.set(value);
         Ok(())
     }
