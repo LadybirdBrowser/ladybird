@@ -41,7 +41,9 @@ static void check_core_audio_channel_layout_size(AudioChannelLayout const& layou
     C(TopBackRight, Channel::TopBackRight)      \
     C(LeftTopFront, Channel::TopFrontLeft)      \
     C(CenterTopFront, Channel::TopFrontCenter)  \
-    C(RightTopFront, Channel::TopFrontRight)
+    C(RightTopFront, Channel::TopFrontRight)    \
+    C(LeftTopMiddle, Channel::TopSideLeft)      \
+    C(RightTopMiddle, Channel::TopSideRight)
 
 ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout, u32 channel_layout_size)
 {
