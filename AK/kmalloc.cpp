@@ -210,3 +210,16 @@ extern "C" void ladybird_did_end_short_lived_thread()
 }
 
 #endif
+
+static Atomic<void (*)(), AK::MemoryOrder::memory_order_relaxed> s_idle_thread_memory_release { nullptr };
+
+extern "C" void ladybird_set_idle_thread_memory_release(void (*release)())
+{
+    s_idle_thread_memory_release.store(release);
+}
+
+void ak_release_idle_thread_memory()
+{
+    if (auto* release = s_idle_thread_memory_release.load())
+        release();
+}

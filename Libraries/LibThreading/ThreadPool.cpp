@@ -57,6 +57,7 @@ intptr_t ThreadPool::worker_thread_func()
         }
 
         if (should_collect) {
+            ak_release_idle_thread_memory();
             ak_kmalloc_collect();
             collected_since_last_work = true;
             continue;
