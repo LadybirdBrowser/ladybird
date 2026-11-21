@@ -1,0 +1,8 @@
+uppercase matches literal capitals: true
+capitalize matches literal capitals: true
+uppercase tspan matches literal capitals: true
+uppercase textPath matches literal capitals: true
+characters: 7
+start positions: 10 24.96875 40.34375 57.453125 75.28125 105.21875 120.046875
+ß is wider than one capital S: true
+characters with spaces collapsed: 5

@@ -44,6 +44,30 @@ pub struct FfiSvgTextCharacterCell {
     pub starts_typographic_character: bool,
 }
 
+/// Appends the cell of each character the edits map the given cells back to: Where an edit turned characters into
+/// others, the characters it took share the cell of those it made.
+fn append_svg_text_cells_through_edits<'a>(
+    cells: &[FfiSvgTextCharacterCell],
+    edits: impl IntoIterator<Item = &'a super::rendered_text::RenderedTextEdit>,
+    out: &mut Vec<FfiSvgTextCharacterCell>,
+) {
+    let mut cursor = 0;
+    for edit in edits {
+        let start = edit.rendered_start_offset;
+        let end = start + edit.rendered_length_in_code_units;
+        out.extend_from_slice(&cells[cursor..start]);
+        cursor = end;
+        if edit.dom_length_in_code_units == 0 {
+            continue;
+        }
+        let mut cell = svg_text_cell_for_source_span(cells, start, end);
+        out.push(cell);
+        cell.starts_typographic_character = false;
+        out.extend(std::iter::repeat_n(cell, edit.dom_length_in_code_units - 1));
+    }
+    out.extend_from_slice(&cells[cursor..]);
+}
+
 fn svg_text_cell_for_source_span(
     cells: &[FfiSvgTextCharacterCell],
     start: usize,
@@ -886,6 +910,9 @@ pub(super) struct SvgFormattingContext<'pass> {
     text_length_adjustment: SvgTextLengthAdjustment,
     /// The characters each text node of the text content elements laid out so far renders.
     processed_svg_text: RefCell<std::collections::HashMap<Node, std::sync::Arc<[u16]>>>,
+    /// Where text-transform changed the characters of a text node in `processed_svg_text`, how its characters map to
+    /// those it had before the transform.
+    svg_text_transform_edits: RefCell<std::collections::HashMap<Node, Vec<super::rendered_text::RenderedTextEdit>>>,
     /// The glyph cells of the text content element laid out last: those of its whole subtree, in document order.
     last_text_subtree_cells: Option<std::sync::Arc<Vec<FfiSvgTextCharacterCell>>>,
     /// The stretches of text in the subtree of the <text>, <tspan>, or <a> laid out last, in document order.
@@ -929,6 +956,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             current_text_position: FfiFloatPoint::default(),
             text_length_adjustment: SvgTextLengthAdjustment::None,
             processed_svg_text: RefCell::new(std::collections::HashMap::new()),
+            svg_text_transform_edits: RefCell::new(std::collections::HashMap::new()),
             last_text_subtree_cells: None,
             last_text_subtree_spans: Vec::new(),
             root_payload: RefCell::new(fragment_tree::PendingPayload::default()),
@@ -1666,12 +1694,51 @@ impl<'pass> SvgFormattingContext<'pass> {
             .collect();
         let mut processed_text = self.processed_svg_text.borrow_mut();
         for (node, text) in text_nodes.iter().zip(process_svg_text_white_space(&borrowed_sources)) {
+            let text = self.apply_svg_text_transform(*node, text);
             processed_text.insert(*node, std::sync::Arc::from(text));
         }
         processed_text
             .get(&text_node)
             .cloned()
             .unwrap_or_else(|| std::sync::Arc::from(Vec::new()))
+    }
+
+    /// The characters of a text node once its white space is processed, with its text-transform applied. The transform
+    /// comes after the white space processing, so that the characters it changes map to those SVG addresses.
+    /// NB: Masked text was transformed before it was masked, and has no white space left to process.
+    fn apply_svg_text_transform(&self, text_node: Node, text: Vec<u16>) -> Vec<u16> {
+        let inherited_text = self.style(self.parent(text_node)).inherited_text();
+        if inherited_text.text_transform == crate::css::css_enums::text_transform::NONE
+            || inherited_text.text_security != crate::css::css_enums::text_security::NONE
+        {
+            return text;
+        }
+        let uses_locale = super::rendered_text::transform_uses_locale(inherited_text.text_transform);
+        let locale = self
+            .run
+            .pass
+            .arena()
+            .published_text_source(text_node, uses_locale)
+            .locale;
+        let length = text.len();
+        let transformed = super::text_transform::render_text(
+            text,
+            locale.as_deref(),
+            super::text_transform::TextRenderingOptions {
+                text_transform: inherited_text.text_transform,
+                text_security: crate::css::css_enums::text_security::NONE,
+                white_space_collapse: crate::css::css_enums::white_space_collapse::PRESERVE,
+                is_password_input: false,
+                dom_start_offset: 0,
+                dom_length_in_code_units: length,
+            },
+        );
+        if !transformed.edits.is_empty() {
+            self.svg_text_transform_edits
+                .borrow_mut()
+                .insert(text_node, transformed.edits);
+        }
+        transformed.text
     }
 
     /// The characters of the run of adjacent text nodes that starts at `text_node`: its own, and those of the text
@@ -1696,7 +1763,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     // SVG DOM indices address UTF-16 code units before text transformation. Keep the painted glyphs and their
-    // spacing, and publish the cell occupied by each source code unit of the masked run.
+    // spacing, and publish the cell occupied by each source code unit of a masked or transformed run.
     // https://svgwg.org/svg2-draft/text.html#TermAddressableCharacter
     fn append_svg_run_dom_cells(
         &self,
@@ -1704,33 +1771,31 @@ impl<'pass> SvgFormattingContext<'pass> {
         cells: Vec<FfiSvgTextCharacterCell>,
         out: &mut Vec<FfiSvgTextCharacterCell>,
     ) {
-        if self.style(self.parent(node)).inherited_text().text_security == crate::css::css_enums::text_security::NONE {
+        let inherited_text = self.style(self.parent(node)).inherited_text();
+        let is_masked = inherited_text.text_security != crate::css::css_enums::text_security::NONE;
+        if !is_masked && inherited_text.text_transform == crate::css::css_enums::text_transform::NONE {
             out.extend(cells);
             return;
         }
         let mut cells = cells.as_slice();
         while !node.is_invalid() && node_facts::kind_is_text(self.node_kind(node)) {
-            let content = self.run.pass.text_content(node);
+            let current = node;
             node = self.next_sibling(node);
-            let Some(masked_text) = &content.svg_source_text else {
-                continue;
-            };
-            let (node_cells, rest) = cells.split_at(masked_text.len());
-            let mut cursor = 0;
-            for edit in content.rendered_text_edits() {
-                let start = edit.rendered_start_offset;
-                let end = start + edit.rendered_length_in_code_units;
-                out.extend_from_slice(&node_cells[cursor..start]);
-                cursor = end;
-                if edit.dom_length_in_code_units == 0 {
+            if is_masked {
+                let content = self.run.pass.text_content(current);
+                let Some(masked_text) = &content.svg_source_text else {
                     continue;
-                }
-                let mut cell = svg_text_cell_for_source_span(node_cells, start, end);
-                out.push(cell);
-                cell.starts_typographic_character = false;
-                out.extend(std::iter::repeat_n(cell, edit.dom_length_in_code_units - 1));
+                };
+                let (node_cells, rest) = cells.split_at(masked_text.len());
+                append_svg_text_cells_through_edits(node_cells, content.rendered_text_edits(), out);
+                cells = rest;
+                continue;
             }
-            out.extend_from_slice(&node_cells[cursor..]);
+            let (node_cells, rest) = cells.split_at(self.processed_svg_text(current).len());
+            match self.svg_text_transform_edits.borrow().get(&current) {
+                Some(edits) => append_svg_text_cells_through_edits(node_cells, edits, out),
+                None => out.extend_from_slice(node_cells),
+            }
             cells = rest;
         }
     }
