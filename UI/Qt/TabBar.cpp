@@ -91,12 +91,12 @@ static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 35;
 // tabs, such as their contents and the new tab button, is centered on the middle of the selected tab, 20 px down the
 // strip. What belongs to the window, such as the window controls and the Ladybird button, is centered on the traffic
 // lights' line, 18 px down the strip.
-static constexpr int HORIZONTAL_TAB_HEIGHT = 34;
+static constexpr int HORIZONTAL_TAB_HEIGHT = HORIZONTAL_TAB_STRIP_HEIGHT;
+static constexpr int HORIZONTAL_TAB_TOP_INSET = 1;
 // NB: This is where the 12 px traffic lights are centered, at their inset from the window's top.
 static constexpr int HORIZONTAL_WINDOW_ITEM_CENTER = 18;
-// NB: The tab row starts below the top of the strip, so a window control as tall as this, at the top of the row, is
-//     centered on the window items' line.
-static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT));
+// The window controls sit at the bottom of the strip, centered on the window items' line.
+static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_WINDOW_ITEM_CENTER);
 // The first item on the strip is as far from the window's edge as the traffic lights are from its corner on macOS.
 static constexpr int HORIZONTAL_TAB_STRIP_LEADING_MARGIN = use_native_macos_window_controls() ? NATIVE_MACOS_WINDOW_CONTROLS_INSET : 13;
 // The window controls run to the window's edge.
@@ -559,7 +559,14 @@ private:
     {
         if (objectName() != "LadybirdNewTabButton")
             return QRectF(rect());
-        return { (width() - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0, (height() - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0, HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE, HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE };
+        // Center the fill in the bottom square of the hit area.
+        auto nominal_rect = QRectF(
+            (width() - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE) / 2.0,
+            height() - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE,
+            HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE,
+            HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE);
+        auto fill_inset = (HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0;
+        return nominal_rect.adjusted(fill_inset, fill_inset, -fill_inset, -fill_inset);
     }
 
     virtual void paintEvent(QPaintEvent* event) override
@@ -1125,6 +1132,10 @@ void TabBar::paintEvent(QPaintEvent*)
     HashTable<Tab const*> tabs_with_cut_titles;
     auto title_line_height = QFontMetricsF(title_font).height();
 
+    // In an inactive window, the tabs' titles drop to the muted color.
+    auto const& chrome = Theme::chrome(*this);
+    auto tab_text_color = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive ? chrome.muted : chrome.text;
+
     if (auto rect = closing_tab_rect(); !rect.isEmpty()) {
         painter.save();
         // NB: The closing tab narrows from its end, which is rounded like the top corners of a tab. Its bottom reaches
@@ -1388,23 +1399,6 @@ void TabBar::paintEvent(QPaintEvent*)
         contents_rect.setLeft(icon_rect.right() + HORIZONTAL_TAB_CONTENT_GAP);
 
         auto title = tabText(index);
-        // In an inactive window, the tabs' titles drop to the muted color.
-        // NB: An unselected horizontal tab's title can be quieter than the muted color already, as in dark windows. It
-        //     takes the quieter of the two, so that it never grows louder as its window becomes inactive.
-        auto const& chrome = Theme::chrome(*this);
-        auto is_inactive = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive;
-        auto quieter_on_strip = [&](QColor const& a, QColor const& b) {
-            auto strip_lightness = chrome.strip.lightnessF();
-            return abs(a.lightnessF() - strip_lightness) <= abs(b.lightnessF() - strip_lightness) ? a : b;
-        };
-        auto unselected_text_color = is_vertical
-            ? (is_inactive ? chrome.muted : chrome.row_title)
-            : (is_inactive ? quieter_on_strip(chrome.tab_title, chrome.muted) : chrome.tab_title);
-        auto selected_text_color = is_inactive ? Theme::chrome(*this).muted : Theme::chrome(*this).text;
-        auto tab_text_color = ChromeStyle::mix(unselected_text_color, selected_text_color, selection);
-
-        // NB: A title keeps its weight whether its tab is selected or not, so nothing reflows as only its color
-        //     cross-fades.
         auto paint_title = [&] {
             painter.setFont(title_font);
 
@@ -2028,7 +2022,7 @@ QRect TabBar::animated_tab_rect(int index, QRect const& target) const
         return target;
 
     // NB: The start is where the tab was in the tab bar, before any scrolling.
-    auto from = start->translated(-m_scroll_offset, 0);
+    auto from = start->translated(-m_scroll_offset, 0).adjusted(0, HORIZONTAL_TAB_TOP_INSET, 0, 0);
     auto p = m_layout_animation_progress;
     auto mix = [p](int a, int b) { return qRound(a + ((b - a) * p)); };
     return { mix(from.left(), target.left()), mix(from.top(), target.top()), mix(from.width(), target.width()), mix(from.height(), target.height()) };
@@ -2625,7 +2619,7 @@ bool TabBar::pinned_tabs_are_tiles() const
 QRect TabBar::visual_tab_rect(int index) const
 {
     if (tab_layout() == TabLayout::Horizontal)
-        return tabRect(index).translated(-m_scroll_offset, 0);
+        return tabRect(index).translated(-m_scroll_offset, 0).adjusted(0, HORIZONTAL_TAB_TOP_INSET, 0, 0);
 
     if (index < 0 || index >= count())
         return {};
@@ -4052,6 +4046,10 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     if (watched == window() && event->type() == QEvent::Leave)
         defer_update_vertical_tabs_hover_expanded();
 
+    // The window's top margin can change without moving the tab bar within the strip.
+    if (event->type() == QEvent::ContentsRectChange && watched == window() && m_new_tab_button)
+        place_horizontal_new_tab_button();
+
     if (event->type() == QEvent::Resize) {
         if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current->is_loaded() && watched == &current->view())
             size_hidden_pages_like_the_current_one();
@@ -4497,7 +4495,7 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     auto trailing_margin = HORIZONTAL_TAB_STRIP_TRAILING_MARGIN;
     if (!use_native_macos_window_controls() && window_controls_on_left() && m_window_controls_visible)
         swap(leading_margin, trailing_margin);
-    m_tab_bar_row_layout->setContentsMargins(leading_margin, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, trailing_margin, 0);
+    m_tab_bar_row_layout->setContentsMargins(leading_margin, 0, trailing_margin, 0);
 
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
@@ -4516,20 +4514,20 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     // NB: The first tab's room for its foot takes part of the gap after the all-tabs button.
     m_ladybird_buttons->setParent(m_tab_bar_row);
     // NB: The buttons sit at the bottom of the tab row, and the Ladybird button's tile is centered in the strip.
-    m_ladybird_button->set_tile_vertical_offset(HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT) - (m_ladybird_button->sizeHint().height() / 2));
+    m_ladybird_button->set_tile_vertical_offset(HORIZONTAL_WINDOW_ITEM_CENTER - HORIZONTAL_TAB_TOP_INSET - (m_ladybird_button->sizeHint().height() / 2));
     m_ladybird_buttons->show();
     auto add_ladybird_buttons = [&] {
         m_tab_bar_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignBottom);
         m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTONS_TRAILING_GAP - HORIZONTAL_TAB_END_ROOM);
     };
     if (window_controls_on_left())
-        m_tab_bar_row_layout->addWidget(m_window_controls, 0, use_native_macos_window_controls() ? Qt::AlignVCenter : Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_window_controls, 0, use_native_macos_window_controls() ? Qt::AlignVCenter : Qt::AlignBottom);
     add_ladybird_buttons();
     m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
     m_tab_bar_row_layout->addSpacing(new_tab_button_room);
     m_tab_bar_row_layout->addStretch(1);
     if (!window_controls_on_left())
-        m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignBottom);
     place_horizontal_new_tab_button();
 }
 
@@ -4544,9 +4542,13 @@ void TabWidget::place_horizontal_new_tab_button()
     //     already grows to hold tabs that end beyond where they settle (see update_tab_layout()).
     auto x = tab_bar_geometry.right() + 1 - HORIZONTAL_TAB_END_ROOM + HORIZONTAL_NEW_TAB_BUTTON_GAP + min(0, m_tab_bar->horizontal_tabs_end_offset());
     // NB: The buttons are centered on the tabs' cards, which the strip's line runs through.
-    auto card_height = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET;
-    auto y = tab_bar_geometry.top() + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET + ((card_height - m_new_tab_button->height()) / 2);
-    m_new_tab_button->move(x + ((HORIZONTAL_NEW_TAB_BUTTON_SIZE - m_new_tab_button->width()) / 2), y);
+    auto card_height = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET;
+    auto nominal_top = tab_bar_geometry.top() + HORIZONTAL_TAB_TOP_INSET + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET
+        + ((card_height - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE) / 2);
+    // Let the button reach the top of the strip when the window has no resize frame.
+    auto hit_top = window()->contentsMargins().top() == 0 ? 0 : nominal_top;
+    m_new_tab_button->setFixedHeight(HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE + nominal_top - hit_top);
+    m_new_tab_button->move(x + ((HORIZONTAL_NEW_TAB_BUTTON_SIZE - m_new_tab_button->width()) / 2), hit_top);
     m_new_tab_button->raise();
 }
 
