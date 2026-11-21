@@ -1,0 +1,6 @@
+Before: "<p><span style=\"white-space: break-spaces\">a </span> b</p>"
+After: "<p><span style=\"white-space: break-spaces\">a </span>b</p>"
+Before: "<p><span style=\"white-space: pre-wrap\">a </span> b</p>"
+After: "<p><span style=\"white-space: pre-wrap\">a </span>b</p>"
+Before: "<p><span>a </span> b</p>"
+After: "<p><span>a</span>b</p>"

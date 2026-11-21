@@ -770,7 +770,7 @@ Vector<size_t> remove_collapsed_spaces_in_text_node(DOM::Text& text, size_t offs
             if (auto* previous_text = as_if<DOM::Text>(*node)) {
                 if (previous_text->length() == 0)
                     continue;
-                return previous_text->data().code_unit_at(previous_text->length() - 1) == ' ';
+                return !text_preserves_spaces(*previous_text) && previous_text->data().code_unit_at(previous_text->length() - 1) == ' ';
             }
             if (!is<DOM::Element>(*node) || !is_inline_node(*node) || editing_ignores_content(*node))
                 return false;
