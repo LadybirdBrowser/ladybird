@@ -244,28 +244,29 @@ pub struct AstMarks {
     pub scopes: u32,
 }
 
-/// What a function leaves behind once its tree is gone, one row per function, as columns.
+/// What a function leaves behind once its tree is gone, one row per function, as columns. The first parse of a source
+/// builds it in its work zone (see [`FunctionIndexBuilder`]) and keeps a copy at its final size.
 #[derive(Default)]
 pub struct FunctionIndex {
-    pub start: Vec<u32>,
+    pub start: Box<[u32]>,
     /// Where parsing the function starts over. This is what tells two functions apart that start at the same offset,
     /// and for the code of a class that runs as a function, the offset of the class element or the class.
-    pub params_start: Vec<u32>,
-    pub end: Vec<u32>,
-    pub flags: Vec<u32>,
-    pub length: Vec<u32>,
-    pub parameter_count: Vec<u32>,
+    pub params_start: Box<[u32]>,
+    pub end: Box<[u32]>,
+    pub flags: Box<[u32]>,
+    pub length: Box<[u32]>,
+    pub parameter_count: Box<[u32]>,
     /// What the function's code may do, as parser context bits.
-    pub ctx: Vec<u16>,
+    pub ctx: Box<[u16]>,
     /// The function's own name, if it has one.
-    pub name: Vec<u32>,
+    pub name: Box<[u32]>,
     /// Where each function's captures start in `capture_names`, and how many it has.
-    pub capture_start: Vec<u32>,
-    pub capture_count: Vec<u32>,
+    pub capture_start: Box<[u32]>,
+    pub capture_count: Box<[u32]>,
     /// What each function captures of the function around it, which is all that reparsing that function needs to know
     /// about a function it skips. A name that only passes through on its way further out is not in here: it is a capture
     /// of the outer function that it passes through.
-    pub capture_names: Vec<u32>,
+    pub capture_names: Box<[u32]>,
     /// The rows by `params_start`, unless that is the order they are in. It often is not, as an arrow function only gets
     /// its row after its parameters, and so after the functions in them. Worked out once functions get parsed again.
     pub(super) rows_by_params_start: OnceLock<Vec<u32>>,
@@ -275,14 +276,81 @@ pub struct FunctionIndex {
     /// which of the other bindings of the function itself are captured, in the order of their declarations. A scope is
     /// the distance from the scope before it, the number of bindings and those. A function with nothing to say has no
     /// bytes.
-    pub summaries: Vec<u8>,
-    pub summary_start: Vec<u32>,
+    pub summaries: Box<[u8]>,
+    pub summary_start: Box<[u32]>,
     /// A bit for every name of the source that anything declares, which all other names are free everywhere.
-    pub declared_names: Vec<u64>,
+    pub declared_names: Box<[u64]>,
     /// Where the summary of the top level ends, which is the first thing in the pool.
     pub program_summary_end: u32,
     /// Whether the top level has a direct `eval`, so that names may mean more than they seem to there.
     pub program_has_direct_eval: bool,
+}
+
+/// The function index that the first parse of a source builds in its work zone. See [`FunctionIndex`] for the columns.
+pub struct FunctionIndexBuilder<'z> {
+    pub start: ZoneVec<'z, u32>,
+    pub params_start: ZoneVec<'z, u32>,
+    pub end: ZoneVec<'z, u32>,
+    pub flags: ZoneVec<'z, u32>,
+    pub length: ZoneVec<'z, u32>,
+    pub parameter_count: ZoneVec<'z, u32>,
+    pub ctx: ZoneVec<'z, u16>,
+    pub name: ZoneVec<'z, u32>,
+    pub capture_start: ZoneVec<'z, u32>,
+    pub capture_count: ZoneVec<'z, u32>,
+    pub capture_names: ZoneVec<'z, u32>,
+    pub summaries: ZoneVec<'z, u8>,
+    pub summary_start: ZoneVec<'z, u32>,
+    pub declared_names: ZoneVec<'z, u64>,
+    pub program_summary_end: u32,
+    pub program_has_direct_eval: bool,
+}
+
+impl<'z> FunctionIndexBuilder<'z> {
+    /// An index with room for `functions` rows.
+    pub fn with_capacity(zone: &'z Zone, functions: usize) -> Self {
+        Self {
+            start: ZoneVec::with_capacity_in(functions, zone),
+            params_start: ZoneVec::with_capacity_in(functions, zone),
+            end: ZoneVec::with_capacity_in(functions, zone),
+            flags: ZoneVec::with_capacity_in(functions, zone),
+            length: ZoneVec::with_capacity_in(functions, zone),
+            parameter_count: ZoneVec::with_capacity_in(functions, zone),
+            ctx: ZoneVec::with_capacity_in(functions, zone),
+            name: ZoneVec::with_capacity_in(functions, zone),
+            capture_start: ZoneVec::with_capacity_in(functions, zone),
+            capture_count: ZoneVec::with_capacity_in(functions, zone),
+            capture_names: ZoneVec::new_in(zone),
+            summaries: ZoneVec::new_in(zone),
+            summary_start: ZoneVec::with_capacity_in(functions, zone),
+            declared_names: ZoneVec::new_in(zone),
+            program_summary_end: 0,
+            program_has_direct_eval: false,
+        }
+    }
+
+    /// A copy of the index, at its final size.
+    pub fn to_kept(&self) -> FunctionIndex {
+        FunctionIndex {
+            start: Box::from(self.start.as_slice()),
+            params_start: Box::from(self.params_start.as_slice()),
+            end: Box::from(self.end.as_slice()),
+            flags: Box::from(self.flags.as_slice()),
+            length: Box::from(self.length.as_slice()),
+            parameter_count: Box::from(self.parameter_count.as_slice()),
+            ctx: Box::from(self.ctx.as_slice()),
+            name: Box::from(self.name.as_slice()),
+            capture_start: Box::from(self.capture_start.as_slice()),
+            capture_count: Box::from(self.capture_count.as_slice()),
+            capture_names: Box::from(self.capture_names.as_slice()),
+            rows_by_params_start: OnceLock::new(),
+            summaries: Box::from(self.summaries.as_slice()),
+            summary_start: Box::from(self.summary_start.as_slice()),
+            declared_names: Box::from(self.declared_names.as_slice()),
+            program_summary_end: self.program_summary_end,
+            program_has_direct_eval: self.program_has_direct_eval,
+        }
+    }
 }
 
 impl FunctionIndex {
@@ -401,25 +469,8 @@ impl FunctionIndex {
             &self.capture_names,
         ];
         let sorted_rows = self.rows_by_params_start.get().map_or(0, Vec::capacity);
-        (u32_columns.iter().map(|column| column.capacity()).sum::<usize>() + sorted_rows) * size_of::<u32>()
-            + self.ctx.capacity() * size_of::<u16>()
-    }
-
-    /// Gives back what parsing set aside for rows that it did not need, now that the index is all that stays.
-    pub fn shrink_to_fit(&mut self) {
-        self.start.shrink_to_fit();
-        self.params_start.shrink_to_fit();
-        self.end.shrink_to_fit();
-        self.flags.shrink_to_fit();
-        self.length.shrink_to_fit();
-        self.parameter_count.shrink_to_fit();
-        self.ctx.shrink_to_fit();
-        self.name.shrink_to_fit();
-        self.capture_start.shrink_to_fit();
-        self.capture_count.shrink_to_fit();
-        self.capture_names.shrink_to_fit();
-        self.summaries.shrink_to_fit();
-        self.summary_start.shrink_to_fit();
+        (u32_columns.iter().map(|column| column.len()).sum::<usize>() + sorted_rows) * size_of::<u32>()
+            + self.ctx.len() * size_of::<u16>()
     }
 }
 

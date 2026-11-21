@@ -69,8 +69,6 @@ struct ReparseContext {
     name_states: Box<[base::NameState]>,
     /// The last stamp of a name state.
     stamp: u32,
-    /// What the parses write about the names they declare. Nothing reads it.
-    index: FunctionIndex,
 }
 
 /// The sources that have a reparse context now, for [`release_idle_reparse_contexts()`].
@@ -250,7 +248,6 @@ impl ScriptData {
             names,
             name_states,
             stamp: 0,
-            index: FunctionIndex::default(),
         }
     }
 
@@ -282,7 +279,6 @@ impl ScriptData {
                 Interner::of_kept(zone, &mut context.names),
                 &mut context.name_states,
                 context.stamp,
-                core::mem::take(&mut context.index),
                 &self.index,
                 u32_from_usize(source.len()),
                 estimated_nodes,
@@ -313,8 +309,7 @@ impl ScriptData {
             name_count,
             "a function has only names that the first parse of its source found"
         );
-        let (ast, index, stamp) = parser.end_reparse();
-        context.index = index;
+        let (ast, stamp) = parser.end_reparse();
         context.stamp = stamp;
         match error {
             None => Ok((ast, node)),
@@ -578,8 +573,9 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         return Ok(None);
     }
     let lines = LineTable::new(zone, units, options.initial_line_number);
+    let index = parser.index.to_kept();
     let top_level_rows = parser
-        .parse_top_level_rows(options.program_context())
+        .parse_top_level_rows(options.program_context(), &index)
         .map(|(rows, node)| (rows.into_columns(), node));
     let default_export_name = Name(parser.interner.intern_bytes(b"*default*"));
     let default_constructor_parameter_name = Name(parser.interner.intern_bytes(b"args"));
@@ -590,8 +586,6 @@ fn parse_code_units<'z, U: Unit + Default, R>(
     global_names_used_in_with.dedup();
     let eval_referenced_private_names =
         zone.alloc_slice_from_iter(parser.eval_referenced_private_names.iter().map(|&name| Name(name)));
-    let mut index = parser.index;
-    index.shrink_to_fit();
     let script = Arc::new(ScriptData {
         index,
         names,

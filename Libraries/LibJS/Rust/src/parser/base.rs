@@ -256,8 +256,6 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) inline_argument_limit: usize,
     /// Whether anything uses what scopes declare and what code refers to, which a sweep with a summary does not.
     pub(crate) tracks_scopes: bool,
-    /// Whether the first parse leaves a summary of the bindings of each function.
-    records_summaries: bool,
     /// How many bindings of the function being parsed have a place in its summary.
     pub(crate) summary_ordinal: u32,
     pub(crate) src: *const U,
@@ -278,7 +276,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub interner: Interner<'k>,
 
     pub ast: Ast<'a>,
-    pub index: FunctionIndex,
+    pub index: FunctionIndexBuilder<'a>,
     pub(crate) scratch: ZoneVec<'a, u32>,
     pub(crate) mode: Mode,
     pub(crate) retain: bool,
@@ -408,25 +406,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         } else {
             1 << 12
         };
-        let index = FunctionIndex {
-            start: Vec::with_capacity(estimated_functions),
-            params_start: Vec::with_capacity(estimated_functions),
-            end: Vec::with_capacity(estimated_functions),
-            flags: Vec::with_capacity(estimated_functions),
-            length: Vec::with_capacity(estimated_functions),
-            parameter_count: Vec::with_capacity(estimated_functions),
-            ctx: Vec::with_capacity(estimated_functions),
-            name: Vec::with_capacity(estimated_functions),
-            capture_start: Vec::with_capacity(estimated_functions),
-            capture_count: Vec::with_capacity(estimated_functions),
-            capture_names: Vec::new(),
-            summaries: Vec::new(),
-            declared_names: Vec::new(),
-            summary_start: Vec::new(),
-            program_summary_end: 0,
-            program_has_direct_eval: false,
-            ..FunctionIndex::default()
-        };
+        let index = FunctionIndexBuilder::with_capacity(zone, estimated_functions);
         let mut parser = Self::with_capacities(
             zone,
             source.as_ptr(),
@@ -473,7 +453,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         interner: Interner<'k>,
         names: &'k mut [NameState],
         stamp: u32,
-        index: FunctionIndex,
         first_pass_index: &FunctionIndex,
         source_length: u32,
         estimated_nodes: usize,
@@ -486,7 +465,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             Mode::Lazy,
             interner,
             names,
-            index,
+            FunctionIndexBuilder::with_capacity(zone, 0),
             estimated_nodes,
             256,
         );
@@ -504,7 +483,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         mode: Mode,
         interner: Interner<'k>,
         names: &'k mut [NameState],
-        index: FunctionIndex,
+        index: FunctionIndexBuilder<'a>,
         estimated_nodes: usize,
         estimated_uses: usize,
     ) -> Self {
@@ -519,7 +498,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             arguments_in_array: false,
             inline_argument_limit: crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
             tracks_scopes: true,
-            records_summaries: true,
             summary_ordinal: 0,
             src: source,
             len: length as u32,
@@ -652,6 +630,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     pub(crate) fn parse_top_level_rows(
         &mut self,
         context: ProgramContext,
+        index: &FunctionIndex,
     ) -> Result<(Ast<'a>, u32), super::OutOfStack> {
         // NB: The rows are those of the tree, and marks.
         let rows = Ast::with_capacity(self.zone, self.ast.tag.len());
@@ -661,7 +640,8 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             (self.first_token_start, self.strict, self.has_top_level_await);
         self.finish_reparse();
         self.export_names.clear();
-        self.first_pass_index = &raw const self.index;
+        // NB: The first pass index is only read until the end of this function.
+        self.first_pass_index = index;
         self.tracks_scopes = false;
         self.marks = true;
         let node = self.reparse_program(context);
@@ -735,14 +715,14 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
 
     /// Writes out the summaries of all functions, now that all of their scopes closed.
     fn group_summaries(&mut self) {
-        fn write_varint(bytes: &mut Vec<u8>, mut value: u32) {
+        fn write_varint(bytes: &mut ZoneVec<'_, u8>, mut value: u32) {
             while value >= 0x80 {
                 bytes.push(value as u8 | 0x80);
                 value >>= 7;
             }
             bytes.push(value as u8);
         }
-        fn write_scope_bindings(bytes: &mut Vec<u8>, bindings: &[(u32, u32, u32)]) {
+        fn write_scope_bindings(bytes: &mut ZoneVec<'_, u8>, bindings: &[(u32, u32, u32)]) {
             let scope_count = bindings.chunk_by(|a, b| a.1 == b.1).count();
             write_varint(bytes, scope_count as u32);
             let mut last_position = 0;
@@ -819,9 +799,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
 
     #[inline(always)]
     fn note_new_binding_of(&mut self, d: usize, name: u32, scope_index: usize, bind: Bind) {
-        if !self.records_summaries {
-            return;
-        }
         let scope = &self.scopes[scope_index];
         let head = self.names[name as usize].use_head;
         let is_function_level = scope.flags & scope_flag::VAR_SCOPE != 0;
@@ -1304,17 +1281,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             if row == NONE {
                 if !is_parameter {
                     self.add_declaration(hoist.name, top, decl::ANNEX_B);
-                    if self.records_summaries {
-                        let d = self.decls.len() - 1;
-                        self.decls[d].summary_slot = SUMMARY_SLOT_EARLY;
-                    }
+                    let d = self.decls.len() - 1;
+                    self.decls[d].summary_slot = SUMMARY_SLOT_EARLY;
                 }
             } else if flags & !decl::FUNCTION_NAME == 0 {
                 // NB: The name of a function expression is bound outside of the function, which gets a `var` of its own.
                 self.decls[row as usize].flags |= decl::ANNEX_B;
-                if self.records_summaries {
-                    self.decls[row as usize].summary_slot = SUMMARY_SLOT_EARLY;
-                }
+                self.decls[row as usize].summary_slot = SUMMARY_SLOT_EARLY;
             } else {
                 self.decls[row as usize].flags |= decl::ANNEX_B;
                 if !is_parameter {
@@ -1342,9 +1315,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// Makes declaration `d` of the scope at `top` one that the code of its function knows from the start, and not only
     /// from where it comes up. The declarations after it in the order of the summary move up into its place.
     fn make_binding_early(&mut self, d: u32, top: usize) {
-        if !self.records_summaries {
-            return;
-        }
         let slot = self.decls[d as usize].summary_slot;
         if slot & (SUMMARY_SLOT_EARLY | SUMMARY_SLOT_INNER) != 0 {
             return;
@@ -1451,10 +1421,8 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                 if used_in_with {
                     flags |= decl::USED_IN_WITH;
                 }
-                if self.records_summaries {
-                    let summary_slot = self.decls[d as usize].summary_slot;
-                    self.note_closed_binding(summary_slot, name, captured || used_in_with, scope);
-                }
+                let summary_slot = self.decls[d as usize].summary_slot;
+                self.note_closed_binding(summary_slot, name, captured || used_in_with, scope);
             }
             self.names[name as usize].decl_head = declaration.next_same_name;
             if keep {
@@ -1632,7 +1600,8 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     fn add_declaration(&mut self, name: u32, scope_index: usize, flags: u32) {
-        if self.records_summaries {
+        // NB: The first parse saw every declaration already.
+        if !self.is_reparsing() {
             let word = name as usize / 64;
             if word >= self.index.declared_names.len() {
                 self.index.declared_names.resize(word + 1, 0);
@@ -2215,11 +2184,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         self.len = length;
     }
 
-    /// Ends the parse of a function again, whether it went well or not. Gives back the tree, and the index and the stamp
-    /// for the reparse context, whose name states are clean again.
-    pub(crate) fn end_reparse(mut self) -> (Ast<'a>, FunctionIndex, u32) {
+    /// Ends the parse of a function again, whether it went well or not. Gives back the tree, and the stamp for the
+    /// reparse context, whose name states are clean again.
+    pub(crate) fn end_reparse(mut self) -> (Ast<'a>, u32) {
         self.finish_reparse();
-        (self.ast, self.index, self.stamp)
+        (self.ast, self.stamp)
     }
 
     /// Gets ready for the next function, whether this one went well or not.
