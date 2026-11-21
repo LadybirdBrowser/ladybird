@@ -41,7 +41,8 @@ ErrorOr<void> FFmpegAudioConverter::set_input_sample_specification(Audio::Sample
 
 ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpecification input, Audio::SampleSpecification output)
 {
-    if (m_input_sample_specification == input && m_output_sample_specification == output)
+    auto conversion_is_needed = input.is_valid() && output.is_valid() && input != output;
+    if (m_input_sample_specification == input && m_output_sample_specification == output && (!conversion_is_needed || m_context != nullptr))
         return {};
 
     ArmedScopeGuard free_context = { [&] {
