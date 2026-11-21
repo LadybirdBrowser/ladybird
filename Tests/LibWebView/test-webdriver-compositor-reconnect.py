@@ -81,6 +81,7 @@ def run_test(webdriver_binary):
             session = webdriver_helpers.create_session(port)
             status, _, body = webdriver_helpers.request(port, "POST", f"/session/{session}/url", {"url": PAGE})
             assert status == 200, body
+            webdriver_helpers.wait_for_compositor(port, session)
             first = take_screenshot(port, session)
 
             compositors = descendants_named(webdriver.pid, "Compositor")
