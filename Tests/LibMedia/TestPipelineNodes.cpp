@@ -463,6 +463,7 @@ TEST_CASE(displaying_video_sink_reports_a_suspended_input_while_unticked)
     Optional<Media::PipelineStatus> last_dispatched_status;
     sink->set_state_change_handler([&](Media::PipelineStatus status, Media::PipelineCheckpoint) { last_dispatched_status = status; });
     TRY_OR_FAIL(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     EXPECT(pump_until_the_sink_displays_a_frame(loop, *sink, *producer, *clock));
 
@@ -485,6 +486,7 @@ TEST_CASE(displaying_video_sink_demand_seeks_a_suspended_input)
     auto clock = TRY_OR_FAIL(Media::MonotonicMediaClock::try_create());
     auto sink = TRY_OR_FAIL(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     TRY_OR_FAIL(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // Display the first frame, then leave the sink unticked until the producer suspends.
     EXPECT(pump_until_the_sink_displays_a_frame(loop, *sink, *producer, *clock));

@@ -292,6 +292,12 @@ void HTMLMediaElement::initialize_element()
             self.sync_video_sink_ticking();
     }));
 
+    static constexpr int capture_keepalive_timeout_ms = 5000;
+    m_video_frame_capture_keepalive_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(capture_keepalive_timeout_ms), GC::weak_callback(*this, [](auto& self) {
+        self.m_video_frame_was_recently_captured = false;
+        self.video_sink_ticking_inputs_changed();
+    }));
+
     document().page().register_media_element({}, unique_id());
 }
 
@@ -2323,8 +2329,10 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
             video_element->set_intrinsic_video_dimensions(size);
     }));
     m_active_video_sink = make<ActiveVideoSink>(handle);
-    m_video_sink_is_ticking = true;
+    m_video_sink_is_ticking = {};
     add_current_video_sink(handle);
+    // NB: The input is not started until the sink's ticking state is decided, which a visible document does in the next
+    //     rendering update.
     video_sink_ticking_inputs_changed();
     if (auto* video_element = as_if<HTMLVideoElement>(this))
         Painting::push_video_paint_facts(*video_element);
@@ -3272,23 +3280,20 @@ void HTMLMediaElement::sync_video_sink_ticking(DocumentWasLaidOut document_was_l
         m_playback_manager->set_video_sink_ticking(*handle, should_tick);
 }
 
-// Visible documents re-evaluate sink ticking in each rendering update, once layout has settled. Hidden documents skip
+// Visible documents re-evaluate sink ticking in a rendering update, once layout has settled. Hidden documents skip
 // that update, but decide without layout, so they re-evaluate right away.
-void HTMLMediaElement::video_sink_ticking_inputs_changed() const
+void HTMLMediaElement::video_sink_ticking_inputs_changed()
 {
-    if (document().hidden())
+    if (document().hidden()) {
         sync_video_sink_ticking();
+        return;
+    }
+    document().page().client().request_frame();
 }
 
 void HTMLMediaElement::note_frame_captured() const
 {
-    static constexpr int capture_keepalive_timeout_ms = 5000;
     m_video_frame_was_recently_captured = true;
-    if (!m_video_frame_capture_keepalive_timer) {
-        m_video_frame_capture_keepalive_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(capture_keepalive_timeout_ms), GC::weak_callback(*this, [](auto& self) {
-            self.m_video_frame_was_recently_captured = false;
-        }));
-    }
     m_video_frame_capture_keepalive_timer->restart();
 }
 

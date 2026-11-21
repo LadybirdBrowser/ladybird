@@ -30,6 +30,7 @@
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
+#include <LibMedia/Sinks/VideoSinkTicking.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
@@ -166,9 +167,9 @@ private:
         RefPtr<RemoteVideoSink> video_edge_sink { nullptr };
         PipelineStatus sink_status { PipelineStatus::Pending };
         PipelineCheckpoint sink_checkpoint { 0 };
-        // While ticking, the sink's dispatched status is live and remains the sole ending
+        // While ticking, or until the owner decides, the sink's dispatched status is live and remains the sole ending
         // authority; while unticked, it is stale and the track ends at its verified end time.
-        bool ticking { true };
+        VideoSinkTicking ticking { VideoSinkTicking::Undecided };
         Function<void(Gfx::Size<u32>)> on_resize { nullptr };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;

@@ -56,7 +56,7 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
         if (output.status == PipelineStatus::Suspended) {
             m_next_frame = nullptr;
             // A ticking sink's update resumes the input if the time is moving, and reports the suspension otherwise.
-            if (m_is_ticking) {
+            if (is_ticking()) {
                 update(MonotonicTime::now());
                 return;
             }
@@ -72,14 +72,30 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
                 return true;
             return is_waiting_for_data(m_latest_status);
         }();
-        if (!m_is_ticking && !status_may_change)
+        if (!is_ticking() && !status_may_change)
             return;
         update(MonotonicTime::now());
     });
-    m_seek_resolution_is_pending_frame_at_target = true;
-    input->seek(m_time_reader.current_time());
-    input->start();
+    if (m_ticking != VideoSinkTicking::Undecided) {
+        start_input();
+        report_freshness_if_changed();
+    }
     return {};
+}
+
+void DisplayingVideoSink::start_input()
+{
+    VERIFY(m_ticking != VideoSinkTicking::Undecided);
+    if (!is_ticking()) {
+        m_input->suspend();
+        return;
+    }
+    m_next_frame = nullptr;
+    m_latest_status = PipelineStatus::Pending;
+    m_seek_status = SeekStatus::CatchingUp;
+    m_seek_resolution_is_pending_frame_at_target = true;
+    m_input->seek(m_time_reader.current_time());
+    m_input->start();
 }
 
 void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& input)
@@ -102,6 +118,10 @@ void DisplayingVideoSink::begin_seek(AK::Duration timestamp, InvalidateHeldData 
     m_latest_status = PipelineStatus::Pending;
     m_last_dispatched_status = PipelineStatus::Pending;
     m_seek_resolution_is_pending_frame_at_target = true;
+
+    // The input is seeked to the current time when ticking starts. Don't seek and possibly unsuspend the input yet.
+    if (m_ticking == VideoSinkTicking::Undecided)
+        return;
 
     auto can_resolve_seek_within_cached_frames = [&] {
         if (invalidate_held_data == InvalidateHeldData::Yes)
@@ -153,7 +173,7 @@ void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status, Pipel
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 {
-    if (m_input == nullptr)
+    if (m_input == nullptr || m_ticking == VideoSinkTicking::Undecided)
         return {};
     if (is_ticking())
         m_has_updated_since_ticking_began = true;
@@ -311,16 +331,22 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 
 void DisplayingVideoSink::notify_clock_resumed()
 {
-    update(MonotonicTime::now());
+    if (is_ticking())
+        update(MonotonicTime::now());
 }
 
 void DisplayingVideoSink::set_ticking(bool ticking)
 {
-    auto was_ticking = exchange(m_is_ticking, ticking);
-    if (ticking == was_ticking)
+    auto new_ticking = ticking ? VideoSinkTicking::Yes : VideoSinkTicking::No;
+    auto previous_ticking = exchange(m_ticking, new_ticking);
+    if (previous_ticking == new_ticking)
         return;
-    if (ticking) {
+    if (ticking)
         m_has_updated_since_ticking_began = false;
+    if (previous_ticking == VideoSinkTicking::Undecided) {
+        if (m_input != nullptr)
+            start_input();
+    } else if (ticking) {
         catch_up_to_clock();
     }
     report_freshness_if_changed();
@@ -343,7 +369,7 @@ void DisplayingVideoSink::report_freshness_if_changed()
 
 void DisplayingVideoSink::catch_up_to_clock()
 {
-    if (m_seek_status != SeekStatus::None)
+    if (m_ticking == VideoSinkTicking::Undecided || m_seek_status != SeekStatus::None)
         return;
     auto current_time = m_time_reader.current_time();
 

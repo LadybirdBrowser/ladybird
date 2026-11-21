@@ -368,7 +368,7 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
         if (!track_data.handle.has_value())
             continue;
         auto track_status = track_data.sink_status;
-        if (!track_data.ticking && track_status != PipelineStatus::Error) {
+        if (track_data.ticking == VideoSinkTicking::No && track_status != PipelineStatus::Error) {
             auto verified_end_time = verified_end_time_for_source(track_data.demuxer);
             if (verified_end_time.has_value() && current_time() >= *verified_end_time)
                 track_status = PipelineStatus::EndOfStream;
@@ -390,7 +390,7 @@ void PlaybackManager::update_pipeline_state()
             for (auto const& track_data : m_audio_track_datas)
                 breakdown.appendff(", audio track {} {}", track_data.track.identifier(), track_data.enabled ? "enabled" : "disabled");
             for (auto const& track_data : m_video_track_datas)
-                breakdown.appendff(", video track {} sink {}{}", track_data.track.identifier(), track_data.sink_status, track_data.ticking ? "" : " unticked");
+                breakdown.appendff(", video track {} sink {}{}", track_data.track.identifier(), track_data.sink_status, track_data.ticking == VideoSinkTicking::No ? " unticked" : "");
             dbgln("PlaybackManager({:p}): Combined status {} in {} ({})", this, status, m_handler->state(), breakdown.string_view());
         }
     }
@@ -542,7 +542,8 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
     });
     track_data.producer->set_checkpoint(m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed));
     MUST(video_sink->connect_input(track_data.producer));
-    video_sink->set_ticking(track_data.ticking);
+    if (track_data.ticking != VideoSinkTicking::Undecided)
+        video_sink->set_ticking(track_data.ticking == VideoSinkTicking::Yes);
     track_data.video_sink = move(video_sink);
     update_pipeline_state();
     dispatch_buffered_ranges_change();
@@ -561,7 +562,7 @@ void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHan
     if (track_data.handle.has_value())
         disable_video_sink_by_handle(*track_data.handle);
     track_data.handle = handle;
-    track_data.ticking = true;
+    track_data.ticking = VideoSinkTicking::Undecided;
     video_sink_registrations().set(handle, this);
     apply_track_change_to_ended_state(resume_ended_playback);
     update_pipeline_state();
@@ -609,9 +610,10 @@ void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool tickin
     if (!manager)
         return;
     auto& track_data = manager->get_video_data_for_handle(handle);
-    if (track_data.ticking == ticking)
+    auto new_ticking = ticking ? VideoSinkTicking::Yes : VideoSinkTicking::No;
+    if (track_data.ticking == new_ticking)
         return;
-    track_data.ticking = ticking;
+    track_data.ticking = new_ticking;
     if (track_data.video_sink)
         track_data.video_sink->set_ticking(ticking);
     manager->update_pipeline_state();

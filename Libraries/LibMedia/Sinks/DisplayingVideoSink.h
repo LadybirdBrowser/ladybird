@@ -18,6 +18,7 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
+#include <LibMedia/Sinks/VideoSinkTicking.h>
 
 namespace Media {
 
@@ -51,7 +52,8 @@ public:
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
     virtual void notify_clock_resumed() override;
     virtual void set_ticking(bool) override;
-    bool is_ticking() const { return m_is_ticking; }
+    bool is_ticking() const { return m_ticking == VideoSinkTicking::Yes; }
+    bool ticking_is_decided() const { return m_ticking != VideoSinkTicking::Undecided; }
     // Called when the sink starts or stops ticking, catching up, or having an up-to-date frame.
     void set_on_freshness_changed(Function<void()> handler) { m_on_freshness_changed = move(handler); }
     // Seeks the input to the clock's time if the current frame doesn't show it, whether or not the sink is ticking.
@@ -70,11 +72,12 @@ public:
 private:
     void dispatch_state_if_changed(PipelineStatus, PipelineCheckpoint);
     void report_freshness_if_changed();
+    void start_input();
 
     MediaTimeReader m_time_reader;
     RefPtr<VideoProducer> m_input;
 
-    bool m_is_ticking { true };
+    VideoSinkTicking m_ticking { VideoSinkTicking::Undecided };
     bool m_has_updated_since_ticking_began { false };
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;

@@ -2889,7 +2889,7 @@ Vector<String> Internals::tab_audibility_transitions()
 
 bool Internals::media_element_video_sink_is_ticking(HTML::HTMLMediaElement& element)
 {
-    return element.m_video_sink_is_ticking;
+    return element.m_video_sink_is_ticking.value_or(false);
 }
 
 void Internals::set_media_element_ready_state(HTML::HTMLMediaElement& element, u16 ready_state)

@@ -686,7 +686,7 @@ TEST_CASE(video_presentation_edge_carries_the_ticking_decision_to_its_sink)
     }
 
     auto handle = manager->reserve_video_sink_handle(manager->video_tracks()[0]);
-    PlaybackManager::set_video_sink_ticking(handle, false);
+    PlaybackManager::set_video_sink_ticking(handle, true);
 
     auto paired = MUST(IPC::Transport::create_paired());
     auto server = VideoPresentationServerConnection::construct(move(paired.local));
@@ -695,12 +695,15 @@ TEST_CASE(video_presentation_edge_carries_the_ticking_decision_to_its_sink)
     MUST(client->create_edge(handle, [&](NonnullRefPtr<DisplayingVideoSink> ready_sink) {
         sink = move(ready_sink);
     }));
-    EXPECT(spin_until(loop, [&] { return sink && !sink->is_ticking(); }));
+    if (!spin_until(loop, [&] { return sink && sink->is_ticking(); })) {
+        FAIL("Timed out waiting for a ticking video edge");
+        return;
+    }
 
-    PlaybackManager::set_video_sink_ticking(handle, true);
-    EXPECT(spin_until(loop, [&] { return sink->is_ticking(); }));
     PlaybackManager::set_video_sink_ticking(handle, false);
     EXPECT(spin_until(loop, [&] { return !sink->is_ticking(); }));
+    PlaybackManager::set_video_sink_ticking(handle, true);
+    EXPECT(spin_until(loop, [&] { return sink->is_ticking(); }));
 
     server->shutdown();
 }
@@ -828,6 +831,7 @@ TEST_CASE(sink_resumes_a_suspended_consumer_when_the_clock_resumes)
     auto clock = MUST(MonotonicMediaClock::try_create());
     auto sink = MUST(DisplayingVideoSink::try_create(clock->time_reader()));
     MUST(sink->connect_input(consumer));
+    sink->set_ticking(true);
     EXPECT_EQ(upstream_seeks, 1u);
 
     consumer->receive_frame(1, 1, create_received_frame(*pool, AK::Duration::zero()));

@@ -42,6 +42,7 @@ TEST_CASE(seek_resolving_frame_is_presented_even_when_stale)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // The producer resolves the seek with a frame that covers the target, but whose presentation
     // interval has already passed relative to the clock.
@@ -69,6 +70,7 @@ TEST_CASE(suspension_wake_releases_the_prefetched_frame)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // Present the frame covering the current time, leaving the following frame prefetched.
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
@@ -102,6 +104,7 @@ TEST_CASE(updates_are_required_until_the_clock_stops_and_frames_are_presented)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // A seek in flight keeps updates required while the clock is stopped.
     sink->seek(AK::Duration::from_milliseconds(1000));
@@ -135,6 +138,7 @@ TEST_CASE(paused_sink_before_its_first_frame_stays_suspended)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // The first frame starts after the paused time, so the seek resolves with nothing to present yet.
     sink->seek(AK::Duration::zero());
@@ -175,6 +179,7 @@ TEST_CASE(seek_within_the_displayed_frame_resumes_a_suspended_input)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -207,6 +212,7 @@ TEST_CASE(held_late_frame_waiting_on_input_reports_pending)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
@@ -238,6 +244,7 @@ TEST_CASE(seek_past_the_cached_frames_waits_for_the_frame_at_the_target)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
@@ -269,6 +276,7 @@ TEST_CASE(frames_passed_while_waiting_on_a_late_frame_are_counted_as_dropped)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -297,6 +305,7 @@ TEST_CASE(frames_passed_by_an_update_landing_on_time_are_counted_as_presented)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(4)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -324,6 +333,7 @@ TEST_CASE(frames_passed_by_a_seek_within_the_cached_frames_are_not_counted)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     // A long frame followed by a short one, so that a seek within the long one's conservative end lands after the
     // short one's.
@@ -354,6 +364,7 @@ TEST_CASE(resuming_ticking_seeks_past_frames_held_behind_the_clock)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
     auto seeks_before_resuming = producer->seek_count();
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
@@ -393,6 +404,7 @@ TEST_CASE(a_suspension_is_not_followed_by_the_status_it_replaced)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
     sink->set_ticking(false);
 
     producer->append_output(nullptr, Media::PipelineStatus::Blocked);
@@ -421,6 +433,7 @@ TEST_CASE(wakes_before_a_status_is_dispatched_leave_frames_held_behind_the_clock
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -447,6 +460,7 @@ TEST_CASE(wakes_while_not_ticking_leave_frames_held_behind_the_clock)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -482,6 +496,7 @@ TEST_CASE(seek_while_not_ticking_resolves_once_a_frame_covers_the_target)
     });
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -516,6 +531,7 @@ TEST_CASE(frames_passed_catching_up_after_resuming_from_suspension_are_not_count
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -562,6 +578,7 @@ TEST_CASE(frames_replaced_within_an_update_are_presented_when_the_last_one_is_on
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -589,6 +606,7 @@ TEST_CASE(frames_passed_for_a_late_frame_ending_the_stream_are_counted_as_presen
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -618,6 +636,7 @@ TEST_CASE(frames_out_of_order_with_a_passed_frame_are_not_counted)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
@@ -647,6 +666,7 @@ TEST_CASE(updates_are_required_until_the_last_frame_finishes_presenting)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
 
     sink->seek(AK::Duration::from_milliseconds(1000));
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(100)));
@@ -660,6 +680,88 @@ TEST_CASE(updates_are_required_until_the_last_frame_finishes_presenting)
     EXPECT(!sink->update(MonotonicTime::now()).may_require_updates);
 }
 
+// Until the sink knows whether it ticks, starting its input either way could be wrong, so it holds the input and any
+// seeks back and reports that it is waiting, which keeps the clock from starting.
+TEST_CASE(undecided_sink_leaves_its_input_unstarted)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&](Media::PipelineStatus status, Media::PipelineCheckpoint) { dispatched_statuses.append(status); });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    clock->seek(AK::Duration::from_milliseconds(500));
+    sink->seek(AK::Duration::from_milliseconds(500));
+    (void)sink->update(MonotonicTime::now());
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(!sink->is_ticking());
+    EXPECT_EQ(producer->start_count(), 0u);
+    EXPECT_EQ(producer->suspend_count(), 0u);
+    EXPECT_EQ(producer->seek_count(), 0u);
+    EXPECT(dispatched_statuses.is_empty());
+
+    sink->set_ticking(true);
+    EXPECT_EQ(producer->start_count(), 1u);
+    EXPECT_EQ(producer->suspend_count(), 0u);
+    EXPECT_EQ(producer->seek_count(), 1u);
+}
+
+TEST_CASE(sink_first_decided_not_to_tick_suspends_its_input)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&](Media::PipelineStatus status, Media::PipelineCheckpoint) { dispatched_statuses.append(status); });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->seek(AK::Duration::zero());
+
+    sink->set_ticking(false);
+    EXPECT_EQ(producer->start_count(), 0u);
+    EXPECT_EQ(producer->suspend_count(), 1u);
+    EXPECT_EQ(producer->seek_count(), 0u);
+
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(dispatched_statuses, Vector { Media::PipelineStatus::Suspended });
+
+    // Playing on while unticked leaves the input suspended.
+    clock->resume();
+    sink->notify_clock_resumed();
+    EXPECT_EQ(producer->seek_count(), 0u);
+
+    // Ticking resumes the input at the current time.
+    sink->set_ticking(true);
+    EXPECT_EQ(producer->seek_count(), 1u);
+}
+
+// A sink that is connected after its ticking was decided starts its input right away.
+TEST_CASE(sink_decided_before_connecting_starts_its_input_on_connect)
+{
+    never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto ticking_sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    ticking_sink->set_ticking(true);
+    auto ticking_producer = ScriptedVideoProducer::create();
+    MUST(ticking_sink->connect_input(ticking_producer));
+    EXPECT_EQ(ticking_producer->start_count(), 1u);
+    EXPECT_EQ(ticking_producer->seek_count(), 1u);
+
+    auto unticked_sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    unticked_sink->set_ticking(false);
+    auto unticked_producer = ScriptedVideoProducer::create();
+    MUST(unticked_sink->connect_input(unticked_producer));
+    EXPECT_EQ(unticked_producer->suspend_count(), 1u);
+    EXPECT_EQ(unticked_producer->seek_count(), 0u);
+}
+
 TEST_CASE(frame_is_up_to_date_once_a_ticking_sink_has_caught_up)
 {
     never_destroyed_event_loop();
@@ -670,8 +772,12 @@ TEST_CASE(frame_is_up_to_date_once_a_ticking_sink_has_caught_up)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    EXPECT(!sink->frame_is_up_to_date());
 
-    // A sink that has yet to update has yet to bring its frame to the clock.
+    // A sink that has just begun ticking has yet to bring its frame to the clock, even once it has updated.
+    sink->set_ticking(true);
+    EXPECT(!sink->frame_is_up_to_date());
+    (void)sink->update(MonotonicTime::now());
     EXPECT(!sink->frame_is_up_to_date());
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     (void)sink->update(MonotonicTime::now());
@@ -723,10 +829,10 @@ TEST_CASE(unticked_sink_catches_up_to_its_clock_on_request)
     // Paused at a time the sink has no frame for, nothing but a request makes it seek.
     clock->seek(AK::Duration::from_milliseconds(2000));
     (void)sink->update(MonotonicTime::now());
-    auto seeks_before_catching_up = producer->seek_count();
+    EXPECT_EQ(producer->seek_count(), 0u);
 
     sink->catch_up_to_clock();
-    EXPECT_EQ(producer->seek_count(), seeks_before_catching_up + 1);
+    EXPECT_EQ(producer->seek_count(), 1u);
     EXPECT(sink->is_catching_up());
 
     producer->consume();
@@ -739,7 +845,7 @@ TEST_CASE(unticked_sink_catches_up_to_its_clock_on_request)
 
     // A frame that already shows the clock's time needs no seek.
     sink->catch_up_to_clock();
-    EXPECT_EQ(producer->seek_count(), seeks_before_catching_up + 1);
+    EXPECT_EQ(producer->seek_count(), 1u);
     EXPECT(!sink->is_catching_up());
 }
 
@@ -755,24 +861,89 @@ TEST_CASE(sink_reports_changes_to_its_freshness)
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
 
+    // An undecided sink and an unticked one are equally behind the clock.
     sink->set_ticking(false);
-    EXPECT_EQ(changes, 1u);
+    EXPECT_EQ(changes, 0u);
 
     // Ticking starts a catch-up, and the frame is up to date once that is done.
     clock->seek(AK::Duration::from_milliseconds(1000));
     sink->set_ticking(true);
-    EXPECT_EQ(changes, 2u);
+    EXPECT_EQ(changes, 1u);
     EXPECT(sink->is_catching_up());
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
     producer->wake();
     loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     EXPECT(sink->frame_is_up_to_date());
-    EXPECT_EQ(changes, 3u);
+    EXPECT_EQ(changes, 2u);
 
     sink->set_ticking(true);
-    EXPECT_EQ(changes, 3u);
+    EXPECT_EQ(changes, 2u);
     sink->set_ticking(false);
-    EXPECT_EQ(changes, 4u);
+    EXPECT_EQ(changes, 3u);
+}
+
+TEST_CASE(sink_reconnected_to_a_new_input_takes_its_frames)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto first_producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(first_producer));
+    sink->set_ticking(true);
+
+    // The frame after the current one waits in the sink until the clock reaches it.
+    first_producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    first_producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1040), AK::Duration::from_milliseconds(40)));
+    (void)sink->update(MonotonicTime::now());
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
+    EXPECT(sink->frame_is_up_to_date());
+    sink->disconnect_input(first_producer);
+
+    // The new input starts with a catch-up, which the sink reports.
+    size_t changes = 0;
+    sink->set_on_freshness_changed([&] { changes++; });
+    auto second_producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(second_producer));
+    EXPECT(!sink->frame_is_up_to_date());
+    EXPECT_EQ(changes, 1u);
+    auto frame = create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40));
+    second_producer->append_frame(frame);
+    (void)sink->update(MonotonicTime::now());
+    EXPECT(!sink->is_catching_up());
+    EXPECT_EQ(sink->current_frame().ptr(), frame.ptr());
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+}
+
+// A catch-up that the previous input left blocked says nothing about the new input's catch-up.
+TEST_CASE(sink_reconnected_after_a_blocked_catch_up_catches_up_its_new_input)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto first_producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(first_producer));
+    sink->set_ticking(true);
+    first_producer->append_output(nullptr, Media::PipelineStatus::Blocked);
+    (void)sink->update(MonotonicTime::now());
+    EXPECT(!sink->is_catching_up());
+    sink->disconnect_input(first_producer);
+
+    auto second_producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(second_producer));
+    EXPECT(sink->is_catching_up());
+    EXPECT(!sink->frame_is_up_to_date());
+
+    second_producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    (void)sink->update(MonotonicTime::now());
+    EXPECT(!sink->is_catching_up());
+    EXPECT(sink->frame_is_up_to_date());
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
 }
 
 // Data that has yet to arrive holds a catch-up up indefinitely, so the frame from before it counts as up to date.
@@ -785,6 +956,7 @@ TEST_CASE(catch_up_that_waits_for_data_leaves_the_frame_up_to_date)
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     auto producer = ScriptedVideoProducer::create();
     MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
     producer->append_frame(create_test_frame(*pool, AK::Duration::zero(), AK::Duration::from_milliseconds(40)));
     (void)sink->update(MonotonicTime::now());
     EXPECT(sink->frame_is_up_to_date());

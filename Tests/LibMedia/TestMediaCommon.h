@@ -170,8 +170,8 @@ public:
             m_wake_handler();
     }
 
-    virtual void start() override { }
-    virtual void suspend() override { }
+    virtual void start() override { m_start_count++; }
+    virtual void suspend() override { m_suspend_count++; }
     virtual Media::VideoProducerOutput peek() override
     {
         MutexLocker locker { m_mutex };
@@ -188,6 +188,8 @@ public:
     virtual void seek(AK::Duration, Media::InvalidateHeldData = Media::InvalidateHeldData::No) override { m_seek_count++; }
 
     size_t seek_count() const { return m_seek_count; }
+    size_t start_count() const { return m_start_count; }
+    size_t suspend_count() const { return m_suspend_count; }
 
 private:
     ScriptedVideoProducer() = default;
@@ -195,6 +197,8 @@ private:
     Mutex m_mutex;
     Vector<Media::VideoProducerOutput> m_outputs;
     size_t m_seek_count { 0 };
+    size_t m_start_count { 0 };
+    size_t m_suspend_count { 0 };
     Media::PipelineWakeHandler m_wake_handler;
 };
 
