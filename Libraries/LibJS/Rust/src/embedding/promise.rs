@@ -24,7 +24,7 @@ use crate::gc::heap_function::HeapFunction;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSCompletion, JSObject, JSPromiseCapability, JSVM, JSValue};
 use crate::layout::value::Value;
-use crate::runtime::promise::{Promise, PromiseState};
+use crate::runtime::promise::{Promise, PromiseState, safe_promise_resolve};
 use crate::runtime::promise_capability::new_promise_capability;
 
 /// [[PromiseState]], in the order of LibJS's JS::Promise::State.
@@ -174,4 +174,18 @@ pub unsafe extern "C" fn js_promise_capability_resolve(capability: *mut JSPromis
 pub unsafe extern "C" fn js_promise_capability_reject(capability: *mut JSPromiseCapability) -> *mut JSObject {
     // SAFETY: See the module documentation.
     object_into_abi(unsafe { cell_from_abi::<JSPromiseCapability>(capability) }.reject())
+}
+
+/// SafePromiseResolve ( promiseCapability, resolution ), which resolves the capability's promise without running
+/// script. The capability's [[Promise]] is a Promise, and its [[Resolve]] a resolve function of that promise. Main
+/// thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_safe_promise_resolve(
+    vm: *mut JSVM,
+    capability: *mut JSPromiseCapability,
+    resolution: JSValue,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, capability) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSPromiseCapability>(capability)) };
+    completion_into_abi(safe_promise_resolve(vm, capability, Value::from_bits(resolution)))
 }
