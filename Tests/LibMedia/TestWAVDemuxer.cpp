@@ -255,6 +255,10 @@ TEST_CASE(demuxer_reads_speaker_positions_from_an_extensible_header)
     EXPECT_EQ(channel_map_of({ .channel_count = 4, .speaker_position_mask = front_left | front_right | side_left | side_right }), Audio::ChannelMap(Channel::FrontLeft, Channel::FrontRight, Channel::SideLeft, Channel::SideRight));
     EXPECT_EQ(channel_map_of({ .channel_count = 6, .speaker_position_mask = 0x3F }), Audio::ChannelMap::surround_5_1());
 
+    // The bits past the last position the header defines name no speaker.
+    constexpr u32 reserved_positions = (1 << 18) | (1 << 19);
+    EXPECT_EQ(channel_map_of({ .channel_count = 2, .speaker_position_mask = reserved_positions }), Audio::ChannelMap::stereo());
+
     // Positions that do not account for every channel are ignored in favour of the usual layout for the count.
     EXPECT_EQ(channel_map_of({ .channel_count = 6, .speaker_position_mask = front_left | front_right }), Audio::ChannelMap::surround_5_1());
     EXPECT_EQ(channel_map_of({ .channel_count = 6 }), Audio::ChannelMap::surround_5_1());

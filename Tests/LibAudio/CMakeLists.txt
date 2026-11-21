@@ -6,5 +6,9 @@ set(TEST_SOURCES
     TestSpscAudioFrameRing.cpp
 )
 
+if (APPLE)
+    list(APPEND TEST_SOURCES TestCoreAudioChannelLayout.cpp)
+endif()
+
 target_sources(TestLibAudio PRIVATE ${TEST_SOURCES})
 target_link_libraries(TestLibAudio PRIVATE LibAudio LibCore LibThreading)

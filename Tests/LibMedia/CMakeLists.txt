@@ -80,6 +80,8 @@ endif()
 
 target_sources(TestLibMedia PRIVATE ${TEST_SOURCES})
 target_link_libraries(TestLibMedia PRIVATE LibAudio LibFileSystem LibGfx LibIPC LibMedia LibMediaCodecs LibThreading)
+# The header of FFmpegChannelLayout includes FFmpeg's headers.
+target_link_libraries(TestLibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL)
 
 if ("TestFFmpegVulkanDecode.cpp" IN_LIST TEST_SOURCES)
     target_link_libraries(TestLibMedia PRIVATE LibPlatformFeatures Vulkan::Vulkan)
