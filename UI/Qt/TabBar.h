@@ -267,6 +267,8 @@ private:
     QRect closing_tab_rect() const;
     HashMap<Tab const*, QRect> m_layout_animation_start_rects;
     HashMap<Tab const*, HorizontalTabEndRoom> m_layout_animation_start_end_rooms;
+    // The tabs that open, and grow in from nothing, while the tabs move.
+    HashTable<Tab const*> m_opening_tabs;
     HashMap<Tab const*, QRect> m_settled_tab_rects;
     HashMap<Tab const*, HorizontalTabEndRoom> m_settled_tab_end_rooms;
     int m_settled_tab_count { 0 };
@@ -539,10 +541,16 @@ public:
         RailBadge,
     };
 
+    // How the button shows: by fading in, or at once and fully opaque, cutting short a fade in progress.
+    enum class Reveal : u8 {
+        Fade,
+        AtOnce,
+    };
+
     TabBarButton(QIcon const& icon, Role, QWidget* parent = nullptr);
     void set_placement(Placement);
     // Shows the button by fading it in, or fades it out and hides it.
-    void set_revealed(bool);
+    void set_revealed(bool, Reveal = Reveal::Fade);
     // A close button is dimmed, but on the hovered and the selected tabs.
     void set_tab_emphasized(bool);
 
