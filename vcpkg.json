@@ -269,6 +269,48 @@
     "zmij"
   ],
   "features": {
+    "qt": {
+      "description": "Build Qt for Linux distributions",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "platform": "linux",
+          "default-features": false,
+          "features": [
+            "dbus",
+            "doubleconversion",
+            "egl",
+            "fontconfig",
+            "freetype",
+            "harfbuzz",
+            "icu",
+            "jpeg",
+            "network",
+            "opengl",
+            "openssl",
+            "pcre2",
+            "png",
+            "thread",
+            "vulkan",
+            "wayland",
+            "widgets",
+            "xcb",
+            "xcb-xlib",
+            "zstd"
+          ]
+        },
+        {
+          "name": "qtpositioning",
+          "platform": "linux",
+          "default-features": false
+        },
+        {
+          "name": "qtsvg",
+          "platform": "linux",
+          "default-features": false
+        }
+      ]
+    },
     "sparkle": {
       "description": "Update the macOS app with Sparkle",
       "dependencies": [
@@ -409,6 +451,10 @@
     },
     {
       "name": "qtserialport",
+      "version": "6.11.3#0"
+    },
+    {
+      "name": "qtsvg",
       "version": "6.11.3#0"
     },
     {

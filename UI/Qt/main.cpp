@@ -22,6 +22,8 @@
 #include <UI/Qt/WebContentView.h>
 
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
 #include <QStyleHints>
 #include <QtGlobal>
 
@@ -41,6 +43,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto hub_path = TRY(Ladybird::Application::hub_executable_path());
         execv(hub_path.characters(), arguments.argv);
         return Error::from_syscall("execv"sv, errno);
+    }
+#endif
+
+#ifdef LADYBIRD_QT_PLUGINS_PATH
+    // Qt ignores the path when it is absent, so the build tree still uses vcpkg's plugins.
+    if (auto executable_path = Core::System::current_executable_path(); !executable_path.is_error()) {
+        auto executable_dir = QFileInfo(QFile::decodeName(executable_path.value().characters())).absolutePath();
+        QCoreApplication::addLibraryPath(executable_dir + QStringLiteral("/" LADYBIRD_QT_PLUGINS_PATH));
     }
 #endif
 
