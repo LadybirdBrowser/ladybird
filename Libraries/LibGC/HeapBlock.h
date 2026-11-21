@@ -56,6 +56,10 @@ public:
     // found unmarked.
     void deallocate(Cell*);
 
+    // Frees the slot of a live cell that moved to another slot, without
+    // destroying it, since its copy lives on.
+    void release_moved_cell(Cell*);
+
     // The free cells of a block: the cells that were freed, as a list linked
     // through freelist_next_offset, and the cells that were never allocated,
     // which are the cells from lazy_start up to lazy_end.
@@ -77,6 +81,9 @@ public:
 
     // The offset of the link to the next cell in a free cell.
     static constexpr size_t freelist_next_offset();
+
+    // How far into a block its first cell is.
+    static size_t cells_offset();
 
     // Free cells are in the heap region, where anything may have been
     // corrupted, so a link read from a free cell must never lead out of its
@@ -149,6 +156,7 @@ private:
     HeapBlock(Heap&, CellAllocator&);
 
     bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
+    void free_slot(Cell*);
 
     struct FreelistEntry final : public Cell {
         GC_CELL(FreelistEntry, Cell);

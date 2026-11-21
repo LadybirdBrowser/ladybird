@@ -40,7 +40,13 @@ impl Hash for ValueTraitsKey {
             value = Value::from_f64(f64::NAN);
         }
 
-        // FIXME: Is this the best way to hash pointers, doubles & ints?
+        // NB: A cell may move, so it is hashed by its identity, not its address.
+        if value.is_cell() {
+            value.as_cell().hash(state);
+            return;
+        }
+
+        // FIXME: Is this the best way to hash doubles & ints?
         state.write_u64(value.0);
     }
 }

@@ -83,9 +83,13 @@ public:
 
 struct CAPI {
     static_assert(offsetof(ForeignCell, m_word_owned_by_the_foreign_implementation) == 0);
-    static_assert(offsetof(ForeignCell, m_unused_header_byte) == offsetof(Cell, m_unused_header_byte));
+    static_assert(offsetof(ForeignCell, m_identity_hash_state) == offsetof(Cell, m_identity_hash_state));
     static_assert(offsetof(ForeignCell, m_state) == offsetof(Cell, m_state));
     static_assert(offsetof(ForeignCell, m_cell_kind) == offsetof(Cell, m_cell_kind));
+    static_assert(offsetof(Cell, m_identity_hash_state) == IdentityHashState::offset);
+    static_assert(IdentityHashState::offset == FFI::IDENTITY_HASH_STATE_OFFSET);
+    static_assert(IdentityHashState::hashed == FFI::IDENTITY_HASH_HASHED);
+    static_assert(IdentityHashState::moved == FFI::IDENTITY_HASH_MOVED);
 
     static void get_layout(GCLayout& layout)
     {
@@ -110,6 +114,9 @@ struct CAPI {
             .heap_region_offset_mask = HEAP_REGION_OFFSET_MASK,
             .primitive_storage_cage_offset_mask = PrimitiveStorage::cage_offset_mask,
             .visitor_marker_offset = static_cast<uint32_t>(Cell::Visitor::marker_offset()),
+            .identity_hash_state_offset = FFI::IDENTITY_HASH_STATE_OFFSET,
+            .identity_hash_hashed = FFI::IDENTITY_HASH_HASHED,
+            .identity_hash_moved = FFI::IDENTITY_HASH_MOVED,
         };
     }
 
@@ -146,6 +153,12 @@ struct CAPI {
         collect_when_deferrals_end = &heap.m_should_gc_when_deferral_ends;
     }
     static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
+    static FFI::IdentityHashes** identity_hashes(Heap& heap) { return &heap.m_identity_hashes; }
+    static bool will_move(Cell const& cell)
+    {
+        auto* evacuation = cell.heap().m_evacuation;
+        return evacuation && FFI::rust_gc_evacuation_will_move(evacuation, &cell);
+    }
 };
 
 }
@@ -190,6 +203,13 @@ static bool store_resized_primitive_storage(PrimitiveStorage const& storage, Err
 
 extern "C" {
 
+// Where a heap keeps the identity hashes of the cells that moved, for LibGC's Rust core.
+void** gc_heap_identity_hashes(void* heap);
+void** gc_heap_identity_hashes(void* heap)
+{
+    return reinterpret_cast<void**>(CAPI::identity_hashes(*static_cast<Heap*>(heap)));
+}
+
 void gc_get_layout(GCLayout* layout)
 {
     CAPI::get_layout(*layout);
@@ -228,6 +248,16 @@ void gc_heap_collect_garbage(GCHeap* heap, int collection_type, bool print_repor
     VERIFY(collection_type == GC_COLLECTION_TYPE_COLLECT_GARBAGE || collection_type == GC_COLLECTION_TYPE_COLLECT_EVERYTHING);
     auto type = collection_type == GC_COLLECTION_TYPE_COLLECT_EVERYTHING ? Heap::CollectionType::CollectEverything : Heap::CollectionType::CollectGarbage;
     as_heap(heap).collect_garbage(type, print_report);
+}
+
+void gc_heap_collect_garbage_without_scanning_the_stack(GCHeap* heap)
+{
+    as_heap(heap).collect_garbage_without_scanning_the_stack();
+}
+
+bool gc_heap_moves_everything(void)
+{
+    return Heap::moves_everything();
 }
 
 bool gc_heap_is_collecting_everything(GCHeap const* heap)
@@ -328,6 +358,11 @@ void gc_allocator_set_traced_on_owner_thread_only(GCAllocator* allocator)
     reinterpret_cast<CAPICellAllocator*>(allocator)->set_trace_thread(TraceThread::OwnerThreadOnly);
 }
 
+void gc_allocator_set_movable(GCAllocator* allocator)
+{
+    reinterpret_cast<CAPICellAllocator*>(allocator)->set_movable();
+}
+
 GCCell* gc_heap_allocate_cell(GCHeap* heap, GCAllocator* allocator)
 {
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
@@ -365,6 +400,21 @@ GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)
 bool gc_cell_is_marked(GCCell const* cell)
 {
     return GC::is_marked(cell);
+}
+
+bool gc_cell_will_move(GCCell const* cell)
+{
+    return CAPI::will_move(*reinterpret_cast<Cell const*>(cell));
+}
+
+bool gc_heap_is_moving_cells(GCHeap const* heap)
+{
+    return as_heap(heap).is_moving_cells();
+}
+
+uint32_t gc_cell_identity_hash(GCCell const* cell)
+{
+    return FFI::rust_gc_cell_identity_hash(heap_region_base(), cell);
 }
 
 GCRoot* gc_root_create(GCCell* cell)
@@ -436,6 +486,26 @@ void gc_marker_visit_cell(GCMarker* marker, GCCell* cell)
 void gc_marker_visit_values(GCMarker* marker, uint64_t const* values, size_t count)
 {
     FFI::rust_gc_marker_visit_values(reinterpret_cast<FFI::Marker*>(marker), values, count);
+}
+
+void gc_marker_visit_member(GCMarker* marker, uint32_t const* slot)
+{
+    FFI::rust_gc_marker_visit_member(reinterpret_cast<FFI::Marker*>(marker), slot);
+}
+
+void gc_marker_visit_interior_pointer(GCMarker* marker, uintptr_t const* slot, GCCell* cell)
+{
+    FFI::rust_gc_marker_visit_interior_pointer(reinterpret_cast<FFI::Marker*>(marker), slot, cell);
+}
+
+void gc_marker_visit_self_pointer(GCMarker* marker, uintptr_t const* slot)
+{
+    FFI::rust_gc_marker_visit_self_pointer(reinterpret_cast<FFI::Marker*>(marker), slot);
+}
+
+void gc_marker_pin_cell(GCMarker* marker, GCCell const* cell)
+{
+    FFI::rust_gc_marker_pin_cell(reinterpret_cast<FFI::Marker*>(marker), cell);
 }
 
 bool gc_primitive_storage_allocate(size_t size, bool zero_fill, GCPrimitiveStorageHandle* out_handle, GCPrimitiveStorageLayout* out_layout)

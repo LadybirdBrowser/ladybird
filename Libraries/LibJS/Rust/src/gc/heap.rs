@@ -524,6 +524,11 @@ impl Heap {
             // SAFETY: The allocator is live and has not allocated yet.
             unsafe { capi::gc_allocator_set_traced_on_owner_thread_only(raw.as_ptr()) };
         }
+        // NB: The classes derived at run time that share an allocator are never movable.
+        if class.is_movable() && !class_in_tail {
+            // SAFETY: The allocator is live and has not allocated yet.
+            unsafe { capi::gc_allocator_set_movable(raw.as_ptr()) };
+        }
         // SAFETY: The heap and the allocator are live.
         let local_free_list = unsafe { capi::gc_heap_allocator_local_free_list(self.raw.as_ptr(), raw.as_ptr()) };
         HeapAllocator { raw, local_free_list }
@@ -691,6 +696,23 @@ impl Heap {
         capi::gc_heap_collect_garbage(self.handle(), capi::GC_COLLECTION_TYPE_COLLECT_GARBAGE, false);
     }
 
+    /// Collects garbage without scanning the stack, so that only roots keep cells alive, and cells may move.
+    ///
+    /// # Safety
+    ///
+    /// The caller, and every frame above it, must hold no cell that is not rooted, since such a cell may be collected
+    /// or moved.
+    pub unsafe fn collect_garbage_without_scanning_the_stack(&self) {
+        // SAFETY: The caller vouches that the stack holds no cell that is not rooted.
+        unsafe { capi::gc_heap_collect_garbage_without_scanning_the_stack(self.handle()) };
+    }
+
+    /// Whether LIBGC_MOVE_EVERYTHING has collections that do not scan the stack move every cell they can, which test
+    /// runners use to collect that way where they safely can.
+    pub fn moves_everything() -> bool {
+        capi::gc_heap_moves_everything()
+    }
+
     /// Calls `callback` with `context` during every collection, after marking and finalization and before dead cells
     /// are swept, so that weak holders can drop the cells whose mark is clear.
     ///
@@ -812,6 +834,22 @@ fn check_layout() -> GCLayout {
         offset_of!(CellHeader, kind) as u64,
     );
     expect("block size", layout.block_size.into(), BLOCK_SIZE as u64);
+    expect(
+        "identity hash state offset",
+        layout.identity_hash_state_offset.into(),
+        crate::layout_forward::IDENTITY_HASH_STATE_OFFSET as u64,
+    );
+    expect(
+        "identity hash state offset in the cell header",
+        layout.identity_hash_state_offset.into(),
+        offset_of!(CellHeader, identity_hash_state) as u64,
+    );
+    expect(
+        "identity hash bits",
+        u64::from(layout.identity_hash_hashed) | (u64::from(layout.identity_hash_moved) << 8),
+        u64::from(crate::layout_forward::IDENTITY_HASH_HASHED)
+            | (u64::from(crate::layout_forward::IDENTITY_HASH_MOVED) << 8),
+    );
     expect(
         "block foreign type offset",
         layout.block_foreign_type_offset.into(),

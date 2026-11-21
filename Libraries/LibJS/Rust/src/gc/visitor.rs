@@ -8,7 +8,8 @@ use core::cell::Cell;
 use core::ptr::NonNull;
 
 use super::capi::{
-    GCMarker, GCVisitor, gc_marker_visit_cell, gc_marker_visit_values, gc_visitor_visit_cell,
+    GCMarker, GCVisitor, gc_marker_pin_cell, gc_marker_visit_cell, gc_marker_visit_interior_pointer,
+    gc_marker_visit_member, gc_marker_visit_self_pointer, gc_marker_visit_values, gc_visitor_visit_cell,
     gc_visitor_visit_ephemeron, gc_visitor_visit_values,
 };
 use crate::layout::cell::Gc;
@@ -49,6 +50,9 @@ impl Visitor {
         self.0.as_ptr()
     }
 
+    /// Visits a cell by value, which keeps it where it is in a collection that moves cells, since the collector cannot
+    /// update the copy of the pointer that the caller keeps. Edges that live in a cell should be visited through their
+    /// slot instead, with visit_member(), visit_nullable_member() or visit_values().
     pub fn visit<T>(&mut self, cell: Gc<T>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, and a Gc points to a live cell.
@@ -59,16 +63,55 @@ impl Visitor {
         unsafe { gc_visitor_visit_cell(self.0.as_ptr(), cell.as_ptr().cast()) };
     }
 
-    /// Visits the cell a member names. It takes the slot so that a collector that moves cells can update it.
+    /// Visits the cell a member names. It takes the slot, which a collection that moves the cell rewrites if the slot
+    /// is in a cell. A slot elsewhere keeps the cell where it is.
     pub fn visit_member<T>(&mut self, slot: &Member<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, and the slot holds a compressed pointer to a live cell.
+            unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
         self.visit(slot.get());
     }
 
-    /// Visits the cell a member names, if it is not null. It takes the slot so that a collector that moves cells can
-    /// update it.
+    /// Visits the cell a member names, if it is not null, like visit_member().
     pub fn visit_nullable_member<T>(&mut self, slot: &NullableMember<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, and the slot holds 0 or a compressed pointer to a live cell.
+            unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
         if let Some(cell) = slot.get() {
             self.visit(cell);
+        }
+    }
+
+    /// Visits `cell`, which the raw pointer in `slot` points into, past its start, as an object points into the cell
+    /// that holds its property storage. A collection that moves the cell rewrites the slot if it is in a cell.
+    pub fn visit_interior_pointer<T, U>(&mut self, slot: &Cell<*mut T>, cell: Gc<U>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, the slot holds a pointer, and the cell is live.
+            unsafe { gc_marker_visit_interior_pointer(marker.as_ptr(), slot.as_ptr().cast(), cell.as_ptr().cast()) };
+            return;
+        }
+        self.visit(cell);
+    }
+
+    /// Notes that the raw pointer in `slot` points into the cell that holds the slot, up to one past its end, as an
+    /// object points to its inline property storage. A collection that moves the cell points the slot into the copy.
+    pub fn visit_self_pointer<T>(&mut self, slot: &Cell<*mut T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, and the slot is in the cell being visited.
+            unsafe { gc_marker_visit_self_pointer(marker.as_ptr(), slot.as_ptr().cast()) };
+        }
+    }
+
+    /// Keeps `cell` where it is in a collection that moves cells, without keeping it alive, for a weak reference that
+    /// the collector cannot update.
+    pub fn pin<T: ?Sized>(&mut self, cell: Gc<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, and the cell is live.
+            unsafe { gc_marker_pin_cell(marker.as_ptr(), cell.as_ptr().cast()) };
         }
     }
 
@@ -285,9 +328,10 @@ unsafe impl Trace for Value {
     }
 }
 
-// SAFETY: Forwards to the current value.
+// SAFETY: Forwards to the current value, in place, so that a collection that moves cells can update a slot in it.
 unsafe impl<T: Copy + Trace> Trace for Cell<T> {
     fn trace(&self, visitor: &mut Visitor) {
-        self.get().trace(visitor);
+        // SAFETY: Nothing writes the value while it is traced, since the mutator waits for tracing to end.
+        unsafe { &*self.as_ptr() }.trace(visitor);
     }
 }

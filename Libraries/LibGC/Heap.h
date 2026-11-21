@@ -36,6 +36,13 @@
 
 namespace GC {
 
+namespace FFI {
+
+struct EvacuationSet;
+struct IdentityHashes;
+
+}
+
 struct StackFrameInfo {
     String label;
     size_t size_bytes { 0 };
@@ -131,6 +138,13 @@ public:
     // Whether collect_garbage_and_return_memory_to_system() runs, so that what hangs off the heap can let go of more
     // than it does in other collections.
     bool is_returning_memory_to_system() const { return m_is_returning_memory_to_system; }
+
+    // Whether the collection in progress may move cells, which only a collection that does not scan the stack does.
+    bool is_moving_cells() const { return m_evacuation; }
+
+    // Whether LIBGC_MOVE_EVERYTHING has every collection that does not scan the stack move every cell it can, which
+    // test runners use to collect without scanning the stack where they safely can.
+    static bool moves_everything();
 
     void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
     void set_should_collect_on_every_allocation(bool);
@@ -298,6 +312,12 @@ private:
     NEVER_INLINE Vector<RetainingPath> build_retaining_paths(ReadonlySpan<FlatPtr> callee_saved_registers, AK::Function<bool(Cell&)> const& is_target, size_t max_paths);
 
     void gather_roots(ConservativeScanOrigin const&, HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr, IncludeIncomingCrossHeapMembers = IncludeIncomingCrossHeapMembers::Yes);
+    bool should_move_cells(CollectionType, bool scan_stack) const;
+    void begin_evacuation();
+    void evacuate();
+    void end_evacuation();
+    Cell* allocate_destination_for_moved_cell(CellAllocator&);
+    void schedule_collection_that_moves_cells();
     static void mark_live_cells_across(ReadonlySpan<Heap* const>, HashMap<Cell*, HeapRoot>& roots);
     void clear_weak_pointers_to_dead_cells(bool report);
     void run_post_mark_phases(bool report);
@@ -390,7 +410,13 @@ private:
     RefPtr<Core::Timer> m_incremental_sweep_timer;
 
     RefPtr<Core::Timer> m_idle_gc_timer;
+    RefPtr<Core::Timer> m_moving_collection_timer;
     bool m_outermost_event_loop_turn_holds_no_cells { false };
+
+    // The blocks the collection in progress evacuates and the slots it found, while it may move cells.
+    FFI::EvacuationSet* m_evacuation { nullptr };
+    // The identity hashes of the cells that moved since they were hashed, see identity_hash().
+    FFI::IdentityHashes* m_identity_hashes { nullptr };
     void collect_garbage_from_timer();
     enum class AbandonedObjectGraphState : u8 {
         None,

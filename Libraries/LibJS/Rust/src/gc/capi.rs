@@ -69,6 +69,9 @@ pub struct GCLayout {
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
     pub visitor_marker_offset: u32,
+    pub identity_hash_state_offset: u32,
+    pub identity_hash_hashed: u8,
+    pub identity_hash_moved: u8,
 }
 
 /// The generation of the storage's table entry in the high 32 bits and the entry's index in the low 32 bits.
@@ -100,6 +103,9 @@ unsafe extern "C" {
     pub fn gc_heap_destroy(heap: *mut GCHeap);
     // NB: The functions that take a reference to the heap have no other preconditions.
     pub safe fn gc_heap_collect_garbage(heap: &GCHeap, collection_type: i32, print_report: bool);
+    // NB: A collection that does not scan the stack may collect or move the cells that only the stack holds.
+    pub fn gc_heap_collect_garbage_without_scanning_the_stack(heap: &GCHeap);
+    pub safe fn gc_heap_moves_everything() -> bool;
     pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_is_marking_for_collection(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_is_returning_memory_to_system(heap: &GCHeap) -> bool;
@@ -127,14 +133,22 @@ unsafe extern "C" {
     ) -> *mut GCAllocator;
     pub fn gc_allocator_destroy(allocator: *mut GCAllocator);
     pub fn gc_allocator_set_traced_on_owner_thread_only(allocator: *mut GCAllocator);
+    pub fn gc_allocator_set_movable(allocator: *mut GCAllocator);
     pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
     pub fn gc_heap_allocate_storage_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
     pub fn gc_heap_allocator_local_free_list(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut *mut c_void;
     pub fn gc_cell_heap_context(cell: *const c_void) -> *mut c_void;
     pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
     pub fn gc_cell_is_marked(cell: *const c_void) -> bool;
+    pub fn gc_cell_will_move(cell: *const c_void) -> bool;
+    pub safe fn gc_heap_is_moving_cells(heap: &GCHeap) -> bool;
+    pub fn gc_cell_identity_hash(cell: *const c_void) -> u32;
     pub fn gc_marker_visit_cell(marker: *mut GCMarker, cell: *mut c_void);
     pub fn gc_marker_visit_values(marker: *mut GCMarker, values: *const u64, count: usize);
+    pub fn gc_marker_visit_member(marker: *mut GCMarker, slot: *const u32);
+    pub fn gc_marker_visit_interior_pointer(marker: *mut GCMarker, slot: *const usize, cell: *mut c_void);
+    pub fn gc_marker_visit_self_pointer(marker: *mut GCMarker, slot: *const usize);
+    pub fn gc_marker_pin_cell(marker: *mut GCMarker, cell: *const c_void);
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;
     pub fn gc_root_destroy(root: *mut GCRoot);

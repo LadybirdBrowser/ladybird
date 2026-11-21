@@ -28,7 +28,7 @@ class WeakHashMap {
         static unsigned hash(KeyStorage const& value)
         {
             if constexpr (key_is_cell)
-                return Traits<K const*>::hash(value.ptr().ptr());
+                return weak_key_hash(value.ptr().ptr());
             else
                 return Traits<K>::hash(value);
         }
@@ -187,7 +187,7 @@ private:
     auto find_iterator(K const& key) const -> typename TableType::ConstIteratorType
     {
         if constexpr (key_is_cell) {
-            return m_table.find(Traits<K const*>::hash(&key), [&](auto& entry) {
+            return m_table.find(weak_key_hash(&key), [&](auto& entry) {
                 return entry.key.ptr().ptr() == &key;
             });
         } else {
@@ -198,7 +198,7 @@ private:
     auto find_iterator(K const& key) -> typename TableType::IteratorType
     {
         if constexpr (key_is_cell) {
-            return m_table.find(Traits<K const*>::hash(&key), [&](auto& entry) {
+            return m_table.find(weak_key_hash(&key), [&](auto& entry) {
                 return entry.key.ptr().ptr() == &key;
             });
         } else {

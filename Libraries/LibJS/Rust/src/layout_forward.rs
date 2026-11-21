@@ -112,5 +112,32 @@ pub fn initialize_heap_region_base() {
     });
 }
 
+/// Where a cell keeps the state of its identity hash, and its bits, which the startup layout check compares with LibGC's.
+pub const IDENTITY_HASH_STATE_OFFSET: usize = 8;
+pub const IDENTITY_HASH_HASHED: u8 = 1 << 0;
+pub const IDENTITY_HASH_MOVED: u8 = 1 << 1;
+
+/// The identity hash of the cell at `cell`, which stays the same while the cell lives, wherever the collector moves it.
+/// This is the fast path of LibGC's gc_cell_identity_hash(), which it calls only for cells that moved since they were
+/// first hashed.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of a heap of this thread.
+#[inline(always)]
+pub unsafe fn cell_identity_hash(cell: *const c_void) -> u32 {
+    // SAFETY: The caller passes a live cell, whose header has the state byte, which only this thread touches.
+    let state = unsafe { &*cell.byte_add(IDENTITY_HASH_STATE_OFFSET).cast::<Cell<u8>>() };
+    let bits = state.get();
+    if bits & IDENTITY_HASH_MOVED == 0 {
+        if bits & IDENTITY_HASH_HASHED == 0 {
+            state.set(bits | IDENTITY_HASH_HASHED);
+        }
+        return (cell.addr() >> crate::layout::member::COMPRESSED_POINTER_SHIFT) as u32;
+    }
+    // SAFETY: The caller passes a live cell.
+    unsafe { crate::gc::capi::gc_cell_identity_hash(cell) }
+}
+
 const _: () =
     assert!(crate::layout::member::COMPRESSED_POINTER_RANGE == crate::build_configuration::HEAP_REGION_OFFSET_MASK + 1);

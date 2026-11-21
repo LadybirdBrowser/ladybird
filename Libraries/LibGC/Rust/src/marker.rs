@@ -25,10 +25,11 @@ use std::sync::Barrier;
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 
 use crate::block::{BLOCK_SIZE, BlockDescriptor, descriptor_table, heap_of_descriptor};
+use crate::evacuation::{EvacuationSet, PinReason, RecordedSlot, SlotKind};
 use crate::pool::{Pool, PoolGuard, thread_count};
 use crate::rust_panic::abort_on_panic;
 
-const COMPRESSED_POINTER_SHIFT: u32 = 3;
+pub(crate) const COMPRESSED_POINTER_SHIFT: u32 = 3;
 
 /// How many cells the thread that collects marks alone before the helpers join in, which takes about as long as waking
 /// them. Collections that mark fewer are done before then.
@@ -76,6 +77,8 @@ pub struct MarkRequest {
     pub marked_external_bytes: *mut usize,
     /// Set to the number of threads that marked.
     pub threads_used: usize,
+    /// The evacuation state of a collection that moves cells, which gets the slots marking records, or null.
+    pub evacuation: *mut EvacuationSet,
 }
 
 type VisitEdges = unsafe extern "C" fn(cell: *mut c_void, visitor: *mut c_void);
@@ -124,6 +127,8 @@ pub struct Marker {
     marked_external_bytes: Box<[Cell<usize>]>,
     /// Ephemerons whose key was not marked yet when they were visited, as (key, value).
     pending_ephemerons: UnsafeCell<Vec<(u32, u32)>>,
+    /// The slots that point into evacuated blocks, which a collection that moves cells rewrites.
+    recorded_slots: UnsafeCell<Vec<RecordedSlot>>,
 }
 
 impl Job<'_> {
@@ -164,6 +169,12 @@ impl Job<'_> {
         //         the mark bits, which are atomic.
         Some((heap_index, unsafe { descriptor.as_ref() }))
     }
+
+    /// Whether `address` is in the heap region, and so in a cell, since the collector only records slots in cells.
+    #[inline(always)]
+    fn is_in_heap_region(&self, address: usize) -> bool {
+        (address.wrapping_sub(self.layout.heap_region_base) as u64) <= self.layout.value_offset_mask
+    }
 }
 
 impl Marker {
@@ -173,13 +184,71 @@ impl Marker {
     }
 
     /// Sets the mark bit of the cell at `address` if it is in one of the heaps being collected, and queues the cell if
-    /// that was news, which this returns.
+    /// that was news, which this returns. This is a visit by value, which pins the cell if its block is evacuated.
     #[inline(always)]
     fn mark(&self, address: usize) -> bool {
+        self.mark_pinned(address, PinReason::Edge)
+    }
+
+    #[inline(always)]
+    fn mark_pinned(&self, address: usize, reason: PinReason) -> bool {
         let job = self.job();
         let Some((_, descriptor)) = job.descriptor_in_domain(address) else {
             return false;
         };
+        if let Some(evacuation) = descriptor.evacuation() {
+            evacuation.pin(descriptor, address, reason);
+        }
+        self.mark_in(descriptor, address)
+    }
+
+    /// Marks the cell at `address`, which a slot at `slot` points to. If the cell's block is evacuated, the slot is
+    /// recorded, so that it can be rewritten once the cell moves, or the cell pinned if the slot is not in a cell.
+    #[inline(always)]
+    fn mark_through_slot(&self, slot: RecordedSlot, address: usize) {
+        let job = self.job();
+        let Some((_, descriptor)) = job.descriptor_in_domain(address) else {
+            return;
+        };
+        if let Some(evacuation) = descriptor.evacuation() {
+            if job.is_in_heap_region(slot.address()) {
+                // SAFETY: Only this marker's thread touches its recorded slots while it marks.
+                unsafe { &mut *self.recorded_slots.get() }.push(slot);
+            } else {
+                evacuation.pin(descriptor, address, PinReason::Edge);
+            }
+        }
+        self.mark_in(descriptor, address);
+    }
+
+    /// Pins the cell at `address` without marking it, for a weak reference that the collector cannot update.
+    fn pin(&self, address: usize) {
+        let job = self.job();
+        let Some((_, descriptor)) = job.descriptor_in_domain(address) else {
+            return;
+        };
+        if let Some(evacuation) = descriptor.evacuation() {
+            evacuation.pin(descriptor, address, PinReason::Edge);
+        }
+    }
+
+    /// Records a slot that points into the cell that holds it, if that cell's block is evacuated.
+    fn visit_self_pointer(&self, slot: usize) {
+        let job = self.job();
+        if !job.is_in_heap_region(slot) {
+            return;
+        }
+        if let Some((_, descriptor)) = job.descriptor_in_domain(slot)
+            && descriptor.evacuation().is_some()
+        {
+            // SAFETY: Only this marker's thread touches its recorded slots while it marks.
+            unsafe { &mut *self.recorded_slots.get() }.push(RecordedSlot::new(slot, SlotKind::SelfPointer));
+        }
+    }
+
+    #[inline(always)]
+    fn mark_in(&self, descriptor: &BlockDescriptor, address: usize) -> bool {
+        let job = self.job();
         let newly_marked = if self.shared.get() {
             descriptor.mark(address)
         } else {
@@ -206,18 +275,37 @@ impl Marker {
         newly_marked
     }
 
+    /// Marks the cells of the values in `values`, which are slots.
     #[inline(always)]
     fn visit_values(&self, values: &[u64]) {
         let layout = &self.job().layout;
-        for &value in values {
-            if value & layout.value_is_cell_pattern == layout.value_is_cell_pattern {
-                self.mark(layout.heap_region_base + (value & layout.value_offset_mask) as usize);
+        for value in values {
+            let bits = *value;
+            if bits & layout.value_is_cell_pattern == layout.value_is_cell_pattern {
+                self.mark_through_slot(
+                    RecordedSlot::new(core::ptr::from_ref(value).addr(), SlotKind::Value),
+                    layout.heap_region_base + (bits & layout.value_offset_mask) as usize,
+                );
             }
+        }
+    }
+
+    /// Marks the cell a compressed pointer at `slot` points to, if it is not null.
+    #[inline(always)]
+    fn visit_member(&self, slot: *const u32) {
+        // SAFETY: The caller passes a live slot.
+        let compressed = unsafe { slot.read() };
+        if compressed != 0 {
+            let address = self.job().decompress(compressed);
+            self.mark_through_slot(RecordedSlot::new(slot.addr(), SlotKind::Member), address);
         }
     }
 
     fn visit_ephemeron(&self, key: usize, value: usize) {
         let job = self.job();
+        // NB: The key of an ephemeron, like that of a WeakMap entry, is held weakly in a way the collector cannot
+        //     update, so it stays where it is.
+        self.pin(key);
         // NB: Keys outside the heaps being collected are never marked here, so their values stay reachable.
         if job
             .descriptor_in_domain(key)
@@ -449,6 +537,55 @@ pub unsafe extern "C" fn rust_gc_marker_visit_values(marker: *mut Marker, values
     unsafe { &*marker }.visit_values(unsafe { ak::slice_from_raw_parts(values, count) });
 }
 
+/// Marks the cell that the compressed pointer at `slot` points to, if it is not null, as a slot the collector can update.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_cell(), and `slot` must hold a compressed cell pointer or 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_visit_member(marker: *mut Marker, slot: *const u32) {
+    // SAFETY: The caller passes a live marker and slot.
+    unsafe { &*marker }.visit_member(slot);
+}
+
+/// Marks `cell`, which the pointer at `slot` points into, as a slot the collector can update.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_cell(), and `slot` must hold a pointer into `cell`, past its start.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_visit_interior_pointer(
+    marker: *mut Marker,
+    slot: *const usize,
+    cell: *const c_void,
+) {
+    // SAFETY: The caller passes a live marker.
+    unsafe { &*marker }.mark_through_slot(RecordedSlot::new(slot.addr(), SlotKind::InteriorPointer), cell.addr());
+}
+
+/// Notes that the pointer at `slot` points into the cell that holds the slot, which keeps it right if that cell moves.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_cell(), and `slot` must be in a cell being visited, and point into it, up to one past
+/// its end.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_visit_self_pointer(marker: *mut Marker, slot: *const usize) {
+    // SAFETY: The caller passes a live marker.
+    unsafe { &*marker }.visit_self_pointer(slot.addr());
+}
+
+/// Keeps `cell` from moving, without marking it, for a weak reference the collector cannot update.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_cell().
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_pin_cell(marker: *mut Marker, cell: *const c_void) {
+    // SAFETY: The caller passes a live marker.
+    unsafe { &*marker }.pin(cell.addr());
+}
+
 /// Marks a cell that is reachable only while `key` is, such as a WeakMap entry's value, once the key is marked.
 ///
 /// # Safety
@@ -515,6 +652,7 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
             marked_cell_bytes: (0..heaps.len()).map(|_| Cell::new(0)).collect(),
             marked_external_bytes: (0..heaps.len()).map(|_| Cell::new(0)).collect(),
             pending_ephemerons: UnsafeCell::new(Vec::new()),
+            recorded_slots: UnsafeCell::new(Vec::new()),
         });
     }
     // NB: The job lives on this stack until every marker is done with it, so the markers may point at it as if it lived
@@ -528,7 +666,7 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
     let owner = &job.markers[0];
     owner.create_visitor();
     for &root in roots {
-        owner.mark(root.addr());
+        owner.mark_pinned(root.addr(), PinReason::Root);
     }
 
     // NB: Collections that mark few cells are done before helpers could have started.
@@ -580,4 +718,12 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
         }
     }
     request.threads_used = threads_used;
+
+    // SAFETY: The caller passes null or a live evacuation set, which nothing else uses meanwhile.
+    if let Some(evacuation) = unsafe { request.evacuation.as_mut() } {
+        for marker in &job.markers {
+            // SAFETY: Every marker is done.
+            evacuation.add_recorded_slots(core::mem::take(unsafe { &mut *marker.recorded_slots.get() }));
+        }
+    }
 }

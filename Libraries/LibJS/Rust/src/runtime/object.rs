@@ -325,12 +325,17 @@ unsafe impl Trace for Object {
             // a collection.
             visitor.visit_values(unsafe { ak::slice_from_raw_parts(named_properties, property_count) });
         }
-        if !named_properties.is_null()
-            && !self.named_storage_is_inline()
-            // SAFETY: Out-of-line named storage is storage value_storage::allocate() returned.
-            && let Some(storage) = unsafe { value_storage::cell(named_properties) }
-        {
-            visitor.visit(storage);
+        // NB: The pointers to the storage are visited as slots, so that a collection that moves the object or its
+        //     storage cell keeps them pointing into it.
+        if !named_properties.is_null() {
+            if self.named_storage_is_inline() {
+                visitor.visit_self_pointer(&self.named_properties);
+            } else if let Some(storage) =
+                // SAFETY: Out-of-line named storage is storage value_storage::allocate() returned.
+                unsafe { value_storage::cell(named_properties) }
+            {
+                visitor.visit_interior_pointer(&self.named_properties, storage);
+            }
         }
 
         match self.indexed_storage_kind() {
@@ -350,7 +355,7 @@ unsafe impl Trace for Object {
             // SAFETY: Packed and holey indexed storage is storage value_storage::allocate() returned.
             && let Some(storage) = unsafe { value_storage::cell(indexed_elements) }
         {
-            visitor.visit(storage);
+            visitor.visit_interior_pointer(&self.indexed_elements, storage);
         }
     }
 }
@@ -579,7 +584,7 @@ impl Object {
         let object = Object {
             shape: Member::new(shape),
             indexed_array_like_size: Cell::new(0),
-            unused_byte: 0,
+            identity_hash_state: Cell::new(0),
             state: Cell::new(CellState::Live),
             kind: CellKind::Object,
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
