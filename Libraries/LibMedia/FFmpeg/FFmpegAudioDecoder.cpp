@@ -87,7 +87,8 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
             return DecoderError::format(DecoderErrorCategory::Invalid, channel_layout_result.error().string_literal());
         auto channel_layout = channel_layout_result.release_value();
         auto set_result = functions.av_opt_set_chlayout(codec_context, "ch_layout", &channel_layout.layout(), 0);
-        VERIFY(set_result == 0);
+        if (set_result != 0)
+            return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to set the channel layout"sv);
     }
 
     if (functions.avcodec_open2(codec_context, codec, nullptr) < 0)
