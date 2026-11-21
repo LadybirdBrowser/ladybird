@@ -820,13 +820,13 @@ Utf16String command_font_size_value(DOM::Document const& document)
     //    the active range, or if there is no such node, the effective command value of the active range's start node,
     //    in either case interpreted as a number of pixels.
     auto first_formattable_node = first_formattable_node_effectively_contained(range);
-    auto value = effective_command_value(
-        first_formattable_node ? first_formattable_node : *range->start_container(),
-        CommandNames::fontSize);
-    auto pixel_size = font_size_to_pixel_size(value.value_or({}));
+    GC::Ref<DOM::Node> node = first_formattable_node ? *first_formattable_node : *range->start_container();
+    auto value = effective_command_value(node, CommandNames::fontSize);
+    auto medium_font_size = medium_font_size_at(node);
+    auto pixel_size = font_size_to_pixel_size(value.value_or({}), medium_font_size);
 
     // 3. Return the legacy font size for pixel size.
-    return legacy_font_size(pixel_size.to_int());
+    return legacy_font_size(pixel_size.to_int(), medium_font_size);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-forecolor-command

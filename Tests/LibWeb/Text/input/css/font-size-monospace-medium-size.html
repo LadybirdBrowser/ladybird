@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Where the font-family is just monospace, a keyword font size means 13px at medium, and a size relative to one
+        // follows: the cases cover inheriting across a change into and out of that family, and an own size relative to
+        // the inherited one.
+        const cases = [
+        ["mono", `<div id=t style="font-family: monospace">x</div>`],
+        ["mono 110%", `<div id=t style="font-family: monospace; font-size: 110%">x</div>`],
+        ["mono 1.1em", `<div id=t style="font-family: monospace; font-size: 1.1em">x</div>`],
+        ["mono medium", `<div id=t style="font-family: monospace; font-size: medium">x</div>`],
+        ["mono large", `<div id=t style="font-family: monospace; font-size: large">x</div>`],
+        ["mono larger", `<div id=t style="font-family: monospace; font-size: larger">x</div>`],
+        ["mono smaller", `<div id=t style="font-family: monospace; font-size: smaller">x</div>`],
+        ["mono 16px", `<div id=t style="font-family: monospace; font-size: 16px">x</div>`],
+        ["mono 1rem", `<div id=t style="font-family: monospace; font-size: 1rem">x</div>`],
+        ["mono calc(1em + 2px)", `<div id=t style="font-family: monospace; font-size: calc(1em + 2px)">x</div>`],
+        ["pre > span serif", `<pre><span id=t style="font-family: serif">x</span></pre>`],
+        ["pre > span serif 110%", `<pre><span id=t style="font-family: serif; font-size: 110%">x</span></pre>`],
+        ["pre > span inherit-family", `<pre><span id=t>x</span></pre>`],
+        ["pre > span 2em", `<pre><span id=t style="font-size: 2em">x</span></pre>`],
+        ["pre(150%) > span serif", `<pre style="font-size: 150%"><span id=t style="font-family: serif">x</span></pre>`],
+        ["pre(20px) > span serif", `<pre style="font-size: 20px"><span id=t style="font-family: serif">x</span></pre>`],
+        ["div 20px > mono", `<div style="font-size: 20px"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div 150% > mono", `<div style="font-size: 150%"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div 1.5em > mono", `<div style="font-size: 1.5em"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div large > mono", `<div style="font-size: large"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div calc(1em+2px) > mono", `<div style="font-size: calc(1em + 2px)"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div 150% > div 110% > mono", `<div style="font-size: 150%"><div style="font-size: 110%"><div id=t style="font-family: monospace">x</div></div></div>`],
+        ["mono,serif", `<div id=t style="font-family: monospace, serif">x</div>`],
+        ["Courier New,mono", `<div id=t style="font-family: 'Courier New', monospace">x</div>`],
+        ["NoSuch,mono", `<div id=t style="font-family: NoSuchFont, monospace">x</div>`],
+        ["mono > serif > mono 110%", `<div style="font-family: monospace"><div style="font-family: serif"><div id=t style="font-family: monospace; font-size: 110%">x</div></div></div>`],
+        ["ui-monospace", `<div id=t style="font-family: ui-monospace">x</div>`],
+        ["code in p", `<p><code id=t>x</code></p>`],
+        ["th mono 110% (ffmpeg)", `<table><tr><th id=t style="font-family: monospace; font-size: 110%">x</th></tr></table>`],
+        ["mono > serif child of mono-110%", `<div style="font-family: monospace; font-size: 110%"><span id=t style="font-family: serif">x</span></div>`],
+        ["pre > span medium", `<pre><span id=t style="font-size: medium">x</span></pre>`],
+        ["pre > span large", `<pre><span id=t style="font-size: large">x</span></pre>`],
+        ["pre > span initial", `<pre><span id=t style="font-size: initial">x</span></pre>`],
+        ["pre > span font-size unset", `<pre><span id=t style="font-size: unset">x</span></pre>`],
+        ["pre > span serif inherit-size", `<pre><span id=t style="font-family: serif; font-size: inherit">x</span></pre>`],
+        ["mono initial", `<div id=t style="font-family: monospace; font-size: initial">x</div>`],
+        ["mono font-family inherit under pre", `<pre><span id=t style="font-family: inherit; font-size: 110%">x</span></pre>`],
+        ["div unset > mono", `<div style="font-size: unset"><div id=t style="font-family: monospace">x</div></div>`],
+        ["pre > b (weight only)", `<pre><b id=t>x</b></pre>`],
+        ["pre > span serif > span mono", `<pre><span style="font-family: serif"><span id=t style="font-family: monospace">x</span></span></pre>`],
+        ["zoom 2 > mono 110%", `<div style="zoom: 2"><div id=t style="font-family: monospace; font-size: 110%">x</div></div>`],
+        ["mono calc(110%)", `<div id=t style="font-family: monospace; font-size: calc(110%)">x</div>`],
+        ["mono calc(50% + 60%)", `<div id=t style="font-family: monospace; font-size: calc(50% + 60%)">x</div>`],
+        ["mono calc(110% + 0px)", `<div id=t style="font-family: monospace; font-size: calc(110% + 0px)">x</div>`],
+        ["mono calc(1.1em)", `<div id=t style="font-family: monospace; font-size: calc(1.1em)">x</div>`],
+        ["div calc(150%) > mono", `<div style="font-size: calc(150%)"><div id=t style="font-family: monospace">x</div></div>`],
+        ["div calc(150% + 0px) > mono", `<div style="font-size: calc(150% + 0px)"><div id=t style="font-family: monospace">x</div></div>`],
+        ["pre calc(150%) > span serif", `<pre style="font-size: calc(150%)"><span id=t style="font-family: serif">x</span></pre>`],
+        ];
+        for (const [name, html] of cases) {
+            root.innerHTML = html;
+            println(`${name}: ${getComputedStyle(document.getElementById("t")).fontSize}`);
+        }
+        root.innerHTML = "";
+    });
+</script>

@@ -682,7 +682,35 @@ impl RetainedState {
                 & (bridge::element_adjustment_fact::CHECK_INPUT_LINE_HEIGHT
                     | bridge::element_adjustment_fact::FORCE_LINE_HEIGHT_NORMAL)
                 == 0;
-        let runs_drive = drives_everything || !hard.is_empty() || (builds_font && !resolves_font);
+        // NB: A font size inherited across a change from `font-family: monospace` to another family,
+        //     and a keyword font size in that family, are recascaded, which only a drive does.
+        let parent_font_family_is_monospace = parent_view.as_ref().is_some_and(|view| {
+            crate::css::computed_value_views::ComputedValuesView::of(view.payloads)
+                .font()
+                .font_family
+                .data()
+                .is_some_and(crate::css::style_compute::font_family_is_monospace)
+        });
+        let declared_font_value = |property: u16| {
+            native_font
+                .iter()
+                .map(|(declared, value)| (*declared, value.optional_data()))
+                .chain(
+                    easy.iter()
+                        .map(|(declared, value, ..)| (*declared, value.optional_data())),
+                )
+                .find(|(declared, _)| *declared == property)
+                .and_then(|(_, value)| value)
+        };
+        let recascades_font_size = parent_font_family_is_monospace
+            && (declared_font_value(prop::FONT_FAMILY)
+                .is_some_and(|value| !crate::css::style_compute::font_family_is_monospace(value))
+                || matches!(
+                    declared_font_value(prop::FONT_SIZE),
+                    Some(StyleValueData::Keyword { .. })
+                ));
+        let runs_drive =
+            drives_everything || !hard.is_empty() || (builds_font && !resolves_font) || recascades_font_size;
         // A drive maps a logical alias by the writing mode and direction it computes, and marks
         // the pair itself.
         if runs_drive {

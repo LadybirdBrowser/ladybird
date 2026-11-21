@@ -1636,15 +1636,6 @@ impl StyleEngine {
                 document_media: Default::default(),
                 document_functions: Default::default(),
                 custom_property_registry: None,
-                monospace_font_family: RetainedStyleValueData::from_owned(
-                    crate::css::parser::value_parser::value_list(
-                        vec![StyleValueData::Keyword {
-                            keyword: crate::css::style_compute::keyword::MONOSPACE,
-                        }],
-                        1,
-                        true,
-                    ),
-                ),
                 font_resolution: None,
                 pass_fonts: None,
                 computed_group_sets: Default::default(),
@@ -2544,7 +2535,6 @@ impl RetainedState {
             custom_property_registry: _,
             font_resolution: _,
             pass_fonts: _,
-            monospace_font_family: _,
             computed_group_sets,
             style_record_view_epoch_depth: _,
             custom_property_environments: _,

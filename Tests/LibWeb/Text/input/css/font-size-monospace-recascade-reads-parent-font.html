@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Lato; src: url(../../../Ref/input/wpt-import/fonts/Lato-Medium.ttf); font-weight: 400; }
+    @font-face { font-family: Lato; src: url(../../../Ref/input/wpt-import/fonts/Lato-Bold.ttf); font-weight: 700; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("400 16px Lato");
+        await document.fonts.load("700 16px Lato");
+        // The monospace recascade resolves an ancestor's ex font size against its parent's font, in the parent's
+        // weight: Lato's bold face has a different x-height from its regular one.
+        for (const weight of [400, 700]) {
+            root.innerHTML = `<div style="font-family: Lato; font-weight: ${weight}"><div style="font-size: 10ex"><code id="target">x</code></div></div>`;
+            println(`weight ${weight}: ${getComputedStyle(document.getElementById("target")).fontSize}`);
+        }
+        root.innerHTML = "";
+        done();
+    });
+</script>

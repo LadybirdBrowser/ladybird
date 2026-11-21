@@ -985,6 +985,7 @@ impl RetainedState {
             },
             is_th_element: false,
             has_new_font_size: false,
+            new_font_size_includes_cascaded_value: false,
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,
