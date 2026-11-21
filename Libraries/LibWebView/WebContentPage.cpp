@@ -1688,14 +1688,26 @@ void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bo
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that has hosted local file content, or one selecting a file that WebDriver's Element
-    //     Send Keys command it runs names: any other could read every file the user can. The UI process reads the
-    //     file a navigation names itself, for the process creating the document.
-    auto selects_file_for_webdriver = [&] {
-        auto view = traversable().view();
-        return view.has_value() && view->is_running_webdriver_command_to_select_file(*this, path);
-    };
-    if (!client().may_read_local_files() && !selects_file_for_webdriver()) {
+    //     Answer only a process that has hosted local file content: any other could read every file the user can. The
+    //     UI process reads the file a navigation names itself, for the process creating the document.
+    if (!client().may_read_local_files()) {
+        async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+
+    auto file = open_local_file_for_renderer(path);
+    if (file.is_error())
+        async_handle_file_return(file.error().code(), {}, request_id);
+    else
+        async_handle_file_return(0, file.release_value(), request_id);
+}
+
+// NB: For a file input, Element Send Keys selects the files listed in its text. The page running the command may read
+//     those files and no others.
+void WebContentPage::did_request_file_for_webdriver(u64 command_id, ByteString path, i32 request_id)
+{
+    auto view = traversable().view();
+    if (!view.has_value() || !view->is_running_webdriver_command_to_select_file(*this, command_id, path)) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }
