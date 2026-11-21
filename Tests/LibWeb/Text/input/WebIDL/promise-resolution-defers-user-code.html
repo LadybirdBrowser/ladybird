@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- FIXME: Import the tests of https://github.com/web-platform-tests/wpt/pull/64001 in place of this one once they are merged. -->
+<script>
+    let elementNameCount = 0;
+
+    function promiseResolvedWith(constructor) {
+        const name = `x-promise-resolution-${elementNameCount++}`;
+        customElements.define(name, constructor);
+        return customElements.whenDefined(name);
+    }
+
+    function resolvePromiseWith(constructor) {
+        const name = `x-promise-resolution-${elementNameCount++}`;
+        const promise = customElements.whenDefined(name);
+        customElements.define(name, constructor);
+        return promise;
+    }
+
+    function convertToPromise(value, log) {
+        const stream = new ReadableStream({
+            cancel() {
+                log.push("cancel() method called");
+                return value;
+            },
+        });
+        return stream.cancel();
+    }
+
+    function proxyLoggingThenLookups(target, log) {
+        const logThenLookup = trap => (...args) => {
+            if (args[1] === "then")
+                log.push(`proxy ${trap} trap ran`);
+            return Reflect[trap](...args);
+        };
+        return new Proxy(target, {
+            get: logThenLookup("get"),
+            has: logThenLookup("has"),
+            getOwnPropertyDescriptor: logThenLookup("getOwnPropertyDescriptor"),
+        });
+    }
+
+    async function withPrototypeOf(object, prototype, callback) {
+        const originalPrototype = Object.getPrototypeOf(object);
+        Object.setPrototypeOf(object, prototype);
+        try {
+            return await callback();
+        } finally {
+            Object.setPrototypeOf(object, originalPrototype);
+        }
+    }
+
+    const cases = {
+        "a promise resolved with a value that has a then getter": async log => {
+            class Element extends HTMLElement {
+                static get then() {
+                    log.push("then getter ran");
+                }
+            }
+            const promise = promiseResolvedWith(Element);
+            log.push("operation returned");
+            log.push(`fulfilled with the value: ${(await promise) === Element}`);
+        },
+
+        "resolve with a value that has a then getter": async log => {
+            class Element extends HTMLElement {
+                static get then() {
+                    log.push("then getter ran");
+                }
+            }
+            const promise = resolvePromiseWith(Element);
+            log.push("operation returned");
+            log.push(`fulfilled with the value: ${(await promise) === Element}`);
+        },
+
+        "resolve with a value that inherits a then getter from Object.prototype": async log => {
+            class Element extends HTMLElement {}
+            Object.defineProperty(Object.prototype, "then", {
+                configurable: true,
+                get() {
+                    if (this === Element)
+                        log.push("then getter ran");
+                },
+            });
+            try {
+                const promise = resolvePromiseWith(Element);
+                log.push("operation returned");
+                log.push(`fulfilled with the value: ${(await promise) === Element}`);
+            } finally {
+                delete Object.prototype.then;
+            }
+        },
+
+        "resolve with a value whose then getter throws": async log => {
+            const error = new Error();
+            class Element extends HTMLElement {
+                static get then() {
+                    throw error;
+                }
+            }
+            const promise = resolvePromiseWith(Element);
+            log.push("operation returned");
+            await promise.then(
+                () => log.push("fulfilled"),
+                reason => log.push(`rejected with the exception of the getter: ${reason === error}`)
+            );
+        },
+
+        "resolve with a value that has a then method": async log => {
+            class Element extends HTMLElement {
+                static then(...args) {
+                    log.push(`then method called on the value: ${this === Element}`);
+                    log.push(`arguments: ${args.map(argument => typeof argument)}`);
+                    args[0]("the value passed by the then method");
+                }
+            }
+            const promise = resolvePromiseWith(Element);
+            log.push("operation returned");
+            log.push(`fulfilled with ${await promise}`);
+        },
+
+        "resolve with a value that has a then method, and a microtask queued afterwards": async log => {
+            class Element extends HTMLElement {
+                static then(resolve) {
+                    log.push("then method called");
+                    resolve();
+                }
+            }
+            const promise = resolvePromiseWith(Element);
+            Promise.resolve().then(() => log.push("microtask ran"));
+            await promise;
+        },
+
+        "resolve with a value that has no then property, and a microtask queued afterwards": async log => {
+            const name = `x-promise-resolution-${elementNameCount++}`;
+            const promise = customElements.whenDefined(name);
+            promise.then(() => log.push("promise reaction ran"));
+            customElements.define(name, class extends HTMLElement {});
+            Promise.resolve().then(() => log.push("microtask ran"));
+            await promise;
+        },
+
+        "resolve with a proxy": async log => {
+            const proxy = proxyLoggingThenLookups(class extends HTMLElement {}, log);
+            const promise = resolvePromiseWith(proxy);
+            log.push("operation returned");
+            log.push(`fulfilled with the value: ${(await promise) === proxy}`);
+        },
+
+        "resolve with a value that has a proxy on its prototype chain": async log => {
+            class Element extends HTMLElement {}
+            Object.setPrototypeOf(Element, proxyLoggingThenLookups(HTMLElement, log));
+            const promise = resolvePromiseWith(Element);
+            log.push("operation returned");
+            log.push(`fulfilled with the value: ${(await promise) === Element}`);
+        },
+
+        "resolve the promise of a pending read() while Object.prototype has a then getter": async log => {
+            let controller;
+            const reader = new ReadableStream({ start: c => (controller = c) }).getReader();
+            const read = reader.read();
+            const chunk = {};
+            let lookupCount = 0;
+            Object.defineProperty(Object.prototype, "then", {
+                configurable: true,
+                get() {
+                    ++lookupCount;
+                    if (this.value === chunk)
+                        log.push("then getter ran on the result of read()");
+                },
+            });
+            try {
+                controller.enqueue(chunk);
+                log.push(`then getter calls before enqueue() returned: ${lookupCount}`);
+                await read;
+            } finally {
+                delete Object.prototype.then;
+            }
+        },
+
+        "resolve the promise of a pending read(), and a microtask queued afterwards": async log => {
+            let controller;
+            const reader = new ReadableStream({ start: c => (controller = c) }).getReader();
+            const read = reader.read();
+            read.then(() => log.push("promise reaction ran"));
+            controller.enqueue("chunk");
+            Promise.resolve().then(() => log.push("microtask ran"));
+            await read;
+        },
+
+        "convert a callback return value that has a then getter to a promise": async log => {
+            const value = {
+                get then() {
+                    log.push("then getter ran");
+                },
+            };
+            const promise = convertToPromise(value, log);
+            log.push("operation returned");
+            await promise;
+        },
+
+        "convert a callback return value whose prototype chain is too deep to walk to a promise": async log => {
+            let value = {};
+            for (let i = 0; i < 200000; ++i)
+                value = Object.create(value);
+            const promise = convertToPromise(value, log);
+            log.push("operation returned");
+            await promise.catch(() => {});
+            log.push("promise settled");
+        },
+
+        "convert an HTMLCollection that has an element named then to a promise": async log => {
+            const form = document.createElement("form");
+            form.name = "then";
+            document.body.append(form);
+            const traps = [];
+            const prototype = proxyLoggingThenLookups(Object.getPrototypeOf(HTMLCollection.prototype), traps);
+            await withPrototypeOf(HTMLCollection.prototype, prototype, async () => {
+                const promise = convertToPromise(document.forms, log);
+                log.push(`proxy traps that ran before the operation returned: ${traps.length}`);
+                await promise;
+            });
+            log.push(`proxy traps ran afterwards: ${traps.length > 0}`);
+            form.remove();
+        },
+
+        "resolve with an animation that has an HTMLCollection on its prototype chain": async log => {
+            const animation = new Animation();
+            const finished = animation.finished;
+            const traps = [];
+            const prototype = proxyLoggingThenLookups(Object.getPrototypeOf(HTMLCollection.prototype), traps);
+            await withPrototypeOf(HTMLCollection.prototype, prototype, () =>
+                withPrototypeOf(Animation.prototype, document.forms, async () => {
+                    animation.finish();
+                    log.push(`proxy traps that ran before the operation returned: ${traps.length}`);
+                    await finished;
+                })
+            );
+            log.push(`proxy traps ran afterwards: ${traps.length > 0}`);
+        },
+    };
+
+    promiseTest(async () => {
+        for (const [name, run] of Object.entries(cases)) {
+            const log = [];
+            await run(log);
+            println(`${name}: ${log.join(", ")}`);
+        }
+    });
+</script>

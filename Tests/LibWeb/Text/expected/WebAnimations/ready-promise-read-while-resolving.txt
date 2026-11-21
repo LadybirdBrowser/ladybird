@@ -1,1 +1,0 @@
-ready: read while resolving is the same promise: true, later read too: true
