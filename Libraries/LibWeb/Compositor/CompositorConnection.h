@@ -69,7 +69,6 @@ public:
     void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
-    void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     RefPtr<IPC::ThreadSafeMessagePoster> poster_while_compositor_is_reachable();
     bool post_canvas_2d_stream_batch_fonts_and_image_frames(ReadonlySpan<Gfx::Font const*>, ReadonlySpan<Gfx::DecodedImageFrame const*>);
     void did_fail_to_post_canvas_2d_message();

@@ -45,6 +45,7 @@ public:
         Function<void(InvalidateHeldData)> transmit_seek;
         // Relays a replacement time reader (e.g. after audio is disabled) to the consumer; the initial one rides video_edge_ready.
         Function<void(MediaTimeReader const&)> transmit_time_reader;
+        Function<void(bool)> transmit_ticking;
     };
 
     static ErrorOr<NonnullRefPtr<RemoteVideoSink>> create(Delegates);
@@ -55,6 +56,7 @@ public:
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
     virtual void notify_clock_resumed() override;
+    virtual void set_ticking(bool) override;
     // The newest received lend ID is the last one the consumer had seen when it asked for the seek.
     void seek_upstream(AK::Duration timestamp, InvalidateHeldData, u64 newest_received_lend_id);
     virtual void set_time_reader(MediaTimeReader) override;

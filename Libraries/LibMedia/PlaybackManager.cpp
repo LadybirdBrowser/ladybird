@@ -542,6 +542,7 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
     });
     track_data.producer->set_checkpoint(m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed));
     MUST(video_sink->connect_input(track_data.producer));
+    video_sink->set_ticking(track_data.ticking);
     track_data.video_sink = move(video_sink);
     update_pipeline_state();
     dispatch_buffered_ranges_change();
@@ -611,6 +612,8 @@ void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool tickin
     if (track_data.ticking == ticking)
         return;
     track_data.ticking = ticking;
+    if (track_data.video_sink)
+        track_data.video_sink->set_ticking(ticking);
     manager->update_pipeline_state();
 }
 

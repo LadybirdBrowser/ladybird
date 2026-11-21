@@ -50,6 +50,7 @@ private:
     virtual void edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id, Media::PipelineCheckpoint checkpoint) override;
     virtual void notify_clock_resumed(u64 edge_id) override;
     virtual void seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData) override;
+    virtual void set_sink_ticking(u64 edge_id, bool ticking) override;
 
     struct EdgeState {
         VideoSinkHandle handle;
@@ -59,6 +60,8 @@ private:
         Optional<MediaTimeReader> time_reader;
         u64 sender_id { 0 };
         u32 expected_requested_seek_id { 0 };
+        // Ticking that arrived before the sink did.
+        Optional<bool> ticking;
     };
 
     HashMap<u64, EdgeState> m_edge_states;

@@ -181,6 +181,7 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
     sink_delegates.notify_clock_resumed = [] { };
     sink_delegates.transmit_seek = [](InvalidateHeldData) { };
     sink_delegates.transmit_time_reader = [](MediaTimeReader const&) { };
+    sink_delegates.transmit_ticking = [](bool) { };
     harness.sink = MUST(RemoteVideoSink::create(move(sink_delegates)));
 
     RemoteVideoProducer::Delegates consumer_delegates;
@@ -264,6 +265,7 @@ NonnullRefPtr<RemoteVideoSink> make_recorded_sink(LentFrameRecorder& recorder)
     delegates.notify_clock_resumed = [] { };
     delegates.transmit_seek = [](InvalidateHeldData) { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
+    delegates.transmit_ticking = [](bool) { };
     return MUST(RemoteVideoSink::create(move(delegates)));
 }
 
@@ -527,6 +529,46 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
 
     server->shutdown();
     EXPECT(!manager->track_is_enabled(track));
+}
+
+// The playback manager decides on ticking for a sink, and the sink hears of it across its edge, both of a decision made
+// before the edge existed and of later ones.
+TEST_CASE(video_presentation_edge_carries_the_ticking_decision_to_its_sink)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto manager = PlaybackManager::create(Media::AudioOutputFactory::create_null());
+    bool metadata_parsed = false;
+    manager->add_media_source(create_demuxer(load_test_file(TEST_CLIP)))->when_resolved([&](auto&) {
+        metadata_parsed = true;
+    });
+    if (!spin_until(loop, [&] { return metadata_parsed; })) {
+        FAIL("Timed out waiting for metadata");
+        return;
+    }
+    if (manager->video_tracks().is_empty()) {
+        FAIL("Expected a video track");
+        return;
+    }
+
+    auto handle = manager->reserve_video_sink_handle(manager->video_tracks()[0]);
+    PlaybackManager::set_video_sink_ticking(handle, false);
+
+    auto paired = MUST(IPC::Transport::create_paired());
+    auto server = VideoPresentationServerConnection::construct(move(paired.local));
+    auto client = adopt_ref(*new VideoPresentationClientConnection(MUST(paired.remote_handle.create_transport())));
+    RefPtr<DisplayingVideoSink> sink;
+    MUST(client->create_edge(handle, [&](NonnullRefPtr<DisplayingVideoSink> ready_sink) {
+        sink = move(ready_sink);
+    }));
+    EXPECT(spin_until(loop, [&] { return sink && !sink->is_ticking(); }));
+
+    PlaybackManager::set_video_sink_ticking(handle, true);
+    EXPECT(spin_until(loop, [&] { return sink->is_ticking(); }));
+    PlaybackManager::set_video_sink_ticking(handle, false);
+    EXPECT(spin_until(loop, [&] { return !sink->is_ticking(); }));
+
+    server->shutdown();
 }
 
 // Each edge keeps the frames it is lent, so a client that asks for edges without end is refused past the limit, until

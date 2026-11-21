@@ -27,6 +27,7 @@ public:
     void notify_clock_resumed() const;
     void transmit_seek(InvalidateHeldData) const;
     void transmit_time_reader(MediaTimeReader const&) const;
+    void transmit_ticking(bool) const;
     void seek_upstream(AK::Duration timestamp, InvalidateHeldData, u64 newest_received_lend_id);
     void seek_input_directly(AK::Duration timestamp);
     void start_input();
@@ -82,6 +83,7 @@ ErrorOr<NonnullRefPtr<RemoteVideoSink>> RemoteVideoSink::create(Delegates delega
     VERIFY(delegates.notify_clock_resumed);
     VERIFY(delegates.transmit_seek);
     VERIFY(delegates.transmit_time_reader);
+    VERIFY(delegates.transmit_ticking);
     auto thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ThreadData(move(delegates))));
     auto sink = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) RemoteVideoSink(thread_data)));
     auto thread = Threading::Thread::construct("Video Pump"sv, [thread_data]() -> intptr_t {
@@ -113,6 +115,7 @@ void RemoteVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invalidate
     m_thread_data->transmit_seek(invalidate_held_data);
 }
 void RemoteVideoSink::notify_clock_resumed() { m_thread_data->notify_clock_resumed(); }
+void RemoteVideoSink::set_ticking(bool ticking) { m_thread_data->transmit_ticking(ticking); }
 void RemoteVideoSink::seek_upstream(AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) { m_thread_data->seek_upstream(timestamp, invalidate_held_data, newest_received_lend_id); }
 
 void RemoteVideoSink::set_time_reader(MediaTimeReader time_reader)
@@ -187,6 +190,11 @@ void RemoteVideoSink::ThreadData::transmit_seek(InvalidateHeldData invalidate_he
 void RemoteVideoSink::ThreadData::transmit_time_reader(MediaTimeReader const& time_reader) const
 {
     m_delegates.transmit_time_reader(time_reader);
+}
+
+void RemoteVideoSink::ThreadData::transmit_ticking(bool ticking) const
+{
+    m_delegates.transmit_ticking(ticking);
 }
 
 Vector<NonnullRefPtr<VideoFrame>> RemoteVideoSink::ThreadData::frames_lent_after_holding(u64 newest_received_lend_id, AK::Duration timestamp) const

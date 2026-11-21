@@ -340,7 +340,7 @@ private:
     virtual bool is_shown_elsewhere() const { return false; }
     virtual HTMLMediaElement& media_element_for_controls() { return *this; }
 
-    // Mirrors what PlaybackManager and the compositor were last told; a freshly reserved sink is assumed to tick.
+    // Mirrors what PlaybackManager was last told; a freshly reserved sink is assumed to tick.
     mutable bool m_video_sink_is_ticking { true };
     void note_frame_captured() const;
 

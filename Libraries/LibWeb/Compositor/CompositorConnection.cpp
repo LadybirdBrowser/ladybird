@@ -354,13 +354,6 @@ void CompositorConnection::release_video_frame_hold(Media::VideoSinkHandle video
     async_release_video_frame_hold(video_sink_handle, generation);
 }
 
-void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    async_set_video_sink_ticking(video_sink_handle, should_tick);
-}
-
 RefPtr<IPC::ThreadSafeMessagePoster> CompositorConnection::poster_while_compositor_is_reachable()
 {
     if (!can_send_message_to_compositor())

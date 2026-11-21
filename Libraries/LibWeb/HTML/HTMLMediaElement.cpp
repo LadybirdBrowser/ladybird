@@ -3243,8 +3243,6 @@ void HTMLMediaElement::sync_video_sink_ticking(DocumentWasLaidOut document_was_l
 
     if (m_playback_manager)
         m_playback_manager->set_video_sink_ticking(*handle, should_tick);
-    if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
-        navigable->compositor_context().set_video_sink_ticking(*handle, should_tick);
 }
 
 // Visible documents re-evaluate sink ticking in each rendering update, once layout has settled. Hidden documents skip

@@ -22,7 +22,6 @@ endpoint CompositorWebContentServer
     add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page) =|
     remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
     release_video_frame_hold(Media::VideoSinkHandle video_sink_handle, u64 generation) =|
-    set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|
 
     // A channel to the image decoder of this WebContent, which the frames of its animated images come through.
     connect_to_image_decoder(IPC::TransportHandle handle) =|

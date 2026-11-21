@@ -380,22 +380,18 @@ void CompositorState::remove_video_sink(CompositorStateWebContentClient& client,
     client.release_video_edge(handle);
 }
 
-void CompositorState::set_video_sink_ticking(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, bool should_tick)
+void CompositorState::video_sink_ticking_changed(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
     auto* sink_state = video_sink_state(client, handle);
-    if (!sink_state)
+    if (!sink_state || !sink_state->sink)
         return;
-    sink_state->should_tick = should_tick;
-    if (sink_state->sink)
-        sink_state->sink->set_ticking(should_tick);
-    if (should_tick && sink_state->sink)
+    if (sink_state->sink->is_ticking())
         present_contexts_drawing_video_sink(client, handle);
     update_unpainted_video_update_scheduling();
 }
 
-// The client decides this and we apply it, so that the two processes can never disagree about whether a sink is
-// ticked. All we add is that a sink with no edge yet cannot be ticked, which can only delay ticking rather than
-// stop it, and resolves as soon as the edge is created.
+// The sink's owner decides on ticking, and the sink hears of it across its edge. A sink with no edge yet cannot be
+// ticked, which can only delay ticking rather than stop it.
 bool CompositorState::video_sink_updates_are_needed(VideoSinkState const& sink_state)
 {
     return sink_state.sink != nullptr && sink_state.sink->is_ticking();
@@ -407,7 +403,9 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
     if (!sink_state)
         return;
     sink_state->sink = sink;
-    sink->set_ticking(sink_state->should_tick);
+    sink->set_on_ticking_changed([this, &client, handle] {
+        video_sink_ticking_changed(client, handle);
+    });
     sink->set_on_present_needed([this, &client, handle] {
         if (auto* sink_state = video_sink_state(client, handle); sink_state && sink_state->sink)
             client.video_sink_presented_frame(handle, sink_state->sink->current_frame(), sink_state->sink->take_frame_counts());

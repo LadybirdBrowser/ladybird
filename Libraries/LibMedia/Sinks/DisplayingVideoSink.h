@@ -50,8 +50,9 @@ public:
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
     virtual void notify_clock_resumed() override;
-    void set_ticking(bool);
+    virtual void set_ticking(bool) override;
     bool is_ticking() const { return m_is_ticking; }
+    void set_on_ticking_changed(Function<void()> handler) { m_on_ticking_changed = move(handler); }
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     RefPtr<VideoFrame> current_frame() const;
@@ -90,6 +91,7 @@ private:
     Gfx::Size<u32> m_last_dispatched_size;
 
     Function<void()> m_on_present_needed;
+    Function<void()> m_on_ticking_changed;
     bool m_last_update_may_require_updates { false };
 };
 

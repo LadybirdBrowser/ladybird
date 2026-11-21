@@ -13,4 +13,5 @@ endpoint VideoPresentationClient {
     edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id, Media::PipelineCheckpoint checkpoint) =|
     notify_clock_resumed(u64 edge_id) =|
     seek_sink(u64 edge_id, u32 requested_seek_id, Media::InvalidateHeldData invalidate_held_data) =|
+    set_sink_ticking(u64 edge_id, bool ticking) =|
 }

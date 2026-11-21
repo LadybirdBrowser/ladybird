@@ -306,8 +306,12 @@ void DisplayingVideoSink::notify_clock_resumed()
 void DisplayingVideoSink::set_ticking(bool ticking)
 {
     auto was_ticking = exchange(m_is_ticking, ticking);
-    if (ticking && !was_ticking)
+    if (ticking == was_ticking)
+        return;
+    if (ticking)
         seek_back_to_current_time();
+    if (m_on_ticking_changed)
+        m_on_ticking_changed();
 }
 
 void DisplayingVideoSink::seek_back_to_current_time()
