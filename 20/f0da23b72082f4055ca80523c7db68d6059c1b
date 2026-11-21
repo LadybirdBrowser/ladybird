@@ -1,0 +1,10 @@
+Ladybird retains the completed rows of a truncated static PNG and leaves
+untouched pixels transparent. Blink’s PngImageDecoder uses Skia through
+SkiaImageDecoderBase::Decode(), which retains a partially decoded frame.
+Gecko’s nsPNGDecoder::row_callback() publishes rows as they arrive.
+
+Chrome 158.0.8127.36 and Firefox 151.0 both drew the reported image.
+Firefox filled the missing opaque region differently. WebKit 26.5,
+using ImageDecoderCG::setData() and createFrameImageAtIndex(), showed a
+transparent image for that file. All three drew a complete image whose
+IEND chunk alone was missing.
