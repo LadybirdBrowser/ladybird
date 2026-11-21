@@ -792,6 +792,25 @@ impl TableGridOccupancy {
     fn finish_row(&mut self) {
         self.first_range_of_row.push(self.covered_columns.len());
     }
+
+    /// Ends a row group, whose cells cover no row after it.
+    fn finish_row_group(&mut self) {
+        self.cells_spanning_later_rows.clear();
+    }
+}
+
+/// Ends the row group whose cells start at `first_cell_of_group` in `cells`, now that every one of its rows is built:
+/// No cell spans a row past the last row of its group.
+fn finish_row_group(
+    cells: &mut [TableCell],
+    first_cell_of_group: usize,
+    row_count: usize,
+    occupancy: &mut TableGridOccupancy,
+) {
+    for cell in &mut cells[first_cell_of_group..] {
+        cell.row_span = cell.row_span.min(row_count - cell.row_index);
+    }
+    occupancy.finish_row_group();
 }
 
 #[derive(Clone)]
@@ -958,8 +977,19 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         rows.push(Row::new(row, tree.row_is_collapsed(row, row_group)));
     };
 
+    // https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
+    // Each row group (and each run of rows that are children of the table itself) forms its own block of rows, which
+    // the "algorithm for ending a row group" closes off. So, a cell's row span ends at the last row of its group.
+    let mut first_cell_of_group = 0usize;
+    let mut in_run_of_rows = false;
     for child in row_containers_in_layout_order(tree, table) {
-        if tree.display(child).is_table_row() {
+        let is_row = tree.display(child).is_table_row();
+        if !(is_row && in_run_of_rows) {
+            finish_row_group(&mut cells, first_cell_of_group, rows.len(), &mut occupancy);
+            first_cell_of_group = cells.len();
+        }
+        in_run_of_rows = is_row;
+        if is_row {
             process_row(
                 tree,
                 child,
@@ -984,8 +1014,9 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         }
     }
 
+    finish_row_group(&mut cells, first_cell_of_group, rows.len(), &mut occupancy);
+
     for cell in &mut cells {
-        cell.row_span = cell.row_span.min(rows.len() - cell.row_index);
         cell.column_span = cell.column_span.min(column_count - cell.column_index);
     }
 
