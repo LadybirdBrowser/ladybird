@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 300px; height: 200px; border: 0; }
+</style>
+<iframe id="frame"></iframe>
+<script>
+    // A wheel gesture over the frame ends with a snap the compositor scrolls, and the frame's document is replaced before
+    // the snap reports its end. The snap's scroll node went with that document, so the user's scroll holds back no hover
+    // of the document that replaced it: The cursor follows a box moved under the pointer at rest.
+    asyncTest(async done => {
+        const snapping = "<style>html { scroll-snap-type: y mandatory; } body { margin: 0; } div { height: 300px; scroll-snap-align: start; }</style><div></div><div></div><div></div><div></div>";
+        const hovering = "<style>body { margin: 0; } #target { cursor: pointer; position: absolute; left: 150px; top: 0; width: 100px; height: 100px; }</style><div id=target></div>";
+        let loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = snapping;
+        await loaded;
+        await animationFrame();
+        await animationFrame();
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
+        for (let step = 0; step < 3; step++)
+            await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = hovering;
+        await loaded;
+        const target = frame.contentDocument.getElementById("target");
+        await whileLaneHovers(async frameTime => {
+            internals.mouseMove(50, 50);
+            let time = frameTime;
+            const lines = [];
+            const step = async change => {
+                change();
+                time += 16;
+                internals.injectRenderingOpportunity(time);
+                await untilLaneSettled();
+                await nextTask();
+            };
+            lines.push(`at rest: ${internals.currentCursor()}`);
+            await step(() => target.style.transform = "translateX(-150px)");
+            lines.push(`the target transformed under the pointer: ${internals.currentCursor()}`);
+            println(lines.join("\n"));
+        }, [document, frame.contentDocument]);
+        done();
+    });
+</script>
