@@ -24,6 +24,11 @@ from Utils.host_platform import HostArchitecture  # noqa: E402
 from Utils.host_platform import HostSystem  # noqa: E402
 from Utils.host_platform import Platform  # noqa: E402
 
+# The CMake options that each select a feature of vcpkg.json. Keep in sync with Meta/CMake/environment.cmake.
+MANIFEST_FEATURE_OPTIONS = {
+    "LADYBIRD_ENABLE_SPARKLE": "sparkle",
+}
+
 DEPEND_INFO_REGEX = re.compile(r"^([a-zA-Z0-9-]+)(?:\[([^]]*)\])?(:host)?:\s*(.*)$")
 
 
@@ -151,6 +156,28 @@ def common_vcpkg_arguments(triplet: str, preset: str) -> list[str]:
     ]
 
 
+def cmake_option_is_on(cache: str, option: str) -> bool:
+    # An option that is not in the cache has its default, which is ON. The values that count as off are the constants
+    # that CMake's if() takes as false.
+    match = re.search(rf"^{option}:[A-Z]+=(.*)$", cache, re.MULTILINE)
+    if not match:
+        return True
+    value = match.group(1).strip().upper()
+    return value not in ("", "0", "OFF", "NO", "FALSE", "N", "IGNORE", "NOTFOUND") and not value.endswith("-NOTFOUND")
+
+
+def manifest_feature_arguments(build_dir: Path) -> list[str]:
+    # Only a build directory that CMake configured before has options to go by.
+    cache_path = build_dir / "CMakeCache.txt"
+    cache = cache_path.read_text() if cache_path.exists() else ""
+
+    return [
+        f"--x-feature={feature}"
+        for option, feature in MANIFEST_FEATURE_OPTIONS.items()
+        if cmake_option_is_on(cache, option)
+    ]
+
+
 def vcpkg_install_arguments(vcpkg: Path, triplet: str, preset: str) -> list[str]:
     return [str(vcpkg), "install", *common_vcpkg_arguments(triplet, preset), "--no-print-usage"]
 
@@ -162,13 +189,16 @@ class PortNode:
         self.dependencies: set[str] = set()
 
 
-def query_dependency_graph(vcpkg: Path, triplet: str, preset: str, install_root: Path) -> dict[str, PortNode]:
+def query_dependency_graph(
+    vcpkg: Path, triplet: str, preset: str, install_root: Path, feature_arguments: list[str]
+) -> dict[str, PortNode]:
     # NOTE: depend-info still takes the install root's lock, so keep it out of the source tree.
     result = subprocess.run(
         [
             str(vcpkg),
             "depend-info",
             *common_vcpkg_arguments(triplet, preset),
+            *feature_arguments,
             f"--x-install-root={install_root}",
             "--format=list",
         ],
@@ -465,9 +495,17 @@ def run_quietly(arguments: list[str], log_path: Path, environment: dict[str, str
         raise subprocess.CalledProcessError(result.returncode, arguments)
 
 
-def install_is_stale(deps_dir: Path, graph: dict[str, PortNode], install_root: Path) -> bool:
+def restore_stamp_content(features: list[str]) -> str:
+    return "features: " + " ".join(features) + "\n"
+
+
+def install_is_stale(deps_dir: Path, graph: dict[str, PortNode], install_root: Path, features: list[str]) -> bool:
     restore_stamp = deps_dir / ".restore-stamp"
     if not restore_stamp.exists() or not (install_root / "vcpkg").is_dir():
+        return True
+
+    # The stamp names the features that were installed, which change with the options of the build.
+    if restore_stamp.read_text() != restore_stamp_content(features):
         return True
 
     restore_time = restore_stamp.stat().st_mtime
@@ -508,7 +546,11 @@ def build_dependencies(
 
         write_if_changed(extra_vcpkg_variables_path(build_dir), extra_vcpkg_variables(platform, cc, cxx))
 
+        # CMake can rewrite its cache while this runs, so everything below goes by one reading of the features.
+        feature_arguments = manifest_feature_arguments(build_dir)
+
         manifest_arguments = vcpkg_install_arguments(vcpkg, triplet, preset)
+        manifest_arguments.extend(feature_arguments)
         manifest_arguments.append(f"--x-install-root={build_dir / 'vcpkg_installed'}")
 
         if fetch_only:
@@ -519,7 +561,7 @@ def build_dependencies(
             )
             return triplet
 
-        graph = query_dependency_graph(vcpkg, triplet, preset, build_dir / "vcpkg_installed")
+        graph = query_dependency_graph(vcpkg, triplet, preset, build_dir / "vcpkg_installed", feature_arguments)
         generate_build_files(platform, preset, build_dir, vcpkg, triplet, graph)
 
         # Wipe the stamps if the binary cache is gone.
@@ -563,10 +605,12 @@ def build_dependencies(
                 os.close(fifo_fd)
                 token_fifo.unlink(missing_ok=True)
 
-        if install_is_stale(deps_dir, graph, build_dir / "vcpkg_installed"):
+        if install_is_stale(deps_dir, graph, build_dir / "vcpkg_installed", feature_arguments):
             print("Installing dependencies from the binary cache...")
+            # A restore that stops halfway must not leave a stamp that vouches for what it removed.
+            (deps_dir / ".restore-stamp").unlink(missing_ok=True)
             run_quietly(manifest_arguments, deps_dir / "restore.log", environment)
-            (deps_dir / ".restore-stamp").touch()
+            (deps_dir / ".restore-stamp").write_text(restore_stamp_content(feature_arguments))
     finally:
         os.close(lock_fd)
 

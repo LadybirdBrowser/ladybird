@@ -20,6 +20,13 @@ if (DEFINED LADYBIRD_VCPKG_TYPE)
         # name. From packages/, host tools like Qt's moc can't find the libraries they link.
         set(VCPKG_INSTALL_OPTIONS "${VCPKG_INSTALL_OPTIONS};--clean-packages-after-build" CACHE STRING "" FORCE)
     endif()
+    # Each optional dependency is a feature of vcpkg.json that an option selects. The options are declared after
+    # project(), so one that is not set yet has its default. Keep in sync with MANIFEST_FEATURE_OPTIONS in
+    # Meta/Utils/vcpkg_deps.py.
+    if (NOT DEFINED LADYBIRD_ENABLE_SPARKLE OR LADYBIRD_ENABLE_SPARKLE)
+        list(APPEND VCPKG_MANIFEST_FEATURES "sparkle")
+    endif()
+
     set(VCPKG_OVERLAY_TRIPLETS "$ENV{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/${LADYBIRD_VCPKG_TYPE}-triplets" CACHE STRING "" FORCE)
 
     set(ENV{VCPKG_BINARY_SOURCES} "clear;files,${LADYBIRD_CACHE_DIR}/vcpkg-binary-cache,readwrite;$ENV{VCPKG_BINARY_SOURCES}")
