@@ -14,7 +14,7 @@
 #include <AK/Vector.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/PresentableSurface.h>
-#include <LibCompositing/WebGL/GLFunctions.h>
+#include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 
@@ -26,7 +26,7 @@ class SkImage;
 
 namespace Compositor {
 
-class OpenGLContext : public Compositing::WebGL::GLFunctions {
+class OpenGLContext {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -71,7 +71,7 @@ public:
     bool supports_pack_subimage_parameters() const;
     bool can_copy_images_into_textures();
     // The source size is the part of the image to copy, which can be smaller than the image.
-    bool copy_image_into_bound_texture(SkImage const&, Gfx::IntSize source_size, Gfx::IntSize, GLenum target, GLint level, GLint xoffset, GLint yoffset, bool flip_y, bool premultiply_alpha);
+    bool copy_image_into_bound_texture(SkImage const&, Gfx::IntSize source_size, Gfx::IntSize, u32 target, i32 level, i32 xoffset, i32 yoffset, bool flip_y, bool premultiply_alpha);
 
 private:
     struct ColorBuffer;

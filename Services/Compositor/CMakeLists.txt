@@ -36,7 +36,6 @@ set(GENERATED_SOURCES
     CompositorWebContentServerEndpoint.h
     RenderClockClientEndpoint.h
     RenderClockServerEndpoint.h
-    ${CMAKE_BINARY_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.cpp
 )
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core FEATURES allocator FFI_HEADER CompositorCoreRustFFI.h)
