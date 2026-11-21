@@ -1,0 +1,32 @@
+<!doctype html>
+<title>VTTCue.position</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#dom-vttcue-position">
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(function(){
+    var cue = new VTTCue(0, 1, 'text');
+    assert_true('position' in cue, 'position is not supported');
+
+    cue.position = 'auto';
+    assert_equals(cue.position, 'auto');
+
+    for (i = 0; i <= 100; i++) {
+        cue.position = i;
+        assert_equals(cue.position, i);
+    }
+
+    [-1, -100, -101, 101, 200, 201].forEach(function(invalid) {
+        assert_throws_dom('IndexSizeError', function() {
+            cue.position = invalid;
+        });
+    });
+
+    cue.position = 1.5;
+    assert_equals(cue.position, 1.5);
+
+    cue.position = 'auto';
+    assert_equals(cue.position, 'auto');
+}, document.title+', script-created cue');
+</script>

@@ -1,0 +1,26 @@
+<!doctype html>
+<title>VTTCue.size</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#dom-vttcue-size">
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(function(){
+    var cue = new VTTCue(0, 1, 'text');
+    assert_true('size' in cue, 'size is not supported');
+
+    for (i = 0; i <= 100; i++) {
+        cue.size = i;
+        assert_equals(cue.size, i);
+    }
+
+    [-1, -100, -101, 101, 200, 201].forEach(function(invalid) {
+        assert_throws_dom('IndexSizeError', function() {
+            cue.size = invalid;
+        });
+    });
+
+    cue.size = 1.5;
+    assert_equals(cue.size, 1.5);
+}, document.title+', script-created cue');
+</script>
