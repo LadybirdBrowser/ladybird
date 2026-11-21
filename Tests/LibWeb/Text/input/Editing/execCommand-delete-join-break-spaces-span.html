@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .break-spaces {
+        white-space: break-spaces;
+    }
+</style>
+<div id="a" contenteditable><div>abc</div><div><span class="break-spaces">d  ef</span></div></div>
+<script>
+    test(() => {
+        const editingHost = document.getElementById("a");
+        println(`Before: ${editingHost.innerHTML}`);
+
+        // Put the cursor before "d  ef", and press backspace.
+        const text = editingHost.querySelector("span").firstChild;
+        getSelection().collapse(text, 0);
+        document.execCommand("delete");
+
+        println(`After: ${editingHost.innerHTML}`);
+    });
+</script>

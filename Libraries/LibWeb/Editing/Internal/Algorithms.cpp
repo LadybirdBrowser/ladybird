@@ -1011,6 +1011,8 @@ struct ResolvedWhiteSpace {
             return nowrap ? u"pre"sv : u"pre-wrap"sv;
         case CSS::Keyword::PreserveBreaks:
             return nowrap ? OptionalNone {} : Optional<Utf16View> { u"pre-line"sv };
+        case CSS::Keyword::BreakSpaces:
+            return nowrap ? OptionalNone {} : Optional<Utf16View> { u"break-spaces"sv };
         default:
             return {};
         }

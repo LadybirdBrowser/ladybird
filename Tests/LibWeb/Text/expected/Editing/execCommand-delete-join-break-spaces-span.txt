@@ -1,0 +1,2 @@
+Before: <div>abc</div><div><span class="break-spaces">d  ef</span></div>
+After: <div>abc<span style="white-space: break-spaces;">d  ef</span></div>
