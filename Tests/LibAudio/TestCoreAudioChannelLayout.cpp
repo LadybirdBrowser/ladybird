@@ -90,3 +90,39 @@ TEST_CASE(channel_bitmap_names_bits_without_a_position_as_unknown_channels)
             Audio::Channel::FrontRight,
             Audio::Channel::Unknown));
 }
+
+TEST_CASE(atmos_layout_names_its_top_rear_speakers)
+{
+    AudioChannelLayout layout {};
+    layout.mChannelLayoutTag = kAudioChannelLayoutTag_Atmos_5_1_4;
+
+    auto channel_map = MUST(Audio::core_audio_channel_layout_to_channel_map(layout, sizeof(layout)));
+    EXPECT_EQ(channel_map,
+        Audio::ChannelMap(
+            Audio::Channel::FrontLeft,
+            Audio::Channel::FrontRight,
+            Audio::Channel::FrontCenter,
+            Audio::Channel::LowFrequency,
+            Audio::Channel::BackLeft,
+            Audio::Channel::BackRight,
+            Audio::Channel::TopFrontLeft,
+            Audio::Channel::TopFrontRight,
+            Audio::Channel::TopBackLeft,
+            Audio::Channel::TopBackRight));
+}
+
+TEST_CASE(channel_bitmap_names_its_top_rear_speakers)
+{
+    AudioChannelLayout layout {};
+    layout.mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelBitmap;
+    layout.mChannelBitmap = kAudioChannelBit_Left | kAudioChannelBit_Right | kAudioChannelBit_LeftTopRear | kAudioChannelBit_CenterTopRear | kAudioChannelBit_RightTopRear;
+
+    auto channel_map = MUST(Audio::core_audio_channel_layout_to_channel_map(layout, sizeof(layout)));
+    EXPECT_EQ(channel_map,
+        Audio::ChannelMap(
+            Audio::Channel::FrontLeft,
+            Audio::Channel::FrontRight,
+            Audio::Channel::TopBackLeft,
+            Audio::Channel::TopBackCenter,
+            Audio::Channel::TopBackRight));
+}
