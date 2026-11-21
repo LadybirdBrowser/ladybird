@@ -21,6 +21,36 @@
 
 namespace GC {
 
+namespace Detail {
+
+// Whether a value of the type holds a pointer to a cell, as far as Cell::Visitor::ignore() checks.
+template<typename T>
+struct HoldsCellPointer : FalseType { };
+template<typename T>
+struct HoldsCellPointer<T*> {
+    static constexpr bool value = IsBaseOf<Cell, RemoveCV<T>> || IsBaseOf<ForeignCell, RemoveCV<T>>;
+};
+template<typename T>
+struct HoldsCellPointer<Ptr<T>> : TrueType { };
+template<typename T>
+struct HoldsCellPointer<Ref<T>> : TrueType { };
+template<typename T>
+struct HoldsCellPointer<Member<T>> : TrueType { };
+template<typename T>
+struct HoldsCellPointer<NonnullMember<T>> : TrueType { };
+template<typename T>
+struct HoldsCellPointer<Optional<T>> : HoldsCellPointer<T> { };
+template<typename T, size_t inline_capacity, FastLastAccess fast_last_access>
+struct HoldsCellPointer<Vector<T, inline_capacity, fast_last_access>> : HoldsCellPointer<T> { };
+template<typename T, typename Traits, bool IsOrdered>
+struct HoldsCellPointer<HashTable<T, Traits, IsOrdered>> : HoldsCellPointer<T> { };
+template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
+struct HoldsCellPointer<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> {
+    static constexpr bool value = HoldsCellPointer<K>::value || HoldsCellPointer<V>::value;
+};
+
+}
+
 template<typename T>
 struct IsVisitable;
 
@@ -284,10 +314,11 @@ public:
             });
         }
 
-        // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
-        // of just not using it.
+        // Allow explicitly ignoring a member in a visit_edges implementation instead of just not using it. A pointer to a
+        // cell that nothing visits goes stale once the cell moves, so a weak reference to a cell has to be a GC::Weak.
         template<typename T>
         void ignore(T const&)
+        requires(!Detail::HoldsCellPointer<T>::value)
         {
         }
 
