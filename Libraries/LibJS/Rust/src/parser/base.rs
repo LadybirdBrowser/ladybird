@@ -20,6 +20,7 @@
 
 use super::columns::*;
 use super::intern::Interner;
+use super::intern::NameTables;
 use super::token::*;
 use super::unit::Unit;
 use ak::Zone;
@@ -435,18 +436,20 @@ pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
 impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
-    /// A parser for the first parse of `source`, with its work data in `zone`.
+    /// A parser for the first parse of `source`, with its work data in `zone`. `initial_names` are the tables of an
+    /// interner with the names that every interner starts with.
     ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
-    pub unsafe fn new(
+    pub(super) unsafe fn new(
         zone: &'a Zone,
         source: &'a [U],
         module: bool,
         mode: Mode,
+        initial_names: &NameTables<'_>,
         validate_regex: ValidateRegex,
     ) -> Self {
-        let interner = Interner::new(zone, source.len());
+        let interner = Interner::new(zone, source.len(), initial_names);
         // NB: A lazy parse skips the code of functions, which is most of the code of most sources, so a tree of the
         //     whole source is only the most it is likely to have.
         let whole_source_nodes = source.len() / 3 + 16;
