@@ -1,0 +1,43 @@
+Ladybird displays HTML and SVG embeds in a child navigable, and raster
+embeds as images. Blink’s HTMLEmbedElement::UpdatePluginInternal()
+and WebKit’s HTMLEmbedElement::updateWidget() delegate loading
+to their plugin and frame loaders. Gecko’s HTMLEmbedElement uses
+nsObjectLoadingContent::LoadObject() to select a representation.
+
+Chrome 158.0.8127.36, Firefox 151.0 and WebKit 26.5 all gave HTML a
+child window and a 300 by 150 viewport. SVG had a child window and used
+its natural size. PNG had its natural size and no child window. Chrome
+and WebKit suppressed a display:none embed. Firefox loaded its document.
+
+Ladybird applies the embedding document’s resource policy before
+decoding a raster response. A denied response clears the previous
+representation. With the document’s embedder policy set to require-corp,
+Chrome, Firefox and WebKit all displayed the 100 by 50 image from the
+same origin and from a second origin that explicitly allowed embedding.
+
+An embed in an object’s fallback content starts loading when the
+object starts showing that content, and its load delays the document’s
+load event. In Chrome 158, Firefox 151, and WebKit 26.5, such an embed
+fired its load event before the window’s. Firefox loaded it again each
+time the object returned to its fallback content, as Ladybird does.
+Chrome kept the embed loaded while the object showed an image.
+
+When window.stop() stops an embed’s fetch before its response, Ladybird
+stops delaying the load event on it, so the document’s readyState
+reaches “complete”. For an image, Chrome 158 and Firefox 151 report
+“complete” right after window.stop() too, and Chrome fires an error
+event at the embed; WebKit 26.5 keeps “interactive”. None of the three
+fires a load event at the window then.
+
+Ladybird loads an embed in a shadow tree once it’s connected, though the
+spec’s “in a document” condition hasn’t been updated for shadow trees.
+Chrome 158, Firefox 151, and WebKit 26.5 all loaded an image embed and a
+document embed at the top of an open shadow root, at 100 by 50 and 300
+by 150. And when window.stop() stops an embed’s fetch while the body of
+a raster image is still arriving, Ladybird ends the image too, so that
+the document’s readyState reaches “complete”.
+
+Removing an embed while the body of its raster image is still arriving
+ends that image, so it no longer delays the load event. Firefox 151
+fired the window’s load event right after the removal; Chrome 158
+finished loading the image, and fired it then.
