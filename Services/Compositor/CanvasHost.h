@@ -19,16 +19,15 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <Compositor/BitmapExport.h>
 #include <Compositor/DrawnResources.h>
 #include <Compositor/Forward.h>
-#include <Compositor/HostWebGLContext.h>
+#include <Compositor/OpenGLContext.h>
 #include <Compositor/PresentableSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
-#include <LibCompositing/WebGL/ImageSourceFrame.h>
 #include <LibCompositing/WebGL/Types.h>
-#include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -53,17 +52,29 @@ class VideoFrameHolds;
 
 class CanvasHost {
 public:
-    struct CreateWebGLContextResult {
-        bool success { false };
-        Compositing::CanvasId canvas_id { 0 };
-        Vector<String> supported_extensions;
+    struct HeldVideoFrame {
+        Media::VideoSinkHandle sink_handle;
+        u64 generation { 0 };
+    };
+    using WebGLImageSource = Variant<Compositing::ImageFrameResourceId, HeldVideoFrame>;
+
+    enum class WebGLPresentOutcome {
+        Presented,
+        ShowedPresentedFrame,
+        NoDrawingBuffer,
+    };
+
+    enum class WebGLImageConversion {
+        Converted,
+        UnknownImageFrame,
+        Failed,
     };
 
     CanvasHost(RefPtr<Gfx::SkiaBackendContext>, CanvasSurfaceRegistry&, VideoFrameHolds const&);
     ~CanvasHost();
 
     bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
-    CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
+    bool create_webgl_context(Compositing::CanvasId, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize);
     void destroy_2d_context(Compositing::CanvasId);
     void destroy_webgl_context(Compositing::CanvasId);
 
@@ -72,17 +83,14 @@ public:
     bool end_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu();
     bool try_present_2d_context(Compositing::CanvasId);
     void flush_2d_contexts(ReadonlySpan<Compositing::CanvasId>);
-    void execute_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const&);
-    void set_webgl_shared_command_buffer(Compositing::CanvasId, Compositing::WebGL::WebGLSharedCommandBuffer);
-    [[nodiscard]] bool execute_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const&);
-    ErrorOr<ByteBuffer> execute_webgl_sync_call(Compositing::CanvasId, ByteBuffer request);
-    Compositing::WebGL::ReadPixelsResult webgl_read_pixels_robust_angle(Compositing::CanvasId, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels);
-    bool webgl_read_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data);
 
     Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const { return m_canvas_surface_owner_id; }
 
-    void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
-    void clear_webgl_drawing_buffer(Compositing::CanvasId);
+    OpenGLContext& webgl_context(Compositing::CanvasId);
+    WebGLPresentOutcome present_webgl_context(Compositing::CanvasId, bool preserve_drawing_buffer, bool show_presented_frame);
+    Optional<Gfx::IntSize> read_back_webgl_drawing_buffer(Compositing::CanvasId, bool from_presented_frame, Gfx::IntRect, Bytes pixels);
+    RefPtr<Media::VideoFrame> held_video_frame(Media::VideoSinkHandle, u64 generation) const;
+    WebGLImageConversion convert_image_for_webgl_upload(WebGLImageSource, Compositing::RegisteredImageFrames const&, Gfx::ExportFormat, int export_flags, Optional<Gfx::IntSize> target_size, Gfx::BitmapExportResult& out_pixels) const;
     // The pixels come back in the color space.
     Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace const& = {});
     RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
@@ -97,15 +105,13 @@ private:
         PresentableSurfacePool presented_surfaces;
         NonnullRefPtr<Gfx::PaintingSurface> presented_surface;
     };
-    using WebGLContext = NonnullOwnPtr<HostWebGLContext>;
+    using WebGLContext = NonnullOwnPtr<OpenGLContext>;
     using Context = Variant<Canvas2DContext, WebGLContext>;
 
     Context* context(Compositing::CanvasId);
     OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
-    static HostWebGLContext& as_webgl(Context&);
     Canvas2DContext& canvas_2d_context(Compositing::CanvasId);
     sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas);
-    Vector<HostWebGLContext::UploadSource> resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CanvasSurfaceRegistry& m_canvas_surface_registry;

@@ -233,6 +233,15 @@ static Microsoft::WRL::ComPtr<ID3D11Device1> get_d3d11_device(EGLDisplay display
 }
 #endif
 
+void const* OpenGLContext::address_of_function([[maybe_unused]] char const* name)
+{
+#ifdef ENABLE_WEBGL
+    return reinterpret_cast<void const*>(eglGetProcAddress(name));
+#else
+    return nullptr;
+#endif
+}
+
 OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
 {
 #ifdef ENABLE_WEBGL
@@ -379,53 +388,6 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
     (void)skia_backend_context;
     (void)webgl_version;
     return {};
-#endif
-}
-
-void OpenGLContext::clear_buffer_to_default_values()
-{
-#ifdef ENABLE_WEBGL
-    GLint original_framebuffer;
-    GLint original_renderbuffer;
-    GLenum framebuffer_target = GL_FRAMEBUFFER;
-    GLenum framebuffer_binding = GL_FRAMEBUFFER_BINDING;
-    if (m_webgl_version == WebGLVersion::WebGL2) {
-        framebuffer_target = GL_DRAW_FRAMEBUFFER;
-        framebuffer_binding = GL_DRAW_FRAMEBUFFER_BINDING;
-    }
-    glGetIntegerv(framebuffer_binding, &original_framebuffer);
-    glGetIntegerv(GL_RENDERBUFFER_BINDING, &original_renderbuffer);
-
-    glBindFramebuffer(framebuffer_target, default_framebuffer());
-    glBindRenderbuffer(GL_RENDERBUFFER, default_renderbuffer());
-
-    Array<GLfloat, 4> current_clear_color;
-    glGetFloatv(GL_COLOR_CLEAR_VALUE, current_clear_color.data());
-
-    GLfloat current_clear_depth;
-    glGetFloatv(GL_DEPTH_CLEAR_VALUE, &current_clear_depth);
-
-    GLint current_clear_stencil;
-    glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &current_clear_stencil);
-
-    // The implicit clear value for the color buffer is (0, 0, 0, 0)
-    glClearColor(0, 0, 0, 0);
-
-    // The implicit clear value for the depth buffer is 1.0.
-    glClearDepthf(1.0f);
-
-    // The implicit clear value for the stencil buffer is 0.
-    glClearStencil(0);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    // Restore the clear values.
-    glClearColor(current_clear_color[0], current_clear_color[1], current_clear_color[2], current_clear_color[3]);
-    glClearDepthf(current_clear_depth);
-    glClearStencil(current_clear_stencil);
-
-    glBindFramebuffer(framebuffer_target, original_framebuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, original_renderbuffer);
 #endif
 }
 
@@ -944,35 +906,6 @@ bool OpenGLContext::supports_pack_subimage_parameters() const
     return is_webgl2_or_has_enabled_extension("GL_NV_pack_subimage"sv);
 }
 
-bool OpenGLContext::supports_unpack_subimage_parameters() const
-{
-    return is_webgl2_or_has_enabled_extension("GL_EXT_unpack_subimage"sv);
-}
-
-GLenum OpenGLContext::get_error()
-{
-    if (!m_stashed_errors.is_empty())
-        return m_stashed_errors.take_first();
-    return GLFunctions::get_error();
-}
-
-bool OpenGLContext::stash_errors()
-{
-    auto stashed_any_errors = false;
-    for (auto error = GLFunctions::get_error(); error != GL_NO_ERROR; error = GLFunctions::get_error()) {
-        if (!m_stashed_errors.contains_slow(error))
-            m_stashed_errors.append(error);
-        stashed_any_errors = true;
-    }
-    return stashed_any_errors;
-}
-
-void OpenGLContext::discard_errors()
-{
-    for (auto error = GLFunctions::get_error(); error != GL_NO_ERROR; error = GLFunctions::get_error())
-        dbgln("Compositor: Discarding GL error {:#x} raised by the Compositor's own work", error);
-}
-
 bool OpenGLContext::can_copy_images_into_textures()
 {
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
@@ -1069,32 +1002,6 @@ u32 OpenGLContext::default_renderbuffer() const
 u32 OpenGLContext::default_framebuffer() const
 {
     return m_impl->framebuffer;
-}
-
-Vector<String> OpenGLContext::get_supported_opengl_extensions()
-{
-#ifdef ENABLE_WEBGL
-    make_current();
-
-    Vector<String> extensions;
-
-    if (auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS))) {
-        StringView extensions_view(extensions_string, strlen(extensions_string));
-        for (auto extension : extensions_view.split_view(' '))
-            extensions.append(MUST(String::from_utf8(extension)));
-    }
-
-    if (auto const* requestable_extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE))) {
-        StringView requestable_extensions_view(requestable_extensions_string, strlen(requestable_extensions_string));
-        for (auto extension : requestable_extensions_view.split_view(' '))
-            extensions.append(MUST(String::from_utf8(extension)));
-    }
-
-    return extensions;
-#else
-    (void)m_webgl_version;
-    return {};
-#endif
 }
 
 }

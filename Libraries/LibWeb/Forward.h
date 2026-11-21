@@ -1218,7 +1218,6 @@ class PeriodicWave;
 
 namespace Web::WebGL {
 
-class RemoteWebGLTransport;
 class WebGL2RenderingContext;
 class WebGLRenderingContext;
 class WebGLRenderingContextBase;

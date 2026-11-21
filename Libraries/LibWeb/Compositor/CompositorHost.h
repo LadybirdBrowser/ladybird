@@ -137,8 +137,6 @@ public:
     void flush_canvas_2d_stream();
     void discard_canvas_2d_stream();
 
-    RefPtr<WebGL::RemoteWebGLTransport> create_webgl_transport();
-
     Optional<PlaceholderCanvasLink> allocate_placeholder_canvas();
     void release_placeholder_canvas(Compositing::CanvasId);
     void commit_placeholder_canvas(PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);

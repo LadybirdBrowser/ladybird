@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What a WebGL context asks of the rest of LibWeb, which is C++: its canvas, the sources of texture images, and
-//! the helpers that LibCompositing shares between the two sides of the command stream.
+//! What a WebGL context asks of the rest of LibWeb, which is C++: its canvas and the sources of texture images.
 //! Libraries/LibWeb/WebGL/WebGLRenderingContextBase.cpp defines these functions.
 
 use core::ffi::c_void;
@@ -14,23 +13,18 @@ use core::ptr::NonNull;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, Object, Realm};
 
-use super::host::Frame;
 use crate::bindings::conversions::CppInterface;
+use crate::canvas_2d::host::TransportAbi;
+use crate::compositor_connection::CompositorConnection;
 
-/// The sources of texture images that are implemented in C++, in the order of the C++ enum of the same name.
+/// The sources of texture images whose frame LibWeb reads, in the order of the C++ enum of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum TexImageSourceKind {
     HTMLImageElement,
     HTMLCanvasElement,
-    HTMLVideoElement,
     OffscreenCanvas,
 }
-
-/// The values of the C++ enum `TexImageSourceResult`.
-const TEX_IMAGE_SOURCE_RESULT_FRAME: u8 = 0;
-const TEX_IMAGE_SOURCE_RESULT_NO_FRAME: u8 = 1;
-const TEX_IMAGE_SOURCE_RESULT_INVALID_VALUE: u8 = 2;
 
 unsafe extern "C" {
     fn web_webgl_canvas_did_change_content(canvas_host: *mut c_void);
@@ -38,27 +32,8 @@ unsafe extern "C" {
     fn web_webgl_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_webgl_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
     safe fn web_webgl_expose_experimental_interfaces() -> bool;
-    fn web_webgl_read_tex_image_source(
-        source_wrapper: *mut c_void,
-        source_kind: TexImageSourceKind,
-        format: u32,
-        r#type: u32,
-        out_frame: *mut *mut c_void,
-    ) -> u8;
-    fn web_webgl_read_tex_image_frame(
-        image_frame: *const c_void,
-        format: u32,
-        r#type: u32,
-        out_frame: *mut *mut c_void,
-    ) -> u8;
-    fn web_webgl_read_tex_image_pixels(
-        pixels: *const u8,
-        width: u32,
-        height: u32,
-        format: u32,
-        r#type: u32,
-        out_frame: *mut *mut c_void,
-    ) -> u8;
+    fn web_webgl_texture_image_frame(source_wrapper: *mut c_void, source_kind: TexImageSourceKind) -> *mut c_void;
+    fn web_canvas_2d_canvas_create_transport(canvas_host: *mut c_void, out_transport: *mut TransportAbi) -> bool;
 }
 
 #[derive(Clone, Copy)]
@@ -74,6 +49,16 @@ pub(crate) struct Canvas {
 impl Canvas {
     pub(crate) fn did_change_content(self) {
         unsafe { web_webgl_canvas_did_change_content(self.host.as_ptr()) };
+    }
+
+    pub(crate) fn compositor_connection(self) -> Option<CompositorConnection> {
+        let mut transport = TransportAbi::default();
+        // SAFETY: LibWeb hands over a reference to the connection where it answers true.
+        unsafe { web_canvas_2d_canvas_create_transport(self.host.as_ptr(), &raw mut transport) }.then(|| {
+            let connection = NonNull::new(transport.connection).expect("LibWeb passes the connection");
+            // SAFETY: The caller takes over the reference to the connection, which outlives the value.
+            unsafe { CompositorConnection::lent(connection) }
+        })
     }
 
     pub(crate) fn bitmap_size(self) -> (i32, i32) {
@@ -101,71 +86,9 @@ pub(crate) fn expose_experimental_interfaces() -> bool {
     web_webgl_expose_experimental_interfaces()
 }
 
-pub(crate) enum TexImageSourceFrame {
-    Frame(Frame),
-    /// The source has no image, or no image is uploaded with this format and type.
-    NoFrame,
-    InvalidValue,
-}
-
-pub(crate) fn read_tex_image_source(
-    source: CppInterface,
-    source_kind: TexImageSourceKind,
-    format: u32,
-    r#type: u32,
-) -> TexImageSourceFrame {
-    let mut frame = core::ptr::null_mut();
-    // SAFETY: The wrapper is live and of the interface that the kind names, and the frame is stored when the
-    //         function returns that there is one.
-    let result = unsafe {
-        web_webgl_read_tex_image_source(
-            source.wrapper().as_ptr().cast(),
-            source_kind,
-            format,
-            r#type,
-            &raw mut frame,
-        )
-    };
-    tex_image_source_frame(result, frame)
-}
-
-/// The frame of an image, a frame of an ImageBitmap, for the format and the type.
-pub(crate) fn read_tex_image_frame(image_frame: &ImageFrameHandle, format: u32, r#type: u32) -> TexImageSourceFrame {
-    let mut frame = core::ptr::null_mut();
-    // SAFETY: The handle keeps the image frame alive, and the frame is stored when the function returns that there is
-    //         one.
-    let result = unsafe { web_webgl_read_tex_image_frame(image_frame.as_raw(), format, r#type, &raw mut frame) };
-    tex_image_source_frame(result, frame)
-}
-
-/// The frame of a copy of the pixels of an ImageData, for the format and the type.
-///
-/// # Safety
-///
-/// `pixels` must be the width × height RGBA8888 pixels of the ImageData, which no script may change during the call.
-pub(crate) unsafe fn read_tex_image_pixels(
-    pixels: NonNull<u8>,
-    width: u32,
-    height: u32,
-    format: u32,
-    r#type: u32,
-) -> TexImageSourceFrame {
-    let mut frame = core::ptr::null_mut();
-    // SAFETY: The caller passes the pixels, and the frame is stored when the function returns that there is one.
-    let result =
-        unsafe { web_webgl_read_tex_image_pixels(pixels.as_ptr(), width, height, format, r#type, &raw mut frame) };
-    tex_image_source_frame(result, frame)
-}
-
-fn tex_image_source_frame(result: u8, frame: *mut c_void) -> TexImageSourceFrame {
-    match result {
-        TEX_IMAGE_SOURCE_RESULT_FRAME => {
-            let frame = NonNull::new(frame).expect("LibWeb returns the frame");
-            // SAFETY: LibWeb hands over a frame that it allocated.
-            TexImageSourceFrame::Frame(unsafe { Frame::from_raw(frame) })
-        }
-        TEX_IMAGE_SOURCE_RESULT_NO_FRAME => TexImageSourceFrame::NoFrame,
-        TEX_IMAGE_SOURCE_RESULT_INVALID_VALUE => TexImageSourceFrame::InvalidValue,
-        unknown_result => unreachable!("LibWeb returned {unknown_result} for the reading of a texture image source"),
-    }
+pub(crate) fn texture_image_frame(source: CppInterface, source_kind: TexImageSourceKind) -> Option<ImageFrameHandle> {
+    // SAFETY: The wrapper is live and of the interface that the kind names, and LibWeb hands over a frame that it
+    //         allocated with new, or null.
+    let frame = unsafe { web_webgl_texture_image_frame(source.wrapper().as_ptr().cast(), source_kind) };
+    (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
 }

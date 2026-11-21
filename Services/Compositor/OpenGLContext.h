@@ -39,8 +39,8 @@ public:
     };
 
     static OwnPtr<OpenGLContext> create(RefPtr<Gfx::SkiaBackendContext>, WebGLVersion, DrawingBufferOptions);
+    static void const* address_of_function(char const* name);
 
-    void clear_buffer_to_default_values();
     void allocate_painting_surface_if_needed();
 
     struct Impl;
@@ -66,17 +66,9 @@ public:
     u32 default_framebuffer() const;
     u32 default_renderbuffer() const;
 
-    Vector<String> get_supported_opengl_extensions();
-
-    // Keeps the errors WebGL has yet to collect apart from those of the Compositor's own GL work.
-    GLenum get_error();
-    bool stash_errors();
-    void discard_errors();
-
     WebGLVersion webgl_version() const { return m_webgl_version; }
     bool supports_pixel_buffer_objects() const;
     bool supports_pack_subimage_parameters() const;
-    bool supports_unpack_subimage_parameters() const;
     bool can_copy_images_into_textures();
     // The source size is the part of the image to copy, which can be smaller than the image.
     bool copy_image_into_bound_texture(SkImage const&, Gfx::IntSize source_size, Gfx::IntSize, GLenum target, GLint level, GLint xoffset, GLint yoffset, bool flip_y, bool premultiply_alpha);
@@ -90,7 +82,6 @@ private:
     NonnullOwnPtr<Impl> m_impl;
     WebGLVersion m_webgl_version;
     [[maybe_unused]] DrawingBufferOptions m_drawing_buffer_options;
-    Vector<GLenum> m_stashed_errors;
 
     void free_surface_resources();
     void free_color_buffer(ColorBuffer&);

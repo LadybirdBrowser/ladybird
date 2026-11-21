@@ -14,14 +14,12 @@ use core::ops::Deref;
 use ak::Utf16String;
 use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor};
 
-use super::canvas::{
-    Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_frame, read_tex_image_pixels, read_tex_image_source,
-};
+use super::canvas::{Canvas, TexImageSourceKind, texture_image_frame};
 use super::constants::{
     GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_NO_ERROR,
 };
 use super::extensions::{EnabledEmptyExtension, EnabledExtension};
-use super::host::{CppTransport, Frame};
+use super::host::{Frame, RemoteContext};
 use super::pixel_unpacking::PixelUnpackState;
 use super::proxy::custom::FrameUpload;
 use super::proxy::recorder::Proxy;
@@ -40,7 +38,9 @@ use super::web_gl_vertex_array_object::WebGLVertexArrayObject;
 use super::web_gl_vertex_array_object_oes::WebGLVertexArrayObjectOES;
 use crate::bindings::interface::{Inherits, Interface, Ref, Wrappable};
 use crate::bindings::{Exception, WebIdlResult};
-use crate::canvas_2d::canvas::CanvasImageSourceKind;
+use crate::canvas_2d::canvas::{CanvasImageSourceKind, capture_video_frame, image_frame_from_pixels};
+use libcompositing_rust::display_list::canvas_2d_recorder::ColorSpace;
+use libcompositing_rust::webgl::texture_upload::texture_export_format;
 
 pub(crate) const MAX_WEBGL_DRAWING_BUFFER_DIMENSION: i32 = 16384;
 
@@ -130,7 +130,7 @@ pub(crate) type Binding<T> = Cell<Option<Ref<T>>>;
 #[gc(crate = libjs_rust)]
 pub(crate) struct ContextState {
     #[gc(untraced)]
-    pub(crate) proxy: Proxy<CppTransport>,
+    pub(crate) proxy: Proxy<RemoteContext>,
     #[gc(untraced)]
     version: WebGLVersion,
     context_ref: Cell<Option<ContextRef>>,
@@ -197,7 +197,7 @@ pub(crate) struct ContextState {
 }
 
 pub(crate) struct ContextParameters {
-    pub(crate) proxy: Proxy<CppTransport>,
+    pub(crate) proxy: Proxy<RemoteContext>,
     pub(crate) version: WebGLVersion,
     pub(crate) realm: Gc<Realm>,
     pub(crate) canvas: Canvas,
@@ -356,35 +356,50 @@ impl ContextState {
             ));
         }
 
-        let source_frame = match *source {
+        let format_and_type_upload_images = texture_export_format(format, r#type).is_some();
+        let frame = match *source {
             TexImageSource::ImageBitmap(image_bitmap) => match image_bitmap.frame() {
-                Some(image_frame) => read_tex_image_frame(&image_frame, format, r#type),
+                Some(image_frame) => format_and_type_upload_images.then_some(Frame::Image(image_frame)),
                 // If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE error is
                 // generated.
-                None => TexImageSourceFrame::InvalidValue,
+                None => {
+                    self.set_error(GL_INVALID_VALUE);
+                    return Ok(None);
+                }
             },
             TexImageSource::ImageData(image_data) => match image_data.pixels() {
+                Some(_) if !format_and_type_upload_images => None,
                 Some(pixels) => {
                     let (width, height) = image_data.size();
+                    let pitch = width as usize * 4;
                     // SAFETY: Nothing runs script while the pixels are copied.
-                    unsafe { read_tex_image_pixels(pixels, width, height, format, r#type) }
+                    let Some(image_frame) = (unsafe {
+                        image_frame_from_pixels(pixels, pitch, width as i32, height as i32, ColorSpace::Srgb)
+                    }) else {
+                        self.set_error(GL_INVALID_VALUE);
+                        return Ok(None);
+                    };
+                    Some(Frame::Image(image_frame))
                 }
                 // If this function is called with an ImageData whose data attribute has been neutered, an
                 // INVALID_VALUE error is generated.
-                None => TexImageSourceFrame::InvalidValue,
+                None => {
+                    self.set_error(GL_INVALID_VALUE);
+                    return Ok(None);
+                }
             },
-            TexImageSource::HTMLImageElement(object) => {
-                read_tex_image_source(object, TexImageSourceKind::HTMLImageElement, format, r#type)
-            }
-            TexImageSource::HTMLCanvasElement(object) => {
-                read_tex_image_source(object, TexImageSourceKind::HTMLCanvasElement, format, r#type)
-            }
-            TexImageSource::HTMLVideoElement(object) => {
-                read_tex_image_source(object, TexImageSourceKind::HTMLVideoElement, format, r#type)
-            }
-            TexImageSource::OffscreenCanvas(object) => {
-                read_tex_image_source(object, TexImageSourceKind::OffscreenCanvas, format, r#type)
-            }
+            TexImageSource::HTMLImageElement(object) => format_and_type_upload_images
+                .then(|| texture_image_frame(object, TexImageSourceKind::HTMLImageElement).map(Frame::Image))
+                .flatten(),
+            TexImageSource::HTMLCanvasElement(object) => format_and_type_upload_images
+                .then(|| texture_image_frame(object, TexImageSourceKind::HTMLCanvasElement).map(Frame::Image))
+                .flatten(),
+            TexImageSource::OffscreenCanvas(object) => format_and_type_upload_images
+                .then(|| texture_image_frame(object, TexImageSourceKind::OffscreenCanvas).map(Frame::Image))
+                .flatten(),
+            TexImageSource::HTMLVideoElement(object) => format_and_type_upload_images
+                .then(|| capture_video_frame(object).map(Frame::Video))
+                .flatten(),
         };
         if tex_image_source_is_not_origin_clean(source) {
             return Err(Exception::Dom(
@@ -392,13 +407,8 @@ impl ContextState {
                 Utf16String::from_ascii(b"Cannot upload a texture source that is not origin-clean"),
             ));
         }
-        let frame = match source_frame {
-            TexImageSourceFrame::Frame(frame) => frame,
-            TexImageSourceFrame::NoFrame => return Ok(None),
-            TexImageSourceFrame::InvalidValue => {
-                self.set_error(GL_INVALID_VALUE);
-                return Ok(None);
-            }
+        let Some(frame) = frame else {
+            return Ok(None);
         };
         // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left
         // corner of the source. This behavior is modified by the UNPACK_FLIP_Y_WEBGL pixel storage parameter,
@@ -456,7 +466,7 @@ impl ContextState {
     }
 
     /// The new replayer context has no GL objects: the page creates its objects anew once told of the restore.
-    pub(crate) fn restore(&self, transport: CppTransport, supported_opengl_extensions: Vec<Vec<u8>>) {
+    pub(crate) fn restore(&self, transport: RemoteContext, supported_opengl_extensions: Vec<Vec<u8>>) {
         self.proxy.restore(transport);
         self.supported_opengl_extensions.replace(supported_opengl_extensions);
 

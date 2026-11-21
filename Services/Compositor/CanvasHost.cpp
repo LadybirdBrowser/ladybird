@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/BitmapExport.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
-#include <Compositor/HostWebGLContext.h>
+#include <Compositor/OpenGLContext.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VideoFrameHolds.h>
@@ -123,13 +124,6 @@ static ErrorOr<NonnullRefPtr<PresentableSurface>> present_into_surface_of_pool(P
     return surface;
 }
 
-HostWebGLContext& CanvasHost::as_webgl(Context& context)
-{
-    auto* webgl_context = context.get_pointer<WebGLContext>();
-    VERIFY(webgl_context);
-    return **webgl_context;
-}
-
 bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space)
 {
     auto command_player = create_2d_command_player(size, alpha, will_read_frequently, color_space);
@@ -155,16 +149,14 @@ bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize
     return true;
 }
 
-CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Compositing::WebGL::WebGLVersion version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
+bool CanvasHost::create_webgl_context(Compositing::CanvasId canvas_id, OpenGLContext::WebGLVersion version, OpenGLContext::DrawingBufferOptions options, Gfx::IntSize size)
 {
-    auto context = HostWebGLContext::create(m_skia_backend_context, version, { .depth = depth, .stencil = stencil, .antialias = antialias }, size);
-    if (!context)
-        return {};
-
-    auto canvas_id = m_canvas_surface_registry.allocate_canvas_id();
-    auto supported_extensions = context->gl_context().get_supported_opengl_extensions();
-    m_contexts.set(canvas_id, context.release_nonnull());
-    return { .success = true, .canvas_id = canvas_id, .supported_extensions = move(supported_extensions) };
+    auto gl_context = OpenGLContext::create(m_skia_backend_context, version, options);
+    if (!gl_context)
+        return false;
+    gl_context->set_size(size);
+    m_contexts.set(canvas_id, gl_context.release_nonnull());
+    return true;
 }
 
 void CanvasHost::destroy_2d_context(Compositing::CanvasId canvas_id)
@@ -279,98 +271,100 @@ void CanvasHost::forget_video_sink(Media::VideoSinkHandle handle)
     m_video_frame_images.remove(handle);
 }
 
-Vector<HostWebGLContext::UploadSource> CanvasHost::resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const& frames) const
+OpenGLContext& CanvasHost::webgl_context(Compositing::CanvasId canvas_id)
 {
-    Vector<HostWebGLContext::UploadSource> sources;
-    sources.ensure_capacity(frames.size());
-    for (auto const& frame : frames) {
-        frame.visit(
-            [&](Gfx::DecodedImageFrame const& decoded_frame) {
-                sources.unchecked_append(decoded_frame);
-            },
-            [&](Compositing::CapturedVideoFrame const& captured_frame) {
-                if (auto video_frame = m_video_frame_holds.held_frame(captured_frame.sink_handle, captured_frame.generation)) {
-                    sources.unchecked_append(video_frame.release_nonnull());
-                    return;
-                }
-                sources.unchecked_append(HostWebGLContext::MissingVideoFrame {});
-            });
+    auto* context = this->context(canvas_id);
+    VERIFY(context);
+    return *context->get<WebGLContext>();
+}
+
+CanvasHost::WebGLPresentOutcome CanvasHost::present_webgl_context(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer, bool show_presented_frame)
+{
+    auto& gl_context = webgl_context(canvas_id);
+    auto outcome = WebGLPresentOutcome::ShowedPresentedFrame;
+    auto surface = show_presented_frame ? gl_context.presented_surface() : nullptr;
+    if (!surface) {
+        gl_context.present_drawing_buffer(preserve_drawing_buffer);
+        surface = gl_context.presented_surface();
+        if (!surface)
+            return WebGLPresentOutcome::NoDrawingBuffer;
+        outcome = WebGLPresentOutcome::Presented;
     }
-    return sources;
-}
-
-void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    MUST(as_webgl(*context).execute_commands(commands, resolve_webgl_upload_sources(frames)));
-}
-
-void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    as_webgl(*context).set_shared_command_buffer(move(shared_command_buffer));
-}
-
-bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const& frames)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    auto& webgl_context = as_webgl(*context);
-
-    auto commands = webgl_context.shared_command_buffer_range(offset, size_in_bytes);
-    if (!commands.has_value())
-        return false;
-
-    // WebContent can rewrite shared bytes while they execute, so a malformed stream is
-    // a misbehaving peer rather than a Compositor bug; report instead of crashing.
-    if (webgl_context.execute_commands(*commands, resolve_webgl_upload_sources(frames)).is_error())
-        return false;
-    webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
-    return true;
-}
-
-ErrorOr<ByteBuffer> CanvasHost::execute_webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    return as_webgl(*context).execute_sync_call(request);
-}
-
-Compositing::WebGL::ReadPixelsResult CanvasHost::webgl_read_pixels_robust_angle(Compositing::CanvasId canvas_id, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    return as_webgl(*context).read_pixels_robust_angle(x, y, width, height, format, type, buf_size, move(pixels));
-}
-
-bool CanvasHost::webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-    return as_webgl(*context).read_buffer_sub_data(target, offset, size, move(data));
-}
-
-void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)
-{
-    auto* context = this->context(canvas_id);
-    VERIFY(context);
-
-    auto& webgl_context = as_webgl(*context);
-    auto surface = MUST(webgl_context.prepare_for_compositing(preserve_drawing_buffer));
-    if (auto presentable_surface = webgl_context.presented_presentable_surface(); presentable_surface && &presentable_surface->painting_surface() == surface.ptr())
+    if (auto presentable_surface = gl_context.presented_presentable_surface(); presentable_surface && &presentable_surface->painting_surface() == surface.ptr())
         m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, *presentable_surface);
     else
-        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, move(surface));
+        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, surface.release_nonnull());
+    return outcome;
 }
 
-void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)
+Optional<Gfx::IntSize> CanvasHost::read_back_webgl_drawing_buffer(Compositing::CanvasId canvas_id, bool from_presented_frame, Gfx::IntRect rect, Bytes pixels)
 {
-    auto* context = this->context(canvas_id);
-    if (!context || !context->has<WebGLContext>())
-        return;
-    as_webgl(*context).clear_drawing_buffer();
+    auto& gl_context = webgl_context(canvas_id);
+    gl_context.make_current();
+    gl_context.flush_drawing_buffer();
+    auto surface = from_presented_frame ? gl_context.presented_surface() : gl_context.drawing_buffer_surface();
+    if (!surface)
+        return {};
+
+    auto clipped_rect = rect.intersected(surface->rect());
+    if (clipped_rect.is_empty())
+        return {};
+    auto pitch = static_cast<size_t>(clipped_rect.width()) * sizeof(u32);
+    if (pitch * static_cast<size_t>(clipped_rect.height()) > pixels.size())
+        return {};
+
+    auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, clipped_rect.size(), pitch, pixels.data());
+    if (bitmap.is_error())
+        return {};
+    surface->flush();
+    surface->read_into_bitmap(*bitmap.value(), clipped_rect.location());
+    return clipped_rect.size();
+}
+
+RefPtr<Media::VideoFrame> CanvasHost::held_video_frame(Media::VideoSinkHandle handle, u64 generation) const
+{
+    return m_video_frame_holds.held_frame(handle, generation);
+}
+
+CanvasHost::WebGLImageConversion CanvasHost::convert_image_for_webgl_upload(WebGLImageSource source, Compositing::RegisteredImageFrames const& registered_image_frames, Gfx::ExportFormat format, int export_flags, Optional<Gfx::IntSize> target_size, Gfx::BitmapExportResult& out_pixels) const
+{
+    Optional<BitmapInColorSpace> bitmap;
+    auto conversion = source.visit(
+        [&](Compositing::ImageFrameResourceId id) {
+            auto image_frame = registered_image_frames.image_frame(id);
+            if (!image_frame)
+                return WebGLImageConversion::UnknownImageFrame;
+            bitmap = BitmapInColorSpace { image_frame->frame().bitmap_sharing_pixels(), image_frame->frame().color_space() };
+            return WebGLImageConversion::Converted;
+        },
+        [&](HeldVideoFrame held_video_frame) {
+            if (auto video_frame = this->held_video_frame(held_video_frame.sink_handle, held_video_frame.generation)) {
+                auto video_bitmap = bitmap_from_video_frame(*video_frame, m_skia_backend_context);
+                if (video_bitmap.is_error())
+                    return WebGLImageConversion::Failed;
+                bitmap = video_bitmap.release_value();
+                return WebGLImageConversion::Converted;
+            }
+            auto missing_frame_bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 });
+            if (missing_frame_bitmap.is_error())
+                return WebGLImageConversion::Failed;
+            bitmap = BitmapInColorSpace { missing_frame_bitmap.release_value(), {} };
+            return WebGLImageConversion::Converted;
+        });
+    if (conversion != WebGLImageConversion::Converted)
+        return conversion;
+
+    Optional<int> target_width;
+    Optional<int> target_height;
+    if (target_size.has_value()) {
+        target_width = target_size->width();
+        target_height = target_size->height();
+    }
+    auto pixels = Gfx::export_bitmap_to_byte_buffer(*bitmap->bitmap, bitmap->color_space, format, export_flags, target_width, target_height);
+    if (pixels.is_error())
+        return WebGLImageConversion::Failed;
+    out_pixels = pixels.release_value();
+    return WebGLImageConversion::Converted;
 }
 
 Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
@@ -402,8 +396,8 @@ RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId
         [](Canvas2DContext& canvas_context) -> RefPtr<Gfx::PaintingSurface> {
             return canvas_context.presented_surface;
         },
-        [](WebGLContext& webgl_context) -> RefPtr<Gfx::PaintingSurface> {
-            return webgl_context->presented_surface();
+        [](WebGLContext& gl_context) -> RefPtr<Gfx::PaintingSurface> {
+            return gl_context->presented_surface();
         });
 }
 
@@ -417,11 +411,8 @@ Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_i
         [rect, alpha_type, &color_space](Canvas2DContext& canvas_context) {
             return read_back_surface(canvas_context.command_player->surface(), rect, alpha_type, color_space);
         },
-        [rect, alpha_type, &color_space](WebGLContext& webgl_context) -> Gfx::ShareableBitmap {
-            // NB: The drawing buffer of a WebGL context is sRGB.
-            if (alpha_type != Gfx::AlphaType::Premultiplied || !color_space.data().has<Empty>())
-                return {};
-            return webgl_context->read_back_drawing_buffer(rect);
+        [](WebGLContext&) -> Gfx::ShareableBitmap {
+            return {};
         });
 }
 

@@ -18,7 +18,6 @@
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/DisplayList/RegisteredImageFrames.h>
 #include <LibCompositing/DisplayList/RegisteredTypefaces.h>
-#include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionFromClient.h>
@@ -72,17 +71,6 @@ private:
     virtual Messages::CompositorWebContentServer::GetPlaceholderCanvasPixelsResponse get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect) override;
     virtual void stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription>, Vector<Compositing::ImageFrameResourceId>, Gfx::ShareableBitmap target_bitmap) override;
 
-    virtual Messages::CompositorWebContentServer::CreateWebglContextResponse create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) override;
-    virtual void destroy_webgl_context(Compositing::CanvasId canvas_id) override;
-    virtual void webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) override;
-    virtual void webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) override;
-    virtual void webgl_drain_command_buffer(Compositing::CanvasId canvas_id) override;
-    virtual void webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSourceFrame> frames) override;
-    virtual void webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) override;
-    virtual void webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) override;
-    virtual Messages::CompositorWebContentServer::WebglSyncCallResponse webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) override;
-    virtual Messages::CompositorWebContentServer::WebglReadPixelsResponse webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) override;
-    virtual Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) override;
     virtual void synchronize_for_testing() override { }
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;

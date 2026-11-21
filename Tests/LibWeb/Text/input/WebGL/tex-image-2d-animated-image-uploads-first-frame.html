@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The first frame of the animated image is green, and the next one is red. -->
+<img id="image" src="data:image/gif;base64,R0lGODlhZAAyAPAAAAD/AAAAACH5BAABAAAAIf8LTkVUU0NBUEUyLjADAQAAACwAAAAAZAAyAAACTYSPqcvtD6OctNqLs968+w+G4kiW5omm6sq27gvH8kzX9o3n+s73/g8MCofEovGITCqXzKbzCY1Kp9Sq9YrNarfcrvcLDovH5LL5bCsAACH5BAAQJwAALAAAAABkADIAgP8AAAAAAAJNhI+py+0Po5y02ouz3rz7D4biSJbmiabqyrbuC8fyTNf2jef6zvf+DwwKh8Si8YhMKpfMpvMJjUqn1Kr1is1qt9yu9wsOi8fksvlsKwAAOw==">
+<script>
+    promiseTest(async () => {
+        const image = document.getElementById("image");
+        await waitForImageAnimationState(image.src, state => state.shownFrameIndex > 0);
+
+        const gl = document.createElement("canvas").getContext("webgl");
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, gl.createFramebuffer());
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gl.getParameter(gl.TEXTURE_BINDING_2D), 0);
+        const pixel = new Uint8Array(4);
+        gl.readPixels(50, 25, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        println(`uploaded pixel: ${Array.from(pixel).join(",")}`);
+    });
+</script>
