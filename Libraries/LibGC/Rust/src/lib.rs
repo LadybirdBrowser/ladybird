@@ -16,6 +16,7 @@ mod rust_demangle;
 mod rust_panic;
 
 mod block;
+mod compaction;
 mod evacuation;
 mod identity_hash;
 mod marker;
@@ -23,9 +24,11 @@ mod os;
 mod pool;
 
 pub use block::{BlockDescriptor, rust_gc_block_descriptor_commit, rust_gc_block_descriptor_table};
+pub use compaction::{CompactionCandidate, CompactionSelection, rust_gc_compaction_select};
 pub use evacuation::{
-    CellMove, EvacuationLayout, EvacuationSet, PinReason, rust_gc_evacuation_add_block, rust_gc_evacuation_create,
-    rust_gc_evacuation_destroy, rust_gc_evacuation_fix_up_slots, rust_gc_evacuation_forwarding_address,
+    CellMove, EvacuationLayout, EvacuationSet, PinReason, PinnedCells, rust_gc_evacuation_add_block,
+    rust_gc_evacuation_cells_to_move, rust_gc_evacuation_create, rust_gc_evacuation_destroy,
+    rust_gc_evacuation_fix_up_slots, rust_gc_evacuation_forward_cells, rust_gc_evacuation_forwarding_address,
     rust_gc_evacuation_move_cells, rust_gc_evacuation_pin_reason, rust_gc_evacuation_recorded_slot_count,
     rust_gc_evacuation_will_move,
 };

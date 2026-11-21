@@ -64,6 +64,20 @@ TEST_CASE(rate_drop_is_gated_on_having_enough_garbage)
     EXPECT(policy.evaluate(64 * KiB, 64 * KiB, 8 * MiB) == Decision::KeepWaiting);
 }
 
+TEST_CASE(a_quiet_tick_collects_a_few_mib_of_garbage_below_the_rate_drop_gate)
+{
+    GC::IdleCollectionPolicy policy;
+    policy.reset(0);
+
+    // A burst far below the rate-drop gate of a large heap (threshold / 16, i.e. 16 MiB here).
+    EXPECT(policy.evaluate(3 * MiB, 3 * MiB, 256 * MiB) == Decision::KeepWaiting);
+    EXPECT(!policy.last_tick_was_quiet());
+
+    // Next to no allocation since: the heap went quiet, and a few MiB of garbage are enough.
+    EXPECT(policy.evaluate(3 * MiB + 64 * KiB, 3 * MiB + 64 * KiB, 256 * MiB) == Decision::Collect);
+    EXPECT(policy.last_tick_was_quiet());
+}
+
 TEST_CASE(watchdog_collects_when_the_rate_never_drops)
 {
     GC::IdleCollectionPolicy policy;

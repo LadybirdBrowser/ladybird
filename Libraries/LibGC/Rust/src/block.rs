@@ -46,8 +46,11 @@ pub struct BlockDescriptor {
     pub traced_on_owner_thread_only: bool,
     /// Whether a collection may move the block's cells to other blocks of their allocator.
     pub movable: bool,
+    /// Whether a collection evacuated the block and could not empty it because something pinned some of its cells.
+    /// Compaction leaves the block alone until one of the cells it kept dies.
+    pub kept_by_pins: bool,
     /// Rounds the descriptor up to 128 bytes, two whole cache lines in the table.
-    pub reserved: [u8; 6],
+    pub reserved: [u8; 5],
     /// What a collection that evacuates the block knows about its cells, and null in every other collection. Marking
     /// reads it for every cell it visits, to pin the cells of evacuated blocks that something visits by value.
     pub evacuation: *mut Evacuation,
