@@ -690,6 +690,11 @@ pub trait EndpointMessage: Encode {
     }
 }
 
+/// A synchronous message, and the message that answers it.
+pub trait SyncMessage: EndpointMessage {
+    type Response: EndpointMessage + Decode;
+}
+
 /// Reads the endpoint magic number and message ID that a message starts with.
 pub fn decode_message_header(decoder: &mut Decoder<'_>) -> Result<(u32, i32), DecodeError> {
     Ok((decoder.decode()?, decoder.decode()?))

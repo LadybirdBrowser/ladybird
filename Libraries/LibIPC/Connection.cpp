@@ -87,6 +87,12 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer& buffer)
 
 ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
 {
+    auto buffer = TRY(request.encode());
+    return post_sync_request(buffer);
+}
+
+ErrorOr<void> ConnectionBase::post_sync_request(MessageBuffer& request)
+{
     auto result = post_message(request);
     // NB: No response can come if the peer has closed the connection. If that peer owns this process, then shut down
     // rather than hand the failure to a caller that may have no way to carry on — as WebKit's sendSyncMessage() does
@@ -94,6 +100,58 @@ ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
     if (result.is_error() && m_peer_owns_this_process && !is_open())
         did_lose_peer_during_sync_request();
     return result;
+}
+
+bool ConnectionBase::send_raw_sync_request(MessageBuffer& request, u32 response_endpoint_magic, i32 response_message_id, Function<void(FfiRawMessage)> const& hand_over_response)
+{
+    if (post_sync_request(request).is_error())
+        return false;
+    auto response = wait_for_specific_endpoint_message_impl(response_endpoint_magic, response_message_id, MayCancel::Yes);
+    if (!response)
+        return false;
+    auto outcome = static_cast<RawMessage&>(*response).hand_to_rust(hand_over_response);
+    if (outcome.misbehavior.has_value()) {
+        dbgln("IPC::ConnectionBase ({:p}) got a response it cannot use ({}), disconnecting.", this, *outcome.misbehavior);
+        shutdown();
+        return false;
+    }
+    return true;
+}
+
+bool ConnectionBase::send_sync_request_from_rust(void* connection, ReadonlyBytes bytes, ReadonlySpan<RawAttachment> attachments, u32 response_endpoint_magic, i32 response_message_id, void* response_sink, void (*take_response)(void* response_sink, FfiRawMessage))
+{
+    auto& self = *static_cast<ConnectionBase*>(connection);
+    VERIFY(self.m_owner_thread_id.is_current_thread());
+    auto request = adopt_encoded_message(bytes, attachments);
+    return self.send_raw_sync_request(request, response_endpoint_magic, response_message_id, [&](FfiRawMessage response) {
+        take_response(response_sink, response);
+    });
+}
+
+void ConnectionBase::ref_from_rust(void* connection)
+{
+    auto& self = *static_cast<ConnectionBase*>(connection);
+    VERIFY(self.m_owner_thread_id.is_current_thread());
+    self.ref();
+}
+
+void ConnectionBase::unref_from_rust(void* connection)
+{
+    auto& self = *static_cast<ConnectionBase*>(connection);
+    VERIFY(self.m_owner_thread_id.is_current_thread());
+    self.unref();
+}
+
+FfiConnection ConnectionBase::to_ffi_with_one_reference()
+{
+    VERIFY(m_owner_thread_id.is_current_thread());
+    ref();
+    return {
+        .connection_with_one_reference = this,
+        .send_sync_request = send_sync_request_from_rust,
+        .ref = ref_from_rust,
+        .unref = unref_from_rust,
+    };
 }
 
 void ConnectionBase::shutdown()
