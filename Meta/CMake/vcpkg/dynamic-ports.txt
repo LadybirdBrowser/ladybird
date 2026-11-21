@@ -2,6 +2,7 @@
 ffmpeg
 gettext-libintl
 libdwarf
+libiconv
 libidn2
 libunistring
 qtbase
