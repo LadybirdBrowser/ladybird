@@ -10,3 +10,11 @@ block(SCOPE_FOR VARIABLES PROPAGATE VCPKG_LIBRARY_LINKAGE VCPKG_HASH_ADDITIONAL_
         list(APPEND VCPKG_HASH_ADDITIONAL_FILES "${dynamic_ports_file}")
     endif()
 endblock()
+
+if (VCPKG_CMAKE_SYSTEM_NAME STREQUAL "Linux" AND PORT STREQUAL "qtbase")
+    # vcpkg disables the AT-SPI bridge. Enable it for the Linux Qt runtime using the system AT-SPI headers.
+    list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS
+        -DCMAKE_DISABLE_FIND_PACKAGE_ATSPI2=OFF
+        -DFEATURE_accessibility_atspi_bridge=ON
+    )
+endif()
