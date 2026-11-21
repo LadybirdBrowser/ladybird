@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Each use of the document gets a function of its own, so it can't linger in a register of the test's frame.
+    function collected(weakDocument) {
+        return weakDocument.deref() === undefined;
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", () => resolve(), { once: true }));
+        iframe.srcdoc = `<img src="../../data/svg-image-with-a-video-element.svg">`;
+        document.body.appendChild(iframe);
+        await loaded;
+        println("loaded");
+
+        // The image, and the video in it, live as long as the iframe's document.
+        const weakDocument = (() => {
+            const frameDocument = iframe.contentDocument;
+            // An expando preserves the document's wrapper for as long as the document itself lives.
+            frameDocument.preserveWrapper = true;
+            return new WeakRef(frameDocument);
+        })();
+
+        iframe.remove();
+        for (let round = 0; round < 10 && !collected(weakDocument); ++round)
+            await internals.gcAsync();
+        println(`collected: ${collected(weakDocument)}`);
+    });
+</script>
