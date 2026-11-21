@@ -126,6 +126,7 @@ ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const&
         if (channel <= last_channel)
             return channel_map_to_custom_av_channel_layout(functions, channel_map);
         layout.u.mask |= 1ULL << channel;
+        last_channel = channel;
     }
 
     return layout;
