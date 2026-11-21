@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+    .container { width: 300px; }
+    .box { display: inline-block; padding: 16px; aspect-ratio: 1; }
+    .child { width: 28px; height: 32px; }
+</style>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const cases = [
+        ["auto/min-content", "width:auto; height:min-content"],
+        ["auto/auto", "width:auto; height:auto"],
+        ["fit-content/min-content", "width:fit-content; height:min-content"],
+        ["auto/max-content", "width:auto; height:max-content"],
+        ["auto/fit-content", "width:auto; height:fit-content"],
+        ["min-content/min-content", "width:min-content; height:min-content"],
+        ["auto/min-content no ratio", "width:auto; height:min-content; aspect-ratio:auto"],
+        ["auto/32px", "width:auto; height:32px"],
+        ["auto/min-content no padding", "width:auto; height:min-content; padding:0"],
+        ["auto/min-content border-box", "width:auto; height:min-content; box-sizing:border-box"],
+    ];
+    for (const [label, style] of cases) {
+        const container = document.createElement("div");
+        container.className = "container";
+        const box = document.createElement("div");
+        box.className = "box";
+        box.style.cssText = style;
+        const child = document.createElement("div");
+        child.className = "child";
+        box.append(child);
+        container.append(box);
+        document.body.append(container);
+        const rect = box.getBoundingClientRect();
+        const computed = getComputedStyle(box);
+        println(`${label}: border ${rect.width}x${rect.height}; computed ${computed.width}x${computed.height}`);
+    }
+});
+</script>
