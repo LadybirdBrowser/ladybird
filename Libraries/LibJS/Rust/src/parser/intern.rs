@@ -8,26 +8,25 @@
 //! two words, with no text compare. Names of one or two bytes, which is most of minified code, skip even that.
 //!
 //! The tables of an interner are slices. Those of a first parse are in its work zone, and the ones that it outgrows
-//! stay there until the parse ends. The reparse context of a source keeps the names of the source in tables on the
-//! heap ([`KeptNames`]), and each parse of a function again interns its names with those tables in place.
+//! stay there until the parse ends. The reparse context of a source keeps the names of the source in tables of its own
+//! (see `KeptNames`), and each parse of a function again interns its names with those tables in place.
 
 use super::token::{KEYWORDS, SPECIAL_NAMES};
 use ak::Zone;
 use core::mem::MaybeUninit;
-use std::sync::OnceLock;
 
 pub const NONE: u32 = u32::MAX;
 
 #[derive(Clone, Copy)]
 #[repr(C, align(32))]
-struct Row {
+pub(super) struct Row {
     k0: u64,
     k1: u64,
     id: u32,
 }
 
 #[derive(Clone, Copy)]
-struct LongRow {
+pub(super) struct LongRow {
     hash: u64,
     id: u32,
 }
@@ -52,21 +51,26 @@ pub struct Interner<'z> {
     len: u32,
 }
 
-/// The tables of an interner on the heap, at the size they have.
-pub struct KeptNames {
-    rows: Box<[Row]>,
-    shift: u32,
-    count: u32,
-    long_rows: Box<[LongRow]>,
-    long_count: u32,
-    text: Box<[u8]>,
-    spans: Box<[(u32, u32)]>,
+/// The tables of an interner, all of which are written, for a copy of them that stays around.
+pub(super) struct NameTables<'t> {
+    pub(super) rows: &'t [Row],
+    pub(super) shift: u32,
+    pub(super) count: u32,
+    pub(super) long_rows: &'t [LongRow],
+    pub(super) long_count: u32,
+    pub(super) text: &'t [u8],
+    pub(super) spans: &'t [(u32, u32)],
 }
 
-impl KeptNames {
-    pub fn len(&self) -> usize {
-        self.spans.len()
-    }
+/// Tables that an interner can work with in place (see `Interner::of_tables()`).
+pub(super) struct NameTablesMut<'t> {
+    pub(super) rows: &'t mut [Row],
+    pub(super) shift: u32,
+    pub(super) count: u32,
+    pub(super) long_rows: &'t mut [LongRow],
+    pub(super) long_count: u32,
+    pub(super) text: &'t mut [u8],
+    pub(super) spans: &'t mut [(u32, u32)],
 }
 
 /// Makes room for `more` values after the first `len` of `list`. A list that is too short for them moves to new memory
@@ -126,7 +130,9 @@ fn key_from_bytes(bytes: &[u8]) -> (u64, u64) {
 }
 
 impl<'z> Interner<'z> {
-    pub fn new(zone: &'z Zone, source_len: usize) -> Self {
+    /// An interner for a source of `source_len` units. `initial` are the tables of an interner with the names that every
+    /// interner starts with (see `Interner::initial()`), which a small source starts from.
+    pub(super) fn new(zone: &'z Zone, source_len: usize, initial: &NameTables<'_>) -> Self {
         let wanted = (source_len / 16).clamp(1 << 8, 1 << 22).next_power_of_two();
         // OPTIMIZATION: Tiny scripts, such as repeated evals, do not amortize the setup of a direct table for two-byte
         // names.
@@ -139,27 +145,30 @@ impl<'z> Interner<'z> {
         if wanted == 1 << 8 && long_rows == 1 << 4 {
             // OPTIMIZATION: Every parser starts with the same reserved names. Copy their tables for small sources
             // instead of interning all of them again, which is more work than parsing many eval strings.
-            static INITIAL: OnceLock<KeptNames> = OnceLock::new();
-            let initial = INITIAL.get_or_init(|| Self::with_tables(zone, &mut [], 1 << 8, 1 << 4, 512).to_kept());
             let text = zone.alloc_uninit_slice(initial.text.len().max(512));
-            text[..initial.text.len()].write_copy_of_slice(&initial.text);
-            let spans = zone.alloc_uninit_slice(initial.len().max(1 << 7));
-            spans[..initial.len()].write_copy_of_slice(&initial.spans);
+            text[..initial.text.len()].write_copy_of_slice(initial.text);
+            let spans = zone.alloc_uninit_slice(initial.spans.len().max(1 << 7));
+            spans[..initial.spans.len()].write_copy_of_slice(initial.spans);
             return Self {
                 zone,
                 short,
-                rows: zone.alloc_slice_copy(&initial.rows),
+                rows: zone.alloc_slice_copy(initial.rows),
                 shift: initial.shift,
                 count: initial.count,
-                long_rows: zone.alloc_slice_copy(&initial.long_rows),
+                long_rows: zone.alloc_slice_copy(initial.long_rows),
                 long_count: initial.long_count,
                 text,
                 text_len: initial.text.len() as u32,
                 spans,
-                len: initial.len() as u32,
+                len: initial.spans.len() as u32,
             };
         }
         Self::with_tables(zone, short, wanted, long_rows, (source_len / 8).max(512))
+    }
+
+    /// An interner with only the names that every interner starts with, at the size that `new()` gives a small source.
+    pub fn initial(zone: &'z Zone) -> Self {
+        Self::with_tables(zone, &mut [], 1 << 8, 1 << 4, 512)
     }
 
     fn with_tables(zone: &'z Zone, short: &'z mut [u32], rows: usize, long_rows: usize, text_capacity: usize) -> Self {
@@ -193,7 +202,7 @@ impl<'z> Interner<'z> {
     }
 
     /// An interner that gives the names of an earlier parse the ids they had, sized to stay around with a source of any
-    /// size (see `to_kept()`). `names` yields them in id order, none of them twice, and starts with the names that every
+    /// size (see `tables()`). `names` yields them in id order, none of them twice, and starts with the names that every
     /// interner starts with.
     pub fn with_names<'a>(zone: &'z Zone, names: impl ExactSizeIterator<Item = &'a [u8]>) -> Self {
         let rows = (names.len() * 2).next_power_of_two();
@@ -217,35 +226,35 @@ impl<'z> Interner<'z> {
         interner
     }
 
-    /// A copy of the tables on the heap, at the size they have. The table of short names is left out.
-    pub fn to_kept(&self) -> KeptNames {
-        KeptNames {
-            rows: (*self.rows).into(),
+    /// The tables, at the size they have, to copy. The table of short names is left out.
+    pub(super) fn tables(&self) -> NameTables<'_> {
+        NameTables {
+            rows: self.rows,
             shift: self.shift,
             count: self.count,
-            long_rows: (*self.long_rows).into(),
+            long_rows: self.long_rows,
             long_count: self.long_count,
-            text: self.all_text().into(),
-            spans: self.spans().into(),
+            text: self.all_text(),
+            spans: self.spans(),
         }
     }
 
-    /// An interner with the tables of `kept` in place. The text and the span of a name that they do not have go to
-    /// `zone`, and so do the rows when they grow, so that `kept` never refers to the zone. But the row of such a name is
-    /// written into `kept` first, so that `kept` stays as it was only if no name is new.
-    pub fn of_kept(zone: &'z Zone, kept: &'z mut KeptNames) -> Self {
+    /// An interner with `tables` in place. The text and the span of a name that they do not have go to `zone`, and so
+    /// do the rows when they grow, so that the tables never refer to the zone. But the row of such a name is written
+    /// into `tables` first, so that they stay as they were only if no name is new.
+    pub(super) fn of_tables(zone: &'z Zone, tables: NameTablesMut<'z>) -> Self {
         Self {
             zone,
             short: &mut [],
-            shift: kept.shift,
-            count: kept.count,
-            long_count: kept.long_count,
-            text_len: kept.text.len() as u32,
-            len: kept.spans.len() as u32,
-            rows: &mut kept.rows,
-            long_rows: &mut kept.long_rows,
-            text: as_room(&mut kept.text),
-            spans: as_room(&mut kept.spans),
+            shift: tables.shift,
+            count: tables.count,
+            long_count: tables.long_count,
+            text_len: tables.text.len() as u32,
+            len: tables.spans.len() as u32,
+            rows: tables.rows,
+            long_rows: tables.long_rows,
+            text: as_room(tables.text),
+            spans: as_room(tables.spans),
         }
     }
 
@@ -395,6 +404,7 @@ impl<'z> Interner<'z> {
 #[cfg(test)]
 mod tests {
     use super::Interner;
+    use crate::parser::kept::KeptNames;
     use ak::Zone;
 
     #[test]
@@ -403,7 +413,8 @@ mod tests {
         for source_len in [0, 20_000, 65_536] {
             for reverse in [false, true] {
                 let zone = Zone::new(1 << 30, c"test");
-                let mut interner = Interner::new(&zone, source_len);
+                let initial = Interner::initial(&zone);
+                let mut interner = Interner::new(&zone, source_len, &initial.tables());
                 let mut expected = Vec::new();
                 for prefix in [
                     b"".as_slice(),
@@ -433,9 +444,10 @@ mod tests {
                     assert_eq!(interner.intern_bytes(name), *id);
                 }
 
-                let mut kept =
-                    Interner::with_names(&zone, (0..interner.len()).map(|id| interner.text(id as u32))).to_kept();
-                let mut reparsed = Interner::of_kept(&zone, &mut kept);
+                let mut kept = KeptNames::of(
+                    &Interner::with_names(&zone, (0..interner.len()).map(|id| interner.text(id as u32))).tables(),
+                );
+                let mut reparsed = Interner::of_tables(&zone, kept.tables_mut());
                 for (name, id) in &expected {
                     assert_eq!(reparsed.intern_bytes(name), *id);
                     assert_eq!(reparsed.text(*id), name);

@@ -16,6 +16,7 @@ pub(crate) mod base;
 pub(crate) mod columns;
 pub(crate) mod expr;
 mod intern;
+mod kept;
 mod lexer;
 pub(crate) mod literals;
 pub(crate) mod resolve;
@@ -45,7 +46,7 @@ use core::sync::atomic::AtomicU8;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use intern::Interner;
-use intern::KeptNames;
+use kept::KeptNames;
 pub(crate) use resolve::EnclosingCode;
 pub(crate) use resolve::OuterResolutions;
 use std::sync::Arc;
@@ -249,7 +250,7 @@ impl ScriptData {
 
     /// A reparse context, whose tables are worked out in `zone` and copied out at their final size.
     fn make_reparse_context(&self, zone: &Zone) -> ReparseContext {
-        let names = Interner::with_names(zone, self.names.parser_names()).to_kept();
+        let names = KeptNames::of(&Interner::with_names(zone, self.names.parser_names()).tables());
         let name_states = vec![base::UNUSED_NAME; names.len().next_power_of_two()].into_boxed_slice();
         ReparseContext {
             names,
@@ -285,7 +286,7 @@ impl ScriptData {
             Parser::for_reparsing(
                 zone,
                 self.program_type == ProgramType::Module,
-                Interner::of_kept(zone, &mut context.names),
+                Interner::of_tables(zone, context.names.tables_mut()),
                 &mut context.name_states,
                 context.stamp,
                 &self.index,
@@ -565,6 +566,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
             } else {
                 Mode::Lazy
             },
+            &KeptNames::initial(zone).tables(),
             validate_regex,
         )
     };
