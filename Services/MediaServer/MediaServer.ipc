@@ -32,7 +32,7 @@ endpoint MediaServer
     create_playback_session(u64 session_id, Audio::PlaybackGroupId audio_group) =|
     destroy_playback_session(u64 session_id) =|
     add_media_stream_source(u64 session_id, u64 stream_id) =|
-    start_playback(u64 session_id) =|
+    start_playback(u64 session_id, u64 seek_request_id) =|
     play(u64 session_id) =|
     pause(u64 session_id) =|
     seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) =|

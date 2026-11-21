@@ -163,8 +163,10 @@ NonnullRefPtr<RemotePlaybackManager::AddMediaSourcePromise> RemotePlaybackManage
 
 void RemotePlaybackManager::start()
 {
+    // The state the server settles in before starting does not account for the start.
+    advance_seek_request_id();
     if (can_send())
-        m_client->async_start_playback(m_session_id);
+        m_client->async_start_playback(m_session_id, m_latest_seek_request_id);
 }
 
 void RemotePlaybackManager::play()

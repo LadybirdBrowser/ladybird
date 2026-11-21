@@ -64,7 +64,7 @@ private:
     virtual void create_playback_session(u64 session_id, Audio::PlaybackGroupId audio_group) override;
     virtual void destroy_playback_session(u64 session_id) override;
     virtual void add_media_stream_source(u64 session_id, u64 stream_id) override;
-    virtual void start_playback(u64 session_id) override;
+    virtual void start_playback(u64 session_id, u64 seek_request_id) override;
     virtual void play(u64 session_id) override;
     virtual void pause(u64 session_id) override;
     virtual void seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) override;
