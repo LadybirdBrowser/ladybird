@@ -169,15 +169,13 @@ if (APPLE)
         Menu.mm
         PlatformColorsMac.mm
         ScrollbarPreferencesMac.mm
-        SoftwareUpdaterMac.mm
         SpellCheckerMac.mm
         SystemAppearanceMac.mm
         TranslateIconMac.mm
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
-    find_package(unofficial-sparkle CONFIG REQUIRED)
-    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate unofficial::sparkle::Sparkle "-framework ApplicationServices" "-framework AVFoundation" "-framework Carbon" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
+    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework AVFoundation" "-framework Carbon" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
         DefaultBrowserMacOS.mm
         LadybirdAccessibilityElement.mm
@@ -190,6 +188,13 @@ if (APPLE)
         WebContentViewAccessibility.mm
         PROPERTIES COMPILE_FLAGS "-fobjc-arc"
     )
+
+    if (LADYBIRD_ENABLE_SPARKLE)
+        find_package(unofficial-sparkle CONFIG REQUIRED)
+        target_sources(ladybird_impl PRIVATE SoftwareUpdaterMac.mm)
+        target_link_libraries(ladybird_impl PRIVATE unofficial::sparkle::Sparkle)
+        target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_HAS_SPARKLE)
+    endif()
 
     # The Translation framework has no Objective-C API, so the browser reaches it through a small Swift library. The
     # API it uses came in the macOS 26.4 SDK, and CMake builds Swift for one architecture at a time. So a build with an

@@ -83,8 +83,11 @@
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/MicrophoneAuthorizerMacOS.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
-#    include <UI/Qt/SoftwareUpdaterMac.h>
 #    include <UI/Qt/SpellCheckerMac.h>
+#endif
+
+#if defined(LADYBIRD_HAS_SPARKLE)
+#    include <UI/Qt/SoftwareUpdaterMac.h>
 #endif
 
 #if defined(LADYBIRD_HAS_TRANSLATOR)
@@ -1226,7 +1229,7 @@ void Application::create_platform_actions()
         if (auto* hub = HubConnection::the_if_connected())
             hub->send_settings_changes(settings);
     };
-#if defined(AK_OS_MACOS)
+#if defined(LADYBIRD_HAS_SPARKLE)
     m_software_updater = SoftwareUpdater::create();
     m_software_updater->on_will_relaunch = [this] {
         m_restart = Restart::ByUpdater;
@@ -2486,9 +2489,9 @@ void Application::display_update_check_result(WebView::UpdateCheckResult::Kind k
     if (first_is_one_of(install_method, WebView::InstallMethod::DEB, WebView::InstallMethod::RPM, WebView::InstallMethod::Flatpak)) {
         text = qformatted("You have Ladybird {}. Update it with your system's software updater.", current_version);
         buttons.append({ "Remind me later", PageCard::ButtonRole::Primary, {} });
+#if defined(LADYBIRD_HAS_SPARKLE)
     } else if (install_method == WebView::InstallMethod::MacOSApp) {
         buttons.append({ "Remind me later", PageCard::ButtonRole::Secondary, {} });
-#if defined(AK_OS_MACOS)
         buttons.append({ "Install update", PageCard::ButtonRole::Primary, [trigger] {
                             auto* software_updater = Application::the().software_updater();
                             if (!software_updater)
