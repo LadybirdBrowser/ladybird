@@ -16,9 +16,10 @@ use super::recorder::{
     Proxy, bytes_of, bytes_of_mut, copy_reply_data, gen_count, leading_bytes, leading_bytes_mut, payload_size,
     until_nul,
 };
+use libcompositing_rust::webgl::vocabulary::{commands, sync_calls};
+use libcompositing_rust::webgl::wire::{DataSpan, InlineData, WireStruct};
+
 use super::transport::Transport;
-use super::vocabulary::{commands, sync_calls};
-use super::wire::{DataSpan, InlineData, WireStruct};
 use crate::web_gl::constants::GL_COLOR;
 
 include!(concat!(env!("OUT_DIR"), "/webgl_proxy.rs"));

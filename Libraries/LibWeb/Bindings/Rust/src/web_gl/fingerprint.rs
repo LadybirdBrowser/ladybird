@@ -12,9 +12,10 @@
 
 use std::sync::Once;
 
-use super::proxy::recorder::{DEFAULT_SHARED_DATA_REGION_CAPACITY, SHARED_DATA_REGION_OFFSET};
-use super::proxy::vocabulary::WIRE_STRUCT_LAYOUTS;
-use super::proxy::wire::{HEADER_PAYLOAD_SIZE_OFFSET, HEADER_SIZE, RECORD_ALIGNMENT};
+use libcompositing_rust::webgl::vocabulary::WIRE_STRUCT_LAYOUTS;
+use libcompositing_rust::webgl::wire::{HEADER_PAYLOAD_SIZE_OFFSET, HEADER_SIZE, RECORD_ALIGNMENT};
+use libcompositing_rust::webgl::{DEFAULT_SHARED_DATA_REGION_CAPACITY, SHARED_DATA_REGION_OFFSET};
+
 use super::state::MAX_WEBGL_DRAWING_BUFFER_DIMENSION;
 
 /// RemoteWebGLTransportFFI.cpp has a struct of the same name, and reports the constants of the C++ side as one.
@@ -67,7 +68,7 @@ pub(crate) fn verify_that_rust_and_cpp_agree_on_layouts_and_constants() {
         assert!(
             first_difference.is_none() && replayer_layouts.len() == WIRE_STRUCT_LAYOUTS.len(),
             "the structs of the WebGL command stream differ between its recorder and its replayer, from word \
-             {first_difference:?} of {} and {} layout words on; Libraries/LibWeb/Bindings/Rust/generate and \
+             {first_difference:?} of {} and {} layout words on; Libraries/LibCompositing/Rust/generate and \
              Meta/Generators/libweb_webgl.py have to derive the same structs from GLFunctions.json",
             WIRE_STRUCT_LAYOUTS.len(),
             replayer_layouts.len()

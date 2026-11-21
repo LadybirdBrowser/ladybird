@@ -10,10 +10,11 @@
 
 use std::rc::Rc;
 
+use libcompositing_rust::webgl::vocabulary::{commands, sync_calls};
+use libcompositing_rust::webgl::wire::{DataSpan, InlineData, WireStruct, resolve_data_span};
+
 use super::recorder::{Proxy, bytes_of_mut, copy_reply_data, until_nul};
 use super::transport::{ReadPixelsResult, SharedMemory, Transport};
-use super::vocabulary::{commands, sync_calls};
-use super::wire::{DataSpan, InlineData, WireStruct, resolve_data_span};
 use crate::web_gl::constants::{GL_INVALID_VALUE, GL_OUT_OF_MEMORY};
 
 fn pack_strings(strings: &[&[u8]]) -> Vec<u8> {

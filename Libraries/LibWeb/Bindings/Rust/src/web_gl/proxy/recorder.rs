@@ -13,18 +13,15 @@ use core::ptr;
 use core::sync::atomic::{AtomicU64, Ordering};
 use std::rc::Rc;
 
-use super::transport::{SharedMemory, Transport};
-use super::vocabulary::{CommandType, MAX_COMMAND_STRUCT_SIZE};
-use super::wire::{
+use libcompositing_rust::webgl::vocabulary::{CommandType, MAX_COMMAND_STRUCT_SIZE};
+use libcompositing_rust::webgl::wire::{
     Command, DataSpan, HEADER_SIZE, InlineData, Record, SyncReply, SyncRequest, encode_sync_request,
     padded_record_size, resolve_data_span,
 };
-use crate::web_gl::constants::GL_OUT_OF_MEMORY;
+use libcompositing_rust::webgl::{DEFAULT_SHARED_DATA_REGION_CAPACITY, SHARED_DATA_REGION_OFFSET};
 
-/// The `u64` that the replayer stores the sequence number of the last executed flush in is at the start of the shared
-/// command buffer, before the region of records.
-pub(crate) const SHARED_DATA_REGION_OFFSET: usize = 128;
-pub(crate) const DEFAULT_SHARED_DATA_REGION_CAPACITY: usize = 32 * 1024 * 1024;
+use super::transport::{SharedMemory, Transport};
+use crate::web_gl::constants::GL_OUT_OF_MEMORY;
 
 pub(crate) const MAX_PENDING_COMMAND_BYTES: usize = 4 * 1024 * 1024;
 
