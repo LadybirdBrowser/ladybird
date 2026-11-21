@@ -24,10 +24,11 @@ from Utils.host_platform import HostArchitecture  # noqa: E402
 from Utils.host_platform import HostSystem  # noqa: E402
 from Utils.host_platform import Platform  # noqa: E402
 
-# The features of vcpkg.json, each with the CMake options that all have to be on to select it. Keep in sync with
-# Meta/CMake/environment.cmake.
+# The features of vcpkg.json, with the CMake options and their defaults. All options for a feature must be on
+# to select it. Keep in sync with Meta/CMake/environment.cmake.
 MANIFEST_FEATURE_OPTIONS = {
-    "sparkle": ("LADYBIRD_ENABLE_UPDATE_CHECK", "LADYBIRD_ENABLE_SPARKLE"),
+    "qt": {"LADYBIRD_BUILD_QT": False, "ENABLE_GUI_TARGETS": True},
+    "sparkle": {"LADYBIRD_ENABLE_UPDATE_CHECK": True, "LADYBIRD_ENABLE_SPARKLE": True},
 }
 
 DEPEND_INFO_REGEX = re.compile(r"^([a-zA-Z0-9-]+)(?:\[([^]]*)\])?(:host)?:\s*(.*)$")
@@ -157,12 +158,11 @@ def common_vcpkg_arguments(triplet: str, preset: str) -> list[str]:
     ]
 
 
-def cmake_option_is_on(cache: str, option: str) -> bool:
-    # An option that is not in the cache has its default, which is ON. The values that count as off are the constants
-    # that CMake's if() takes as false.
+def cmake_option_is_on(cache: str, option: str, default: bool) -> bool:
+    # The values that count as off are the constants that CMake's if() takes as false.
     match = re.search(rf"^{option}:[A-Z]+=(.*)$", cache, re.MULTILINE)
     if not match:
-        return True
+        return default
     value = match.group(1).strip().upper()
     return value not in ("", "0", "OFF", "NO", "FALSE", "N", "IGNORE", "NOTFOUND") and not value.endswith("-NOTFOUND")
 
@@ -175,7 +175,7 @@ def manifest_feature_arguments(build_dir: Path) -> list[str]:
     return [
         f"--x-feature={feature}"
         for feature, options in MANIFEST_FEATURE_OPTIONS.items()
-        if all(cmake_option_is_on(cache, option) for option in options)
+        if all(cmake_option_is_on(cache, option, default) for option, default in options.items())
     ]
 
 

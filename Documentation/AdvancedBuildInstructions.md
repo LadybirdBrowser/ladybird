@@ -44,6 +44,7 @@ There are some optional features that can be enabled during compilation that are
 - `ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS`: makes the Clang plugins also detect invalid function types as members of GC-allocated objects. Only applies with `ENABLE_CLANG_PLUGINS`.
 - `BUILD_SHARED_LIBS`: builds shared libraries instead of static ones. Enabled by default, and disabled by the `Distribution` preset.
 - `ENABLE_GUI_TARGETS`: builds the browser, its helper processes and the tests that need them. Enabled by default.
+- `LADYBIRD_BUILD_QT`: builds and bundles Qt with vcpkg for Linux GUI builds. Disabled by default.
 - `LADYBIRD_ENABLE_CCACHE`: compiles through ccache when it is installed. Enabled by default.
 - `LAGOM_USE_LINKER`: sets the linker to use, such as `lld` or `mold`, instead of the compiler's default. On Linux and the BSDs, LLD or mold is picked automatically when one of them is installed.
 - `LAGOM_LINK_POOL_SIZE`: sets the maximum number of link jobs that run at once.
