@@ -721,10 +721,12 @@ impl SvgFilterGraphBuilder {
     }
 }
 
+// https://drafts.fxtf.org/filter-effects-1/#feCompositeElement
+// The 'in' image is the source of each Porter-Duff operation, and the 'in2' image its destination.
 fn composite_operator_to_blend_mode(composite_operator: u8) -> CompositingAndBlendingOperator {
     match composite_operator {
         COMPOSITE_OPERATOR_IN => CompositingAndBlendingOperator::SourceIn,
-        COMPOSITE_OPERATOR_OUT => CompositingAndBlendingOperator::DestinationOut,
+        COMPOSITE_OPERATOR_OUT => CompositingAndBlendingOperator::SourceOut,
         COMPOSITE_OPERATOR_ATOP => CompositingAndBlendingOperator::SourceATop,
         COMPOSITE_OPERATOR_XOR => CompositingAndBlendingOperator::Xor,
         COMPOSITE_OPERATOR_LIGHTER => CompositingAndBlendingOperator::Lighter,

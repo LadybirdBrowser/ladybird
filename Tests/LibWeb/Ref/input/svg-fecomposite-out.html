@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-fecomposite-out-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="300" height="150">
+    <filter id="drop-band" x="-1" y="-1" width="3" height="3">
+        <feOffset in="SourceAlpha" dy="20" result="shifted" />
+        <!-- What's left of the shifted copy where the original isn't: a band along its bottom. -->
+        <feComposite in="shifted" in2="SourceAlpha" operator="out" />
+    </filter>
+    <filter id="top-band" x="-1" y="-1" width="3" height="3">
+        <feOffset in="SourceAlpha" dy="20" result="shifted" />
+        <!-- What's left of the original where the shifted copy isn't: a band along its top. -->
+        <feComposite in="SourceAlpha" in2="shifted" operator="out" />
+    </filter>
+    <rect x="10" y="50" width="40" height="40" fill="blue" filter="url(#drop-band)" />
+    <rect x="80" y="50" width="40" height="40" fill="blue" filter="url(#top-band)" />
+</svg>
+<p style="margin: 0 10px; font: 0/0 serif"><span style="display: inline-block; width: 40px; height: 40px; background: blue; filter: url(#drop-band)"></span></p>
