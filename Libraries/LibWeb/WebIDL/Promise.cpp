@@ -68,7 +68,9 @@ GC::Ref<Promise> create_resolved_promise(JS::Realm& realm, JS::Value value)
     auto promise_capability = MUST(JS::new_promise_capability(vm, constructor));
 
     // 4. Perform ! Call(promiseCapability.[[Resolve]], undefined, « value »).
-    MUST(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), value));
+    // AD-HOC: We perform SafePromiseResolve instead, which never runs script.
+    //         See https://github.com/whatwg/webidl/pull/1645
+    MUST(JS::safe_promise_resolve(vm, promise_capability, value));
 
     // 5. Return promiseCapability.
     return promise_capability;
@@ -148,7 +150,9 @@ void resolve_promise(JS::Realm& realm, Promise const& promise, JS::Value value)
 
     // 2. Let value be the result of converting x to an ECMAScript value.
     // 3. Perform ! Call(p.[[Resolve]], undefined, « value »).
-    MUST(JS::call(vm, *promise.resolve(), JS::js_undefined(), value));
+    // AD-HOC: We perform SafePromiseResolve instead, which never runs script.
+    //         See https://github.com/whatwg/webidl/pull/1645
+    MUST(JS::safe_promise_resolve(vm, promise, value));
 }
 
 void resolve_promise(Promise const& promise, JS::Value value)
