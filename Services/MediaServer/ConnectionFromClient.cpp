@@ -363,10 +363,10 @@ void ConnectionFromClient::add_media_stream_source(u64 session_id, u64 stream_id
     session->add_media_stream_source(stream_id, NonnullRefPtr<Media::MediaStream>(*stream));
 }
 
-void ConnectionFromClient::start_playback(u64 session_id)
+void ConnectionFromClient::start_playback(u64 session_id, u64 seek_request_id)
 {
     if (auto* session = find_playback_session(session_id))
-        session->manager().start();
+        session->start(seek_request_id);
 }
 
 void ConnectionFromClient::play(u64 session_id)
