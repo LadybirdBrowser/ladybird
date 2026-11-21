@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-5 Pass
-3 Fail
+8 Pass
 Pass	Fatal flag, non-streaming cases
 Pass	Fatal flag, streaming cases
 Pass	Fatal flag, streaming error discards the remaining input: utf-8
-Fail	Fatal flag, streaming error resets BOM handling: utf-8
+Pass	Fatal flag, streaming error resets BOM handling: utf-8
 Pass	Fatal flag, streaming error discards the remaining input: utf-16le
-Fail	Fatal flag, streaming error resets BOM handling: utf-16le
+Pass	Fatal flag, streaming error resets BOM handling: utf-16le
 Pass	Fatal flag, streaming error discards the remaining input: utf-16be
-Fail	Fatal flag, streaming error resets BOM handling: utf-16be
+Pass	Fatal flag, streaming error resets BOM handling: utf-16be
