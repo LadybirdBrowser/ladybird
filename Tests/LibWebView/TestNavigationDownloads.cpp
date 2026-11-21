@@ -195,7 +195,7 @@ void load_page(WebView::HeadlessWebView& view, URL::URL const& url)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA bool loaded = false;
     view.on_load_finish = [&](URL::URL const&) { loaded = true; };
-    view.load(url);
+    view.load_from_browser_ui(url);
 
     auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(30), [] { });
     deadline->start();
@@ -211,7 +211,7 @@ WebView::FileDownloader::Download download_navigation_response(WebView::Headless
 {
     FinishedDownloadRecorder recorder;
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 
     // A download that never finishes fails here, after 30 seconds.
     auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(30), [] { });

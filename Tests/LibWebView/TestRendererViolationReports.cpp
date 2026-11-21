@@ -280,7 +280,7 @@ TEST_CASE(renderer_violation_reports)
         auto liar = WebView::HeadlessWebView::create(theme, { 800, 600 });
         bool loaded = false;
         liar->on_load_finish = [&](auto const&) { loaded = true; };
-        liar->load(server.url("liar.test"sv, "/target"sv));
+        liar->load_from_browser_ui(server.url("liar.test"sv, "/target"sv));
         expect(spin_until_or_timeout([&] { return loaded; }, 10'000), "a liar's page loads"sv);
         liar->on_load_finish = {};
         liars.append(move(liar));
@@ -297,7 +297,7 @@ TEST_CASE(renderer_violation_reports)
     source_view->on_title_change = [&](auto const& title) { titles.append(title.to_utf8().to_byte_string()); };
     auto saw_title = [&](StringView title) { return titles.contains_slow(title); };
 
-    source_view->load(server.url("source.test"sv, "/source"sv));
+    source_view->load_from_browser_ui(server.url("source.test"sv, "/source"sv));
     expect(spin_until_or_timeout([&] { return saw_title("loaded 1"sv); }, 10'000), "the source's frame loads"sv);
 
     auto& target = *source_view->traversable().children().first();
@@ -372,7 +372,7 @@ TEST_CASE(renderer_violation_reports)
     frames_view->on_title_change = [&](auto const& title) { frames_titles.append(title.to_utf8().to_byte_string()); };
     auto frames_saw_title = [&](StringView title) { return frames_titles.contains_slow(title); };
 
-    frames_view->load(server.url("source.test"sv, "/frames"sv));
+    frames_view->load_from_browser_ui(server.url("source.test"sv, "/frames"sv));
     expect(spin_until_or_timeout([&] { return frames_saw_title("source loaded 1"sv) && frames_saw_title("sibling loaded 1"sv); }, 10'000), "the source and its sibling load"sv);
 
     frames_view->run_javascript("sourceFrame.contentWindow.navigateSibling('blocked.test', '/blocked')"_string);

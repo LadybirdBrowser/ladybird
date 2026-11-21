@@ -136,7 +136,7 @@ TEST_CASE(browser_history_traversal)
     size_t spare_view_loads_finished = 0;
     spare_view->on_load_finish = [&](auto const&) { ++spare_view_loads_finished; };
     auto spare_view_url = URL::Parser::basic_parse("data:text/html,spare-process-navigation"sv).release_value();
-    spare_view->load(spare_view_url);
+    spare_view->load_from_browser_ui(spare_view_url);
     Core::EventLoop::current().spin_until([&]() { return spare_view_loads_finished == 1; });
     VERIFY(spare_view->url() == spare_view_url);
     // The page a spare process was started with is one its client may act for, and a page ID the client
@@ -156,13 +156,13 @@ TEST_CASE(browser_history_traversal)
         Core::EventLoop::current().spin_until([&]() { return loads_finished >= expected_loads && view_is_at(url); });
     };
 
-    view->load(url_a);
+    view->load_from_browser_ui(url_a);
     wait_until_at(url_a);
-    view->load(url_b);
+    view->load_from_browser_ui(url_b);
     wait_until_at(url_b);
-    view->load(url_c);
+    view->load_from_browser_ui(url_c);
     wait_until_at(url_c);
-    view->load(url_d);
+    view->load_from_browser_ui(url_d);
     wait_until_at(url_d);
 
     auto back_menu_items = view->session_history_traversal_items(-1);
@@ -228,7 +228,7 @@ TEST_CASE(browser_history_traversal)
     auto javascript_url = URL::Parser::basic_parse("javascript:void(0)"sv).release_value();
     auto loads_started_before_javascript_url = loads_started;
     auto loads_finished_before_javascript_url = loads_finished;
-    view->load(javascript_url);
+    view->load_from_browser_ui(javascript_url);
     Core::EventLoop::current().spin_until([&] { return loads_finished > loads_finished_before_javascript_url; });
     VERIFY(loads_started == loads_started_before_javascript_url + 1);
     VERIFY(view_is_at(url_c));
@@ -377,7 +377,7 @@ TEST_CASE(browser_history_traversal)
             ++navigate_events;
             reload_view->alert_closed();
         };
-        reload_view->load(reload_url);
+        reload_view->load_from_browser_ui(reload_url);
         Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 1; });
         reload_view->reload();
         Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 2; });
@@ -404,16 +404,16 @@ TEST_CASE(browser_history_traversal)
         auto newer_url = TRY_OR_FAIL(write_page("newer.html"sv, "newer"sv));
         Vector<URL::URL> loads_finished;
         view->on_load_finish = [&](URL::URL const& url) { loads_finished.append(url); };
-        view->load(slow_unload_url);
+        view->load_from_browser_ui(slow_unload_url);
         Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(slow_unload_url); });
 
         // The displayed document is still unloading, after its successor's history job was found ready.
-        view->load(activated_url);
+        view->load_from_browser_ui(activated_url);
         bool unloading = false;
         auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(300), [&] { unloading = true; });
         timer->start();
         Core::EventLoop::current().spin_until([&] { return unloading; });
-        view->load(newer_url);
+        view->load_from_browser_ui(newer_url);
         Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(newer_url); });
         VERIFY(view->url() == newer_url);
     }

@@ -1123,7 +1123,7 @@ void Application::remove_content_blocker_list(Badge<SettingsUI>, StringView iden
 void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab, ViewImplementation const* source_view) const
 {
     if (auto view = open_blank_new_tab(activate_tab, source_view); view.has_value())
-        view->load(url);
+        view->load_from_browser_ui(url);
 }
 
 void Application::read_clipboard_text(ClipboardType type, Function<void(Utf16String)> on_read) const
@@ -1139,7 +1139,7 @@ void Application::read_clipboard_item(Function<void(Web::Clipboard::SystemClipbo
 void Application::activate_or_open_tab_with_url(URL::URL const& url) const
 {
     if (auto view = activate_tab_with_url(url, URL::ExcludeFragment::Yes); view.has_value())
-        view->load(url);
+        view->load_from_browser_ui(url);
     else
         open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
 }
@@ -2503,7 +2503,7 @@ static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventL
                 });
         });
 
-    view.load(url);
+    view.load_from_browser_ui(url);
     timer->start();
 
     return timer;
@@ -2533,7 +2533,7 @@ static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWeb
         event_loop.quit(1);
     };
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 }
 
 static void load_page_and_exit_on_close(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url)
@@ -2542,7 +2542,7 @@ static void load_page_and_exit_on_close(Core::EventLoop& event_loop, HeadlessWeb
         event_loop.quit(0);
     };
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 }
 
 ErrorOr<int> Application::execute()
@@ -3443,7 +3443,7 @@ void Application::navigate_tab(DevTools::TabDescription const& description, Stri
     if (!parsed_url.has_value())
         return;
 
-    view->load(*parsed_url);
+    view->load_from_browser_ui(*parsed_url);
 }
 
 void Application::traverse_the_history_by_delta(DevTools::TabDescription const& description, int delta) const

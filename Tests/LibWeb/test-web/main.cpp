@@ -686,7 +686,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         };
     }
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 }
 
 static ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path)
@@ -818,7 +818,7 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
 
                 test.expectation_screenshot.clear();
                 test.did_inject_js = false;
-                view.load(test.ref_test_expectations[test.ref_test_expectation_index].url);
+                view.load_from_browser_ui(test.ref_test_expectations[test.ref_test_expectation_index].url);
             });
         } else {
             // When the test initially finishes, we take a screenshot and request the reference test metadata.
@@ -886,10 +886,10 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
 
         // Clear flag so we can inject the JS into the reference page.
         test.did_inject_js = false;
-        view.load(test.ref_test_expectations[test.ref_test_expectation_index].url);
+        view.load_from_browser_ui(test.ref_test_expectations[test.ref_test_expectation_index].url);
     };
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 }
 
 static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
@@ -1000,7 +1000,7 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
         });
     };
 
-    view.load(url);
+    view.load_from_browser_ui(url);
 }
 
 static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app, TestRunCapture& test_run_capture)
@@ -1093,7 +1093,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         });
     });
 
-    view.load(URL::about_blank());
+    view.load_from_browser_ui(URL::about_blank());
 }
 
 static void set_ui_callbacks_for_tests(TestWebView& view, TestRunContext& context, TestRunCapture& test_run_capture)

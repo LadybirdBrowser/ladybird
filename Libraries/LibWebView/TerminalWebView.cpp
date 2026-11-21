@@ -652,7 +652,7 @@ void TerminalWebView::open_url(StringView text)
         show_notice(ByteString::formatted("not a URL: {}", text));
         return;
     }
-    load(*url);
+    load_from_browser_ui(*url);
 }
 
 void TerminalWebView::show_notice(ByteString notice)

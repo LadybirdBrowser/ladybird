@@ -61,7 +61,7 @@ TEST_CASE(before_unload)
     auto view_is_at = [&](URL::URL const& url) { return view->url().serialize() == url.serialize(); };
     auto load_and_wait = [&](URL::URL const& url) {
         auto expected_loads_finished = loads_finished + 1;
-        view->load(url);
+        view->load_from_browser_ui(url);
         Core::EventLoop::current().spin_until([&] { return loads_finished >= expected_loads_finished && view_is_at(url); });
     };
     auto activate_page = [&] {
@@ -102,7 +102,7 @@ TEST_CASE(before_unload)
     load_and_wait(source_url);
     activate_page();
     auto loads_finished_before_cancellation = loads_finished;
-    view->load(destination_url);
+    view->load_from_browser_ui(destination_url);
     Core::EventLoop::current().spin_until([&] { return loads_finished > loads_finished_before_cancellation; });
     VERIFY(prompt_count == 1);
     VERIFY(prompt_source == "data://"sv);
@@ -139,7 +139,7 @@ TEST_CASE(before_unload)
     adopt_navigation_prompt_for_close = true;
     accept_prompt = false;
     auto prompt_count_before_adoption = prompt_count;
-    view->load(destination_url);
+    view->load_from_browser_ui(destination_url);
     Core::EventLoop::current().spin_until([&] { return adopted_close_preflight_result.has_value(); });
     VERIFY(!*adopted_close_preflight_result);
     VERIFY(view_is_at(source_url));
@@ -148,7 +148,7 @@ TEST_CASE(before_unload)
     adopted_close_preflight_result.clear();
     accept_prompt = true;
     prompt_count_before_adoption = prompt_count;
-    view->load(destination_url);
+    view->load_from_browser_ui(destination_url);
     Core::EventLoop::current().spin_until([&] { return adopted_close_preflight_result.has_value(); });
     VERIFY(*adopted_close_preflight_result);
     VERIFY(view_is_at(source_url));
