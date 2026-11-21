@@ -276,61 +276,70 @@ struct NameSpan {
 /// for the others, along with the UTF-8 that a parser knows them by.
 #[derive(Default)]
 pub(crate) struct NameTable {
-    spans: Vec<NameSpan>,
-    ascii_text: Vec<u8>,
-    utf16_text: Vec<u16>,
-    utf8_text: Vec<u8>,
+    spans: Box<[NameSpan]>,
+    ascii_text: Box<[u8]>,
+    utf16_text: Box<[u16]>,
+    utf8_text: Box<[u8]>,
     /// Where the UTF-8 of each non-ASCII name starts and ends, in the order of the names.
-    utf8_spans: Vec<(u32, u32)>,
+    utf8_spans: Box<[(u32, u32)]>,
 }
 
 impl NameTable {
+    /// The table of `names`, in the order of their ids, which works out the size of each list first.
     pub(crate) fn from_parser_names<'a>(names: impl ExactSizeIterator<Item = &'a [u8]> + Clone) -> Self {
-        let ascii_bytes = names.clone().filter(|name| name.is_ascii()).map(<[u8]>::len).sum();
-        let mut table = Self {
-            spans: Vec::with_capacity(names.len()),
-            ascii_text: Vec::with_capacity(ascii_bytes),
-            ..Self::default()
-        };
-        for name in names {
-            table.push(name);
+        let (mut ascii_bytes, mut utf16_units, mut utf8_bytes, mut utf8_names) = (0, 0, 0, 0);
+        for name in names.clone() {
+            if name.is_ascii() {
+                ascii_bytes += name.len();
+            } else {
+                utf16_units += String::from_utf8_lossy(name).encode_utf16().count();
+                utf8_bytes += name.len();
+                utf8_names += 1;
+            }
         }
-        table
+        let mut spans = Vec::with_capacity(names.len());
+        let mut ascii_text = Vec::with_capacity(ascii_bytes);
+        let mut utf16_text = Vec::with_capacity(utf16_units);
+        let mut utf8_text = Vec::with_capacity(utf8_bytes);
+        let mut utf8_spans = Vec::with_capacity(utf8_names);
+        for name in names {
+            let span = if name.is_ascii() {
+                let start = ascii_text.len();
+                ascii_text.extend_from_slice(name);
+                NameSpan {
+                    start: u32_from_usize(start),
+                    length: u32_from_usize(name.len()),
+                    is_ascii: true,
+                }
+            } else {
+                let start = utf16_text.len();
+                utf16_text.extend(String::from_utf8_lossy(name).encode_utf16());
+                let utf8_start = u32_from_usize(utf8_text.len());
+                utf8_text.extend_from_slice(name);
+                utf8_spans.push((utf8_start, u32_from_usize(utf8_text.len())));
+                NameSpan {
+                    start: u32_from_usize(start),
+                    length: u32_from_usize(utf16_text.len() - start),
+                    is_ascii: false,
+                }
+            };
+            spans.push(span);
+        }
+        Self {
+            spans: spans.into_boxed_slice(),
+            ascii_text: ascii_text.into_boxed_slice(),
+            utf16_text: utf16_text.into_boxed_slice(),
+            utf8_text: utf8_text.into_boxed_slice(),
+            utf8_spans: utf8_spans.into_boxed_slice(),
+        }
     }
 
     pub(crate) fn memory_size(&self) -> usize {
-        self.spans.capacity() * size_of::<NameSpan>()
-            + self.ascii_text.capacity()
-            + self.utf16_text.capacity() * size_of::<u16>()
-            + self.utf8_text.capacity()
-            + self.utf8_spans.capacity() * size_of::<(u32, u32)>()
-    }
-
-    pub(crate) fn push(&mut self, text: &[u8]) {
-        let is_ascii = text.is_ascii();
-        let start = if is_ascii {
-            self.ascii_text.len()
-        } else {
-            self.utf16_text.len()
-        };
-        if is_ascii {
-            self.ascii_text.extend_from_slice(text);
-        } else {
-            self.utf16_text.extend(String::from_utf8_lossy(text).encode_utf16());
-            let utf8_start = u32_from_usize(self.utf8_text.len());
-            self.utf8_text.extend_from_slice(text);
-            self.utf8_spans.push((utf8_start, u32_from_usize(self.utf8_text.len())));
-        }
-        let end = if is_ascii {
-            self.ascii_text.len()
-        } else {
-            self.utf16_text.len()
-        };
-        self.spans.push(NameSpan {
-            start: u32_from_usize(start),
-            length: u32_from_usize(end - start),
-            is_ascii,
-        });
+        size_of_val(&*self.spans)
+            + size_of_val(&*self.ascii_text)
+            + size_of_val(&*self.utf16_text)
+            + size_of_val(&*self.utf8_text)
+            + size_of_val(&*self.utf8_spans)
     }
 
     /// The names as a parser knows them, in the order of their ids.
