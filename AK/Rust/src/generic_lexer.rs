@@ -14,6 +14,10 @@ impl<'a, T: Copy + PartialEq> GenericLexer<'a, T> {
         Self { input, index: 0 }
     }
 
+    pub fn tell(&self) -> usize {
+        self.index
+    }
+
     pub fn is_eof(&self) -> bool {
         self.index >= self.input.len()
     }
@@ -42,6 +46,11 @@ impl<'a, T: Copy + PartialEq> GenericLexer<'a, T> {
             self.index += 1;
         }
         &self.input[start..self.index]
+    }
+
+    pub fn retreat(&mut self, count: usize) {
+        assert!(self.index >= count, "cannot retreat past the start of the input");
+        self.index -= count;
     }
 
     pub fn ignore(&mut self, count: usize) {

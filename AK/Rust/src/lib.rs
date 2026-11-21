@@ -6,6 +6,7 @@
 
 //! Rust views of shared AK data structures.
 
+pub mod character_types;
 mod column;
 mod fast_hash;
 mod generic_lexer;
