@@ -15,30 +15,26 @@
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/LocalFileRoot.h>
 
 namespace WebView {
 
 using BlobURLEntryOwner = Variant<WeakPtr<WebContentClient>, WeakPtr<WebWorkerClient>>;
-
-enum class AddedByLocalFileContent : u8 {
-    No,
-    Yes,
-};
 
 // https://w3c.github.io/FileAPI/#BlobURLStore
 class WEBVIEW_API BlobURLStore : public Weakable<BlobURLStore> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    URL::BlobURLEntry::Token add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry, BlobURLEntryOwner added_by, AddedByLocalFileContent = AddedByLocalFileContent::No);
+    URL::BlobURLEntry::Token add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry, BlobURLEntryOwner added_by, Optional<LocalFileRoot> root_of_adder = {});
     void remove_entries(Vector<Utf16String> const& urls, URL::Origin const& environment_origin, BlobURLEntryOwner const& removed_by);
     void remove_entries_added_by(BlobURLEntryOwner const&);
     void remove_entries_added_by(Vector<Utf16String> const& urls, BlobURLEntryOwner const&);
 
     Optional<Web::FileAPI::SerializedBlobURLEntry> resolve(Utf16String const& url, Optional<URL::BlobURLEntry::Token>) const;
 
-    // Whether url names an entry that local file content added, for documents of the entry's origin.
-    bool is_entry_of_local_file_content(Utf16String const& url, URL::Origin const&) const;
+    // The local file root of the entry's creator, if the entry belongs to the given origin.
+    Optional<LocalFileRoot> local_file_root_of_entry(Utf16String const& url, URL::Origin const&) const;
 
     // A revoked entry outlives its revocation for as long as handles are held on its token, and is dropped with the
     // last of them. Session history holds none, so a blob URL cannot be traversed back to once it is revoked.
@@ -49,7 +45,7 @@ private:
     struct Entry {
         Web::FileAPI::SerializedBlobURLEntry entry;
         BlobURLEntryOwner added_by;
-        AddedByLocalFileContent added_by_local_file_content { AddedByLocalFileContent::No };
+        Optional<LocalFileRoot> root_of_adder;
         bool revoked { false };
         size_t handles { 0 };
     };

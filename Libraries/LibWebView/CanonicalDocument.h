@@ -19,6 +19,7 @@
 #include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/LocalFileRoot.h>
 
 namespace WebView {
 
@@ -99,10 +100,11 @@ public:
     // document may not. Other opener policies only keep cross-origin windows away.
     bool may_share_a_process_with_tabs_of_its_origin() const;
 
-    // Whether this is local file content, whose process may read local files: a document created from a file: URL, or
-    // from a blob: URL whose entry local file content added.
-    bool is_local_file_content() const { return m_is_local_file_content; }
-    void determine_whether_it_is_local_file_content(BlobURLStore const*);
+    // Whether this is local file content, whose process may read local files under its root: a document created from a
+    // file: URL that the UI process read, or from a blob: URL that local file content added.
+    bool is_local_file_content() const { return m_local_file_root.has_value(); }
+    Optional<LocalFileRoot> const& local_file_root() const { return m_local_file_root; }
+    void determine_whether_it_is_local_file_content(BlobURLStore const*, Optional<LocalFileRoot> root_of_read_file);
 
     // The host of the WebUI the document displays, if it was created from the about: URL of a page with a channel to
     // the UI process.
@@ -125,7 +127,7 @@ private:
     Web::PermissionsPolicy::PermissionsPolicy m_permissions_policy { Web::PermissionsPolicy::PermissionsPolicy::empty_permissions_policy() };
     bool m_completely_loaded { false };
     u32 m_unload_counter { 0 };
-    bool m_is_local_file_content { false };
+    Optional<LocalFileRoot> m_local_file_root;
     Optional<String> m_web_ui_host;
     RefPtr<WebContentPage> m_host;
 };

@@ -1111,23 +1111,25 @@ TEST_CASE(restore_from_ui_snapshot_preserves_shared_document_state_identity)
     EXPECT_EQ(first_id, second_id);
 }
 
-// The browser reads the local file an entry names for a history step only when it populated local file content for the
-// entry's document state, so a restored document state keeps that under its new identity.
-TEST_CASE(restore_from_ui_snapshot_keeps_which_document_states_held_local_file_content)
+// The browser reads the local file an entry names for a history step only under the root of the local file content it
+// populated for the entry's document state, so a restored document state keeps that root under its new identity.
+TEST_CASE(restore_from_ui_snapshot_keeps_the_local_file_roots_of_document_states)
 {
     WebView::TraversableSessionHistory history { initial_history_entry() };
 
+    WebView::LocalFileRoot root { "/tmp/a.html"sv, WebView::LocalFileRoot::Scope::File };
+    WebView::LocalFileRoot unused_root { "/tmp"sv, WebView::LocalFileRoot::Scope::Directory };
     auto result = history.restore_from_ui_snapshot({
                                                        entry(0, "file:///tmp/a.html"sv, 1, "main"sv),
                                                        entry(1, "https://a.example/"sv, 2, "main"sv),
                                                    },
-        { 0, 1 }, 1, allocate_test_ui_process_document_state_id, { test_document_state_id(1), test_document_state_id(7) });
+        { 0, 1 }, 1, allocate_test_ui_process_document_state_id, { { test_document_state_id(1), root }, { test_document_state_id(7), unused_root } });
 
     EXPECT(!result.is_error());
     auto const& file_document_state = *history.entry_at(0)->document_state;
-    EXPECT(file_document_state.held_local_file_content);
-    EXPECT(!history.entry_at(1)->document_state->held_local_file_content);
-    EXPECT(history.document_states_holding_local_file_content() == Vector<Web::HTML::CrossProcessId> { file_document_state.id });
+    EXPECT(file_document_state.local_file_root == root);
+    EXPECT(!history.entry_at(1)->document_state->local_file_root.has_value());
+    EXPECT(history.local_file_roots_of_document_states() == Vector<WebView::DocumentStateLocalFileRoot> { { file_document_state.id, root } });
 }
 
 TEST_CASE(restore_from_ui_snapshot_rejects_structurally_invalid_snapshots)

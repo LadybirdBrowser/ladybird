@@ -1,0 +1,9 @@
+a regular file: loaded
+/etc/hosts: refused
+/proc/self/maps: refused
+/proc/self/environ: refused
+/proc/self/fd/0: refused
+/sys/kernel/mm/transparent_hugepage/enabled: refused
+/dev/fd/0: refused
+/dev/stdin: refused
+/dev/null: refused

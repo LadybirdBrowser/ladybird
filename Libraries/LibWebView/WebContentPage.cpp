@@ -773,7 +773,7 @@ void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcess
     //    3. Set initiatorOriginSnapshot to sourceDocument's origin.
     navigation.initiator_origin_snapshot = source_document.origin();
 
-    target->begin_navigation(move(navigation), move(source_page));
+    target->begin_navigation(move(navigation), move(source_page), client().local_file_access());
 }
 
 static bool navigation_can_violate(Web::ContentSecurityPolicy::RemoteViolationDirective directive, CanonicalNavigable const& navigable, Web::HTML::NavigationPopulationRequest const& request)
@@ -1688,18 +1688,13 @@ void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bo
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that has hosted local file content: any other could read every file the user can. The
-    //     UI process reads the file a navigation names itself, for the process creating the document.
-    if (!client().may_read_local_files()) {
-        async_handle_file_return(EACCES, {}, request_id);
-        return;
-    }
-
-    auto file = open_local_file_for_renderer(path);
+    //     Answer only a process that has hosted local file content, for a file under its roots. The UI process reads
+    //     the file a navigation names itself, for the process creating the document.
+    auto file = open_local_file_for_renderer(path, client().local_file_roots());
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else
-        async_handle_file_return(0, file.release_value(), request_id);
+        async_handle_file_return(0, move(file.value().file), request_id);
 }
 
 // NB: For a file input, Element Send Keys selects the files listed in its text. The page running the command may read
@@ -1712,11 +1707,11 @@ void WebContentPage::did_request_file_for_webdriver(u64 command_id, ByteString p
         return;
     }
 
-    auto file = open_local_file_for_renderer(path);
+    auto file = open_local_file_the_user_chose(path);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else
-        async_handle_file_return(0, file.release_value(), request_id);
+        async_handle_file_return(0, move(file.value().file), request_id);
 }
 
 void WebContentPage::did_request_color_picker(Color current_color)
@@ -2721,6 +2716,7 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         .sequence_number = target_navigable->top_level_traversable().next_sequence_number(),
         .state = CanonicalNavigation::CheckingIfUnloadingIsCanceled { start_request.release_value() },
         .page = this,
+        .local_file_access = client().local_file_access(),
     });
     begin_navigation_unload_check(*target_navigable, navigation_id);
 }
@@ -2764,8 +2760,9 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
         Application::the().allocate_ui_process_cross_process_id());
     population_request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
     ongoing_navigation->history_entry = MUST(CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(population_request.history_entry, 0)));
-    // NB: The UI process admitted the navigation, so it reads the local file a file: URL names.
-    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(move(population_request), NavigationLoader::MayReadLocalFile::Yes) };
+    // NB: The UI process admitted the navigation, so it reads a file: URL's file itself, with the navigation's local
+    //     file access.
+    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(move(population_request), ongoing_navigation->local_file_access) };
     async_create_navigation_params(ongoing_navigation->loader()->request());
 
     // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
@@ -3808,10 +3805,14 @@ Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentPage::did_add_b
     entry.origin = environment->origin();
 
     // 4. Set store[url] to entry.
-    // NB: A document created from the URL in another process reads local files as local file content does, so the
-    //     store remembers whether local file content added the entry.
-    auto added_by_local_file_content = client().may_read_local_files() ? AddedByLocalFileContent::Yes : AddedByLocalFileContent::No;
-    return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() }, added_by_local_file_content);
+    // NB: A document created from the URL in another process reads local files under the root of the content that
+    //     added the entry, or of its process when that has just one.
+    Optional<LocalFileRoot> root_of_adder;
+    if (auto document = document_with_hosted_environment(environment_id); document.has_value() && document->local_file_root().has_value())
+        root_of_adder = document->local_file_root();
+    else if (client().local_file_roots().size() == 1)
+        root_of_adder = client().local_file_roots().first();
+    return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() }, move(root_of_adder));
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL

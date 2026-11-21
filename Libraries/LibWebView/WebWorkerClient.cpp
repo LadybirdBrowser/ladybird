@@ -100,11 +100,11 @@ void WebWorkerClient::remove_blob_url_entries()
         session->blob_url_store->remove_entries_added_by(WeakPtr<WebWorkerClient> { *this });
 }
 
-void WebWorkerClient::set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings, bool may_read_local_files)
+void WebWorkerClient::set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings, Vector<LocalFileRoot> local_file_roots)
 {
     m_top_level_origin = inside_settings->top_level_origin();
     m_inside_settings = move(inside_settings);
-    m_may_read_local_files = may_read_local_files;
+    m_local_file_roots = move(local_file_roots);
 }
 
 void WebWorkerClient::forget_inside_settings_of_closing_worker()
@@ -163,7 +163,11 @@ Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_b
     if (!session || !environment.has_value())
         return 0;
     entry.origin = environment->origin();
-    return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
+
+    Optional<LocalFileRoot> root_of_adder;
+    if (m_local_file_roots.size() == 1)
+        root_of_adder = m_local_file_roots.first();
+    return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this }, move(root_of_adder));
 }
 
 void WebWorkerClient::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls)
@@ -188,17 +192,11 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
     if (!m_inside_settings)
         return;
 
-    // NB: As a page, a worker reads a local file only through this broker, and only local file content may.
-    if (!m_may_read_local_files) {
-        async_handle_file_return(EACCES, {}, request_id);
-        return;
-    }
-
-    auto file = open_local_file_for_renderer(path);
+    auto file = open_local_file_for_renderer(path, m_local_file_roots);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else
-        async_handle_file_return(0, file.release_value(), request_id);
+        async_handle_file_return(0, move(file.value().file), request_id);
 }
 
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
