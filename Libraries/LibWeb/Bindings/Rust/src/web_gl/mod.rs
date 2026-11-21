@@ -27,8 +27,6 @@ pub(crate) mod exports;
 #[cfg(not(test))]
 pub(crate) mod extensions;
 #[cfg(not(test))]
-pub(crate) mod fingerprint;
-#[cfg(not(test))]
 pub(crate) mod gl_string;
 #[cfg(not(test))]
 pub(crate) mod host;

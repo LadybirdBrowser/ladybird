@@ -157,13 +157,6 @@ fn what_the_model_does_not_know_is_rejected() {
 }
 
 #[test]
-fn a_name_hash_is_fnv_1a() {
-    assert_eq!(wire_layout_name_hash(""), 0x811C_9DC5);
-    assert_eq!(wire_layout_name_hash("a"), 0xE40C_292C);
-    assert_eq!(wire_layout_name_hash("Commands::ActiveTexture"), 0x9B0F_0F7C);
-}
-
-#[test]
 fn what_the_replayer_needs_is_read_from_the_json() {
     let functions = parse_functions(
         r#"[

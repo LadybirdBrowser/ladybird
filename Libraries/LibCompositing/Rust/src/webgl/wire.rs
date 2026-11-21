@@ -5,8 +5,7 @@
  */
 
 //! The framing of the WebGL command stream: how a struct and the data that belongs to it become the bytes of a record
-//! or of a synchronous call. Libraries/LibCompositing/WebGL/WebGLCommandList.{h,cpp} is the C++ side of the same
-//! format, which reads what this writes.
+//! or of a synchronous call, and back.
 
 use core::mem::size_of;
 use core::ptr;

@@ -17,7 +17,6 @@ use super::canvas::Canvas;
 use super::context_loss::{
     fire_webgl_context_event, lose_contexts_of_this_thread, register_context, restore_contexts_of_this_thread,
 };
-use super::fingerprint::verify_that_rust_and_cpp_agree_on_layouts_and_constants;
 use super::host::{ContextCreation, RemoteContext};
 use super::proxy::recorder::Proxy;
 use super::state::{
@@ -151,7 +150,6 @@ pub unsafe extern "C" fn web_webgl_context_create(
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, arguments.realm) };
-    verify_that_rust_and_cpp_agree_on_layouts_and_constants();
 
     let canvas = Canvas {
         cell: NonNull::new(arguments.canvas).expect("C++ passes the canvas"),

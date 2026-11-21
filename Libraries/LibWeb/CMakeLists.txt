@@ -902,7 +902,6 @@ set(SOURCES
     WebDriver/JSON.cpp
     WebDriver/Screenshot.cpp
     WebDriver/UserPrompt.cpp
-    WebGL/RemoteWebGLTransportFFI.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
@@ -997,17 +996,6 @@ target_compile_definitions(LibWeb PRIVATE LibJS_EXPORTS)
 target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon LibJSHeaders)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibWebRTCClient)
-
-# LibWeb still includes ANGLE's GLES headers for WebGL constants and types, but
-# the actual GL entry points live in the Compositor. Copy only ANGLE's compile
-# interface here so LibWeb can include those headers without linking ANGLE into
-# WebContent.
-foreach(angle_target IN LISTS ANGLE_TARGETS)
-    target_include_directories(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(LibWeb SYSTEM PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
-endforeach()
 
 # The library's Rust code: the bindings crate, which depends on the LibJS runtime and on libweb_rust, so that one archive
 # holds all three and the runtime is in the process once. The runtime's features are LibJS's.

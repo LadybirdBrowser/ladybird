@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
@@ -70,6 +71,7 @@ void* web_webgl_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* rea
 void* web_webgl_canvas_relevant_realm(void* canvas_host);
 bool web_webgl_expose_experimental_interfaces();
 Gfx::DecodedImageFrame* web_webgl_texture_image_frame(void* source_wrapper, TexImageSourceKind);
+u8 web_navigator_compatibility_mode();
 }
 
 static void* cell_of(WebGLRenderingContextBase const& context)
@@ -216,6 +218,12 @@ Gfx::DecodedImageFrame* web_webgl_texture_image_frame(void* source_wrapper, TexI
     if (!frame.has_value())
         return nullptr;
     return new Gfx::DecodedImageFrame { frame.release_value() };
+}
+
+// The navigator compatibility mode, numbered as Web::NavigatorCompatibilityMode is: Chrome, Gecko, WebKit.
+u8 web_navigator_compatibility_mode()
+{
+    return to_underlying(ResourceLoader::navigator_compatibility_mode());
 }
 
 }
