@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    table { margin-bottom: 6px; }
+    td { width: 60px; height: 20px; padding: 0; }
+    .collapse { border-collapse: collapse; }
+    .collapse td { border: 1px solid; }
+    .separate { border-spacing: 4px; }
+    .zero { border-spacing: 0; }
+    .zero td { height: 10px; }
+</style>
+<table id="attribute" class="collapse" dir="rtl"><tr><td>1</td><td>2</td><td>3</td></tr></table>
+<div dir="rtl"><table id="inherited" class="collapse"><tr><td>1</td><td>2</td><td>3</td></tr></table></div>
+<table id="ltr-in-rtl-parent" class="collapse" dir="ltr"><tr><td>1</td><td>2</td><td>3</td></tr></table>
+<table id="separate" class="separate" dir="rtl"><tr><td>1</td><td>2</td><td>3</td></tr></table>
+<table id="spans" class="separate" dir="rtl"><tr><td colspan="2">1</td><td rowspan="2">2</td></tr><tr><td>3</td><td>4</td></tr></table>
+<table id="columns" class="separate" dir="rtl"><col style="width: 100px"><col span="2" style="width: 30px"><tr><td style="width: auto">1</td><td style="width: auto">2</td><td style="width: auto">3</td></tr></table>
+<table id="collapsed-border-widths" class="collapse" dir="rtl"><tr><td style="border-right-width: 5px">1</td><td>2</td><td style="border-left-width: 9px">3</td></tr></table>
+<table id="missing-cell" class="separate" dir="rtl"><tr><td>1</td><td>2</td><td>3</td></tr><tr><td>4</td></tr></table>
+<table id="percentages" class="zero" dir="rtl" style="width: 200px"><tr><td style="width: 80%">1</td><td style="width: 80%">2</td></tr></table>
+<table id="three-percentages" class="zero" dir="rtl" style="width: 300px"><tr><td style="width: 50%">1</td><td style="width: 40%">2</td><td style="width: 30%">3</td></tr></table>
+<table id="span-originates-on-the-right" class="zero" dir="rtl" style="width: 200px"><col><col><col><tr><td colspan="2" style="width: auto"></td><td style="width: 20px"></td></tr></table>
+<table id="column-group" class="zero" dir="rtl"><colgroup><col style="width: 30px"><col style="width: 50px"></colgroup><col style="width: 70px"><tr><td style="width: auto">1</td><td style="width: auto">2</td><td style="width: auto">3</td></tr></table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const table of document.querySelectorAll("table")) {
+            const left = table.getBoundingClientRect().left;
+            const cells = [...table.querySelectorAll("td")].map(cell => {
+                const r = cell.getBoundingClientRect();
+                return `${cell.textContent}@${Math.round(r.left - left)}+${Math.round(r.width)}`;
+            });
+            const columns = [...table.querySelectorAll("colgroup, col")].map(column => {
+                const r = column.getBoundingClientRect();
+                return `${column.localName}@${Math.round(r.left - left)}+${Math.round(r.width)}`;
+            });
+            println(`${table.id}: width ${Math.round(table.getBoundingClientRect().width)}; ${cells.join(" ")}${columns.length ? "; " + columns.join(" ") : ""}`);
+        }
+    });
+</script>

@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
+6 Pass
 Pass	Layout of table-001
 Pass	Layout of table-002
 Pass	Layout of table-003
-Fail	Layout of table-011
-Fail	Layout of table-012
-Fail	Layout of table-013
+Pass	Layout of table-011
+Pass	Layout of table-012
+Pass	Layout of table-013
