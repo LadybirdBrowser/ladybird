@@ -109,3 +109,15 @@ TEST_CASE(a_channel_map_ending_in_one_unknown_channel_becomes_a_custom_layout)
     EXPECT_EQ(layout.layout().u.map[1].id, AV_CHAN_FRONT_RIGHT);
     EXPECT_EQ(layout.layout().u.map[2].id, AV_CHAN_UNKNOWN);
 }
+
+TEST_CASE(a_conversion_that_failed_to_set_up_fails_again_when_retried)
+{
+    auto layout_libswresample_refuses = Audio::ChannelMap(Audio::Channel::FrontLeft, Audio::Channel::FrontRight, Audio::Channel::Unknown);
+    auto converter = MUST(Media::FFmpeg::FFmpegAudioConverter::try_create());
+    MUST(converter->set_output_sample_specification(Audio::SampleSpecification { 48'000, layout_libswresample_refuses }));
+
+    Media::AudioBlock stereo_block;
+    stereo_block.initialize(Audio::SampleSpecification { 48'000, Audio::ChannelMap::stereo() }, 0, 480);
+    EXPECT(converter->push_block(stereo_block).is_error());
+    EXPECT(converter->push_block(stereo_block).is_error());
+}
