@@ -418,18 +418,19 @@ impl LineTable {
     fn new<U: Unit>(source: &[U], initial_line_number: u32) -> Self {
         let mut line_starts = vec![0];
         let mut low_surrogates = Vec::new();
-        let mut ends_with_lone_line_terminator = false;
         let mut index = 0;
         while index < source.len() {
             let code_unit = source[index].code();
             index += 1;
-            ends_with_lone_line_terminator = false;
+            // OPTIMIZATION: Nearly every unit is neither a line terminator nor a surrogate, which one range rules out.
+            if (0x0E..0x2028).contains(&code_unit) {
+                continue;
+            }
             if code_unit == 0x0D && source.get(index).is_some_and(|next| next.code() == 0x0A) {
                 index += 1;
                 line_starts.push(u32_from_usize(index));
             } else if matches!(code_unit, 0x0A | 0x0D | 0x2028 | 0x2029) {
                 line_starts.push(u32_from_usize(index));
-                ends_with_lone_line_terminator = true;
             } else if U::WIDE
                 && (0xD800..0xDC00).contains(&code_unit)
                 && source
@@ -440,6 +441,12 @@ impl LineTable {
                 index += 1;
             }
         }
+        // NB: A line feed after a carriage return ends the line that the carriage return started.
+        let ends_with_lone_line_terminator = match source {
+            [.., before, last] if last.code() == 0x0A => before.code() != 0x0D,
+            [.., last] => matches!(last.code(), 0x0A | 0x0D | 0x2028 | 0x2029),
+            [] => false,
+        };
         Self {
             line_starts,
             low_surrogates,
