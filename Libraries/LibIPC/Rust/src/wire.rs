@@ -18,6 +18,8 @@ use std::os::fd::OwnedFd as OwnedDescriptor;
 
 use crate::attachment::Attachment;
 
+pub use libipc_rust_macros::{Decode, Encode};
+
 #[derive(Debug)]
 pub enum EncodeError {
     SizeTooLarge(usize),
@@ -617,6 +619,23 @@ impl<T: Decode> Decode for std::sync::Arc<T> {
     }
 }
 
+/// A shared or boxed slice goes as a `Vector` and decodes to one of its own.
+impl<T: Decode> Decode for std::sync::Arc<[T]> {
+    const MIN_ENCODED_SIZE: usize = Vec::<T>::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(decoder.decode::<Vec<T>>()?.into())
+    }
+}
+
+impl<T: Decode> Decode for Box<[T]> {
+    const MIN_ENCODED_SIZE: usize = Vec::<T>::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(decoder.decode::<Vec<T>>()?.into_boxed_slice())
+    }
+}
+
 /// `IPC::File`: a file descriptor, which goes as an attachment.
 #[derive(Debug)]
 pub struct File(pub OwnedDescriptor);
@@ -990,6 +1009,201 @@ mod tests {
         let decoded = Decoder::new(&bytes, []).decode::<Vec<LargeValue>>().unwrap();
         assert_eq!(decoded.capacity(), 1);
         assert_eq!(decoded[0].0[0], 0);
+    }
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    struct Point {
+        x: i32,
+        y: u8,
+    }
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    struct Wrapper(u16, Option<Point>);
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    struct Nothing;
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    struct Pair<T> {
+        first: T,
+        second: T,
+    }
+
+    #[test]
+    fn derived_structs_go_as_their_fields_in_order() {
+        let point = Point { x: -2, y: 7 };
+        let (decoded, bytes) = round_trip(&point);
+        assert_eq!(decoded, point);
+        let mut expected = (-2i32).to_ne_bytes().to_vec();
+        expected.push(7);
+        assert_eq!(bytes, expected);
+        assert_eq!(Point::MIN_ENCODED_SIZE, 5);
+
+        let wrapper = Wrapper(3, Some(Point { x: 1, y: 2 }));
+        let (decoded, bytes) = round_trip(&wrapper);
+        assert_eq!(decoded, wrapper);
+        assert_eq!(bytes[..3], [3u16.to_ne_bytes()[0], 3u16.to_ne_bytes()[1], 1]);
+        assert_eq!(bytes.len(), 2 + 1 + 5);
+        assert_eq!(Wrapper::MIN_ENCODED_SIZE, 3);
+
+        assert!(round_trip(&Nothing).1.is_empty());
+        assert_eq!(Nothing::MIN_ENCODED_SIZE, 0);
+
+        let pair = Pair { first: 1u32, second: 2 };
+        assert_eq!(round_trip(&pair).0, pair);
+        assert_eq!(Pair::<u32>::MIN_ENCODED_SIZE, 8);
+    }
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    #[ipc(validate = Self::validate)]
+    struct Record {
+        #[ipc(max_size = 4)]
+        name: String,
+        count: u32,
+        #[ipc(skip = 42)]
+        local: u64,
+    }
+
+    impl Record {
+        fn validate(&self) -> Result<(), &'static str> {
+            if self.count == 0 {
+                return Err("Record::count");
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn derived_fields_can_be_skipped_bounded_and_validated() {
+        let record = |count, local| Record {
+            name: "abc".into(),
+            count,
+            local,
+        };
+        let (decoded, bytes) = round_trip(&record(1, 7));
+        assert_eq!(decoded, record(1, 42));
+        assert_eq!(bytes.len(), 4 + 3 + 4);
+        assert_eq!(Record::MIN_ENCODED_SIZE, 8);
+
+        let mut encoder = Encoder::new();
+        assert!(matches!(
+            encoder.encode(&record(0, 0)),
+            Err(EncodeError::InvalidValue("Record::count"))
+        ));
+        assert!(matches!(
+            encoder.encode_owned(record(0, 0)),
+            Err(EncodeError::InvalidValue("Record::count"))
+        ));
+        assert!(encoder.finish().0.is_empty());
+
+        for (name, count, error) in [
+            ("abc", 0u32, DecodeError::InvalidValue("Record::count")),
+            ("abcde", 1, DecodeError::SizeTooLarge(5)),
+        ] {
+            let mut encoder = Encoder::new();
+            encoder.encode(name).unwrap();
+            encoder.encode(&count).unwrap();
+            assert_eq!(Decoder::new(&encoder.finish().0, []).decode::<Record>(), Err(error));
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
+    #[repr(i16)]
+    enum Key {
+        Escape = 27,
+        Space = 32,
+        Minus = -1,
+    }
+
+    #[test]
+    fn derived_enums_of_unit_variants_go_as_their_repr() {
+        let (decoded, bytes) = round_trip(&Key::Space);
+        assert_eq!(decoded, Key::Space);
+        assert_eq!(bytes, 32i16.to_ne_bytes());
+        assert_eq!(round_trip(&Key::Escape).0, Key::Escape);
+        assert_eq!(round_trip(&Key::Minus).0, Key::Minus);
+        assert_eq!(Key::MIN_ENCODED_SIZE, 2);
+        assert_eq!(
+            Decoder::new(&28i16.to_ne_bytes(), []).decode::<Key>(),
+            Err(DecodeError::InvalidValue("Key"))
+        );
+    }
+
+    #[derive(Debug, PartialEq, Encode, Decode)]
+    enum Shape {
+        Empty,
+        Circle(u8),
+        Rectangle { width: u16, height: u16 },
+    }
+
+    #[test]
+    fn other_derived_enums_go_as_their_variant_index_and_fields() {
+        assert_eq!(round_trip(&Shape::Empty).1, [0]);
+        let (decoded, bytes) = round_trip(&Shape::Circle(9));
+        assert_eq!(decoded, Shape::Circle(9));
+        assert_eq!(bytes, [1, 9]);
+        let rectangle = Shape::Rectangle { width: 3, height: 4 };
+        let (decoded, bytes) = round_trip(&rectangle);
+        assert_eq!(decoded, rectangle);
+        let mut expected = vec![2];
+        expected.extend_from_slice(&3u16.to_ne_bytes());
+        expected.extend_from_slice(&4u16.to_ne_bytes());
+        assert_eq!(bytes, expected);
+        assert_eq!(Shape::MIN_ENCODED_SIZE, 1);
+        assert_eq!(
+            Decoder::new(&[3], []).decode::<Shape>(),
+            Err(DecodeError::InvalidValue("Shape"))
+        );
+    }
+
+    #[derive(Encode, Decode)]
+    struct CarriedFile {
+        before: u8,
+        file: File,
+    }
+
+    #[derive(Encode, Decode)]
+    enum MaybeFile {
+        Absent,
+        Present(CarriedFile),
+    }
+
+    #[test]
+    fn derived_types_move_their_files_when_owned() {
+        use std::os::fd::AsRawFd;
+        let (mut reader, writer) = std::io::pipe().unwrap();
+        let descriptor = writer.as_raw_fd();
+        let files = vec![
+            MaybeFile::Absent,
+            MaybeFile::Present(CarriedFile {
+                before: 1,
+                file: File(OwnedFd::from(writer)),
+            }),
+        ];
+        let mut encoder = Encoder::new();
+        encoder.encode_owned(files).unwrap();
+        let (bytes, attachments) = encoder.finish();
+        assert_eq!(attachments.len(), 1);
+        let files = Decoder::new(&bytes, attachments).decode::<Vec<MaybeFile>>().unwrap();
+        let [MaybeFile::Absent, MaybeFile::Present(CarriedFile { before: 1, file })] = files.as_slice() else {
+            panic!("the files decode as they were encoded");
+        };
+        #[cfg(not(target_vendor = "apple"))]
+        assert_eq!(file.0.as_raw_fd(), descriptor);
+        #[cfg(target_vendor = "apple")]
+        let _ = (file, descriptor);
+        drop(files);
+        assert_eq!(std::io::Read::read(&mut reader, &mut [0]).unwrap(), 0);
+    }
+
+    #[test]
+    fn shared_and_boxed_slices_go_as_vectors() {
+        let shared: std::sync::Arc<[u16]> = std::sync::Arc::from(vec![1u16, 2, 3]);
+        let (decoded, bytes) = round_trip(&shared);
+        assert_eq!(decoded, shared);
+        assert_eq!(bytes, round_trip(&vec![1u16, 2, 3]).1);
+        let boxed: Box<[String]> = vec!["a".to_string()].into_boxed_slice();
+        assert_eq!(round_trip(&boxed).0, boxed);
     }
 
     #[test]

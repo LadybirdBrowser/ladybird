@@ -10,6 +10,8 @@
 
 #![deny(unsafe_code)]
 
+extern crate self as libipc_rust;
+
 #[cfg(feature = "allocator")]
 extern crate ladybird_allocator;
 

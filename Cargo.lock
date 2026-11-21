@@ -1914,7 +1914,17 @@ dependencies = [
  "cbindgen",
  "ladybird_allocator",
  "libc",
+ "libipc_rust_macros",
  "rustc-demangle",
+]
+
+[[package]]
+name = "libipc_rust_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
