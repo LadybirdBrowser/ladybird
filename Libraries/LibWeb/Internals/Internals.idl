@@ -137,7 +137,7 @@ interface Internals {
     // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.
     DOMString selectedTextForClipboard();
 
-    undefined findInPage(DOMString query, optional boolean highlightAll = false);
+    undefined findInPage(DOMString query, optional boolean highlightAll = false, optional boolean caseSensitive = false);
     undefined findInPageNextMatch();
     undefined findInPageEnd();
 

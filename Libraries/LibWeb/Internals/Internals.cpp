@@ -1170,9 +1170,13 @@ Utf16String Internals::selected_text_for_clipboard()
     return {};
 }
 
-void Internals::find_in_page(Utf16String const& query, bool highlight_all)
+void Internals::find_in_page(Utf16String const& query, bool highlight_all, bool case_sensitive)
 {
-    page().find_in_page({ .string = query, .highlight_all_matches = highlight_all });
+    page().find_in_page({
+        .string = query,
+        .case_sensitivity = case_sensitive ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive,
+        .highlight_all_matches = highlight_all,
+    });
 }
 
 void Internals::find_in_page_next_match()

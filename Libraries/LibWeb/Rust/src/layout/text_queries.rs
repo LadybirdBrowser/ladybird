@@ -11,6 +11,8 @@ use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, ensure_text
 use crate::css::css_enums::{visibility, white_space_collapse};
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::PaintRead;
+use std::cmp::Ordering;
+use std::ffi::c_void;
 use std::ops::Range;
 
 use RenderedTextBoundary::{End, Start};
@@ -44,6 +46,7 @@ impl TextRun {
 pub(super) struct MappedText {
     text: Vec<u16>,
     runs: Vec<TextRun>,
+    searchable_without_collator: std::sync::OnceLock<bool>,
 }
 
 impl MappedText {
@@ -403,7 +406,7 @@ impl SearchTextBuilder {
             {
                 self.current.append(&[0x20], start, end);
             }
-            self.current.append(&[unit], start, end);
+            self.current.append(&[fold_quotation_mark(unit)], start, end);
         }
     }
 }
@@ -509,63 +512,296 @@ pub struct FfiDomTextRange {
     pub end_offset: usize,
 }
 
-fn find_text(text: &[u16], query: &[u16], offset: usize, case_sensitive: bool) -> Option<usize> {
-    if case_sensitive {
-        return text
-            .get(offset..)?
-            .windows(query.len())
-            .position(|window| window == query)
-            .map(|index| offset + index);
+fn fold_quotation_mark(unit: u16) -> u16 {
+    match unit {
+        0x05f4 | 0x201c..=0x201f => 0x22,
+        0x05f3 | 0x2018..=0x201b => 0x27,
+        _ => unit,
     }
-    // Match AK::Utf16View's ASCII-only folding and code-point stepping.
-    let end = text.len().checked_sub(query.len())?;
-    let mut index = offset;
-    while index <= end {
-        let candidate = &text[index..index + query.len()];
-        let lowercase = |unit: u16| {
-            if (0x41..=0x5a).contains(&unit) {
-                unit + 0x20
-            } else {
-                unit
-            }
-        };
-        if candidate.iter().zip(query).all(|(&a, &b)| lowercase(a) == lowercase(b)) {
-            return Some(index);
-        }
-        index += super::text_chunker::code_unit_length_for_code_point(super::text_chunker::code_point_at(candidate, 0));
-    }
-    None
 }
 
-/// Where `query` occurs in the searchable text below `viewport`, which, where it is built for the
-/// query, leaves out the DOM text nodes in `excluded`, sorted.
-pub(crate) fn find_matching_text(
-    arena: &mut LayoutNodeArena,
-    viewport: NodeSlotId,
-    query: &[u16],
-    case_sensitive: bool,
-    excluded: &[StyleNodeID],
-) -> Vec<FfiDomTextRange> {
-    if query.is_empty() {
-        return Vec::new();
+unsafe extern "C" {
+    fn unicode_layout_text_searcher_create(needle: *const u16, length: usize, case_sensitive: bool) -> *mut c_void;
+    fn unicode_layout_text_is_searchable_without_collator(text: *const u16, length: usize) -> bool;
+    fn unicode_layout_text_searcher_set_text(
+        searcher: *mut c_void,
+        text: *const u16,
+        length: usize,
+        offset: usize,
+        searchable_without_collator: bool,
+    );
+    fn unicode_layout_text_searcher_next_match(searcher: *mut c_void, start: *mut usize, length: *mut usize) -> bool;
+    fn unicode_layout_text_searcher_destroy(searcher: *mut c_void);
+}
+
+#[cfg(test)]
+mod unicode_test_stubs {
+    use std::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_create(
+        _needle: *const u16,
+        _length: usize,
+        _case_sensitive: bool,
+    ) -> *mut c_void {
+        unreachable!("no unit test searches text");
     }
-    ensure_searchable_text(arena, viewport, |text| excluded.binary_search(&text).is_err());
-    let mut matches = Vec::new();
-    for block in arena.searchable_text.as_ref().expect("search cache was prepared") {
-        let mut offset = 0;
-        while let Some(index) = find_text(&block.text, query, offset, case_sensitive) {
-            if let Some(range) = block.dom_range(arena, index..index + query.len())
-                && matches.last() != Some(&range)
-            {
-                matches.push(range);
-            }
-            offset = index + query.len();
-            if offset >= block.text.len() {
-                break;
-            }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_is_searchable_without_collator(_text: *const u16, _length: usize) -> bool {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_set_text(
+        _searcher: *mut c_void,
+        _text: *const u16,
+        _length: usize,
+        _offset: usize,
+        _searchable_without_collator: bool,
+    ) {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_next_match(
+        _searcher: *mut c_void,
+        _start: *mut usize,
+        _length: *mut usize,
+    ) -> bool {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_destroy(_searcher: *mut c_void) {
+        unreachable!("no unit test searches text");
+    }
+}
+
+struct TextSearcher(*mut c_void);
+
+impl TextSearcher {
+    fn new(query: &[u16], case_sensitive: bool) -> Self {
+        // SAFETY: The library copies the query during the call.
+        Self(unsafe { unicode_layout_text_searcher_create(query.as_ptr(), query.len(), case_sensitive) })
+    }
+
+    fn matches<'a>(&'a mut self, block: &'a MappedText, offset: usize) -> TextMatches<'a> {
+        let text = &block.text;
+        let searchable_without_collator = *block.searchable_without_collator.get_or_init(|| {
+            // SAFETY: The library reads the text during the call.
+            unsafe { unicode_layout_text_is_searchable_without_collator(text.as_ptr(), text.len()) }
+        });
+        // SAFETY: The searcher is live, and `TextMatches` borrows the text while the searcher reads it.
+        unsafe {
+            unicode_layout_text_searcher_set_text(
+                self.0,
+                text.as_ptr(),
+                text.len(),
+                offset,
+                searchable_without_collator,
+            );
+        };
+        TextMatches {
+            searcher: self,
+            text: std::marker::PhantomData,
         }
     }
-    matches
+}
+
+impl Drop for TextSearcher {
+    fn drop(&mut self) {
+        // SAFETY: The searcher was created by the library and is destroyed once.
+        unsafe { unicode_layout_text_searcher_destroy(self.0) };
+    }
+}
+
+struct TextMatches<'a> {
+    searcher: &'a mut TextSearcher,
+    text: std::marker::PhantomData<&'a [u16]>,
+}
+
+impl Iterator for TextMatches<'_> {
+    type Item = Range<usize>;
+
+    fn next(&mut self) -> Option<Range<usize>> {
+        let (mut start, mut length) = (0, 0);
+        // SAFETY: The searcher is live and the text it was given is still borrowed.
+        let found =
+            unsafe { unicode_layout_text_searcher_next_match(self.searcher.0, &raw mut start, &raw mut length) };
+        found.then(|| start..start + length)
+    }
+}
+
+pub(crate) struct TextMatchCandidate {
+    range: FfiDomTextRange,
+    block: usize,
+    text: Range<usize>,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct TextSearchPosition {
+    block: usize,
+    offset: usize,
+}
+
+pub(crate) struct TextSearch(TextSearcher);
+
+impl TextSearch {
+    pub(crate) fn new(query: &[u16], case_sensitive: bool) -> Self {
+        let query: Vec<u16> = query.iter().map(|&unit| fold_quotation_mark(unit)).collect();
+        Self(TextSearcher::new(&query, case_sensitive))
+    }
+
+    /// Up to `limit` places where the query occurs in the searchable text below `viewport` from `position` on, none
+    /// overlapping another, and where the search goes on from if there can be more. The searchable text, where it is
+    /// built for the search, leaves out the DOM text nodes in `excluded`, sorted.
+    pub(crate) fn candidates(
+        &mut self,
+        arena: &mut LayoutNodeArena,
+        viewport: NodeSlotId,
+        excluded: &[StyleNodeID],
+        position: TextSearchPosition,
+        limit: usize,
+    ) -> (Vec<TextMatchCandidate>, Option<TextSearchPosition>) {
+        ensure_searchable_text(arena, viewport, |text| excluded.binary_search(&text).is_err());
+        let mut candidates = Vec::new();
+        let blocks = arena.searchable_text.as_ref().expect("search cache was prepared");
+        for (index, block) in blocks.iter().enumerate().skip(position.block) {
+            let offset = if index == position.block { position.offset } else { 0 };
+            for text in self.0.matches(block, offset) {
+                let end = text.end;
+                if let Some(range) = block.dom_range(arena, text.clone())
+                    && (range.start_text_node, range.start_offset) != (range.end_text_node, range.end_offset)
+                {
+                    candidates.push(TextMatchCandidate {
+                        range,
+                        block: index,
+                        text,
+                    });
+                }
+                if candidates.len() == limit {
+                    let position = TextSearchPosition {
+                        block: index,
+                        offset: end,
+                    };
+                    return (candidates, Some(position));
+                }
+            }
+        }
+        (candidates, None)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct DomTextPosition {
+    pub text_node: u32,
+    pub offset: usize,
+}
+
+pub(crate) fn start_position_at(
+    arena: &LayoutNodeArena,
+    candidate: &TextMatchCandidate,
+    offset: usize,
+) -> Option<DomTextPosition> {
+    let block = arena.searchable_text.as_ref()?.get(candidate.block)?;
+    let position = block.dom_position(arena, offset, Start)?;
+    Some(DomTextPosition {
+        text_node: text_node_identity(arena, position.node),
+        offset: position.offset,
+    })
+}
+
+pub(crate) struct SearchStart<'a> {
+    pub compare: &'a mut dyn FnMut(u32, usize) -> Ordering,
+    pub start_position_at: &'a mut dyn FnMut(&TextMatchCandidate, usize) -> Option<DomTextPosition>,
+}
+
+/// A match that `take` turns down or that starts before `search_start` hides no match that overlaps it.
+pub(crate) fn select_matches(
+    mut candidates_from: impl FnMut(TextSearchPosition, usize) -> (Vec<TextMatchCandidate>, Option<TextSearchPosition>),
+    mut search_start: Option<SearchStart<'_>>,
+    first_match_only: bool,
+    mut take: impl FnMut(FfiDomTextRange) -> bool,
+) {
+    const LIMIT_FOR_FIRST_MATCH: usize = 16;
+
+    let mut limit = if first_match_only {
+        LIMIT_FOR_FIRST_MATCH
+    } else {
+        usize::MAX
+    };
+    let (mut candidates, mut next_position) = candidates_from(TextSearchPosition::default(), limit);
+    let mut index = 0;
+    let mut taken: Option<FfiDomTextRange> = None;
+    loop {
+        let Some(candidate) = candidates.get(index) else {
+            let Some(position) = next_position else {
+                return;
+            };
+            limit = limit.saturating_mul(2);
+            (candidates, next_position) = candidates_from(position, limit);
+            index = 0;
+            continue;
+        };
+        if taken == Some(candidate.range) {
+            index += 1;
+            continue;
+        }
+
+        let range = candidate.range;
+        let mut overlapping_match_offset = candidate.text.start + 1;
+        let mut starts_before_search_start = false;
+        if let Some(search_start) = search_start.as_mut() {
+            let end = (search_start.compare)(range.end_text_node, range.end_offset);
+            if end == Ordering::Less {
+                index += 1;
+                continue;
+            }
+            // A match that ends at the search start can overlap one that starts there across a line break.
+            starts_before_search_start = end == Ordering::Equal
+                || (search_start.compare)(range.start_text_node, range.start_offset) == Ordering::Less;
+            if starts_before_search_start {
+                let mut not_before_search_start = candidate.text.end;
+                while overlapping_match_offset < not_before_search_start {
+                    let offset = overlapping_match_offset + (not_before_search_start - overlapping_match_offset) / 2;
+                    let is_before_search_start =
+                        (search_start.start_position_at)(candidate, offset).is_some_and(|position| {
+                            (search_start.compare)(position.text_node, position.offset) == Ordering::Less
+                        });
+                    if is_before_search_start {
+                        overlapping_match_offset = offset + 1;
+                    } else {
+                        not_before_search_start = offset;
+                    }
+                }
+            }
+        }
+        if !starts_before_search_start && take(range) {
+            if first_match_only {
+                return;
+            }
+            taken = Some(range);
+            index += 1;
+            continue;
+        }
+
+        // The matches in hand stay valid unless one overlaps the match that was not taken.
+        let position = TextSearchPosition {
+            block: candidate.block,
+            offset: overlapping_match_offset,
+        };
+        let (found, position_after_found) = candidates_from(position, 1);
+        if let (Some(found), Some(next)) = (found.first(), candidates.get(index + 1))
+            && (found.block, &found.text) == (next.block, &next.text)
+        {
+            index += 1;
+            continue;
+        }
+        (candidates, next_position) = (found, position_after_found);
+        index = 0;
+        limit = 1;
+    }
 }
 
 /// The DOM range of the word at `dom_offset` in the text the rows of the text node whose primary row is `primary`
@@ -719,28 +955,174 @@ mod tests {
         assert!(arena.searchable_text.is_none());
     }
 
-    #[test]
-    fn search_finds_a_match_that_starts_where_the_previous_match_ends() {
-        let mut arena = LayoutNodeArena::new();
-        let text = node(&mut arena, "foofoo", 0, 6, Vec::new());
-        let mut builder = SearchTextBuilder::default();
-        builder.append(text, &arena.text_content(text).unwrap().text, false);
-        builder.flush();
-        *arena.searchable_text = Some(builder.blocks);
-        let query: Vec<u16> = "foo".encode_utf16().collect();
-        let offsets: Vec<_> = find_matching_text(&mut arena, text, &query, true, &[])
-            .iter()
-            .map(|range| (range.start_offset, range.end_offset))
-            .collect();
-        assert_eq!(offsets, [(0, 3), (3, 6)]);
+    struct SelectedMatches {
+        taken: Vec<(usize, usize)>,
+        searches: usize,
+        position_lookups: usize,
+        listed_candidates: usize,
+    }
+
+    fn selected_matches(
+        blocks: &[&str],
+        block_places: &[usize],
+        query: &str,
+        search_start: Option<usize>,
+        is_selectable: impl Fn(usize) -> bool,
+    ) -> SelectedMatches {
+        let place = |text_node: u32, offset: usize| {
+            let block = blocks[text_node as usize];
+            let zero_width_line_feeds = block[..offset].matches('\n').count();
+            block_places[text_node as usize] + offset - zero_width_line_feeds
+        };
+        let mut searches = 0;
+        let mut listed_candidates = 0;
+        let candidates_from = |position: TextSearchPosition, limit: usize| {
+            searches += 1;
+            let mut candidates = Vec::new();
+            for (index, block) in blocks.iter().enumerate().skip(position.block) {
+                let mut offset = if index == position.block { position.offset } else { 0 };
+                while let Some(found) = block.get(offset..).and_then(|rest| rest.find(query)) {
+                    let text = offset + found..offset + found + query.len();
+                    offset = text.end;
+                    candidates.push(TextMatchCandidate {
+                        range: FfiDomTextRange {
+                            start_text_node: index as u32,
+                            start_offset: text.start,
+                            end_text_node: index as u32,
+                            end_offset: text.end,
+                        },
+                        block: index,
+                        text,
+                    });
+                    if candidates.len() == limit {
+                        listed_candidates += candidates.len();
+                        let position = TextSearchPosition { block: index, offset };
+                        return (candidates, Some(position));
+                    }
+                }
+            }
+            listed_candidates += candidates.len();
+            (candidates, None)
+        };
+        let mut compare = |text_node, offset| place(text_node, offset).cmp(&search_start.unwrap());
+        let mut position_lookups = 0;
+        let mut start_position_at = |candidate: &TextMatchCandidate, offset| {
+            position_lookups += 1;
+            Some(DomTextPosition {
+                text_node: candidate.block as u32,
+                offset,
+            })
+        };
+        let mut taken = Vec::new();
+        select_matches(
+            candidates_from,
+            search_start.is_some().then_some(SearchStart {
+                compare: &mut compare,
+                start_position_at: &mut start_position_at,
+            }),
+            search_start.is_some(),
+            |range| {
+                let selectable = is_selectable(place(range.start_text_node, range.start_offset));
+                if selectable {
+                    taken.push((range.start_text_node as usize, range.start_offset));
+                }
+                selectable
+            },
+        );
+        SelectedMatches {
+            taken,
+            searches,
+            position_lookups,
+            listed_candidates,
+        }
     }
 
     #[test]
-    fn search_retains_case_sensitivity_and_utf16_offsets() {
-        let text: Vec<u16> = "a😀Bc".encode_utf16().collect();
-        let query: Vec<u16> = "😀b".encode_utf16().collect();
-        assert_eq!(find_text(&text, &query, 0, false), Some(1));
-        assert_eq!(find_text(&text, &query, 0, true), None);
-        assert_eq!(find_text(&text, &query, 2, false), None);
+    fn matches_do_not_overlap_and_are_searched_for_once_where_all_are_taken() {
+        let selected = selected_matches(&["eeeee", "xee"], &[0, 5], "ee", None, |_| true);
+        assert_eq!(selected.taken, [(0, 0), (0, 2), (1, 1)]);
+        assert_eq!(selected.searches, 1);
+    }
+
+    #[test]
+    fn a_match_that_is_turned_down_does_not_hide_a_match_that_overlaps_it() {
+        let selected = selected_matches(&["eeeee", "xee"], &[0, 5], "ee", None, |place| place != 0);
+        assert_eq!(selected.taken, [(0, 1), (0, 3), (1, 1)]);
+        let selected = selected_matches(&["eeeee", "xee"], &[0, 5], "ee", None, |_| false);
+        assert_eq!(selected.taken, []);
+    }
+
+    #[test]
+    fn a_turned_down_match_that_no_match_overlaps_costs_one_search() {
+        let text = "ab ".repeat(100);
+        let selected = selected_matches(&[&text], &[0], "ab", None, |place| place % 2 == 1);
+        assert_eq!(selected.taken.len(), 50);
+        assert_eq!(selected.taken[0], (0, 3));
+        assert_eq!(selected.searches, 1 + 50);
+    }
+
+    #[test]
+    fn the_first_match_from_the_search_start_can_overlap_a_match_before_it() {
+        let first_from =
+            |search_start| selected_matches(&["xx", "eeeeee"], &[0, 2], "ee", Some(search_start), |_| true).taken;
+        assert_eq!(first_from(0), [(1, 0)]);
+        assert_eq!(first_from(4), [(1, 2)]);
+        assert_eq!(first_from(5), [(1, 3)]);
+        assert_eq!(first_from(6), [(1, 4)]);
+        assert_eq!(first_from(7), []);
+    }
+
+    #[test]
+    fn matches_are_listed_in_growing_batches_until_the_first_is_taken() {
+        let text = "x ".repeat(1000);
+        let first_from = |search_start| {
+            let selected = selected_matches(&[&text], &[0], "x", Some(search_start), |_| true);
+            (selected.taken, selected.listed_candidates)
+        };
+        assert_eq!(first_from(0), (vec![(0, 0)], 16));
+        assert_eq!(first_from(300), (vec![(0, 300)], 16 + 32 + 64 + 128));
+        let selected = selected_matches(&[&text], &[0], "x", None, |_| true);
+        assert_eq!(selected.taken.len(), 1000);
+        assert_eq!(selected.searches, 1);
+    }
+
+    #[test]
+    fn a_match_across_the_search_start_is_passed_in_one_step() {
+        let text = "e".repeat(600);
+        let query = "e".repeat(512);
+        let selected = selected_matches(&[&text], &[0], &query, Some(77), |_| true);
+        assert_eq!(selected.taken, [(0, 77)]);
+        assert_eq!(selected.searches, 2);
+        assert!(selected.position_lookups <= 10);
+    }
+
+    #[test]
+    fn a_match_that_ends_at_the_search_start_does_not_hide_a_match_that_starts_there() {
+        let selected = selected_matches(&["a\nx\nx\nb"], &[0], "\nx\n", Some(2), |_| true);
+        assert_eq!(selected.taken, [(0, 3)]);
+        let selected = selected_matches(&["a x\nx\nx b"], &[0], "x\nx", Some(3), |_| true);
+        assert_eq!(selected.taken, [(0, 4)]);
+    }
+
+    #[test]
+    fn the_search_start_is_found_among_matches_that_are_not_in_document_order() {
+        let selected = selected_matches(&["x", "x x"], &[10, 0], "x", Some(10), |_| true);
+        assert_eq!(selected.taken, [(0, 0)]);
+        let selected = selected_matches(&["x", "x x"], &[10, 0], "x", Some(1), |_| true);
+        assert_eq!(selected.taken, [(0, 0)]);
+        let selected = selected_matches(&["x", "x x"], &[10, 0], "x", Some(11), |_| true);
+        assert_eq!(selected.taken, []);
+    }
+
+    #[test]
+    fn searchable_text_folds_quotation_marks_without_moving_offsets() {
+        let mut arena = LayoutNodeArena::new();
+        let source = "\u{201c}don\u{2019}t\u{201d}";
+        let text = node(&mut arena, source, 0, 7, Vec::new());
+        let mut builder = SearchTextBuilder::default();
+        builder.append(text, &arena.text_content(text).unwrap().text, false);
+        assert_eq!(String::from_utf16_lossy(&builder.current.text), "\"don't\"");
+        let range = builder.current.dom_range(&arena, 0..7).unwrap();
+        assert_eq!((range.start_offset, range.end_offset), (0, 7));
     }
 }

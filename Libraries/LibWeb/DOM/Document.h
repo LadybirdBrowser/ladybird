@@ -1638,6 +1638,7 @@ public:
     [[nodiscard]] bool is_decoded_svg() const { return m_is_decoded_svg; }
 
     Vector<GC::Root<Range>> find_matching_text(Utf16View, CaseSensitivity);
+    GC::Ptr<Range> find_first_matching_text(Utf16View, CaseSensitivity, Optional<BoundaryPoint> const& search_start);
 
     void parse_html_from_a_string(Utf16View, HTML::SanitizerConfiguration const* = nullptr);
 
@@ -1888,6 +1889,8 @@ protected:
 
 private:
     bool script_edits_for_the_user() const;
+
+    Vector<GC::Root<Range>> find_matching_text(Utf16View, CaseSensitivity, Optional<BoundaryPoint> const& search_start, bool first_match_only);
 
     bool update_is_fully_active() const;
     bool compute_is_fully_active() const;

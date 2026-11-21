@@ -709,8 +709,10 @@ pub extern "C" fn layout_script_generated_content_accessible_text(
     ak::Utf16String::from_utf16(&text).into_raw()
 }
 
-/// Where `query` occurs in the searchable text below `viewport`, each match handed to `append`. The text of a DOM
-/// text node `is_searchable` turns down is not searched.
+/// Where `query` occurs in the searchable text below `viewport`, each match handed to `append`, which returns
+/// whether it takes the match. The text of a DOM text node `is_searchable` turns down is not searched.
+/// `compare_to_search_start` compares a DOM position to the search start, and a match that starts before the search
+/// start is not handed over.
 ///
 /// # Safety
 ///
@@ -723,8 +725,10 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
     query: FfiUtf16View,
     case_sensitive: bool,
     is_searchable: unsafe extern "C" fn(*mut c_void, u32) -> bool,
+    compare_to_search_start: Option<unsafe extern "C" fn(*mut c_void, u32, usize) -> i8>,
+    first_match_only: bool,
     context: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, FfiDomTextRange),
+    append: unsafe extern "C" fn(*mut c_void, FfiDomTextRange) -> bool,
 ) {
     // SAFETY: The host lends the query for this synchronous call.
     let query = query.to_utf16().expect("query carries no storage");
@@ -740,13 +744,34 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
         .filter(|text| !unsafe { is_searchable(context, text.raw()) })
         .collect();
     excluded.sort_unstable();
-    let matches = read_arena(host, |arena| {
-        crate::layout::text_queries::find_matching_text(arena, viewport, &query, case_sensitive, &excluded)
-    });
-    for range in matches {
-        // SAFETY: The host resolves each identity's DOM node itself, synchronously.
-        unsafe { append(context, range) };
-    }
+    let mut search = crate::layout::text_queries::TextSearch::new(&query, case_sensitive);
+    // SAFETY: The host resolves each identity's DOM node itself, synchronously.
+    let mut compare = |text_node, offset| {
+        let compare_to_search_start = compare_to_search_start.expect("a search start is compared to");
+        unsafe { compare_to_search_start(context, text_node, offset) }.cmp(&0)
+    };
+    let mut start_position_at = |candidate: &crate::layout::text_queries::TextMatchCandidate, offset| {
+        read_arena(host, |arena| {
+            crate::layout::text_queries::start_position_at(arena, candidate, offset)
+        })
+    };
+    let search_start = compare_to_search_start
+        .is_some()
+        .then_some(crate::layout::text_queries::SearchStart {
+            compare: &mut compare,
+            start_position_at: &mut start_position_at,
+        });
+    crate::layout::text_queries::select_matches(
+        |position, limit| {
+            read_arena(host, |arena| {
+                search.candidates(arena, viewport, &excluded, position, limit)
+            })
+        },
+        search_start,
+        first_match_only,
+        // SAFETY: As above.
+        |range| unsafe { append(context, range) },
+    );
 }
 
 /// A min or max sizing property, whose anchor-size() functions the abspos engine resolves.

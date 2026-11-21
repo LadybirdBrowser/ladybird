@@ -10364,6 +10364,19 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
 
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
 {
+    return find_matching_text(query, case_sensitivity, {}, false);
+}
+
+GC::Ptr<Range> Document::find_first_matching_text(Utf16View query, CaseSensitivity case_sensitivity, Optional<BoundaryPoint> const& search_start)
+{
+    auto matches = find_matching_text(query, case_sensitivity, search_start, true);
+    if (matches.is_empty())
+        return nullptr;
+    return matches.first().ptr();
+}
+
+Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity, Optional<BoundaryPoint> const& search_start, bool first_match_only)
+{
     Layout::ForcedReadScope read { *this };
     // Ensure the layout tree exists before searching for text matches.
     update_layout(UpdateLayoutReason::DocumentFindMatchingText);
@@ -10373,6 +10386,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
 
     struct Search {
         GC::Ref<Document> document;
+        Optional<BoundaryPoint> const& search_start;
         Vector<GC::Root<Range>> matches;
 
         DOM::Text* text_node(u32 identity) const
@@ -10380,7 +10394,25 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
             return as_if<DOM::Text>(document->style_computer().node_for_style_node(CSS::StyleNodeID { identity }).ptr());
         }
     };
-    Search search { *this, {} };
+    Search search { *this, search_start, {} };
+    auto compare_to_search_start = [](void* context, u32 identity, size_t offset) -> i8 {
+        auto& search = *static_cast<Search*>(context);
+        auto* text = search.text_node(identity);
+        if (!text)
+            return 1;
+        auto position = position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree({ *text, static_cast<WebIDL::UnsignedLong>(offset) }, *search.search_start);
+        if (!position.has_value())
+            return 1;
+        switch (*position) {
+        case RelativeBoundaryPointPosition::Before:
+            return -1;
+        case RelativeBoundaryPointPosition::Equal:
+            return 0;
+        case RelativeBoundaryPointPosition::After:
+            return 1;
+        }
+        VERIFY_NOT_REACHED();
+    };
     auto query_view = Layout::RustFFI::FfiUtf16View {
         .latin1 = query.has_latin1_storage() ? query.latin1_span().data() : nullptr,
         .utf16 = query.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(query.utf16_span().data()),
@@ -10394,6 +10426,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
             auto const* text = static_cast<Search*>(context)->text_node(identity);
             return text && !text->is_inert();
         },
+        search_start.has_value() ? +compare_to_search_start : nullptr, first_match_only,
         &search, [](void* context, Layout::RustFFI::FfiDomTextRange match) {
             auto& search = *static_cast<Search*>(context);
             auto* start = search.text_node(match.start_text_node);
@@ -10401,10 +10434,11 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
             if (!start || !end || &start->root() != &end->root()
                 || !start->is_connected() || !end->is_connected()
                 || match.start_offset > start->length() || match.end_offset > end->length())
-                return;
+                return false;
             if (start != end && !end->is_following(*start))
-                return;
-            search.matches.append(Range::create(*start, match.start_offset, *end, match.end_offset)); });
+                return false;
+            search.matches.append(Range::create(*start, match.start_offset, *end, match.end_offset));
+            return true; });
 
     return move(search.matches);
 }
