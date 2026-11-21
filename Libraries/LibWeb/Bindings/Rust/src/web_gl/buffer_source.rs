@@ -16,8 +16,7 @@ use super::byte_ranges::{
     list_range, offset_in_buffer_of_checked_write, sequence_list_tail, typed_array_list_range, typed_array_list_tail,
     upload_range, upload_range_of_2d_texture,
 };
-use super::canvas::{is_valid_2d_pixel_unpack_state, required_2d_texture_data_size};
-use super::pixel_unpacking::ImageUnpackConversion;
+use super::pixel_unpacking::{ImageUnpackConversion, is_valid_2d_pixel_unpack_state, required_2d_texture_data_size};
 use super::proxy::recorder::{PlainNumber, bytes_of};
 use super::state::ContextState;
 use super::types::Float32List;

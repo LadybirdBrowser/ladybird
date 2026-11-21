@@ -80,17 +80,6 @@ enum class TexImageSourceResult : u8 {
     InvalidValue,
 };
 
-// NB: `PixelUnpackState` of Bindings/Rust/src/web_gl/canvas.rs is four `usize`s in this order, with these defaults.
-static_assert(sizeof(PixelUnpackState) == 4 * sizeof(size_t));
-static_assert(offsetof(PixelUnpackState, alignment) == 0);
-static_assert(offsetof(PixelUnpackState, row_length) == sizeof(size_t));
-static_assert(offsetof(PixelUnpackState, skip_pixels) == 2 * sizeof(size_t));
-static_assert(offsetof(PixelUnpackState, skip_rows) == 3 * sizeof(size_t));
-static_assert(PixelUnpackState {}.alignment == 4);
-static_assert(PixelUnpackState {}.row_length == 0);
-static_assert(PixelUnpackState {}.skip_pixels == 0);
-static_assert(PixelUnpackState {}.skip_rows == 0);
-
 }
 
 extern "C" {
@@ -118,8 +107,6 @@ void web_webgl_canvas_bitmap_size(void* canvas_host, i32* out_width, i32* out_he
 void* web_webgl_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm);
 void* web_webgl_canvas_relevant_realm(void* canvas_host);
 bool web_webgl_expose_experimental_interfaces();
-bool web_webgl_is_valid_2d_pixel_unpack_state(i32 width, PixelUnpackState const* unpack_state);
-bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, u32 type, PixelUnpackState const* unpack_state, size_t* out_size);
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind, u32 format, u32 type, void** out_frame);
 TexImageSourceResult web_webgl_read_tex_image_frame(Gfx::DecodedImageFrame const* image_frame, u32 format, u32 type, void** out_frame);
 TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width, u32 height, u32 format, u32 type, void** out_frame);
@@ -368,20 +355,6 @@ void* web_webgl_canvas_relevant_realm(void* canvas_host)
 bool web_webgl_expose_experimental_interfaces()
 {
     return HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces();
-}
-
-bool web_webgl_is_valid_2d_pixel_unpack_state(i32 width, PixelUnpackState const* unpack_state)
-{
-    return is_valid_2d_pixel_unpack_state(width, *unpack_state);
-}
-
-bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, u32 type, PixelUnpackState const* unpack_state, size_t* out_size)
-{
-    auto size = required_2d_texture_data_size(width, height, format, type, *unpack_state);
-    if (!size.has_value())
-        return false;
-    *out_size = *size;
-    return true;
 }
 
 // The frame that a texture image source uploads, which the recorder takes over, if this format and type upload one.

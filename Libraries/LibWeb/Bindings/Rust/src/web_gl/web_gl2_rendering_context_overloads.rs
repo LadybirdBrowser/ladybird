@@ -9,8 +9,8 @@
 //! The operations of a WebGL 2 context that it has more overloads of than a WebGL 1 context.
 
 use super::buffer_source::{destination_bytes, list_bytes, source_bytes, write_checked};
-use super::canvas::is_valid_2d_pixel_unpack_state;
 use super::constants::{GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_OUT_OF_MEMORY};
+use super::pixel_unpacking::is_valid_2d_pixel_unpack_state;
 use super::state::{RenderingContext, WebGL2};
 use super::types::Float32List;
 use super::web_gl_rendering_context_overloads::{Int32List, TexImageSource};

@@ -18,9 +18,7 @@ use super::constants::{
     GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1, GL_UNSIGNED_SHORT_5_6_5,
 };
 
-/// Mirrors `Compositing::WebGL::PixelUnpackState`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
 pub(crate) struct PixelUnpackState {
     pub(crate) alignment: usize,
     pub(crate) row_length: usize,
@@ -37,6 +35,60 @@ impl Default for PixelUnpackState {
             skip_rows: 0,
         }
     }
+}
+
+/// Whether the pixels of a row of a 2D image that is `width` pixels wide lie inside the row of client memory that they
+/// are unpacked from. A negative width is left for the operation to reject.
+pub(crate) fn is_valid_2d_pixel_unpack_state(width: i32, unpack_state: &PixelUnpackState) -> bool {
+    let Ok(width) = usize::try_from(width) else {
+        return true;
+    };
+    let data_store_width = if unpack_state.row_length == 0 {
+        width
+    } else {
+        unpack_state.row_length
+    };
+    unpack_state
+        .skip_pixels
+        .checked_add(width)
+        .is_some_and(|unpacked_row_end| unpacked_row_end <= data_store_width)
+}
+
+/// How many bytes of client memory a 2D image is unpacked from, counted from the start of that memory.
+pub(crate) fn required_2d_texture_data_size(
+    width: i32,
+    height: i32,
+    format: u32,
+    r#type: u32,
+    unpack_state: &PixelUnpackState,
+) -> Option<usize> {
+    if !is_valid_2d_pixel_unpack_state(width, unpack_state) {
+        return None;
+    }
+    let width = usize::try_from(width).ok()?;
+    let height = usize::try_from(height).ok()?;
+    if width == 0 || height == 0 {
+        return Some(0);
+    }
+    let pixel_size = texel_layout(format, r#type)?.bytes_per_pixel;
+    let alignment = unpack_state.alignment;
+    if !matches!(alignment, 1 | 2 | 4 | 8) {
+        return None;
+    }
+    let pixels_per_row = if unpack_state.row_length == 0 {
+        width
+    } else {
+        unpack_state.row_length
+    };
+    let row_byte_length = pixels_per_row.checked_mul(pixel_size)?.checked_add(alignment - 1)? / alignment * alignment;
+    let skipped_rows_size = unpack_state.skip_rows.checked_mul(row_byte_length)?;
+    let skipped_pixels_size = unpack_state.skip_pixels.checked_mul(pixel_size)?;
+    let remaining_rows_size = (height - 1).checked_mul(row_byte_length)?;
+    let final_row_size = width.checked_mul(pixel_size)?;
+    skipped_rows_size
+        .checked_add(skipped_pixels_size)?
+        .checked_add(remaining_rows_size)?
+        .checked_add(final_row_size)
 }
 
 /// https://registry.khronos.org/webgl/specs/latest/1.0/#PIXEL_STORAGE_PARAMETERS
@@ -862,5 +914,76 @@ mod tests {
         );
         assert_eq!(bytes_per_pixel(GL_RGBA, 0x1234), None);
         assert_eq!(bytes_per_pixel(0x1234, GL_UNSIGNED_BYTE), None);
+    }
+
+    #[test]
+    fn the_size_of_an_image_follows_from_its_dimensions() {
+        let default = PixelUnpackState::default();
+        assert_eq!(
+            required_2d_texture_data_size(16, 16, GL_RGB, GL_UNSIGNED_BYTE, &default),
+            Some(768)
+        );
+        assert_eq!(
+            required_2d_texture_data_size(3, 2, GL_RGB, GL_UNSIGNED_BYTE, &default),
+            Some(21)
+        );
+        assert_eq!(
+            required_2d_texture_data_size(5, 2, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &default),
+            Some(22)
+        );
+    }
+
+    #[test]
+    fn the_size_of_an_image_includes_what_the_unpack_state_skips() {
+        let unpack_state = PixelUnpackState {
+            alignment: 8,
+            row_length: 10,
+            skip_pixels: 2,
+            skip_rows: 3,
+        };
+        assert_eq!(
+            required_2d_texture_data_size(4, 2, GL_RGBA, GL_UNSIGNED_BYTE, &unpack_state),
+            Some(184)
+        );
+    }
+
+    #[test]
+    fn an_image_whose_rows_overlap_has_no_size() {
+        let unpack_state = PixelUnpackState {
+            row_length: 8,
+            skip_pixels: 5,
+            ..PixelUnpackState::default()
+        };
+        assert!(!is_valid_2d_pixel_unpack_state(4, &unpack_state));
+        assert_eq!(
+            required_2d_texture_data_size(4, 2, GL_RGBA, GL_UNSIGNED_BYTE, &unpack_state),
+            None
+        );
+    }
+
+    #[test]
+    fn an_image_whose_size_overflows_has_none() {
+        for unpack_state in [
+            PixelUnpackState {
+                row_length: usize::MAX,
+                skip_pixels: usize::MAX,
+                ..PixelUnpackState::default()
+            },
+            PixelUnpackState {
+                skip_rows: usize::MAX,
+                ..PixelUnpackState::default()
+            },
+            PixelUnpackState {
+                row_length: 2,
+                skip_pixels: 1,
+                skip_rows: usize::MAX / 8,
+                ..PixelUnpackState::default()
+            },
+        ] {
+            assert_eq!(
+                required_2d_texture_data_size(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &unpack_state),
+                None
+            );
+        }
     }
 }
