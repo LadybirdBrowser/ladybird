@@ -8,6 +8,7 @@
 
 #include <AK/Error.h>
 #include <LibAudio/ChannelMap.h>
+#include <LibMedia/Export.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
 
 extern "C" {
@@ -16,7 +17,7 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(FFmpegFunctions const&, AVChannelLayout const&);
-ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const&, Audio::ChannelMap const&);
+MEDIA_API ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(FFmpegFunctions const&, AVChannelLayout const&);
+MEDIA_API ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const&, Audio::ChannelMap const&);
 
 }
