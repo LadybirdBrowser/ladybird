@@ -49,14 +49,14 @@ pub struct PausedDebuggerOverlayState {
     pub hovered_action: Option<PausedDebuggerOverlayAction>,
 }
 
-// The controls stay present while they are hidden, so that they fade out.
+/// The controls stay present while they are hidden, so that they fade out.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PictureInPictureControlsState {
     pub shown: bool,
     pub hovered_control: Option<PictureInPictureControl>,
 }
 
-// What the browser draws over a context's page, with each overlay the view has present.
+/// What the browser draws over a context's page, with each overlay the view has present.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct UIOverlays {
     pub paused_debugger: Option<PausedDebuggerOverlayState>,
@@ -71,10 +71,11 @@ pub struct OverlayLabel {
     pub glyph_ids: Vec<u32>,
     pub glyph_x_positions: Vec<f32>,
     pub width: f32,
-    // Of the font at the size the label is shaped at: the ascent above the baseline, which is negative, and the descent.
+    /// Of the font at the size the label is shaped at: the ascent above the baseline, which is negative, and the
+    /// descent.
     pub ascent: f32,
     pub descent: f32,
-    // The ascent the painter places glyphs below, at the font's own size.
+    /// The ascent the painter places glyphs below, at the font's own size.
     pub font_ascent: f32,
 }
 
@@ -278,6 +279,19 @@ thread_local! {
     });
 }
 
+fn replay_overlay_records(records: &AlignedRecords, painter: &mut impl ReplayPainter) {
+    OVERLAY_TREE.with(|tree| {
+        let list = ListReplay::new(tree);
+        let frame = ReplayFrame::unscrolled(0);
+        let context = RecordsContext {
+            list_replay: &list,
+            frame: &frame,
+            to_root_matrix_of_inline_clip_space: &|_| None,
+        };
+        replay_records(records.as_bytes(), &context, painter);
+    });
+}
+
 impl OverlayPicture {
     /// Paints the overlays over a frame: the scrollbars the compositor paints, and unless they are left out, the
     /// overlays of the browser.
@@ -288,35 +302,26 @@ impl OverlayPicture {
         if !paints_ui_overlays {
             return;
         }
-        OVERLAY_TREE.with(|tree| {
-            let list = ListReplay::new(tree);
-            let frame = ReplayFrame::unscrolled(0);
-            let context = RecordsContext {
-                list: &list,
-                frame: &frame,
-                clip_space_matrix: &|_| None,
-            };
-            replay_records(self.ui_overlay_records.as_bytes(), &context, painter);
-            if let Some(controls) = &self.picture_in_picture_controls {
-                painter.push_layer(&ReplayLayer {
-                    can_draw_directly_for_lcd_text: false,
-                    opacity: controls.opacity,
-                    blend_mode: CompositingAndBlendingOperator::Normal,
-                    filter_bytes: std::ptr::null(),
-                    filter_bytes_size: 0,
-                    backdrop_filter_bytes: std::ptr::null(),
-                    backdrop_filter_bytes_size: 0,
-                    backdrop_region: IntRect::default(),
-                    backdrop_corner_radii: Default::default(),
-                    backdrop_base_color: Color::TRANSPARENT,
-                    backdrop_blur_edge: OptionalFloatRect::none(),
-                    filter_cache_key: 0,
-                    content_bounds: OptionalFloatRect::from(Some(controls.bounds.to_float())),
-                });
-                replay_records(controls.records.as_bytes(), &context, painter);
-                painter.pop();
-            }
-        });
+        replay_overlay_records(&self.ui_overlay_records, painter);
+        if let Some(controls) = &self.picture_in_picture_controls {
+            painter.push_layer(&ReplayLayer {
+                can_draw_directly_for_lcd_text: false,
+                opacity: controls.opacity,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter_bytes: std::ptr::null(),
+                filter_bytes_size: 0,
+                backdrop_filter_bytes: std::ptr::null(),
+                backdrop_filter_bytes_size: 0,
+                backdrop_region: IntRect::default(),
+                backdrop_corner_radii: Default::default(),
+                backdrop_base_color: Color::TRANSPARENT,
+                backdrop_blur_edge: OptionalFloatRect::none(),
+                filter_cache_key: 0,
+                content_bounds: OptionalFloatRect::from(Some(controls.bounds.to_float())),
+            });
+            replay_overlay_records(&controls.records, painter);
+            painter.pop();
+        }
     }
 }
 
@@ -332,7 +337,7 @@ fn presented_compositor_scrollbar(scrollbar: &ScrollbarOfFrame) -> PresentedScro
     )
 }
 
-// The records of one overlay, with the payload of each command laid out after the command as the painter reads it.
+/// The records of one overlay, with the payload of each command laid out after the command as the painter reads it.
 struct OverlayRecorder<'a> {
     builder: &'a mut DisplayListBuilder,
 }

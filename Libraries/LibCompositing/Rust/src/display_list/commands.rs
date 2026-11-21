@@ -1084,11 +1084,14 @@ display_list_record_fields!(PaintOuterBoxShadow {
 impl DisplayListCommand for PaintOuterBoxShadow {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintOuterBoxShadow;
     fn bounding_rect(&self) -> Option<IntRect> {
-        let blur_margin = self.blur_radius * 2;
-        Some(
-            self.shadow_rect
-                .inflated_edges(blur_margin, blur_margin, blur_margin, blur_margin),
-        )
+        let blur_margin = i64::from(self.blur_radius) * 2;
+        let rect = self.shadow_rect;
+        Some(int_rect_of_edges_within_record_bounds_limit(
+            i64::from(rect.x) - blur_margin,
+            i64::from(rect.y) - blur_margin,
+            i64::from(rect.x) + i64::from(rect.width) + blur_margin,
+            i64::from(rect.y) + i64::from(rect.height) + blur_margin,
+        ))
     }
 }
 
@@ -1154,13 +1157,15 @@ impl DisplayListCommand for PaintPathBoxShadow {
         // NB: The player grows the shape by the outline of a miter-joined stroke, whose miters reach out to Skia's default
         //     miter limit of 4 times half the stroke width, so up to 4 times the spread at sharp corners.
         const MITER_LIMIT: f32 = 4.0;
-        let margin = (self.spread_distance.max(0.0) * MITER_LIMIT).ceil() as i32 + self.blur_radius * 2;
-        let mut shadow_rect = shape_rect.inflated_edges(margin, margin, margin, margin);
-        shadow_rect.x += self.offset.x.floor() as i32;
-        shadow_rect.y += self.offset.y.floor() as i32;
-        shadow_rect.width += 1;
-        shadow_rect.height += 1;
-        Some(shadow_rect)
+        let margin = (self.spread_distance.max(0.0) * MITER_LIMIT).ceil() as i64 + i64::from(self.blur_radius) * 2;
+        let left = i64::from(shape_rect.x) - margin + self.offset.x.floor() as i64;
+        let top = i64::from(shape_rect.y) - margin + self.offset.y.floor() as i64;
+        Some(int_rect_of_edges_within_record_bounds_limit(
+            left,
+            top,
+            left + i64::from(shape_rect.width) + 2 * margin + 1,
+            top + i64::from(shape_rect.height) + 2 * margin + 1,
+        ))
     }
 }
 
@@ -1391,7 +1396,15 @@ display_list_record_fields!(DrawLine {
 impl DisplayListCommand for DrawLine {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawLine;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(int_rect_from_two_points(self.from, self.to).inflated(self.thickness, self.thickness))
+        let thickness = i64::from(self.thickness);
+        let left = i64::from(self.from.x.min(self.to.x)) - thickness / 2;
+        let top = i64::from(self.from.y.min(self.to.y)) - thickness / 2;
+        Some(int_rect_of_edges_within_record_bounds_limit(
+            left,
+            top,
+            left + (i64::from(self.from.x) - i64::from(self.to.x)).abs() + thickness,
+            top + (i64::from(self.from.y) - i64::from(self.to.y)).abs() + thickness,
+        ))
     }
 }
 
@@ -1704,9 +1717,9 @@ impl DisplayListCommand for PaintScrollBar {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintScrollBar;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(
-            self.track_rect
-                .united(self.thumb_rect)
-                .united(self.expanded_gutter_rect),
+            int_rect_within_record_bounds_limit(self.track_rect)
+                .united(int_rect_within_record_bounds_limit(self.thumb_rect))
+                .united(int_rect_within_record_bounds_limit(self.expanded_gutter_rect)),
         )
     }
 }
@@ -2057,8 +2070,35 @@ impl DisplayListCommand for Canvas2DPutImageFrame {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Canvas2DPutImageFrame;
 }
 
-pub fn int_rect_from_two_points(a: IntPoint, b: IntPoint) -> IntRect {
-    IntRect::new(a.x.min(b.x), a.y.min(b.y), (a.x - b.x).abs(), (a.y - b.y).abs())
+/// How far from the origin the bounds of a record reach at most, so that the bounds of any two records unite into a rect
+/// whose edges fit.
+pub const RECORD_BOUNDS_LIMIT_IN_DEVICE_PIXELS: i64 = (1 << 30) - 1;
+
+/// The rect between the edges, cut to `RECORD_BOUNDS_LIMIT_IN_DEVICE_PIXELS` from the origin.
+pub fn int_rect_of_edges_within_record_bounds_limit(left: i64, top: i64, right: i64, bottom: i64) -> IntRect {
+    let limit = RECORD_BOUNDS_LIMIT_IN_DEVICE_PIXELS;
+    let [left, top, right, bottom] = [left, top, right, bottom].map(|edge| edge.clamp(-limit, limit) as i32);
+    IntRect::new(left, top, right - left, bottom - top)
+}
+
+/// `rect` cut to `RECORD_BOUNDS_LIMIT_IN_DEVICE_PIXELS` from the origin, whatever its edges.
+pub fn int_rect_within_record_bounds_limit(rect: IntRect) -> IntRect {
+    int_rect_of_edges_within_record_bounds_limit(
+        i64::from(rect.x),
+        i64::from(rect.y),
+        i64::from(rect.x) + i64::from(rect.width),
+        i64::from(rect.y) + i64::from(rect.height),
+    )
+}
+
+/// The smallest rect of whole pixels that holds `rect`, cut to `RECORD_BOUNDS_LIMIT_IN_DEVICE_PIXELS` from the origin.
+pub fn enclosing_int_rect_within_record_bounds_limit(rect: FloatRect) -> IntRect {
+    int_rect_of_edges_within_record_bounds_limit(
+        rect.x.floor() as i64,
+        rect.y.floor() as i64,
+        rect.right().ceil() as i64,
+        rect.bottom().ceil() as i64,
+    )
 }
 
 #[cfg(test)]

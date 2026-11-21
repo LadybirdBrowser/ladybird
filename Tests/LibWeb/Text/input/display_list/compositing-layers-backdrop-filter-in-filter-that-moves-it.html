@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="offset"><feOffset dx="40" dy="0" /></filter>
+</svg>
+<div style="filter: url(#offset)">
+    <div style="width: 100px; height: 100px; backdrop-filter: drop-shadow(4px 4px 0 black)"></div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

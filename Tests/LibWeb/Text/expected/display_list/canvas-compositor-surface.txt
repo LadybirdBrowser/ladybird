@@ -6,8 +6,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[5,5 38x38] shown by the window server: clip=[0,0 800x600]
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[5,5 38x38] shown by the window server: clip=[0,0 800x600]
 
 DisplayList:
 L1 DrawCanvas@s1/e0 dst_rect=[8,8 32x32] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground

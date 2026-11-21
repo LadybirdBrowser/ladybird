@@ -6,9 +6,13 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[backdrop-filter=[region=[60,60 100x40] filter=[blur(4,4)]]] (BlockContainer<DIV>#frosted)
 
-Layers: none (canvas under a backdrop filter that reads the root group)
+Layers:
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[17,17 206x126] replayed: under a layer the frame holds
+  [L3] painted space=viewport inside e1
+  composited e1 space=viewport reads=[33,33 154x94]: it reads what its own layer does not hold
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-BackdropFilterRegion@s1/e1 rect=[60,60 100x40] owner=BlockContainer<DIV>#frosted phase=background
+L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L3 BackdropFilterRegion@s1/e1 rect=[60,60 100x40] owner=BlockContainer<DIV>#frosted phase=background
 

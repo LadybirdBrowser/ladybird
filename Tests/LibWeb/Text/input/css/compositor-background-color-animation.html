@@ -124,7 +124,7 @@
         const initialSamples = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
         const initialCompositorAnimations = compositorAnimations();
         const legacyNodes = visualContextNodes(document.querySelector("#legacy"));
-        const displayList = internals.dumpDisplayList();
+        const displayList = internals.dumpDisplayList().replace(/^L\d+(,L\d+)* /gm, "");
         const transparentFillIsRetained = displayList.split("\n").some(line =>
             line.startsWith("FillRectWithRoundedCorners") && line.includes("color=rgba(0, 0, 0, 0)"));
         const rootNodes = visualContextNodes(document.documentElement);

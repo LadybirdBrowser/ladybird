@@ -10,10 +10,13 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGGeometryBox<rect>)
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
-  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
+L0 DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
+     FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
+L0 FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
 
 After switching to mask-type luminance:
 AccumulatedVisualContext Tree:
@@ -27,8 +30,11 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGGeometryBox<rect>)
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
-  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
+L0 DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
+     FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
+L0 FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
 

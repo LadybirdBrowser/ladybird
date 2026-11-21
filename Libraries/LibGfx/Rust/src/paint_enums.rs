@@ -80,6 +80,21 @@ pub enum CompositingAndBlendingOperator {
 }
 
 impl CompositingAndBlendingOperator {
+    /// Whether drawing with the operator can lower the alpha of what is already drawn below, where it draws or around it.
+    pub fn lowers_destination_alpha(self) -> bool {
+        matches!(
+            self,
+            Self::Clear
+                | Self::Copy
+                | Self::SourceIn
+                | Self::DestinationIn
+                | Self::SourceOut
+                | Self::DestinationOut
+                | Self::DestinationATop
+                | Self::Xor
+        )
+    }
+
     pub fn from_i32(value: i32) -> Option<Self> {
         if (Self::Normal as i32..=Self::PlusLighter as i32).contains(&value) {
             // SAFETY: the enum is a dense i32 range from Normal to PlusLighter.

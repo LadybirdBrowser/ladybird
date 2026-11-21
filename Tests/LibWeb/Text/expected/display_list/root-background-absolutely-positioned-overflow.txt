@@ -8,7 +8,10 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,2400] is_viewport=true
 
+Layers:
+  [L1] base space=document
+
 DisplayList:
-DrawRepeatedTile@s1/e0 dst_rect=[0,0 50x50] clip_rect=[0,0 800x3000] tile_size=[50x50] tile_step=[50x50] scaling_mode=Bilinear repeat={x=true y=true} inline_clips=[clip=[0,0 800x3000]] owner=BlockContainer<HTML> phase=background
-  PaintLinearGradient@s1/e0 gradient_rect=[0,0 50x50] gradient_angle=180 repeating_color_stops=[rgb(0, 128, 0) 0, rgb(0, 128, 0) 0.5, rgb(0, 255, 0) 0.5, rgb(0, 255, 0) 1] repeat_length=0.99999994 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
+L1 DrawRepeatedTile@s1/e0 dst_rect=[0,0 50x50] clip_rect=[0,0 800x3000] tile_size=[50x50] tile_step=[50x50] scaling_mode=Bilinear repeat={x=true y=true} inline_clips=[clip=[0,0 800x3000]] owner=BlockContainer<HTML> phase=background
+     PaintLinearGradient@s1/e0 gradient_rect=[0,0 50x50] gradient_angle=180 repeating_color_stops=[rgb(0, 128, 0) 0, rgb(0, 128, 0) 0.5, rgb(0, 255, 0) 0.5, rgb(0, 255, 0) 1] repeat_length=0.99999994 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
 

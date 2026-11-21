@@ -6,8 +6,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] composited context rect=[0,0 123x83]
+  [L0] base space=viewport
+  [L1] composited context #0 space=viewport region=[0,0 123x83]
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata

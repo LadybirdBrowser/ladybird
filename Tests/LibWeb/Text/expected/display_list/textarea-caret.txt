@@ -7,16 +7,19 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[8,8 106x34] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextAreaBox<TEXTAREA> phase=background
-FillRoundedRectRing@s1/e0 rect=[8,8 106x34] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextAreaBox<TEXTAREA> phase=border
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=5 rect=[11,11 31x14] glyph_bounding_rect=[11,12 33x12] translation=[11,22] color=rgb(0, 0, 0) text="hello" owner=BlockContainer<DIV> phase=foreground
-PaintCaret@s1/c0/e0 rect=[11,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
-FillRoundedRectRing@s1/e0 rect=[6,6 110x38] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextAreaBox<TEXTAREA> phase=outline
-DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[109,39] to=[111,37] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
-DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[108,39] to=[111,36] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
-DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[106,39] to=[111,34] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
-DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[105,39] to=[111,33] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
-DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[103,39] to=[111,31] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
-DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[102,39] to=[111,30] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 FillRectWithRoundedCorners@s1/e0 rect=[8,8 106x34] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextAreaBox<TEXTAREA> phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 106x34] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextAreaBox<TEXTAREA> phase=border
+L0 DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=5 rect=[11,11 31x14] glyph_bounding_rect=[11,12 33x12] translation=[11,22] color=rgb(0, 0, 0) text="hello" owner=BlockContainer<DIV> phase=foreground
+L0 PaintCaret@s1/c0/e0 rect=[11,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[6,6 110x38] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextAreaBox<TEXTAREA> phase=outline
+L0 DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[109,39] to=[111,37] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[108,39] to=[111,36] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[106,39] to=[111,34] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[105,39] to=[111,33] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 DrawLine@s1/e0 color=rgba(255, 255, 255, 0.392) from=[103,39] to=[111,31] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
+L0 DrawLine@s1/e0 color=rgba(0, 0, 0, 0.392) from=[102,39] to=[111,30] thickness=1 owner=TextAreaBox<TEXTAREA> phase=overlay
 

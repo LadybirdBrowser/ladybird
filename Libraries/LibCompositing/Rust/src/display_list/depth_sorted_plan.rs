@@ -20,16 +20,16 @@ struct LeafBounds {
     unbounded: bool,
 }
 
-struct CommandChunk {
+struct PlaneRunSpan {
     first_run: u32,
     run_count: u32,
     leaf: SpatialNodeIndex,
     context: SpatialNodeIndex,
-    bounds_by_level: Vec<LeafBounds>,
+    bounds_in_leaf_of_each_enclosing_context: Vec<LeafBounds>,
 }
 
 #[derive(Clone, Copy)]
-struct ChunkPlacement {
+struct RunSpanPlacement {
     child_context: SpatialNodeIndex,
     leaf: SpatialNodeIndex,
 }
@@ -66,11 +66,11 @@ struct DepthSortedPlanBuilder<'a> {
 }
 
 impl DepthSortedPlanBuilder<'_> {
-    fn append_run_span(&mut self, chunk: &CommandChunk) {
+    fn append_run_span(&mut self, run_span: &PlaneRunSpan) {
         self.steps.push(DepthSortedReplayStep {
             kind: DepthSortedReplayStepKind::RunSpan,
-            first_run: chunk.first_run,
-            run_count: chunk.run_count,
+            first_run: run_span.first_run,
+            run_count: run_span.run_count,
             vertex_offset: 0,
             vertex_count: 0,
         });
@@ -99,31 +99,37 @@ impl DepthSortedPlanBuilder<'_> {
         });
     }
 
-    fn emit_chunks(&mut self, chunks: &[CommandChunk], enclosing_context: SpatialNodeIndex) {
+    fn emit_run_spans(&mut self, run_spans: &[PlaneRunSpan], enclosing_context: SpatialNodeIndex) {
         let mut index = 0;
-        while index < chunks.len() {
-            let child_context = place_chunk_within(&chunks[index], enclosing_context, self.contexts).child_context;
+        while index < run_spans.len() {
+            let child_context =
+                place_run_span_within(&run_spans[index], enclosing_context, self.contexts).child_context;
             if child_context == NO_SORTING_CONTEXT {
-                self.append_run_span(&chunks[index]);
+                self.append_run_span(&run_spans[index]);
                 index += 1;
                 continue;
             }
-            let mut run_end = index + 1;
-            while run_end < chunks.len()
-                && place_chunk_within(&chunks[run_end], enclosing_context, self.contexts).child_context == child_context
+            let mut end_of_spans_in_child_context = index + 1;
+            while end_of_spans_in_child_context < run_spans.len()
+                && place_run_span_within(
+                    &run_spans[end_of_spans_in_child_context],
+                    enclosing_context,
+                    self.contexts,
+                )
+                .child_context
+                    == child_context
             {
-                run_end += 1;
+                end_of_spans_in_child_context += 1;
             }
-            self.sort_and_emit_context(&chunks[index..run_end], child_context);
-            index = run_end;
+            self.sort_and_emit_context(&run_spans[index..end_of_spans_in_child_context], child_context);
+            index = end_of_spans_in_child_context;
         }
     }
 
-    fn sort_and_emit_context(&mut self, chunks: &[CommandChunk], sorting_context: SpatialNodeIndex) {
-        // The unit of sorting is a run of consecutive chunks sharing a plane, not the whole plane. Coplanar planes render
-        // in painting order, and separate runs of one plane interleaved with a coplanar sibling must keep their recorded
-        // positions relative to it.
-        struct PlaneRun {
+    fn sort_and_emit_context(&mut self, run_spans: &[PlaneRunSpan], sorting_context: SpatialNodeIndex) {
+        // Not whole planes: separate spans of one plane interleaved with a coplanar sibling keep their recorded
+        // positions relative to it, as coplanar planes render in painting order.
+        struct ConsecutiveSpansOfOnePlane {
             leaf: SpatialNodeIndex,
             begin: usize,
             end: usize,
@@ -131,11 +137,11 @@ impl DepthSortedPlanBuilder<'_> {
             unbounded: bool,
         }
 
-        let mut runs: Vec<PlaneRun> = Vec::new();
-        for (index, chunk) in chunks.iter().enumerate() {
-            let leaf = place_chunk_within(chunk, sorting_context, self.contexts).leaf;
-            if runs.last().is_none_or(|run| run.leaf != leaf) {
-                runs.push(PlaneRun {
+        let mut sorting_units: Vec<ConsecutiveSpansOfOnePlane> = Vec::new();
+        for (index, run_span) in run_spans.iter().enumerate() {
+            let leaf = place_run_span_within(run_span, sorting_context, self.contexts).leaf;
+            if sorting_units.last().is_none_or(|unit| unit.leaf != leaf) {
+                sorting_units.push(ConsecutiveSpansOfOnePlane {
                     leaf,
                     begin: index,
                     end: index + 1,
@@ -143,25 +149,25 @@ impl DepthSortedPlanBuilder<'_> {
                     unbounded: false,
                 });
             } else {
-                runs.last_mut().unwrap().end = index + 1;
+                sorting_units.last_mut().unwrap().end = index + 1;
             }
-            for entry in &chunk.bounds_by_level {
-                if entry.leaf == leaf {
-                    let run = runs.last_mut().unwrap();
-                    run.bounds = run.bounds.united(entry.bounds);
-                    run.unbounded |= entry.unbounded;
+            for leaf_bounds in &run_span.bounds_in_leaf_of_each_enclosing_context {
+                if leaf_bounds.leaf == leaf {
+                    let unit = sorting_units.last_mut().unwrap();
+                    unit.bounds = unit.bounds.united(leaf_bounds.bounds);
+                    unit.unbounded |= leaf_bounds.unbounded;
                 }
             }
         }
 
-        if runs.iter().any(|run| run.unbounded) {
-            self.emit_chunks(chunks, sorting_context);
+        if sorting_units.iter().any(|unit| unit.unbounded) {
+            self.emit_run_spans(run_spans, sorting_context);
             return;
         }
 
         let context_to_device = self.transform_palette[sorting_context.0 as usize];
         let Some(device_to_context) = context_to_device.inverse() else {
-            self.emit_chunks(chunks, sorting_context);
+            self.emit_run_spans(run_spans, sorting_context);
             return;
         };
         let mut eye = device_to_context.map_vector4([0.0, 0.0, 1.0, 0.0]);
@@ -169,25 +175,31 @@ impl DepthSortedPlanBuilder<'_> {
             eye = [-eye[0], -eye[1], -eye[2], -eye[3]];
         }
 
-        // Runs that are fully backface-culled, that lie entirely behind the eye, or whose content bounds are empty
-        // draw nothing and are dropped rather than sorted. The bounds are inflated so a split piece's clip stays clear of
-        // the anti-aliased fringe of the content's own edges.
+        const MARGIN_KEEPING_SPLIT_CLIPS_CLEAR_OF_ANTIALIASED_EDGES: f32 = 4.0;
         let mut polygons = Vec::new();
-        for (run_index, run) in runs.iter().enumerate() {
-            if run.bounds.is_empty() {
+        for (unit_index, unit) in sorting_units.iter().enumerate() {
+            if unit.bounds.is_empty() {
                 continue;
             }
-            let leaf_to_context = self.leaf_to_context_palette[run.leaf.0 as usize];
-            let vertices = map_rect_through_projection(leaf_to_context, run.bounds.inflated(4.0, 4.0));
-            if vertices.len() < 3 {
+            let leaf_to_context = self.leaf_to_context_palette[unit.leaf.0 as usize];
+            let vertices = map_rect_through_projection(
+                leaf_to_context,
+                unit.bounds.inflated(
+                    MARGIN_KEEPING_SPLIT_CLIPS_CLEAR_OF_ANTIALIASED_EDGES,
+                    MARGIN_KEEPING_SPLIT_CLIPS_CLEAR_OF_ANTIALIASED_EDGES,
+                ),
+            );
+            let lies_behind_eye_in_context = vertices.len() < 3;
+            if lies_behind_eye_in_context {
                 continue;
             }
-            if map_polygon_through_projection(context_to_device, &vertices).len() < 3 {
+            let lies_behind_eye_on_device = map_polygon_through_projection(context_to_device, &vertices).len() < 3;
+            if lies_behind_eye_on_device {
                 continue;
             }
             polygons.push(BspPolygon {
                 vertices,
-                plane_index: run_index,
+                plane_index: unit_index,
                 clipped: false,
             });
         }
@@ -195,17 +207,17 @@ impl DepthSortedPlanBuilder<'_> {
         // FIXME: Pieces of a split plane whose content carries filter effects render incorrectly: each piece filters its
         //        clipped content independently, truncating filter output at the piece boundary and seaming it along the cut.
         for polygon in split_and_sort_polygons_back_to_front(polygons, eye, context_to_device) {
-            let run = &runs[polygon.plane_index];
+            let unit = &sorting_units[polygon.plane_index];
             if polygon.clipped || polygon_crosses_eye_plane(context_to_device, &polygon.vertices) {
                 let clip_vertices = map_polygon_through_projection(context_to_device, &polygon.vertices);
                 if clip_vertices.len() < 3 {
                     continue;
                 }
                 self.append_plane_clip(clip_vertices);
-                self.emit_chunks(&chunks[run.begin..run.end], sorting_context);
+                self.emit_run_spans(&run_spans[unit.begin..unit.end], sorting_context);
                 self.append_pop_plane_clip();
             } else {
-                self.emit_chunks(&chunks[run.begin..run.end], sorting_context);
+                self.emit_run_spans(&run_spans[unit.begin..unit.end], sorting_context);
             }
         }
     }
@@ -225,7 +237,7 @@ struct LeafMappingsKey {
     spatial_node: SpatialNodeIndex,
 }
 
-fn ensure_mappings(
+fn ensure_mappings_to_enclosing_leaves(
     key: LeafMappingsKey,
     mappings_key: &mut Option<LeafMappingsKey>,
     mappings: &mut Vec<LeafMapping>,
@@ -293,37 +305,36 @@ fn bounds_of_mapped_rect(matrix: FloatMatrix4x4, rect: FloatRect) -> FloatRect {
     FloatRect::new(min_x, min_y, max_x - min_x, max_y - min_y)
 }
 
-fn partition_command_runs_into_plane_chunks(
-    command_runs: &[DisplayListCommandRun],
+fn partition_command_runs_into_plane_run_spans<'a>(
+    command_runs: impl IntoIterator<Item = &'a DisplayListCommandRun>,
     contexts: &SortingContexts,
     transform_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
     culling: &TreeCullingScratch,
-) -> Vec<CommandChunk> {
+) -> Vec<PlaneRunSpan> {
     let mut mappings = Vec::new();
     let mut mappings_key = None;
 
-    // A run's ink bounds already leave out clips; mapping their union once per level is
-    // conservative, as it can only widen a plane's bounds.
-    let mut chunks: Vec<CommandChunk> = Vec::new();
-    for (run_index, run) in command_runs.iter().enumerate() {
+    // Ink bounds leave out clips, so mapping their union once per enclosing context only widens a plane's bounds.
+    let mut run_spans: Vec<PlaneRunSpan> = Vec::new();
+    for (run_index, run) in command_runs.into_iter().enumerate() {
         let spatial = run.context.spatial;
         let leaf = contexts.leaf_by_node[spatial.0 as usize];
         let sorting_context = contexts.context_by_node[spatial.0 as usize];
-        if chunks
+        if run_spans
             .last()
-            .is_none_or(|chunk| chunk.leaf != leaf || chunk.context != sorting_context)
+            .is_none_or(|run_span| run_span.leaf != leaf || run_span.context != sorting_context)
         {
-            chunks.push(CommandChunk {
+            run_spans.push(PlaneRunSpan {
                 first_run: run_index as u32,
                 run_count: 1,
                 leaf,
                 context: sorting_context,
-                bounds_by_level: Vec::new(),
+                bounds_in_leaf_of_each_enclosing_context: Vec::new(),
             });
         } else {
-            chunks.last_mut().unwrap().run_count += 1;
+            run_spans.last_mut().unwrap().run_count += 1;
         }
 
         if run.ink_bounds.is_empty() || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.0 as usize] {
@@ -332,7 +343,7 @@ fn partition_command_runs_into_plane_chunks(
         if culling.context_culls_everything(run.context) {
             continue;
         }
-        ensure_mappings(
+        ensure_mappings_to_enclosing_leaves(
             LeafMappingsKey {
                 leaf,
                 context: sorting_context,
@@ -344,58 +355,60 @@ fn partition_command_runs_into_plane_chunks(
             transform_palette,
         );
         let rect = run.ink_bounds.to_float();
-        let level_entries = &mut chunks.last_mut().unwrap().bounds_by_level;
+        let bounds_in_enclosing_leaves = &mut run_spans.last_mut().unwrap().bounds_in_leaf_of_each_enclosing_context;
         for mapping in &mappings {
-            let entry_index = level_entries.iter().position(|entry| entry.leaf == mapping.leaf);
-            let entry = if let Some(index) = entry_index {
-                &mut level_entries[index]
+            let existing_index = bounds_in_enclosing_leaves
+                .iter()
+                .position(|leaf_bounds| leaf_bounds.leaf == mapping.leaf);
+            let leaf_bounds = if let Some(index) = existing_index {
+                &mut bounds_in_enclosing_leaves[index]
             } else {
-                level_entries.push(LeafBounds {
+                bounds_in_enclosing_leaves.push(LeafBounds {
                     leaf: mapping.leaf,
                     bounds: FloatRect::default(),
                     unbounded: false,
                 });
-                level_entries.last_mut().unwrap()
+                bounds_in_enclosing_leaves.last_mut().unwrap()
             };
             if mapping.unbounded {
-                entry.unbounded = true;
+                leaf_bounds.unbounded = true;
             } else if let Some(to_leaf) = mapping.to_leaf {
-                entry.bounds = entry.bounds.united(bounds_of_mapped_rect(to_leaf, rect));
+                leaf_bounds.bounds = leaf_bounds.bounds.united(bounds_of_mapped_rect(to_leaf, rect));
             } else {
-                entry.bounds = entry.bounds.united(rect);
+                leaf_bounds.bounds = leaf_bounds.bounds.united(rect);
             }
         }
     }
-    chunks
+    run_spans
 }
 
-fn place_chunk_within(
-    chunk: &CommandChunk,
+fn place_run_span_within(
+    run_span: &PlaneRunSpan,
     enclosing_context: SpatialNodeIndex,
     contexts: &SortingContexts,
-) -> ChunkPlacement {
-    if chunk.context == enclosing_context {
-        return ChunkPlacement {
+) -> RunSpanPlacement {
+    if run_span.context == enclosing_context {
+        return RunSpanPlacement {
             child_context: NO_SORTING_CONTEXT,
-            leaf: chunk.leaf,
+            leaf: run_span.leaf,
         };
     }
-    let mut current = chunk.context;
+    let mut current = run_span.context;
     while current != NO_SORTING_CONTEXT {
         let Some(link) = contexts.links.get(&current.0) else {
             break;
         };
         if link.parent_context == enclosing_context {
-            return ChunkPlacement {
+            return RunSpanPlacement {
                 child_context: current,
                 leaf: link.parent_leaf,
             };
         }
         current = link.parent_context;
     }
-    ChunkPlacement {
+    RunSpanPlacement {
         child_context: NO_SORTING_CONTEXT,
-        leaf: chunk.leaf,
+        leaf: run_span.leaf,
     }
 }
 
@@ -405,12 +418,12 @@ fn place_chunk_within(
 // according to Newell's algorithm, with the planes transformed by the accumulated 3D transformation matrix.
 // Coplanar 3D transformed elements are rendered in painting order.
 //
-// The command run table is partitioned into contiguous chunks that share a plane. Each 3D rendering context's
+// The command runs are partitioned into contiguous run spans that share a plane. Each 3D rendering context's
 // planes are ordered back to front with a BSP tree over their content bounds; a plane cut by another's plane is
-// replayed once per piece under a device-space polygon clip. Chunks in a nested context sort among themselves
+// replayed once per piece under a device-space polygon clip. Run spans in a nested context sort among themselves
 // inside the plane of the outer context they render into.
-pub fn build_depth_sorted_replay_plan(
-    command_runs: &[DisplayListCommandRun],
+pub fn build_depth_sorted_replay_plan<'a>(
+    command_runs: impl IntoIterator<Item = &'a DisplayListCommandRun>,
     contexts: &SortingContexts,
     transform_palette: &[FloatMatrix4x4],
     leaf_to_context_palette: &[FloatMatrix4x4],
@@ -418,7 +431,7 @@ pub fn build_depth_sorted_replay_plan(
     backface_culled: &[bool],
     culling: &TreeCullingScratch,
 ) -> DepthSortedReplayPlan {
-    let chunks = partition_command_runs_into_plane_chunks(
+    let run_spans = partition_command_runs_into_plane_run_spans(
         command_runs,
         contexts,
         transform_palette,
@@ -433,7 +446,7 @@ pub fn build_depth_sorted_replay_plan(
         steps: Vec::new(),
         vertices: Vec::new(),
     };
-    builder.emit_chunks(&chunks, NO_SORTING_CONTEXT);
+    builder.emit_run_spans(&run_spans, NO_SORTING_CONTEXT);
     DepthSortedReplayPlan {
         steps: builder.steps,
         vertices: builder.vertices,

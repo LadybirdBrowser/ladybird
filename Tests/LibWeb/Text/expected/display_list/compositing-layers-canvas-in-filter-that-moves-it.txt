@@ -1,0 +1,22 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[filter=[crop([-70.4,-4.3 940.80005x147.6] input=[offset(40,0 input=[crop([-70.4,-4.3 940.80005x147.6])])])]] (BlockContainer<DIV>)
+      [e2 in s1] effects=[filter=[drop-shadow(10,10,0,rgb(0, 0, 0))]] (BlockContainer<DIV>)
+
+Layers:
+  [L0] base space=viewport
+  [L2] canvas #0 space=viewport inside e2 region=[5,128 216x136] replayed: inside an effect the compositor composites
+  composited e2 space=viewport: it holds a canvas with a layer of its own
+  no layer for canvas: inside a filter that moves what it filters
+
+DisplayList:
+L0 FillRect@s1/e1 rect=[8,8 784x123] color=rgba(0, 0, 0, 0) owner=BlockContainer<DIV> phase=preamble
+L0 DrawCanvas@s1/e1 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#moved phase=foreground
+L0 DrawGlyphRun@s1/e1 font_id=font1 glyphs=1 rect=[208,115 8x16] glyph_bounding_rect=[208,116 13x15] translation=[208,128] color=rgb(0, 0, 0) text=" " owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e1 font_id=font1 glyphs=20 rect=[66,115 172x16] glyph_bounding_rect=[66,116 176x15] translation=[66,128] color=rgb(0, 0, 0) text="text over the canvas" owner=InlineNode<SPAN> phase=text-fragment
+L2 DrawCanvas@s1/e2 dst_rect=[8,131 200x120] canvas_id=canvas2 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#shadowed phase=foreground
+

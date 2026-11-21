@@ -6,11 +6,14 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0) phase=canvas
-FillRect@s1/e0 rect=[0,0 800x600] color=rgb(0, 128, 0) owner=BlockContainer<HTML> phase=background
-DrawRepeatedTile@s1/e0 dst_rect=[0,0 800x63] clip_rect=[0,0 800x600] tile_size=[800x63] tile_step=[800x63] scaling_mode=Bilinear compositing_and_blending_operator=Multiply repeat={x=true y=true} inline_clips=[clip=[0,0 800x600]] owner=BlockContainer<HTML> phase=background
-  PaintLinearGradient@s1/e0 gradient_rect=[0,0 800x63] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
+L0 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0) phase=canvas
+L0 FillRect@s1/e0 rect=[0,0 800x600] color=rgb(0, 128, 0) owner=BlockContainer<HTML> phase=background
+L0 DrawRepeatedTile@s1/e0 dst_rect=[0,0 800x63] clip_rect=[0,0 800x600] tile_size=[800x63] tile_step=[800x63] scaling_mode=Bilinear compositing_and_blending_operator=Multiply repeat={x=true y=true} inline_clips=[clip=[0,0 800x600]] owner=BlockContainer<HTML> phase=background
+     PaintLinearGradient@s1/e0 gradient_rect=[0,0 800x63] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
 
 Painted by the body:
 AccumulatedVisualContext Tree:
@@ -20,11 +23,14 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s0 rect=[0,0 800x600] color=rgb(255, 255, 255) phase=canvas
-FillRect@s1/e0 rect=[0,0 800x600] color=rgb(255, 255, 255) owner=BlockContainer<HTML> phase=background
-FillRect@s1/e0 rect=[0,13 800x50] color=rgb(0, 128, 0) owner=BlockContainer<BODY> phase=background
-PaintLinearGradient@s1/e0 gradient_rect=[0,13 800x50] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} compositing_and_blending_operator=Multiply inline_clips=[clip=[0,13 800x50]] owner=BlockContainer<BODY> phase=background
+L0 FillRect@s0 rect=[0,0 800x600] color=rgb(255, 255, 255) phase=canvas
+L0 FillRect@s1/e0 rect=[0,0 800x600] color=rgb(255, 255, 255) owner=BlockContainer<HTML> phase=background
+L0 FillRect@s1/e0 rect=[0,13 800x50] color=rgb(0, 128, 0) owner=BlockContainer<BODY> phase=background
+L0 PaintLinearGradient@s1/e0 gradient_rect=[0,13 800x50] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} compositing_and_blending_operator=Multiply inline_clips=[clip=[0,13 800x50]] owner=BlockContainer<BODY> phase=background
 
 Propagated to the root again:
 AccumulatedVisualContext Tree:
@@ -34,9 +40,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0) phase=canvas
-FillRect@s1/e0 rect=[0,0 800x600] color=rgb(0, 128, 0) owner=BlockContainer<HTML> phase=background
-DrawRepeatedTile@s1/e0 dst_rect=[0,0 800x63] clip_rect=[0,0 800x600] tile_size=[800x63] tile_step=[800x63] scaling_mode=Bilinear compositing_and_blending_operator=Multiply repeat={x=true y=true} inline_clips=[clip=[0,0 800x600]] owner=BlockContainer<HTML> phase=background
-  PaintLinearGradient@s1/e0 gradient_rect=[0,0 800x63] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
+L0 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0) phase=canvas
+L0 FillRect@s1/e0 rect=[0,0 800x600] color=rgb(0, 128, 0) owner=BlockContainer<HTML> phase=background
+L0 DrawRepeatedTile@s1/e0 dst_rect=[0,0 800x63] clip_rect=[0,0 800x600] tile_size=[800x63] tile_step=[800x63] scaling_mode=Bilinear compositing_and_blending_operator=Multiply repeat={x=true y=true} inline_clips=[clip=[0,0 800x600]] owner=BlockContainer<HTML> phase=background
+     PaintLinearGradient@s1/e0 gradient_rect=[0,0 800x63] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} owner=BlockContainer<HTML> phase=background
 

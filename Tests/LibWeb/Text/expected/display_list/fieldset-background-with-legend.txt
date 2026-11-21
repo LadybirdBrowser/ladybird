@@ -5,16 +5,19 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[10,8 780x50] color=rgb(0, 0, 255) inline_clips=[clip=[10,15 780x43]] owner=FieldSetBox<FIELDSET> phase=background
-FillPath@s1/e0 path_bounding_rect=[10,15 780x1] path_data=[path: M10 15L10 15L11 16L789 16L790 15L790 15] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[11,16 778x1] path_data=[path: M11 16L11 16L12 17L788 17L789 16L789 16] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[789,15 1x43] path_data=[path: M790 15L790 15L789 16L789 57L790 58L790 58] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[788,16 1x41] path_data=[path: M789 16L789 16L788 17L788 56L789 57L789 57] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[10,57 780x1] path_data=[path: M790 58L790 58L789 57L11 57L10 58L10 58] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[11,56 778x1] path_data=[path: M789 57L789 57L788 56L12 56L11 57L11 57] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[10,15 1x43] path_data=[path: M10 58L10 58L11 57L11 16L10 15L10 15] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-FillPath@s1/e0 path_bounding_rect=[11,16 1x41] path_data=[path: M11 57L11 57L12 56L12 17L11 16L11 16] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[26,8 54x16] glyph_bounding_rect=[26,8 59x15] translation=[26,21] color=rgb(0, 0, 0) text="Legend" owner=LegendBox<LEGEND> phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[24,29 63x17] glyph_bounding_rect=[24,30 69x15] translation=[24,42.59375] color=rgb(0, 0, 0) text="Content" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRect@s1/e0 rect=[10,8 780x50] color=rgb(0, 0, 255) inline_clips=[clip=[10,15 780x43]] owner=FieldSetBox<FIELDSET> phase=background
+L0 FillPath@s1/e0 path_bounding_rect=[10,15 780x1] path_data=[path: M10 15L10 15L11 16L789 16L790 15L790 15] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[11,16 778x1] path_data=[path: M11 16L11 16L12 17L788 17L789 16L789 16] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[789,15 1x43] path_data=[path: M790 15L790 15L789 16L789 57L790 58L790 58] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[788,16 1x41] path_data=[path: M789 16L789 16L788 17L788 56L789 57L789 57] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[10,57 780x1] path_data=[path: M790 58L790 58L789 57L11 57L10 58L10 58] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[11,56 778x1] path_data=[path: M789 57L789 57L788 56L12 56L11 57L11 57] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[10,15 1x43] path_data=[path: M10 58L10 58L11 57L11 16L10 15L10 15] color=rgb(154, 154, 154) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[11,16 1x41] path_data=[path: M11 57L11 57L12 56L12 17L11 16L11 16] color=rgb(239, 239, 239) winding_rule=EvenOdd inline_clips=[clip=[24,15 57x2] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[26,8 54x16] glyph_bounding_rect=[26,8 59x15] translation=[26,21] color=rgb(0, 0, 0) text="Legend" owner=LegendBox<LEGEND> phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[24,29 63x17] glyph_bounding_rect=[24,30 69x15] translation=[24,42.59375] color=rgb(0, 0, 0) text="Content" owner=BlockContainer(anonymous) phase=foreground
 

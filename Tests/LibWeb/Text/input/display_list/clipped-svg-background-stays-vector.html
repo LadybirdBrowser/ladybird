@@ -23,7 +23,7 @@
         await image.decode();
 
         function check(label) {
-            const lines = internals.dumpDisplayList().split("\n");
+            const lines = internals.dumpDisplayList().replace(/^L\d+(,L\d+)* /gm, "").split("\n");
             const tiles = lines.filter(line => line.trimStart().startsWith("DrawRepeatedTile@"));
             const images = lines.filter(line => line.trimStart().startsWith("PaintVectorImage@"));
             println(`${label}: ${tiles.length} raster tiles, ${images.length} vector images`);

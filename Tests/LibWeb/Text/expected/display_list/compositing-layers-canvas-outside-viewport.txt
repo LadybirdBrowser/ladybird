@@ -5,8 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers: none (canvas draws nothing visible)
+Layers:
+  [L0] base space=viewport
+  no layer for canvas: draws nothing visible
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[-1000,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0 DrawCanvas@s1/e0 dst_rect=[-1000,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
 

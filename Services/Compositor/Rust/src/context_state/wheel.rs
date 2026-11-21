@@ -36,7 +36,7 @@ impl WheelStep {
 }
 
 impl ContextState {
-    // The UI's wheel deltas are in CSS pixels; this scales them for the scroll tree, which works in device pixels.
+    /// The UI's wheel deltas are in CSS pixels; this scales them for the scroll tree, which works in device pixels.
     pub fn handle_wheel_event(
         &mut self,
         event: &MouseEvent,
@@ -58,7 +58,7 @@ impl ContextState {
         )
     }
 
-    // Routes the event like one from the UI, also in a context that is nested in another one.
+    /// Routes the event like one from the UI, also in a context that is nested in another one.
     pub fn scroll_for_wheel_event_from_main_thread(
         &mut self,
         event: &MouseEvent,
@@ -104,8 +104,8 @@ impl ContextState {
         }
     }
 
-    // A wheel event of the UI that this context did not scroll by is left to its page, which then answers whether it let
-    // the event through.
+    /// A wheel event of the UI that this context did not scroll by is left to its page, which then answers whether it
+    /// let the event through.
     pub fn note_wheel_event_left_to_the_page(&mut self, event: &MouseEvent) {
         self.wheel_gesture_routing.note_delta_left_to_the_page(
             WheelStep::for_wheel_event(event, None, AsyncScrollOperationTracking::No).delta_in_css_pixels,
@@ -134,8 +134,8 @@ impl ContextState {
         }
     }
 
-    // Takes note of a wheel event from the UI as it arrives, ahead of anything that may turn it away or leave it to
-    // the page.
+    /// Takes note of a wheel event from the UI as it arrives, ahead of anything that may turn it away or leave it to
+    /// the page.
     pub fn note_wheel_event_from_ui(&mut self, event: &MouseEvent, now: MonotonicTime) -> NotedWheelEvent {
         let phase = event.scroll_gesture_phase;
         let noted = self.note_wheel_event(event, now);
@@ -159,19 +159,19 @@ impl ContextState {
         noted
     }
 
-    // Takes note of a wheel event that the main thread has and the UI did not send here, as the UI's events are noted.
-    // Such an event adds nothing to the velocity of a flick or of a stretch release.
+    /// Takes note of a wheel event that the main thread has and the UI did not send here, as the UI's events are noted.
+    /// Such an event adds nothing to the velocity of a flick or of a stretch release.
     pub fn note_wheel_event_from_main_thread(&mut self, event: &MouseEvent, now: MonotonicTime) -> NotedWheelEvent {
         self.note_wheel_event(event, now)
     }
 
-    // Starts a fling if the gesture that the event ends was a flick. Use only on platforms that send no momentum
-    // scroll events.
+    /// Starts a fling if the gesture that the event ends was a flick. Use only on platforms that send no momentum
+    /// scroll events.
     pub fn start_scroll_fling_if_flicked(&mut self, gesture_end_event: &MouseEvent, now: MonotonicTime) -> bool {
         self.scroll_fling_controller.start_if_flicked(gesture_end_event, now)
     }
 
-    // Ends the fling before a wheel event from a new gesture or other input.
+    /// Ends the fling before a wheel event from a new gesture or other input.
     pub fn interrupt_scroll_fling(&mut self, event: &MouseEvent, now: MonotonicTime) -> Option<MouseEvent> {
         self.scroll_fling_controller.interrupt(event, now)
     }
@@ -192,8 +192,8 @@ impl ContextState {
         Some(gesture_end)
     }
 
-    // Ends the fling, or the gesture whose momentum the platform is reporting, if it scrolls the box, so that the rest of
-    // its momentum scrolls nothing. Returns the end of the gesture to send on to WebContent.
+    /// Ends the fling, or the gesture whose momentum the platform is reporting, if it scrolls the box, so that the rest
+    /// of its momentum scrolls nothing. Returns the end of the gesture to send on to WebContent.
     pub fn end_momentum_scrolling(&mut self, stable_node_id: AsyncScrollNodeStableID) -> Option<MouseEvent> {
         if self.wheel_gesture_routing.latched_scroller() != Some(stable_node_id) {
             return None;
@@ -217,7 +217,7 @@ impl ContextState {
         self.reported_scroll_momentum_was_interrupted = false;
     }
 
-    // Whether the wheel event from the UI is momentum, or the end, of a gesture whose momentum was interrupted.
+    /// Whether the wheel event from the UI is momentum, or the end, of a gesture whose momentum was interrupted.
     pub fn absorbs_wheel_event_of_interrupted_momentum(&mut self, event: &MouseEvent) -> bool {
         if !self.reported_scroll_momentum_was_interrupted {
             return false;
@@ -232,7 +232,7 @@ impl ContextState {
         false
     }
 
-    // The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
+    /// The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
     pub fn take_scroll_fling_step(&mut self, frame_time: MonotonicTime) -> Option<MouseEvent> {
         self.scroll_fling_controller.take_step(frame_time)
     }
@@ -347,8 +347,8 @@ impl ContextState {
         )
     }
 
-    // The first step of a gesture that the page let through, routed from the scrollers the page found around its target,
-    // innermost first, if this context knows one, and by a hit test otherwise.
+    /// The first step of a gesture that the page let through, routed from the scrollers the page found around its
+    /// target, innermost first, if this context knows one, and by a hit test otherwise.
     pub fn scroll_for_first_wheel_step_the_page_let_through(
         &mut self,
         step: &WheelStep,
@@ -365,8 +365,8 @@ impl ContextState {
         )
     }
 
-    // A step of a gesture that the page let through and that is latched to a scroller of this context. Empty once the
-    // scroller is gone.
+    /// A step of a gesture that the page let through and that is latched to a scroller of this context. Empty once the
+    /// scroller is gone.
     pub fn scroll_for_latched_wheel_step_the_page_let_through(
         &mut self,
         step: &WheelStep,
@@ -384,8 +384,8 @@ impl ContextState {
         ))
     }
 
-    // A step of a gesture that this context has moved past scrolls once along its route, latching and stretching
-    // nothing.
+    /// A step of a gesture that this context has moved past scrolls once along its route, latching and stretching
+    /// nothing.
     pub fn scroll_for_overtaken_wheel_step(
         &mut self,
         step: &WheelStep,
@@ -611,7 +611,7 @@ impl ContextState {
         self.has_async_scrolling_state && self.scene.visual_viewport_scale().unwrap_or(1.0) == 1.0
     }
 
-    // Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
+    /// Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
     pub fn page_may_cancel_pinch_at(&mut self, position: FloatPoint) -> bool {
         if !self.has_async_scrolling_state || !self.wheel_gesture_routing.admits_async_pinch() {
             return true;
@@ -646,7 +646,7 @@ impl ContextState {
         );
     }
 
-    // Where a position in the viewport of a context nested in this one lies in this context's viewport.
+    /// Where a position in the viewport of a context nested in this one lies in this context's viewport.
     pub fn position_of_nested_context_position(
         &mut self,
         nested_context_id: CompositorContextId,
@@ -667,8 +667,8 @@ impl ContextState {
         )
     }
 
-    // The scrollers the page found around the target of a step that it let through, innermost first, go before a hit
-    // test at the position of the step.
+    /// The scrollers the page found around the target of a step that it let through, innermost first, go before a hit
+    /// test at the position of the step.
     pub fn route_first_wheel_step_from_containing_context(
         &mut self,
         position: FloatPoint,
@@ -786,7 +786,7 @@ impl ContextState {
         )
     }
 
-    // Latches the gesture to the scroller the route found, or to the one that keeps the step, and scrolls by the step.
+    /// Latches the gesture to the scroller the route found, or to the one that keeps the step, and scrolls by the step.
     pub fn take_first_wheel_step_from_containing_context(
         &mut self,
         route: &FirstWheelStepRoute,

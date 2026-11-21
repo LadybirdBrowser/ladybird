@@ -104,7 +104,7 @@ impl ContextState {
         Some(self.async_scrolling_viewport_rect)
     }
 
-    // Where the first step of a wheel gesture at the position, by the delta in CSS pixels, would go.
+    /// Where the first step of a wheel gesture at the position, by the delta in CSS pixels, would go.
     pub fn route_first_wheel_step_for_testing(
         &mut self,
         position: FloatPoint,
@@ -145,7 +145,7 @@ impl ContextState {
         }
     }
 
-    // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
+    /// The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
     pub fn scroll_state_for_testing(&self, scroller: AsyncScrollNodeStableID) -> String {
         let mut scroll_state = JsonWriter(async_scrolling_state_to_json(self.async_scroll_tree.state()));
         scroll_state.0.pop();
@@ -212,9 +212,9 @@ impl ContextState {
         );
     }
 
-    // Returns whether the overlays have to repaint all of the viewport. The page's next frame repaints all of it when its
-    // size changes, but the paused debugger's page does not paint again, and a new pixel ratio alone need not repaint
-    // the page.
+    /// Returns whether the overlays have to repaint all of the viewport. The page's next frame repaints all of it when
+    /// its size changes, but the paused debugger's page does not paint again, and a new pixel ratio alone need not
+    /// repaint the page.
     pub fn viewport_size_updated(&mut self, viewport_size: IntSize, device_pixel_ratio: f64) -> bool {
         let only_the_pixel_ratio_changed =
             viewport_size == self.viewport_size && device_pixel_ratio != self.device_pixel_ratio;
@@ -229,7 +229,7 @@ impl ContextState {
             || (only_the_pixel_ratio_changed && ui_overlays.picture_in_picture_controls.is_some())
     }
 
-    // Returns false, changing nothing, for the overlays already shown.
+    /// Returns false, changing nothing, for the overlays already shown.
     pub fn set_ui_overlays(&mut self, ui_overlays: UIOverlays, now: MonotonicTime) -> bool {
         let shows_paused_debugger = ui_overlays.paused_debugger.is_some();
         if !self.overlays.set_ui_overlays(ui_overlays, now) {
@@ -241,7 +241,7 @@ impl ContextState {
         true
     }
 
-    // What the fades of the overlays repaint of the viewport as they advance to the frame.
+    /// What the fades of the overlays repaint of the viewport as they advance to the frame.
     pub fn advance_overlay_fades(&mut self, frame_time: MonotonicTime) -> Option<IntRect> {
         self.overlays
             .advance_fades(frame_time, self.viewport_size, self.device_pixel_ratio)
@@ -263,7 +263,7 @@ impl ContextState {
         true
     }
 
-    // Where the compositor has scrolled each scroll node to.
+    /// Where the compositor has scrolled each scroll node to.
     pub fn scroll_offsets(&self) -> Vec<CompositorScrollOffset> {
         let scroll_nodes = self.async_scroll_tree.scroll_nodes();
         let mut scroll_offsets = Vec::with_capacity(scroll_nodes.len());
@@ -293,9 +293,9 @@ impl ContextState {
         );
         FrameInputs {
             visual_context_tree: self.scene.visual_context_tree_for_compositing().clone(),
+            layer_plan: self.scene.layer_plan_unless_visual_viewport_differs().cloned(),
             presented_scroll_state_snapshot,
             scrollbars,
-            viewport_scroll_node_index: self.async_scroll_tree.viewport_scroll_node_index(),
             painted_at: now,
             overlays,
         }
@@ -356,8 +356,8 @@ impl ContextState {
         damage_rect
     }
 
-    // Each frame shows the scrollbars as of when it is painted, so this updates which of them are shown. Empty until a
-    // display list is installed.
+    /// Each frame shows the scrollbars as of when it is painted, so this updates which of them are shown. Empty until a
+    /// display list is installed.
     pub fn frame_inputs(&mut self, now: MonotonicTime) -> Option<FrameInputs> {
         self.update_scrollbar_visibility(now);
         self.scene.display_list().as_ref()?;
@@ -464,8 +464,8 @@ impl ContextState {
         })
     }
 
-    // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
-    // that part of the delta.
+    /// Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
+    /// that part of the delta.
     pub(super) fn pan_visual_viewport_by(&mut self, delta_in_screen_pixels: FloatPoint) -> FloatPoint {
         let Some(delta) = self.apply_visual_viewport_scroll_delta(delta_in_screen_pixels) else {
             return Default::default();
@@ -488,9 +488,9 @@ impl ContextState {
         scroll_offsets
     }
 
-    // The main thread asks for every scroll of its own, so the offsets a snapshot of its scroll state has for the boxes
-    // this context already scrolls are what it last heard of them. Only a box new to this context takes its offset from
-    // the snapshot.
+    /// The main thread asks for every scroll of its own, so the offsets a snapshot of its scroll state has for the
+    /// boxes this context already scrolls are what it last heard of them. Only a box new to this context takes its
+    /// offset from the snapshot.
     pub(super) fn keep_scroll_offsets_of_known_nodes(
         &mut self,
         scroll_offsets_of_known_nodes: &HashMap<AsyncScrollNodeStableID, FloatPoint>,

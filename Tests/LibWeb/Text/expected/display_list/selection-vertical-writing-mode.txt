@@ -5,9 +5,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,0 18x12]] text="a" owner=BlockContainer<P>#target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,44 18x11]] text="e" owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[760,12 20x32] color=rgb(1, 2, 3) owner=BlockContainer<P>#target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,12 18x32]] text="bcd" owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,0 18x12]] text="a" owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,44 18x11]] text="e" owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[760,12 20x32] color=rgb(1, 2, 3) owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[760,0 20x56] glyph_bounding_rect=[762,0 18x61] translation=[760,16] color=rgb(0, 0, 0) orientation=Vertical inline_clips=[clip=[762,12 18x32]] text="bcd" owner=BlockContainer<P>#target phase=foreground
 

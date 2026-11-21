@@ -8,24 +8,27 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,20] is_viewport=true
 
+Layers:
+  [L1] base space=document
+
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[8,8 106x46] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(255, 0, 0) owner=BlockContainer<DIV>.solid phase=border
-FillRoundedRectRing@s1/e0 rect=[8,64 104x44] corner_radii=[8x8,8x8,8x8,8x8] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.rounded phase=border
-FillRoundedRectRing@s1/e0 rect=[8,118 100x41] bottom_width=1 color=rgb(0, 128, 0) owner=BlockContainer<DIV>.bottom-only phase=border
-FillRoundedRectRing@s1/e0 rect=[8,169 104x44] corner_radii=[10x10,10x10,10x10,10x10] top_width=4 left_width=4 color=rgb(255, 0, 0) owner=BlockContainer<DIV>.partial-rounded phase=border
-FillRoundedRectRing@s1/e0 rect=[8,223 106x44] corner_radii=[12x6,12x6,12x6,12x6] top_width=1 right_width=2 bottom_width=3 left_width=4 color=rgb(255, 165, 0) owner=BlockContainer<DIV>.uneven-widths phase=border
-FillRoundedRectRing@s1/e0 rect=[8,277 118x58] corner_radii=[10x10,10x10,10x10,10x10] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(128, 0, 128) owner=BlockContainer<DIV>.double phase=border
-FillRoundedRectRing@s1/e0 rect=[14,283 106x46] corner_radii=[4x4,4x4,4x4,4x4] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(128, 0, 128) owner=BlockContainer<DIV>.double phase=border
-FillRoundedRectRing@s1/e0 rect=[8,345 104x44] top_width=4 left_width=4 color=rgb(43, 43, 43) owner=BlockContainer<DIV>.inset-top-left-only phase=border
-FillPath@s1/e0 path_bounding_rect=[8,399 108x48] path_data=[path: M116 399L116 399L112 403L112 443L116 447L116 447M116 447L116 447L112 443L12 443L8 447L8 447] color=rgb(128, 128, 128) winding_rule=EvenOdd owner=BlockContainer<DIV>.inset phase=border
-FillPath@s1/e0 path_bounding_rect=[8,399 108x48] path_data=[path: M8 447L8 447L12 443L12 403L8 399L8 399M8 399L8 399L12 403L112 403L116 399L116 399] color=rgb(43, 43, 43) winding_rule=EvenOdd owner=BlockContainer<DIV>.inset phase=border
-FillPath@s1/e0 path_bounding_rect=[110,457 2x44] path_data=[path: M112 457L112 457L110 459L110 499L112 501L112 501] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
-FillPath@s1/e0 path_bounding_rect=[8,499 104x2] path_data=[path: M112 501L112 501L110 499L10 499L8 501L8 501] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
-FillPath@s1/e0 path_bounding_rect=[8,457 2x44] path_data=[path: M8 501L8 501L10 499L10 459L8 457L8 457] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
-FillPath@s1/e0 path_bounding_rect=[8,457 104x2] path_data=[path: M8 457L8 457L10 459L110 459L112 457L112 457] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
-FillPath@s1/e0 path_bounding_rect=[8,511 106x46] path_data=[path: M8 511L8 511L11 514L111 514L114 511L114 511M114 511L114 511L111 514L111 554L114 557L114 557] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
-FillPath@s1/e0 path_bounding_rect=[8,556 106x1] path_data=[path: M114 557L114 557L113 556L9 556L8 557L8 557] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
-FillPath@s1/e0 path_bounding_rect=[10,554 102x1] path_data=[path: M112 555L112 555L111 554L11 554L10 555L10 555] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
-FillPath@s1/e0 path_bounding_rect=[8,511 3x46] path_data=[path: M8 557L8 557L11 554L11 514L8 511L8 511] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
-FillRoundedRectRing@s1/e0 rect=[4,563 108x48] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 128, 128) owner=BlockContainer<DIV>.outlined phase=outline
+L1 FillRoundedRectRing@s1/e0 rect=[8,8 106x46] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(255, 0, 0) owner=BlockContainer<DIV>.solid phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,64 104x44] corner_radii=[8x8,8x8,8x8,8x8] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.rounded phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,118 100x41] bottom_width=1 color=rgb(0, 128, 0) owner=BlockContainer<DIV>.bottom-only phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,169 104x44] corner_radii=[10x10,10x10,10x10,10x10] top_width=4 left_width=4 color=rgb(255, 0, 0) owner=BlockContainer<DIV>.partial-rounded phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,223 106x44] corner_radii=[12x6,12x6,12x6,12x6] top_width=1 right_width=2 bottom_width=3 left_width=4 color=rgb(255, 165, 0) owner=BlockContainer<DIV>.uneven-widths phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,277 118x58] corner_radii=[10x10,10x10,10x10,10x10] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(128, 0, 128) owner=BlockContainer<DIV>.double phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[14,283 106x46] corner_radii=[4x4,4x4,4x4,4x4] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(128, 0, 128) owner=BlockContainer<DIV>.double phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[8,345 104x44] top_width=4 left_width=4 color=rgb(43, 43, 43) owner=BlockContainer<DIV>.inset-top-left-only phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,399 108x48] path_data=[path: M116 399L116 399L112 403L112 443L116 447L116 447M116 447L116 447L112 443L12 443L8 447L8 447] color=rgb(128, 128, 128) winding_rule=EvenOdd owner=BlockContainer<DIV>.inset phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,399 108x48] path_data=[path: M8 447L8 447L12 443L12 403L8 399L8 399M8 399L8 399L12 403L112 403L116 399L116 399] color=rgb(43, 43, 43) winding_rule=EvenOdd owner=BlockContainer<DIV>.inset phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[110,457 2x44] path_data=[path: M112 457L112 457L110 459L110 499L112 501L112 501] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,499 104x2] path_data=[path: M112 501L112 501L110 499L10 499L8 501L8 501] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,457 2x44] path_data=[path: M8 501L8 501L10 499L10 459L8 457L8 457] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,457 104x2] path_data=[path: M8 457L8 457L10 459L110 459L112 457L112 457] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.two-colors phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,511 106x46] path_data=[path: M8 511L8 511L11 514L111 514L114 511L114 511M114 511L114 511L111 514L111 554L114 557L114 557] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,556 106x1] path_data=[path: M114 557L114 557L113 556L9 556L8 557L8 557] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[10,554 102x1] path_data=[path: M112 555L112 555L111 554L11 554L10 555L10 555] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
+L1 FillPath@s1/e0 path_bounding_rect=[8,511 3x46] path_data=[path: M8 557L8 557L11 554L11 514L8 511L8 511] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.mixed-styles phase=border
+L1 FillRoundedRectRing@s1/e0 rect=[4,563 108x48] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 128, 128) owner=BlockContainer<DIV>.outlined phase=outline
 

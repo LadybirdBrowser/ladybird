@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 2000px; }
+    canvas { position: absolute; left: 20px; top: 900px; }
+    #over-canvas { position: absolute; left: 100px; top: 940px; width: 100px; height: 40px; background: rgba(255, 255, 255, 0.5); }
+    #fixed-header { position: fixed; left: 0; top: 0; width: 800px; height: 40px; background: navy; }
+    #after-header { position: absolute; left: 300px; top: 1500px; width: 50px; height: 50px; background: green; z-index: 1; }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="over-canvas"></div>
+<div id="fixed-header"></div>
+<div id="after-header"></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/sticky-toolbar-spinner-is-covered-by-content-painted-after-it-ref.html">
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 800px; height: 600px; border: 0; }
+</style>
+<!-- The label and the spinner of the transparent toolbar are in different tiles. The cards are painted after the
+     toolbar, so a card that scrolls under it covers the spinner too. The page is in an iframe, which is drawn through
+     its layers and tiles. -->
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes still-turn { from { transform: rotate(45deg); } to { transform: rotate(45deg); } }
+            body { margin: 0; }
+            #scroller { position: absolute; left: 0; top: 0; width: 800px; height: 600px; overflow: auto; }
+            #toolbar { position: sticky; top: 0; height: 60px; }
+            #label { position: absolute; left: 10px; top: 10px; width: 100px; height: 40px; background: green; }
+            #spinner { position: absolute; left: 650px; top: 10px; width: 40px; height: 40px; background: orange; animation: still-turn 100s linear infinite; }
+            .card { position: relative; height: 200px; margin-bottom: 20px; background: blue; }
+        </style>
+        <div id="scroller">
+            <div id="toolbar"><div id="label"></div><div id="spinner"></div></div>
+            <div class="card"></div>
+            <div class="card"></div>
+            <div class="card"></div>
+            <div class="card"></div>
+            <div class="card"></div>
+            <div class="card"></div>
+        </div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        iframe.contentDocument.getElementById("scroller").scrollTop = 100;
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

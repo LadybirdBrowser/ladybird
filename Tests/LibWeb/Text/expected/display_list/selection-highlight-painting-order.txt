@@ -5,17 +5,20 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-PaintTextShadow@s1/e0 font_id=font1 glyphs=1 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="a" owner=BlockContainer<P>#target phase=foreground
-PaintTextShadow@s1/e0 font_id=font1 glyphs=3 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="bcd" owner=BlockContainer<P>#target phase=foreground
-PaintTextShadow@s1/e0 font_id=font1 glyphs=1 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="e" owner=BlockContainer<P>#target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[0,20 12x18]] text="a" owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[0,38 12x2] color=rgb(7, 8, 9) owner=BlockContainer<P>#target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[44,20 11x18]] text="e" owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[44,38 11x2] color=rgb(7, 8, 9) owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[12,20 32x20] color=rgb(13, 14, 15) owner=BlockContainer<P>#target phase=foreground
-PaintTextShadow@s1/e0 font_id=font1 glyphs=3 layers=[{offset=[4,4] rounded_offset=[4,4] color=rgb(16, 17, 18)}] shadows_bounding_rect=[4,24 56x20] rect=[0,20 56x20] translation=[0,36] text="bcd" owner=BlockContainer<P>#target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(10, 11, 12) inline_clips=[clip=[12,20 32x18]] text="bcd" owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[12,38 32x2] color=rgb(10, 11, 12) owner=BlockContainer<P>#target phase=foreground
-FillRect@s1/e0 rect=[12,28 32x2] color=rgb(19, 20, 21) owner=BlockContainer<P>#target phase=foreground
+L0 PaintTextShadow@s1/e0 font_id=font1 glyphs=1 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="a" owner=BlockContainer<P>#target phase=foreground
+L0 PaintTextShadow@s1/e0 font_id=font1 glyphs=3 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="bcd" owner=BlockContainer<P>#target phase=foreground
+L0 PaintTextShadow@s1/e0 font_id=font1 glyphs=1 layers=[{offset=[2,2] rounded_offset=[2,2] color=rgb(4, 5, 6)}] shadows_bounding_rect=[2,22 56x20] rect=[0,20 56x20] translation=[0,36] text="e" owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[0,20 12x18]] text="a" owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[0,38 12x2] color=rgb(7, 8, 9) owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[44,20 11x18]] text="e" owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[44,38 11x2] color=rgb(7, 8, 9) owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[12,20 32x20] color=rgb(13, 14, 15) owner=BlockContainer<P>#target phase=foreground
+L0 PaintTextShadow@s1/e0 font_id=font1 glyphs=3 layers=[{offset=[4,4] rounded_offset=[4,4] color=rgb(16, 17, 18)}] shadows_bounding_rect=[4,24 56x20] rect=[0,20 56x20] translation=[0,36] text="bcd" owner=BlockContainer<P>#target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[0,20 56x20] glyph_bounding_rect=[0,20 61x18] translation=[0,36] color=rgb(10, 11, 12) inline_clips=[clip=[12,20 32x18]] text="bcd" owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[12,38 32x2] color=rgb(10, 11, 12) owner=BlockContainer<P>#target phase=foreground
+L0 FillRect@s1/e0 rect=[12,28 32x2] color=rgb(19, 20, 21) owner=BlockContainer<P>#target phase=foreground
 

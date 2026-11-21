@@ -5,7 +5,7 @@
  */
 
 use crate::display_list::commands::{ClipMode, DisplayListCommandType, ReplayClip, ReplayLayer, ReplayMask};
-use crate::display_list::replay::{ReplayPainter, ReplaySelection};
+use crate::display_list::replay::ReplayPainter;
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{
@@ -13,39 +13,6 @@ use libgfx_rust::{
     IntRect, IntSize, MaskKind, ScalingMode, WindingRule,
 };
 use std::ffi::c_void;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct RecordSpan {
-    pub begin_offset: u32,
-    pub end_offset: u32,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiReplaySelection {
-    pub record_spans: *const RecordSpan,
-    pub record_span_count: usize,
-    pub replays_only_record_spans: bool,
-    pub skip_root_isolation_layer: bool,
-}
-
-impl FfiReplaySelection {
-    /// # Safety
-    ///
-    /// When the selection replays only record spans, `record_spans` must point at `record_span_count` spans that stay
-    /// live for the returned lifetime.
-    pub unsafe fn as_selection<'a>(&self) -> ReplaySelection<'a> {
-        ReplaySelection {
-            // SAFETY: The caller guarantees the spans are live.
-            record_spans: self
-                .replays_only_record_spans
-                .then(|| unsafe { ak::slice_from_raw_parts(self.record_spans, self.record_span_count) }),
-            skip_root_isolation_layer: self.skip_root_isolation_layer,
-            allows_lcd_text: false,
-        }
-    }
-}
 
 /// A rect fill whose color the replay resolved for the frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -99,6 +66,19 @@ pub struct CompositedContextDraw {
     pub src_rect: FloatRect,
     pub dst_rect: FloatRect,
     pub scaling_mode: ScalingMode,
+}
+
+/// Pixels of a surface of the compositor, such as a tile of a layer, drawn without resampling where the two rects have
+/// one size and the painter's matrix only translates by whole pixels: those of `source_rect`, over `target_rect`.
+/// Drawn `filtered`, they are sampled bilinearly, as a tile of a layer that the frame composites through a transform
+/// is, never past `source_rect` and without antialiasing its edges, so that tiles meet without seams.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct SurfaceDraw {
+    pub surface: *mut c_void,
+    pub source_rect: IntRect,
+    pub target_rect: IntRect,
+    pub filtered: bool,
 }
 
 /// A group of records that is composited as one: inside `clip_rect`, with the opacity, the blend mode and the filter.
@@ -184,6 +164,7 @@ pub struct FfiRasterPainter {
     /// the image is skipped, the replay of its records is followed by `end_vector_image`.
     pub begin_vector_image: unsafe extern "C" fn(*mut c_void, *const VectorImagePlacement, bool) -> VectorImageReplay,
     pub end_vector_image: unsafe extern "C" fn(*mut c_void),
+    pub draw_surface: unsafe extern "C" fn(*mut c_void, *const SurfaceDraw),
 }
 
 impl ReplayPainter for FfiRasterPainter {
@@ -330,5 +311,10 @@ impl ReplayPainter for FfiRasterPainter {
     fn end_vector_image(&mut self) {
         // SAFETY: The C++ painter finishes the image synchronously.
         unsafe { (self.end_vector_image)(self.context) };
+    }
+
+    fn draw_surface(&mut self, draw: &SurfaceDraw) {
+        // SAFETY: The caller keeps the surface alive, and the C++ painter draws it synchronously.
+        unsafe { (self.draw_surface)(self.context, draw) };
     }
 }

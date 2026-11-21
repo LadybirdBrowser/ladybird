@@ -6,14 +6,15 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
-  [L2] canvas rect=[297,17 206x126] shown by the window server: clip=[0,0 800x600]
-  [L3] painted rect=[97,57 356x66]
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1
+  [L3] canvas #0 space=viewport region=[517,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L4] painted space=viewport above L3
 
 DisplayList:
 L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#left phase=foreground
-L2 DrawCanvas@s1/e0 dst_rect=[300,20 200x120] canvas_id=canvas2 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#right phase=foreground
-L3 FillRect@s1/e0 rect=[100,60 300x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-both phase=background
-L3 FillRect@s1/e0 rect=[400,100 50x20] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#over-right phase=background
+L3 DrawCanvas@s1/e0 dst_rect=[520,20 200x120] canvas_id=canvas2 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#right phase=foreground
+L2,L4 FillRect@s1/e0 rect=[100,60 600x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-both phase=background
+L2,L4 FillRect@s1/e0 rect=[620,100 50x20] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#over-right phase=background
 

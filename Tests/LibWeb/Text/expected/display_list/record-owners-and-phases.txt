@@ -1,10 +1,10 @@
 DisplayList:
-FillRect@s1/e0 rect=[8,8 104x34] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
-FillRoundedRectRing@s1/e0 rect=[8,8 104x34] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 255) owner=BlockContainer<DIV>#box phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[10,10 33x16] glyph_bounding_rect=[10,10 39x15] translation=[10,23] color=rgb(0, 0, 0) text="text" owner=BlockContainer<DIV>#box phase=foreground
-FillRoundedRectRing@s1/e0 rect=[5,5 110x40] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(255, 0, 0) owner=BlockContainer<DIV>#box phase=outline
-DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
-  FillPath@s2/c0/e1 path_bounding_rect=[0,0 50x50] path_data=[path: M0 0L50 0L50 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect>#masked phase=foreground
+L0 FillRect@s1/e0 rect=[8,8 104x34] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 104x34] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 255) owner=BlockContainer<DIV>#box phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[10,10 33x16] glyph_bounding_rect=[10,10 39x15] translation=[10,23] color=rgb(0, 0, 0) text="text" owner=BlockContainer<DIV>#box phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[5,5 110x40] top_width=3 right_width=3 bottom_width=3 left_width=3 color=rgb(255, 0, 0) owner=BlockContainer<DIV>#box phase=outline
+L0 DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGSVGBox<svg> phase=svg
+     FillPath@s2/c0/e1 path_bounding_rect=[0,0 50x50] path_data=[path: M0 0L50 0L50 50L0 50L0 0Z] color=rgb(255, 255, 255) owner=SVGGeometryBox<rect> phase=foreground
+L0 FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect>#masked phase=foreground
 
 without owners, no record names its owner or phase: true

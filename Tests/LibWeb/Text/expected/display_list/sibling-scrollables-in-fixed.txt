@@ -6,48 +6,57 @@ AccumulatedVisualContext Tree:
       [s3] scroll (BlockContainer<DIV>.scroll-container)
       [s4] scroll (BlockContainer<DIV>.scroll-container)
   clips:
-    [c0 in s0] clip=[23,23 91x150] (BlockContainer<DIV>.scroll-container)
-    [c1 in s0] clip=[126,23 92x150] (BlockContainer<DIV>.scroll-container)
-    [c2 in s0] clip=[230,23 91x150] (BlockContainer<DIV>.scroll-container)
+    [c0 in s0] clip=[223,23 91x150] (BlockContainer<DIV>.scroll-container)
+    [c1 in s0] clip=[326,23 92x150] (BlockContainer<DIV>.scroll-container)
+    [c2 in s0] clip=[430,23 91x150] (BlockContainer<DIV>.scroll-container)
   effects:
     [e0 in s0] effects=[]
 
 ScrollNodes:
-ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[23,23 91x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
-ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[126,23 92x150] min_scroll_offset=[0,0] max_scroll_offset=[108.65625,150] is_viewport=false
-ScrollNode scroll_node_index=s4 parent_scroll_node_index=s0 scrollport_rect=[230,23 91x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[223,23 91x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
+ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[326,23 92x150] min_scroll_offset=[0,0] max_scroll_offset=[108.65625,150] is_viewport=false
+ScrollNode scroll_node_index=s4 parent_scroll_node_index=s0 scrollport_rect=[430,23 91x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
+
+Layers:
+  [L0] base space=viewport
+  [L1] painted space=scroller@s2 in viewport composited within [223,23 91x150] of viewport
+  [L2] painted space=viewport above band 0 of scroller@s2 in viewport
+  [L3] painted space=scroller@s3 in viewport composited within [326,23 92x150] of viewport
+  [L4] painted space=viewport above band 0 of scroller@s3 in viewport
+  [L5] painted space=scroller@s4 in viewport composited within [430,23 91x150] of viewport
+  [L6] painted space=viewport above band 0 of scroller@s4 in viewport
 
 DisplayList:
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13] owner=BlockContainer<HTML> phase=scroll-metadata
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[10,10 324x224] owner=Box<DIV>.fixed-box phase=scroll-metadata
-FillRect@s0/e0 rect=[10,10 324x224] color=rgb(211, 211, 211) owner=Box<DIV>.fixed-box phase=background
-FillRoundedRectRing@s0/e0 rect=[10,10 324x224] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.fixed-box phase=border
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s2 rect=[22,22 93.328125x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
-FillRoundedRectRing@s0/e0 rect=[22,22 93x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
-CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[23,23 200x300] owner=BlockContainer<DIV>.scroll-content.red phase=scroll-metadata
-FillRect@s2/c0/e0 rect=[23,23 200x300] color=rgb(240, 128, 128) owner=BlockContainer<DIV>.scroll-content.red phase=background
-DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=8 rect=[23,23 71x16] glyph_bounding_rect=[23,24 70x15] translation=[23,36] color=rgb(0, 0, 0) text="Scroll A" owner=BlockContainer<DIV>.scroll-content.red phase=foreground
-CompositorScrollbar@s0/e0 scroll_node_index=s2 thumb_rect=[105,25 7x73] track_rect=[105,23 9x150] expanded_gutter_rect=[99,23 15x150] expanded_thumb_rect=[101,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s2 thumb_rect=[105,25 7x73] track_rect=[105,23 9x150] expanded_gutter_rect=[99,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-CompositorScrollbar@s0/e0 scroll_node_index=s2 thumb_rect=[25,164 33x7] track_rect=[23,164 76x9] expanded_gutter_rect=[23,158 76x15] expanded_thumb_rect=[25,160 33x11] scroll_size=0.3617541337167505 expanded_scroll_size=0.3617541337167505 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s2 thumb_rect=[25,164 33x7] track_rect=[23,164 76x9] expanded_gutter_rect=[23,158 76x15] scroll_size=0.3617541337167505 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s3 rect=[125.328125,22 93.34375x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
-FillRoundedRectRing@s0/e0 rect=[125,22 94x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
-CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[126.328125,23 200x300] owner=BlockContainer<DIV>.scroll-content.green phase=scroll-metadata
-FillRect@s3/c1/e0 rect=[126,23 200x300] color=rgb(144, 238, 144) owner=BlockContainer<DIV>.scroll-content.green phase=background
-DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=8 rect=[126,23 67x16] glyph_bounding_rect=[126,24 70x15] translation=[126.328125,36] color=rgb(0, 0, 0) text="Scroll B" owner=BlockContainer<DIV>.scroll-content.green phase=foreground
-CompositorScrollbar@s0/e0 scroll_node_index=s3 thumb_rect=[209,25 7x73] track_rect=[209,23 9x150] expanded_gutter_rect=[203,23 15x150] expanded_thumb_rect=[205,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s3 thumb_rect=[209,25 7x73] track_rect=[209,23 9x150] expanded_gutter_rect=[203,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-CompositorScrollbar@s0/e0 scroll_node_index=s3 thumb_rect=[128,164 33x7] track_rect=[126,164 77x9] expanded_gutter_rect=[126,158 77x15] expanded_thumb_rect=[128,160 33x11] scroll_size=0.36180615473109 expanded_scroll_size=0.36180615473109 max_scroll_offset=108.65625 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s3 thumb_rect=[128,164 33x7] track_rect=[126,164 77x9] expanded_gutter_rect=[126,158 77x15] scroll_size=0.36180615473109 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s4 rect=[228.67188,22 93.328125x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
-FillRoundedRectRing@s0/e0 rect=[229,22 93x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
-CompositorWheelHitTestTarget@s4/c2/e0 target_scroll_node_index=s4 rect=[229.67188,23 200x300] owner=BlockContainer<DIV>.scroll-content.blue phase=scroll-metadata
-FillRect@s4/c2/e0 rect=[230,23 200x300] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.scroll-content.blue phase=background
-DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=8 rect=[229,23 68x16] glyph_bounding_rect=[230,24 70x15] translation=[229.67188,36] color=rgb(0, 0, 0) text="Scroll C" owner=BlockContainer<DIV>.scroll-content.blue phase=foreground
-CompositorScrollbar@s0/e0 scroll_node_index=s4 thumb_rect=[312,25 7x73] track_rect=[312,23 9x150] expanded_gutter_rect=[306,23 15x150] expanded_thumb_rect=[308,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s4 thumb_rect=[312,25 7x73] track_rect=[312,23 9x150] expanded_gutter_rect=[306,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
-CompositorScrollbar@s0/e0 scroll_node_index=s4 thumb_rect=[232,164 33x7] track_rect=[230,164 76x9] expanded_gutter_rect=[230,158 76x15] expanded_thumb_rect=[232,160 33x11] scroll_size=0.3617541337167505 expanded_scroll_size=0.3617541337167505 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
-PaintScrollBar@s0/e0 scroll_node_index=s4 thumb_rect=[232,164 33x7] track_rect=[230,164 76x9] expanded_gutter_rect=[230,158 76x15] scroll_size=0.3617541337167505 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13] owner=BlockContainer<HTML> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[210,10 324x224] owner=Box<DIV>.fixed-box phase=scroll-metadata
+L0 FillRect@s0/e0 rect=[210,10 324x224] color=rgb(211, 211, 211) owner=Box<DIV>.fixed-box phase=background
+L0 FillRoundedRectRing@s0/e0 rect=[210,10 324x224] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.fixed-box phase=border
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s2 rect=[222,22 93.328125x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
+L0 FillRoundedRectRing@s0/e0 rect=[222,22 93x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[223,23 200x300] owner=BlockContainer<DIV>.scroll-content.red phase=scroll-metadata
+L1 FillRect@s2/c0/e0 rect=[223,23 200x300] color=rgb(240, 128, 128) owner=BlockContainer<DIV>.scroll-content.red phase=background
+L1 DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=8 rect=[223,23 71x16] glyph_bounding_rect=[223,24 70x15] translation=[223,36] color=rgb(0, 0, 0) text="Scroll A" owner=BlockContainer<DIV>.scroll-content.red phase=foreground
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s2 thumb_rect=[305,25 7x73] track_rect=[305,23 9x150] expanded_gutter_rect=[299,23 15x150] expanded_thumb_rect=[301,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L2 PaintScrollBar@s0/e0 scroll_node_index=s2 thumb_rect=[305,25 7x73] track_rect=[305,23 9x150] expanded_gutter_rect=[299,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s2 thumb_rect=[225,164 33x7] track_rect=[223,164 76x9] expanded_gutter_rect=[223,158 76x15] expanded_thumb_rect=[225,160 33x11] scroll_size=0.3617541337167505 expanded_scroll_size=0.3617541337167505 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L2 PaintScrollBar@s0/e0 scroll_node_index=s2 thumb_rect=[225,164 33x7] track_rect=[223,164 76x9] expanded_gutter_rect=[223,158 76x15] scroll_size=0.3617541337167505 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s3 rect=[325.32812,22 93.34375x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
+L2 FillRoundedRectRing@s0/e0 rect=[325,22 94x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
+L0 CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[326.32812,23 200x300] owner=BlockContainer<DIV>.scroll-content.green phase=scroll-metadata
+L3 FillRect@s3/c1/e0 rect=[326,23 200x300] color=rgb(144, 238, 144) owner=BlockContainer<DIV>.scroll-content.green phase=background
+L3 DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=8 rect=[326,23 67x16] glyph_bounding_rect=[326,24 70x15] translation=[326.32812,36] color=rgb(0, 0, 0) text="Scroll B" owner=BlockContainer<DIV>.scroll-content.green phase=foreground
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s3 thumb_rect=[409,25 7x73] track_rect=[409,23 9x150] expanded_gutter_rect=[403,23 15x150] expanded_thumb_rect=[405,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L4 PaintScrollBar@s0/e0 scroll_node_index=s3 thumb_rect=[409,25 7x73] track_rect=[409,23 9x150] expanded_gutter_rect=[403,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s3 thumb_rect=[328,164 33x7] track_rect=[326,164 77x9] expanded_gutter_rect=[326,158 77x15] expanded_thumb_rect=[328,160 33x11] scroll_size=0.36180615473109 expanded_scroll_size=0.36180615473109 max_scroll_offset=108.65625 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L4 PaintScrollBar@s0/e0 scroll_node_index=s3 thumb_rect=[328,164 33x7] track_rect=[326,164 77x9] expanded_gutter_rect=[326,158 77x15] scroll_size=0.36180615473109 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s4 rect=[428.67188,22 93.328125x152] owner=BlockContainer<DIV>.scroll-container phase=scroll-metadata
+L0,L4 FillRoundedRectRing@s0/e0 rect=[429,22 93x152] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.scroll-container phase=border
+L0 CompositorWheelHitTestTarget@s4/c2/e0 target_scroll_node_index=s4 rect=[429.67188,23 200x300] owner=BlockContainer<DIV>.scroll-content.blue phase=scroll-metadata
+L5 FillRect@s4/c2/e0 rect=[430,23 200x300] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.scroll-content.blue phase=background
+L5 DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=8 rect=[429,23 68x16] glyph_bounding_rect=[430,24 70x15] translation=[429.67188,36] color=rgb(0, 0, 0) text="Scroll C" owner=BlockContainer<DIV>.scroll-content.blue phase=foreground
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s4 thumb_rect=[512,25 7x73] track_rect=[512,23 9x150] expanded_gutter_rect=[506,23 15x150] expanded_thumb_rect=[508,25 11x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L6 PaintScrollBar@s0/e0 scroll_node_index=s4 thumb_rect=[512,25 7x73] track_rect=[512,23 9x150] expanded_gutter_rect=[506,23 15x150] scroll_size=0.4866666666666667 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>.scroll-container phase=overlay
+L0 CompositorScrollbar@s0/e0 scroll_node_index=s4 thumb_rect=[432,164 33x7] track_rect=[430,164 76x9] expanded_gutter_rect=[430,158 76x15] expanded_thumb_rect=[432,160 33x11] scroll_size=0.3617541337167505 expanded_scroll_size=0.3617541337167505 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
+L6 PaintScrollBar@s0/e0 scroll_node_index=s4 thumb_rect=[432,164 33x7] track_rect=[430,164 76x9] expanded_gutter_rect=[430,158 76x15] scroll_size=0.3617541337167505 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>.scroll-container phase=overlay
 

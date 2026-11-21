@@ -82,9 +82,9 @@ pub trait VisualContextTreeDump {
     fn describe_effect_node(&self, index: EffectNodeIndex, names: &mut DumpNames) -> String;
     // The nodes the runs record under, each tree in first-seen order. An effect's output clip
     // chain counts as reachable, since replay enters it before the effect.
-    fn reachable_nodes_in_print_order(
+    fn reachable_nodes_in_print_order<'a>(
         &self,
-        command_runs: &[DisplayListCommandRun],
+        command_runs: impl IntoIterator<Item = &'a DisplayListCommandRun> + Clone,
         names: &mut DumpNames,
         owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> Vec<DumpedNode>;
@@ -305,14 +305,15 @@ impl VisualContextTreeDump for VisualContextTree {
         text
     }
 
-    fn reachable_nodes_in_print_order(
+    fn reachable_nodes_in_print_order<'a>(
         &self,
-        command_runs: &[DisplayListCommandRun],
+        command_runs: impl IntoIterator<Item = &'a DisplayListCommandRun> + Clone,
         names: &mut DumpNames,
         mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> Vec<DumpedNode> {
-        let effect_clips = crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(self, command_runs)
-            .expect("dumped command runs reference live visual context nodes");
+        let effect_clips =
+            crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(self, command_runs.clone())
+                .expect("dumped command runs reference live visual context nodes");
         let mut visited_spatial_nodes: HashSet<u32> = HashSet::new();
         let mut visited_clip_nodes: HashSet<u32> = HashSet::new();
         let mut visited_effect_nodes: HashSet<u32> = HashSet::new();
@@ -492,8 +493,8 @@ mod node_dump_tests {
     use crate::painting::visual_context::{
         AnchorScrollShift, BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex,
         EffectNodeData, EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData,
-        SpatialData, StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
-        scroll_state::NO_SCROLL_STATE_SLOT,
+        SpatialData, StickyData, TransformData, TransformDataRole, UniqueNodeId, VISUAL_VIEWPORT_NODE_INDEX,
+        VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{
         CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect,
@@ -586,6 +587,8 @@ mod node_dump_tests {
                 inset_right: None,
                 inset_bottom: Some(1.5),
                 inset_left: None,
+                box_node_id: UniqueNodeId(0),
+                box_pseudo_element_type: 0,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
             }),

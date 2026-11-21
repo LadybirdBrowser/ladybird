@@ -5,10 +5,13 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,8 28x16] glyph_bounding_rect=[8,8 30x15] translation=[8,21] color=rgb(0, 0, 0) text="foo" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,23 27x2] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[35,8 9x16] glyph_bounding_rect=[35,8 13x15] translation=[35.15625,21] color=rgb(0, 0, 0) text=" " owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[43,8 28x16] glyph_bounding_rect=[43,8 32x15] translation=[43.15625,21] color=rgb(0, 0, 0) text="bar" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[43,26 28x2] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,8 28x16] glyph_bounding_rect=[8,8 30x15] translation=[8,21] color=rgb(0, 0, 0) text="foo" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,23 27x2] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[35,8 9x16] glyph_bounding_rect=[35,8 13x15] translation=[35.15625,21] color=rgb(0, 0, 0) text=" " owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[43,8 28x16] glyph_bounding_rect=[43,8 32x15] translation=[43.15625,21] color=rgb(0, 0, 0) text="bar" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[43,26 28x2] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
 

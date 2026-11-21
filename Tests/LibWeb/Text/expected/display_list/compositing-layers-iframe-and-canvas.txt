@@ -6,10 +6,11 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] composited context rect=[17,17 206x126]
-  [L2] canvas rect=[297,17 206x126] shown by the window server: clip=[0,0 800x600]
-  [L3] painted rect=[97,57 306x46]
+  [L0] base space=viewport
+  [L1] composited context #0 space=viewport region=[17,17 206x126]
+  [L2] painted space=viewport above L1
+  [L3] canvas #0 space=viewport region=[517,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L4] painted space=viewport above L3
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
@@ -17,8 +18,8 @@ L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[20,20 200x120] owner=NavigableContainerViewport<IFRAME>#frame phase=scroll-metadata
 L1 DrawCompositedContext@s1/e0 dst_rect=[20,20 200x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[20,20 200x120]] owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
 L0 CompositorNestedContextWheelRegion@s1/e0 rect=[20,20 200x120] child_context_id=context1 owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
-L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[300,20 200x120] owner=CanvasBox<CANVAS>#canvas phase=scroll-metadata
-L2 DrawCanvas@s1/e0 dst_rect=[300,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[100,60 300x40] owner=BlockContainer<DIV>#over-both phase=scroll-metadata
-L3 FillRect@s1/e0 rect=[100,60 300x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-both phase=background
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[520,20 200x120] owner=CanvasBox<CANVAS>#canvas phase=scroll-metadata
+L3 DrawCanvas@s1/e0 dst_rect=[520,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[100,60 600x40] owner=BlockContainer<DIV>#over-both phase=scroll-metadata
+L2,L4 FillRect@s1/e0 rect=[100,60 600x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-both phase=background
 

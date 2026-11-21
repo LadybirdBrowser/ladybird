@@ -125,7 +125,7 @@ impl ContextState {
             ),
             started_at: now,
             is_user_scroll: true,
-            heads_to_an_extent: false,
+            heads_to_end_of_scroll_range: false,
         });
         self.scroll_snap_controller
             .did_start_snap_scroll(stable_node_id, operation_id, destination);
@@ -145,7 +145,8 @@ impl ContextState {
         operation_id
     }
 
-    // The end of a gesture snaps the boxes it panned; the first snap scroll it starts is the operation a caller follows.
+    /// The end of a gesture snaps the boxes it panned; the first snap scroll it starts is the operation a caller
+    /// follows.
     pub(super) fn snap_at_gesture_end(&mut self, now: MonotonicTime) -> Option<AsyncScrollOperationID> {
         let mut operation_id = None;
         for snap in self
@@ -160,7 +161,6 @@ impl ContextState {
         operation_id
     }
 
-    // The viewport rect a wheel scroll presents, moved along with the viewport when the scroll moved it.
     fn note_async_scrolling_viewport_rect(
         &mut self,
         mut viewport_rect: IntRect,
@@ -179,9 +179,9 @@ impl ContextState {
         viewport_rect
     }
 
-    // A step of a wheel gesture that is latched to the node. A stretch of the node is relaxed before the visual
-    // viewport is panned, the node only scrolls by what both leave of the step, and what the node cannot scroll by
-    // either is what pulls it past its edge.
+    /// A step of a wheel gesture that is latched to the node. A stretch of the node is relaxed before the visual
+    /// viewport is panned, the node only scrolls by what both leave of the step, and what the node cannot scroll by
+    /// either is what pulls it past its edge.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn perform_wheel_scroll_of_node(
         &mut self,
@@ -685,7 +685,7 @@ impl ContextState {
             if shifts_running_animation {
                 let animation = &mut self.smooth_scroll_animations[running_animation.unwrap()];
                 // A step that goes to an end of the scroll range still goes there.
-                if !animation.heads_to_an_extent {
+                if !animation.heads_to_end_of_scroll_range {
                     animation.animation.shift_by(instant_scroll_delta);
                     let destination_offset = animation.animation.destination_offset();
                     let clamped_destination_offset = self
@@ -746,7 +746,7 @@ impl ContextState {
                             animation,
                             started_at: now,
                             is_user_scroll: smooth_scroll.initiator == SmoothScrollInitiator::UserInput,
-                            heads_to_an_extent: false,
+                            heads_to_end_of_scroll_range: false,
                         });
                     }
                 }
@@ -835,7 +835,6 @@ impl ContextState {
         });
     }
 
-    // Returns whether the request moved the visual viewport.
     fn apply_visual_viewport_scroll_request(
         &mut self,
         scroll_request: &ScrollRequest,
@@ -950,7 +949,7 @@ impl ContextState {
             ),
             started_at: now,
             is_user_scroll: true,
-            heads_to_an_extent: false,
+            heads_to_end_of_scroll_range: false,
         });
         self.report_started_user_scroll(
             operation_id,

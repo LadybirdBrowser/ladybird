@@ -414,7 +414,7 @@ mod tests {
     use super::*;
     use crate::display_list::builder::{HEADER_SIZE, read_command, read_header};
     use crate::display_list::nested_records::span_bytes;
-    use crate::display_list::storage::write_run;
+    use crate::display_list::storage::write_run_with_zeroed_padding;
     use crate::display_list::validate::validate_tape;
     use libgfx_rust::IntRect;
 
@@ -586,7 +586,7 @@ mod tests {
         let mut writer = TapeWriter::default();
         writer.save();
         let mut run_bytes = vec![0u8; size_of::<DisplayListCommandRun>()];
-        write_run(
+        write_run_with_zeroed_padding(
             &DisplayListCommandRun {
                 offset: 0,
                 size: u32::try_from(writer.bytes().len()).unwrap(),

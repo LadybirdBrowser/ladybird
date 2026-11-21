@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-tile-of-planes-put-into-a-3d-sorting-context-ref.html">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            body { margin: 0; }
+            #context { transform: rotateX(0deg); }
+            .plane { position: absolute; left: 0; top: 0; width: 200px; height: 150px; }
+        </style>
+        <div id="context">
+            <div class="plane" style="background: red; transform: translateZ(20px)"></div>
+            <div class="plane" style="background: blue; transform: translateZ(5px)"></div>
+        </div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        // Sorted by depth, the plane painted first is in front.
+        iframe.contentDocument.getElementById("context").style.transformStyle = "preserve-3d";
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

@@ -6,8 +6,11 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[8,8 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#target.target phase=background
+L0 FillRect@s1/e0 rect=[8,8 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#target.target phase=background
 
 After z-index change:
 AccumulatedVisualContext Tree:
@@ -17,6 +20,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[8,8 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#target.target phase=background
+L0 FillRect@s1/e0 rect=[8,8 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#target.target phase=background
 

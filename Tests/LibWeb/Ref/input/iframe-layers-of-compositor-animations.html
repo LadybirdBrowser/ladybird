@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-layers-of-compositor-animations-ref.html">
+<!-- The rounded clip around the slide is antialiased as the frame composites it rather than in its raster. -->
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-20">
+<style>
+    iframe { display: block; width: 300px; height: 220px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes still-fade { from { opacity: 0.5; } to { opacity: 0.5; } }
+            @keyframes still-turn { from { transform: rotate(90deg); } to { transform: rotate(90deg); } }
+            @keyframes still-slide { from { transform: translateX(40px); } to { transform: translateX(40px); } }
+            @keyframes still-zoom { from { transform: scale(2); } to { transform: scale(2); } }
+            body { margin: 0; }
+            .box { position: absolute; width: 60px; height: 60px; }
+        </style>
+        <div class="box" style="left: 10px; top: 10px; background: green"></div>
+        <div class="box" style="left: 40px; top: 40px; background: blue; animation: still-fade 100s linear infinite"></div>
+        <div class="box" style="left: 150px; top: 20px; background: orange; animation: still-turn 100s linear infinite"><div style="height: 20px; background: purple"></div></div>
+        <div class="box" style="left: 170px; top: 40px; width: 20px; height: 20px; background: black"></div>
+        <div style="position: absolute; left: 20px; top: 120px; width: 200px; height: 50px; overflow: hidden; border-radius: 16px; background: gray">
+            <div style="width: 50px; height: 50px; background: red; animation: still-slide 100s linear infinite"></div>
+        </div>
+        <div class="box" style="left: 240px; top: 150px; width: 20px; height: 20px; background: teal; animation: still-zoom 100s linear infinite"></div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

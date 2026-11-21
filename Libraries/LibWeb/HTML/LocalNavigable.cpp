@@ -4949,7 +4949,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
 
     if (has_compositor_context()) {
         compositor_context().viewport_size_updated(
-            page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
+            viewport_size_in_device_pixels(),
             page().client().device_pixel_ratio(),
             Compositing::WindowResizingInProgress::Yes);
     }
@@ -7001,7 +7001,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
             }
         }
         compositor_context().viewport_size_updated(
-            page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
+            viewport_size_in_device_pixels(),
             page().client().device_pixel_ratio(),
             Compositing::WindowResizingInProgress::No);
 
@@ -7161,7 +7161,7 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
     // NB: Only the top-level traversable fills its canvas. A local root under a remote parent is an iframe in another
     //     process, and its canvas stays transparent like that of a same-process iframe.
     if (is_top_level_traversable() && !paint_config.canvas_fill_rect.has_value())
-        paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
+        paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size_in_device_pixels() };
 
     // A frame is left to the next rendering update while the compositor cannot be reached.
     if (!compositor_context().ready_for_frame())
@@ -7405,7 +7405,19 @@ void LocalNavigable::paint_next_frame()
 
 Gfx::IntRect LocalNavigable::present_viewport_rect() const
 {
-    return page().css_to_device_rect(viewport_rect()).to_type<int>();
+    return { page().css_to_device_rect(viewport_rect()).location().to_type<int>(), viewport_size_in_device_pixels() };
+}
+
+// A viewport size in device pixels becomes one in CSS pixels floored to a fraction of a CSS pixel, so its product with
+// the scale lies just below the device size. Rounding gives the device size back, which the UI process gives the
+// compositor too.
+Gfx::IntSize LocalNavigable::viewport_size_in_device_pixels() const
+{
+    auto scale = page().client().device_pixels_per_css_pixel();
+    return {
+        static_cast<int>(round(m_viewport_size.width().to_double() * scale)),
+        static_cast<int>(round(m_viewport_size.height().to_double() * scale)),
+    };
 }
 
 bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason, LayOutFirst lay_out_first)

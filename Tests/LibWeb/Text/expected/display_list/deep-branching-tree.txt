@@ -13,16 +13,19 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[8,8 404x204] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.root phase=border
-FillRoundedRectRing@s1/c0/e0 rect=[10,10 195x200] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.branch phase=border
-FillRoundedRectRing@s1/c0/e0 rect=[215,10 195x200] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.branch phase=border
-FillRect@s2/c1/e0 rect=[16,16 150x80] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.leaf.leaf-a phase=background
-DrawGlyphRun@s2/c1/e0 font_id=font1 glyphs=1 rect=[16,16 15x16] glyph_bounding_rect=[16,16 13x15] translation=[16,29] color=rgb(0, 0, 0) text="A" owner=BlockContainer<DIV>.leaf.leaf-a phase=foreground
-FillRect@s3/c1/e0 rect=[16,101 150x80] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.leaf.leaf-b phase=background
-DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=1 rect=[16,101 10x16] glyph_bounding_rect=[16,102 13x15] translation=[16,114] color=rgb(0, 0, 0) text="B" owner=BlockContainer<DIV>.leaf.leaf-b phase=foreground
-FillRect@s4/c2/e0 rect=[221,16 150x80] color=rgb(0, 0, 255) owner=BlockContainer<DIV>.leaf.leaf-c phase=background
-DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=1 rect=[221,16 11x16] glyph_bounding_rect=[221,16 13x15] translation=[221,29] color=rgb(0, 0, 0) text="C" owner=BlockContainer<DIV>.leaf.leaf-c phase=foreground
-FillRect@s5/c2/e0 rect=[221,101 150x80] color=rgb(255, 165, 0) owner=BlockContainer<DIV>.leaf.leaf-d phase=background
-DrawGlyphRun@s5/c2/e0 font_id=font1 glyphs=1 rect=[221,101 12x16] glyph_bounding_rect=[221,102 13x15] translation=[221,114] color=rgb(0, 0, 0) text="D" owner=BlockContainer<DIV>.leaf.leaf-d phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 404x204] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.root phase=border
+L0 FillRoundedRectRing@s1/c0/e0 rect=[10,10 195x200] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.branch phase=border
+L0 FillRoundedRectRing@s1/c0/e0 rect=[215,10 195x200] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.branch phase=border
+L0 FillRect@s2/c1/e0 rect=[16,16 150x80] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.leaf.leaf-a phase=background
+L0 DrawGlyphRun@s2/c1/e0 font_id=font1 glyphs=1 rect=[16,16 15x16] glyph_bounding_rect=[16,16 13x15] translation=[16,29] color=rgb(0, 0, 0) text="A" owner=BlockContainer<DIV>.leaf.leaf-a phase=foreground
+L0 FillRect@s3/c1/e0 rect=[16,101 150x80] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.leaf.leaf-b phase=background
+L0 DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=1 rect=[16,101 10x16] glyph_bounding_rect=[16,102 13x15] translation=[16,114] color=rgb(0, 0, 0) text="B" owner=BlockContainer<DIV>.leaf.leaf-b phase=foreground
+L0 FillRect@s4/c2/e0 rect=[221,16 150x80] color=rgb(0, 0, 255) owner=BlockContainer<DIV>.leaf.leaf-c phase=background
+L0 DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=1 rect=[221,16 11x16] glyph_bounding_rect=[221,16 13x15] translation=[221,29] color=rgb(0, 0, 0) text="C" owner=BlockContainer<DIV>.leaf.leaf-c phase=foreground
+L0 FillRect@s5/c2/e0 rect=[221,101 150x80] color=rgb(255, 165, 0) owner=BlockContainer<DIV>.leaf.leaf-d phase=background
+L0 DrawGlyphRun@s5/c2/e0 font_id=font1 glyphs=1 rect=[221,101 12x16] glyph_bounding_rect=[221,102 13x15] translation=[221,114] color=rgb(0, 0, 0) text="D" owner=BlockContainer<DIV>.leaf.leaf-d phase=foreground
 

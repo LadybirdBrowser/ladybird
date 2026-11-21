@@ -4,12 +4,16 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   effects:
     [e0 in s0] effects=[]
-      [e1 in s1] effects=[backdrop-filter=[region=[300,120 60x40] filter=[Grayscale(1)]]] (BlockContainer<DIV>#frosted)
+      [e1 in s1] effects=[backdrop-filter=[region=[540,120 60x40] filter=[Grayscale(1)]]] (BlockContainer<DIV>#frosted)
 
-Layers: none (canvas under a backdrop filter that reads the root group)
+Layers:
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1
+  e1 is not composited: it reads only its own layer
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-FillRect@s1/e0 rect=[180,100 200x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
-BackdropFilterRegion@s1/e1 rect=[300,120 60x40] owner=BlockContainer<DIV>#frosted phase=background
+L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0,L2 FillRect@s1/e0 rect=[180,100 440x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+L0 BackdropFilterRegion@s1/e1 rect=[540,120 60x40] owner=BlockContainer<DIV>#frosted phase=background
 

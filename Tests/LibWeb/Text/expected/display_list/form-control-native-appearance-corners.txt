@@ -10,33 +10,36 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[0,0 58x20] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON>#native phase=background
-FillRoundedRectRing@s1/e0 rect=[0,0 58x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON>#native phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[9,3 40x14] glyph_bounding_rect=[9,4 44x12] translation=[9,14] color=rgb(0, 0, 0) text="Native" owner=BlockContainer(anonymous) phase=foreground
-FillRectWithRoundedCorners@s1/e0 rect=[0,30 130x24] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON> phase=background
-FillRoundedRectRing@s1/e0 rect=[0,30 130x24] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=17 rect=[5,35 120x14] glyph_bounding_rect=[5,36 124x12] translation=[5,46] color=rgb(0, 128, 0) text="Padding and color" owner=BlockContainer(anonymous) phase=foreground
-FillRectWithRoundedCorners@s1/e0 rect=[0,60 129x20] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON>#revert phase=background
-FillRoundedRectRing@s1/e0 rect=[0,60 129x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON>#revert phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=15 rect=[9,63 112x14] glyph_bounding_rect=[9,64 115x12] translation=[9,74] color=rgb(0, 0, 0) text="Reverted border" owner=BlockContainer(anonymous) phase=foreground
-FillRect@s1/e0 rect=[0,90 92x20] color=rgb(0, 255, 0) owner=BlockContainer<BUTTON> phase=background
-FillPath@s1/e0 path_bounding_rect=[0,90 92x20] path_data=[path: M92 90L92 90L90 92L90 108L92 110L92 110M92 110L92 110L90 108L2 108L0 110L0 110] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-FillPath@s1/e0 path_bounding_rect=[0,90 92x20] path_data=[path: M0 110L0 110L2 108L2 92L0 90L0 90M0 90L0 90L2 92L90 92L92 90L92 90] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=10 rect=[9,93 75x14] glyph_bounding_rect=[9,94 79x12] translation=[9,104] color=rgb(0, 0, 0) text="Background" owner=BlockContainer(anonymous) phase=foreground
-FillRect@s1/e0 rect=[0,120 63x20] color=rgb(239, 239, 239) owner=BlockContainer<BUTTON> phase=background
-FillPath@s1/e0 path_bounding_rect=[0,120 63x20] path_data=[path: M63 120L63 120L61 122L61 138L63 140L63 140M63 140L63 140L61 138L2 138L0 140L0 140] color=rgb(170, 0, 0) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-FillPath@s1/e0 path_bounding_rect=[0,120 63x20] path_data=[path: M0 140L0 140L2 138L2 122L0 120L0 120M0 120L0 120L2 122L61 122L63 120L63 120] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[9,123 45x14] glyph_bounding_rect=[9,124 49x12] translation=[9,134] color=rgb(0, 0, 0) text="Border" owner=BlockContainer(anonymous) phase=foreground
-FillRect@s1/e0 rect=[0,150 137x20] color=rgb(239, 239, 239) owner=BlockContainer<BUTTON> phase=background
-FillPath@s1/e0 path_bounding_rect=[0,150 137x20] path_data=[path: M137 150L137 150L135 152L135 168L137 170L137 170M137 170L137 170L135 168L2 168L0 170L0 170] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-FillPath@s1/e0 path_bounding_rect=[0,150 137x20] path_data=[path: M0 170L0 170L2 168L2 152L0 150L0 150M0 150L0 150L2 152L135 152L137 150L137 150] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=15 rect=[9,153 119x14] glyph_bounding_rect=[9,154 123x12] translation=[9,164] color=rgb(0, 0, 0) text="Appearance none" owner=BlockContainer(anonymous) phase=foreground
-FillRectWithRoundedCorners@s1/e0 rect=[0,180 178x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT> phase=background
-FillRoundedRectRing@s1/e0 rect=[0,180 178x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT> phase=border
-DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=4 rect=[5,183 32x14] glyph_bounding_rect=[5,184 37x12] translation=[5,194] color=rgb(0, 0, 0) text="Text" owner=BlockContainer<DIV> phase=foreground
-FillRect@s1/e0 rect=[0,210 180x22] color=rgb(255, 255, 255) owner=TextInputBox<INPUT> phase=background
-FillPath@s1/e0 path_bounding_rect=[0,210 180x22] path_data=[path: M180 210L180 210L177 213L177 229L180 232L180 232M180 232L180 232L177 229L3 229L0 232L0 232] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=TextInputBox<INPUT> phase=border
-FillPath@s1/e0 path_bounding_rect=[0,210 180x22] path_data=[path: M0 232L0 232L3 229L3 213L0 210L0 210M0 210L0 210L3 213L177 213L180 210L180 210] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=TextInputBox<INPUT> phase=border
-DrawGlyphRun@s1/c3/e0 font_id=font1 glyphs=8 rect=[6,214 59x14] glyph_bounding_rect=[6,215 63x12] translation=[6,225] color=rgb(0, 0, 0) text="Bordered" owner=BlockContainer<DIV> phase=foreground
+L0 FillRectWithRoundedCorners@s1/e0 rect=[0,0 58x20] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON>#native phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[0,0 58x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON>#native phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[9,3 40x14] glyph_bounding_rect=[9,4 44x12] translation=[9,14] color=rgb(0, 0, 0) text="Native" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRectWithRoundedCorners@s1/e0 rect=[0,30 130x24] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON> phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[0,30 130x24] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=17 rect=[5,35 120x14] glyph_bounding_rect=[5,36 124x12] translation=[5,46] color=rgb(0, 128, 0) text="Padding and color" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRectWithRoundedCorners@s1/e0 rect=[0,60 129x20] color=rgb(239, 239, 239) corner_radii=[4x4,4x4,4x4,4x4] owner=BlockContainer<BUTTON>#revert phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[0,60 129x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=BlockContainer<BUTTON>#revert phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=15 rect=[9,63 112x14] glyph_bounding_rect=[9,64 115x12] translation=[9,74] color=rgb(0, 0, 0) text="Reverted border" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRect@s1/e0 rect=[0,90 92x20] color=rgb(0, 255, 0) owner=BlockContainer<BUTTON> phase=background
+L0 FillPath@s1/e0 path_bounding_rect=[0,90 92x20] path_data=[path: M92 90L92 90L90 92L90 108L92 110L92 110M92 110L92 110L90 108L2 108L0 110L0 110] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[0,90 92x20] path_data=[path: M0 110L0 110L2 108L2 92L0 90L0 90M0 90L0 90L2 92L90 92L92 90L92 90] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=10 rect=[9,93 75x14] glyph_bounding_rect=[9,94 79x12] translation=[9,104] color=rgb(0, 0, 0) text="Background" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRect@s1/e0 rect=[0,120 63x20] color=rgb(239, 239, 239) owner=BlockContainer<BUTTON> phase=background
+L0 FillPath@s1/e0 path_bounding_rect=[0,120 63x20] path_data=[path: M63 120L63 120L61 122L61 138L63 140L63 140M63 140L63 140L61 138L2 138L0 140L0 140] color=rgb(170, 0, 0) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[0,120 63x20] path_data=[path: M0 140L0 140L2 138L2 122L0 120L0 120M0 120L0 120L2 122L61 122L63 120L63 120] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[9,123 45x14] glyph_bounding_rect=[9,124 49x12] translation=[9,134] color=rgb(0, 0, 0) text="Border" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRect@s1/e0 rect=[0,150 137x20] color=rgb(239, 239, 239) owner=BlockContainer<BUTTON> phase=background
+L0 FillPath@s1/e0 path_bounding_rect=[0,150 137x20] path_data=[path: M137 150L137 150L135 152L135 168L137 170L137 170M137 170L137 170L135 168L2 168L0 170L0 170] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[0,150 137x20] path_data=[path: M0 170L0 170L2 168L2 152L0 150L0 150M0 150L0 150L2 152L135 152L137 150L137 150] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=BlockContainer<BUTTON> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=15 rect=[9,153 119x14] glyph_bounding_rect=[9,154 123x12] translation=[9,164] color=rgb(0, 0, 0) text="Appearance none" owner=BlockContainer(anonymous) phase=foreground
+L0 FillRectWithRoundedCorners@s1/e0 rect=[0,180 178x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT> phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[0,180 178x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT> phase=border
+L0 DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=4 rect=[5,183 32x14] glyph_bounding_rect=[5,184 37x12] translation=[5,194] color=rgb(0, 0, 0) text="Text" owner=BlockContainer<DIV> phase=foreground
+L0 FillRect@s1/e0 rect=[0,210 180x22] color=rgb(255, 255, 255) owner=TextInputBox<INPUT> phase=background
+L0 FillPath@s1/e0 path_bounding_rect=[0,210 180x22] path_data=[path: M180 210L180 210L177 213L177 229L180 232L180 232M180 232L180 232L177 229L3 229L0 232L0 232] color=rgb(118, 118, 118) winding_rule=EvenOdd owner=TextInputBox<INPUT> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[0,210 180x22] path_data=[path: M0 232L0 232L3 229L3 213L0 210L0 210M0 210L0 210L3 213L177 213L180 210L180 210] color=rgb(33, 33, 33) winding_rule=EvenOdd owner=TextInputBox<INPUT> phase=border
+L0 DrawGlyphRun@s1/c3/e0 font_id=font1 glyphs=8 rect=[6,214 59x14] glyph_bounding_rect=[6,215 63x12] translation=[6,225] color=rgb(0, 0, 0) text="Bordered" owner=BlockContainer<DIV> phase=foreground
 

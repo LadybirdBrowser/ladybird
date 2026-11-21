@@ -75,6 +75,12 @@ pub fn output_bounds(bytes: &[u8], source: FloatRect) -> Option<FloatRect> {
     Filter::serialized_output_bounds(bytes, source)
 }
 
+/// Whether a serialized filter can show what it is applied to away from where that is drawn, rather
+/// than only over it and around it.
+pub fn may_move_what_it_filters(bytes: &[u8]) -> bool {
+    Filter::serialized_may_move_its_source(bytes)
+}
+
 /// Where a serialized filter's output can change when what it is applied to changes only within
 /// `changed_source`, or `None` when it can change everywhere.
 pub fn changed_output_bounds(bytes: &[u8], changed_source: FloatRect) -> Option<FloatRect> {

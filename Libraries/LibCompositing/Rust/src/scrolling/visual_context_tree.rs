@@ -41,7 +41,7 @@ impl AccumulatedVisualContextTree {
 
     pub fn has_every_node_the_runs_of_display_list_name(&self, display_list: &DisplayList) -> bool {
         self.0
-            .display_list_references_only_live_nodes(display_list.storage.command_runs())
+            .display_list_references_only_live_nodes(display_list.storage.runs())
     }
 
     pub fn visual_viewport_transform(&self) -> TransformWithOrigin {
@@ -154,9 +154,8 @@ pub fn animated_content_may_affect_viewport(
     viewport_rect: IntRect,
     sample_time_ns: i64,
 ) -> AnimatedContentViewportEffect {
-    let effect = crate::display_list::damage::animated_content_may_affect_viewport_at(
-        display_list.storage.bytes(),
-        display_list.storage.command_runs(),
+    let effect = crate::display_list::animated_content::animated_content_may_affect_viewport_at(
+        &display_list.storage,
         visual_context_tree.as_arc(),
         scroll_state.device_offsets(),
         viewport_rect,

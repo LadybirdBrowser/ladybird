@@ -1,0 +1,74 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>.clipped)
+        [s3] scroll (BlockContainer<DIV>.clipped)
+        [s4] scroll (BlockContainer<DIV>.clipped)
+        [s5] scroll (BlockContainer<DIV>.clipped)
+        [s6] scroll (BlockContainer<DIV>.clipped)
+        [s7] scroll (BlockContainer<DIV>.clipped)
+        [s8] scroll (BlockContainer<DIV>.clipped)
+        [s9] scroll (BlockContainer<DIV>.clipped)
+        [s10] scroll (BlockContainer<DIV>#clipping-wrapper)
+          [s11] scroll (BlockContainer<DIV>#scroller)
+  clips:
+    [c0 in s1] clip=[0,0 20x20] (BlockContainer<DIV>.clipped)
+    [c1 in s1] clip=[0,20 20x20] (BlockContainer<DIV>.clipped)
+    [c2 in s1] clip=[0,40 20x20] (BlockContainer<DIV>.clipped)
+    [c3 in s1] clip=[0,60 20x20] (BlockContainer<DIV>.clipped)
+    [c4 in s1] clip=[0,80 20x20] (BlockContainer<DIV>.clipped)
+    [c5 in s1] clip=[0,100 20x20] (BlockContainer<DIV>.clipped)
+    [c6 in s1] clip=[0,120 20x20] (BlockContainer<DIV>.clipped)
+    [c7 in s1] clip=[0,140 20x20] (BlockContainer<DIV>.clipped)
+    [c8 in s1] clip=[0,160 400x300] (BlockContainer<DIV>#clipping-wrapper)
+      [c9 in s10] clip=[0,170 300x200] (BlockContainer<DIV>#scroller)
+  effects:
+    [e0 in s0] effects=[]
+
+ScrollNodes:
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[0,0 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,20 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s4 parent_scroll_node_index=s0 scrollport_rect=[0,40 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s5 parent_scroll_node_index=s0 scrollport_rect=[0,60 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s6 parent_scroll_node_index=s0 scrollport_rect=[0,80 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s7 parent_scroll_node_index=s0 scrollport_rect=[0,100 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s8 parent_scroll_node_index=s0 scrollport_rect=[0,120 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s9 parent_scroll_node_index=s0 scrollport_rect=[0,140 20x20] min_scroll_offset=[0,0] max_scroll_offset=[80,80] is_viewport=false
+ScrollNode scroll_node_index=s10 parent_scroll_node_index=s0 scrollport_rect=[0,160 400x300] min_scroll_offset=[0,0] max_scroll_offset=[1600,0] is_viewport=false
+ScrollNode scroll_node_index=s11 parent_scroll_node_index=s10 scrollport_rect=[0,170 300x200] min_scroll_offset=[0,0] max_scroll_offset=[0,850] is_viewport=false
+
+Layers:
+  [L0] base space=viewport
+  [L2] painted space=scroller@s11 in scroller@s10 in viewport composited within [0,160 400x300] of viewport composited within [0,170 300x200] of scroller@s10 in viewport
+  [L3] canvas #0 space=scroller@s11 in scroller@s10 in viewport region=[0,217 203x126] composited within [0,160 400x300] of viewport composited within [0,170 300x200] of scroller@s10 in viewport shown by the window server: clip=[0,170 300x200]
+
+DisplayList:
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x473] owner=BlockContainer<HTML> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x460] owner=BlockContainer<BODY> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s3 rect=[0,20 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[0,20 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s4 rect=[0,40 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s4/c2/e0 target_scroll_node_index=s4 rect=[0,40 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s5 rect=[0,60 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s5/c3/e0 target_scroll_node_index=s5 rect=[0,60 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s6 rect=[0,80 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s6/c4/e0 target_scroll_node_index=s6 rect=[0,80 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s7 rect=[0,100 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s7/c5/e0 target_scroll_node_index=s7 rect=[0,100 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s8 rect=[0,120 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s8/c6/e0 target_scroll_node_index=s8 rect=[0,120 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s9 rect=[0,140 20x20] owner=BlockContainer<DIV>.clipped phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s9/c7/e0 target_scroll_node_index=s9 rect=[0,140 100x100] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s10 rect=[0,160 400x300] owner=BlockContainer<DIV>#clipping-wrapper phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s10/c8/e0 target_scroll_node_index=s10 rect=[0,160 2000x10] owner=BlockContainer<DIV>#wide phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s10/c8/e0 target_scroll_node_index=s11 rect=[0,170 300x200] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s11/c9/e0 target_scroll_node_index=s11 rect=[0,220 300x1000] owner=BlockContainer<DIV>#content phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s11/c9/e0 target_scroll_node_index=s11 rect=[0,280 100x40] owner=BlockContainer<DIV>#over-canvas phase=scroll-metadata
+L2 FillRect@s11/c9/e0 rect=[0,280 100x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+L0 CompositorWheelHitTestTarget@s11/c9/e0 target_scroll_node_index=s11 rect=[0,220 200x120] owner=CanvasBox<CANVAS>#canvas phase=scroll-metadata
+L3 DrawCanvas@s11/c9/e0 dst_rect=[0,220 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+

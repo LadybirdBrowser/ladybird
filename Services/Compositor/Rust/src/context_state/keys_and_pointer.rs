@@ -199,7 +199,7 @@ impl ContextState {
                 continue;
             }
             self.retarget_user_scroll(index, destination, now);
-            self.smooth_scroll_animations[index].heads_to_an_extent = scrolls_to_extent;
+            self.smooth_scroll_animations[index].heads_to_end_of_scroll_range = scrolls_to_extent;
             let operation_id = self.smooth_scroll_animations[index].operation_id;
             self.report_started_user_scroll(
                 operation_id,
@@ -224,7 +224,7 @@ impl ContextState {
             ),
             started_at: now,
             is_user_scroll: true,
-            heads_to_an_extent: scrolls_to_extent,
+            heads_to_end_of_scroll_range: scrolls_to_extent,
         });
         self.report_started_user_scroll(
             operation_id,
@@ -284,7 +284,7 @@ impl ContextState {
         self.handle_mouse_event_at(event, position, now)
     }
 
-    // A mouse event that the context this one is nested in hands to it, at a position in this context's device pixels.
+    /// A mouse event that the context this one is nested in hands to it, at a position in this context's device pixels.
     pub fn handle_mouse_event_from_containing_context(
         &mut self,
         event: &MouseEvent,
@@ -299,8 +299,8 @@ impl ContextState {
         self.handle_mouse_event_at(event, position, now)
     }
 
-    // Where the pointer is in this context's device pixels, as the mouse event the context takes or hands on says, or
-    // nowhere, as the pointer leaves it.
+    /// Where the pointer is in this context's device pixels, as the mouse event the context takes or hands on says, or
+    /// nowhere, as the pointer leaves it.
     pub fn note_pointer_position(&mut self, position: Option<FloatPoint>) {
         self.pointer_position = position;
     }
@@ -313,7 +313,7 @@ impl ContextState {
         Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect))
     }
 
-    // The pointer left the scrollbar it was over here for a context nested in this one, or for the one around it.
+    /// The pointer left the scrollbar it was over here for a context nested in this one, or for the one around it.
     pub fn clear_scrollbar_hover(&mut self) -> Option<PendingFrame> {
         if !self.scrollbar_controller.set_hovered_scrollbar(None) {
             return None;

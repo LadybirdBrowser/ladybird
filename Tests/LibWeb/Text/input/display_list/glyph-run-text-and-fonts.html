@@ -9,7 +9,7 @@
 <div style="text-shadow: 1px 1px red">shadowed</div>
 <script>
     test(() => {
-        const glyphRunLines = dump => dump.split("\n").filter(line => line.startsWith("DrawGlyphRun") || line.startsWith("PaintTextShadow"));
+        const glyphRunLines = dump => dump.replace(/^L\d+(,L\d+)* /gm, "").split("\n").filter(line => line.startsWith("DrawGlyphRun") || line.startsWith("PaintTextShadow"));
         const lines = glyphRunLines(internals.dumpDisplayList());
         for (const line of lines)
             println(line.slice(0, line.indexOf(" owner=")).replace(/.* text=/, "text="));

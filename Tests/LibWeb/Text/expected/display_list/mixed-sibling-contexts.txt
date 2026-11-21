@@ -12,10 +12,15 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[119,9 100x100] min_scroll_offset=[0,0] max_scroll_offset=[50,50] is_viewport=false
 
+Layers:
+  [L0] base space=viewport
+  [L1] painted space=scroller@s2 in viewport composited within [119,9 100x100] of viewport
+  [L2] painted space=viewport above band 0 of scroller@s2 in viewport
+
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[118,8 102x102] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.clipped phase=border
-FillRect@s2/c0/e0 rect=[119,9 150x150] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.inner phase=background
-DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=7 rect=[119,9 55x16] glyph_bounding_rect=[119,10 60x15] translation=[119,22] color=rgb(0, 0, 0) text="Clipped" owner=BlockContainer<DIV>.inner phase=foreground
-FillRect@s3/e0 rect=[8,8 100x100] color=rgb(255, 127, 80) owner=BlockContainer<DIV>.transformed phase=background
-DrawGlyphRun@s3/e0 font_id=font1 glyphs=9 rect=[8,8 88x16] glyph_bounding_rect=[8,8 88x15] translation=[8,21] color=rgb(0, 0, 0) text="Transform" owner=BlockContainer<DIV>.transformed phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[118,8 102x102] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.clipped phase=border
+L1 FillRect@s2/c0/e0 rect=[119,9 150x150] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.inner phase=background
+L1 DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=7 rect=[119,9 55x16] glyph_bounding_rect=[119,10 60x15] translation=[119,22] color=rgb(0, 0, 0) text="Clipped" owner=BlockContainer<DIV>.inner phase=foreground
+L2 FillRect@s3/e0 rect=[8,8 100x100] color=rgb(255, 127, 80) owner=BlockContainer<DIV>.transformed phase=background
+L2 DrawGlyphRun@s3/e0 font_id=font1 glyphs=9 rect=[8,8 88x16] glyph_bounding_rect=[8,8 88x15] translation=[8,21] color=rgb(0, 0, 0) text="Transform" owner=BlockContainer<DIV>.transformed phase=foreground
 

@@ -11,14 +11,14 @@
 use crate::host::WebContentClientId;
 use libcompositing_rust::display_list::chunks::{ChunkId, KeptChunks};
 use libcompositing_rust::display_list::commands::CompositorContextId;
-use libcompositing_rust::display_list::storage::ReceivedChunk;
+use libcompositing_rust::display_list::storage::ListChunk;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Default)]
 struct ContextChunks {
     kept: KeptChunks,
-    chunks: HashMap<ChunkId, Arc<ReceivedChunk>>,
+    chunks: HashMap<ChunkId, Arc<ListChunk>>,
 }
 
 #[derive(Default)]
@@ -36,9 +36,9 @@ impl DisplayListChunkStores {
         &mut self,
         client: WebContentClientId,
         context: CompositorContextId,
-        sent: Vec<ReceivedChunk>,
+        sent: Vec<ListChunk>,
         chunks_in_paint_order: &[ChunkId],
-    ) -> Result<Option<Vec<Arc<ReceivedChunk>>>, &'static str> {
+    ) -> Result<Option<Vec<Arc<ListChunk>>>, &'static str> {
         if self.destroyed_contexts.contains(&context) {
             return Ok(None);
         }
@@ -73,11 +73,10 @@ impl DisplayListChunkStores {
 
 /// The chunks a display list sent whole names in paint order, or an error where it names one it did not send.
 pub fn chunks_of_list_sent_whole(
-    sent: Vec<ReceivedChunk>,
+    sent: Vec<ListChunk>,
     chunks_in_paint_order: &[ChunkId],
-) -> Result<Vec<Arc<ReceivedChunk>>, &'static str> {
-    let sent: HashMap<ChunkId, Arc<ReceivedChunk>> =
-        sent.into_iter().map(|chunk| (chunk.id, Arc::new(chunk))).collect();
+) -> Result<Vec<Arc<ListChunk>>, &'static str> {
+    let sent: HashMap<ChunkId, Arc<ListChunk>> = sent.into_iter().map(|chunk| (chunk.id, Arc::new(chunk))).collect();
     chunks_in_paint_order
         .iter()
         .map(|id| sent.get(id).cloned())
@@ -111,7 +110,7 @@ mod tests {
         builder.take_chunk()
     }
 
-    fn sent(chunks: &[&Chunk]) -> Vec<ReceivedChunk> {
+    fn sent(chunks: &[&Chunk]) -> Vec<ListChunk> {
         let mut packed = vec![0; packed_size_of_chunks(chunks)];
         write_packed_chunks(chunks, &mut packed);
         let sizes: Vec<PackedChunkSize> = chunks.iter().map(|chunk| PackedChunkSize::of(chunk)).collect();

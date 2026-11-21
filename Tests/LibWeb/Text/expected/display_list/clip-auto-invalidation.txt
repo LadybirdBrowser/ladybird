@@ -6,8 +6,11 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[8,13 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
+L0 FillRect@s1/e0 rect=[8,13 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
 
 After clip change:
 AccumulatedVisualContext Tree:
@@ -19,6 +22,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/c0/e0 rect=[8,13 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
+L0 FillRect@s1/c0/e0 rect=[8,13 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
 

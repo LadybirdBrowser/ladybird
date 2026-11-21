@@ -35,7 +35,8 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
 use libcompositing_rust::ipc_types::{
     Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind,
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
-    SharedDisplayList, compositor_control_server, compositor_presentation_server, compositor_web_content_server,
+    LayerPlanOnWire, SharedDisplayList, compositor_control_server, compositor_presentation_server,
+    compositor_web_content_server,
 };
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
@@ -59,6 +60,14 @@ fn display_list_timing_enabled() -> bool {
 
 const DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE: &str =
     "WebContent published a display list with scrolling state the compositor cannot use";
+
+fn misbehavior_of_layer_plan(why_plan_fails_checks: &'static str) -> Misbehavior {
+    let _ = writeln!(
+        std::io::stderr(),
+        "Compositor: Rejecting plan of layers from WebContent: {why_plan_fails_checks}"
+    );
+    Misbehavior("WebContent sent a plan of layers that does not fit its display list and visual context tree")
+}
 
 // The main thread allocates the ids of the scrolls it requests from here up, so that they never meet the ids the
 // compositor allocates for scrolls of its own.
@@ -231,7 +240,7 @@ impl MessagesFromWebContent<'_> {
         let storage = match raster
             .receive_display_list_chunks(packed_chunks, &packed_chunk_sizes)
             .and_then(|sent| chunks_of_list_sent_whole(sent, &chunks_in_paint_order))
-            .and_then(|chunks| DisplayListStorage::of_received_chunks(&chunks))
+            .and_then(DisplayListStorage::of_chunks)
         {
             Ok(storage) => storage,
             Err(error) => {
@@ -247,7 +256,7 @@ impl MessagesFromWebContent<'_> {
         };
         let tree = message.visual_context_tree;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
-            || !tree.display_list_references_only_live_nodes(storage.command_runs())
+            || !tree.display_list_references_only_live_nodes(storage.runs())
         {
             return not_rasterized("Display list does not match its visual context tree");
         }
@@ -262,9 +271,7 @@ impl MessagesFromWebContent<'_> {
             let frame = ReplayFrame::unscrolled(time_ns);
             replay_display_list(
                 &tree,
-                storage.bytes(),
-                storage.command_runs(),
-                storage.effect_clip_plan(&tree),
+                &storage,
                 properties.root_group_color,
                 &frame,
                 ReplaySelection::default(),
@@ -314,7 +321,8 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             Ok(None) => return Ok(()),
             Err(error) => return Err(Misbehavior(error)),
         };
-        let storage = match DisplayListStorage::of_received_chunks(&chunks) {
+        let chunk_count = chunks.len();
+        let storage = match DisplayListStorage::of_chunks(chunks) {
             Ok(storage) => storage,
             Err(error) => {
                 let _ = writeln!(
@@ -329,6 +337,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
+        self.core.forget_layer_plan(message.context_id);
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
             let _ = writeln!(
                 std::io::stderr(),
@@ -338,7 +347,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             );
             return Ok(());
         }
-        if !tree.display_list_references_only_live_nodes(storage.command_runs()) {
+        if !tree.display_list_references_only_live_nodes(storage.runs()) {
             let _ = writeln!(
                 std::io::stderr(),
                 "Compositor: Dropping display list update that names nodes its visual context tree does not hold"
@@ -380,7 +389,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             window => window.flatten(),
         };
         let scroll_state_snapshot = message.scroll_state;
-        let storage_size = storage.bytes().len();
+        let storage_size = storage.byte_size();
         let display_list = DisplayList::new(
             storage,
             properties.id,
@@ -399,13 +408,19 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         ) {
             return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
         }
+        self.core
+            .take_layer_plan_of_installed_update(
+                message.context_id,
+                message.layer_plan.map(LayerPlanOnWire::into_received),
+            )
+            .map_err(misbehavior_of_layer_plan)?;
         self.core.keep_only_drawn_resources(message.context_id);
         if display_list_timing_enabled() {
             let _ = writeln!(
                 std::io::stderr(),
                 "DISPLAY_LIST_RECEIVE bytes={} chunks={} sent={sent_chunk_count} adopt={} µs install={} µs",
                 storage_size,
-                chunks.len(),
+                chunk_count,
                 adopt_time.as_micros(),
                 (started_at.elapsed() - adopt_time).as_micros()
             );
@@ -424,6 +439,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
+        self.core.forget_layer_plan(message.context_id);
         let mut image_frame_ids = Vec::new();
         tree.for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
         if !self
@@ -445,6 +461,12 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             self.now,
         );
         if tree_was_replaced {
+            self.core
+                .take_layer_plan_of_installed_update(
+                    message.context_id,
+                    message.layer_plan.map(LayerPlanOnWire::into_received),
+                )
+                .map_err(misbehavior_of_layer_plan)?;
             self.core.keep_only_drawn_resources(message.context_id);
         }
         Ok(())
@@ -467,6 +489,12 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if self.context_is_owned_by_sender(message.context_id)? {
             self.core
                 .update_scroll_state(message.context_id, scroll_state_snapshot, message.keyboard_scroll_state);
+            self.core
+                .take_layer_plan_of_scroll_state(
+                    message.context_id,
+                    message.layer_plan.map(LayerPlanOnWire::into_received),
+                )
+                .map_err(misbehavior_of_layer_plan)?;
         }
         Ok(())
     }

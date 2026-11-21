@@ -16,7 +16,7 @@
     test(() => {
         const target = document.getElementById("target");
         function check(label) {
-            const lines = internals.dumpDisplayList().split("\n");
+            const lines = internals.dumpDisplayList().replace(/^L\d+(,L\d+)* /gm, "").split("\n");
             const tiles = lines.filter(line => line.trimStart().startsWith("DrawRepeatedTile@"));
             const gradients = lines.filter(line => /Paint(Linear|Radial|Conic)Gradient@/.test(line));
             println(`${label}: ${tiles.length} tiles, ${gradients.length} gradients`);

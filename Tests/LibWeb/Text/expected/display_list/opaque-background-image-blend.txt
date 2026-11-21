@@ -5,7 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[0,0 40x40] color=rgb(45, 22, 0) owner=BlockContainer<DIV>#target phase=background
-DrawScaledDecodedImageFrame@s1/e0 dst_rect=[0,0 40x40] src_rect=[0,0 40x40] frame_id=image1 scaling_mode=Bilinear compositing_and_blending_operator=Multiply isolated_backdrop_color=rgb(45, 22, 0) inline_clips=[clip=[0,0 40x40]] owner=BlockContainer<DIV>#target phase=background
+L0 FillRect@s1/e0 rect=[0,0 40x40] color=rgb(45, 22, 0) owner=BlockContainer<DIV>#target phase=background
+L0 DrawScaledDecodedImageFrame@s1/e0 dst_rect=[0,0 40x40] src_rect=[0,0 40x40] frame_id=image1 scaling_mode=Bilinear compositing_and_blending_operator=Multiply isolated_backdrop_color=rgb(45, 22, 0) inline_clips=[clip=[0,0 40x40]] owner=BlockContainer<DIV>#target phase=background
 
