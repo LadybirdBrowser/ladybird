@@ -1,0 +1,4 @@
+rect.onclick is a function: true
+rect.onclick after removing the attribute: null
+click at the rect
+click at the rect, after the attribute changed

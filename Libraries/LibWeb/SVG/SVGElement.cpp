@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -472,6 +473,18 @@ void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Ut
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:concept-element-attributes-change-ext
+    // 1. If namespace is not null, or localName is not the name of an event handler content attribute on element, then return.
+    if (!namespace_.has_value() && local_name.view().starts_with(u"on"sv)) {
+#undef __ENUMERATE
+#define __ENUMERATE(attribute_name, event_name)                     \
+    if (local_name == HTML::AttributeNames::attribute_name) {       \
+        element_event_handler_attribute_changed(local_name, value); \
+    }
+        ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
+    }
 
     if (old_value != value) {
         update_presentation_attribute_style(local_name, value, namespace_);
