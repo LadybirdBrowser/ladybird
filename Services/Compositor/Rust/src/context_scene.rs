@@ -28,6 +28,8 @@ pub struct ReceivedLayerPlan {
     /// The spatial nodes whose scroll offset the plan reads. It holds wherever the compositor scrolls or moves the
     /// other nodes to, which include the anchors of its spaces. Empty for a plan of one layer.
     pub nodes_whose_scroll_offset_plan_reads: Rc<[u32]>,
+    /// What the overlay of layers tells of the stack past its layers, as WebContent wrote it.
+    pub note_lines: Rc<[String]>,
 }
 
 #[derive(Default)]
@@ -220,6 +222,7 @@ impl ContextScene {
             viewport_rect: layer_plan.viewport_rect,
             stack: Rc::new(layer_plan.stack),
             nodes_whose_scroll_offset_plan_reads,
+            note_lines: layer_plan.note_lines.into(),
         });
         Ok(())
     }
@@ -433,6 +436,7 @@ mod tests {
                 display_list_id,
                 viewport_rect: VIEWPORT,
                 stack,
+                note_lines: Vec::new(),
             })))
             .unwrap();
         let (bytes, _) = encoder.finish();

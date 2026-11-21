@@ -298,7 +298,9 @@ impl ContextPresenting {
             self.raster_rect_of(forced_damage_rect.united(scrolled_compositor_scrollbars.intersected(viewport_rect)));
         let damage_of_layers_moved_by_animated_transforms =
             self.damage_of_layers_moved_by_animated_transforms(&layer_update, raster_rect);
-        let repaints_everything = invalidates_every_tile || damage_of_layers_moved_by_animated_transforms.is_none();
+        let repaints_everything = invalidates_every_tile
+            || damage_of_layers_moved_by_animated_transforms.is_none()
+            || self.layer_overlay.repaints_everything();
         let stale_rect = stale_rect.united(damage_of_layers_moved_by_animated_transforms.unwrap_or_default());
         FrameDamage {
             rect_in_raster_device_pixels: if repaints_everything {

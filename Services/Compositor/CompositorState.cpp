@@ -675,12 +675,12 @@ void CompositorState::viewport_size_updated(Web::CompositorContextId context_id,
     m_core.viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
 }
 
-Optional<OverlayLabel> CompositorState::shape_overlay_label(Web::CompositorContextId context_id, Optional<StringView> font_family, double device_pixel_ratio, StringView text)
+Optional<OverlayLabel> CompositorState::shape_overlay_label(Web::CompositorContextId context_id, Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text)
 {
     auto* context = presented_context_if_present(context_id);
     if (!context)
         return {};
-    return context->raster_targets.shape_overlay_label(font_family, device_pixel_ratio, text);
+    return context->raster_targets.shape_overlay_label(font_family, font_size_in_points, device_pixel_ratio, text);
 }
 
 void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)

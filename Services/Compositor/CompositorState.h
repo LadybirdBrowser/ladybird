@@ -185,7 +185,7 @@ private:
     virtual void set_timer(u64 timer_number, AK::Duration delay) override;
     virtual void cancel_timer(u64 timer_number) override;
     virtual void destroy_timer(u64 timer_number) override;
-    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) override;
+    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text) override;
 
     // What the compositor keeps of a context to paint and present its frames.
     struct PresentedContext {

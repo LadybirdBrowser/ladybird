@@ -1139,6 +1139,7 @@ mod tests {
         _: u64,
         _: bool,
         _: ak::Span<'_, u8>,
+        _: f32,
         _: f64,
         _: ak::Span<'_, u8>,
         _: *mut c_void,

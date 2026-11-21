@@ -7,6 +7,7 @@
 
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
+#include <LibGfx/Rect.h>
 
 [ExistingCpp]
 enum Compositing::WindowResizingInProgress : u8 {
@@ -200,4 +201,46 @@ struct Compositing::WheelStepLetThrough {
     Web::WheelDeltaPrecision wheel_delta_precision;
     Web::ScrollGesturePhase scroll_gesture_phase;
     Vector<Web::AsyncScrollNodeStableID> scroll_chain;
+}
+
+[ExistingCpp]
+enum Compositing::VisualContextNodeKind : u8 {
+    Spatial,
+    Effect,
+}
+
+[ExistingCpp, RustDerive=Eq]
+struct Compositing::CompositorLayerNodeDescription {
+    Compositing::VisualContextNodeKind kind;
+    u32 index;
+    String element;
+}
+
+[ExistingCpp, RustDerive=Eq+Default]
+struct Compositing::CompositorLayerDescription {
+    u64 id;
+    String name;
+    String details;
+    u32 rgb_of_outline;
+    bool hidden;
+    Gfx::IntRect visible_rect_in_viewport;
+    Vector<Compositing::CompositorLayerNodeDescription> nodes;
+    u64 tiles_rastered_since_reset;
+    String raster_causes_since_reset;
+}
+
+[ExistingCpp, RustDerive=Eq+Default]
+struct Compositing::CompositorTileHighlightDescription {
+    String raster_cause;
+    u32 rgb;
+}
+
+[ExistingCpp, RustDerive=Eq+Default]
+struct Compositing::CompositorLayersDescription {
+    Vector<Compositing::CompositorLayerDescription> layers;
+    Vector<String> notes;
+    String summary_of_last_frame;
+    Vector<Compositing::CompositorTileHighlightDescription> tile_highlights;
+    String summary_since_reset;
+    u64 visual_context_tree_structural_epoch;
 }
