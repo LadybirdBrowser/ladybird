@@ -50,6 +50,50 @@ case "${ID}" in
     ubuntu)
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -o APT::Update::Error-Mode=any
+
+        qt_dependencies=(qt6-base-dev qt6-positioning-dev qt6-tools-dev-tools)
+        if dpkg --compare-versions "${VERSION_ID}" lt 26; then
+            # Ubuntu 26.04 is the first release with Qt 6.10 or newer.
+            qt_dependencies=(
+                libatspi2.0-dev
+                libegl-dev
+                libglu1-mesa-dev
+                libudev-dev
+                libvulkan-dev
+                libx11-xcb-dev
+                libxcb-cursor-dev
+                libxcb-image0-dev
+                libxcb-keysyms1-dev
+                libxcb-randr0-dev
+                libxcb-render-util0-dev
+                libxcb-shape0-dev
+                libxcb-sync-dev
+                libxcb-util-dev
+                libxcb-xfixes0-dev
+                libxcb-xinput-dev
+                libxcb-xkb-dev
+                libxi-dev
+                libxkbcommon-dev
+                libxkbcommon-x11-dev
+                libxrender-dev
+                patchelf
+                wayland-protocols
+            )
+
+            GCC_VERSION=14
+            apt-get install -y --no-install-recommends ca-certificates curl
+
+            curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /usr/share/keyrings/llvm-snapshot.asc
+            echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.asc] https://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-${LLVM_VERSION} main" \
+                > /etc/apt/sources.list.d/llvm.list
+
+            curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc -o /usr/share/keyrings/kitware-archive-latest.asc
+            echo "deb [signed-by=/usr/share/keyrings/kitware-archive-latest.asc] https://apt.kitware.com/ubuntu/ ${VERSION_CODENAME} main" \
+                > /etc/apt/sources.list.d/kitware.list
+
+            apt-get update -o APT::Update::Error-Mode=any
+        fi
+
         apt-get install -y --no-install-recommends \
             autoconf \
             autoconf-archive \
@@ -82,13 +126,11 @@ case "${ID}" in
             pulseaudio \
             python3 \
             python3-venv \
-            qt6-base-dev \
-            qt6-positioning-dev \
-            qt6-tools-dev-tools \
             tar \
             unzip \
             xz-utils \
-            zip
+            zip \
+            "${qt_dependencies[@]}"
         for tool in clang clang++ ld.lld lld llvm-symbolizer; do
             update-alternatives --install "/usr/bin/${tool}" "${tool}" "/usr/bin/${tool}-${LLVM_VERSION}" 100
         done

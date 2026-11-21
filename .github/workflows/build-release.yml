@@ -66,7 +66,6 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     container: ${{ fromJSON(matrix.container) }}
 
-    # Ladybird links Qt's private API on Linux, so each distribution version builds its packages against its own Qt.
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +76,20 @@ jobs:
             runner_labels: '["blacksmith-12vcpu-macos-26"]'
             container: 'null'
             archives: true
+
+          - system: 'Ubuntu 24.04'
+            os_name: 'Linux'
+            arch: 'x86_64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container: &noble_container '{"image":"docker.io/library/ubuntu:24.04","options":"--ulimit core=1"}'
+            packages: 'DEB'
+
+          - system: 'Ubuntu 24.04'
+            os_name: 'Linux'
+            arch: 'arm64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+            container: *noble_container
+            packages: 'DEB'
 
           - system: 'Ubuntu 26.04'
             os_name: 'Linux'
