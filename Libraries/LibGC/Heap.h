@@ -46,6 +46,8 @@ enum class CollectionTrigger : u8 {
     DeferralEnded,
 };
 
+struct CompactionStats;
+
 namespace FFI {
 
 struct EvacuationSet;
@@ -454,6 +456,8 @@ private:
     bool m_reducing_memory { false };
     bool m_compacted_since_activity { false };
     bool m_should_compact { false };
+    // What the last collection that may have moved cells did, see begin_evacuation().
+    NonnullOwnPtr<CompactionStats> m_compaction_stats;
     // Whether the idle timer already let queued events go before a collection it decided on, see idle_gc_on_timer().
     bool m_idle_collection_postponed { false };
     void collect_garbage_from_timer(CollectionTrigger);
