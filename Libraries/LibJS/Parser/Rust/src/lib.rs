@@ -11,6 +11,10 @@
 //! the job keeps of its results is copied out of the zone by that code, which is also what reaches the runtime for the
 //! parser (see `base::ValidateRegex`).
 
+// NB: A parse job makes no block in the heap: all its work data is in its zone. Without `std` (and without `alloc`),
+//     rustc rejects code of the parser that would make one. The tests keep `std`.
+#![cfg_attr(not(test), no_std)]
+
 pub mod base;
 pub mod columns;
 pub mod escapes;
