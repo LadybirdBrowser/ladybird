@@ -392,7 +392,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto context_attributes = TRY(WebGL::convert_value_to_context_attributes_dictionary(vm(), options));
+    auto context_attributes = TRY(WebGL::convert_to_context_attributes(vm(), options));
     TRY(throw_if_control_transferred_to_offscreen());
     // AD-HOC: Converting the options can run script that creates a context.
     if (!m_context.has<Empty>())

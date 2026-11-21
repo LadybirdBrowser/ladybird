@@ -31,27 +31,12 @@
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
-#include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
 namespace {
-
-// `ContextAttributes` of Bindings/Rust/src/web_gl/exports.rs.
-struct RustContextAttributes {
-    bool alpha { true };
-    bool depth { true };
-    bool stencil { false };
-    bool antialias { true };
-    bool premultiplied_alpha { true };
-    bool preserve_drawing_buffer { false };
-    // 0 is "default", 1 is "low-power" and 2 is "high-performance".
-    u8 power_preference { 0 };
-    bool fail_if_major_performance_caveat { false };
-    bool desynchronized { false };
-};
 
 // `ContextCreationArguments` of Bindings/Rust/src/web_gl/exports.rs.
 struct ContextCreationArguments {
@@ -61,7 +46,7 @@ struct ContextCreationArguments {
     void* canvas { nullptr };
     void* canvas_host { nullptr };
     bool canvas_is_offscreen { false };
-    RustContextAttributes context_attributes;
+    ContextAttributes context_attributes;
     ReadonlySpan<ReadonlyBytes> supported_extensions;
 };
 
@@ -97,9 +82,10 @@ void* web_webgl_context_read_back_drawing_buffer(void* context, i32 x, i32 y, i3
 bool web_webgl_context_mark_lost(void* context);
 void web_webgl_context_set_restore_requested(void* context, bool requested);
 bool web_webgl_context_wants_restoring(void* context);
-void web_webgl_context_actual_context_parameters(void* context, RustContextAttributes* out_context_attributes);
+void web_webgl_context_actual_context_parameters(void* context, ContextAttributes* out_context_attributes);
 void web_webgl_context_restore(void* context, void* transport, ReadonlySpan<ReadonlyBytes> supported_extensions);
 void* web_webgl_context_event_create(JSVM*, void* realm, FlatPtr type);
+bool web_webgl_context_attributes_from_value(JSVM*, JSValue, ContextAttributes* out_context_attributes, JSValue* out_exception);
 
 // What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/web_gl/canvas.rs.
 void web_webgl_canvas_did_change_content(void* canvas_host);
@@ -117,31 +103,13 @@ static void* cell_of(WebGLRenderingContextBase const& context)
     return const_cast<WebGLRenderingContextBase*>(&context);
 }
 
-static RustContextAttributes to_rust_context_attributes(WebGLContextAttributes const& context_attributes)
+JS::ThrowCompletionOr<ContextAttributes> convert_to_context_attributes(JS::VM& vm, JS::Value value)
 {
-    u8 power_preference = 0;
-    switch (context_attributes.power_preference) {
-    case Bindings::WebGLPowerPreference::Default:
-        power_preference = 0;
-        break;
-    case Bindings::WebGLPowerPreference::LowPower:
-        power_preference = 1;
-        break;
-    case Bindings::WebGLPowerPreference::HighPerformance:
-        power_preference = 2;
-        break;
-    }
-    return {
-        .alpha = context_attributes.alpha,
-        .depth = context_attributes.depth,
-        .stencil = context_attributes.stencil,
-        .antialias = context_attributes.antialias,
-        .premultiplied_alpha = context_attributes.premultiplied_alpha,
-        .preserve_drawing_buffer = context_attributes.preserve_drawing_buffer,
-        .power_preference = power_preference,
-        .fail_if_major_performance_caveat = context_attributes.fail_if_major_performance_caveat,
-        .desynchronized = context_attributes.desynchronized,
-    };
+    ContextAttributes context_attributes;
+    JSValue exception {};
+    if (web_webgl_context_attributes_from_value(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), &context_attributes, &exception))
+        return JS::throw_completion(JS::HostABI::value_from_abi(exception));
+    return context_attributes;
 }
 
 HTML::CanvasHost& canvas_host_for(CanvasOwner const& canvas)
@@ -216,7 +184,7 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::CanvasHost& canva
 
 }
 
-WebGLRenderingContextBase* WebGLRenderingContextBase::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes, WebGLVersion webgl_version)
+WebGLRenderingContextBase* WebGLRenderingContextBase::create(JS::Realm& realm, CanvasOwner canvas, ContextAttributes const& context_attributes, WebGLVersion webgl_version)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element or OffscreenCanvas.
     auto& canvas_host = canvas_host_for(canvas);
@@ -234,18 +202,18 @@ WebGLRenderingContextBase* WebGLRenderingContextBase::create(JS::Realm& realm, C
         .canvas = canvas.visit([](auto const& canvas) -> void* { return static_cast<GC::Cell*>(canvas.ptr()); }),
         .canvas_host = &canvas_host,
         .canvas_is_offscreen = canvas.has<GC::Ref<HTML::OffscreenCanvas>>(),
-        .context_attributes = to_rust_context_attributes(context_attributes),
+        .context_attributes = context_attributes,
         .supported_extensions = supported_extensions.span(),
     };
     return static_cast<WebGLRenderingContextBase*>(web_webgl_context_create(JS::HostABI::vm_to_abi(realm.vm()), &arguments));
 }
 
-GC::Ptr<WebGLRenderingContext> WebGLRenderingContext::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes)
+GC::Ptr<WebGLRenderingContext> WebGLRenderingContext::create(JS::Realm& realm, CanvasOwner canvas, ContextAttributes const& context_attributes)
 {
     return static_cast<WebGLRenderingContext*>(WebGLRenderingContextBase::create(realm, canvas, context_attributes, WebGLVersion::WebGL1));
 }
 
-GC::Ptr<WebGL2RenderingContext> WebGL2RenderingContext::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes)
+GC::Ptr<WebGL2RenderingContext> WebGL2RenderingContext::create(JS::Realm& realm, CanvasOwner canvas, ContextAttributes const& context_attributes)
 {
     return static_cast<WebGL2RenderingContext*>(WebGLRenderingContextBase::create(realm, canvas, context_attributes, WebGLVersion::WebGL2));
 }
@@ -310,7 +278,7 @@ void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
 
     // A fresh host context starts with no GL objects; per the spec the page re-creates them
     // in its webglcontextrestored handler.
-    RustContextAttributes actual_context_parameters;
+    ContextAttributes actual_context_parameters;
     web_webgl_context_actual_context_parameters(this, &actual_context_parameters);
     auto webgl_version = web_webgl_context_is_webgl2(this) ? WebGLVersion::WebGL2 : WebGLVersion::WebGL1;
     auto remote = create_remote_webgl_context(canvas_host(), webgl_version, actual_context_parameters.depth, actual_context_parameters.stencil, actual_context_parameters.antialias);
