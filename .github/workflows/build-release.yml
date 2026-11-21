@@ -171,6 +171,20 @@ jobs:
           cpack -G "${{ matrix.packages }}" -B packages \
             -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_SystemIntegration;ladybird_SystemSymbols"
 
+      # release-tools publishes the source archive of every LGPL port at the address that LICENSES.txt names.
+      - name: Package the source code of the LGPL libraries
+        if: ${{ inputs.version != '' }}
+        working-directory: ${{ github.workspace }}/Build
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SYSTEM: ${{ matrix.system }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          cmake --build . --target third_party_sources
+          mkdir -p packages
+          mv third-party-sources.tar "packages/ladybird-${RELEASE_VERSION}-${SYSTEM// /-}-${ARCH}-third-party-sources.tar"
+
       - name: Attest
         if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
@@ -179,6 +193,7 @@ jobs:
             Build/packages/*.tar.xz
             Build/packages/*.deb
             Build/packages/*.rpm
+            Build/packages/*-third-party-sources.tar
 
       - name: Upload
         if: ${{ matrix.archives }}
@@ -229,6 +244,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird-debuginfo-*.rpm
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the source code of the LGPL libraries
+        if: ${{ inputs.version != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird-*-third-party-sources.tar
           archive: false
           if-no-files-found: error
 
