@@ -37,6 +37,8 @@ use crate::bytecode::executable_data::PrecompiledFunction;
 use crate::bytecode::instruction::typed as op;
 use crate::parser::EnclosingCode;
 use crate::parser::OutOfStack;
+use crate::parser::TopLevelRows;
+use ak::Zone;
 use context::Generator;
 pub use environment::EnclosingEnvironmentScope;
 use nodes::NodeId;
@@ -52,8 +54,9 @@ pub(crate) fn inline_argument_limit(builtin_abstract_operations_enabled: bool) -
     }
 }
 
-/// Compiles the function at `row`, which gets parsed again for that.
+/// Compiles the function at `row`, which gets parsed again for that, into a tree in `zone`.
 pub fn compile_function(
+    zone: &Zone,
     script: &Arc<crate::parser::ScriptData>,
     row: crate::parser::FunctionRow,
     enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
@@ -62,55 +65,55 @@ pub fn compile_function(
     stack_limit: usize,
 ) -> Result<PrecompiledFunction, OutOfStack> {
     let (tree, node) = script.reparse_for_sweep(
+        zone,
         row,
         stack_limit,
         inline_argument_limit(builtin_abstract_operations_enabled),
     )?;
-    let result = {
-        let mut generator = Generator::new(&tree, enclosing_code.clone(), stack_limit);
-        generator.enclosing_environment_scope = enclosing_environment_scope;
-        generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
-        generator.begin_function_scope(row);
-        let function = NodeId(node);
-        let flags = script.index.flags[row.0 as usize];
-        use crate::parser::columns::function_flag::*;
-        let swept = if flags & FIELD_INITIALIZER != 0 {
-            generator.sweep_field_initializer(function)
-        } else if flags & STATIC_BLOCK != 0 {
-            generator.sweep_static_block(function)
-        } else if flags & DEFAULT_CONSTRUCTOR != 0 {
-            generator.current_source_offset =
-                crate::bytecode::source_map::SourceOffset(script.index.start[row.0 as usize]);
-            generator.generate_default_constructor(flags & DERIVED_CONSTRUCTOR != 0);
-            Ok(())
-        } else {
-            generator.sweep_parameter_names(function);
-            generator
-                .sweep_parameters(function)
-                .and_then(|()| sweep::sweep_function_body(&mut generator, function))
-        };
-        swept.map(|()| generator.finish_function())
+    let mut generator = Generator::new(&tree, enclosing_code.clone(), stack_limit);
+    generator.enclosing_environment_scope = enclosing_environment_scope;
+    generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
+    generator.begin_function_scope(row);
+    let function = NodeId(node);
+    let flags = script.index.flags[row.0 as usize];
+    use crate::parser::columns::function_flag::*;
+    let swept = if flags & FIELD_INITIALIZER != 0 {
+        generator.sweep_field_initializer(function)
+    } else if flags & STATIC_BLOCK != 0 {
+        generator.sweep_static_block(function)
+    } else if flags & DEFAULT_CONSTRUCTOR != 0 {
+        generator.current_source_offset = crate::bytecode::source_map::SourceOffset(script.index.start[row.0 as usize]);
+        generator.generate_default_constructor(flags & DERIVED_CONSTRUCTOR != 0);
+        Ok(())
+    } else {
+        generator.sweep_parameter_names(function);
+        generator
+            .sweep_parameters(function)
+            .and_then(|()| sweep::sweep_function_body(&mut generator, function))
     };
-    tree.give_back_memory();
-    result
+    swept.map(|()| generator.finish_function())
 }
 
 /// What a compile needs to know of a program, which `compile.rs` works out.
 pub struct ProgramInput<'a> {
-    pub tree: &'a Arc<SyntaxTree>,
+    pub tree: &'a SyntaxTree<'a>,
+    /// The rows of the top level of the tree for a sweep, which its parse made.
+    pub top_level_rows: TopLevelRows<'a>,
     pub strict: bool,
     /// Whether the program is a module with top-level await, which runs like an async function.
     pub is_async_module: bool,
-    pub eager_compile_direct_iifes: bool,
     pub enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
     pub stack_limit: usize,
 }
 
 /// Compiles the script, module or eval that is the program of the tree in `input`, from the rows that its parse left.
+/// The functions that the program calls right away are marked for an eager compile, which is up to the caller, as it
+/// is a job of its own for each of them (see `crate::compile::compile_function()`).
 pub fn compile_program(input: &ProgramInput<'_>) -> Result<ExecutableData, OutOfStack> {
     let parsed = input.tree;
     let script = &parsed.script;
-    let (tree, node) = script.take_top_level_rows()?;
+    let (rows, node) = input.top_level_rows?;
+    let tree = script.tree_of_rows(rows, node);
     let kind = if script.program_type == crate::ast::ProgramType::Module {
         scope::ProgramKind::Module
     } else if script.program_context.has_no_globals {
@@ -118,41 +121,29 @@ pub fn compile_program(input: &ProgramInput<'_>) -> Result<ExecutableData, OutOf
     } else {
         scope::ProgramKind::Script
     };
-    let compiled = {
-        let mut generator = Generator::new(&tree, EnclosingCode::of_program(parsed), input.stack_limit);
-        generator.strict = input.strict;
-        generator.eager_compile_direct_iifes = input.eager_compile_direct_iifes;
-        generator.enclosing_environment_scope = input.enclosing_environment_scope.clone();
-        if input.is_async_module {
-            generator.enclosing_function_kind = FunctionKind::Async;
-        }
-        generator.context.annexb_function_names.extend_from_slice(
-            parsed
-                .program_scope()
-                .annexb_function_names
-                .of(&parsed.scopes.annexb_function_names),
-        );
-        generator.begin_program_scope(kind, input.is_async_module);
-        sweep::sweep_program(&mut generator, NodeId(node)).map(|()| generator.finish_function())
-    };
-    tree.give_back_memory();
-    let mut executable = Arc::into_inner(compiled?.executable).expect("nothing else holds on to new code");
-    for pending in executable.shared_function_data.iter_mut() {
-        if pending.should_eager_compile {
-            pending.precompiled_function =
-                crate::compile::compile_function(&pending.description.payload, false, input.stack_limit)
-                    .ok()
-                    .map(Arc::new);
-        }
+    let mut generator = Generator::new(&tree, EnclosingCode::of_program(parsed), input.stack_limit);
+    generator.strict = input.strict;
+    generator.eager_compile_direct_iifes = true;
+    generator.enclosing_environment_scope = input.enclosing_environment_scope.clone();
+    if input.is_async_module {
+        generator.enclosing_function_kind = FunctionKind::Async;
     }
-    Ok(executable)
+    generator.context.annexb_function_names.extend_from_slice(
+        parsed
+            .program_scope()
+            .annexb_function_names
+            .of(parsed.scopes.annexb_function_names),
+    );
+    generator.begin_program_scope(kind, input.is_async_module);
+    sweep::sweep_program(&mut generator, NodeId(node))?;
+    let compiled = generator.finish_function();
+    Ok(Arc::into_inner(compiled.executable).expect("nothing else holds on to new code"))
 }
 
 /// The code of a program that nests too deeply to generate code for it with the stack there is. Running it throws, like
 /// a function does that is too deep to compile.
-pub fn compile_program_too_deep_to_generate(tree: &Arc<SyntaxTree>) -> ExecutableData {
-    let tree_ref: &SyntaxTree = tree;
-    let mut generator = Generator::new(tree_ref, EnclosingCode::of_program(tree_ref), 0);
+pub fn compile_program_too_deep_to_generate(tree: &SyntaxTree<'_>) -> ExecutableData {
+    let mut generator = Generator::new(tree, EnclosingCode::of_program(tree), 0);
     generator.begin_program_scope(scope::ProgramKind::Script, true);
     let exception = generator.temporary();
     let error_string = generator.intern_string_text(crate::utf16::Utf16View::Utf16(utf16!(

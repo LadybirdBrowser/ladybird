@@ -103,10 +103,10 @@ impl Generator<'_> {
     /// Goes through the rows from `first_row` up to `end_row`, which are all of some piece of code.
     pub(super) fn sweep_rows(&mut self, first_row: usize, end_row: usize) -> Result<(), OutOfStack> {
         let tree = self.tree;
-        let tags = &tree.ast.tag[..];
-        let positions = &tree.ast.pos[..];
-        let a_column = &tree.ast.a[..];
-        let b_column = &tree.ast.b[..];
+        let tags = tree.ast.tag;
+        let positions = tree.ast.pos;
+        let a_column = tree.ast.a;
+        let b_column = tree.ast.b;
         let mut declaration_kind = DeclarationKind::Var;
         let mut declared_ident = None;
         let mut declared_resource = None;
@@ -587,7 +587,7 @@ impl Generator<'_> {
     /// value. Its rows go from `row` up to `next_row`.
     pub(super) fn name_of_anonymous_definition(&mut self, row: usize, next_row: usize) -> Option<IdentifierTableIndex> {
         let tree = self.tree;
-        let tags = &tree.ast.tag[..];
+        let tags = tree.ast.tag;
         if let Some(name) = self.context.stream.pending_function_name.take() {
             return Some(name);
         }
@@ -622,7 +622,7 @@ impl Generator<'_> {
 }
 
 /// Whether the function expression at `row` is what the code around it calls, directly or through `call` or `apply`.
-fn is_called_right_away(tree: &SyntaxTree, row: usize) -> bool {
+fn is_called_right_away(tree: &SyntaxTree<'_>, row: usize) -> bool {
     let mut next = row + 1;
     while tree.ast.tag[next] == tag::PAREN {
         next += 1;
@@ -638,7 +638,7 @@ fn is_called_right_away(tree: &SyntaxTree, row: usize) -> bool {
 }
 
 /// Whether `key` of a property is what makes a property set the prototype.
-fn is_proto_key(tree: &SyntaxTree, key: NodeId) -> bool {
+fn is_proto_key(tree: &SyntaxTree<'_>, key: NodeId) -> bool {
     match tree.node_tag(key) {
         tag::IDENT_KEY => tree.node_a(key) == N_PROTO,
         tag::STR_KEY => tree.string_literal_text(key).view() == crate::utf16::Utf16View::Ascii(b"__proto__"),
@@ -647,19 +647,19 @@ fn is_proto_key(tree: &SyntaxTree, key: NodeId) -> bool {
 }
 
 /// Whether the function at `function` has no name of its own.
-pub(super) fn is_anonymous(tree: &SyntaxTree, function: NodeId) -> bool {
+pub(super) fn is_anonymous(tree: &SyntaxTree<'_>, function: NodeId) -> bool {
     tree.script.index.name[tree.node_b(function) as usize] == NONE
 }
 
 /// https://tc39.es/ecma262/#sec-static-semantics-isfunctiondefinition
 #[inline(always)]
-fn is_function_definition(tree: &SyntaxTree, expression: NodeId) -> bool {
+fn is_function_definition(tree: &SyntaxTree<'_>, expression: NodeId) -> bool {
     matches!(tree.node_tag(expression), tag::FUNCTION | tag::CLASS)
 }
 
 /// https://tc39.es/ecma262/#sec-static-semantics-hasname
 #[inline(always)]
-fn has_name(tree: &SyntaxTree, expression: NodeId) -> bool {
+fn has_name(tree: &SyntaxTree<'_>, expression: NodeId) -> bool {
     match tree.node_tag(expression) {
         tag::FUNCTION => !is_anonymous(tree, expression),
         tag::CLASS => tree.node_a(expression) != NONE,
@@ -668,7 +668,7 @@ fn has_name(tree: &SyntaxTree, expression: NodeId) -> bool {
 }
 
 /// https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition
-pub(super) fn is_anonymous_function_definition(tree: &SyntaxTree, expression: NodeId) -> bool {
+pub(super) fn is_anonymous_function_definition(tree: &SyntaxTree<'_>, expression: NodeId) -> bool {
     // NB: IsFunctionDefinition and HasName of a ParenthesizedExpression are those of the expression in it.
     let expression = tree.skip_parens(expression);
 

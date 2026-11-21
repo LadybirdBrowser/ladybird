@@ -59,7 +59,7 @@ use crate::parser::literals::raw_template_value;
 const FIRST_ROW_OF_REPARSED_FUNCTION: usize = 1;
 
 /// The name of a field whose key is not computed, which a computed key gets only when the class is defined.
-fn class_field_name(tree: &SyntaxTree, field: NodeId) -> Option<ak::Utf16String> {
+fn class_field_name(tree: &SyntaxTree<'_>, field: NodeId) -> Option<ak::Utf16String> {
     if tree.node_tag(field) == tag::COMPUTED_CLASS_FIELD {
         return None;
     }
@@ -220,8 +220,8 @@ impl Generator<'_> {
         let is_value_of_computed_key = next_row != 0
             && mark_row != 0
             && match tree.ast.tag[mark_row - 1] {
-                tag::MARK_COMPUTED_KEY => next_tag(&tree.ast.tag, next_row - 1) == tag::COMPUTED_PROPERTY,
-                tag::MARK_KEY => next_tag(&tree.ast.tag, next_row - 1) == tag::PROPERTY,
+                tag::MARK_COMPUTED_KEY => next_tag(tree.ast.tag, next_row - 1) == tag::COMPUTED_PROPERTY,
+                tag::MARK_KEY => next_tag(tree.ast.tag, next_row - 1) == tag::PROPERTY,
                 _ => false,
             };
         let computed_name = if data.name.is_some() {
@@ -2064,7 +2064,7 @@ pub(super) fn literal_initializer(generator: &Generator<'_>, initializer: NodeId
 }
 
 /// Whether a parameter has anything that gets evaluated in it.
-fn parameter_has_expression(tree: &SyntaxTree, parameter: NodeId) -> bool {
+fn parameter_has_expression(tree: &SyntaxTree<'_>, parameter: NodeId) -> bool {
     let target = match tree.node_tag(parameter) {
         tag::ASSIGN_PATTERN => return true,
         tag::REST => NodeId(tree.node_a(parameter)),
@@ -2076,7 +2076,7 @@ fn parameter_has_expression(tree: &SyntaxTree, parameter: NodeId) -> bool {
 
 /// Calls `callback` with each of the BoundNames of `target`, an identifier or a binding pattern, in the order of the
 /// source.
-fn for_each_bound_name(tree: &SyntaxTree, target: NodeId, callback: &mut impl FnMut(Name)) {
+fn for_each_bound_name(tree: &SyntaxTree<'_>, target: NodeId, callback: &mut impl FnMut(Name)) {
     match tree.node_tag(target) {
         tag::ARRAY_PATTERN | tag::OBJECT_PATTERN => {
             for item in tree.node_list(tree.node_a(target)).iter() {
@@ -2097,6 +2097,6 @@ fn for_each_bound_name(tree: &SyntaxTree, target: NodeId, callback: &mut impl Fn
 
 /// What a function has for parameters.
 #[inline(always)]
-fn parameters_of(tree: &SyntaxTree, function: NodeId) -> NodeList<'_> {
+fn parameters_of<'a>(tree: &'a SyntaxTree<'a>, function: NodeId) -> NodeList<'a> {
     tree.node_list(tree.extra_at(tree.node_a(function)))
 }

@@ -17,7 +17,7 @@ use ak::Utf16String;
 use crate::parser::FunctionRow;
 use crate::parser::OuterResolutions;
 use crate::parser::ScriptData;
-use crate::parser::columns::Ast;
+use crate::parser::columns::AstColumns;
 use crate::parser::columns::NONE;
 use crate::parser::columns::function_flag;
 use crate::parser::columns::tag;
@@ -492,22 +492,6 @@ pub struct LocalBinding {
     pub index: u32,
 }
 
-/// A `var` binding that needs initialization during function entry.
-#[derive(Clone, Copy)]
-pub struct VarToInit {
-    pub name: Name,
-    pub is_parameter: bool,
-    pub is_function_name: bool,
-    /// If the scope analysis optimized this var to a local, stores the binding info.
-    pub local: Option<LocalBinding>,
-}
-
-/// A function declaration that needs hoisting: its index among the children of the scope.
-#[derive(Clone, Copy)]
-pub struct FunctionToInit {
-    pub child_index: u32,
-}
-
 /// A range of one of the columns of scope analysis results.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct ColumnRange {
@@ -525,8 +509,6 @@ impl ColumnRange {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct ScopeRow {
     pub(crate) local_variables: ColumnRange,
-    pub(crate) vars_to_initialize: ColumnRange,
-    pub(crate) functions_to_initialize: ColumnRange,
     pub(crate) annexb_function_names: ColumnRange,
     pub(crate) non_local_var_count: u32,
     pub(crate) non_local_var_count_for_parameter_expressions: u32,
@@ -544,24 +526,12 @@ pub(crate) struct ScopeRow {
 }
 
 /// The results of scope analysis, which are the same for the whole life of a tree.
-#[derive(Default)]
-pub(crate) struct ScopeTable {
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ScopeTable<'t> {
     /// One per function of the function index, then one per static block, then the program's.
-    pub(crate) rows: Vec<ScopeRow>,
-    pub(crate) local_variables: Vec<LocalVariable>,
-    pub(crate) vars_to_initialize: Vec<VarToInit>,
-    pub(crate) functions_to_initialize: Vec<FunctionToInit>,
-    pub(crate) annexb_function_names: Vec<Name>,
-}
-
-impl ScopeTable {
-    pub(crate) fn clear(&mut self) {
-        self.rows.clear();
-        self.local_variables.clear();
-        self.vars_to_initialize.clear();
-        self.functions_to_initialize.clear();
-        self.annexb_function_names.clear();
-    }
+    pub(crate) rows: &'t [ScopeRow],
+    pub(crate) local_variables: &'t [LocalVariable],
+    pub(crate) annexb_function_names: &'t [Name],
 }
 
 // =============================================================================
@@ -571,29 +541,31 @@ impl ScopeTable {
 /// What a compile job works from: the tree of the code it compiles, and the results of scope analysis on that code. The
 /// tree of a program holds its top-level code and the functions it is likely to call right away, and the tree of a
 /// function holds that function, in both cases with nothing but a function node for every other function nested in it.
-pub struct SyntaxTree {
+///
+/// The tree is made of slices in the work zone of the compile job, and lives no longer than the job.
+pub struct SyntaxTree<'t> {
     /// What stays of the source once the tree is gone.
     pub(crate) script: Arc<ScriptData>,
     /// The text of the source, which stays as it is for as long as the tree holds it.
     pub(crate) source: ak::Utf16String,
-    pub(crate) ast: Ast,
+    pub(crate) ast: AstColumns<'t>,
     pub(crate) root: u32,
     pub(crate) first_token_start: u32,
     pub(crate) is_strict_mode: bool,
     pub(crate) has_top_level_await: bool,
-    pub(crate) eval_referenced_private_names: Vec<Name>,
+    pub(crate) eval_referenced_private_names: &'t [Name],
     /// The resolution of the identifier at each node, if there is one.
-    pub(crate) resolutions: Vec<Resolution>,
-    pub(crate) scopes: ScopeTable,
+    pub(crate) resolutions: &'t [Resolution],
+    pub(crate) scopes: ScopeTable<'t>,
     /// The row of the program in `scopes`.
     pub(crate) program_scope_row: u32,
     /// The row in `scopes` of each function node of the tree whose code the tree holds, sorted by node.
-    pub(crate) function_scope_rows: Vec<(u32, u32)>,
+    pub(crate) function_scope_rows: &'t [(u32, u32)],
     /// What scope analysis found out for the functions that the code of the tree goes on to compile.
     pub(crate) outer_resolutions: Option<OuterResolutions>,
 }
 
-impl SyntaxTree {
+impl SyntaxTree<'_> {
     fn tag(&self, node: u32) -> u8 {
         self.ast.tag[node as usize]
     }
@@ -1119,12 +1091,12 @@ macro_rules! impl_sequence_into_iterator {
 /// A view that one list item of the tree turns into.
 pub trait ListItem<'a>: Sized {
     type Context: Copy;
-    fn read(tree: &'a SyntaxTree, node: u32, context: Self::Context) -> Self;
+    fn read(tree: &'a SyntaxTree<'a>, node: u32, context: Self::Context) -> Self;
 }
 
 /// A list of the tree, read as views of type `T`.
 pub struct List<'a, T: ListItem<'a>> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     items: &'a [u32],
     context: T::Context,
     item_type: PhantomData<T>,
@@ -1139,11 +1111,11 @@ impl<'a, T: ListItem<'a>> Clone for List<'a, T> {
 impl<'a, T: ListItem<'a>> Copy for List<'a, T> {}
 
 impl<'a, T: ListItem<'a>> List<'a, T> {
-    fn new(tree: &'a SyntaxTree, start: u32, context: T::Context) -> Self {
+    fn new(tree: &'a SyntaxTree<'a>, start: u32, context: T::Context) -> Self {
         Self::of_items(tree, tree.list(start), context)
     }
 
-    fn of_items(tree: &'a SyntaxTree, items: &'a [u32], context: T::Context) -> Self {
+    fn of_items(tree: &'a SyntaxTree<'a>, items: &'a [u32], context: T::Context) -> Self {
         Self {
             tree,
             items,
@@ -1183,21 +1155,21 @@ impl<'a, T: ListItem<'a>> IntoIterator for &List<'a, T> {
 
 impl<'a> ListItem<'a> for Expression<'a> {
     type Context = ();
-    fn read(tree: &'a SyntaxTree, node: u32, _: ()) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, node: u32, _: ()) -> Self {
         Expression::new(tree, node)
     }
 }
 
 impl<'a> ListItem<'a> for Option<Expression<'a>> {
     type Context = ();
-    fn read(tree: &'a SyntaxTree, node: u32, _: ()) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, node: u32, _: ()) -> Self {
         (tree.tag(node) != tag::HOLE).then(|| Expression::new(tree, node))
     }
 }
 
 impl<'a> ListItem<'a> for Statement<'a> {
     type Context = ();
-    fn read(tree: &'a SyntaxTree, node: u32, _: ()) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, node: u32, _: ()) -> Self {
         Statement::new(tree, node)
     }
 }
@@ -1209,7 +1181,7 @@ impl<'a> ListItem<'a> for Statement<'a> {
 /// An identifier reference or binding name, with what scope analysis found out about it.
 #[derive(Clone, Copy)]
 pub struct Identifier<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     pub name: Name,
     offset: u32,
     pub local_type: Option<LocalType>,
@@ -1220,7 +1192,7 @@ pub struct Identifier<'a> {
 }
 
 impl<'a> Identifier<'a> {
-    fn new(tree: &'a SyntaxTree, name: Name, offset: u32, resolution: Resolution) -> Self {
+    fn new(tree: &'a SyntaxTree<'a>, name: Name, offset: u32, resolution: Resolution) -> Self {
         Self {
             tree,
             name,
@@ -1248,7 +1220,7 @@ impl<'a> Identifier<'a> {
 
 #[derive(Clone, Copy)]
 pub struct PrivateIdentifier<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     name: Name,
     offset: u32,
 }
@@ -1329,7 +1301,7 @@ pub struct FunctionData<'a> {
 
 #[derive(Clone, Copy)]
 pub struct FunctionParameters<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     parameters: &'a [u32],
     /// Where the names of parameters count as being.
     first_position: u32,
@@ -1338,7 +1310,7 @@ pub struct FunctionParameters<'a> {
 }
 
 impl<'a> FunctionParameters<'a> {
-    fn empty(tree: &'a SyntaxTree) -> Self {
+    fn empty(tree: &'a SyntaxTree<'a>) -> Self {
         Self {
             tree,
             parameters: &[],
@@ -1417,7 +1389,7 @@ pub struct ClassData<'a> {
 /// The elements of a class, other than its constructor.
 #[derive(Clone, Copy)]
 pub struct ClassElements<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     elements: &'a [u32],
     constructor_index: Option<usize>,
     class_start: u32,
@@ -1445,7 +1417,7 @@ impl<'a> Sequence for ClassElements<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ClassElementNode<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
     class_start: u32,
 }
@@ -1565,7 +1537,7 @@ pub struct BindingPattern<'a> {
 }
 
 impl<'a> BindingPattern<'a> {
-    pub(crate) fn new(tree: &'a SyntaxTree, node: u32, mode: PatternMode) -> Self {
+    pub(crate) fn new(tree: &'a SyntaxTree<'a>, node: u32, mode: PatternMode) -> Self {
         let is_array = tree.tag(node) == tag::ARRAY_PATTERN;
         Self {
             kind: if is_array {
@@ -1601,7 +1573,7 @@ pub enum BindingEntryName<'a> {
 /// The key of a property in a pattern, which refers to no binding.
 #[derive(Clone, Copy)]
 pub struct PropertyKey<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
 }
 
@@ -1641,7 +1613,7 @@ pub enum BindingEntryAlias<'a> {
     MemberExpression(Expression<'a>),
 }
 
-fn pattern_alias(tree: &SyntaxTree, value: u32, mode: PatternMode) -> BindingEntryAlias<'_> {
+fn pattern_alias<'a>(tree: &'a SyntaxTree<'a>, value: u32, mode: PatternMode) -> BindingEntryAlias<'a> {
     match tree.tag(value) {
         tag::ARRAY_PATTERN | tag::OBJECT_PATTERN => {
             BindingEntryAlias::BindingPattern(BindingPattern::new(tree, value, mode))
@@ -1662,7 +1634,7 @@ fn pattern_alias(tree: &SyntaxTree, value: u32, mode: PatternMode) -> BindingEnt
 impl<'a> ListItem<'a> for BindingEntry<'a> {
     type Context = (bool, PatternMode);
 
-    fn read(tree: &'a SyntaxTree, item: u32, (is_array, mode): Self::Context) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, item: u32, (is_array, mode): Self::Context) -> Self {
         let item_tag = tree.tag(item);
         if item_tag == tag::HOLE {
             return BindingEntry {
@@ -1732,7 +1704,7 @@ impl<'a> ListItem<'a> for BindingEntry<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ObjectProperty<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     offset: u32,
     pub property_type: ObjectPropertyType,
     pub key: Expression<'a>,
@@ -1751,7 +1723,7 @@ impl<'a> ListItem<'a> for ObjectProperty<'a> {
     /// Where the object starts.
     type Context = u32;
 
-    fn read(tree: &'a SyntaxTree, property: u32, object_start: u32) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, property: u32, object_start: u32) -> Self {
         let property_tag = tree.tag(property);
         let (a, b) = (tree.a(property), tree.b(property));
         match property_tag {
@@ -1821,7 +1793,7 @@ pub struct CallArgument<'a> {
 impl<'a> ListItem<'a> for CallArgument<'a> {
     type Context = ();
 
-    fn read(tree: &'a SyntaxTree, argument: u32, _: ()) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, argument: u32, _: ()) -> Self {
         let is_spread = tree.tag(argument) == tag::SPREAD;
         CallArgument {
             value: Expression::new(tree, if is_spread { tree.a(argument) } else { argument }),
@@ -1893,7 +1865,7 @@ pub enum OptionalChainReference<'a> {
 
 #[derive(Clone, Copy)]
 pub struct OptionalChainData<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
 }
 
@@ -1921,7 +1893,7 @@ impl<'a> OptionalChainData<'a> {
 
     /// The chain reaches down to its innermost optional link, and what is below that is its base. Returns the base and
     /// the links, outermost first.
-    pub(crate) fn links(tree: &SyntaxTree, node: u32) -> (u32, Vec<u32>) {
+    pub(crate) fn links(tree: &SyntaxTree<'_>, node: u32) -> (u32, Vec<u32>) {
         let mut links = Vec::new();
         let mut base = node;
         let mut remaining_optional_links = 0;
@@ -2029,7 +2001,7 @@ pub struct TemplateElementContext {
 impl<'a> ListItem<'a> for TemplateElement<'a> {
     type Context = TemplateElementContext;
 
-    fn read(tree: &'a SyntaxTree, node: u32, context: TemplateElementContext) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, node: u32, context: TemplateElementContext) -> Self {
         TemplateElement(if tree.tag(node) == tag::TEMPLATE_CHUNK {
             Expression::with_form(
                 tree,
@@ -2050,7 +2022,7 @@ pub struct TemplateElement<'a>(pub Expression<'a>);
 
 #[derive(Clone, Copy)]
 pub struct TemplateLiteralData<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     items: &'a [u32],
     pub expressions: List<'a, TemplateElement<'a>>,
 }
@@ -2067,7 +2039,7 @@ impl TemplateLiteralData<'_> {
     }
 }
 
-fn template_chunk_units(tree: &SyntaxTree, chunk: u32) -> Utf16View<'_> {
+fn template_chunk_units<'a>(tree: &'a SyntaxTree<'a>, chunk: u32) -> Utf16View<'a> {
     let start = tree.a(chunk);
     tree.source_units(start, start + (tree.b(chunk) >> 1))
 }
@@ -2078,7 +2050,7 @@ fn template_chunk_units(tree: &SyntaxTree, chunk: u32) -> Utf16View<'_> {
 
 #[derive(Clone, Copy)]
 pub struct VariableDeclarator<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     offset: u32,
     pub target: VariableDeclaratorTarget<'a>,
     pub init: Option<Expression<'a>>,
@@ -2100,7 +2072,7 @@ impl<'a> ListItem<'a> for VariableDeclarator<'a> {
     /// Where the declaration starts.
     type Context = u32;
 
-    fn read(tree: &'a SyntaxTree, declarator: u32, offset: u32) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, declarator: u32, offset: u32) -> Self {
         let (target, init) = (tree.a(declarator), tree.b(declarator));
         VariableDeclarator {
             tree,
@@ -2231,7 +2203,7 @@ pub struct TryStatementData<'a> {
 
 #[derive(Clone, Copy)]
 pub struct CatchClause<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     offset: u32,
     pub parameter: Option<CatchBinding<'a>>,
     pub body: Statement<'a>,
@@ -2257,7 +2229,7 @@ pub struct SwitchStatementData<'a> {
 
 #[derive(Clone, Copy)]
 pub struct SwitchCase<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     offset: u32,
     pub scope: Scope<'a>,
     pub test: Option<Expression<'a>>,
@@ -2272,7 +2244,7 @@ impl SwitchCase<'_> {
 impl<'a> ListItem<'a> for SwitchCase<'a> {
     type Context = ();
 
-    fn read(tree: &'a SyntaxTree, case: u32, _: ()) -> Self {
+    fn read(tree: &'a SyntaxTree<'a>, case: u32, _: ()) -> Self {
         let test = tree.a(case);
         SwitchCase {
             tree,
@@ -2285,7 +2257,7 @@ impl<'a> ListItem<'a> for SwitchCase<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ImportStatementData<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
 }
 
@@ -2315,7 +2287,7 @@ impl ImportStatementData<'_> {
 
 #[derive(Clone, Copy)]
 pub struct ExportStatementData<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
     pub statement: Option<Statement<'a>>,
     pub is_default_export: bool,
@@ -2452,14 +2424,14 @@ impl<'a> Sequence for ScopeChildren<'a> {
 /// A scope with statements of its own: a program, a function body, a block or a case of a switch.
 #[derive(Clone, Copy)]
 pub struct Scope<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     pub children: ScopeChildren<'a>,
     /// What scope analysis found out if this is the scope of a function, a static block or a program.
     row: Option<&'a ScopeRow>,
 }
 
 impl<'a> Scope<'a> {
-    fn new(tree: &'a SyntaxTree, children: ScopeChildren<'a>) -> Self {
+    fn new(tree: &'a SyntaxTree<'a>, children: ScopeChildren<'a>) -> Self {
         Self {
             tree,
             children,
@@ -2467,11 +2439,11 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn of_list(tree: &'a SyntaxTree, list: u32) -> Self {
+    fn of_list(tree: &'a SyntaxTree<'a>, list: u32) -> Self {
         Self::new(tree, ScopeChildren::List(List::new(tree, list, ())))
     }
 
-    fn of_function(tree: &'a SyntaxTree, children: ScopeChildren<'a>, row: &'a ScopeRow) -> Self {
+    fn of_function(tree: &'a SyntaxTree<'a>, children: ScopeChildren<'a>, row: &'a ScopeRow) -> Self {
         Self {
             tree,
             children,
@@ -2481,14 +2453,14 @@ impl<'a> Scope<'a> {
 
     pub fn local_variables(&self) -> &'a [LocalVariable] {
         self.row
-            .map_or(&[], |row| row.local_variables.of(&self.tree.scopes.local_variables))
+            .map_or(&[], |row| row.local_variables.of(self.tree.scopes.local_variables))
     }
 
     /// Function names hoisted from inner blocks via Annex B.3.3. The FDI should create `var` bindings initialized to
     /// `undefined` for each name.
     pub fn annexb_function_names(&self) -> &'a [Name] {
         self.row.map_or(&[], |row| {
-            row.annexb_function_names.of(&self.tree.scopes.annexb_function_names)
+            row.annexb_function_names.of(self.tree.scopes.annexb_function_names)
         })
     }
 
@@ -2539,7 +2511,7 @@ enum ExpressionForm {
 
 #[derive(Clone, Copy)]
 pub struct Expression<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
     form: ExpressionForm,
 }
@@ -2722,14 +2694,14 @@ pub(crate) const ASSIGNMENT_OPERATORS: [AssignmentOp; 16] = [
 
 impl<'a> Expression<'a> {
     /// The expression at `node`, which a pair of parentheses leaves as it is.
-    pub(crate) fn new(tree: &'a SyntaxTree, mut node: u32) -> Self {
+    pub(crate) fn new(tree: &'a SyntaxTree<'a>, mut node: u32) -> Self {
         while tree.tag(node) == tag::PAREN {
             node = tree.a(node);
         }
         Self::with_form(tree, node, ExpressionForm::Node)
     }
 
-    fn with_form(tree: &'a SyntaxTree, node: u32, form: ExpressionForm) -> Self {
+    fn with_form(tree: &'a SyntaxTree<'a>, node: u32, form: ExpressionForm) -> Self {
         Self { tree, node, form }
     }
 
@@ -2998,7 +2970,7 @@ enum StatementForm {
 
 #[derive(Clone, Copy)]
 pub struct Statement<'a> {
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
     node: u32,
     form: StatementForm,
 }
@@ -3047,11 +3019,11 @@ pub enum StatementKind<'a> {
 }
 
 impl<'a> Statement<'a> {
-    pub(crate) fn new(tree: &'a SyntaxTree, node: u32) -> Self {
+    pub(crate) fn new(tree: &'a SyntaxTree<'a>, node: u32) -> Self {
         Self::with_form(tree, node, StatementForm::Node)
     }
 
-    fn with_form(tree: &'a SyntaxTree, node: u32, form: StatementForm) -> Self {
+    fn with_form(tree: &'a SyntaxTree<'a>, node: u32, form: StatementForm) -> Self {
         Self { tree, node, form }
     }
 

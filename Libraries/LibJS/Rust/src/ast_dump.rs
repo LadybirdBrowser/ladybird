@@ -60,7 +60,7 @@ struct DumpState<'a> {
     is_root: bool,
     use_color: bool,
     output: Option<&'a RefCell<String>>,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<'a>,
 }
 
 fn print_node(state: &DumpState, text: &str) {
@@ -269,7 +269,7 @@ fn dump_labeled_statement(label: &str, statement: &Statement, is_last: bool, sta
 // Entry point
 // ============================================================================
 
-pub fn dump_program_to_string(tree: &SyntaxTree) -> String {
+pub fn dump_program_to_string(tree: &SyntaxTree<'_>) -> String {
     let output = RefCell::new(String::new());
     let state = DumpState {
         prefix: String::new(),

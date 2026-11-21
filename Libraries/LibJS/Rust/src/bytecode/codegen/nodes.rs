@@ -153,7 +153,7 @@ pub(super) struct TryData {
     pub(super) finalizer: Option<NodeId>,
 }
 
-impl SyntaxTree {
+impl SyntaxTree<'_> {
     #[inline(always)]
     pub(super) fn node_tag(&self, node: NodeId) -> u8 {
         self.ast.tag[node.index()]

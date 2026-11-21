@@ -4,27 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The memory for the work data of a parse. A thread that parses has one zone, and each parse on the thread puts all of
-//! its work data in it. What a parse keeps is copied out of the zone before the parse ends, and the zone is empty again.
+//! The memory for the work data of a parse job: the first parse of a source, or the compile of a function, which parses
+//! it again. A thread that parses has one zone, and each job on the thread puts all of its work data in it. What a job
+//! keeps is copied out of the zone before the job ends, and the zone is empty again.
 //!
-//! The zone keeps its memory when a parse ends, for the next parse on the thread, so parses take no memory from the
-//! system and give none back. An outsized parse is the one exception: it gives back what is past the size that the
-//! zone keeps. All of the memory goes back when the thread goes idle (see `release_idle_memory()`).
+//! The zone keeps its memory when a job ends, for the next job on the thread, so jobs take no memory from the system
+//! and give none back. An outsized job is the one exception: it gives back what is past the size that the zone keeps.
+//! All of the memory goes back when the thread goes idle (see `release_idle_memory()`).
 
 use std::cell::Cell;
 
 use ak::Zone;
 
-/// The most bytes that the work data of one parse can take. It is address space, which costs nothing before it is
+/// The most bytes that the work data of one job can take. It is address space, which costs nothing before it is
 /// used, and it is far above what the largest source takes.
 const LIMIT: usize = 1 << 34;
 
-/// The most bytes of memory that the zone keeps for the next parse, about what a tree of 2^16 nodes takes. Nearly all
-/// parses need less.
-const MAXIMUM_SPARE_SIZE: usize = 1024 * 1024;
+/// The most bytes of memory that the zone keeps for the next job, about what a tree of 2^16 nodes takes with the
+/// data of scope analysis. Nearly all jobs need less.
+const MAXIMUM_SPARE_SIZE: usize = 2 * 1024 * 1024;
 
 thread_local! {
-    /// The zone of this thread, while no parse has it.
+    /// The zone of this thread, while no job has it.
     static SPARE_ZONE: Cell<Option<Zone>> = const { Cell::new(None) };
 }
 
@@ -40,7 +41,7 @@ pub(crate) fn with_work_zone<R>(job: impl for<'zone> FnOnce(&'zone Zone) -> R) -
         size = zone.used();
         result
     });
-    // NB: Give back the memory of an outsized parse rather than keep it until the thread goes idle.
+    // NB: Give back the memory of an outsized job rather than keep it until the thread goes idle.
     if size > MAXIMUM_SPARE_SIZE {
         zone.trim(MAXIMUM_SPARE_SIZE);
     }

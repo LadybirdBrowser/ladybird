@@ -31,14 +31,9 @@ use super::token::N_DOT_THIS;
 use super::token::N_DOT_UNBOUND;
 use crate::ast::*;
 use crate::u32_from_usize;
-use std::cell::Cell;
+use ak::Zone;
+use ak::ZoneVec;
 use std::sync::Arc;
-
-/// The most entries that a table keeps its memory for when the next resolver takes over.
-const MAXIMUM_SPARE_CAPACITY: usize = 1 << 16;
-
-/// The most entries that the lists of a frame keep their memory for when the next scope takes over.
-const MAXIMUM_SPARE_FRAME_CAPACITY: usize = 1 << 12;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum FrameKind {
@@ -100,7 +95,7 @@ impl Group {
         }
     }
 
-    fn add_node(&mut self, links: &mut Vec<NodeLink>, node: u32) {
+    fn add_node(&mut self, links: &mut ZoneVec<'_, NodeLink>, node: u32) {
         let link = LinkId(u32_from_usize(links.len()));
         links.push(NodeLink {
             node,
@@ -182,15 +177,13 @@ struct ScopedName {
 
 /// What the open scopes know of each name. A scope that knows a name has an entry for it, and the entries of a name form
 /// a chain from the innermost scope outward, which starts at `innermost[name]`. Names are small numbers, so finding what
-/// the innermost scopes know of a name takes no hashing. When no scope is open, every chain is empty, so the same table
-/// serves every compile on a thread, of whichever script.
-#[derive(Default)]
-struct ScopedNames {
-    innermost: Vec<ScopedNameId>,
-    entries: Vec<ScopedName>,
+/// the innermost scopes know of a name takes no hashing.
+struct ScopedNames<'z> {
+    innermost: ZoneVec<'z, ScopedNameId>,
+    entries: ZoneVec<'z, ScopedName>,
 }
 
-impl ScopedNames {
+impl ScopedNames<'_> {
     fn get(&self, id: ScopedNameId) -> &ScopedName {
         &self.entries[id.0 as usize]
     }
@@ -235,7 +228,7 @@ impl ScopedNames {
     }
 
     /// The entry of `name` in `frame`, which is new if the scope did not know the name yet.
-    fn find_or_add(&mut self, name: Name, frame: &mut Frame) -> ScopedNameId {
+    fn find_or_add(&mut self, name: Name, frame: &mut Frame<'_>) -> ScopedNameId {
         let index = name.0 as usize;
         if index >= self.innermost.len() {
             self.innermost.resize(index + 1, ScopedNameId::NONE);
@@ -279,7 +272,7 @@ impl ScopedNames {
     }
 
     /// Forgets what `frame`, the innermost scope, knows.
-    fn remove_scope(&mut self, frame: &Frame) {
+    fn remove_scope(&mut self, frame: &Frame<'_>) {
         let mut id = frame.first_name;
         while id != ScopedNameId::NONE {
             let entry = *self.get(id);
@@ -288,7 +281,7 @@ impl ScopedNames {
         }
     }
 
-    fn touch_variable(&mut self, name: Name, frame: &mut Frame) {
+    fn touch_variable(&mut self, name: Name, frame: &mut Frame<'_>) {
         let id = self.find_or_add(name, frame);
         let entry = self.get_mut(id);
         if !entry.is_in_variable_order {
@@ -298,7 +291,7 @@ impl ScopedNames {
     }
 
     /// The group of `name` in `frame`.
-    fn group_for<'f>(&mut self, name: Name, frame: &'f mut Frame) -> &'f mut Group {
+    fn group_for<'f>(&mut self, name: Name, frame: &'f mut Frame<'_>) -> &'f mut Group {
         let id = self.find_or_add(name, frame);
         let entry = self.get_mut(id);
         if entry.group == NONE {
@@ -316,7 +309,7 @@ impl ScopedNames {
 }
 
 /// One scope on the way down the tree.
-struct Frame {
+struct Frame<'z> {
     kind: FrameKind,
     /// How many scopes are around this one.
     depth: u32,
@@ -326,16 +319,16 @@ struct Frame {
     row_flags: u32,
     function_flags: u32,
     rest_name: Option<Name>,
-    groups: Vec<Group>,
+    groups: ZoneVec<'z, Group>,
     /// What nested scopes passed on, which goes behind the scope's own groups.
-    groups_from_nested_scopes: Vec<Group>,
-    functions_to_hoist: Vec<Name>,
+    groups_from_nested_scopes: ZoneVec<'z, Group>,
+    functions_to_hoist: ZoneVec<'z, Name>,
     /// What nested scopes passed on, which goes behind the scope's own functions.
-    functions_hoisted_from_nested_scopes: Vec<Name>,
+    functions_hoisted_from_nested_scopes: ZoneVec<'z, Name>,
     /// The names of the scope in the order the code declares them, with repeats left out.
-    variable_order: Vec<Name>,
-    local_variables: Vec<LocalVariable>,
-    annexb_function_names: Vec<Name>,
+    variable_order: ZoneVec<'z, Name>,
+    local_variables: ZoneVec<'z, LocalVariable>,
+    annexb_function_names: ZoneVec<'z, Name>,
     /// Where the block of this scope starts and ends, if the scope is a block.
     block_offsets: Option<(u32, u32)>,
     /// How many loops this scope is in the body of, counting those around the function it is in.
@@ -346,8 +339,8 @@ struct Frame {
     creates_environment: bool,
 }
 
-impl Frame {
-    fn new() -> Self {
+impl<'z> Frame<'z> {
+    fn new(zone: &'z Zone) -> Self {
         Self {
             kind: FrameKind::Block,
             depth: 0,
@@ -356,13 +349,13 @@ impl Frame {
             row_flags: 0,
             function_flags: 0,
             rest_name: None,
-            groups: Vec::new(),
-            groups_from_nested_scopes: Vec::new(),
-            functions_to_hoist: Vec::new(),
-            functions_hoisted_from_nested_scopes: Vec::new(),
-            variable_order: Vec::new(),
-            local_variables: Vec::new(),
-            annexb_function_names: Vec::new(),
+            groups: ZoneVec::new_in(zone),
+            groups_from_nested_scopes: ZoneVec::new_in(zone),
+            functions_to_hoist: ZoneVec::new_in(zone),
+            functions_hoisted_from_nested_scopes: ZoneVec::new_in(zone),
+            variable_order: ZoneVec::new_in(zone),
+            local_variables: ZoneVec::new_in(zone),
+            annexb_function_names: ZoneVec::new_in(zone),
             block_offsets: None,
             loop_depth: 0,
             code_of_class_row: None,
@@ -391,12 +384,6 @@ impl Frame {
         self.creates_environment = false;
     }
 
-    /// Whether this frame is better left to the allocator than kept for the next scope, after a very large scope.
-    fn keeps_too_much_memory(&self) -> bool {
-        self.groups.capacity() + self.groups_from_nested_scopes.capacity() + self.variable_order.capacity()
-            > MAXIMUM_SPARE_FRAME_CAPACITY
-    }
-
     fn is_top_level(&self) -> bool {
         matches!(
             self.kind,
@@ -417,20 +404,6 @@ impl Frame {
     fn holds_locals(&self) -> bool {
         matches!(self.kind, FrameKind::Function | FrameKind::ClassStaticInitializer)
     }
-}
-
-/// The memory of a resolver, which stays around for the next one on the thread.
-#[derive(Default)]
-struct ResolverMemory {
-    names: ScopedNames,
-    frames: Vec<Frame>,
-    spare_frames: Vec<Frame>,
-    links: Vec<NodeLink>,
-    bound_names: Vec<BoundName>,
-}
-
-thread_local! {
-    static SPARE_RESOLVER_MEMORY: Cell<ResolverMemory> = Cell::default();
 }
 
 /// A name that a pattern binds, with the node that holds its resolution.
@@ -458,13 +431,19 @@ impl OuterResolutions {
     }
 
     /// The resolutions of `entries`, which get sorted, and of which the first for a name is the one that counts.
-    fn new(entries: &mut Vec<(u64, Resolution)>) -> Self {
+    fn new(entries: &mut [(u64, Resolution)]) -> Self {
         if !entries.is_sorted_by_key(|&(key, _)| key) {
             entries.sort_by_key(|&(key, _)| key);
         }
-        entries.dedup_by_key(|&mut (key, _)| key);
+        let mut count = 0;
+        for index in 0..entries.len() {
+            if count == 0 || entries[count - 1].0 != entries[index].0 {
+                entries[count] = entries[index];
+                count += 1;
+            }
+        }
         Self {
-            entries: Arc::from(entries.as_slice()),
+            entries: Arc::from(&entries[..count]),
         }
     }
 
@@ -492,7 +471,7 @@ pub struct EnclosingCode {
 }
 
 impl EnclosingCode {
-    pub(crate) fn of_program(tree: &SyntaxTree) -> Arc<Self> {
+    pub(crate) fn of_program(tree: &SyntaxTree<'_>) -> Arc<Self> {
         Arc::new(Self {
             row: NONE,
             resolutions: tree.outer_resolutions.clone(),
@@ -504,7 +483,7 @@ impl EnclosingCode {
     /// The code of the function at `row`, from what it found out about what is nested in it itself.
     pub(crate) fn of_function(
         row: u32,
-        entries: &mut Vec<(u64, Resolution)>,
+        entries: &mut [(u64, Resolution)],
         parent: &Arc<Self>,
         has_direct_eval: bool,
     ) -> Arc<Self> {
@@ -560,52 +539,55 @@ impl EnclosingCode {
     }
 }
 
-/// What the tree of a function needs of the code around it.
-struct OutsideOfTree<'a> {
-    row: u32,
-    enclosing: &'a Arc<EnclosingCode>,
+/// The scope table that a resolver fills in.
+struct ScopeColumns<'z> {
+    rows: ZoneVec<'z, ScopeRow>,
+    local_variables: ZoneVec<'z, LocalVariable>,
+    annexb_function_names: ZoneVec<'z, Name>,
 }
 
-/// What resolving leaves in the tree.
-struct ResolverResults {
-    resolutions: Vec<Resolution>,
-    scopes: ScopeTable,
-    function_scope_rows: Vec<(u32, u32)>,
+/// What resolving found out about a tree, in the work zone.
+pub(super) struct Resolved<'z> {
+    resolutions: &'z [Resolution],
+    scopes: ScopeTable<'z>,
+    program_scope_row: u32,
+    function_scope_rows: &'z [(u32, u32)],
+    /// The resolutions for the functions nested in the tree, as (key, resolution).
+    outer_entries: &'z mut [(u64, Resolution)],
 }
 
-impl ResolverResults {
-    /// The empty columns of `tree`, which are for the results.
-    fn take_memory_of(tree: &mut SyntaxTree) -> Self {
-        Self {
-            resolutions: std::mem::take(&mut tree.resolutions),
-            scopes: std::mem::take(&mut tree.scopes),
-            function_scope_rows: std::mem::take(&mut tree.function_scope_rows),
+impl<'z> Resolved<'z> {
+    /// `tree` with what resolving found out about it.
+    pub(super) fn apply_to(self, tree: SyntaxTree<'z>) -> SyntaxTree<'z> {
+        // NB: Every function nested in the code leaves a reference behind, so that without any there are none.
+        let outer_resolutions = (!self.outer_entries.is_empty()).then(|| OuterResolutions::new(self.outer_entries));
+        SyntaxTree {
+            resolutions: self.resolutions,
+            scopes: self.scopes,
+            program_scope_row: self.program_scope_row,
+            function_scope_rows: self.function_scope_rows,
+            outer_resolutions,
+            ..tree
         }
     }
-
-    fn hand_over_to(self, tree: &mut SyntaxTree) {
-        tree.resolutions = self.resolutions;
-        tree.scopes = self.scopes;
-        tree.function_scope_rows = self.function_scope_rows;
-    }
 }
 
-struct Resolver<'t> {
-    tree: &'t SyntaxTree,
-    resolutions: Vec<Resolution>,
-    scopes: ScopeTable,
-    function_scope_rows: Vec<(u32, u32)>,
-    names: ScopedNames,
-    frames: Vec<Frame>,
-    spare_frames: Vec<Frame>,
-    links: Vec<NodeLink>,
+struct Resolver<'t, 'z> {
+    tree: &'t SyntaxTree<'t>,
+    zone: &'z Zone,
+    resolutions: ZoneVec<'z, Resolution>,
+    scopes: ScopeColumns<'z>,
+    function_scope_rows: ZoneVec<'z, (u32, u32)>,
+    names: ScopedNames<'z>,
+    frames: ZoneVec<'z, Frame<'z>>,
+    spare_frames: ZoneVec<'z, Frame<'z>>,
+    links: ZoneVec<'z, NodeLink>,
     /// The memory for the next list of names that a pattern or parameter list binds.
-    bound_names: Vec<BoundName>,
+    bound_names: ZoneVec<'z, BoundName>,
     /// The references that stand for names of functions that get compiled later, as (row, name, node).
-    outer_references: Vec<(u32, Name, u32)>,
-    outside_of_tree: Option<OutsideOfTree<'t>>,
+    outer_references: ZoneVec<'z, (u32, Name, u32)>,
     /// The links of the chains of operators being walked, see [`Resolver::expression()`].
-    chain_links: Vec<u32>,
+    chain_links: ZoneVec<'z, u32>,
     /// How many loops the code being walked is in the body of.
     loop_depth: u32,
     is_module: bool,
@@ -613,23 +595,34 @@ struct Resolver<'t> {
     suppress_globals: bool,
 }
 
-impl<'t> Resolver<'t> {
-    fn new(tree: &'t SyntaxTree, results: ResolverResults, outside_of_tree: Option<OutsideOfTree<'t>>) -> Self {
-        let memory = SPARE_RESOLVER_MEMORY.take();
-        let mut resolutions = results.resolutions;
+impl<'t, 'z> Resolver<'t, 'z> {
+    fn new(zone: &'z Zone, tree: &'t SyntaxTree<'t>) -> Self {
+        // NB: Each function that the tree does not hold leaves a reference behind for each name that it captures and
+        //     one more, see `note_free_names_of_function()`. This counts those of every function in the script, which
+        //     is enough for nearly all trees.
+        let index = &tree.script.index;
+        let outer_reference_count = index.capture_names.len() + index.start.len();
+        let mut resolutions = ZoneVec::with_capacity_in(tree.ast.tag.len() + outer_reference_count, zone);
         resolutions.resize(tree.ast.tag.len(), Resolution::default());
         Self {
+            zone,
             resolutions,
-            scopes: results.scopes,
-            function_scope_rows: results.function_scope_rows,
-            names: memory.names,
-            frames: memory.frames,
-            spare_frames: memory.spare_frames,
-            links: memory.links,
-            bound_names: memory.bound_names,
-            outer_references: Vec::new(),
-            outside_of_tree,
-            chain_links: Vec::new(),
+            scopes: ScopeColumns {
+                rows: ZoneVec::new_in(zone),
+                local_variables: ZoneVec::new_in(zone),
+                annexb_function_names: ZoneVec::new_in(zone),
+            },
+            function_scope_rows: ZoneVec::new_in(zone),
+            names: ScopedNames {
+                innermost: ZoneVec::new_in(zone),
+                entries: ZoneVec::new_in(zone),
+            },
+            frames: ZoneVec::new_in(zone),
+            spare_frames: ZoneVec::new_in(zone),
+            links: ZoneVec::new_in(zone),
+            bound_names: ZoneVec::new_in(zone),
+            outer_references: ZoneVec::with_capacity_in(outer_reference_count, zone),
+            chain_links: ZoneVec::new_in(zone),
             loop_depth: 0,
             is_module: tree.script.program_type == ProgramType::Module,
             initiated_by_eval: false,
@@ -638,64 +631,43 @@ impl<'t> Resolver<'t> {
         }
     }
 
-    /// Leaves the memory of this resolver to the next one on the thread. Every scope is closed by now, which also means
-    /// that the chains of [`ScopedNames`] are empty.
-    fn give_back_memory(&mut self) {
+    /// What the resolver found out.
+    fn finish(self) -> Resolved<'z> {
         assert!(self.frames.is_empty());
-        self.names.entries.clear();
-        self.links.clear();
-        self.bound_names.clear();
-        self.names.entries.shrink_to(MAXIMUM_SPARE_CAPACITY);
-        self.links.shrink_to(MAXIMUM_SPARE_CAPACITY);
-        SPARE_RESOLVER_MEMORY.set(ResolverMemory {
-            names: std::mem::take(&mut self.names),
-            frames: std::mem::take(&mut self.frames),
-            spare_frames: std::mem::take(&mut self.spare_frames),
-            links: std::mem::take(&mut self.links),
-            bound_names: std::mem::take(&mut self.bound_names),
-        });
-    }
-
-    /// Hands the results over to the tree.
-    fn finish(mut self) -> (ResolverResults, Option<OuterResolutions>) {
-        self.give_back_memory();
-        self.function_scope_rows.sort_unstable_by_key(|&(node, _)| node);
-        // NB: Every function nested in the code leaves a reference behind, so that without any there are none.
-        let outer_resolutions = (!self.outer_references.is_empty()).then(|| {
-            let mut entries = self
-                .outer_references
+        let function_scope_rows = self.function_scope_rows.into_slice();
+        function_scope_rows.sort_unstable_by_key(|&(node, _)| node);
+        let resolutions = self.resolutions.into_slice();
+        let outer_entries = self.zone.alloc_slice_from_iter(
+            self.outer_references
                 .iter()
-                .map(|&(row, name, node)| (OuterResolutions::key(row, name), self.resolutions[node as usize]))
-                .collect();
-            OuterResolutions::new(&mut entries)
-        });
-        (
-            ResolverResults {
-                resolutions: self.resolutions,
-                scopes: self.scopes,
-                function_scope_rows: self.function_scope_rows,
+                .map(|&(row, name, node)| (OuterResolutions::key(row, name), resolutions[node as usize])),
+        );
+        let scopes = self.scopes;
+        Resolved {
+            program_scope_row: u32_from_usize(scopes.rows.len()) - 1,
+            resolutions,
+            scopes: ScopeTable {
+                rows: scopes.rows.into_slice(),
+                local_variables: scopes.local_variables.into_slice(),
+                annexb_function_names: scopes.annexb_function_names.into_slice(),
             },
-            outer_resolutions,
-        )
+            function_scope_rows,
+            outer_entries,
+        }
     }
 }
 
-/// Fills in the resolution column and the scope table of the tree of a program that the parser just finished.
-pub(super) fn resolve_program(tree: &mut SyntaxTree, options: &ResolveOptions) {
-    let results = ResolverResults::take_memory_of(tree);
-    let readable_tree: &SyntaxTree = tree;
-    let mut resolver = Resolver::new(readable_tree, results, None);
+/// Resolves the identifiers of the tree of a program that the parser just finished, with the work data and the results
+/// in `zone`.
+pub(super) fn resolve_program<'z>(zone: &'z Zone, tree: &SyntaxTree<'_>, options: &ResolveOptions) -> Resolved<'z> {
+    let mut resolver = Resolver::new(zone, tree);
     resolver.initiated_by_eval = options.initiated_by_eval;
     resolver.suppress_globals = options.suppress_globals;
-    let root = resolver.tree.root;
-    resolver.program(root);
-    let (results, outer_resolutions) = resolver.finish();
-    tree.program_scope_row = u32_from_usize(results.scopes.rows.len()) - 1;
-    results.hand_over_to(tree);
-    tree.outer_resolutions = outer_resolutions;
+    resolver.program(tree.root);
+    resolver.finish()
 }
 
-impl<'t> Resolver<'t> {
+impl<'t, 'z> Resolver<'t, 'z> {
     // === Tree access ===
 
     fn tag(&self, node: u32) -> u8 {
@@ -735,7 +707,7 @@ impl<'t> Resolver<'t> {
 
     // === Scopes ===
 
-    fn merge_row(&mut self, frame: &mut Frame, row: u32) {
+    fn merge_row(&mut self, frame: &mut Frame<'z>, row: u32) {
         if row == NONE {
             return;
         }
@@ -756,8 +728,9 @@ impl<'t> Resolver<'t> {
     }
 
     /// A frame for a new scope of `kind` inside the open ones, which is yet to be pushed.
-    fn new_frame(&mut self, kind: FrameKind) -> Frame {
-        let mut frame = self.spare_frames.pop().unwrap_or_else(Frame::new);
+    fn new_frame(&mut self, kind: FrameKind) -> Frame<'z> {
+        let zone = self.zone;
+        let mut frame = self.spare_frames.pop().unwrap_or_else(|| Frame::new(zone));
         frame.reset(kind, u32_from_usize(self.frames.len()));
         frame.loop_depth = self.loop_depth;
         frame
@@ -769,7 +742,7 @@ impl<'t> Resolver<'t> {
         self.frames.push(frame);
     }
 
-    fn top(&mut self) -> &mut Frame {
+    fn top(&mut self) -> &mut Frame<'z> {
         self.frames.last_mut().expect("there is an open scope")
     }
 
@@ -784,11 +757,11 @@ impl<'t> Resolver<'t> {
 
     /// An empty list for the names that a pattern or parameter list binds, for [`Self::give_back_bound_names()`] after.
     /// Patterns nest, in which case the inner one has to allocate.
-    fn take_bound_names(&mut self) -> Vec<BoundName> {
-        std::mem::take(&mut self.bound_names)
+    fn take_bound_names(&mut self) -> ZoneVec<'z, BoundName> {
+        self.bound_names.take()
     }
 
-    fn give_back_bound_names(&mut self, mut bound: Vec<BoundName>) {
+    fn give_back_bound_names(&mut self, mut bound: ZoneVec<'z, BoundName>) {
         bound.clear();
         self.bound_names = bound;
     }
@@ -816,7 +789,7 @@ impl<'t> Resolver<'t> {
     fn close_frame(&mut self, children: &[u32]) -> ScopeRow {
         let mut frame = self.frames.pop().expect("there is an open scope");
 
-        let mut nested_groups = std::mem::take(&mut frame.groups_from_nested_scopes);
+        let mut nested_groups = frame.groups_from_nested_scopes.take();
         for nested in &nested_groups {
             let id = self.names.find_or_add(nested.name, &mut frame);
             let entry = self.names.get_mut(id);
@@ -835,7 +808,7 @@ impl<'t> Resolver<'t> {
         nested_groups.clear();
         frame.groups_from_nested_scopes = nested_groups;
 
-        let mut groups = std::mem::take(&mut frame.groups);
+        let mut groups = frame.groups.take();
         let mut passed_on_count = 0;
         for index in 0..groups.len() {
             let mut group = groups[index];
@@ -862,10 +835,9 @@ impl<'t> Resolver<'t> {
         if let Some(row) = frame.code_of_class_row {
             self.note_free_names_of_class_code(row, &mut groups);
         }
+        // NB: What leaves the program is unbound, and nothing resolves it further.
         if let Some(parent) = self.frames.last_mut() {
             parent.groups_from_nested_scopes.extend_from_slice(&groups);
-        } else {
-            self.resolve_outside_of_tree(&groups);
         }
         groups.clear();
         frame.groups = groups;
@@ -886,9 +858,7 @@ impl<'t> Resolver<'t> {
             self.build_function_scope_data(&mut frame, children, &mut row);
         }
         self.names.remove_scope(&frame);
-        if !frame.keeps_too_much_memory() {
-            self.spare_frames.push(frame);
-        }
+        self.spare_frames.push(frame);
         row
     }
 
@@ -929,7 +899,7 @@ impl<'t> Resolver<'t> {
 
     /// The code of a class that runs as a function has no captures of its own: it is in the tree of the code around it,
     /// so that its free names are the groups that leave its scope.
-    fn note_free_names_of_class_code(&mut self, row: u32, groups: &mut Vec<Group>) {
+    fn note_free_names_of_class_code(&mut self, row: u32, groups: &mut ZoneVec<'_, Group>) {
         let mut has_unbound_name = false;
         for group in groups.iter_mut() {
             has_unbound_name |= group.name == Name(N_DOT_UNBOUND);
@@ -946,31 +916,8 @@ impl<'t> Resolver<'t> {
         }
     }
 
-    /// Resolves what leaves the function that the tree holds, as the code around it did when it got compiled.
-    fn resolve_outside_of_tree(&mut self, groups: &[Group]) {
-        let Some(outside) = &self.outside_of_tree else {
-            return;
-        };
-        let (row, enclosing) = (outside.row, outside.enclosing);
-        for group in groups {
-            let outer = enclosing.resolution_in_function(&self.tree.script, row, group.name);
-            for node in group.nodes(&self.links) {
-                let resolution = &mut self.resolutions[node as usize];
-                if outer.is_inside_scope_with_eval() {
-                    resolution.set_is_inside_scope_with_eval();
-                }
-                if outer.is_global() && !resolution.is_inside_scope_with_eval() {
-                    resolution.set_is_global();
-                }
-                if let Some(kind) = outer.declaration_kind() {
-                    resolution.set_declaration_kind(kind);
-                }
-            }
-        }
-    }
-
     /// Resolves a group in a scope, and returns whether it goes on to the scope around it.
-    fn resolve_group(&mut self, frame: &mut Frame, group: &mut Group) -> bool {
+    fn resolve_group(&mut self, frame: &mut Frame<'z>, group: &mut Group) -> bool {
         let name = group.name;
         let flags = self.names.get(group.scoped_name).binding_flags;
         let is_function = frame.kind == FrameKind::Function;
@@ -1108,7 +1055,7 @@ impl<'t> Resolver<'t> {
     }
 
     /// Adds a local to the function or static block around a scope, or to the program if there is neither.
-    fn add_local_variable(&mut self, frame: &mut Frame, group: &Group, mut variable: LocalVariable) -> Option<u32> {
+    fn add_local_variable(&mut self, frame: &mut Frame<'z>, group: &Group, mut variable: LocalVariable) -> Option<u32> {
         let holder = if frame.holds_locals() {
             frame
         } else if let Some(function) = self.frames.iter_mut().rev().find(|frame| frame.holds_locals()) {
@@ -1132,11 +1079,11 @@ impl<'t> Resolver<'t> {
     }
 
     // https://tc39.es/ecma262/#sec-block-level-function-declarations-web-legacy-compatibility-semantics
-    fn hoist_functions(&mut self, frame: &mut Frame) {
+    fn hoist_functions(&mut self, frame: &mut Frame<'_>) {
         if frame.functions_to_hoist.is_empty() && frame.functions_hoisted_from_nested_scopes.is_empty() {
             return;
         }
-        let mut functions = std::mem::take(&mut frame.functions_to_hoist);
+        let mut functions = frame.functions_to_hoist.take();
         functions.append(&mut frame.functions_hoisted_from_nested_scopes);
         for &name in &functions {
             if self.names.blocks_hoisted_function(name, frame.depth) {
@@ -1173,37 +1120,14 @@ impl<'t> Resolver<'t> {
     }
 
     // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
-    fn build_function_scope_data(&mut self, frame: &mut Frame, children: &[u32], row: &mut ScopeRow) {
-        let mut has_function_declarations = false;
+    fn build_function_scope_data(&mut self, frame: &mut Frame<'z>, children: &[u32], row: &mut ScopeRow) {
         for (index, &child) in children.iter().enumerate() {
             if let Some(name) = self.declared_function_name(child) {
                 let id = self.names.find_or_add(name, frame);
                 self.names.get_mut(id).last_function_position = u32_from_usize(index);
-                has_function_declarations = true;
             }
         }
-        let first_function = self.scopes.functions_to_initialize.len();
-        if has_function_declarations {
-            for (index, &child) in children.iter().enumerate() {
-                if let Some(name) = self.declared_function_name(child)
-                    && self
-                        .names
-                        .find(name, frame.depth)
-                        .map(|entry| entry.last_function_position)
-                        == Some(u32_from_usize(index))
-                {
-                    self.scopes.functions_to_initialize.push(FunctionToInit {
-                        child_index: u32_from_usize(index),
-                    });
-                }
-            }
-        }
-        row.functions_to_initialize = ColumnRange {
-            start: u32_from_usize(first_function),
-            end: u32_from_usize(self.scopes.functions_to_initialize.len()),
-        };
 
-        let first_var = self.scopes.vars_to_initialize.len();
         for &name in &frame.variable_order {
             let entry = self
                 .names
@@ -1214,25 +1138,13 @@ impl<'t> Resolver<'t> {
                 continue;
             }
             let is_parameter = flags & decl::PARAMETER != 0;
-            let local = entry.local;
-            let is_function_name = entry.last_function_position != NONE;
-            if local.is_none() {
+            if entry.local.is_none() {
                 row.non_local_var_count_for_parameter_expressions += 1;
                 if !is_parameter {
                     row.non_local_var_count += 1;
                 }
             }
-            self.scopes.vars_to_initialize.push(VarToInit {
-                name,
-                is_parameter,
-                is_function_name,
-                local,
-            });
         }
-        row.vars_to_initialize = ColumnRange {
-            start: u32_from_usize(first_var),
-            end: u32_from_usize(self.scopes.vars_to_initialize.len()),
-        };
 
         let arguments_name = Name(N_ARGUMENTS);
         let arguments_entry = self.names.find(arguments_name, frame.depth);
@@ -1800,7 +1712,7 @@ impl<'t> Resolver<'t> {
         }
     }
 
-    fn pattern(&mut self, node: u32, mode: PatternMode, bound: &mut Vec<BoundName>) {
+    fn pattern(&mut self, node: u32, mode: PatternMode, bound: &mut ZoneVec<'_, BoundName>) {
         let is_array = self.tag(node) == tag::ARRAY_PATTERN;
         for &item in self.list(self.a(node)) {
             self.pattern_entry(item, is_array, mode, bound);
@@ -1808,7 +1720,7 @@ impl<'t> Resolver<'t> {
     }
 
     /// The target of a pattern's entry, which is an alias of the entry's name.
-    fn pattern_alias(&mut self, value: u32, mode: PatternMode, bound: &mut Vec<BoundName>) {
+    fn pattern_alias(&mut self, value: u32, mode: PatternMode, bound: &mut ZoneVec<'_, BoundName>) {
         match self.tag(value) {
             tag::ARRAY_PATTERN | tag::OBJECT_PATTERN => self.pattern(value, mode, bound),
             tag::IDENT if mode == PatternMode::Binding => bound.push(BoundName {
@@ -1819,7 +1731,7 @@ impl<'t> Resolver<'t> {
         }
     }
 
-    fn pattern_entry(&mut self, item: u32, is_array: bool, mode: PatternMode, bound: &mut Vec<BoundName>) {
+    fn pattern_entry(&mut self, item: u32, is_array: bool, mode: PatternMode, bound: &mut ZoneVec<'_, BoundName>) {
         let item_tag = self.tag(item);
         if item_tag == tag::HOLE {
             return;
@@ -2033,7 +1945,7 @@ impl<'t> Resolver<'t> {
     }
 }
 
-fn append_to_column<T: Copy>(column: &mut Vec<T>, items: &[T]) -> ColumnRange {
+fn append_to_column<T: Copy>(column: &mut ZoneVec<'_, T>, items: &[T]) -> ColumnRange {
     let start = u32_from_usize(column.len());
     column.extend_from_slice(items);
     ColumnRange {
