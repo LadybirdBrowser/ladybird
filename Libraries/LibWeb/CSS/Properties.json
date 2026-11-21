@@ -419,6 +419,7 @@
     ]
   },
   "alignment-baseline": {
+    "style-group": "SVGResetValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "baseline",
@@ -427,7 +428,9 @@
       "baseline-metric"
     ],
     "valid-identifiers": [
-      "baseline"
+      "baseline",
+      "text-after-edge>text-bottom",
+      "text-before-edge>text-top"
     ]
   },
   "all": {

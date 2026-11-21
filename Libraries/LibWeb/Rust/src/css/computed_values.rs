@@ -6066,6 +6066,8 @@ impl SVGResetValues {
             flood_color: crate::css::computed_value_types::StyleColor::rgba(OPAQUE_BLACK_BGRA),
             flood_opacity: 1.0,
             vector_effect: vector_effect::NONE,
+            has_alignment_baseline: false,
+            alignment_baseline: 0,
         }
     }
 }

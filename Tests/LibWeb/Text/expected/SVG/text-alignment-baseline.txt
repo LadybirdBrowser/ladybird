@@ -1,0 +1,9 @@
+plain: 84
+attribute: 90
+property: 90
+tspan: 90
+hanging: 96.796875
+child: 84
+on-path: 240
+computed on the tspan's parent: central
+computed on its child: baseline

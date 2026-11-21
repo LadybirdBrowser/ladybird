@@ -943,6 +943,9 @@ pub struct SVGResetValues {
     pub flood_color: StyleColor,
     pub flood_opacity: f32,
     pub vector_effect: u8,
+    /// Whether alignment-baseline names a baseline metric, rather than being 'baseline'.
+    pub has_alignment_baseline: bool,
+    pub alignment_baseline: u8,
 }
 
 /// A Rust-owned list of computed TextDecorationLine enum codes.

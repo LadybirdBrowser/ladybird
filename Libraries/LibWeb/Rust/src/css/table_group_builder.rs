@@ -545,6 +545,10 @@ fn build_svg_reset_group(
             .expect("a computed SVG reset opacity resolves")
     };
     let retained = |property| ComputedStyleValueHandle::from_retained(values.handle(property));
+    let alignment_baseline = values
+        .value(property_id::ALIGNMENT_BASELINE)
+        .and_then(keyword_of)
+        .and_then(crate::css::css_enums::keyword_to_baseline_metric);
     let built = SVGResetValues {
         cx: retained(property_id::CX),
         cy: retained(property_id::CY),
@@ -563,6 +567,8 @@ fn build_svg_reset_group(
             property_id::VECTOR_EFFECT,
             crate::css::css_enums::keyword_to_vector_effect,
         ),
+        has_alignment_baseline: alignment_baseline.is_some(),
+        alignment_baseline: alignment_baseline.unwrap_or(0),
     };
     build_svg_reset_group_payload(group_index::SVG_RESET, built, parent)
 }
