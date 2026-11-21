@@ -12,7 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/webgl_wire.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_gl::proxy::wire::{DataSpan, WireStruct};
+    use crate::webgl::wire::{DataSpan, WireStruct};
 
     #[test]
     fn a_struct_is_its_fields_in_the_byte_order_of_the_machine() {

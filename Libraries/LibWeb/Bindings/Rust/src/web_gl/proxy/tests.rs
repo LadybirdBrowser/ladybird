@@ -14,10 +14,12 @@ use std::rc::{Rc, Weak};
 
 use super::custom::FrameUpload;
 use super::generated::GetActiveAttribOutputs;
-use super::recorder::{MAX_PENDING_COMMAND_BYTES, Proxy, SHARED_DATA_REGION_OFFSET, bytes_of};
+use libcompositing_rust::webgl::SHARED_DATA_REGION_OFFSET;
+use libcompositing_rust::webgl::vocabulary::{CommandType, SyncCallType, commands, sync_calls};
+use libcompositing_rust::webgl::wire::{Command, DataSpan, HEADER_SIZE, WireStruct};
+
+use super::recorder::{MAX_PENDING_COMMAND_BYTES, Proxy, bytes_of};
 use super::transport::{ReadPixelsResult, SharedMemory, Transport};
-use super::vocabulary::{CommandType, SyncCallType, commands, sync_calls};
-use super::wire::{DataSpan, HEADER_SIZE, WireStruct};
 use crate::web_gl::constants::{GL_ARRAY_BUFFER, GL_INVALID_ENUM, GL_OUT_OF_MEMORY, GL_RGBA, GL_UNSIGNED_BYTE};
 
 #[derive(Clone)]
@@ -77,7 +79,7 @@ fn records_in(mut bytes: &[u8]) -> Vec<Record> {
     records
 }
 
-fn record_of<C: super::wire::Command>(command: &C) -> Record {
+fn record_of<C: Command>(command: &C) -> Record {
     let mut payload = command.as_bytes().to_vec();
     payload.resize((HEADER_SIZE + payload.len()).next_multiple_of(16) - HEADER_SIZE, 0);
     Record {

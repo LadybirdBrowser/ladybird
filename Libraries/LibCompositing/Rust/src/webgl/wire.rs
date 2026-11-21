@@ -15,25 +15,25 @@ use super::vocabulary::{CommandType, SyncCallType};
 
 /// Records start at multiples of this many bytes, and so does the data that follows a struct, counted from the start
 /// of the struct.
-pub(crate) const RECORD_ALIGNMENT: usize = 16;
+pub const RECORD_ALIGNMENT: usize = 16;
 
 /// What precedes the struct of a record and of a request: its type as a `u16`, two unused bytes, and the number of
 /// bytes that follow the header as a `u32`.
-pub(crate) const HEADER_SIZE: usize = 8;
-pub(crate) const HEADER_PAYLOAD_SIZE_OFFSET: usize = 4;
+pub const HEADER_SIZE: usize = 8;
+pub const HEADER_PAYLOAD_SIZE_OFFSET: usize = 4;
 
 /// `size` bytes that start `offset` bytes after the start of the struct that has the span as a field.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
-pub(crate) struct DataSpan {
-    pub(crate) offset: u32,
-    pub(crate) size: u32,
+pub struct DataSpan {
+    pub offset: u32,
+    pub size: u32,
 }
 
 impl DataSpan {
-    pub(crate) const EMPTY: Self = Self { offset: 0, size: 0 };
+    pub const EMPTY: Self = Self { offset: 0, size: 0 };
 
-    pub(crate) fn following<S: WireStruct>(data: InlineData<'_>) -> Self {
+    pub fn following<S: WireStruct>(data: InlineData<'_>) -> Self {
         Self {
             offset: const { offset_of_data_following_struct(size_of::<S>()) },
             // NB: Data of 4 GiB or more has no span. It has no `FramedSize` either, so the recorder refuses what it
@@ -52,7 +52,7 @@ const fn offset_of_data_following_struct(struct_size: usize) -> u32 {
 /// # Safety
 ///
 /// The type is `repr(C)`, made of numbers, booleans and [`DataSpan`]s, and has no byte that is not part of a field.
-pub(crate) unsafe trait WireStruct: Copy + 'static {
+pub unsafe trait WireStruct: Copy + 'static {
     /// A struct is built from it, so that the bytes that the C ABI leaves unused between its fields, which are fields
     /// of their own here, do not have to be named.
     const ZEROED: Self;
@@ -63,11 +63,11 @@ pub(crate) unsafe trait WireStruct: Copy + 'static {
     }
 }
 
-pub(crate) trait Command: WireStruct {
+pub trait Command: WireStruct {
     const TYPE: CommandType;
 }
 
-pub(crate) trait SyncRequest: WireStruct {
+pub trait SyncRequest: WireStruct {
     const TYPE: SyncCallType;
     type Reply: SyncReply;
 }
@@ -75,7 +75,7 @@ pub(crate) trait SyncRequest: WireStruct {
 /// # Safety
 ///
 /// Every bit pattern is a value of the type.
-pub(crate) unsafe trait SyncReply: WireStruct {
+pub unsafe trait SyncReply: WireStruct {
     fn from_reply_bytes(reply: &[u8]) -> Self {
         assert!(
             reply.len() >= size_of::<Self>(),
@@ -88,7 +88,7 @@ pub(crate) unsafe trait SyncReply: WireStruct {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum InlineData<'a> {
+pub enum InlineData<'a> {
     /// No bytes take no room at all, not even for the alignment of what would follow.
     Bytes(&'a [u8]),
     /// The stream has a NUL after the bytes.
@@ -96,13 +96,17 @@ pub(crate) enum InlineData<'a> {
 }
 
 impl InlineData<'_> {
-    pub(crate) const NONE: Self = Self::Bytes(&[]);
+    pub const NONE: Self = Self::Bytes(&[]);
 
-    pub(crate) fn len(self) -> usize {
+    pub fn len(self) -> usize {
         match self {
             Self::Bytes(bytes) => bytes.len(),
             Self::NulTerminated(bytes) => bytes.len() + 1,
         }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
     }
 
     /// # Safety
@@ -160,7 +164,7 @@ impl FramedSize {
     }
 }
 
-pub(crate) fn padded_record_size(struct_size: usize, inline_data_size: usize) -> Option<usize> {
+pub fn padded_record_size(struct_size: usize, inline_data_size: usize) -> Option<usize> {
     FramedSize::of_record(struct_size, inline_data_size).map(|size| size.size_with_header)
 }
 
@@ -188,7 +192,7 @@ unsafe fn write_framed(
     unsafe {
         ptr::copy_nonoverlapping(header.as_ptr(), destination, HEADER_SIZE);
         ptr::copy_nonoverlapping(payload.as_ptr(), destination.add(HEADER_SIZE), payload.len());
-        if inline_data.len() > 0 {
+        if !inline_data.is_empty() {
             let inline_data_offset = HEADER_SIZE + payload.len().next_multiple_of(RECORD_ALIGNMENT);
             ptr::write_bytes(destination.add(written), 0, inline_data_offset - written);
             inline_data.write_to(destination.add(inline_data_offset));
@@ -198,7 +202,7 @@ unsafe fn write_framed(
     }
 }
 
-pub(crate) struct Record<'a> {
+pub struct Record<'a> {
     command_type: CommandType,
     payload: &'a [u8],
     inline_data: InlineData<'a>,
@@ -206,7 +210,7 @@ pub(crate) struct Record<'a> {
 }
 
 impl<'a> Record<'a> {
-    pub(crate) fn new(command_type: CommandType, payload: &'a [u8], inline_data: InlineData<'a>) -> Option<Self> {
+    pub fn new(command_type: CommandType, payload: &'a [u8], inline_data: InlineData<'a>) -> Option<Self> {
         Some(Self {
             command_type,
             payload,
@@ -215,14 +219,14 @@ impl<'a> Record<'a> {
         })
     }
 
-    pub(crate) fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.size.size_with_header
     }
 
     /// # Safety
     ///
     /// `destination` is valid for writes of `self.size()` bytes that overlap neither the struct nor the data.
-    pub(crate) unsafe fn write_to(&self, destination: *mut u8) {
+    pub unsafe fn write_to(&self, destination: *mut u8) {
         // SAFETY: The caller provides the bytes of the record, whose size is that of the struct with the data.
         unsafe {
             write_framed(
@@ -235,7 +239,7 @@ impl<'a> Record<'a> {
         }
     }
 
-    pub(crate) fn append_to(&self, commands: &mut Vec<u8>) {
+    pub fn append_to(&self, commands: &mut Vec<u8>) {
         let record_offset = commands.len();
         assert!(record_offset.is_multiple_of(RECORD_ALIGNMENT));
         commands.resize(record_offset + self.size(), 0);
@@ -243,7 +247,7 @@ impl<'a> Record<'a> {
         unsafe { self.write_to(commands.as_mut_ptr().add(record_offset)) };
     }
 
-    pub(crate) fn encoded(&self) -> Vec<u8> {
+    pub fn encoded(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
         self.append_to(&mut bytes);
         bytes
@@ -252,7 +256,7 @@ impl<'a> Record<'a> {
 
 /// False, with no request in `request_bytes`, when the stream cannot carry the request.
 #[must_use]
-pub(crate) fn encode_sync_request<R: SyncRequest>(
+pub fn encode_sync_request<R: SyncRequest>(
     request_bytes: &mut Vec<u8>,
     request: &R,
     inline_data: InlineData<'_>,
@@ -275,7 +279,7 @@ pub(crate) fn encode_sync_request<R: SyncRequest>(
     true
 }
 
-pub(crate) fn resolve_data_span(reply: &[u8], span: DataSpan) -> &[u8] {
+pub fn resolve_data_span(reply: &[u8], span: DataSpan) -> &[u8] {
     let start = span.offset as usize;
     start
         .checked_add(span.size as usize)

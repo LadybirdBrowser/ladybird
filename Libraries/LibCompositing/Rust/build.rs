@@ -9,6 +9,13 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "generate/webgl_wire.rs"]
+mod webgl_wire;
+
+#[allow(dead_code, reason = "the model is for the generators of the other crates as well")]
+#[path = "generate/webgl_wire_model.rs"]
+mod webgl_wire_model;
+
 // AK::Optional is not trivial for calls under every C++ ABI: Apple clang returns it through memory, where Rust
 // returns the matching #[repr(C)] struct in registers. Keep it out of extern "C" signatures; pass a plain
 // #[repr(C)] struct and convert it to an Optional on the C++ side.
@@ -349,11 +356,29 @@ fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), B
     Ok(())
 }
 
+/// The vocabulary of the WebGL command stream, which src/webgl/vocabulary.rs includes.
+fn generate_webgl_wire_vocabulary(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let functions_path = manifest_dir.join("../WebGL/GLFunctions.json");
+    println!("cargo:rerun-if-changed={}", functions_path.display());
+    println!("cargo:rerun-if-changed=generate");
+    let json = std::fs::read_to_string(&functions_path)?;
+    let generate = |json: &str| -> Result<String, String> {
+        let functions = webgl_wire_model::parse_functions(json)?;
+        Ok(webgl_wire::write_wire_vocabulary(&webgl_wire_model::vocabulary(
+            &functions,
+        )?))
+    };
+    let vocabulary = generate(&json).map_err(|error| format!("{}: {error}", functions_path.display()))?;
+    std::fs::write(out_dir.join("webgl_wire.rs"), vocabulary)?;
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
     generate_ipc_definitions(&manifest_dir, &out_dir)?;
+    generate_webgl_wire_vocabulary(&manifest_dir, &out_dir)?;
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");

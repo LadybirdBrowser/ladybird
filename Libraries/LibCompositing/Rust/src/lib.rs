@@ -31,3 +31,17 @@ mod test_stubs;
 pub mod time;
 pub mod visual_animation;
 pub mod visual_context;
+pub mod webgl;
+
+// The model of the WebGL functions, which the build scripts of the crates that generate from it include, and whose tests
+// run with those of this crate.
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "the tests do not run the generators, which the model is for as well"
+)]
+#[path = "../generate/webgl_wire_model.rs"]
+mod webgl_wire_model;
+#[cfg(test)]
+#[path = "../generate/webgl_wire_model_tests.rs"]
+mod webgl_wire_model_tests;

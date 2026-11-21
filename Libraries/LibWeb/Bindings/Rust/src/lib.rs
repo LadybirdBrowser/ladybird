@@ -435,9 +435,9 @@ mod webgl_proxy;
 #[cfg(test)]
 #[allow(
     dead_code,
-    reason = "the tests do not run the writer of the vocabulary, which the model is for as well"
+    reason = "the tests do not run the generators, which the model is for as well"
 )]
-#[path = "../generate/webgl_wire_model.rs"]
+#[path = "../../../../LibCompositing/Rust/generate/webgl_wire_model.rs"]
 mod webgl_wire_model;
 
 // NB: Little in this crate names libweb_rust, which C++ calls into. Linking it keeps its extern "C" functions in the

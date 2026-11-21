@@ -51,7 +51,7 @@ static_assert(offsetof(Compositing::WebGL::WebGLSyncCallHeader, type) == 0 && of
 static_assert(sizeof(Compositing::WebGL::WebGLSyncCallType) == sizeof(u16) && sizeof(Compositing::WebGL::WebGLCommandType) == sizeof(u16));
 static_assert(sizeof(Compositing::WebGL::WebGLCommandHeader::payload_size) == sizeof(u32));
 
-// NB: `DataSpan` of proxy/wire.rs is two `u32`s in this order.
+// NB: `DataSpan` of libcompositing_rust::webgl::wire is two `u32`s in this order.
 static_assert(sizeof(Compositing::WebGL::WebGLDataSpan) == 2 * sizeof(u32));
 static_assert(offsetof(Compositing::WebGL::WebGLDataSpan, offset) == 0);
 static_assert(offsetof(Compositing::WebGL::WebGLDataSpan, size) == sizeof(u32));

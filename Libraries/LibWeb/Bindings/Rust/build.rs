@@ -10,9 +10,9 @@
 //! clippy do, leaves the bindings out and compiles the implementations without them. rustc tracks the file itself, as
 //! the crate includes it.
 //!
-//! Also generates what the WebGL implementation shares with the rest of the tree: the vocabulary of the command
-//! stream, the methods of its recorder and the GL constants. Those do not need the bindings, so every build of the
-//! crate has them.
+//! Also generates what the WebGL implementation needs from the rest of the tree: the methods of its recorder, from the
+//! model of the command stream that libcompositing_rust has, and the GL constants. Those do not need the bindings, so
+//! every build of the crate has them.
 
 use std::env;
 use std::fs;
@@ -24,10 +24,8 @@ mod webgl_constants;
 #[path = "generate/webgl_proxy.rs"]
 mod webgl_proxy;
 
-#[path = "generate/webgl_wire.rs"]
-mod webgl_wire;
-
-#[path = "generate/webgl_wire_model.rs"]
+#[allow(dead_code, reason = "the model is for the generators of the other crates as well")]
+#[path = "../../../LibCompositing/Rust/generate/webgl_wire_model.rs"]
 mod webgl_wire_model;
 
 fn read_tracked(path: &Path) -> String {
@@ -36,18 +34,17 @@ fn read_tracked(path: &Path) -> String {
 }
 
 fn generate_webgl_command_recording(libraries: &Path, out_dir: &Path) {
+    println!(
+        "cargo:rerun-if-changed={}",
+        libraries.join("LibCompositing/Rust/generate").display()
+    );
     let functions_path = libraries.join("LibCompositing/WebGL/GLFunctions.json");
-    let generate = |json: &str| -> Result<(String, String), String> {
+    let generate = |json: &str| -> Result<String, String> {
         let functions = webgl_wire_model::parse_functions(json)?;
-        let vocabulary = webgl_wire_model::vocabulary(&functions)?;
-        Ok((
-            webgl_wire::write_wire_vocabulary(&vocabulary),
-            webgl_proxy::write_proxy(&functions)?,
-        ))
+        webgl_proxy::write_proxy(&functions)
     };
-    let (wire_vocabulary, proxy) = generate(&read_tracked(&functions_path))
+    let proxy = generate(&read_tracked(&functions_path))
         .unwrap_or_else(|error| panic!("{}: {error}", functions_path.display()));
-    fs::write(out_dir.join("webgl_wire.rs"), wire_vocabulary).expect("write webgl_wire.rs");
     fs::write(out_dir.join("webgl_proxy.rs"), proxy).expect("write webgl_proxy.rs");
 }
 
