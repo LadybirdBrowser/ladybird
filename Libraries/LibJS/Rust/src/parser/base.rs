@@ -26,6 +26,8 @@ use ak::Zone;
 use ak::ZoneMap;
 use ak::ZoneSet;
 use ak::ZoneVec;
+use core::fmt;
+use core::fmt::Write as _;
 
 pub const USE_DEAD: u32 = u32::MAX;
 /// On the function of a use: the use is inside a `with`.
@@ -211,10 +213,53 @@ pub(crate) struct FunctionState {
     pub summary_ordinal: u32,
 }
 
-/// The first syntax error, at a source offset.
-pub struct PendingError {
+/// How the parser checks a regular expression literal with the regex engine of the runtime that embeds it, so that an
+/// invalid one becomes an early error. Gives the message of the error, written into the zone, if it is invalid.
+pub type ValidateRegex = for<'z> fn(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), &'z str>;
+
+/// The first syntax error, at a source offset, with its message in the work zone or in the program.
+pub struct PendingError<'z> {
     pub pos: u32,
-    pub message: String,
+    pub message: &'z str,
+}
+
+/// Text that is written into a zone, for the message of an error.
+pub(crate) struct ZoneText<'z>(ZoneVec<'z, u8>);
+
+impl<'z> ZoneText<'z> {
+    pub(crate) fn new(zone: &'z Zone) -> Self {
+        Self(ZoneVec::new_in(zone))
+    }
+
+    pub(crate) fn push_str(&mut self, text: &str) {
+        self.0.extend_from_slice(text.as_bytes());
+    }
+
+    pub(crate) fn finish(self) -> &'z str {
+        core::str::from_utf8(self.0.into_slice()).expect("the text is made of strings")
+    }
+}
+
+impl fmt::Write for ZoneText<'_> {
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        self.push_str(text);
+        Ok(())
+    }
+}
+
+/// UTF-8 that may have bytes in it that are not, which show as U+FFFD, like `String::from_utf8_lossy()` does it.
+pub(crate) struct LossyText<'t>(pub(crate) &'t [u8]);
+
+impl fmt::Display for LossyText<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for chunk in self.0.utf8_chunks() {
+            formatter.write_str(chunk.valid())?;
+            if !chunk.invalid().is_empty() {
+                formatter.write_char(char::REPLACEMENT_CHARACTER)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// What the first parse of a top level went by, which parsing it again has to go by too.
@@ -256,6 +301,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) inline_argument_limit: usize,
     /// Whether anything uses what scopes declare and what code refers to, which a sweep with a summary does not.
     pub(crate) tracks_scopes: bool,
+    pub(crate) validate_regex: ValidateRegex,
     /// How many bindings of the function being parsed have a place in its summary.
     pub(crate) summary_ordinal: u32,
     pub(crate) src: *const U,
@@ -368,7 +414,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) export_names: ZoneSet<'a, u32>,
     pub(crate) export_locals: ZoneVec<'a, (u32, u32)>,
 
-    pub err: Option<PendingError>,
+    pub err: Option<PendingError<'a>>,
     /// Whether this is the code of an eval, whose private names the code around it may declare.
     pub initiated_by_eval: bool,
     /// The private names that no class in this code declares, for an eval.
@@ -393,7 +439,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
-    pub unsafe fn new(zone: &'a Zone, source: &'a [U], module: bool, mode: Mode) -> Self {
+    pub unsafe fn new(
+        zone: &'a Zone,
+        source: &'a [U],
+        module: bool,
+        mode: Mode,
+        validate_regex: ValidateRegex,
+    ) -> Self {
         let interner = Interner::new(zone, source.len());
         // NB: A lazy parse skips the code of functions, which is most of the code of most sources, so a tree of the
         //     whole source is only the most it is likely to have.
@@ -421,6 +473,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             index,
             estimated_nodes,
             estimated_uses,
+            validate_regex,
         );
         parser.ast.likely_most_nodes = whole_source_nodes;
         parser.pending_captures.reserve(estimated_functions * 2);
@@ -460,6 +513,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         first_pass_index: &FunctionIndex,
         source_length: u32,
         estimated_nodes: usize,
+        validate_regex: ValidateRegex,
     ) -> Self {
         let mut parser = Self::with_capacities(
             zone,
@@ -472,6 +526,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             FunctionIndexBuilder::with_capacity(zone, 0),
             estimated_nodes,
             256,
+            validate_regex,
         );
         parser.stamp = stamp;
         parser.first_pass_index = first_pass_index;
@@ -490,6 +545,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         index: FunctionIndexBuilder<'a>,
         estimated_nodes: usize,
         estimated_uses: usize,
+        validate_regex: ValidateRegex,
     ) -> Self {
         let mut parser = Self {
             zone,
@@ -502,6 +558,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             arguments_in_array: false,
             inline_argument_limit: crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
             tracks_scopes: true,
+            validate_regex,
             summary_ordinal: 0,
             src: source,
             len: length as u32,
@@ -855,15 +912,21 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         }
     }
 
+    /// The text of `message` in the work zone, for an error.
     #[cold]
     #[inline(never)]
-    pub(crate) fn fail(&mut self, pos: u32, message: &'static str) {
-        self.fail_with(pos, message.to_string());
+    pub(crate) fn message(&self, message: fmt::Arguments<'_>) -> &'a str {
+        if let Some(text) = message.as_str() {
+            return text;
+        }
+        let mut text = ZoneText::new(self.zone);
+        text.write_fmt(message).expect("writing to a zone does not fail");
+        text.finish()
     }
 
     #[cold]
     #[inline(never)]
-    pub(crate) fn fail_with(&mut self, pos: u32, message: String) {
+    pub(crate) fn fail(&mut self, pos: u32, message: &'a str) {
         if self.err.is_none() {
             self.err = Some(PendingError { pos, message });
         }
@@ -881,21 +944,22 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     #[inline(never)]
     pub(crate) fn unexpected(&mut self) {
         let message = self.unexpected_token_message();
-        self.fail_with(self.tok_start, message);
+        self.fail(self.tok_start, message);
     }
 
     #[cold]
     #[inline(never)]
     pub(crate) fn expected(&mut self, what: &str) {
-        let message = format!("{}. Expected {what}", self.unexpected_token_message());
-        self.fail_with(self.tok_start, message);
+        let message = self.message(format_args!("{}. Expected {what}", self.unexpected_token_message()));
+        self.fail(self.tok_start, message);
     }
 
     /// Fails for a token where a list goes on with a comma or ends.
     #[cold]
     #[inline(never)]
     fn expected_comma_or(&mut self, close: T) {
-        self.expected(&format!("',' or {}", close.spelling()));
+        let what = self.message(format_args!("',' or {}", close.spelling()));
+        self.expected(what);
     }
 
     /// What a list expects after an item: a comma, or the token that ends the list, which the caller looks for.
@@ -909,17 +973,22 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     /// Calls the current token what the source calls it.
-    fn unexpected_token_message(&self) -> String {
+    fn unexpected_token_message(&self) -> &'a str {
         const LONGEST_TOKEN_SHOWN: u32 = 40;
         if self.tok == T::Eof {
-            return "Unexpected end of input".to_string();
+            return "Unexpected end of input";
         }
         let end = self.tok_end.min(self.tok_start + LONGEST_TOKEN_SHOWN);
-        let token: String = char::decode_utf16((self.tok_start..end).map(|index| self.at(index as usize) as u16))
-            .map(|unit| unit.unwrap_or(char::REPLACEMENT_CHARACTER))
-            .collect();
-        let ellipsis = if end < self.tok_end { "..." } else { "" };
-        format!("Unexpected token '{token}{ellipsis}'")
+        let mut text = ZoneText::new(self.zone);
+        text.push_str("Unexpected token '");
+        for unit in char::decode_utf16((self.tok_start..end).map(|index| self.at(index as usize) as u16)) {
+            text.push_str(unit.unwrap_or(char::REPLACEMENT_CHARACTER).encode_utf8(&mut [0; 4]));
+        }
+        if end < self.tok_end {
+            text.push_str("...");
+        }
+        text.push_str("'");
+        text.finish()
     }
 
     #[inline(always)]
@@ -1666,8 +1735,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     fn fail_redeclaration(&mut self, name: u32, pos: u32) {
-        let name = String::from_utf8_lossy(self.interner.text(name)).into_owned();
-        self.fail_with(pos, format!("Identifier '{name}' already declared"));
+        let message = self.message(format_args!(
+            "Identifier '{}' already declared",
+            LossyText(self.interner.text(name))
+        ));
+        self.fail(pos, message);
     }
 
     pub(crate) fn declare(&mut self, name: u32, bind: Bind, pos: u32) {

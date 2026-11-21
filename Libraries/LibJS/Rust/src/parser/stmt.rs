@@ -393,8 +393,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         let base = self.labels_base as usize;
         let shadowed = self.label_indices.get(&name).copied();
         if shadowed.is_some_and(|index| index as usize >= base) {
-            let label = String::from_utf8_lossy(self.interner.text(name)).into_owned();
-            self.fail_with(start, format!("Label '{label}' has already been declared"));
+            let message = self.message(format_args!(
+                "Label '{}' has already been declared",
+                LossyText(self.interner.text(name))
+            ));
+            self.fail(start, message);
             return 0;
         }
         let kind = match self.tok {
@@ -467,23 +470,25 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         if !found {
             let message = if name == NONE {
                 if is_break {
-                    "Unlabeled 'break' not allowed outside of a loop or switch statement".to_string()
+                    "Unlabeled 'break' not allowed outside of a loop or switch statement"
                 } else {
-                    "'continue' not allowed outside of a loop".to_string()
+                    "'continue' not allowed outside of a loop"
                 }
             } else {
-                let label = String::from_utf8_lossy(self.interner.text(name)).into_owned();
                 let is_in_scope = self
                     .label_indices
                     .get(&name)
                     .is_some_and(|&index| index as usize >= base);
                 if is_in_scope {
-                    "labelled continue statement cannot use non iterating statement".to_string()
+                    "labelled continue statement cannot use non iterating statement"
                 } else {
-                    format!("Label '{label}' not found")
+                    self.message(format_args!(
+                        "Label '{}' not found",
+                        LossyText(self.interner.text(name))
+                    ))
                 }
             };
-            self.fail_with(name_pos, message);
+            self.fail(name_pos, message);
         }
         self.ast
             .push(if is_break { tag::BREAK } else { tag::CONTINUE }, start, name, 0)
@@ -1061,11 +1066,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         let is_generator = self.eat(T::Star);
         let (name, name_pos) = self.parse_ident();
         if is_generator && is_async && (name == N_AWAIT || name == N_YIELD) {
-            let text = String::from_utf8_lossy(self.interner.text(name)).into_owned();
-            self.fail_with(
-                name_pos,
-                format!("async generator function is not allowed to be called '{text}'"),
-            );
+            let message = self.message(format_args!(
+                "async generator function is not allowed to be called '{}'",
+                LossyText(self.interner.text(name))
+            ));
+            self.fail(name_pos, message);
         }
         if !hanging {
             let bind = if self.strict || is_generator || is_async {
@@ -1418,11 +1423,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             }
             return;
         }
-        let name = String::from_utf8_lossy(self.interner.text(name)).into_owned();
-        self.fail_with(
-            pos,
-            format!("Reference to undeclared private field or method '#{name}'"),
-        );
+        let message = self.message(format_args!(
+            "Reference to undeclared private field or method '#{}'",
+            LossyText(self.interner.text(name))
+        ));
+        self.fail(pos, message);
     }
 
     /// `kind` is 0 for a field or a method, 1 and 2 for instance accessors, 3 and 4 for static ones.

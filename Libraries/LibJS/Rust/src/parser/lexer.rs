@@ -889,20 +889,22 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         for &flag in flags {
             if flag >= 128 || !b"dgimsuvy".contains(&(flag as u8)) {
                 let flag = char::from_u32(flag as u32).unwrap_or('?');
-                self.fail_with(self.tok_start, format!("Invalid RegExp flag '{flag}'"));
+                let message = self.message(format_args!("Invalid RegExp flag '{flag}'"));
+                self.fail(self.tok_start, message);
                 return;
             }
             if seen[flag as usize] {
                 let flag = flag as u8 as char;
-                self.fail_with(self.tok_start, format!("Repeated RegExp flag '{flag}'"));
+                let message = self.message(format_args!("Repeated RegExp flag '{flag}'"));
+                self.fail(self.tok_start, message);
                 return;
             }
             seen[flag as usize] = true;
         }
         let pattern: &[u16] =
             zone.alloc_slice_from_iter((start + 1..self.regex_body_end as usize).map(|i| self.at(i) as u16));
-        if let Err(message) = crate::host::validate_regex(pattern, flags) {
-            self.fail_with(start as u32, String::from_utf16_lossy(&message.to_utf16()));
+        if let Err(message) = (self.validate_regex)(zone, pattern, flags) {
+            self.fail(start as u32, message);
             return;
         }
         self.token(T::Regex, p);

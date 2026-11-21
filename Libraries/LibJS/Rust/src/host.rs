@@ -26,8 +26,8 @@ pub fn js_number_to_utf16(value: f64) -> Utf16String {
 
 /// Check a regex pattern+flags with the host's regex engine, so that an invalid
 /// one becomes an early error. Returns the error message if it is invalid.
-pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), Utf16String> {
-    implementation::validate_regex(pattern, flags).map_err(|message| Utf16String::from_utf8(&message))
+pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), String> {
+    implementation::validate_regex(pattern, flags)
 }
 
 /// StringToNumber(str), which the host implements.

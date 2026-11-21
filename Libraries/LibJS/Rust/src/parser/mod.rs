@@ -135,6 +135,13 @@ pub struct ScriptData {
     retained_code_size: AtomicUsize,
 }
 
+/// Checks a regular expression literal with the regex engine of the runtime, for the parser (see `ValidateRegex`).
+fn validate_regex<'z>(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), &'z str> {
+    crate::host::validate_regex(pattern, flags).map_err(|message| {
+        core::str::from_utf8(zone.alloc_slice_copy(message.as_bytes())).expect("a copy of a string is one")
+    })
+}
+
 /// A function could not be parsed or compiled, because the stack that is left does not hold it.
 #[derive(Clone, Copy, Debug)]
 pub struct OutOfStack;
@@ -284,6 +291,7 @@ impl ScriptData {
                 &self.index,
                 u32_from_usize(source.len()),
                 estimated_nodes,
+                validate_regex,
             )
         };
         parser.ast.likely_most_nodes = whole_function_nodes;
@@ -557,6 +565,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
             } else {
                 Mode::Lazy
             },
+            validate_regex,
         )
     };
     parser.strict |= options.starts_in_strict_mode;
@@ -567,7 +576,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         let lines = LineTable::new(zone, units, options.initial_line_number);
         let position = lines.position(error.pos.min(u32_from_usize(units.len())));
         return Err(vec![ParseError {
-            message: error.message,
+            message: error.message.to_owned(),
             line: position.line,
             column: position.column,
         }]);
