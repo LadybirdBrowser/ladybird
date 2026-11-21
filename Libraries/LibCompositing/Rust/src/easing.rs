@@ -7,13 +7,15 @@
 //! Easing functions: the flat descriptor a host hands across FFI, an owned form that outlives the
 //! host's storage, and the evaluation both share.
 
+use libipc_rust::wire::{Decode, Encode};
+
 pub const STEP_POSITION_JUMP_START: u8 = 0;
 pub const STEP_POSITION_JUMP_NONE: u8 = 2;
 pub const STEP_POSITION_JUMP_BOTH: u8 = 3;
 pub const STEP_POSITION_START: u8 = 4;
 const MAXIMUM_STEP_POSITION: u8 = 5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum FfiEasingKind {
     Linear,
@@ -21,18 +23,7 @@ pub enum FfiEasingKind {
     Steps,
 }
 
-impl FfiEasingKind {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Linear),
-            1 => Some(Self::CubicBezier),
-            2 => Some(Self::Steps),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct FfiLinearEasingPoint {
     pub input: f64,
@@ -55,7 +46,7 @@ pub struct FfiEasingDescriptor {
 
 /// An easing function that owns its control points, for values that outlive the descriptor they
 /// were handed in.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub enum Easing {
     Linear(Vec<FfiLinearEasingPoint>),
     CubicBezier { x1: f64, y1: f64, x2: f64, y2: f64 },

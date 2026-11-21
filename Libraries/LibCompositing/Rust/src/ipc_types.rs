@@ -10,7 +10,7 @@
 
 #![allow(non_camel_case_types)]
 
-use crate::css_pixels::{CssPixelPoint, CssPixels};
+use crate::css_pixels::CssPixelPoint;
 use crate::display_list::chunks::ChunkId;
 use crate::display_list::commands::{CompositorContextId, UniqueNodeId};
 use crate::display_list::storage::PackedChunkSize;
@@ -31,74 +31,10 @@ pub type Compositing_VisualContextTree = Arc<VisualContextTree>;
 pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
 pub type Compositing_DisplayList = SharedDisplayList;
 
-impl Encode for CompositorContextId {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0)
-    }
-}
-
-impl Decode for CompositorContextId {
-    const MIN_ENCODED_SIZE: usize = size_of::<u64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self(decoder.decode()?))
-    }
-}
-
-impl Encode for UniqueNodeId {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0)
-    }
-}
-
-impl Decode for UniqueNodeId {
-    const MIN_ENCODED_SIZE: usize = size_of::<i64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self(decoder.decode()?))
-    }
-}
-
-impl Encode for CssPixelPoint {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x.raw_value())?;
-        encoder.encode(&self.y.raw_value())
-    }
-}
-
-impl Decode for CssPixelPoint {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: CssPixels::from_raw(decoder.decode()?),
-            y: CssPixels::from_raw(decoder.decode()?),
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct Web_DevicePixelPoint {
     pub x: i32,
     pub y: i32,
-}
-
-impl Encode for Web_DevicePixelPoint {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x)?;
-        encoder.encode(&self.y)
-    }
-}
-
-impl Decode for Web_DevicePixelPoint {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: decoder.decode()?,
-            y: decoder.decode()?,
-        })
-    }
 }
 
 #[allow(non_upper_case_globals)]
@@ -160,7 +96,7 @@ impl Decode for Core_AnonymousBuffer {
 /// `Compositing::DisplayList`: a display list on its way to the compositor. It names its chunks in paint order, and
 /// carries the records and runs of those the compositor does not keep packed in shared memory, which the compositor
 /// copies out of it, with what travels beside them.
-#[derive(Debug)]
+#[derive(Debug, Encode, Decode)]
 pub struct SharedDisplayList {
     pub chunks_in_paint_order: Vec<ChunkId>,
     pub packed_chunks: Core_AnonymousBuffer,
@@ -168,28 +104,6 @@ pub struct SharedDisplayList {
     pub packed_chunk_sizes: Vec<PackedChunkSize>,
     pub properties: Compositing_DisplayListProperties,
     pub async_scrolling_metadata: Option<Compositing_AsyncScrollingMetadata>,
-}
-
-impl Encode for SharedDisplayList {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.chunks_in_paint_order)?;
-        encoder.encode(&self.packed_chunks)?;
-        encoder.encode(&self.packed_chunk_sizes)?;
-        encoder.encode(&self.properties)?;
-        encoder.encode(&self.async_scrolling_metadata)
-    }
-}
-
-impl Decode for SharedDisplayList {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            chunks_in_paint_order: decoder.decode()?,
-            packed_chunks: decoder.decode()?,
-            packed_chunk_sizes: decoder.decode()?,
-            properties: decoder.decode()?,
-            async_scrolling_metadata: decoder.decode()?,
-        })
-    }
 }
 
 impl Encode for ChunkId {
@@ -204,24 +118,6 @@ impl Decode for ChunkId {
 
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self([decoder.decode()?, decoder.decode()?]))
-    }
-}
-
-impl Encode for PackedChunkSize {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.record_bytes)?;
-        encoder.encode(&self.run_count)
-    }
-}
-
-impl Decode for PackedChunkSize {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<u64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            record_bytes: decoder.decode()?,
-            run_count: decoder.decode()?,
-        })
     }
 }
 

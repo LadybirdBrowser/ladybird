@@ -8,6 +8,7 @@
 //! compositor process boundary.
 
 use libgfx_rust::{FloatMatrix4x4, FloatPoint};
+use libipc_rust::wire::{Decode, Encode};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -25,7 +26,7 @@ pub struct FfiVisualViewportTransform {
     pub origin: FloatPoint,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum FfiVisualAnimationTargetKind {
     Opacity,
@@ -34,7 +35,7 @@ pub enum FfiVisualAnimationTargetKind {
     Transform,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum FfiVisualAnimationTransformOperationKind {
     Translate,

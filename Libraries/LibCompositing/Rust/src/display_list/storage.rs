@@ -17,6 +17,7 @@ use super::effect_clip_plan::EffectClipPlan;
 use super::summary::{DisplayListSummary, summarize};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
+use libipc_rust::wire::{Decode, Encode};
 use std::sync::{Arc, OnceLock};
 
 // Tape bytes in memory aligned for every command struct, which a Vec<u8> does not promise.
@@ -178,7 +179,7 @@ pub(super) fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
 }
 
 /// The size of one chunk packed for transport: its records, and then its runs.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub struct PackedChunkSize {
     pub record_bytes: u64,
     pub run_count: u64,

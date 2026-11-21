@@ -7,11 +7,12 @@
 //! The timing properties of an animation effect, as specified and as normalized.
 
 use super::time_value::{TimeValue, TimeValueType};
+use libipc_rust::wire::{Decode, Encode};
 
 /// https://www.w3.org/TR/web-animations-1/#enumdef-fillmode
 /// In IDL order.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub enum FillMode {
     None,
     Forwards,
@@ -24,7 +25,7 @@ pub enum FillMode {
 /// https://www.w3.org/TR/web-animations-1/#enumdef-playbackdirection
 /// In IDL order.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub enum PlaybackDirection {
     #[default]
     Normal,
@@ -161,7 +162,7 @@ impl Default for SpecifiedEffectTiming {
 /// The timing properties of an animation effect the timing calculations use: the specified
 /// timing normalized against the effect's timeline, every time in the timeline's unit.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 pub struct AnimationEffectTiming {
     /// https://www.w3.org/TR/web-animations-1/#start-delay
     pub start_delay: TimeValue,

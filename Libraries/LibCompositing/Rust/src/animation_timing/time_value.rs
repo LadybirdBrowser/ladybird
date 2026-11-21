@@ -7,12 +7,13 @@
 //! Time values of the Web Animations timing model: a time in milliseconds, or a percentage of a
 //! progress-based timeline.
 
+use libipc_rust::wire::{Decode, Encode};
 use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// The unit of a time value.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub enum TimeValueType {
     #[default]
     Milliseconds,
@@ -24,7 +25,7 @@ pub enum TimeValueType {
 ///
 /// cbindgen:field-names=[type, value]
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Encode, Decode)]
 pub struct TimeValue {
     pub r#type: TimeValueType,
     pub value: f64,

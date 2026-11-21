@@ -20,6 +20,7 @@ use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
     WindingRule, translation_matrix,
 };
+use libipc_rust::wire::{Decode, Encode};
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
 pub use crate::display_list::commands::{
@@ -32,14 +33,14 @@ pub use scroll_table::{
 };
 pub use world_transforms::{RectMapping, WorldTransforms};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum TransformDataRole {
     CssTransform,
     SvgViewportTransform,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 pub struct TransformData {
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
@@ -61,19 +62,19 @@ impl TransformData {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 pub struct PerspectiveData {
     pub matrix: FloatMatrix4x4,
     pub flattens_inherited_transform: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct BackfaceVisibilityData {
     pub plane_root_index: SpatialNodeIndex,
     pub flattens_inherited_transform: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 pub struct ClipData {
     pub rect: FloatRect,
     pub corner_radii: CornerRadii,
@@ -89,20 +90,20 @@ pub struct ClipPathData {
 
 // The filtered backdrop, limited to the box's rounded border box, is the initial content of the box's
 // layer, so the layer's opacity, blend mode and filter apply to it along with the box's content.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Encode, Decode)]
 pub struct BackdropFilterData {
-    pub filter: std::sync::Arc<Vec<u8>>,
     pub region: IntRect,
     pub corner_radii: CornerRadii,
+    pub filter: std::sync::Arc<Vec<u8>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub struct EffectsData {
-    pub isolation: bool,
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter: Option<std::sync::Arc<Vec<u8>>>,
     pub backdrop_filter: Option<BackdropFilterData>,
+    pub isolation: bool,
 }
 
 impl EffectNodeData {
@@ -137,7 +138,7 @@ impl EffectsData {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum MaskLayerOrigin {
     CssMaskLayers,
@@ -145,7 +146,7 @@ pub enum MaskLayerOrigin {
     SvgClip,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MaskData {
     pub rect: IntRect,
     pub kind: MaskKind,
@@ -155,9 +156,11 @@ pub struct MaskData {
     pub masks_backdrop: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct ScrollData {
+    #[ipc(skip = NO_SCROLL_STATE_SLOT)]
     pub state_slot: ScrollStateSlot,
+    #[ipc(skip = NodeSlotId::INVALID)]
     pub owner_paintable: NodeSlotId,
 }
 
@@ -165,7 +168,7 @@ pub struct ScrollData {
 // entry and the parent sticky chain. Both references follow the containing block chain, which
 // continues through fixed-position ancestors, so they need not be spatial ancestors of the node.
 // Geometry is in device pixels.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 pub struct StickyData {
     pub scroller: SpatialNodeIndex,
     pub parent_sticky: Option<SpatialNodeIndex>,
@@ -184,7 +187,9 @@ pub struct StickyData {
     pub inset_right: Option<f32>,
     pub inset_bottom: Option<f32>,
     pub inset_left: Option<f32>,
+    #[ipc(skip = NO_SCROLL_STATE_SLOT)]
     pub state_slot: ScrollStateSlot,
+    #[ipc(skip = NodeSlotId::INVALID)]
     pub owner_paintable: NodeSlotId,
 }
 
@@ -219,7 +224,7 @@ impl StickyData {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct AnchorScrollShift {
     pub scroll_node_index: SpatialNodeIndex,
     pub negate: bool,
@@ -291,7 +296,7 @@ impl LocalTransform {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub enum SpatialData {
     Scroll(ScrollData),
     Sticky(StickyData),
@@ -305,14 +310,14 @@ pub enum SpatialData {
 // The clip tree holds what narrows the painted region without a layer: rectangle (possibly rounded,
 // possibly subtractive) clips and clip paths. The effect tree holds what needs a layer or a
 // per-box marker: opacity/blend/filter layers, masks and compositor background-color animations.
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub enum ClipNodeData {
     Rect(ClipData),
     Path(ClipPathData),
     Dead,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub enum EffectNodeData {
     Effects(EffectsData),
     Mask(MaskData),

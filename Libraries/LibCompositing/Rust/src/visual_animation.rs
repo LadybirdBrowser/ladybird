@@ -20,57 +20,9 @@ use crate::host::{FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOpera
 use ak::math;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType, FloatMatrix4x4, rotation_matrix, scale_matrix, translation_matrix};
+use libipc_rust::wire::{Decode, Encode};
 
 pub const MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT: usize = 3;
-
-impl FfiVisualAnimationTargetKind {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Opacity),
-            1 => Some(Self::BackgroundColor),
-            2 => Some(Self::Filter),
-            3 => Some(Self::Transform),
-            _ => None,
-        }
-    }
-}
-
-impl FfiVisualAnimationTransformOperationKind {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        Some(match value {
-            0 => Self::Translate,
-            1 => Self::Translate3d,
-            2 => Self::TranslateX,
-            3 => Self::TranslateY,
-            4 => Self::TranslateZ,
-            5 => Self::Scale,
-            6 => Self::Scale3d,
-            7 => Self::ScaleX,
-            8 => Self::ScaleY,
-            9 => Self::ScaleZ,
-            10 => Self::Rotate,
-            11 => Self::RotateX,
-            12 => Self::RotateY,
-            13 => Self::RotateZ,
-            14 => Self::Skew,
-            15 => Self::SkewX,
-            16 => Self::SkewY,
-            _ => return None,
-        })
-    }
-}
-
-impl FfiFilterFunctionKind {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Blur),
-            1 => Some(Self::DropShadow),
-            2 => Some(Self::Color),
-            3 => Some(Self::HueRotate),
-            _ => None,
-        }
-    }
-}
 
 /// One operation of a transform list, holding as many values as any operation takes.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -265,7 +217,7 @@ pub fn filter_function_is_valid(function: &FfiFilterFunction) -> bool {
     !color_operation_amount_is_a_fraction(function.color_operation) || function.amount <= 1.0
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub enum VisualAnimationValue {
     Opacity(f32),
     BackgroundColor(Color),
@@ -326,7 +278,7 @@ impl VisualAnimationValue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub struct VisualAnimationKeyframe {
     pub offset: f64,
     pub easing: Easing,
@@ -345,7 +297,7 @@ pub enum VisualAnimationSample {
 
 /// A compositor animation: the timing of the effect at the moment the main thread anchored it to
 /// the shared monotonic clock, and the keyframes it interpolates between.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub struct VisualAnimation {
     pub target_kind: FfiVisualAnimationTargetKind,
     /// The effect nodes of an opacity, background color or filter animation, or the spatial nodes
