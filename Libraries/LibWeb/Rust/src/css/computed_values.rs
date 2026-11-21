@@ -348,6 +348,7 @@ impl Clone for FontValues {
             resolved_font_ascent: self.resolved_font_ascent,
             resolved_font_descent: self.resolved_font_descent,
             resolved_font_x_height: self.resolved_font_x_height,
+            resolved_font_cap_height: self.resolved_font_cap_height,
             resolved_font_zero_advance: self.resolved_font_zero_advance,
             resolved_first_available_font: self.resolved_first_available_font,
             font_cascade_list: self.font_cascade_list.clone(),
@@ -390,6 +391,7 @@ impl PartialEq for FontValues {
             || (self.resolved_font_ascent == other.resolved_font_ascent
                 && self.resolved_font_descent == other.resolved_font_descent
                 && self.resolved_font_x_height == other.resolved_font_x_height
+                && self.resolved_font_cap_height == other.resolved_font_cap_height
                 && self.resolved_font_zero_advance == other.resolved_font_zero_advance
                 && self.resolved_first_available_font == other.resolved_first_available_font);
         first_available_fonts_equal
@@ -6621,6 +6623,7 @@ impl FontValues {
             resolved_font_ascent: 0.0,
             resolved_font_descent: 0.0,
             resolved_font_x_height: 0.0,
+            resolved_font_cap_height: 0.0,
             resolved_font_zero_advance: 0.0,
             resolved_first_available_font: std::ptr::null(),
             font_cascade_list: libgfx_rust::font::FontCascadeListHandle::null(),

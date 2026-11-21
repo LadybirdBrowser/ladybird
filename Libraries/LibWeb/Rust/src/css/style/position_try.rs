@@ -946,8 +946,7 @@ impl RetainedState {
             font_metrics: FfiFontMetrics {
                 font_size: font.font_size.to_double(),
                 x_height: font_metric(first_available.x_height),
-                // The C++ metrics approximate the cap height with the ascent.
-                cap_height: font_metric(first_available.ascent),
+                cap_height: font_metric(first_available.cap_height),
                 zero_advance: font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },

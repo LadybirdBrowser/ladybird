@@ -41,8 +41,7 @@ impl RecordFont {
             metrics: FfiFontMetrics {
                 font_size: font.font_size.to_double(),
                 x_height: drive_font_metric(first_available.x_height),
-                // The host's metrics approximate the cap height with the ascent.
-                cap_height: drive_font_metric(first_available.ascent),
+                cap_height: drive_font_metric(first_available.cap_height),
                 zero_advance: drive_font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },
@@ -256,7 +255,7 @@ impl RetainedState {
             Some(font) => FfiFontMetrics {
                 font_size: CssPixels::from_raw(font.font_size_raw).to_double(),
                 x_height: drive_font_metric(font.font_x_height),
-                cap_height: drive_font_metric(font.font_ascent),
+                cap_height: drive_font_metric(font.font_cap_height),
                 zero_advance: drive_font_metric(font.font_zero_advance),
                 line_height: CssPixels::from_raw(font.line_height_used_raw).to_double(),
             },
@@ -1507,6 +1506,7 @@ pub(super) fn font_group_build_inputs<'a>(
         font_ascent: resolved.ascent,
         font_descent: resolved.descent,
         font_x_height: resolved.x_height,
+        font_cap_height: resolved.cap_height,
         font_zero_advance: resolved.zero_advance,
         first_available_font: resolved.first_available_font.as_pointer(),
         font_cascade_list: resolved.font_cascade_list.as_pointer(),

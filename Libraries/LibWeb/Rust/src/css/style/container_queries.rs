@@ -221,8 +221,7 @@ impl RetainedState {
             font_metrics: crate::css::style_compute::FfiFontMetrics {
                 font_size: font.font_size.to_double(),
                 x_height: super::pipeline::drive::drive_font_metric(first_available.x_height),
-                // The C++ metrics approximate the cap height with the ascent.
-                cap_height: super::pipeline::drive::drive_font_metric(first_available.ascent),
+                cap_height: super::pipeline::drive::drive_font_metric(first_available.cap_height),
                 zero_advance: super::pipeline::drive::drive_font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },
