@@ -97,6 +97,7 @@ set(SOURCES
     WebDriverBiDiNetwork.cpp
     WebDriverBrowserConnection.cpp
     WebUI.cpp
+    WebUI/AboutUI.cpp
     WebUI/ApplicationWebUI.cpp
     WebUI/CrashReportsUI.cpp
     WebUI/SupportUI.cpp
