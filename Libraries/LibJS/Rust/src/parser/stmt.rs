@@ -1465,7 +1465,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                 // NB: The name of the property is the value of the string, which escape sequences spell out as well.
                 let start = self.ast.pos[key as usize] as usize + 1;
                 let units = self.source_view(start, self.ast.a[key as usize] as usize - 1);
-                super::literals::string_literal_text(units).view() == text
+                super::escapes::string_literal_equals(units, text)
             }
             _ => false,
         }

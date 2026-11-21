@@ -15,6 +15,7 @@
 pub(crate) mod base;
 pub(crate) mod columns;
 mod enclosing;
+pub(crate) mod escapes;
 pub(crate) mod expr;
 mod intern;
 mod kept;
