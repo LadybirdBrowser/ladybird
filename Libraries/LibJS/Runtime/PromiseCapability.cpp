@@ -44,4 +44,10 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Val
     return completion_from_abi<GC::Ref<PromiseCapability>>(js_promise_capability_new(vm_to_abi(vm), value_to_abi(constructor)));
 }
 
+// SafePromiseResolve ( promiseCapability, resolution ), https://tc39.es/proposal-thenable-curtailment/#sec-safe-promise-resolve
+ThrowCompletionOr<Value> safe_promise_resolve(VM& vm, PromiseCapability const& promise_capability, Value resolution)
+{
+    return completion_from_abi<Value>(js_safe_promise_resolve(vm_to_abi(vm), promise_capability_to_abi(promise_capability), value_to_abi(resolution)));
+}
+
 }

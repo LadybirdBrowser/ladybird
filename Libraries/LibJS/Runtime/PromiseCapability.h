@@ -56,4 +56,7 @@ public:
 // 27.2.1.5 NewPromiseCapability ( C ), https://tc39.es/ecma262/#sec-newpromisecapability
 JS_API ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Value constructor);
 
+// SafePromiseResolve ( promiseCapability, resolution ), https://tc39.es/proposal-thenable-curtailment/#sec-safe-promise-resolve
+JS_API ThrowCompletionOr<Value> safe_promise_resolve(VM&, PromiseCapability const&, Value resolution);
+
 }

@@ -480,6 +480,16 @@ pub(crate) fn as_host_object(object: &Object) -> &HostObject {
     cast_ref(object)
 }
 
+/// HostObjectHasImpureLookupInternalMethods(object): whether a hook of the object's host class looks its properties or
+/// its prototype up, which may run script.
+pub(crate) fn host_object_has_impure_lookup_internal_methods(object: &Object) -> bool {
+    if object.class().id != ClassId::HostObject {
+        return false;
+    }
+    let hooks = hooks_of(object);
+    hooks.get_prototype_of.is_some() || hooks.get_own_property.is_some() || hooks.get.is_some()
+}
+
 /// host_class_of(): the host class of an object of any host kind, or none for any other object.
 pub fn host_class_of(object: &Object) -> Option<&'static JSHostClass> {
     match object.class().id {
