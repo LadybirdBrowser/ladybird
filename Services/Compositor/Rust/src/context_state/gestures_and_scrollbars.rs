@@ -22,8 +22,8 @@ impl ContextState {
         )
     }
 
-    // The scroller the first step of a gesture goes to, as the hit test at the position finds it, or as it is found
-    // from the innermost of the scrollers the page found around the target that this context knows.
+    /// The scroller the first step of a gesture goes to, as the hit test at the position finds it, or as it is found
+    /// from the innermost of the scrollers the page found around the target that this context knows.
     pub(super) fn route_first_wheel_step(
         &mut self,
         position: FloatPoint,
@@ -59,7 +59,7 @@ impl ContextState {
         )
     }
 
-    // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
+    /// The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn route_and_latch_wheel_gesture(
         &mut self,
@@ -239,8 +239,8 @@ impl ContextState {
         );
     }
 
-    // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
-    // that it settles the gesture then rather than on a clock of its own.
+    /// A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
+    /// that it settles the gesture then rather than on a clock of its own.
     pub(super) fn end_scroll_step_gestures_whose_input_ran_out(&mut self, now: MonotonicTime) {
         let ended_boxes = self.scroll_snap_controller.end_gestures_whose_input_ran_out(now);
         if !ended_boxes.is_empty() {
@@ -272,7 +272,7 @@ impl ContextState {
             ),
             started_at: now,
             is_user_scroll: true,
-            heads_to_an_extent: false,
+            heads_to_end_of_scroll_range: false,
         });
         self.report_started_user_scroll(
             operation_id,
@@ -300,8 +300,8 @@ impl ContextState {
         )
     }
 
-    // Pages the scroller of the captured scrollbar once toward the pointer, from where a page scroll in flight goes, unless
-    // the thumb has reached the pointer there.
+    /// Pages the scroller of the captured scrollbar once toward the pointer, from where a page scroll in flight goes,
+    /// unless the thumb has reached the pointer there.
     pub(super) fn page_captured_scrollbar(&mut self, now: MonotonicTime) -> Option<PendingFrame> {
         let scrollbar_index = self.scrollbar_controller.captured_scrollbar_index();
         if scrollbar_index.is_none() || self.scrollbar_paging.is_none_or(|paging| paging.direction == 0) {
@@ -319,7 +319,7 @@ impl ContextState {
         let (Some(node), Some(old_scroll_offset)) = (node, old_scroll_offset) else {
             return None;
         };
-        let running_animation = self.running_scrollbar_press_scroll();
+        let running_animation = self.index_of_running_scrollbar_press_scroll();
         let step_start = running_animation.map_or(old_scroll_offset, |index| {
             self.smooth_scroll_animations[index].animation.destination_offset()
         });
@@ -368,8 +368,7 @@ impl ContextState {
         self.start_scrollbar_press_scroll(&node, old_scroll_offset, destination, false, now)
     }
 
-    // The smooth scroll that a press beside the thumb started, while it lasts.
-    fn running_scrollbar_press_scroll(&mut self) -> Option<usize> {
+    fn index_of_running_scrollbar_press_scroll(&mut self) -> Option<usize> {
         let operation_id = self.scrollbar_press_scroll_operation?;
         let animation = self
             .smooth_scroll_animations
@@ -408,7 +407,7 @@ impl ContextState {
             .clamped_scroll_offset_for_node(scroll_node_index, dragged_to.scroll_offset);
         // A press beside the thumb scrolls there smoothly, as a page step does. Dragging on before that scroll has ended
         // moves where it goes.
-        if let Some(index) = self.running_scrollbar_press_scroll() {
+        if let Some(index) = self.index_of_running_scrollbar_press_scroll() {
             if self.smooth_scroll_animations[index].animation.destination_offset() == destination {
                 return None;
             }

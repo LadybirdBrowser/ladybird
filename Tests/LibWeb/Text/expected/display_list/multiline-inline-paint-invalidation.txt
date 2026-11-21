@@ -6,15 +6,18 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 70x16] glyph_bounding_rect=[8,8 75x15] translation=[8,21] color=rgb(0, 0, 255) text="This link" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,23 70x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 255) text="spans" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,39 47x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 255) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,55 60x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 255) text="lines" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,71 36x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 70x16] glyph_bounding_rect=[8,8 75x15] translation=[8,21] color=rgb(0, 0, 255) text="This link" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,23 70x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 255) text="spans" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,39 47x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 255) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,55 60x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 255) text="lines" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,71 36x2] color=rgb(0, 0, 255) owner=BlockContainer<DIV> phase=text-fragment
 
 After:
 AccumulatedVisualContext Tree:
@@ -24,13 +27,16 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 70x16] glyph_bounding_rect=[8,8 75x15] translation=[8,21] color=rgb(255, 0, 0) text="This link" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,23 70x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(255, 0, 0) text="spans" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,39 47x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(255, 0, 0) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,55 60x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(255, 0, 0) text="lines" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,71 36x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 70x16] glyph_bounding_rect=[8,8 75x15] translation=[8,21] color=rgb(255, 0, 0) text="This link" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,23 70x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(255, 0, 0) text="spans" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,39 47x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(255, 0, 0) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,55 60x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(255, 0, 0) text="lines" owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,71 36x2] color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
 

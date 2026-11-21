@@ -224,6 +224,9 @@ struct PaintStage {
     /// What the compositor at the other end of the poster keeps of the display lists sent for each context, which a
     /// new connection starts without.
     sent_display_list_chunks: std::collections::HashMap<CompositorContextId, SentDisplayListChunks>,
+    /// A clock tick that runs as a context is destroyed can still hand the Paint thread a frame of it after it was
+    /// forgotten. No context takes the id of a destroyed one, so its frames are dropped.
+    destroyed_context_ids: std::collections::HashSet<CompositorContextId>,
 }
 
 impl PaintStage {
@@ -233,8 +236,9 @@ impl PaintStage {
     }
 }
 
+static PAINT_THREAD: OnceLock<PaintThread> = OnceLock::new();
+
 fn the_paint_thread() -> &'static PaintThread {
-    static PAINT_THREAD: OnceLock<PaintThread> = OnceLock::new();
     PAINT_THREAD.get_or_init(|| PaintThread {
         thread: StageThread::spawn(
             "Paint",
@@ -283,6 +287,10 @@ impl Presenting<'_> {
     )> {
         let stage = &mut *self.stage;
         Some((stage.poster.as_ref()?, &mut stage.sent_display_list_chunks))
+    }
+
+    pub(crate) fn context_was_destroyed(&self, context_id: CompositorContextId) -> bool {
+        self.stage.destroyed_context_ids.contains(&context_id)
     }
 
     /// Drops the poster of a compositor that can no longer be reached: the connection learns of that on its own thread,
@@ -342,6 +350,24 @@ pub unsafe extern "C" fn paint_stage_adopt_compositor_poster(poster: FfiThreadSa
     paint_thread().post(move || {
         let IncomingPoster(poster) = incoming;
         Presenting::lend(|presenting| presenting.stage.present_through(Some(poster)));
+    });
+}
+
+/// Forgets what the compositor kept of the display lists sent for the context `context_id` names, after the frames
+/// handed to the Paint thread before, and drops the frames of the context handed to it after. Only the compositor host
+/// calls this, as it destroys the context, which declares it. The compositor never gives a destroyed context's id to
+/// another context.
+#[unsafe(no_mangle)]
+pub extern "C" fn paint_stage_forget_destroyed_compositor_context(context_id: u64) {
+    let Some(paint_thread) = PAINT_THREAD.get() else {
+        return;
+    };
+    paint_thread.thread.post(move || {
+        Presenting::lend(|presenting| {
+            let context_id = CompositorContextId(context_id);
+            presenting.stage.sent_display_list_chunks.remove(&context_id);
+            presenting.stage.destroyed_context_ids.insert(context_id);
+        });
     });
 }
 

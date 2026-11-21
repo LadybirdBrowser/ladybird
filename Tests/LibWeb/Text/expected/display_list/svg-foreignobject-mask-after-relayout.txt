@@ -11,8 +11,11 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s3 out=c0] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectBox<foreignObject>#fo)
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DeclareMaskContent@s3/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGForeignObjectBox<foreignObject>#fo phase=preamble
-  FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[curved path: 129 commands] color=rgb(255, 255, 255) owner=SVGGeometryBox<circle> phase=foreground
-FillRect@s3/c1/e1 rect=[0,0 100x100] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
+L0 DeclareMaskContent@s3/c0/e1 rect=[-10,-10 120x120] effect=e1 owner=SVGForeignObjectBox<foreignObject>#fo phase=preamble
+     FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[curved path: 129 commands] color=rgb(255, 255, 255) owner=SVGGeometryBox<circle> phase=foreground
+L0 FillRect@s3/c1/e1 rect=[0,0 100x100] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
 

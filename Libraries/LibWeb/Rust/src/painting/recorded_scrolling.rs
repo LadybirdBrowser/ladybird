@@ -37,7 +37,7 @@ fn display_list_of(
     let tree = output.visual_context_tree.clone()?;
     let properties = display_list_properties_of(output);
     let display_list = DisplayList::new(
-        DisplayListStorage::recorded(output.display_list.clone(), tree.clone()),
+        DisplayListStorage::recorded(&output.display_list, tree.clone()),
         properties.id,
         properties.compatible_visual_context_tree_structural_epoch,
         output.async_scrolling_metadata.clone(),

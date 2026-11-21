@@ -8,10 +8,13 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[8,8 110x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT> phase=background
-FillRoundedRectRing@s1/e0 rect=[8,8 110x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT> phase=border
-DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=5 rect=[13,11 31x14] glyph_bounding_rect=[13,12 33x12] translation=[13,22] color=rgb(0, 0, 0) text="hello" owner=BlockContainer<DIV> phase=foreground
-PaintCaret@s1/c1/e0 rect=[13,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
-FillRoundedRectRing@s1/e0 rect=[6,6 114x24] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT> phase=outline
+L0 FillRectWithRoundedCorners@s1/e0 rect=[8,8 110x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT> phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 110x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT> phase=border
+L0 DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=5 rect=[13,11 31x14] glyph_bounding_rect=[13,12 33x12] translation=[13,22] color=rgb(0, 0, 0) text="hello" owner=BlockContainer<DIV> phase=foreground
+L0 PaintCaret@s1/c1/e0 rect=[13,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[6,6 114x24] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT> phase=outline
 

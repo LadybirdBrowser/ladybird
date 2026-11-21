@@ -52,7 +52,7 @@ public:
     // The timer is not set again.
     virtual void destroy_timer(u64 timer_number) = 0;
     // In the font family given, or the default one. Empty where no font draws the label.
-    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) = 0;
+    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text) = 0;
 };
 
 }

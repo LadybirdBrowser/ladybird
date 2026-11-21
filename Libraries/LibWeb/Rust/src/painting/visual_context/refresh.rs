@@ -5,7 +5,7 @@
  */
 
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
-use super::{SpatialData, StickyData, VisualContextTree};
+use super::{SpatialData, StickyData, UniqueNodeId, VisualContextTree};
 use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
 use crate::layout::geometry::{Frame, Side};
@@ -182,6 +182,8 @@ pub(crate) fn compute_sticky_data(
     if !layout_arena.paintable_row_is_populated(paintable) || !layout_arena.paintable_row_is_populated(scroller) {
         return data;
     }
+    data.box_node_id = UniqueNodeId(layout_arena.unique_node_ids().id(paintable));
+    data.box_pseudo_element_type = layout_arena.node_generated_for(paintable).saturating_sub(1);
 
     // NB: Only scroll containers with scrollable overflow, or that keep their scrolls, get a scroll node. When the
     //     nearest scroll container has none, it sits inside the scroller of the scroll node, and its scrollport never

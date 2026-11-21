@@ -171,6 +171,7 @@ public:
     // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
     bool handle_and_dispatch_mouse_event_in_compositor(Web::MouseEvent const&);
     void did_consume_input_event_in_compositor(u64 event_id);
+    void did_update_compositor_layers(Compositing::CompositorLayersDescription const&);
     void did_not_dispatch_input_event_through_compositor(u64 event_id);
     void did_dispatch_input_event_through_compositor(u64 event_id, bool performed_default_action);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio);
@@ -251,6 +252,7 @@ private:
     virtual void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error) override;
     virtual void did_take_screenshot(Gfx::ShareableBitmap screenshot) override;
     virtual void did_get_internal_page_info(WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) override;
+    virtual void did_describe_owners_of_visual_context_nodes(u64 structural_epoch, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices, Vector<String> owners) override;
     virtual void did_get_selected_text(u64 request_id, ByteString selection) override;
     virtual void did_get_selected_text_for_lookup(u64 request_id, Optional<DictionaryLookup> lookup) override;
     virtual void did_select_word_for_dictionary_lookup(u64 request_id, bool selected) override;

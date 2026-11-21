@@ -7,8 +7,8 @@
 use super::world_transforms::MINIMUM_PROJECTION_W;
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
-    IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
-    VisualContextTree, WorldTransforms, device_offset_for_index,
+    IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, StickyData, TransformDataRole,
+    VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use ak::math;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect};
@@ -16,8 +16,8 @@ use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, Fl
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClipBehavior {
     Respect,
-    // Transform the point without rejecting it against clip rects and clip paths. Used when searching for the
-    // closest caret position within a scope the point may lie entirely outside of.
+    /// Transform the point without rejecting it against clip rects and clip paths. Used when searching for the
+    /// closest caret position within a scope the point may lie entirely outside of.
     Ignore,
 }
 
@@ -57,21 +57,19 @@ impl ClipData {
     }
 }
 
-// One root path of spatial nodes with the screen point mapped down it one step at a time. Clips attach to a path in
-// non-decreasing depth order, so the steps still to apply before a clip always start where the previous clip left off.
+// Clips attach to a path in non-decreasing depth order, so the steps still to apply before a clip always start where
+// the previous clip left off.
 struct SpatialChainWalk {
     chain: Vec<SpatialNodeIndex>,
-    // A path through a 3D transform maps the screen point onto each node's plane through the node's flattened matrix,
-    // where per-node 2D inverses would lose the depth.
-    projective: bool,
+    // Through a 3D transform, per-node 2D inverses would lose the depth.
+    maps_point_onto_each_plane_through_flattened_matrix: bool,
     point: FloatPoint,
     applied_steps: usize,
 }
 
-// Whether nothing painted under a node can show, plus the clip
-// depths the replay needs to place effects on a context's clip chain. Depth counts the absent clip
-// as 0, so a node's depth is the length of its root path.
-#[derive(Default)]
+/// Whether nothing painted under a node can show, plus the clip depths the replay needs to place effects on a context's
+/// clip chain. Depth counts the absent clip as 0, so a node's depth is the length of its root path.
+#[derive(Clone, Default)]
 pub struct TreeCullingScratch {
     pub clip_depths: Vec<u32>,
     clip_has_empty_effective_clip: Vec<bool>,
@@ -137,7 +135,7 @@ impl VisualContextTree {
         chain.reverse();
         SpatialChainWalk {
             chain,
-            projective: !world.to_root[leaf.0 as usize].is_2d_affine(),
+            maps_point_onto_each_plane_through_flattened_matrix: !world.to_root[leaf.0 as usize].is_2d_affine(),
             point: screen_point,
             applied_steps: 0,
         }
@@ -150,15 +148,15 @@ impl VisualContextTree {
         screen_point: FloatPoint,
     ) -> bool {
         let node = walk.chain[position];
-        if !walk.projective {
+        if !walk.maps_point_onto_each_plane_through_flattened_matrix {
             let Some(inverse) = world.local[node.0 as usize].extract_2d_affine().inverse() else {
                 return false;
             };
             walk.point = inverse.map_point(walk.point);
             return true;
         }
-        // Content directly under a backface marker lies in the plane of the marker's parent.
-        if world.draw_space[node.0 as usize] != node {
+        let is_backface_marker_drawing_in_plane_of_parent = world.draw_space[node.0 as usize] != node;
+        if is_backface_marker_drawing_in_plane_of_parent {
             return true;
         }
         let Some(inverse) = world
@@ -201,14 +199,13 @@ impl VisualContextTree {
         }
     }
 
-    fn point_passes_clip(clip: &ClipNode, point: FloatPoint, clip_behavior: ClipBehavior) -> bool {
+    fn point_passes_clip(clip: &ClipNode, point_in_device_pixels: FloatPoint, clip_behavior: ClipBehavior) -> bool {
         if clip_behavior == ClipBehavior::Ignore {
             return true;
         }
+        let point = point_in_device_pixels;
         match &clip.data {
             ClipNodeData::Rect(clip) => {
-                // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
-                //       is also in device-pixel coordinates, so we compare them directly.
                 let inside = clip.contains(point);
                 if clip.mode == ClipMode::Intersect {
                     inside
@@ -217,8 +214,6 @@ impl VisualContextTree {
                 }
             }
             ClipNodeData::Path(clip_path) => {
-                // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
-                //       is also in device-pixel coordinates, so we compare them directly.
                 if !clip_path.bounding_rect.contains_point(IntPoint {
                     x: point.x.floor() as i32,
                     y: point.y.floor() as i32,
@@ -238,7 +233,6 @@ impl VisualContextTree {
         screen_point: FloatPoint,
         clip_behavior: ClipBehavior,
     ) -> Option<FloatPoint> {
-        // Effects never clip a point, so only the clip chain takes part.
         let mut clip_chain: Vec<ClipNodeIndex> = Vec::with_capacity(8);
         let mut clip = context.clip;
         while !clip.is_none() {
@@ -254,8 +248,7 @@ impl VisualContextTree {
             let walk = if context_walk.chain.contains(&clip.spatial) {
                 &mut context_walk
             } else {
-                // A fixed-background context is rooted above the scroll nodes its clips record in, so such a clip
-                // hangs below the context's node and takes its own walk from the root.
+                // A fixed-background context is rooted above the scroll nodes its clips record in.
                 clip_walk = self.begin_hit_test_walk(world, clip.spatial, screen_point);
                 &mut clip_walk
             };
@@ -364,11 +357,10 @@ impl VisualContextTree {
                 continue;
             }
 
-            // NB: A fixed-position ancestor can disconnect the sticky box's spatial chain from its
-            //     scrollport. Only offsets on the spatial chain move the box, even though the scrollport
-            //     is still used for its size and insets.
-            // NB: A non-scrolling scroll container moves with the sticky ancestors outside it, so only the
-            //     sticky ancestors inside it move the box within its scrollport.
+            // NB: A fixed-position ancestor can disconnect the sticky box's spatial chain from its scrollport. Only
+            //     offsets on the spatial chain move the box, though the scrollport still gives its size and insets.
+            // NB: A non-scrolling scroll container moves with the sticky ancestors outside it, so only the sticky
+            //     ancestors inside it move the box within its scrollport.
             let mut parent_sticky_offset = FloatPoint::default();
             let mut ancestor = node.parent;
             while ancestor != sticky.scroller && ancestor != VISUAL_VIEWPORT_NODE_INDEX {
@@ -383,7 +375,7 @@ impl VisualContextTree {
                 }
                 ancestor = ancestor_node.parent;
             }
-            let scroller_entry = if ancestor == sticky.scroller && !scrollport_is_static {
+            let negated_scroll_offset_of_scroller = if ancestor == sticky.scroller && !scrollport_is_static {
                 device_offset_for_index(offsets, sticky.scroller)
             } else {
                 FloatPoint::default()
@@ -404,16 +396,15 @@ impl VisualContextTree {
                 y: containing_block_region.bottom() - sticky.border_box_size.height,
             };
 
-            // A scroll container's entry is its negated scroll offset.
             let scrollport_rect = FloatRect::new(
-                -scroller_entry.x,
-                -scroller_entry.y,
+                -negated_scroll_offset_of_scroller.x,
+                -negated_scroll_offset_of_scroller.y,
                 sticky.scrollport_size.width,
                 sticky.scrollport_size.height,
             );
 
             // NB: An inset only pushes the box in its own direction. A box that already overflows its containing
-            //     block is not pulled back into it, matching other engines.
+            //     block is not pulled back into it.
             let mut sticky_offset = FloatPoint::default();
             if let Some(inset_top) = sticky.inset_top
                 && scrollport_rect.y > position_in_scroller.y - inset_top
@@ -447,19 +438,53 @@ impl VisualContextTree {
     }
 }
 
+impl StickyData {
+    /// The lowest and the highest offset that resolving can give the box, on each axis, where no sticky box on its
+    /// spatial chain moves it within its scroller. An inset pushes the box from where it is laid out to as far as its
+    /// containing block lets it go, the way resolving does.
+    pub fn offset_range_without_sticky_ancestors(&self) -> (FloatPoint, FloatPoint) {
+        let position_in_scroller = self.position_relative_to_scroller;
+        let containing_block_region = self.containing_block_region;
+        let min_offset_within_containing_block = containing_block_region.top_left();
+        let max_offset_within_containing_block = FloatPoint {
+            x: containing_block_region.right() - self.border_box_size.width,
+            y: containing_block_region.bottom() - self.border_box_size.height,
+        };
+        let mut lowest = FloatPoint::default();
+        let mut highest = FloatPoint::default();
+        if self.inset_top.is_some() {
+            highest.y = (max_offset_within_containing_block.y - position_in_scroller.y).max(0.0);
+        }
+        if self.inset_left.is_some() {
+            highest.x = (max_offset_within_containing_block.x - position_in_scroller.x).max(0.0);
+        }
+        if self.inset_bottom.is_some() {
+            lowest.y = (min_offset_within_containing_block.y - position_in_scroller.y).min(0.0);
+        }
+        if self.inset_right.is_some() {
+            lowest.x = (min_offset_within_containing_block.x - position_in_scroller.x).min(0.0);
+        }
+        (lowest, highest)
+    }
+}
+
 impl VisualContextTree {
-    // An effects node whose values are all no-ops (opacity 1, normal blending, no filters) exists
-    // as the target of values that may arrive later; replay draws its content directly rather than
-    // through a layer. The root isolation effect keeps its layer at those values.
+    /// An effects node whose values are all no-ops (opacity 1, normal blending, no filters) exists as the target of
+    /// values that may arrive later; replay draws its content directly rather than through a layer. The root isolation
+    /// effect keeps its layer at those values, and so does an effect whose opacity or filter an animation of the tree
+    /// animates, which isolates its content at every sample of the animation.
     pub fn effect_pushes_layer_at_replay(&self, effect: EffectNodeIndex) -> bool {
         match &self.effect_nodes[effect.0 as usize].data {
-            EffectNodeData::Effects(effects) => effects.needs_layer() || self.root_isolation_effect == Some(effect),
+            EffectNodeData::Effects(effects) => {
+                effects.needs_layer()
+                    || self.root_isolation_effect == Some(effect)
+                    || self.effect_opacity_or_filter_is_animated(effect)
+            }
             EffectNodeData::Mask(_) => true,
             EffectNodeData::BackgroundColorAnimation | EffectNodeData::Dead => false,
         }
     }
 
-    // Whether the effect or one of its ancestors pushes a layer.
     pub fn effect_is_isolated_by_layer(&self, mut effect: EffectNodeIndex) -> bool {
         while !effect.is_none() {
             if self.effect_pushes_layer_at_replay(effect) {
@@ -485,29 +510,51 @@ impl VisualContextTree {
             .is_none_or(|layer| self.root_isolation_effect == Some(layer))
     }
 
-    // The backdrop of an effect whose box's masks draw it is read where the outermost of those masks composites.
-    pub fn effect_backdrop_is_root_group(&self, effect: EffectNodeIndex) -> bool {
-        let mut reader = effect;
-        loop {
-            let parent = self.effect_nodes[reader.0 as usize].parent;
-            if parent.is_none()
-                || !matches!(&self.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop)
-            {
-                break;
-            }
-            reader = parent;
-        }
-        self.content_under_effect_composites_into_root_group(self.effect_nodes[reader.0 as usize].parent)
+    /// Per live effect node, the node whose layer reads its backdrop: the outermost of the masks of the effect's box
+    /// that draw its filtered backdrop, or the effect itself. None for a node that is not live.
+    pub fn nodes_reading_the_backdrops_of_effects(&self) -> Vec<EffectNodeIndex> {
+        let mut reader_by_effect_index = vec![EffectNodeIndex::NONE; self.effect_nodes.len()];
+        self.visit_effect_nodes_parents_first(|index| {
+            let parent = self.effect_nodes[index].parent;
+            let reader_of_parent_masking_backdrop = (!parent.is_none()
+                && matches!(&self.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop))
+            .then(|| reader_by_effect_index[parent.0 as usize])
+            .filter(|reader| !reader.is_none());
+            reader_by_effect_index[index] = reader_of_parent_masking_backdrop.unwrap_or(EffectNodeIndex(index as u32));
+        });
+        reader_by_effect_index
     }
 
-    pub fn has_blend_mode_reading_root_group(&self) -> bool {
+    /// Whether a blend mode or a backdrop filter reads the root group. The backdrop of an effect whose box's masks draw
+    /// it is read where the outermost of those masks composites.
+    pub fn blend_mode_or_backdrop_filter_reads_root_group(&self) -> bool {
+        let reads_backdrop = |data: &EffectNodeData| {
+            matches!(data, EffectNodeData::Effects(effects)
+                if effects.blend_mode != CompositingAndBlendingOperator::Normal || effects.backdrop_filter.is_some())
+        };
+        if !self.effect_nodes.iter().any(|node| reads_backdrop(&node.data)) {
+            return false;
+        }
+        let reader_by_effect_index = self.nodes_reading_the_backdrops_of_effects();
+        let mut content_composites_into_root_group_by_effect_index = vec![true; self.effect_nodes.len()];
+        self.visit_effect_nodes_parents_first(|index| {
+            let effect = EffectNodeIndex(index as u32);
+            let parent = self.effect_nodes[index].parent;
+            content_composites_into_root_group_by_effect_index[index] = if self.effect_pushes_layer_at_replay(effect) {
+                self.root_isolation_effect == Some(effect)
+            } else {
+                parent.is_none() || content_composites_into_root_group_by_effect_index[parent.0 as usize]
+            };
+        });
         self.effect_nodes.iter().enumerate().any(|(index, node)| {
-            matches!(&node.data, EffectNodeData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
-                && self.effect_backdrop_is_root_group(EffectNodeIndex(index as u32))
+            let parent_of_reader = || self.effect_nodes[reader_by_effect_index[index].0 as usize].parent;
+            reads_backdrop(&node.data)
+                && (parent_of_reader().is_none()
+                    || content_composites_into_root_group_by_effect_index[parent_of_reader().0 as usize])
         })
     }
 
-    // A blend mode or a backdrop filter reads what the canvas holds outside the effect's own layer.
+    /// A blend mode or a backdrop filter reads what the canvas holds outside the effect's own layer.
     pub fn has_unisolated_destination_reading_effect(&self) -> bool {
         self.effect_nodes.iter().any(|node| {
             matches!(
@@ -517,6 +564,124 @@ impl VisualContextTree {
             ) && !self.effect_is_isolated_by_layer(node.parent)
         })
     }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct BackdropReader {
+    pub(crate) effect_with_backdrop_filter: Option<EffectNodeIndex>,
+}
+
+// Per effect node, whether it reads what is below it, and if it reads for a backdrop filter, the effect of the filter.
+pub(crate) fn backdrop_reader_by_reading_effect_index(tree: &VisualContextTree) -> Vec<Option<BackdropReader>> {
+    let mut backdrop_reader_by_reading_effect_index = vec![None; tree.effect_nodes.len()];
+    let mut node_reading_backdrop_by_effect_index = None;
+    for (index, effect_node) in tree.effect_nodes.iter().enumerate() {
+        let EffectNodeData::Effects(effects) = &effect_node.data else {
+            continue;
+        };
+        let effect = EffectNodeIndex(index as u32);
+        if effects.backdrop_filter.is_some() {
+            let reading_effect = node_reading_backdrop_by_effect_index
+                .get_or_insert_with(|| tree.nodes_reading_the_backdrops_of_effects())[index];
+            backdrop_reader_by_reading_effect_index[reading_effect.0 as usize] = Some(BackdropReader {
+                effect_with_backdrop_filter: Some(effect),
+            });
+        } else if effects.blend_mode != CompositingAndBlendingOperator::Normal {
+            backdrop_reader_by_reading_effect_index[index] = Some(BackdropReader {
+                effect_with_backdrop_filter: None,
+            });
+        }
+    }
+    backdrop_reader_by_reading_effect_index
+}
+
+/// Whether one live effect node of a tree is inside another, without a walk up the tree for each question. Decoding a
+/// tree checks the parents of its live nodes only, so a node that is not live is in no effect and holds none. The
+/// table is worked out at the first question.
+pub(crate) struct NestingOfLiveEffects<'a> {
+    tree: &'a VisualContextTree,
+    // Where a walk of the live nodes enters each node and how many nodes it walks from there until it leaves it, or
+    // zero nodes for a node the walk does not enter.
+    walk_step_and_node_count_by_effect_index: std::cell::OnceCell<Vec<(u32, u32)>>,
+}
+
+impl<'a> NestingOfLiveEffects<'a> {
+    pub(crate) fn of(tree: &'a VisualContextTree) -> Self {
+        Self {
+            tree,
+            walk_step_and_node_count_by_effect_index: std::cell::OnceCell::new(),
+        }
+    }
+
+    fn walk_step_and_node_count_of(&self, effect: EffectNodeIndex) -> Option<(u32, u32)> {
+        self.walk_step_and_node_count_by_effect_index
+            .get_or_init(|| walk_steps_and_node_counts_of_live_effects(self.tree))
+            .get(effect.0 as usize)
+            .copied()
+            .filter(|&(_, node_count)| node_count != 0)
+    }
+
+    pub(crate) fn is_or_is_inside(&self, effect: EffectNodeIndex, ancestor: EffectNodeIndex) -> bool {
+        match (
+            self.walk_step_and_node_count_of(effect),
+            self.walk_step_and_node_count_of(ancestor),
+        ) {
+            (Some((effect_step, _)), Some((ancestor_step, ancestor_node_count))) => {
+                ancestor_step <= effect_step && effect_step - ancestor_step < ancestor_node_count
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_strictly_inside(&self, effect: EffectNodeIndex, ancestor: EffectNodeIndex) -> bool {
+        effect != ancestor && self.is_or_is_inside(effect, ancestor)
+    }
+}
+
+// A node goes into the walk after its parent, so a parent that a broken tree visits later is taken as no parent.
+fn walk_steps_and_node_counts_of_live_effects(tree: &VisualContextTree) -> Vec<(u32, u32)> {
+    let effect_count = tree.effect_nodes.len();
+    let mut live_effects_parents_first: Vec<u32> = Vec::with_capacity(effect_count);
+    tree.visit_effect_nodes_parents_first(|index| live_effects_parents_first.push(index as u32));
+    let mut visit_position_by_effect_index = vec![u32::MAX; effect_count];
+    for (position, &index) in live_effects_parents_first.iter().enumerate() {
+        visit_position_by_effect_index[index as usize] = position as u32;
+    }
+    let walked_parent_by_effect_index: Vec<Option<u32>> = (0..effect_count)
+        .map(|index| {
+            let parent = tree.effect_nodes[index].parent;
+            (!parent.is_none()
+                && visit_position_by_effect_index
+                    .get(parent.0 as usize)
+                    .is_some_and(|&parent_position| parent_position < visit_position_by_effect_index[index]))
+            .then_some(parent.0)
+        })
+        .collect();
+    let mut walk_step_and_node_count_by_effect_index = vec![(0u32, 0u32); effect_count];
+    for &index in live_effects_parents_first.iter().rev() {
+        let index = index as usize;
+        walk_step_and_node_count_by_effect_index[index].1 += 1;
+        if let Some(parent) = walked_parent_by_effect_index[index] {
+            walk_step_and_node_count_by_effect_index[parent as usize].1 +=
+                walk_step_and_node_count_by_effect_index[index].1;
+        }
+    }
+    // The walk enters each child of a node right after the nodes inside the children before it.
+    let mut next_step_inside_by_effect_index = visit_position_by_effect_index;
+    let mut next_step_of_root = 0u32;
+    for &index in &live_effects_parents_first {
+        let index = index as usize;
+        let next_step = match walked_parent_by_effect_index[index] {
+            Some(parent) => &mut next_step_inside_by_effect_index[parent as usize],
+            None => &mut next_step_of_root,
+        };
+        let step = *next_step;
+        let node_count = walk_step_and_node_count_by_effect_index[index].1;
+        *next_step += node_count;
+        walk_step_and_node_count_by_effect_index[index].0 = step;
+        next_step_inside_by_effect_index[index] = step + 1;
+    }
+    walk_step_and_node_count_by_effect_index
 }
 
 impl VisualContextTree {
@@ -542,9 +707,8 @@ impl VisualContextTree {
         }
     }
 
-    // A recorded fill directly names its background-color animation effect.
     pub fn sampled_background_color(&self, effect: EffectNodeIndex) -> Option<libgfx_rust::Color> {
-        self.sampled_background_colors.get(&effect.0).copied()
+        self.sampled_background_color_by_effect_index.get(&effect.0).copied()
     }
 
     pub fn visual_animation_targets_are_valid(
@@ -590,15 +754,15 @@ impl VisualContextTree {
         }
     }
 
-    pub fn display_list_references_only_live_nodes(
+    pub fn display_list_references_only_live_nodes<'a>(
         &self,
-        command_runs: &[crate::display_list::commands::DisplayListCommandRun],
+        command_runs: impl IntoIterator<Item = &'a crate::display_list::commands::DisplayListCommandRun>,
     ) -> bool {
-        command_runs.iter().all(|run| self.context_is_valid(run.context))
+        command_runs.into_iter().all(|run| self.context_is_valid(run.context))
     }
 
-    // Bound every possible angle, rather than just the current sample: content outside the viewport now
-    // may rotate into it later. Repeatedly enclosing rectangles also conservatively handles nested rotations.
+    /// Bounds every possible angle, rather than just the current sample: content outside the viewport now may rotate
+    /// into it later. Repeatedly enclosing rectangles also conservatively handles nested rotations.
     pub fn rect_with_rotation_bounds_to_viewport(
         &self,
         mut index: SpatialNodeIndex,
@@ -659,7 +823,7 @@ mod tests {
     use crate::node_slot_id::NodeSlotId;
     use crate::visual_context::{
         BackfaceVisibilityData, ClipData, ClipMode, EffectsData, PerspectiveData, ScrollData, SpatialData, SpatialNode,
-        StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
+        StickyData, TransformData, TransformDataRole, UniqueNodeId, scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatSize, perspective_matrix, scale_matrix, translation_matrix};
 
@@ -701,14 +865,77 @@ mod tests {
         scratch.clip_has_empty_effective_clip
     }
 
-    // A context under a fresh clip node with no effect.
-    fn clip_context(tree: &mut VisualContextTree, data: ClipNodeData, spatial: SpatialNodeIndex) -> ContextRef {
+    fn context_under_new_clip_without_effect(
+        tree: &mut VisualContextTree,
+        data: ClipNodeData,
+        spatial: SpatialNodeIndex,
+    ) -> ContextRef {
         let clip = tree.append_clip(data, ClipNodeIndex::NONE, spatial);
         ContextRef {
             clip,
             effect: EffectNodeIndex::NONE,
             ..ContextRef::default()
         }
+    }
+
+    // A backdrop is read where the outermost of the masks of its box that draw it composites, which is the root group
+    // where no layer but the root isolation layer is around that mask.
+    #[test]
+    fn a_blend_mode_or_backdrop_filter_reads_the_root_group_where_no_other_layer_is_around_where_it_reads() {
+        let effects = |opacity: f32, blend_mode, backdrop_filter: Option<crate::visual_context::BackdropFilterData>| {
+            EffectNodeData::Effects(EffectsData {
+                isolation: false,
+                opacity,
+                blend_mode,
+                filter: None,
+                backdrop_filter,
+            })
+        };
+        let backdrop_filter = || {
+            Some(crate::visual_context::BackdropFilterData {
+                filter: std::sync::Arc::new(Vec::new()),
+                region: IntRect::new(0, 0, 10, 10),
+                corner_radii: CornerRadii::default(),
+            })
+        };
+        let mask_drawing_backdrop = || {
+            EffectNodeData::Mask(crate::visual_context::MaskData {
+                rect: IntRect::new(0, 0, 10, 10),
+                kind: crate::visual_context::MaskKind::Luminance,
+                origin: crate::visual_context::MaskLayerOrigin::CssMaskLayers,
+                masks_backdrop: true,
+            })
+        };
+        let append = |tree: &mut VisualContextTree, data: EffectNodeData, parent: EffectNodeIndex| {
+            tree.append_effect(data, parent, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE)
+        };
+        let normal = CompositingAndBlendingOperator::Normal;
+
+        let mut tree = identity_tree();
+        let plain_group = append(&mut tree, effects(1.0, normal, None), EffectNodeIndex::NONE);
+        assert!(!tree.blend_mode_or_backdrop_filter_reads_root_group());
+        append(
+            &mut tree,
+            effects(1.0, CompositingAndBlendingOperator::Multiply, None),
+            plain_group,
+        );
+        assert!(tree.blend_mode_or_backdrop_filter_reads_root_group());
+
+        let mut tree = identity_tree();
+        let root_isolation = append(&mut tree, effects(1.0, normal, None), EffectNodeIndex::NONE);
+        tree.root_isolation_effect = Some(root_isolation);
+        let translucent_group = append(&mut tree, effects(0.5, normal, None), root_isolation);
+        let mask_in_translucent_group = append(&mut tree, mask_drawing_backdrop(), translucent_group);
+        append(
+            &mut tree,
+            effects(1.0, normal, backdrop_filter()),
+            mask_in_translucent_group,
+        );
+        assert!(!tree.blend_mode_or_backdrop_filter_reads_root_group());
+        let outer_mask = append(&mut tree, mask_drawing_backdrop(), root_isolation);
+        let inner_mask = append(&mut tree, mask_drawing_backdrop(), outer_mask);
+        append(&mut tree, effects(1.0, normal, backdrop_filter()), inner_mask);
+        assert!(tree.blend_mode_or_backdrop_filter_reads_root_group());
     }
 
     #[test]
@@ -956,7 +1183,7 @@ mod tests {
     #[test]
     fn a_difference_clip_passes_only_points_outside_its_rect() {
         let mut tree = identity_tree();
-        let context = clip_context(
+        let context = context_under_new_clip_without_effect(
             &mut tree,
             clip(FloatRect::new(10.0, 10.0, 20.0, 20.0), ClipMode::Difference),
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -969,7 +1196,7 @@ mod tests {
     #[test]
     fn a_fractional_clip_rect_contains_points_by_float_containment() {
         let mut tree = identity_tree();
-        let context = clip_context(
+        let context = context_under_new_clip_without_effect(
             &mut tree,
             clip(FloatRect::new(10.5, 10.5, 20.0, 20.0), ClipMode::Intersect),
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -982,7 +1209,7 @@ mod tests {
     #[test]
     fn an_integral_clip_rect_contains_points_by_integer_containment() {
         let mut tree = identity_tree();
-        let context = clip_context(
+        let context = context_under_new_clip_without_effect(
             &mut tree,
             clip(FloatRect::new(10.0, 10.0, 20.0, 20.0), ClipMode::Intersect),
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -996,7 +1223,7 @@ mod tests {
     #[test]
     fn a_rounded_clip_rejects_points_outside_its_corner_ellipses() {
         let mut tree = identity_tree();
-        let context = clip_context(
+        let context = context_under_new_clip_without_effect(
             &mut tree,
             ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
@@ -1165,7 +1392,7 @@ mod tests {
     fn a_context_below_the_context_node_takes_its_own_walk_from_the_root() {
         let mut tree = identity_tree();
         let scroll_node = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
-        let context = clip_context(
+        let context = context_under_new_clip_without_effect(
             &mut tree,
             clip(FloatRect::new(0.0, 0.0, 50.0, 50.0), ClipMode::Intersect),
             scroll_node,
@@ -1281,6 +1508,8 @@ mod tests {
                 inset_right: None,
                 inset_bottom: None,
                 inset_left: None,
+                box_node_id: UniqueNodeId(0),
+                box_pseudo_element_type: 0,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
             }),
@@ -1308,6 +1537,8 @@ mod tests {
                 inset_right: None,
                 inset_bottom: None,
                 inset_left: None,
+                box_node_id: UniqueNodeId(0),
+                box_pseudo_element_type: 0,
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
             }),
@@ -1358,6 +1589,8 @@ mod tests {
             inset_right: None,
             inset_bottom: None,
             inset_left: None,
+            box_node_id: UniqueNodeId(0),
+            box_pseudo_element_type: 0,
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
         })

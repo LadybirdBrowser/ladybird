@@ -329,6 +329,7 @@ private:
     virtual void take_dom_node_screenshot(Web::PageId page_id, Web::UniqueNodeID node_id) override;
 
     virtual void request_internal_page_info(Web::PageId page_id, WebView::PageInfoType) override;
+    virtual void describe_owners_of_visual_context_nodes(Web::PageId page_id, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices) override;
 
     virtual void get_selected_text(Web::PageId page_id, u64 request_id) override;
     virtual void generate_text_fragment_url(Web::PageId page_id, u64 request_id, u64 generation_id) override;

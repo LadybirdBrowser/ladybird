@@ -5,10 +5,13 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[8,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
-FillRect@s1/e0 rect=[38,8 28x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
-FillRect@s1/e0 rect=[67,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
-FillRect@s1/e0 rect=[97,8 28x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
-FillRect@s1/e0 rect=[126,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
+L0 FillRect@s1/e0 rect=[8,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
+L0 FillRect@s1/e0 rect=[38,8 28x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
+L0 FillRect@s1/e0 rect=[67,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
+L0 FillRect@s1/e0 rect=[97,8 28x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
+L0 FillRect@s1/e0 rect=[126,8 29x30] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.b phase=background
 

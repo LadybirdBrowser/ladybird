@@ -10,10 +10,19 @@ use super::{
 };
 use libgfx_rust::{
     AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, map_rect_through_matrix, multiply_affine,
-    translation_matrix,
+    scale_matrix, translation_matrix,
 };
 
-// Homogeneous coordinates this close to the eye plane have no meaningful projection.
+/// A spatial node whose subtree a table maps into the node's own coordinates times `raster_scale`, under the root's
+/// parent matrix, rather than through the node's transform, which the compositor animates: the subtree lands alike in
+/// every sample of the animation.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RasterRoot {
+    pub anchor: SpatialNodeIndex,
+    pub raster_scale: f32,
+}
+
+/// Homogeneous coordinates this close to the eye plane have no meaningful projection.
 pub const MINIMUM_PROJECTION_W: f32 = 0.0001;
 
 /// The to-root matrix of every spatial node under one set of scroll offsets, filled in dependency order so that any
@@ -34,14 +43,29 @@ pub struct WorldTransforms {
     pub translations_snap_to_device_pixels: Vec<bool>,
 }
 
-// The cull state of the element that establishes the 3D rendering context rooted at root: the cull state of the
-// plane the context is flattened into.
-fn backface_culled_outside_sorting_context(
+/// The translation by `offset` of a scroll, sticky or anchor scroll shift node under no transform, on whole device
+/// pixels. A sticky offset carries the fraction of the box's own position, which replay rounds the box by already, so
+/// for a sticky box recorded at `sticky_box_origin` where the box lands is rounded, not the offset, or a box at a half
+/// pixel would round twice.
+pub fn translation_on_whole_device_pixels(offset: FloatPoint, sticky_box_origin: Option<FloatPoint>) -> FloatPoint {
+    match sticky_box_origin {
+        Some(origin) => FloatPoint {
+            x: (origin.x + offset.x).round() - origin.x.round(),
+            y: (origin.y + offset.y).round() - origin.y.round(),
+        },
+        None => FloatPoint {
+            x: offset.x.round(),
+            y: offset.y.round(),
+        },
+    }
+}
+
+fn backface_culled_at_element_establishing_sorting_context(
     tree: &VisualContextTree,
     backface_culled: &[bool],
-    root: SpatialNodeIndex,
+    sorting_context_root: SpatialNodeIndex,
 ) -> bool {
-    let mut index = root;
+    let mut index = sorting_context_root;
     loop {
         if tree.local_transform(index, &[]).establishes_sorting_context {
             return backface_culled[index.0 as usize];
@@ -59,12 +83,22 @@ impl WorldTransforms {
         scroll_offsets: &[FloatPoint],
         root_parent_matrix: Option<FloatMatrix4x4>,
     ) -> Self {
+        Self::with_raster_root(tree, scroll_offsets, root_parent_matrix, None)
+    }
+
+    pub fn with_raster_root(
+        tree: &VisualContextTree,
+        scroll_offsets: &[FloatPoint],
+        root_parent_matrix: Option<FloatMatrix4x4>,
+        raster_root: Option<RasterRoot>,
+    ) -> Self {
         let mut world = Self::default();
         world.fill(
             tree,
             &tree.spatial_dependency_order(),
             scroll_offsets,
             root_parent_matrix,
+            raster_root,
         );
         world
     }
@@ -79,13 +113,14 @@ impl WorldTransforms {
     }
 
     /// Fills the table, with `root_parent_matrix` as what the visual viewport node's transform applies on top of, or
-    /// with that transform left out.
+    /// with that transform left out, and the subtree of `raster_root` mapped as it says.
     pub fn fill(
         &mut self,
         tree: &VisualContextTree,
         spatial_dependency_order: &[u32],
         scroll_offsets: &[FloatPoint],
         root_parent_matrix: Option<FloatMatrix4x4>,
+        raster_root: Option<RasterRoot>,
     ) {
         let node_count = tree.spatial_nodes.len();
         self.clear();
@@ -100,32 +135,33 @@ impl WorldTransforms {
             let i = index as usize;
             let parent = tree.spatial_nodes[i].parent.0 as usize;
             let mut local = tree.local_transform(SpatialNodeIndex(index), scroll_offsets);
-            let transforms = local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity();
-            let snaps = i == 0 || (self.translations_snap_to_device_pixels[parent] && !transforms);
-            self.translations_snap_to_device_pixels[i] = snaps;
+            let raster_root_here = raster_root.filter(|raster_root| raster_root.anchor.0 == index);
+            if let Some(raster_root) = raster_root_here {
+                let scale = scale_matrix(raster_root.raster_scale, raster_root.raster_scale, 1.0);
+                local.matrix = scale;
+                local.flattens_inherited_transform = false;
+            }
+            let has_non_identity_transform = raster_root_here.is_some()
+                || (local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity());
+            let translations_snap =
+                i == 0 || (self.translations_snap_to_device_pixels[parent] && !has_non_identity_transform);
+            self.translations_snap_to_device_pixels[i] = translations_snap;
             if let LocalTransformKind::Translation(offset) = local.kind
-                && snaps
+                && translations_snap
             {
-                let snapped = match &tree.spatial_nodes[i].data {
-                    // A sticky offset carries the fraction of the box's own position, which replay rounds the box
-                    // by already. So snap where the box lands, not the offset — or a box at a half pixel rounds twice.
-                    SpatialData::Sticky(sticky) => {
-                        let origin = sticky.border_box_origin;
-                        FloatPoint {
-                            x: (origin.x + offset.x).round() - origin.x.round(),
-                            y: (origin.y + offset.y).round() - origin.y.round(),
-                        }
-                    }
-                    _ => FloatPoint {
-                        x: offset.x.round(),
-                        y: offset.y.round(),
-                    },
+                let sticky_box_origin = match &tree.spatial_nodes[i].data {
+                    SpatialData::Sticky(sticky) => Some(sticky.border_box_origin),
+                    _ => None,
                 };
-                local.matrix = translation_matrix(snapped.x, snapped.y, 0.0);
+                let snapped_offset = translation_on_whole_device_pixels(offset, sticky_box_origin);
+                local.matrix = translation_matrix(snapped_offset.x, snapped_offset.y, 0.0);
             }
             self.to_root[i] = match (i, root_parent_matrix) {
                 (0, None) => FloatMatrix4x4::identity(),
                 (0, Some(root_parent_matrix)) => local.applied_to(root_parent_matrix),
+                _ if raster_root_here.is_some() => {
+                    local.applied_to(root_parent_matrix.unwrap_or(FloatMatrix4x4::identity()))
+                }
                 _ => local.applied_to(self.to_root[parent]),
             };
             self.local[i] = local.matrix;
@@ -139,7 +175,7 @@ impl WorldTransforms {
             // culls the 3D rendering contexts nested in it:
             // https://github.com/w3c/csswg-drafts/issues/918
             if let Some(root) = local.sorting_context_root {
-                culled = backface_culled_outside_sorting_context(tree, &self.backface_culled, root);
+                culled = backface_culled_at_element_establishing_sorting_context(tree, &self.backface_culled, root);
             }
             if let Some(plane_root) = local.backface_plane_root {
                 self.draw_space[i] = self.draw_space[parent];

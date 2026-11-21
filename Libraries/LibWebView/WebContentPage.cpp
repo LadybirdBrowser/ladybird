@@ -545,6 +545,12 @@ void WebContentPage::did_consume_input_event_in_compositor(u64 event_id)
     }
 }
 
+void WebContentPage::did_update_compositor_layers(Compositing::CompositorLayersDescription const& layers)
+{
+    if (displays_tab())
+        view().did_update_compositor_layers({}, layers);
+}
+
 void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_id)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor did not dispatch input event {} for page {}; sending it to WebContent directly", event_id, m_id);
@@ -1302,6 +1308,12 @@ void WebContentPage::did_get_internal_page_info(WebView::PageInfoType type, Opti
 {
     if (displays_tab())
         view().did_receive_internal_page_info({}, type, info);
+}
+
+void WebContentPage::did_describe_owners_of_visual_context_nodes(u64 structural_epoch, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices, Vector<String> owners)
+{
+    if (displays_tab())
+        view().did_describe_owners_of_visual_context_nodes({}, structural_epoch, spatial_node_indices, effect_node_indices, owners);
 }
 
 void WebContentPage::did_get_selected_text(u64 request_id, ByteString selection)

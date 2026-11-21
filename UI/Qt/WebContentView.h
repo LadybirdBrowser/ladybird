@@ -28,6 +28,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/BackingStoreRelease.h>
+#include <UI/Qt/CompositorLayerPicker.h>
 #include <UI/Qt/RemoteView.h>
 #include <UI/Qt/ScreenshotSelectionOverlay.h>
 
@@ -189,6 +190,8 @@ public:
     void leave_report_review();
     void review_web_compat_report(WebCompatReportCapture);
     void select_web_compat_report_screenshot(Function<void(QImage)> on_selected, Function<void()> on_close = {});
+    void start_compositor_layer_picker(CompositorLayerPicker);
+    void stop_compositor_layer_picker();
 
     Function<void(WebCompatReportCapture)> on_request_web_compat_report_review;
     Function<void(Function<void(QImage)> on_selected)> on_request_web_compat_report_screenshot;
@@ -344,6 +347,8 @@ private:
     CrashReportReviewWidget* m_crash_report_review { nullptr };
 
     QPointer<ScreenshotSelectionOverlay> m_screenshot_selection_overlay;
+    Optional<CompositorLayerPicker> m_compositor_layer_picker;
+    bool m_swallows_mouse_release_after_compositor_layer_pick { false };
     size_t m_frame_notification_interest { 0 };
     QPointer<ScreenshotViewer> m_screenshot_viewer;
     struct FloatingSurface {

@@ -12,12 +12,15 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[0,0] is_viewport=false
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x213] owner=BlockContainer<HTML> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x200] owner=BlockContainer<BODY> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 100x100] owner=BlockContainer<DIV>#keeps-its-scrolls phase=scroll-metadata
-CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 50x50] owner=BlockContainer<SPAN> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,100 100x100] owner=BlockContainer<DIV>#passes-its-scrolls-on phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/c1/e0 target_scroll_node_index=s0 rect=[0,100 50x50] owner=BlockContainer<SPAN> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x213] owner=BlockContainer<HTML> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x200] owner=BlockContainer<BODY> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 100x100] owner=BlockContainer<DIV>#keeps-its-scrolls phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 50x50] owner=BlockContainer<SPAN> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,100 100x100] owner=BlockContainer<DIV>#passes-its-scrolls-on phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/c1/e0 target_scroll_node_index=s0 rect=[0,100 50x50] owner=BlockContainer<SPAN> phase=scroll-metadata
 

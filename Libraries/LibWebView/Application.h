@@ -394,6 +394,8 @@ public:
     void set_blocks_pop_ups(bool);
     void set_shows_line_box_borders(bool);
     void set_shows_caret_hit_test_debug_overlay(bool);
+    bool shows_compositor_layers() const { return m_shows_compositor_layers; }
+    void set_shows_compositor_layers(bool);
 
     bool devtools_enabled() const { return m_devtools; }
     void dump_cookies() const;
@@ -741,6 +743,7 @@ private:
     bool m_blocks_pop_ups { true };
     bool m_shows_line_box_borders { false };
     bool m_shows_caret_hit_test_debug_overlay { false };
+    bool m_shows_compositor_layers { false };
 
     Web::Clipboard::SystemClipboardItem m_clipboard;
 

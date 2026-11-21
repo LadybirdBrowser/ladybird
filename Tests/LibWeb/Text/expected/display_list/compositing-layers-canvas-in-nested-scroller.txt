@@ -1,0 +1,30 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>#scroller)
+  clips:
+    [c0 in s1] clip=[20,300 300x200] (BlockContainer<DIV>#scroller)
+  effects:
+    [e0 in s0] effects=[]
+
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s1 scrollport_rect=[20,300 300x200] min_scroll_offset=[0,0] max_scroll_offset=[0,1200] is_viewport=false
+
+Layers:
+  [L0] base space=viewport
+  [L3] canvas #0 space=scroller@s2 in document region=[20,697 203x126] composited within [20,300 300x200] of document shown by the window server: clip=[20,300 300x200]
+  [L4] painted space=scroller@s2 in document above L3 composited within [20,300 300x200] of document
+
+DisplayList:
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s1 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2013] owner=BlockContainer<HTML> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,13 800x2000] owner=BlockContainer<BODY> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[20,300 300x200] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[20,700 300x1000] owner=BlockContainer<DIV>#content phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[20,700 200x120] owner=CanvasBox<CANVAS>#canvas phase=scroll-metadata
+L3 DrawCanvas@s2/c0/e0 dst_rect=[20,700 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[30,720 100x40] owner=BlockContainer<DIV>#over-canvas phase=scroll-metadata
+L4 FillRect@s2/c0/e0 rect=[30,720 100x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+

@@ -13,8 +13,8 @@ ScrollNodes:
 ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[100,100 200x150] min_scroll_offset=[0,0] max_scroll_offset=[120,33] is_viewport=false
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] video rect=[85,80 230x190] replayed: clipped in a rotated or skewed space
+  [L0] base space=viewport
+  [L1] video #0 space=viewport region=[85,80 230x190] replayed: clipped in a rotated or skewed space
 
 DisplayList:
 L1 DrawVideoFrame@s3/c0/e0 dst_rect=[100,100 320x180] video_sink_handle=video1 scaling_mode=BilinearMipmap inline_clips=[clip=[100,100 320x180]] owner=VideoBox<VIDEO>#video phase=foreground

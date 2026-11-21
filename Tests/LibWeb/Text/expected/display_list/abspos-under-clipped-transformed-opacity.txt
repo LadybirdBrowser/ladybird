@@ -7,6 +7,9 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s2] effects=[opacity=0.5] (BlockContainer<DIV>#clipped)
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s2/e1 rect=[160,160 50x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#escaping phase=background
+L0 FillRect@s2/e1 rect=[160,160 50x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#escaping phase=background
 

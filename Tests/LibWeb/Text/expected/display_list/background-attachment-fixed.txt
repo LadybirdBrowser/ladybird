@@ -7,6 +7,9 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-PaintLinearGradient@s0/e0 gradient_rect=[0,0 800x600] gradient_angle=180 color_stops=[rgb(0, 128, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[0,0 800x1213] in s1] owner=BlockContainer<HTML> phase=background
+L0 PaintLinearGradient@s0/e0 gradient_rect=[0,0 800x600] gradient_angle=180 color_stops=[rgb(0, 128, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[0,0 800x1213] in s1] owner=BlockContainer<HTML> phase=background
 

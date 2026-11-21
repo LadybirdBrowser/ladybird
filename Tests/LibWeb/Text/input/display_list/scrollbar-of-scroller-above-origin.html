@@ -9,7 +9,7 @@
 <div class="scroller" style="left: 200px; top: 100px; width: 4px; height: 3px"><div></div></div>
 <script>
     test(() => {
-        for (const line of internals.dumpDisplayList().split("\n")) {
+        for (const line of internals.dumpDisplayList().replace(/^L\d+(,L\d+)* /gm, "").split("\n")) {
             if (line.startsWith("CompositorScrollbar"))
                 println(`vertical=${line.includes(" vertical=true")} ${line.match(/track_rect=\[[^\]]*\]/)[0]}`);
         }

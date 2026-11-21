@@ -14,6 +14,9 @@
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 
+// The Paint stage keeps what the compositor keeps of the display lists sent for each context.
+extern "C" void paint_stage_forget_destroyed_compositor_context(u64 context_id);
+
 namespace Web::Compositor {
 
 CompositorContextHandle::CompositorContextHandle(CompositorHost& host, Web::CompositorContextId context_id)
@@ -418,6 +421,7 @@ bool CompositorHost::rasterize_last_recording(Layout::RustFFI::DocumentHost cons
 
 void CompositorHost::destroy_context(Web::CompositorContextId context_id)
 {
+    paint_stage_forget_destroyed_compositor_context(context_id.value());
     if (auto* connection = compositor_connection()) {
         connection->destroy_context(context_id);
         // A connection attached the render clock, whose lanes of the context hear of it no more.

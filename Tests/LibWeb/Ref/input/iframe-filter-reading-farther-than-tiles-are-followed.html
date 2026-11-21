@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/iframe-filter-reading-farther-than-tiles-are-followed-ref.html">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe srcdoc="<!DOCTYPE html>
+    <style>
+        body { margin: 0; }
+        .box { position: absolute; left: -2400px; top: 20px; width: 40px; height: 40px; background: black; }
+        canvas { position: absolute; left: 150px; top: 100px; }
+    </style>
+    <div style='filter: drop-shadow(2500px 0 0 blue)'>
+        <div class='box'></div>
+        <canvas width='20' height='20'></canvas>
+    </div>
+    <script>
+        const context = document.querySelector('canvas').getContext('2d');
+        context.fillStyle = 'lime';
+        context.fillRect(0, 0, 20, 20);
+    </script>"></iframe>

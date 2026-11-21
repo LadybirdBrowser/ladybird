@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe srcdoc="<!DOCTYPE html>
+    <style>
+        body { margin: 0; }
+        .clip { position: relative; overflow: hidden; width: 200px; height: 150px; }
+        .box { position: absolute; left: -50px; top: 20px; width: 40px; height: 40px; background: black; }
+        .square { position: absolute; left: 100px; top: 100px; width: 20px; height: 20px; background: lime; }
+    </style>
+    <div class='clip'>
+        <div style='filter: drop-shadow(80px 0 0 blue)'>
+            <div class='box'></div>
+            <div class='square'></div>
+        </div>
+    </div>"></iframe>

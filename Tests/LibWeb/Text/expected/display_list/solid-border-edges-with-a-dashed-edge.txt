@@ -5,9 +5,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[8,8 120x80] path_data=[path: M8 8L8 8L18 18L118 18L128 8L128 8M128 8L128 8L118 18L118 78L128 88L128 88M128 88L128 88L118 78L18 78L8 88L8 88] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.last-edge-dashed phase=border
-StrokePath@s1/e0 dash_array=[20, 20] dash_offset=10 path_bounding_rect=[8,3 10x90] path_data=[path: M13 88L13 8] color=rgb(255, 0, 0) thickness=10 inline_clips=[clip_path=[bounds: [8,8 10x80], path: M8 88L8 88L18 78L18 18L8 8L8 8] winding_rule=EvenOdd] owner=BlockContainer<DIV>.last-edge-dashed phase=border
-StrokePath@s1/e0 dash_array=[20, 20] dash_offset=10 path_bounding_rect=[3,88 130x10] path_data=[path: M8 93L128 93] color=rgb(255, 0, 0) thickness=10 inline_clips=[clip_path=[bounds: [8,88 120x10], path: M8 88L8 88L18 98L118 98L128 88L128 88] winding_rule=EvenOdd] owner=BlockContainer<DIV>.first-edge-dashed phase=border
-FillPath@s1/e0 path_bounding_rect=[8,88 120x80] path_data=[path: M128 88L128 88L118 98L118 158L128 168L128 168M128 168L128 168L118 158L18 158L8 168L8 168M8 168L8 168L18 158L18 98L8 88L8 88] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.first-edge-dashed phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,8 120x80] path_data=[path: M8 8L8 8L18 18L118 18L128 8L128 8M128 8L128 8L118 18L118 78L128 88L128 88M128 88L128 88L118 78L18 78L8 88L8 88] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.last-edge-dashed phase=border
+L0 StrokePath@s1/e0 dash_array=[20, 20] dash_offset=10 path_bounding_rect=[8,3 10x90] path_data=[path: M13 88L13 8] color=rgb(255, 0, 0) thickness=10 inline_clips=[clip_path=[bounds: [8,8 10x80], path: M8 88L8 88L18 78L18 18L8 8L8 8] winding_rule=EvenOdd] owner=BlockContainer<DIV>.last-edge-dashed phase=border
+L0 StrokePath@s1/e0 dash_array=[20, 20] dash_offset=10 path_bounding_rect=[3,88 130x10] path_data=[path: M8 93L128 93] color=rgb(255, 0, 0) thickness=10 inline_clips=[clip_path=[bounds: [8,88 120x10], path: M8 88L8 88L18 98L118 98L128 88L128 88] winding_rule=EvenOdd] owner=BlockContainer<DIV>.first-edge-dashed phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,88 120x80] path_data=[path: M128 88L128 88L118 98L118 158L128 168L128 168M128 168L128 168L118 158L18 158L8 168L8 168M8 168L8 168L18 158L18 98L8 88L8 88] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.first-edge-dashed phase=border
 

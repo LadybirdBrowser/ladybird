@@ -11,12 +11,14 @@
 #include <AK/EnumBits.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/ScrollSnapSelection.h>
+#include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -309,6 +311,56 @@ struct ScrollRequest {
         else
             smooth_scroll = later.smooth_scroll;
     }
+};
+
+enum class VisualContextNodeKind : u8 {
+    Spatial,
+    Effect,
+};
+
+// A node of the visual context tree that the name of a layer mentions, with the element whose box owns it. The
+// compositor names the node, and the view asks the page for the element.
+struct CompositorLayerNodeDescription {
+    VisualContextNodeKind kind { VisualContextNodeKind::Spatial };
+    u32 index { 0 };
+    String element;
+
+    bool operator==(CompositorLayerNodeDescription const&) const = default;
+};
+
+struct CompositorLayerDescription {
+    u64 id { 0 };
+    String name;
+    String details;
+    u32 rgb_of_outline { 0 };
+    bool hidden { false };
+    // In the device pixels of the viewport: what of the layer's outline the frame shows.
+    Gfx::IntRect visible_rect_in_viewport;
+    Vector<CompositorLayerNodeDescription> nodes;
+    u64 tiles_rastered_since_reset { 0 };
+    String raster_causes_since_reset;
+
+    bool operator==(CompositorLayerDescription const&) const = default;
+};
+
+struct CompositorTileHighlightDescription {
+    String raster_cause;
+    u32 rgb { 0 };
+
+    bool operator==(CompositorTileHighlightDescription const&) const = default;
+};
+
+struct CompositorLayersDescription {
+    // From the base layer up.
+    Vector<CompositorLayerDescription> layers;
+    Vector<String> notes;
+    String summary_of_last_frame;
+    Vector<CompositorTileHighlightDescription> tile_highlights;
+    String summary_since_reset;
+    // The tree whose nodes the layers name, which the page names the elements of only while it holds the same tree.
+    u64 visual_context_tree_structural_epoch { 0 };
+
+    bool operator==(CompositorLayersDescription const&) const = default;
 };
 
 // AD-HOC: Wheel events carry no gesture phase information, so a wheel gesture is considered finished once no input of

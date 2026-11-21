@@ -12,9 +12,9 @@ ScrollNodes:
 ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[20,20 180x100] min_scroll_offset=[0,0] max_scroll_offset=[20,320] is_viewport=false
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[17,17 186x106] replayed: more than one rounded clip
-  [L2] painted rect=[17,17 186x106]
+  [L0] base space=viewport
+  [L2] canvas #0 space=scroller@s2 in viewport region=[20,20 200x123] composited within [20,20 180x100] radii=(20,20,20,20) of viewport replayed: more than one rounded clip
+  [L4] painted space=viewport above band 0 of scroller@s2 in viewport
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
@@ -22,9 +22,9 @@ L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x
 L0 CompositorWheelHitTestTargetWithCornerRadii@s1/e0 target_scroll_node_index=s2 rect=[20,20 180x100] corner_radii=[20x20,20x20,20x20,20x20] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
 L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[20,140 180x300] owner=BlockContainer<DIV>#spacer phase=scroll-metadata
 L0 CompositorWheelHitTestTargetWithCornerRadii@s2/c0/e0 target_scroll_node_index=s2 rect=[20,20 200x120] corner_radii=[8x8,8x8,8x8,8x8] owner=CanvasBox<CANVAS>#canvas phase=scroll-metadata
-L1 DrawCanvas@s2/c0/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear inline_clips=[clip=[20,20 200x120] radii=(8,8,8,8)] owner=CanvasBox<CANVAS>#canvas phase=foreground
+L2 DrawCanvas@s2/c0/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear inline_clips=[clip=[20,20 200x120] radii=(8,8,8,8)] owner=CanvasBox<CANVAS>#canvas phase=foreground
 L0 CompositorScrollbar@s1/e0 scroll_node_index=s2 thumb_rect=[191,22 7x24] track_rect=[191,20 9x100] expanded_gutter_rect=[185,20 15x100] expanded_thumb_rect=[187,22 11x24] scroll_size=0.225 expanded_scroll_size=0.225 max_scroll_offset=320 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
-L2 PaintScrollBar@s1/e0 scroll_node_index=s2 thumb_rect=[191,22 7x24] track_rect=[191,20 9x100] expanded_gutter_rect=[185,20 15x100] scroll_size=0.225 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
-L2 CompositorScrollbar@s1/e0 scroll_node_index=s2 thumb_rect=[22,111 145x7] track_rect=[20,111 165x9] expanded_gutter_rect=[20,105 165x15] expanded_thumb_rect=[22,107 145x11] scroll_size=0.80546875 expanded_scroll_size=0.80546875 max_scroll_offset=20 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>#scroller phase=overlay
-L2 PaintScrollBar@s1/e0 scroll_node_index=s2 thumb_rect=[22,111 145x7] track_rect=[20,111 165x9] expanded_gutter_rect=[20,105 165x15] scroll_size=0.80546875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>#scroller phase=overlay
+L4 PaintScrollBar@s1/e0 scroll_node_index=s2 thumb_rect=[191,22 7x24] track_rect=[191,20 9x100] expanded_gutter_rect=[185,20 15x100] scroll_size=0.225 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
+L0 CompositorScrollbar@s1/e0 scroll_node_index=s2 thumb_rect=[22,111 145x7] track_rect=[20,111 165x9] expanded_gutter_rect=[20,105 165x15] expanded_thumb_rect=[22,107 145x11] scroll_size=0.80546875 expanded_scroll_size=0.80546875 max_scroll_offset=20 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>#scroller phase=overlay
+L4 PaintScrollBar@s1/e0 scroll_node_index=s2 thumb_rect=[22,111 145x7] track_rect=[20,111 165x9] expanded_gutter_rect=[20,105 165x15] scroll_size=0.80546875 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) owner=BlockContainer<DIV>#scroller phase=overlay
 

@@ -1,0 +1,16 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[filter=[crop([-70.4,-2 940.80005x120.00001] input=[offset(40,0 input=[crop([-70.4,-2 940.80005x120.00001])])])]] (BlockContainer<DIV>)
+        [e2 in s1] effects=[backdrop-filter=[region=[8,8 100x100] filter=[drop-shadow(4,4,0,rgb(0, 0, 0))]]] (BlockContainer<DIV>)
+
+Layers:
+  [L0] single layer replaying the whole list: filter that moves what it filters is composited
+
+DisplayList:
+L0 FillRect@s1/e1 rect=[8,8 784x100] color=rgba(0, 0, 0, 0) owner=BlockContainer<DIV> phase=preamble
+L0 BackdropFilterRegion@s1/e2 rect=[8,8 100x100] owner=BlockContainer<DIV> phase=background
+

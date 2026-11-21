@@ -13,25 +13,22 @@ use super::dump_format::{
     DumpNames, DumpValue, dumped_record_field, json_corner_radii, json_fields, json_float, json_float_point,
     json_float_rect, json_int_rect, json_name, path_description, push_clip_radii, push_fields, push_value,
 };
-use super::effect_clip_plan::EffectClipPlan;
-use super::layers::{LayerPlan, LayerPlanInputs, build_layer_plan};
+use super::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
+use super::layers::{LayerIndex, VisualContextNodeNamer, WindowServerPresentationOfMedia};
 use super::nested_records::{
     NestedRecordsRole, for_each_command_including_nested, for_each_nested_record_span, span_bytes,
 };
 use super::record_fields::visit_command_fields;
 use super::recorder::{RecordNotes, RecordOrigin};
-use super::storage::DisplayListStorage;
-use super::summary::{LiveContent, summarize};
+use super::storage::{ChunkIndexInList, DisplayListStorage, ListPosition};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::{push_affine_transform, push_float_rect};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::vector_image_records::display_list_holding_vector_image_records;
-use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::{DumpedNode, SlotKind, tree_section_text};
 use crate::stage::MainThread;
-use libcompositing_rust::host::RecordSpan;
 use libcompositing_rust::visual_context::CompositorScrollTable;
 use libgfx_rust::path::Path;
 use libgfx_rust::{FloatPoint, FloatRect, IntRect};
@@ -202,6 +199,88 @@ pub unsafe extern "C" fn render_state_dump_compositor_animations(
     flags
 }
 
+/// What describing the owners of nodes of the visual context tree asks the document. The fields are private: the
+/// callbacks are reached only through the method below, which takes the main thread token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export whose
+///     safety contract keeps them callable, and the private fields let nothing else call them.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiVisualContextNodeOwnerCallbacks {
+    context: *mut c_void,
+    /// Describes the row in the slot, as its layout node describes itself.
+    debug_description: extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
+    /// Takes the description of the owner of the node at `position` among the nodes asked of.
+    take_owner: extern "C" fn(context: *mut c_void, position: usize, bytes: *const u8, byte_count: usize),
+}
+
+impl FfiVisualContextNodeOwnerCallbacks {
+    fn take_owner(&self, _: &MainThread, slot: NodeSlotId, position: usize) {
+        let mut description = Vec::new();
+        // The C++ host fills the description sink synchronously through the exported push function, and copies the
+        // description it takes.
+        (self.debug_description)(self.context, slot, (&raw mut description).cast());
+        (self.take_owner)(self.context, position, description.as_ptr(), description.len());
+    }
+}
+
+/// Describes the boxes that own the nodes of the visual context tree of `host`'s document, prepared up to date, that
+/// `spatial_node_indices` and then `effect_node_indices` name: `take_owner` gets the description of each live owner,
+/// by the position of its node among those asked of. Answers the structural epoch of the tree, or zero where the
+/// document has none, when nothing is described.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. Each pointer and count of indices must make a
+/// valid slice for this call, and the callbacks are called synchronously, with a `Vec<u8>` sink the host fills through
+/// `layout_arena_paint_push_bytes`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn painting_describe_owners_of_visual_context_nodes(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    spatial_node_indices: *const u32,
+    spatial_node_count: usize,
+    effect_node_indices: *const u32,
+    effect_node_count: usize,
+    callbacks: FfiVisualContextNodeOwnerCallbacks,
+) -> u64 {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    // SAFETY: As above.
+    let Some(visual_context_tree) = (unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }) else {
+        return 0;
+    };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let slice_of = |indices: *const u32, count: usize| unsafe { ak::slice_from_raw_parts(indices, count) }.to_vec();
+    let nodes: Vec<(SlotKind, u32)> = slice_of(spatial_node_indices, spatial_node_count)
+        .into_iter()
+        .map(|index| (SlotKind::Spatial, index))
+        .chain(
+            slice_of(effect_node_indices, effect_node_count)
+                .into_iter()
+                .map(|index| (SlotKind::Effect, index)),
+        )
+        .collect();
+    let live_owners = crate::painting::ffi::read_arena(host, read, (viewport, nodes), |arena, (viewport, nodes)| {
+        let owners = VisualContextNodeOwners::collect(arena, viewport);
+        nodes
+            .into_iter()
+            .map(|(kind, index)| {
+                owners
+                    .owner(kind, index)
+                    .filter(|&owner| owner != NodeSlotId::INVALID && arena.slot_is_live(owner))
+            })
+            .collect::<Vec<_>>()
+    });
+    for (position, owner) in live_owners.into_iter().enumerate() {
+        if let Some(owner) = owner {
+            callbacks.take_owner(&main_thread, owner, position);
+        }
+    }
+    visual_context_tree.structural_epoch
+}
+
 /// # Safety
 ///
 /// Dumps `display_list` with the nodes it names of the visual context tree of `host`'s document, prepared up to date.
@@ -243,16 +322,12 @@ pub unsafe extern "C" fn painting_dump(
             .expect("the dump records the document first");
     // The dump shows the tape as the compositor replays it, with the records of the SVG images it draws.
     let display_list = DisplayListStorage::recorded(
-        std::sync::Arc::new(display_list_holding_vector_image_records(
-            &recording.display_list,
-            &recording.resources.vector_images,
-        )),
+        &display_list_holding_vector_image_records(&recording.display_list, &recording.resources.vector_images),
         recording
             .visual_context_tree
             .clone()
             .expect("a recording was recorded against a tree"),
     );
-    let (tape, command_runs) = (display_list.bytes(), display_list.command_runs());
     let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut owners = VisualContextNodeOwners::collect(arena, viewport);
@@ -287,8 +362,8 @@ pub unsafe extern "C" fn painting_dump(
     };
     let record_ids = options
         .record_ids
-        .then(|| RecordIdsOfTopLevelRecords::of(tape, command_runs));
-    let nodes = visual_context_tree.reachable_nodes_in_print_order(command_runs, &mut names, |kind, index| {
+        .then(|| RecordIdsOfTopLevelRecords::of(&display_list));
+    let nodes = visual_context_tree.reachable_nodes_in_print_order(display_list.runs(), &mut names, |kind, index| {
         let owner = owners.owner(kind, index)?;
         Some(callbacks.debug_description(&main_thread, owner))
     });
@@ -317,12 +392,26 @@ pub unsafe extern "C" fn painting_dump(
         visual_context_tree.compositor_scroll_table(),
         options.jsonl,
     );
-    let layer_plan = dump_layers_if_list_draws_canvas_video_or_nested_context(
-        &mut output,
+    let scroll_state = host.scroll_state();
+    let scroll_offsets = scroll_state.device_offsets();
+    let planned_layers = plan_layer_stack(&LayerStackInputs {
+        list: &display_list,
+        tree: visual_context_tree,
+        scroll_offsets,
+        viewport_rect: device_viewport_rect,
+    });
+    let presentation_of_media = planned_layers.stack.window_server_presentation_of_media(
         &display_list,
         visual_context_tree,
-        host.scroll_state().device_offsets(),
+        scroll_offsets,
         device_viewport_rect,
+    );
+    dump_layers(
+        &mut output,
+        &mut names,
+        &display_list,
+        &planned_layers,
+        &presentation_of_media,
         record_ids.as_ref(),
         options.jsonl,
     );
@@ -344,16 +433,14 @@ pub unsafe extern "C" fn painting_dump(
         }),
         font_descriptions,
         chunk_starts: if options.chunks {
-            ChunkStart::of_tape(&display_list)
+            ChunkStart::of_list(&display_list)
         } else {
-            HashMap::new()
+            Vec::new()
         },
         current_chunk: None,
+        layer_label_of_current_top_level_record: String::new(),
     };
-    match layer_plan {
-        Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
-        None => records.dump_commands(&display_list),
-    }
+    records.dump_top_level_commands_with_their_layers(&display_list, &planned_layers);
     callbacks.append_text(&main_thread, &output);
 }
 
@@ -595,144 +682,147 @@ fn dump_compositor_scroll_table(
     }
 }
 
-// A list that draws no canvas, video or nested context gets no section.
-fn dump_layers_if_list_draws_canvas_video_or_nested_context(
+fn dump_layers(
     output: &mut String,
+    names: &mut DumpNames,
     display_list: &DisplayListStorage,
-    tree: &VisualContextTree,
-    scroll_offsets: &[FloatPoint],
-    device_viewport_rect: IntRect,
+    planned_layers: &PlannedLayers,
+    presentation_of_media: &WindowServerPresentationOfMedia,
     record_ids: Option<&RecordIdsOfTopLevelRecords>,
     jsonl: bool,
-) -> Option<LayerPlan> {
-    let (tape, command_runs) = (display_list.bytes(), display_list.command_runs());
-    let summary = summarize(tape, command_runs);
-    let draws_canvas_video_or_nested_context = summary
-        .live_content_records
-        .iter()
-        .any(|live_content_record| !matches!(live_content_record.content, LiveContent::ImageFrame(_)));
-    if !draws_canvas_video_or_nested_context {
-        return None;
-    }
-    let effect_clips =
-        EffectClipPlan::new(tree, command_runs).expect("a display list's runs name live nodes of its tree");
-    let layer_plan = build_layer_plan(&LayerPlanInputs {
-        tape,
-        command_runs,
-        summary: &summary,
-        effect_clips: &effect_clips,
-        tree,
-        scroll_offsets,
-        viewport_rect: device_viewport_rect,
+) {
+    let record_id_ranges_by_layer = record_ids.map(|record_ids| {
+        record_ids.record_id_ranges_by_layer_joining_adjacent_ranges(planned_layers.stack.layers.len(), |position| {
+            let (header, _) = display_list.record_at(position);
+            layers_labelling_top_level_record(planned_layers, &header, position)
+        })
     });
-    match layer_plan {
-        Ok(layer_plan) if jsonl => {
-            for (index, layer) in layer_plan.layers.iter().enumerate() {
-                let mut object = serde_json::Map::new();
-                object.insert("type".into(), serde_json::json!("layer"));
-                object.insert("name".into(), serde_json::json!(format!("L{index}")));
-                object.insert("kind".into(), serde_json::json!(layer.kind.to_string()));
-                object.insert("rect".into(), json_int_rect(layer.rect));
-                if let Some(record_ids) = record_ids {
-                    object.insert("records".into(), record_ids.json_spans(&layer.record_spans));
-                }
-                match &layer.window_server_placement {
-                    Some(Ok(placement)) => {
-                        object.insert(
-                            "shown_by_the_window_server".into(),
-                            serde_json::json!(placement.to_string()),
-                        );
-                    }
-                    Some(Err(rejection)) => {
-                        object.insert("replayed".into(), serde_json::json!(rejection.to_string()));
-                    }
-                    None => {}
-                }
-                push_json_line(output, serde_json::Value::Object(object));
+    let names = DumpNodeNamer(std::cell::RefCell::new(names));
+    if jsonl {
+        for (layer, line) in planned_layers.layer_lines(presentation_of_media, &names, |_| None) {
+            let mut object = serde_json::Map::new();
+            object.insert("type".into(), serde_json::json!("layer"));
+            if let Some(layer) = layer {
+                object.insert("name".into(), serde_json::json!(format!("L{}", layer.0)));
             }
-            Some(layer_plan)
+            object.insert("line".into(), serde_json::json!(line));
+            if let (Some(layer), Some(ranges)) = (layer, &record_id_ranges_by_layer) {
+                object.insert("records".into(), json_record_id_ranges(&ranges[layer.0]));
+            }
+            push_json_line(output, serde_json::Value::Object(object));
         }
-        Err(unlayered_reason) if jsonl => {
-            push_json_line(
-                output,
-                serde_json::json!({ "type": "unlayered", "reason": unlayered_reason.to_string() }),
-            );
-            None
-        }
-        Ok(layer_plan) => {
-            output.push_str("\nLayers:\n");
-            layer_plan
-                .write_layer_lines(output, "  ", |spans| {
-                    record_ids.map(|record_ids| record_ids.describe_spans(spans))
-                })
-                .unwrap();
-            Some(layer_plan)
-        }
-        Err(unlayered_reason) => {
-            writeln!(output, "\nLayers: none ({unlayered_reason})").unwrap();
-            None
-        }
+        return;
+    }
+    output.push_str("\nLayers:\n");
+    let describe_records = |layer: LayerIndex| {
+        record_id_ranges_by_layer
+            .as_ref()
+            .map(|ranges| describe_record_id_ranges(&ranges[layer.0]))
+    };
+    for (_, line) in planned_layers.layer_lines(presentation_of_media, &names, describe_records) {
+        writeln!(output, "  {line}").unwrap();
     }
 }
 
-/// The number of each top-level record of a tape, which counts the records nested in the ones before it too.
+struct DumpNodeNamer<'a>(std::cell::RefCell<&'a mut DumpNames>);
+
+impl VisualContextNodeNamer for DumpNodeNamer<'_> {
+    fn name_of_spatial_node(&self, index: SpatialNodeIndex) -> String {
+        self.0.borrow_mut().spatial(index)
+    }
+
+    fn name_of_effect_node(&self, index: EffectNodeIndex) -> String {
+        self.0.borrow_mut().effect(index)
+    }
+}
+
+fn layers_labelling_top_level_record(
+    planned_layers: &PlannedLayers,
+    header: &DisplayListCommandHeader,
+    position: ListPosition,
+) -> Vec<LayerIndex> {
+    let mut layers = if header.command_type.is_compositor_metadata() {
+        Vec::new()
+    } else {
+        planned_layers.layers_of_record(position)
+    };
+    if layers.is_empty() {
+        layers.push(planned_layers.stack.base_layer);
+    }
+    layers
+}
+
+/// The numbers of the records of a list, nested ones too, in paint order, by the top-level record that holds them.
 struct RecordIdsOfTopLevelRecords {
-    ids_by_offset: HashMap<u32, u32>,
+    // In paint order: where each top-level record is, with the numbers of the first and the last record it holds.
+    top_level_records: Vec<(ListPosition, u32, u32)>,
     record_count: u32,
-    tape_size: u32,
 }
 
 impl RecordIdsOfTopLevelRecords {
-    fn of(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Self {
-        let mut ids_by_offset = HashMap::new();
+    fn of(display_list: &DisplayListStorage) -> Self {
+        let mut top_level_records = Vec::new();
         let mut record_count = 0;
-        for run in command_runs {
-            let run_bytes = &tape[run.offset as usize..(run.offset + run.size) as usize];
-            for_each_command(run_bytes, |_, offset_in_run, payload| {
-                ids_by_offset.insert(run.offset + offset_in_run as u32, record_count + 1);
-                let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
-                for_each_command_including_nested(record_bytes, &mut |_, _, _| record_count += 1);
-            });
+        for (chunk_index, chunk) in display_list.chunks().iter().enumerate() {
+            for run in chunk.runs() {
+                let run_bytes = &chunk.records()[run.offset as usize..(run.offset + run.size) as usize];
+                for_each_command(run_bytes, |_, offset_in_run, payload| {
+                    let first_id = record_count + 1;
+                    let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+                    for_each_command_including_nested(record_bytes, &mut |_, _, _| record_count += 1);
+                    let position =
+                        ListPosition::new(ChunkIndexInList(chunk_index as u32), run.offset + offset_in_run as u32);
+                    top_level_records.push((position, first_id, record_count));
+                });
+            }
         }
         Self {
-            ids_by_offset,
+            top_level_records,
             record_count,
-            tape_size: tape.len() as u32,
         }
     }
 
-    fn id_at(&self, offset: u32) -> u32 {
-        if offset == self.tape_size {
-            return self.record_count + 1;
-        }
-        self.ids_by_offset[&offset]
-    }
-
-    fn json_spans(&self, spans: &[RecordSpan]) -> serde_json::Value {
-        serde_json::Value::Array(
-            spans
-                .iter()
-                .map(|span| serde_json::json!([self.id_at(span.begin_offset), self.id_at(span.end_offset) - 1]))
-                .collect(),
-        )
-    }
-
-    // Spans of top-level records as the ranges of the numbers of every record they hold.
-    fn describe_spans(&self, spans: &[RecordSpan]) -> String {
-        let mut text = String::new();
-        for (index, span) in spans.iter().enumerate() {
-            if index > 0 {
-                text.push(',');
-            }
-            let (first, last) = (self.id_at(span.begin_offset), self.id_at(span.end_offset) - 1);
-            if first == last {
-                write!(text, "#{first}").unwrap();
-            } else {
-                write!(text, "#{first}-#{last}").unwrap();
+    fn record_id_ranges_by_layer_joining_adjacent_ranges(
+        &self,
+        layer_count: usize,
+        layers_of_top_level_record: impl Fn(ListPosition) -> Vec<LayerIndex>,
+    ) -> Vec<Vec<(u32, u32)>> {
+        let mut ranges_by_layer: Vec<Vec<(u32, u32)>> = vec![Vec::new(); layer_count];
+        for &(position, first_id, last_id) in &self.top_level_records {
+            for layer in layers_of_top_level_record(position) {
+                let ranges = &mut ranges_by_layer[layer.0];
+                match ranges.last_mut() {
+                    Some(range) if range.1 + 1 == first_id => range.1 = last_id,
+                    _ => ranges.push((first_id, last_id)),
+                }
             }
         }
-        text
+        ranges_by_layer
     }
+}
+
+fn json_record_id_ranges(ranges: &[(u32, u32)]) -> serde_json::Value {
+    serde_json::Value::Array(
+        ranges
+            .iter()
+            .map(|(first, last)| serde_json::json!([first, last]))
+            .collect(),
+    )
+}
+
+fn describe_record_id_ranges(ranges: &[(u32, u32)]) -> String {
+    let mut text = String::new();
+    for (index, (first, last)) in ranges.iter().enumerate() {
+        if index > 0 {
+            text.push(',');
+        }
+        if first == last {
+            write!(text, "#{first}").unwrap();
+        } else {
+            write!(text, "#{first}-#{last}").unwrap();
+        }
+    }
+    text
 }
 
 /// What the recording noted of a record, as the dump prints it.
@@ -828,12 +918,13 @@ struct RecordDump<'a> {
     record_notes: Option<RecordNotesInDumpOrder>,
     // The descriptions of the fonts the glyph runs draw with, by their ids, where the dump prints them.
     font_descriptions: Option<HashMap<u64, String>>,
-    // The chunks of the tape by the index of their first run, where the dump marks them.
-    chunk_starts: HashMap<usize, ChunkStart>,
+    // The chunks of the list in paint order, where the dump marks them.
+    chunk_starts: Vec<ChunkStart>,
     current_chunk: Option<String>,
+    layer_label_of_current_top_level_record: String,
 }
 
-/// Where a chunk of the tape starts, with what it holds.
+/// Where a chunk of the list starts, with what it holds.
 struct ChunkStart {
     name: String,
     id: ChunkId,
@@ -842,39 +933,36 @@ struct ChunkStart {
 }
 
 impl ChunkStart {
-    fn of_tape(display_list: &DisplayListStorage) -> HashMap<usize, Self> {
-        let (bytes, command_runs, chunks) = (display_list.bytes(), display_list.command_runs(), display_list.chunks());
-        (0..chunks.len())
-            .map(|chunk_index| {
-                let runs = &command_runs[chunks.runs_of(chunk_index)];
+    fn of_list(display_list: &DisplayListStorage) -> Vec<Self> {
+        display_list
+            .chunks()
+            .iter()
+            .enumerate()
+            .map(|(chunk_index, chunk)| {
                 let mut record_count = 0;
-                for run in runs {
+                for run in chunk.runs() {
                     for_each_command_including_nested(
-                        &bytes[run.offset as usize..(run.offset + run.size) as usize],
+                        &chunk.records()[run.offset as usize..(run.offset + run.size) as usize],
                         &mut |_, _, _| record_count += 1,
                     );
                 }
-                (
-                    chunks.runs_of(chunk_index).start,
-                    Self {
-                        name: format!("k{}", chunk_index + 1),
-                        id: chunks.id(chunk_index),
-                        record_count,
-                        byte_count: runs.iter().map(|run| run.size).sum(),
-                    },
-                )
+                Self {
+                    name: format!("k{}", chunk_index + 1),
+                    id: chunk.id,
+                    record_count,
+                    byte_count: chunk.runs().iter().map(|run| run.size).sum(),
+                }
             })
             .collect()
     }
 }
 
-/// Where a record sits: how deep in other records, in which of them and as what, and in which layer.
+/// Where a record sits: how deep in other records, and in which of them and as what.
 #[derive(Clone, Copy)]
 struct RecordPlace {
     indent: usize,
     depth: usize,
     nested_in: Option<(u32, NestedRecordsRole)>,
-    layer: Option<usize>,
     // The records of an SVG image take the origin of the record that draws the image.
     origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
 }
@@ -884,7 +972,6 @@ impl RecordPlace {
         indent: 0,
         depth: 0,
         nested_in: None,
-        layer: None,
         origin_of_enclosing_vector_image: None,
     };
 }
@@ -901,8 +988,8 @@ fn nested_records_role_name(role: NestedRecordsRole) -> &'static str {
 }
 
 impl RecordDump<'_> {
-    fn mark_chunk_starting_at(&mut self, run_index: usize) {
-        let Some(chunk) = self.chunk_starts.get(&run_index) else {
+    fn mark_chunk_start(&mut self, chunk_index: usize) {
+        let Some(chunk) = self.chunk_starts.get(chunk_index) else {
             return;
         };
         if self.jsonl {
@@ -931,45 +1018,44 @@ impl RecordDump<'_> {
         self.current_chunk = Some(chunk.name.clone());
     }
 
-    fn dump_commands(&mut self, display_list: &DisplayListStorage) {
-        let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-        for (run_index, run) in command_runs.iter().enumerate() {
-            self.mark_chunk_starting_at(run_index);
-            let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-            self.dump_command_bytes(run_bytes, run.context, RecordPlace::TOP_LEVEL);
-        }
-    }
-
-    // Each top-level command starts with the layer it draws into. The records nested in it draw into the same layer.
-    fn dump_top_level_commands_with_their_layers(&mut self, display_list: &DisplayListStorage, layer_plan: &LayerPlan) {
-        let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-        for (run_index, run) in command_runs.iter().enumerate() {
-            self.mark_chunk_starting_at(run_index);
-            let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-            for_each_command(run_bytes, |_, offset_in_run, payload| {
-                let layer = layer_plan.layer_of_record(run.offset + offset_in_run as u32);
-                let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
-                let place = RecordPlace {
-                    layer: Some(layer),
-                    ..RecordPlace::TOP_LEVEL
-                };
-                if self.jsonl {
-                    self.dump_command_bytes(record_bytes, run.context, place);
-                    return;
-                }
-                let layer_label = format!("L{layer} ");
-                let record_dump_start = self.output.len();
-                self.dump_command_bytes(record_bytes, run.context, place);
-                let record_dump = self.output.split_off(record_dump_start);
-                for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
-                    if line_index == 0 {
-                        self.output.push_str(&layer_label);
-                    } else {
-                        self.output.extend(std::iter::repeat_n(' ', layer_label.len()));
+    // A top-level command can be drawn into several layers, one per tile, where a canvas, video or another space sits
+    // between it and what is painted before it. Its nested records draw into the same layers.
+    fn dump_top_level_commands_with_their_layers(
+        &mut self,
+        display_list: &DisplayListStorage,
+        planned_layers: &PlannedLayers,
+    ) {
+        for (chunk_index, chunk) in display_list.chunks().iter().enumerate() {
+            self.mark_chunk_start(chunk_index);
+            for run in chunk.runs() {
+                let run_bytes = &chunk.records()[run.offset as usize..(run.offset + run.size) as usize];
+                for_each_command(run_bytes, |header, offset_in_run, payload| {
+                    let position =
+                        ListPosition::new(ChunkIndexInList(chunk_index as u32), run.offset + offset_in_run as u32);
+                    let layer_names: Vec<String> = layers_labelling_top_level_record(planned_layers, header, position)
+                        .iter()
+                        .map(|layer| format!("L{}", layer.0))
+                        .collect();
+                    self.layer_label_of_current_top_level_record = layer_names.join(",");
+                    let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+                    if self.jsonl {
+                        self.dump_command_bytes(record_bytes, run.context, RecordPlace::TOP_LEVEL);
+                        return;
                     }
-                    self.output.push_str(line);
-                }
-            });
+                    let layer_label = format!("{} ", self.layer_label_of_current_top_level_record);
+                    let record_dump_start = self.output.len();
+                    self.dump_command_bytes(record_bytes, run.context, RecordPlace::TOP_LEVEL);
+                    let record_dump = self.output.split_off(record_dump_start);
+                    for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
+                        if line_index == 0 {
+                            self.output.push_str(&layer_label);
+                        } else {
+                            self.output.extend(std::iter::repeat_n(' ', layer_label.len()));
+                        }
+                        self.output.push_str(line);
+                    }
+                });
+            }
         }
     }
 
@@ -1051,7 +1137,6 @@ impl RecordDump<'_> {
                     indent: nested_indent,
                     depth: place.depth + 1,
                     nested_in: Some((record_id, role)),
-                    layer: place.layer,
                     origin_of_enclosing_vector_image,
                 },
             );
@@ -1113,9 +1198,7 @@ impl RecordDump<'_> {
             record.insert("parent".into(), json!(parent_id));
             record.insert("role".into(), json!(nested_records_role_name(role)));
         }
-        if let Some(layer) = place.layer {
-            record.insert("layer".into(), json!(format!("L{layer}")));
-        }
+        record.insert("layer".into(), json!(self.layer_label_of_current_top_level_record));
         if let Some(chunk) = &self.current_chunk {
             record.insert("chunk".into(), json!(chunk));
         }
@@ -1306,6 +1389,7 @@ mod tests {
     use super::*;
     use crate::painting::display_list::builder::DisplayListBuilder;
     use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
+    use crate::painting::visual_context::VisualContextTree;
     use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect};
 
     #[test]
@@ -1384,7 +1468,7 @@ mod tests {
     }
 
     #[test]
-    fn record_ids_count_nested_records_and_name_spans_of_top_level_records() {
+    fn record_ids_count_nested_records_and_join_adjacent_records_of_a_layer() {
         let fill = FillRect {
             rect: IntRect::new(0, 0, 10, 10),
             color: Color::from_rgba(0, 0, 0, 255),
@@ -1407,17 +1491,27 @@ mod tests {
         };
         builder.finish_group(group, &group_command, ContextRef::default());
         builder.append(&fill, &[], ContextRef::default());
-        let (tape, runs) = (builder.bytes(), builder.command_runs());
-        let record_ids = RecordIdsOfTopLevelRecords::of(tape, runs);
-        let mut top_level_offsets = Vec::new();
-        for_each_command(tape, |_, offset, _| top_level_offsets.push(offset as u32));
-        let span = |begin: usize, end: Option<usize>| RecordSpan {
-            begin_offset: top_level_offsets[begin],
-            end_offset: end.map_or(tape.len() as u32, |end| top_level_offsets[end]),
-        };
-        assert_eq!(record_ids.describe_spans(&[span(0, Some(1))]), "#1");
-        assert_eq!(record_ids.describe_spans(&[span(1, Some(2))]), "#2-#4");
-        assert_eq!(record_ids.describe_spans(&[span(0, Some(1)), span(2, None)]), "#1,#5");
+        let display_list = DisplayListStorage::recorded(
+            &builder.finish(),
+            std::sync::Arc::new(VisualContextTree::create_identity()),
+        );
+        let record_ids = RecordIdsOfTopLevelRecords::of(&display_list);
+        let positions: Vec<ListPosition> = record_ids
+            .top_level_records
+            .iter()
+            .map(|&(position, _, _)| position)
+            .collect();
+        let ranges = record_ids.record_id_ranges_by_layer_joining_adjacent_ranges(3, |position| {
+            match positions.iter().position(|&top_level| top_level == position) {
+                Some(0) => vec![LayerIndex(0)],
+                Some(1) => vec![LayerIndex(1), LayerIndex(2)],
+                _ => vec![LayerIndex(0), LayerIndex(2)],
+            }
+        });
+        assert_eq!(record_ids.record_count, 5);
+        assert_eq!(describe_record_id_ranges(&ranges[0]), "#1,#5");
+        assert_eq!(describe_record_id_ranges(&ranges[1]), "#2-#4");
+        assert_eq!(describe_record_id_ranges(&ranges[2]), "#2-#5");
     }
 
     #[test]

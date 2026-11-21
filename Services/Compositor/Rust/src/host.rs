@@ -32,6 +32,8 @@ pub enum ContextTimer {
     BackingStoreShrink,
     SurplusStoreRetirement,
     HiddenStoreRetirement,
+    SpareTileEviction,
+    TileRasterScratchSurfaceRelease,
 }
 
 /// A timer of the compositor, which fires once after the delay it is set to, until it is set again.
@@ -138,13 +140,14 @@ pub struct FfiCompositorCoreHost {
     pub cancel_timer: unsafe extern "C" fn(*mut c_void, u64),
     /// The timer is not set again, so the host forgets it.
     pub destroy_timer: unsafe extern "C" fn(*mut c_void, u64),
-    /// Arguments: the context, whether a font family is given, the font family, the device pixel ratio, the text, and
-    /// what receives the shaped label, which is not called where no font draws the label.
+    /// Arguments: the context, whether a font family is given, the font family, the font size in points, the device
+    /// pixel ratio, the text, and what receives the shaped label, which is not called where no font draws the label.
     pub shape_overlay_label: unsafe extern "C" fn(
         *mut c_void,
         u64,
         bool,
         ak::Span<'_, u8>,
+        f32,
         f64,
         ak::Span<'_, u8>,
         *mut c_void,
@@ -298,6 +301,7 @@ impl OverlayLabelShaper for ContextOverlayLabelShaper<'_> {
     fn shape_overlay_label(
         &self,
         font_family: Option<&str>,
+        font_size_in_points: f32,
         device_pixel_ratio: f64,
         text: &str,
     ) -> Option<OverlayLabel> {
@@ -322,6 +326,7 @@ impl OverlayLabelShaper for ContextOverlayLabelShaper<'_> {
                 self.context_id.0,
                 font_family.is_some(),
                 ak::Span::new(font_family.unwrap_or_default().as_bytes()),
+                font_size_in_points,
                 device_pixel_ratio,
                 ak::Span::new(text.as_bytes()),
                 (&raw mut label).cast(),

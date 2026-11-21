@@ -609,10 +609,14 @@ fn validate_inline_clip(payload: Payload, offset: usize) -> Result<(), Validatio
 struct RunSummary {
     ink_bounds: IntRect,
     has_compositor_metadata: bool,
+    record_count: usize,
+    holds_a_record_that_is_alone_in_its_run: bool,
 }
 
 impl RunSummary {
     fn note(&mut self, header: &DisplayListCommandHeader, payload: &[u8]) {
+        self.record_count += 1;
+        self.holds_a_record_that_is_alone_in_its_run |= header.command_type.is_alone_in_its_run();
         if header.command_type.is_compositor_metadata() {
             self.has_compositor_metadata = true;
         } else {
@@ -635,6 +639,7 @@ impl RunSummary {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TapeKind {
     DisplayList,
+    RecordsNestedInDisplayListRecord,
     Canvas2D,
 }
 
@@ -650,9 +655,18 @@ fn validate_header_bytes(bytes: &[u8], kind: TapeKind) -> Result<DisplayListComm
     }
     let header = read_header(bytes);
     match kind {
-        TapeKind::DisplayList => {
+        TapeKind::DisplayList | TapeKind::RecordsNestedInDisplayListRecord => {
             if header.command_type.is_canvas_2d() {
                 return Err("Display list holds a command of the canvas 2D stream");
+            }
+            // Tile keys and caret blinks find carets and scroll bars only among top-level records.
+            if kind == TapeKind::RecordsNestedInDisplayListRecord
+                && matches!(
+                    header.command_type,
+                    DisplayListCommandType::PaintCaret | DisplayListCommandType::PaintScrollBar
+                )
+            {
+                return Err("Display list holds a caret or scroll bar inside another record");
             }
         }
         TapeKind::Canvas2D => {
@@ -784,10 +798,13 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
             Some(&mut summary),
         )?;
         while let Some(records) = pending.pop() {
-            validate_records(records, TapeKind::DisplayList, &mut pending, None)?;
+            validate_records(records, TapeKind::RecordsNestedInDisplayListRecord, &mut pending, None)?;
         }
         if !summary.matches(&run) {
             return Err("Display list command run summary disagrees with its records");
+        }
+        if summary.holds_a_record_that_is_alone_in_its_run && summary.record_count != 1 {
+            return Err("Display list command run holds a record that is alone in its run with other records");
         }
         next_offset += size;
         runs.push(run);
@@ -817,7 +834,7 @@ pub fn validate_canvas_2d_tape(tape: &[u8]) -> Result<(), ValidationError> {
 mod tests {
     use super::*;
     use crate::display_list::builder::DisplayListBuilder;
-    use crate::display_list::storage::write_run;
+    use crate::display_list::storage::write_run_with_zeroed_padding;
 
     fn fill_rect() -> FillRect {
         FillRect {
@@ -831,9 +848,56 @@ mod tests {
     fn run_table_bytes(runs: &[DisplayListCommandRun]) -> Vec<u8> {
         let mut bytes = vec![0; runs.len() * RUN_SIZE];
         for (run, out) in runs.iter().zip(bytes.chunks_exact_mut(RUN_SIZE)) {
-            write_run(run, out);
+            write_run_with_zeroed_padding(run, out);
         }
         bytes
+    }
+
+    // A list from another process can hold records whose rects, clips and shadows reach past where coordinates fit.
+    #[test]
+    fn records_reaching_past_where_coordinates_fit_validate_with_bounds_whose_edges_fit() {
+        use crate::display_list::builder::PendingInlineClip;
+        use crate::display_list::commands::PaintOuterBoxShadow;
+        use libgfx_rust::{CornerRadii, FloatRect};
+        let mut builder = DisplayListBuilder::new();
+        let fill_past_the_right_edge = FillRect {
+            rect: IntRect::new(2_147_483_000, 0, 1000, 10),
+            ..fill_rect()
+        };
+        builder.append(&fill_past_the_right_edge, &[], ContextRef::default());
+        builder.append(&fill_past_the_right_edge, &[], ContextRef::default());
+        builder.append_with_inline_clips(
+            &fill_rect(),
+            &[],
+            ContextRef::default(),
+            &[PendingInlineClip::intersecting_float_rect(FloatRect::new(
+                2.0e9, 0.0, 2.0e8, 10.0,
+            ))],
+        );
+        builder.append(
+            &PaintOuterBoxShadow {
+                color: Color::default(),
+                blur_radius: i32::MAX,
+                device_content_rect: IntRect::new(0, 0, 10, 10),
+                content_corner_radii: CornerRadii::default(),
+                shadow_rect: IntRect::new(0, 0, 10, 10),
+                shadow_corner_radii: CornerRadii::default(),
+            },
+            &[],
+            ContextRef::default(),
+        );
+        let recorded = builder.finish();
+        assert!(validate_tape(&recorded.bytes, &run_table_bytes(&recorded.command_runs)).is_ok());
+        let edge_fits = |near: i32, length: i32| i32::try_from(i64::from(near) + i64::from(length)).is_ok();
+        assert!(recorded.command_runs.iter().all(|run| {
+            edge_fits(run.ink_bounds.x, run.ink_bounds.width) && edge_fits(run.ink_bounds.y, run.ink_bounds.height)
+        }));
+        // The blur of the shadow reaches as far as bounds do.
+        assert!(
+            recorded.command_runs[0]
+                .ink_bounds
+                .contains_rect(IntRect::new(0, 0, 10, 10))
+        );
     }
 
     #[test]
@@ -857,5 +921,76 @@ mod tests {
             ..recorded.command_runs[0]
         }];
         assert!(validate_tape(&widened_tape, &run_table_bytes(&widened_runs)).is_ok());
+    }
+
+    #[test]
+    fn a_caret_or_scroll_bar_is_refused_inside_another_record() {
+        let caret = PaintCaret {
+            rect: IntRect::new(0, 0, 1, 10),
+            color: Color::default(),
+            blink_cycle_start_time_ns: 0,
+            should_blink: true,
+        };
+        let scroll_bar = PaintScrollBar {
+            scroll_node_index: SpatialNodeIndex(1),
+            gutter_rect: IntRect::new(90, 0, 10, 100),
+            thumb_rect: IntRect::new(90, 0, 10, 20),
+            track_rect: IntRect::new(90, 0, 10, 100),
+            expanded_gutter_rect: IntRect::new(86, 0, 14, 100),
+            scroll_size: 0.5,
+            thumb_color: Color::default(),
+            thumb_outline_color: Color::default(),
+            track_color: Color::default(),
+            vertical: true,
+        };
+        let validate = |builder: DisplayListBuilder| {
+            let recorded = builder.finish();
+            validate_tape(&recorded.bytes, &run_table_bytes(&recorded.command_runs))
+        };
+
+        let mut top_level = DisplayListBuilder::new();
+        top_level.append(&caret, &[], ContextRef::default());
+        top_level.append(&scroll_bar, &[], ContextRef::default());
+        assert!(validate(top_level).is_ok());
+
+        let mut caret_in_group = DisplayListBuilder::new();
+        let group = caret_in_group.begin_group::<DrawIsolatedGroup>(Vec::new());
+        caret_in_group.append(&caret, &[], ContextRef::default());
+        let content = caret_in_group.group_content_span(&group);
+        caret_in_group.finish_group(
+            group,
+            &DrawIsolatedGroup {
+                clip_rect: IntRect::new(0, 0, 10, 10).to_float(),
+                content,
+                mask: DisplayListDataSpan::default(),
+                filter: DisplayListDataSpan::default(),
+                opacity: 1.0,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Alpha,
+            },
+            ContextRef::default(),
+        );
+        assert_eq!(
+            validate(caret_in_group),
+            Err("Display list holds a caret or scroll bar inside another record")
+        );
+
+        let mut scroll_bar_in_mask_content = DisplayListBuilder::new();
+        let declaration = scroll_bar_in_mask_content.begin_group::<DeclareMaskContent>(Vec::new());
+        scroll_bar_in_mask_content.append(&scroll_bar, &[], ContextRef::default());
+        let content = scroll_bar_in_mask_content.group_content_span(&declaration);
+        scroll_bar_in_mask_content.finish_group(
+            declaration,
+            &DeclareMaskContent {
+                rect: IntRect::new(0, 0, 100, 100),
+                effect: EffectNodeIndex(1),
+                content,
+            },
+            ContextRef::default(),
+        );
+        assert_eq!(
+            validate(scroll_bar_in_mask_content),
+            Err("Display list holds a caret or scroll bar inside another record")
+        );
     }
 }

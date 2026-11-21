@@ -262,6 +262,14 @@ public:
     void set_hosts_remote_layer(bool);
     // What the view shows, from the Compositor, scaled down to fit within the size given.
     void take_frame_snapshot(Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void update_ui_overlays();
+    void set_compositor_layer_hidden(u64 layer_id, bool hidden);
+    void set_selected_compositor_layers(Vector<u64> layer_ids);
+    void set_hovered_compositor_layer(Optional<u64> layer_id);
+    // Hides every layer the compositor tells of but these.
+    void show_only_compositor_layers(Vector<u64> const& layer_ids);
+    void show_all_compositor_layers();
+    void reset_compositor_layer_raster_counts();
     // The Compositor's remote layers went with its process, so the view asks the new one for another.
     void recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>);
     static ViewImplementation* find_view_showing_remote_layer(u64 remote_layer_id);
@@ -370,6 +378,8 @@ public:
     bool take_input_to_open_link_in_new_tab(Badge<WebContentPage>, WebContentPage const&);
     void did_lose_input_event_endpoint(Badge<WebContentPage>, WebContentPage&);
     void did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id);
+    void did_update_compositor_layers(Badge<WebContentPage>, Compositing::CompositorLayersDescription const&);
+    void did_describe_owners_of_visual_context_nodes(Badge<WebContentPage>, u64 structural_epoch, Vector<u32> const& spatial_node_indices, Vector<u32> const& effect_node_indices, Vector<String> const& owners);
     void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
     void did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool performed_default_action);
     void discard_input_events_routed_through_lost_compositor(Badge<Application>);
@@ -655,6 +665,7 @@ public:
 
     Function<void()> on_ready_to_paint;
     Function<void(TabPerformanceStats const&)> on_performance_stats;
+    Function<void(Compositing::CompositorLayersDescription const&)> on_compositor_layers_change;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, CanonicalTraversable&)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;
@@ -909,7 +920,7 @@ protected:
     bool is_ui_overlay_hovered() const { return m_debugger_overlay_pointer_state.hovered_action().has_value() || m_picture_in_picture_controls_pointer_state.hovered_action().has_value(); }
     void apply_cursor();
     void apply_tooltip();
-    void update_ui_overlays();
+    void tell_of_compositor_layers_with_owners_of_nodes();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
@@ -1080,6 +1091,19 @@ protected:
     bool m_debugger_paused { false };
     Compositing::OverlayPointerState<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_pointer_state;
     bool m_has_picture_in_picture_controls { false };
+    Vector<u64> m_ids_of_hidden_compositor_layers;
+    Vector<u64> m_ids_of_selected_compositor_layers;
+    Optional<u64> m_id_of_hovered_compositor_layer;
+    u64 m_compositor_layer_raster_count_reset_generation { 0 };
+    Optional<Compositing::CompositorLayersDescription> m_latest_compositor_layers;
+    // The elements whose boxes own the nodes of the visual context tree that the compositor layers name, as the page
+    // described them for the tree of one structural epoch, by node, and the nodes asked of the page and not described.
+    struct OwnersOfVisualContextNodes {
+        u64 structural_epoch { 0 };
+        HashMap<u64, String> owner_by_node;
+        HashTable<u64> nodes_asked;
+    };
+    OwnersOfVisualContextNodes m_owners_of_visual_context_nodes;
     bool m_picture_in_picture_controls_shown { false };
     bool m_picture_in_picture_player_controls_shown { false };
     Compositing::OverlayPointerState<Compositing::PictureInPictureControl> m_picture_in_picture_controls_pointer_state;

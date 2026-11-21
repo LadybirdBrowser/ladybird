@@ -2763,7 +2763,160 @@ void ViewImplementation::update_ui_overlays()
             .hovered_control = m_picture_in_picture_controls_pointer_state.hovered_action(),
         };
     }
+    if (Application::the().shows_compositor_layers()) {
+        overlays.compositor_layers = Compositing::CompositorLayersOverlayState {
+            .font_family = Application::the().ui_font_family(),
+            .hidden_layer_ids = m_ids_of_hidden_compositor_layers,
+            .selected_layer_ids = m_ids_of_selected_compositor_layers,
+            .hovered_layer_id = m_id_of_hovered_compositor_layer,
+            .raster_count_reset_generation = m_compositor_layer_raster_count_reset_generation,
+        };
+    } else {
+        m_ids_of_hidden_compositor_layers.clear();
+        m_ids_of_selected_compositor_layers.clear();
+        m_id_of_hovered_compositor_layer.clear();
+        m_latest_compositor_layers.clear();
+        m_owners_of_visual_context_nodes = {};
+    }
     Application::the().update_compositor_ui_overlays(page().compositor_context_id(), overlays);
+}
+
+static u64 key_of_visual_context_node(Compositing::VisualContextNodeKind kind, u32 index)
+{
+    return (static_cast<u64>(kind) << 32) | index;
+}
+
+void ViewImplementation::set_compositor_layer_hidden(u64 layer_id, bool hidden)
+{
+    if (hidden == m_ids_of_hidden_compositor_layers.contains_slow(layer_id))
+        return;
+    if (hidden)
+        m_ids_of_hidden_compositor_layers.append(layer_id);
+    else
+        m_ids_of_hidden_compositor_layers.remove_first_matching([&](auto id) { return id == layer_id; });
+    update_ui_overlays();
+}
+
+void ViewImplementation::set_selected_compositor_layers(Vector<u64> layer_ids)
+{
+    if (m_ids_of_selected_compositor_layers == layer_ids)
+        return;
+    m_ids_of_selected_compositor_layers = move(layer_ids);
+    update_ui_overlays();
+}
+
+void ViewImplementation::set_hovered_compositor_layer(Optional<u64> layer_id)
+{
+    if (m_id_of_hovered_compositor_layer == layer_id)
+        return;
+    m_id_of_hovered_compositor_layer = layer_id;
+    update_ui_overlays();
+}
+
+void ViewImplementation::show_only_compositor_layers(Vector<u64> const& layer_ids)
+{
+    if (!m_latest_compositor_layers.has_value())
+        return;
+    m_ids_of_hidden_compositor_layers.clear();
+    for (auto const& layer : m_latest_compositor_layers->layers) {
+        if (!layer_ids.contains_slow(layer.id))
+            m_ids_of_hidden_compositor_layers.append(layer.id);
+    }
+    update_ui_overlays();
+}
+
+void ViewImplementation::show_all_compositor_layers()
+{
+    if (m_ids_of_hidden_compositor_layers.is_empty())
+        return;
+    m_ids_of_hidden_compositor_layers.clear();
+    update_ui_overlays();
+}
+
+void ViewImplementation::reset_compositor_layer_raster_counts()
+{
+    ++m_compositor_layer_raster_count_reset_generation;
+    update_ui_overlays();
+}
+
+void ViewImplementation::did_update_compositor_layers(Badge<WebContentPage>, Compositing::CompositorLayersDescription const& layers)
+{
+    auto describes_layer = [&](u64 id) {
+        return layers.layers.contains([&](auto const& layer) { return layer.id == id; });
+    };
+    // A layer the compositor no longer keeps would stay hidden or selected unseen if it ever came back under the same id,
+    // so the compositor forgets it too.
+    auto forgets_layers = m_ids_of_hidden_compositor_layers.remove_all_matching([&](auto id) { return !describes_layer(id); });
+    forgets_layers |= m_ids_of_selected_compositor_layers.remove_all_matching([&](auto id) { return !describes_layer(id); });
+    if (m_id_of_hovered_compositor_layer.has_value() && !describes_layer(*m_id_of_hovered_compositor_layer)) {
+        m_id_of_hovered_compositor_layer.clear();
+        forgets_layers = true;
+    }
+    if (forgets_layers)
+        update_ui_overlays();
+
+    m_latest_compositor_layers = layers;
+
+    // The page names the elements of the nodes of its tree only while it holds the tree the compositor composites.
+    auto& owners = m_owners_of_visual_context_nodes;
+    if (owners.structural_epoch != layers.visual_context_tree_structural_epoch) {
+        owners = {};
+        owners.structural_epoch = layers.visual_context_tree_structural_epoch;
+    }
+    Vector<u32> spatial_node_indices;
+    Vector<u32> effect_node_indices;
+    for (auto const& layer : layers.layers) {
+        for (auto const& node : layer.nodes) {
+            auto key = key_of_visual_context_node(node.kind, node.index);
+            if (owners.owner_by_node.contains(key) || owners.nodes_asked.contains(key))
+                continue;
+            owners.nodes_asked.set(key);
+            (node.kind == Compositing::VisualContextNodeKind::Spatial ? spatial_node_indices : effect_node_indices).append(node.index);
+        }
+    }
+    if (!spatial_node_indices.is_empty() || !effect_node_indices.is_empty())
+        page().async_describe_owners_of_visual_context_nodes(move(spatial_node_indices), move(effect_node_indices));
+
+    tell_of_compositor_layers_with_owners_of_nodes();
+}
+
+void ViewImplementation::did_describe_owners_of_visual_context_nodes(Badge<WebContentPage>, u64 structural_epoch, Vector<u32> const& spatial_node_indices, Vector<u32> const& effect_node_indices, Vector<String> const& owners_of_nodes)
+{
+    if (owners_of_nodes.size() != spatial_node_indices.size() + effect_node_indices.size()) {
+        page().client().did_misbehave("did_describe_owners_of_visual_context_nodes"sv, "an owner for each node asked of"sv);
+        return;
+    }
+    auto& owners = m_owners_of_visual_context_nodes;
+    // Nodes the page described for another tree are asked of it again with the next layers the compositor tells of.
+    auto describes_tree_of_layers = structural_epoch == owners.structural_epoch;
+    size_t owner_index = 0;
+    auto take_owners_of = [&](Compositing::VisualContextNodeKind kind, Vector<u32> const& indices) {
+        for (auto index : indices) {
+            auto key = key_of_visual_context_node(kind, index);
+            owners.nodes_asked.remove(key);
+            if (describes_tree_of_layers)
+                owners.owner_by_node.set(key, owners_of_nodes[owner_index]);
+            ++owner_index;
+        }
+    };
+    take_owners_of(Compositing::VisualContextNodeKind::Spatial, spatial_node_indices);
+    take_owners_of(Compositing::VisualContextNodeKind::Effect, effect_node_indices);
+    if (describes_tree_of_layers)
+        tell_of_compositor_layers_with_owners_of_nodes();
+}
+
+void ViewImplementation::tell_of_compositor_layers_with_owners_of_nodes()
+{
+    if (!on_compositor_layers_change || !m_latest_compositor_layers.has_value())
+        return;
+    auto layers = *m_latest_compositor_layers;
+    for (auto& layer : layers.layers) {
+        for (auto& node : layer.nodes) {
+            if (auto owner = m_owners_of_visual_context_nodes.owner_by_node.get(key_of_visual_context_node(node.kind, node.index)); owner.has_value())
+                node.element = *owner;
+        }
+    }
+    on_compositor_layers_change(layers);
 }
 
 void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)

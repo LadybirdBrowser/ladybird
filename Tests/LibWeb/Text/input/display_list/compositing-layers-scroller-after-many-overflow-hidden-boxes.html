@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .clipped { width: 20px; height: 20px; overflow: hidden; }
+    .clipped > div { width: 100px; height: 100px; }
+    #clipping-wrapper { width: 400px; height: 300px; overflow: hidden; }
+    #wide { width: 2000px; height: 10px; }
+    #scroller { width: 300px; height: 200px; overflow: auto; scrollbar-width: none; }
+    #content { height: 1000px; }
+    canvas { display: block; margin-top: 50px; }
+    #over-canvas { width: 100px; height: 40px; margin-top: -60px; background: rgba(255, 255, 255, 0.5); }
+</style>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div class="clipped"><div></div></div>
+<div id="clipping-wrapper">
+    <div id="wide"></div>
+    <div id="scroller">
+        <div id="content">
+            <canvas id="canvas" width="200" height="120"></canvas>
+            <div id="over-canvas"></div>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

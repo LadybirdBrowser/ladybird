@@ -14,8 +14,8 @@ ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] composited context rect=[37,37 166x126]
+  [L0] base space=viewport
+  [L2] composited context #0 space=document region=[37,37 166x126]
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s1 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
@@ -23,6 +23,6 @@ L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2000] owner=BlockContainer<BODY> phase=scroll-metadata
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2000] owner=BlockContainer<DIV>#spacer phase=scroll-metadata
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[40,40 160x120] owner=NavigableContainerViewport<IFRAME> phase=scroll-metadata
-L1 DrawCompositedContext@s1/e0 dst_rect=[40,40 160x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[40,40 160x120]] owner=NavigableContainerViewport<IFRAME> phase=foreground
+L2 DrawCompositedContext@s1/e0 dst_rect=[40,40 160x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[40,40 160x120]] owner=NavigableContainerViewport<IFRAME> phase=foreground
 L0 CompositorNestedContextWheelRegion@s1/e0 rect=[40,40 160x120] child_context_id=context1 owner=NavigableContainerViewport<IFRAME> phase=foreground
 

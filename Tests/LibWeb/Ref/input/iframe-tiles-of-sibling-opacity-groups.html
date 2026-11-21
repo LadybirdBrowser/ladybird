@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-tiles-of-sibling-opacity-groups-ref.html">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            body { margin: 0; }
+            .box { position: absolute; top: 20px; width: 100px; height: 100px; background: black; }
+        </style>
+        <div id="group" style="opacity: 0.5">
+            <div class="box" style="left: 20px"></div>
+            <div class="box" style="left: 70px"></div>
+        </div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        // The overlap of two groups is darker than that of one group holding both boxes.
+        const content = iframe.contentDocument;
+        content.getElementById("group").style.removeProperty("opacity");
+        for (const box of content.querySelectorAll(".box"))
+            box.style.opacity = "0.5";
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

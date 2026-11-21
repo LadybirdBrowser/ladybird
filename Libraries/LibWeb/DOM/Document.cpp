@@ -3051,7 +3051,8 @@ Layout::RustFFI::FfiPaintPreparationHostCallbacks Document::paint_preparation_ho
         .viewport = [](void* context, Layout::RustFFI::FfiPaintPreparationViewport* viewport) {
             auto& document = *static_cast<Document*>(context);
             viewport->visual_context_tree_inputs = Painting::visual_context_tree_inputs(document);
-            viewport->device_viewport_size = document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>(); },
+            auto navigable = document.navigable();
+            viewport->device_viewport_size = navigable ? navigable->viewport_size_in_device_pixels() : Gfx::IntSize {}; },
         .resolve_svg_filter = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) { return Painting::push_svg_filter_reference(*read, *static_cast<Document*>(context), slot, url_value, sink); },
         .resolve_svg_paint_server = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) { Painting::push_svg_paint_server_description(*read, *static_cast<Document*>(context), slot, is_stroke, sink); },
         .require_display_list_recording = [](void* context, bool request_frame) {

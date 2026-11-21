@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 2000px; }
+    #scroller { position: absolute; left: 20px; top: 300px; width: 300px; height: 200px; overflow: scroll; scrollbar-width: none; }
+    #content { height: 1000px; }
+    canvas { display: block; margin-top: 400px; }
+    #over-canvas { position: absolute; left: 10px; top: 420px; width: 100px; height: 40px; background: rgba(255, 255, 255, 0.5); }
+</style>
+<div id="scroller">
+    <div id="content">
+        <canvas id="canvas" width="200" height="120"></canvas>
+        <div id="over-canvas"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

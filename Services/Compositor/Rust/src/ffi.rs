@@ -12,8 +12,8 @@ use crate::core::presenting::{GpuBackend, PresentationCapabilities};
 use crate::core::{CompositorCore, ContextOwnerCheckResult};
 use crate::host::{FfiCompositorCoreHost, Host, PresentationId, WebContentClientId};
 use crate::overlays::{
-    PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl, PictureInPictureControlsState,
-    UIOverlays,
+    CompositorLayersOverlayState, PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl,
+    PictureInPictureControlsState, UIOverlays,
 };
 use crate::raster_host::{FfiRasterHost, RasterHost};
 use crate::surfaces::painting_surface::PaintingSurface;
@@ -522,6 +522,14 @@ pub struct FfiUIOverlays<'a> {
     pub picture_in_picture_controls_shown: bool,
     pub picture_in_picture_controls_has_hovered_control: bool,
     pub picture_in_picture_controls_hovered_control: u8,
+    pub has_compositor_layers: bool,
+    pub compositor_layers_has_font_family: bool,
+    pub compositor_layers_font_family: ak::Span<'a, u8>,
+    pub compositor_layers_hidden_layer_ids: ak::Span<'a, u64>,
+    pub compositor_layers_selected_layer_ids: ak::Span<'a, u64>,
+    pub compositor_layers_has_hovered_layer_id: bool,
+    pub compositor_layers_hovered_layer_id: u64,
+    pub compositor_layers_raster_count_reset_generation: u64,
 }
 
 #[unsafe(no_mangle)]
@@ -587,6 +595,17 @@ pub extern "C" fn compositor_core_set_ui_overlays(
         UIOverlays {
             paused_debugger,
             picture_in_picture_controls,
+            compositor_layers: ui_overlays.has_compositor_layers.then(|| CompositorLayersOverlayState {
+                font_family: ui_overlays.compositor_layers_has_font_family.then(|| {
+                    String::from_utf8_lossy(ui_overlays.compositor_layers_font_family.as_slice()).into_owned()
+                }),
+                hidden_layer_ids: ui_overlays.compositor_layers_hidden_layer_ids.as_slice().to_vec(),
+                selected_layer_ids: ui_overlays.compositor_layers_selected_layer_ids.as_slice().to_vec(),
+                hovered_layer_id: ui_overlays
+                    .compositor_layers_has_hovered_layer_id
+                    .then_some(ui_overlays.compositor_layers_hovered_layer_id),
+                raster_count_reset_generation: ui_overlays.compositor_layers_raster_count_reset_generation,
+            }),
         },
         MonotonicTime::from_nanoseconds(now_nanoseconds),
     );

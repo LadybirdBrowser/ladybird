@@ -6,26 +6,23 @@
 
 //! What a frame repaints of the frame painted before it, and of what each backing store holds.
 
-use super::layers::LayerUpdate;
+use super::layers::{LayerUpdate, PaintedLayers};
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size};
 use crate::frame_inputs::FrameInputs;
 use crate::host::PendingFrame;
 use crate::raster_host::LiveContent;
-use libcompositing_rust::display_list::commands::{
-    CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkHandle,
-};
-use libcompositing_rust::display_list::damage::{DisplayListDamage, LayerPlans, LiveContentChanges};
-use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
+use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::scrolling::DisplayList;
 use libgfx_rust::{IntRect, IntSize};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-/// The frame painted last: its display list and inputs, and the version of each live content it drew, which comparing
-/// lists cannot see change.
+/// The frame painted last: its display list and inputs, what it did with its layers, and the version of each live
+/// content it drew, which comparing lists cannot see change.
 pub struct PaintedFrame {
     pub display_list: Rc<DisplayList>,
     pub frame_inputs: FrameInputs,
+    pub layers: PaintedLayers,
     pub viewport_size: IntSize,
     allows_lcd_text: bool,
     canvas_content_generations: HashMap<u64, u64>,
@@ -45,8 +42,7 @@ impl PaintedFrame {
 /// again, and a store that is forgotten is painted in full.
 #[derive(Default)]
 pub struct StoreDamage {
-    // The store painted into last is last.
-    accumulated: Vec<(i32, IntRect)>,
+    missed_damage_by_store_least_recently_painted_first: Vec<(i32, IntRect)>,
 }
 
 // Twice as many as a context ever has at once.
@@ -54,32 +50,34 @@ const MAXIMUM_REMEMBERED_STORE_COUNT: usize = 16;
 
 impl StoreDamage {
     pub fn forget_every_store(&mut self) {
-        self.accumulated.clear();
+        self.missed_damage_by_store_least_recently_painted_first.clear();
     }
 
     /// What painting a frame into the store repaints: the frame's damage, and what the store missed since it was last
     /// painted, all of it for a store never painted into.
     pub fn take(&mut self, bitmap_id: i32, frame_damage: IntRect, store_rect: IntRect) -> IntRect {
         let mut repaint_rect = store_rect;
-        for (id, accumulated) in &mut self.accumulated {
-            if *id == bitmap_id {
-                repaint_rect = accumulated.united(frame_damage);
+        for (store_bitmap_id, missed_damage) in &mut self.missed_damage_by_store_least_recently_painted_first {
+            if *store_bitmap_id == bitmap_id {
+                repaint_rect = missed_damage.united(frame_damage);
             }
-            *accumulated = accumulated.united(frame_damage);
+            *missed_damage = missed_damage.united(frame_damage);
         }
-        self.accumulated.retain(|(id, _)| *id != bitmap_id);
-        self.accumulated.push((bitmap_id, IntRect::default()));
-        if self.accumulated.len() > MAXIMUM_REMEMBERED_STORE_COUNT {
-            self.accumulated.remove(0);
+        self.missed_damage_by_store_least_recently_painted_first
+            .retain(|(store_bitmap_id, _)| *store_bitmap_id != bitmap_id);
+        self.missed_damage_by_store_least_recently_painted_first
+            .push((bitmap_id, IntRect::default()));
+        if self.missed_damage_by_store_least_recently_painted_first.len() > MAXIMUM_REMEMBERED_STORE_COUNT {
+            self.missed_damage_by_store_least_recently_painted_first.remove(0);
         }
         repaint_rect
     }
 
     /// Damage discovered while painting the current store is still owed to the other stores.
     pub fn add_damage_to_other_stores(&mut self, bitmap_id: i32, damage: IntRect) {
-        for (id, accumulated) in &mut self.accumulated {
-            if *id != bitmap_id {
-                *accumulated = accumulated.united(damage);
+        for (store_bitmap_id, missed_damage) in &mut self.missed_damage_by_store_least_recently_painted_first {
+            if *store_bitmap_id != bitmap_id {
+                *missed_damage = missed_damage.united(damage);
             }
         }
     }
@@ -105,29 +103,14 @@ mod tests {
     }
 }
 
-// The canvases, video sinks, image frames and nested contexts whose pixels changed since the frame painted last.
 #[derive(Default)]
 pub struct LiveContentChangesSinceLastPaint {
-    pub canvases: Vec<CanvasId>,
-    pub video_sinks: Vec<VideoSinkHandle>,
-    pub image_frames: Vec<ImageFrameResourceId>,
-    pub nested_contexts: Vec<CompositorContextId>,
+    pub canvas_or_video_changed: bool,
     pub repaints_everything: bool,
 }
 
-impl LiveContentChangesSinceLastPaint {
-    pub fn changed(&self, content: LiveMedia) -> bool {
-        match content {
-            LiveMedia::Canvas(id) => self.canvases.contains(&id),
-            LiveMedia::VideoFrame(id) => self.video_sinks.contains(&id),
-            LiveMedia::ImageFrame(id) => self.image_frames.contains(&id),
-            LiveMedia::CompositedContext(id) => self.nested_contexts.contains(&id),
-        }
-    }
-}
-
 pub struct FrameDamage {
-    pub rect: IntRect,
+    pub rect_in_raster_device_pixels: IntRect,
     pub layers: LayerUpdate,
     pub live_media_changed: bool,
 }
@@ -148,6 +131,7 @@ impl ContextPresenting {
         env.raster.live_content(env.context_id, &canvas_ids)
     }
 
+    /// Remembers a frame that is painted, or that shows nothing new: what it draws, and what it did with its layers.
     pub(super) fn remember_painted_frame(
         &mut self,
         env: &PresentingEnvironment<'_>,
@@ -155,7 +139,10 @@ impl ContextPresenting {
         display_list: &Rc<DisplayList>,
         frame_inputs: FrameInputs,
         live_content: &LiveContent,
+        layer_update: LayerUpdate,
     ) {
+        let allows_lcd_text = layer_update.frame_allows_lcd_text;
+        let layers = self.commit_layer_update(env, layer_update);
         let canvas_generation = |id: u64| {
             live_content
                 .canvases
@@ -180,10 +167,10 @@ impl ContextPresenting {
             .iter()
             .map(|&id| (id, env.nested_contexts.frame_generation_of(CompositorContextId(id))))
             .collect();
-        let allows_lcd_text = self.allows_lcd_text(display_list, &frame_inputs);
         self.painted_frame = Some(PaintedFrame {
             display_list: display_list.clone(),
             frame_inputs,
+            layers,
             viewport_size: IntSize {
                 width: viewport_rect.width,
                 height: viewport_rect.height,
@@ -201,7 +188,7 @@ impl ContextPresenting {
         env: &PresentingEnvironment<'_>,
         viewport_size: IntSize,
         display_list: &DisplayList,
-        frame_inputs: &FrameInputs,
+        allows_lcd_text: bool,
         live_content: &LiveContent,
     ) -> LiveContentChangesSinceLastPaint {
         let mut changes = LiveContentChangesSinceLastPaint::default();
@@ -211,11 +198,13 @@ impl ContextPresenting {
         };
         if painted_frame.viewport_size != viewport_size
             || painted_frame.display_list.surface_clear_color() != display_list.surface_clear_color()
-            || painted_frame.allows_lcd_text != self.allows_lcd_text(display_list, frame_inputs)
+            || painted_frame.allows_lcd_text != allows_lcd_text
         {
             changes.repaints_everything = true;
         }
 
+        // Live content that no command of this list draws, such as an image that a filter of the visual context tree
+        // draws, has no command in this list to damage.
         let canvas_ids_of_list: HashSet<u64> = display_list.storage().summary().canvas_ids.iter().copied().collect();
         for (canvas_id, content_generation) in &painted_frame.canvas_content_generations {
             let current_content_generation = live_content
@@ -225,11 +214,10 @@ impl ContextPresenting {
             if current_content_generation == *content_generation {
                 continue;
             }
-            // A canvas that no command of this list draws has no command in this list to damage.
             if !canvas_ids_of_list.contains(canvas_id) {
                 changes.repaints_everything = true;
             }
-            changes.canvases.push(CanvasId(*canvas_id));
+            changes.canvas_or_video_changed = true;
         }
         let summary = display_list.storage().summary();
         let image_frame_ids_of_list: HashSet<u64> = summary.image_frame_ids.iter().copied().collect();
@@ -242,22 +230,18 @@ impl ContextPresenting {
             if current_frame_id == *frame_id {
                 continue;
             }
-            // A video that no command of this list draws has no command in this list to damage.
             if !video_sink_handles_of_list.contains(video_sink_handle) {
                 changes.repaints_everything = true;
             }
-            changes.video_sinks.push(VideoSinkHandle(*video_sink_handle));
+            changes.canvas_or_video_changed = true;
         }
         for (&image_frame_id, &pixel_generation) in &live_content.image_frames {
             if painted_frame.image_frame_pixel_generations.get(&image_frame_id) == Some(&pixel_generation) {
                 continue;
             }
-            // An image that no command of this list draws, such as one that a filter of the visual context tree
-            // draws, has no command in this list to damage.
             if !image_frame_ids_of_list.contains(&image_frame_id) {
                 changes.repaints_everything = true;
             }
-            changes.image_frames.push(ImageFrameResourceId(image_frame_id));
         }
         let nested_context_ids_of_list: HashSet<u64> = summary.composited_context_ids.iter().copied().collect();
         for (&nested_context_id, &frame_generation) in &painted_frame.nested_context_frame_generations {
@@ -268,7 +252,6 @@ impl ContextPresenting {
             if !nested_context_ids_of_list.contains(&nested_context_id) {
                 changes.repaints_everything = true;
             }
-            changes.nested_contexts.push(nested_context);
         }
         changes
     }
@@ -285,148 +268,48 @@ impl ContextPresenting {
             height: pending_frame.viewport_rect.height,
         };
         let viewport_rect = rect_of_size(viewport_size);
+        let raster_rect = self.raster_rect();
         let forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
+        let allows_lcd_text = self.allows_lcd_text(frame.display_list, frame.frame_inputs);
         let changes = self.live_content_changes_since_last_paint(
             env,
             viewport_size,
             frame.display_list,
-            frame.frame_inputs,
+            allows_lcd_text,
             live_content,
         );
+        let invalidates_every_tile = changes.repaints_everything;
+        let (layer_update, stale_rect) = self.layer_update_for(
+            env,
+            frame,
+            raster_rect,
+            live_content,
+            invalidates_every_tile,
+            allows_lcd_text,
+        );
+        let live_media_changed = changes.canvas_or_video_changed;
 
-        let mut layers = self.layer_update_for(frame, viewport_rect);
-        let shown_by_window_server = match layers.plan(&self.layers) {
-            Some(plan) => self.window_server_can_show_media_layers_of(env, plan, live_content),
-            None => false,
-        };
-        layers.shown_by_window_server = shown_by_window_server;
-        let layers_hold_last_frame = self.layers.has_plan() && self.painted_frame.is_some();
-        let keeps_layer_rasters = match (layers.plan(&self.layers), self.layers.plan()) {
-            (Some(plan), Some(last_plan)) => layers_hold_last_frame && plan.has_same_layers_as(last_plan),
-            _ => false,
-        };
-        let repaints_everything = changes.repaints_everything || forced_damage_rect.contains_rect(viewport_rect);
-        let damage = if repaints_everything {
-            DisplayListDamage {
-                rect: None,
-                layer_rects: Vec::new(),
-            }
-        } else {
-            self.damage_since_last_paint(
-                viewport_rect,
-                frame,
-                forced_damage_rect,
-                &changes,
-                &layers,
-                keeps_layer_rasters,
-            )
-        };
-        layers.painted_damage = damage.rect.unwrap_or(viewport_rect).intersected(viewport_rect);
-
-        let layer_count = layers.plan(&self.layers).map(|plan| plan.layers.len());
-        match layer_count {
-            None => layers.repaints_everything = layers_hold_last_frame,
-            Some(_) if !keeps_layer_rasters => {
-                layers.fully_repainted_layer_bits = u32::MAX;
-                layers.repaints_everything = true;
-            }
-            Some(layer_count) => {
-                for index in 0..layer_count {
-                    let layer_damage = if damage.layer_rects.is_empty() {
-                        Some(layers.painted_damage)
-                    } else {
-                        damage.layer_rects[index]
-                    };
-                    if layer_damage.is_none() {
-                        layers.fully_repainted_layer_bits |= 1 << index;
-                    }
-                    layers
-                        .damage_of_layers
-                        .push(layer_damage.unwrap_or(viewport_rect).intersected(viewport_rect));
-                }
-            }
-        }
-
-        // A frame holds the canvases and videos only while the window server does not show them, so a switch either
-        // way repaints all of it.
-        if self.painted_frame.is_some() && layers.shown_by_window_server != self.layers.window_server_shows_media() {
-            layers.repaints_everything = true;
-            layers.fully_repainted_layer_bits = u32::MAX;
-        }
-
-        let live_media_changed = !changes.canvases.is_empty() || !changes.video_sinks.is_empty();
-        if layers.repaints_everything {
-            return FrameDamage {
-                rect: viewport_rect,
-                layers,
-                live_media_changed,
-            };
-        }
-        let mut damage_rect = layers.painted_damage;
-        if let Some(plan) = layers.plan(&self.layers)
-            && !layers.shown_by_window_server
-        {
-            damage_rect = damage_rect
-                .united(super::layers::rect_of_media_layers_showing_changes(plan, &changes).intersected(viewport_rect));
-        }
+        let scrolled_compositor_scrollbars = self.painted_frame.as_ref().map_or(IntRect::default(), |painted_frame| {
+            frame
+                .frame_inputs
+                .gutters_of_compositor_painted_scrollbars_that_scrolled_since(&painted_frame.frame_inputs)
+        });
+        let forced_damage_rect =
+            self.raster_rect_of(forced_damage_rect.united(scrolled_compositor_scrollbars.intersected(viewport_rect)));
+        let damage_of_layers_moved_by_animated_transforms =
+            self.damage_of_layers_moved_by_animated_transforms(&layer_update, raster_rect);
+        let repaints_everything = invalidates_every_tile
+            || damage_of_layers_moved_by_animated_transforms.is_none()
+            || self.layer_overlay.repaints_everything();
+        let stale_rect = stale_rect.united(damage_of_layers_moved_by_animated_transforms.unwrap_or_default());
         FrameDamage {
-            rect: damage_rect,
-            layers,
+            rect_in_raster_device_pixels: if repaints_everything {
+                raster_rect
+            } else {
+                layer_update.damage_grown_over_what_composited_effects_read(forced_damage_rect.united(stale_rect))
+            },
+            layers: layer_update,
             live_media_changed,
         }
-    }
-
-    fn damage_since_last_paint(
-        &self,
-        viewport_rect: IntRect,
-        frame: &FrameToPaint<'_>,
-        forced_damage_rect: IntRect,
-        changes: &LiveContentChangesSinceLastPaint,
-        layers: &LayerUpdate,
-        keeps_layer_rasters: bool,
-    ) -> DisplayListDamage {
-        let painted_frame = self
-            .painted_frame
-            .as_ref()
-            .expect("a frame that does not repaint everything has a frame painted before it");
-        let plan = layers.plan(&self.layers);
-        let media_record_offsets: Vec<u32> = plan.map_or_else(Vec::new, |plan| plan.media_record_offsets().collect());
-        let layer_plans = match (plan, self.layers.plan()) {
-            (Some(plan), Some(last_plan)) if keeps_layer_rasters => Some(LayerPlans {
-                old: last_plan,
-                new: plan,
-            }),
-            _ => None,
-        };
-        let mut damage = frame.frame_inputs.damage_since(
-            frame.display_list.storage(),
-            &painted_frame.frame_inputs,
-            painted_frame.display_list.storage(),
-            viewport_rect,
-            LiveContentChanges {
-                canvases: &changes.canvases,
-                video_sinks: &changes.video_sinks,
-                image_frames: &changes.image_frames,
-                composited_contexts: &changes.nested_contexts,
-                forced_damage_rect,
-                offsets_of_records_composited_as_media_layers: &media_record_offsets,
-            },
-            layer_plans,
-        );
-        if let Some(rect) = damage.rect {
-            damage.rect = Some(rect.intersected(viewport_rect));
-        }
-        damage
-    }
-
-    pub(super) fn layers_keep_plan_for(&self, frame: &FrameToPaint<'_>, viewport_rect: IntRect) -> bool {
-        let Some(painted_frame) = &self.painted_frame else {
-            return false;
-        };
-        self.layers.has_plan()
-            && Rc::ptr_eq(&painted_frame.display_list, frame.display_list)
-            && painted_frame.viewport_size.width == viewport_rect.width
-            && painted_frame.viewport_size.height == viewport_rect.height
-            && frame.frame_inputs.places_content_like(&painted_frame.frame_inputs)
     }
 }

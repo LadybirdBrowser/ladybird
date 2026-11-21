@@ -13,6 +13,7 @@
 use crate::css_pixels::CssPixelPoint;
 use crate::display_list::chunks::ChunkId;
 use crate::display_list::commands::{CompositorContextId, UniqueNodeId};
+use crate::display_list::layers::{LayerPlan, UnvalidatedLayerPlan};
 use crate::display_list::storage::PackedChunkSize;
 use crate::visual_context::VisualContextTree;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, File};
@@ -30,6 +31,7 @@ pub type Gfx_Color = libgfx_rust::Color;
 pub type Compositing_VisualContextTree = Arc<VisualContextTree>;
 pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
 pub type Compositing_DisplayList = SharedDisplayList;
+pub type Compositing_LayerPlan = LayerPlanOnWire;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct Web_DevicePixelPoint {
@@ -104,6 +106,44 @@ pub struct SharedDisplayList {
     pub packed_chunk_sizes: Vec<PackedChunkSize>,
     pub properties: Compositing_DisplayListProperties,
     pub async_scrolling_metadata: Option<Compositing_AsyncScrollingMetadata>,
+}
+
+/// `Compositing::LayerPlan`: a plan of the layers of a display list on its way to the compositor. WebContent encodes a
+/// plan it made, and the compositor decodes a plan that nothing reads until it passes the checks against the list and the
+/// tree it is installed with.
+#[derive(Debug)]
+pub enum LayerPlanOnWire {
+    Planned(Arc<LayerPlan>),
+    Received(Box<UnvalidatedLayerPlan>),
+}
+
+impl LayerPlanOnWire {
+    /// The plan a message from WebContent carried, which nothing reads until it is checked.
+    pub fn into_received(self) -> UnvalidatedLayerPlan {
+        match self {
+            Self::Received(layer_plan) => *layer_plan,
+            Self::Planned(_) => unreachable!("a message the compositor decoded carries a received plan"),
+        }
+    }
+}
+
+impl Encode for LayerPlanOnWire {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        match self {
+            Self::Planned(plan) => encoder.encode(&**plan),
+            Self::Received(_) => Err(EncodeError::InvalidValue(
+                "A plan of layers goes on only from the process that planned it",
+            )),
+        }
+    }
+}
+
+impl Decode for LayerPlanOnWire {
+    const MIN_ENCODED_SIZE: usize = UnvalidatedLayerPlan::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self::Received(Box::new(decoder.decode()?)))
+    }
 }
 
 impl Encode for ChunkId {

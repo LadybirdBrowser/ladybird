@@ -409,8 +409,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",
         "FfiRasterPainter",
-        "RecordSpan",
-        "FfiReplaySelection",
         "FfiEasingDescriptor",
         "FfiEasingKind",
         "FfiLinearEasingPoint",

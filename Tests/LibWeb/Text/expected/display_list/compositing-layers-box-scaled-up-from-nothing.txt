@@ -1,0 +1,1 @@
+The compositor drew 30 frames of the animation

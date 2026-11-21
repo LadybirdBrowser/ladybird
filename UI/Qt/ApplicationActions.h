@@ -41,6 +41,7 @@ public:
     void devtools_enabled_changed(bool enabled);
 
     Action& reload_action() { return *m_reload_action; }
+    Action& show_compositor_layers_action() { return *m_show_compositor_layers_action; }
     Action& reload_bypassing_cache_action() { return *m_reload_bypassing_cache_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
     Action& undo_action() { return *m_undo_action; }
@@ -106,6 +107,7 @@ private:
     RefPtr<Action> m_show_tab_performance_monitor_action;
     RefPtr<Action> m_show_line_box_borders_action;
     RefPtr<Action> m_show_caret_hit_test_debug_overlay_action;
+    RefPtr<Action> m_show_compositor_layers_action;
     RefPtr<Action> m_enable_scripting_action;
     RefPtr<Action> m_block_pop_ups_action;
 

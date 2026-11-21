@@ -149,6 +149,7 @@ endpoint HubServer
     set_blocks_pop_ups(bool blocks) =|
     set_shows_line_box_borders(bool shows) =|
     set_shows_caret_hit_test_debug_overlay(bool shows) =|
+    set_shows_compositor_layers(bool shows) =|
     dump_cookies() =|
     crash_compositor_process() =|
     launch_devtools_client() =|
@@ -189,6 +190,12 @@ endpoint HubServer
     view_learn_misspelling(u64 view_id, Utf16String word) =|
     view_do_context_menu_media_action(u64 view_id, WebView::ContextMenuMediaAction action) =|
     view_set_reports_session_history(u64 view_id, bool reports_session_history) =|
+    view_set_compositor_layer_hidden(u64 view_id, u64 layer_id, bool hidden) =|
+    view_set_selected_compositor_layers(u64 view_id, Vector<u64> layer_ids) =|
+    view_set_hovered_compositor_layer(u64 view_id, Optional<u64> layer_id) =|
+    view_show_only_compositor_layers(u64 view_id, Vector<u64> layer_ids) =|
+    view_show_all_compositor_layers(u64 view_id) =|
+    view_reset_compositor_layer_raster_counts(u64 view_id) =|
     view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     view_save_screenshot(u64 view_id, Gfx::ShareableBitmap bitmap) =|
     view_request_selected_text(u64 view_id, u64 request_id) =|

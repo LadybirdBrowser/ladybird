@@ -5,9 +5,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawRepeatedTile@s1/e0 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] tile_size=[20x20] tile_step=[20x20] scaling_mode=NearestNeighbor repeat={x=true y=true} inline_clips=[clip=[8,8 120x80], clip=[8,8 120x80]] owner=BlockContainer<DIV>#target phase=background
-  PaintVectorImage@s1/e0 vector_image_id=svg1 rect=[0,0 20x20] recorded_size=[20x20] owner=BlockContainer<DIV>#target phase=background
-    FillPath@s1/e0 path_bounding_rect=[0,0 20x20] path_data=[path: M0 0L20 0L20 20L0 20L0 0Z] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#target phase=background
-    FillPath@s1/e0 path_bounding_rect=[5,5 10x10] path_data=[curved path: 129 commands] color=rgb(255, 255, 255) owner=BlockContainer<DIV>#target phase=background
+L0 DrawRepeatedTile@s1/e0 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] tile_size=[20x20] tile_step=[20x20] scaling_mode=NearestNeighbor repeat={x=true y=true} inline_clips=[clip=[8,8 120x80], clip=[8,8 120x80]] owner=BlockContainer<DIV>#target phase=background
+     PaintVectorImage@s1/e0 vector_image_id=svg1 rect=[0,0 20x20] recorded_size=[20x20] owner=BlockContainer<DIV>#target phase=background
+       FillPath@s1/e0 path_bounding_rect=[0,0 20x20] path_data=[path: M0 0L20 0L20 20L0 20L0 0Z] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#target phase=background
+       FillPath@s1/e0 path_bounding_rect=[5,5 10x10] path_data=[curved path: 129 commands] color=rgb(255, 255, 255) owner=BlockContainer<DIV>#target phase=background
 

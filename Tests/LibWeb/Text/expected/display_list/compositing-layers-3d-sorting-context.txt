@@ -8,9 +8,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers: none (3D sorting context)
+Layers:
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[5,5 206x126] shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-FillRect@s4/e0 rect=[8,131 100x100] color=rgb(255, 165, 0) owner=BlockContainer<DIV>#card phase=background
+L1 DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L2 FillRect@s4/e0 rect=[8,131 100x100] color=rgb(255, 165, 0) owner=BlockContainer<DIV>#card phase=background
 

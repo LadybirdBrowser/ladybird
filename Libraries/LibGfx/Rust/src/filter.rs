@@ -411,6 +411,23 @@ impl Filter {
             .into()
     }
 
+    /// Whether the graph can show what its source graphic draws away from where it draws it, as an
+    /// offset does, rather than only over it and around it, as a blur or a drop shadow does. Crops
+    /// are left out, as they only hide what they cut.
+    pub fn may_move_its_source(&self) -> bool {
+        let probe = FloatRect::new(0.0, 0.0, 1.0, 1.0);
+        match self.bounds_for_source(OutputBounds::Rect(probe), BoundsQuestion::ChangeUncropped) {
+            OutputBounds::Rect(bounds) => !bounds.contains_rect(probe),
+            OutputBounds::Unbounded => false,
+        }
+    }
+
+    /// [`Self::may_move_its_source`] for a serialized graph. Bytes that do not hold a graph are
+    /// assumed to change everywhere, which moves nothing away from where it changes.
+    pub fn serialized_may_move_its_source(bytes: &[u8]) -> bool {
+        Self::deserialize(bytes).is_some_and(|filter| filter.may_move_its_source())
+    }
+
     /// [`Self::output_bounds`] for a serialized graph. Bytes that do not hold a graph are assumed
     /// to paint everywhere.
     pub fn serialized_output_bounds(bytes: &[u8], source: FloatRect) -> Option<FloatRect> {
@@ -430,8 +447,8 @@ impl Filter {
                 .map_or(source, |input| input.bounds_for_source(source, question))
         };
         let painted_inputs = |painted_inputs: PaintedInputs| match (question, painted_inputs) {
-            (BoundsQuestion::Change, PaintedInputs::Neither) | (BoundsQuestion::Output, _) => painted_inputs,
-            (BoundsQuestion::Change, _) => PaintedInputs::Either,
+            (BoundsQuestion::Output, _) | (_, PaintedInputs::Neither) => painted_inputs,
+            (BoundsQuestion::Change | BoundsQuestion::ChangeUncropped, _) => PaintedInputs::Either,
         };
         match self {
             Self::Compose { outer, inner } => {
@@ -448,7 +465,7 @@ impl Filter {
                 input,
             } => match question {
                 BoundsQuestion::Output => input_bounds(input),
-                BoundsQuestion::Change => {
+                BoundsQuestion::Change | BoundsQuestion::ChangeUncropped => {
                     input_bounds(input).outset(radius_x.max(0.0).ceil(), radius_y.max(0.0).ceil())
                 }
             },
@@ -501,7 +518,9 @@ impl Filter {
                 match question {
                     BoundsQuestion::Output => displaced_color,
                     // A change to the displacement moves what is sampled where it changed.
-                    BoundsQuestion::Change => displaced_color.united(input_bounds(displacement)),
+                    BoundsQuestion::Change | BoundsQuestion::ChangeUncropped => {
+                        displaced_color.united(input_bounds(displacement))
+                    }
                 }
             }
             Self::Merge { inputs } => inputs.iter().fold(OutputBounds::EMPTY, |bounds, input| {
@@ -539,6 +558,7 @@ impl Filter {
             }
             Self::Image { dest_rect, .. } => OutputBounds::Rect(*dest_rect),
             Self::Flood { .. } | Self::Turbulence { .. } => OutputBounds::Unbounded,
+            Self::Crop { input, .. } if question == BoundsQuestion::ChangeUncropped => input_bounds(input),
             // Nothing outside the rect paints or changes.
             Self::Crop { rect, input } => input_bounds(input).intersected(OutputBounds::Rect(*rect)),
         }
@@ -580,6 +600,8 @@ enum BoundsQuestion {
     Output,
     // Where the output can change, for a source changing within the rect.
     Change,
+    // As `Change`, with every crop left out.
+    ChangeUncropped,
 }
 
 impl OutputBounds {

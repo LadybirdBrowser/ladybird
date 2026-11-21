@@ -29,13 +29,26 @@ void ContextRasterTargets::retain_only_image_frames(ReadonlySpan<u64> image_fram
     m_raster_cache.forget_image_frames(m_image_frames.retain_only(image_frame_ids));
 }
 
-Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text)
+static RefPtr<Gfx::Font> fallback_font_of_overlay_labels(float font_size_in_points)
+{
+    static Optional<FlyString> s_system_sans_serif_family;
+    auto& font_database = Gfx::FontDatabase::the();
+    if (!s_system_sans_serif_family.has_value())
+        s_system_sans_serif_family = font_database.resolve_generic_family("sans-serif"sv, 400, 0);
+    if (s_system_sans_serif_family.has_value()) {
+        if (auto font = font_database.get(*s_system_sans_serif_family, font_size_in_points, 400, Gfx::FontWidth::Normal, 0))
+            return font;
+    }
+    return font_database.get("SerenitySans"_fly_string, font_size_in_points, 400, Gfx::FontWidth::Normal, 0);
+}
+
+Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text)
 {
     RefPtr<Gfx::Font> font;
     if (font_family.has_value())
-        font = Gfx::FontDatabase::the().get(MUST(FlyString::from_utf8(*font_family)), 12, 400, Gfx::FontWidth::Normal, 0);
+        font = Gfx::FontDatabase::the().get(MUST(FlyString::from_utf8(*font_family)), font_size_in_points, 400, Gfx::FontWidth::Normal, 0);
     if (!font)
-        font = Gfx::FontDatabase::the().get("SerenitySans"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0);
+        font = fallback_font_of_overlay_labels(font_size_in_points);
     if (!font)
         return {};
     auto skia_font = Compositor::skia_font(*font, static_cast<float>(device_pixel_ratio));
