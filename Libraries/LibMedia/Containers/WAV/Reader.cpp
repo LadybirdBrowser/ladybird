@@ -57,11 +57,12 @@ static DecoderErrorOr<CodecID> codec_id_for(u16 format_tag, u16 bits_per_sample)
     return DecoderError::format(DecoderErrorCategory::NotImplemented, "WAVE format {:#x} with {} bits per sample is not supported", format_tag, bits_per_sample);
 }
 
-// The speaker position bits of the extensible header follow the order of Audio::Channel after Unknown.
+// The speaker position bits of the extensible header follow the order of Audio::Channel after Unknown, up to
+// TopBackRight, the last position the header defines.
 static Audio::ChannelMap channel_map_for(u16 channel_count, u32 speaker_position_mask)
 {
     Vector<Audio::Channel, Audio::ChannelMap::capacity()> channels;
-    for (u8 position = 1; position < to_underlying(Audio::Channel::Count); position++) {
+    for (u8 position = 1; position <= to_underlying(Audio::Channel::TopBackRight); position++) {
         if ((speaker_position_mask >> (position - 1)) & 1)
             channels.append(static_cast<Audio::Channel>(position));
     }
