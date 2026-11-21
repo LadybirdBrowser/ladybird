@@ -42,7 +42,10 @@ static void check_core_audio_channel_layout_size(AudioChannelLayout const& layou
     C(CenterTopFront, Channel::TopFrontCenter)  \
     C(RightTopFront, Channel::TopFrontRight)    \
     C(LeftTopMiddle, Channel::TopSideLeft)      \
-    C(RightTopMiddle, Channel::TopSideRight)
+    C(RightTopMiddle, Channel::TopSideRight)    \
+    C(LeftTopRear, Channel::TopBackLeft)        \
+    C(CenterTopRear, Channel::TopBackCenter)    \
+    C(RightTopRear, Channel::TopBackRight)
 
 static Channel channel_of_bitmap_bit(u32 bit)
 {
