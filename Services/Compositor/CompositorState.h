@@ -228,11 +228,9 @@ private:
     static RustFFI::GpuBackend gpu_backend(RefPtr<Gfx::SkiaBackendContext> const&);
     Compositing::RustFFI::FfiRasterPainter begin_painting(Web::CompositorContextId, Gfx::PaintingSurface&, RustFFI::PaintingResources, bool allows_lcd_text);
     void end_painting();
-    RustFFI::StoreResizeOutcome resize_stores(Web::CompositorContextId, RustFFI::FfiStoreResize const&);
-    bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
-    bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
-    bool retire_stores_of_hidden_context(Web::CompositorContextId, Optional<PresentationId>);
-    bool restore_stores_retired_while_hidden(Web::CompositorContextId, Optional<PresentationId>);
+    bool create_store(Web::CompositorContextId, RustFFI::StoreKind, Gfx::IntSize, RustFFI::FfiNewStore&);
+    void publish_stores(PresentationId, Web::CompositorContextId, bool added, ReadonlySpan<i32> bitmap_ids, ReadonlySpan<void*> images);
+    void retire_published_stores(PresentationId, Web::CompositorContextId, ReadonlySpan<i32> bitmap_ids);
     bool take_registered_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
     void set_drawn_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
     void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);

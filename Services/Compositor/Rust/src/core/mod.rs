@@ -415,12 +415,7 @@ impl CompositorCore {
 
     fn invalidate_and_resize_backing_stores(&self, context_id: CompositorContextId, now: MonotonicTime) {
         if let Some(presenting) = self.presenting_of(context_id) {
-            let environment = self.environment(
-                context_id,
-                now,
-                &libcompositing_rust::display_list::replay::NoCompositedContexts,
-            );
-            presenting.borrow_mut().invalidate_backing_stores(&environment);
+            presenting.borrow_mut().invalidate_backing_stores();
         }
         self.resize_backing_stores_if_needed(context_id, now);
     }
@@ -622,10 +617,10 @@ impl CompositorCore {
     pub fn presented_store_released(&self, context_id: CompositorContextId, bitmap_id: i32, now: MonotonicTime) {
         let _entered = self.enter();
 
-        if self.presenting_of(context_id).is_none() {
+        let Some(presenting) = self.presenting_of(context_id) else {
             return;
-        }
-        if !self.raster.release_store(context_id, bitmap_id) {
+        };
+        if !presenting.borrow_mut().release_presented_store(bitmap_id) {
             return;
         }
         self.schedule_pending_present_frame_if_unblocked(context_id, now);

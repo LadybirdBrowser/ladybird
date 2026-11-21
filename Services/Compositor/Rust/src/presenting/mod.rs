@@ -12,12 +12,12 @@ mod damage;
 mod layers;
 pub mod pacing;
 
+use crate::backing_stores::{AllocationOutcome, BackingStores, Publication, StorePublication, StoreResizeOutcome};
 use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame};
-use crate::raster_host::{
-    FfiStoreResize, FfiSublayer, PaintingResources, RasterHost, StorePublication, StoreResizeOutcome, SurfaceBlend,
-};
+use crate::raster_host::{FfiSublayer, PaintingResources, RasterHost, SurfaceBlend};
 use crate::surfaces::painting_surface::PaintingSurface;
+use crate::surfaces::presentable_surface::PresentableSurface;
 use damage::{PaintedFrame, StoreDamage};
 use layers::ContextLayers;
 use libcompositing_rust::display_list::commands::{CompositorContextId, EffectNodeIndex};
@@ -140,9 +140,8 @@ pub struct ContextPresenting {
     presented_frame: Option<IntRect>,
     frame_generation: u64,
 
-    store_publication: StorePublication,
     frame_without_store_in_flight: bool,
-    latest_rendered_surface: Option<Rc<PaintingSurface>>,
+    backing_stores: BackingStores,
     // The frame that the latest rendered surface holds, which the presented frame runs ahead of while its GPU work is in
     // flight.
     size_of_latest_rendered_frame: IntSize,
@@ -181,9 +180,8 @@ impl ContextPresenting {
             pending_present_frame_scheduled: false,
             presented_frame: None,
             frame_generation: 0,
-            store_publication: StorePublication::Unpublished,
             frame_without_store_in_flight: false,
-            latest_rendered_surface: None,
+            backing_stores: BackingStores::default(),
             size_of_latest_rendered_frame: IntSize::default(),
             store_damage: StoreDamage::default(),
             damage_surface: None,
@@ -205,7 +203,7 @@ impl ContextPresenting {
     }
 
     pub fn store_publication(&self) -> StorePublication {
-        self.store_publication
+        self.backing_stores.publication()
     }
 
     // The window server reads what it shows above the store straight from GPU memory.
@@ -262,23 +260,34 @@ impl ContextPresenting {
             self.fit_surface_drawn_by_parent_to_viewport();
             return StoreResizeOutcome::Unchanged;
         }
-        if env.raster.store_state(env.context_id).is_rendering {
+        if self.backing_stores.is_rendering() {
             return StoreResizeOutcome::Unchanged;
         }
-        let outcome = env.raster.resize_stores(
-            env.context_id,
-            &FfiStoreResize {
-                raster_size: self.raster_size(),
-                window_resize_in_progress: self.window_resize_in_progress,
-                publication,
-                gpu_sharing_allowed,
-                has_presentation: presentation_id.is_some(),
-                presentation_id: presentation_id.unwrap_or_default(),
-            },
-        );
+        let Some(allocation) =
+            self.backing_stores
+                .resize_if_needed(self.raster_size(), self.window_resize_in_progress, publication)
+        else {
+            return StoreResizeOutcome::Unchanged;
+        };
+        let shares_gpu_images = env.has_gpu && gpu_sharing_allowed;
+        let outcome =
+            match self
+                .backing_stores
+                .allocate(allocation, publication, shares_gpu_images, &mut |kind, size| {
+                    env.raster.create_store(env.context_id, kind, size)
+                }) {
+                AllocationOutcome::Offscreen => StoreResizeOutcome::ReallocatedOffscreen,
+                AllocationOutcome::Failed => StoreResizeOutcome::Failed,
+                AllocationOutcome::ForViewer(stores) => {
+                    if publication == StorePublication::Published {
+                        let presentation_id = presentation_id.expect("published stores have a presentation");
+                        env.raster
+                            .publish_stores(presentation_id, env.context_id, false, stores);
+                    }
+                    StoreResizeOutcome::ReallocatedForViewer
+                }
+            };
         if outcome != StoreResizeOutcome::Unchanged {
-            self.store_publication = publication;
-            self.latest_rendered_surface = None;
             self.painted_frame = None;
             // A partial repaint must inherit the pixel geometry of the new backing stores.
             self.damage_surface = None;
@@ -306,20 +315,115 @@ impl ContextPresenting {
         }
     }
 
-    pub fn invalidate_backing_stores(&mut self, env: &PresentingEnvironment<'_>) {
-        env.raster.invalidate_stores(env.context_id);
+    pub fn invalidate_backing_stores(&mut self) {
+        self.backing_stores.invalidate();
         self.frame_without_store_in_flight = false;
     }
 
-    pub fn wants_backing_store_for_pending_frame(
-        &self,
-        display_list: Option<&Rc<DisplayList>>,
+    pub fn wants_backing_store_for_pending_frame(&self, display_list: Option<&Rc<DisplayList>>) -> bool {
+        self.presents_to_client && self.pending_present_frame.is_some() && self.can_render_frame(display_list)
+    }
+
+    /// Answers whether a store that was presented became available.
+    pub fn release_presented_store(&mut self, bitmap_id: i32) -> bool {
+        self.backing_stores.release_store(bitmap_id)
+    }
+
+    pub fn release_all_presented_stores(&mut self) {
+        self.backing_stores.release_all_presented_stores();
+    }
+
+    /// The store the remote layer shows the latest frame from.
+    pub fn window_server_surface_of_latest_rendered_store(&self) -> Option<&Rc<PresentableSurface>> {
+        self.backing_stores.window_server_surface_of_latest_rendered_store()
+    }
+
+    fn publish_added_stores(
         raster: &RasterHost,
         context_id: CompositorContextId,
+        presentation_id: Option<u64>,
+        stores: Publication,
+    ) {
+        if let Some(presentation_id) = presentation_id
+            && !stores.bitmap_ids.is_empty()
+        {
+            raster.publish_stores(presentation_id, context_id, true, stores);
+        }
+    }
+
+    fn report_retired_stores(
+        raster: &RasterHost,
+        context_id: CompositorContextId,
+        presentation_id: Option<u64>,
+        bitmap_ids: &[i32],
+    ) {
+        if let Some(presentation_id) = presentation_id
+            && !bitmap_ids.is_empty()
+        {
+            raster.retire_published_stores(presentation_id, context_id, bitmap_ids);
+        }
+    }
+
+    /// Answers whether a store was added, which the presentation that shows the stores, if one does, is given.
+    pub fn add_store_if_window_server_still_reads_every_released_store(
+        &mut self,
+        raster: &RasterHost,
+        context_id: CompositorContextId,
+        publishing_presentation: Option<u64>,
     ) -> bool {
-        self.presents_to_client
-            && self.pending_present_frame.is_some()
-            && self.can_render_frame(display_list, raster, context_id)
+        let Some(stores) = self
+            .backing_stores
+            .add_store_if_window_server_still_reads_every_released_store(&mut |kind, size| {
+                raster.create_store(context_id, kind, size)
+            })
+        else {
+            return false;
+        };
+        Self::publish_added_stores(raster, context_id, publishing_presentation, stores);
+        true
+    }
+
+    /// Answers whether surplus stores are left.
+    pub fn retire_idle_surplus_stores(
+        &mut self,
+        raster: &RasterHost,
+        context_id: CompositorContextId,
+        publishing_presentation: Option<u64>,
+    ) -> bool {
+        let retired_bitmap_ids = self.backing_stores.retire_idle_surplus_stores();
+        Self::report_retired_stores(raster, context_id, publishing_presentation, &retired_bitmap_ids);
+        self.backing_stores.has_surplus_stores()
+    }
+
+    /// Retires every store but the one that holds the latest frame, and answers whether a store is left that can be
+    /// retired once nothing renders into, shows or reads it.
+    pub fn retire_stores_of_hidden_context(
+        &mut self,
+        raster: &RasterHost,
+        context_id: CompositorContextId,
+        publishing_presentation: Option<u64>,
+    ) -> bool {
+        let retired_bitmap_ids = self.backing_stores.retire_stores_except_the_latest_rendered();
+        Self::report_retired_stores(raster, context_id, publishing_presentation, &retired_bitmap_ids);
+        self.backing_stores.has_stores_left_to_retire_while_hidden()
+    }
+
+    /// Answers false where the stores could not be added back to the one kept, so that the context needs a whole new
+    /// allocation.
+    pub fn restore_stores_retired_while_hidden(
+        &mut self,
+        raster: &RasterHost,
+        context_id: CompositorContextId,
+        publishing_presentation: Option<u64>,
+    ) -> bool {
+        let Some(stores) = self
+            .backing_stores
+            .add_stores_up_to_initial_count(&mut |kind, size| raster.create_store(context_id, kind, size))
+        else {
+            return false;
+        };
+        Self::publish_added_stores(raster, context_id, publishing_presentation, stores);
+        true
     }
 
     /// Schedules the retirement of the stores added for a burst of frames, unless it is scheduled already.
@@ -370,9 +474,8 @@ impl ContextPresenting {
         std::mem::take(&mut self.stores_are_retired_while_hidden)
     }
 
-    pub fn did_finish_gpu_present(&mut self, env: &PresentingEnvironment<'_>, bitmap_id: i32, frame_size: IntSize) {
-        env.raster.complete_rendering(env.context_id, bitmap_id);
-        self.latest_rendered_surface = env.raster.latest_rendered_store_surface(env.context_id);
+    pub fn did_finish_gpu_present(&mut self, bitmap_id: i32, frame_size: IntSize) {
+        self.backing_stores.complete_rendering(bitmap_id);
         self.size_of_latest_rendered_frame = frame_size;
     }
 
@@ -485,22 +588,12 @@ impl ContextPresenting {
         self.pending_present_frame_scheduled
     }
 
-    pub fn can_schedule_pending_present_frame_if_unblocked(
-        &self,
-        raster: &RasterHost,
-        context_id: CompositorContextId,
-    ) -> bool {
-        !self.is_present_blocked(raster, context_id)
-            && self.pending_present_frame.is_some()
-            && !self.pending_present_frame_scheduled
+    pub fn can_schedule_pending_present_frame_if_unblocked(&self) -> bool {
+        !self.is_present_blocked() && self.pending_present_frame.is_some() && !self.pending_present_frame_scheduled
     }
 
-    pub fn take_pending_present_frame_if_unblocked(
-        &mut self,
-        raster: &RasterHost,
-        context_id: CompositorContextId,
-    ) -> Option<PendingFrame> {
-        if self.is_present_blocked(raster, context_id) {
+    pub fn take_pending_present_frame_if_unblocked(&mut self) -> Option<PendingFrame> {
+        if self.is_present_blocked() {
             return None;
         }
         self.pending_present_frame_scheduled = false;
@@ -541,18 +634,14 @@ impl ContextPresenting {
         self.presented_frame = Some(viewport_rect);
     }
 
-    fn is_present_blocked(&self, raster: &RasterHost, context_id: CompositorContextId) -> bool {
-        let state = raster.store_state(context_id);
-        state.is_rendering || self.frame_without_store_in_flight || !state.has_available_store
+    fn is_present_blocked(&self) -> bool {
+        self.backing_stores.is_rendering()
+            || self.frame_without_store_in_flight
+            || !self.backing_stores.has_available_store()
     }
 
-    fn can_render_frame(
-        &self,
-        display_list: Option<&Rc<DisplayList>>,
-        raster: &RasterHost,
-        context_id: CompositorContextId,
-    ) -> bool {
-        display_list.is_some() && raster.store_state(context_id).is_valid
+    fn can_render_frame(&self, display_list: Option<&Rc<DisplayList>>) -> bool {
+        display_list.is_some() && self.backing_stores.is_valid()
     }
 
     fn raster_size(&self) -> IntSize {
@@ -596,11 +685,11 @@ impl ContextPresenting {
         display_list: Option<&Rc<DisplayList>>,
         frame_inputs: Option<FrameInputs>,
     ) -> Option<PreparedFrame> {
-        if self.is_present_blocked(env.raster, env.context_id) {
+        if self.is_present_blocked() {
             self.queue_present_frame(pending_frame);
             return None;
         }
-        if !self.can_render_frame(display_list, env.raster, env.context_id) {
+        if !self.can_render_frame(display_list) {
             self.presented_frame = Some(pending_frame.viewport_rect);
             return None;
         }
@@ -638,7 +727,7 @@ impl ContextPresenting {
             });
         }
         let raster_damage_rect = self.raster_rect_of(damage_rect);
-        let Some((bitmap_id, store)) = env.raster.acquire_store(env.context_id) else {
+        let Some((bitmap_id, store)) = self.backing_stores.acquire_render_target() else {
             self.queue_present_frame(pending_frame);
             return None;
         };
@@ -743,7 +832,7 @@ impl ContextPresenting {
         &mut self,
         env: &PresentingEnvironment<'_>,
     ) -> Option<(Rc<PaintingSurface>, IntSize)> {
-        let latest_rendered_surface = self.latest_rendered_surface.clone()?;
+        let latest_rendered_surface = self.backing_stores.latest_rendered_surface()?;
         let mut source = latest_rendered_surface;
         // The store then holds only what is under the canvases, videos and overlays that the window server shows above it.
         if self.layers.window_server_shows_media()
@@ -888,7 +977,7 @@ impl ContextPresenting {
     fn allows_lcd_text(&self, display_list: &DisplayList, frame_inputs: &FrameInputs) -> bool {
         let tree = frame_inputs.visual_context_tree.as_arc();
         // LCD coverage follows the physical pixel grid. Destination blending can erase pixels in the canvas fill.
-        self.store_publication == StorePublication::Published
+        self.backing_stores.publication() == StorePublication::Published
             && !self.scales_frames_to_fit
             && self.device_pixel_ratio.fract() == 0.0
             && display_list.storage().summary().destination_blending_records.is_empty()

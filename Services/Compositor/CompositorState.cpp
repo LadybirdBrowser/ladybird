@@ -8,6 +8,7 @@
 #include <AK/Random.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
+#include <Compositor/BackingStoreFactory.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/SkiaUtils.h>
@@ -1089,96 +1090,68 @@ void CompositorState::end_painting()
     m_display_list_players[--m_painting_depth]->end_painting();
 }
 
-static BackingStoreManager::PublicationMode publication_mode_of(RustFFI::StorePublication publication)
-{
-    switch (publication) {
-    case RustFFI::StorePublication::Unpublished:
-        return BackingStoreManager::PublicationMode::Unpublished;
-    case RustFFI::StorePublication::Published:
-        return BackingStoreManager::PublicationMode::Published;
-    case RustFFI::StorePublication::ShownInRemoteLayer:
-        return BackingStoreManager::PublicationMode::ShownInRemoteLayer;
-    }
-    VERIFY_NOT_REACHED();
+namespace {
+
+// An image of a store that the Rust core holds until it publishes the store.
+struct SharedImageToPublish {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Gfx::SharedImage image;
+};
+
 }
 
-RustFFI::StoreResizeOutcome CompositorState::resize_stores(Web::CompositorContextId context_id, RustFFI::FfiStoreResize const& resize)
+bool CompositorState::create_store(Web::CompositorContextId context_id, RustFFI::StoreKind kind, Gfx::IntSize size, RustFFI::FfiNewStore& new_store)
 {
-    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
-    auto publication_mode = publication_mode_of(resize.publication);
-    auto window_resize_in_progress = resize.window_resize_in_progress ? Compositing::WindowResizingInProgress::Yes : Compositing::WindowResizingInProgress::No;
-    auto allocation = backing_stores.resize_backing_stores_if_needed(resize.raster_size, window_resize_in_progress, publication_mode);
-    if (!allocation.has_value())
-        return RustFFI::StoreResizeOutcome::Unchanged;
-
     RefPtr<WindowServer> window_server_showing_stores;
-    if (publication_mode == BackingStoreManager::PublicationMode::ShownInRemoteLayer) {
-        auto* remote_layer = remote_layer_showing(context_id);
-        VERIFY(remote_layer);
-        window_server_showing_stores = remote_layer->window_server;
+    if (kind == RustFFI::StoreKind::ShownByWindowServer) {
+        if (auto* remote_layer = remote_layer_showing(context_id))
+            window_server_showing_stores = remote_layer->window_server;
     }
-    auto gpu_sharing = resize.gpu_sharing_allowed ? BackingStoreManager::GpuSharing::Allowed : BackingStoreManager::GpuSharing::Disallowed;
-    auto publication = backing_stores.allocate_backing_stores(*allocation, m_skia_backend_context, publication_mode, gpu_sharing, move(window_server_showing_stores));
-    if (publication.is_error()) {
-        dbgln("Compositor: Failed to allocate the stores of context {} that a remote layer shows, which its presentation shows again: {}", context_id, publication.error());
-        return RustFFI::StoreResizeOutcome::Failed;
-    }
-    if (!publication.value().has_value())
-        return RustFFI::StoreResizeOutcome::ReallocatedOffscreen;
-    if (publication_mode == BackingStoreManager::PublicationMode::Published) {
-        auto* presentation = resize.has_presentation ? presentation_if_present(PresentationId { resize.presentation_id }) : nullptr;
-        VERIFY(presentation);
-        auto stores = publication.release_value().release_value();
-        presentation->did_allocate_backing_stores(context_id, move(stores.bitmap_ids), move(stores.shared_images));
-    }
-    return RustFFI::StoreResizeOutcome::ReallocatedForViewer;
-}
-
-bool CompositorState::add_store_if_window_server_reads_every_released_store(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
-{
-    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
-    auto publication = backing_stores.add_backing_store_if_window_server_still_reads_every_released_store(m_skia_backend_context);
-    if (!publication.has_value())
+    auto store_or_error = create_backing_store(kind, size, m_skia_backend_context, window_server_showing_stores.ptr());
+    if (store_or_error.is_error()) {
+        if (kind == RustFFI::StoreKind::ShownByWindowServer)
+            dbgln("Compositor: Failed to allocate a store of context {} that a remote layer shows, which its presentation shows again: {}", context_id, store_or_error.error());
         return false;
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} gained backing store {}, as the window server still reads every released one", context_id, publication->bitmap_ids);
-    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr)
-        presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
+    }
+    auto store = store_or_error.release_value();
+    new_store.surface = &store.surface.leak_ref();
+    if (store.window_server_surface)
+        new_store.window_server_surface = &store.window_server_surface.release_nonnull().leak_ref();
+    if (store.shared_image_buffer) {
+        new_store.shared_image_buffer = store.shared_image_buffer.leak_ptr();
+        new_store.shared_image_buffer_is_in_use = [](void* buffer) { return shared_image_buffer_is_in_use(*static_cast<Gfx::SharedImageBuffer const*>(buffer)); };
+        new_store.destroy_shared_image_buffer = [](void* buffer) { (void)adopt_own(*static_cast<Gfx::SharedImageBuffer*>(buffer)); };
+    }
+    if (store.shared_image.has_value()) {
+        new_store.shared_image = make<SharedImageToPublish>(store.shared_image.release_value()).leak_ptr();
+        new_store.destroy_shared_image = [](void* image) { (void)adopt_own(*static_cast<SharedImageToPublish*>(image)); };
+    }
     return true;
 }
 
-bool CompositorState::retire_idle_surplus_stores(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
+void CompositorState::publish_stores(PresentationId presentation_id, Web::CompositorContextId context_id, bool added, ReadonlySpan<i32> bitmap_ids, ReadonlySpan<void*> images)
 {
-    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
-    auto retired_bitmap_ids = backing_stores.retire_idle_surplus_backing_stores();
-    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr; presentation && !retired_bitmap_ids.is_empty()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired idle backing stores {}", context_id, retired_bitmap_ids);
-        presentation->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
+    Vector<Gfx::SharedImage> shared_images;
+    shared_images.ensure_capacity(images.size());
+    for (auto* image : images) {
+        auto owned_image = adopt_own(*static_cast<SharedImageToPublish*>(image));
+        shared_images.unchecked_append(move(owned_image->image));
     }
-    return backing_stores.has_surplus_backing_stores();
+    auto* presentation = presentation_if_present(presentation_id);
+    if (!presentation)
+        return;
+    Vector<i32> ids { bitmap_ids };
+    if (added)
+        presentation->did_add_backing_stores(context_id, move(ids), move(shared_images));
+    else
+        presentation->did_allocate_backing_stores(context_id, move(ids), move(shared_images));
 }
 
-bool CompositorState::retire_stores_of_hidden_context(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
+void CompositorState::retire_published_stores(PresentationId presentation_id, Web::CompositorContextId context_id, ReadonlySpan<i32> bitmap_ids)
 {
-    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
-    auto retired_bitmap_ids = backing_stores.retire_backing_stores_except_the_latest_rendered();
-    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr; presentation && !retired_bitmap_ids.is_empty()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired backing stores {} while hidden", context_id, retired_bitmap_ids);
-        presentation->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
-    }
-    return backing_stores.has_backing_stores_left_to_retire_while_hidden();
-}
-
-bool CompositorState::restore_stores_retired_while_hidden(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
-{
-    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
-    auto publication = backing_stores.add_backing_stores_up_to_initial_count(m_skia_backend_context);
-    if (!publication.has_value())
-        return false;
-    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr; presentation && !publication->bitmap_ids.is_empty()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} regained backing stores {} as it was shown", context_id, publication->bitmap_ids);
-        presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
-    }
-    return true;
+    if (auto* presentation = presentation_if_present(presentation_id))
+        presentation->did_retire_backing_stores(context_id, Vector<i32> { bitmap_ids });
 }
 
 bool CompositorState::take_registered_image_frames(Web::CompositorContextId context_id, ReadonlySpan<u64> image_frame_ids)
@@ -1517,8 +1490,7 @@ Optional<PresentationId> CompositorState::show_frame_in_remote_layer(Web::Compos
     if (!remote_layer)
         return {};
     auto& context = presented_context(context_id);
-    auto* store = frame.uses_store ? context.raster_targets.backing_stores().window_server_surface_of_latest_rendered_store() : nullptr;
-    VERIFY(store || !frame.uses_store);
+    auto* store = const_cast<PresentableSurface*>(frame.store);
 
     auto remote_layer_id = *context.remote_layer_id;
     auto shown = remote_layer->layer->show_frame({
@@ -1646,13 +1618,6 @@ static Optional<u64> display_of(bool has_display_id, u64 display_id)
     return display_id;
 }
 
-static Optional<PresentationId> presentation_of(bool has_presentation, u64 presentation_id)
-{
-    if (!has_presentation)
-        return {};
-    return PresentationId { presentation_id };
-}
-
 static MonotonicTime time_of(i64 nanoseconds)
 {
     return MonotonicTime {} + AK::Duration::from_nanoseconds(nanoseconds);
@@ -1688,27 +1653,9 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .begin_painting = [](void* host, u64 context_id, Gfx::PaintingSurface const* surface, RustFFI::PaintingResources resources, bool allows_lcd_text, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, mutable_surface(surface), resources, allows_lcd_text); },
         .end_painting = [](void* host) { state_of(host).end_painting(); },
         .start_raster_cache_frame = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.raster_cache().drop_what_was_not_used_since_last_frame(); },
-        .store_state = [](void* host, u64 context_id) -> RustFFI::FfiStoreState {
-            auto const& backing_stores = state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores();
-            return { .is_valid = backing_stores.is_valid(), .is_rendering = backing_stores.is_rendering(), .has_available_store = backing_stores.has_available_buffer() };
-        },
-        .resize_stores = [](void* host, u64 context_id, RustFFI::FfiStoreResize const* resize) { return state_of(host).resize_stores(Context { context_id }, *resize); },
-        .invalidate_stores = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().invalidate(); },
-        .acquire_store = [](void* host, u64 context_id, RustFFI::FfiAcquiredStore* acquired) {
-            auto render_target = state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().acquire_render_target();
-            if (!render_target.has_value())
-                return false;
-            acquired->bitmap_id = render_target->bitmap_id;
-            acquired->surface = &render_target->surface;
-            return true; },
-        .complete_rendering = [](void* host, u64 context_id, i32 bitmap_id) { state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().complete_rendering(bitmap_id); },
-        .release_store = [](void* host, u64 context_id, i32 bitmap_id) { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().release_buffer(bitmap_id); },
-        .release_all_presented_stores = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().release_all_presented_buffers(); },
-        .latest_rendered_store_surface = [](void* host, u64 context_id) -> Gfx::PaintingSurface const* { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().latest_rendered_surface().ptr(); },
-        .add_store_if_window_server_reads_every_released_store = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).add_store_if_window_server_reads_every_released_store(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
-        .retire_idle_surplus_stores = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_idle_surplus_stores(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
-        .retire_stores_of_hidden_context = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_stores_of_hidden_context(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
-        .restore_stores_retired_while_hidden = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).restore_stores_retired_while_hidden(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
+        .create_store = [](void* host, u64 context_id, RustFFI::StoreKind kind, Gfx::IntSize size, RustFFI::FfiNewStore* new_store) { return state_of(host).create_store(Context { context_id }, kind, size, *new_store); },
+        .publish_stores = [](void* host, u64 presentation_id, u64 context_id, bool added, ReadonlySpan<i32> bitmap_ids, ReadonlySpan<void*> images) { state_of(host).publish_stores(PresentationId { presentation_id }, Context { context_id }, added, bitmap_ids, images); },
+        .retire_published_stores = [](void* host, u64 presentation_id, u64 context_id, ReadonlySpan<i32> bitmap_ids) { state_of(host).retire_published_stores(PresentationId { presentation_id }, Context { context_id }, bitmap_ids); },
         .create_presentable_surface = [](void*, Gfx::IntSize size, Gfx::PaintingSurface const* like) -> PresentableSurface const* {
             auto surface = PresentableSurfacePool::create_surface(size, like->skia_backend_context());
             if (surface.is_error())
