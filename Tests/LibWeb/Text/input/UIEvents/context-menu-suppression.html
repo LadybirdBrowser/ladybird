@@ -30,5 +30,18 @@
         document.removeEventListener('contextmenu', cancel);
         rightClick(0);
         println(`listener removed: ${describe()}`);
+
+        document.addEventListener('contextmenu', cancel);
+        for (const type of ['mousedown']) {
+            getSelection().removeAllRanges();
+            let replaced = false;
+            document.addEventListener(type, () => {
+                const target = document.getElementById('target');
+                target.replaceWith(target.cloneNode(true));
+                replaced = true;
+            }, { once: true });
+            rightClick(0);
+            println(`preventDefault, pressed node ${replaced ? 'replaced' : 'not replaced'} during ${type}: ${describe()}`);
+        }
     });
 </script>
