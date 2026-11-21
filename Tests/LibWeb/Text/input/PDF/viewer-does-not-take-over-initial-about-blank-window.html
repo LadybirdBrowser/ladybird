@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    asyncTest(done => {
+        const InitialFunction = frame.contentWindow.Function;
+        const getters = {
+            document: Object.getOwnPropertyDescriptor(frame.contentWindow, "document").get,
+            localStorage: Object.getOwnPropertyDescriptor(frame.contentWindow, "localStorage").get,
+        };
+        frame.onload = () => {
+            println(`Initial window document: ${InitialFunction("return document.URL")()}`);
+            for (const [name, getter] of Object.entries(getters)) {
+                try {
+                    getter.call(frame.contentWindow);
+                    println(`${name}: no exception`);
+                } catch (error) {
+                    println(`${name}: ${error.name}`);
+                }
+            }
+            done();
+        };
+        const pdf = Uint8Array.fromBase64(
+            "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA4IDhdID4+CmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNCAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKMTgyCiUlRU9GCg=="
+        );
+        frame.src = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
+    });
+</script>

@@ -3106,9 +3106,11 @@ GC_DEFINE_ALLOCATOR(DocumentToCreate);
 DocumentToCreate::DocumentToCreate(GC::Ref<NavigationParams> navigation_params, GC::Ref<LoadSteps> load_steps, Optional<URL::Origin> origin)
     : m_navigation_params(navigation_params)
     , m_load_steps(load_steps)
-    , m_origin(move(origin))
+    , m_replaces_response_origin(origin.has_value())
     , m_environment_id(navigation_params->reserved_environment ? navigation_params->reserved_environment->id : *navigation_params->environment_id)
 {
+    if (origin.has_value())
+        m_navigation_params->origin = origin.release_value();
 }
 
 void DocumentToCreate::visit_edges(Cell::Visitor& visitor)
@@ -3120,7 +3122,7 @@ void DocumentToCreate::visit_edges(Cell::Visitor& visitor)
 
 URL::Origin DocumentToCreate::origin() const
 {
-    return m_origin.value_or(m_navigation_params->origin);
+    return m_navigation_params->origin;
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
@@ -3160,8 +3162,6 @@ bool DocumentToCreate::takes_over_window_of(DOM::Document const& document) const
 GC::Ref<DOM::Document> DocumentToCreate::create_document()
 {
     auto document = m_load_steps->function()(*m_navigation_params);
-    if (m_origin.has_value())
-        document->set_origin(*m_origin);
     m_navigation_params->response->resume_body_delivery();
     m_navigation_params = nullptr;
     m_load_steps = nullptr;
@@ -3177,13 +3177,14 @@ void DocumentToCreate::discard()
     m_load_steps = nullptr;
 }
 
-// NB: A document created in place of the response, or the PDF viewer, has an origin other than its navigation params'.
-//     The process reports which of the two it created, and the UI process takes up that origin for the document it
-//     holds.
+// NB: A document created in place of the response, or the PDF viewer, has an origin other than its response's. The
+//     process reports which of the two it created, and the UI process takes up that origin for the document it holds.
 static void report_a_document_with_an_origin_of_its_own(LocalNavigable& navigable, PopulateSessionHistoryEntryDocumentOutput const& output)
 {
     auto const* navigation_params = output.navigation_params.get_pointer<GC::Ref<NavigationParams>>();
-    if (!output.document_to_create || !navigation_params || output.document_to_create->origin().is_same_origin((*navigation_params)->origin))
+    if (!output.document_to_create || !navigation_params)
+        return;
+    if (!output.document_to_create->replaces_response_origin() && output.document_to_create->origin().is_same_origin((*navigation_params)->origin))
         return;
     auto origin = output.inline_content_origin.has_value() && output.document_to_create->origin().is_same_origin(*output.inline_content_origin)
         ? PopulatedDocumentOrigin::InlineContent
