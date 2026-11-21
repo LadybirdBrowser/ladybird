@@ -20,6 +20,10 @@
 #    include <AK/Windows.h>
 #endif
 
+#if defined(AK_OS_LINUX)
+#    include <linux/magic.h>
+#endif
+
 namespace WebView {
 
 ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const& file_path)
@@ -48,17 +52,26 @@ ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path)
         return Error::from_errno(EACCES);
     return IPC::File::adopt_file(move(file));
 #else
-    auto fd = TRY(Core::System::open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
-    auto file = IPC::File::adopt_fd(fd);
+    auto canonical_path = TRY(FileSystem::real_path(path));
 
-    auto stat = TRY(Core::System::fstat(fd));
-    if (!S_ISREG(stat.st_mode) && !S_ISDIR(stat.st_mode))
+#    if defined(AK_OS_MACOS)
+    // A /dev/fd entry opens a descriptor of the UI process, which reads as whatever file is behind it. Only the path
+    // says it's on devfs, so this is checked before the open.
+    auto path_file_system = TRY(Core::System::statfs(canonical_path));
+    if (StringView { path_file_system.f_fstypename, strnlen(path_file_system.f_fstypename, sizeof(path_file_system.f_fstypename)) } == "devfs"sv)
         return Error::from_errno(EACCES);
+#    endif
 
-    // The renderer reads the file as it would any other, so it gets a blocking descriptor.
-    auto flags = TRY(Core::System::fcntl(fd, F_GETFL));
-    TRY(Core::System::fcntl(fd, F_SETFL, flags & ~O_NONBLOCK));
-    return file;
+    auto file = TRY(Core::File::open_regular_file_or_directory(canonical_path));
+
+#    if defined(AK_OS_LINUX)
+    // procfs and sysfs can be mounted anywhere and expose information about the opening process.
+    auto file_system = TRY(Core::System::fstatfs(file->fd()));
+    if (file_system.f_type == PROC_SUPER_MAGIC || file_system.f_type == SYSFS_MAGIC)
+        return Error::from_errno(EACCES);
+#    endif
+
+    return IPC::File::adopt_file(move(file));
 #endif
 }
 
