@@ -11,7 +11,6 @@
 //! Names and literals are not copied: an identifier operand is an interned name id, and a literal is its source offset.
 
 use std::cell::Cell;
-use std::sync::OnceLock;
 
 use ak::Zone;
 use ak::ZoneVec;
@@ -262,49 +261,51 @@ pub struct AstMarks {
     pub scopes: u32,
 }
 
-/// What a function leaves behind once its tree is gone, one row per function, as columns. The first parse of a source
-/// builds it in its work zone (see [`FunctionIndexBuilder`]) and keeps a copy at its final size.
-#[derive(Default)]
-pub struct FunctionIndex {
-    pub start: Box<[u32]>,
+/// What a function leaves behind once its tree is gone, one row per function, as columns, which is how parses read it.
+/// The first parse of a source builds it in its work zone (see [`FunctionIndexBuilder`]), and a copy of it stays with
+/// the source (see `FunctionIndex`).
+#[derive(Clone, Copy)]
+pub struct FunctionIndexView<'t> {
+    pub start: &'t [u32],
     /// Where parsing the function starts over. This is what tells two functions apart that start at the same offset,
     /// and for the code of a class that runs as a function, the offset of the class element or the class.
-    pub params_start: Box<[u32]>,
-    pub end: Box<[u32]>,
-    pub flags: Box<[u32]>,
-    pub length: Box<[u32]>,
-    pub parameter_count: Box<[u32]>,
+    pub params_start: &'t [u32],
+    pub end: &'t [u32],
+    pub flags: &'t [u32],
+    pub length: &'t [u32],
+    pub parameter_count: &'t [u32],
     /// What the function's code may do, as parser context bits.
-    pub ctx: Box<[u16]>,
+    pub ctx: &'t [u16],
     /// The function's own name, if it has one.
-    pub name: Box<[u32]>,
+    pub name: &'t [u32],
     /// Where each function's captures start in `capture_names`, and how many it has.
-    pub capture_start: Box<[u32]>,
-    pub capture_count: Box<[u32]>,
+    pub capture_start: &'t [u32],
+    pub capture_count: &'t [u32],
     /// What each function captures of the function around it, which is all that reparsing that function needs to know
     /// about a function it skips. A name that only passes through on its way further out is not in here: it is a capture
     /// of the outer function that it passes through.
-    pub capture_names: Box<[u32]>,
+    pub capture_names: &'t [u32],
     /// The rows by `params_start`, unless that is the order they are in. It often is not, as an arrow function only gets
-    /// its row after its parameters, and so after the functions in them. Worked out once functions get parsed again.
-    pub(super) rows_by_params_start: OnceLock<Vec<u32>>,
+    /// its row after its parameters, and so after the functions in them.
+    pub rows_by_params_start: &'t [u32],
     /// What is left of the bindings of each function for code that goes without a resolver, as a pool of bytes: the
     /// number of bindings of the function itself that come up before their declaration and those, the number of scopes
     /// inside the function with bindings that have to exist when the scope starts and those scopes, then a bitmap of
     /// which of the other bindings of the function itself are captured, in the order of their declarations. A scope is
     /// the distance from the scope before it, the number of bindings and those. A function with nothing to say has no
     /// bytes.
-    pub summaries: Box<[u8]>,
-    pub summary_start: Box<[u32]>,
+    pub summaries: &'t [u8],
+    pub summary_start: &'t [u32],
     /// A bit for every name of the source that anything declares, which all other names are free everywhere.
-    pub declared_names: Box<[u64]>,
+    pub declared_names: &'t [u64],
     /// Where the summary of the top level ends, which is the first thing in the pool.
     pub program_summary_end: u32,
     /// Whether the top level has a direct `eval`, so that names may mean more than they seem to there.
     pub program_has_direct_eval: bool,
 }
 
-/// The function index that the first parse of a source builds in its work zone. See [`FunctionIndex`] for the columns.
+/// The function index that the first parse of a source builds in its work zone. See [`FunctionIndexView`] for the
+/// columns.
 pub struct FunctionIndexBuilder<'z> {
     pub start: ZoneVec<'z, u32>,
     pub params_start: ZoneVec<'z, u32>,
@@ -347,52 +348,44 @@ impl<'z> FunctionIndexBuilder<'z> {
         }
     }
 
-    /// A copy of the index, at its final size.
-    pub fn to_kept(&self) -> FunctionIndex {
-        FunctionIndex {
-            start: Box::from(self.start.as_slice()),
-            params_start: Box::from(self.params_start.as_slice()),
-            end: Box::from(self.end.as_slice()),
-            flags: Box::from(self.flags.as_slice()),
-            length: Box::from(self.length.as_slice()),
-            parameter_count: Box::from(self.parameter_count.as_slice()),
-            ctx: Box::from(self.ctx.as_slice()),
-            name: Box::from(self.name.as_slice()),
-            capture_start: Box::from(self.capture_start.as_slice()),
-            capture_count: Box::from(self.capture_count.as_slice()),
-            capture_names: Box::from(self.capture_names.as_slice()),
-            rows_by_params_start: OnceLock::new(),
-            summaries: Box::from(self.summaries.as_slice()),
-            summary_start: Box::from(self.summary_start.as_slice()),
-            declared_names: Box::from(self.declared_names.as_slice()),
+    /// The index as it is when the parse is done, with the rows sorted by where parsing them starts over.
+    pub fn finish(self) -> FunctionIndexView<'z> {
+        let zone = self.start.zone();
+        let params_start = self.params_start.into_slice();
+        let rows_by_params_start: &[u32] = if params_start.is_sorted() {
+            &[]
+        } else {
+            let rows = zone.alloc_slice_from_iter(0..u32_from_usize(params_start.len()));
+            // NB: Rows that start over at the same offset keep their order.
+            rows.sort_unstable_by_key(|&row| (params_start[row as usize], row));
+            rows
+        };
+        FunctionIndexView {
+            start: self.start.into_slice(),
+            params_start,
+            end: self.end.into_slice(),
+            flags: self.flags.into_slice(),
+            length: self.length.into_slice(),
+            parameter_count: self.parameter_count.into_slice(),
+            ctx: self.ctx.into_slice(),
+            name: self.name.into_slice(),
+            capture_start: self.capture_start.into_slice(),
+            capture_count: self.capture_count.into_slice(),
+            capture_names: self.capture_names.into_slice(),
+            rows_by_params_start,
+            summaries: self.summaries.into_slice(),
+            summary_start: self.summary_start.into_slice(),
+            declared_names: self.declared_names.into_slice(),
             program_summary_end: self.program_summary_end,
             program_has_direct_eval: self.program_has_direct_eval,
         }
     }
 }
 
-impl FunctionIndex {
-    /// Gets the function at each offset ready to be found, for whatever parses a source off the main thread to do before
-    /// handing it over, as this takes a while for a large source.
-    pub fn prepare_for_reparsing(&self) {
-        self.rows_by_params_start();
-    }
-
-    fn rows_by_params_start(&self) -> &[u32] {
-        self.rows_by_params_start.get_or_init(|| {
-            if self.params_start.is_sorted() {
-                return Vec::new();
-            }
-            let mut rows: Vec<u32> = (0..u32_from_usize(self.params_start.len())).collect();
-            // NB: A stable sort, as the rows are nearly in order, which it makes use of.
-            rows.sort_by_key(|&row| self.params_start[row as usize]);
-            rows
-        })
-    }
-
+impl FunctionIndexView<'_> {
     /// Where lookups for what comes after the function of `row` start out.
     pub fn position_after_row(&self, row: usize) -> usize {
-        let rows = self.rows_by_params_start();
+        let rows = self.rows_by_params_start;
         if rows.is_empty() {
             return row + 1;
         }
@@ -403,7 +396,7 @@ impl FunctionIndex {
     /// The row of the function that starts over at `params_start`. Lookups follow the source, so that the answer is mostly
     /// right where the last one left `cursor`.
     pub fn row_at_params_start(&self, params_start: u32, cursor: &Cell<usize>) -> Option<u32> {
-        let rows = self.rows_by_params_start();
+        let rows = self.rows_by_params_start;
         let row_at = |position: usize| {
             if rows.is_empty() {
                 (position < self.params_start.len()).then(|| u32_from_usize(position))
@@ -471,24 +464,6 @@ impl FunctionIndex {
             .get(row + 1)
             .map_or(self.summaries.len(), |&end| end as usize);
         (start, end)
-    }
-
-    pub fn memory_size(&self) -> usize {
-        let u32_columns = [
-            &self.start,
-            &self.params_start,
-            &self.end,
-            &self.flags,
-            &self.length,
-            &self.parameter_count,
-            &self.name,
-            &self.capture_start,
-            &self.capture_count,
-            &self.capture_names,
-        ];
-        let sorted_rows = self.rows_by_params_start.get().map_or(0, Vec::capacity);
-        (u32_columns.iter().map(|column| column.len()).sum::<usize>() + sorted_rows) * size_of::<u32>()
-            + self.ctx.len() * size_of::<u16>()
     }
 }
 
