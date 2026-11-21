@@ -4,6 +4,8 @@ contextmenu: focused=textarea
 right-click #textarea: focused=textarea, menu=true
 contextmenu: focused=editable
 right-click #editable: focused=editable, menu=true
+contextmenu: focused=nested
+right-click #nested: focused=nested, menu=true
 contextmenu: focused=body
 right-click #disabled: focused=body, menu=true
 contextmenu: focused=body

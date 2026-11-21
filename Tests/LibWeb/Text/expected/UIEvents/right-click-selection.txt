@@ -3,3 +3,9 @@ PASS: right-click preserves existing selection
 PASS: primary mousedown preserves existing selection on macOS
 PASS: primary click clears existing selection
 PASS: cancelling mouseup preserves existing selection on macOS
+PASS: right-click outside the selection clears it
+PASS: right-click on the padding of unselectable text preserves existing selection
+PASS: right-click on an embed preserves existing selection
+PASS: right-click on an object showing an image preserves existing selection
+PASS: right-click in editable text moves the caret there
+PASS: right-click with mousedown canceled leaves the caret

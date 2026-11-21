@@ -32,7 +32,7 @@
         println(`listener removed: ${describe()}`);
 
         document.addEventListener('contextmenu', cancel);
-        for (const type of ['mousedown']) {
+        for (const type of ['mousedown', 'selectstart']) {
             getSelection().removeAllRanges();
             let replaced = false;
             document.addEventListener(type, () => {

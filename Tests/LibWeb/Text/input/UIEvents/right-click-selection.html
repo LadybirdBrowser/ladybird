@@ -6,6 +6,10 @@ body {
 }
 </style>
 <div id="target"><span id="alpha">alpha</span> <span id="beta">beta</span> gamma</div>
+<div id="editable" contenteditable>one two</div>
+<div>before<span id="unselectable" style="user-select: none; padding: 0 40px">text</span>after</div>
+<embed id="embed" style="display: block; width: 100px; height: 32px">
+<object id="object" type="image/gif" data="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="display: block; width: 100px; height: 32px"></object>
 <script src="../include.js"></script>
 <script>
     function clickCenter(element) {
@@ -18,6 +22,14 @@ body {
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }
 
+    function rightClickText(node, start, end) {
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        const rect = range.getBoundingClientRect();
+        internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2, 1, internals.BUTTON_RIGHT);
+    }
+
     function selectAlphaBeta() {
         getSelection().removeAllRanges();
 
@@ -27,7 +39,10 @@ body {
         getSelection().addRange(range);
     }
 
-    test(() => {
+    promiseTest(async () => {
+        // The object only shows its image once the window has loaded.
+        await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+
         clickCenter(alpha);
 
         const selection = getSelection().toString();
@@ -64,5 +79,48 @@ body {
         println(!navigator.platform.includes("Mac") || getSelection().toString() === "alpha beta"
             ? "PASS: cancelling mouseup preserves existing selection on macOS"
             : `FAIL: expected existing selection, got "${getSelection()}"`);
+
+        // With the context menu canceled, only the press itself changes the selection.
+        const cancel = event => event.preventDefault();
+        document.addEventListener("contextmenu", cancel);
+
+        selectAlphaBeta();
+        rightClickText(target.lastChild, 1, 6);
+
+        println(getSelection().toString() === ""
+            ? "PASS: right-click outside the selection clears it"
+            : `FAIL: expected no selection, got "${getSelection()}"`);
+
+        const keepers = [
+            [unselectable, "the padding of unselectable text"],
+            [embed, "an embed"],
+            [object, "an object showing an image"],
+        ];
+        for (const [element, description] of keepers) {
+            selectAlphaBeta();
+            const rect = element.getBoundingClientRect();
+            internals.click(rect.left + 4, rect.top + rect.height / 2, 1, internals.BUTTON_RIGHT);
+
+            println(getSelection().toString() === "alpha beta"
+                ? `PASS: right-click on ${description} preserves existing selection`
+                : `FAIL: expected existing selection, got "${getSelection()}"`);
+        }
+
+        const caretIsInSecondWord = () => getSelection().anchorNode === editable.firstChild && getSelection().anchorOffset >= 4;
+        editable.focus();
+        getSelection().collapse(editable.firstChild, 0);
+        rightClickText(editable.firstChild, 4, 7);
+
+        println(caretIsInSecondWord()
+            ? "PASS: right-click in editable text moves the caret there"
+            : `FAIL: expected the caret in the second word, got offset ${getSelection().anchorOffset}`);
+
+        getSelection().collapse(editable.firstChild, 0);
+        editable.addEventListener("mousedown", cancel, { once: true });
+        rightClickText(editable.firstChild, 4, 7);
+
+        println(!caretIsInSecondWord()
+            ? "PASS: right-click with mousedown canceled leaves the caret"
+            : "FAIL: expected the caret to stay at the start");
     });
 </script>
