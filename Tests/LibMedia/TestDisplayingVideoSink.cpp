@@ -762,6 +762,67 @@ TEST_CASE(sink_decided_before_connecting_starts_its_input_on_connect)
     EXPECT_EQ(unticked_producer->seek_count(), 0u);
 }
 
+// Seeking a sink that isn't ticking would otherwise wake its suspended input only to decode frames that nothing shows.
+TEST_CASE(unticked_sink_resolves_a_seek_without_waking_its_suspended_input)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&](Media::PipelineStatus status, Media::PipelineCheckpoint) { dispatched_statuses.append(status); });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    sink->set_ticking(false);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    auto seeks_before = producer->seek_count();
+
+    dispatched_statuses.clear();
+    clock->seek(AK::Duration::zero());
+    sink->seek(AK::Duration::zero());
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(producer->seek_count(), seeks_before);
+    EXPECT_EQ(dispatched_statuses, Vector { Media::PipelineStatus::Suspended });
+    // The frame from before the seek stays until the sink catches up.
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
+
+    sink->set_ticking(true);
+    EXPECT_EQ(producer->seek_count(), seeks_before + 1);
+    EXPECT_EQ(producer->last_seek_timestamp(), AK::Duration::zero());
+}
+
+// The frame a sink keeps may show data that a seek invalidates, so such a seek reaches the input even when it isn't
+// ticking.
+TEST_CASE(unticked_sink_passes_on_a_seek_that_invalidates_held_data)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
+    producer->append_frame(create_test_frame(*pool, AK::Duration::zero(), AK::Duration::from_milliseconds(40)));
+    (void)sink->update(MonotonicTime::now());
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    sink->set_ticking(false);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    auto seeks_before = producer->seek_count();
+    sink->seek(AK::Duration::zero(), Media::InvalidateHeldData::Yes);
+    EXPECT_EQ(producer->seek_count(), seeks_before + 1);
+}
+
 TEST_CASE(frame_is_up_to_date_once_a_ticking_sink_has_caught_up)
 {
     never_destroyed_event_loop();

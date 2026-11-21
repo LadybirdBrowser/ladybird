@@ -71,6 +71,7 @@ public:
 
 private:
     void dispatch_latest_state_if_changed();
+    void defer_latest_status_dispatch();
     void report_freshness_if_changed();
     void start_input();
 

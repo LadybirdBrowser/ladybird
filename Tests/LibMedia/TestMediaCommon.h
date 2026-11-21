@@ -185,9 +185,14 @@ public:
         (void)m_outputs.take_first();
     }
     virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
-    virtual void seek(AK::Duration, Media::InvalidateHeldData = Media::InvalidateHeldData::No) override { m_seek_count++; }
+    virtual void seek(AK::Duration timestamp, Media::InvalidateHeldData = Media::InvalidateHeldData::No) override
+    {
+        m_seek_count++;
+        m_last_seek_timestamp = timestamp;
+    }
 
     size_t seek_count() const { return m_seek_count; }
+    Optional<AK::Duration> last_seek_timestamp() const { return m_last_seek_timestamp; }
     size_t start_count() const { return m_start_count; }
     size_t suspend_count() const { return m_suspend_count; }
 
@@ -197,6 +202,7 @@ private:
     Mutex m_mutex;
     Vector<Media::VideoProducerOutput> m_outputs;
     size_t m_seek_count { 0 };
+    Optional<AK::Duration> m_last_seek_timestamp;
     size_t m_start_count { 0 };
     size_t m_suspend_count { 0 };
     Media::PipelineWakeHandler m_wake_handler;

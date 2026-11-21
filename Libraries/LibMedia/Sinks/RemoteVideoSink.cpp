@@ -115,12 +115,17 @@ void RemoteVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& produ
 
 void RemoteVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
-    if (invalidate_held_data == InvalidateHeldData::No)
+    if (invalidate_held_data == InvalidateHeldData::No && m_consumer_is_ticking)
         m_thread_data->seek_input_directly(timestamp);
     m_thread_data->transmit_seek(invalidate_held_data);
 }
 void RemoteVideoSink::notify_clock_resumed() { m_thread_data->notify_clock_resumed(); }
-void RemoteVideoSink::set_ticking(bool ticking) { m_thread_data->transmit_ticking(ticking); }
+
+void RemoteVideoSink::set_ticking(bool ticking)
+{
+    m_consumer_is_ticking = ticking;
+    m_thread_data->transmit_ticking(ticking);
+}
 void RemoteVideoSink::seek_upstream(AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) { m_thread_data->seek_upstream(timestamp, invalidate_held_data, newest_received_lend_id); }
 
 void RemoteVideoSink::set_time_reader(MediaTimeReader time_reader)

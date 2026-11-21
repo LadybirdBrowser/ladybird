@@ -124,6 +124,17 @@ void DisplayingVideoSink::begin_seek(AK::Duration timestamp, InvalidateHeldData 
     if (m_ticking == VideoSinkTicking::Undecided)
         return;
 
+    // If the sink isn't ticking, don't unsuspend the input unnecessarily. Let it catch up later. Data that the seek
+    // invalidates may be what the current frame shows, so the seek replaces the frame then.
+    if (seek_status == SeekStatus::InProgress && invalidate_held_data == InvalidateHeldData::No && !is_ticking() && m_input != nullptr && m_input->peek().status == PipelineStatus::Suspended) {
+        m_next_frame = nullptr;
+        m_seek_status = SeekStatus::None;
+        m_seek_resolution_is_pending_frame_at_target = false;
+        m_latest_status = PipelineStatus::Suspended;
+        defer_latest_status_dispatch();
+        return;
+    }
+
     auto can_resolve_seek_within_cached_frames = [&] {
         if (invalidate_held_data == InvalidateHeldData::Yes)
             return false;
@@ -170,6 +181,22 @@ void DisplayingVideoSink::dispatch_latest_state_if_changed()
     m_last_dispatched_checkpoint = m_input_checkpoint;
     if (m_on_state_changed)
         m_on_state_changed(m_latest_status, m_input_checkpoint);
+}
+
+// Dispatches with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while an update or a seek
+// is being processed.
+void DisplayingVideoSink::defer_latest_status_dispatch()
+{
+    if (m_latest_status == m_last_dispatched_status && m_input_checkpoint == m_last_dispatched_checkpoint)
+        return;
+    Core::deferred_invoke([weak_self = make_weak_ref(), seek_id = m_seek_id] {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return;
+        if (seek_id != self->m_seek_id)
+            return;
+        self->dispatch_latest_state_if_changed();
+    });
 }
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
@@ -299,18 +326,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         m_on_present_needed();
 
     m_latest_status = status_to_dispatch;
-    if (status_to_dispatch != m_last_dispatched_status || m_input_checkpoint != m_last_dispatched_checkpoint) {
-        // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
-        // an update is being processed.
-        Core::deferred_invoke([weak_self = make_weak_ref(), seek_id = m_seek_id] {
-            auto self = weak_self.strong_ref();
-            if (!self)
-                return;
-            if (seek_id != self->m_seek_id)
-                return;
-            self->dispatch_latest_state_if_changed();
-        });
-    }
+    defer_latest_status_dispatch();
 
     auto may_require_updates = !is_terminal(status_to_dispatch) && (time_state.is_advancing || m_seek_status != SeekStatus::None);
 
