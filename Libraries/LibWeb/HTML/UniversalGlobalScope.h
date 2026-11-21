@@ -10,6 +10,7 @@
 
 #include <AK/Forward.h>
 #include <LibGC/HeapVector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 
@@ -43,7 +44,7 @@ protected:
 
 private:
     GC::Ptr<GC::HeapVector<GC::Ref<JS::Promise>>> m_about_to_be_notified_rejected_promises_list;
-    Vector<GC::Ptr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
+    Vector<GC::Weak<JS::Promise>> m_outstanding_rejected_promises_weak_set;
     ImportMap m_import_map;
 };
 
