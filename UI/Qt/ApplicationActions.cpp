@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Environment.h>
 #include <LibURL/InternalURLs.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
@@ -18,6 +19,7 @@
 #include <QClipboard>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QTimer>
 
 namespace Ladybird {
 
@@ -297,6 +299,14 @@ void ApplicationActions::create_debug_menu(PageOptions const& options)
     add_switch(m_show_caret_hit_test_debug_overlay_action, "Show Caret Hit Test Debug Overlay"sv, ActionID::ShowCaretHitTestDebugOverlay, false, [](bool shows) {
         HubConnection::the().async_set_shows_caret_hit_test_debug_overlay(shows);
     });
+    auto shows_compositor_layers = Core::Environment::has("LADYBIRD_SHOW_COMPOSITOR_LAYERS"sv);
+    add_switch(m_show_compositor_layers_action, "Show Compositor Layers and Tiles"sv, ActionID::ShowCompositorLayers, shows_compositor_layers, [](bool shows) {
+        Application::the().set_shows_compositor_layers(shows);
+    });
+    if (shows_compositor_layers) {
+        // The window that lists the layers opens once the application runs.
+        QTimer::singleShot(0, [] { Application::the().set_shows_compositor_layers(true); });
+    }
 
     m_show_tab_performance_monitor_action = Action::create_checkable("Show Tab Performance Monitor"sv, ActionID::ShowTabPerformanceMonitor, [this] {
         Application::settings().set_config_variable(WebView::ConfigVariableID::ShowTabPerformanceMonitor, m_show_tab_performance_monitor_action->checked());

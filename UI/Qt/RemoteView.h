@@ -219,6 +219,12 @@ public:
     void request_close_preflight(Function<void(bool)> on_complete);
     bool needs_beforeunload_check() const;
     u64 add_navigation_listener(NavigationListener);
+    void set_compositor_layer_hidden(u64 layer_id, bool hidden);
+    void set_selected_compositor_layers(Vector<u64> layer_ids);
+    void set_hovered_compositor_layer(Optional<u64> layer_id);
+    void show_only_compositor_layers(Vector<u64> layer_ids);
+    void show_all_compositor_layers();
+    void reset_compositor_layer_raster_counts();
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
     Action& navigate_back_action() { return *m_navigate_back_action; }
     Action& navigate_forward_action() { return *m_navigate_forward_action; }
@@ -358,6 +364,7 @@ public:
     Function<void()> on_load_from_user_input;
     decltype(Hub::View::on_ready_to_paint) on_ready_to_paint;
     decltype(Hub::View::on_performance_stats) on_performance_stats;
+    decltype(Hub::View::on_compositor_layers_change) on_compositor_layers_change;
     Function<void(Web::HTML::ActivateTab, Web::HTML::WebViewHints, u64 view_id)> on_open_new_view;
     decltype(Hub::View::on_activate_tab) on_activate_tab;
     decltype(Hub::View::on_close) on_close;

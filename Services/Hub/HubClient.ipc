@@ -410,4 +410,5 @@ endpoint HubClient
     view_crash_overlay_state_change(u64 view_id, bool active) =|
     view_crash_report_saved(u64 view_id) =|
     view_performance_stats(u64 view_id, WebView::TabPerformanceStats stats) =|
+    view_compositor_layers_change(u64 view_id, Compositing::CompositorLayersDescription layers) =|
 }

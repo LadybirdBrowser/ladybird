@@ -2915,6 +2915,17 @@ static void append_gc_graph(StringBuilder& builder)
     gc_graph.serialize(builder);
 }
 
+void ConnectionFromClient::describe_owners_of_visual_context_nodes(Web::PageId page_id, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices)
+{
+    Web::Painting::OwnersOfVisualContextNodes owners;
+    auto page = this->page(page_id);
+    if (auto document = page.has_value() && page->page().has_local_traversable() ? page->page().local_traversable()->active_document() : nullptr)
+        owners = Web::Painting::describe_owners_of_visual_context_nodes(*document, spatial_node_indices, effect_node_indices);
+    else
+        owners.owners.resize(spatial_node_indices.size() + effect_node_indices.size());
+    async_did_describe_owners_of_visual_context_nodes(page_id, owners.structural_epoch, move(spatial_node_indices), move(effect_node_indices), move(owners.owners));
+}
+
 void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebView::PageInfoType type)
 {
     auto page = this->page(page_id);

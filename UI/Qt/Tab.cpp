@@ -269,6 +269,9 @@ void Tab::initialize(Optional<u64> hub_view_id)
         m_performance_stats = stats;
         emit performance_stats_changed();
     };
+    view().on_compositor_layers_change = [this](Compositing::CompositorLayersDescription const& layers) {
+        m_compositor_layers = layers;
+    };
 
     recreate_location_edit_icons();
     update_chrome_style();

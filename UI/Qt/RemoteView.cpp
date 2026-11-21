@@ -133,6 +133,36 @@ void RemoteView::set_device_pixel_ratio_and_viewport(double device_pixel_ratio, 
     HubConnection::the().async_view_set_viewport(view_id(), size, device_pixel_ratio);
 }
 
+void RemoteView::set_compositor_layer_hidden(u64 layer_id, bool hidden)
+{
+    HubConnection::the().async_view_set_compositor_layer_hidden(view_id(), layer_id, hidden);
+}
+
+void RemoteView::set_selected_compositor_layers(Vector<u64> layer_ids)
+{
+    HubConnection::the().async_view_set_selected_compositor_layers(view_id(), move(layer_ids));
+}
+
+void RemoteView::set_hovered_compositor_layer(Optional<u64> layer_id)
+{
+    HubConnection::the().async_view_set_hovered_compositor_layer(view_id(), layer_id);
+}
+
+void RemoteView::show_only_compositor_layers(Vector<u64> layer_ids)
+{
+    HubConnection::the().async_view_show_only_compositor_layers(view_id(), move(layer_ids));
+}
+
+void RemoteView::show_all_compositor_layers()
+{
+    HubConnection::the().async_view_show_all_compositor_layers(view_id());
+}
+
+void RemoteView::reset_compositor_layer_raster_counts()
+{
+    HubConnection::the().async_view_reset_compositor_layer_raster_counts(view_id());
+}
+
 u64 RemoteView::add_navigation_listener(NavigationListener listener)
 {
     auto id = m_next_navigation_listener_id++;

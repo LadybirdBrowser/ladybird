@@ -1177,4 +1177,10 @@ void HubConnection::view_performance_stats(u64 view_id, WebView::TabPerformanceS
         view->on_performance_stats(move(stats));
 }
 
+void HubConnection::view_compositor_layers_change(u64 view_id, Compositing::CompositorLayersDescription layers)
+{
+    if (auto* view = RemoteView::find(view_id); view && view->on_compositor_layers_change)
+        view->on_compositor_layers_change(layers);
+}
+
 }

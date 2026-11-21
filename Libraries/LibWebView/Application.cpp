@@ -3021,6 +3021,15 @@ void Application::set_shows_caret_hit_test_debug_overlay(bool shows)
     send_debug_switch_to_every_view("set-caret-hit-test-debug-overlay"sv, shows);
 }
 
+void Application::set_shows_compositor_layers(bool shows)
+{
+    m_shows_compositor_layers = shows;
+    ViewImplementation::for_each_view([](ViewImplementation& view) {
+        view.update_ui_overlays();
+        return IterationDecision::Continue;
+    });
+}
+
 void Application::dump_cookies() const
 {
     m_default_session->cookie_jar->dump_cookies();

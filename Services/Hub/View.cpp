@@ -630,6 +630,11 @@ void View::forward_callbacks_to_ui(bool is_tab)
             ui->async_view_performance_stats(view_id(), arguments...);
         }
     };
+
+    on_compositor_layers_change = [this](auto const&... arguments) {
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_compositor_layers_change(view_id(), arguments...);
+    };
 }
 
 ViewState View::current_state() const

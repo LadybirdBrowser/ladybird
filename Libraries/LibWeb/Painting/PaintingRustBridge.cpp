@@ -275,6 +275,32 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
     return move(context.dump);
 }
 
+OwnersOfVisualContextNodes describe_owners_of_visual_context_nodes(DOM::Document const& document, ReadonlySpan<u32> spatial_node_indices, ReadonlySpan<u32> effect_node_indices)
+{
+    struct DescribeContext {
+        GC::Ref<DOM::Document const> document;
+        Vector<String> owners;
+    } context { document, {} };
+    context.owners.resize(spatial_node_indices.size() + effect_node_indices.size());
+
+    Layout::ForcedReadScope read_scope { document };
+    Layout::BegunRead const& read = read_scope;
+    if (!document.has_committed_viewport_box())
+        return { .structural_epoch = 0, .owners = move(context.owners) };
+
+    Layout::RustFFI::FfiVisualContextNodeOwnerCallbacks callbacks {
+        .context = &context,
+        .debug_description = [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<DescribeContext*>(context_pointer)->document, slot, description_sink); },
+        .take_owner = [](void* context_pointer, size_t position, u8 const* bytes, size_t byte_count) {
+            auto& context = *static_cast<DescribeContext*>(context_pointer);
+            VERIFY(position < context.owners.size());
+            context.owners[position] = String::from_utf8_with_replacement_character(StringView { bytes, byte_count }); },
+    };
+    auto structural_epoch = Layout::RustFFI::painting_describe_owners_of_visual_context_nodes(document_host(document), &read, viewport_row_slot(read, document),
+        spatial_node_indices.data(), spatial_node_indices.size(), effect_node_indices.data(), effect_node_indices.size(), callbacks);
+    return { .structural_epoch = structural_epoch, .owners = move(context.owners) };
+}
+
 Utf16String display_list_dump_changes(Optional<StringView> previous_jsonl, StringView jsonl)
 {
     Utf16String changes;
