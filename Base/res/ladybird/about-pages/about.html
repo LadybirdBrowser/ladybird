@@ -35,18 +35,45 @@
             a:hover {
                 text-decoration: underline;
             }
+
+            .page-title {
+                margin-left: 8px;
+                color: var(--secondary-text-color);
+            }
         </style>
     </head>
     <body>
         <h1>List of About URLs</h1>
-        <ul>
-            <li><a href="about:about">about:about</a></li>
-            <li><a href="about:bookmarks">about:bookmarks</a></li>
-            <li><a href="about:crashes">about:crashes</a></li>
-            <li><a href="about:licenses">about:licenses</a></li>
-            <li><a href="about:settings">about:settings</a></li>
-            <li><a href="about:support">about:support</a></li>
-            <li><a href="about:version">about:version</a></li>
-        </ul>
+        <ul id="page-list"></ul>
+
+        <script>
+            const pageList = document.querySelector("#page-list");
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name !== "loadPages") return;
+
+                const pages = event.detail.data.toSorted((a, b) => a.host.localeCompare(b.host));
+
+                pageList.replaceChildren(
+                    ...pages.map(page => {
+                        const url = `about:${page.host}`;
+
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.textContent = url;
+
+                        const title = document.createElement("span");
+                        title.className = "page-title";
+                        title.textContent = page.title;
+
+                        const item = document.createElement("li");
+                        item.append(link, title);
+                        return item;
+                    })
+                );
+            });
+
+            document.addEventListener("WebUILoaded", () => ladybird.sendMessage("loadPages"));
+        </script>
     </body>
 </html>
