@@ -107,7 +107,9 @@ typedef struct GCLayout {
     uint8_t identity_hash_moved;
 } GCLayout;
 
-GC_API void gc_get_layout(GCLayout*);
+// The caller passes the size of its GCLayout, which must match LibGC's, so that a mirror that drifted is caught before
+// anything is written to it.
+GC_API void gc_get_layout(GCLayout*, size_t layout_size);
 
 // The base of the region all cells are allocated from, which NaN-boxed cell pointers are relative to. Reserves the
 // region on first use.

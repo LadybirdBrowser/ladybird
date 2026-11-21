@@ -816,7 +816,7 @@ impl Drop for Heap {
 /// Checks the layouts this crate mirrors against the LibGC it is linked with, and returns LibGC's layout.
 fn check_layout() -> GCLayout {
     let mut layout = GCLayout::default();
-    capi::gc_get_layout(&mut layout);
+    capi::gc_get_layout(&mut layout, size_of::<GCLayout>());
     let expect = |what: &str, actual: u64, expected: u64| {
         assert!(
             actual == expected,
