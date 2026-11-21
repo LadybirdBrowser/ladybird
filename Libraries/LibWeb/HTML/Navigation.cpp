@@ -287,6 +287,10 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
     if (document.unload_counter() > 0)
         return early_error_result(WebIDL::InvalidStateError::create("Document already unloaded"_utf16));
 
+    // AD-HOC: navigate() ignores this navigation, which would leave the promises unsettled.
+    if (document.navigable()->is_too_deeply_nested_to_load(*url_record))
+        return early_error_result(WebIDL::AbortError::create("Frame is nested too deeply"_utf16));
+
     // 10. Let info be options["info"], if it exists; otherwise, undefined.
     auto info = options.info.value_or(JS::js_undefined());
 

@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -177,6 +178,26 @@ GC::Ref<Navigable> Navigable::top_level_traversable()
     return navigable;
 }
 
+// INTEROP: The spec only stops a frame from loading the URL of an ancestor, so a page that gives each copy of itself a
+//          new URL nests without end. Like other engines, we limit how deep frames can load documents. URLs that fetch
+//          nothing stay allowed at any depth.
+bool Navigable::is_too_deeply_nested_to_load(URL::URL const& url, MayNavigateToAFragment may_navigate_to_a_fragment) const
+{
+    static constexpr size_t maximum_depth = 10;
+
+    if (url_matches_about_blank(url) || url_matches_about_srcdoc(url) || url.scheme() == "javascript"sv)
+        return false;
+
+    // A navigation to a fragment of the active document stays in that document.
+    if (auto active_url = active_document_url(); may_navigate_to_a_fragment == MayNavigateToAFragment::Yes && url.fragment().has_value() && active_url.has_value() && url.equals(*active_url, URL::ExcludeFragment::Yes))
+        return false;
+
+    size_t depth = 1;
+    for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent())
+        ++depth;
+    return depth > maximum_depth;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 {
@@ -225,6 +246,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
             return {};
         }
     }
+
+    // AD-HOC: See is_too_deeply_nested_to_load(). Only a navigation without a document resource or response can be one
+    //         to a fragment; a POST to a URL with a fragment still loads a document.
+    auto may_navigate_to_a_fragment = params.document_resource.has<Empty>() && !params.response ? MayNavigateToAFragment::Yes : MayNavigateToAFragment::No;
+    if (is_too_deeply_nested_to_load(params.url, may_navigate_to_a_fragment))
+        return {};
 
     // AD-HOC: Nothing the browser process can see names this URL's blob URL entry until the navigation commits, so
     //         ask it to keep the entry until then.
