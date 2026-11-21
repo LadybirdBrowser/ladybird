@@ -271,7 +271,7 @@ pub struct FfiRasterHost {
 
     /// Maps the shared memory of the descriptor, which it takes over, answering a mapping that `unmap_shared_memory`
     /// drops, or null where the descriptor does not hold that much. Writes where the memory is and its size.
-    pub map_shared_memory: unsafe extern "C" fn(*mut c_void, i32, u64, *mut *const u8, *mut usize) -> *mut c_void,
+    pub map_shared_memory: unsafe extern "C" fn(*mut c_void, i32, u64, *mut *mut u8, *mut usize) -> *mut c_void,
     pub unmap_shared_memory: unsafe extern "C" fn(*mut c_void),
     /// Arguments: the context, and the ids of the image frames that a display list or a visual context tree draws.
     /// Has the context hold those it lacks of the image frames its client registered, and answers whether it then
@@ -325,6 +325,35 @@ pub struct FfiRasterHost {
     pub present_canvas_2d_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId) -> bool,
     /// Arguments: the client and canvases of its contexts. Submits the GPU work drawn into their surfaces.
     pub flush_canvas_2d_contexts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, CanvasId>),
+}
+
+/// Shared memory that WebContent sent, mapped until this is dropped.
+pub struct SharedMemory {
+    mapping: NonNull<c_void>,
+    data: *mut u8,
+    len: usize,
+    unmap: unsafe extern "C" fn(*mut c_void),
+}
+
+impl SharedMemory {
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.data
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl Drop for SharedMemory {
+    fn drop(&mut self) {
+        // SAFETY: The mapping came from the host, and nothing uses it after this.
+        unsafe { (self.unmap)(self.mapping.as_ptr()) };
+    }
 }
 
 /// Sublayers whose content the C++ side resolved, which keep that content busy until they are shown or dropped.
@@ -697,39 +726,40 @@ impl RasterHost {
         buffer: Core_AnonymousBuffer,
         sizes: &[PackedChunkSize],
     ) -> Result<Vec<ListChunk>, &'static str> {
-        let Some((size_of_packed_chunks, file)) = buffer.shared_memory else {
+        let Some(memory) = self.map_shared_memory(buffer) else {
+            return Err("Display list buffer is smaller than it claims");
+        };
+        let Some(memory) = memory else {
             // SAFETY: Nothing is read from an empty buffer.
             return unsafe { receive_packed_chunks_from_shared_memory(std::ptr::null(), 0, sizes) };
+        };
+        // SAFETY: The mapping holds as many readable bytes until it is dropped, after the chunks are copied out.
+        unsafe { receive_packed_chunks_from_shared_memory(memory.as_ptr(), memory.len(), sizes) }
+    }
+
+    /// Maps shared memory that WebContent sent, which is empty where the buffer holds nothing. None where the buffer
+    /// does not hold as much memory as it claims.
+    pub fn map_shared_memory(&self, buffer: Core_AnonymousBuffer) -> Option<Option<SharedMemory>> {
+        let Some((size, file)) = buffer.shared_memory else {
+            return Some(None);
         };
         #[cfg(unix)]
         let descriptor = std::os::fd::IntoRawFd::into_raw_fd(file.0);
         #[cfg(windows)]
         let descriptor = file.0.into_raw();
-        let mut data = std::ptr::null();
+        let mut data = std::ptr::null_mut();
         let mut mapped_size = 0;
         // SAFETY: The host outlives this, and takes the descriptor over.
-        let mapping = unsafe {
-            (self.0.map_shared_memory)(
-                self.host(),
-                descriptor,
-                size_of_packed_chunks,
-                &raw mut data,
-                &raw mut mapped_size,
-            )
+        let mapping =
+            unsafe { (self.0.map_shared_memory)(self.host(), descriptor, size, &raw mut data, &raw mut mapped_size) };
+        let mut memory = SharedMemory {
+            mapping: NonNull::new(mapping)?,
+            data,
+            len: mapped_size,
+            unmap: self.0.unmap_shared_memory,
         };
-        if mapping.is_null() {
-            return Err("Display list buffer is smaller than it claims");
-        }
-        let chunks = match usize::try_from(size_of_packed_chunks) {
-            Ok(size_of_packed_chunks) if size_of_packed_chunks <= mapped_size => {
-                // SAFETY: The mapping holds `mapped_size` readable bytes at `data` until it is dropped below.
-                unsafe { receive_packed_chunks_from_shared_memory(data, size_of_packed_chunks, sizes) }
-            }
-            _ => Err("Display list buffer is smaller than it claims"),
-        };
-        // SAFETY: The mapping came from the host, which drops it once.
-        unsafe { (self.0.unmap_shared_memory)(mapping) };
-        chunks
+        memory.len = usize::try_from(size).ok().filter(|&size| size <= mapped_size)?;
+        Some(Some(memory))
     }
 
     pub fn take_registered_image_frames(&self, context_id: CompositorContextId, image_frame_ids: &[u64]) -> bool {

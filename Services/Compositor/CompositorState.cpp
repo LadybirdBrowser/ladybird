@@ -1528,7 +1528,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
             receive(receiver, contexts_with_new_video_frames.span()); },
         .context_video_sinks_require_updates = [](void* host, u64 context_id) { return state_of(host).context_video_sinks_require_updates(Context { context_id }); },
         .set_maximum_display_refresh_rate = [](void* host, double refresh_rate) { state_of(host).set_maximum_display_refresh_rate(refresh_rate); },
-        .map_shared_memory = [](void*, i32 descriptor, u64 size, u8 const** data, size_t* data_size) -> void* {
+        .map_shared_memory = [](void*, i32 descriptor, u64 size, u8** data, size_t* data_size) -> void* {
             auto buffer = Core::AnonymousBuffer::create_from_anon_fd(descriptor, size);
             if (buffer.is_error()) {
                 dbgln("Compositor: Could not map shared memory from WebContent: {}", buffer.error());
@@ -1539,7 +1539,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
                 return nullptr;
             }
             auto mapping = make<SharedMemoryMapping>(buffer.release_value());
-            *data = mapping->buffer.bytes().data();
+            *data = mapping->buffer.data<u8>();
             *data_size = mapping->buffer.bytes().size();
             return mapping.leak_ptr();
         },
