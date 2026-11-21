@@ -21,6 +21,7 @@ rustc-demangle = "0.1"
 
 [build-dependencies]
 cbindgen = "0.29"
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [lints]
 workspace = true

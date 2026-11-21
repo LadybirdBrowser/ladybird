@@ -52,14 +52,27 @@ const fn offset_of_data_following_struct(struct_size: usize) -> u32 {
 /// # Safety
 ///
 /// The type is `repr(C)`, made of numbers, booleans and [`DataSpan`]s, and has no byte that is not part of a field.
+/// `BOOL_FIELD_OFFSETS` lists where its booleans are.
 pub unsafe trait WireStruct: Copy + 'static {
     /// A struct is built from it, so that the bytes that the C ABI leaves unused between its fields, which are fields
     /// of their own here, do not have to be named.
     const ZEROED: Self;
+    const BOOL_FIELD_OFFSETS: &'static [usize] = &[];
 
     fn as_bytes(&self) -> &[u8] {
         // SAFETY: Per the contract of the trait every byte of the struct is initialized.
         unsafe { ak::slice_from_raw_parts(ptr::from_ref(self).cast::<u8>(), size_of::<Self>()) }
+    }
+
+    /// The struct that a payload starts with. None where the payload is shorter than the struct, or where it has
+    /// another byte than 0 or 1 for a boolean.
+    fn read_from(payload: &[u8]) -> Option<Self> {
+        if payload.len() < size_of::<Self>() || Self::BOOL_FIELD_OFFSETS.iter().any(|&offset| payload[offset] > 1) {
+            return None;
+        }
+        // SAFETY: The bytes are as many as the struct has, and per the contract of the trait and the check above they
+        //         are a value of it.
+        Some(unsafe { ptr::read_unaligned(payload.as_ptr().cast::<Self>()) })
     }
 }
 
@@ -279,6 +292,80 @@ pub fn encode_sync_request<R: SyncRequest>(
     true
 }
 
+fn read_header(bytes: &[u8]) -> Option<(u16, usize)> {
+    let header: &[u8; HEADER_SIZE] = bytes.first_chunk()?;
+    let type_number = u16::from_ne_bytes([header[0], header[1]]);
+    let size_after_header = u32::from_ne_bytes(*header[HEADER_PAYLOAD_SIZE_OFFSET..].first_chunk()?);
+    Some((type_number, usize::try_from(size_after_header).ok()?))
+}
+
+/// The records of a stream of commands, each as its type and its payload.
+pub fn records(bytes: &[u8]) -> Records<'_> {
+    Records { bytes }
+}
+
+pub struct Records<'a> {
+    bytes: &'a [u8],
+}
+
+impl<'a> Iterator for Records<'a> {
+    type Item = Result<(CommandType, &'a [u8]), &'static str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bytes.is_empty() {
+            return None;
+        }
+        let bytes = core::mem::take(&mut self.bytes);
+        let Some((type_number, payload_size)) = read_header(bytes) else {
+            return Some(Err("Truncated WebGL command header"));
+        };
+        let Some(command_type) = CommandType::from_number(type_number) else {
+            return Some(Err("Invalid WebGL command type"));
+        };
+        let Some((payload, rest)) = bytes[HEADER_SIZE..].split_at_checked(payload_size) else {
+            return Some(Err("Truncated WebGL command payload"));
+        };
+        self.bytes = rest;
+        Some(Ok((command_type, payload)))
+    }
+}
+
+/// The type and the payload of a synchronous request.
+pub fn decode_sync_request(bytes: &[u8]) -> Result<(SyncCallType, &[u8]), &'static str> {
+    let (type_number, payload_size) = read_header(bytes).ok_or("Truncated WebGL sync call header")?;
+    let call_type = SyncCallType::from_number(type_number).ok_or("Invalid WebGL sync call type")?;
+    let payload = &bytes[HEADER_SIZE..];
+    if payload.len() != payload_size {
+        return Err("Truncated WebGL sync call payload");
+    }
+    Ok((call_type, payload))
+}
+
+/// Where the data that follows the struct of a reply is, as [`encode_reply`] lays it out.
+pub fn reply_data_spans<R: WireStruct, const N: usize>(sizes: [usize; N]) -> [DataSpan; N] {
+    let mut end_of_previous_data = size_of::<R>();
+    sizes.map(|size| {
+        let offset = end_of_previous_data.next_multiple_of(RECORD_ALIGNMENT);
+        end_of_previous_data = offset + size;
+        DataSpan {
+            offset: u32::try_from(offset).expect("the data of a reply starts in its first 4 GiB"),
+            size: u32::try_from(size).expect("the data of a reply is less than 4 GiB"),
+        }
+    })
+}
+
+/// A reply: its struct, and each piece of data that is not empty at the next multiple of the alignment, padded to the
+/// alignment as a whole.
+pub fn encode_reply<R: WireStruct>(reply: &R, data: &[&[u8]]) -> Vec<u8> {
+    let mut bytes = reply.as_bytes().to_vec();
+    for data in data.iter().filter(|data| !data.is_empty()) {
+        bytes.resize(bytes.len().next_multiple_of(RECORD_ALIGNMENT), 0);
+        bytes.extend_from_slice(data);
+    }
+    bytes.resize(bytes.len().next_multiple_of(RECORD_ALIGNMENT), 0);
+    bytes
+}
+
 pub fn resolve_data_span(reply: &[u8], span: DataSpan) -> &[u8] {
     let start = span.offset as usize;
     start
@@ -494,5 +581,110 @@ mod tests {
     #[should_panic(expected = "lies inside the reply")]
     fn a_span_that_leaves_the_reply_is_not_resolved() {
         resolve_data_span(&[0; 16], DataSpan { offset: 12, size: 5 });
+    }
+
+    #[test]
+    fn records_are_read_as_they_are_written() {
+        let mut commands = Vec::new();
+        let enable = commands::Enable { cap: 7 };
+        let data = [1u8, 2, 3];
+        let uniform = commands::Uniform1fv {
+            location: 9,
+            count: 1,
+            value: DataSpan::following::<commands::Uniform1fv>(InlineData::Bytes(&data)),
+        };
+        Record::new(CommandType::Enable, enable.as_bytes(), InlineData::NONE)
+            .unwrap()
+            .append_to(&mut commands);
+        Record::new(CommandType::Uniform1fv, uniform.as_bytes(), InlineData::Bytes(&data))
+            .unwrap()
+            .append_to(&mut commands);
+
+        let read: Vec<_> = records(&commands).collect::<Result<_, _>>().unwrap();
+        assert_eq!(read.len(), 2);
+        assert_eq!(read[0].0, CommandType::Enable);
+        assert_eq!(commands::Enable::read_from(read[0].1), Some(enable));
+        assert_eq!(read[1].0, CommandType::Uniform1fv);
+        assert_eq!(commands::Uniform1fv::read_from(read[1].1), Some(uniform));
+        assert_eq!(resolve_data_span(read[1].1, uniform.value), data);
+    }
+
+    #[test]
+    fn a_record_that_the_stream_does_not_hold_is_rejected() {
+        assert_eq!(
+            records(&header(0, 0)[..7]).next(),
+            Some(Err("Truncated WebGL command header"))
+        );
+        assert_eq!(
+            records(&header(u16::MAX, 0)).next(),
+            Some(Err("Invalid WebGL command type"))
+        );
+        let mut truncated = header(CommandType::Enable as u16, 8);
+        truncated.extend_from_slice(&[0; 7]);
+        let mut read = records(&truncated);
+        assert_eq!(read.next(), Some(Err("Truncated WebGL command payload")));
+        assert_eq!(read.next(), None);
+    }
+
+    #[test]
+    fn a_struct_is_read_only_with_booleans_that_are_true_or_false() {
+        let command = commands::BufferData {
+            has_data: true,
+            ..commands::BufferData::ZEROED
+        };
+        let mut bytes = command.as_bytes().to_vec();
+        assert_eq!(commands::BufferData::BOOL_FIELD_OFFSETS, [16]);
+        assert_eq!(commands::BufferData::read_from(&bytes), Some(command));
+        bytes[16] = 2;
+        assert_eq!(commands::BufferData::read_from(&bytes), None);
+        assert_eq!(commands::BufferData::read_from(&bytes[..31]), None);
+    }
+
+    #[test]
+    fn a_request_is_read_as_it_is_written() {
+        let name = InlineData::NulTerminated(b"color");
+        let request = sync_calls::GetAttribLocationRequest {
+            program: 3,
+            name: DataSpan::following::<sync_calls::GetAttribLocationRequest>(name),
+        };
+        let mut request_bytes = Vec::new();
+        assert!(encode_sync_request(&mut request_bytes, &request, name));
+        let (call_type, payload) = decode_sync_request(&request_bytes).unwrap();
+        assert_eq!(call_type, SyncCallType::GetAttribLocation);
+        assert_eq!(sync_calls::GetAttribLocationRequest::read_from(payload), Some(request));
+        assert_eq!(resolve_data_span(payload, request.name), b"color\0");
+
+        request_bytes.push(0);
+        assert_eq!(
+            decode_sync_request(&request_bytes),
+            Err("Truncated WebGL sync call payload")
+        );
+        assert_eq!(
+            decode_sync_request(&header(u16::MAX, 0)),
+            Err("Invalid WebGL sync call type")
+        );
+    }
+
+    #[test]
+    fn a_reply_holds_its_data_where_its_spans_say() {
+        let info_log = b"abc";
+        let [span] = reply_data_spans::<sync_calls::GetShaderInfoLogReply, 1>([info_log.len()]);
+        assert_eq!(span, DataSpan { offset: 16, size: 3 });
+        let reply = sync_calls::GetShaderInfoLogReply {
+            length: 3,
+            info_log: span,
+        };
+        let bytes = encode_reply(&reply, &[info_log]);
+        assert_eq!(bytes.len(), 32);
+        assert_eq!(sync_calls::GetShaderInfoLogReply::from_reply_bytes(&bytes), reply);
+        assert_eq!(resolve_data_span(&bytes, span), info_log);
+        assert_eq!(bytes[19..], [0; 13]);
+
+        let [empty, second] = reply_data_spans::<sync_calls::GetShaderInfoLogReply, 2>([0, 5]);
+        assert_eq!(empty, DataSpan { offset: 16, size: 0 });
+        assert_eq!(second, DataSpan { offset: 16, size: 5 });
+        let bytes = encode_reply(&reply, &[b"", b"hello"]);
+        assert_eq!(resolve_data_span(&bytes, second), b"hello");
+        assert_eq!(encode_reply(&sync_calls::GetErrorReply::ZEROED, &[]).len(), 16);
     }
 }

@@ -304,7 +304,7 @@ impl FfiBytes for FontResourceId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct ImageFrameResourceId(pub u64);
 
@@ -315,7 +315,7 @@ impl FfiBytes for ImageFrameResourceId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct VideoSinkHandle(pub u64);
 

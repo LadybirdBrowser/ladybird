@@ -73,7 +73,22 @@ fn write_struct(out: &mut String, rust_name: &str, layout: &WireStruct) {
     for field in &fields {
         writeln!(out, "            {}: {},", field.name, field.zero).unwrap();
     }
-    out.push_str("        };\n    }\n");
+    out.push_str("        };\n");
+    let bool_field_offsets: Vec<String> = layout
+        .fields
+        .iter()
+        .filter(|field| field.wire_type == WireType::Bool)
+        .map(|field| field.offset.to_string())
+        .collect();
+    if !bool_field_offsets.is_empty() {
+        writeln!(
+            out,
+            "        const BOOL_FIELD_OFFSETS: &'static [usize] = &[{}];",
+            bool_field_offsets.join(", ")
+        )
+        .unwrap();
+    }
+    out.push_str("    }\n");
     out.push_str("    const _: () = {\n");
     writeln!(out, "        assert!(size_of::<{rust_name}>() == {});", layout.size).unwrap();
     writeln!(
@@ -102,6 +117,12 @@ fn write_type_enum(out: &mut String, enum_name: &str, count_name: &str, descript
         writeln!(out, "    {name},").unwrap();
     }
     out.push_str("}\n\n");
+    writeln!(out, "impl {enum_name} {{").unwrap();
+    out.push_str("    pub fn from_number(number: u16) -> Option<Self> {\n        Some(match number {\n");
+    for (number, name) in names.iter().enumerate() {
+        writeln!(out, "            {number} => Self::{name},").unwrap();
+    }
+    out.push_str("            _ => return None,\n        })\n    }\n}\n\n");
     // NB: Only the tests of the vocabulary ask how many types there are.
     writeln!(out, "#[cfg(test)]\npub const {count_name}: u16 = {};\n", names.len()).unwrap();
 }

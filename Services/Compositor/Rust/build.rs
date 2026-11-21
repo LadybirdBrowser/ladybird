@@ -6,11 +6,45 @@
 
 use std::env;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+#[allow(dead_code, reason = "the model is for the generators of the other crates as well")]
+#[path = "../../../Libraries/LibCompositing/Rust/generate/webgl_wire_model.rs"]
+mod webgl_wire_model;
+
+#[path = "generate/webgl_replayer.rs"]
+mod webgl_replayer;
+
+/// The GL functions that the replayer of WebGL calls, which src/webgl/gl.rs includes, and the methods of the replayer,
+/// which src/webgl/replay.rs includes.
+fn generate_webgl_replayer(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let libraries = manifest_dir.join("../../../Libraries");
+    let functions_path = libraries.join("LibCompositing/WebGL/GLFunctions.json");
+    println!("cargo:rerun-if-changed={}", functions_path.display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        libraries.join("LibCompositing/Rust/generate").display()
+    );
+    println!("cargo:rerun-if-changed=generate");
+    let json = std::fs::read_to_string(&functions_path)?;
+    let generate = |json: &str| -> Result<(String, String), String> {
+        let functions = webgl_wire_model::parse_functions(json)?;
+        Ok((
+            webgl_replayer::write_gl_functions(&functions)?,
+            webgl_replayer::write_replayer(&functions)?,
+        ))
+    };
+    let (gl_functions, replayer) = generate(&json).map_err(|error| format!("{}: {error}", functions_path.display()))?;
+    std::fs::write(out_dir.join("webgl_gl.rs"), gl_functions)?;
+    std::fs::write(out_dir.join("webgl_replayer.rs"), replayer)?;
+    Ok(())
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+
+    generate_webgl_replayer(&manifest_dir, &out_dir)?;
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");

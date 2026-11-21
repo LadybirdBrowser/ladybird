@@ -12,8 +12,8 @@
 use std::fmt::Write;
 
 use crate::webgl_wire_model::{
-    Argument, Category, FieldSpec, Function, WireStruct, WireType, rust_identifier, title_case_to_snake_case,
-    wire_struct,
+    Argument, Category, FieldSpec, Function, PayloadFactor, WireStruct, WireType, rust_identifier,
+    title_case_to_snake_case, wire_struct,
 };
 
 fn parameter_name(argument: &Argument) -> String {
@@ -40,37 +40,29 @@ fn scalar_parameter_type(function: &Function, argument: &Argument) -> Result<&'s
     }
 }
 
-fn size_of_gl_type(gl_type: &str) -> Option<usize> {
-    Some(match gl_type {
-        "GLchar" | "GLboolean" => 1,
-        "GLint" | "GLuint" | "GLfloat" | "GLenum" => 4,
-        "GLint64" => 8,
-        _ => return None,
-    })
-}
-
 fn payload_size_expression(function: &Function, argument: &Argument) -> Result<String, String> {
-    let payload = argument.payload.as_deref().expect("the argument has a payload");
     let mut factors = Vec::new();
-    for factor in payload.split(" * ") {
-        if factor.bytes().all(|byte| byte.is_ascii_digit()) {
-            factors.push(factor.to_string());
-        } else if let Some(gl_type) = factor.strip_prefix("sizeof(").and_then(|rest| rest.strip_suffix(')')) {
-            let size = size_of_gl_type(gl_type)
-                .ok_or_else(|| unsupported(function, argument, &format!("is counted in {gl_type}")))?;
-            factors.push(size.to_string());
-        } else if factor == "(buffer == GL_COLOR ? 4 : 1)" {
-            factors.push("if buffer == GL_COLOR { 4 } else { 1 }".to_string());
-        } else {
-            let counted_by = function
-                .arguments
-                .iter()
-                .find(|other| other.name == factor && !other.is_out);
-            let name = counted_by.map(parameter_name);
-            match (name, counted_by.and_then(|other| WireType::of(&other.cpp_type))) {
-                (Some(name), Some(WireType::I32)) => factors.push(format!("i64::from({name})")),
-                (Some(name), Some(WireType::I64)) => factors.push(name),
-                _ => return Err(unsupported(function, argument, &format!("has the size {payload:?}"))),
+    for factor in function.payload_size(argument)? {
+        match factor {
+            PayloadFactor::Constant(constant) => factors.push(constant.to_string()),
+            PayloadFactor::ColorBufferComponents(index) => factors.push(format!(
+                "if {} == GL_COLOR {{ 4 }} else {{ 1 }}",
+                parameter_name(&function.arguments[index])
+            )),
+            PayloadFactor::Argument(index) => {
+                let counted_by = &function.arguments[index];
+                let name = parameter_name(counted_by);
+                match WireType::of(&counted_by.cpp_type) {
+                    Some(WireType::I32) => factors.push(format!("i64::from({name})")),
+                    Some(WireType::I64) => factors.push(name),
+                    _ => {
+                        return Err(unsupported(
+                            function,
+                            argument,
+                            &format!("is counted by {}", counted_by.name),
+                        ));
+                    }
+                }
             }
         }
     }
@@ -524,7 +516,7 @@ mod tests {
             r#"{"name": "glSized", "return": "void", "category": "command", "args": [
                 {"type": "GLint const*", "name": "a", "payload": "strlen(a)"}]}"#,
         );
-        assert!(unknown_size.unwrap_err().contains("has the size \"strlen(a)\""));
+        assert!(unknown_size.unwrap_err().contains("the size \"strlen(a)\""));
         let unknown_element = proxy_for(
             r#"{"name": "glGetDoubles", "return": "void", "category": "sync", "args": [
                 {"type": "GLsizei", "name": "n"},
