@@ -54,7 +54,6 @@ private:
     virtual void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void release_video_frame_hold(Media::VideoSinkHandle, u64 generation) override;
-    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
     virtual void destroy_context(Web::CompositorContextId) override;

@@ -88,7 +88,6 @@ public:
     void set_parent_context(Optional<Web::CompositorContextId>);
     void stop_presenting_to_client();
 
-    void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
     Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);
@@ -165,7 +164,6 @@ public:
     // Returns whether a compositor heard of the sink, which one that connects later will not have.
     [[nodiscard]] bool add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
-    void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     Compositing::VideoFrameHold::ReleaseThroughCompositor video_frame_hold_releaser_for_current_connection() const;
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);

@@ -122,7 +122,6 @@ public:
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);
     void remove_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
-    void set_video_sink_ticking(CompositorStateWebContentClient&, Media::VideoSinkHandle, bool should_tick);
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);
     void add_animated_image(CompositorStateWebContentClient&, Compositing::ImageFrameResourceId, AnimatedImage::Description);
     void remove_animated_image(CompositorStateWebContentClient&, Compositing::ImageFrameResourceId);
@@ -309,10 +308,10 @@ private:
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;
-        bool should_tick { true };
         bool requires_updates { false };
     };
     VideoSinkState* video_sink_state(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    void video_sink_ticking_changed(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     // The frame that a video sink of the client shows now, which is null for a sink that the client does not have or
     // that shows none.
     RefPtr<Media::VideoFrame> current_video_frame(CompositorStateWebContentClient&, Media::VideoSinkHandle);

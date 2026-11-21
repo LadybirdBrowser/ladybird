@@ -165,11 +165,6 @@ void ConnectionFromWebContent::video_sink_counted_frames(Media::VideoSinkHandle 
     m_video_frame_holds.add_frame_counts(video_sink_handle, new_frame_counts);
 }
 
-void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
-{
-    m_compositor_state->set_video_sink_ticking(*this, video_sink_handle, should_tick);
-}
-
 void ConnectionFromWebContent::create_video_edge(Media::VideoSinkHandle video_sink_handle)
 {
     if (!m_video_presentation_connection)
