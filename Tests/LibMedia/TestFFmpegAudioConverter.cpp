@@ -96,3 +96,16 @@ TEST_CASE(stereo_converts_into_a_layout_with_top_side_speakers)
             EXPECT_EQ(converted_block.sample(channel, frame), 0.0f);
     }
 }
+
+TEST_CASE(a_channel_map_ending_in_one_unknown_channel_becomes_a_custom_layout)
+{
+    auto channel_map = Audio::ChannelMap(Audio::Channel::FrontLeft, Audio::Channel::FrontRight, Audio::Channel::Unknown);
+    auto layout = MUST(Media::FFmpeg::FFmpegChannelLayout::from_channel_map(Media::FFmpeg::FFmpegFunctions::bundled(), channel_map));
+    EXPECT_EQ(layout.layout().order, AV_CHANNEL_ORDER_CUSTOM);
+    EXPECT_EQ(layout.layout().nb_channels, 3);
+    if (layout.layout().order != AV_CHANNEL_ORDER_CUSTOM || layout.layout().nb_channels != 3)
+        return;
+    EXPECT_EQ(layout.layout().u.map[0].id, AV_CHAN_FRONT_LEFT);
+    EXPECT_EQ(layout.layout().u.map[1].id, AV_CHAN_FRONT_RIGHT);
+    EXPECT_EQ(layout.layout().u.map[2].id, AV_CHAN_UNKNOWN);
+}
