@@ -244,10 +244,6 @@
         "vulkan"
       ]
     },
-    {
-      "name": "sparkle",
-      "platform": "osx"
-    },
     "sqlite3",
     {
       "name": "tiff",
@@ -272,6 +268,17 @@
     "zlib",
     "zmij"
   ],
+  "features": {
+    "sparkle": {
+      "description": "Update the macOS app with Sparkle",
+      "dependencies": [
+        {
+          "name": "sparkle",
+          "platform": "osx"
+        }
+      ]
+    }
+  },
   "overrides": [
     {
       "name": "angle",

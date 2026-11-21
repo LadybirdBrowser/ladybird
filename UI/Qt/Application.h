@@ -173,7 +173,7 @@ public:
     BrowserWindow* active_window_if_any() const { return m_active_window; }
     BrowserWindow* non_private_window_if_any() const;
 
-#if defined(AK_OS_MACOS)
+#if defined(LADYBIRD_HAS_SPARKLE)
     SoftwareUpdater* software_updater() { return m_software_updater.ptr(); }
 #endif
 
@@ -357,7 +357,7 @@ private:
     OwnPtr<WebView::MicrophoneAuthorizer> m_microphone_authorizer;
     OwnPtr<WebView::DefaultBrowser> m_default_browser;
     OwnPtr<WebView::Settings> m_settings;
-#if defined(AK_OS_MACOS)
+#if defined(LADYBIRD_HAS_SPARKLE)
     OwnPtr<SoftwareUpdater> m_software_updater;
 #endif
     OwnPtr<SessionStore> m_session_store;
