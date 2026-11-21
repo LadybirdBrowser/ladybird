@@ -82,12 +82,11 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
     VERIFY(functions.av_opt_set_int(codec_context, "ar", sample_specification.sample_rate(), 0) == 0);
 
     if (sample_specification.channel_map().is_valid()) {
-        auto channel_layout_result = channel_map_to_av_channel_layout(functions, sample_specification.channel_map());
+        auto channel_layout_result = FFmpegChannelLayout::from_channel_map(functions, sample_specification.channel_map());
         if (channel_layout_result.is_error())
             return DecoderError::format(DecoderErrorCategory::Invalid, channel_layout_result.error().string_literal());
         auto channel_layout = channel_layout_result.release_value();
-        auto set_result = functions.av_opt_set_chlayout(codec_context, "ch_layout", &channel_layout, 0);
-        functions.av_channel_layout_uninit(&channel_layout);
+        auto set_result = functions.av_opt_set_chlayout(codec_context, "ch_layout", &channel_layout.layout(), 0);
         VERIFY(set_result == 0);
     }
 
@@ -230,10 +229,8 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_next_frame()
     if (sample_rate <= 0 || sample_rate > NumericLimits<u32>::max())
         return DecoderError::corrupted("FFmpeg decoder created a frame with an invalid sample rate"sv);
 
-    AVChannelLayout channel_layout;
-    VERIFY(m_functions.av_opt_get_chlayout(m_codec_context, "ch_layout", 0, &channel_layout) == 0);
-    auto channel_map_result = av_channel_layout_to_channel_map(m_functions, channel_layout);
-    m_functions.av_channel_layout_uninit(&channel_layout);
+    auto channel_layout = FFmpegChannelLayout::from_opt(m_functions, m_codec_context, "ch_layout");
+    auto channel_map_result = channel_layout.to_channel_map();
     if (channel_map_result.is_error())
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, channel_map_result.error().string_literal());
 

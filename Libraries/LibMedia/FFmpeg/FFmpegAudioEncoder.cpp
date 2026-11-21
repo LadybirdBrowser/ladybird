@@ -45,10 +45,10 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioEncoder>> FFmpegAudioEncoder::try_create
     codec_context->sample_fmt = AV_SAMPLE_FMT_FLT;
 
     if (sample_specification.channel_map().is_valid()) {
-        auto channel_layout_result = channel_map_to_av_channel_layout(functions, sample_specification.channel_map());
+        auto channel_layout_result = FFmpegChannelLayout::from_channel_map(functions, sample_specification.channel_map());
         if (channel_layout_result.is_error())
             return DecoderError::format(DecoderErrorCategory::Invalid, channel_layout_result.error().string_literal());
-        codec_context->ch_layout = channel_layout_result.release_value();
+        codec_context->ch_layout = channel_layout_result.release_value().leak_layout();
     }
 
     if (functions.avcodec_open2(codec_context, codec, nullptr) < 0)
