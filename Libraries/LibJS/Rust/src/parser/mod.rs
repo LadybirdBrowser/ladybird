@@ -265,9 +265,11 @@ impl ScriptData {
     ) -> Result<(Ast<'z>, u32), OutOfStack> {
         let row_index = row.0 as usize;
         // NB: A tree of the whole function is the most it is likely to have, as the tree skips the code of nested
-        //     functions. It starts with room for at most as many nodes as the work zone keeps memory for.
+        //     functions. It starts with room for at most as many nodes as the work zone keeps memory for, and takes
+        //     room for the rest in one step if it outgrows that.
         let length = (self.index.end[row_index] - self.index.start[row_index]) as usize;
-        let estimated_nodes = (length / 3 + 16).min(1 << 16);
+        let whole_function_nodes = length / 3 + 16;
+        let estimated_nodes = whole_function_nodes.min(1 << 16);
         let needs_padding = self.index.flags[row_index] & function_flag::REACHES_SOURCE_END != 0;
         let name_count = context.names.len();
         // SAFETY: The index of this ScriptData stays where it is, since the ScriptData is shared by an Arc, and never
@@ -284,6 +286,7 @@ impl ScriptData {
                 estimated_nodes,
             )
         };
+        parser.ast.likely_most_nodes = whole_function_nodes;
         parser.tracks_scopes = false;
         parser.marks = true;
         parser.inline_argument_limit = inline_argument_limit;

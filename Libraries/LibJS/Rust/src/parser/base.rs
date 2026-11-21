@@ -395,9 +395,12 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
     pub unsafe fn new(zone: &'a Zone, source: &'a [U], module: bool, mode: Mode) -> Self {
         let interner = Interner::new(zone, source.len());
+        // NB: A lazy parse skips the code of functions, which is most of the code of most sources, so a tree of the
+        //     whole source is only the most it is likely to have.
+        let whole_source_nodes = source.len() / 3 + 16;
         let estimated_nodes = match mode {
-            Mode::Lazy => (source.len() / 3 + 16).min(1 << 16),
-            Mode::Full => source.len() / 3 + 16,
+            Mode::Lazy => whole_source_nodes.min(1 << 16),
+            Mode::Full => whole_source_nodes,
         };
         let estimated_functions = source.len() / 128;
         let estimated_uses = (source.len() / 8 + 16).min(1 << 16);
@@ -419,6 +422,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             estimated_nodes,
             estimated_uses,
         );
+        parser.ast.likely_most_nodes = whole_source_nodes;
         parser.pending_captures.reserve(estimated_functions * 2);
         if source.len() >= u32::MAX as usize - 64 {
             parser.len = 0;
@@ -632,8 +636,9 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         context: ProgramContext,
         index: &FunctionIndex,
     ) -> Result<(Ast<'a>, u32), super::OutOfStack> {
-        // NB: The rows are those of the tree, and marks.
-        let rows = Ast::with_capacity(self.zone, self.ast.tag.len());
+        // NB: The rows are those of the tree, and marks, which some code has many of.
+        let nodes = self.ast.tag.len();
+        let rows = Ast::with_capacities(self.zone, nodes + nodes / 2, self.ast.extra.len());
         let tree = std::mem::replace(&mut self.ast, rows);
         let private_names = self.eval_referenced_private_names.take();
         let (first_token_start, strict, has_top_level_await) =
