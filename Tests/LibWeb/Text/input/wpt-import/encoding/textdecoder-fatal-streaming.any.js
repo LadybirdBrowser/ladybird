@@ -43,3 +43,27 @@ test(function() {
     assert_equals(decoder.decode(even), '\u0000');
 
 }, 'Fatal flag, streaming cases');
+
+[
+    {encoding: 'utf-8', bom: [0xEF, 0xBB, 0xBF], invalid: [0xFF], a: [0x41]},
+    {encoding: 'utf-16le', bom: [0xFF, 0xFE], invalid: [0x00, 0xDC], a: [0x41, 0x00]},
+    {encoding: 'utf-16be', bom: [0xFE, 0xFF], invalid: [0xDC, 0x00], a: [0x00, 0x41]}
+].forEach(function(testCase) {
+
+    test(function() {
+        var decoder = new TextDecoder(testCase.encoding, {fatal: true});
+        assert_throws_js(TypeError, function() {
+            decoder.decode(new Uint8Array(testCase.invalid.concat(testCase.a)), {stream: true});
+        });
+        assert_equals(decoder.decode(new Uint8Array(testCase.a)), 'A');
+    }, 'Fatal flag, streaming error discards the remaining input: ' + testCase.encoding);
+
+    test(function() {
+        var decoder = new TextDecoder(testCase.encoding, {fatal: true});
+        assert_equals(decoder.decode(new Uint8Array(testCase.bom), {stream: true}), '');
+        assert_throws_js(TypeError, function() {
+            decoder.decode(new Uint8Array(testCase.invalid), {stream: true});
+        });
+        assert_equals(decoder.decode(new Uint8Array(testCase.bom.concat(testCase.a))), 'A');
+    }, 'Fatal flag, streaming error resets BOM handling: ' + testCase.encoding);
+});

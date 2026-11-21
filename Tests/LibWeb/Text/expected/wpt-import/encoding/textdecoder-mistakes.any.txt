@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 87 tests
+Found 108 tests
 
-87 Pass
+107 Pass
+1 Fail
 Pass	Invalid Unicode input is replaced: utf-8
 Pass	Invalid Unicode input is replaced: utf-16le
 Pass	Invalid Unicode input is replaced: utf-16be
@@ -60,6 +61,27 @@ Pass	Replacement, push back ASCII characters: euc-jp
 Pass	Replacement, push back ASCII characters: euc-kr
 Pass	Replacement, push back ASCII characters: shift_jis
 Pass	Replacement, push back ASCII characters: gbk
+Pass	EUC-JP JIS0212 state: 143,162,32,161,161
+Pass	EUC-JP JIS0212 state: 143,162,32,161,161, split at 1
+Pass	EUC-JP JIS0212 state: 143,162,32,161,161, split at 2
+Pass	EUC-JP JIS0212 state: 143,162,32,161,161, split at 3
+Pass	EUC-JP JIS0212 state: 143,162,32,161,161, split at 4
+Pass	EUC-JP JIS0212 state: 143,162,160,161,161
+Pass	EUC-JP JIS0212 state: 143,162,160,161,161, split at 1
+Pass	EUC-JP JIS0212 state: 143,162,160,161,161, split at 2
+Pass	EUC-JP JIS0212 state: 143,162,160,161,161, split at 3
+Pass	EUC-JP JIS0212 state: 143,162,160,161,161, split at 4
+Pass	EUC-JP JIS0212 state: 143,162,255,176,161
+Pass	EUC-JP JIS0212 state: 143,162,255,176,161, split at 1
+Pass	EUC-JP JIS0212 state: 143,162,255,176,161, split at 2
+Pass	EUC-JP JIS0212 state: 143,162,255,176,161, split at 3
+Pass	EUC-JP JIS0212 state: 143,162,255,176,161, split at 4
+Pass	EUC-JP JIS0212 state: 143,162,175,161,161
+Pass	EUC-JP JIS0212 state: 143,162,175,161,161, split at 1
+Pass	EUC-JP JIS0212 state: 143,162,175,161,161, split at 2
+Pass	EUC-JP JIS0212 state: 143,162,175,161,161, split at 3
+Pass	EUC-JP JIS0212 state: 143,162,175,161,161, split at 4
+Pass	EUC-JP JIS0212 state after a fatal streaming error
 Pass	Sticky multibyte state: iso-2022-jp
 Pass	Sticky multibyte state: gb18030
 Pass	Sticky multibyte state: big5
@@ -84,7 +106,7 @@ Pass	stream: iso-2022-jp
 Pass	fatal stream: utf-8
 Pass	fatal stream: utf-16le
 Pass	fatal stream: utf-16be
-Pass	fatal stream: iso-2022-jp
+Fail	fatal stream: iso-2022-jp
 Pass	WPT mislabels: euc-jp
 Pass	WPT mislabels: shift_jis
 Pass	WPT mislabels: iso-2022-jp
