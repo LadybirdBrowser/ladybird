@@ -280,9 +280,11 @@ impl Path {
         Self::from_geometry(geometry)
     }
 
-    /// The outlines of the given glyphs, laid along the first subpath of this path that has length. Each glyph has
-    /// its origin at the distance of its x position plus the offset, and its baseline along the direction of the
-    /// path there. The glyphs stop at the first one whose middle would go past the end.
+    /// The outlines of the given glyphs, laid along the first subpath of this path that has length, as SVG lays out
+    /// text on a path: Each glyph is centered on the point at the distance of the middle of its advance (its x position
+    /// plus the offset, plus half its advance), turned to the direction of the path there, and moved off the path, at
+    /// a right angle to it, by as much as its baseline is shifted. A glyph whose middle is off either end isn't drawn.
+    /// https://svgwg.org/svg2-draft/text.html#TextLayoutPath
     pub fn place_glyph_runs_along(&self, runs: &[GlyphRun], offset: f32) -> Path {
         let mut geometry = PathGeometry::new();
         let Some(contour) = measure::ContourMeasure::contours_of(&self.geometry).next() else {
@@ -293,21 +295,35 @@ impl Path {
             if run.font.is_invisible() {
                 continue;
             }
+            let ascent = run.font.facts().ascent;
+            let mut glyphs = Vec::with_capacity(run.glyphs.len());
             let mut transforms = Vec::with_capacity(run.glyphs.len());
-            for glyph in run.glyphs.placed() {
-                let glyph_distance = offset + glyph.x;
-                if glyph_distance + (glyph.glyph.advance / 2.0) > path_length {
-                    break;
+            for placed in run.glyphs.placed() {
+                let half_advance = placed.glyph.advance / 2.0;
+                let midpoint_distance = offset + placed.x + half_advance;
+                // "Glyphs whose midpoint-on-the-path are off the path are not rendered."
+                if !(0.0..=path_length).contains(&midpoint_distance) {
+                    continue;
                 }
-                let (point, tangent) = contour.position_and_tangent(glyph_distance);
+                // AD-HOC: The spec turns each glyph to the line through the start and the end of its advance on the
+                //         path. Like other engines, this turns it to the direction of the path at its midpoint.
+                let (midpoint, tangent) = contour.position_and_tangent(midpoint_distance);
+                // A glyph's y is the top of its em box, an ascent above its baseline.
+                let baseline_shift = placed.y + ascent;
+                let normal = (-tangent.y, tangent.x);
                 transforms.push(AffineTransform {
-                    values: [tangent.x, tangent.y, -tangent.y, tangent.x, point.x, point.y],
+                    values: [
+                        tangent.x,
+                        tangent.y,
+                        normal.0,
+                        normal.1,
+                        midpoint.x - tangent.x * half_advance + normal.0 * baseline_shift,
+                        midpoint.y - tangent.y * half_advance + normal.1 * baseline_shift,
+                    ],
                 });
+                glyphs.push(placed.glyph);
             }
-            append_glyph_outlines(&mut geometry, &run.font, &run.glyphs[..transforms.len()], &transforms);
-            if transforms.len() < run.glyphs.len() {
-                break;
-            }
+            append_glyph_outlines(&mut geometry, &run.font, &glyphs, &transforms);
         }
         geometry.update_state_from_contours();
         Self::from_geometry(geometry)
