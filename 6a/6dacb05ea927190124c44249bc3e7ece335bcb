@@ -1,0 +1,11 @@
+When an object element’s data attribute is missing or empty, Ladybird
+shows the element’s fallback content. Blink does the same: Its
+HTMLPlugInElement::RequestObject() fails for an empty URL with no
+service type, and HTMLObjectElement::UpdatePluginInternal() then calls
+RenderFallbackContent(). WebKit’s HTMLPlugInElement::requestObject()
+fails the same way, and HTMLObjectElement::updateWidget() then calls
+renderFallbackContent(). And Gecko’s UpdateObjectParameters() in
+nsObjectLoadingContent gives an object with no URI and no plugin type
+ObjectType::Fallback. Run in Chrome 158, Firefox 151, and WebKit 26.5,
+all three show the fallback content for a missing and an empty data
+attribute, and once the data attribute is removed from an object.
