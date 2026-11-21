@@ -1585,7 +1585,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             response->set_status_message("OK"sv);
 
             // 3. Set response’s body to bodyWithType’s body.
-            response->set_body(Infrastructure::ResponseBody::from_extracted_body(body_with_type.body));
+            response->set_body(Infrastructure::ResponseBody::from_fetch_body(body_with_type.body->fetch_body()));
 
             // 4. Set response’s header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
             auto content_length_header = HTTP::Header::isomorphic_encode("Content-Length"sv, serialized_full_length);
@@ -1640,7 +1640,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             auto sliced_body_with_type = safely_extract_body(realm, sliced_blob->raw_bytes());
 
             // 10. Set response’s body to slicedBodyWithType’s body.
-            response->set_body(Infrastructure::ResponseBody::from_extracted_body(sliced_body_with_type.body));
+            response->set_body(Infrastructure::ResponseBody::from_fetch_body(sliced_body_with_type.body->fetch_body()));
 
             // 11. Let serializedSlicedLength be slicedBlob’s size, serialized and isomorphic encoded.
             auto serialized_sliced_length = String::number(sliced_blob->size());

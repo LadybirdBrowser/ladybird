@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::create_with_body(ResponseInit c
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response with null body status cannot have a body"_utf16 };
 
         // 2. Set response’s body to body’s body.
-        response->set_body(Infrastructure::ResponseBody::from_extracted_body(body->body));
+        response->set_body(Infrastructure::ResponseBody::from_fetch_body(body->body->fetch_body()));
 
         // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
         if (body->type.has_value() && !response->header_list()->contains("Content-Type"sv))
