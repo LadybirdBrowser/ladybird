@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    table { border-spacing: 0; margin-bottom: 6px; }
+    td { width: 20px; height: 20px; padding: 0; }
+</style>
+<table id="huge-rowspans">
+    <tbody><tr><td rowspan="3000">a</td></tr><tr><td rowspan="3000">b</td></tr><tr><td>1</td><td>x</td></tr></tbody>
+    <tbody><tr><td rowspan="3000">a</td></tr><tr><td rowspan="3000">b</td></tr><tr><td>2</td><td>x</td></tr></tbody>
+    <tbody><tr><td rowspan="3000">a</td></tr><tr><td rowspan="3000">b</td></tr><tr><td>3</td><td>x</td></tr></tbody>
+</table>
+<table id="rowspan-into-next-tbody">
+    <tbody><tr><td rowspan="5">a</td><td>1</td></tr></tbody>
+    <tbody><tr><td>2</td><td>x</td></tr></tbody>
+</table>
+<table id="thead-rowspan">
+    <thead><tr><td rowspan="3">h</td><td>1</td></tr></thead>
+    <tbody><tr><td>2</td><td>x</td></tr></tbody>
+</table>
+<table id="tfoot-moved-after-tbody">
+    <tfoot><tr><td>f</td><td>x</td></tr></tfoot>
+    <tbody><tr><td rowspan="4">a</td><td>1</td></tr></tbody>
+</table>
+<table id="rowspan-within-tbody">
+    <tbody><tr><td rowspan="2">a</td><td>1</td></tr><tr><td>2</td></tr></tbody>
+</table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const table of document.querySelectorAll("table")) {
+            const origin = table.getBoundingClientRect();
+            const cells = [...table.querySelectorAll("td")].map(cell => {
+                const r = cell.getBoundingClientRect();
+                return `${cell.textContent}@${Math.round(r.left - origin.left)},${Math.round(r.top - origin.top)}+${Math.round(r.height)}`;
+            });
+            println(`${table.id}: ${Math.round(origin.width)}x${Math.round(origin.height)}; ${cells.join(" ")}`);
+        }
+    });
+</script>
