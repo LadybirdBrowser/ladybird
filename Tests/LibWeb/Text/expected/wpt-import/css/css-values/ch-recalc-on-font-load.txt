@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	ch in a normal div should be recalculated after loading a web font
+Pass	ch in display:contents should be recalculated after loading a web font
+Pass	ch in display:none should be recalculated after loading a web font

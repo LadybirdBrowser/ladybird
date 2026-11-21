@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Pass
+3 Pass
+1 Fail
 Pass	SVGLength, value updates after font-size change on em/ex conversion, changing em basis
 Pass	SVGLength, value updates after font-size change on em/ex conversion, doubling em basis doubles value
-Pass	SVGLength, value updates after font-size change on em/ex conversion, changing ex basis
+Fail	SVGLength, value updates after font-size change on em/ex conversion, changing ex basis
 Pass	SVGLength, value updates after font-size change on em/ex conversion, inherited font-size change

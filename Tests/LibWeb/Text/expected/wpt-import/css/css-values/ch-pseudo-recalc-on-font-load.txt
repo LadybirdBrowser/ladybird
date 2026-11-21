@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	ch in pseudo-element ::before should be recalculated after loading a web font
+Pass	ch in pseudo-element ::after should be recalculated after loading a web font
+Pass	ch in pseudo-element ::first-letter should be recalculated after loading a web font
+Pass	ch in pseudo-element ::first-line should be recalculated after loading a web font
+Pass	ch in pseudo-element ::marker should be recalculated after loading a web font

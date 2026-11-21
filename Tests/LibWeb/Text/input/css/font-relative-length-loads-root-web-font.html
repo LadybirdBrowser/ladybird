@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: RootFace; src: url(../wpt-import/fonts/Ahem.ttf?root); }
+    html { font-family: RootFace; }
+    body { font-family: serif; }
+    #container { container-type: inline-size; width: 400px; }
+    @container (width > 10rcap) { #container-child { color: green; } }
+</style>
+<!-- Nothing renders text in the document element's font, so only the container query's rcap length can want its face. -->
+<div id="container"><div id="container-child"></div></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const face of document.fonts)
+            println(`${face.family}: ${face.status}`);
+        done();
+    });
+</script>

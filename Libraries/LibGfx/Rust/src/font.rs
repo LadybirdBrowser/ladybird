@@ -1416,6 +1416,23 @@ impl FrozenFontList {
             .map(|index| index as u32 | CACHED_FILLED_ENTRY)
     }
 
+    /// https://drafts.csswg.org/css-values-4/#font-relative-lengths
+    /// Wants the loads of the faces still loading ahead of the first available font, as a length
+    /// relative to a metric of that font (ex, cap, ch, ic, lh) reads the first of them that covers
+    /// U+0020 once it loads. The document requests them once the pass ends, as it does those a
+    /// render pass wants.
+    pub fn want_first_available_font_loads(&self) {
+        const SPACE: u32 = 0x20;
+        for entry in self.entries.iter().filter(|entry| entry.covers(SPACE, &self.ranges)) {
+            if entry.font().is_some() {
+                return;
+            }
+            if let Some((face_id, _)) = entry.pending() {
+                self.note_wanted_pending_face(entry, face_id);
+            }
+        }
+    }
+
     fn note_wanted_pending_face(&self, entry: &FrozenEntry, face_id: u64) {
         if entry.wanted.swap(true, std::sync::atomic::Ordering::Relaxed) {
             return;

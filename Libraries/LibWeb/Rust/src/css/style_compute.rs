@@ -1203,6 +1203,37 @@ pub(crate) fn viewport_length_unit_axes(unit: u8) -> u8 {
     }
 }
 
+/// Which metrics of a first available font the lengths in `value` read: whether one is an `lh`,
+/// relative to a line height, and whether one is an `ex`, `cap` or `ch`, relative to a glyph metric.
+pub(crate) fn font_metric_length_reads(value: &StyleValueData) -> (bool, bool) {
+    fn read_unit(unit: u8, reads: &mut (bool, bool)) {
+        if let Some(LengthUnitKind::FontRelative { metric, root: false }) = length_unit_kinds().get(usize::from(unit)) {
+            match metric {
+                FontMetricSelector::LineHeight => reads.0 = true,
+                FontMetricSelector::FontSize => {}
+                _ => reads.1 = true,
+            }
+        }
+    }
+    fn read_calculation(node: &crate::css::calc::CalcNode, reads: &mut (bool, bool)) {
+        if let crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Length { unit, .. }) = node {
+            read_unit(*unit, reads);
+        }
+        node.for_each_child(&mut |child| read_calculation(child, reads));
+    }
+    fn read(value: &StyleValueData, reads: &mut (bool, bool)) {
+        match value {
+            StyleValueData::Length { unit, .. } => read_unit(*unit, reads),
+            StyleValueData::Calculated(payload) => read_calculation(payload.rust_calculation.node(), reads),
+            _ => {}
+        }
+        value.for_each_child(&mut |child| read(child, reads));
+    }
+    let mut reads = (false, false);
+    read(value, &mut reads);
+    reads
+}
+
 /// Whether `unit` is relative to a metric of the element's or its parent's first available font,
 /// rather than to its font size alone.
 pub(crate) fn is_font_metric_relative_length_unit(unit: u8) -> bool {
@@ -7569,14 +7600,31 @@ fn finish_animation_sample(
             .unwrap_or(environment.color_scheme_input.preferred_color_scheme),
         draw_random_base_value: None,
     };
+    let mut custom_value_reads = crate::css::custom_properties::RegisteredValueReads::default();
     let custom_values = resolved
         .properties
         .iter()
         .map(|property| match property.custom_name_id {
             0 => None,
-            _ => Some(custom_properties.computed_value(registry, property, &finalization)),
+            _ => {
+                let (value, reads) = custom_properties.computed_value(registry, property, &finalization);
+                custom_value_reads |= reads;
+                Some(value)
+            }
         })
         .collect::<Vec<_>>();
+    // https://drafts.csswg.org/css-values-4/#font-relative-lengths
+    // NB: A registered custom property's keyframe value relative to a metric of the element's or the document
+    //     element's first available font reads that font, as any other keyframe value does.
+    engine.want_first_available_font_loads_for(
+        node,
+        input.pseudo(),
+        crate::css::animation::FontMetricReads {
+            own: custom_value_reads.font_metrics,
+            parent: false,
+            root: custom_value_reads.root_font == RootFontReads::Metrics,
+        },
+    );
     let (underlying_values, initial_values) = custom_properties.underlying_and_initial_values(registry);
 
     let computed_keyframes = compute_animation_keyframe_longhands(

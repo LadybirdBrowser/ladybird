@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	ch in pseudo-element ::before should be recalculated after loading a web font
+Fail	ch in pseudo-element ::after should be recalculated after loading a web font
+Fail	ch in pseudo-element ::backdrop should be recalculated after loading a web font

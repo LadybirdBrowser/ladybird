@@ -579,6 +579,7 @@ impl RetainedState {
             let dependencies = winner_store::unpack_dependencies(dependencies);
             decided.reads.reads_root_font = dependencies.root_font_reads;
             decided.reads.reads_font_metric_lengths = dependencies.font_metric_relative_length;
+            decided.reads.reads_own_font_metric_lengths = dependencies.font_metric_relative_length;
             decided.reads.environment_reads |= dependency_environment_reads(dependencies);
         }
         let is_plain = plain_dependencies.is_some();
@@ -616,6 +617,8 @@ impl RetainedState {
             reads_sibling_position,
             reads_root_font,
             reads_font_metric_lengths,
+            reads_own_font_metric_lengths,
+            reads_parent_font_metric_lengths,
             mut environment_reads,
             substitution_reads,
             custom_property_reads,
@@ -1199,6 +1202,49 @@ impl RetainedState {
             group_cache.insert(lookup, payloads[lookup.group]);
         }
         drop(assembled);
+        // https://drafts.csswg.org/css-values-4/#font-relative-lengths
+        // NB: A length relative to a metric of a first available font reads that font, so the faces still loading ahead
+        //     of it start loading, as a rendered code point starts the load of the face it falls in. A font-size reads
+        //     the parent's font, a root-relative length the document element's, and any other length the element's own.
+        let want_first_available_font_loads = |font: &crate::css::computed_value_types::FontValues| {
+            if let Some(list) = font.frozen_font_list.list() {
+                list.want_first_available_font_loads();
+            }
+        };
+        // SAFETY: The payloads and views hold live font groups.
+        let own_font = || unsafe {
+            payloads[group_index::FONT]
+                .cast::<crate::css::computed_value_types::FontValues>()
+                .as_ref()
+        };
+        let view_font = |view: &computed::StyleRecordView<'_>| unsafe {
+            view.payloads[group_index::FONT]
+                .cast::<crate::css::computed_value_types::FontValues>()
+                .deref()
+        };
+        if reads_own_font_metric_lengths && let Some(font) = own_font() {
+            want_first_available_font_loads(font);
+        }
+        if reads_parent_font_metric_lengths && let Some(parent_view) = &parent_view {
+            want_first_available_font_loads(view_font(parent_view));
+        }
+        if reads_root_font == RootFontReads::Metrics {
+            match &parent_view {
+                None => {
+                    if let Some(font) = own_font() {
+                        want_first_available_font_loads(font);
+                    }
+                }
+                Some(_) => {
+                    let document_element =
+                        std::iter::successors(Some(node), |&ancestor| self.projection.inheritance_parent(ancestor))
+                            .last();
+                    if let Some(root_view) = document_element.and_then(|root| records.assigned_record_view(root)) {
+                        want_first_available_font_loads(view_font(&root_view));
+                    }
+                }
+            }
+        }
         let style_bits = values.style_bits();
         let value_facts = values.into_facts();
         Some(ComputedElement {
@@ -2366,6 +2412,12 @@ struct ElementWinnerReads {
     reads_root_font: RootFontReads,
     /// Whether a winner resolves a length against a metric of a first available font.
     reads_font_metric_lengths: bool,
+    /// Whether a winner other than font-size resolves a length against a metric of the element's
+    /// own first available font.
+    reads_own_font_metric_lengths: bool,
+    /// Whether the winner for font-size resolves a length against a metric of the parent's first
+    /// available font.
+    reads_parent_font_metric_lengths: bool,
     /// What the winners compute from of the document's environment.
     environment_reads: StyleEnvironment,
     /// What the winners' substitutions read beyond the element's custom properties.
@@ -2445,6 +2497,19 @@ impl<'a> DecidedWinners<'_, 'a> {
         self.reads.reads_sibling_position |= reads.sibling_position;
         self.reads.reads_root_font = self.reads.reads_root_font.max(reads.root_font);
         self.reads.reads_font_metric_lengths |= reads.font_metrics;
+        // NB: A font-size reads the parent's font, and an `lh` in a line-height the parent's line height, which a
+        //     `normal` one takes from the parent's font. Any other length reads the element's own font.
+        if reads.font_metrics {
+            let is_font_size = property == crate::css::property_metadata::property_id::FONT_SIZE;
+            let (line_height_reads, glyph_metric_reads) =
+                if property == crate::css::property_metadata::property_id::LINE_HEIGHT {
+                    crate::css::style_compute::font_metric_length_reads(value.value().data())
+                } else {
+                    (false, true)
+                };
+            self.reads.reads_own_font_metric_lengths |= !is_font_size && glyph_metric_reads;
+            self.reads.reads_parent_font_metric_lengths |= is_font_size || line_height_reads;
+        }
         self.reads.environment_reads |= reads.environment | property_environment_reads(property);
         let written = value.value();
         // https://drafts.csswg.org/css-cascade-5/#defaulting-keywords

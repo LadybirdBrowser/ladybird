@@ -52,8 +52,8 @@ namespace Web::CSS {
 // The @font-feature-values a resolution reads for a family, in the tree scope the request comes from.
 using FontFeatureValuesProvider = Function<FontFeatureValues const&(Utf16FlyString const&)>;
 
-// Resolve a font cascade from the @font-face snapshot and the process-wide font services alone. It cannot start a
-// load: a web face it selects is only noted, and request_wanted_web_faces() loads it.
+// Resolve a font cascade from the @font-face snapshot and the process-wide font services alone. It starts no load: a web
+// face it selects waits in the cascade until a rendered code point or a font-relative length wants it.
 [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&);
 
 // The font-family list as font matching wants it: generic families kept apart from names, and a name's syntax kept.
