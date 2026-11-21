@@ -31,6 +31,9 @@ void ak_kfree(void* ptr);
 [[nodiscard]] void* ak_krealloc(HeapPartition, void* ptr, size_t size);
 [[nodiscard]] size_t ak_kmalloc_usable_size(void const* ptr);
 void ak_kmalloc_collect();
+// Gives back the memory that the calling thread keeps outside the allocator for its next jobs, for a thread that goes
+// idle (see ladybird_set_idle_thread_memory_release()).
+void ak_release_idle_thread_memory();
 
 [[nodiscard]] inline void* kcalloc(size_t count, size_t size)
 {
