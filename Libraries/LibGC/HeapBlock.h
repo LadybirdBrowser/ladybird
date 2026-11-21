@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/IntrusiveList.h>
+#include <AK/NumericLimits.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
@@ -48,6 +50,8 @@ public:
 
         if (allocated_cell) {
             ASAN_UNPOISON_MEMORY_REGION(allocated_cell, m_cell_size);
+            if (m_live_cell_count != unknown_live_cell_count)
+                ++m_live_cell_count;
         }
         return allocated_cell;
     }
@@ -109,12 +113,35 @@ public:
     bool is_being_swept() const { return m_is_being_swept; }
     void set_being_swept(bool being_swept) { m_is_being_swept = being_swept; }
 
+    // How many cells of the block are allocated, as the sweep counted them and the block's own allocations and frees
+    // kept up since. Once an allocator takes the block's free cells, it allocates them without the block's knowledge,
+    // and the count is unknown until the next sweep. Compaction picks blocks by this count, and nothing depends on it
+    // being right.
+    static constexpr u32 unknown_live_cell_count = NumericLimits<u32>::max();
+    Optional<u32> live_cell_count() const
+    {
+        if (m_live_cell_count == unknown_live_cell_count)
+            return {};
+        return m_live_cell_count;
+    }
+    void set_live_cell_count(u32 count) { m_live_cell_count = count; }
+
     template<typename Callback>
     void for_each_cell(Callback callback)
     {
         auto end = has_lazy_freelist() ? m_next_lazy_freelist_index : cell_count();
         for (size_t i = 0; i < end; ++i)
             callback(cell(i));
+    }
+
+    bool has_live_cells()
+    {
+        auto end = has_lazy_freelist() ? m_next_lazy_freelist_index : cell_count();
+        for (size_t i = 0; i < end; ++i) {
+            if (cell(i)->state() == Cell::State::Live)
+                return true;
+        }
+        return false;
     }
 
     template<Cell::State state, typename Callback>
@@ -177,6 +204,7 @@ private:
     u32 m_next_lazy_freelist_index { 0 };
     // NB: Computed once, since dividing by the cell size is slow.
     u32 m_cell_count { 0 };
+    u32 m_live_cell_count { 0 };
     bool m_is_being_swept { false };
 
     // See follow_freelist_link().

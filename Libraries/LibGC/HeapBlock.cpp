@@ -33,6 +33,7 @@ void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
     descriptor.cell_index_magic = static_cast<u32>(((static_cast<u64>(1) << 32) + descriptor.cell_size - 1) / descriptor.cell_size);
     descriptor.traced_on_owner_thread_only = allocator.descriptor().trace_thread() == TraceThread::OwnerThreadOnly;
     descriptor.movable = allocator.descriptor().is_movable();
+    descriptor.kept_by_pins = false;
     descriptor.evacuation = nullptr;
     clear_marks(descriptor);
     // NB: Markers of other heaps read the heap of any block their cells point into, to leave it alone if it is not theirs.
@@ -90,6 +91,7 @@ HeapBlock::FreeCells HeapBlock::take_free_cells()
     VERIFY(free_cells.lazy_end <= bit_cast<FlatPtr>(this) + BLOCK_SIZE);
     m_freelist = 0;
     m_next_lazy_freelist_index = cell_count();
+    m_live_cell_count = unknown_live_cell_count;
     return free_cells;
 }
 
@@ -136,6 +138,8 @@ void HeapBlock::free_slot(Cell* cell)
     freelist_entry->set_state(Cell::State::Dead);
     freelist_entry->next = m_freelist;
     m_freelist = bit_cast<FlatPtr>(freelist_entry);
+    if (m_live_cell_count != unknown_live_cell_count)
+        --m_live_cell_count;
 
 #ifdef HAS_ADDRESS_SANITIZER
     auto dword_after_freelist = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(freelist_entry) + sizeof(FreelistEntry), 8);

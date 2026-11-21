@@ -10,9 +10,9 @@
 //! An edge that marking visits through its slot can be updated once its target moves, while an edge visited by value
 //! pins its target. Marking pins the cells of evacuated blocks that something visits by value, or that are roots, and
 //! records the slots that point into evacuated blocks. After marking, a cell of an evacuated block moves if its
-//! allocator is movable and nothing pinned it: it is copied bytewise to its new slot, and its old slot is freed without
-//! being destroyed. Then every recorded slot that points at a moved cell is rewritten, after the slot itself is found
-//! in the copy of its cell if that moved too.
+//! allocator is movable and nothing pinned it. Each cell that moves gets a free slot of another block first, then every
+//! recorded slot that points at one is rewritten where it is, and only then is each cell copied bytewise to its new
+//! slot, with its slots rewritten already, and its old slot freed without being destroyed.
 //!
 //! The collector finds slots only in cells, in the heap region: a slot elsewhere, like in malloc memory that a cell
 //! owns, could be freed or moved by the finalizers and destructors that run between marking and moving, so the visit
@@ -71,6 +71,17 @@ impl Evacuation {
         if word.load(Ordering::Relaxed) & bit == 0 {
             word.fetch_or(bit, Ordering::Relaxed);
         }
+    }
+
+    /// Whether the cell at `address` of the block this evacuates is pinned, for whatever reason.
+    #[inline(always)]
+    pub fn is_pinned(&self, descriptor: &BlockDescriptor, address: usize) -> bool {
+        let index = descriptor.cell_index(address).0;
+        let bit = 1u64 << (index % 64);
+        (self.pinned_by_root[index / 64].load(Ordering::Relaxed)
+            | self.pinned_by_edge[index / 64].load(Ordering::Relaxed))
+            & bit
+            != 0
     }
 
     pub fn pin_reason(&self, index: CellIndex) -> PinReason {
@@ -189,28 +200,17 @@ impl EvacuationSet {
             .map(|to| self.decompress(to))
     }
 
-    /// Where the byte at `address` is now: in the copy of its cell if that moved.
-    #[inline(always)]
-    fn relocate(&self, address: usize) -> usize {
-        let Some((descriptor, evacuation)) = self.evacuation_of(address) else {
-            return address;
-        };
-        let cell = descriptor.cell_containing(address, self.layout.block_cells_offset as usize);
-        match evacuation.forwarding(descriptor.cell_index(cell)) {
-            Some(to) => self.decompress(to) + (address - cell),
-            None => address,
-        }
-    }
-
-    /// Rewrites a slot that marking recorded to point where its target moved, and returns whether it did.
+    /// Rewrites a slot that marking recorded to point where its target moves, and returns whether it did. Cells are only
+    /// copied once their slots are rewritten, so the slot is still where marking found it, and the copy of a cell that
+    /// moves gets the rewritten slots.
     ///
     /// # Safety
     ///
-    /// The slot must be in a live cell, and hold what its kind says.
+    /// The slot must be in a live cell that has not moved yet, and hold what its kind says.
     unsafe fn fix_up(&self, slot: RecordedSlot) -> bool {
         let base = self.layout.heap_region_base;
-        let address = self.relocate(slot.address());
-        // SAFETY: The caller passes a slot of a live cell, which is now at `address`.
+        let address = slot.address();
+        // SAFETY: The caller passes a slot of a live cell.
         unsafe {
             match slot.kind() {
                 SlotKind::Member => {
@@ -249,10 +249,10 @@ impl EvacuationSet {
                     slot.write(to + (pointer - cell));
                 }
                 SlotKind::SelfPointer => {
-                    let Some((descriptor, _)) = self.evacuation_of(slot.address()) else {
+                    let Some((descriptor, _)) = self.evacuation_of(address) else {
                         return false;
                     };
-                    let holder = descriptor.cell_containing(slot.address(), self.layout.block_cells_offset as usize);
+                    let holder = descriptor.cell_containing(address, self.layout.block_cells_offset as usize);
                     let Some(to) = self.forwarding_address(holder) else {
                         return false;
                     };
@@ -322,6 +322,65 @@ pub unsafe extern "C" fn rust_gc_evacuation_pin_reason(set: *const EvacuationSet
     evacuation.pin_reason(descriptor.cell_index(cell.addr()))
 }
 
+/// How many marked cells of an evacuated block were pinned, by reason.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PinnedCells {
+    pub by_edge: usize,
+    pub by_root: usize,
+}
+
+/// Finds the cells of an evacuated block that move once marking is done: the marked ones that nothing pinned. Writes
+/// their addresses to `cells`, returns how many there are, and adds the marked cells that are pinned to `pinned`. Only
+/// the mark bits are read, so the dead cells and the free slots of the block are never touched.
+///
+/// # Safety
+///
+/// `set` must be live, `block` one of its blocks whose cells start `block_cells_offset` bytes into it and whose marks
+/// are the ones marking left, and `cells` must have room for MAX_CELLS_PER_BLOCK addresses.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_evacuation_cells_to_move(
+    set: *const EvacuationSet,
+    block: *const c_void,
+    cells: *mut *mut c_void,
+    pinned: *mut PinnedCells,
+) -> usize {
+    abort_on_panic(|| {
+        // SAFETY: The caller passes a live set, room for the cells, and a live count.
+        let (set, cells, pinned) = unsafe {
+            (
+                &*set,
+                ak::slice_from_raw_parts_mut(cells, MAX_CELLS_PER_BLOCK),
+                &mut *pinned,
+            )
+        };
+        let (descriptor, evacuation) = set.evacuation_of(block.addr()).expect("the block is evacuated");
+        let cell_size = descriptor.cell_size as usize;
+        let cells_offset = set.layout.block_cells_offset as usize;
+        // NB: A cell's mark bit is its offset in the block divided by the cell size, see BlockDescriptor::cell_index().
+        let first_bit = cells_offset / cell_size;
+        let mut count = 0;
+        for word_index in 0..MARK_BITMAP_WORDS {
+            let mut bits = descriptor.mark_word(word_index).load(Ordering::Relaxed);
+            while bits != 0 {
+                let bit = word_index * 64 + bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                let cell = block.addr() + cells_offset + (bit - first_bit) * cell_size;
+                debug_assert!(descriptor.cell_index(cell).0 == bit);
+                match evacuation.pin_reason(CellIndex(bit)) {
+                    PinReason::Unpinned => {
+                        cells[count] = block.with_addr(cell).cast_mut();
+                        count += 1;
+                    }
+                    PinReason::Edge => pinned.by_edge += 1,
+                    PinReason::Root => pinned.by_root += 1,
+                }
+            }
+        }
+        count
+    })
+}
+
 /// A cell to move, from its slot to a free slot of another block of its allocator.
 #[repr(C)]
 pub struct CellMove {
@@ -329,12 +388,40 @@ pub struct CellMove {
     pub to: *mut c_void,
 }
 
-/// Copies each cell to its new slot, and notes where it went. Both slots are `cell_size` bytes.
+/// Notes where each cell moves to, before anything moves. The slots of both are `cell_size` bytes.
 ///
 /// # Safety
 ///
-/// `set` must be live, and the moves name live, unpinned cells of its blocks and free slots of the same allocators,
-/// each once.
+/// `set` must be live, and the moves name live, unpinned cells of its blocks and free slots of the same allocators
+/// outside its blocks, each once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_evacuation_forward_cells(
+    set: *mut EvacuationSet,
+    moves: *const CellMove,
+    count: usize,
+    cell_size: usize,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The caller passes a live set, and count moves.
+        let (set, moves) = unsafe { (&*set, ak::slice_from_raw_parts(moves, count)) };
+        for cell_move in moves {
+            let (from, to) = (cell_move.from.addr(), cell_move.to.addr());
+            let (descriptor, evacuation) = set.evacuation_of(from).expect("the cell is in an evacuated block");
+            debug_assert!(descriptor.cell_size as usize == cell_size);
+            debug_assert!(set.evacuation_of(to).is_none(), "no cell moves into an evacuated block");
+            let index = descriptor.cell_index(from);
+            debug_assert!(evacuation.forwarding(index).is_none());
+            evacuation.forwarding[index.0].store((to >> COMPRESSED_POINTER_SHIFT) as u32, Ordering::Relaxed);
+        }
+    });
+}
+
+/// Copies each cell to the slot it moves to, once its slots and the slots that point at it are rewritten. Both slots
+/// are `cell_size` bytes.
+///
+/// # Safety
+///
+/// As for rust_gc_evacuation_forward_cells(), with the same moves.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_move_cells(
     set: *mut EvacuationSet,
@@ -348,10 +435,6 @@ pub unsafe extern "C" fn rust_gc_evacuation_move_cells(
         let mut identity_hashes = None;
         for cell_move in moves {
             let (from, to) = (cell_move.from.addr(), cell_move.to.addr());
-            let (descriptor, evacuation) = set.evacuation_of(from).expect("the cell is in an evacuated block");
-            debug_assert!(descriptor.cell_size as usize == cell_size);
-            let index = descriptor.cell_index(from);
-            debug_assert!(evacuation.forwarding(index).is_none());
             // SAFETY: The caller passes a live cell and a free slot of the same size, which do not overlap.
             unsafe {
                 core::ptr::copy_nonoverlapping(cell_move.from.cast::<u8>(), cell_move.to.cast::<u8>(), cell_size);
@@ -365,16 +448,16 @@ pub unsafe extern "C" fn rust_gc_evacuation_move_cells(
                     ));
                 }
             }
-            evacuation.forwarding[index.0].store((to >> COMPRESSED_POINTER_SHIFT) as u32, Ordering::Relaxed);
         }
     });
 }
 
-/// Rewrites every slot that marking recorded and that points at a cell that moved, and returns how many it rewrote.
+/// Rewrites every slot that marking recorded and that points at a cell that moves, and returns how many it rewrote.
 ///
 /// # Safety
 ///
-/// `set` must be live, every cell has to be moved already, and the cells that held recorded slots must still be live.
+/// `set` must be live, every cell that moves has to be forwarded and none copied yet, and the cells that held recorded
+/// slots must still be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet) -> usize {
     abort_on_panic(|| {
@@ -383,7 +466,7 @@ pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet
         let mut rewritten = 0;
         for slots in &set.slots {
             for &slot in slots {
-                // SAFETY: Marking recorded the slot in a live cell, as the caller makes sure it still is.
+                // SAFETY: Marking recorded the slot in a live cell, which the caller makes sure is still live and where it was.
                 if unsafe { set.fix_up(slot) } {
                     rewritten += 1;
                 }

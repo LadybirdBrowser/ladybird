@@ -203,14 +203,17 @@ impl Marker {
     }
 
     /// Marks the cell at `address`, which a slot at `slot` points to. If the cell's block is evacuated, the slot is
-    /// recorded, so that it can be rewritten once the cell moves, or the cell pinned if the slot is not in a cell.
+    /// recorded, so that it can be rewritten once the cell moves, or the cell pinned if the slot is not in a cell. A
+    /// cell that is pinned already, as roots are before marking starts, stays where it is, so its slots are left out.
     #[inline(always)]
     fn mark_through_slot(&self, slot: RecordedSlot, address: usize) {
         let job = self.job();
         let Some((_, descriptor)) = job.descriptor_in_domain(address) else {
             return;
         };
-        if let Some(evacuation) = descriptor.evacuation() {
+        if let Some(evacuation) = descriptor.evacuation()
+            && !evacuation.is_pinned(descriptor, address)
+        {
             if job.is_in_heap_region(slot.address()) {
                 // SAFETY: Only this marker's thread touches its recorded slots while it marks.
                 unsafe { &mut *self.recorded_slots.get() }.push(slot);

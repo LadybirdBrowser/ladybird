@@ -180,6 +180,7 @@ void CellAllocator::block_did_become_empty(Badge<Heap>, HeapBlock& block, DeferD
 {
     block.m_list_node.remove();
     block.heap().m_live_heap_blocks.remove(&block);
+    block.heap().forget_cells_kept_by_pins(block);
     // NOTE: HeapBlocks are managed by the BlockAllocator, so we don't want to `delete` the block here.
     block.~HeapBlock();
     m_block_allocator.deallocate_block(&block, defer_decommit);

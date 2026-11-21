@@ -24,6 +24,7 @@ target_link_libraries(LibGC PUBLIC LibThreading)
 
 # The collector's core: the descriptors of blocks, and marking.
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libgc_rust FEATURES allocator FFI_HEADER RustFFI.h)
+test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libgc_rust)
 target_link_libraries(LibGC PRIVATE libgc_rust)
 get_target_property(_libgc_rust_lib libgc_rust IMPORTED_LOCATION)
 set_property(SOURCE CAPI.cpp Cell.cpp Heap.cpp HeapBlock.cpp WeakBlock.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libgc_rust_lib})

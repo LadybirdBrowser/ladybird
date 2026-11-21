@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/HashTable.h>
@@ -35,6 +36,16 @@
 #include <pthread.h>
 
 namespace GC {
+
+// What started a collection, for its report.
+enum class CollectionTrigger : u8 {
+    Explicit,
+    Allocation,
+    IdlePolicy,
+    AbandonedObjectGraph,
+    Compaction,
+    DeferralEnded,
+};
 
 namespace FFI {
 
@@ -321,6 +332,7 @@ private:
     void end_evacuation();
     Cell* allocate_destination_for_moved_cell(CellAllocator&);
     void schedule_collection_that_moves_cells();
+    void schedule_compaction_if_worthwhile();
     static void mark_live_cells_across(ReadonlySpan<Heap* const>, HashMap<Cell*, HeapRoot>& roots);
     void clear_weak_pointers_to_dead_cells(bool report);
     void run_post_mark_phases(bool report);
@@ -414,14 +426,32 @@ private:
 
     RefPtr<Core::Timer> m_idle_gc_timer;
     RefPtr<Core::Timer> m_moving_collection_timer;
+    // Whether the moving collection timer already let queued events go, see schedule_collection_that_moves_cells().
+    bool m_moving_collection_postponed { false };
     bool m_outermost_event_loop_turn_holds_no_cells { false };
 
     // The blocks the collection in progress evacuates and the slots it found, while it may move cells.
     FFI::EvacuationSet* m_evacuation { nullptr };
+    // The blocks it evacuates, those of an allocator one after another.
+    Vector<HeapBlock*> m_evacuated_blocks;
+    // The cells that pins kept in the blocks that a collection could not empty, one bit per cell, see
+    // FFI::BlockDescriptor::kept_by_pins. A sweep that frees one of them lets compaction take the block again.
+    static constexpr size_t cell_bitmap_words = 11;
+    HashMap<HeapBlock*, Array<u64, cell_bitmap_words>> m_cells_kept_by_pins;
+    void forget_cells_kept_by_pins(HeapBlock&);
+    void cell_in_block_kept_by_pins_died(HeapBlock&, Cell const*);
     // The identity hashes of the cells that moved since they were hashed, see identity_hash().
     FFI::IdentityHashes* m_identity_hashes { nullptr };
     bool m_moves_everything { moves_everything() };
-    void collect_garbage_from_timer();
+    // Whether the heap went quiet and compacts until there is little left to recover, whether it did so since it was
+    // last busy, and whether the next collection that does not scan the stack compacts, see
+    // schedule_compaction_if_worthwhile().
+    bool m_reducing_memory { false };
+    bool m_compacted_since_activity { false };
+    bool m_should_compact { false };
+    // Whether the idle timer already let queued events go before a collection it decided on, see idle_gc_on_timer().
+    bool m_idle_collection_postponed { false };
+    void collect_garbage_from_timer(CollectionTrigger);
     enum class AbandonedObjectGraphState : u8 {
         None,
         WaitingToCollect,
