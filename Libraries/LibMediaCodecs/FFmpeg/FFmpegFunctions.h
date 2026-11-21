@@ -33,6 +33,7 @@ static_assert(sizeof(void*) != 8 || (offsetof(AVFrame, data) == 0 && offsetof(AV
 static_assert(sizeof(void*) != 8 || (offsetof(AVCodecParameters, codec_type) == 0 && offsetof(AVCodecParameters, codec_id) == 4 && offsetof(AVCodecParameters, extradata) == 16 && offsetof(AVCodecParameters, extradata_size) == 24));
 static_assert(offsetof(AVCodecDescriptor, id) == 0);
 static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(AVChannelLayout, nb_channels) == 4 && offsetof(AVChannelLayout, u) == 8));
+static_assert(sizeof(void*) != 8 || (sizeof(AVChannelCustom) == 32 && offsetof(AVChannelCustom, id) == 0));
 
 #define FFMPEG_ENUMERATE_FUNCTIONS(F)       \
     F(avcodec_version)                      \
@@ -80,7 +81,6 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(av_opt_set_chlayout)                  \
     F(av_opt_get_int)                       \
     F(av_opt_get_chlayout)                  \
-    F(av_channel_layout_custom_init)        \
     F(av_channel_layout_copy)               \
     F(av_channel_layout_channel_from_index) \
     F(av_channel_layout_uninit)             \
