@@ -58,10 +58,6 @@ public:
     BackingStoreManager& backing_stores() { return m_backing_stores; }
     BackingStoreManager const& backing_stores() const { return m_backing_stores; }
 
-    // A surface of the pool for the next content shown from it, which the window server is not busy with.
-    RefPtr<PresentableSurface> next_presentable_surface(u32 pool, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
-    void drop_presentable_surface_pool(u32 pool) { m_presentable_surface_pools.remove(pool); }
-
     // The video sinks that the display list of the context draws. Answers whether these are other sinks than before.
     bool set_drawn_video_sinks(ReadonlySpan<u64> handles);
     HashTable<Media::VideoSinkHandle> const& drawn_video_sinks() const { return m_drawn_video_sinks; }
@@ -75,7 +71,6 @@ private:
     DrawnFonts m_overlay_fonts;
     DisplayListRasterCache m_overlay_raster_cache;
     BackingStoreManager m_backing_stores;
-    HashMap<u32, PresentableSurfacePool> m_presentable_surface_pools;
     HashTable<Media::VideoSinkHandle> m_drawn_video_sinks;
 };
 

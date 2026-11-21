@@ -62,14 +62,6 @@ Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<String
     return label;
 }
 
-RefPtr<PresentableSurface> ContextRasterTargets::next_presentable_surface(u32 pool, Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
-{
-    auto surface = m_presentable_surface_pools.ensure(pool).surface_for_next_content(size, skia_backend_context);
-    if (surface.is_error())
-        return nullptr;
-    return surface.release_value();
-}
-
 bool ContextRasterTargets::set_drawn_video_sinks(ReadonlySpan<u64> handles)
 {
     HashTable<Media::VideoSinkHandle> drawn_video_sinks;

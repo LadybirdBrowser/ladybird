@@ -16,6 +16,7 @@ use crate::overlays::{
     UIOverlays,
 };
 use crate::raster_host::{FfiRasterHost, RasterHost};
+use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
@@ -23,7 +24,6 @@ use libcompositing_rust::ipc_types::{
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{IntRect, IntSize};
 use libipc_rust::cpp_connection::RawMessage;
-use std::ffi::c_void;
 use std::rc::Rc;
 
 fn time(nanoseconds: i64) -> MonotonicTime {
@@ -418,38 +418,35 @@ pub extern "C" fn compositor_core_canvas_content_changed(
 ///
 /// # Safety
 ///
-/// `surface` must be a live surface, which the call lends.
+/// `surface` must be a live surface.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_core_paint_screenshot(
     core: &CompositorCore,
     context_id: u64,
-    surface: *mut c_void,
+    surface: *const PaintingSurface,
     now_nanoseconds: i64,
 ) -> bool {
-    let Some(surface) = core.raster().retain_surface(surface) else {
-        return false;
-    };
+    // SAFETY: The caller lends a live surface, which the painting holds while it lasts.
+    let surface = unsafe { PaintingSurface::retained_from_ffi(surface) };
     core.paint_screenshot(CompositorContextId(context_id), &surface, time(now_nanoseconds))
 }
 
 /// The surface that holds the frame on screen as a whole, with one reference that the caller takes over, and the size
-/// of the frame in it. Answers false where no frame is on screen.
+/// of the frame in it. Answers null where no frame is on screen.
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_presented_frame_for_snapshot(
     core: &CompositorCore,
     context_id: u64,
     now_nanoseconds: i64,
-    surface: &mut *mut c_void,
     frame_size: &mut IntSize,
-) -> bool {
+) -> *const PaintingSurface {
     let Some((source, size)) =
         core.presented_frame_for_snapshot(CompositorContextId(context_id), time(now_nanoseconds))
     else {
-        return false;
+        return std::ptr::null();
     };
-    *surface = core.raster().leak_surface(source);
     *frame_size = size;
-    true
+    PaintingSurface::into_ffi(source)
 }
 
 /// Takes a message of the CompositorWebContentServer endpoint that is marked [RustReceiver].

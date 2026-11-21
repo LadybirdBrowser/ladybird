@@ -12,17 +12,16 @@ use super::{
     ContextPresenting, FrameToPaint, PresentingEnvironment, paint_overlays, rect_of_size, replay_into, replaying_only,
 };
 use crate::raster_host::{
-    FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, PresentableSurfaceHandle, SublayerContentKind,
-    SurfaceBlend, SurfaceHandle,
+    FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, SublayerContentKind, SurfaceBlend,
 };
+use crate::surfaces::painting_surface::PaintingSurface;
+use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfacePool};
 use libcompositing_rust::display_list::layers::{LayerKind, LayerPlan, LayerPlanInputs, build_layer_plan};
 use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
 use libcompositing_rust::display_list::window_server_placement::WindowServerPlacement;
 use libgfx_rust::{Color, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
-
-// The pool of presentable surfaces the overlays are shown from, apart from those of the painted layers.
-const COMPOSITOR_OVERLAY_SURFACE_POOL: u32 = u32::MAX;
+use std::rc::Rc;
 
 // Sublayers keep their identity from one frame to the next by what they show.
 const CANVAS_SUBLAYER_IDENTITY_TAG: u64 = 1 << 60;
@@ -34,7 +33,7 @@ const MEDIA_DRAWING_INDEX_SHIFT: u32 = 44;
 
 #[derive(Default)]
 struct LayerSurface {
-    surface: Option<SurfaceHandle>,
+    surface: Option<Rc<PaintingSurface>>,
     rect: IntRect,
     // Changes whenever anything is drawn into the surface.
     content_version: u64,
@@ -43,7 +42,8 @@ struct LayerSurface {
 // The surface that the window server shows a painted layer from.
 #[derive(Default)]
 struct PaintedLayerPresentation {
-    latest_surface: Option<PresentableSurfaceHandle>,
+    surface_pool: PresentableSurfacePool,
+    latest_surface: Option<Rc<PresentableSurface>>,
     rect: IntRect,
     content_version: u64,
 }
@@ -57,7 +57,9 @@ pub struct ContextLayers {
     // Whether the window server shows the canvases and videos of the latest frame above it.
     window_server_shows_media: bool,
     painted_layer_presentations: Vec<PaintedLayerPresentation>,
-    latest_overlay_surface: Option<PresentableSurfaceHandle>,
+    // The surfaces the overlays are shown from, apart from those of the painted layers.
+    overlay_surface_pool: PresentableSurfacePool,
+    latest_overlay_surface: Option<Rc<PresentableSurface>>,
     overlay_rect: IntRect,
 }
 
@@ -74,15 +76,9 @@ impl ContextLayers {
         self.window_server_shows_media
     }
 
-    pub fn drop_layers(&mut self, env: &PresentingEnvironment<'_>) {
-        if self.plan.is_none() && self.surfaces.is_empty() && self.painted_layer_presentations.is_empty() {
-            return;
-        }
+    pub fn drop_layers(&mut self) {
         self.plan = None;
         self.surfaces.clear();
-        for pool in 0..self.painted_layer_presentations.len() {
-            env.raster.drop_presentable_surface_pool(env.context_id, pool as u32);
-        }
         self.painted_layer_presentations.clear();
     }
 }
@@ -143,12 +139,12 @@ fn sublayer_placement_of(placement: &WindowServerPlacement) -> FfiSublayerPlacem
 }
 
 // A sublayer that shows a surface at its own rect, unclipped and untransformed.
-fn surface_sublayer(identity: u64, surface: &PresentableSurfaceHandle, rect: IntRect) -> FfiSublayer {
+fn surface_sublayer(identity: u64, surface: &Rc<PresentableSurface>, rect: IntRect) -> FfiSublayer {
     FfiSublayer {
         identity,
         content_kind: SublayerContentKind::PresentableSurface,
         media_id: 0,
-        presentable_surface: surface.as_ptr(),
+        presentable_surface: surface.as_ffi(),
         placement: FfiSublayerPlacement {
             content_rect: rect,
             content_to_frame: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
@@ -242,11 +238,11 @@ impl ContextPresenting {
         true
     }
 
-    pub(super) fn commit_layer_update(&mut self, env: &PresentingEnvironment<'_>, layer_update: LayerUpdate) {
+    pub(super) fn commit_layer_update(&mut self, layer_update: LayerUpdate) {
         let layers = &mut self.layers;
         layers.window_server_shows_media = layer_update.has_plan() && layer_update.shown_by_window_server;
         if !layer_update.has_plan() {
-            layers.drop_layers(env);
+            layers.drop_layers();
             return;
         }
         if let Some(new_plan) = layer_update.new_plan {
@@ -257,7 +253,7 @@ impl ContextPresenting {
     pub(super) fn paint_layered_frame(
         &mut self,
         env: &PresentingEnvironment<'_>,
-        surface: &SurfaceHandle,
+        surface: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
         damage_rect: IntRect,
         layer_update: &LayerUpdate,
@@ -282,7 +278,7 @@ impl ContextPresenting {
     fn paint_layers(
         &mut self,
         env: &PresentingEnvironment<'_>,
-        surface: &SurfaceHandle,
+        surface: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
         damage_rect: IntRect,
         layer_update: &LayerUpdate,
@@ -316,7 +312,7 @@ impl ContextPresenting {
             let shares_backend = layer_surface
                 .surface
                 .as_ref()
-                .is_some_and(|layer_surface| raster.surfaces_share_backend(layer_surface, surface));
+                .is_some_and(|layer_surface| layer_surface.shares_backend_with(surface));
             if layer_surface.surface.is_none() || !surface_fits || !shares_backend {
                 let Some(new_surface) = raster.create_surface(
                     IntSize {
@@ -401,7 +397,7 @@ impl ContextPresenting {
     pub(super) fn composite_layers_above_base(
         &self,
         env: &PresentingEnvironment<'_>,
-        surface: &SurfaceHandle,
+        surface: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
         damage_rect: IntRect,
     ) {
@@ -414,7 +410,7 @@ impl ContextPresenting {
     fn composite_layers_above_base_with_plan(
         &self,
         env: &PresentingEnvironment<'_>,
-        surface: &SurfaceHandle,
+        surface: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
         plan: &LayerPlan,
         damage_rect: IntRect,
@@ -454,14 +450,11 @@ impl ContextPresenting {
         &mut self,
         env: &PresentingEnvironment<'_>,
         plan: &LayerPlan,
-        like: &SurfaceHandle,
+        like: &Rc<PaintingSurface>,
     ) -> bool {
         let raster = env.raster;
         let layers = &mut self.layers;
         // The surfaces of the layers that the plan no longer has go with them.
-        for pool in plan.layers.len()..layers.painted_layer_presentations.len() {
-            raster.drop_presentable_surface_pool(env.context_id, pool as u32);
-        }
         layers
             .painted_layer_presentations
             .resize_with(plan.layers.len(), PaintedLayerPresentation::default);
@@ -487,11 +480,16 @@ impl ContextPresenting {
                 width: layer.rect.width,
                 height: layer.rect.height,
             };
-            let Some(presentable) = raster.next_presentable_surface(env.context_id, index as u32, layer_size, like)
+            let Some(presentable) =
+                presentation
+                    .surface_pool
+                    .surface_for_next_content(layer_size, like.gpu_backend_context(), || {
+                        raster.create_presentable_surface(layer_size, like)
+                    })
             else {
                 return false;
             };
-            let target = raster.painting_surface_of(&presentable);
+            let target = presentable.painting_surface();
             let source_rect = IntRect::new(
                 layer.rect.x - layer_surface.rect.x,
                 layer.rect.y - layer_surface.rect.y,
@@ -499,7 +497,7 @@ impl ContextPresenting {
                 layer.rect.height,
             );
             raster.draw_surface(
-                &target,
+                target,
                 source,
                 source_rect,
                 rect_of_size(layer_size),
@@ -516,7 +514,7 @@ impl ContextPresenting {
         &mut self,
         env: &PresentingEnvironment<'_>,
         frame: &FrameToPaint<'_>,
-        like: &SurfaceHandle,
+        like: &Rc<PaintingSurface>,
     ) -> bool {
         let raster = env.raster;
         let bounds = frame.frame_inputs.overlays.bounds;
@@ -530,16 +528,20 @@ impl ContextPresenting {
             height: bounds.height,
         };
         let Some(presentable) =
-            raster.next_presentable_surface(env.context_id, COMPOSITOR_OVERLAY_SURFACE_POOL, bounds_size, like)
+            self.layers
+                .overlay_surface_pool
+                .surface_for_next_content(bounds_size, like.gpu_backend_context(), || {
+                    raster.create_presentable_surface(bounds_size, like)
+                })
         else {
             return false;
         };
-        let target = raster.painting_surface_of(&presentable);
-        raster.clear(&target, Color::TRANSPARENT);
-        let save_count = raster.save(&target);
-        raster.translate(&target, -bounds.x as f32, -bounds.y as f32);
-        paint_overlays(env, &target, frame.frame_inputs, true);
-        raster.restore_to_count(&target, save_count);
+        let target = presentable.painting_surface();
+        raster.clear(target, Color::TRANSPARENT);
+        let save_count = raster.save(target);
+        raster.translate(target, -bounds.x as f32, -bounds.y as f32);
+        paint_overlays(env, target, frame.frame_inputs, true);
+        raster.restore_to_count(target, save_count);
         self.layers.latest_overlay_surface = Some(presentable);
         true
     }

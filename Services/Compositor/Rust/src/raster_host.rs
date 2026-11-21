@@ -8,6 +8,8 @@
 //! stores of each context, the surfaces the window server shows, the media that live content comes from, GPU
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
+use crate::surfaces::painting_surface::PaintingSurface;
+use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::storage::{
     PackedChunkSize, ReceivedChunk, receive_packed_chunks_from_shared_memory,
@@ -19,6 +21,7 @@ use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::rc::Rc;
 
 /// How a surface is drawn into another.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,7 +95,8 @@ pub struct FfiStoreResize {
 #[repr(C)]
 pub struct FfiAcquiredStore {
     pub bitmap_id: i32,
-    pub surface: *mut c_void,
+    /// Lent for as long as the store lives.
+    pub surface: *const PaintingSurface,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -181,7 +185,7 @@ pub struct FfiSublayer {
     pub identity: u64,
     pub content_kind: SublayerContentKind,
     pub media_id: u64,
-    pub presentable_surface: *mut c_void,
+    pub presentable_surface: *const PresentableSurface,
     pub placement: FfiSublayerPlacement,
 }
 
@@ -203,31 +207,27 @@ pub struct FfiRemoteLayerFrame {
 pub struct FfiRasterHost {
     pub host: *mut c_void,
 
-    pub surface_retain: unsafe extern "C" fn(*mut c_void),
-    pub surface_release: unsafe extern "C" fn(*mut c_void),
-    /// Writes the size of the surface. NB: A C++ function returns Gfx::IntSize in memory rather than in a register
-    ///     on Windows, so the size does not come back as the return value.
-    pub surface_size: unsafe extern "C" fn(*mut c_void, *mut IntSize),
-    /// Null where the surface could not be made. The surface is made like the one given, or for the GPU the compositor
-    /// renders with where none is given. The last argument also inherits LCD text for pixel-aligned copies.
-    pub create_surface: unsafe extern "C" fn(*mut c_void, IntSize, *mut c_void, bool) -> *mut c_void,
-    pub surfaces_share_backend: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
-    pub surface_uses_gpu: unsafe extern "C" fn(*mut c_void) -> bool,
-    pub surface_save: unsafe extern "C" fn(*mut c_void) -> i32,
-    pub surface_restore_to_count: unsafe extern "C" fn(*mut c_void, i32),
-    pub surface_translate: unsafe extern "C" fn(*mut c_void, f32, f32),
-    pub surface_scale: unsafe extern "C" fn(*mut c_void, f32, f32),
-    pub surface_clip_rect: unsafe extern "C" fn(*mut c_void, IntRect),
-    pub surface_clear: unsafe extern "C" fn(*mut c_void, Color),
+    /// A new surface with one reference that the caller takes over, or null where it could not be made. The surface is
+    /// made like the one given, or for the GPU the compositor renders with where none is given. The last argument also
+    /// inherits LCD text for pixel-aligned copies.
+    pub create_surface:
+        unsafe extern "C" fn(*mut c_void, IntSize, *const PaintingSurface, bool) -> *const PaintingSurface,
+    pub surface_save: unsafe extern "C" fn(*const PaintingSurface) -> i32,
+    pub surface_restore_to_count: unsafe extern "C" fn(*const PaintingSurface, i32),
+    pub surface_translate: unsafe extern "C" fn(*const PaintingSurface, f32, f32),
+    pub surface_scale: unsafe extern "C" fn(*const PaintingSurface, f32, f32),
+    pub surface_clip_rect: unsafe extern "C" fn(*const PaintingSurface, IntRect),
+    pub surface_clear: unsafe extern "C" fn(*const PaintingSurface, Color),
     /// Arguments: the target, the source, the rect of the source drawn, the rect of the target it is drawn into, and
     /// how it is blended.
-    pub surface_draw_surface: unsafe extern "C" fn(*mut c_void, *mut c_void, IntRect, IntRect, SurfaceBlend),
-    pub flush_surface: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub surface_draw_surface:
+        unsafe extern "C" fn(*const PaintingSurface, *const PaintingSurface, IntRect, IntRect, SurfaceBlend),
+    pub flush_surface: unsafe extern "C" fn(*const PaintingSurface),
 
     /// Arguments: the host, the context, the surface, whose resources it draws with, whether it allows LCD text,
     /// and where the painter is written. The painting lasts until `end_painting`, and paintings nest.
     pub begin_painting:
-        unsafe extern "C" fn(*mut c_void, u64, *mut c_void, PaintingResources, bool, *mut FfiRasterPainter),
+        unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface, PaintingResources, bool, *mut FfiRasterPainter),
     pub end_painting: unsafe extern "C" fn(*mut c_void),
     /// Lets the raster caches of the context's page drop what the frames before the one that starts did not use.
     pub start_raster_cache_frame: unsafe extern "C" fn(*mut c_void, u64),
@@ -240,7 +240,7 @@ pub struct FfiRasterHost {
     pub release_store: unsafe extern "C" fn(*mut c_void, u64, i32) -> bool,
     pub release_all_presented_stores: unsafe extern "C" fn(*mut c_void, u64),
     /// Lent; null before any store was rendered into.
-    pub latest_rendered_store_surface: unsafe extern "C" fn(*mut c_void, u64) -> *mut c_void,
+    pub latest_rendered_store_surface: unsafe extern "C" fn(*mut c_void, u64) -> *const PaintingSurface,
     /// Arguments: the context, and the presentation that shows its stores, if it has one. Answers whether a store was
     /// added.
     pub add_store_if_window_server_reads_every_released_store:
@@ -254,13 +254,10 @@ pub struct FfiRasterHost {
     /// needs a whole new allocation.
     pub restore_stores_retired_while_hidden: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
 
-    /// Arguments: the context, the pool, the size, and a surface the new one is made like. Null where none could be had.
-    pub next_presentable_surface: unsafe extern "C" fn(*mut c_void, u64, u32, IntSize, *mut c_void) -> *mut c_void,
-    pub drop_presentable_surface_pool: unsafe extern "C" fn(*mut c_void, u64, u32),
-    pub presentable_surface_retain: unsafe extern "C" fn(*mut c_void),
-    pub presentable_surface_release: unsafe extern "C" fn(*mut c_void),
-    /// Lent for as long as the presentable surface lives.
-    pub presentable_surface_painting_surface: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    /// A new surface of the size, made like the one given, with one reference that the caller takes over, or null
+    /// where none could be made.
+    pub create_presentable_surface:
+        unsafe extern "C" fn(*mut c_void, IntSize, *const PaintingSurface) -> *const PresentableSurface,
 
     pub live_content: unsafe extern "C" fn(
         *mut c_void,
@@ -279,7 +276,7 @@ pub struct FfiRasterHost {
     pub frame_hand_off: unsafe extern "C" fn(*mut c_void, u64) -> FrameHandOff,
     /// Submits the GPU work drawn into the surface, or into the surfaces the window server shows where it is null,
     /// answering a token that `compositor_core_gpu_work_finished` hands back once it is done, on a later turn.
-    pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *mut c_void) -> u64,
+    pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface) -> u64,
     /// Calls `compositor_core_frame_ready_for_hand_off` with the token on a later turn, once the work is scheduled.
     pub hand_off_once_gpu_work_is_scheduled: unsafe extern "C" fn(*mut c_void, u64),
     /// Shows a frame in the remote layer that shows the context, with the sublayers given, which it takes over. Answers
@@ -334,57 +331,6 @@ pub struct FfiRasterHost {
     pub finish_staged_rasterization: unsafe extern "C" fn(*mut c_void, u64, u64),
 }
 
-/// A surface of the C++ side, which this keeps alive.
-pub struct SurfaceHandle {
-    surface: NonNull<c_void>,
-    release: unsafe extern "C" fn(*mut c_void),
-    retain: unsafe extern "C" fn(*mut c_void),
-}
-
-impl SurfaceHandle {
-    pub fn as_ptr(&self) -> *mut c_void {
-        self.surface.as_ptr()
-    }
-}
-
-impl Clone for SurfaceHandle {
-    fn clone(&self) -> Self {
-        // SAFETY: The surface is live, as this holds it.
-        unsafe { (self.retain)(self.surface.as_ptr()) };
-        Self {
-            surface: self.surface,
-            release: self.release,
-            retain: self.retain,
-        }
-    }
-}
-
-impl Drop for SurfaceHandle {
-    fn drop(&mut self) {
-        // SAFETY: This holds the reference it gives back.
-        unsafe { (self.release)(self.surface.as_ptr()) };
-    }
-}
-
-/// A surface the window server shows, which this keeps alive.
-pub struct PresentableSurfaceHandle {
-    surface: NonNull<c_void>,
-    release: unsafe extern "C" fn(*mut c_void),
-}
-
-impl PresentableSurfaceHandle {
-    pub fn as_ptr(&self) -> *mut c_void {
-        self.surface.as_ptr()
-    }
-}
-
-impl Drop for PresentableSurfaceHandle {
-    fn drop(&mut self) {
-        // SAFETY: This holds the reference it gives back.
-        unsafe { (self.release)(self.surface.as_ptr()) };
-    }
-}
-
 /// Sublayers whose content the C++ side resolved, which keep that content busy until they are shown or dropped.
 pub struct SublayersHandle {
     sublayers: NonNull<c_void>,
@@ -420,60 +366,17 @@ impl RasterHost {
         self.0.host
     }
 
-    /// Takes a reference to a surface the C++ side lends.
-    pub fn retain_surface(&self, surface: *mut c_void) -> Option<SurfaceHandle> {
-        let surface = NonNull::new(surface)?;
-        // SAFETY: The C++ side lends a live surface.
-        unsafe { (self.0.surface_retain)(surface.as_ptr()) };
-        Some(SurfaceHandle {
-            surface,
-            release: self.0.surface_release,
-            retain: self.0.surface_retain,
-        })
-    }
-
-    /// Hands the reference the handle holds over to the C++ side.
-    pub fn leak_surface(&self, surface: SurfaceHandle) -> *mut c_void {
-        let pointer = surface.as_ptr();
-        std::mem::forget(surface);
-        pointer
-    }
-
-    // Adopts the reference the C++ side handed over with a new surface.
-    fn adopt_surface(&self, surface: *mut c_void) -> Option<SurfaceHandle> {
-        Some(SurfaceHandle {
-            surface: NonNull::new(surface)?,
-            release: self.0.surface_release,
-            retain: self.0.surface_retain,
-        })
-    }
-
-    pub fn surface_size(&self, surface: &SurfaceHandle) -> IntSize {
-        let mut size = IntSize::default();
-        // SAFETY: The surface is live, and the host writes the size during the call.
-        unsafe { (self.0.surface_size)(surface.as_ptr(), &raw mut size) };
-        size
-    }
-
     pub fn create_surface(
         &self,
         size: IntSize,
-        like: Option<&SurfaceHandle>,
+        like: Option<&Rc<PaintingSurface>>,
         inherits_lcd_text: bool,
-    ) -> Option<SurfaceHandle> {
-        let like = like.map_or(std::ptr::null_mut(), SurfaceHandle::as_ptr);
-        // SAFETY: The host outlives this, and the surface it is made like is live.
-        self.adopt_surface(unsafe { (self.0.create_surface)(self.host(), size, like, inherits_lcd_text) })
-    }
-
-    pub fn surfaces_share_backend(&self, a: &SurfaceHandle, b: &SurfaceHandle) -> bool {
-        // SAFETY: Both surfaces are live.
-        unsafe { (self.0.surfaces_share_backend)(a.as_ptr(), b.as_ptr()) }
-    }
-
-    pub fn surface_uses_gpu(&self, surface: &SurfaceHandle) -> bool {
-        // SAFETY: The surface is live.
-        unsafe { (self.0.surface_uses_gpu)(surface.as_ptr()) }
+    ) -> Option<Rc<PaintingSurface>> {
+        let like = like.map_or(std::ptr::null(), Rc::as_ptr);
+        // SAFETY: The host outlives this, and hands over a new surface or null.
+        unsafe {
+            PaintingSurface::adopted_from_ffi((self.0.create_surface)(self.host(), size, like, inherits_lcd_text))
+        }
     }
 
     pub fn start_raster_cache_frame(&self, context_id: CompositorContextId) {
@@ -481,58 +384,60 @@ impl RasterHost {
         unsafe { (self.0.start_raster_cache_frame)(self.host(), context_id.0) };
     }
 
-    pub fn save(&self, surface: &SurfaceHandle) -> i32 {
+    pub fn save(&self, surface: &Rc<PaintingSurface>) -> i32 {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_save)(surface.as_ptr()) }
+        unsafe { (self.0.surface_save)(Rc::as_ptr(surface)) }
     }
 
-    pub fn restore_to_count(&self, surface: &SurfaceHandle, count: i32) {
+    pub fn restore_to_count(&self, surface: &Rc<PaintingSurface>, count: i32) {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_restore_to_count)(surface.as_ptr(), count) };
+        unsafe { (self.0.surface_restore_to_count)(Rc::as_ptr(surface), count) };
     }
 
-    pub fn translate(&self, surface: &SurfaceHandle, x: f32, y: f32) {
+    pub fn translate(&self, surface: &Rc<PaintingSurface>, x: f32, y: f32) {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_translate)(surface.as_ptr(), x, y) };
+        unsafe { (self.0.surface_translate)(Rc::as_ptr(surface), x, y) };
     }
 
-    pub fn scale(&self, surface: &SurfaceHandle, x: f32, y: f32) {
+    pub fn scale(&self, surface: &Rc<PaintingSurface>, x: f32, y: f32) {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_scale)(surface.as_ptr(), x, y) };
+        unsafe { (self.0.surface_scale)(Rc::as_ptr(surface), x, y) };
     }
 
-    pub fn clip_rect(&self, surface: &SurfaceHandle, rect: IntRect) {
+    pub fn clip_rect(&self, surface: &Rc<PaintingSurface>, rect: IntRect) {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_clip_rect)(surface.as_ptr(), rect) };
+        unsafe { (self.0.surface_clip_rect)(Rc::as_ptr(surface), rect) };
     }
 
-    pub fn clear(&self, surface: &SurfaceHandle, color: Color) {
+    pub fn clear(&self, surface: &Rc<PaintingSurface>, color: Color) {
         // SAFETY: The surface is live.
-        unsafe { (self.0.surface_clear)(surface.as_ptr(), color) };
+        unsafe { (self.0.surface_clear)(Rc::as_ptr(surface), color) };
     }
 
     pub fn draw_surface(
         &self,
-        target: &SurfaceHandle,
-        source: &SurfaceHandle,
+        target: &Rc<PaintingSurface>,
+        source: &Rc<PaintingSurface>,
         source_rect: IntRect,
         target_rect: IntRect,
         blend: SurfaceBlend,
     ) {
         // SAFETY: Both surfaces are live.
-        unsafe { (self.0.surface_draw_surface)(target.as_ptr(), source.as_ptr(), source_rect, target_rect, blend) };
+        unsafe {
+            (self.0.surface_draw_surface)(Rc::as_ptr(target), Rc::as_ptr(source), source_rect, target_rect, blend);
+        }
     }
 
-    pub fn flush(&self, surface: &SurfaceHandle) {
-        // SAFETY: The host outlives this, and the surface is live.
-        unsafe { (self.0.flush_surface)(self.host(), surface.as_ptr()) };
+    pub fn flush(&self, surface: &Rc<PaintingSurface>) {
+        // SAFETY: The surface is live.
+        unsafe { (self.0.flush_surface)(Rc::as_ptr(surface)) };
     }
 
     /// Paints into the surface through a painter, which `paint` drives.
     pub fn paint(
         &self,
         context_id: CompositorContextId,
-        surface: &SurfaceHandle,
+        surface: &Rc<PaintingSurface>,
         resources: PaintingResources,
         allows_lcd_text: bool,
         paint: impl FnOnce(&mut FfiRasterPainter),
@@ -543,7 +448,7 @@ impl RasterHost {
             (self.0.begin_painting)(
                 self.host(),
                 context_id.0,
-                surface.as_ptr(),
+                Rc::as_ptr(surface),
                 resources,
                 allows_lcd_text,
                 painter.as_mut_ptr(),
@@ -570,16 +475,21 @@ impl RasterHost {
         unsafe { (self.0.invalidate_stores)(self.host(), context_id.0) };
     }
 
-    pub fn acquire_store(&self, context_id: CompositorContextId) -> Option<(i32, SurfaceHandle)> {
+    pub fn acquire_store(&self, context_id: CompositorContextId) -> Option<(i32, Rc<PaintingSurface>)> {
         let mut acquired = FfiAcquiredStore {
             bitmap_id: -1,
-            surface: std::ptr::null_mut(),
+            surface: std::ptr::null(),
         };
         // SAFETY: The host outlives this.
-        if !unsafe { (self.0.acquire_store)(self.host(), context_id.0, &raw mut acquired) } {
+        if !unsafe { (self.0.acquire_store)(self.host(), context_id.0, &raw mut acquired) }
+            || acquired.surface.is_null()
+        {
             return None;
         }
-        Some((acquired.bitmap_id, self.retain_surface(acquired.surface)?))
+        // SAFETY: The host lends the live surface of the store.
+        Some((acquired.bitmap_id, unsafe {
+            PaintingSurface::retained_from_ffi(acquired.surface)
+        }))
     }
 
     pub fn complete_rendering(&self, context_id: CompositorContextId, bitmap_id: i32) {
@@ -597,9 +507,11 @@ impl RasterHost {
         unsafe { (self.0.release_all_presented_stores)(self.host(), context_id.0) };
     }
 
-    pub fn latest_rendered_store_surface(&self, context_id: CompositorContextId) -> Option<SurfaceHandle> {
+    pub fn latest_rendered_store_surface(&self, context_id: CompositorContextId) -> Option<Rc<PaintingSurface>> {
         // SAFETY: The host outlives this.
-        self.retain_surface(unsafe { (self.0.latest_rendered_store_surface)(self.host(), context_id.0) })
+        let surface = unsafe { (self.0.latest_rendered_store_surface)(self.host(), context_id.0) };
+        // SAFETY: The host lends the live surface of the store, or null.
+        (!surface.is_null()).then(|| unsafe { PaintingSurface::retained_from_ffi(surface) })
     }
 
     pub fn add_store_if_window_server_reads_every_released_store(
@@ -662,31 +574,19 @@ impl RasterHost {
         }
     }
 
-    pub fn next_presentable_surface(
+    pub fn create_presentable_surface(
         &self,
-        context_id: CompositorContextId,
-        pool: u32,
         size: IntSize,
-        like: &SurfaceHandle,
-    ) -> Option<PresentableSurfaceHandle> {
-        // SAFETY: The host outlives this, and the surface is live.
-        let surface =
-            unsafe { (self.0.next_presentable_surface)(self.host(), context_id.0, pool, size, like.as_ptr()) };
-        Some(PresentableSurfaceHandle {
-            surface: NonNull::new(surface)?,
-            release: self.0.presentable_surface_release,
-        })
-    }
-
-    pub fn drop_presentable_surface_pool(&self, context_id: CompositorContextId, pool: u32) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.drop_presentable_surface_pool)(self.host(), context_id.0, pool) };
-    }
-
-    pub fn painting_surface_of(&self, surface: &PresentableSurfaceHandle) -> SurfaceHandle {
-        // SAFETY: The presentable surface is live, and lends its painting surface.
-        self.retain_surface(unsafe { (self.0.presentable_surface_painting_surface)(surface.as_ptr()) })
-            .expect("a presentable surface has a painting surface")
+        like: &Rc<PaintingSurface>,
+    ) -> Option<Rc<PresentableSurface>> {
+        // SAFETY: The host outlives this, and hands over a new surface or null.
+        unsafe {
+            PresentableSurface::adopted_from_ffi((self.0.create_presentable_surface)(
+                self.host(),
+                size,
+                Rc::as_ptr(like),
+            ))
+        }
     }
 
     pub fn live_content(&self, context_id: CompositorContextId, canvas_ids: &[u64]) -> LiveContent {
@@ -752,8 +652,8 @@ impl RasterHost {
         unsafe { (self.0.frame_hand_off)(self.host(), context_id.0) }
     }
 
-    pub fn submit_frame(&self, context_id: CompositorContextId, surface: Option<&SurfaceHandle>) -> u64 {
-        let surface = surface.map_or(std::ptr::null_mut(), SurfaceHandle::as_ptr);
+    pub fn submit_frame(&self, context_id: CompositorContextId, surface: Option<&Rc<PaintingSurface>>) -> u64 {
+        let surface = surface.map_or(std::ptr::null(), Rc::as_ptr);
         // SAFETY: The host outlives this, and the surface is live.
         unsafe { (self.0.submit_frame)(self.host(), context_id.0, surface) }
     }

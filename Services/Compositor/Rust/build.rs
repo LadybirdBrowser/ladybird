@@ -35,12 +35,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("RecordSpan", "Compositing::RustFFI::RecordSpan"),
         ("CanvasId", "Compositing::CanvasId"),
         ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),
+        ("PaintingSurface", "Gfx::PaintingSurface"),
+        ("PresentableSurface", "Compositor::PresentableSurface"),
+        ("WeakPresentableSurface", "Compositor::FfiWeakPresentableSurface"),
+        ("PresentableSurfacePool", "Compositor::FfiPresentableSurfacePool"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
+    // The surfaces are the C++ classes that stand for them, and the C++ declares the rest, so they are only named.
+    config.export.exclude.extend(
+        [
+            "PaintingSurface",
+            "PresentableSurface",
+            "WeakPresentableSurface",
+            "PresentableSurfacePool",
+        ]
+        .map(String::from),
+    );
     config.includes.extend(
         [
             "AK/Span.h",
+            "Compositor/PaintingSurface.h",
+            "Compositor/PresentableSurface.h",
             "LibCompositing/DisplayList/ContextRef.h",
             "LibCompositing/DisplayList/DisplayListResourceIds.h",
             "LibGfx/Color.h",
@@ -63,6 +79,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "src/raster_host.rs",
         "src/core/presenting.rs",
         "src/core/mod.rs",
+        "src/surfaces/painting_surface.rs",
+        "src/surfaces/presentable_surface.rs",
     ] {
         println!("cargo:rerun-if-changed={source}");
         builder = builder.with_src(manifest_dir.join(source));

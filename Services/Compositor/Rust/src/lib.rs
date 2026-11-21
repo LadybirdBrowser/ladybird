@@ -33,6 +33,7 @@ pub mod raster_host;
 pub mod scroll_fling_controller;
 pub mod scroll_snap_controller;
 pub mod scrollbar_controller;
+pub mod surfaces;
 pub mod wheel_gesture_routing;
 
 #[cfg(test)]

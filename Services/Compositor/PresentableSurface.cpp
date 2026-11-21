@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/CompositorCoreRustFFI.h>
 #include <Compositor/PresentableSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/WindowServer.h>
@@ -11,34 +12,82 @@
 
 namespace Compositor {
 
+static bool window_server_surface_may_be_read(void* surface)
+{
+    return static_cast<WindowServerSurface const*>(surface)->may_be_read_by_window_server();
+}
+
+static void destroy_window_server_surface(void* surface)
+{
+    delete static_cast<WindowServerSurface*>(surface);
+}
+
+static NonnullRefPtr<PresentableSurface> adopt_presentable_surface(PresentableSurface const* surface)
+{
+    return adopt_ref(const_cast<PresentableSurface&>(*surface));
+}
+
 NonnullRefPtr<PresentableSurface> PresentableSurface::create(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin, OwnPtr<WindowServerSurface> window_server_surface)
 {
-    return adopt_ref(*new PresentableSurface(move(painting_surface), origin, move(window_server_surface)));
+    return adopt_presentable_surface(RustFFI::compositor_presentable_surface_create(
+        painting_surface.ptr(),
+        origin == Gfx::PaintingSurface::Origin::BottomLeft,
+        window_server_surface.leak_ptr(),
+        window_server_surface_may_be_read,
+        destroy_window_server_surface));
 }
 
-PresentableSurface::PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin, OwnPtr<WindowServerSurface> window_server_surface)
-    : m_painting_surface(move(painting_surface))
-    , m_origin(origin)
-    , m_window_server_surface(move(window_server_surface))
+Gfx::PaintingSurface& PresentableSurface::painting_surface() const
 {
+    return const_cast<Gfx::PaintingSurface&>(*RustFFI::compositor_presentable_surface_painting_surface(this));
 }
 
-PresentableSurface::~PresentableSurface()
+bool PresentableSurface::content_is_upside_down() const
 {
-    VERIFY(m_lease_count == 0);
+    return RustFFI::compositor_presentable_surface_content_is_upside_down(this);
+}
+
+WindowServerSurface const* PresentableSurface::window_server_surface() const
+{
+    return static_cast<WindowServerSurface const*>(RustFFI::compositor_presentable_surface_window_server_surface(this));
+}
+
+void PresentableSurface::did_hand_to_window_server()
+{
+    RustFFI::compositor_presentable_surface_did_hand_to_window_server(this);
+}
+
+bool PresentableSurface::is_read_by_window_server() const
+{
+    return RustFFI::compositor_presentable_surface_is_read_by_window_server(this);
+}
+
+bool PresentableSurface::is_busy() const
+{
+    return RustFFI::compositor_presentable_surface_is_busy(this);
+}
+
+void PresentableSurface::ref() const
+{
+    RustFFI::compositor_presentable_surface_retain(this);
+}
+
+void PresentableSurface::unref() const
+{
+    RustFFI::compositor_presentable_surface_release(this);
 }
 
 PresentableSurface::Lease::Lease(PresentableSurface& surface)
     : m_surface(surface)
 {
-    ++surface.m_lease_count;
+    RustFFI::compositor_presentable_surface_add_lease(m_surface.ptr());
 }
 
 PresentableSurface::Lease::Lease(Lease const& other)
     : m_surface(other.m_surface)
 {
     if (m_surface)
-        ++m_surface->m_lease_count;
+        RustFFI::compositor_presentable_surface_add_lease(m_surface.ptr());
 }
 
 PresentableSurface::Lease::Lease(Lease&& other)
@@ -53,7 +102,7 @@ PresentableSurface::Lease& PresentableSurface::Lease::operator=(Lease const& oth
     release();
     m_surface = other.m_surface;
     if (m_surface)
-        ++m_surface->m_lease_count;
+        RustFFI::compositor_presentable_surface_add_lease(m_surface.ptr());
     return *this;
 }
 
@@ -75,14 +124,76 @@ void PresentableSurface::Lease::release()
 {
     if (!m_surface)
         return;
-    VERIFY(m_surface->m_lease_count > 0);
-    --m_surface->m_lease_count;
+    RustFFI::compositor_presentable_surface_remove_lease(m_surface.ptr());
     m_surface = nullptr;
 }
 
-bool PresentableSurface::is_read_by_window_server() const
+WeakPresentableSurface::WeakPresentableSurface(PresentableSurface const& surface)
+    : m_weak(RustFFI::compositor_presentable_surface_downgrade(&surface))
 {
-    return m_was_handed_to_window_server && m_window_server_surface && m_window_server_surface->may_be_read_by_window_server();
+}
+
+WeakPresentableSurface::WeakPresentableSurface(WeakPresentableSurface&& other)
+    : m_weak(exchange(other.m_weak, nullptr))
+{
+}
+
+WeakPresentableSurface& WeakPresentableSurface::operator=(WeakPresentableSurface&& other)
+{
+    if (this != &other) {
+        RustFFI::compositor_weak_presentable_surface_destroy(m_weak);
+        m_weak = exchange(other.m_weak, nullptr);
+    }
+    return *this;
+}
+
+WeakPresentableSurface::~WeakPresentableSurface()
+{
+    RustFFI::compositor_weak_presentable_surface_destroy(m_weak);
+}
+
+RefPtr<PresentableSurface> WeakPresentableSurface::strong_ref() const
+{
+    if (!m_weak)
+        return nullptr;
+    auto const* surface = RustFFI::compositor_weak_presentable_surface_upgrade(m_weak);
+    if (!surface)
+        return nullptr;
+    return adopt_presentable_surface(surface);
+}
+
+PresentableSurfacePool::PresentableSurfacePool()
+    : m_pool(RustFFI::compositor_presentable_surface_pool_create())
+{
+}
+
+PresentableSurfacePool::PresentableSurfacePool(PresentableSurfacePool&& other)
+    : m_pool(exchange(other.m_pool, nullptr))
+{
+}
+
+PresentableSurfacePool& PresentableSurfacePool::operator=(PresentableSurfacePool&& other)
+{
+    if (this != &other) {
+        RustFFI::compositor_presentable_surface_pool_destroy(m_pool);
+        m_pool = exchange(other.m_pool, nullptr);
+    }
+    return *this;
+}
+
+PresentableSurfacePool::~PresentableSurfacePool()
+{
+    RustFFI::compositor_presentable_surface_pool_destroy(m_pool);
+}
+
+namespace {
+
+struct SurfaceCreation {
+    Gfx::IntSize size;
+    RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context;
+    Optional<Error> error;
+};
+
 }
 
 ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurfacePool::create_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
@@ -95,30 +206,29 @@ ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurfacePool::create_surfac
     return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft);
 }
 
+static PresentableSurface const* create_surface_for_pool(void* context)
+{
+    auto& creation = *static_cast<SurfaceCreation*>(context);
+    auto surface = PresentableSurfacePool::create_surface(creation.size, creation.skia_backend_context);
+    if (surface.is_error()) {
+        creation.error = surface.release_error();
+        return nullptr;
+    }
+    return &surface.release_value().leak_ref();
+}
+
 ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurfacePool::surface_for_next_content(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto fits = [&](PresentableSurface const& surface) {
-        return surface.size() == size && surface.painting_surface().skia_backend_context() == skia_backend_context;
-    };
-    m_surfaces.remove_all_matching([&](auto const& surface) {
-        return !fits(*surface) && !surface->is_busy();
-    });
-
-    auto take = [&](size_t index) {
-        auto surface = m_surfaces.take(index);
-        m_surfaces.append(surface);
-        return surface;
-    };
-    if (!m_surfaces.is_empty() && fits(*m_surfaces.last()) && !m_surfaces.last()->is_busy())
-        return m_surfaces.last();
-    for (size_t index = 0; index < m_surfaces.size(); ++index) {
-        if (fits(*m_surfaces[index]) && !m_surfaces[index]->is_busy())
-            return take(index);
-    }
-    if (m_surfaces.size() >= maximum_surface_count)
+    if (!m_pool)
+        m_pool = RustFFI::compositor_presentable_surface_pool_create();
+    SurfaceCreation creation { size, skia_backend_context, {} };
+    auto const* surface = RustFFI::compositor_presentable_surface_pool_surface_for_next_content(m_pool, size, skia_backend_context.ptr(), create_surface_for_pool, &creation);
+    if (!surface) {
+        if (creation.error.has_value())
+            return creation.error.release_value();
         return Error::from_string_literal("Every surface of the pool is busy");
-    m_surfaces.append(TRY(create_surface(size, skia_backend_context)));
-    return m_surfaces.last();
+    }
+    return adopt_presentable_surface(surface);
 }
 
 }

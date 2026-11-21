@@ -1437,7 +1437,7 @@ Vector<RemoteSublayer>* CompositorState::build_sublayers(Web::CompositorContextI
                 content = frame.release_nonnull();
             break;
         case RustFFI::SublayerContentKind::PresentableSurface:
-            content = static_cast<PresentableSurface*>(sublayer.presentable_surface)->lease();
+            content = const_cast<PresentableSurface*>(sublayer.presentable_surface)->lease();
             break;
         }
         if (!content.has_value())
@@ -1629,14 +1629,14 @@ static CompositorState& state_of(void* host)
     return *static_cast<CompositorState*>(host);
 }
 
-static Gfx::PaintingSurface& painting_surface_of(void* surface)
+static SkCanvas& canvas_of(Gfx::PaintingSurface const* surface)
 {
-    return *static_cast<Gfx::PaintingSurface*>(surface);
+    return surface->canvas();
 }
 
-static SkCanvas& canvas_of(void* surface)
+static Gfx::PaintingSurface& mutable_surface(Gfx::PaintingSurface const* surface)
 {
-    return painting_surface_of(surface).canvas();
+    return const_cast<Gfx::PaintingSurface&>(*surface);
 }
 
 static Optional<u64> display_of(bool has_display_id, u64 display_id)
@@ -1663,11 +1663,8 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
     using Context = Web::CompositorContextId;
     return {
         .host = &state,
-        .surface_retain = [](void* surface) { painting_surface_of(surface).ref(); },
-        .surface_release = [](void* surface) { painting_surface_of(surface).unref(); },
-        .surface_size = [](void* surface, Gfx::IntSize* size) { *size = painting_surface_of(surface).size(); },
-        .create_surface = [](void* host, Gfx::IntSize size, void* like, bool inherits_lcd_text) -> void* {
-            auto skia_backend_context = like ? painting_surface_of(like).skia_backend_context() : state_of(host).m_skia_backend_context;
+        .create_surface = [](void* host, Gfx::IntSize size, Gfx::PaintingSurface const* like, bool inherits_lcd_text) -> Gfx::PaintingSurface const* {
+            auto skia_backend_context = like ? like->skia_backend_context() : state_of(host).m_skia_backend_context;
             auto text_antialiasing = Gfx::PaintingSurface::TextAntialiasing::Grayscale;
             if (inherits_lcd_text && like && canvas_of(like).getBaseProps().pixelGeometry() != kUnknown_SkPixelGeometry)
                 text_antialiasing = Gfx::PaintingSurface::TextAntialiasing::LCD;
@@ -1676,21 +1673,19 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
                 return nullptr;
             return &surface.release_value().leak_ref();
         },
-        .surfaces_share_backend = [](void* a, void* b) { return painting_surface_of(a).skia_backend_context() == painting_surface_of(b).skia_backend_context(); },
-        .surface_uses_gpu = [](void* surface) { return painting_surface_of(surface).skia_backend_context() != nullptr; },
-        .surface_save = [](void* surface) { return canvas_of(surface).save(); },
-        .surface_restore_to_count = [](void* surface, i32 count) { canvas_of(surface).restoreToCount(count); },
-        .surface_translate = [](void* surface, float x, float y) { canvas_of(surface).translate(x, y); },
-        .surface_scale = [](void* surface, float x, float y) { canvas_of(surface).scale(x, y); },
-        .surface_clip_rect = [](void* surface, Gfx::IntRect rect) { canvas_of(surface).clipIRect(SkIRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height())); },
-        .surface_clear = [](void* surface, Gfx::Color color) { canvas_of(surface).clear(Gfx::to_skia_color(color)); },
-        .surface_draw_surface = [](void* target, void* source, Gfx::IntRect source_rect, Gfx::IntRect target_rect, RustFFI::SurfaceBlend blend) {
-            auto image = painting_surface_of(source).sk_image_snapshot<sk_sp<SkImage>>();
+        .surface_save = [](Gfx::PaintingSurface const* surface) { return canvas_of(surface).save(); },
+        .surface_restore_to_count = [](Gfx::PaintingSurface const* surface, i32 count) { canvas_of(surface).restoreToCount(count); },
+        .surface_translate = [](Gfx::PaintingSurface const* surface, float x, float y) { canvas_of(surface).translate(x, y); },
+        .surface_scale = [](Gfx::PaintingSurface const* surface, float x, float y) { canvas_of(surface).scale(x, y); },
+        .surface_clip_rect = [](Gfx::PaintingSurface const* surface, Gfx::IntRect rect) { canvas_of(surface).clipIRect(SkIRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height())); },
+        .surface_clear = [](Gfx::PaintingSurface const* surface, Gfx::Color color) { canvas_of(surface).clear(Gfx::to_skia_color(color)); },
+        .surface_draw_surface = [](Gfx::PaintingSurface const* target, Gfx::PaintingSurface const* source, Gfx::IntRect source_rect, Gfx::IntRect target_rect, RustFFI::SurfaceBlend blend) {
+            auto image = source->sk_image_snapshot<sk_sp<SkImage>>();
             SkPaint paint;
             paint.setBlendMode(blend == RustFFI::SurfaceBlend::Source ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
             canvas_of(target).drawImageRect(image.get(), Gfx::to_skia_rect(source_rect), Gfx::to_skia_rect(target_rect), SkSamplingOptions {}, &paint, SkCanvas::kStrict_SrcRectConstraint); },
-        .flush_surface = [](void*, void* surface) { DisplayListPlayerSkia::flush(painting_surface_of(surface)); },
-        .begin_painting = [](void* host, u64 context_id, void* surface, RustFFI::PaintingResources resources, bool allows_lcd_text, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, painting_surface_of(surface), resources, allows_lcd_text); },
+        .flush_surface = [](Gfx::PaintingSurface const* surface) { DisplayListPlayerSkia::flush(mutable_surface(surface)); },
+        .begin_painting = [](void* host, u64 context_id, Gfx::PaintingSurface const* surface, RustFFI::PaintingResources resources, bool allows_lcd_text, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, mutable_surface(surface), resources, allows_lcd_text); },
         .end_painting = [](void* host) { state_of(host).end_painting(); },
         .start_raster_cache_frame = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.raster_cache().drop_what_was_not_used_since_last_frame(); },
         .store_state = [](void* host, u64 context_id) -> RustFFI::FfiStoreState {
@@ -1709,23 +1704,17 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .complete_rendering = [](void* host, u64 context_id, i32 bitmap_id) { state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().complete_rendering(bitmap_id); },
         .release_store = [](void* host, u64 context_id, i32 bitmap_id) { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().release_buffer(bitmap_id); },
         .release_all_presented_stores = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().release_all_presented_buffers(); },
-        .latest_rendered_store_surface = [](void* host, u64 context_id) -> void* { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().latest_rendered_surface().ptr(); },
+        .latest_rendered_store_surface = [](void* host, u64 context_id) -> Gfx::PaintingSurface const* { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().latest_rendered_surface().ptr(); },
         .add_store_if_window_server_reads_every_released_store = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).add_store_if_window_server_reads_every_released_store(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
         .retire_idle_surplus_stores = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_idle_surplus_stores(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
         .retire_stores_of_hidden_context = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_stores_of_hidden_context(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
         .restore_stores_retired_while_hidden = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).restore_stores_retired_while_hidden(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
-        .next_presentable_surface = [](void* host, u64 context_id, u32 pool, Gfx::IntSize size, void* like) -> void* {
-            auto& state = state_of(host);
-            auto skia_backend_context = like ? painting_surface_of(like).skia_backend_context() : state.m_skia_backend_context;
-            auto surface = state.presented_context(Context { context_id }).raster_targets.next_presentable_surface(pool, size, skia_backend_context);
-            if (!surface)
+        .create_presentable_surface = [](void*, Gfx::IntSize size, Gfx::PaintingSurface const* like) -> PresentableSurface const* {
+            auto surface = PresentableSurfacePool::create_surface(size, like->skia_backend_context());
+            if (surface.is_error())
                 return nullptr;
-            return surface.leak_ref();
+            return &surface.release_value().leak_ref();
         },
-        .drop_presentable_surface_pool = [](void* host, u64 context_id, u32 pool) { state_of(host).presented_context(Context { context_id }).raster_targets.drop_presentable_surface_pool(pool); },
-        .presentable_surface_retain = [](void* surface) { static_cast<PresentableSurface*>(surface)->ref(); },
-        .presentable_surface_release = [](void* surface) { static_cast<PresentableSurface*>(surface)->unref(); },
-        .presentable_surface_painting_surface = [](void* surface) -> void* { return &static_cast<PresentableSurface*>(surface)->painting_surface(); },
         .live_content = [](void* host, u64 context_id, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*)) { state_of(host).report_live_content(Context { context_id }, canvas_ids, receiver, receive); },
         .remote_layer_can_show = [](void* host, u64 context_id, RustFFI::MediaKind kind, u64 media_id, RustFFI::FfiSublayerPlacement const* placement, double device_pixel_ratio) { return state_of(host).remote_layer_can_show(Context { context_id }, kind, media_id, *placement, device_pixel_ratio); },
         .build_sublayers = [](void* host, u64 context_id, ReadonlySpan<RustFFI::FfiSublayer> sublayers) -> void* {
@@ -1735,7 +1724,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .frame_hand_off = [](void* host, u64 context_id) { return state_of(host).frame_hand_off(Context { context_id }) == WindowServer::FrameHandOff::OnceGpuWorkIsScheduled
                                                                ? RustFFI::FrameHandOff::OnceGpuWorkIsScheduled
                                                                : RustFFI::FrameHandOff::OnceGpuWorkIsFinished; },
-        .submit_frame = [](void* host, u64, void* surface) { return state_of(host).submit_frame(static_cast<Gfx::PaintingSurface*>(surface)); },
+        .submit_frame = [](void* host, u64, Gfx::PaintingSurface const* surface) { return state_of(host).submit_frame(const_cast<Gfx::PaintingSurface*>(surface)); },
         .hand_off_once_gpu_work_is_scheduled = [](void* host, u64 token) { state_of(host).hand_off_once_gpu_work_is_scheduled(token); },
         .show_frame_in_remote_layer = [](void* host, u64 context_id, RustFFI::FfiRemoteLayerFrame const* frame, void* sublayers, u64* presentation_id) {
             auto shown_in = state_of(host).show_frame_in_remote_layer(Context { context_id }, *frame, adopt_own(*static_cast<Vector<RemoteSublayer>*>(sublayers)));

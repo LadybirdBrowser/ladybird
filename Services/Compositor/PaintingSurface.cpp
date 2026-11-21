@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/CompositorCoreRustFFI.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaUtils.h>
@@ -40,11 +41,30 @@ struct PaintingSurface::Impl {
     AK_ALLOC_WITH_KMALLOC;
 
     RefPtr<SkiaBackendContext> context;
-    IntSize size;
     sk_sp<SkSurface> surface;
     RefPtr<Bitmap> bitmap;
     bool wraps_shared_image { false };
+    Function<void(PaintingSurface&)> on_flush {};
 };
+
+void PaintingSurface::destroy_impl(void* impl)
+{
+    auto* surface_impl = static_cast<PaintingSurface::Impl*>(impl);
+    // NB: The surface may draw into the pixels of the bitmap, so it goes first.
+    surface_impl->surface = nullptr;
+    delete surface_impl;
+}
+
+NonnullRefPtr<PaintingSurface> PaintingSurface::adopt_impl(IntSize size, NonnullOwnPtr<Impl> impl)
+{
+    auto const* gpu_backend_context = impl->context.ptr();
+    return adopt_ref(const_cast<PaintingSurface&>(*Compositor::RustFFI::compositor_painting_surface_create(size, gpu_backend_context, impl.leak_ptr(), destroy_impl)));
+}
+
+PaintingSurface::Impl& PaintingSurface::impl() const
+{
+    return *static_cast<Impl*>(Compositor::RustFFI::compositor_painting_surface_skia_surface(this));
+}
 
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
 static GrSurfaceOrigin origin_to_sk_origin(PaintingSurface::Origin origin)
@@ -102,7 +122,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
     auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDefault_Flag, text_antialiasing == TextAntialiasing::LCD);
     sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
         SkColorSpace::MakeSRGB(), &properties, release_vulkan_image, vulkan_image.ptr());
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
+    return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
 }
 #endif
 
@@ -128,7 +148,7 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture
         kRGBA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr, release_d3d_texture, texture.ptr());
     if (!surface)
         return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
+    return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
 }
 #endif
 
@@ -157,7 +177,7 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(In
         auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDynamicMSAA_Flag, text_antialiasing == TextAntialiasing::LCD);
         auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info, 0, &properties);
         if (surface)
-            return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+            return adopt_impl(size, make<Impl>(context, surface, nullptr));
         dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
         context = nullptr;
     }
@@ -167,7 +187,7 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(In
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch(), &properties);
     if (!surface)
         return Error::from_string_literal("Unable to create a surface for the bitmap");
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, bitmap)));
+    return adopt_impl(size, make<Impl>(context, surface, bitmap));
 }
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap, TextAntialiasing text_antialiasing)
@@ -178,7 +198,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap, Text
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDefault_Flag, text_antialiasing == TextAntialiasing::LCD);
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch(), &properties);
-    return adopt_ref(*new PaintingSurface(make<Impl>(RefPtr<SkiaBackendContext> {}, size, surface, bitmap)));
+    return adopt_impl(size, make<Impl>(RefPtr<SkiaBackendContext> {}, surface, bitmap));
 }
 
 #ifdef AK_OS_MACOS
@@ -192,19 +212,9 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(
     mtl_info.fTexture = sk_ret_cfp(metal_texture->texture());
     auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture->width(), metal_texture->height(), mtl_info);
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, origin_to_sk_origin(origin), kBGRA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr);
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
+    return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
 }
 #endif
-
-PaintingSurface::PaintingSurface(NonnullOwnPtr<Impl>&& impl)
-    : m_impl(move(impl))
-{
-}
-
-PaintingSurface::~PaintingSurface()
-{
-    m_impl->surface = nullptr;
-}
 
 void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position, ColorSpace const& color_space) const
 {
@@ -213,9 +223,9 @@ void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position,
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, skia_color_space_of_pixels(color_space));
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
 
-    auto surface_color_space = m_impl->surface->imageInfo().refColorSpace();
+    auto surface_color_space = impl().surface->imageInfo().refColorSpace();
     if (SkColorSpace::Equals(surface_color_space.get(), image_info.colorSpace())) {
-        m_impl->surface->readPixels(pixmap, source_position.x(), source_position.y());
+        impl().surface->readPixels(pixmap, source_position.x(), source_position.y());
         return;
     }
 
@@ -236,7 +246,7 @@ void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position,
     for (int y = 0; y < bitmap.height(); y += strip_height) {
         auto rows = min(strip_height, bitmap.height() - y);
         SkPixmap const unpremultiplied_pixmap(strip_info.makeWH(bitmap.width(), rows), strip_pixels.value().data(), strip_info.minRowBytes());
-        if (!m_impl->surface->readPixels(unpremultiplied_pixmap, source_position.x(), source_position.y() + y))
+        if (!impl().surface->readPixels(unpremultiplied_pixmap, source_position.x(), source_position.y() + y))
             return;
         auto components = Span<float> { reinterpret_cast<float*>(strip_pixels.value().data()), unpremultiplied_pixmap.computeByteSize() / sizeof(float) };
         for (auto& component : components)
@@ -254,7 +264,7 @@ void PaintingSurface::write_from_bitmap(Bitmap const& bitmap, IntPoint destinati
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, skia_color_space_of_pixels(color_space));
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
-    m_impl->surface->writePixels(pixmap, destination_position.x(), destination_position.y());
+    impl().surface->writePixels(pixmap, destination_position.x(), destination_position.y());
 }
 
 void PaintingSurface::copy_from_surface(PaintingSurface& source)
@@ -265,12 +275,12 @@ void PaintingSurface::copy_from_surface(PaintingSurface& source)
     //               upload. A snapshot of them would copy them first, and the GPU would upload the copy into a texture
     //               of its own before drawing it here.
     SkPixmap source_pixels;
-    if (source.size() == size() && source.m_impl->surface->peekPixels(&source_pixels)) {
-        m_impl->surface->writePixels(source_pixels, 0, 0);
+    if (source.size() == size() && source.impl().surface->peekPixels(&source_pixels)) {
+        impl().surface->writePixels(source_pixels, 0, 0);
         return;
     }
 
-    auto image = source.m_impl->surface->makeImageSnapshot();
+    auto image = source.impl().surface->makeImageSnapshot();
     if (!image)
         return;
 
@@ -287,49 +297,66 @@ void PaintingSurface::copy_from_surface(PaintingSurface& source)
 
 IntSize PaintingSurface::size() const
 {
-    return m_impl->size;
+    IntSize size;
+    Compositor::RustFFI::compositor_painting_surface_size(this, &size);
+    return size;
 }
 
 IntRect PaintingSurface::rect() const
 {
-    return { {}, m_impl->size };
+    return { {}, size() };
 }
 
 SkCanvas& PaintingSurface::canvas() const
 {
-    return *m_impl->surface->getCanvas();
+    return *impl().surface->getCanvas();
 }
 
 SkSurface& PaintingSurface::sk_surface() const
 {
-    return *m_impl->surface;
+    return *impl().surface;
 }
 
 void PaintingSurface::notify_content_will_change()
 {
-    m_impl->surface->notifyContentWillChange(SkSurface::kDiscard_ContentChangeMode);
+    impl().surface->notifyContentWillChange(SkSurface::kDiscard_ContentChangeMode);
 }
 
 template<>
 sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
 {
-    return m_impl->surface->makeImageSnapshot();
+    return impl().surface->makeImageSnapshot();
 }
 
 RefPtr<SkiaBackendContext> PaintingSurface::skia_backend_context() const
 {
-    return m_impl->context;
+    return impl().context;
 }
 
 bool PaintingSurface::wraps_shared_image() const
 {
-    return m_impl->wraps_shared_image;
+    return impl().wraps_shared_image;
+}
+
+void PaintingSurface::set_on_flush(Function<void(PaintingSurface&)> on_flush)
+{
+    impl().on_flush = move(on_flush);
 }
 
 void PaintingSurface::flush()
 {
-    if (on_flush)
-        on_flush(*this);
+    if (impl().on_flush)
+        impl().on_flush(*this);
+}
+
+void PaintingSurface::ref() const
+{
+    Compositor::RustFFI::compositor_painting_surface_retain(this);
+}
+
+void PaintingSurface::unref() const
+{
+    Compositor::RustFFI::compositor_painting_surface_release(this);
 }
 
 }
