@@ -493,14 +493,13 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         //    "white-space" is neither "pre" nor "pre-wrap" and start offset is not zero and the
         //    (start offset − 1)st code unit of start node's data is a space (0x0020) or
         //    non-breaking space (0x00A0), subtract one from start offset.
-        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
+        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand, so that "break-spaces"
+        //         preserves spaces too: https://github.com/w3c/editing/issues/486.
         if (is<DOM::Text>(*start_node) && start_offset != 0) {
-            auto parent_white_space_collapse = resolved_keyword(*start_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-
             auto start_node_data = start_node->text_content().release_value();
             auto offset_minus_one_code_unit = start_node_data.code_unit_at(start_offset - 1);
 
-            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_minus_one_code_unit == 0x20 || offset_minus_one_code_unit == 0xA0)) {
+            if (!text_preserves_spaces(as<DOM::Text>(*start_node)) && (offset_minus_one_code_unit == 0x20 || offset_minus_one_code_unit == 0xA0)) {
                 --start_offset;
                 continue;
             }
@@ -549,14 +548,13 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         //    "white-space" is neither "pre" nor "pre-wrap" and end offset is not end node's length
         //    and the end offsetth code unit of end node's data is a space (0x0020) or non-breaking
         //    space (0x00A0):
-        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
+        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand, so that "break-spaces"
+        //         preserves spaces too: https://github.com/w3c/editing/issues/486.
         if (is<DOM::Text>(*end_node) && end_offset != end_node->length()) {
-            auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-
             auto end_node_data = end_node->text_content().release_value();
             auto offset_code_unit = end_node_data.code_unit_at(end_offset);
 
-            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_code_unit == 0x20 || offset_code_unit == 0xA0)) {
+            if (!text_preserves_spaces(as<DOM::Text>(*end_node)) && (offset_code_unit == 0x20 || offset_code_unit == 0xA0)) {
                 // 1. If fix collapsed space is true, and collapse spaces is true, and the end offsetth
                 //    code unit of end node's data is a space (0x0020): call deleteData(end offset, 1)
                 //    on end node, then continue this loop from the beginning.
@@ -615,10 +613,10 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
             //    "white-space" is neither "pre" nor "pre-wrap" and end offset is end node's length and
             //    the last code unit of end node's data is a space (0x0020) and end node precedes a line
             //    break:
-            // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
+            // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand, so that "break-spaces"
+            //         preserves spaces too: https://github.com/w3c/editing/issues/486.
             if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
-                auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content()->ends_with(' ')) {
+                if (!text_preserves_spaces(as<DOM::Text>(*end_node)) && end_node->text_content()->ends_with(' ')) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
