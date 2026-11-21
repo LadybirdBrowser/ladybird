@@ -1925,6 +1925,10 @@ impl crate::layout::tree_plan::table_fixup::TableFixupTree for TreeBuilderHost<'
         node_is_out_of_flow(self, node)
     }
 
+    fn is_absolutely_positioned(&self, node: LayoutNode) -> bool {
+        self.style(node).is_some_and(|style| style.is_absolutely_positioned())
+    }
+
     fn is_inline_outside(&self, node: LayoutNode) -> bool {
         node_is_inline_outside(self, node)
     }

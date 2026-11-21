@@ -49,6 +49,7 @@ pub(crate) trait TableFixupTree {
     fn kind(&self, node: NodeSlotId) -> NodeKind;
     fn has_flag(&self, node: NodeSlotId, flag: NodeFlag) -> bool;
     fn is_out_of_flow(&self, node: NodeSlotId) -> bool;
+    fn is_absolutely_positioned(&self, node: NodeSlotId) -> bool;
     fn is_inline_outside(&self, node: NodeSlotId) -> bool;
     /// The display of the box `node`, the one its box uses; that of its parent for a text, whose style it carries.
     fn display(&self, node: NodeSlotId) -> FfiDisplay;
@@ -113,11 +114,12 @@ pub(crate) fn display_for_table_fixup(tree: &impl TableFixupTree, node: NodeSlot
     // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
     // height. Their containing blocks are chosen accordingly.
     //
-    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for out-of-flow
-    // authored boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
-    // An in-flow box blockified as a flex or grid item is a block, though, and not a proper table child.
+    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for absolutely
+    // positioned authored boxes so an absolutely positioned table-header-group is still recognized as a proper table
+    // child during fixup. A floated table-internal box is a block float, though, which fixup wraps in an anonymous row
+    // and cell like any other block; so is an in-flow box blockified as a flex or grid item.
     // Element-specific display adjustments for replaced elements and buttons take precedence over that display.
-    if !tree.is_out_of_flow(node)
+    if !tree.is_absolutely_positioned(node)
         || tree.has_flag(node, NodeFlag::IsReplacedElement)
         || tree.has_flag(node, NodeFlag::Anonymous)
         || tree.has_flag(node, NodeFlag::UsesButtonLayout)
@@ -508,6 +510,10 @@ impl TableFixupTree for PlanTableFixup<'_> {
 
     fn is_out_of_flow(&self, node: NodeSlotId) -> bool {
         self.tree.node(node).is_out_of_flow()
+    }
+
+    fn is_absolutely_positioned(&self, node: NodeSlotId) -> bool {
+        self.tree.node(node).has_fact(box_fact::ABSOLUTELY_POSITIONED)
     }
 
     fn is_inline_outside(&self, node: NodeSlotId) -> bool {
