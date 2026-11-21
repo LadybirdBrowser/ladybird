@@ -34,11 +34,13 @@
 #    include <sys/sysctl.h>
 #endif
 
-#if defined(AK_OS_WINDOWS)
+#if defined(AK_OS_WINDOWS) && defined(LADYBIRD_HAS_UPDATE_CHECK)
 #    include <AK/Windows.h>
 #endif
 
 namespace WebView {
+
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 
 static constexpr size_t maximum_feed_size = 4 * MiB;
 static constexpr auto request_timeout = AK::Duration::from_seconds(30);
@@ -91,6 +93,8 @@ bool is_newer_version(StringView candidate, StringView current)
         return false;
     return compare_versions(*candidate_version, *current_version) > 0;
 }
+
+#endif
 
 // https://www.freedesktop.org/software/systemd/man/latest/os-release.html
 OSRelease parse_os_release(StringView contents)
@@ -179,7 +183,7 @@ static Optional<String> current_macos_version()
 #endif
 }
 
-#if defined(AK_OS_WINDOWS)
+#if defined(AK_OS_WINDOWS) && defined(LADYBIRD_HAS_UPDATE_CHECK)
 // GetVersionEx reports an older version of Windows to an application that does not declare in its manifest that it
 // supports the newer one. RtlGetVersion always reports the version that runs.
 static Optional<String> current_windows_version()
@@ -218,6 +222,8 @@ SystemDescription describe_current_system()
     system.macos_version = current_macos_version();
     return system;
 }
+
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 
 // releases.json names architectures the way that each kind of package does.
 static Optional<StringView> architecture_name(InstallMethod install_method, Architecture architecture)
@@ -419,21 +425,21 @@ static ByteString update_check_header(SystemDescription const& system, StringVie
     StringBuilder builder;
     append_string_member(builder, "version"sv, browser_version);
 
-#if defined(AK_OS_MACOS)
+#    if defined(AK_OS_MACOS)
     append_member(builder, "os"sv, "macos"sv);
     if (system.macos_version.has_value())
         append_string_member(builder, "os-version"sv, system.macos_version->bytes_as_string_view().find_first_split_view('.'));
-#elif defined(AK_OS_LINUX)
+#    elif defined(AK_OS_LINUX)
     append_member(builder, "os"sv, "linux"sv);
     if (system.os_release.version_id.has_value())
         append_string_member(builder, "os-version"sv, *system.os_release.version_id);
     if (system.os_release.id.has_value())
         append_string_member(builder, "distro"sv, *system.os_release.id);
-#elif defined(AK_OS_WINDOWS)
+#    elif defined(AK_OS_WINDOWS)
     append_member(builder, "os"sv, "windows"sv);
     if (auto windows_version = current_windows_version(); windows_version.has_value())
         append_string_member(builder, "os-version"sv, *windows_version);
-#endif
+#    endif
 
     if (system.architecture == Architecture::X86_64)
         append_member(builder, "arch"sv, "x86_64"sv);
@@ -746,5 +752,7 @@ void UpdateChecker::skip_version(String const& version)
     state.skipped_version = version;
     write_state(state);
 }
+
+#endif
 
 }

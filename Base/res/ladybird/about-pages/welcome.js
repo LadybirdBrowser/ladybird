@@ -122,6 +122,12 @@ function updateDefaultBrowser() {
     else defaultBrowserLabel.removeAttribute("for");
 }
 
+function updateUpdateChecks() {
+    const networkFeatures = settings.backgroundNetworking.features;
+    if (Object.hasOwn(networkFeatures, "updateChecks")) enableUpdateChecks.checked = networkFeatures.updateChecks;
+    else enableUpdateChecks.closest(".switch-row").remove();
+}
+
 function initialize() {
     if (initialized || !settings || !engines || !features) return;
     initialized = true;
@@ -135,7 +141,7 @@ function initialize() {
     updateSearchSuggestions();
 
     enableContentBlocking.checked = settings.contentBlockers.enabled;
-    enableUpdateChecks.checked = settings.backgroundNetworking.features.updateChecks;
+    updateUpdateChecks();
     setupOptions.disabled = false;
     startBrowsing.disabled = false;
 }
@@ -229,8 +235,7 @@ document.addEventListener("WebUIMessage", event => {
             }
             if (Object.hasOwn(data, "contentBlockers"))
                 enableContentBlocking.checked = settings.contentBlockers.enabled;
-            if (Object.hasOwn(data, "backgroundNetworking"))
-                enableUpdateChecks.checked = settings.backgroundNetworking.features.updateChecks;
+            if (Object.hasOwn(data, "backgroundNetworking")) updateUpdateChecks();
             if (Object.hasOwn(data, "defaultBrowser")) {
                 defaultBrowserFailure = null;
                 updateDefaultBrowser();

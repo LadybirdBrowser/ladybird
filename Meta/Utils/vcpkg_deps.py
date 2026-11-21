@@ -24,9 +24,10 @@ from Utils.host_platform import HostArchitecture  # noqa: E402
 from Utils.host_platform import HostSystem  # noqa: E402
 from Utils.host_platform import Platform  # noqa: E402
 
-# The CMake options that each select a feature of vcpkg.json. Keep in sync with Meta/CMake/environment.cmake.
+# The features of vcpkg.json, each with the CMake options that all have to be on to select it. Keep in sync with
+# Meta/CMake/environment.cmake.
 MANIFEST_FEATURE_OPTIONS = {
-    "LADYBIRD_ENABLE_SPARKLE": "sparkle",
+    "sparkle": ("LADYBIRD_ENABLE_UPDATE_CHECK", "LADYBIRD_ENABLE_SPARKLE"),
 }
 
 DEPEND_INFO_REGEX = re.compile(r"^([a-zA-Z0-9-]+)(?:\[([^]]*)\])?(:host)?:\s*(.*)$")
@@ -173,8 +174,8 @@ def manifest_feature_arguments(build_dir: Path) -> list[str]:
 
     return [
         f"--x-feature={feature}"
-        for option, feature in MANIFEST_FEATURE_OPTIONS.items()
-        if cmake_option_is_on(cache, option)
+        for feature, options in MANIFEST_FEATURE_OPTIONS.items()
+        if all(cmake_option_is_on(cache, option) for option in options)
     ]
 
 

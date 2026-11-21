@@ -70,13 +70,16 @@ struct UpdateCheckResult {
     Optional<AvailableUpdate> update;
 };
 
+WEBVIEW_API OSRelease parse_os_release(StringView);
+WEBVIEW_API Optional<InstallMethod> parse_package_format(StringView);
+WEBVIEW_API SystemDescription describe_current_system();
+
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
+
 constexpr StringView RELEASES_FEED_URL = "https://download.ladybird.org/releases.json"sv;
 
 WEBVIEW_API Optional<Vector<u64>> parse_version(StringView);
 WEBVIEW_API bool is_newer_version(StringView candidate, StringView current);
-WEBVIEW_API OSRelease parse_os_release(StringView);
-WEBVIEW_API Optional<InstallMethod> parse_package_format(StringView);
-WEBVIEW_API SystemDescription describe_current_system();
 WEBVIEW_API ErrorOr<Optional<String>> newest_release_for_system(StringView releases_json, SystemDescription const&, Optional<UnixDateTime> published_before = {});
 WEBVIEW_API AK::Duration time_until_next_update_check(UnixDateTime last_check, UnixDateTime now, AK::Duration interval);
 WEBVIEW_API String release_page_url(StringView version);
@@ -129,5 +132,7 @@ private:
     ByteBuffer m_payload;
     Vector<UpdateCheckTrigger> m_waiting_triggers;
 };
+
+#endif
 
 }

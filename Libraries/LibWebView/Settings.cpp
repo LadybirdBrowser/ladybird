@@ -87,7 +87,9 @@ static constexpr auto CRASH_REPORT_SENDING_KEY = "crashReportSending"sv;
 static constexpr auto BACKGROUND_NETWORKING_KEY = "backgroundNetworking"sv;
 static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
 static constexpr auto BACKGROUND_NETWORKING_FEATURES_KEY = "features"sv;
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 static constexpr auto UPDATE_CHECKS_KEY = "updateChecks"sv;
+#endif
 
 static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
 static constexpr auto CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY = "contentBlockerSubscriptionUpdates"sv;
@@ -208,6 +210,7 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = false,
         .array_element_type = {},
     },
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     {
         .id = ConfigVariableID::UpdateCheckInterval,
         .name = "updates.check_interval_minutes"sv,
@@ -216,6 +219,7 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = 4 * 60,
         .array_element_type = {},
     },
+#endif
 } };
 
 ReadonlySpan<ConfigVariableDefinition> config_variable_definitions()
@@ -388,10 +392,12 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
         return milliseconds.has_value() && *milliseconds >= 0 && value.get_double_with_precision_loss().value() == *milliseconds;
     }
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     if (variable.id == ConfigVariableID::UpdateCheckInterval) {
         auto minutes = value.get_integer<u32>();
         return minutes.has_value() && *minutes >= 5 && value.get_double_with_precision_loss() == minutes;
     }
+#endif
 
     if (variable.id == ConfigVariableID::MaximumDiskCacheSize) {
         auto size = value.get_integer<u64>();
@@ -508,8 +514,10 @@ void Settings::load_from_json(JsonValue const& json_value)
         if (auto features = background_networking->get_object(BACKGROUND_NETWORKING_FEATURES_KEY); features.has_value()) {
             if (auto filter_list_updates_enabled = features->get_bool(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY); filter_list_updates_enabled.has_value())
                 m_filter_list_updates_enabled = *filter_list_updates_enabled;
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
             if (auto update_checks_enabled = features->get_bool(UPDATE_CHECKS_KEY); update_checks_enabled.has_value())
                 m_update_checks_enabled = *update_checks_enabled;
+#endif
         }
     }
 
@@ -899,7 +907,9 @@ JsonValue Settings::serialize_json() const
 
     JsonObject background_network_features;
     background_network_features.set(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY, m_filter_list_updates_enabled);
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     background_network_features.set(UPDATE_CHECKS_KEY, m_update_checks_enabled);
+#endif
 
     JsonObject background_networking;
     background_networking.set(BACKGROUND_NETWORKING_ENABLED_KEY, m_background_networking_enabled);
@@ -1533,6 +1543,7 @@ void Settings::set_filter_list_updates_enabled(bool enabled)
         observer.background_networking_settings_changed();
 }
 
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
 void Settings::set_update_checks_enabled(bool enabled)
 {
     if (m_update_checks_enabled == enabled)
@@ -1544,6 +1555,7 @@ void Settings::set_update_checks_enabled(bool enabled)
     for (auto& observer : m_observers)
         observer.background_networking_settings_changed();
 }
+#endif
 
 Optional<ContentBlockerList const&> Settings::content_blocker_list(StringView identifier) const
 {

@@ -276,7 +276,9 @@ private:
     void ask_user_for_download_path(u64 request_id, ByteString const& file) const;
     void display_download_confirmation_dialog(StringView download_name, ByteString const& path) const;
     void display_error_dialog(StringView error_message) const;
+#if defined(LADYBIRD_HAS_UPDATE_CHECK)
     void display_update_check_result(WebView::UpdateCheckResult::Kind, Optional<String> const& version, WebView::InstallMethod, WebView::UpdateCheckTrigger);
+#endif
     void open_file(String const& path) const;
 
     virtual void crash_reports_changed() override;
