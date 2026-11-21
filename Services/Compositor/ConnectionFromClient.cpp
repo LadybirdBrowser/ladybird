@@ -65,7 +65,6 @@ void ConnectionFromClient::connect_video_presentation(i32 web_content_connection
 Messages::CompositorControlServer::CreatePresentationConnectionResponse ConnectionFromClient::create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid)
 {
     auto paired_transport = MUST(IPC::Transport::create_paired());
-    auto presentation_id = m_next_presentation_id++;
     // NB: The capabilities come with the connection, so the first backing stores of a context bound to it match them.
     auto capabilities = CompositorState::PresentationCapabilities {
         .synthesizes_scroll_momentum = synthesizes_scroll_momentum,
@@ -73,6 +72,7 @@ Messages::CompositorControlServer::CreatePresentationConnectionResponse Connecti
         .gpu_presentation_adapter_luid = gpu_presentation_adapter_luid,
     };
     auto connection = ConnectionFromPresentation::construct(move(paired_transport.local), m_compositor_state, capabilities);
+    auto presentation_id = connection->presentation_id().value();
     connection->set_on_death([this, presentation_id] {
         m_presentation_connections.remove(presentation_id);
     });
@@ -90,33 +90,14 @@ void ConnectionFromClient::bind_presentation(Web::CompositorContextId context_id
     m_compositor_state->bind_presentation(context_id, **connection);
 }
 
-Messages::CompositorControlServer::CreateRemoteLayerResponse ConnectionFromClient::create_remote_layer(u64 presentation_id, u64 remote_layer_id)
+ErrorOr<OwnPtr<IPC::MessageBuffer>> ConnectionFromClient::handle_raw(IPC::RawMessage& message)
 {
-    auto connection = m_presentation_connections.get(presentation_id);
-    if (!connection.has_value()) {
-        dbgln("Compositor: Ignoring remote layer {} for presentation {}, which is already gone", remote_layer_id, presentation_id);
-        return Compositing::RemoteLayerHostHandle {};
+    auto outcome = m_compositor_state->handle_message_from_control(message);
+    if (outcome.misbehavior.has_value()) {
+        did_misbehave(outcome.misbehavior->characters());
+        return nullptr;
     }
-    return m_compositor_state->create_remote_layer(**connection, remote_layer_id);
-}
-
-void ConnectionFromClient::destroy_remote_layer(u64 remote_layer_id)
-{
-    m_compositor_state->destroy_remote_layer(remote_layer_id);
-}
-
-void ConnectionFromClient::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id)
-{
-    m_compositor_state->show_context_in_remote_layer(remote_layer_id, context_id);
-}
-
-void ConnectionFromClient::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within)
-{
-    if (fit_within.has_value() && fit_within->is_empty()) {
-        did_misbehave("Empty size for a remote layer to fit frames within");
-        return;
-    }
-    m_compositor_state->set_remote_layer_fit(remote_layer_id, fit_within);
+    return move(outcome.response);
 }
 
 void ConnectionFromClient::create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)

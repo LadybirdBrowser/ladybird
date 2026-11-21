@@ -13,6 +13,10 @@ use crate::host::{PresentationId, WebContentClientId};
 use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
 use libcompositing_rust::display_list::window::RecordedWindow;
+use libcompositing_rust::ipc_types::compositor_control_server::messages::{
+    AwaitSynchronizedResizeFrame, BeginSynchronizedResize, CommitSynchronizedResize, CreateRemoteLayer,
+    CreateRemoteLayerResponse, DestroyRemoteLayer, SetRemoteLayerFit, ShowContextInRemoteLayer,
+};
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
@@ -29,8 +33,9 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
 };
 use libcompositing_rust::ipc_types::{
+    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind,
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
-    SharedDisplayList, compositor_presentation_server, compositor_web_content_server,
+    SharedDisplayList, compositor_control_server, compositor_presentation_server, compositor_web_content_server,
 };
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
@@ -39,7 +44,7 @@ use libcompositing_rust::scrolling::{
     PinchEvent, ScrollRequest,
 };
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::FloatPoint;
+use libgfx_rust::{FloatPoint, IntSize};
 use libipc_rust::Misbehavior;
 use std::io::Write;
 use std::rc::Rc;
@@ -685,6 +690,70 @@ impl compositor_presentation_server::Stub for MessagesFromPresentation<'_> {
             self.core
                 .handle_and_dispatch_mouse_event(message.context_id, message.event, self.now);
         }
+        Ok(())
+    }
+}
+
+pub struct MessagesFromControl<'a> {
+    pub core: &'a CompositorCore,
+    pub now: MonotonicTime,
+}
+
+impl compositor_control_server::Stub for MessagesFromControl<'_> {
+    fn create_remote_layer(&mut self, message: CreateRemoteLayer) -> Result<CreateRemoteLayerResponse, Misbehavior> {
+        let host_handle = self
+            .core
+            .create_remote_layer(PresentationId(message.presentation_id), message.remote_layer_id)
+            .unwrap_or_else(|| {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Ignoring remote layer {} for presentation {}, which is already gone",
+                    message.remote_layer_id,
+                    message.presentation_id
+                );
+                Compositing_RemoteLayerHostHandle {
+                    kind: Compositing_RemoteLayerHostKind::None,
+                    id: 0,
+                }
+            });
+        Ok(CreateRemoteLayerResponse { host_handle })
+    }
+
+    fn destroy_remote_layer(&mut self, message: DestroyRemoteLayer) -> Result<(), Misbehavior> {
+        self.core.destroy_remote_layer(message.remote_layer_id, self.now);
+        Ok(())
+    }
+
+    fn show_context_in_remote_layer(&mut self, message: ShowContextInRemoteLayer) -> Result<(), Misbehavior> {
+        self.core
+            .show_context_in_remote_layer(message.remote_layer_id, message.context_id, self.now);
+        Ok(())
+    }
+
+    fn set_remote_layer_fit(&mut self, message: SetRemoteLayerFit) -> Result<(), Misbehavior> {
+        if message.fit_within.is_some_and(IntSize::is_empty) {
+            return Err(Misbehavior("Empty size for a remote layer to fit frames within"));
+        }
+        self.core
+            .set_remote_layer_fit(message.remote_layer_id, message.fit_within);
+        Ok(())
+    }
+
+    fn begin_synchronized_resize(&mut self, message: BeginSynchronizedResize) -> Result<(), Misbehavior> {
+        self.core
+            .begin_synchronized_resize(message.remote_layer_id, message.token);
+        Ok(())
+    }
+
+    fn await_synchronized_resize_frame(&mut self, message: AwaitSynchronizedResizeFrame) -> Result<(), Misbehavior> {
+        self.core
+            .await_synchronized_resize_frame(message.remote_layer_id, message.token, message.size);
+        Ok(())
+    }
+
+    fn commit_synchronized_resize(&mut self, message: CommitSynchronizedResize) -> Result<(), Misbehavior> {
+        self.core
+            .commit_synchronized_resize(message.remote_layer_id, message.token);
         Ok(())
     }
 }

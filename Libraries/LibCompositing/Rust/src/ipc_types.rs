@@ -131,6 +131,7 @@ include!(concat!(env!("OUT_DIR"), "/MouseButton.rs"));
 include!(concat!(env!("OUT_DIR"), "/TextEditingCommand.rs"));
 include!(concat!(env!("OUT_DIR"), "/Types.rs"));
 
+include!(concat!(env!("OUT_DIR"), "/CompositorControlServerEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/CompositorPresentationClientEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/CompositorPresentationServerEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/CompositorWebContentClientEndpoint.rs"));

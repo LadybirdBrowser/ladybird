@@ -9,6 +9,8 @@
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
 use crate::backing_stores::{FfiNewStore, NewStore, Publication, SharedImageToPublish, StoreKind};
+use crate::cpp_object::FfiCppObject;
+use crate::remote_layers::{RemoteLayerHost, RemoteLayerObject, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
@@ -16,7 +18,9 @@ use libcompositing_rust::display_list::storage::{
     PackedChunkSize, ReceivedChunk, receive_packed_chunks_from_shared_memory,
 };
 use libcompositing_rust::host::FfiRasterPainter;
-use libcompositing_rust::ipc_types::Core_AnonymousBuffer;
+use libcompositing_rust::ipc_types::{
+    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Core_AnonymousBuffer,
+};
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
@@ -146,8 +150,18 @@ pub struct FfiRemoteLayerFrame {
     pub store: *const PresentableSurface,
     pub painted_size: IntSize,
     pub device_pixel_ratio: f64,
-    /// Whether the page laid out the frame at the size it is painted at.
-    pub laid_out_by_page: bool,
+    /// Where the frame is scaled to fit within the view, in device pixels, rather than shown at its own size.
+    pub has_fit_within: bool,
+    pub fit_within: IntSize,
+}
+
+/// How the presentation shows a remote layer: the kind of its host handle, which is that of
+/// `Compositing::RemoteLayerHostKind`, and its id.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiRemoteLayerHostHandle {
+    pub kind: u8,
+    pub id: u64,
 }
 
 /// The entry points of the mechanism the core drives, and the object they are called on:
@@ -183,7 +197,9 @@ pub struct FfiRasterHost {
     pub start_raster_cache_frame: unsafe extern "C" fn(*mut c_void, u64),
 
     /// Makes a store of the context, writing what it made. Answers false where none could be made.
-    pub create_store: unsafe extern "C" fn(*mut c_void, u64, StoreKind, IntSize, *mut FfiNewStore) -> bool,
+    /// Arguments: the context, the kind and size of the store, the window server that shows it, if one does, and where
+    /// the store is written.
+    pub create_store: unsafe extern "C" fn(*mut c_void, u64, StoreKind, IntSize, *mut c_void, *mut FfiNewStore) -> bool,
     /// Arguments: the presentation, the context, whether the stores were added to those it has rather than replacing
     /// them, and the stores with their images, which it takes over.
     pub publish_stores: unsafe extern "C" fn(*mut c_void, u64, u64, bool, ak::Span<'_, i32>, ak::Span<'_, *mut c_void>),
@@ -202,25 +218,35 @@ pub struct FfiRasterHost {
         *mut c_void,
         unsafe extern "C" fn(*mut c_void, *const FfiLiveContent<'_>),
     ),
+    /// Arguments: the remote layer, the context, the media, where it is placed, and the device pixel ratio.
     pub remote_layer_can_show:
-        unsafe extern "C" fn(*mut c_void, u64, MediaKind, u64, *const FfiSublayerPlacement, f64) -> bool,
+        unsafe extern "C" fn(*mut c_void, *mut c_void, u64, MediaKind, u64, *const FfiSublayerPlacement, f64) -> bool,
     /// Resolves the content of the sublayers, which the window server then holds busy until the list is destroyed or
     /// shown.
     pub build_sublayers: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, FfiSublayer>) -> *mut c_void,
     pub destroy_sublayers: unsafe extern "C" fn(*mut c_void),
 
-    pub frame_hand_off: unsafe extern "C" fn(*mut c_void, u64) -> FrameHandOff,
     /// Submits the GPU work drawn into the surface, or into the surfaces the window server shows where it is null,
     /// answering a token that `compositor_core_gpu_work_finished` hands back once it is done, on a later turn.
     pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface) -> u64,
     /// Calls `compositor_core_frame_ready_for_hand_off` with the token on a later turn, once the work is scheduled.
     pub hand_off_once_gpu_work_is_scheduled: unsafe extern "C" fn(*mut c_void, u64),
-    /// Shows a frame in the remote layer that shows the context, with the sublayers given, which it takes over. Answers
-    /// false where the layer could not show it, after which the context is no longer shown in it. Writes the
-    /// presentation the layer is in.
-    pub show_frame_in_remote_layer:
-        unsafe extern "C" fn(*mut c_void, u64, *const FfiRemoteLayerFrame, *mut c_void, *mut u64) -> bool,
-    pub stop_showing_in_remote_layer: unsafe extern "C" fn(*mut c_void, u64),
+    /// Writes the window server of a new presentation, or nothing where frames reach the screen only through the
+    /// presentation.
+    pub create_window_server: unsafe extern "C" fn(*mut c_void, *mut FfiCppObject) -> bool,
+    pub window_server_frame_hand_off: unsafe extern "C" fn(*mut c_void) -> FrameHandOff,
+    /// While held, what every remote layer of the window server shows changes nowhere on screen, and changes all at
+    /// once when released.
+    pub window_server_hold_changes_on_screen: unsafe extern "C" fn(*mut c_void),
+    pub window_server_release_changes_held_off_screen: unsafe extern "C" fn(*mut c_void),
+    /// Arguments: the window server, the id of the layer, and where the layer and its host handle are written.
+    pub create_remote_layer:
+        unsafe extern "C" fn(*mut c_void, u64, *mut FfiCppObject, *mut FfiRemoteLayerHostHandle) -> bool,
+    /// Arguments: the layer, whether the frame is scaled to fit, and the size it fits within.
+    pub remote_layer_place_frame: unsafe extern "C" fn(*mut c_void, bool, IntSize),
+    /// Shows the frame in the layer with the sublayers given, which it takes over. Answers false where the layer could
+    /// not show it.
+    pub remote_layer_show_frame: unsafe extern "C" fn(*mut c_void, *const FfiRemoteLayerFrame, *mut c_void) -> bool,
     pub log_presented_frame: unsafe extern "C" fn(*mut c_void, u64, IntRect),
     /// Calls `compositor_core_presented_store_released` on a later turn.
     pub release_store_later: unsafe extern "C" fn(*mut c_void, u64, i32),
@@ -396,10 +422,17 @@ impl RasterHost {
         unsafe { (self.0.end_painting)(self.host()) };
     }
 
-    pub fn create_store(&self, context_id: CompositorContextId, kind: StoreKind, size: IntSize) -> Option<NewStore> {
+    pub fn create_store(
+        &self,
+        context_id: CompositorContextId,
+        kind: StoreKind,
+        size: IntSize,
+        window_server: Option<&WindowServerObject>,
+    ) -> Option<NewStore> {
         let mut store = FfiNewStore::default();
-        // SAFETY: The host outlives this, and writes the store it made.
-        if !unsafe { (self.0.create_store)(self.host(), context_id.0, kind, size, &raw mut store) } {
+        let window_server = window_server.map_or(std::ptr::null_mut(), WindowServerObject::as_ptr);
+        // SAFETY: The host outlives this, the window server is live, and the host writes the store it made.
+        if !unsafe { (self.0.create_store)(self.host(), context_id.0, kind, size, window_server, &raw mut store) } {
             return None;
         }
         // SAFETY: The host handed the store over.
@@ -492,14 +525,25 @@ impl RasterHost {
 
     pub fn remote_layer_can_show(
         &self,
+        remote_layer: &RemoteLayerObject,
         context_id: CompositorContextId,
         kind: MediaKind,
         id: u64,
         placement: &FfiSublayerPlacement,
         device_pixel_ratio: f64,
     ) -> bool {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.remote_layer_can_show)(self.host(), context_id.0, kind, id, placement, device_pixel_ratio) }
+        // SAFETY: The host outlives this, and the layer is live.
+        unsafe {
+            (self.0.remote_layer_can_show)(
+                self.host(),
+                remote_layer.as_ptr(),
+                context_id.0,
+                kind,
+                id,
+                placement,
+                device_pixel_ratio,
+            )
+        }
     }
 
     pub fn build_sublayers(&self, context_id: CompositorContextId, sublayers: &[FfiSublayer]) -> SublayersHandle {
@@ -511,9 +555,18 @@ impl RasterHost {
         }
     }
 
-    pub fn frame_hand_off(&self, context_id: CompositorContextId) -> FrameHandOff {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.frame_hand_off)(self.host(), context_id.0) }
+    /// When a frame shown through the presentation can be handed to it.
+    pub fn frame_hand_off_through_presentation() -> FrameHandOff {
+        if cfg!(target_os = "macos") {
+            FrameHandOff::OnceGpuWorkIsScheduled
+        } else {
+            FrameHandOff::OnceGpuWorkIsFinished
+        }
+    }
+
+    pub fn window_server_frame_hand_off(&self, window_server: &WindowServerObject) -> FrameHandOff {
+        // SAFETY: The window server is live.
+        unsafe { (self.0.window_server_frame_hand_off)(window_server.as_ptr()) }
     }
 
     pub fn submit_frame(&self, context_id: CompositorContextId, surface: Option<&Rc<PaintingSurface>>) -> u64 {
@@ -527,30 +580,14 @@ impl RasterHost {
         unsafe { (self.0.hand_off_once_gpu_work_is_scheduled)(self.host(), token) };
     }
 
-    /// Answers the presentation of the remote layer that showed the frame, or none where it could not show it.
-    pub fn show_frame_in_remote_layer(
+    pub fn remote_layer_show_frame(
         &self,
-        context_id: CompositorContextId,
+        remote_layer: &RemoteLayerObject,
         frame: &FfiRemoteLayerFrame,
         sublayers: SublayersHandle,
-    ) -> Option<u64> {
-        let mut presentation_id = 0;
-        // SAFETY: The host outlives this, and takes the sublayers over.
-        let shown = unsafe {
-            (self.0.show_frame_in_remote_layer)(
-                self.host(),
-                context_id.0,
-                frame,
-                sublayers.into_raw(),
-                &raw mut presentation_id,
-            )
-        };
-        shown.then_some(presentation_id)
-    }
-
-    pub fn stop_showing_in_remote_layer(&self, context_id: CompositorContextId) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.stop_showing_in_remote_layer)(self.host(), context_id.0) };
+    ) -> bool {
+        // SAFETY: The layer is live, and takes the sublayers over.
+        unsafe { (self.0.remote_layer_show_frame)(remote_layer.as_ptr(), frame, sublayers.into_raw()) }
     }
 
     pub fn log_presented_frame(&self, page_id: u64, damage_rect: IntRect) {
@@ -723,5 +760,72 @@ impl RasterHost {
         // SAFETY: The host outlives this.
         unsafe { (self.0.finish_staged_rasterization)(self.host(), client, token) };
         began
+    }
+}
+
+impl RemoteLayerHost for RasterHost {
+    fn create_window_server(&self) -> Option<WindowServerObject> {
+        let mut window_server = FfiCppObject::default();
+        // SAFETY: The host outlives this, and writes the window server it made.
+        if !unsafe { (self.0.create_window_server)(self.host(), &raw mut window_server) } {
+            return None;
+        }
+        // SAFETY: The host handed a window server over.
+        unsafe { WindowServerObject::adopt(window_server) }
+    }
+
+    fn create_remote_layer(
+        &self,
+        window_server: &WindowServerObject,
+        remote_layer_id: u64,
+    ) -> Option<(RemoteLayerObject, Compositing_RemoteLayerHostHandle)> {
+        let mut layer = FfiCppObject::default();
+        let mut host_handle = FfiRemoteLayerHostHandle::default();
+        // SAFETY: The window server is live, and the host writes the layer it made with its handle.
+        if !unsafe {
+            (self.0.create_remote_layer)(
+                window_server.as_ptr(),
+                remote_layer_id,
+                &raw mut layer,
+                &raw mut host_handle,
+            )
+        } {
+            return None;
+        }
+        // SAFETY: The host handed the layer over.
+        let layer = unsafe { RemoteLayerObject::adopt(layer) }?;
+        let kind = match host_handle.kind {
+            1 => Compositing_RemoteLayerHostKind::CoreAnimationContext,
+            2 => Compositing_RemoteLayerHostKind::Win32ChildWindow,
+            _ => return None,
+        };
+        Some((
+            layer,
+            Compositing_RemoteLayerHostHandle {
+                kind,
+                id: host_handle.id,
+            },
+        ))
+    }
+
+    fn place_frame(&self, remote_layer: &RemoteLayerObject, fit_within: Option<IntSize>) {
+        // SAFETY: The layer is live.
+        unsafe {
+            (self.0.remote_layer_place_frame)(
+                remote_layer.as_ptr(),
+                fit_within.is_some(),
+                fit_within.unwrap_or_default(),
+            );
+        }
+    }
+
+    fn hold_changes_on_screen(&self, window_server: &WindowServerObject) {
+        // SAFETY: The window server is live.
+        unsafe { (self.0.window_server_hold_changes_on_screen)(window_server.as_ptr()) };
+    }
+
+    fn release_changes_held_off_screen(&self, window_server: &WindowServerObject) {
+        // SAFETY: The window server is live.
+        unsafe { (self.0.window_server_release_changes_held_off_screen)(window_server.as_ptr()) };
     }
 }

@@ -1132,8 +1132,9 @@ mod tests {
         }
     }
 
-    unsafe extern "C" fn set_timer(_: *mut c_void, _: u64, _: ContextTimer, _: i64) {}
-    unsafe extern "C" fn cancel_timer(_: *mut c_void, _: u64, _: ContextTimer) {}
+    unsafe extern "C" fn set_timer(_: *mut c_void, _: u64, _: i64) {}
+    unsafe extern "C" fn cancel_timer(_: *mut c_void, _: u64) {}
+    unsafe extern "C" fn destroy_timer(_: *mut c_void, _: u64) {}
     unsafe extern "C" fn shape_overlay_label(
         _: *mut c_void,
         _: u64,
@@ -1164,6 +1165,7 @@ mod tests {
                     post_message_to_presentation: record_completions,
                     set_timer,
                     cancel_timer,
+                    destroy_timer,
                     shape_overlay_label,
                 })
             };

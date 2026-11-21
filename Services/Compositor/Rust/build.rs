@@ -80,6 +80,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "src/core/presenting.rs",
         "src/core/mod.rs",
         "src/backing_stores.rs",
+        "src/cpp_object.rs",
         "src/surfaces/painting_surface.rs",
         "src/surfaces/presentable_surface.rs",
     ] {

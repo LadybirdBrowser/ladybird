@@ -16,6 +16,7 @@ use crate::backing_stores::{AllocationOutcome, BackingStores, Publication, Store
 use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame};
 use crate::raster_host::{FfiSublayer, PaintingResources, RasterHost, SurfaceBlend};
+use crate::remote_layers::{ShowingLayer, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use damage::{PaintedFrame, StoreDamage};
@@ -59,12 +60,22 @@ impl NestedContexts for NoCompositedContexts {
 /// What presenting a frame of a context works with besides the context's own state.
 pub struct PresentingEnvironment<'a> {
     pub context_id: CompositorContextId,
+    /// The remote layer that shows the context, if one does.
+    pub remote_layer: Option<ShowingLayer>,
     pub raster: &'a RasterHost,
     pub host: &'a Host,
     pub now: MonotonicTime,
     pub has_gpu: bool,
     pub window_server_may_show_high_dynamic_range: bool,
     pub nested_contexts: &'a dyn NestedContexts,
+}
+
+impl PresentingEnvironment<'_> {
+    pub fn window_server_showing_context(&self) -> Option<&WindowServerObject> {
+        self.remote_layer
+            .as_ref()
+            .map(|remote_layer| &*remote_layer.window_server)
+    }
 }
 
 /// A frame drawn into a store, or for a frame that changes only what the window server shows above the frame on
@@ -274,7 +285,8 @@ impl ContextPresenting {
             match self
                 .backing_stores
                 .allocate(allocation, publication, shares_gpu_images, &mut |kind, size| {
-                    env.raster.create_store(env.context_id, kind, size)
+                    env.raster
+                        .create_store(env.context_id, kind, size, env.window_server_showing_context())
                 }) {
                 AllocationOutcome::Offscreen => StoreResizeOutcome::ReallocatedOffscreen,
                 AllocationOutcome::Failed => StoreResizeOutcome::Failed,
@@ -370,11 +382,12 @@ impl ContextPresenting {
         raster: &RasterHost,
         context_id: CompositorContextId,
         publishing_presentation: Option<u64>,
+        window_server: Option<&WindowServerObject>,
     ) -> bool {
         let Some(stores) = self
             .backing_stores
             .add_store_if_window_server_still_reads_every_released_store(&mut |kind, size| {
-                raster.create_store(context_id, kind, size)
+                raster.create_store(context_id, kind, size, window_server)
             })
         else {
             return false;
@@ -415,11 +428,11 @@ impl ContextPresenting {
         raster: &RasterHost,
         context_id: CompositorContextId,
         publishing_presentation: Option<u64>,
+        window_server: Option<&WindowServerObject>,
     ) -> bool {
-        let Some(stores) = self
-            .backing_stores
-            .add_stores_up_to_initial_count(&mut |kind, size| raster.create_store(context_id, kind, size))
-        else {
+        let Some(stores) = self.backing_stores.add_stores_up_to_initial_count(&mut |kind, size| {
+            raster.create_store(context_id, kind, size, window_server)
+        }) else {
             return false;
         };
         Self::publish_added_stores(raster, context_id, publishing_presentation, stores);
@@ -851,6 +864,7 @@ impl ContextPresenting {
                 };
                 let snapshot_env = PresentingEnvironment {
                     nested_contexts: &NoCompositedContexts,
+                    remote_layer: env.remote_layer.clone(),
                     ..*env
                 };
                 self.composite_layers_above_base(&snapshot_env, &composited, &frame, source_rect);

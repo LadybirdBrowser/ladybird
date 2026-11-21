@@ -55,7 +55,6 @@ public:
     void set_presentation_gpu_capability(PresentationId, bool supported, u64 adapter_luid);
     void set_scrollbar_track_press_jumps(PresentationId, bool jumps);
     void bind_presentation(Web::CompositorContextId, PresentationId);
-    void set_shown_in_remote_layer(Web::CompositorContextId, bool shown);
     void set_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_window_server_may_show_high_dynamic_range(bool);
     void set_presents_from_cpu_memory(Web::CompositorContextId, bool);
@@ -82,11 +81,13 @@ public:
     // The surface that holds the frame on screen as a whole, and the size of the frame in it.
     Optional<PresentedFrame> presented_frame_for_snapshot(Web::CompositorContextId);
 
-    void timer_fired(Web::CompositorContextId, ContextTimer);
+    void timer_fired(u64 timer_number);
 
-    // The messages of CompositorWebContentServer and CompositorPresentationServer that are marked [RustReceiver].
+    // The messages of CompositorWebContentServer, CompositorPresentationServer and CompositorControlServer that are marked
+    // [RustReceiver].
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
+    IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
 
 private:
     RustFFI::CompositorCore* m_core { nullptr };

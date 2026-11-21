@@ -9,17 +9,19 @@
 mod input;
 pub mod messages;
 pub mod presenting;
+mod remote_layers;
 mod testing;
 mod wheel;
 
 use crate::context_state::{ContextState, ContextUpdateResult, FirstWheelStepRoute};
 use crate::host::{
     ContextTimer, DisplayTickInputs, DisplayTickResult, Host, PendingFrame, PresentRequest, PresentScheduling,
-    PresentationId, WebContentClientId,
+    PresentationId, Timer, WebContentClientId,
 };
 use crate::overlays::UIOverlays;
 use crate::presenting::ContextPresenting;
 use crate::raster_host::RasterHost;
+use crate::remote_layers::RemoteLayers;
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
@@ -47,6 +49,7 @@ pub struct CompositorCore {
     wheel_gesture_id_allocator: Rc<WheelGestureIdAllocator>,
     scrollbars_always_shown: bool,
     display_list_chunk_stores: RefCell<crate::display_list_chunk_stores::DisplayListChunkStores>,
+    remote_layers: RefCell<RemoteLayers>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -119,6 +122,7 @@ impl CompositorCore {
             wheel_gesture_id_allocator: Rc::new(WheelGestureIdAllocator::default()),
             scrollbars_always_shown,
             display_list_chunk_stores: RefCell::default(),
+            remote_layers: RefCell::default(),
         }
     }
 
@@ -198,6 +202,9 @@ impl CompositorCore {
         }
         self.contexts.remove(&context_id);
         self.presenting.remove(&context_id);
+        self.remote_layers.borrow_mut().context_destroyed(context_id);
+        self.host
+            .destroy_timers(|timer| matches!(timer, Timer::Context(id, _) if *id == context_id));
         self.display_list_chunk_stores.borrow_mut().forget_context(context_id);
         self.update_scroll_capabilities();
         self.raster
@@ -349,11 +356,24 @@ impl CompositorCore {
         let _entered = self.enter();
 
         self.presentations.borrow_mut().insert(presentation_id, capabilities);
+        self.remote_layers
+            .borrow_mut()
+            .register_presentation(presentation_id, &self.raster);
     }
 
     // Leaves every context bound to the presentation unbound.
     pub fn unregister_presentation(&self, presentation_id: PresentationId, now: MonotonicTime) {
         let _entered = self.enter();
+
+        let was_holding_changes = self.remote_layers.borrow().is_holding_changes();
+        let stopped = self
+            .remote_layers
+            .borrow_mut()
+            .unregister_presentation(presentation_id, &self.raster);
+        self.update_synchronized_resize_hold_timer(was_holding_changes);
+        for context_id in stopped {
+            self.stop_showing_context_in_remote_layer(context_id, now);
+        }
 
         let bound_context_ids: Vec<CompositorContextId> = self
             .contexts
@@ -450,17 +470,6 @@ impl CompositorCore {
         self.update_scroll_capabilities();
         // The new presentation has seen none of the context's buffers, so it gets buffers of its own.
         self.invalidate_and_resize_backing_stores(context_id, now);
-        self.finish_entry(now);
-    }
-
-    pub fn set_shown_in_remote_layer(&self, context_id: CompositorContextId, shown: bool, now: MonotonicTime) {
-        let _entered = self.enter();
-
-        if shown {
-            self.start_showing_context_in_remote_layer(context_id, now);
-        } else {
-            self.stop_showing_context_in_remote_layer(context_id, now);
-        }
         self.finish_entry(now);
     }
 
@@ -799,9 +808,18 @@ impl CompositorCore {
         became_visible
     }
 
-    pub fn timer_fired(&self, context_id: CompositorContextId, timer: ContextTimer, now: MonotonicTime) {
+    pub fn timer_fired(&self, number: u64, now: MonotonicTime) {
         let _entered = self.enter();
 
+        match self.host.timer_of_number(number) {
+            Some(Timer::Context(context_id, timer)) => self.context_timer_fired(context_id, timer, now),
+            Some(Timer::SynchronizedResizeHold) => self.synchronized_resize_hold_timed_out(),
+            None => {}
+        }
+        self.finish_entry(now);
+    }
+
+    fn context_timer_fired(&self, context_id: CompositorContextId, timer: ContextTimer, now: MonotonicTime) {
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
@@ -826,7 +844,6 @@ impl CompositorCore {
                 }
             }
         }
-        self.finish_entry(now);
     }
 
     pub(super) fn context_still_nested_in(
