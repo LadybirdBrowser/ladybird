@@ -3609,13 +3609,10 @@ void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<Can
         dispatch_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments), command.protocol);
 }
 
-bool ViewImplementation::is_running_webdriver_command_to_select_file(WebContentPage const& page, StringView path) const
+bool ViewImplementation::is_running_webdriver_command_to_select_file(WebContentPage const& page, u64 command_id, StringView path) const
 {
-    for (auto const& [command_id, command] : m_pending_webdriver_commands) {
-        if (command.page.ptr() == &page && command.files_to_select.contains_slow(path))
-            return true;
-    }
-    return false;
+    auto command = m_pending_webdriver_commands.get(command_id);
+    return command.has_value() && command->page.ptr() == &page && command->files_to_select.contains_slow(path);
 }
 
 // NB: An input command dispatches its input in the page it runs in, until any navigation it started takes that page
