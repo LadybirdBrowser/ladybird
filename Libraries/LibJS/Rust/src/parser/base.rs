@@ -274,7 +274,7 @@ pub struct Parser<'a, U: Unit> {
     pub(crate) prev_start: u32,
     pub(crate) regex_body_end: u32,
     pub(crate) name_buffer: ZoneVec<'a, u8>,
-    pub interner: &'a mut Interner,
+    pub interner: Interner<'a>,
 
     pub ast: Ast,
     pub index: FunctionIndex,
@@ -390,11 +390,12 @@ pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
 impl<'a, U: Unit> Parser<'a, U> {
-    /// A parser for the first parse of `source`, with its work data in `zone` and the names it finds in `interner`.
+    /// A parser for the first parse of `source`, with its work data in `zone`.
     ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
-    pub unsafe fn new(zone: &'a Zone, interner: &'a mut Interner, source: &'a [U], module: bool, mode: Mode) -> Self {
+    pub unsafe fn new(zone: &'a Zone, source: &'a [U], module: bool, mode: Mode) -> Self {
+        let interner = Interner::new(zone, source.len());
         let estimated_nodes = match mode {
             Mode::Lazy => (source.len() / 3 + 16).min(1 << 16),
             Mode::Full => source.len() / 3 + 16,
@@ -458,8 +459,9 @@ impl<'a, U: Unit> Parser<'a, U> {
     }
 
     /// A parser that parses one function again, knowing what the first parse of its source found, with its work data in
-    /// `zone`. The names of the source, their states and the index the parser writes to come from the reparse context
-    /// of the source, and go back to it when the parse ends (see `end_reparse()`). Its source comes with the function.
+    /// `zone`. The names of the source with their states, and the index the parser writes to, come from the reparse
+    /// context of the source: the names and the states in place, and the index until the parse ends (see
+    /// `end_reparse()`). Its source comes with the function.
     ///
     /// # Safety
     /// `first_pass_index` must stay valid and unchanged for as long as the parser reparses functions.
@@ -467,7 +469,7 @@ impl<'a, U: Unit> Parser<'a, U> {
     pub(crate) unsafe fn for_reparsing(
         zone: &'a Zone,
         module: bool,
-        interner: &'a mut Interner,
+        interner: Interner<'a>,
         names: &'a mut [NameState],
         stamp: u32,
         index: FunctionIndex,
@@ -498,7 +500,7 @@ impl<'a, U: Unit> Parser<'a, U> {
         length: usize,
         module: bool,
         mode: Mode,
-        interner: &'a mut Interner,
+        interner: Interner<'a>,
         names: &'a mut [NameState],
         index: FunctionIndex,
         estimated_nodes: usize,

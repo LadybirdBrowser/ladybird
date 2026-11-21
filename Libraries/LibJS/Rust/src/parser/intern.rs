@@ -6,8 +6,14 @@
 
 //! Name interning. An identifier's bytes up to 16 long are its own key, so a lookup is one multiply and a compare of
 //! two words, with no text compare. Names of one or two bytes, which is most of minified code, skip even that.
+//!
+//! The tables of an interner are slices. Those of a first parse are in its work zone, and the ones that it outgrows
+//! stay there until the parse ends. The reparse context of a source keeps the names of the source in tables on the
+//! heap ([`KeptNames`]), and each parse of a function again interns its names with those tables in place.
 
 use super::token::{KEYWORDS, SPECIAL_NAMES};
+use ak::Zone;
+use core::mem::MaybeUninit;
 use std::sync::OnceLock;
 
 pub const NONE: u32 = u32::MAX;
@@ -26,16 +32,59 @@ struct LongRow {
     id: u32,
 }
 
-pub struct Interner {
-    short: Vec<u32>,
-    rows: Vec<Row>,
+const EMPTY_ROW: Row = Row { k0: 0, k1: 0, id: NONE };
+const EMPTY_LONG_ROW: LongRow = LongRow { hash: 0, id: NONE };
+
+pub struct Interner<'z> {
+    /// Where the tables move when they grow.
+    zone: &'z Zone,
+    short: &'z mut [u32],
+    rows: &'z mut [Row],
     shift: u32,
     count: u32,
-    long_rows: Vec<LongRow>,
+    long_rows: &'z mut [LongRow],
     long_count: u32,
-    /// Each name's text, in UTF-8.
-    text: Vec<u8>,
-    spans: Vec<(u32, u32)>,
+    /// Each name's text, in UTF-8, in the first `text_len` bytes, which are written. The rest is room for more.
+    text: &'z mut [MaybeUninit<u8>],
+    text_len: u32,
+    /// The start and the length of the text of each name, in the first `len` entries, which are written.
+    spans: &'z mut [MaybeUninit<(u32, u32)>],
+    len: u32,
+}
+
+/// The tables of an interner on the heap, at the size they have.
+pub struct KeptNames {
+    rows: Box<[Row]>,
+    shift: u32,
+    count: u32,
+    long_rows: Box<[LongRow]>,
+    long_count: u32,
+    text: Box<[u8]>,
+    spans: Box<[(u32, u32)]>,
+}
+
+impl KeptNames {
+    pub fn len(&self) -> usize {
+        self.spans.len()
+    }
+}
+
+/// Makes room for `more` values after the first `len` of `list`. A list that is too short for them moves to new memory
+/// of `zone`, with at least twice the room.
+fn reserve<'z, T: Copy>(zone: &'z Zone, list: &mut &'z mut [MaybeUninit<T>], len: usize, more: usize) {
+    if len + more <= list.len() {
+        return;
+    }
+    let grown = zone.alloc_uninit_slice((len + more).max(list.len() * 2));
+    grown[..len].copy_from_slice(&list[..len]);
+    *list = grown;
+}
+
+/// `values` as room for values, all of which is written.
+fn as_room<T: Copy>(values: &mut [T]) -> &mut [MaybeUninit<T>] {
+    // SAFETY: A `MaybeUninit<T>` has the layout of a `T`. An interner only writes values into its room, so the values
+    //         that the caller sees again stay written.
+    unsafe { &mut *(core::ptr::from_mut(values) as *mut [MaybeUninit<T>]) }
 }
 
 #[inline(always)]
@@ -76,41 +125,45 @@ fn key_from_bytes(bytes: &[u8]) -> (u64, u64) {
     }
 }
 
-impl Interner {
-    pub fn new(source_len: usize) -> Self {
+impl<'z> Interner<'z> {
+    pub fn new(zone: &'z Zone, source_len: usize) -> Self {
         let wanted = (source_len / 16).clamp(1 << 8, 1 << 22).next_power_of_two();
         // OPTIMIZATION: Tiny scripts, such as repeated evals, do not amortize the setup of a direct table for two-byte
         // names.
-        let short = if source_len >= 1 << 16 {
-            vec![NONE; 1 << 16]
+        let short: &'z mut [u32] = if source_len >= 1 << 16 {
+            zone.alloc_slice_fill(1 << 16, NONE)
         } else {
-            Vec::new()
+            &mut []
         };
         let long_rows = (source_len / 128).clamp(1 << 4, 1 << 10).next_power_of_two();
         if wanted == 1 << 8 && long_rows == 1 << 4 {
             // OPTIMIZATION: Every parser starts with the same reserved names. Copy their tables for small sources
             // instead of interning all of them again, which is more work than parsing many eval strings.
-            static INITIAL: OnceLock<Interner> = OnceLock::new();
-            let initial = INITIAL.get_or_init(|| Self::with_tables(Vec::new(), 1 << 8, 1 << 4, 512));
-            let mut interner = Self {
+            static INITIAL: OnceLock<KeptNames> = OnceLock::new();
+            let initial = INITIAL.get_or_init(|| Self::with_tables(zone, &mut [], 1 << 8, 1 << 4, 512).to_kept());
+            let text = zone.alloc_uninit_slice(initial.text.len().max(512));
+            text[..initial.text.len()].write_copy_of_slice(&initial.text);
+            let spans = zone.alloc_uninit_slice(initial.len().max(1 << 7));
+            spans[..initial.len()].write_copy_of_slice(&initial.spans);
+            return Self {
+                zone,
                 short,
-                rows: initial.rows.clone(),
+                rows: zone.alloc_slice_copy(&initial.rows),
                 shift: initial.shift,
                 count: initial.count,
-                long_rows: initial.long_rows.clone(),
+                long_rows: zone.alloc_slice_copy(&initial.long_rows),
                 long_count: initial.long_count,
-                text: Vec::with_capacity(512),
-                spans: Vec::with_capacity(1 << 7),
+                text,
+                text_len: initial.text.len() as u32,
+                spans,
+                len: initial.len() as u32,
             };
-            interner.text.extend_from_slice(&initial.text);
-            interner.spans.extend_from_slice(&initial.spans);
-            return interner;
         }
-        Self::with_tables(short, wanted, long_rows, (source_len / 8).max(512))
+        Self::with_tables(zone, short, wanted, long_rows, (source_len / 8).max(512))
     }
 
-    fn with_tables(short: Vec<u32>, rows: usize, long_rows: usize, text_capacity: usize) -> Self {
-        let mut interner = Self::empty(short, rows, long_rows, text_capacity);
+    fn with_tables(zone: &'z Zone, short: &'z mut [u32], rows: usize, long_rows: usize, text_capacity: usize) -> Self {
+        let mut interner = Self::empty(zone, short, rows, long_rows, text_capacity);
         for (word, _) in KEYWORDS {
             interner.intern_bytes(word.as_bytes());
         }
@@ -123,25 +176,28 @@ impl Interner {
         interner
     }
 
-    fn empty(short: Vec<u32>, rows: usize, long_rows: usize, text_capacity: usize) -> Self {
+    fn empty(zone: &'z Zone, short: &'z mut [u32], rows: usize, long_rows: usize, text_capacity: usize) -> Self {
         Self {
+            zone,
             short,
-            rows: vec![Row { k0: 0, k1: 0, id: NONE }; rows],
+            rows: zone.alloc_slice_fill(rows, EMPTY_ROW),
             shift: 64 - rows.trailing_zeros(),
             count: 0,
-            long_rows: vec![LongRow { hash: 0, id: NONE }; long_rows],
+            long_rows: zone.alloc_slice_fill(long_rows, EMPTY_LONG_ROW),
             long_count: 0,
-            text: Vec::with_capacity(text_capacity),
-            spans: Vec::with_capacity(rows / 2),
+            text: zone.alloc_uninit_slice(text_capacity),
+            text_len: 0,
+            spans: zone.alloc_uninit_slice(rows / 2),
+            len: 0,
         }
     }
 
     /// An interner that gives the names of an earlier parse the ids they had, sized to stay around with a source of any
-    /// size. `names` yields them in id order, none of them twice, and starts with the names that every interner starts
-    /// with.
-    pub fn with_names<'a>(names: impl ExactSizeIterator<Item = &'a [u8]>) -> Self {
+    /// size (see `to_kept()`). `names` yields them in id order, none of them twice, and starts with the names that every
+    /// interner starts with.
+    pub fn with_names<'a>(zone: &'z Zone, names: impl ExactSizeIterator<Item = &'a [u8]>) -> Self {
         let rows = (names.len() * 2).next_power_of_two();
-        let mut interner = Self::empty(Vec::new(), rows, 1 << 4, names.len() * 8);
+        let mut interner = Self::empty(zone, &mut [], rows, 1 << 4, names.len() * 8);
         let mask = rows - 1;
         for name in names {
             if name.len() > 16 || name.last() == Some(&0) {
@@ -161,19 +217,69 @@ impl Interner {
         interner
     }
 
-    pub fn len(&self) -> usize {
-        self.spans.len()
+    /// A copy of the tables on the heap, at the size they have. The table of short names is left out.
+    pub fn to_kept(&self) -> KeptNames {
+        KeptNames {
+            rows: (*self.rows).into(),
+            shift: self.shift,
+            count: self.count,
+            long_rows: (*self.long_rows).into(),
+            long_count: self.long_count,
+            text: self.all_text().into(),
+            spans: self.spans().into(),
+        }
     }
 
+    /// An interner with the tables of `kept` in place. The text and the span of a name that they do not have go to
+    /// `zone`, and so do the rows when they grow, so that `kept` never refers to the zone. But the row of such a name is
+    /// written into `kept` first, so that `kept` stays as it was only if no name is new.
+    pub fn of_kept(zone: &'z Zone, kept: &'z mut KeptNames) -> Self {
+        Self {
+            zone,
+            short: &mut [],
+            shift: kept.shift,
+            count: kept.count,
+            long_count: kept.long_count,
+            text_len: kept.text.len() as u32,
+            len: kept.spans.len() as u32,
+            rows: &mut kept.rows,
+            long_rows: &mut kept.long_rows,
+            text: as_room(&mut kept.text),
+            spans: as_room(&mut kept.spans),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+
+    #[inline]
     pub fn text(&self, id: u32) -> &[u8] {
-        let (start, len) = self.spans[id as usize];
-        &self.text[start as usize..(start + len) as usize]
+        let (start, len) = self.spans()[id as usize];
+        // SAFETY: The text of a name is written.
+        unsafe { self.text[start as usize..(start + len) as usize].assume_init_ref() }
+    }
+
+    fn all_text(&self) -> &[u8] {
+        // SAFETY: The first `text_len` bytes are written.
+        unsafe { self.text[..self.text_len as usize].assume_init_ref() }
+    }
+
+    #[inline]
+    fn spans(&self) -> &[(u32, u32)] {
+        // SAFETY: The first `len` spans are written.
+        unsafe { self.spans[..self.len()].assume_init_ref() }
     }
 
     fn add_name(&mut self, bytes: &[u8]) -> u32 {
-        let id = self.spans.len() as u32;
-        self.spans.push((self.text.len() as u32, bytes.len() as u32));
-        self.text.extend_from_slice(bytes);
+        let id = self.len;
+        let start = self.text_len as usize;
+        reserve(self.zone, &mut self.spans, id as usize, 1);
+        reserve(self.zone, &mut self.text, start, bytes.len());
+        self.spans[id as usize].write((start as u32, bytes.len() as u32));
+        self.text[start..start + bytes.len()].write_copy_of_slice(bytes);
+        self.len += 1;
+        self.text_len += bytes.len() as u32;
         id
     }
 
@@ -229,10 +335,11 @@ impl Interner {
     #[cold]
     fn grow(&mut self) {
         let new_len = self.rows.len() * 2;
-        let old = std::mem::replace(&mut self.rows, vec![Row { k0: 0, k1: 0, id: NONE }; new_len]);
+        // NB: The old table stays in the zone until the parse ends.
+        let old = core::mem::replace(&mut self.rows, self.zone.alloc_slice_fill(new_len, EMPTY_ROW));
         self.shift -= 1;
         let mask = new_len - 1;
-        for row in old {
+        for &row in old.iter() {
             if row.id == NONE {
                 continue;
             }
@@ -268,9 +375,9 @@ impl Interner {
         self.long_count += 1;
         if self.long_count as usize * 2 > self.long_rows.len() {
             let new_len = self.long_rows.len() * 2;
-            let old = std::mem::replace(&mut self.long_rows, vec![LongRow { hash: 0, id: NONE }; new_len]);
+            let old = core::mem::replace(&mut self.long_rows, self.zone.alloc_slice_fill(new_len, EMPTY_LONG_ROW));
             mask = new_len - 1;
-            for row in old {
+            for &row in old.iter() {
                 if row.id == NONE {
                     continue;
                 }
@@ -288,13 +395,15 @@ impl Interner {
 #[cfg(test)]
 mod tests {
     use super::Interner;
+    use ak::Zone;
 
     #[test]
     fn trailing_nuls_preserve_name_identity() {
         // Exercise the prepared small interner, the general fallback, and the direct short-name table.
         for source_len in [0, 20_000, 65_536] {
             for reverse in [false, true] {
-                let mut interner = Interner::new(source_len);
+                let zone = Zone::new(1 << 30, c"test");
+                let mut interner = Interner::new(&zone, source_len);
                 let mut expected = Vec::new();
                 for prefix in [
                     b"".as_slice(),
@@ -324,7 +433,9 @@ mod tests {
                     assert_eq!(interner.intern_bytes(name), *id);
                 }
 
-                let mut reparsed = Interner::with_names((0..interner.len()).map(|id| interner.text(id as u32)));
+                let mut kept =
+                    Interner::with_names(&zone, (0..interner.len()).map(|id| interner.text(id as u32))).to_kept();
+                let mut reparsed = Interner::of_kept(&zone, &mut kept);
                 for (name, id) in &expected {
                     assert_eq!(reparsed.intern_bytes(name), *id);
                     assert_eq!(reparsed.text(*id), name);
