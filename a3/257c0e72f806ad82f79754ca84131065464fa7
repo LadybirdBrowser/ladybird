@@ -1,0 +1,17 @@
+Ladybird transfers its tentative width through the natural
+ratio of an image without a natural height before applying
+the size constraints. Blink resolves both dimensions in
+ComputeReplacedSizeInternal(). Gecko constrains the pair
+in nsContainerFrame::ComputeSizeWithIntrinsicDimensions().
+In WebKit, RenderReplaced applies the transferred limits in
+computeIntrinsicSizesConstrainedByTransferredMinMaxSizes().
+
+Chrome 158.0.8127.36, Firefox 151.0 and WebKit 26.5 all sized the
+reported SVG to 83 by 30 under a 30px height limit. With a 2:1 viewBox
+and 5px padding, Chrome and Firefox measured a border box of 50 by 30
+and WebKit measured 60 by 30.
+
+In the grid control with a 100px minimum height, Chrome and Firefox
+measured 200 by 100. With a 10px border included in that minimum they
+measured 180 by 100. WebKit measured 300 by 150 and 320 by 170. Ladybird
+matches Chrome and Firefox in both cases.
