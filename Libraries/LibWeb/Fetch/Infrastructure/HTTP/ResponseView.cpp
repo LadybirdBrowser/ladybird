@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 

@@ -29,7 +29,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/FetchBody.h>
 #include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>

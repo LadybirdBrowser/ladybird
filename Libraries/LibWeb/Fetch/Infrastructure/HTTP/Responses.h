@@ -23,7 +23,7 @@
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/FetchBody.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 

@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 

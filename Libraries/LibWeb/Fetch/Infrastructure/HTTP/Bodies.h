@@ -8,7 +8,6 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
-#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
@@ -16,7 +15,7 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Engine/FetchByteChannel.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/FetchBody.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -25,57 +24,6 @@ namespace Web::Fetch::Infrastructure {
 
 // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
 static constexpr size_t MAX_SNIFF_BYTES = 1445;
-
-// A body's source and length, without its stream.
-class WEB_API FetchBody {
-public:
-    FetchBody() = default;
-    FetchBody(Optional<Core::ImmutableBytes> source, Optional<u64> length);
-
-    [[nodiscard]] static FetchBody from_bytes(Core::ImmutableBytes bytes)
-    {
-        auto length = bytes.size();
-        return FetchBody { move(bytes), length };
-    }
-
-    [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_source; }
-    [[nodiscard]] Optional<u64> const& length() const { return m_length; }
-
-private:
-    // https://fetch.spec.whatwg.org/#concept-body-source
-    // A source (null, a byte sequence, a Blob object, or a FormData object), initially null.
-    // NB: A Blob or FormData source is held as its bytes.
-    Optional<Core::ImmutableBytes> m_source;
-
-    // https://fetch.spec.whatwg.org/#concept-body-total-bytes
-    // A length (null or an integer), initially null.
-    Optional<u64> m_length;
-};
-
-// A response's body as fetch keeps it: its length and where its bytes are.
-class WEB_API ResponseBody {
-public:
-    // The bytes are read through the stream of the response's body view.
-    struct ReadThroughStream { };
-    using Bytes = Variant<Core::ImmutableBytes, NonnullRefPtr<Engine::FetchByteChannel>, ReadThroughStream>;
-
-    ResponseBody(Bytes, Optional<u64> length);
-
-    [[nodiscard]] static ResponseBody from_bytes(Core::ImmutableBytes);
-    [[nodiscard]] static ResponseBody from_extracted_body(Body const&);
-
-    [[nodiscard]] Bytes const& bytes() const { return m_bytes; }
-
-    // https://fetch.spec.whatwg.org/#concept-body-source
-    [[nodiscard]] Optional<Core::ImmutableBytes const&> source() const;
-
-    // https://fetch.spec.whatwg.org/#concept-body-total-bytes
-    [[nodiscard]] Optional<u64> const& length() const { return m_length; }
-
-private:
-    Bytes m_bytes;
-    Optional<u64> m_length;
-};
 
 // https://fetch.spec.whatwg.org/#concept-body
 class WEB_API Body final : public JS::Cell {
@@ -165,7 +113,6 @@ struct BodyWithType {
 };
 
 WEB_API GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
-WEB_API ResponseBody byte_sequence_as_response_body(ReadonlyBytes);
 WEB_API void cancel_incremental_read(Streams::ReadableStreamDefaultReader&);
 
 }
