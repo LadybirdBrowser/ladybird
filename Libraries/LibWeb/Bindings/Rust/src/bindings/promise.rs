@@ -14,6 +14,7 @@ use core::ptr::NonNull;
 use libjs_rust::api::{
     Array, EmbedderCell, EmbedderClass, EmbedderValue, Gc, Must, NativeFunction, Object, Promise, PromiseCapability,
     PromiseState, PropertyKey, Realm, RejectionOperation, Trace, Value, Visitor, Vm, call, new_promise_capability,
+    safe_promise_resolve,
 };
 
 use crate::bindings::interface::{with_temporary_execution_context, with_temporary_execution_context_and_callbacks};
@@ -181,13 +182,9 @@ pub(crate) fn resolve_promise(vm: &Vm, promise: WebIdlPromise, value: Value) {
     // 1. If x is not given, then let it be the undefined value.
     // 2. Let value be the result of converting x to an ECMAScript value.
     // 3. Perform ! Call(p.[[Resolve]], undefined, « value »).
-    call(
-        vm,
-        Value::from_object(promise.resolve().upcast::<Object>()),
-        Value::UNDEFINED,
-        &[value],
-    )
-    .must();
+    // AD-HOC: We perform SafePromiseResolve instead, which never runs script.
+    //         See https://github.com/whatwg/webidl/pull/1645
+    safe_promise_resolve(vm, promise, value).must();
 }
 
 /// Rejects the promise with the reason, https://webidl.spec.whatwg.org/#reject

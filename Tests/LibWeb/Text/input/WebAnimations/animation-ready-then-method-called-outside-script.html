@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const effect = new KeyframeEffect(target, [{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
+        const animation = new Animation(effect, document.timeline);
+        let thenCalled = false;
+        animation.then = function (resolve) {
+            thenCalled = true;
+            delete animation.then;
+            resolve();
+        };
+        animation.play();
+        await animationFrame();
+        await animationFrame();
+        println(`then method of the animation called: ${thenCalled}`);
+    });
+</script>

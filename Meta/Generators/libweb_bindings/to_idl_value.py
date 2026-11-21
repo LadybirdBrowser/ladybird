@@ -973,7 +973,9 @@ def promise_to_idl_value(
         auto promise_capability0 = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
         // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
-        TRY(JS::call(vm, *promise_capability0->resolve(), JS::js_undefined(), {value_name}));
+        // AD-HOC: We perform SafePromiseResolve instead, which never runs script.
+        //         See https://github.com/whatwg/webidl/pull/1645
+        TRY(JS::safe_promise_resolve(vm, *promise_capability0, {value_name}));
 
         // 3. Return promiseCapability.
         return promise_capability0;

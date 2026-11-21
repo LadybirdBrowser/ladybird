@@ -727,8 +727,6 @@ impl Animation {
         // resolved Promise with the animation itself as its value and created in the relevant Realm of the animation.
         // NB: A promise the procedures replaced, which script did not ask for yet, is pending while the animation has
         //     a pending play or pause task.
-        // NB: Resolving the promise with the animation reads its "then" property, which script can observe, so the
-        //     promise is the current one before it is resolved.
         let promise = create_promise(vm, self.realm);
         self.current_ready_promise.set(Some(promise));
         if !self.record.pending() {
@@ -745,7 +743,6 @@ impl Animation {
         // The current finished promise is initially a pending Promise object.
         // NB: A promise the procedures resolved, which script did not ask for yet, is resolved while the animation is
         //     finished.
-        // NB: As with the current ready promise, the promise is the current one before it is resolved.
         let promise = create_promise(vm, self.realm);
         self.current_finished_promise.set(Some(promise));
         if self.record.playback().is_finished {
