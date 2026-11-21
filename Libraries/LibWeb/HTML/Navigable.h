@@ -112,6 +112,12 @@ public:
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&) const;
 
+    enum class MayNavigateToAFragment : bool {
+        No,
+        Yes,
+    };
+    bool is_too_deeply_nested_to_load(URL::URL const&, MayNavigateToAFragment = MayNavigateToAFragment::Yes) const;
+
 protected:
     explicit Navigable(GC::Ref<Page>);
     void set_id(CrossProcessId id) { m_id = id; }

@@ -1,1 +1,3 @@
-Deepest nested document: 30
+Deepest nested document: 9
+Fragment navigation of a frame below it: true
+Navigation of the frame below it: AbortError

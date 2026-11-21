@@ -15,7 +15,16 @@
             return;
         }
         const blankIframe = document.createElement("iframe");
-        blankIframe.onload = () => top.postMessage({ depth }, "*");
+        blankIframe.onload = () => {
+            // An opened document takes our URL, so this is a navigation to a fragment of it.
+            blankIframe.contentDocument.open();
+            blankIframe.contentDocument.close();
+            blankIframe.contentWindow.location.hash = "fragment";
+            const fragmentNavigated = blankIframe.contentWindow.location.hash === "#fragment";
+            iframe.contentWindow.navigation.navigate(nextURL).committed.then(
+                () => top.postMessage({ depth, fragmentNavigated, navigation: "committed" }, "*"),
+                error => top.postMessage({ depth, fragmentNavigated, navigation: error.name }, "*"));
+        };
         document.documentElement.appendChild(blankIframe);
     };
 </script>

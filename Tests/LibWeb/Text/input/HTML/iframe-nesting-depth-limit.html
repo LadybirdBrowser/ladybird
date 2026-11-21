@@ -5,6 +5,8 @@
     asyncTest(done => {
         window.onmessage = event => {
             println(`Deepest nested document: ${event.data.depth}`);
+            println(`Fragment navigation of a frame below it: ${event.data.fragmentNavigated}`);
+            println(`Navigation of the frame below it: ${event.data.navigation}`);
             done();
         };
         window.addEventListener("load", () => frame.contentWindow.postMessage("probe", "*"));
