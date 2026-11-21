@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 200px;
+        font: 16px monospace;
+    }
+</style>
+<!-- ProseMirror-based editors, like the ChatGPT composer, use "white-space: break-spaces". -->
+<div contenteditable="true" style="white-space: break-spaces"><p>hello word </p></div>
+<div contenteditable="true" style="white-space: break-spaces"><p>aaaa bbbb cccc dddd eeee ffff ggg word </p></div>
+<div contenteditable="true" style="white-space: pre-wrap"><p>aaaa bbbb cccc dddd eeee ffff ggg word </p></div>
+<script>
+    test(() => {
+        for (const editor of document.querySelectorAll("div")) {
+            editor.focus();
+            const text = editor.querySelector("p").firstChild;
+            getSelection().setBaseAndExtent(text, text.length, text, text.length);
+            internals.sendKey(editor, "Backspace");
+            println(`${editor.style.whiteSpace}: ${JSON.stringify(editor.textContent)}`);
+        }
+    });
+</script>
