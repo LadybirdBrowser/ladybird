@@ -12,8 +12,8 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[100,100 200x150] min_scroll_offset=[0,0] max_scroll_offset=[120,33] is_viewport=false
 
-Layers:
-  [L0] base space=viewport
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport held by the frame: it is under a layer the frame holds
   [L1] video #0 space=viewport region=[85,80 230x190] replayed: clipped in a rotated or skewed space
 
 DisplayList:

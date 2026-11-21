@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    #header { position: sticky; top: 0; height: 40px; background: rgba(0, 0, 128, 0.5); backdrop-filter: blur(8px) saturate(150%); }
+    #scroller { width: 200px; height: 100px; margin: 20px; overflow: auto; border-radius: 12px; background: white; }
+    #scroller div { height: 400px; background: linear-gradient(orange, purple); }
+</style>
+<div id="header">Header</div>
+<div id="scroller"><div></div></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList().split("\nDisplayList:")[0]);
+    });
+</script>

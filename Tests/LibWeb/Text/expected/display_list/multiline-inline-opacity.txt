@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#target)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:
@@ -32,7 +32,7 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[580.1875,0] is_viewport=true
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L1] base space=document
 
 DisplayList:
@@ -52,7 +52,7 @@ L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=39 rect=[8,137 264x13] glyph_bounding
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=10 rect=[8,150 62x13] glyph_bounding_rect=[8,150 69x12] translation=[8,160] color=rgb(0, 0, 0) text="  effects:" owner=BlockContainer<PRE>#out phase=foreground
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=25 rect=[8,163 162x13] glyph_bounding_rect=[8,163 166x12] translation=[8,173] color=rgb(0, 0, 0) text="    [e0 in s0] effects=[]" owner=BlockContainer<PRE>#out phase=foreground
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=64 rect=[8,176 419x13] glyph_bounding_rect=[8,176 426x12] translation=[8,186] color=rgb(0, 0, 0) text="      [e1 in s1] effects=[opacity=0.5] (…" text_length=64 owner=BlockContainer<PRE>#out phase=foreground
-L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=7 rect=[8,202 48x13] glyph_bounding_rect=[8,202 55x12] translation=[8,212] color=rgb(0, 0, 0) text="Layers:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=79 rect=[8,202 527x13] glyph_bounding_rect=[8,202 535x12] translation=[8,212] color=rgb(0, 0, 0) text="Layers (for a window server that shows t…" text_length=79 owner=BlockContainer<PRE>#out phase=foreground
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=26 rect=[8,215 183x13] glyph_bounding_rect=[8,215 188x12] translation=[8,225] color=rgb(0, 0, 0) text="  [L0] base space=viewport" owner=BlockContainer<PRE>#out phase=foreground
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=12 rect=[8,241 74x13] glyph_bounding_rect=[8,241 81x12] translation=[8,251] color=rgb(0, 0, 0) text="DisplayList:" owner=BlockContainer<PRE>#out phase=foreground
 L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=202 rect=[8,254 1373x13] glyph_bounding_rect=[8,254 1377x12] translation=[8,264] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e0 font_id=font1 glyp…" text_length=202 owner=BlockContainer<PRE>#out phase=foreground

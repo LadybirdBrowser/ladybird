@@ -52,6 +52,21 @@ impl PresentableSurface {
         Rc::as_ptr(self)
     }
 
+    /// A surface over the painting surface that draws into memory the window server cannot read.
+    pub fn shown_by_no_window_server(painting_surface: Rc<PaintingSurface>) -> Rc<PresentableSurface> {
+        Rc::new(PresentableSurface {
+            painting_surface,
+            content_is_upside_down: false,
+            window_server_surface: None,
+            was_handed_to_window_server: Cell::new(false),
+            lease_count: Cell::new(0),
+        })
+    }
+
+    pub fn can_be_shown_by_window_server(&self) -> bool {
+        self.window_server_surface.is_some()
+    }
+
     /// # Safety
     ///
     /// `surface` must be a surface whose one reference the caller hands over, or null.

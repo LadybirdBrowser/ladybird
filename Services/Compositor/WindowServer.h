@@ -40,6 +40,13 @@ public:
     // None where no window server shows surfaces above the frames.
     static ErrorOr<RefPtr<PresentableSurface>> try_create_presentable_surface_for_sublayers(Gfx::IntSize, Gfx::SkiaBackendContext&);
 
+    // Whether a remote layer of this window server shows each tile of a painted layer as a sublayer of its own, in a
+    // group that places and clips the tiles of the layer, so that it can show every layer of a frame by itself.
+    virtual bool shows_tiles_of_painted_layers() const { return false; }
+    // Whether a remote layer of this window server runs what it shows below a sublayer through a blur and color
+    // matrices, as a backdrop filter does.
+    virtual bool filters_what_is_below_layers() const { return false; }
+
     enum class FrameHandOff : u8 {
         OnceGpuWorkIsScheduled,
         OnceGpuWorkIsFinished,

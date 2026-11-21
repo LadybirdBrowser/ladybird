@@ -1250,28 +1250,85 @@ Vector<RemoteSublayer>* CompositorState::build_sublayers(Web::CompositorContextI
     auto sublayers = make<Vector<RemoteSublayer>>();
     auto& context = presented_context(context_id);
     auto& raster_targets = context.raster_targets;
+    // A sublayer without content is left out, and so are the sublayers of a group that is.
+    Vector<Optional<size_t>> index_of_built_sublayer;
+    index_of_built_sublayer.ensure_capacity(sublayers_to_build.size());
     for (auto const& sublayer : sublayers_to_build) {
-        Optional<Variant<NonnullRefPtr<Media::VideoFrame>, PresentableSurface::Lease>> content;
-        switch (sublayer.content_kind) {
-        case RustFFI::SublayerContentKind::Canvas:
-            if (auto surface = raster_targets.canvas_surfaces().presentable_canvas_surface(Compositing::CanvasId { sublayer.media_id }))
-                content = surface->lease();
-            break;
-        case RustFFI::SublayerContentKind::Video:
-            if (auto frame = current_video_frame(context.web_content_client, Media::VideoSinkHandle { sublayer.media_id }); frame && frame->surface())
-                content = frame.release_nonnull();
-            break;
-        case RustFFI::SublayerContentKind::PresentableSurface:
-            content = const_cast<PresentableSurface*>(sublayer.presentable_surface)->lease();
-            break;
+        Optional<size_t> group_index;
+        bool is_in_group = sublayer.group_index >= 0;
+        if (is_in_group && static_cast<size_t>(sublayer.group_index) < index_of_built_sublayer.size())
+            group_index = index_of_built_sublayer[sublayer.group_index];
+        Optional<decltype(RemoteSublayer::content)> content;
+        if (!is_in_group || group_index.has_value()) {
+            switch (sublayer.content_kind) {
+            case RustFFI::SublayerContentKind::Canvas:
+                if (auto surface = raster_targets.canvas_surfaces().presentable_canvas_surface(Compositing::CanvasId { sublayer.media_id }))
+                    content = surface->lease();
+                break;
+            case RustFFI::SublayerContentKind::Video:
+                if (auto frame = current_video_frame(context.web_content_client, Media::VideoSinkHandle { sublayer.media_id }); frame && frame->surface())
+                    content = frame.release_nonnull();
+                break;
+            case RustFFI::SublayerContentKind::PresentableSurface:
+                content = const_cast<PresentableSurface*>(sublayer.presentable_surface)->lease();
+                break;
+            case RustFFI::SublayerContentKind::Group: {
+                auto const* to_parent = sublayer.group.to_parent;
+                content = RemoteSublayer::Group {
+                    .to_parent = { to_parent[0], to_parent[1], to_parent[2], to_parent[3], to_parent[4], to_parent[5] },
+                    .clip_rect = sublayer.group.clips ? Optional<Gfx::FloatRect> { sublayer.group.clip_rect } : OptionalNone {},
+                    .corner_radii = sublayer.group.corner_radii,
+                    .opacity = sublayer.group.opacity,
+                };
+                break;
+            }
+            case RustFFI::SublayerContentKind::Tile:
+                content = RemoteSublayer::Tile {
+                    .surface = const_cast<PresentableSurface*>(sublayer.presentable_surface)->lease(),
+                    .every_pixel_is_opaque = sublayer.every_pixel_is_opaque,
+                };
+                break;
+            case RustFFI::SublayerContentKind::Color:
+                content = sublayer.color;
+                break;
+            case RustFFI::SublayerContentKind::Backdrop: {
+                auto const& backdrop = sublayer.backdrop;
+                RemoteSublayer::Backdrop built_backdrop;
+                built_backdrop.region = backdrop.region;
+                auto append_color_matrix = [&](float const* color_matrix) {
+                    RemoteSublayer::Backdrop::Filter filter;
+                    filter.kind = RemoteSublayer::Backdrop::Filter::Kind::ColorMatrix;
+                    for (size_t index = 0; index < filter.color_matrix.size(); ++index)
+                        filter.color_matrix[index] = color_matrix[index];
+                    built_backdrop.filters.append(filter);
+                };
+                if (backdrop.has_color_matrix_before_blur)
+                    append_color_matrix(backdrop.color_matrix_before_blur);
+                if (backdrop.has_blur) {
+                    RemoteSublayer::Backdrop::Filter blur;
+                    blur.kind = RemoteSublayer::Backdrop::Filter::Kind::Blur;
+                    blur.blur_standard_deviation = backdrop.blur_standard_deviation;
+                    built_backdrop.filters.append(blur);
+                }
+                if (backdrop.has_color_matrix_after_blur)
+                    append_color_matrix(backdrop.color_matrix_after_blur);
+                content = move(built_backdrop);
+                break;
+            }
+            }
         }
-        if (!content.has_value())
+        if (!content.has_value()) {
+            index_of_built_sublayer.unchecked_append({});
             continue;
+        }
+        index_of_built_sublayer.unchecked_append(sublayers->size());
         auto const& placement = sublayer.placement;
+        bool is_placed_by_group = content->has<RemoteSublayer::Tile>() || content->has<Gfx::Color>();
         sublayers->append({
             .identity = sublayer.identity,
+            .group_index = group_index,
             .content = content.release_value(),
-            .content_rect = placement.content_rect,
+            .content_rect = is_placed_by_group ? sublayer.rect : placement.content_rect,
             .content_to_frame = content_to_frame_of(placement),
             .clip_rect = placement.clip_rect,
             .rounded_clip = rounded_clip_of(placement),
@@ -1491,6 +1548,13 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
                 return nullptr;
             return &surface.release_value().leak_ref();
         },
+        .window_server_compositing = [](void* window_server) -> RustFFI::FfiWindowServerCompositing {
+            auto const& compositing_window_server = *static_cast<WindowServer*>(window_server);
+            return {
+                .shows_tiles_of_painted_layers = compositing_window_server.shows_tiles_of_painted_layers(),
+                .filters_what_is_below_layers = compositing_window_server.filters_what_is_below_layers(),
+            };
+        },
         .live_content = [](void* host, u64 context_id, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*)) { state_of(host).report_live_content(Context { context_id }, canvas_ids, receiver, receive); },
         .remote_layer_can_show = [](void* host, void* remote_layer, u64 context_id, RustFFI::MediaKind kind, u64 media_id, RustFFI::FfiSublayerPlacement const* placement, double device_pixel_ratio) { return state_of(host).remote_layer_can_show(*static_cast<RemoteLayer*>(remote_layer), Context { context_id }, kind, media_id, *placement, device_pixel_ratio); },
         .build_sublayers = [](void* host, u64 context_id, ReadonlySpan<RustFFI::FfiSublayer> sublayers) -> void* {
@@ -1527,6 +1591,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
             auto* store = const_cast<PresentableSurface*>(frame->store);
             auto shown = static_cast<RemoteLayer*>(remote_layer)->show_frame({
                 .store = store ? Optional<PresentableSurface::Lease> { store->lease() } : OptionalNone {},
+                .shows_no_store = frame->shows_no_store,
                 .painted_size = frame->painted_size,
                 .device_pixel_ratio = frame->device_pixel_ratio,
                 .fit_within = frame->has_fit_within ? Optional<Gfx::IntSize> { frame->fit_within } : OptionalNone {},

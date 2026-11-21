@@ -6,20 +6,26 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <Compositor/PresentableSurface.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibGfx/Size.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositor {
 
-// Content that the window server shows above the frame as it is, placed and clipped as drawing it into the frame would
-// have placed and clipped it. Geometry is in device pixels.
+// Content that the window server shows of a frame by itself: a video frame or a surface placed and clipped as drawing it
+// into the frame would have placed and clipped it, or a tile or a fill of a painted layer in a group that places and
+// clips every sublayer in it. Geometry is in device pixels.
 struct RemoteSublayer {
     struct RoundedClip {
         Gfx::FloatRect rect;
@@ -30,11 +36,55 @@ struct RemoteSublayer {
         bool rounds_bottom_left { false };
     };
 
+    // Holds the sublayers that name it as their group.
+    struct Group {
+        // From the pixels of the group to those of the group it is in, or to those of the frame.
+        Gfx::AffineTransform to_parent;
+        // Clips the sublayers of the group to this rect of its own pixels, with its corners rounded by the radii.
+        Optional<Gfx::FloatRect> clip_rect;
+        Gfx::CornerRadii corner_radii;
+        // Composites the sublayers of the group at this opacity, once they are composited with each other.
+        float opacity { 1 };
+    };
+
+    struct Tile {
+        PresentableSurface::Lease surface;
+        bool every_pixel_is_opaque { false };
+    };
+
+    // What the window server shows below the sublayer, within a rect of the pixels of its group, run through filters.
+    struct Backdrop {
+        struct Filter {
+            enum class Kind : u8 {
+                Blur,
+                ColorMatrix,
+            };
+            Kind kind { Kind::Blur };
+            // In device pixels.
+            float blur_standard_deviation { 0 };
+            // Row-major, with the offsets in the fifth column, for unpremultiplied colors from 0 to 1.
+            Array<float, 20> color_matrix {};
+
+            bool operator==(Filter const&) const = default;
+        };
+
+        Gfx::FloatRect region;
+        // Applied in order.
+        Vector<Filter, 3> filters;
+
+        bool operator==(Backdrop const&) const = default;
+    };
+
     // Tells a sublayer apart from the others from one frame to the next, so that a frame changes only what moved.
     u64 identity { 0 };
-    Variant<NonnullRefPtr<Media::VideoFrame>, PresentableSurface::Lease> content;
-    // Where the content is drawn, in its own space, which the transform maps into the frame.
+    // The index, among the sublayers of the frame, of the group the sublayer is in, which comes before it. Sublayers of
+    // one group, and those of the frame itself, which have none, are shown bottom to top.
+    Optional<size_t> group_index;
+    Variant<NonnullRefPtr<Media::VideoFrame>, PresentableSurface::Lease, Group, Tile, Gfx::Color, Backdrop> content;
+    // Where a video frame or a surface is drawn, in its own space, which the transform maps into the frame. Where a
+    // tile or a color is shown, in the pixels of its group.
     Gfx::IntRect content_rect;
+    // The transform, the clips and the scaling mode place a video frame or a surface only.
     Gfx::AffineTransform content_to_frame;
     Gfx::FloatRect clip_rect;
     Optional<RoundedClip> rounded_clip;

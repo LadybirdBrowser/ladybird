@@ -14,7 +14,7 @@ use super::dump_format::{
     json_float_rect, json_int_rect, json_name, path_description, push_clip_radii, push_fields, push_value,
 };
 use super::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
-use super::layers::{LayerIndex, VisualContextNodeNamer, WindowServerPresentationOfMedia};
+use super::layers::{LayerIndex, VisualContextNodeNamer, WindowServerCompositing, WindowServerPresentationOfMedia};
 use super::nested_records::{
     NestedRecordsRole, for_each_command_including_nested, for_each_nested_record_span, span_bytes,
 };
@@ -405,6 +405,7 @@ pub unsafe extern "C" fn painting_dump(
         visual_context_tree,
         scroll_offsets,
         device_viewport_rect,
+        WINDOW_SERVER_THE_DUMP_TELLS_LAYERS_FOR,
     );
     dump_layers(
         &mut output,
@@ -682,6 +683,15 @@ fn dump_compositor_scroll_table(
     }
 }
 
+// A dump tells what the most capable window server can show of the layers, whichever window server shows the page, if
+// any does, so that it reads the same on every platform.
+const WINDOW_SERVER_THE_DUMP_TELLS_LAYERS_FOR: WindowServerCompositing = WindowServerCompositing {
+    shows_tiles_of_painted_layers: true,
+    filters_what_is_below_layers: true,
+};
+const HEADER_OF_LAYERS_SECTION: &str =
+    "Layers (for a window server that shows tiles and filters what is below layers):";
+
 fn dump_layers(
     output: &mut String,
     names: &mut DumpNames,
@@ -713,7 +723,7 @@ fn dump_layers(
         }
         return;
     }
-    output.push_str("\nLayers:\n");
+    writeln!(output, "\n{HEADER_OF_LAYERS_SECTION}").unwrap();
     let describe_records = |layer: LayerIndex| {
         record_id_ranges_by_layer
             .as_ref()

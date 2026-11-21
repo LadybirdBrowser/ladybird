@@ -79,15 +79,17 @@ impl PresentingEnvironment<'_> {
     }
 }
 
-/// A frame drawn into a store, or for a frame that changes only what the window server shows above the frame on
-/// screen, into nothing.
+/// A frame drawn into a store, or for a frame that changes only what the window server shows by itself, into nothing.
 pub struct PreparedFrame {
     pub rendered_surface: Option<Rc<PaintingSurface>>,
     pub bitmap_id: i32,
     pub damage_rect: IntRect,
     pub device_pixel_ratio: f64,
-    /// What the window server shows above the frame, bottom to top, lent by the presenting state until the next frame.
+    /// What the window server shows of the frame by itself, bottom to top, lent by the presenting state until the next
+    /// frame.
     pub sublayers: Vec<FfiSublayer>,
+    /// Whether the sublayers are all of the frame, so that the window server shows no store below them.
+    pub window_server_shows_every_layer: bool,
 }
 
 pub(crate) struct FrameToPaint<'a> {
@@ -205,6 +207,8 @@ pub struct ContextPresenting {
     frame_without_store_in_flight: bool,
     backing_stores: BackingStores,
     sublayers_of_latest_frame: Vec<FfiSublayer>,
+    /// Whether the window server showed every layer of the frame presented last by itself, with no store below them.
+    latest_frame_was_presented_without_store_below_sublayers: bool,
     size_of_latest_rendered_frame: IntSize,
     store_damage: StoreDamage,
     surplus_store_retirement_is_scheduled: bool,
@@ -244,6 +248,7 @@ impl ContextPresenting {
             frame_without_store_in_flight: false,
             backing_stores: BackingStores::default(),
             sublayers_of_latest_frame: Vec::new(),
+            latest_frame_was_presented_without_store_below_sublayers: false,
             size_of_latest_rendered_frame: IntSize::default(),
             store_damage: StoreDamage::default(),
             surplus_store_retirement_is_scheduled: false,
@@ -774,32 +779,88 @@ impl ContextPresenting {
         };
         let mut frame_damage = self.frame_damage_for(env, &pending_frame, &frame, &live_content);
         let mut damage_rect = frame_damage.rect_in_raster_device_pixels;
+        let window_server_shows_every_layer = frame_damage.layers.window_server_shows_every_layer();
+        let frame_was_presented_within_same_viewport_rect = self.presented_frame == Some(pending_frame.viewport_rect);
         // NB: A changed content rect must still reach the client even if the pixels are identical.
-        if damage_rect.is_empty() && self.presented_frame == Some(pending_frame.viewport_rect) {
+        let frame_changes_nothing_it_holds = window_server_shows_every_layer
+            || (damage_rect.is_empty() && frame_was_presented_within_same_viewport_rect);
+        if frame_changes_nothing_it_holds {
             let only_media_shown_by_window_server_changed =
                 frame_damage.layers.shown_by_window_server() && frame_damage.live_media_changed;
-            self.remember_painted_frame(
-                env,
-                pending_frame.viewport_rect,
-                display_list,
-                frame_inputs,
-                &live_content,
-                frame_damage.layers,
-            );
-            let sublayers = self.sublayers_shown_by_window_server(&live_content);
-            let media_shown_by_window_server_moved_resized_or_turned = sublayers != self.sublayers_of_latest_frame;
-            if !only_media_shown_by_window_server_changed && !media_shown_by_window_server_moved_resized_or_turned {
-                return None;
+            let sublayers_of_tiles_rastered_for_frame = if frame_damage.layers.window_server_shows_tiles() {
+                let overlays_draw_same_as_in_latest_frame = self.painted_frame.as_ref().is_some_and(|painted_frame| {
+                    frame_inputs
+                        .overlays
+                        .draws_same_as(&painted_frame.frame_inputs.overlays)
+                });
+                Some(self.present_layers_of_frame_painted_into_no_store(
+                    env,
+                    &frame,
+                    &mut frame_damage.layers,
+                    &live_content,
+                    overlays_draw_same_as_in_latest_frame,
+                ))
+            } else {
+                None
+            };
+            // A frame the window server cannot be given the layers of holds them all, and so is painted in full.
+            let window_server_was_given_layers = !matches!(sublayers_of_tiles_rastered_for_frame, Some(None));
+            if window_server_was_given_layers {
+                self.remember_painted_frame(
+                    env,
+                    pending_frame.viewport_rect,
+                    display_list,
+                    frame_inputs,
+                    &live_content,
+                    frame_damage.layers,
+                );
+                let sublayers = match sublayers_of_tiles_rastered_for_frame {
+                    Some(Some(sublayers)) => sublayers,
+                    _ => self.painted_frame.as_ref().map_or_else(Vec::new, |painted_frame| {
+                        self.sublayers_shown_by_window_server(&painted_frame.layers, &live_content)
+                    }),
+                };
+                let window_server_shows_other_sublayers = sublayers != self.sublayers_of_latest_frame;
+                // A frame made to repaint, as one shown in another remote layer than the frame before, is presented
+                // even where the window server already shows its sublayers.
+                let frame_is_made_to_repaint = !pending_frame.forced_damage_rect.is_empty();
+                let hides_store_shown_with_latest_frame =
+                    window_server_shows_every_layer && !self.latest_frame_was_presented_without_store_below_sublayers;
+                if !only_media_shown_by_window_server_changed
+                    && !window_server_shows_other_sublayers
+                    && !frame_is_made_to_repaint
+                    && !hides_store_shown_with_latest_frame
+                    && frame_was_presented_within_same_viewport_rect
+                {
+                    return None;
+                }
+                self.frame_without_store_in_flight = true;
+                self.sublayers_of_latest_frame = sublayers.clone();
+                if window_server_shows_every_layer {
+                    // No store holds what the frame shows, so each is painted in full once a frame holds layers again,
+                    // and a snapshot of the frame on screen is composited from the layers.
+                    self.latest_frame_was_presented_without_store_below_sublayers = true;
+                    self.store_damage.forget_every_store();
+                    self.size_of_latest_rendered_frame = IntSize {
+                        width: pending_frame.viewport_rect.width,
+                        height: pending_frame.viewport_rect.height,
+                    };
+                }
+                return Some(PreparedFrame {
+                    rendered_surface: None,
+                    bitmap_id: -1,
+                    damage_rect: if window_server_shows_other_sublayers {
+                        self.raster_rect()
+                    } else {
+                        IntRect::default()
+                    },
+                    device_pixel_ratio: self.device_pixel_ratio,
+                    sublayers,
+                    window_server_shows_every_layer,
+                });
             }
-            self.frame_without_store_in_flight = true;
-            self.sublayers_of_latest_frame = sublayers.clone();
-            return Some(PreparedFrame {
-                rendered_surface: None,
-                bitmap_id: -1,
-                damage_rect: IntRect::default(),
-                device_pixel_ratio: self.device_pixel_ratio,
-                sublayers,
-            });
+            frame_damage.layers.hold_every_layer_in_frame();
+            damage_rect = self.raster_rect();
         }
         let Some((bitmap_id, store)) = self.backing_stores.acquire_render_target() else {
             self.queue_present_frame(pending_frame);
@@ -807,7 +868,7 @@ impl ContextPresenting {
         };
         let store_rect = rect_of_size(store.size());
         let repaint_rect = self.store_damage.take(bitmap_id, damage_rect, store_rect);
-        let painted_rect = self.paint_layered_frame(
+        let (painted_rect, sublayers) = self.paint_layered_frame(
             env,
             &store,
             &frame,
@@ -832,14 +893,15 @@ impl ContextPresenting {
             &live_content,
             frame_damage.layers,
         );
-        let sublayers = self.sublayers_shown_by_window_server(&live_content);
         self.sublayers_of_latest_frame = sublayers.clone();
+        self.latest_frame_was_presented_without_store_below_sublayers = false;
         Some(PreparedFrame {
             rendered_surface: Some(store),
             bitmap_id,
             damage_rect,
             device_pixel_ratio: self.device_pixel_ratio,
             sublayers,
+            window_server_shows_every_layer: false,
         })
     }
 
@@ -951,7 +1013,7 @@ impl ContextPresenting {
             let live_content = this.live_content(env, frame.display_list);
             let pending_frame = PendingFrame::repainting_everything(rect_of_size(target_size));
             let mut frame_damage = this.frame_damage_for(env, &pending_frame, frame, &live_content);
-            this.paint_layered_frame(
+            let _ = this.paint_layered_frame(
                 env,
                 target,
                 frame,
@@ -1012,18 +1074,12 @@ impl ContextPresenting {
         &self,
         env: &PresentingEnvironment<'_>,
     ) -> Option<Rc<PaintingSurface>> {
-        let mut source = self.backing_stores.latest_rendered_surface()?;
-        if let Some(painted_frame) = self
+        let painted_frame_shown_by_window_server = self
             .painted_frame
             .as_ref()
-            .filter(|painted_frame| painted_frame.layers.shown_by_window_server())
-        {
-            let source_size = source.size();
-            let composited = env.raster.create_surface(source_size, Some(&source), false);
-            if let Some(composited) = composited {
-                let source_rect = rect_of_size(source_size);
-                env.raster
-                    .draw_surface(&composited, &source, source_rect, source_rect, SurfaceBlend::Source);
+            .filter(|painted_frame| painted_frame.layers.shown_by_window_server());
+        let composite_layers_shown_by_window_server =
+            |composited: &Rc<PaintingSurface>, painted_frame: &PaintedFrame| {
                 let frame = FrameToPaint {
                     display_list: &painted_frame.display_list,
                     frame_inputs: &painted_frame.frame_inputs,
@@ -1033,14 +1089,35 @@ impl ContextPresenting {
                     remote_layer: env.remote_layer.clone(),
                     ..*env
                 };
+                let rect_of_surface = rect_of_size(composited.size());
                 self.composite_layers_shown_by_window_server(
                     &snapshot_env,
-                    &composited,
+                    composited,
                     &frame,
-                    source_rect,
+                    rect_of_surface,
                     &painted_frame.layers,
                 );
-                self.paint_overlays(&snapshot_env, &composited, &painted_frame.frame_inputs, true);
+                self.paint_overlays(&snapshot_env, composited, &painted_frame.frame_inputs, true);
+            };
+        // No store holds a frame the window server shows every layer of, so the frame is composited from its layers.
+        if let Some(painted_frame) = painted_frame_shown_by_window_server
+            .filter(|painted_frame| painted_frame.layers.window_server_shows_every_layer())
+        {
+            let composited = env
+                .raster
+                .create_surface(self.size_of_latest_rendered_frame, None, false)?;
+            composite_layers_shown_by_window_server(&composited, painted_frame);
+            return Some(composited);
+        }
+        let mut source = self.backing_stores.latest_rendered_surface()?;
+        if let Some(painted_frame) = painted_frame_shown_by_window_server {
+            let source_size = source.size();
+            let composited = env.raster.create_surface(source_size, Some(&source), false);
+            if let Some(composited) = composited {
+                let source_rect = rect_of_size(source_size);
+                env.raster
+                    .draw_surface(&composited, &source, source_rect, source_rect, SurfaceBlend::Source);
+                composite_layers_shown_by_window_server(&composited, painted_frame);
                 source = composited;
             }
         }

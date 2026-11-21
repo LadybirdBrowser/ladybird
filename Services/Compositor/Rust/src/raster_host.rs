@@ -29,7 +29,7 @@ use libcompositing_rust::ipc_types::{
 };
 use libcompositing_rust::time::MonotonicTime;
 use libcompositing_rust::webgl::ImageSource;
-use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
+use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
 use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
@@ -136,25 +136,112 @@ pub enum SublayerContentKind {
     Canvas,
     Video,
     PresentableSurface,
+    /// Holds the sublayers that name it as their group, which the window server places and clips together.
+    Group,
+    /// The surface of a tile of a painted layer, shown at `rect` of the group it is in.
+    Tile,
+    /// A fill of `rect` of the group it is in with `color`.
+    Color,
+    /// What the window server shows below the sublayer, within a rect of the group it is in, run through filters.
+    Backdrop,
 }
 
-/// A sublayer the window server shows above a frame: a canvas of the context by its id, a video by the handle of its
-/// sink, or a surface.
+/// What the window server shows below a sublayer, within `region` of the group the sublayer is in, run through a color
+/// matrix, a blur and another color matrix, in that order, each of which can be left out. A matrix is row-major with
+/// the offsets in the fifth column, for unpremultiplied colors from 0 to 1.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiSublayerBackdrop {
+    pub region: FloatRect,
+    pub has_color_matrix_before_blur: bool,
+    pub color_matrix_before_blur: [f32; 20],
+    pub has_blur: bool,
+    /// In device pixels.
+    pub blur_standard_deviation: f32,
+    pub has_color_matrix_after_blur: bool,
+    pub color_matrix_after_blur: [f32; 20],
+}
+
+/// Where the window server places the sublayers of a group, how it clips them, and how it fades them together, in
+/// device pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FfiSublayerGroup {
+    /// The a, b, c, d, e and f of the affine transform from the pixels of the group to those of the group it is in, or
+    /// to those of the frame.
+    pub to_parent: [f32; 6],
+    /// Whether the group clips its sublayers to `clip_rect`, in its own pixels, with the corners of the rect rounded
+    /// by the radii.
+    pub clips: bool,
+    pub clip_rect: FloatRect,
+    pub corner_radii: CornerRadii,
+    /// The opacity the group composites its sublayers at, once they are composited with each other.
+    pub opacity: f32,
+}
+
+impl Default for FfiSublayerGroup {
+    fn default() -> Self {
+        Self {
+            to_parent: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            clips: false,
+            clip_rect: FloatRect::default(),
+            corner_radii: CornerRadii::default(),
+            opacity: 1.0,
+        }
+    }
+}
+
+/// A sublayer the window server shows of a frame: a canvas of the context by its id, a video by the handle of its sink,
+/// a surface, a tile, a fill, or a group of other sublayers.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiSublayer {
     pub identity: u64,
+    /// The index, among the sublayers of the frame, of the group the sublayer is in, or -1 for one in the frame itself.
+    /// A group comes before the sublayers in it, and sublayers of one group are shown bottom to top.
+    pub group_index: i32,
     pub content_kind: SublayerContentKind,
     pub media_id: u64,
+    /// Of a surface or a tile.
     pub presentable_surface: *const PresentableSurface,
+    /// Of a canvas, a video or a surface.
     pub placement: FfiSublayerPlacement,
+    pub group: FfiSublayerGroup,
+    /// Of a tile or a fill, in the pixels of the group it is in.
+    pub rect: IntRect,
+    pub color: Color,
+    /// Of a tile.
+    pub every_pixel_is_opaque: bool,
+    pub backdrop: FfiSublayerBackdrop,
+}
+
+impl FfiSublayer {
+    /// A sublayer of the frame itself that shows nothing, for the fields of each kind of content to be set on.
+    pub fn of_kind(identity: u64, content_kind: SublayerContentKind) -> Self {
+        Self {
+            identity,
+            group_index: -1,
+            content_kind,
+            media_id: 0,
+            presentable_surface: std::ptr::null(),
+            placement: FfiSublayerPlacement::default(),
+            group: FfiSublayerGroup::default(),
+            rect: IntRect::default(),
+            color: Color::TRANSPARENT,
+            every_pixel_is_opaque: false,
+            backdrop: FfiSublayerBackdrop::default(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRemoteLayerFrame {
-    /// Lent for the call. Without the store, the frame shown before stays, and only the sublayers change.
+    /// Lent for the call. Without the store, the store shown before stays, and only the sublayers change, unless the
+    /// frame shows no store.
     pub store: *const PresentableSurface,
+    /// Whether the sublayers are all of the frame, which then shows no store below them.
+    pub shows_no_store: bool,
     pub painted_size: IntSize,
     pub device_pixel_ratio: f64,
     /// Where the frame is scaled to fit within the view, in device pixels, rather than shown at its own size.
@@ -169,6 +256,17 @@ pub struct FfiRemoteLayerFrame {
 pub struct FfiRemoteLayerHostHandle {
     pub kind: u8,
     pub id: u64,
+}
+
+/// What the window server that shows a context composites by itself of the layers of its frames, besides the canvases
+/// and videos it shows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiWindowServerCompositing {
+    /// Whether it shows each tile of a painted layer as a sublayer of its own, in a group it places and clips.
+    pub shows_tiles_of_painted_layers: bool,
+    /// Whether it runs what it shows below a sublayer through a blur and color matrices.
+    pub filters_what_is_below_layers: bool,
 }
 
 #[repr(C)]
@@ -225,6 +323,8 @@ pub struct FfiRasterHost {
     /// where none could be made.
     pub create_presentable_surface:
         unsafe extern "C" fn(*mut c_void, IntSize, *const PaintingSurface) -> *const PresentableSurface,
+    /// What the window server composites by itself of the layers of the frames its remote layers show.
+    pub window_server_compositing: unsafe extern "C" fn(*mut c_void) -> FfiWindowServerCompositing,
 
     pub live_content: unsafe extern "C" fn(
         *mut c_void,
@@ -647,6 +747,11 @@ impl RasterHost {
                 Rc::as_ptr(like),
             ))
         }
+    }
+
+    pub fn window_server_compositing(&self, window_server: &WindowServerObject) -> FfiWindowServerCompositing {
+        // SAFETY: The window server is live.
+        unsafe { (self.0.window_server_compositing)(window_server.as_ptr()) }
     }
 
     pub fn live_content(&self, context_id: CompositorContextId, canvas_ids: &[u64]) -> LiveContent {

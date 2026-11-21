@@ -9,7 +9,7 @@
 
 use super::layer_overlay::{
     FrameWorkCounts, LayerOverlayModel, MediaPresentation, ModelLayer, ModelLayerContent, NamedVisualContextNode,
-    RasterCountsByCause, layers_whose_names_are_shown,
+    PaintedLayerPresentation, RasterCountsByCause, layers_whose_names_are_shown,
 };
 use super::tiles::{LayerTiles, LayerToRaster, TileDraw, TileShownInFrame, joined_rects_of_grid_given_row_by_row};
 use super::window_server::{WhyMediaIsReplayed, WindowServerLayers};
@@ -18,7 +18,7 @@ use super::{
     composite_inside_effects_of_frame, inflated, rect_of_size, replay_into, replay_with_scroll_offsets, size_of,
 };
 use crate::context_scene::ReceivedLayerPlan;
-use crate::raster_host::LiveContent;
+use crate::raster_host::{FfiSublayer, LiveContent};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VideoSinkHandle,
@@ -28,8 +28,9 @@ use libcompositing_rust::display_list::effect_geometry::{
 };
 use libcompositing_rust::display_list::layers::{
     BandIndex, LayerContent, LayerIdentity, LayerIndex, LayerStack, LayeringObstacles, NodeNamesFromIndices,
-    PlacementNodeIdentity, RasterSpaceIndex, SpaceToFrame, StackLayer, VisualContextNodeNamer, WhyListIsOneLayer,
-    WindowServerPlacementsOfMedia,
+    PlacementNodeIdentity, RasterSpaceIndex, SpaceToFrame, StackLayer, VisualContextNodeNamer,
+    WhatWindowServerShowsOfFrame, WhyFrameHoldsLayer, WhyListIsOneLayer, WindowServerCompositing,
+    WindowServerPlacementsOfEffects, WindowServerPlacementsOfMedia,
 };
 use libcompositing_rust::display_list::placement::{
     RasterSpaceGeometry, RasterSpaces, WhatEverySpaceOfTreeShares, raster_scroll_offsets,
@@ -103,8 +104,8 @@ impl LiveContentVersions for LiveContentVersionsOfFrame<'_> {
 }
 
 /// Where a frame composites a layer: offset by the scroll offsets of its space's anchors, within its composite clip
-/// and the rounded composite clips inside it, and whether the frame holds it or the window server shows it above the
-/// frame.
+/// and the rounded composite clips inside it, and whether the frame holds it or the window server shows it by
+/// itself.
 #[derive(Clone, Debug)]
 pub struct LayerCompositingInFrame {
     /// Where the layer is in the stack the frame draws with.
@@ -172,7 +173,7 @@ struct BandTileKeysOfFrame {
 /// What a frame paints of its layers: where it composites them, the tiles it shows of each, and the media and composited
 /// effects it draws.
 pub struct LayerUpdate {
-    layers: PaintedLayers,
+    pub(super) layers: PaintedLayers,
     /// What each composited effect that reads past each of its pixels reads and draws as the frame places it.
     read_reaches_of_composited_effects_in_frame: Vec<IntRect>,
     // Per layer of the stack.
@@ -189,6 +190,23 @@ impl LayerUpdate {
 
     pub fn shown_by_window_server(&self) -> bool {
         self.layers.shown_by_window_server()
+    }
+
+    pub fn window_server_shows_every_layer(&self) -> bool {
+        self.layers.window_server_shows_every_layer()
+    }
+
+    /// Whether the window server shows layers of the frame tile by tile, which the frame rasters the tiles of even
+    /// where it paints nothing into a store.
+    pub fn window_server_shows_tiles(&self) -> bool {
+        self.layers.shown_by_window_server() && self.layers.window_server_compositing.shows_tiles_of_painted_layers
+    }
+
+    /// Has the frame hold every layer, as where the window server could not be given what it was to show.
+    pub(super) fn hold_every_layer_in_frame(&mut self) {
+        for compositing in &mut self.layers.compositing_of_layers {
+            compositing.shown_by_window_server = false;
+        }
     }
 
     /// The damage grown over all that a composited effect reads wherever it reaches that, as compositing the effect
@@ -405,16 +423,33 @@ pub struct PaintedLayers {
     /// From the base layer up, the layers that can hold something, and where the frame composites each.
     pub(super) compositing_of_layers: Vec<LayerCompositingInFrame>,
     pub(super) window_server_placements_of_media: WindowServerPlacementsOfMedia,
+    pub(super) window_server_placements_of_effects: WindowServerPlacementsOfEffects,
+    /// What the window server that shows the frame composites by itself, besides canvases and videos.
+    pub(super) window_server_compositing: WindowServerCompositing,
     content_hash_by_composited_node: HashMap<PlacementNodeIdentity, ContentHash>,
     media_replayed_by_identity: HashMap<LayerIdentity, MediaRecordsReplayedInFrame>,
 }
 
 impl PaintedLayers {
-    /// Whether the window server shows layers above the base layer of the frame.
+    /// Whether the window server shows layers of the frame by itself.
     pub fn shown_by_window_server(&self) -> bool {
         self.compositing_of_layers
             .iter()
             .any(|compositing| compositing.shown_by_window_server)
+    }
+
+    /// Whether the window server shows every layer of the frame by itself, so that the frame holds none and needs no
+    /// store. It shows the base layer only where it shows every layer above it.
+    pub fn window_server_shows_every_layer(&self) -> bool {
+        self.compositing_of_layers
+            .first()
+            .is_some_and(|base_layer_compositing| base_layer_compositing.shown_by_window_server)
+    }
+
+    /// Whether the window server shows the tiles of the layer by itself, so that what changes of them changes
+    /// nothing of what the frame holds.
+    fn window_server_shows_tiles_of(&self, compositing: &LayerCompositingInFrame) -> bool {
+        compositing.shown_by_window_server && self.window_server_compositing.shows_tiles_of_painted_layers
     }
 }
 
@@ -736,10 +771,10 @@ fn hide_tiles_covered_by_opaque_tiles_above(
             });
             hidden_tile_count += tile_count_before - shown.len();
         }
-        let frame_holds_layer = !compositing.shown_by_window_server;
+        // A layer the window server shows is above every layer the frame holds, so it covers the layers below it
+        // whichever of the two composites it.
         let is_inside_composited_effects = stack.layer_is_inside_composited_effects(layer_index);
-        let covers_layers_below = frame_holds_layer
-            && !is_inside_composited_effects
+        let covers_layers_below = !is_inside_composited_effects
             && compositing.rounded_composite_clips.is_empty()
             && matches!(compositing.space_to_frame, SpaceToFrame::Offset(_))
             && !is_hidden_from_view(&compositing.identity);
@@ -770,10 +805,10 @@ fn clear_color_of_layer(stack: &LayerStack, layer_index: LayerIndex, surface_cle
     }
 }
 
-/// Where a frame that composites its layers as the frame before did, except through other transforms of spaces whose
-/// anchors the compositor animates, needs painting: where those layers were in the frame before, as the tiles that frame
-/// held of them and their reach tell, and where they are now. None for a frame that composites anything else
-/// differently.
+/// Where a frame that composites the layers it holds as the frame before did, except through other transforms of
+/// spaces whose anchors the compositor animates, needs painting: where those layers were in the frame before, as the
+/// tiles that frame held of them and their reach tell, and where they are now. None for a frame that composites
+/// anything else it holds differently.
 fn damage_of_layers_moved_by_animated_transforms(
     compositing_of_latest_frame: &[LayerCompositingInFrame],
     bounds_of_tiles_held_by: impl Fn(&LayerIdentity) -> IntRect,
@@ -789,6 +824,14 @@ fn damage_of_layers_moved_by_animated_transforms(
         .zip(&layer_update.layers.compositing_of_layers)
     {
         if latest == current {
+            continue;
+        }
+        // The window server moves and clips a layer it shows tile by tile, which changes nothing of what the frame
+        // holds.
+        let window_server_shows_layer_in_both_frames = latest.identity == current.identity
+            && latest.shown_by_window_server
+            && layer_update.layers.window_server_shows_tiles_of(current);
+        if window_server_shows_layer_in_both_frames {
             continue;
         }
         let moved_by_animated_transform = matches!(
@@ -880,6 +923,13 @@ fn composited_effects_of_frame(
         }
     }
     effects
+}
+
+/// Which layers above the base layer a pass over the layers of a frame composites.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LayersToComposite {
+    HeldByFrame,
+    ShownByWindowServer,
 }
 
 fn compositing_of_layer(
@@ -1011,6 +1061,7 @@ impl ContextPresenting {
                 .get_or_init(|| WorldTransforms::new(tree, scroll_offsets, Some(FloatMatrix4x4::identity())))
         };
         let window_server_may_show_media = self.why_window_server_shows_no_media_of_this_context(env).is_none();
+        let window_server_compositing = self.window_server_compositing(env);
         let window_server_placements_of_media = if window_server_may_show_media {
             stack.window_server_placements_of_media(storage, tree, world_of_frame, viewport_rect)
         } else {
@@ -1018,17 +1069,36 @@ impl ContextPresenting {
         };
         let composite_offsets = stack.composite_offsets(scroll_offsets);
         let spaces_to_frame = stack.spaces_to_frame(&composite_offsets, |anchor| world_of_frame().draw_matrix(anchor));
+        let window_server_placements_of_effects = if window_server_compositing.shows_tiles_of_painted_layers {
+            stack.window_server_placements_of_composited_effects(
+                storage,
+                tree,
+                world_of_frame,
+                window_server_compositing,
+            )
+        } else {
+            WindowServerPlacementsOfEffects::default()
+        };
         let shown_by_window_server_by_layer = if window_server_may_show_media {
-            stack.layers_the_window_server_shows(&composite_offsets, |layer_index| {
-                self.why_window_server_does_not_show_media_layer(
-                    env,
-                    &window_server_placements_of_media,
-                    layer_index,
-                    &stack.layers[layer_index.0],
-                    live_content,
-                )
-                .is_none()
-            })
+            stack.layers_the_window_server_shows(
+                &composite_offsets,
+                &WhatWindowServerShowsOfFrame {
+                    compositing: window_server_compositing,
+                    can_show_media_of_layer: &|layer_index| {
+                        self.why_window_server_does_not_show_media_layer(
+                            env,
+                            &window_server_placements_of_media,
+                            layer_index,
+                            &stack.layers[layer_index.0],
+                            live_content,
+                        )
+                        .is_none()
+                    },
+                    can_composite_effect_of_node: &|node_index| {
+                        matches!(window_server_placements_of_effects.of_node(node_index), Some(Ok(_)))
+                    },
+                },
+            )
         } else {
             vec![false; stack.layers.len()]
         };
@@ -1229,6 +1299,11 @@ impl ContextPresenting {
                 .iter()
                 .filter(|tile| matches!(tile.coverage, TileCoverage::OneColor(_)))
                 .count() as u64;
+            // The window server shows the tiles of the layer as they are, so the frame holds nothing that goes stale
+            // with them.
+            if compositing.shown_by_window_server && window_server_compositing.shows_tiles_of_painted_layers {
+                continue;
+            }
             stale_rect = stale_rect.united(self.layers.tiles.stale_rect_of_layer(
                 &shown_tiles_by_layer[layer_index.0],
                 compositing,
@@ -1241,6 +1316,8 @@ impl ContextPresenting {
                 stack: stack_the_frame_draws_with,
                 compositing_of_layers,
                 window_server_placements_of_media,
+                window_server_placements_of_effects,
+                window_server_compositing,
                 content_hash_by_composited_node: composited_effects.content_hash_by_composited_node,
                 media_replayed_by_identity,
             },
@@ -1295,6 +1372,20 @@ impl ContextPresenting {
                 let content = match &layer.content {
                     LayerContent::Painted => ModelLayerContent::Painted {
                         tiles: self.layers.tiles.model_tiles_of(&compositing.identity),
+                        presentation: if window_server_shows_layers && compositing.shown_by_window_server {
+                            PaintedLayerPresentation::ShownByWindowServer
+                        } else {
+                            let why = match why_context_shows_no_media {
+                                Some(why_context_shows_no_media) => why_context_shows_no_media.to_string(),
+                                None if some_tiles_were_painted_straight => {
+                                    WhyMediaIsReplayed::TilesWerePaintedStraightIntoTheFrame.to_string()
+                                }
+                                None => self
+                                    .why_frame_holds_layer(env, &layer_update.layers, layer_index, live_content)
+                                    .to_string(),
+                            };
+                            PaintedLayerPresentation::HeldByFrame { why }
+                        },
                     },
                     LayerContent::Media { .. } => ModelLayerContent::Media {
                         reach: layer.reach,
@@ -1370,6 +1461,38 @@ impl ContextPresenting {
         }
     }
 
+    fn why_frame_holds_layer(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        painted_layers: &PaintedLayers,
+        layer_index: LayerIndex,
+        live_content: &LiveContent,
+    ) -> WhyFrameHoldsLayer {
+        let stack = &painted_layers.stack;
+        stack.why_frame_holds_layer(
+            layer_index,
+            &WhatWindowServerShowsOfFrame {
+                compositing: painted_layers.window_server_compositing,
+                can_show_media_of_layer: &|media_layer_index| {
+                    self.why_window_server_does_not_show_media_layer(
+                        env,
+                        &painted_layers.window_server_placements_of_media,
+                        media_layer_index,
+                        &stack.layers[media_layer_index.0],
+                        live_content,
+                    )
+                    .is_none()
+                },
+                can_composite_effect_of_node: &|node_index| {
+                    matches!(
+                        painted_layers.window_server_placements_of_effects.of_node(node_index),
+                        Some(Ok(_))
+                    )
+                },
+            },
+        )
+    }
+
     /// Takes in which layers left the stack with the frame painted, or that shows nothing new, whose tiles stay in the
     /// pool for a while, and answers what the frame did with its layers.
     pub(super) fn commit_layer_update(
@@ -1396,9 +1519,10 @@ impl ContextPresenting {
         painted_layers
     }
 
-    /// Paints the frame from its layers over `damage_rect`, and answers the rect it painted, which grows to the whole
-    /// raster where the frame has to hold what the window server was to show above it. Unless `paints_ui_overlays`
-    /// is set, the frame leaves out the overlays of the browser and of the layers.
+    /// Paints what the frame holds of its layers over `damage_rect`, and presents the layers the window server shows to
+    /// it. Answers the rect it painted, which grows to the whole raster where the frame has to hold what the window
+    /// server was to show by itself, and the sublayers the window server shows of the frame, bottom to top. Unless
+    /// `paints_ui_overlays` is set, the frame leaves out the overlays of the browser and of the layers.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn paint_layered_frame(
         &mut self,
@@ -1409,7 +1533,7 @@ impl ContextPresenting {
         layer_update: &mut LayerUpdate,
         live_content: &LiveContent,
         paints_ui_overlays: bool,
-    ) -> IntRect {
+    ) -> (IntRect, Vec<FfiSublayer>) {
         env.raster.start_raster_cache_frame(env.context_id);
         // A store can miss the damage of several frames, which joined can reach part of what a composited effect reads.
         damage_rect = layer_update.damage_grown_over_what_composited_effects_read(damage_rect);
@@ -1428,15 +1552,20 @@ impl ContextPresenting {
             live_content,
         );
 
+        let mut sublayers = Vec::new();
         if layer_update.shown_by_window_server() {
-            let presented_to_window_server = rects_painted_straight.is_empty()
-                && self.present_painted_layers_to_window_server(env, &layer_update.layers, surface)
-                && self.present_compositor_overlays_to_window_server(env, frame, surface);
-            if !presented_to_window_server {
-                for compositing in &mut layer_update.layers.compositing_of_layers {
-                    compositing.shown_by_window_server = false;
+            let presented_sublayers = rects_painted_straight
+                .is_empty()
+                .then(|| {
+                    self.present_layers_to_window_server(env, frame, &layer_update.layers, surface, live_content, false)
+                })
+                .flatten();
+            match presented_sublayers {
+                Some(presented_sublayers) => sublayers = presented_sublayers,
+                None => {
+                    layer_update.hold_every_layer_in_frame();
+                    damage_rect = self.raster_rect();
                 }
-                damage_rect = self.raster_rect();
             }
         }
         if layer_update.shown_by_window_server() != expected_shown_by_window_server {
@@ -1459,8 +1588,46 @@ impl ContextPresenting {
             &rects_painted_straight,
             paints_ui_overlays,
         );
+        if !layer_update.shown_by_window_server() {
+            self.layers.window_server.did_paint_compositor_overlays_into_store();
+        }
         self.layer_overlay.did_paint_frame();
-        damage_rect
+        (damage_rect, sublayers)
+    }
+
+    /// Presents to the window server the layers it shows of a frame that changes nothing of what the frame holds, or
+    /// that holds nothing, once it has rastered the tiles those layers show, and answers the sublayers the window
+    /// server then shows of the frame, bottom to top. None where the window server cannot be given the layers, which
+    /// the frame then has to hold.
+    pub(super) fn present_layers_of_frame_painted_into_no_store(
+        &mut self,
+        env: &PresentingEnvironment<'_>,
+        frame: &FrameToPaint<'_>,
+        layer_update: &mut LayerUpdate,
+        live_content: &LiveContent,
+        overlays_draw_same_as_in_latest_frame: bool,
+    ) -> Option<Vec<FfiSublayer>> {
+        let surface_tiles_are_made_like = self
+            .layers
+            .window_server
+            .surface_tiles_are_made_like_without_store(env)?;
+        env.raster.start_raster_cache_frame(env.context_id);
+        let rects_painted_straight =
+            self.raster_tiles_of_layers(env, &surface_tiles_are_made_like, frame, layer_update);
+        if !rects_painted_straight.is_empty() {
+            return None;
+        }
+        self.update_layer_overlay_with_frame(env, frame, layer_update, true, false, live_content);
+        let sublayers = self.present_layers_to_window_server(
+            env,
+            frame,
+            &layer_update.layers,
+            &surface_tiles_are_made_like,
+            live_content,
+            overlays_draw_same_as_in_latest_frame,
+        )?;
+        self.layer_overlay.did_paint_frame();
+        Some(sublayers)
     }
 
     /// Rasters the tiles that each painted layer of the frame shows and that lack current pixels, and answers the
@@ -1546,6 +1713,11 @@ impl ContextPresenting {
                     ),
                     clear_color: clear_color_of_layer(stack, layer_index, surface_clear_color),
                     rastered_within: (raster_space_index == RasterSpaceIndex::VIEWPORT).then_some(viewport_rect),
+                    shown_by_window_server: layer_update.layers.window_server_shows_tiles_of(compositing),
+                    window_server_shows_tiles: layer_update
+                        .layers
+                        .window_server_compositing
+                        .shows_tiles_of_painted_layers,
                 },
                 &holder_count_by_content_hash,
                 replay_tiles,
@@ -1580,7 +1752,12 @@ impl ContextPresenting {
         let raster = env.raster;
         let save_count = raster.save(surface);
         raster.clip_rect(surface, damage_rect);
-        if let Some(base_layer_compositing) = layer_update.layers.compositing_of_layers.first() {
+        if let Some(base_layer_compositing) = layer_update
+            .layers
+            .compositing_of_layers
+            .first()
+            .filter(|base_layer_compositing| !base_layer_compositing.shown_by_window_server)
+        {
             if self.layer_overlay.hides_layer(&base_layer_compositing.identity) {
                 raster.clear(surface, frame.surface_clear_color());
             } else if self.layers.tiles.has_layer(&base_layer_compositing.identity) {
@@ -1601,7 +1778,7 @@ impl ContextPresenting {
             damage_rect,
             &layer_update.layers,
             &layer_update.composited_filter_read_reach_by_layer,
-            false,
+            LayersToComposite::HeldByFrame,
         );
         if !layer_update.shown_by_window_server() {
             let selection_painting_straight = ReplaySelection {
@@ -1626,8 +1803,8 @@ impl ContextPresenting {
         raster.restore_to_count(surface, save_count);
     }
 
-    /// Composites the layers above the base layer that the window server showed with the latest frame into the
-    /// surface, which holds the rest of the frame, as for a snapshot of the frame on screen.
+    /// Composites the layers that the window server showed by itself with the latest frame into the surface, which
+    /// holds the rest of the frame, as for a snapshot of the frame on screen.
     pub(super) fn composite_layers_shown_by_window_server(
         &self,
         env: &PresentingEnvironment<'_>,
@@ -1636,7 +1813,27 @@ impl ContextPresenting {
         damage_rect: IntRect,
         painted: &PaintedLayers,
     ) {
-        self.composite_layers_above_base_of_stack(env, surface, frame, damage_rect, painted, &[], true);
+        if let Some(base_layer_compositing) = painted
+            .compositing_of_layers
+            .first()
+            .filter(|base_layer_compositing| base_layer_compositing.shown_by_window_server)
+        {
+            env.raster.clear(surface, frame.surface_clear_color());
+            if !self.layer_overlay.hides_layer(&base_layer_compositing.identity) {
+                self.layers
+                    .tiles
+                    .copy_into(env.raster, surface, damage_rect, base_layer_compositing);
+            }
+        }
+        self.composite_layers_above_base_of_stack(
+            env,
+            surface,
+            frame,
+            damage_rect,
+            painted,
+            &[],
+            LayersToComposite::ShownByWindowServer,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1648,8 +1845,9 @@ impl ContextPresenting {
         damage_rect: IntRect,
         painted_layers: &PaintedLayers,
         composited_filter_read_reach_by_layer: &[i32],
-        composites_layers_the_window_server_shows: bool,
+        layers_to_composite: LayersToComposite,
     ) {
+        let composites_layers_the_window_server_shows = layers_to_composite == LayersToComposite::ShownByWindowServer;
         let (stack, compositing_of_layers) = (&painted_layers.stack, &painted_layers.compositing_of_layers);
         if compositing_of_layers
             .iter()
@@ -1722,8 +1920,9 @@ impl ContextPresenting {
                         TileDraw::TileSurface {
                             surface,
                             rect_in_layer_space,
+                            ..
                         } => compositing_session.draw_raster(
-                            surface.as_ffi().cast_mut().cast(),
+                            surface.painting_surface().as_ffi().cast_mut().cast(),
                             rect_of_size(size_of(rect_in_layer_space)),
                             rect_in_layer_space.translated(layer_to_frame_offset.x, layer_to_frame_offset.y),
                             clips_of_layer,
@@ -2023,6 +2222,8 @@ mod tests {
                 stack,
                 compositing_of_layers,
                 window_server_placements_of_media: WindowServerPlacementsOfMedia::default(),
+                window_server_placements_of_effects: WindowServerPlacementsOfEffects::default(),
+                window_server_compositing: WindowServerCompositing::default(),
                 content_hash_by_composited_node: HashMap::new(),
                 media_replayed_by_identity: HashMap::new(),
             },

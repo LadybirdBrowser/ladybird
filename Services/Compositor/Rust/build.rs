@@ -55,6 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (rust_name, cpp_name) in [
         ("Span", "AK::ReadonlySpan"),
         ("Color", "Gfx::Color"),
+        ("CornerRadii", "Gfx::CornerRadii"),
         ("FloatPoint", "Gfx::FloatPoint"),
         ("FloatRect", "Gfx::FloatRect"),
         ("IntRect", "Gfx::IntRect"),
@@ -98,6 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "LibCompositing/DisplayList/DisplayListCommandsGenerated.h",
             "LibCompositing/DisplayList/DisplayListResourceIds.h",
             "LibGfx/Color.h",
+            "LibGfx/CornerRadii.h",
             "LibGfx/Point.h",
             "LibGfx/Rect.h",
             "LibGfx/ScalingMode.h",

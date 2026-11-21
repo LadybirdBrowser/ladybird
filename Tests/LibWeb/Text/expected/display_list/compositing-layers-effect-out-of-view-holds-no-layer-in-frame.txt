@@ -1,0 +1,18 @@
+With the blending box below the viewport:
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L1] base space=document
+  [L2] painted space=scroller@s2 in document composited within [20,20 200x100] of document
+  [L3] painted space=document above band 0 of scroller@s2 in document
+  [L4] canvas #0 space=document region=[17,1497 206x126] can be shown by the window server: clip=[0,0 800x600]
+  [L6] painted space=document inside e1
+  composited e1 space=document reads=[57,1537 106x46]: it reads what its own layer does not hold, composited by the compositor: it blends with what is below it
+
+With the blending box in the viewport:
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L1] base space=document held by the frame: it is under a layer the frame holds
+  [L2] painted space=scroller@s2 in document composited within [20,20 200x100] of document held by the frame: it is under a layer the frame holds
+  [L3] painted space=document above band 0 of scroller@s2 in document held by the frame: it is under a layer the frame holds
+  [L4] canvas #0 space=document region=[17,1497 206x126] replayed: under a layer the frame holds
+  [L6] painted space=document inside e1 held by the frame: it is inside an effect the compositor composites
+  composited e1 space=document reads=[57,1537 106x46]: it reads what its own layer does not hold, composited by the compositor: it blends with what is below it
+

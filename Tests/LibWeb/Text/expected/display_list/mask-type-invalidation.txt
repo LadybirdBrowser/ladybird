@@ -10,7 +10,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGGeometryBox<rect>)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:
@@ -30,7 +30,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGGeometryBox<rect>)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:

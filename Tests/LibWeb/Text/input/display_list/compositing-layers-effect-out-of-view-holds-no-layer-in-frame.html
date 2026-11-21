@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    #scroller { width: 200px; height: 100px; margin: 20px; overflow: auto; background: white; }
+    #scroller div { height: 400px; background: linear-gradient(orange, purple); }
+    canvas { position: absolute; left: 20px; top: 1500px; }
+    #blending { position: absolute; left: 60px; top: 1540px; width: 100px; height: 40px; background: orange; mix-blend-mode: multiply; }
+</style>
+<div id="scroller"><div></div></div>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="blending"></div>
+<script>
+    function layersOfDump() {
+        const dump = internals.dumpDisplayList();
+        return dump.slice(dump.indexOf("\nLayers") + 1, dump.indexOf("\nDisplayList:"));
+    }
+
+    asyncTest(async done => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println("With the blending box below the viewport:");
+        println(layersOfDump());
+        window.scrollTo(0, 1400);
+        await animationFrame();
+        await animationFrame();
+        println("With the blending box in the viewport:");
+        println(layersOfDump());
+        done();
+    });
+</script>

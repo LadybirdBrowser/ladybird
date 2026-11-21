@@ -365,6 +365,25 @@ fn replay_overlay_records(records: &AlignedRecords, painter: &mut impl ReplayPai
 }
 
 impl OverlayPicture {
+    /// Whether the overlays draw over a frame what `other` draws over its frame, but for the overlay of the compositor's
+    /// layers.
+    pub fn draws_same_as(&self, other: &OverlayPicture) -> bool {
+        let picture_in_picture_controls_draw_the_same =
+            match (&self.picture_in_picture_controls, &other.picture_in_picture_controls) {
+                (Some(controls), Some(other_controls)) => {
+                    controls.opacity == other_controls.opacity
+                        && controls.bounds == other_controls.bounds
+                        && controls.records.as_bytes() == other_controls.records.as_bytes()
+                }
+                (None, None) => true,
+                _ => false,
+            };
+        self.bounds == other.bounds
+            && self.scrollbars == other.scrollbars
+            && self.ui_overlay_records.as_bytes() == other.ui_overlay_records.as_bytes()
+            && picture_in_picture_controls_draw_the_same
+    }
+
     /// Paints the overlays over a frame: the scrollbars the compositor paints, and unless they are left out, the
     /// overlays of the browser.
     pub fn paint(&self, painter: &mut impl ReplayPainter, paints_ui_overlays: bool) {

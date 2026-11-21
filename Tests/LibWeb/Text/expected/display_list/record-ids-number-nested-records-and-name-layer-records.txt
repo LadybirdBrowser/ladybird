@@ -1,6 +1,6 @@
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport records=#1,#3-#6
-  [L1] canvas #0 space=viewport region=[17,17 206x126] records=#2 shown by the window server: clip=[0,0 800x600]
+  [L1] canvas #0 space=viewport region=[17,17 206x126] records=#2 can be shown by the window server: clip=[0,0 800x600]
   [L2] painted space=viewport above L1 records=#6
 
 DisplayList:

@@ -143,6 +143,22 @@ impl std::fmt::Display for MediaPresentation {
     }
 }
 
+/// Who composites a painted layer of a frame.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PaintedLayerPresentation {
+    ShownByWindowServer,
+    HeldByFrame { why: String },
+}
+
+impl std::fmt::Display for PaintedLayerPresentation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PaintedLayerPresentation::ShownByWindowServer => formatter.write_str("shown by the window server"),
+            PaintedLayerPresentation::HeldByFrame { why } => write!(formatter, "held by the frame: {why}"),
+        }
+    }
+}
+
 /// What a frame did to bring the tiles of its layers up to date.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FrameWorkCounts {
@@ -191,7 +207,10 @@ pub struct ModelTile {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ModelLayerContent {
     /// By cell, the tiles the layer holds, and those highlighted where it holds none.
-    Painted { tiles: Vec<ModelTile> },
+    Painted {
+        tiles: Vec<ModelTile>,
+        presentation: PaintedLayerPresentation,
+    },
     Media {
         reach: IntRect,
         presentation: MediaPresentation,
@@ -239,7 +258,7 @@ impl ModelLayer {
 
     fn bounds_in_layer_space(&self) -> IntRect {
         match &self.content {
-            ModelLayerContent::Painted { tiles } => tiles
+            ModelLayerContent::Painted { tiles, .. } => tiles
                 .iter()
                 .filter_map(|tile| tile.held_part_of_cell)
                 .fold(IntRect::default(), IntRect::united),
@@ -344,7 +363,7 @@ fn labels_of_model<'a>(model: &'a LayerOverlayModel, marked: &MarkedLayers) -> L
         .rev()
         .map(|layer| {
             let mut labeled_tiles = Vec::new();
-            if let ModelLayerContent::Painted { tiles } = &layer.content {
+            if let ModelLayerContent::Painted { tiles, .. } = &layer.content {
                 let visible_rect = layer.visible_rect_in_frame(model.viewport_rect);
                 for tile in tiles {
                     if labeled_tile_count == MAXIMUM_LABELED_TILE_COUNT {
@@ -390,7 +409,7 @@ fn memory_size_text(bytes: u64) -> String {
 impl LayerOverlayModel {
     fn details_of_layer(layer: &ModelLayer) -> String {
         match &layer.content {
-            ModelLayerContent::Painted { tiles } => {
+            ModelLayerContent::Painted { tiles, presentation } => {
                 let held_tile_count = tiles.iter().filter(|tile| tile.held_part_of_cell.is_some()).count() as u64;
                 let one_color_tile_count = tiles.iter().filter(|tile| tile.is_one_color).count();
                 let bytes_held_by_tile_surfaces: u64 = tiles
@@ -400,7 +419,7 @@ impl LayerOverlayModel {
                     .map(|held_part| held_part.width.max(0) as u64 * held_part.height.max(0) as u64 * BYTES_PER_PIXEL)
                     .sum();
                 format!(
-                    "{} ({one_color_tile_count} of one color), {}",
+                    "{} ({one_color_tile_count} of one color), {}, {presentation}",
                     count_with_noun(held_tile_count, "tile", "tiles"),
                     memory_size_text(bytes_held_by_tile_surfaces)
                 )
@@ -753,7 +772,7 @@ impl LayerOverlay {
         let mut raster_history_of_tiles_by_layer = std::mem::take(&mut self.raster_history_of_tiles_by_layer);
         let mut kept_raster_history_of_tiles_by_layer = HashMap::with_capacity(layers.len());
         for layer in layers {
-            let ModelLayerContent::Painted { tiles } = &mut layer.content else {
+            let ModelLayerContent::Painted { tiles, .. } = &mut layer.content else {
                 continue;
             };
             let Some(mut raster_history_of_tiles) = raster_history_of_tiles_by_layer.remove(&layer.identity) else {
@@ -935,7 +954,7 @@ impl OverlayDrawing<'_> {
         layer: &ModelLayer,
         viewport_rect: IntRect,
     ) {
-        let ModelLayerContent::Painted { tiles } = &layer.content else {
+        let ModelLayerContent::Painted { tiles, .. } = &layer.content else {
             return;
         };
         let visible_rect = layer.visible_rect_in_frame(viewport_rect);
@@ -956,7 +975,7 @@ impl OverlayDrawing<'_> {
 
     /// The grid of the tiles the layer holds, tinting those of one color.
     fn draw_tiles_held_by_layer(&self, recorder: &mut OverlayRecorder<'_>, layer: &ModelLayer, viewport_rect: IntRect) {
-        let ModelLayerContent::Painted { tiles } = &layer.content else {
+        let ModelLayerContent::Painted { tiles, .. } = &layer.content else {
             return;
         };
         let visible_rect = layer.visible_rect_in_frame(viewport_rect);
@@ -1230,6 +1249,7 @@ mod tests {
             composite_clip: None,
             raster_counts_since_reset: RasterCountsByCause::default(),
             content: ModelLayerContent::Painted {
+                presentation: PaintedLayerPresentation::ShownByWindowServer,
                 tiles: held_coords
                     .iter()
                     .map(|&coord| ModelTile {
@@ -1288,7 +1308,7 @@ mod tests {
     ) -> (Vec<(TileCoord, bool, u32)>, Option<MonotonicTime>) {
         let mut layers = [layer];
         let highlights_fade_until = overlay.merge_raster_history_into(&mut layers, painted_at);
-        let ModelLayerContent::Painted { tiles } = &layers[0].content else {
+        let ModelLayerContent::Painted { tiles, .. } = &layers[0].content else {
             panic!("the layer is painted");
         };
         let tiles = tiles

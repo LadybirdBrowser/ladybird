@@ -1,0 +1,23 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>#scroller)
+        [s3] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_origin=[0,0] border_box_size=[800x40] scrollport_size=[800x600] containing_block_region=[0,0 800x3000] needs_parent_offset_adjustment=true insets=[top=0] (BlockContainer<DIV>#header)
+  clips:
+    [c0 in s1] clip=[20,60 200x100] radii=(12,12,12,12) (BlockContainer<DIV>#scroller)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s3] effects=[backdrop-filter=[region=[0,0 800x40] filter=[blur(8,8) Saturate(1.5)]]] (BlockContainer<DIV>#header)
+
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,2400] is_viewport=true
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s1 scrollport_rect=[20,60 200x100] min_scroll_offset=[0,0] max_scroll_offset=[0,300] is_viewport=false
+
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L1] base space=document
+  [L2] painted space=scroller@s2 in document composited within [20,60 200x100] radii=(12,12,12,12) of document
+  [L3] painted space=document above band 0 of scroller@s2 in document
+  [L5] painted space=sticky@s3 in document inside e1
+  composited e1 space=sticky@s3 in document reads=[-51,-51 902x142]: it reads what its own layer does not hold, can be composited by the window server
+

@@ -5,8 +5,8 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers:
-  [L0] base space=viewport
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport held by the frame: it is under a layer the frame holds
   [L1] composited context #0 space=viewport region=[17,17 206x126]
   [L2] painted space=viewport above L1
 

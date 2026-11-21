@@ -7,9 +7,9 @@ AccumulatedVisualContext Tree:
       [e1 in s1] effects=[opacity=0.9] (BlockContainer<DIV>#group)
         [e2 in s1] effects=[backdrop-filter=[region=[60,60 100x40] filter=[blur(4,4)]]] (BlockContainer<DIV>#frosted)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
-  [L1] canvas #0 space=viewport region=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L1] canvas #0 space=viewport region=[17,17 206x126] can be shown by the window server: clip=[0,0 800x600]
   [L2] painted space=viewport above L1
   e2 is not composited: it reads only its own layer
 

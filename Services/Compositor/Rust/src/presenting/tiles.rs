@@ -14,6 +14,7 @@ use super::{PresentingEnvironment, inflated, rect_of_size, size_of};
 use crate::host::ContextTimer;
 use crate::raster_host::{RasterHost, SurfaceBlend};
 use crate::surfaces::painting_surface::PaintingSurface;
+use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::layers::{BarrierCutsOfCell, LayerIdentity, SpaceToFrame};
 use libcompositing_rust::display_list::tile_keys::{ContentHash, TileCoverage};
 use libcompositing_rust::display_list::tiles::{CellRange, TileCoord, entries_within};
@@ -24,6 +25,9 @@ use std::rc::Rc;
 
 const RASTER_SCRATCH_SURFACE_RELEASE_DELAY: Duration = Duration::from_milliseconds(3000);
 const TIME_SPARE_TILE_STAYS_POOLED_FOR_CONTENT_THAT_COMES_BACK: Duration = Duration::from_milliseconds(3000);
+const TIME_SPARE_SURFACE_IS_KEPT_FOR_NEXT_TILE: Duration = Duration::from_milliseconds(3000);
+// About the tiles of two rows of a wide viewport, which a scroll lets go of and needs anew with each row it passes.
+const MAXIMUM_SPARE_SURFACE_COUNT: usize = 32;
 
 pub(super) struct TileShownInFrame {
     pub(super) coord: TileCoord,
@@ -45,10 +49,53 @@ struct PooledTile {
 
 enum TilePixels {
     Surface {
-        surface: Rc<PaintingSurface>,
+        surface: Rc<PresentableSurface>,
         every_pixel_is_opaque: bool,
     },
     OneColor(Color),
+}
+
+/// The surfaces of tiles that left the pool, kept for a while for the tiles rastered next, as a surface the window
+/// server can show takes long to make. A tile takes one only once the window server no longer reads it.
+#[derive(Default)]
+struct SpareSurfaces {
+    least_recently_spared_first: Vec<(Rc<PresentableSurface>, IntSize, MonotonicTime)>,
+}
+
+impl SpareSurfaces {
+    fn keep(&mut self, surface: Rc<PresentableSurface>, size: IntSize, now: MonotonicTime) {
+        self.least_recently_spared_first.push((surface, size, now));
+        if self.least_recently_spared_first.len() > MAXIMUM_SPARE_SURFACE_COUNT {
+            self.least_recently_spared_first.remove(0);
+        }
+    }
+
+    fn keep_surface_of(&mut self, tile: PooledTile, now: MonotonicTime) {
+        if let TilePixels::Surface { surface, .. } = tile.pixels {
+            self.keep(surface, size_of(tile.held_part_of_cell), now);
+        }
+    }
+
+    fn take(
+        &mut self,
+        size: IntSize,
+        is_usable: impl Fn(&Rc<PresentableSurface>) -> bool,
+    ) -> Option<Rc<PresentableSurface>> {
+        let position = self
+            .least_recently_spared_first
+            .iter()
+            .position(|(surface, surface_size, _)| *surface_size == size && !surface.is_busy() && is_usable(surface))?;
+        Some(self.least_recently_spared_first.remove(position).0)
+    }
+
+    /// Drops the surfaces spared too long ago, and answers how long the least recently spared one left is still kept.
+    fn drop_surfaces_spared_too_long_ago(&mut self, now: MonotonicTime) -> Option<Duration> {
+        self.least_recently_spared_first
+            .retain(|(_, _, spared_at)| now - *spared_at < TIME_SPARE_SURFACE_IS_KEPT_FOR_NEXT_TILE);
+        self.least_recently_spared_first
+            .first()
+            .map(|(_, _, spared_at)| TIME_SPARE_SURFACE_IS_KEPT_FOR_NEXT_TILE - (now - *spared_at))
+    }
 }
 
 impl PooledTile {
@@ -56,7 +103,7 @@ impl PooledTile {
         self.holds_current_pixels && self.held_part_of_cell.contains_rect(part_of_cell_needed)
     }
 
-    fn surface(&self) -> Option<&Rc<PaintingSurface>> {
+    fn surface(&self) -> Option<&Rc<PresentableSurface>> {
         match &self.pixels {
             TilePixels::Surface { surface, .. } => Some(surface),
             TilePixels::OneColor(_) => None,
@@ -98,7 +145,9 @@ fn pooled_held_tiles<'a>(
 
 pub(super) enum TileDraw<'a> {
     TileSurface {
-        surface: &'a Rc<PaintingSurface>,
+        coord: TileCoord,
+        surface: &'a Rc<PresentableSurface>,
+        every_pixel_is_opaque: bool,
         rect_in_layer_space: IntRect,
     },
     FillOfJoinedOneColorTiles {
@@ -116,6 +165,11 @@ pub(super) struct LayerToRaster<'a> {
     pub(super) clear_color: Color,
     /// What a raster of several tiles at once stays within, for a layer of the viewport's space: the viewport.
     pub(super) rastered_within: Option<IntRect>,
+    /// Whether the window server shows the tiles of the layer, which their surfaces then have to let it.
+    pub(super) shown_by_window_server: bool,
+    /// Whether the window server that shows the context shows tiles, so that the surface of a new tile is one it can
+    /// show, whoever shows the layer in this frame.
+    pub(super) window_server_shows_tiles: bool,
 }
 
 pub(super) struct RasteredLayer {
@@ -133,6 +187,7 @@ pub(super) struct LayerTiles {
     /// evicted.
     changed_since_eviction: bool,
     raster_scratch_surface: Option<Rc<PaintingSurface>>,
+    spare_surfaces: SpareSurfaces,
 }
 
 impl LayerTiles {
@@ -257,7 +312,7 @@ impl LayerTiles {
         let mut one_color_fills = Vec::new();
         // A transform can map the area to many more cells than the layer holds tiles at.
         let area_in_layer_space = compositing.space_to_frame.rect_in_space(area_in_frame);
-        for (_, content_hash) in entries_within(&held.by_cell, CellRange::touched_by(area_in_layer_space)) {
+        for (coord, content_hash) in entries_within(&held.by_cell, CellRange::touched_by(area_in_layer_space)) {
             let Some(tile) = self.pool.get(content_hash) else {
                 continue;
             };
@@ -269,8 +324,13 @@ impl LayerTiles {
             }
             let rect_in_layer_space = tile.held_part_of_cell;
             match &tile.pixels {
-                TilePixels::Surface { surface, .. } => draws.push(TileDraw::TileSurface {
+                TilePixels::Surface {
                     surface,
+                    every_pixel_is_opaque,
+                } => draws.push(TileDraw::TileSurface {
+                    coord: *coord,
+                    surface,
+                    every_pixel_is_opaque: *every_pixel_is_opaque,
                     rect_in_layer_space,
                 }),
                 TilePixels::OneColor(color) => one_color_fills.push((rect_in_layer_space, *color)),
@@ -308,10 +368,11 @@ impl LayerTiles {
                 TileDraw::TileSurface {
                     surface,
                     rect_in_layer_space,
+                    ..
                 } => {
                     raster.draw_surface(
                         target,
-                        surface,
+                        surface.painting_surface(),
                         rect_of_size(size_of(rect_in_layer_space)),
                         rect_in_layer_space.translated(composite_offset.x, composite_offset.y),
                         SurfaceBlend::Source,
@@ -359,7 +420,9 @@ impl LayerTiles {
         }
     }
 
-    /// Evicts spare tiles as of `now`, and answers how long the least recently held spare tile left stays pooled.
+    /// Evicts spare tiles as of `now`, whose surfaces are kept for a while for the tiles rastered next, and answers how
+    /// long the least recently held spare tile left stays pooled, or the least recently spared surface left is kept,
+    /// whichever is shorter.
     fn evict_spare_tiles_at(&mut self, now: MonotonicTime) -> Option<Duration> {
         let held_content_hashes: HashSet<ContentHash> = self
             .held_by_layer
@@ -374,11 +437,12 @@ impl LayerTiles {
         };
         let mut pixel_count_of_held_tiles = 0u64;
         let mut spare_tiles: Vec<(MonotonicTime, ContentHash, u64)> = Vec::new();
-        self.pool.retain(|content_hash, tile| {
+        let mut content_hashes_of_tiles_to_evict: Vec<ContentHash> = Vec::new();
+        for (content_hash, tile) in &mut self.pool {
             if held_content_hashes.contains(content_hash) {
                 tile.held_at_latest_eviction = true;
                 pixel_count_of_held_tiles += surface_pixel_count_of(tile);
-                return true;
+                continue;
             }
             // A frame that lets go of tiles evicts spare tiles as it is committed, so a tile let go since the latest
             // eviction was held until now.
@@ -388,11 +452,11 @@ impl LayerTiles {
             if !tile.holds_current_pixels
                 || now - tile.last_held_at >= TIME_SPARE_TILE_STAYS_POOLED_FOR_CONTENT_THAT_COMES_BACK
             {
-                return false;
+                content_hashes_of_tiles_to_evict.push(*content_hash);
+                continue;
             }
             spare_tiles.push((tile.last_held_at, *content_hash, surface_pixel_count_of(tile)));
-            true
-        });
+        }
         self.changed_since_eviction = false;
         let spare_tiles_least_recently_held_first = {
             spare_tiles.sort_unstable();
@@ -408,15 +472,28 @@ impl LayerTiles {
             if pixel_count_of_spare_tiles <= spare_pixel_budget {
                 break;
             }
-            self.pool.remove(content_hash);
+            content_hashes_of_tiles_to_evict.push(*content_hash);
             pixel_count_of_spare_tiles -= pixel_count;
             evicted_count += 1;
         }
-        spare_tiles_least_recently_held_first
+        for content_hash in content_hashes_of_tiles_to_evict {
+            if let Some(evicted_tile) = self.pool.remove(&content_hash) {
+                self.spare_surfaces.keep_surface_of(evicted_tile, now);
+            }
+        }
+        let time_least_recently_held_spare_tile_stays_pooled = spare_tiles_least_recently_held_first
             .get(evicted_count)
             .map(|(least_recently_held_at, _, _)| {
                 TIME_SPARE_TILE_STAYS_POOLED_FOR_CONTENT_THAT_COMES_BACK - (now - *least_recently_held_at)
-            })
+            });
+        let time_least_recently_spared_surface_is_kept = self.spare_surfaces.drop_surfaces_spared_too_long_ago(now);
+        [
+            time_least_recently_held_spare_tile_stays_pooled,
+            time_least_recently_spared_surface_is_kept,
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     pub(super) fn release_raster_scratch_surface(&mut self) {
@@ -442,6 +519,8 @@ impl LayerTiles {
             kept_tile_rect,
             clear_color,
             rastered_within,
+            shown_by_window_server,
+            window_server_shows_tiles,
         } = layer;
         let raster = env.raster;
         let records_rasters = record_raster.is_some();
@@ -453,6 +532,11 @@ impl LayerTiles {
         let mut rects_painted_straight = Vec::new();
         let held = self.held_by_layer.entry(identity).or_default();
         let tile_pool = &mut self.pool;
+        let spare_surfaces = &mut self.spare_surfaces;
+        let surface_can_be_drawn_and_shown = |surface: &Rc<PresentableSurface>| {
+            surface.painting_surface().shares_backend_with(like)
+                && (!shown_by_window_server || surface.can_be_shown_by_window_server())
+        };
 
         let held_tile_count_before = held.by_cell.len();
         debug_assert!(shown.is_sorted_by_key(|tile| tile.coord));
@@ -474,7 +558,11 @@ impl LayerTiles {
                         held_content_hash == tile.content_hash,
                     ))
                 });
-                raster_cause_of(tile_held_at_cell, tile.part_of_cell_needed, like)
+                raster_cause_of(
+                    tile_held_at_cell,
+                    tile.part_of_cell_needed,
+                    surface_can_be_drawn_and_shown,
+                )
             });
             if held_content_hash != Some(tile.content_hash) {
                 held.by_cell.insert(tile.coord, tile.content_hash);
@@ -482,7 +570,7 @@ impl LayerTiles {
             }
             let pooled_tile_holds_needed_part_drawable_into_frame = |pooled: &PooledTile| {
                 pooled.held_part_of_cell.contains_rect(tile.part_of_cell_needed)
-                    && pooled.surface().is_none_or(|surface| surface.shares_backend_with(like))
+                    && pooled.surface().is_none_or(surface_can_be_drawn_and_shown)
             };
             if tile_pool.get(&tile.content_hash).is_some_and(|pooled| {
                 pooled_tile_holds_needed_part_drawable_into_frame(pooled) && pooled.holds_current_pixels
@@ -490,7 +578,7 @@ impl LayerTiles {
                 continue;
             }
             if let TileCoverage::OneColor(color) = tile.coverage {
-                tile_pool.insert(
+                let replaced_tile = tile_pool.insert(
                     tile.content_hash,
                     PooledTile {
                         pixels: TilePixels::OneColor(color),
@@ -500,13 +588,19 @@ impl LayerTiles {
                         held_at_latest_eviction: false,
                     },
                 );
+                if let Some(replaced_tile) = replaced_tile {
+                    spare_surfaces.keep_surface_of(replaced_tile, env.now);
+                }
                 held_tiles_changed = true;
                 continue;
             }
             let every_pixel_is_opaque = tile.coverage == TileCoverage::Opaque;
             match tile_pool.get_mut(&tile.content_hash) {
+                // Nothing is painted into a surface the window server shows or still reads, as it would show the
+                // painting under way, and ahead of the frame the painting is for.
                 Some(pooled)
-                    if pooled.surface().is_some() && pooled_tile_holds_needed_part_drawable_into_frame(pooled) =>
+                    if pooled.surface().is_some_and(|surface| !surface.is_busy())
+                        && pooled_tile_holds_needed_part_drawable_into_frame(pooled) =>
                 {
                     if let TilePixels::Surface {
                         every_pixel_is_opaque: pooled_every_pixel_is_opaque,
@@ -530,9 +624,9 @@ impl LayerTiles {
                                     <= 1
                                 && tile_pool.get(held_content_hash).is_some_and(|held_tile| {
                                     held_tile.held_part_of_cell == tile.part_of_cell_needed
-                                        && held_tile
-                                            .surface()
-                                            .is_some_and(|surface| surface.shares_backend_with(like))
+                                        && held_tile.surface().is_some_and(|surface| {
+                                            surface_can_be_drawn_and_shown(surface) && !surface.is_busy()
+                                        })
                                 })
                         })
                         .and_then(|held_content_hash| tile_pool.remove(&held_content_hash))
@@ -540,8 +634,13 @@ impl LayerTiles {
                             TilePixels::Surface { surface, .. } => Some(surface),
                             TilePixels::OneColor(_) => None,
                         });
+                    let surface_size = size_of(tile.part_of_cell_needed);
                     let surface = surface_held_by_this_layer_alone
-                        .or_else(|| create_surface_on_backend_of(raster, size_of(tile.part_of_cell_needed), like));
+                        .or_else(|| spare_surfaces.take(surface_size, surface_can_be_drawn_and_shown))
+                        .or_else(|| {
+                            create_tile_surface_on_backend_of(raster, surface_size, like, window_server_shows_tiles)
+                                .filter(surface_can_be_drawn_and_shown)
+                        });
                     let Some(surface) = surface else {
                         held.by_cell.remove(&tile.coord);
                         held_tiles_changed = true;
@@ -553,7 +652,7 @@ impl LayerTiles {
                         );
                         continue;
                     };
-                    tile_pool.insert(
+                    let replaced_tile = tile_pool.insert(
                         tile.content_hash,
                         PooledTile {
                             pixels: TilePixels::Surface {
@@ -566,6 +665,9 @@ impl LayerTiles {
                             held_at_latest_eviction: false,
                         },
                     );
+                    if let Some(replaced_tile) = replaced_tile {
+                        spare_surfaces.keep_surface_of(replaced_tile, env.now);
+                    }
                 }
             }
             tiles_to_raster.push(TileToRaster {
@@ -590,7 +692,7 @@ impl LayerTiles {
                 .get(&tile.content_hash)
                 .expect("a tile to raster is in the pool");
             let surface = pooled.surface().expect("a tile to raster has a surface");
-            (surface.clone(), pooled.held_part_of_cell)
+            (surface.painting_surface().clone(), pooled.held_part_of_cell)
         };
         let bounds_held_by = |tile_pool: &TilePool, tiles: &[&TileShownInFrame]| {
             tiles
@@ -751,10 +853,28 @@ fn create_surface_on_backend_of(
         .filter(|surface| surface.shares_backend_with(like))
 }
 
+/// A surface for a tile, which the window server can show as it is where it shows tiles and such a surface can be
+/// made.
+fn create_tile_surface_on_backend_of(
+    raster: &RasterHost,
+    size: IntSize,
+    like: &Rc<PaintingSurface>,
+    window_server_shows_tiles: bool,
+) -> Option<Rc<PresentableSurface>> {
+    let surface_window_server_can_show = window_server_shows_tiles
+        .then(|| raster.create_presentable_surface(size, like))
+        .flatten()
+        .filter(|surface| {
+            surface.can_be_shown_by_window_server() && surface.painting_surface().shares_backend_with(like)
+        });
+    surface_window_server_can_show
+        .or_else(|| create_surface_on_backend_of(raster, size, like).map(PresentableSurface::shown_by_no_window_server))
+}
+
 fn raster_cause_of(
     tile_held_at_cell: Option<(&PooledTile, bool)>,
     part_of_cell_needed: IntRect,
-    like: &Rc<PaintingSurface>,
+    surface_can_be_drawn_and_shown: impl Fn(&Rc<PresentableSurface>) -> bool,
 ) -> RasterCause {
     let Some((held_tile, held_content_hash_is_needed)) = tile_held_at_cell else {
         return RasterCause::NewlyShown;
@@ -764,7 +884,7 @@ fn raster_cause_of(
     }
     if held_tile
         .surface()
-        .is_some_and(|surface| !surface.shares_backend_with(like))
+        .is_some_and(|surface| !surface_can_be_drawn_and_shown(surface))
     {
         return RasterCause::HeldOnAnotherBackend;
     }

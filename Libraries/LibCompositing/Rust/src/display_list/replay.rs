@@ -831,7 +831,7 @@ fn plain_layer_of_bounds(content_bounds: Option<FloatRect>) -> ReplayLayer {
     }
 }
 
-fn backdrop_is_drawn_by_masks(tree: &VisualContextTree, effect: EffectNodeIndex) -> bool {
+pub(crate) fn backdrop_is_drawn_by_masks(tree: &VisualContextTree, effect: EffectNodeIndex) -> bool {
     let node = &tree.effect_nodes[effect.0 as usize];
     matches!(&node.data, EffectNodeData::Effects(effects) if effects.backdrop_filter.is_some())
         && !node.parent.is_none()

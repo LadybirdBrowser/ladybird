@@ -17,6 +17,6 @@
         context.fillStyle = "blue";
         context.fillRect(0, 0, canvas.width, canvas.height);
         const dump = internals.dumpDisplayList({ recordIds: true });
-        println(dump.slice(dump.indexOf("Layers:")));
+        println(dump.slice(dump.indexOf("\nLayers") + 1));
     });
 </script>
