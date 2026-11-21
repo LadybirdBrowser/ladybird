@@ -24,6 +24,12 @@ if (BUILD_TESTING AND NOT WIN32)
         endforeach()
     endif()
 
+    # The browser's UI runs on Qt's offscreen platform here, with no display. The macOS UI takes every window for an
+    # AppKit view, which only the Cocoa platform makes.
+    if (LINUX)
+        ladybird_python_test(test-webdriver-graphical-pointer-actions.py ARGS $<TARGET_FILE:WebDriver>)
+    endif()
+
     ladybird_python_test(test-webdriver-bidi.py ARGS $<TARGET_FILE:WebDriver>)
     ladybird_python_test(test-webdriver-command-privileges.py ARGS $<TARGET_FILE:WebDriver>)
     ladybird_python_test(test-webdriver-content-blockers.py ARGS $<TARGET_FILE:WebDriver> TIMEOUT 180)
