@@ -83,6 +83,13 @@ void PlaybackSession::add_media_stream_source(u64 stream_id, NonnullRefPtr<Media
         });
 }
 
+void PlaybackSession::start(u64 seek_request_id)
+{
+    m_applied_seek_request_id = seek_request_id;
+    m_manager->start();
+    report_playback_state();
+}
+
 void PlaybackSession::seek(u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode)
 {
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Applying seek {} to {} ({})", m_id, seek_request_id, timestamp, mode);
