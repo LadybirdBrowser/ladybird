@@ -14,6 +14,7 @@
 
 pub(crate) mod base;
 pub(crate) mod columns;
+mod enclosing;
 pub(crate) mod expr;
 mod intern;
 mod kept;
@@ -39,16 +40,18 @@ use base::Mode;
 use base::Parser;
 use columns::Ast;
 use columns::AstColumns;
-use columns::FunctionIndex;
+use columns::FunctionIndexBuilder;
 use columns::function_flag;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::AtomicU8;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
+pub(crate) use enclosing::EnclosingCode;
+pub(crate) use enclosing::OuterResolutions;
+pub(crate) use enclosing::outer_entry;
 use intern::Interner;
+use kept::FunctionIndex;
 use kept::KeptNames;
-pub(crate) use resolve::EnclosingCode;
-pub(crate) use resolve::OuterResolutions;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
@@ -280,21 +283,17 @@ impl ScriptData {
         let estimated_nodes = whole_function_nodes.min(1 << 16);
         let needs_padding = self.index.flags[row_index] & function_flag::REACHES_SOURCE_END != 0;
         let name_count = context.names.len();
-        // SAFETY: The index of this ScriptData stays where it is, since the ScriptData is shared by an Arc, and never
-        //         changes.
-        let mut parser = unsafe {
-            Parser::for_reparsing(
-                zone,
-                self.program_type == ProgramType::Module,
-                Interner::of_tables(zone, context.names.tables_mut()),
-                &mut context.name_states,
-                context.stamp,
-                &self.index,
-                u32_from_usize(source.len()),
-                estimated_nodes,
-                validate_regex,
-            )
-        };
+        let mut parser = Parser::for_reparsing(
+            zone,
+            self.program_type == ProgramType::Module,
+            Interner::of_tables(zone, context.names.tables_mut()),
+            &mut context.name_states,
+            context.stamp,
+            self.index.view(),
+            u32_from_usize(source.len()),
+            estimated_nodes,
+            validate_regex,
+        );
         parser.ast.likely_most_nodes = whole_function_nodes;
         parser.tracks_scopes = false;
         parser.marks = true;
@@ -587,9 +586,9 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         return Ok(None);
     }
     let lines = LineTable::new(zone, units, options.initial_line_number);
-    let index = parser.index.to_kept();
+    let index = core::mem::replace(&mut parser.index, FunctionIndexBuilder::with_capacity(zone, 0)).finish();
     let top_level_rows = parser
-        .parse_top_level_rows(options.program_context(), &index)
+        .parse_top_level_rows(options.program_context(), index)
         .map(|(rows, node)| (rows.into_columns(), node));
     let default_export_name = Name(parser.interner.intern_bytes(b"*default*"));
     let default_constructor_parameter_name = Name(parser.interner.intern_bytes(b"args"));
@@ -601,7 +600,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
     let eval_referenced_private_names =
         zone.alloc_slice_from_iter(parser.eval_referenced_private_names.iter().map(|&name| Name(name)));
     let script = Arc::new(ScriptData {
-        index,
+        index: FunctionIndex::of(&index),
         names,
         positions: Arc::new(SourcePositions {
             source: SourceText::of(source),
@@ -640,7 +639,15 @@ fn parse_code_units<'z, U: Unit + Default, R>(
             suppress_globals: options.suppress_globals,
         },
     );
-    Ok(Some(job(&resolved.apply_to(tree), top_level_rows)))
+    let tree = SyntaxTree {
+        resolutions: resolved.resolutions,
+        scopes: resolved.scopes,
+        program_scope_row: resolved.program_scope_row,
+        function_scope_rows: resolved.function_scope_rows,
+        outer_resolutions: OuterResolutions::of_entries(resolved.outer_entries),
+        ..tree
+    };
+    Ok(Some(job(&tree, top_level_rows)))
 }
 
 /// Parses `source` at the width of its storage, in one job with the work zone of the thread for all of its work data.

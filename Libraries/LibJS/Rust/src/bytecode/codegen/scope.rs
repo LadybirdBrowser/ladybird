@@ -1691,7 +1691,7 @@ impl Generator<'_> {
             self.context
                 .scope
                 .scope_resolutions
-                .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                .push(crate::parser::outer_entry(row, name, resolution));
         }
     }
 
@@ -1714,7 +1714,7 @@ impl Generator<'_> {
                 self.context
                     .scope
                     .scope_resolutions
-                    .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                    .push(crate::parser::outer_entry(row, name, resolution));
                 continue;
             }
             let scope = &mut self.context.scope;
@@ -1728,7 +1728,7 @@ impl Generator<'_> {
                     resolution.set_is_inside_scope_with_eval();
                     scope
                         .scope_resolutions
-                        .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                        .push(crate::parser::outer_entry(row, name, resolution));
                 }
                 continue;
             };
@@ -1738,7 +1738,7 @@ impl Generator<'_> {
             }
             scope
                 .scope_resolutions
-                .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                .push(crate::parser::outer_entry(row, name, resolution));
         }
         let mut resolution = Resolution::default();
         if unbound.is_inside_scope_with_eval() || has_direct_eval {
@@ -1753,11 +1753,7 @@ impl Generator<'_> {
         self.context
             .scope
             .scope_resolutions
-            .push(crate::parser::resolve::outer_entry(
-                row,
-                Name(N_DOT_UNBOUND),
-                resolution,
-            ));
+            .push(crate::parser::outer_entry(row, Name(N_DOT_UNBOUND), resolution));
     }
 
     /// What the function at `row` captures of scopes inside this function has to be noted while those are around.
@@ -1781,7 +1777,7 @@ impl Generator<'_> {
             }
             scope
                 .scope_resolutions
-                .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                .push(crate::parser::outer_entry(row, name, resolution));
         }
     }
 

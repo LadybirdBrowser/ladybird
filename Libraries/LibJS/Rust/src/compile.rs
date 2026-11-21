@@ -310,9 +310,6 @@ pub fn compile_parsed_program_off_thread(parsed: ParsedProgram) -> CompiledProgr
     );
     let (program_type, has_top_level_await) = (parsed.program_type, parsed.has_top_level_await);
     let code = parsed.into_code(true);
-
-    code.script.index.prepare_for_reparsing();
-
     let declarations_size = match &code.declarations {
         CompiledProgramDeclarations::Script(declarations) => declarations.memory_size(),
         CompiledProgramDeclarations::Module(declarations) => declarations.memory_size(),

@@ -373,7 +373,7 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) if_start: u32,
     pub(crate) retain_next_function: bool,
     /// While reparsing: what the first parse found out about the functions of the source.
-    first_pass_index: *const FunctionIndex,
+    first_pass_index: Option<FunctionIndexView<'k>>,
     /// While reparsing: where the function being reparsed starts over.
     pub(crate) reparse_target: u32,
     pub(crate) with_depth: u32,
@@ -500,20 +500,16 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     /// A parser that parses one function again, knowing what the first parse of its source found, with its work data in
-    /// `zone`. The names of the source with their states, and the index the parser writes to, come from the reparse
-    /// context of the source: the names and the states in place, and the index until the parse ends (see
-    /// `end_reparse()`). Its source comes with the function.
-    ///
-    /// # Safety
-    /// `first_pass_index` must stay valid and unchanged for as long as the parser reparses functions.
+    /// `zone`. The names of the source with their states come from the reparse context of the source, and the parser
+    /// works with them in place. Its source comes with the function.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) unsafe fn for_reparsing(
+    pub(crate) fn for_reparsing(
         zone: &'a Zone,
         module: bool,
         interner: Interner<'k>,
         names: &'k mut [NameState],
         stamp: u32,
-        first_pass_index: &FunctionIndex,
+        first_pass_index: FunctionIndexView<'k>,
         source_length: u32,
         estimated_nodes: usize,
         validate_regex: ValidateRegex,
@@ -532,7 +528,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             validate_regex,
         );
         parser.stamp = stamp;
-        parser.first_pass_index = first_pass_index;
+        parser.first_pass_index = Some(first_pass_index);
         parser
     }
 
@@ -616,7 +612,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             class_start: 0,
             if_start: 0,
             retain_next_function: false,
-            first_pass_index: core::ptr::null(),
+            first_pass_index: None,
             reparse_target: NONE,
             with_depth: 0,
             names_used_in_with: ZoneVec::new_in(zone),
@@ -694,7 +690,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     pub(crate) fn parse_top_level_rows(
         &mut self,
         context: ProgramContext,
-        index: &FunctionIndex,
+        index: FunctionIndexView<'a>,
     ) -> Result<(Ast<'a>, u32), super::OutOfStack> {
         // NB: The rows are those of the tree, and marks, which some code has many of.
         let nodes = self.ast.tag.len();
@@ -705,12 +701,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             (self.first_token_start, self.strict, self.has_top_level_await);
         self.finish_reparse();
         self.export_names.clear();
-        // NB: The first pass index is only read until the end of this function.
-        self.first_pass_index = index;
+        self.first_pass_index = Some(index);
         self.tracks_scopes = false;
         self.marks = true;
         let node = self.reparse_program(context);
-        self.first_pass_index = core::ptr::null();
+        self.first_pass_index = None;
         let error = self.err.take();
         let rows = std::mem::replace(&mut self.ast, tree);
         self.eval_referenced_private_names = private_names;
@@ -2245,12 +2240,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
 
     #[inline(always)]
     pub(crate) fn is_reparsing(&self) -> bool {
-        !self.first_pass_index.is_null()
+        self.first_pass_index.is_some()
     }
 
-    fn first_pass_index(&self) -> &'a FunctionIndex {
-        // SAFETY: A parser that reparses functions has an index, which for_reparsing() requires to stay valid.
-        unsafe { &*self.first_pass_index }
+    #[inline(always)]
+    fn first_pass_index(&self) -> FunctionIndexView<'k> {
+        self.first_pass_index
+            .expect("a parser that parses functions again has their index")
     }
 
     /// Reads from `source` from now on, where offset `offset` is at the first unit, and `length` is that of the whole
