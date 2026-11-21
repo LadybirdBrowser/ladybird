@@ -9,8 +9,9 @@
 
 use libgfx_rust::FloatRect;
 use libgfx_rust::filter::Filter;
+use libipc_rust::wire::{Decode, Encode};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum FfiFilterFunctionKind {
     Blur,
@@ -21,7 +22,7 @@ pub enum FfiFilterFunctionKind {
 
 /// One function of a CSS filter list with its lengths already in device pixels, for a host that
 /// builds filter graphs outside the style system: compositor animation samples and canvas filters.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct FfiFilterFunction {
     pub kind: FfiFilterFunctionKind,

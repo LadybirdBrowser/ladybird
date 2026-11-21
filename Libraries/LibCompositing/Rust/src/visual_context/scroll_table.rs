@@ -9,6 +9,7 @@ use crate::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect};
 use crate::display_list::commands::UniqueNodeId;
 use crate::ffi_enum_bytes;
 use libgfx_rust::{FloatPoint, IntRect};
+use libipc_rust::wire::{Decode, Encode};
 use std::sync::Arc;
 
 // The values of SnapStrictness and SnapAlign in scrolling::scroll_snap_selection.
@@ -22,7 +23,7 @@ enum ParentChainMark {
     KnownToEndAtARoot,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum CompositorScrollNodeKind {
     Viewport,
@@ -32,7 +33,7 @@ pub enum CompositorScrollNodeKind {
 }
 ffi_enum_bytes!(CompositorScrollNodeKind as u8);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct CompositorScrollNodeRecord {
     pub scrollable_node_id: UniqueNodeId,
@@ -52,7 +53,7 @@ pub struct CompositorScrollNodeRecord {
     pub shows_overscroll_effect_vertically: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct CompositorSnapContainerRecord {
     pub scroll_node_index: SpatialNodeIndex,
@@ -67,7 +68,7 @@ pub struct CompositorSnapContainerRecord {
     pub area_count: u32,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct CompositorSnapAreaRecord {
     pub area_node_id: UniqueNodeId,
@@ -78,7 +79,7 @@ pub struct CompositorSnapAreaRecord {
     pub always_stop: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
 pub struct CompositorScrollTable {
     pub nodes: Arc<[CompositorScrollNodeRecord]>,
     pub snap_containers: Arc<[CompositorSnapContainerRecord]>,

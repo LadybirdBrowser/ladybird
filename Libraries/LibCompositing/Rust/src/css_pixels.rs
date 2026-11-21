@@ -5,6 +5,7 @@
  */
 
 use ak::math;
+use libipc_rust::wire::{Decode, Encode};
 
 // CSSPixels fixed-point arithmetic, bit-exact with the C++ implementation in
 // PixelUnits.h: an i32 with 6 fractional bits. The parity test on the C++
@@ -27,7 +28,7 @@ pub const RADIX_MASK: i32 = FIXED_POINT_DENOMINATOR - 1;
 pub const MAX_INTEGER_VALUE: i32 = i32::MAX >> FRACTIONAL_BITS;
 pub const MIN_INTEGER_VALUE: i32 = i32::MIN >> FRACTIONAL_BITS;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug, Encode, Decode)]
 #[repr(transparent)]
 pub struct CssPixels(i32);
 
@@ -352,7 +353,7 @@ impl std::ops::Div<usize> for CssPixels {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub struct CssPixelPoint {
     pub x: CssPixels,
     pub y: CssPixels,
@@ -653,7 +654,7 @@ pub extern "C" fn rust_css_pixels_scaled(raw: i32, factor: f64) -> i32 {
 }
 
 // The plain-value mirrors of CSSPixelPoint, CSSPixelSize and CSSPixelRect that cross the FFI boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(C)]
 pub struct FfiCssPixelPoint {
     pub x: CssPixels,
@@ -676,7 +677,7 @@ pub struct FfiCssPixelSize {
     pub height: CssPixels,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(C)]
 pub struct FfiCssPixelRect {
     pub x: CssPixels,

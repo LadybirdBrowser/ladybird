@@ -10,6 +10,7 @@ use crate::display_list_record_fields;
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
 use libgfx_rust::*;
+use libipc_rust::wire::{Decode, Encode};
 
 // The layout of records and runs on the tape, which only Rust reads.
 pub use super::tape::*;
@@ -172,7 +173,7 @@ impl DisplayListCommandType {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct SpatialNodeIndex(pub u32);
 
@@ -186,7 +187,7 @@ impl FfiBytes for SpatialNodeIndex {
 // Indices into the clip and effect trees. `u32::MAX` is the absent node.
 macro_rules! optional_node_index {
     ($name:ident) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
         #[repr(transparent)]
         pub struct $name(pub u32);
 
@@ -225,7 +226,7 @@ pub struct ContextRef {
 }
 ffi_bytes_fields!(ContextRef { spatial, clip, effect });
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum ClipMode {
     #[default]
@@ -337,7 +338,7 @@ impl FfiBytes for CanvasId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct CompositorContextId(pub u64);
 
@@ -348,7 +349,7 @@ impl FfiBytes for CompositorContextId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct UniqueNodeId(pub i64);
 

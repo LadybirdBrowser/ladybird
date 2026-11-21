@@ -7,6 +7,8 @@
 //! The identity of a layout node's slot in the arena: a 24-bit index and a generation, which the
 //! visual context tree carries to name the box a node was built for.
 
+use libipc_rust::wire::{Decode, Encode};
+
 pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
 
 const NODE_SLOT_INDEX_BITS: u32 = 24;
@@ -14,7 +16,7 @@ const NODE_SLOT_INDEX_MASK: u32 = (1 << NODE_SLOT_INDEX_BITS) - 1;
 /// cbindgen:ignore
 pub const MAX_NODE_SLOT_COUNT: u32 = NODE_SLOT_INDEX_MASK;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Encode, Decode)]
 #[repr(C)]
 pub struct NodeSlotId {
     pub index: u32,
