@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -100,7 +101,8 @@ bool HTMLTableSectionElement::is_presentational_hint(Utf16FlyString const& name)
         HTML::AttributeNames::align,
         HTML::AttributeNames::background,
         HTML::AttributeNames::bgcolor,
-        HTML::AttributeNames::height);
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::valign);
 }
 
 void HTMLTableSectionElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -123,6 +125,13 @@ void HTMLTableSectionElement::apply_presentational_hints(Vector<CSS::StyleProper
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
                 properties.append({ .property_id = CSS::PropertyID::Height, .value = parsed_value.release_nonnull() });
+        }
+        // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
+        // AD-HOC: The spec maps only "top", "middle", "bottom", and "baseline". Any value that parses as a
+        //         vertical-align value is mapped instead, the same as for rows and cells, for web compatibility.
+        else if (name == HTML::AttributeNames::valign) {
+            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::VerticalAlign))
+                properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = parsed_value.release_nonnull() });
         }
     });
 }

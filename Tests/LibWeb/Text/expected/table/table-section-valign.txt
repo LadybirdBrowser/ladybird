@@ -1,0 +1,5 @@
+thead-bottom: vertical-align bottom, offset 80
+tbody-top: vertical-align top, offset 0
+tr-overrides-tbody: vertical-align bottom, offset 80
+td-overrides-tbody: vertical-align middle, offset 40
+tfoot-middle: vertical-align middle, offset 40
