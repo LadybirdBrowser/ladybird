@@ -11,6 +11,7 @@ use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call_function_object, get_function_realm};
 use crate::runtime::completion::{Completion, CompletionType, ThrowCompletionOr};
 use crate::runtime::error::InternalError;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::job_callback::JobCallback;
 use crate::runtime::promise::Promise;
 use crate::runtime::promise_reaction::{PromiseReaction, PromiseReactionType};
@@ -155,34 +156,46 @@ pub fn create_promise_reaction_job(vm: &Vm, reaction: Gc<PromiseReaction>, argum
     }
 }
 
-// 27.2.2.2 NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
-fn run_resolve_thenable_job(
+#[derive(Clone, Copy)]
+pub enum ThenAction {
+    JobCallback(Gc<JobCallback>),
+    Function(Gc<FunctionObject>),
+}
+
+// PerformPromiseResolveThenable ( promiseToResolve, thenable, then ), https://tc39.es/proposal-thenable-curtailment/#sec-perform-promise-resolve-thenable
+pub fn perform_promise_resolve_thenable(
     vm: &Vm,
     promise_to_resolve: Gc<Promise>,
     thenable: Value,
-    then: Gc<JobCallback>,
+    then: ThenAction,
 ) -> ThrowCompletionOr<Value> {
-    // a. Let resolvingFunctions be CreateResolvingFunctions(promiseToResolve).
+    // 1. Let resolvingFunctions be CreateResolvingFunctions(promiseToResolve).
     let resolving_functions = promise_to_resolve.create_resolving_functions(vm);
 
-    // b. Let thenCallResult be Completion(HostCallJobCallback(then, thenable, « resolvingFunctions.[[Resolve]], resolvingFunctions.[[Reject]] »)).
     let arguments = [
         Value::from_object(resolving_functions.resolve),
         Value::from_object(resolving_functions.reject),
     ];
-    let then_call_result = vm.host_call_job_callback()(vm, then, thenable, &arguments);
+    let then_call_result = match then {
+        // 2. If then is a function object, then
+        //     a. Let thenCallResult be Completion(Call(then, thenable, « resolvingFunctions.[[Resolve]], resolvingFunctions.[[Reject]] »)).
+        ThenAction::Function(then) => call_function_object(vm, then, thenable, &arguments),
+        // 3. Else,
+        //     a. Let thenCallResult be Completion(HostCallJobCallback(then, thenable, « resolvingFunctions.[[Resolve]], resolvingFunctions.[[Reject]] »)).
+        ThenAction::JobCallback(then) => vm.host_call_job_callback()(vm, then, thenable, &arguments),
+    };
 
-    // c. If thenCallResult is an abrupt completion, then
+    // 4. If thenCallResult is an abrupt completion, then
     if let Err(throw) = then_call_result {
-        // i. Return ? Call(resolvingFunctions.[[Reject]], undefined, « thenCallResult.[[Value]] »).
+        // a. Return ! Call(resolvingFunctions.[[Reject]], undefined, « thenCallResult.[[Value]] »).
         return call_function_object(vm, resolving_functions.reject, Value::UNDEFINED, &[throw.value()]);
     }
 
-    // d. Return ? thenCallResult.
+    // 5. Return ! thenCallResult.
     then_call_result
 }
 
-// 27.2.2.2 NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
+// NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/proposal-thenable-curtailment/#sec-newpromiseresolvethenablejob
 pub fn create_promise_resolve_thenable_job(
     vm: &Vm,
     promise_to_resolve: Gc<Promise>,
@@ -202,11 +215,13 @@ pub fn create_promise_resolve_thenable_job(
     // 5. NOTE: thenRealm is never null. When then.[[Callback]] is a revoked Proxy and no code runs, thenRealm is used to create error objects.
 
     // 1. Let job be a new Job Abstract Closure with no parameters that captures promiseToResolve, thenable, and then and performs the following steps when called:
-    //    See run_resolve_thenable_job() for "the following steps".
     let job = create_heap_function(
         vm,
         (promise_to_resolve, thenable, then),
-        |vm, &(promise_to_resolve, thenable, then)| run_resolve_thenable_job(vm, promise_to_resolve, thenable, then),
+        |vm, &(promise_to_resolve, thenable, then)| {
+            // a. Return ? PerformPromiseResolveThenable(promiseToResolve, thenable, then).
+            perform_promise_resolve_thenable(vm, promise_to_resolve, thenable, ThenAction::JobCallback(then))
+        },
     );
 
     // 6. Return the Record { [[Job]]: job, [[Realm]]: thenRealm }.

@@ -10,22 +10,28 @@ use core::ops::Deref;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
+use crate::embedding::host::host_object::host_object_has_impure_lookup_internal_methods;
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
+use crate::gc::heap_function::create_heap_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::call_function_object;
-use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::TypeError;
 use crate::runtime::function_object::FunctionObject;
+use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};
-use crate::runtime::promise_jobs::{create_promise_reaction_job, create_promise_resolve_thenable_job};
+use crate::runtime::promise_jobs::{
+    ThenAction, create_promise_reaction_job, create_promise_resolve_thenable_job, perform_promise_resolve_thenable,
+};
 use crate::runtime::promise_reaction::{PromiseReaction, PromiseReactionType};
 use crate::runtime::promise_resolving_function::PromiseResolvingFunction;
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
 use crate::runtime::value::same_value;
@@ -63,6 +69,156 @@ pub fn promise_resolve(vm: &Vm, constructor: Gc<Object>, value: Value) -> ThrowC
 
     // 4. Return promiseCapability.[[Promise]].
     Ok(promise_capability.promise())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PropertyAccessKind {
+    Any,
+    Set,
+    Get,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThenCallTiming {
+    Sync,
+    Deferred,
+}
+
+// PropertyAccessCouldRunUserCode ( o, propertyKey, kind ), https://tc39.es/proposal-thenable-curtailment/#sec-has-property-which-could-run-user-code
+pub fn property_access_could_run_user_code(
+    vm: &Vm,
+    mut object: Gc<Object>,
+    property_key: &PropertyKey,
+    kind: PropertyAccessKind,
+) -> bool {
+    loop {
+        // 1. Assert: The following steps do not run user code.
+
+        // 2. If o has the [[GetPrototypeOf]] and [[GetOwnProperty]] internal methods as defined in 10.5, return true.
+        if object.is_proxy_object() {
+            return true;
+        }
+
+        // 3. If o has the [[GetPrototypeOf]] and [[GetOwnProperty]] internal methods as defined in 10.4.6, return true.
+        if object.is::<ModuleNamespaceObject>() {
+            return true;
+        }
+
+        // 4. If HostObjectHasImpureLookupInternalMethods(o) is true, return true.
+        if host_object_has_impure_lookup_internal_methods(&object) {
+            return true;
+        }
+
+        // 5. Let desc be ! o.[[GetOwnProperty]](propertyKey).
+        let descriptor = object.internal_get_own_property(vm, property_key).must();
+
+        // 6. If desc is not undefined, then
+        if let Some(descriptor) = descriptor {
+            // a. If IsAccessorDescriptor(desc) is true, then
+            if descriptor.is_accessor_descriptor() {
+                // i. If kind is either any or get, and desc.[[Get]] is not undefined, return true.
+                if matches!(kind, PropertyAccessKind::Any | PropertyAccessKind::Get)
+                    && matches!(descriptor.get, Some(Some(_)))
+                {
+                    return true;
+                }
+
+                // ii. If kind is either any or set, and desc.[[Set]] is not undefined, return true.
+                if matches!(kind, PropertyAccessKind::Any | PropertyAccessKind::Set)
+                    && matches!(descriptor.set, Some(Some(_)))
+                {
+                    return true;
+                }
+            }
+
+            // b. Return false.
+            return false;
+        }
+
+        // 7. Let proto be ! o.[[GetPrototypeOf]]().
+        let prototype = object.internal_get_prototype_of(vm).must();
+
+        // 8. If proto is null, return false.
+        let Some(prototype) = prototype else {
+            return false;
+        };
+
+        // 9. Return PropertyAccessCouldRunUserCode(proto, propertyKey, kind).
+        object = prototype;
+    }
+}
+
+// RequiresDeferredPromiseResolution ( value ), https://tc39.es/proposal-thenable-curtailment/#sec-requires-deferred-promise-resolution
+fn requires_deferred_promise_resolution(vm: &Vm, value: Value) -> bool {
+    // 1. If value is not an Object, return false.
+    if !value.is_object() {
+        return false;
+    }
+    let object = value.as_object();
+
+    // OPTIMIZATION: The special property cache only knows what Get gives without running code.
+    if let Some(then_value) = special_property_cache::known(&object, SpecialPropertyKey::Then) {
+        return then_value.is_function();
+    }
+
+    // 2. If PropertyAccessCouldRunUserCode(value, "then", get) is true, return true.
+    if property_access_could_run_user_code(vm, object, &vm.names.then, PropertyAccessKind::Get) {
+        return true;
+    }
+
+    // 3. Let thenValue be ! Get(value, "then").
+    // AD-HOC: Get throws when it runs out of native stack. The deferred steps then perform it again.
+    let Ok(then_value) = special_property_cache::get(vm, &object, SpecialPropertyKey::Then) else {
+        return true;
+    };
+
+    // 4. If IsCallable(thenValue) is true, return true.
+    // 5. Return false.
+    then_value.is_function()
+}
+
+// SafePromiseResolve ( promiseCapability, resolution ), https://tc39.es/proposal-thenable-curtailment/#sec-safe-promise-resolve
+pub fn safe_promise_resolve(
+    vm: &Vm,
+    promise_capability: Gc<PromiseCapability>,
+    resolution: Value,
+) -> ThrowCompletionOr<Value> {
+    // 1. If RequiresDeferredPromiseResolution(resolution) is false, then
+    if !requires_deferred_promise_resolution(vm, resolution) {
+        // a. Return ? Call(promiseCapability.[[Resolve]], undefined, « resolution »).
+        return call_function_object(vm, promise_capability.resolve(), Value::UNDEFINED, &[resolution]);
+    }
+
+    // 2. Let promise be promiseCapability.[[Promise]].
+    let promise = promise_capability
+        .promise()
+        .downcast::<Promise>()
+        .expect("the capability has a Promise");
+
+    // 3. Let deferredSteps be a new Abstract Closure that captures promise and resolution and performs the following steps when called:
+    let deferred_steps = create_heap_function(vm, (promise, resolution), |vm, &(promise, resolution)| {
+        // a. Perform ? PerformPromiseResolution(promise, resolution, deferred).
+        promise.perform_promise_resolution(vm, resolution, ThenCallTiming::Deferred);
+
+        // b. Return undefined.
+        Ok(Value::UNDEFINED)
+    });
+
+    // 4. Let deferredThen be CreateBuiltinFunction(deferredSteps, 0, "", « »).
+    // 5. Let wrapper be OrdinaryObjectCreate(null).
+    // 6. Perform ! CreateDataPropertyOrThrow(wrapper, "then", deferredThen).
+    // 7. Return ? Call(promiseCapability.[[Resolve]], undefined, « wrapper »).
+    // AD-HOC: Resolving promise with wrapper marks promiseCapability as already resolved and enqueues a job that
+    //         performs deferredSteps. We do both directly, because an embedder may resolve a promise outside of script,
+    //         where there is no current realm and HostMakeJobCallback has no state to capture.
+    let resolve_function = promise_capability
+        .resolve()
+        .downcast::<PromiseResolvingFunction>()
+        .expect("the capability has the resolve function of a Promise");
+    if resolve_function.mark_already_resolved() {
+        vm.host_enqueue_promise_job()(vm, deferred_steps, Some(promise.shape().realm()));
+    }
+    Ok(Value::UNDEFINED)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Trace)]
@@ -242,7 +398,8 @@ impl Promise {
         // 6. Set alreadyResolved.[[Value]] to true.
         already_resolved.set(true);
 
-        promise.resolve_steps(vm, resolution);
+        // NB: PerformPromiseResolution performs steps 7 to 16.
+        promise.perform_promise_resolution(vm, resolution, ThenCallTiming::Sync);
         Value::UNDEFINED
     }
 
@@ -257,15 +414,17 @@ impl Promise {
             "only a promise that nothing else resolves is resolved directly"
         );
         self.has_resolver.set(true);
-        self.resolve_steps(vm, resolution);
+        self.perform_promise_resolution(vm, resolution, ThenCallTiming::Sync);
     }
 
-    /// Steps 7 to 16 of the Promise Resolve Functions, which resolve the promise with `resolution`.
-    fn resolve_steps(&self, vm: &Vm, resolution: Value) {
+    // PerformPromiseResolution ( promise, resolution, thenCallTiming ), https://tc39.es/proposal-thenable-curtailment/#sec-perform-promise-resolution
+    pub fn perform_promise_resolution(&self, vm: &Vm, resolution: Value, then_call_timing: ThenCallTiming) {
         let realm = vm.current_realm().expect("there is a current realm");
         let promise = self.as_gc();
 
-        // 7. If SameValue(resolution, promise) is true, then
+        // 1. Assert: promise has a [[PromiseState]] internal slot.
+
+        // 2. If SameValue(resolution, promise) is true, then
         if resolution.is_object() && resolution.as_object() == promise.upcast() {
             // a. Let selfResolutionError be a newly created TypeError object.
             let self_resolution_error =
@@ -274,54 +433,64 @@ impl Promise {
             // b. Perform RejectPromise(promise, selfResolutionError).
             promise.reject(vm, Value::from_object(self_resolution_error));
 
-            // c. Return undefined.
+            // c. Return unused.
             return;
         }
 
-        // 8. If Type(resolution) is not Object, then
+        // 3. If resolution is not an Object, then
         if !resolution.is_object() {
             // a. Perform FulfillPromise(promise, resolution).
             promise.fulfill(vm, resolution);
 
-            // b. Return undefined.
+            // b. Return unused.
             return;
         }
 
-        // 9. Let then be Completion(Get(resolution, "then")).
+        // 4. Let then be Completion(Get(resolution, "then")).
         let then = special_property_cache::get(vm, &resolution.as_object(), SpecialPropertyKey::Then);
 
-        // 10. If then is an abrupt completion, then
+        // 5. If then is an abrupt completion, then
         let then_action = match then {
             Err(throw) => {
                 // a. Perform RejectPromise(promise, then.[[Value]]).
                 promise.reject(vm, throw.value());
 
-                // b. Return undefined.
+                // b. Return unused.
                 return;
             }
-            // 11. Let thenAction be then.[[Value]].
+            // 6. Let thenAction be then.[[Value]].
             Ok(then_action) => then_action,
         };
 
-        // 12. If IsCallable(thenAction) is false, then
+        // 7. If IsCallable(thenAction) is false, then
         if !then_action.is_function() {
             // a. Perform FulfillPromise(promise, resolution).
             promise.fulfill(vm, resolution);
 
-            // b. Return undefined.
+            // b. Return unused.
             return;
         }
 
-        // 13. Let thenJobCallback be HostMakeJobCallback(thenAction).
+        // 8. If thenCallTiming is deferred, then
+        if then_call_timing == ThenCallTiming::Deferred {
+            // a. Perform ! PerformPromiseResolveThenable(promise, resolution, thenAction).
+            perform_promise_resolve_thenable(vm, promise, resolution, ThenAction::Function(then_action.as_function()))
+                .must();
+
+            // b. Return unused.
+            return;
+        }
+
+        // 9. Let thenJobCallback be HostMakeJobCallback(thenAction).
         let then_job_callback = vm.host_make_job_callback()(vm, then_action.as_function());
 
-        // 14. Let job be NewPromiseResolveThenableJob(promise, resolution, thenJobCallback).
+        // 10. Let job be NewPromiseResolveThenableJob(promise, resolution, thenJobCallback).
         let job = create_promise_resolve_thenable_job(vm, promise, resolution, then_job_callback);
 
-        // 15. Perform HostEnqueuePromiseJob(job.[[Job]], job.[[Realm]]).
+        // 11. Perform HostEnqueuePromiseJob(job.[[Job]], job.[[Realm]]).
         vm.host_enqueue_promise_job()(vm, job.job, job.realm);
 
-        // 16. Return undefined.
+        // 12. Return unused.
     }
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
