@@ -40,6 +40,10 @@ unsafe impl Trace for FinalizationRecords {
         for record in &self.0 {
             record.held_value.trace(visitor);
             record.unregister_token.trace(visitor);
+            // NB: The collector cannot update a weak reference, so the target stays where it is.
+            if let Some(target) = record.target {
+                visitor.pin(target);
+            }
         }
     }
 }

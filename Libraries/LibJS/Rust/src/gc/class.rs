@@ -127,9 +127,39 @@ impl Class {
     /// the cell, or forgets the address when the cell moves. Classes derived at run time, such as an embedder's host
     /// objects, never are, as the embedder keeps their addresses.
     pub fn is_movable(&self) -> bool {
-        // FIXME: No class is movable yet.
-        let _ = self;
-        false
+        if self.is_derived_at_run_time() {
+            return false;
+        }
+        matches!(
+            self.id,
+            ClassId::ValueStorage
+                | ClassId::Object
+                | ClassId::Array
+                | ClassId::EcmascriptFunctionObject
+                | ClassId::EcmascriptFunctionObjectWithRareData
+                | ClassId::DeclarativeEnvironment
+                | ClassId::FunctionEnvironment
+                | ClassId::PrimitiveString
+                | ClassId::RopeString
+                | ClassId::Substring
+                | ClassId::InlineString
+                | ClassId::Shape
+                | ClassId::DescriptorArray
+                | ClassId::DictionaryPropertyTable
+                | ClassId::BigInt
+                | ClassId::Accessor
+                | ClassId::BoundFunction
+                | ClassId::ArgumentsObject
+                | ClassId::RegExpObject
+                | ClassId::Date
+                | ClassId::ArrayIterator
+                | ClassId::StringIterator
+                | ClassId::Map
+                | ClassId::MapIterator
+                | ClassId::Set
+                | ClassId::SetIterator
+                | ClassId::Promise
+        )
     }
 
     /// What Cell::class_name() returns for the cells of this class, which printing and messages show. It is the name
@@ -379,7 +409,8 @@ impl<T: GcCell> core::ops::Deref for crate::layout::cell::Gc<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        // SAFETY: A Gc points to a live cell, which never moves.
+        // SAFETY: A Gc points to a live cell. Cells only move in collections that do not scan the stack, while no
+        //         reference to a cell is on it.
         unsafe { self.as_non_null().as_ref() }
     }
 }

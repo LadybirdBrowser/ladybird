@@ -201,7 +201,7 @@ impl ExecutableFeedback {
     pub fn remove_dead_cells(&self, sweep: &Sweep<'_>) {
         self.update_value_feedback();
         let clear_if_dead = |cell: &Cell<Option<Gc<CellHeader>>>| {
-            if decode_weak_reference(cell).is_some_and(|cell| sweep.is_dead(cell)) {
+            if decode_weak_reference(cell).is_some_and(|cell| sweep.is_dead_or_moving(cell)) {
                 cell.set(None);
             }
         };

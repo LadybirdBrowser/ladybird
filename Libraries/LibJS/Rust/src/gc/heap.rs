@@ -713,6 +713,11 @@ impl Heap {
         capi::gc_heap_moves_everything()
     }
 
+    /// Has the collections of this heap that do not scan the stack move every cell they can, or not, for tests.
+    pub fn set_moves_everything_for_testing(&self, moves_everything: bool) {
+        capi::gc_heap_set_moves_everything_for_testing(self.handle(), moves_everything);
+    }
+
     /// Calls `callback` with `context` during every collection, after marking and finalization and before dead cells
     /// are swept, so that weak holders can drop the cells whose mark is clear.
     ///

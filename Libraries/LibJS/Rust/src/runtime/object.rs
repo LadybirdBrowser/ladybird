@@ -316,6 +316,16 @@ impl ExternalMemorySize for Object {
 // cells an object reaches.
 unsafe impl Trace for Object {
     fn trace(&self, visitor: &mut Visitor) {
+        // NB: The VM keeps the intrinsic accessors and unimplemented properties of objects by their address, and
+        //     compiled code depends on the slots of global objects by theirs, so such objects stay where they are.
+        if self.flags.get()
+            & (object_flag::HAS_INTRINSIC_ACCESSORS
+                | object_flag::HAS_UNIMPLEMENTED_PROPERTIES
+                | object_flag::IS_GLOBAL_OBJECT)
+            != 0
+        {
+            visitor.pin(self.as_gc());
+        }
         self.shape.trace(visitor);
         let property_count = self.shape().property_count() as usize;
         let named_properties = self.named_properties.get();
@@ -345,7 +355,14 @@ unsafe impl Trace for Object {
                 self.indexed_array_like_size().min(self.indexed_elements_capacity()),
                 visitor,
             ),
-            IndexedStorageKind::Dictionary => self.indexed_dictionary().trace(visitor),
+            IndexedStorageKind::Dictionary => {
+                // NB: The VM keeps the indexed dictionaries of ECMAScript function objects by the address of the
+                //     function, so such a function stays where it is.
+                if self.is_ecmascript_function_object() {
+                    visitor.pin(self.as_gc());
+                }
+                self.indexed_dictionary().trace(visitor);
+            }
         }
         let indexed_elements = self.indexed_elements.get();
         if matches!(

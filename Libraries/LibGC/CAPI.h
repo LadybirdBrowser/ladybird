@@ -125,6 +125,8 @@ GC_API void gc_heap_collect_garbage(GCHeap*, int collection_type, bool print_rep
 GC_API void gc_heap_collect_garbage_without_scanning_the_stack(GCHeap*);
 // Whether LIBGC_MOVE_EVERYTHING is set, see Heap::moves_everything().
 GC_API bool gc_heap_moves_everything(void);
+// See Heap::set_moves_everything_for_testing().
+GC_API void gc_heap_set_moves_everything_for_testing(GCHeap*, bool);
 GC_API bool gc_heap_is_collecting_everything(GCHeap const*);
 // Whether the heap gathers its roots and marks the live cells for a collection now, rather than for a graph dump.
 GC_API bool gc_heap_is_marking_for_collection(GCHeap const*);

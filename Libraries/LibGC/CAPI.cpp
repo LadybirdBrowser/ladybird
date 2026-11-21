@@ -260,6 +260,11 @@ bool gc_heap_moves_everything(void)
     return Heap::moves_everything();
 }
 
+void gc_heap_set_moves_everything_for_testing(GCHeap* heap, bool moves_everything)
+{
+    as_heap(heap).set_moves_everything_for_testing(moves_everything);
+}
+
 bool gc_heap_is_collecting_everything(GCHeap const* heap)
 {
     return as_heap(heap).is_collecting_everything();

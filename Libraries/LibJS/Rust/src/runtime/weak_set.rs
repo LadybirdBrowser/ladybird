@@ -26,9 +26,14 @@ use crate::runtime::realm::Realm;
 #[derive(Default)]
 struct WeakSetValues(HashSet<Gc<CellHeader>, foldhash::fast::RandomState>);
 
-// SAFETY: Visits nothing, since every value is held weakly and removed in remove_dead_cells() once it dies.
+// SAFETY: Visits nothing, since every value is held weakly and removed in remove_dead_cells() once it dies. The values
+// are hashed by address, so they are pinned.
 unsafe impl Trace for WeakSetValues {
-    fn trace(&self, _: &mut Visitor) {}
+    fn trace(&self, visitor: &mut Visitor) {
+        for &value in &self.0 {
+            visitor.pin(value);
+        }
+    }
 }
 
 #[repr(C)]

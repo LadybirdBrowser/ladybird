@@ -123,13 +123,15 @@ impl PropertyLookupCacheEntryData {
     }
 
     fn has_dead_cell(&self, sweep: &Sweep<'_>) -> bool {
-        (self.key != 0 && sweep.is_dead(Value::from_bits(self.key).as_cell()))
-            || self.new_shape.is_some_and(|shape| sweep.is_dead(shape))
-            || self.shape.is_some_and(|key| sweep.is_dead(key.shape))
-            || self.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
+        (self.key != 0 && sweep.is_dead_or_moving(Value::from_bits(self.key).as_cell()))
+            || self.new_shape.is_some_and(|shape| sweep.is_dead_or_moving(shape))
+            || self.shape.is_some_and(|key| sweep.is_dead_or_moving(key.shape))
+            || self
+                .prototype
+                .is_some_and(|prototype| sweep.is_dead_or_moving(prototype))
             || self
                 .prototype_chain_validity
-                .is_some_and(|validity| sweep.is_dead(validity))
+                .is_some_and(|validity| sweep.is_dead_or_moving(validity))
     }
 }
 
@@ -209,7 +211,7 @@ impl PropertyLookupCacheEntry {
         if self.get().has_dead_cell(sweep) {
             self.set(PropertyLookupCacheEntryData::default());
         }
-        if self.getter.get().is_some_and(|getter| sweep.is_dead(getter)) {
+        if self.getter.get().is_some_and(|getter| sweep.is_dead_or_moving(getter)) {
             self.getter.set(None);
         }
     }
@@ -1094,12 +1096,14 @@ impl KeyedPropertyLookupCache {
         for entry in self.entries.borrow_mut().iter_mut() {
             let lookup = &entry.lookup;
             // NB: Entries of the keyed property store cache for puts it does not make have a shape but no type.
-            if lookup.shape.is_some_and(|shape| sweep.is_dead(shape))
-                || lookup.prototype.is_some_and(|prototype| sweep.is_dead(prototype))
+            if lookup.shape.is_some_and(|shape| sweep.is_dead_or_moving(shape))
+                || lookup
+                    .prototype
+                    .is_some_and(|prototype| sweep.is_dead_or_moving(prototype))
                 || lookup
                     .prototype_chain_validity
-                    .is_some_and(|validity| sweep.is_dead(validity))
-                || lookup.new_shape.is_some_and(|shape| sweep.is_dead(shape))
+                    .is_some_and(|validity| sweep.is_dead_or_moving(validity))
+                || lookup.new_shape.is_some_and(|shape| sweep.is_dead_or_moving(shape))
             {
                 *entry = KeyedPropertyLookupCacheEntry::default();
             }
@@ -1459,7 +1463,7 @@ impl Executable {
             cache.entry.clear_if_it_has_a_dead_cell(sweep);
         }
         for cache in &self.object_shape_caches {
-            if cache.shape.get().is_some_and(|shape| sweep.is_dead(shape)) {
+            if cache.shape.get().is_some_and(|shape| sweep.is_dead_or_moving(shape)) {
                 cache.shape.set(None);
             }
         }

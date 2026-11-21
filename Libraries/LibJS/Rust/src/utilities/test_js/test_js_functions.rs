@@ -7,6 +7,7 @@
 //! The global functions the runtime tests call besides the harness, and the hook that runs the test262 parser tests
 //! instead of the runtime tests.
 
+use core::cell::RefCell;
 use core::ops::ControlFlow;
 use std::ffi::{CStr, CString};
 
@@ -17,6 +18,7 @@ use super::test_runner::{Case, Suite, TestResult, get_time_in_ms, relative_path}
 use crate::bytecode::flushing::{ALL_FLUSH_LAYERS, FlushLayer};
 use crate::bytecode::property_access::Strict;
 use crate::gc::class::{Extends, ExternalMemorySize, GcCell};
+use crate::gc::root::CellRoot;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -80,7 +82,51 @@ pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("setTimeZone", raw_native!(set_time_zone)),
     ("toUTF8Bytes", raw_native!(to_utf8_bytes)),
     ("createDefaultTypedArray", raw_native!(create_default_typed_array)),
+    ("runAfterMovingCollection", raw_native!(run_after_moving_collection)),
+    ("addressOf", raw_native!(address_of)),
+    ("identityHashOf", raw_native!(identity_hash_of)),
 ];
+
+thread_local! {
+    /// The functions runAfterMovingCollection() was called with, which the runner calls after a test file ran.
+    static CALLBACKS_AFTER_MOVING_COLLECTION: RefCell<Vec<CellRoot<Object>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Calls `callback` once the test file has run, after a collection that moves every cell it can, so that tests can
+/// see what they made after it moved.
+fn run_after_moving_collection(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let callback = vm.argument(0);
+    if !callback.is_function() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAFunction, &[&callback]);
+    }
+    CALLBACKS_AFTER_MOVING_COLLECTION.with_borrow_mut(|callbacks| callbacks.push(CellRoot::new(callback.as_object())));
+    Ok(Value::UNDEFINED)
+}
+
+/// The functions runAfterMovingCollection() was called with since the last call.
+pub fn take_callbacks_after_moving_collection() -> Vec<CellRoot<Object>> {
+    CALLBACKS_AFTER_MOVING_COLLECTION.take()
+}
+
+/// The address of the cell `value` holds, which changes when the cell moves.
+fn address_of(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let value = vm.argument(0);
+    if !value.is_cell() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+    Ok(Value::from_f64(value.as_cell().as_ptr().addr() as f64))
+}
+
+/// The identity hash of the cell `value` holds, which stays the same when the cell moves.
+fn identity_hash_of(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let value = vm.argument(0);
+    if !value.is_cell() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+    // SAFETY: The value holds a live cell.
+    let hash = unsafe { crate::layout_forward::cell_identity_hash(value.as_cell().as_ptr().cast()) };
+    Ok(Value::from_f64(f64::from(hash)))
+}
 
 /// Value::as_if<T>(): the object `value` is, if it is a T.
 fn as_if<T: GcCell + Extends<Object>>(value: Value) -> Option<Gc<T>> {

@@ -1619,7 +1619,8 @@ impl Vm {
     /// Drops the weak cache entries of strings that died in this collection, and every entry of the caches that each
     /// collection empties.
     fn remove_dead_strings_from_weak_caches(&self, sweep: &Sweep<'_>) {
-        let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead(string);
+        // NB: The caches forget strings that move. The interned strings do not move.
+        let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead_or_moving(string);
         for cache_slot in self.fly_string_cache.iter() {
             if cache_slot.get().is_some_and(is_dead) {
                 cache_slot.set(None);
@@ -1630,7 +1631,9 @@ impl Vm {
                 *entry = StringToAtomCacheEntry::default();
             }
         }
-        self.interned_strings.borrow_mut().retain(|_, string| !is_dead(*string));
+        self.interned_strings
+            .borrow_mut()
+            .retain(|_, string| !sweep.is_dead(*string));
         self.characters_to_atom_cache
             .borrow_mut()
             .fill_with(CharactersToAtomCacheEntry::default);

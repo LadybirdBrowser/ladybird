@@ -36,7 +36,8 @@ interface Internals {
     // How many worker agents are alive in this process. One that a worker's owner let go of still counts until its
     // thread has shut it down.
     unsigned long workerAgentCount();
-    [CreatesPromise] Promise<undefined> gcAsync();
+    // Collects garbage once the current task is over. With moveCells, the collection moves every cell it can.
+    [CreatesPromise] Promise<undefined> gcAsync(optional boolean moveCells = false);
     // Discards every decoded image frame that can be decoded again, and returns how many were discarded.
     unsigned long long discardDecodedImageFrames();
     // Clears a named environment binding and forces its current cell to be treated as garbage.
