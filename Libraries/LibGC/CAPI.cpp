@@ -210,8 +210,9 @@ void** gc_heap_identity_hashes(void* heap)
     return reinterpret_cast<void**>(CAPI::identity_hashes(*static_cast<Heap*>(heap)));
 }
 
-void gc_get_layout(GCLayout* layout)
+void gc_get_layout(GCLayout* layout, size_t layout_size)
 {
+    VERIFY(layout_size == sizeof(GCLayout));
     CAPI::get_layout(*layout);
 }
 

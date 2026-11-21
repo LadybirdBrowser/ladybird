@@ -55,6 +55,9 @@ pub struct GcLayout {
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
     pub visitor_marker_offset: u32,
+    pub identity_hash_state_offset: u32,
+    pub identity_hash_hashed: u8,
+    pub identity_hash_moved: u8,
 }
 
 /// Mirrors GCPrimitiveStorageLayout.
@@ -72,7 +75,7 @@ pub struct PrimitiveStorageLayout {
 #[repr(C)]
 pub struct GcInterface {
     pub heap: *mut c_void,
-    pub gc_get_layout: unsafe extern "C" fn(layout: *mut GcLayout),
+    pub gc_get_layout: unsafe extern "C" fn(layout: *mut GcLayout, layout_size: usize),
     pub gc_allocator_create: unsafe extern "C" fn(
         type_info: *const CellTypeInfo,
         name: *const c_char,
@@ -346,7 +349,7 @@ impl Heap {
             return Self::Standalone(core::cell::RefCell::new(Vec::new()));
         };
         let mut layout = GcLayout::default();
-        unsafe { (interface.gc_get_layout)(&raw mut layout) };
+        unsafe { (interface.gc_get_layout)(&raw mut layout, size_of::<GcLayout>()) };
         assert!(
             layout.cell_state_offset as usize >= 8 && (layout.cell_kind_offset as usize) < CELL_HEADER_SIZE,
             "LibGC keeps its cell header in the second word"

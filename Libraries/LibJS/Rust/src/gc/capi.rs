@@ -91,7 +91,7 @@ pub type GCCallback = unsafe extern "C" fn(context: *mut c_void);
 pub type GCGatherRootsCallback = unsafe extern "C" fn(context: *mut c_void, root_visitor: *mut GCVisitor);
 
 unsafe extern "C" {
-    pub safe fn gc_get_layout(layout: &mut GCLayout);
+    pub safe fn gc_get_layout(layout: &mut GCLayout, layout_size: usize);
     pub safe fn gc_heap_region_base() -> usize;
     pub safe fn gc_primitive_storage_cage_base() -> usize;
 
