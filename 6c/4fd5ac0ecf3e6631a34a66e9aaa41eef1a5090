@@ -1,0 +1,7 @@
+When window.stop() stops an object element’s fetch, Ladybird stops
+delaying the load event on it, so the document’s readyState reaches
+“complete”. Chrome 158 and Firefox 151 report “complete” right after
+window.stop() too, and fire an error event at the object. WebKit 26.5
+keeps “interactive”. None of the three fires a load event at the
+window, while Ladybird fires one once nothing else delays it, as it
+already did for an image whose fetch was stopped.
