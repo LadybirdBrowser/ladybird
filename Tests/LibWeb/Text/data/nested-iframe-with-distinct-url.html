@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script>
+    // Nests a copy of itself under a new URL, so no ancestor URL ever matches.
+    const depth = Number(new URLSearchParams(location.search).get("depth") ?? 1);
+    const nextURL = `nested-iframe-with-distinct-url.html?depth=${depth + 1}`;
+    const iframe = document.createElement("iframe");
+    if (depth < 30)
+        iframe.src = nextURL;
+    document.documentElement.appendChild(iframe);
+
+    window.onmessage = () => {
+        // A frame that did not load keeps its initial about:blank document.
+        if (iframe.contentDocument?.URL !== "about:blank") {
+            iframe.contentWindow.postMessage("probe", "*");
+            return;
+        }
+        const blankIframe = document.createElement("iframe");
+        blankIframe.onload = () => top.postMessage({ depth }, "*");
+        document.documentElement.appendChild(blankIframe);
+    };
+</script>
