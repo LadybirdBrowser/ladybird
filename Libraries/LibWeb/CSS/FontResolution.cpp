@@ -311,7 +311,7 @@ static double font_size_adjust_aspect_value(Gfx::Font const& font, FontSizeAdjus
         return metrics.x_height / font_size;
     case FontSizeAdjustMetric::CapHeight:
         // Normalize the cap-height of the fonts, using the cap-height by the font size.
-        return font.cap_height() / font_size;
+        return metrics.cap_height / font_size;
     case FontSizeAdjustMetric::ChWidth:
         // Normalize the horizontal narrow pitch of the fonts, using the advance width of “0” (ZERO, U+0030) divided by
         // the font size.
@@ -800,6 +800,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .descent = metrics.descent,
         .line_gap = metrics.line_gap,
         .x_height = metrics.x_height,
+        .cap_height = metrics.cap_height,
         .zero_advance = metrics.advance_of_ascii_zero,
         .font_size_adjust_from_font = font_size_adjust_from_font,
     };

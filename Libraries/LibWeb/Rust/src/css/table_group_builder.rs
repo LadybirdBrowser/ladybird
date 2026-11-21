@@ -106,6 +106,7 @@ pub struct FfiFontGroupBuildInputs {
     pub font_ascent: f32,
     pub font_descent: f32,
     pub font_x_height: f32,
+    pub font_cap_height: f32,
     pub font_zero_advance: f32,
     pub first_available_font: *const c_void,
     pub font_cascade_list: *const c_void,
@@ -3348,6 +3349,7 @@ unsafe fn build_font_group(
         resolved_font_ascent: inputs.font_ascent,
         resolved_font_descent: inputs.font_descent,
         resolved_font_x_height: inputs.font_x_height,
+        resolved_font_cap_height: inputs.font_cap_height,
         resolved_font_zero_advance: inputs.font_zero_advance,
         resolved_first_available_font: inputs.first_available_font,
         // SAFETY: The non-null check above and the caller's guarantee make the

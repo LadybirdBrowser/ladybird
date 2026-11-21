@@ -201,7 +201,7 @@ impl RetainedState {
                 font_metrics: FfiFontMetrics {
                     font_size: inherited_size.to_double(),
                     x_height: drive_font_metric(resolved.x_height),
-                    cap_height: drive_font_metric(resolved.ascent),
+                    cap_height: drive_font_metric(resolved.cap_height),
                     zero_advance: drive_font_metric(resolved.zero_advance),
                     line_height,
                 },
@@ -424,7 +424,7 @@ impl RetainedState {
                         FfiFontMetrics {
                             font_size: parent_font.font_size.to_double(),
                             x_height: drive_font_metric(first_available.x_height),
-                            cap_height: drive_font_metric(first_available.ascent),
+                            cap_height: drive_font_metric(first_available.cap_height),
                             zero_advance: drive_font_metric(first_available.zero_advance),
                             line_height: parent_font.line_height_used().to_double(),
                         },
@@ -636,7 +636,7 @@ impl RetainedState {
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
             x_height: drive_font_metric(resolved.x_height),
-            cap_height: drive_font_metric(resolved.ascent),
+            cap_height: drive_font_metric(resolved.cap_height),
             zero_advance: drive_font_metric(resolved.zero_advance),
             line_height,
         };

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: PlusLigatures; src: url(../../../Assets/PlusLigatures.ttf); }
+    @font-face { font-family: SerenitySans; src: url(../../../Assets/SerenitySans-with-line-gap.ttf); }
+    @font-face { font-family: LatoBold; src: url(../../../Assets/Lato-Bold.ttf); }
+    div { font-size: 100px; height: 1px; }
+</style>
+<!-- The OS/2 table of PlusLigatures gives no cap height, so its "H" glyph decides it. -->
+<div id="plus-ligatures" style="font-family: PlusLigatures; width: 1cap">H</div>
+<div id="serenity-sans" style="font-family: SerenitySans; width: 1cap">H</div>
+<div id="lato-bold" style="font-family: LatoBold; width: 1cap">H</div>
+<div id="root-relative" style="font-family: SerenitySans; width: 1rcap">H</div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const id of ["plus-ligatures", "serenity-sans", "lato-bold", "root-relative"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).width}`);
+        done();
+    });
+</script>

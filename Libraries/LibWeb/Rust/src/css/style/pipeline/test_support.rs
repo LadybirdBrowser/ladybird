@@ -34,6 +34,7 @@ unsafe extern "C" fn resolve_font(
         descent: 4.0,
         line_gap: 0.0,
         x_height: 8.0,
+        cap_height: 11.0,
         zero_advance: 8.0,
         font_size_adjust_from_font: 0.0,
     }

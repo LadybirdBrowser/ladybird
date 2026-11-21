@@ -406,6 +406,7 @@ ComputedValuesFFI::FfiFontGroupBuildInputs ComputedStyleWorkingSet::font_group_b
         .font_ascent = metrics.ascent,
         .font_descent = metrics.descent,
         .font_x_height = metrics.x_height,
+        .font_cap_height = metrics.cap_height,
         .font_zero_advance = metrics.advance_of_ascii_zero,
         .first_available_font = &first_available_font,
         .font_cascade_list = font_list.ptr(),
