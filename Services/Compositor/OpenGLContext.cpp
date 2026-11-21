@@ -936,7 +936,7 @@ static Optional<GLenum> texture_binding_for_copy_destination(GLenum target)
 }
 #endif
 
-bool OpenGLContext::copy_image_into_bound_texture([[maybe_unused]] SkImage const& image, [[maybe_unused]] Gfx::IntSize source_size, [[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] GLenum target, [[maybe_unused]] GLint level, [[maybe_unused]] GLint xoffset, [[maybe_unused]] GLint yoffset, [[maybe_unused]] bool flip_y, [[maybe_unused]] bool premultiply_alpha)
+bool OpenGLContext::copy_image_into_bound_texture([[maybe_unused]] SkImage const& image, [[maybe_unused]] Gfx::IntSize source_size, [[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] u32 target, [[maybe_unused]] i32 level, [[maybe_unused]] i32 xoffset, [[maybe_unused]] i32 yoffset, [[maybe_unused]] bool flip_y, [[maybe_unused]] bool premultiply_alpha)
 {
 #ifdef ENABLE_WEBGL
     auto destination_binding = texture_binding_for_copy_destination(target);
