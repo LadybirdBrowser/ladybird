@@ -13,7 +13,7 @@ use super::layer_overlay::{ModelTile, RasterCause};
 use super::layers::LayerCompositingInFrame;
 use super::{PresentingEnvironment, inflated, rect_of_size, size_of};
 use crate::host::ContextTimer;
-use crate::raster_host::{RasterHost, SurfaceBlend};
+use crate::raster_host::{RasterHost, SurfaceBlend, SurfaceSampling};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::layers::{BarrierCutsOfCell, LayerIdentity, SpaceToFrame};
@@ -374,6 +374,7 @@ impl LayerTiles {
         target: &Rc<PaintingSurface>,
         area_in_frame: IntRect,
         compositing: &LayerCompositingInFrame,
+        sampling: SurfaceSampling,
     ) {
         let SpaceToFrame::Offset(composite_offset) = compositing.space_to_frame else {
             unreachable!("the frame holds the layers of spaces it composites through a transform");
@@ -395,6 +396,7 @@ impl LayerTiles {
                         rect_of_size(size_of(rect_in_layer_space)),
                         rect_in_layer_space.translated(composite_offset.x, composite_offset.y),
                         SurfaceBlend::Source,
+                        sampling,
                     );
                 }
                 TileDraw::FillOfJoinedOneColorTiles {
@@ -913,6 +915,7 @@ fn replay_into_scratch_and_copy_into_tiles(
             tile_rect_in_space.translated(-scratch_rect_in_space.x, -scratch_rect_in_space.y),
             rect_of_size(size_of(*tile_rect_in_space)),
             SurfaceBlend::Source,
+            SurfaceSampling::Nearest,
         );
     }
 }

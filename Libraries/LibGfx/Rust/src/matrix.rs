@@ -59,6 +59,10 @@ impl AffineTransform {
         self.a() == 1.0 && self.b() == 0.0 && self.c() == 0.0 && self.d() == 1.0
     }
 
+    pub fn is_whole_pixel_translation(self) -> bool {
+        self.is_identity_or_translation() && self.e().fract() == 0.0 && self.f().fract() == 0.0
+    }
+
     pub fn determinant(self) -> f32 {
         self.a() * self.d() - self.b() * self.c()
     }

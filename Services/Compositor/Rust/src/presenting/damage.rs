@@ -292,9 +292,17 @@ impl ContextPresenting {
         let forced_damage_rect = self.raster_rect_of(forced_damage_rect);
         let damage_of_layers_moved_by_animated_transforms =
             self.damage_of_layers_moved_by_animated_transforms(&layer_update, raster_rect);
+        // Every pixel of a frame that maps the raster to its pixels through a transform, or of the frame after one, can
+        // show another part of the raster than the frame before showed there.
+        let frame_or_frame_before_maps_raster_through_transform = frame.frame_inputs.raster_to_frame.is_some()
+            || self
+                .painted_frame
+                .as_ref()
+                .is_some_and(|painted_frame| painted_frame.frame_inputs.raster_to_frame.is_some());
         let repaints_everything = invalidates_every_tile
             || damage_of_layers_moved_by_animated_transforms.is_none()
-            || self.layer_overlay.repaints_everything();
+            || self.layer_overlay.repaints_everything()
+            || frame_or_frame_before_maps_raster_through_transform;
         let stale_rect = stale_rect.united(damage_of_layers_moved_by_animated_transforms.unwrap_or_default());
         FrameDamage {
             rect_in_raster_device_pixels: if repaints_everything {

@@ -1639,12 +1639,13 @@ impl<Painter: ReplayPainter + ?Sized> CompositingInsideEffects<'_, '_, Painter> 
         clips: CompositeClipsOfRaster<'_>,
         target_to_surface: Option<AffineTransform>,
     ) {
+        let filtered = target_to_surface.is_some() || !moves_by_whole_pixels_only(&self.canvas_matrix_of_raster_pixels);
         self.draw_at_raster_pixels_inside_innermost_effect(clips, target_to_surface, |painter| {
             painter.draw_surface(&SurfaceDraw {
                 surface,
                 source_rect,
                 target_rect,
-                filtered: target_to_surface.is_some(),
+                filtered,
             });
         });
     }
@@ -1709,6 +1710,10 @@ impl<Painter: ReplayPainter + ?Sized> CompositingInsideEffects<'_, '_, Painter> 
         self.return_to_innermost_entered_effect();
         self.driver.execute_record_span(span);
     }
+}
+
+fn moves_by_whole_pixels_only(matrix: &FloatMatrix4x4) -> bool {
+    matrix.is_2d_affine() && matrix.extract_2d_affine().is_whole_pixel_translation()
 }
 
 /// The clips a raster is composited within, in the pixels of the surface it is composited into: a rect, and rounded
@@ -3552,5 +3557,13 @@ mod tests {
         assert!(plane_clip_pushes > 0);
         assert_eq!(depth, 0);
         assert_eq!(painter.events.last(), Some(&PainterEvent::SetMatrix(base)));
+    }
+
+    #[test]
+    fn rasters_drawn_at_a_fraction_of_a_pixel_or_scaled_are_filtered() {
+        assert!(moves_by_whole_pixels_only(&FloatMatrix4x4::identity()));
+        assert!(moves_by_whole_pixels_only(&translation_matrix(3.0, -4.0, 0.0)));
+        assert!(!moves_by_whole_pixels_only(&translation_matrix(0.5, 0.0, 0.0)));
+        assert!(!moves_by_whole_pixels_only(&scale_matrix(2.0, 2.0, 1.0)));
     }
 }
