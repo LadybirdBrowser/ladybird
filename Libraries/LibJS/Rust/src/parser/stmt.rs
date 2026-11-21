@@ -1719,7 +1719,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         } else {
             reserved_row
         };
-        let reaches_source_end = self.tok_end as usize + super::SOURCE_PADDING > self.len as usize;
+        let reaches_source_end = self.tok_end as usize + SOURCE_PADDING > self.len as usize;
         let index = &mut self.index;
         index.params_start[row as usize] = key;
         index.end[row as usize] = self.prev_end;

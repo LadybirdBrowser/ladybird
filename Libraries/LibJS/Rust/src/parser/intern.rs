@@ -404,7 +404,7 @@ impl<'z> Interner<'z> {
 #[cfg(test)]
 mod tests {
     use super::Interner;
-    use crate::parser::kept::KeptNames;
+    use super::NameTablesMut;
     use ak::Zone;
 
     #[test]
@@ -444,10 +444,19 @@ mod tests {
                     assert_eq!(interner.intern_bytes(name), *id);
                 }
 
-                let mut kept = KeptNames::of(
-                    &Interner::with_names(&zone, (0..interner.len()).map(|id| interner.text(id as u32))).tables(),
-                );
-                let mut reparsed = Interner::of_tables(&zone, kept.tables_mut());
+                // NB: The tables of a reparse context are a copy of those that an interner makes with the names.
+                let made = Interner::with_names(&zone, (0..interner.len()).map(|id| interner.text(id as u32)));
+                let tables = made.tables();
+                let kept = NameTablesMut {
+                    rows: zone.alloc_slice_copy(tables.rows),
+                    shift: tables.shift,
+                    count: tables.count,
+                    long_rows: zone.alloc_slice_copy(tables.long_rows),
+                    long_count: tables.long_count,
+                    text: zone.alloc_slice_copy(tables.text),
+                    spans: zone.alloc_slice_copy(tables.spans),
+                };
+                let mut reparsed = Interner::of_tables(&zone, kept);
                 for (name, id) in &expected {
                     assert_eq!(reparsed.intern_bytes(name), *id);
                     assert_eq!(reparsed.text(*id), name);
