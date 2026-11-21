@@ -15,6 +15,7 @@
 #include <AK/Vector.h>
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/HeapRegion.h>
 #include <LibThreading/Thread.h>
@@ -190,6 +191,9 @@ private:
         VERIFY(m_next_chunk_offset <= LAST_CHUNK_OFFSET);
         auto* chunk = m_base + m_next_chunk_offset;
         MUST(Core::System::commit_memory(chunk, CHUNK_SIZE, Core::System::MemoryTag::GarbageCollector));
+        // NB: Conservative pointer lookups read the descriptor of any block below the committed end, see
+        //     allocated_cell_containing(), so the descriptors of a chunk are committed with it.
+        FFI::rust_gc_block_descriptor_commit(m_next_chunk_offset / HeapBlock::BLOCK_SIZE, BLOCKS_PER_CHUNK);
         m_next_chunk_offset += CHUNK_SIZE;
         return chunk;
     }

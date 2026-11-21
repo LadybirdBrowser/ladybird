@@ -22,7 +22,7 @@ use core::ffi::c_void;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use crate::block::{
-    BLOCK_SIZE, BlockDescriptor, CellIndex, MARK_BITMAP_WORDS, MAX_CELLS_PER_BLOCK, descriptor_for, descriptor_of_heap,
+    BLOCK_SIZE, BlockDescriptor, CELL_BITMAP_WORDS, CellIndex, MAX_CELLS_PER_BLOCK, descriptor_for, descriptor_of_heap,
     set_evacuation_of_block,
 };
 use crate::identity_hash::{CompressedAddress, IDENTITY_HASH_STATE_OFFSET, identity_hashes_of};
@@ -42,8 +42,8 @@ pub enum PinReason {
 
 /// What a collection that evacuates a block knows about the block's cells.
 pub struct Evacuation {
-    pinned_by_edge: [AtomicU64; MARK_BITMAP_WORDS],
-    pinned_by_root: [AtomicU64; MARK_BITMAP_WORDS],
+    pinned_by_edge: [AtomicU64; CELL_BITMAP_WORDS],
+    pinned_by_root: [AtomicU64; CELL_BITMAP_WORDS],
     /// The compressed address each cell that moved moved to, by cell index, and 0 for the cells that did not.
     forwarding: [AtomicU32; MAX_CELLS_PER_BLOCK],
 }
@@ -51,8 +51,8 @@ pub struct Evacuation {
 impl Evacuation {
     fn new() -> Box<Self> {
         Box::new(Self {
-            pinned_by_edge: [const { AtomicU64::new(0) }; MARK_BITMAP_WORDS],
-            pinned_by_root: [const { AtomicU64::new(0) }; MARK_BITMAP_WORDS],
+            pinned_by_edge: [const { AtomicU64::new(0) }; CELL_BITMAP_WORDS],
+            pinned_by_root: [const { AtomicU64::new(0) }; CELL_BITMAP_WORDS],
             forwarding: [const { AtomicU32::new(0) }; MAX_CELLS_PER_BLOCK],
         })
     }
@@ -360,7 +360,7 @@ pub unsafe extern "C" fn rust_gc_evacuation_cells_to_move(
         // NB: A cell's mark bit is its offset in the block divided by the cell size, see BlockDescriptor::cell_index().
         let first_bit = cells_offset / cell_size;
         let mut count = 0;
-        for word_index in 0..MARK_BITMAP_WORDS {
+        for word_index in 0..CELL_BITMAP_WORDS {
             let mut bits = descriptor.mark_word(word_index).load(Ordering::Relaxed);
             while bits != 0 {
                 let bit = word_index * 64 + bits.trailing_zeros() as usize;

@@ -7,7 +7,8 @@
 //! The descriptors of the heap's blocks.
 //!
 //! A block holds cells of one type and one size. What the collector knows about a block is in its descriptor, which
-//! lives outside the heap region: the heap and the type of the block, and which of its cells are marked. So nothing that
+//! lives outside the heap region: the heap and the type of the block, and which of its cells are allocated and which
+//! are marked. So nothing that
 //! writes to a cell, or past it, can change what the collector does with the block. The descriptor of a block is at the
 //! block's index in the region in a table of descriptors, which is reserved once for the whole region and only backed
 //! by memory where blocks are.
@@ -26,10 +27,11 @@ pub const BLOCK_SIZE: usize = 16 * 1024;
 /// The smallest cell, which has room for the link of a free cell after the header of a cell.
 pub const MIN_CELL_SIZE: usize = 24;
 
-/// A cell's mark bit is its offset in its block divided by its size, which the smallest cells take the most bits for.
-pub const MARK_BITMAP_WORDS: usize = 11;
+/// A cell's bit in the bitmaps of its block is its offset in the block divided by its size, which the smallest cells
+/// take the most bits for.
+pub const CELL_BITMAP_WORDS: usize = 11;
 
-const _: () = assert!(MARK_BITMAP_WORDS == (BLOCK_SIZE / MIN_CELL_SIZE + 1).div_ceil(64));
+const _: () = assert!(CELL_BITMAP_WORDS == (BLOCK_SIZE / MIN_CELL_SIZE + 1).div_ceil(64));
 
 /// What the collector knows about a block. LibGC's C++ side fills it in when it creates the block, and empties it when
 /// the block goes away.
@@ -49,16 +51,33 @@ pub struct BlockDescriptor {
     /// Whether a collection evacuated the block and could not empty it because something pinned some of its cells.
     /// Compaction leaves the block alone until one of the cells it kept dies.
     pub kept_by_pins: bool,
-    /// Rounds the descriptor up to 128 bytes, two whole cache lines in the table.
-    pub reserved: [u8; 5],
+    pub reserved: u8,
+    /// How many cells fit in the block, after its header.
+    pub cell_count: u16,
+    /// The index of the first cell of the block, see cell_index(). Its cells have the indices from this one on.
+    pub first_cell_index: u16,
     /// What a collection that evacuates the block knows about its cells, and null in every other collection. Marking
     /// reads it for every cell it visits, to pin the cells of evacuated blocks that something visits by value.
     pub evacuation: *mut Evacuation,
     /// One bit for each cell, which marking sets atomically, see mark_word().
-    pub marked: [UnsafeCell<u64>; MARK_BITMAP_WORDS],
+    pub marked: [UnsafeCell<u64>; CELL_BITMAP_WORDS],
+    /// One bit for each cell that is allocated: set when a cell is handed out, and when an allocator takes the free
+    /// cells of the block to hand out itself, until it gives back the ones it did not hand out. Only the thread that
+    /// owns the heap reads and writes them.
+    pub allocated: [u64; CELL_BITMAP_WORDS],
+    /// Where the block is in its allocator's list of blocks.
+    pub list_index: u32,
+    /// Whether the incremental sweep has yet to sweep the block.
+    pub pending_sweep: bool,
+    /// Whether a sweep is sweeping the block right now, which a destructor it calls may be in the middle of.
+    pub being_swept: bool,
+    /// Whether the block is on its allocator's list of blocks with free cells.
+    pub usable: bool,
+    /// Rounds the descriptor up to 256 bytes, four whole cache lines in the table.
+    pub reserved3: [u8; 33],
 }
 
-const _: () = assert!(size_of::<BlockDescriptor>() == 128);
+const _: () = assert!(size_of::<BlockDescriptor>() == 256);
 
 impl BlockDescriptor {
     pub fn heap(&self) -> *mut c_void {
@@ -144,7 +163,7 @@ impl BlockDescriptor {
 pub struct CellIndex(pub usize);
 
 /// The most cells a block has, and so the most bits that per-cell bitmaps of a block need.
-pub const MAX_CELLS_PER_BLOCK: usize = MARK_BITMAP_WORDS * 64;
+pub const MAX_CELLS_PER_BLOCK: usize = CELL_BITMAP_WORDS * 64;
 
 struct Table {
     descriptors: NonNull<BlockDescriptor>,
@@ -250,11 +269,19 @@ pub extern "C" fn rust_gc_block_descriptor_table(region_size: usize) -> *mut Blo
         .as_ptr()
 }
 
-/// Makes sure that the descriptor at `index` is backed by memory, before a block is created there.
+/// Makes sure that the `count` descriptors from `first_index` on are backed by memory, before blocks are created there.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_gc_block_descriptor_commit(index: usize) {
+pub extern "C" fn rust_gc_block_descriptor_commit(first_index: usize, count: usize) {
     let table = TABLE.get().expect("the table of block descriptors exists");
-    assert!(index < table.count, "a block is within the heap region");
-    // SAFETY: The descriptor is within the reserved table.
-    unsafe { os::commit_reserved_zeroed(table.descriptors.add(index).cast(), size_of::<BlockDescriptor>()) };
+    assert!(
+        first_index + count <= table.count,
+        "the blocks are within the heap region"
+    );
+    // SAFETY: The descriptors are within the reserved table.
+    unsafe {
+        os::commit_reserved_zeroed(
+            table.descriptors.add(first_index).cast(),
+            count * size_of::<BlockDescriptor>(),
+        );
+    }
 }

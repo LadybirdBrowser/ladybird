@@ -48,8 +48,7 @@ GC::Cell const& LiveNodeList::owner_cell(Badge<GC::Heap>) const
 void LiveNodeList::remove_dead_cells(Badge<GC::Heap>)
 {
     m_cached_nodes.remove_all_matching([&](GC::RawPtr<Node> const& node) {
-        auto* block = GC::HeapBlock::from_cell(node.ptr());
-        return !heap().is_live_heap_block(block) || node->state() != Cell::State::Live || !node->is_marked();
+        return !heap().is_live_cell(node.ptr()) || !node->is_marked();
     });
 }
 

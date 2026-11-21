@@ -179,7 +179,7 @@ void CellAllocator::give_back_local_free_list(Badge<Heap>)
 void CellAllocator::block_did_become_empty(Badge<Heap>, HeapBlock& block, DeferDecommit defer_decommit)
 {
     block.m_list_node.remove();
-    block.heap().m_live_heap_blocks.remove(&block);
+    --block.heap().m_block_count;
     block.heap().forget_cells_kept_by_pins(block);
     // NOTE: HeapBlocks are managed by the BlockAllocator, so we don't want to `delete` the block here.
     block.~HeapBlock();

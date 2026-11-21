@@ -201,7 +201,9 @@ public:
 
     void sweep_block(HeapBlock&);
 
-    bool is_live_heap_block(HeapBlock* block) const { return m_live_heap_blocks.contains(block); }
+    // Whether `cell` points at a cell of this heap that is allocated: one that the sweep did not free yet. Code that keeps
+    // pointers to cells that may have died since uses this to tell them apart from live ones.
+    bool is_live_cell(Cell const*) const;
 
     template<typename Callback>
     void for_each_block(Callback callback)
@@ -410,7 +412,7 @@ private:
     Vector<AK::Function<void()>> m_post_gc_tasks;
     Vector<AK::Function<void()>> m_sweep_callbacks;
 
-    HashTable<HeapBlock*> m_live_heap_blocks;
+    size_t m_block_count { 0 };
 
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;
