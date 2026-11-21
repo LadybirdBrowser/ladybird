@@ -13,7 +13,7 @@ Categories=Network;WebBrowser;
 Keywords=Qt;KDE;
 StartupNotify=false
 MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-Actions=new-window;
+Actions=new-window;new-private-window;
 X-Purism-FormFactor=Workstation;
 
 [Desktop Action new-window]
@@ -23,3 +23,7 @@ Name[fr]=Nouvelle Fenêtre
 Name[ru]=Новое окно
 Name[sv]=Nytt fönster
 Exec=ladybird --new-window
+
+[Desktop Action new-private-window]
+Name=New Private Window
+Exec=ladybird --new-window --private
