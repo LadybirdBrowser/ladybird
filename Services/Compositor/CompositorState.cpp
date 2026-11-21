@@ -229,6 +229,9 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
     m_screenshot_preparations.remove_all_matching([&](auto, auto const& preparation) {
         return preparation.requester == client.web_content_client_id();
     });
+    m_pending_screenshots.remove_all_matching([&](auto, auto const& screenshot) {
+        return screenshot.requester == client.web_content_client_id();
+    });
     Vector<u64> preparations_awaiting_client;
     for (auto& [preparation_id, preparation] : m_screenshot_preparations) {
         if (preparation.awaited_painters.remove(client.web_content_client_id()))
@@ -237,6 +240,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
     m_web_content_clients.remove(client.web_content_client_id());
     for (auto preparation_id : preparations_awaiting_client)
         finish_screenshot_preparation_if_done(preparation_id);
+    paint_screenshots_whose_sinks_have_caught_up();
 }
 
 CompositorState::PlaceholderCanvasAllocation CompositorState::allocate_placeholder_canvas(CompositorStateWebContentClient& client)
@@ -360,7 +364,7 @@ void CompositorState::add_video_sink(CompositorStateWebContentClient& client, Me
     auto& sinks = m_video_sink_states.ensure(&client, [] { return HashMap<Media::VideoSinkHandle, VideoSinkState> {}; });
     if (sinks.contains(handle))
         return;
-    sinks.set(handle, VideoSinkState {});
+    sinks.set(handle, VideoSinkState { .sink = nullptr, .requires_updates = false, .was_ticking = false, .published_frame_is_up_to_date = false, .up_to_date_request_token = {} });
     client.create_video_edge(handle);
 }
 
@@ -375,19 +379,55 @@ void CompositorState::create_video_edges(CompositorStateWebContentClient& client
 
 void CompositorState::remove_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
-    if (auto client_sinks = m_video_sink_states.get(&client); client_sinks.has_value())
+    if (auto client_sinks = m_video_sink_states.get(&client); client_sinks.has_value()) {
+        // The client gave up on the sink, so it isn't waiting for it either.
+        if (auto sink_state = client_sinks->get(handle); sink_state.has_value() && sink_state->up_to_date_request_token.has_value())
+            client.tell_video_sink_is_up_to_date(*sink_state->up_to_date_request_token);
         client_sinks->remove(handle);
+    }
     client.release_video_edge(handle);
+    paint_screenshots_whose_sinks_have_caught_up();
 }
 
-void CompositorState::video_sink_ticking_changed(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
+void CompositorState::video_sink_freshness_changed(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
     auto* sink_state = video_sink_state(client, handle);
     if (!sink_state || !sink_state->sink)
         return;
-    if (sink_state->sink->is_ticking())
-        present_contexts_drawing_video_sink(client, handle);
-    update_unpainted_video_update_scheduling();
+    auto is_ticking = sink_state->sink->is_ticking();
+    if (is_ticking != exchange(sink_state->was_ticking, is_ticking)) {
+        if (is_ticking)
+            present_contexts_drawing_video_sink(client, handle);
+        update_unpainted_video_update_scheduling();
+    }
+    publish_video_sink_freshness(client, handle, *sink_state);
+}
+
+void CompositorState::publish_video_sink_freshness(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, VideoSinkState& sink_state)
+{
+    // Whatever changed the sink's frame may also have finished a screenshot's wait for it.
+    paint_screenshots_whose_sinks_have_caught_up();
+
+    auto frame_is_up_to_date = sink_state.sink && sink_state.sink->frame_is_up_to_date();
+    if (frame_is_up_to_date != sink_state.published_frame_is_up_to_date) {
+        sink_state.published_frame_is_up_to_date = frame_is_up_to_date;
+        client.video_sink_frame_freshness_changed(handle, frame_is_up_to_date);
+    }
+    if (!frame_is_up_to_date)
+        return;
+    if (auto token = exchange(sink_state.up_to_date_request_token, {}); token.has_value())
+        client.tell_video_sink_is_up_to_date(*token);
+}
+
+void CompositorState::bring_video_sink_up_to_date(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, u64 token)
+{
+    auto* sink_state = video_sink_state(client, handle);
+    if (!sink_state || (sink_state->sink && sink_state->sink->frame_is_up_to_date())) {
+        client.tell_video_sink_is_up_to_date(token);
+        return;
+    }
+    if (auto superseded_token = exchange(sink_state->up_to_date_request_token, token); superseded_token.has_value())
+        client.tell_video_sink_is_up_to_date(*superseded_token);
 }
 
 // The sink's owner decides on ticking, and the sink hears of it across its edge. A sink with no edge yet cannot be
@@ -403,17 +443,21 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
     if (!sink_state)
         return;
     sink_state->sink = sink;
-    sink->set_on_ticking_changed([this, &client, handle] {
-        video_sink_ticking_changed(client, handle);
-    });
     sink->set_on_present_needed([this, &client, handle] {
-        if (auto* sink_state = video_sink_state(client, handle); sink_state && sink_state->sink)
+        auto* sink_state = video_sink_state(client, handle);
+        if (sink_state && sink_state->sink)
             client.video_sink_presented_frame(handle, sink_state->sink->current_frame(), sink_state->sink->take_frame_counts());
         present_contexts_drawing_video_sink(client, handle);
         update_unpainted_video_update_scheduling();
+        if (sink_state)
+            publish_video_sink_freshness(client, handle, *sink_state);
+    });
+    sink->set_on_freshness_changed([this, &client, handle] {
+        video_sink_freshness_changed(client, handle);
     });
     present_contexts_drawing_video_sink(client, handle);
     update_unpainted_video_update_scheduling();
+    publish_video_sink_freshness(client, handle, *sink_state);
 }
 
 void CompositorState::update_unpainted_video_update_scheduling()
@@ -654,6 +698,7 @@ CompositorState::VideoSinkUpdateResult CompositorState::update_all_video_sinks()
                 frame_counts = sink_state.sink->take_frame_counts();
             if (!frame_counts.is_zero())
                 client_entry.key->video_sink_counted_frames(sink_entry.key, frame_counts);
+            publish_video_sink_freshness(*client_entry.key, sink_entry.key, sink_state);
             if (!is_painted && sink_state.requires_updates)
                 result = VideoSinkUpdateResult::UnpaintedSinkRequiresUpdates;
         }
@@ -761,13 +806,123 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Gfx::In
     m_core.present_frame_of_page(context_id, viewport_rect);
 }
 
-bool CompositorState::request_screenshot(Web::CompositorContextId context_id, Gfx::ShareableBitmap& target_bitmap)
+// How long a screenshot waits for the video sinks it draws to catch up to their clocks, after which it shows the frames
+// they have.
+static constexpr auto SCREENSHOT_VIDEO_SINK_LIMIT = AK::Duration::from_seconds(2);
+
+void CompositorState::request_screenshot(CompositorStateWebContentClient& requester, Web::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)
 {
     VERIFY(presented_context_if_present(context_id));
-    if (!target_bitmap.is_valid() || !target_bitmap.bitmap())
-        return false;
-    auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
-    return m_core.paint_screenshot(context_id, *target_surface);
+
+    PendingScreenshot screenshot { requester.web_content_client_id(), context_id, request_id, move(target_bitmap), {}, {} };
+    catch_up_newly_drawn_screenshot_sinks(screenshot);
+
+    auto screenshot_id = m_next_pending_screenshot_id++;
+    screenshot.deadline = Core::Timer::create_single_shot(SCREENSHOT_VIDEO_SINK_LIMIT, [this, screenshot_id] {
+        paint_pending_screenshot(screenshot_id);
+    });
+    screenshot.deadline->start();
+    m_pending_screenshots.set(screenshot_id, move(screenshot));
+    paint_screenshots_whose_sinks_have_caught_up();
+}
+
+// The screenshot draws the video sinks of its context and of the contexts nested in it, which can change while it waits.
+// Each sink is caught up once, as a sink that isn't ticking falls behind its clock again as soon as it plays on.
+void CompositorState::catch_up_newly_drawn_screenshot_sinks(PendingScreenshot& screenshot)
+{
+    for (auto& sink : screenshot.sinks)
+        sink.is_drawn = false;
+    HashMap<Web::CompositorContextId, Vector<Web::CompositorContextId>> children;
+    for (auto const& [child_id, _] : m_presented_contexts) {
+        if (auto parent_context_id = m_core.parent_context(child_id); parent_context_id.has_value())
+            children.ensure(*parent_context_id).append(child_id);
+    }
+    HashTable<Web::CompositorContextId> visited;
+    Vector<Web::CompositorContextId> to_visit { screenshot.context_id };
+    while (!to_visit.is_empty()) {
+        auto id = to_visit.take_last();
+        if (visited.set(id) != HashSetResult::InsertedNewEntry)
+            continue;
+        auto* context = presented_context_if_present(id);
+        if (!context)
+            continue;
+        for (auto handle : context->raster_targets.drawn_video_sinks()) {
+            auto client_id = context->web_content_client.web_content_client_id();
+            auto* sink_state = video_sink_state(context->web_content_client, handle);
+            if (!sink_state)
+                continue;
+            auto index = screenshot.sinks.find_first_index_if([&](auto const& sink) { return sink.client == client_id && sink.handle == handle; });
+            if (!index.has_value()) {
+                index = screenshot.sinks.size();
+                screenshot.sinks.append({ client_id, handle });
+            }
+            screenshot.sinks[*index].is_drawn = true;
+            auto& screenshot_sink = screenshot.sinks[*index];
+            // A sink found before its edge attached is caught up once it attaches.
+            if (screenshot_sink.was_asked_to_catch_up || !sink_state->sink)
+                continue;
+            screenshot_sink.was_asked_to_catch_up = true;
+            if (!sink_state->sink->frame_is_up_to_date())
+                sink_state->sink->catch_up_to_clock();
+        }
+        if (auto child_ids = children.find(id); child_ids != children.end())
+            to_visit.extend(child_ids->value);
+    }
+}
+
+CompositorState::VideoSinkState* CompositorState::screenshot_sink_state(ScreenshotSink const& sink)
+{
+    auto* client = web_content_client_if_present(sink.client);
+    if (!client)
+        return nullptr;
+    return video_sink_state(*client, sink.handle);
+}
+
+bool CompositorState::screenshot_sinks_have_caught_up(PendingScreenshot const& screenshot)
+{
+    return all_of(screenshot.sinks, [&](auto const& sink) {
+        if (!sink.is_drawn)
+            return true;
+        // A sink without an edge, or one whose input has yet to start, has no frame to catch up.
+        auto* sink_state = screenshot_sink_state(sink);
+        return !sink_state || !sink_state->sink || !sink_state->sink->is_catching_up();
+    });
+}
+
+// Painting may update the sinks, so it waits until whatever found them caught up is done with them.
+void CompositorState::paint_screenshots_whose_sinks_have_caught_up()
+{
+    if (m_pending_screenshots.is_empty() || m_screenshot_check_is_scheduled)
+        return;
+    m_screenshot_check_is_scheduled = true;
+    Core::deferred_invoke([self = NonnullRefPtr(*this)] {
+        self->m_screenshot_check_is_scheduled = false;
+        Vector<u64> screenshots_to_paint;
+        for (auto& [screenshot_id, screenshot] : self->m_pending_screenshots) {
+            self->catch_up_newly_drawn_screenshot_sinks(screenshot);
+            if (self->screenshot_sinks_have_caught_up(screenshot))
+                screenshots_to_paint.append(screenshot_id);
+        }
+        for (auto screenshot_id : screenshots_to_paint)
+            self->paint_pending_screenshot(screenshot_id);
+    });
+}
+
+void CompositorState::paint_pending_screenshot(u64 screenshot_id)
+{
+    auto screenshot = m_pending_screenshots.take(screenshot_id);
+    if (!screenshot.has_value())
+        return;
+    screenshot->deadline->stop();
+
+    auto painted = false;
+    if (presented_context_if_present(screenshot->context_id) && screenshot->target_bitmap.is_valid() && screenshot->target_bitmap.bitmap()) {
+        auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*screenshot->target_bitmap.bitmap());
+        painted = m_core.paint_screenshot(screenshot->context_id, *target_surface);
+    }
+
+    if (auto* requester = web_content_client_if_present(screenshot->requester))
+        requester->tell_screenshot_result(screenshot->request_id, painted);
 }
 
 // How long a screenshot waits for the processes that paint its context's descendants. One whose script never yields

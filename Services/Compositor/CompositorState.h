@@ -60,6 +60,9 @@ public:
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
     virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts) { }
     virtual void video_sink_counted_frames(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts) { }
+    virtual void video_sink_frame_freshness_changed(Media::VideoSinkHandle, bool) { }
+    virtual void tell_video_sink_is_up_to_date(u64 token) = 0;
+    virtual void tell_screenshot_result(Compositing::ScreenshotRequestId, bool painted) = 0;
     virtual void request_animated_image_frames(AnimatedImage::FrameRequest const&) { }
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
     // The owner of this client's canvases, which are the only ones its contexts may draw.
@@ -122,6 +125,7 @@ public:
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);
     void remove_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    void bring_video_sink_up_to_date(CompositorStateWebContentClient&, Media::VideoSinkHandle, u64 token);
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);
     void add_animated_image(CompositorStateWebContentClient&, Compositing::ImageFrameResourceId, AnimatedImage::Description);
     void remove_animated_image(CompositorStateWebContentClient&, Compositing::ImageFrameResourceId);
@@ -150,7 +154,8 @@ public:
     void hurry_rendering_opportunity(Web::CompositorContextId);
     // Asks for the next display tick the context's maximum rate lets through, for its render clock.
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
-    bool request_screenshot(Web::CompositorContextId, Gfx::ShareableBitmap&);
+    // Paints once the video sinks that the screenshot draws have frames following their clocks, and tells the client.
+    void request_screenshot(CompositorStateWebContentClient&, Web::CompositorContextId, Compositing::ScreenshotRequestId, Gfx::ShareableBitmap);
     // Has each process that owns a descendant of the context in another process paint it, along with whatever lies below
     // it, and tells the requester once every one of them has handed over its frames, or gone away.
     void prepare_remote_descendants_for_screenshot(CompositorStateWebContentClient& requester, Web::CompositorContextId, u64 request_id);
@@ -309,9 +314,38 @@ private:
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;
         bool requires_updates { false };
+        bool was_ticking { false };
+        bool published_frame_is_up_to_date { false };
+        // A client waits for one request at a time, so the request it waits for is the last one it made.
+        Optional<u64> up_to_date_request_token;
     };
     VideoSinkState* video_sink_state(CompositorStateWebContentClient&, Media::VideoSinkHandle);
-    void video_sink_ticking_changed(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    void video_sink_freshness_changed(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    void publish_video_sink_freshness(CompositorStateWebContentClient&, Media::VideoSinkHandle, VideoSinkState&);
+
+    struct ScreenshotSink {
+        WebContentClientId client;
+        Media::VideoSinkHandle handle;
+        bool was_asked_to_catch_up { false };
+        bool is_drawn { false };
+    };
+    // A screenshot that waits for the video sinks it draws to catch up to their clocks, ticking or not.
+    struct PendingScreenshot {
+        WebContentClientId requester;
+        Web::CompositorContextId context_id;
+        Compositing::ScreenshotRequestId request_id;
+        Gfx::ShareableBitmap target_bitmap;
+        Vector<ScreenshotSink> sinks;
+        RefPtr<Core::Timer> deadline;
+    };
+    void catch_up_newly_drawn_screenshot_sinks(PendingScreenshot&);
+    VideoSinkState* screenshot_sink_state(ScreenshotSink const&);
+    bool screenshot_sinks_have_caught_up(PendingScreenshot const&);
+    void paint_screenshots_whose_sinks_have_caught_up();
+    void paint_pending_screenshot(u64 screenshot_id);
+    HashMap<u64, PendingScreenshot> m_pending_screenshots;
+    bool m_screenshot_check_is_scheduled { false };
+    u64 m_next_pending_screenshot_id { 1 };
     // The frame that a video sink of the client shows now, which is null for a sink that the client does not have or
     // that shows none.
     RefPtr<Media::VideoFrame> current_video_frame(CompositorStateWebContentClient&, Media::VideoSinkHandle);

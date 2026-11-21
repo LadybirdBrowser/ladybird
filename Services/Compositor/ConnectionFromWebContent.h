@@ -54,6 +54,7 @@ private:
     virtual void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void release_video_frame_hold(Media::VideoSinkHandle, u64 generation) override;
+    virtual void bring_video_sink_up_to_date(Media::VideoSinkHandle, u64 token) override;
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
     virtual void destroy_context(Web::CompositorContextId) override;
@@ -93,6 +94,15 @@ private:
     virtual Compositing::RegisteredImageFrames const& registered_image_frames() const override { return m_registered_image_frames; }
     virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const& context_ids) override { async_paint_contexts_for_screenshot(preparation_id, context_ids); }
     virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) override { async_remote_descendants_prepared_for_screenshot(request_id); }
+    virtual void video_sink_frame_freshness_changed(Media::VideoSinkHandle, bool frame_is_up_to_date) override;
+    virtual void tell_video_sink_is_up_to_date(u64 token) override { async_video_sink_is_up_to_date(token); }
+    virtual void tell_screenshot_result(Compositing::ScreenshotRequestId request_id, bool painted) override
+    {
+        if (painted)
+            async_did_complete_screenshot(request_id);
+        else
+            async_did_fail_screenshot(request_id);
+    }
     bool context_is_owned_by_this_connection(Web::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;

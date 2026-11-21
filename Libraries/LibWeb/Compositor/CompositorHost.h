@@ -164,6 +164,7 @@ public:
     // Returns whether a compositor heard of the sink, which one that connects later will not have.
     [[nodiscard]] bool add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
+    void bring_video_sink_up_to_date(Media::VideoSinkHandle, Optional<MonotonicTime> deadline);
     Compositing::VideoFrameHold::ReleaseThroughCompositor video_frame_hold_releaser_for_current_connection() const;
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);

@@ -165,6 +165,16 @@ void ConnectionFromWebContent::video_sink_counted_frames(Media::VideoSinkHandle 
     m_video_frame_holds.add_frame_counts(video_sink_handle, new_frame_counts);
 }
 
+void ConnectionFromWebContent::bring_video_sink_up_to_date(Media::VideoSinkHandle video_sink_handle, u64 token)
+{
+    m_compositor_state->bring_video_sink_up_to_date(*this, video_sink_handle, token);
+}
+
+void ConnectionFromWebContent::video_sink_frame_freshness_changed(Media::VideoSinkHandle video_sink_handle, bool frame_is_up_to_date)
+{
+    m_video_frame_holds.set_frame_is_up_to_date(video_sink_handle, frame_is_up_to_date);
+}
+
 void ConnectionFromWebContent::create_video_edge(Media::VideoSinkHandle video_sink_handle)
 {
     if (!m_video_presentation_connection)
@@ -377,10 +387,7 @@ void ConnectionFromWebContent::request_screenshot(Web::CompositorContextId conte
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    if (m_compositor_state->request_screenshot(context_id, target_bitmap))
-        async_did_complete_screenshot(request_id);
-    else
-        async_did_fail_screenshot(request_id);
+    m_compositor_state->request_screenshot(*this, context_id, request_id, move(target_bitmap));
 }
 
 }

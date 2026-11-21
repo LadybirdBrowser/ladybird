@@ -27,6 +27,7 @@ public:
 
     void present_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts new_frame_counts);
     void add_frame_counts(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts new_frame_counts);
+    void set_frame_is_up_to_date(Media::VideoSinkHandle, bool);
 
     ErrorOr<void> release_hold(Media::VideoSinkHandle, u64 generation);
     RefPtr<Media::VideoFrame> held_frame(Media::VideoSinkHandle, u64 generation) const;
