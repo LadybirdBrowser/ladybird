@@ -33,15 +33,15 @@ use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::parser::EnclosingCode;
 use crate::parser::FunctionRow;
-use crate::parser::columns::NONE;
-use crate::parser::columns::function_flag;
-use crate::parser::token::N_ARGUMENTS;
-use crate::parser::token::N_DOT_NEW_TARGET;
-use crate::parser::token::N_DOT_SUPER;
-use crate::parser::token::N_DOT_THIS;
-use crate::parser::token::N_DOT_UNBOUND;
 use crate::slice_block::SliceBlock;
 use crate::u32_from_usize;
+use libjs_parser::columns::NONE;
+use libjs_parser::columns::function_flag;
+use libjs_parser::token::N_ARGUMENTS;
+use libjs_parser::token::N_DOT_NEW_TARGET;
+use libjs_parser::token::N_DOT_SUPER;
+use libjs_parser::token::N_DOT_THIS;
+use libjs_parser::token::N_DOT_UNBOUND;
 
 use super::EnclosingEnvironmentScope;
 use super::bindings::*;
@@ -1685,7 +1685,7 @@ impl Generator<'_> {
         resolution.set_is_inside_scope_with_eval();
         let names = index.capture_names[captures..captures + capture_count]
             .iter()
-            .map(|&capture| Name(capture & !crate::parser::base::USE_IN_WITH))
+            .map(|&capture| Name(capture & !libjs_parser::base::USE_IN_WITH))
             .chain(std::iter::once(Name(N_DOT_UNBOUND)));
         for name in names {
             self.context
@@ -1704,7 +1704,7 @@ impl Generator<'_> {
         let captures = index.capture_start[row as usize] as usize;
         let capture_count = index.capture_count[row as usize] as usize;
         for &capture in &index.capture_names[captures..captures + capture_count] {
-            let name = Name(capture & !crate::parser::base::USE_IN_WITH);
+            let name = Name(capture & !libjs_parser::base::USE_IN_WITH);
             if matches!(name.0, N_DOT_THIS | N_DOT_NEW_TARGET | N_DOT_SUPER) {
                 continue;
             }
@@ -1762,7 +1762,7 @@ impl Generator<'_> {
         let captures = index.capture_start[row as usize] as usize;
         let capture_count = index.capture_count[row as usize] as usize;
         for &capture in &index.capture_names[captures..captures + capture_count] {
-            let name = Name(capture & !crate::parser::base::USE_IN_WITH);
+            let name = Name(capture & !libjs_parser::base::USE_IN_WITH);
             let scope = &mut self.context.scope;
             let Some(binding) = scope.binding_of(name) else {
                 continue;

@@ -26,11 +26,11 @@ use crate::bytecode::executable_data::PendingLiteralValueKind;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
-use crate::parser::OutOfStack;
-use crate::parser::columns::tag;
 use crate::parser::literals::EscapeMode;
 use crate::u32_from_usize;
 use crate::utf16::Utf16StringBuilder;
+use libjs_parser::base::OutOfStack;
+use libjs_parser::columns::tag;
 
 use super::bindings::*;
 use super::context::Generator;

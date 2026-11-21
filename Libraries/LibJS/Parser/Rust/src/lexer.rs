@@ -25,6 +25,7 @@ static KEYWORD_KINDS: [T; 36] = keyword_kinds();
 
 // https://tc39.es/ecma262/#prod-IdentifierStartChar
 // IdentifierStartChar :: UnicodeIDStart | $ | _
+#[inline]
 pub fn is_id_start(c: u32) -> bool {
     if c < 128 {
         return (c as u8).is_ascii_alphabetic() || c == 0x24 || c == 0x5F;
@@ -34,6 +35,7 @@ pub fn is_id_start(c: u32) -> bool {
 
 // https://tc39.es/ecma262/#prod-IdentifierPartChar
 // IdentifierPartChar :: UnicodeIDContinue | $
+#[inline]
 pub fn is_id_continue(c: u32) -> bool {
     if c < 128 {
         return (c as u8).is_ascii_alphanumeric() || c == 0x24 || c == 0x5F;
@@ -41,10 +43,12 @@ pub fn is_id_continue(c: u32) -> bool {
     matches!(c, 0x200C | 0x200D) || libunicode_rust::character_types::code_point_has_identifier_continue_property(c)
 }
 
+#[inline]
 fn is_unicode_whitespace(c: u32) -> bool {
     matches!(c, 0xA0 | 0xFEFF | 0x1680 | 0x2000..=0x200A | 0x202F | 0x205F | 0x3000)
 }
 
+#[inline]
 fn hex_value(c: u32) -> Option<u32> {
     char::from_u32(c)?.to_digit(16)
 }

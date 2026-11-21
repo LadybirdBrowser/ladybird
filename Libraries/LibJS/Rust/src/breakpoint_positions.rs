@@ -13,8 +13,8 @@ use crate::compile::FunctionPayload;
 use crate::compile::compile_function;
 use crate::compile::compile_parsed_program_off_thread;
 use crate::compile::parse;
-use crate::parser::base::DEFAULT_STACK_BUDGET;
-use crate::parser::stack_limit_for_budget;
+use libjs_parser::base::DEFAULT_STACK_BUDGET;
+use libjs_parser::base::stack_limit_for_budget;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BreakpointPosition {

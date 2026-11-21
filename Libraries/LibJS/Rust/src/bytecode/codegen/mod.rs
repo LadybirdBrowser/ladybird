@@ -36,11 +36,11 @@ use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::executable_data::PrecompiledFunction;
 use crate::bytecode::instruction::typed as op;
 use crate::parser::EnclosingCode;
-use crate::parser::OutOfStack;
 use crate::parser::TopLevelRows;
 use ak::Zone;
 use context::Generator;
 pub use environment::EnclosingEnvironmentScope;
+use libjs_parser::base::OutOfStack;
 use nodes::NodeId;
 pub use stream::DisposableResourceKind;
 
@@ -76,7 +76,7 @@ pub fn compile_function(
     generator.begin_function_scope(row);
     let function = NodeId(node);
     let flags = script.index.flags[row.0 as usize];
-    use crate::parser::columns::function_flag::*;
+    use libjs_parser::columns::function_flag::*;
     let swept = if flags & FIELD_INITIALIZER != 0 {
         generator.sweep_field_initializer(function)
     } else if flags & STATIC_BLOCK != 0 {

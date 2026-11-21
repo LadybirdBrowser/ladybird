@@ -41,7 +41,8 @@
 //! - `token.rs` — Token types
 //! - `tokenize.rs` — Tokens of a source without parsing it, for syntax highlighting
 //! - `lexer.rs` — Tokenizer: UTF-16 input → Token stream, for tokenize.rs
-//! - `parser/` — The parser, the columns of its syntax tree, scope analysis and identifier resolution
+//! - `parser/` — Parse jobs and what is kept of them; the parser, the columns of its syntax tree, scope analysis and
+//!   identifier resolution are the `libjs_parser` crate (Libraries/LibJS/Parser/Rust)
 //! - `ast.rs` — The syntax tree and the typed views that everything after the parser reads it through
 //! - `bytecode/` — Bytecode generator, instruction types, and dumper
 //! - `breakpoint_positions.rs` — Where in a source a debugger can stop
@@ -171,11 +172,7 @@ mod work_zone;
 #[cfg(test)]
 mod test_host;
 
-/// Convert a `usize` to `u32`, panicking if the value exceeds `u32::MAX`.
-/// Prefer this over `as u32` which silently truncates on 64-bit platforms.
-pub(crate) fn u32_from_usize(value: usize) -> u32 {
-    u32::try_from(value).expect("value exceeds u32::MAX")
-}
+pub(crate) use libjs_parser::u32_from_usize;
 
 #[cfg(not(test))]
 mod layout_static_assertions {

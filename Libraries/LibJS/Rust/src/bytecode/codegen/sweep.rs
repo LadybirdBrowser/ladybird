@@ -23,12 +23,12 @@ use crate::bytecode::instruction::typed as op;
 use crate::bytecode::operand::IdentifierTableIndex;
 use crate::bytecode::operand::Operand;
 use crate::bytecode::source_map::SourceOffset;
-use crate::parser::OutOfStack;
-use crate::parser::columns::NONE;
-use crate::parser::columns::function_flag;
-use crate::parser::columns::tag;
-use crate::parser::token::N_ARGUMENTS;
-use crate::parser::token::N_PROTO;
+use libjs_parser::base::OutOfStack;
+use libjs_parser::columns::NONE;
+use libjs_parser::columns::function_flag;
+use libjs_parser::columns::tag;
+use libjs_parser::token::N_ARGUMENTS;
+use libjs_parser::token::N_PROTO;
 
 use super::context::Generator;
 use super::nodes::*;
@@ -689,7 +689,7 @@ pub(super) fn is_anonymous_function_definition(tree: &SyntaxTree<'_>, expression
 
 /// The operator of a logical assignment, by the token that it is.
 fn logical_operator_of_assignment(token: u8) -> crate::ast::LogicalOp {
-    use crate::parser::token::T;
+    use libjs_parser::token::T;
     if token == T::LogAndAssign as u8 {
         crate::ast::LogicalOp::And
     } else if token == T::LogOrAssign as u8 {

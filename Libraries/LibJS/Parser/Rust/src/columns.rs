@@ -224,6 +224,7 @@ impl<'z> Ast<'z> {
     }
 
     /// The columns, for as long as the zone holds them.
+    #[inline]
     pub fn into_columns(self) -> AstColumns<'z> {
         AstColumns {
             tag: self.tag.into_slice(),
@@ -384,6 +385,7 @@ impl<'z> FunctionIndexBuilder<'z> {
 
 impl FunctionIndexView<'_> {
     /// Where lookups for what comes after the function of `row` start out.
+    #[inline]
     pub fn position_after_row(&self, row: usize) -> usize {
         let rows = self.rows_by_params_start;
         if rows.is_empty() {

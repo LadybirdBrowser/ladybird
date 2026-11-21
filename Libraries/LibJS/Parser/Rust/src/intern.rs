@@ -9,7 +9,7 @@
 //!
 //! The tables of an interner are slices. Those of a first parse are in its work zone, and the ones that it outgrows
 //! stay there until the parse ends. The reparse context of a source keeps the names of the source in tables of its own
-//! (see `KeptNames`), and each parse of a function again interns its names with those tables in place.
+//! (see `KeptNames` in LibJS), and each parse of a function again interns its names with those tables in place.
 
 use super::token::{KEYWORDS, SPECIAL_NAMES};
 use ak::Zone;
@@ -19,14 +19,14 @@ pub const NONE: u32 = u32::MAX;
 
 #[derive(Clone, Copy)]
 #[repr(C, align(32))]
-pub(super) struct Row {
+pub struct Row {
     k0: u64,
     k1: u64,
     id: u32,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct LongRow {
+pub struct LongRow {
     hash: u64,
     id: u32,
 }
@@ -52,25 +52,25 @@ pub struct Interner<'z> {
 }
 
 /// The tables of an interner, all of which are written, for a copy of them that stays around.
-pub(super) struct NameTables<'t> {
-    pub(super) rows: &'t [Row],
-    pub(super) shift: u32,
-    pub(super) count: u32,
-    pub(super) long_rows: &'t [LongRow],
-    pub(super) long_count: u32,
-    pub(super) text: &'t [u8],
-    pub(super) spans: &'t [(u32, u32)],
+pub struct NameTables<'t> {
+    pub rows: &'t [Row],
+    pub shift: u32,
+    pub count: u32,
+    pub long_rows: &'t [LongRow],
+    pub long_count: u32,
+    pub text: &'t [u8],
+    pub spans: &'t [(u32, u32)],
 }
 
 /// Tables that an interner can work with in place (see `Interner::of_tables()`).
-pub(super) struct NameTablesMut<'t> {
-    pub(super) rows: &'t mut [Row],
-    pub(super) shift: u32,
-    pub(super) count: u32,
-    pub(super) long_rows: &'t mut [LongRow],
-    pub(super) long_count: u32,
-    pub(super) text: &'t mut [u8],
-    pub(super) spans: &'t mut [(u32, u32)],
+pub struct NameTablesMut<'t> {
+    pub rows: &'t mut [Row],
+    pub shift: u32,
+    pub count: u32,
+    pub long_rows: &'t mut [LongRow],
+    pub long_count: u32,
+    pub text: &'t mut [u8],
+    pub spans: &'t mut [(u32, u32)],
 }
 
 /// Makes room for `more` values after the first `len` of `list`. A list that is too short for them moves to new memory
@@ -227,7 +227,8 @@ impl<'z> Interner<'z> {
     }
 
     /// The tables, at the size they have, to copy. The table of short names is left out.
-    pub(super) fn tables(&self) -> NameTables<'_> {
+    #[inline]
+    pub fn tables(&self) -> NameTables<'_> {
         NameTables {
             rows: self.rows,
             shift: self.shift,
@@ -242,7 +243,7 @@ impl<'z> Interner<'z> {
     /// An interner with `tables` in place. The text and the span of a name that they do not have go to `zone`, and so
     /// do the rows when they grow, so that the tables never refer to the zone. But the row of such a name is written
     /// into `tables` first, so that they stay as they were only if no name is new.
-    pub(super) fn of_tables(zone: &'z Zone, tables: NameTablesMut<'z>) -> Self {
+    pub fn of_tables(zone: &'z Zone, tables: NameTablesMut<'z>) -> Self {
         Self {
             zone,
             short: &mut [],
@@ -258,6 +259,8 @@ impl<'z> Interner<'z> {
         }
     }
 
+    // NB: An interner is never empty: it starts with the names that every interner has.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len as usize
     }

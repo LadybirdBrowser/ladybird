@@ -19,6 +19,10 @@ set(LIBJS_RUST_FEATURES ${LIBJS_RUST_FEATURES} PARENT_SCOPE)
 
 add_subdirectory(Rust)
 
+# The core of the parser, a pure Rust crate that keeps all the work data of a parse in a zone. Its unit tests run
+# without the rest of LibJS.
+test_rust_crate(MANIFEST_PATH Parser/Rust/Cargo.toml CRATE_NAME libjs_parser)
+
 # The optimizing JIT's compiler, a pure Rust crate that only works on plain data. Its unit tests run without the rest of
 # LibJS.
 if (ENABLE_JS_JIT)
