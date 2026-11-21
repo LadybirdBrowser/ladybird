@@ -15,7 +15,6 @@ use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::host::Frame;
-use super::pixel_unpacking::PixelUnpackState;
 use crate::bindings::conversions::CppInterface;
 
 /// The sources of texture images that are implemented in C++, in the order of the C++ enum of the same name.
@@ -39,15 +38,6 @@ unsafe extern "C" {
     fn web_webgl_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_webgl_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
     safe fn web_webgl_expose_experimental_interfaces() -> bool;
-    safe fn web_webgl_is_valid_2d_pixel_unpack_state(width: i32, unpack_state: &PixelUnpackState) -> bool;
-    safe fn web_webgl_required_2d_texture_data_size(
-        width: i32,
-        height: i32,
-        format: u32,
-        r#type: u32,
-        unpack_state: &PixelUnpackState,
-        out_size: &mut usize,
-    ) -> bool;
     fn web_webgl_read_tex_image_source(
         source_wrapper: *mut c_void,
         source_kind: TexImageSourceKind,
@@ -109,21 +99,6 @@ impl Canvas {
 
 pub(crate) fn expose_experimental_interfaces() -> bool {
     web_webgl_expose_experimental_interfaces()
-}
-
-pub(crate) fn is_valid_2d_pixel_unpack_state(width: i32, unpack_state: &PixelUnpackState) -> bool {
-    web_webgl_is_valid_2d_pixel_unpack_state(width, unpack_state)
-}
-
-pub(crate) fn required_2d_texture_data_size(
-    width: i32,
-    height: i32,
-    format: u32,
-    r#type: u32,
-    unpack_state: &PixelUnpackState,
-) -> Option<usize> {
-    let mut size = 0;
-    web_webgl_required_2d_texture_data_size(width, height, format, r#type, unpack_state, &mut size).then_some(size)
 }
 
 pub(crate) enum TexImageSourceFrame {
