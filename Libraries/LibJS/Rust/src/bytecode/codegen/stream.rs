@@ -1465,6 +1465,11 @@ impl Generator<'_> {
         }
     }
 
+    /// Makes room for `count` more values, which are about to come.
+    pub(super) fn reserve_values(&mut self, count: usize) {
+        self.context.stream.values.reserve(count);
+    }
+
     #[inline(always)]
     pub(super) fn push_value(&mut self, operand: Operand, first_temporary: u32) {
         self.context.stream.values.push(Val {
@@ -3570,6 +3575,7 @@ impl Generator<'_> {
         use crate::bytecode::constant_fold::*;
         let mut values = std::mem::take(&mut self.context.primitive_values);
         values.clear();
+        values.reserve(elements.len());
         for &element in elements {
             let value = match self.context.constants.get(element) {
                 Some(ConstantValue::Number(number)) => nanboxed_number(*number),

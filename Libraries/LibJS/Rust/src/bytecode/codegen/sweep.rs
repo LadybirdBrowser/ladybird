@@ -474,6 +474,10 @@ impl Generator<'_> {
                         row = a as usize + 1;
                         continue;
                     }
+                    // NB: The elements of an array literal come next, each as a value, which can be very many.
+                    if a == 0 {
+                        self.reserve_values(b as usize);
+                    }
                 }
                 other if (tag::BINARY_BASE..tag::MARK_CALLEE).contains(&other) => {
                     match crate::ast::SyntaxTree::binary_operator(other) {
