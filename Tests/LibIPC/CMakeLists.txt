@@ -5,6 +5,9 @@ set(TEST_SOURCES
     TestDecoder.cpp
 )
 
+if (NOT WIN32)
+    list(APPEND TEST_SOURCES TestFile.cpp)
+endif()
 if (UNIX AND NOT APPLE)
     list(APPEND TEST_SOURCES TestTransportSocket.cpp)
 endif()

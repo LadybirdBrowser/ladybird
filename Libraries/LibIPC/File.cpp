@@ -43,6 +43,8 @@ File::File(File&& other)
 File& File::operator=(File&& other)
 {
     if (this != &other) {
+        if (m_fd != -1)
+            (void)Core::System::close(m_fd);
         m_fd = exchange(other.m_fd, -1);
     }
     return *this;
