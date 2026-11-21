@@ -600,7 +600,7 @@ ComputationContext FontFaceState::computation_context() const
         return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     auto const& initial_font = FontComputer::initial_font();
     auto const& pixel_metrics = initial_font.pixel_metrics();
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, pixel_metrics, normal_line_height(pixel_metrics) };
+    Length::FontMetrics font_metrics { initial_font.pixel_size(), pixel_metrics, normal_line_height(pixel_metrics) };
     return ComputationContext {
         .length_resolution_context = {
             .viewport_rect = {},

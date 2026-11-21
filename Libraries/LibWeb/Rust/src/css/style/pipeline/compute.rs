@@ -93,7 +93,7 @@ impl RootFontInputs {
         let first_available = font.first_available_font_metrics();
         Self {
             metrics: [
-                font.font_size.to_double().to_bits(),
+                font.font_size_for_lengths().to_bits(),
                 drive_font_metric(first_available.x_height).to_bits(),
                 drive_font_metric(first_available.cap_height).to_bits(),
                 drive_font_metric(first_available.zero_advance).to_bits(),
@@ -1804,9 +1804,14 @@ impl RetainedState {
             *suspended_font = Some(font_resolution::FontRequest::new(request));
             return None;
         };
+        let own_font_size = request.font_size_for_lengths(
+            values
+                .get(crate::css::property_metadata::property_id::FONT_SIZE)
+                .map(|value| value.data()),
+        );
         let own_length = |line_height: f64| {
             let font_metrics = crate::css::style_compute::FfiFontMetrics {
-                font_size: request.font_size(),
+                font_size: own_font_size,
                 x_height: drive::drive_font_metric(resolved.x_height),
                 cap_height: drive::drive_font_metric(resolved.cap_height),
                 zero_advance: drive::drive_font_metric(resolved.zero_advance),
@@ -1891,7 +1896,7 @@ impl RetainedState {
             viewport_width: inputs.viewport_width,
             viewport_height: inputs.viewport_height,
             font_metrics: FfiFontMetrics {
-                font_size: parent_font.font_size.to_double(),
+                font_size: parent_font.font_size_for_lengths(),
                 x_height: drive::drive_font_metric(first_available.x_height),
                 cap_height: drive::drive_font_metric(first_available.cap_height),
                 zero_advance: drive::drive_font_metric(first_available.zero_advance),

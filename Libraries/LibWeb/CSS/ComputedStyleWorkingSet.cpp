@@ -401,6 +401,7 @@ ComputedValuesFFI::FfiFontGroupBuildInputs ComputedStyleWorkingSet::font_group_b
     auto math_style = keyword_to_math_style(property(PropertyID::MathStyle).to_keyword()).release_value();
     return {
         .font_size_raw = font_size().raw_value(),
+        .font_size = font_size_for_lengths(),
         .line_height_used_raw = line_height(document.font_computer()).raw_value(),
         .font_variant_emoji = to_underlying(font_variant_emoji()),
         .font_ascent = metrics.ascent,
@@ -467,7 +468,12 @@ Optional<FontSizeAdjust> ComputedStyleWorkingSet::font_size_adjust() const
 
 CSSPixels ComputedStyleWorkingSet::font_size() const
 {
-    return CSSPixels { StyleValueFFI::rust_style_value_computed_length_value(effective_property_data(PropertyID::FontSize)) };
+    return CSSPixels { font_size_for_lengths() };
+}
+
+double ComputedStyleWorkingSet::font_size_for_lengths() const
+{
+    return StyleValueFFI::rust_style_value_computed_length_value(effective_property_data(PropertyID::FontSize));
 }
 
 Vector<ComputedFontFamily> ComputedStyleWorkingSet::computed_font_families() const

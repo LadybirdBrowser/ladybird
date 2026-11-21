@@ -91,6 +91,8 @@ public:
 
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
     [[nodiscard]] CSSPixels font_size() const;
+    // The computed font size, unrounded, which em and rem lengths scale.
+    [[nodiscard]] double font_size_for_lengths() const;
     [[nodiscard]] Optional<FontSizeAdjust> font_size_adjust() const;
     Vector<ComputedFontFamily> computed_font_families() const;
     FontOpticalSizing font_optical_sizing() const;

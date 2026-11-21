@@ -47,8 +47,8 @@ impl DriveRecords for RetainedState {
 
 /// What the monospace font-size recascade answers for a drive target.
 enum MonospaceRecascade {
-    /// The font size the recascade reaches, and whether reaching it read the viewport.
-    Size(i32, bool),
+    /// The font size the recascade reaches, in pixels, and whether reaching it read the viewport.
+    Size(f64, bool),
     /// A length in the ancestor chain resolves against the monospace font at the size reached so
     /// far, which the font resolver has not resolved yet.
     AwaitsFont(bridge::FfiFontResolutionRequest),
@@ -116,24 +116,25 @@ impl RetainedState {
                 )
                 .map(|_| (index, view))
         });
-        let (start_index, start_size_raw, start_depends_on_viewport) =
-            animated.map_or((0, default_size, false), |(index, view)| {
+        let (start_index, start_size, start_depends_on_viewport) = animated.map_or(
+            (0, CssPixels::from_raw(default_size).to_double(), false),
+            |(index, view)| {
                 (
                     index + 1,
                     crate::css::computed_value_views::ComputedValuesView::of(view.payloads)
                         .font()
-                        .font_size
-                        .raw_value(),
+                        .font_size_for_lengths(),
                     view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
                 )
-            });
+            },
+        );
         let mut batch = recascade_font_size_batch(
             views.len(),
             value_at,
             |index| zooms[index],
             applies_zoom_at,
             start_index,
-            start_size_raw,
+            start_size,
             start_depends_on_viewport,
             default_size,
             document_inputs,
@@ -145,7 +146,7 @@ impl RetainedState {
             let parent_zoom = index.checked_sub(1).map_or(1.0, |parent| zooms[parent]);
             let applies_zoom = applies_zoom_at(index);
             let own_zoom = if applies_zoom { zoom / parent_zoom } else { 1.0 };
-            let inherited_size = CssPixels::from_raw(batch.current_size_raw).scaled(own_zoom);
+            let inherited_size = batch.current_size * own_zoom;
             let root_zoom = if !applies_zoom {
                 1.0
             } else if inputs.root_effective_zoom > 0.0 {
@@ -159,7 +160,7 @@ impl RetainedState {
             let request = bridge::FfiFontResolutionRequest {
                 font_family: bridge::FfiHostHandle::from_pointer(self.monospace_font_family.pointer().cast()),
                 font_feature_values: [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT],
-                font_size_raw: inherited_size.raw_value(),
+                font_size_raw: CssPixels::nearest_value_for(inherited_size).raw_value(),
                 font_slope: 0,
                 font_weight: 400.0,
                 font_width: 100.0,
@@ -199,7 +200,7 @@ impl RetainedState {
                 viewport_width: inputs.viewport_width,
                 viewport_height: inputs.viewport_height,
                 font_metrics: FfiFontMetrics {
-                    font_size: inherited_size.to_double(),
+                    font_size: inherited_size,
                     x_height: drive_font_metric(resolved.x_height),
                     cap_height: drive_font_metric(resolved.cap_height),
                     zero_advance: drive_font_metric(resolved.zero_advance),
@@ -234,7 +235,7 @@ impl RetainedState {
                 |index| zooms[index],
                 applies_zoom_at,
                 index,
-                batch.current_size_raw,
+                batch.current_size,
                 batch.depends_on_viewport_metrics,
                 default_size,
                 document_inputs,
@@ -245,7 +246,7 @@ impl RetainedState {
                 "the context resolves every length a cascaded font-size holds"
             );
         }
-        MonospaceRecascade::Size(batch.current_size_raw, batch.depends_on_viewport_metrics)
+        MonospaceRecascade::Size(batch.current_size, batch.depends_on_viewport_metrics)
     }
 
     /// The tree scope whose `@font-feature-values` an element's `font-variant-alternates` names
@@ -363,7 +364,6 @@ impl RetainedState {
             .then(|| self.container_unit_bases_with(records, subject.target.node(), subject.target.is_pseudo()));
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
-        use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id as prop;
         use crate::css::style_compute::{
             FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
@@ -422,7 +422,7 @@ impl RetainedState {
                     let first_available = parent_font.first_available_font_metrics();
                     (
                         FfiFontMetrics {
-                            font_size: parent_font.font_size.to_double(),
+                            font_size: parent_font.font_size_for_lengths(),
                             x_height: drive_font_metric(first_available.x_height),
                             cap_height: drive_font_metric(first_available.cap_height),
                             zero_advance: drive_font_metric(first_available.zero_advance),
@@ -595,7 +595,7 @@ impl RetainedState {
             writer.set_computed(
                 prop::FONT_SIZE,
                 StyleValueData::Length {
-                    value: CssPixels::from_raw(recascaded).to_double(),
+                    value: recascaded,
                     unit: crate::css::style_compute::px_length_unit(),
                 },
             );
@@ -622,7 +622,7 @@ impl RetainedState {
             inputs,
             || self.font_feature_values_scope(target.node()),
         );
-        let font_size = request.font_size();
+        let font_size = request.font_size_for_lengths(writer.get(prop::FONT_SIZE).map(|value| value.data()));
         let Some(resolved) = self.resolved_font(request) else {
             *suspended_font = Some(font_resolution::FontRequest::new(request));
             return None;
