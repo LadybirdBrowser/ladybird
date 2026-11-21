@@ -13,6 +13,7 @@
 <input id="input" />
 <textarea id="textarea"></textarea>
 <div id="editable" contenteditable><span id="child">editable text</span></div>
+<div contenteditable><input id="nested" style="padding: 0 20px" /></div>
 <input id="disabled" disabled />
 <div id="plain">plain text</div>
 <script>
@@ -30,7 +31,7 @@
             println(`contextmenu: focused=${document.activeElement.id || document.activeElement.nodeName.toLowerCase()}`)
         );
 
-        for (const id of ["input", "textarea", "editable", "disabled", "plain"]) {
+        for (const id of ["input", "textarea", "editable", "nested", "disabled", "plain"]) {
             other.focus();
             rightClick(document.getElementById(id));
             println(

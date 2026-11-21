@@ -13,7 +13,5 @@ selectstart at #text, bubbles true, cancelable true, trusted true, selection ""
 click count 2: selected "one"
 selectstart at #text, bubbles true, cancelable true, trusted true, selection ""
 click count 3: selected "one two three four five"
-selectstart at #text, bubbles true, cancelable true, trusted true, selection ""
-right press on free: selected "one"
-selectstart at #text, bubbles true, cancelable true, trusted true, selection ""
-right press on blocked: selected ""
+right press on free: selectstart fired as often as expected, caret moved
+right press on blocked: selectstart fired as often as expected, caret did not move

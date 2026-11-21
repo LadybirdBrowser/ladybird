@@ -283,6 +283,7 @@ private:
     bool initiate_character_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect, bool shift_held);
     bool initiate_word_selection(Layout::BegunRead const& read, DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
+    void move_caret_for_context_menu_press(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position, DOM::Node& hit_node, GC::Ptr<DOM::Node> editing_host);
     bool select_context_menu_text(Layout::BegunRead const& read, DOM::Document&, MouseEventCoordinates const&);
     Optional<Editing::ContextMenuMisspelling> select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document&, MouseEventCoordinates const&);
     static GC::Ptr<DOM::Range> context_menu_url_token_range(DOM::Text&, size_t offset);

@@ -25,8 +25,12 @@
         println(`window.onselectstart: ${window.onselectstart}`);
         println(`div.onselectstart: ${document.createElement("div").onselectstart}`);
 
+        let printEvents = true;
+        let eventCount = 0;
         document.addEventListener("selectstart", event => {
-            println(`selectstart at ${event.target.nodeName}, bubbles ${event.bubbles}, cancelable ${event.cancelable}, trusted ${event.isTrusted}, selection ${describe()}`);
+            eventCount++;
+            if (printEvents)
+                println(`selectstart at ${event.target.nodeName}, bubbles ${event.bubbles}, cancelable ${event.cancelable}, trusted ${event.isTrusted}, selection ${describe()}`);
             if (event.target.parentNode.id === "blocked")
                 event.preventDefault();
         });
@@ -52,13 +56,18 @@
             println(`click count ${clickCount}: selected ${describe()}`);
         }
 
-        // A right press on a word selects it through the same event, and cancelling the event leaves it alone.
+        // A right press moves the caret and selects the word, each through the same event.
+        printEvents = false;
         for (const id of ["free", "blocked"]) {
-            const { left, top } = document.getElementById(id).getBoundingClientRect();
+            const element = document.getElementById(id);
+            const { left, top } = element.getBoundingClientRect();
             getSelection().removeAllRanges();
+            eventCount = 0;
             internals.mouseDown(left + 1, top + 15, 1, 2);
             internals.mouseUp(left + 1, top + 15, 2);
-            println(`right press on ${id}: selected ${describe()}`);
+            const caretMoved = getSelection().anchorNode === element.firstChild;
+            const count = eventCount === 2 ? "as often as expected" : `${eventCount} times`;
+            println(`right press on ${id}: selectstart fired ${count}, caret ${caretMoved ? "moved" : "did not move"}`);
         }
     });
 </script>

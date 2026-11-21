@@ -45,11 +45,13 @@
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
+#include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSummaryElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -522,7 +524,19 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         if (!has_committed_root_box())
             return EventResult::Accepted;
 
-        if (auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position)) {
+        GC::Ptr<DOM::Node> hit_node;
+        if (auto hit = document->hit_test(read, visual_viewport_position); hit.has_value())
+            hit_node = hit->dom_node();
+        auto editing_host = hit_node ? associated_descendant_editing_host(read, *hit_node) : nullptr;
+
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+        if (!has_committed_root_box())
+            return EventResult::Accepted;
+        auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position);
+        // A text control inside the editing host takes the press itself.
+        if (editing_host && !is<HTML::FormAssociatedTextControlElement>(focus_candidate.ptr()))
+            focus_candidate = editing_host;
+        if (focus_candidate) {
             HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
         } else {
             // INTEROP: As for a left click, a right click without a focusable target focuses the document's viewport.
@@ -530,6 +544,13 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         }
 
         // NB: Focusing may have run script that navigated away from the document.
+        if (m_navigable->active_document() != document)
+            return EventResult::Accepted;
+
+        if (hit_node)
+            move_caret_for_context_menu_press(read, *document, visual_viewport_position, *hit_node, editing_host);
+
+        // NB: Moving the caret fires selectstart, which may have disturbed the world.
         if (m_navigable->active_document() != document)
             return EventResult::Accepted;
     }
@@ -3714,6 +3735,49 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
     }
 }
 
+static bool press_may_start_selection(DOM::Node const& hit_node)
+{
+    for (GC::Ptr<DOM::Node const> node = hit_node; node; node = node->flat_tree_parent()) {
+        if (node->is_editable_or_editing_host() || is<HTML::HTMLTextAreaElement>(*node))
+            return true;
+        if (auto const* input_element = as_if<HTML::HTMLInputElement>(*node))
+            return input_element->has_selectable_text();
+        if (is<HTML::HTMLImageElement>(*node) || is<HTML::HTMLMediaElement>(*node) || is<HTML::HTMLCanvasElement>(*node) || is<HTML::HTMLSelectElement>(*node) || is<HTML::HTMLEmbedElement>(*node))
+            return false;
+        if (auto const* object_element = as_if<HTML::HTMLObjectElement>(*node); object_element && !object_element->shows_fallback_content())
+            return false;
+        if (auto const* html_element = as_if<HTML::HTMLElement>(*node); html_element && html_element->uses_button_layout())
+            return false;
+        if (auto const* element = as_if<DOM::Element>(*node); element && element->creates_a_hyperlink())
+            return false;
+    }
+    return true;
+}
+
+void EventHandler::move_caret_for_context_menu_press(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, DOM::Node& hit_node, GC::Ptr<DOM::Node> editing_host)
+{
+    if (!press_may_start_selection(hit_node))
+        return;
+
+    // The caret position may lie in selectable text beside a node that is not selectable itself.
+    if (auto const* hit_layout_node = hit_node.layout_node(read); hit_layout_node && !hit_node.is_editable_or_editing_host() && hit_layout_node->user_select_used_value() == CSS::UserSelect::None)
+        return;
+
+    auto caret_position = caret_position_for_mouse_selection(read, document, visual_viewport_position, hit_node, editing_host);
+    if (!caret_position.has_value() || selection_contains_position(document, *caret_position))
+        return;
+
+    auto user_select = user_select_used_value_for_caret_position(read, *caret_position);
+    if (user_select == CSS::UserSelect::None)
+        return;
+
+    if (!fire_selectstart_event(read, document, visual_viewport_position, caret_position, user_select))
+        return;
+
+    if (initiate_character_selection(document, *caret_position, user_select, false))
+        stop_updating_selection();
+}
+
 // https://w3c.github.io/selection-api/#selectstart-event
 bool EventHandler::dispatch_selectstart_event(DOM::Document& document, DOM::Node& target)
 {
@@ -3810,16 +3874,20 @@ Optional<Painting::CaretPosition> EventHandler::caret_position_for_mouse_selecti
     // NB: Text control padding belongs to the host element, while the selectable text lives in its user-agent shadow
     //     tree. Constrain the hit test to that text so padding clicks snap to its closest caret position.
     Optional<Painting::CaretPosition> caret_position;
+    bool caret_is_in_focused_text_control = false;
     if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr()); text_control && editable_hit_node_before_focus) {
         auto& text_control_element = text_control->text_control_to_html_element();
         if (text_control_element.is_shadow_including_inclusive_ancestor_of(*editable_hit_node_before_focus)) {
-            if (auto selection_scope = text_control->mouse_selection_scope())
+            if (auto selection_scope = text_control->mouse_selection_scope()) {
                 caret_position = document.caret_position_from_point(read, visual_viewport_position, selection_scope);
+                caret_is_in_focused_text_control = caret_position.has_value();
+            }
         }
     }
     if (!caret_position.has_value())
         caret_position = document.caret_position_from_point(read, visual_viewport_position);
-    if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
+    // NB: A text control inside an editing host keeps the caret a press on it places in its own text.
+    if (!caret_is_in_focused_text_control && editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
         if (auto caret_position_from_hit_node = caret_position_from_editable_hit_node(read, *editable_hit_node_before_focus); caret_position_from_hit_node.has_value())
             caret_position = caret_position_from_hit_node;
     }
