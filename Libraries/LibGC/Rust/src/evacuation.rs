@@ -12,11 +12,16 @@
 //! records the slots that point into evacuated blocks. After marking, a cell of an evacuated block moves if its
 //! allocator is movable and nothing pinned it. Each cell that moves gets a free slot of another block first, then every
 //! recorded slot that points at one is rewritten where it is, and only then is each cell copied bytewise to its new
-//! slot, with its slots rewritten already, and its old slot freed without being destroyed.
+//! slot, with its slots rewritten already, and its old slot freed without being destroyed. Cells move before the sweep,
+//! so a dead cell's slot is never taken, and the sweep that follows destroys the dead cells once the collection is
+//! over.
 //!
-//! The collector finds slots only in cells, in the heap region: a slot elsewhere, like in malloc memory that a cell
-//! owns, could be freed or moved by the finalizers and destructors that run between marking and moving, so the visit
-//! of such a slot pins its target instead.
+//! The collector finds slots in cells, in the heap region: a slot elsewhere, like in malloc memory that a cell owns,
+//! could be freed or moved by the finalizers and sweep callbacks that run between marking and moving, so the visit of
+//! such a slot pins its target instead. The exception is memory that a live cell owns and that nothing frees, moves or
+//! writes until the collection is over, whose values the cell visits as owned values (see
+//! rust_gc_marker_visit_owned_values()). Holders of weak references, whose memory changes as they forget the cells that
+//! died, hand their slots over once they did, before cells move (see rust_gc_evacuation_record_slot()).
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
@@ -134,10 +139,6 @@ impl RecordedSlots {
             unsafe { ak::slice_from_raw_parts(chunk.pointer.as_ptr(), length) }
         })
     }
-
-    fn len(&self) -> usize {
-        self.slices().map(<[RecordedSlot]>::len).sum()
-    }
 }
 
 /// Why a cell of an evacuated block stays where it is.
@@ -222,18 +223,27 @@ pub enum SlotKind {
 const SLOT_KIND_MASK: usize = 3;
 
 /// The address of a slot that marking recorded, with its kind in the low bits. Every slot is at least 4-aligned.
+///
+/// NB: The address is kept as an integer, so that a slot costs one word in the chunks that markers fill on several
+///     threads. Recording a slot exposes its provenance, which pointer() picks up again.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RecordedSlot(usize);
 
 impl RecordedSlot {
     #[inline(always)]
-    pub fn new(address: usize, kind: SlotKind) -> Self {
+    pub fn new(slot: *const u8, kind: SlotKind) -> Self {
+        let address = slot.expose_provenance();
         debug_assert!(address & SLOT_KIND_MASK == 0, "slots are at least 4-aligned");
         Self(address | kind as usize)
     }
 
     pub fn address(self) -> usize {
         self.0 & !SLOT_KIND_MASK
+    }
+
+    /// The slot, with the provenance that new() exposed.
+    fn pointer<T>(self) -> *mut T {
+        core::ptr::with_exposed_provenance_mut(self.address())
     }
 
     pub fn kind(self) -> SlotKind {
@@ -266,6 +276,8 @@ pub struct EvacuationSet {
     blocks: Vec<usize>,
     evacuations: MappedArray<Evacuation>,
     slots: Vec<RecordedSlots>,
+    /// The slots handed over after marking, see rust_gc_evacuation_record_slot().
+    slots_recorded_after_marking: RecordedSlots,
 }
 
 impl EvacuationSet {
@@ -278,6 +290,14 @@ impl EvacuationSet {
     #[inline(always)]
     fn is_in_heap_region(&self, address: usize) -> bool {
         (address.wrapping_sub(self.layout.heap_region_base) as u64) <= self.layout.value_offset_mask
+    }
+
+    /// Every recorded slot, chunk by chunk.
+    fn all_slots(&self) -> impl Iterator<Item = &[RecordedSlot]> {
+        self.slots
+            .iter()
+            .chain(core::iter::once(&self.slots_recorded_after_marking))
+            .flat_map(RecordedSlots::slices)
     }
 
     /// The evacuation of the live block that `address` is in, with its descriptor.
@@ -296,6 +316,11 @@ impl EvacuationSet {
         self.layout.heap_region_base + ((compressed.0 as usize) << COMPRESSED_POINTER_SHIFT)
     }
 
+    /// A pointer to `address` in the heap region, whose provenance rust_gc_heap_region_init() exposed.
+    fn heap_region_pointer(address: usize) -> *mut u8 {
+        core::ptr::with_exposed_provenance_mut(address)
+    }
+
     /// Where the cell that starts at `cell` moved to, if it moved.
     #[inline(always)]
     fn forwarding_address(&self, cell: usize) -> Option<usize> {
@@ -311,7 +336,8 @@ impl EvacuationSet {
     ///
     /// # Safety
     ///
-    /// The slot must be in a live cell that has not moved yet, and hold what its kind says.
+    /// The slot must be in a live cell that has not moved yet, or in memory that such a cell owns, and hold what its
+    /// kind says.
     unsafe fn fix_up(&self, slot: RecordedSlot) -> bool {
         let base = self.layout.heap_region_base;
         let address = slot.address();
@@ -319,7 +345,7 @@ impl EvacuationSet {
         unsafe {
             match slot.kind() {
                 SlotKind::Member => {
-                    let slot = address as *mut u32;
+                    let slot = slot.pointer::<u32>();
                     let compressed = slot.read();
                     if compressed == 0 {
                         return false;
@@ -330,7 +356,7 @@ impl EvacuationSet {
                     slot.write((to >> COMPRESSED_POINTER_SHIFT) as u32);
                 }
                 SlotKind::Value => {
-                    let slot = address as *mut u64;
+                    let slot = slot.pointer::<u64>();
                     let value = slot.read();
                     if value & self.layout.value_is_cell_pattern != self.layout.value_is_cell_pattern {
                         return false;
@@ -342,8 +368,8 @@ impl EvacuationSet {
                     slot.write((value & !mask) | ((to - base) as u64 & mask));
                 }
                 SlotKind::InteriorPointer => {
-                    let slot = address as *mut usize;
-                    let pointer = slot.read();
+                    let slot = slot.pointer::<*mut u8>();
+                    let pointer = slot.read().addr();
                     let Some((descriptor, _)) = self.evacuation_of(pointer) else {
                         return false;
                     };
@@ -351,7 +377,7 @@ impl EvacuationSet {
                     let Some(to) = self.forwarding_address(cell) else {
                         return false;
                     };
-                    slot.write(to + (pointer - cell));
+                    slot.write(Self::heap_region_pointer(to).wrapping_add(pointer - cell));
                 }
                 SlotKind::SelfPointer => {
                     let Some((descriptor, _)) = self.evacuation_of(address) else {
@@ -361,13 +387,13 @@ impl EvacuationSet {
                     let Some(to) = self.forwarding_address(holder) else {
                         return false;
                     };
-                    let slot = address as *mut usize;
-                    let pointer = slot.read();
+                    let slot = slot.pointer::<*mut u8>();
+                    let pointer = slot.read().addr();
                     // NB: The pointer may point one past the holder's fields, at the start of the next cell.
                     if pointer.wrapping_sub(holder) > descriptor.cell_size as usize {
                         return false;
                     }
-                    slot.write(to + (pointer - holder));
+                    slot.write(Self::heap_region_pointer(to).wrapping_add(pointer - holder));
                 }
             }
         }
@@ -390,6 +416,7 @@ pub extern "C" fn rust_gc_evacuation_create(
         // SAFETY: All zeros is an evacuation that pinned and moved nothing.
         evacuations: unsafe { MappedArray::new_zeroed(block_count) },
         slots: Vec::new(),
+        slots_recorded_after_marking: RecordedSlots::default(),
     }))
 }
 
@@ -577,9 +604,10 @@ pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet
         // SAFETY: The caller passes a live set.
         let set = unsafe { &*set };
         let mut rewritten = 0;
-        for slots in set.slots.iter().flat_map(RecordedSlots::slices) {
+        for slots in set.all_slots() {
             for &slot in slots {
-                // SAFETY: Marking recorded the slot in a live cell, which the caller makes sure is still live and where it was.
+                // SAFETY: The slot was recorded in a live cell or in memory that one owns, which the caller makes sure is
+                //         still live and where it was.
                 if unsafe { set.fix_up(slot) } {
                     rewritten += 1;
                 }
@@ -597,7 +625,55 @@ pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_recorded_slot_count(set: *const EvacuationSet) -> usize {
     // SAFETY: The caller passes a live set.
-    unsafe { &*set }.slots.iter().map(RecordedSlots::len).sum()
+    unsafe { &*set }.all_slots().map(<[RecordedSlot]>::len).sum()
+}
+
+/// What a slot handed to rust_gc_evacuation_record_slot() holds.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecordedSlotKind {
+    /// A NaN-boxed value, which may hold a cell.
+    Value = 0,
+    /// A raw pointer to the start of a cell, or null.
+    CellPointer = 1,
+}
+
+/// Records a slot that marking did not visit, which the collection then rewrites like the slots marking recorded, for
+/// holders that keep cells without keeping them alive or in place: the keys of weak maps, the targets of weak
+/// references. They hand over the slots of the cells that survived once they forgot those that died.
+///
+/// # Safety
+///
+/// `set` must be live, and its marking done. The slot must hold what `kind` says, in memory that nothing frees, moves or
+/// writes until the collection is over, and its cell, if it has one, must be marked.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_evacuation_record_slot(
+    set: *mut EvacuationSet,
+    slot: *const c_void,
+    kind: RecordedSlotKind,
+) {
+    // SAFETY: The caller passes a live set, and a slot that holds what its kind says.
+    let set = unsafe { &mut *set };
+    let (target, kind) = match kind {
+        RecordedSlotKind::Value => {
+            // SAFETY: See above.
+            let value = unsafe { slot.cast::<u64>().read() };
+            if value & set.layout.value_is_cell_pattern != set.layout.value_is_cell_pattern {
+                return;
+            }
+            (
+                set.layout.heap_region_base + (value & set.layout.value_offset_mask) as usize,
+                SlotKind::Value,
+            )
+        }
+        // SAFETY: See above.
+        RecordedSlotKind::CellPointer => (unsafe { slot.cast::<usize>().read() }, SlotKind::InteriorPointer),
+    };
+    // NB: Only slots of cells that may move need rewriting.
+    if set.evacuation_of(target).is_some() {
+        set.slots_recorded_after_marking
+            .push(RecordedSlot::new(slot.cast(), kind));
+    }
 }
 
 /// Where the cell at `cell` moved to, or null if it did not move.
@@ -613,7 +689,7 @@ pub unsafe extern "C" fn rust_gc_evacuation_forwarding_address(
     // SAFETY: The caller passes a live set.
     let set = unsafe { &*set };
     match set.forwarding_address(cell.addr()) {
-        Some(address) => core::ptr::without_provenance_mut(address),
+        Some(address) => EvacuationSet::heap_region_pointer(address).cast(),
         None => core::ptr::null_mut(),
     }
 }
@@ -622,22 +698,24 @@ pub unsafe extern "C" fn rust_gc_evacuation_forwarding_address(
 ///
 /// # Safety
 ///
-/// `set` must be live, and nothing may use it after.
+/// `set` must be live, and nothing may use it after. Its blocks must all still be its heap's, which they are until
+/// the sweep that follows the collection, the only thing that lets go of a block.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_destroy(set: *mut EvacuationSet) {
     // SAFETY: The caller passes a live set, which it gives up.
     let set = unsafe { Box::from_raw(set) };
     for (index, block) in set.blocks.iter().enumerate() {
-        // SAFETY: Every block of the set was in the region, where descriptors stay backed by memory.
+        // SAFETY: The block is still the heap's, as the caller makes sure, so only this thread changes its descriptor.
         let descriptor = unsafe { descriptor_for(set.layout.heap_region_base, *block) };
-        // NB: A block that went away and came back since has a fresh descriptor, which may not be cleared.
-        if descriptor
-            .evacuation()
-            .is_some_and(|current| core::ptr::eq(current, set.evacuations.get(index)))
-        {
-            // SAFETY: The block is in the region, and no marker runs.
-            unsafe { set_evacuation_of_block(set.layout.heap_region_base, *block, core::ptr::null_mut()) };
-        }
+        assert!(
+            descriptor.heap() == set.heap
+                && descriptor
+                    .evacuation()
+                    .is_some_and(|current| core::ptr::eq(current, set.evacuations.get(index))),
+            "an evacuated block stays its heap's until its evacuation ends"
+        );
+        // SAFETY: The block is the heap's, and no marker runs.
+        unsafe { set_evacuation_of_block(set.layout.heap_region_base, *block, core::ptr::null_mut()) };
     }
 }
 

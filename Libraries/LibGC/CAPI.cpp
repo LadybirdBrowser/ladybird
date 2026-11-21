@@ -159,6 +159,11 @@ struct CAPI {
         auto* evacuation = cell.heap().m_evacuation;
         return evacuation && FFI::rust_gc_evacuation_will_move(evacuation, &cell);
     }
+    static void record_slot(Heap& heap, void const* slot, FFI::RecordedSlotKind kind)
+    {
+        if (heap.m_evacuation)
+            FFI::rust_gc_evacuation_record_slot(heap.m_evacuation, slot, kind);
+    }
 };
 
 }
@@ -418,6 +423,12 @@ bool gc_heap_is_moving_cells(GCHeap const* heap)
     return as_heap(heap).is_moving_cells();
 }
 
+void gc_heap_record_slot(GCHeap* heap, void const* slot, int kind)
+{
+    VERIFY(kind == GC_RECORDED_SLOT_VALUE || kind == GC_RECORDED_SLOT_CELL_POINTER);
+    CAPI::record_slot(as_heap(heap), slot, kind == GC_RECORDED_SLOT_VALUE ? FFI::RecordedSlotKind::Value : FFI::RecordedSlotKind::CellPointer);
+}
+
 uint32_t gc_cell_identity_hash(GCCell const* cell)
 {
     return FFI::rust_gc_cell_identity_hash(heap_region_base(), cell);
@@ -492,6 +503,16 @@ void gc_marker_visit_cell(GCMarker* marker, GCCell* cell)
 void gc_marker_visit_values(GCMarker* marker, uint64_t const* values, size_t count)
 {
     FFI::rust_gc_marker_visit_values(reinterpret_cast<FFI::Marker*>(marker), values, count);
+}
+
+void gc_marker_visit_owned_values(GCMarker* marker, uint64_t const* values, size_t count)
+{
+    FFI::rust_gc_marker_visit_owned_values(reinterpret_cast<FFI::Marker*>(marker), values, count);
+}
+
+void gc_marker_visit_ephemeron_without_pinning(GCMarker* marker, GCCell* key, GCCell* value)
+{
+    FFI::rust_gc_marker_visit_ephemeron_without_pinning(reinterpret_cast<FFI::Marker*>(marker), key, value);
 }
 
 void gc_marker_visit_member(GCMarker* marker, uint32_t const* slot)

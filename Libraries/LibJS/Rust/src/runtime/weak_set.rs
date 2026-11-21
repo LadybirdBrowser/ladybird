@@ -26,14 +26,10 @@ use crate::runtime::realm::Realm;
 #[derive(Default)]
 struct WeakSetValues(HashSet<Gc<CellHeader>, foldhash::fast::RandomState>);
 
-// SAFETY: Visits nothing, since every value is held weakly and removed in remove_dead_cells() once it dies. The values
-// are hashed by address, so they are pinned.
+// SAFETY: Visits nothing, since every value is held weakly and removed in remove_dead_cells() once it dies, which then
+//         also hands the slots of the surviving values to a collection that moves cells.
 unsafe impl Trace for WeakSetValues {
-    fn trace(&self, visitor: &mut Visitor) {
-        for &value in &self.0 {
-            visitor.pin(value);
-        }
-    }
+    fn trace(&self, _: &mut Visitor) {}
 }
 
 #[repr(C)]
@@ -130,10 +126,14 @@ impl WeakSet {
             .as_gc()
             .downcast::<WeakSet>()
             .expect("the weak container is a WeakSet");
-        weak_set
-            .values
-            .borrow_mut_in_sweep(sweep)
-            .0
-            .retain(|&cell| !sweep.is_dead(cell));
+        let mut values = weak_set.values.borrow_mut_in_sweep(sweep);
+        values.0.retain(|&cell| !sweep.is_dead(cell));
+        if sweep.moves_cells() {
+            // NB: The values are hashed by their identity hash, which moves do not change, so the table stays as it is.
+            for value in &values.0 {
+                // SAFETY: Only the set's own methods change the table, and none runs until the collection is over.
+                unsafe { sweep.record_slot(value) };
+            }
+        }
     }
 }

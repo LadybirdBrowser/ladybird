@@ -37,8 +37,7 @@ const _: () = assert!(size_of::<Environment>() == 16);
 #[repr(C)]
 pub struct DeclarativeEnvironment {
     pub base: Environment,
-    /// The first binding value, in the cell or in a malloc allocation that has its capacity in front of the first
-    /// value.
+    /// The first binding value, in the cell or in value storage (see runtime::value_storage).
     pub binding_values: Cell<*mut Value>,
     pub binding_count: Cell<u32>,
     pub rare_data: NullableMember<DeclarativeEnvironmentRareData>,

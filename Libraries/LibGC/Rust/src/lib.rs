@@ -30,10 +30,10 @@ mod sanitizer;
 pub use allocator::{
     Allocator, AllocatorConfig, LocalFreeCells, SweepStats, rust_gc_allocator_allocate,
     rust_gc_allocator_allocate_destination, rust_gc_allocator_block_at, rust_gc_allocator_block_count,
-    rust_gc_allocator_create, rust_gc_allocator_destroy, rust_gc_allocator_finish_evacuated_block,
-    rust_gc_allocator_give_back_local_free_cells, rust_gc_allocator_has_blocks_pending_sweep,
-    rust_gc_allocator_keep_cells_pinned, rust_gc_allocator_local_block, rust_gc_allocator_release_moved_cell,
-    rust_gc_allocator_start_sweep, rust_gc_allocator_sweep_next_block, rust_gc_allocator_sweep_pending_block,
+    rust_gc_allocator_create, rust_gc_allocator_destroy, rust_gc_allocator_give_back_local_free_cells,
+    rust_gc_allocator_has_blocks_pending_sweep, rust_gc_allocator_keep_cells_pinned, rust_gc_allocator_local_block,
+    rust_gc_allocator_release_moved_cell, rust_gc_allocator_start_sweep, rust_gc_allocator_sweep_next_block,
+    rust_gc_allocator_sweep_pending_block,
 };
 pub use block::{BlockDescriptor, rust_gc_block_descriptor_table};
 pub use block_pool::{
@@ -44,11 +44,11 @@ pub use block_pool::{
 };
 pub use compaction::{CompactionCandidate, CompactionSelection, rust_gc_compaction_select};
 pub use evacuation::{
-    CellMove, EvacuationLayout, EvacuationSet, PinReason, PinnedCells, rust_gc_evacuation_add_block,
+    CellMove, EvacuationLayout, EvacuationSet, PinReason, PinnedCells, RecordedSlotKind, rust_gc_evacuation_add_block,
     rust_gc_evacuation_cells_to_move, rust_gc_evacuation_create, rust_gc_evacuation_destroy,
     rust_gc_evacuation_fix_up_slots, rust_gc_evacuation_forward_cells, rust_gc_evacuation_forwarding_address,
-    rust_gc_evacuation_move_cells, rust_gc_evacuation_pin_reason, rust_gc_evacuation_recorded_slot_count,
-    rust_gc_evacuation_will_move,
+    rust_gc_evacuation_move_cells, rust_gc_evacuation_pin_reason, rust_gc_evacuation_record_slot,
+    rust_gc_evacuation_recorded_slot_count, rust_gc_evacuation_will_move,
 };
 pub use identity_hash::{
     IDENTITY_HASH_HASHED, IDENTITY_HASH_MOVED, IDENTITY_HASH_STATE_OFFSET, IdentityHashes, rust_gc_cell_identity_hash,
@@ -57,6 +57,6 @@ pub use identity_hash::{
 pub use marker::{
     MarkRequest, Marker, MarkerLayout, rust_gc_marker_mark, rust_gc_marker_pin_cell,
     rust_gc_marker_release_unused_helper_memory, rust_gc_marker_visit_cell, rust_gc_marker_visit_ephemeron,
-    rust_gc_marker_visit_interior_pointer, rust_gc_marker_visit_member, rust_gc_marker_visit_self_pointer,
-    rust_gc_marker_visit_values,
+    rust_gc_marker_visit_ephemeron_without_pinning, rust_gc_marker_visit_interior_pointer, rust_gc_marker_visit_member,
+    rust_gc_marker_visit_owned_values, rust_gc_marker_visit_self_pointer, rust_gc_marker_visit_values,
 };

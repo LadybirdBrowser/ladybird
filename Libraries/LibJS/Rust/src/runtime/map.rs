@@ -5,9 +5,10 @@
  */
 
 use core::cell::Cell;
+use core::hash::BuildHasher;
 use core::ops::Deref;
 
-use hashbrown::HashMap;
+use hashbrown::HashTable;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
@@ -23,24 +24,37 @@ use crate::runtime::realm::Realm;
 use crate::runtime::value_traits::ValueTraitsKey;
 
 /// What a keyed collection keeps with each of its keys: a Map keeps a value, and a Set keeps nothing.
-pub(crate) trait StoredValue: Copy + Trace {
+pub(crate) trait StoredValue: Copy {
     /// What the entry of a removed key holds.
     const REMOVED: Self;
+
+    /// Visits the stored value, which is in the entries of its collection, see Storage::trace().
+    ///
+    /// # Safety
+    ///
+    /// As for Visitor::visit_owned_values().
+    unsafe fn trace_owned(&self, visitor: &mut Visitor);
 }
 
 impl StoredValue for Value {
     const REMOVED: Self = Value::UNDEFINED;
+
+    unsafe fn trace_owned(&self, visitor: &mut Visitor) {
+        // SAFETY: Forwarded from the caller.
+        unsafe { visitor.visit_owned_values(core::slice::from_ref(self)) };
+    }
 }
 
 /// What a Set keeps with each of its values.
-#[derive(Clone, Copy, Trace)]
+#[derive(Clone, Copy)]
 pub(crate) struct NoValue;
 
 impl StoredValue for NoValue {
     const REMOVED: Self = NoValue;
+
+    unsafe fn trace_owned(&self, _: &mut Visitor) {}
 }
 
-#[derive(Trace)]
 struct StoredEntry<V: StoredValue> {
     key: Value,
     value: V,
@@ -58,7 +72,43 @@ impl<V: StoredValue> StoredEntry<V> {
 /// memory than the entries themselves.
 const MAX_ENTRY_COUNT_WITHOUT_INDICES: usize = 8;
 
-type Indices = HashMap<ValueTraitsKey, usize, foldhash::fast::RandomState>;
+/// The positions of the live entries of a collection, found by the hashes of their keys. The keys themselves are only in
+/// the entries, where a collection that moves cells rewrites them.
+#[derive(Default)]
+struct Indices {
+    positions: HashTable<usize>,
+    hasher: foldhash::fast::RandomState,
+}
+
+impl Indices {
+    fn hash(&self, key: Value) -> u64 {
+        self.hasher.hash_one(ValueTraitsKey(key))
+    }
+
+    fn find<V: StoredValue>(&self, entries: &[StoredEntry<V>], key: Value) -> Option<usize> {
+        let key = ValueTraitsKey(key);
+        self.positions
+            .find(self.hash(key.0), |&index| ValueTraitsKey(entries[index].key) == key)
+            .copied()
+    }
+
+    fn insert<V: StoredValue>(&mut self, entries: &[StoredEntry<V>], key: Value, index: usize) {
+        let hash = self.hash(key);
+        let hasher = &self.hasher;
+        self.positions.insert_unique(hash, index, |&index| {
+            hasher.hash_one(ValueTraitsKey(entries[index].key))
+        });
+    }
+
+    fn remove<V: StoredValue>(&mut self, entries: &[StoredEntry<V>], key: Value) -> Option<usize> {
+        let key = ValueTraitsKey(key);
+        let entry = self
+            .positions
+            .find_entry(self.hash(key.0), |&index| ValueTraitsKey(entries[index].key) == key)
+            .ok()?;
+        Some(entry.remove().0)
+    }
+}
 
 /// The entries of a Map or a Set.
 pub(crate) struct Storage<V: StoredValue> {
@@ -72,10 +122,19 @@ pub(crate) struct Storage<V: StoredValue> {
     generation: u64,
 }
 
-// SAFETY: Visits the key and value of every entry. The keys of the indices are the keys of the live entries.
+// SAFETY: Visits the key and value of every entry, which are all the cells the storage holds.
 unsafe impl<V: StoredValue> Trace for Storage<V> {
     fn trace(&self, visitor: &mut Visitor) {
-        self.entries.trace(visitor);
+        // NB: The entries are visited as owned values, so that a collection that moves their cells rewrites them where
+        //     they are. Only the collection's own methods change them, and no finalizer, destructor or sweep callback
+        //     calls those.
+        for entry in &self.entries {
+            // SAFETY: See above.
+            unsafe {
+                visitor.visit_owned_values(core::slice::from_ref(&entry.key));
+                entry.value.trace_owned(visitor);
+            }
+        }
     }
 }
 
@@ -134,7 +193,7 @@ impl<V: StoredValue> Storage<V> {
 
     pub(crate) fn external_memory_size(&self) -> usize {
         let indices_size = self.indices.as_ref().map_or(0, |indices| {
-            size_of::<Indices>().saturating_add(indices.allocation_size())
+            size_of::<Indices>().saturating_add(indices.positions.allocation_size())
         });
         (self.entries.capacity() * size_of::<StoredEntry<V>>()).saturating_add(indices_size)
     }
@@ -152,7 +211,7 @@ impl<V: StoredValue> Storage<V> {
 
     pub(crate) fn remove(&mut self, key: Value) -> bool {
         let index = match &mut self.indices {
-            Some(indices) => indices.remove(&ValueTraitsKey(key)),
+            Some(indices) => indices.remove(&self.entries, key),
             None => self.index_of(key),
         };
         let Some(index) = index else {
@@ -185,12 +244,11 @@ impl<V: StoredValue> Storage<V> {
 
     pub(crate) fn set(&mut self, key: Value, value: V) {
         if let Some(indices) = &mut self.indices {
-            let new_index = self.entries.len();
-            let index = *indices.entry(ValueTraitsKey(key)).or_insert(new_index);
-            if index != new_index {
+            if let Some(index) = indices.find(&self.entries, key) {
                 self.entries[index].value = value;
                 return;
             }
+            indices.insert(&self.entries, key, self.entries.len());
         } else {
             if let Some(index) = self.index_of(key) {
                 self.entries[index].value = value;
@@ -205,7 +263,7 @@ impl<V: StoredValue> Storage<V> {
                     self.indices
                         .as_mut()
                         .expect("the indices were just built")
-                        .insert(ValueTraitsKey(key), new_index);
+                        .insert(&self.entries, key, new_index);
                 }
             }
         }
@@ -222,7 +280,7 @@ impl<V: StoredValue> Storage<V> {
     fn index_of(&self, key: Value) -> Option<usize> {
         let key = ValueTraitsKey(key);
         match &self.indices {
-            Some(indices) => indices.get(&key).copied(),
+            Some(indices) => indices.find(&self.entries, key.0),
             None => {
                 // NB: The key of a removed entry is the empty value, so an empty key would find a removed entry.
                 assert!(!key.0.is_empty());
@@ -252,16 +310,16 @@ impl<V: StoredValue> Storage<V> {
     }
 
     fn build_indices(&mut self) {
-        // NB: The indices hold keys, so they are built in place, where the entries keep those keys alive.
-        let indices = self.indices.insert(Box::new(Indices::with_capacity_and_hasher(
-            self.entries.len() + 1,
-            Default::default(),
-        )));
+        let mut indices = Box::new(Indices::default());
+        indices
+            .positions
+            .reserve(self.entries.len() + 1, |_| unreachable!("the table is empty"));
         for (index, entry) in self.entries.iter().enumerate() {
             if !entry.is_removed() {
-                indices.insert(ValueTraitsKey(entry.key), index);
+                indices.insert(&self.entries, entry.key, index);
             }
         }
+        self.indices = Some(indices);
     }
 
     fn index_of_first_entry_not_inserted_before(&self, insertion_id: u64) -> usize {
@@ -290,7 +348,7 @@ impl<V: StoredValue> Storage<V> {
                 new_entry_count += 1;
             }
             self.entries.truncate(new_entry_count);
-            for index in indices.values_mut() {
+            for index in &mut indices.positions {
                 *index = new_indices[*index];
             }
         } else {

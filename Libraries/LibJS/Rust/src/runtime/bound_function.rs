@@ -11,10 +11,12 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, cast_ref, define_cell};
+use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::FUNCTION_LENGTH_AND_NAME_SLOTS;
+use crate::layout::member::Member;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -29,9 +31,23 @@ pub struct BoundFunction {
     /// OPTIMIZATION: The named properties of bound functions are "length" and "name".
     #[gc(untraced = "the object traces its inline named storage")]
     inline_named_storage: [Cell<Value>; FUNCTION_LENGTH_AND_NAME_SLOTS],
-    bound_target_function: Cell<Gc<FunctionObject>>, // [[BoundTargetFunction]]
-    bound_this: Cell<Value>,                         // [[BoundThis]]
-    bound_arguments: OnceCell<Box<[Value]>>,         // [[BoundArguments]]
+    bound_target_function: Member<FunctionObject>, // [[BoundTargetFunction]]
+    bound_this: Cell<Value>,                       // [[BoundThis]]
+    bound_arguments: BoundArguments,               // [[BoundArguments]]
+}
+
+/// The bound arguments of a bound function, which never change once they are set.
+struct BoundArguments(OnceCell<Box<[Value]>>);
+
+// SAFETY: Visits every bound argument.
+unsafe impl Trace for BoundArguments {
+    fn trace(&self, visitor: &mut Visitor) {
+        if let Some(arguments) = self.0.get() {
+            // SAFETY: The arguments are the function's own, which nothing changes once they are set, and only its
+            //         destructor frees.
+            unsafe { visitor.visit_owned_values(arguments) };
+        }
+    }
 }
 
 pub static BOUND_FUNCTION_METHODS: ObjectMethods = ObjectMethods {
@@ -128,14 +144,15 @@ impl BoundFunction {
         let object = allocate_object(vm, |_| BoundFunction {
             base,
             inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; FUNCTION_LENGTH_AND_NAME_SLOTS],
-            bound_target_function: Cell::new(target_function),
+            bound_target_function: Member::new(target_function),
             bound_this: Cell::new(bound_this),
-            bound_arguments: OnceCell::new(),
+            bound_arguments: BoundArguments(OnceCell::new()),
         });
         // The caller keeps the bound arguments alive until the function that does holds them, and nothing allocates
         // from the heap in between.
         if object
             .bound_arguments
+            .0
             .set(bound_arguments.to_vec().into_boxed_slice())
             .is_err()
         {
@@ -174,6 +191,7 @@ impl BoundFunction {
 
     pub fn bound_arguments(&self) -> &[Value] {
         self.bound_arguments
+            .0
             .get()
             .expect("a bound function has its bound arguments")
     }

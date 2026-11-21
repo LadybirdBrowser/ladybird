@@ -427,17 +427,12 @@ impl Allocator {
         }
         // SAFETY: As above.
         unsafe { (*descriptor).being_swept = false };
-        let evacuated = self.is_evacuated(block);
         if kept_cell_died {
             self.forget_cells_kept_by_pins(block);
         }
         stats.swept_blocks += 1;
         let live = bitmap::count(self.allocated(block));
-        // NB: An evacuated block keeps its marks until its cells have moved, which tells the cells that marking knows
-        //     about from the ones allocated since.
-        if !evacuated || live == 0 {
-            self.clear_marks(block);
-        }
+        self.clear_marks(block);
         if live == 0 {
             self.release_block(block, defer_decommit);
             stats.freed_blocks += 1;
@@ -462,9 +457,13 @@ impl Allocator {
     }
 
     /// Remembers that a collection could not empty `block` because of pins, so that compaction leaves it alone until
-    /// one of the cells left in it dies.
+    /// one of the cells left in it dies. The cells left are the marked ones that did not move: the others died, and the
+    /// sweep that follows frees them.
     fn keep_cells_pinned(&self, block: usize) {
-        let kept = *self.allocated(block);
+        let mut kept = *self.allocated(block);
+        for (word, kept_word) in kept.iter_mut().enumerate() {
+            *kept_word &= self.mark_word(block, word).load(Ordering::Relaxed);
+        }
         self.lists.borrow_mut().kept_by_pins.insert(block, kept);
         // SAFETY: As in make_usable().
         unsafe { (*self.descriptor(block)).kept_by_pins = true };
@@ -478,8 +477,8 @@ impl Allocator {
             .is_null()
     }
 
-    /// Takes a slot for a cell that moves, in a block that the collection does not evacuate. The evacuated blocks it
-    /// comes across stop being usable, until finish_evacuated_block() puts them back.
+    /// Takes a free slot for a cell that moves, in a block that the collection does not evacuate. The evacuated blocks
+    /// it comes across stop being usable, until the sweep that follows the collection lists them again.
     fn allocate_destination(&self) -> usize {
         loop {
             let last = self.lists.borrow().usable.last().copied();
@@ -509,26 +508,6 @@ impl Allocator {
         // SAFETY: The cell moved, so nothing uses its old slot.
         unsafe { (self.config.free_cell)(self.config.context, cell as *mut c_void, false) };
         bitmap::clear(self.allocated(block), index);
-    }
-
-    /// Lets go of a block that a collection evacuated if it is empty now, or lists it as usable again.
-    fn finish_evacuated_block(&self, block: usize) -> bool {
-        if bitmap::count(self.allocated(block)) != 0 {
-            if self.has_free_cells(block) && self.lists.borrow().local_block != block {
-                self.make_usable(block);
-            }
-            return false;
-        }
-        let descriptor = self.descriptor(block);
-        // SAFETY: As in make_usable().
-        unsafe {
-            if (*descriptor).usable {
-                (*descriptor).usable = false;
-                self.lists.borrow_mut().usable.retain(|&usable| usable != block);
-            }
-        }
-        self.release_block(block, true);
-        true
     }
 }
 
@@ -709,20 +688,6 @@ pub unsafe extern "C" fn rust_gc_allocator_allocate_destination(allocator: *cons
 pub unsafe extern "C" fn rust_gc_allocator_release_moved_cell(allocator: *const Allocator, cell: *mut c_void) {
     // SAFETY: Forwarded from the caller.
     abort_on_panic(|| unsafe { allocator_from(allocator) }.release_moved_cell(cell as usize));
-}
-
-/// Puts a block that a collection evacuated back, and returns whether it let go of it as it was empty.
-///
-/// # Safety
-///
-/// As for allocator_from(), and `block` must be one of the allocator's blocks.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_gc_allocator_finish_evacuated_block(
-    allocator: *const Allocator,
-    block: *mut c_void,
-) -> bool {
-    // SAFETY: Forwarded from the caller.
-    abort_on_panic(|| unsafe { allocator_from(allocator) }.finish_evacuated_block(block as usize))
 }
 
 /// # Safety
@@ -982,35 +947,70 @@ mod tests {
     }
 
     #[test]
-    fn evacuation_moves_cells_out_of_blocks_it_then_lets_go_of() {
+    fn evacuation_moves_cells_out_of_blocks_that_the_sweep_then_lets_go_of() {
         let heap = TestHeap::new(64);
         let cell_count = heap.allocator().cell_count;
         let cells: Vec<usize> = (0..cell_count * 2).map(|_| heap.allocate()).collect();
-        // Half of each block survives.
+        // Half of each block survives a first collection, which leaves room for the cells that move.
         let survivors: Vec<usize> = cells.iter().copied().step_by(2).collect();
         heap.collect(&survivors);
+        heap.freed.borrow_mut().clear();
+
+        // The next collection marks half of the survivors, and evacuates the first block before it sweeps.
+        heap.allocator().give_back_local_free_cells();
+        let marked: Vec<usize> = survivors.iter().copied().step_by(2).collect();
+        for &cell in &marked {
+            heap.mark(cell);
+        }
         let evacuated = cells[0] & !(BLOCK_SIZE - 1);
         let mut evacuation = 0u8;
         // SAFETY: Nothing else uses the descriptor while this test runs.
         unsafe { (*heap.allocator().descriptor(evacuated)).evacuation = (&raw mut evacuation).cast() };
-        for &cell in survivors.iter().filter(|&&cell| cell & !(BLOCK_SIZE - 1) == evacuated) {
+        let mut destinations = Vec::new();
+        for &cell in marked.iter().filter(|&&cell| cell & !(BLOCK_SIZE - 1) == evacuated) {
             let destination = heap.allocator().allocate_destination();
             assert_ne!(destination & !(BLOCK_SIZE - 1), evacuated);
+            // NB: The dead cells are not swept yet, so their slots are not free to take.
+            assert!(!survivors.contains(&destination));
+            heap.mark(destination);
+            destinations.push(destination);
             heap.allocator().release_moved_cell(cell);
         }
         // SAFETY: As above.
         unsafe { (*heap.allocator().descriptor(evacuated)).evacuation = core::ptr::null_mut() };
-        assert!(heap.allocator().finish_evacuated_block(evacuated));
+
+        // The sweep destroys the cells that died, in the evacuated block too, and lets go of the block.
+        heap.allocator().start_sweep();
+        let mut stats = SweepStats::default();
+        while heap.allocator().sweep_next_block(true, &mut stats) {}
+        assert_eq!(stats.freed_blocks, 1);
         assert_eq!(heap.allocator().lists.borrow().blocks.len(), 1);
+        let freed = heap.freed.borrow();
+        let destroyed: Vec<usize> = freed
+            .iter()
+            .filter(|&&(_, destroy)| destroy)
+            .map(|&(cell, _)| cell)
+            .collect();
+        assert_eq!(destroyed.len(), survivors.len() - marked.len());
+        assert!(
+            destroyed
+                .iter()
+                .all(|cell| !marked.contains(cell) && !destinations.contains(cell))
+        );
+        assert_eq!(heap.allocated_count(), marked.len());
     }
 
     #[test]
     fn blocks_kept_by_pins_are_forgotten_once_a_kept_cell_dies() {
         let heap = TestHeap::new(64);
         let cells: Vec<usize> = (0..10).map(|_| heap.allocate()).collect();
-        heap.collect(&cells);
         let block = cells[0] & !(BLOCK_SIZE - 1);
+        // NB: A collection keeps the cells that pins left in a block it evacuated once they moved, before it sweeps.
+        for &cell in &cells {
+            heap.mark(cell);
+        }
         heap.allocator().keep_cells_pinned(block);
+        heap.collect(&cells);
         // SAFETY: Nothing else uses the descriptor while this test runs.
         let kept_by_pins = || unsafe { (*heap.allocator().descriptor(block)).kept_by_pins };
         assert!(kept_by_pins());

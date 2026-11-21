@@ -63,12 +63,6 @@ ALWAYS_INLINE void set_marked(void const* cell)
     __atomic_fetch_or(&descriptor.marked[index / 64], cell_bit(index), __ATOMIC_RELAXED);
 }
 
-ALWAYS_INLINE void clear_marks(FFI::BlockDescriptor& descriptor)
-{
-    for (auto& word : descriptor.marked)
-        __atomic_store_n(&word, 0, __ATOMIC_RELAXED);
-}
-
 // A cell is allocated from when it is handed out until the sweep or a move frees its slot. While an allocator has taken
 // a run of free cells of a block to hand them out, they all count as allocated, see CellAllocator::LocalFreeCells. Only
 // the thread that owns the block's heap reads and writes these bits.

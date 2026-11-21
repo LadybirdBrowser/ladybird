@@ -165,11 +165,11 @@ GC_API void gc_allocator_destroy(GCAllocator*);
 GC_API void gc_allocator_set_traced_on_owner_thread_only(GCAllocator*);
 // Lets collections move the cells of the allocator to other blocks of it, in collections that do not scan the stack. A
 // cell moves as a bytewise copy, its old slot is freed without destroying it, and every slot that marking visited
-// through gc_marker_visit_member(), gc_marker_visit_values(), gc_marker_visit_interior_pointer() or
-// gc_marker_visit_self_pointer() is rewritten. A cell that something visits by value, through gc_marker_visit_cell() or
-// as a root, or that gc_marker_pin_cell() pins, stays where it is. So a type may only be movable if everything that
-// keeps its address without visiting it as a slot either pins it or forgets it (see gc_cell_will_move()). It must be
-// called before the allocator allocates a cell.
+// through gc_marker_visit_member(), gc_marker_visit_values(), gc_marker_visit_owned_values(),
+// gc_marker_visit_interior_pointer() or gc_marker_visit_self_pointer() is rewritten. A cell that something visits by
+// value, through gc_marker_visit_cell() or as a root, or that gc_marker_pin_cell() pins, stays where it is. So a type
+// may only be movable if everything that keeps its address without visiting it as a slot either pins it or forgets it
+// (see gc_cell_will_move()). It must be called before the allocator allocates a cell.
 GC_API void gc_allocator_set_movable(GCAllocator*);
 
 // Returns uninitialized storage for one cell.
@@ -213,6 +213,18 @@ GC_API bool gc_cell_is_marked(GCCell const*);
 GC_API bool gc_cell_will_move(GCCell const*);
 // Whether the collection in progress may move cells.
 GC_API bool gc_heap_is_moving_cells(GCHeap const*);
+// What a slot handed to gc_heap_record_slot() holds.
+enum {
+    // A NaN-boxed value, which may hold a cell.
+    GC_RECORDED_SLOT_VALUE = 0,
+    // A raw pointer to the start of a cell, or null.
+    GC_RECORDED_SLOT_CELL_POINTER = 1,
+};
+// Has the collection in progress rewrite a slot that marking did not visit through it if its cell moves, as it rewrites
+// the slots marking visited. Holders that keep cells without keeping them alive or in place, like weak maps, hand over
+// the slots of the cells that survived from a sweep callback, once they forgot those that died. The cell must be marked,
+// and nothing may free, move or write the slot until the collection is over. Does nothing if no cell moves.
+GC_API void gc_heap_record_slot(GCHeap*, void const* slot, int kind);
 // A 32-bit hash of the cell's identity, which stays the same while the cell lives, wherever the collector moves it.
 // Hashing a cell for the first time sets the "hashed" bit of the byte at identity_hash_state_offset; while the "moved"
 // bit is clear, the hash is the cell's compressed address, so code may compute it inline (see GC::identity_hash()) and
@@ -233,7 +245,8 @@ GC_API void gc_weak_impl_unref(GCWeakImpl*);
 GC_API void gc_visitor_visit_cell(GCVisitor*, GCCell*);
 GC_API void gc_visitor_visit_cells(GCVisitor*, GCCell* const*, size_t count);
 GC_API void gc_visitor_visit_values(GCVisitor*, uint64_t const*, size_t count);
-// Visits a NaN-boxed value that is reachable only while key is, such as a WeakMap entry's.
+// Visits a NaN-boxed value that is reachable only while key is, such as a WeakMap entry's. A collection that moves cells
+// keeps both where they are.
 GC_API void gc_visitor_visit_ephemeron(GCVisitor*, GCCell* key, uint64_t const* value);
 
 // The marker a marking GCVisitor points to (see GCLayout::visitor_marker_offset), which these hand cells to directly.
@@ -242,6 +255,10 @@ typedef struct GCMarker GCMarker;
 GC_API void gc_marker_visit_cell(GCMarker*, GCCell*);
 // Visits the values, whose slots a collection that moves cells rewrites if they are in a cell.
 GC_API void gc_marker_visit_values(GCMarker*, uint64_t const*, size_t count);
+// Visits values in memory that the cell being visited owns outside the heap, whose slots a collection that moves cells
+// rewrites where they are, like those in cells. Nothing may free, move or write that memory until the collection is
+// over: no finalizer, destructor or sweep callback may touch it.
+GC_API void gc_marker_visit_owned_values(GCMarker*, uint64_t const*, size_t count);
 // Visits the cell that the compressed pointer in the slot points to, if it is not null. A collection that moves cells
 // rewrites the slot if it is in a cell, and keeps the cell where it is otherwise.
 GC_API void gc_marker_visit_member(GCMarker*, uint32_t const* slot);
@@ -252,6 +269,9 @@ GC_API void gc_marker_visit_interior_pointer(GCMarker*, uintptr_t const* slot, G
 GC_API void gc_marker_visit_self_pointer(GCMarker*, uintptr_t const* slot);
 // Keeps the cell from moving without keeping it alive, for a weak reference that the collector cannot update.
 GC_API void gc_marker_pin_cell(GCMarker*, GCCell const*);
+// Marks value once key is marked, like gc_visitor_visit_ephemeron(), without keeping either from moving. The holder must
+// hand the slots of both to gc_heap_record_slot() if the entry survives the collection.
+GC_API void gc_marker_visit_ephemeron_without_pinning(GCMarker*, GCCell* key, GCCell* value);
 
 // Primitive storage holds byte buffers inside the cage that starts at gc_primitive_storage_cage_base(), so that the
 // interpreter can reach any of their bytes as a cage offset masked with primitive_storage_cage_offset_mask. Like the

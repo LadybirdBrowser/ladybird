@@ -28,11 +28,13 @@ use crate::runtime::realm::Realm;
 struct WeakMapValues(HashMap<Gc<CellHeader>, Value, foldhash::fast::RandomState>);
 
 // SAFETY: Visits every value as reachable only while its key is. The keys are held weakly, and removed in
-//         remove_dead_cells() once they die, together with their values.
+//         remove_dead_cells() once they die, together with their values, which then also hands the slots of the
+//         surviving entries to a collection that moves cells.
 unsafe impl Trace for WeakMapValues {
     fn trace(&self, visitor: &mut Visitor) {
         for (&key, value) in &self.0 {
-            visitor.visit_ephemeron(key, value);
+            // SAFETY: See above.
+            unsafe { visitor.visit_ephemeron_without_pinning(key, value) };
         }
     }
 }
@@ -135,10 +137,17 @@ impl WeakMap {
             .as_gc()
             .downcast::<WeakMap>()
             .expect("the weak container is a WeakMap");
-        weak_map
-            .values
-            .borrow_mut_in_sweep(sweep)
-            .0
-            .retain(|&key, _| !sweep.is_dead(key));
+        let mut values = weak_map.values.borrow_mut_in_sweep(sweep);
+        values.0.retain(|&key, _| !sweep.is_dead(key));
+        if sweep.moves_cells() {
+            // NB: The keys are hashed by their identity hash, which moves do not change, so the table stays as it is.
+            for (key, value) in &values.0 {
+                // SAFETY: Only the map's own methods change the table, and none runs until the collection is over.
+                unsafe {
+                    sweep.record_slot(key);
+                    sweep.record_value_slot(value);
+                }
+            }
+        }
     }
 }

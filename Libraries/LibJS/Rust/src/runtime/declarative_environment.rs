@@ -11,7 +11,6 @@
 
 use core::cell::{Cell, RefCell};
 use core::ops::Deref;
-use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use std::collections::HashMap;
 
 use ak::Utf16FlyString;
@@ -37,6 +36,7 @@ use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache}
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::module_environment::ModuleEnvironment;
+use crate::runtime::value_storage;
 
 #[derive(Clone)]
 pub struct Binding {
@@ -186,11 +186,9 @@ fn padded_binding_capacity(capacity: usize) -> usize {
     4 + capacity + capacity / 4
 }
 
-fn owned_binding_values_layout(capacity: usize) -> Layout {
-    Layout::array::<u64>(capacity + 1).expect("the binding values fit in memory")
-}
-
-/// The binding values of an environment, which it keeps in its cell or in a malloc allocation.
+/// The binding values of an environment, which it keeps in its cell or in value storage (see value_storage), which is
+/// a ValueStorage cell unless there are too many values for one. A collection can rewrite the values in a cell where they
+/// are, so the cells they name can move, as with the properties of objects.
 struct BindingValues<'a> {
     environment: &'a DeclarativeEnvironment,
 }
@@ -208,8 +206,8 @@ impl BindingValues<'_> {
         if data.is_null() {
             return 0;
         }
-        // SAFETY: A malloc allocation has its capacity in front of the first value.
-        unsafe { data.cast::<u64>().sub(1).read() as usize }
+        // SAFETY: Binding values that are not in the environment's cell are value storage.
+        unsafe { value_storage::capacity(data) as usize }
     }
 
     fn is_empty(&self) -> bool {
@@ -252,14 +250,14 @@ impl BindingValues<'_> {
         }
     }
 
-    /// Removes every value and frees the malloc allocation, if there is one.
+    /// Removes every value and frees the storage, if it is malloc storage.
     fn clear(&self) {
         self.environment.binding_count.set(0);
         self.reallocate(0);
     }
 
-    /// Moves the values from the cell to a malloc allocation, with room for at least `needed_capacity` values and as
-    /// much more as append() would make.
+    /// Moves the values from the cell to value storage, with room for at least `needed_capacity` values and as much more
+    /// as append() would make.
     fn move_to_owned_storage(&self, needed_capacity: usize) {
         self.reallocate(needed_capacity.max(padded_binding_capacity(self.size())));
     }
@@ -268,37 +266,23 @@ impl BindingValues<'_> {
         let size = self.size();
         assert!(new_capacity >= size);
         let old_data = self.environment.binding_values.get();
-        let old_capacity = self.capacity();
         let was_inline = self.environment.binding_values_are_inline();
         let new_data = if new_capacity == 0 {
             core::ptr::null_mut()
         } else {
-            let layout = owned_binding_values_layout(new_capacity);
-            // SAFETY: The layout has a non-zero size.
-            let allocation = unsafe { alloc(layout) }.cast::<u64>();
-            if allocation.is_null() {
-                handle_alloc_error(layout);
+            let capacity = u32::try_from(new_capacity).expect("the binding count fits in u32");
+            // NB: Allocating value storage never collects garbage, so the old values stay where they are meanwhile.
+            let new_data = value_storage::allocate(Vm::of_cell(self.environment).heap(), capacity, Value::UNDEFINED);
+            if size != 0 {
+                // SAFETY: The new storage has room for `new_capacity` values, of which `size` come from the old storage,
+                //         which is other memory.
+                unsafe { core::ptr::copy_nonoverlapping(old_data, new_data, size) };
             }
-            // SAFETY: The allocation has room for the capacity and `new_capacity` values, of which `size` come from the
-            //         old storage, which is another one.
-            unsafe {
-                allocation.write(new_capacity as u64);
-                let new_data = allocation.add(1).cast::<Value>();
-                if size != 0 {
-                    core::ptr::copy_nonoverlapping(old_data, new_data, size);
-                }
-                new_data
-            }
+            new_data
         };
         if !old_data.is_null() && !was_inline {
-            // SAFETY: The old storage is a malloc allocation that this method made with this layout, with the capacity
-            //         in front of the first value.
-            unsafe {
-                dealloc(
-                    old_data.cast::<u64>().sub(1).cast(),
-                    owned_binding_values_layout(old_capacity),
-                );
-            }
+            // SAFETY: The old storage is value storage that this method allocated, which nothing uses any more.
+            unsafe { value_storage::deallocate(old_data) };
         }
         self.environment.binding_values.set(new_data);
         self.environment.inline_binding_capacity.set(0);
@@ -313,13 +297,26 @@ unsafe impl Trace for DeclarativeEnvironment {
     fn trace(&self, visitor: &mut Visitor) {
         self.base.trace(visitor);
         self.rare_data.trace(visitor);
+        let binding_values = self.binding_values.get();
+        // SAFETY: The first `binding_count` values are initialized, and nothing writes them while they are visited.
+        let values = unsafe { ak::slice_from_raw_parts(binding_values, self.binding_count.get() as usize) };
         if self.binding_values_are_inline() {
             visitor.visit_self_pointer(&self.binding_values);
+            visitor.visit_values(values);
+        } else if !binding_values.is_null() {
+            // SAFETY: Binding values that are not in the environment's cell are value storage.
+            match unsafe { value_storage::cell(binding_values) } {
+                Some(storage) => {
+                    // NB: The pointer to the storage is visited as a slot, so that a collection that moves the
+                    //     environment or its storage cell keeps it pointing into it.
+                    visitor.visit_interior_pointer(&self.binding_values, storage);
+                    visitor.visit_values(values);
+                }
+                // SAFETY: Malloc storage is the environment's own, which only its own methods change, and only its
+                //         finalizer frees.
+                None => unsafe { visitor.visit_owned_values(values) },
+            }
         }
-        // SAFETY: The first `binding_count` values are initialized, and nothing writes them while they are visited.
-        visitor.visit_values(unsafe {
-            ak::slice_from_raw_parts(self.binding_values.get(), self.binding_count.get() as usize)
-        });
     }
 }
 
@@ -332,7 +329,7 @@ impl Finalize for DeclarativeEnvironment {
 }
 
 /// How many binding values the size classes of an environment class have room for after the fields of the class.
-/// Environments with more bindings keep them in malloc storage.
+/// Environments with more bindings keep them in value storage.
 pub const INLINE_BINDING_CAPACITIES: [u8; 8] = [1, 2, 3, 4, 6, 8, 12, 16];
 
 /// The cell sizes of the size classes of an environment class whose cells are `cell_size` bytes.
