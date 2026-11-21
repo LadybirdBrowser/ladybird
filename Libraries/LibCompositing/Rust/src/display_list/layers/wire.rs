@@ -5,7 +5,8 @@
  */
 
 //! A plan of the layers of a list as it goes from WebContent to the compositor: what of its stack the compositor cannot
-//! work out of the list and the tree, and the checks that a plan from another process passes before anything reads it.
+//! work out of the list and the tree, the notes the overlay of layers shows, and the checks that a plan from another
+//! process passes before anything reads it.
 
 use super::{
     BandOfPlan, BarrierOfPlan, COORDINATE_LIMIT_IN_DEVICE_PIXELS, CutOfPlan, LayerContent, LayerIdentity, LayerStack,
@@ -37,6 +38,22 @@ const MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
 const MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
 const MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND: usize = 256;
 const MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND: usize = 1 << 20;
+// The most note lines a plan holds, and the most bytes a line holds. A plan holds only the first lines, each cut to that
+// length, so that no plan exceeds the caps.
+const MAXIMUM_NOTE_LINE_COUNT_OF_PLAN: usize = 1 << 10;
+const MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN: usize = 1 << 10;
+
+/// The note lines a plan holds of `lines`: as many of the first lines as a plan holds, each cut at a character boundary
+/// to the length a plan holds.
+pub(super) fn note_lines_a_plan_holds(lines: impl Iterator<Item = String>) -> Vec<String> {
+    lines
+        .take(MAXIMUM_NOTE_LINE_COUNT_OF_PLAN)
+        .map(|mut line| {
+            line.truncate(line.floor_char_boundary(MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN));
+            line
+        })
+        .collect()
+}
 
 /// A stack decoded from another process: why it is one layer that replays the whole list, or the plan of a stack of
 /// more layers. Nothing reads it until `validated_stack` checks it and works out the stack.
@@ -47,12 +64,14 @@ enum StackOnWire {
 }
 
 /// A plan of the layers of a list as WebContent sends it to the compositor: the stack, the display list it was planned
-/// for, and the viewport, in device pixels, it was planned within.
+/// for, the viewport, in device pixels, it was planned within, and what the overlay of layers tells of the stack past
+/// its layers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayerPlan {
     pub display_list_id: u64,
     pub viewport_rect: IntRect,
     pub stack: LayerStack,
+    pub note_lines: Vec<String>,
 }
 
 /// A plan of layers decoded from another process, whose stack nothing reads until it is checked.
@@ -61,16 +80,19 @@ pub struct UnvalidatedLayerPlan {
     pub display_list_id: u64,
     pub viewport_rect: IntRect,
     stack: StackOnWire,
+    note_lines: Vec<String>,
 }
 
 impl UnvalidatedLayerPlan {
     /// The plan, once its stack passes `validated_stack` for `list` under `tree` within the viewport the plan
-    /// names. The receiver makes sure that `list` is the list that `display_list_id` names.
+    /// names. The receiver makes sure that `list` is the list that `display_list_id` names. The note lines go unchecked:
+    /// decoding bounds their count and length, and only the overlay of layers shows them.
     pub fn validated(self, list: &DisplayListStorage, tree: &VisualContextTree) -> Result<LayerPlan, &'static str> {
         Ok(LayerPlan {
             display_list_id: self.display_list_id,
             viewport_rect: self.viewport_rect,
             stack: validated_stack(self.stack, list, tree, self.viewport_rect)?,
+            note_lines: self.note_lines,
         })
     }
 }
@@ -411,22 +433,35 @@ impl Encode for LayerStack {
     }
 }
 
+fn decode_note_lines(decoder: &mut Decoder<'_>) -> Result<Vec<String>, DecodeError> {
+    let count = decoder.decode_size()?;
+    if count > MAXIMUM_NOTE_LINE_COUNT_OF_PLAN || count > decoder.remaining_bytes() / String::MIN_ENCODED_SIZE {
+        return Err(DecodeError::SizeTooLarge(count));
+    }
+    (0..count)
+        .map(|_| decoder.decode_with_max_size(MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN))
+        .collect()
+}
+
 impl Encode for LayerPlan {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.display_list_id)?;
         encoder.encode(&self.viewport_rect)?;
-        encoder.encode(&self.stack)
+        encoder.encode(&self.stack)?;
+        encoder.encode(&self.note_lines)
     }
 }
 
 impl Decode for UnvalidatedLayerPlan {
-    const MIN_ENCODED_SIZE: usize = size_of::<u64>() + IntRect::MIN_ENCODED_SIZE + StackOnWire::MIN_ENCODED_SIZE;
+    const MIN_ENCODED_SIZE: usize =
+        size_of::<u64>() + IntRect::MIN_ENCODED_SIZE + StackOnWire::MIN_ENCODED_SIZE + Vec::<String>::MIN_ENCODED_SIZE;
 
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             display_list_id: decoder.decode()?,
             viewport_rect: decoder.decode()?,
             stack: decoder.decode()?,
+            note_lines: decode_note_lines(decoder)?,
         })
     }
 }
@@ -1274,6 +1309,7 @@ mod tests {
             display_list_id: 42,
             viewport_rect: VIEWPORT,
             stack: planned.stack.clone(),
+            note_lines: planned.note_lines_for_layers_overlay(),
         }
     }
 
@@ -1566,6 +1602,62 @@ mod tests {
         }
     }
 
+    // The overlay of layers showed these lines of the plans of these pages before the plan carried them as text.
+    #[test]
+    fn the_note_lines_of_a_plan_are_the_lines_the_overlay_of_layers_showed() {
+        let lines_of = |page: Page| page.planned().note_lines_for_layers_overlay();
+        assert_eq!(
+            lines_of(page_with_nested_composited_effects()),
+            [
+                "composited e1 space=document: the compositor animates it",
+                "composited e2 space=document inside e1: the compositor animates it",
+            ]
+        );
+        assert_eq!(
+            lines_of(page_with_spinner_holding_the_root_group()),
+            ["composited e0 space=animated@s1 in viewport: it applies over a transform the compositor animates"]
+        );
+        assert_eq!(
+            lines_of(page_with_nine_canvases()),
+            ["no layer for canvas: past the most media that get layers"]
+        );
+        assert_eq!(
+            lines_of(page_with_two_fading_siblings()),
+            [
+                "composited e1 space=document: the compositor animates it",
+                "composited e2 space=document: the compositor animates it",
+            ]
+        );
+        assert_eq!(
+            lines_of(page_with_frosted_glass()),
+            [
+                "composited e2 space=document reads=[73,73 254x154]: it reads what its own layer does not hold",
+                "e1 is not composited: it reads only its own layer",
+            ]
+        );
+        assert!(lines_of(page_under_translucent_root()).is_empty());
+        assert!(lines_of(plain_page()).is_empty());
+    }
+
+    #[test]
+    fn note_lines_past_what_a_plan_holds_are_cut() {
+        // The last character that fits is cut in two at the length a line holds, so the line ends before it.
+        let long_line = format!("a{}", "é".repeat(MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN));
+        let lines = note_lines_a_plan_holds(std::iter::repeat_n(long_line, MAXIMUM_NOTE_LINE_COUNT_OF_PLAN + 1));
+        assert_eq!(lines.len(), MAXIMUM_NOTE_LINE_COUNT_OF_PLAN);
+        assert!(
+            lines
+                .iter()
+                .all(|line| line.len() == MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN - 1)
+        );
+        let page = plain_page();
+        let sent = LayerPlan {
+            note_lines: lines,
+            ..plan_sent_of(&page.planned())
+        };
+        assert_eq!(decoded_and_validated_plan(&page, &encoded(&sent)), Ok(sent));
+    }
+
     #[test]
     fn every_reason_and_kind_round_trips() {
         fn round_trip<T: Encode + Decode + PartialEq + std::fmt::Debug>(value: T) {
@@ -1621,6 +1713,23 @@ mod tests {
             Err(DecodeError::SizeTooLarge(_))
         ));
         let page = page_with_two_canvases();
+        let plan_with_note_lines = |note_lines: Vec<String>| {
+            encoded(&LayerPlan {
+                note_lines,
+                ..plan_sent_of(&page.planned())
+            })
+        };
+        let too_many_lines = vec![String::new(); MAXIMUM_NOTE_LINE_COUNT_OF_PLAN + 1];
+        let too_long_line = vec!["x".repeat(MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN + 1)];
+        for bytes in [
+            plan_with_note_lines(too_many_lines),
+            plan_with_note_lines(too_long_line),
+        ] {
+            assert!(matches!(
+                Decoder::new(&bytes, []).decode::<UnvalidatedLayerPlan>(),
+                Err(DecodeError::SizeTooLarge(_))
+            ));
+        }
         // A count of many spans that the bytes cannot hold is refused too.
         let mut bytes = encoded(&plan_sent_of(&page.planned()));
         bytes.truncate(bytes.len() / 2);
@@ -2116,6 +2225,7 @@ mod tests {
         for run_index in 0..list.run_count() {
             planned_with_stack.layers_of_record(list.span_of_run(run_index).begin);
         }
+        planned_with_stack.note_lines_for_layers_overlay();
         for layer_index in 0..stack.layers.len() {
             stack.space_holds_content_that_moves_within_it(stack.space_of_layer(LayerIndex(layer_index)));
         }

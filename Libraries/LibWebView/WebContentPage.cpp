@@ -545,6 +545,12 @@ void WebContentPage::did_consume_input_event_in_compositor(u64 event_id)
     }
 }
 
+void WebContentPage::did_update_compositor_layers(Compositing::CompositorLayersDescription const& layers)
+{
+    if (displays_tab())
+        view().did_update_compositor_layers({}, layers);
+}
+
 void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_id)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor did not dispatch input event {} for page {}; sending it to WebContent directly", event_id, m_id);

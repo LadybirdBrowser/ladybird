@@ -158,7 +158,7 @@ impl std::fmt::Display for WhyEffectIsComposited {
 }
 
 /// A plan of the layers of a list: the stack the compositor composites frames from, and where the parts of the list
-/// are placed among the spaces of the stack, which only the dump and the tests read.
+/// are placed among the spaces of the stack, which only the dump, the overlay of layers and the tests read.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlannedLayers {
     pub stack: LayerStack,

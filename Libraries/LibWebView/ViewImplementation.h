@@ -370,6 +370,7 @@ public:
     bool take_input_to_open_link_in_new_tab(Badge<WebContentPage>, WebContentPage const&);
     void did_lose_input_event_endpoint(Badge<WebContentPage>, WebContentPage&);
     void did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id);
+    void did_update_compositor_layers(Badge<WebContentPage>, Compositing::CompositorLayersDescription const&);
     void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
     void did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool performed_default_action);
     void discard_input_events_routed_through_lost_compositor(Badge<Application>);
@@ -655,6 +656,7 @@ public:
 
     Function<void()> on_ready_to_paint;
     Function<void(TabPerformanceStats const&)> on_performance_stats;
+    Function<void(Compositing::CompositorLayersDescription const&)> on_compositor_layers_change;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, CanonicalTraversable&)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;

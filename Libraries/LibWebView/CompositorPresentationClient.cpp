@@ -129,6 +129,12 @@ void CompositorPresentationClient::did_consume_input_event(Web::CompositorContex
         page->did_consume_input_event_in_compositor(event_id);
 }
 
+void CompositorPresentationClient::did_update_compositor_layers(Web::CompositorContextId context_id, Compositing::CompositorLayersDescription layers)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_update_compositor_layers(layers);
+}
+
 void CompositorPresentationClient::did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id)
 {
     if (auto* page = page_for_compositor_context_id(context_id))

@@ -20,7 +20,7 @@ use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame, PresentationId, WebContentClientId};
 use crate::input_event::is_keyboard_scroll_key;
 use crate::keyboard_scroll_controller::{KeyRelease, KeyStep, KeyboardScrollController};
-use crate::overlays::{ContextOverlays, UIOverlays};
+use crate::overlays::{ContextOverlays, UIOverlays, UIOverlaysChange};
 use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
 use crate::scrollbar_controller::{Drag, ScrollbarController};
@@ -579,7 +579,7 @@ impl ContextState {
             || self.elastic_overscroll_controller.has_rebound()
             || self.visual_animations_need_frame(now)
             || self.scrollbar_controller.fades_need_frame(now)
-            || self.overlays.fades_need_frame()
+            || self.overlays.fades_or_compositor_layers_overlay_need_frame()
     }
     pub fn has_active_scroll_fling(&self) -> bool {
         self.scroll_fling_controller.is_active()

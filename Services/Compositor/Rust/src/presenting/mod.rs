@@ -9,6 +9,7 @@
 //! host.
 
 mod damage;
+mod layer_overlay;
 mod layers;
 pub mod pacing;
 mod tiles;
@@ -22,6 +23,7 @@ use crate::remote_layers::{ShowingLayer, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use damage::{PaintedFrame, StoreDamage};
+use layer_overlay::LayerOverlaySwitch;
 use layers::ContextLayers;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{
@@ -29,6 +31,7 @@ use libcompositing_rust::display_list::replay::{
     ResolvedCompositedContext, composite_inside_effects, replay_display_list,
 };
 use libcompositing_rust::host::FfiRasterPainter;
+use libcompositing_rust::ipc_types::Compositing_CompositorLayersDescription as CompositorLayersDescription;
 use libcompositing_rust::scrolling::DisplayList;
 use libcompositing_rust::time::{Duration, MonotonicTime};
 use libgfx_rust::{Color, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, IntSize, enclosing_int_rect};
@@ -109,6 +112,7 @@ fn screenshots_paint_from_layers() -> bool {
 struct LayeredPaintState {
     layers: ContextLayers,
     painted_frame: Option<PaintedFrame>,
+    layer_overlay: LayerOverlaySwitch,
     viewport_size: IntSize,
     shown_in_remote_layer: bool,
     backing_stores: BackingStores,
@@ -116,12 +120,13 @@ struct LayeredPaintState {
 
 impl LayeredPaintState {
     /// The state of a first frame of the screenshot's size that the window server and the presentation do not show:
-    /// no layers, tiles or frame from before. Without published stores, the frame draws no LCD text, as a replay of
-    /// the list into a screenshot does not.
+    /// no layers, tiles or frame from before, and no overlay of the layers. Without published stores, the frame draws
+    /// no LCD text, as a replay of the list into a screenshot does not.
     fn of_screenshot(target_size: IntSize) -> Self {
         Self {
             layers: ContextLayers::default(),
             painted_frame: None,
+            layer_overlay: LayerOverlaySwitch::default(),
             viewport_size: target_size,
             shown_in_remote_layer: false,
             backing_stores: BackingStores::default(),
@@ -214,6 +219,7 @@ pub struct ContextPresenting {
 
     painted_frame: Option<PaintedFrame>,
     layers: ContextLayers,
+    layer_overlay: LayerOverlaySwitch,
 }
 
 impl ContextPresenting {
@@ -254,6 +260,7 @@ impl ContextPresenting {
             raster_translation: FloatPoint::default(),
             painted_frame: None,
             layers: ContextLayers::default(),
+            layer_overlay: LayerOverlaySwitch::default(),
         }
     }
 
@@ -753,6 +760,13 @@ impl ContextPresenting {
         }
         let display_list = display_list.expect("a frame that can render has a display list");
         let frame_inputs = frame_inputs.expect("a context with a display list has frame inputs");
+        self.layer_overlay.switch_for_frame(
+            frame_inputs
+                .overlays
+                .compositor_layers
+                .as_ref()
+                .filter(|_| self.presents_to_client),
+        );
         let live_content = self.live_content(env, display_list);
         let frame = FrameToPaint {
             display_list,
@@ -793,7 +807,15 @@ impl ContextPresenting {
         };
         let store_rect = rect_of_size(store.size());
         let repaint_rect = self.store_damage.take(bitmap_id, damage_rect, store_rect);
-        let painted_rect = self.paint_layered_frame(env, &store, &frame, repaint_rect, &mut frame_damage.layers, true);
+        let painted_rect = self.paint_layered_frame(
+            env,
+            &store,
+            &frame,
+            repaint_rect,
+            &mut frame_damage.layers,
+            &live_content,
+            true,
+        );
         // The other stores miss all of what this one now holds.
         if painted_rect != repaint_rect {
             damage_rect = rect_of_size(IntSize {
@@ -832,6 +854,8 @@ impl ContextPresenting {
             return;
         };
         let frame_inputs = frame_inputs.expect("a context with a display list has frame inputs");
+        // What the parent draws of the frame can go into the parent's tiles, which the overlay must stay out of.
+        self.layer_overlay.switch_for_frame(None);
         let pending_frame = match self.pending_present_frame {
             Some(pending_frame) => pending_frame,
             None => match self.presented_frame {
@@ -864,7 +888,15 @@ impl ContextPresenting {
         } else {
             rect_of_size(raster_size)
         };
-        let _ = self.paint_layered_frame(env, &surface, &frame, repaint_rect, &mut frame_damage.layers, true);
+        let _ = self.paint_layered_frame(
+            env,
+            &surface,
+            &frame,
+            repaint_rect,
+            &mut frame_damage.layers,
+            &live_content,
+            true,
+        );
         self.remember_painted_frame(
             env,
             pending_frame.viewport_rect,
@@ -895,7 +927,7 @@ impl ContextPresenting {
         if !screenshots_paint_from_layers() || !self.paint_screenshot_from_layers(env, target, &frame) {
             let save_count = env.raster.save(target);
             replay_into(env, target, &frame, ReplaySelection::default());
-            paint_overlays(env, target, frame_inputs, false);
+            self.paint_overlays(env, target, frame_inputs, false);
             env.raster.restore_to_count(target, save_count);
         }
         env.raster.flush(target);
@@ -925,6 +957,7 @@ impl ContextPresenting {
                 frame,
                 frame_damage.rect_in_raster_device_pixels,
                 &mut frame_damage.layers,
+                &live_content,
                 false,
             );
         });
@@ -944,12 +977,14 @@ impl ContextPresenting {
         let LayeredPaintState {
             layers,
             painted_frame,
+            layer_overlay,
             viewport_size,
             shown_in_remote_layer,
             backing_stores,
         } = state;
         std::mem::swap(&mut self.layers, layers);
         std::mem::swap(&mut self.painted_frame, painted_frame);
+        std::mem::swap(&mut self.layer_overlay, layer_overlay);
         std::mem::swap(&mut self.viewport_size, viewport_size);
         std::mem::swap(&mut self.shown_in_remote_layer, shown_in_remote_layer);
         std::mem::swap(&mut self.backing_stores, backing_stores);
@@ -1005,7 +1040,7 @@ impl ContextPresenting {
                     source_rect,
                     &painted_frame.layers,
                 );
-                paint_overlays(&snapshot_env, &composited, &painted_frame.frame_inputs, true);
+                self.paint_overlays(&snapshot_env, &composited, &painted_frame.frame_inputs, true);
                 source = composited;
             }
         }
@@ -1033,6 +1068,38 @@ impl ContextPresenting {
             && display_list.storage().summary().destination_blending_records.is_empty()
             // A blend or backdrop filter that reads the root group needs its original isolation from the canvas fill.
             && !tree.blend_mode_or_backdrop_filter_reads_root_group()
+    }
+
+    /// Paints what the compositor draws over the page: its scrollbars, and unless they are left out, the overlays of the
+    /// browser and of the layers.
+    fn paint_overlays(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        target: &Rc<PaintingSurface>,
+        frame_inputs: &FrameInputs,
+        paints_ui_overlays: bool,
+    ) {
+        env.raster
+            .paint(env.context_id, target, PaintingResources::Overlays, false, |painter| {
+                frame_inputs.overlays.paint(painter, paints_ui_overlays);
+            });
+        let Some(layer_overlay_frame) = self.layer_overlay.latest_frame().filter(|_| paints_ui_overlays) else {
+            return;
+        };
+        env.raster
+            .paint(env.context_id, target, PaintingResources::Overlays, false, |painter| {
+                layer_overlay_frame.records.paint(painter);
+            });
+    }
+
+    /// Until when the compositor layers overlay needs frames without anything else changing.
+    pub fn layer_overlay_needs_frames_until(&self) -> Option<MonotonicTime> {
+        self.layer_overlay.needs_frames_until()
+    }
+
+    /// What the compositor layers window is to be told of the frame painted last, if anything.
+    pub fn take_description_of_layers_to_publish(&mut self, now: MonotonicTime) -> Option<CompositorLayersDescription> {
+        self.layer_overlay.overlay_mut()?.take_description_to_publish(now)
     }
 }
 
@@ -1136,19 +1203,5 @@ pub(crate) fn composite_inside_effects_of_frame(
                 painter,
                 composite,
             );
-        });
-}
-
-/// Paints what the compositor draws over the page: its scrollbars, and unless they are left out, the overlays of the
-/// browser.
-pub(crate) fn paint_overlays(
-    env: &PresentingEnvironment<'_>,
-    target: &Rc<PaintingSurface>,
-    frame_inputs: &FrameInputs,
-    paints_ui_overlays: bool,
-) {
-    env.raster
-        .paint(env.context_id, target, PaintingResources::Overlays, false, |painter| {
-            frame_inputs.overlays.paint(painter, paints_ui_overlays);
         });
 }

@@ -16,4 +16,5 @@ endpoint CompositorPresentationClient
     [RustSender] did_consume_input_event(Web::CompositorContextId context_id, u64 event_id) =|
     [RustSender] did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id) =|
     [RustSender] did_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id, bool performed_default_action) =|
+    [RustSender] did_update_compositor_layers(Web::CompositorContextId context_id, Compositing::CompositorLayersDescription layers) =|
 }

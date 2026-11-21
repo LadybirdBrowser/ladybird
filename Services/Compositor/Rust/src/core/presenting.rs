@@ -429,9 +429,27 @@ impl CompositorCore {
         };
         let environment = self.environment(context_id, now, &nested_contexts);
         let mut presenting = presenting.borrow_mut();
-        let Some(prepared_frame) =
-            presenting.prepare_frame(&environment, pending_frame, display_list.as_ref(), frame_inputs)
-        else {
+        let prepared_frame = presenting.prepare_frame(&environment, pending_frame, display_list.as_ref(), frame_inputs);
+        if let Some(presentation_id) = bound_presentation
+            && let Some(layers) = presenting.take_description_of_layers_to_publish(now)
+        {
+            self.host.post_to_presentation(
+                presentation_id,
+                compositor_presentation_client::messages::DidUpdateCompositorLayers { context_id, layers },
+            );
+        }
+        // If the frame was not painted, as while the stores are not valid, the overlay is still that of an earlier
+        // frame, which can need frames until a time that is past.
+        let layer_overlay_needs_frames_until = presenting
+            .layer_overlay_needs_frames_until()
+            .filter(|&until| until > now);
+        context
+            .borrow_mut()
+            .set_compositor_layers_overlay_needs_frames_until(layer_overlay_needs_frames_until);
+        if layer_overlay_needs_frames_until.is_some() {
+            self.host.request_display_ticks(context_id);
+        }
+        let Some(prepared_frame) = prepared_frame else {
             return;
         };
 

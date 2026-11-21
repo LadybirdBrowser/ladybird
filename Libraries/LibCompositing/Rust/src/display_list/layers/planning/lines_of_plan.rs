@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The lines the dump tells of a plan, and the layers the dump names for each record.
+//! The lines the dump and the overlay of layers tell of a plan, and the layers the dump names for each record.
 
 use super::{AnimatedNode, PlacedEffect, PlannedLayers, WhyEffectIsComposited, for_each_layer_records_go_into};
 use crate::display_list::commands::EffectNodeIndex;
 use crate::display_list::layers::{
-    CompositedEffect, LayerContent, LayerIndex, VisualContextNodeNamer, WindowServerPresentationOfMedia, media_name,
+    CompositedEffect, LayerContent, LayerIndex, NodeNamesFromIndices, VisualContextNodeNamer,
+    WindowServerPresentationOfMedia, media_name, wire,
 };
 use crate::display_list::reach::Reach;
 use crate::display_list::storage::ListPosition;
@@ -93,6 +94,21 @@ impl PlannedLayers {
             .media_without_layers
             .iter()
             .map(|(content, why_no_layer)| format!("no layer for {}: {why_no_layer}", media_name(*content)))
+    }
+
+    /// The lines the overlay of layers shows of the stack past its layers, which WebContent sends with the plan: those
+    /// of the effects the compositor composites, of the canvases, videos and nested contexts without layers, and of the
+    /// effects that read only their own layer, with nodes named by their indices, as many and as long as a plan holds.
+    /// A stack of one layer that replays the whole list has none.
+    pub fn note_lines_for_layers_overlay(&self) -> Vec<String> {
+        if self.stack.replays_whole_list() {
+            return Vec::new();
+        }
+        wire::note_lines_a_plan_holds(
+            self.lines_of_composited_effects(&NodeNamesFromIndices)
+                .chain(self.lines_of_media_without_layers())
+                .chain(self.lines_of_effects_reading_only_own_layer(&NodeNamesFromIndices)),
+        )
     }
 
     /// What the dump says of each node the compositor animates whose content was not given layers of its own, and why.

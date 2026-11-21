@@ -8,7 +8,7 @@
 //! painted layers and the overlays of the compositor from.
 
 use super::layers::{LayerCompositingInFrame, PaintedLayers};
-use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, paint_overlays, rect_of_size, size_of};
+use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size, size_of};
 use crate::raster_host::{FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, SublayerContentKind};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfacePool};
@@ -52,6 +52,36 @@ pub(super) enum WhyMediaIsReplayed {
     VideoHasNoFrame,
     HighDynamicRangeIsNotShownNow,
     WindowServerCannotShowThePlacement,
+    TilesWerePaintedStraightIntoTheFrame,
+    InsideAnEffectTheCompositorComposites,
+    UnderALayerTheFrameHolds,
+}
+
+impl std::fmt::Display for WhyMediaIsReplayed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            WhyMediaIsReplayed::ContextIsNotShownInARemoteLayer => "the context is not shown in a remote layer",
+            WhyMediaIsReplayed::NoGpu => "the compositor has no GPU",
+            WhyMediaIsReplayed::ContextIsPresentedFromCpuMemory => "the context is presented from CPU memory",
+            WhyMediaIsReplayed::Placement(rejection) => return write!(formatter, "{rejection}"),
+            WhyMediaIsReplayed::NoPlacement(LiveMedia::ImageFrame(_)) => "the window server does not show images",
+            WhyMediaIsReplayed::NoPlacement(LiveMedia::CompositedContext(_)) => {
+                "the window server does not show nested contexts"
+            }
+            WhyMediaIsReplayed::NoPlacement(_) => "where the window server would show it is not worked out",
+            WhyMediaIsReplayed::CanvasHasNoPresentableSurface => "the canvas has no surface the window server can show",
+            WhyMediaIsReplayed::VideoHasNoFrame => "the video has no frame",
+            WhyMediaIsReplayed::HighDynamicRangeIsNotShownNow => {
+                "the window server does not show high dynamic range now"
+            }
+            WhyMediaIsReplayed::WindowServerCannotShowThePlacement => "the window server cannot show it where it is",
+            WhyMediaIsReplayed::TilesWerePaintedStraightIntoTheFrame => "tiles were painted straight into the frame",
+            WhyMediaIsReplayed::InsideAnEffectTheCompositorComposites => {
+                "it is inside an effect the compositor composites"
+            }
+            WhyMediaIsReplayed::UnderALayerTheFrameHolds => "it is under a layer the frame holds",
+        })
+    }
 }
 
 #[derive(Default)]
@@ -264,7 +294,10 @@ impl ContextPresenting {
         like: &Rc<PaintingSurface>,
     ) -> bool {
         let raster = env.raster;
-        let overlays_rect = frame.frame_inputs.overlays.bounds;
+        let mut overlays_rect = frame.frame_inputs.overlays.bounds;
+        if self.layer_overlay.latest_frame().is_some() {
+            overlays_rect = overlays_rect.united(self.raster_rect());
+        }
         if overlays_rect.is_empty() {
             self.layers.window_server.latest_compositor_overlays_surface_and_rect = None;
             return true;
@@ -284,7 +317,7 @@ impl ContextPresenting {
         raster.clear(target, Color::TRANSPARENT);
         let save_count = raster.save(target);
         raster.translate(target, -overlays_rect.x as f32, -overlays_rect.y as f32);
-        paint_overlays(env, target, frame.frame_inputs, true);
+        self.paint_overlays(env, target, frame.frame_inputs, true);
         raster.restore_to_count(target, save_count);
         self.layers.window_server.latest_compositor_overlays_surface_and_rect = Some((presentable, overlays_rect));
         true
@@ -306,6 +339,7 @@ impl ContextPresenting {
             .iter()
             .skip(1)
             .filter(|compositing| compositing.shown_by_window_server)
+            .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity))
         {
             let layer_index = compositing.layer_index;
             let layer = compositing.layer_in(&painted.stack);

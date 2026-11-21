@@ -2766,6 +2766,12 @@ void ViewImplementation::update_ui_overlays()
     Application::the().update_compositor_ui_overlays(page().compositor_context_id(), overlays);
 }
 
+void ViewImplementation::did_update_compositor_layers(Badge<WebContentPage>, Compositing::CompositorLayersDescription const& layers)
+{
+    if (on_compositor_layers_change)
+        on_compositor_layers_change(layers);
+}
+
 void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
 {
     page().async_update_debugger_blackboxing(move(url), move(ranges), operation);

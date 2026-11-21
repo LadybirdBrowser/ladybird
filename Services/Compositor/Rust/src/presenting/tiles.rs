@@ -8,6 +8,7 @@
 //! pixels of a tile are pooled under the tile's content hash, which hashes all they depend on, so a layer finds the
 //! tiles another layer or an earlier stack rastered.
 
+use super::layer_overlay::{ModelTile, RasterCause};
 use super::layers::LayerCompositingInFrame;
 use super::{PresentingEnvironment, inflated, rect_of_size, size_of};
 use crate::host::ContextTimer;
@@ -120,6 +121,7 @@ pub(super) struct LayerToRaster<'a> {
 pub(super) struct RasteredLayer {
     /// In the layer's space, where tiles are painted straight from the list into the frame instead.
     pub(super) rects_painted_straight: Vec<IntRect>,
+    pub(super) tile_count: u64,
 }
 
 /// The tiles the layers of a context hold under the identities of the layers, and the pool of their pixels.
@@ -165,6 +167,21 @@ impl LayerTiles {
         pooled_held_tiles(&held.by_cell, &self.pool).fold(IntRect::default(), |bounds, (_, tile)| {
             bounds.united(tile.held_part_of_cell)
         })
+    }
+
+    pub(super) fn model_tiles_of(&self, identity: &LayerIdentity) -> Vec<ModelTile> {
+        let Some(held) = self.held_by_layer.get(identity) else {
+            return Vec::new();
+        };
+        pooled_held_tiles(&held.by_cell, &self.pool)
+            .map(|(coord, tile)| ModelTile {
+                coord,
+                held_part_of_cell: Some(tile.held_part_of_cell),
+                is_one_color: tile.surface().is_none(),
+                raster_count: 0,
+                last_raster: None,
+            })
+            .collect()
     }
 
     pub(super) fn stale_rect_of_layer(
@@ -407,7 +424,8 @@ impl LayerTiles {
     }
 
     /// Keeps the tiles the layer shows and those it may show again soon, and rasters the shown tiles that lack current
-    /// pixels: `replay_tiles` replays the records of the tiles it is given into a target.
+    /// pixels: `replay_tiles` replays the records of the tiles it is given into a target, and `record_raster` hears of
+    /// each tile rastered or painted straight into the frame.
     pub(super) fn raster_layer(
         &mut self,
         env: &PresentingEnvironment<'_>,
@@ -415,6 +433,7 @@ impl LayerTiles {
         layer: LayerToRaster<'_>,
         holder_count_by_content_hash: &HashMap<ContentHash, usize>,
         replay_tiles: impl Fn(&Rc<PaintingSurface>, &[&TileShownInFrame]),
+        mut record_raster: Option<impl FnMut(TileCoord, RasterCause, IntRect)>,
     ) -> RasteredLayer {
         let LayerToRaster {
             identity,
@@ -425,6 +444,12 @@ impl LayerTiles {
             rastered_within,
         } = layer;
         let raster = env.raster;
+        let records_rasters = record_raster.is_some();
+        let mut record = |coord: TileCoord, cause: RasterCause, rect: IntRect| {
+            if let Some(record_raster) = &mut record_raster {
+                record_raster(coord, cause, rect);
+            }
+        };
         let mut rects_painted_straight = Vec::new();
         let held = self.held_by_layer.entry(identity).or_default();
         let tile_pool = &mut self.pool;
@@ -442,6 +467,15 @@ impl LayerTiles {
         let mut tiles_to_raster: Vec<TileToRaster> = Vec::new();
         for (shown_tile_index, tile) in shown.iter().enumerate() {
             let held_content_hash = held.by_cell.get(&tile.coord).copied();
+            let raster_cause_for_overlay = records_rasters.then(|| {
+                let tile_held_at_cell = held_content_hash.and_then(|held_content_hash| {
+                    Some((
+                        tile_pool.get(&held_content_hash)?,
+                        held_content_hash == tile.content_hash,
+                    ))
+                });
+                raster_cause_of(tile_held_at_cell, tile.part_of_cell_needed, like)
+            });
             if held_content_hash != Some(tile.content_hash) {
                 held.by_cell.insert(tile.coord, tile.content_hash);
                 held_tiles_changed = true;
@@ -512,6 +546,11 @@ impl LayerTiles {
                         held.by_cell.remove(&tile.coord);
                         held_tiles_changed = true;
                         rects_painted_straight.push(tile.part_of_cell_needed);
+                        record(
+                            tile.coord,
+                            RasterCause::PaintedStraightIntoTheFrame,
+                            tile.part_of_cell_needed,
+                        );
                         continue;
                     };
                     tile_pool.insert(
@@ -531,6 +570,7 @@ impl LayerTiles {
             }
             tiles_to_raster.push(TileToRaster {
                 shown_tile_index,
+                raster_cause_for_overlay,
                 was_rastered: false,
             });
         }
@@ -539,7 +579,10 @@ impl LayerTiles {
             self.changed_since_eviction = true;
         }
         if tiles_to_raster.is_empty() {
-            return RasteredLayer { rects_painted_straight };
+            return RasteredLayer {
+                rects_painted_straight,
+                tile_count: 0,
+            };
         }
 
         let pooled_surface_and_held_part = |tile_pool: &TilePool, tile: &TileShownInFrame| {
@@ -631,9 +674,19 @@ impl LayerTiles {
             pooled.holds_current_pixels = tile_to_raster.was_rastered;
             if !tile_to_raster.was_rastered {
                 rects_painted_straight.push(pooled.held_part_of_cell);
+                record(
+                    tile.coord,
+                    RasterCause::PaintedStraightIntoTheFrame,
+                    pooled.held_part_of_cell,
+                );
+            } else if let Some(cause) = tile_to_raster.raster_cause_for_overlay {
+                record(tile.coord, cause, pooled.held_part_of_cell);
             }
         }
-        RasteredLayer { rects_painted_straight }
+        RasteredLayer {
+            rects_painted_straight,
+            tile_count: tiles_to_raster.len() as u64,
+        }
     }
 }
 
@@ -698,6 +751,30 @@ fn create_surface_on_backend_of(
         .filter(|surface| surface.shares_backend_with(like))
 }
 
+fn raster_cause_of(
+    tile_held_at_cell: Option<(&PooledTile, bool)>,
+    part_of_cell_needed: IntRect,
+    like: &Rc<PaintingSurface>,
+) -> RasterCause {
+    let Some((held_tile, held_content_hash_is_needed)) = tile_held_at_cell else {
+        return RasterCause::NewlyShown;
+    };
+    if !held_tile.held_part_of_cell.contains_rect(part_of_cell_needed) {
+        return RasterCause::HeldLessThanNeeded;
+    }
+    if held_tile
+        .surface()
+        .is_some_and(|surface| !surface.shares_backend_with(like))
+    {
+        return RasterCause::HeldOnAnotherBackend;
+    }
+    if held_content_hash_is_needed {
+        RasterCause::HeldPixelsInvalidated
+    } else {
+        RasterCause::ContentHashChanged
+    }
+}
+
 pub(super) fn joined_rects_of_grid_given_row_by_row<T: Copy + PartialEq>(
     rects: impl IntoIterator<Item = (IntRect, T)>,
 ) -> Vec<(IntRect, T)> {
@@ -755,6 +832,7 @@ fn held_tile_lies_in_shown_rect_at_unshown_cell(
 
 struct TileToRaster {
     shown_tile_index: usize,
+    raster_cause_for_overlay: Option<RasterCause>,
     was_rastered: bool,
 }
 

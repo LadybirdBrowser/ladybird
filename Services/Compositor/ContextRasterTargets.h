@@ -52,7 +52,7 @@ public:
     DrawnFonts const& overlay_fonts() const { return m_overlay_fonts; }
     DisplayListRasterCache& overlay_raster_cache() { return m_overlay_raster_cache; }
     // Shapes a label of the overlays, in a font that the overlays' fonts then hold.
-    Optional<OverlayLabel> shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text);
+    Optional<OverlayLabel> shape_overlay_label(Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text);
 
     // The video sinks that the display list of the context draws. Answers whether these are other sinks than before.
     bool set_drawn_video_sinks(ReadonlySpan<u64> handles);
