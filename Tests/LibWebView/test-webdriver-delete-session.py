@@ -92,6 +92,21 @@ def create_session(webdriver_port):
     return session_id
 
 
+def wait_for_compositor(webdriver_port, session_id):
+    # The Compositor takes a screenshot, so once one succeeds, the Compositor is done starting up and waiting in its
+    # event loop. A signal sent while it's still starting can land in a system library built without frame pointers,
+    # which leaves the report with a single frame. Until then, taking a screenshot fails with "unable to capture screen".
+    deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
+    while True:
+        status, _, response_body = request(webdriver_port, "GET", f"/session/{session_id}/screenshot")
+        if status == 200:
+            return
+        assert "unable to capture screen" in response_body, response_body
+        if time.monotonic() >= deadline:
+            raise AssertionError("The Compositor never took a screenshot")
+        time.sleep(0.05)
+
+
 def run_test(webdriver_binary):
     webdriver, webdriver_port = launch_webdriver(webdriver_binary, "--headless")
     try:
