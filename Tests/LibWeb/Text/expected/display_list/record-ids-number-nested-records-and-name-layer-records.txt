@@ -1,13 +1,13 @@
 Layers:
-  [L0] base rect=[0,0 800x600] records=#1,#3-#5
-  [L1] canvas rect=[17,17 206x126] records=#2 shown by the window server: clip=[0,0 800x600]
-  [L2] painted rect=[97,57 306x46] records=#6
+  [L0] base space=viewport records=#1,#3-#6
+  [L1] canvas #0 space=viewport region=[17,17 206x126] records=#2 shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1 records=#6
 
 DisplayList:
 L0 #1 FillRect@s1/e0 rect=[0,0 300x10] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#below phase=background
 L1 #2 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L0 #3 DeclareMaskContent@s1/e1 rect=[300,20 50x50] effect=e1 owner=BlockContainer<DIV>#masked phase=preamble
-     #4 PaintLinearGradient@s1/e1 gradient_rect=[300,20 50x50] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[300,20 50x50]] owner=BlockContainer<DIV>#masked phase=preamble
-L0 #5 FillRect@s1/e1 rect=[300,20 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#masked phase=background
-L2 #6 FillRect@s1/e0 rect=[100,60 300x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over phase=background
+L0 #3 DeclareMaskContent@s1/e1 rect=[600,20 50x50] effect=e1 owner=BlockContainer<DIV>#masked phase=preamble
+     #4 PaintLinearGradient@s1/e1 gradient_rect=[600,20 50x50] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[600,20 50x50]] owner=BlockContainer<DIV>#masked phase=preamble
+L0 #5 FillRect@s1/e1 rect=[600,20 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#masked phase=background
+L0,L2 #6 FillRect@s1/e0 rect=[100,60 500x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over phase=background
 

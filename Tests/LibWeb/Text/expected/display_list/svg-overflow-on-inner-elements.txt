@@ -8,6 +8,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillPath@s2/c0/e0 path_bounding_rect=[10,10 100x100] path_data=[path: M10 10L110 10L110 110L10 110L10 10Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
+L0 FillPath@s2/c0/e0 path_bounding_rect=[10,10 100x100] path_data=[path: M10 10L110 10L110 110L10 110L10 10Z] color=rgb(0, 128, 0) owner=SVGGeometryBox<rect> phase=foreground
 

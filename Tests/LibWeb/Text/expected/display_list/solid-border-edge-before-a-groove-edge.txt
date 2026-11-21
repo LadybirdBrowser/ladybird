@@ -5,12 +5,15 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[8,8 140x20] path_data=[path: M8 8L8 8L28 28L128 28L148 8L148 8] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[138,8 10x100] path_data=[path: M148 8L148 8L138 18L138 98L148 108L148 108] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[128,18 10x80] path_data=[path: M138 18L138 18L128 28L128 88L138 98L138 98] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[8,98 140x10] path_data=[path: M148 108L148 108L138 98L18 98L8 108L8 108] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[18,88 120x10] path_data=[path: M138 98L138 98L128 88L28 88L18 98L18 98] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[8,8 10x100] path_data=[path: M8 108L8 108L18 98L18 18L8 8L8 8] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[18,18 10x80] path_data=[path: M18 98L18 98L28 88L28 28L18 18L18 18] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,8 140x20] path_data=[path: M8 8L8 8L28 28L128 28L148 8L148 8] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[138,8 10x100] path_data=[path: M148 8L148 8L138 18L138 98L148 108L148 108] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[128,18 10x80] path_data=[path: M138 18L138 18L128 28L128 88L138 98L138 98] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,98 140x10] path_data=[path: M148 108L148 108L138 98L18 98L8 108L8 108] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[18,88 120x10] path_data=[path: M138 98L138 98L128 88L28 88L18 98L18 98] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,8 10x100] path_data=[path: M8 108L8 108L18 98L18 18L8 8L8 8] color=rgb(48, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[18,18 10x80] path_data=[path: M18 98L18 98L28 88L28 28L18 18L18 18] color=rgb(133, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
 

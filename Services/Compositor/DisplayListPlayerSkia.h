@@ -116,6 +116,7 @@ private:
     void end_tile_raster();
     Compositing::RustFFI::VectorImageReplay begin_vector_image(Compositing::RustFFI::VectorImagePlacement const&, bool requires_direct_replay);
     void end_vector_image();
+    void draw_surface(Compositing::RustFFI::SurfaceDraw const&);
 
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 

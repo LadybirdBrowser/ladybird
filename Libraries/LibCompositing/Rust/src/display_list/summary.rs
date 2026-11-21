@@ -4,25 +4,37 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What C++ and damage ask about a display list's tape: the resources its commands reference, whether reusing a
-//! raster of it can differ from replaying it, its compositor metadata, its carets, and where it draws live content.
+//! What is asked about the records of a display list: the resources its commands reference, whether reusing a raster
+//! of it can differ from replaying it, its carets, where it draws live content, and where it declares the content of
+//! masks.
 
-use super::builder::{HEADER_SIZE, for_each_command, read_command};
+use super::builder::{for_each_command, read_command};
 use super::commands::*;
 use super::nested_records::{for_each_nested_record_span, span_bytes};
+use super::storage::{ChunkIndexInList, ListPosition};
 use libgfx_rust::CompositingAndBlendingOperator;
 use libgfx_rust::filter::Filter;
 use std::collections::HashSet;
 
-// A top-level record, found by the run it belongs to and its offset in the tape.
-#[derive(Clone, Copy, Debug)]
+/// A top-level record, by the index of its run among the runs of its list and its position in the list. In the summary
+/// of a chunk alone, the run index counts the runs of that chunk only, and the position is in that chunk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IndexedRecord {
     pub run_index: u32,
-    pub record_offset: u32,
+    pub position: ListPosition,
 }
 
-// Content that changes under the list's immutable commands.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl IndexedRecord {
+    fn shifted_into_list(self, first_run_index_of_chunk: u32, chunk_index: ChunkIndexInList) -> Self {
+        Self {
+            run_index: self.run_index + first_run_index_of_chunk,
+            position: ListPosition::new(chunk_index, self.position.offset),
+        }
+    }
+}
+
+/// Content that changes under the list's immutable commands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LiveContent {
     Canvas(CanvasId),
     VideoFrame(VideoSinkHandle),
@@ -30,14 +42,21 @@ pub enum LiveContent {
     CompositedContext(CompositorContextId),
 }
 
-// A top-level record that draws live content, itself or in a record nested in it.
-#[derive(Clone, Copy, Debug)]
+/// A top-level record that draws live content, itself or in a record nested in it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LiveContentRecord {
     pub record: IndexedRecord,
     pub content: LiveContent,
 }
 
-#[derive(Default)]
+/// A top-level record that declares the content of a mask, with the effect of the mask.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MaskDeclarationRecord {
+    pub record: IndexedRecord,
+    pub mask_effect: EffectNodeIndex,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct DisplayListSummary {
     pub font_ids: Vec<u64>,
     pub image_frame_ids: Vec<u64>,
@@ -48,7 +67,7 @@ pub struct DisplayListSummary {
     pub carets: Vec<IndexedRecord>,
     pub live_content_records: Vec<LiveContentRecord>,
     pub destination_blending_records: Vec<IndexedRecord>,
-    pub mask_declarations: Vec<IndexedRecord>,
+    pub mask_declarations: Vec<MaskDeclarationRecord>,
 }
 
 #[derive(Default)]
@@ -61,7 +80,7 @@ struct ReferencedIds {
     composited_contexts: HashSet<u64>,
 }
 
-fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Option<LiveContent> {
+pub(crate) fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Option<LiveContent> {
     use DisplayListCommandType as T;
     match command_type {
         T::DrawCanvas => Some(LiveContent::Canvas(read_command::<DrawCanvas>(payload).canvas_id)),
@@ -173,7 +192,6 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
     }
 }
 
-// Visits every record of `records` and of the records nested in them, depth first.
 fn for_each_record_including_nested(records: &[u8], visit: &mut impl FnMut(DisplayListCommandType, &[u8])) {
     for_each_command(records, |header, _, payload| {
         visit(header.command_type, payload);
@@ -195,27 +213,30 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
     for (run_index, run) in command_runs.iter().enumerate() {
         let run_start = run.offset as usize;
         let records = &tape[run_start..run_start + run.size as usize];
-        for_each_command(records, |header, offset, payload| {
-            let indexed = IndexedRecord {
+        for_each_command(records, |header, offset_in_run, payload| {
+            let indexed_record = IndexedRecord {
                 run_index: run_index as u32,
-                record_offset: (run_start + offset) as u32,
+                position: ListPosition::new(ChunkIndexInList(0), (run_start + offset_in_run) as u32),
             };
             match header.command_type {
-                DisplayListCommandType::PaintCaret => summary.carets.push(indexed),
-                DisplayListCommandType::DeclareMaskContent => summary.mask_declarations.push(indexed),
+                DisplayListCommandType::PaintCaret => summary.carets.push(indexed_record),
+                DisplayListCommandType::DeclareMaskContent => summary.mask_declarations.push(MaskDeclarationRecord {
+                    record: indexed_record,
+                    mask_effect: read_command::<DeclareMaskContent>(payload).effect,
+                }),
                 _ => {}
             }
             if let Some((blend, blends_with_isolated_backdrop_color)) = command_blend(header.command_type, payload)
                 && blend != CompositingAndBlendingOperator::Normal
                 && !blends_with_isolated_backdrop_color
             {
-                summary.destination_blending_records.push(indexed);
+                summary.destination_blending_records.push(indexed_record);
             }
             note_referenced_ids(header.command_type, payload, &mut ids);
             let mut note_live_content = |command_type, payload: &[u8]| {
                 if let Some(content) = live_content_of(command_type, payload) {
                     summary.live_content_records.push(LiveContentRecord {
-                        record: indexed,
+                        record: indexed_record,
                         content,
                     });
                 }
@@ -238,9 +259,72 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
     summary
 }
 
-// The blend a command composites with, and whether it blends with a backdrop color of its own instead of the
-// destination.
-fn command_blend(
+/// The summary of a list made of chunks, each summarized alone: the summary of a chunk, the index of its first run
+/// among the runs of the list, and its place among the chunks of the list.
+pub fn summary_of_pieces<'a>(
+    pieces: impl IntoIterator<Item = (&'a DisplayListSummary, u32, ChunkIndexInList)>,
+) -> DisplayListSummary {
+    let mut summary = DisplayListSummary::default();
+    for (chunk_summary, first_run_index_of_chunk, chunk_index) in pieces {
+        let shift_into_list = |record: &IndexedRecord| record.shifted_into_list(first_run_index_of_chunk, chunk_index);
+        summary.carets.extend(chunk_summary.carets.iter().map(shift_into_list));
+        summary
+            .live_content_records
+            .extend(
+                chunk_summary
+                    .live_content_records
+                    .iter()
+                    .map(|live_content_record| LiveContentRecord {
+                        record: shift_into_list(&live_content_record.record),
+                        content: live_content_record.content,
+                    }),
+            );
+        summary
+            .destination_blending_records
+            .extend(chunk_summary.destination_blending_records.iter().map(shift_into_list));
+        summary
+            .mask_declarations
+            .extend(
+                chunk_summary
+                    .mask_declarations
+                    .iter()
+                    .map(|declaration| MaskDeclarationRecord {
+                        record: shift_into_list(&declaration.record),
+                        mask_effect: declaration.mask_effect,
+                    }),
+            );
+        summary.font_ids.extend_from_slice(&chunk_summary.font_ids);
+        summary
+            .image_frame_ids
+            .extend_from_slice(&chunk_summary.image_frame_ids);
+        summary
+            .video_sink_handles
+            .extend_from_slice(&chunk_summary.video_sink_handles);
+        summary
+            .vector_image_ids
+            .extend_from_slice(&chunk_summary.vector_image_ids);
+        summary.canvas_ids.extend_from_slice(&chunk_summary.canvas_ids);
+        summary
+            .composited_context_ids
+            .extend_from_slice(&chunk_summary.composited_context_ids);
+    }
+    for ids in [
+        &mut summary.font_ids,
+        &mut summary.image_frame_ids,
+        &mut summary.video_sink_handles,
+        &mut summary.vector_image_ids,
+        &mut summary.canvas_ids,
+        &mut summary.composited_context_ids,
+    ] {
+        ids.sort_unstable();
+        ids.dedup();
+    }
+    summary
+}
+
+/// The blend a command composites with, and whether it blends with a backdrop color of its own instead of the
+/// destination.
+pub(crate) fn command_blend(
     command_type: DisplayListCommandType,
     payload: &[u8],
 ) -> Option<(CompositingAndBlendingOperator, bool)> {
@@ -370,39 +454,4 @@ pub fn vector_image_records_require_direct_replay(records: &[u8]) -> bool {
         });
     });
     requires_direct_replay
-}
-
-/// Visits the compositor metadata commands of the runs that hold any, in tape order.
-pub fn for_each_compositor_metadata(
-    tape: &[u8],
-    command_runs: &[DisplayListCommandRun],
-    mut visit: impl FnMut(ContextRef, DisplayListCommandType, &[u8]),
-) {
-    for run in command_runs.iter().filter(|run| run.has_compositor_metadata) {
-        let records = &tape[run.offset as usize..(run.offset + run.size) as usize];
-        for_each_command(records, |header, _, payload| {
-            if header.command_type.is_compositor_metadata() {
-                visit(run.context, header.command_type, payload);
-            }
-        });
-    }
-}
-
-/// Visits indexed top-level records with their run's context, their header and their payload.
-pub fn for_each_indexed_record(
-    tape: &[u8],
-    command_runs: &[DisplayListCommandRun],
-    records: &[IndexedRecord],
-    mut visit: impl FnMut(ContextRef, &DisplayListCommandHeader, &[u8]),
-) {
-    for record in records {
-        let offset = record.record_offset as usize;
-        let header = super::builder::read_header(&tape[offset..]);
-        let payload_start = offset + HEADER_SIZE;
-        visit(
-            command_runs[record.run_index as usize].context,
-            &header,
-            &tape[payload_start..payload_start + header.payload_size as usize],
-        );
-    }
 }

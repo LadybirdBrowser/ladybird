@@ -248,6 +248,8 @@ public:
     CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_viewport_size }; }
     CSSPixelSize viewport_size() const { return m_viewport_size; }
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
+    Gfx::IntSize viewport_size_in_device_pixels() const;
+    Gfx::IntRect present_viewport_rect() const;
 
     // A size the window takes as a rendering update is in flight waits for that update to end: the update flies for
     // the size it began with, and a new size would make the main thread wait for the flight and lay out again.
@@ -472,7 +474,6 @@ private:
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
     Compositor::SealedPresentation seal_presentation(Layout::BegunRead const&, DOM::Document&, PaintConfig const&, bool records_display_list);
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, bool presented_other_scroll_offsets);
-    Gfx::IntRect present_viewport_rect() const;
 
     Optional<CSSPixelPoint> to_local_root_viewport_position(CSSPixelPoint);
 

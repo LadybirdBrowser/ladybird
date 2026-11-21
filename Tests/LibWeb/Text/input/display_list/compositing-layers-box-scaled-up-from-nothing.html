@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+    #box { width: 300px; height: 200px; margin: 100px; background: green; animation: pop 4s ease-in infinite; }
+</style>
+<div id="box"></div>
+<script>
+    // The compositor runs the animation of the box in a raster space of its own, rastered at the largest scale of the
+    // animation. Early frames show the box at a very small part of that scale, so the viewport maps to a very large
+    // rect of the space. A frame keys tiles only where the box has content, so the compositor stays responsive. The
+    // read of the compositor's scroll state waits until the compositor has taken in every frame drawn so far.
+    asyncTest(async done => {
+        for (let frame = 0; frame < 30; ++frame)
+            await animationFrame();
+        internals.compositorScrollState();
+        println("The compositor drew 30 frames of the animation");
+        done();
+    });
+</script>

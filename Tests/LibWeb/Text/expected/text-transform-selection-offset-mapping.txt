@@ -5,11 +5,14 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/e0 rect=[8,8 24x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#selection-target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,8 24x16] glyph_bounding_rect=[8,8 25x15] translation=[8,21] color=rgb(0, 0, 0) text="SS" owner=BlockContainer<P>#selection-target phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,40 22x16] glyph_bounding_rect=[8,40 25x15] translation=[8,53] color=rgb(4, 5, 6) text="Ss" owner=BlockContainer<P>#capitalized phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) text="ello" owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,8 24x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#selection-target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,8 24x16] glyph_bounding_rect=[8,8 25x15] translation=[8,21] color=rgb(0, 0, 0) text="SS" owner=BlockContainer<P>#selection-target phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,40 22x16] glyph_bounding_rect=[8,40 25x15] translation=[8,53] color=rgb(4, 5, 6) text="Ss" owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) text="ello" owner=BlockContainer<P>#capitalized phase=text-fragment
 
 AccumulatedVisualContext Tree:
   spatial:
@@ -18,11 +21,14 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,8 24x16] glyph_bounding_rect=[8,8 25x15] translation=[8,21] color=rgb(0, 0, 0) text="SS" owner=BlockContainer<P>#selection-target phase=foreground
-FillRect@s1/e0 rect=[8,40 21x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#capitalized phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,40 22x16] glyph_bounding_rect=[8,40 25x15] translation=[8,53] color=rgb(4, 5, 6) text="Ss" owner=BlockContainer<P>#capitalized phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) inline_clips=[clip=[38,40 19x15]] text="llo" owner=BlockContainer<P>#capitalized phase=text-fragment
-FillRect@s1/e0 rect=[29,40 9x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#capitalized phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) inline_clips=[clip=[29,40 9x15]] text="e" owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,8 24x16] glyph_bounding_rect=[8,8 25x15] translation=[8,21] color=rgb(0, 0, 0) text="SS" owner=BlockContainer<P>#selection-target phase=foreground
+L0 FillRect@s1/e0 rect=[8,40 21x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=2 rect=[8,40 22x16] glyph_bounding_rect=[8,40 25x15] translation=[8,53] color=rgb(4, 5, 6) text="Ss" owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) inline_clips=[clip=[38,40 19x15]] text="llo" owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 FillRect@s1/e0 rect=[29,40 9x16] color=rgb(1, 2, 3) owner=BlockContainer<P>#capitalized phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[29,40 28x16] glyph_bounding_rect=[29,40 31x15] translation=[29.3125,53] color=rgb(0, 0, 0) inline_clips=[clip=[29,40 9x15]] text="e" owner=BlockContainer<P>#capitalized phase=text-fragment
 

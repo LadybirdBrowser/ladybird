@@ -5,7 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-PaintTextShadow@s1/e0 font_id=font1 glyphs=7 layers=[{blur_radius=4 color=rgb(0, 0, 0)}, {offset=[-1,-1] rounded_offset=[-1,-1] color=rgba(45, 45, 45, 0.6)}, {offset=[1,1] rounded_offset=[1,1] color=rgba(45, 45, 45, 0.6)}, {offset=[-1,0] rounded_offset=[-1,0] color=rgba(0, 0, 0, 0.5)}, {offset=[1,0] rounded_offset=[1,0] color=rgba(0, 0, 0, 0.5)}] shadows_bounding_rect=[-8,-8 100x36] rect=[0,0 84x20] translation=[0,16] text="Joensuu" owner=BlockContainer<P> phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[0,0 84x20] glyph_bounding_rect=[0,0 88x18] translation=[0,16] color=rgb(255, 255, 255) text="Joensuu" owner=BlockContainer<P> phase=foreground
+L0 PaintTextShadow@s1/e0 font_id=font1 glyphs=7 layers=[{blur_radius=4 color=rgb(0, 0, 0)}, {offset=[-1,-1] rounded_offset=[-1,-1] color=rgba(45, 45, 45, 0.6)}, {offset=[1,1] rounded_offset=[1,1] color=rgba(45, 45, 45, 0.6)}, {offset=[-1,0] rounded_offset=[-1,0] color=rgba(0, 0, 0, 0.5)}, {offset=[1,0] rounded_offset=[1,0] color=rgba(0, 0, 0, 0.5)}] shadows_bounding_rect=[-8,-8 100x36] rect=[0,0 84x20] translation=[0,16] text="Joensuu" owner=BlockContainer<P> phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[0,0 84x20] glyph_bounding_rect=[0,0 88x18] translation=[0,16] color=rgb(255, 255, 255) text="Joensuu" owner=BlockContainer<P> phase=foreground
 

@@ -8,7 +8,7 @@
 <div>before <span id="wrap">filtered</span> after</div>
 <script>
     test(() => {
-        const lines = internals.dumpDisplayList().split("\n");
+        const lines = internals.dumpDisplayList().replace(/^L\d+(,L\d+)* /gm, "").split("\n");
         const regionCommands = lines.filter(line => line.startsWith("BackdropFilterRegion"));
         const backdropEffects = lines.filter(line => line.includes("backdrop-filter="));
         println(`backdrop region commands: ${regionCommands.length}`);

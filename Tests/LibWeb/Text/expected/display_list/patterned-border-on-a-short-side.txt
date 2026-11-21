@@ -5,9 +5,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[8,31 40x40] path_data=[path: M8 31L8 31L28 51L28 51L48 31L48 31M48 31L48 31L28 51L28 51L48 71L48 71M48 71L48 71L28 51L28 51L8 71L8 71M8 71L8 71L28 51L28 51L8 31L8 31] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
-FillPath@s1/e0 path_bounding_rect=[8,71 40x40] path_data=[path: M8 71L8 71L28 91L28 91L48 71L48 71M48 71L48 71L28 91L28 91L48 111L48 111M48 111L48 111L28 91L28 91L8 111L8 111M8 111L8 111L28 91L28 91L8 71L8 71] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.dotted phase=border
-FillPath@s1/e0 path_bounding_rect=[8,8 40x20] path_data=[path: M8 8L8 8L28 28L28 28L48 8L48 8] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<SPAN> phase=border
-FillPath@s1/e0 path_bounding_rect=[48,8 40x20] path_data=[path: M48 8L48 8L68 28L68 28L88 8L88 8] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<SPAN>.dotted-top phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,31 40x40] path_data=[path: M8 31L8 31L28 51L28 51L48 31L48 31M48 31L48 31L28 51L28 51L48 71L48 71M48 71L48 71L28 51L28 51L8 71L8 71M8 71L8 71L28 51L28 51L8 31L8 31] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,71 40x40] path_data=[path: M8 71L8 71L28 91L28 91L48 71L48 71M48 71L48 71L28 91L28 91L48 111L48 111M48 111L48 111L28 91L28 91L8 111L8 111M8 111L8 111L28 91L28 91L8 71L8 71] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.dotted phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,8 40x20] path_data=[path: M8 8L8 8L28 28L28 28L48 8L48 8] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<SPAN> phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[48,8 40x20] path_data=[path: M48 8L48 8L68 28L68 28L88 8L88 8] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<SPAN>.dotted-top phase=border
 

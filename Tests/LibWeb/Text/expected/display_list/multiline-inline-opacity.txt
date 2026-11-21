@@ -7,16 +7,19 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#target)
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=13 rect=[8,85 83x13] glyph_bounding_rect=[8,85 91x12] translation=[8,95] color=rgb(0, 0, 0) text="With opacity:" owner=BlockContainer<PRE>#out phase=foreground
-FillRect@s1/e1 rect=[8,8 81x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
-DrawGlyphRun@s1/e1 font_id=font2 glyphs=9 rect=[8,8 82x16] glyph_bounding_rect=[8,8 85x15] translation=[8,21] color=rgb(0, 0, 0) text="This span" owner=InlineNode<SPAN>#target phase=text-fragment
-FillRect@s1/e1 rect=[8,24 47x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
-DrawGlyphRun@s1/e1 font_id=font2 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 0) text="spans" owner=InlineNode<SPAN>#target phase=text-fragment
-FillRect@s1/e1 rect=[8,40 60x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
-DrawGlyphRun@s1/e1 font_id=font2 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 0) text="multiple" owner=InlineNode<SPAN>#target phase=text-fragment
-FillRect@s1/e1 rect=[8,56 36x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
-DrawGlyphRun@s1/e1 font_id=font2 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 0) text="lines" owner=InlineNode<SPAN>#target phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=13 rect=[8,85 83x13] glyph_bounding_rect=[8,85 91x12] translation=[8,95] color=rgb(0, 0, 0) text="With opacity:" owner=BlockContainer<PRE>#out phase=foreground
+L0 FillRect@s1/e1 rect=[8,8 81x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
+L0 DrawGlyphRun@s1/e1 font_id=font2 glyphs=9 rect=[8,8 82x16] glyph_bounding_rect=[8,8 85x15] translation=[8,21] color=rgb(0, 0, 0) text="This span" owner=InlineNode<SPAN>#target phase=text-fragment
+L0 FillRect@s1/e1 rect=[8,24 47x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
+L0 DrawGlyphRun@s1/e1 font_id=font2 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 0) text="spans" owner=InlineNode<SPAN>#target phase=text-fragment
+L0 FillRect@s1/e1 rect=[8,40 60x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
+L0 DrawGlyphRun@s1/e1 font_id=font2 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 0) text="multiple" owner=InlineNode<SPAN>#target phase=text-fragment
+L0 FillRect@s1/e1 rect=[8,56 36x16] color=rgb(255, 165, 0) owner=InlineNode<SPAN>#target phase=inline-piece
+L0 DrawGlyphRun@s1/e1 font_id=font2 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 0) text="lines" owner=InlineNode<SPAN>#target phase=text-fragment
 
 Without opacity:
 AccumulatedVisualContext Tree:
@@ -27,34 +30,39 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 ScrollNodes:
-ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[557.0625,0] is_viewport=true
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[580.1875,0] is_viewport=true
+
+Layers:
+  [L1] base space=document
 
 DisplayList:
-FillRect@s1/e0 rect=[8,8 81x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 82x16] glyph_bounding_rect=[8,8 85x15] translation=[8,21] color=rgb(0, 0, 0) text="This span" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,24 47x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 0) text="spans" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,40 60x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 0) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
-FillRect@s1/e0 rect=[8,56 36x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 0) text="lines" owner=BlockContainer<DIV> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=13 rect=[8,85 83x13] glyph_bounding_rect=[8,85 91x12] translation=[8,95] color=rgb(0, 0, 0) text="With opacity:" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=30 rect=[8,98 214x13] glyph_bounding_rect=[8,98 221x12] translation=[8,108] color=rgb(0, 0, 0) text="AccumulatedVisualContext Tree:" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=10 rect=[8,111 60x13] glyph_bounding_rect=[8,111 67x12] translation=[8,121] color=rgb(0, 0, 0) text="  spatial:" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=67 rect=[8,124 440x13] glyph_bounding_rect=[8,124 446x12] translation=[8,134] color=rgb(0, 0, 0) text="    [s0] transform=[1,0,0,1,0,0] origin=…" text_length=67 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=39 rect=[8,137 264x13] glyph_bounding_rect=[8,137 271x12] translation=[8,147] color=rgb(0, 0, 0) text="      [s1] scroll (Viewport<#document>)" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=10 rect=[8,150 62x13] glyph_bounding_rect=[8,150 69x12] translation=[8,160] color=rgb(0, 0, 0) text="  effects:" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=25 rect=[8,163 162x13] glyph_bounding_rect=[8,163 166x12] translation=[8,173] color=rgb(0, 0, 0) text="    [e0 in s0] effects=[]" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=64 rect=[8,176 419x13] glyph_bounding_rect=[8,176 426x12] translation=[8,186] color=rgb(0, 0, 0) text="      [e1 in s1] effects=[opacity=0.5] (…" text_length=64 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=12 rect=[8,202 74x13] glyph_bounding_rect=[8,202 81x12] translation=[8,212] color=rgb(0, 0, 0) text="DisplayList:" owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=199 rect=[8,215 1350x13] glyph_bounding_rect=[8,215 1354x12] translation=[8,225] color=rgb(0, 0, 0) text="DrawGlyphRun@s1/e0 font_id=font1 glyphs=…" text_length=199 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=103 rect=[8,228 686x13] glyph_bounding_rect=[8,228 690x12] translation=[8,238] color=rgb(0, 0, 0) text="FillRect@s1/e1 rect=[8,8 81x16] color=rg…" text_length=103 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=195 rect=[8,241 1322x13] glyph_bounding_rect=[8,241 1327x12] translation=[8,251] color=rgb(0, 0, 0) text="DrawGlyphRun@s1/e1 font_id=font2 glyphs=…" text_length=195 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=104 rect=[8,254 693x13] glyph_bounding_rect=[8,254 696x12] translation=[8,264] color=rgb(0, 0, 0) text="FillRect@s1/e1 rect=[8,24 47x16] color=r…" text_length=104 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=193 rect=[8,267 1304x13] glyph_bounding_rect=[8,267 1309x12] translation=[8,277] color=rgb(0, 0, 0) text="DrawGlyphRun@s1/e1 font_id=font2 glyphs=…" text_length=193 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=104 rect=[8,280 695x13] glyph_bounding_rect=[8,280 698x12] translation=[8,290] color=rgb(0, 0, 0) text="FillRect@s1/e1 rect=[8,40 60x16] color=r…" text_length=104 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=196 rect=[8,293 1320x13] glyph_bounding_rect=[8,293 1324x12] translation=[8,303] color=rgb(0, 0, 0) text="DrawGlyphRun@s1/e1 font_id=font2 glyphs=…" text_length=196 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=104 rect=[8,306 694x13] glyph_bounding_rect=[8,306 698x12] translation=[8,316] color=rgb(0, 0, 0) text="FillRect@s1/e1 rect=[8,56 36x16] color=r…" text_length=104 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=193 rect=[8,319 1299x13] glyph_bounding_rect=[8,319 1304x12] translation=[8,329] color=rgb(0, 0, 0) text="DrawGlyphRun@s1/e1 font_id=font2 glyphs=…" text_length=193 owner=BlockContainer<PRE>#out phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=16 rect=[8,345 105x13] glyph_bounding_rect=[8,345 113x12] translation=[8,355] color=rgb(0, 0, 0) text="Without opacity:" owner=BlockContainer<PRE>#out phase=foreground
+L1 FillRect@s1/e0 rect=[8,8 81x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
+L1 DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,8 82x16] glyph_bounding_rect=[8,8 85x15] translation=[8,21] color=rgb(0, 0, 0) text="This span" owner=BlockContainer<DIV> phase=text-fragment
+L1 FillRect@s1/e0 rect=[8,24 47x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
+L1 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,24 48x16] glyph_bounding_rect=[8,24 51x15] translation=[8,37] color=rgb(0, 0, 0) text="spans" owner=BlockContainer<DIV> phase=text-fragment
+L1 FillRect@s1/e0 rect=[8,40 60x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
+L1 DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[8,40 60x16] glyph_bounding_rect=[8,40 65x15] translation=[8,53] color=rgb(0, 0, 0) text="multiple" owner=BlockContainer<DIV> phase=text-fragment
+L1 FillRect@s1/e0 rect=[8,56 36x16] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=inline-piece
+L1 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,56 37x16] glyph_bounding_rect=[8,56 40x15] translation=[8,69] color=rgb(0, 0, 0) text="lines" owner=BlockContainer<DIV> phase=text-fragment
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=13 rect=[8,85 83x13] glyph_bounding_rect=[8,85 91x12] translation=[8,95] color=rgb(0, 0, 0) text="With opacity:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=30 rect=[8,98 214x13] glyph_bounding_rect=[8,98 221x12] translation=[8,108] color=rgb(0, 0, 0) text="AccumulatedVisualContext Tree:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=10 rect=[8,111 60x13] glyph_bounding_rect=[8,111 67x12] translation=[8,121] color=rgb(0, 0, 0) text="  spatial:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=67 rect=[8,124 440x13] glyph_bounding_rect=[8,124 446x12] translation=[8,134] color=rgb(0, 0, 0) text="    [s0] transform=[1,0,0,1,0,0] origin=…" text_length=67 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=39 rect=[8,137 264x13] glyph_bounding_rect=[8,137 271x12] translation=[8,147] color=rgb(0, 0, 0) text="      [s1] scroll (Viewport<#document>)" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=10 rect=[8,150 62x13] glyph_bounding_rect=[8,150 69x12] translation=[8,160] color=rgb(0, 0, 0) text="  effects:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=25 rect=[8,163 162x13] glyph_bounding_rect=[8,163 166x12] translation=[8,173] color=rgb(0, 0, 0) text="    [e0 in s0] effects=[]" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=64 rect=[8,176 419x13] glyph_bounding_rect=[8,176 426x12] translation=[8,186] color=rgb(0, 0, 0) text="      [e1 in s1] effects=[opacity=0.5] (…" text_length=64 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=7 rect=[8,202 48x13] glyph_bounding_rect=[8,202 55x12] translation=[8,212] color=rgb(0, 0, 0) text="Layers:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=26 rect=[8,215 183x13] glyph_bounding_rect=[8,215 188x12] translation=[8,225] color=rgb(0, 0, 0) text="  [L0] base space=viewport" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=12 rect=[8,241 74x13] glyph_bounding_rect=[8,241 81x12] translation=[8,251] color=rgb(0, 0, 0) text="DisplayList:" owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=202 rect=[8,254 1373x13] glyph_bounding_rect=[8,254 1377x12] translation=[8,264] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e0 font_id=font1 glyp…" text_length=202 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=106 rect=[8,267 709x13] glyph_bounding_rect=[8,267 713x12] translation=[8,277] color=rgb(0, 0, 0) text="L0 FillRect@s1/e1 rect=[8,8 81x16] color…" text_length=106 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=198 rect=[8,280 1345x13] glyph_bounding_rect=[8,280 1350x12] translation=[8,290] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e1 font_id=font2 glyp…" text_length=198 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=107 rect=[8,293 716x13] glyph_bounding_rect=[8,293 719x12] translation=[8,303] color=rgb(0, 0, 0) text="L0 FillRect@s1/e1 rect=[8,24 47x16] colo…" text_length=107 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=196 rect=[8,306 1328x13] glyph_bounding_rect=[8,306 1332x12] translation=[8,316] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e1 font_id=font2 glyp…" text_length=196 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=107 rect=[8,319 718x13] glyph_bounding_rect=[8,319 721x12] translation=[8,329] color=rgb(0, 0, 0) text="L0 FillRect@s1/e1 rect=[8,40 60x16] colo…" text_length=107 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=199 rect=[8,332 1343x13] glyph_bounding_rect=[8,332 1348x12] translation=[8,342] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e1 font_id=font2 glyp…" text_length=199 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=107 rect=[8,345 717x13] glyph_bounding_rect=[8,345 721x12] translation=[8,355] color=rgb(0, 0, 0) text="L0 FillRect@s1/e1 rect=[8,56 36x16] colo…" text_length=107 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=196 rect=[8,358 1322x13] glyph_bounding_rect=[8,358 1327x12] translation=[8,368] color=rgb(0, 0, 0) text="L0 DrawGlyphRun@s1/e1 font_id=font2 glyp…" text_length=196 owner=BlockContainer<PRE>#out phase=foreground
+L1 DrawGlyphRun@s1/e0 font_id=font2 glyphs=16 rect=[8,384 105x13] glyph_bounding_rect=[8,384 113x12] translation=[8,394] color=rgb(0, 0, 0) text="Without opacity:" owner=BlockContainer<PRE>#out phase=foreground
 

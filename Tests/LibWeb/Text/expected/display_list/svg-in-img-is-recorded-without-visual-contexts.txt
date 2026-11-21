@@ -5,13 +5,16 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-PaintVectorImage@s1/e0 vector_image_id=svg1 rect=[8,13 300x200] recorded_size=[300x200] owner=ImageBox<IMG> phase=foreground
-  FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(255, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
-  FillPath@s1/e0 path_bounding_rect=[0,100 100x100] path_data=[path: M0 100L100 100L100 200L0 200L0 100Z] color=rgb(255, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
-  DrawIsolatedGroup@s1/e0 clip_rect=[0,0 300x200] inline_clips=[clip_path=[bounds: [4,10 55x56], path: M9.0903902 10.833505L58.900124 15.191292L54.542339 65.00103L4.7326026 60.643242L9.0903902 10.833505Z]] owner=ImageBox<IMG> phase=foreground
-    FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
-    FillPath@s1/e0 path_bounding_rect=[0,100 100x100] path_data=[path: M0 100L100 100L100 200L0 200L0 100Z] color=rgb(0, 0, 255) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
-    Mask:
-      FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.09039,10.833505] owner=ImageBox<IMG> phase=foreground
+L0 PaintVectorImage@s1/e0 vector_image_id=svg1 rect=[8,13 300x200] recorded_size=[300x200] owner=ImageBox<IMG> phase=foreground
+     FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(255, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
+     FillPath@s1/e0 path_bounding_rect=[0,100 100x100] path_data=[path: M0 100L100 100L100 200L0 200L0 100Z] color=rgb(255, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
+     DrawIsolatedGroup@s1/e0 clip_rect=[0,0 300x200] inline_clips=[clip_path=[bounds: [4,10 55x56], path: M9.0903902 10.833505L58.900124 15.191292L54.542339 65.00103L4.7326026 60.643242L9.0903902 10.833505Z]] owner=ImageBox<IMG> phase=foreground
+       FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
+       FillPath@s1/e0 path_bounding_rect=[0,100 100x100] path_data=[path: M0 100L100 100L100 200L0 200L0 100Z] color=rgb(0, 0, 255) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575] owner=ImageBox<IMG> phase=foreground
+       Mask:
+         FillPath@s1/e0 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 0, 0) inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.09039,10.833505] owner=ImageBox<IMG> phase=foreground
 

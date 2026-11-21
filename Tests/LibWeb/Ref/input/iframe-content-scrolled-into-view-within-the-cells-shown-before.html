@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-content-scrolled-into-view-within-the-cells-shown-before-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10000">
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 300px; height: 200px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    // The box lies below the viewport of the iframe, in the cells of tiles the viewport shows. The compositor scrolls the
+    // iframe so that the box shows in those cells.
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes still-fade { from { opacity: 0.5; } to { opacity: 0.5; } }
+            html { scrollbar-width: none; }
+            body { margin: 0; height: 2000px; }
+            #box { position: absolute; left: 50px; top: 300px; width: 100px; height: 100px; background: green; animation: still-fade 100s linear infinite; }
+        </style>
+        <div id="box"></div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (!window.internals) {
+            iframe.contentWindow.scrollTo(0, 200);
+            document.documentElement.classList.remove("reftest-wait");
+            return;
+        }
+        while (internals.compositorWheelTargetAt(100, 100, 0, 200).document !== iframe.contentDocument)
+            await frame();
+        const scrollEnded = new Promise(resolve => iframe.contentWindow.addEventListener("scrollend", resolve, { once: true }));
+        await internals.wheelThroughUIProcess(100, 100, 0, 200);
+        await scrollEnded;
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        internals.signalTestIsDone("PASS");
+    };
+</script>

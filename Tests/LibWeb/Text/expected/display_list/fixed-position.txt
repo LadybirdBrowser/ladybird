@@ -7,9 +7,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/c0/e0 rect=[8,8 150x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.normal phase=background
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=6 rect=[8,8 56x16] glyph_bounding_rect=[8,8 64x15] translation=[8,21] color=rgb(0, 0, 0) text="Normal" owner=BlockContainer<DIV>.normal phase=foreground
-FillRect@s0/e0 rect=[10,10 80x40] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.fixed phase=background
-DrawGlyphRun@s0/e0 font_id=font1 glyphs=5 rect=[10,10 44x16] glyph_bounding_rect=[10,10 49x15] translation=[10,23] color=rgb(0, 0, 0) text="Fixed" owner=BlockContainer<DIV>.fixed phase=foreground
+L0 FillRect@s1/c0/e0 rect=[8,8 150x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.normal phase=background
+L0 DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=6 rect=[8,8 56x16] glyph_bounding_rect=[8,8 64x15] translation=[8,21] color=rgb(0, 0, 0) text="Normal" owner=BlockContainer<DIV>.normal phase=foreground
+L0 FillRect@s0/e0 rect=[10,10 80x40] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.fixed phase=background
+L0 DrawGlyphRun@s0/e0 font_id=font1 glyphs=5 rect=[10,10 44x16] glyph_bounding_rect=[10,10 49x15] translation=[10,23] color=rgb(0, 0, 0) text="Fixed" owner=BlockContainer<DIV>.fixed phase=foreground
 

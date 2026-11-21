@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-layers-of-compositor-animation-at-an-angle-ref.html">
+<!-- The compositor resamples the rotated tiles bilinearly, which a direct raster of the rotated box does not. -->
+<meta name="fuzzy" content="maxDifference=0-80;totalPixels=0-400">
+<style>
+    iframe { display: block; width: 200px; height: 200px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes still-turn { from { transform: rotate(30deg); } to { transform: rotate(30deg); } }
+            body { margin: 0; }
+        </style>
+        <div style="position: absolute; left: 50px; top: 50px; width: 80px; height: 80px; background: navy; animation: still-turn 100s linear infinite"></div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

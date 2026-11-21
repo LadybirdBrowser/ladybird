@@ -14,17 +14,20 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x124] owner=BlockContainer<HTML> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103] owner=BlockContainer<BODY> phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103] owner=BlockContainer(anonymous) phase=scroll-metadata
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 100x100] owner=SVGSVGBox<svg> phase=scroll-metadata
-StrokePath@s2/c0/e0 path_bounding_rect=[9.5,9.5 81x81] path_data=[path: M10 10L90 90] color=rgb(0, 0, 0) thickness=1 owner=SVGGeometryBox<path>#p phase=foreground
-CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s0 rect=[0,0 100x100] owner=SVGForeignObjectBox<foreignObject> phase=scroll-metadata
-CompositorWheelHitTestTarget@s2/c1/e0 target_scroll_node_index=s3 rect=[0,0 80x80] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
-CompositorWheelHitTestTarget@s3/c2/e0 target_scroll_node_index=s3 rect=[0,0 80x300] owner=BlockContainer<DIV> phase=scroll-metadata
-FillRect@s3/c2/e0 rect=[0,0 80x300] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
-CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] expanded_thumb_rect=[67,2 11x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 max_scroll_offset=220 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
-PaintScrollBar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] scroll_size=0.23636363636363636 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x124] owner=BlockContainer<HTML> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103] owner=BlockContainer<BODY> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103] owner=BlockContainer(anonymous) phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 100x100] owner=SVGSVGBox<svg> phase=scroll-metadata
+L0 StrokePath@s2/c0/e0 path_bounding_rect=[9.5,9.5 81x81] path_data=[path: M10 10L90 90] color=rgb(0, 0, 0) thickness=1 owner=SVGGeometryBox<path>#p phase=foreground
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s0 rect=[0,0 100x100] owner=SVGForeignObjectBox<foreignObject> phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s2/c1/e0 target_scroll_node_index=s3 rect=[0,0 80x80] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
+L0 CompositorWheelHitTestTarget@s3/c2/e0 target_scroll_node_index=s3 rect=[0,0 80x300] owner=BlockContainer<DIV> phase=scroll-metadata
+L0 FillRect@s3/c2/e0 rect=[0,0 80x300] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
+L0 CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] expanded_thumb_rect=[67,2 11x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 max_scroll_offset=220 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
+L0 PaintScrollBar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] scroll_size=0.23636363636363636 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
 

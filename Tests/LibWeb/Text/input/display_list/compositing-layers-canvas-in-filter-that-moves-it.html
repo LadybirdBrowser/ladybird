@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="offset"><feOffset dx="40" dy="0" /></filter>
+</svg>
+<div style="filter: url(#offset)">
+    <canvas id="moved" width="200" height="120"></canvas>
+    <span style="position: relative; left: -150px">text over the canvas</span>
+</div>
+<div style="filter: drop-shadow(10px 10px 0 black)"><canvas id="shadowed" width="200" height="120"></canvas></div>
+<script>
+    test(() => {
+        for (const canvas of [moved, shadowed]) {
+            const context = canvas.getContext("2d");
+            context.fillStyle = "blue";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        println(internals.dumpDisplayList());
+    });
+</script>

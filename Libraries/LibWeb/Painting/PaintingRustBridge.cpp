@@ -260,7 +260,8 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
             auto description = ByteString::formatted("{} {}px {}", font.family(), font.pixel_size(), font.weight());
             Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, reinterpret_cast<u8 const*>(description.characters()), description.length()); },
     };
-    Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
+    auto navigable = document.navigable();
+    Gfx::IntRect device_viewport_rect { {}, navigable ? navigable->viewport_size_in_device_pixels() : Gfx::IntSize {} };
     Layout::RustFFI::FfiDisplayListDumpOptions ffi_options {
         .owners = options.owners,
         .text = options.text,
@@ -471,7 +472,8 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
-    auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
+    auto navigable_of_document = document.navigable();
+    auto device_viewport_rect = navigable_of_document ? navigable_of_document->present_viewport_rect() : Gfx::IntRect {};
     auto wheel_event_region_state = document.paint_state().collect_root_blocking_wheel_event_regions(document);
     Layout::RustFFI::FfiRecordingInputs inputs {};
     Vector<Layout::RustFFI::FfiTextFragmentIndicationRange> text_fragment_indications;
@@ -555,7 +557,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
             .text_byte_count = inspector_highlight_label_text.length(),
         };
     }
-    inputs.device_viewport_rect = device_viewport_rect.to_type<int>();
+    inputs.device_viewport_rect = device_viewport_rect;
     if (auto navigable = document.navigable())
         inputs.css_viewport_rect = navigable->viewport_rect();
     inputs.should_show_line_box_borders = config.should_show_line_box_borders;
@@ -623,7 +625,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.canvas_fill_rect = config.canvas_fill_rect;
         inputs.canvas_color = CSS::SystemColor::canvas(color_scheme);
         inputs.opaque_canvas = opaque_canvas;
-        Gfx::IntRect bitmap_rect { {}, device_viewport_rect.size().to_type<int>() };
+        Gfx::IntRect bitmap_rect { {}, device_viewport_rect.size() };
         inputs.bitmap_rect = bitmap_rect;
         inputs.background_color = document.background_color(read);
     }
@@ -640,7 +642,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.async_scrolling_metadata = {
             .has_document_id = true,
             .document_id = document.unique_id().value(),
-            .viewport_rect = device_viewport_rect.to_type<int>(),
+            .viewport_rect = device_viewport_rect,
             .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
             .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
             .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,

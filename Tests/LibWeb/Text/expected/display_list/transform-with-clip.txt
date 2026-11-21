@@ -12,8 +12,12 @@ AccumulatedVisualContext Tree:
 ScrollNodes:
 ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[10,10 150x150] min_scroll_offset=[0,0] max_scroll_offset=[70,70] is_viewport=false
 
+Layers:
+  [L0] base space=viewport
+  [L1] painted space=scroller@s2 in viewport composited within [10,10 150x150] of viewport
+
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[8,8 154x154] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=BlockContainer<DIV>.container phase=border
-FillRect@s3/c0/e0 rect=[10,10 200x200] color=rgb(144, 238, 144) owner=BlockContainer<DIV>.transformed phase=background
-DrawGlyphRun@s3/c0/e0 font_id=font1 glyphs=21 rect=[10,10 185x16] glyph_bounding_rect=[10,10 190x15] translation=[10,23] color=rgb(0, 0, 0) text="Clipped + Transformed" owner=BlockContainer<DIV>.transformed phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 154x154] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=BlockContainer<DIV>.container phase=border
+L1 FillRect@s3/c0/e0 rect=[10,10 200x200] color=rgb(144, 238, 144) owner=BlockContainer<DIV>.transformed phase=background
+L1 DrawGlyphRun@s3/c0/e0 font_id=font1 glyphs=21 rect=[10,10 185x16] glyph_bounding_rect=[10,10 190x15] translation=[10,23] color=rgb(0, 0, 0) text="Clipped + Transformed" owner=BlockContainer<DIV>.transformed phase=foreground
 

@@ -5,12 +5,15 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,14 45x14] glyph_bounding_rect=[8,14 48x13] translation=[8,25] color=rgb(0, 0, 0) text="double" owner=BlockContainer<P> phase=text-fragment
-FillRect@s1/e0 rect=[8,27 44x1] color=rgb(0, 0, 0) owner=BlockContainer<P> phase=text-fragment
-FillRect@s1/e0 rect=[8,29 44x1] color=rgb(0, 0, 0) owner=BlockContainer<P> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,42 43x14] glyph_bounding_rect=[8,42 47x13] translation=[8,53] color=rgb(0, 0, 0) text="dotted" owner=BlockContainer<P> phase=text-fragment
-StrokePath@s1/e0 dash_array=[1, 1] path_bounding_rect=[7.5,55 43x1] path_data=[path: M8 55.5L50 55.5] color=rgb(0, 0, 0) thickness=1 owner=BlockContainer<P> phase=text-fragment
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,70 46x14] glyph_bounding_rect=[8,70 51x13] translation=[8,81] color=rgb(0, 0, 0) text="dashed" owner=BlockContainer<P> phase=text-fragment
-StrokePath@s1/e0 dash_array=[2, 2] path_bounding_rect=[7.5,83 47x1] path_data=[path: M8 83.5L54 83.5] color=rgb(0, 0, 0) thickness=1 owner=BlockContainer<P> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,14 45x14] glyph_bounding_rect=[8,14 48x13] translation=[8,25] color=rgb(0, 0, 0) text="double" owner=BlockContainer<P> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,27 44x1] color=rgb(0, 0, 0) owner=BlockContainer<P> phase=text-fragment
+L0 FillRect@s1/e0 rect=[8,29 44x1] color=rgb(0, 0, 0) owner=BlockContainer<P> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,42 43x14] glyph_bounding_rect=[8,42 47x13] translation=[8,53] color=rgb(0, 0, 0) text="dotted" owner=BlockContainer<P> phase=text-fragment
+L0 StrokePath@s1/e0 dash_array=[1, 1] path_bounding_rect=[7.5,55 43x1] path_data=[path: M8 55.5L50 55.5] color=rgb(0, 0, 0) thickness=1 owner=BlockContainer<P> phase=text-fragment
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[8,70 46x14] glyph_bounding_rect=[8,70 51x13] translation=[8,81] color=rgb(0, 0, 0) text="dashed" owner=BlockContainer<P> phase=text-fragment
+L0 StrokePath@s1/e0 dash_array=[2, 2] path_bounding_rect=[7.5,83 47x1] path_data=[path: M8 83.5L54 83.5] color=rgb(0, 0, 0) thickness=1 owner=BlockContainer<P> phase=text-fragment
 

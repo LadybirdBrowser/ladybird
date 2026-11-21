@@ -5,8 +5,11 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-StrokePath@s1/e0 dash_array=[6.0229473, 6.0229473] dash_offset=9.034421 path_bounding_rect=[10,15 230x44] path_data=[curved path: 135 commands] color=rgb(0, 0, 255) thickness=3 inline_clips=[clip=[25,15 57x3] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[27,8 54x16] glyph_bounding_rect=[27,8 59x15] translation=[27,21] color=rgb(0, 0, 0) text="Legend" owner=LegendBox<LEGEND> phase=foreground
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[25,29 63x17] glyph_bounding_rect=[25,30 69x15] translation=[25,42.59375] color=rgb(0, 0, 0) text="Content" owner=BlockContainer(anonymous) phase=foreground
+L0 StrokePath@s1/e0 dash_array=[6.0229473, 6.0229473] dash_offset=9.034421 path_bounding_rect=[10,15 230x44] path_data=[curved path: 135 commands] color=rgb(0, 0, 255) thickness=3 inline_clips=[clip=[25,15 57x3] mode=difference] owner=FieldSetBox<FIELDSET> phase=border
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[27,8 54x16] glyph_bounding_rect=[27,8 59x15] translation=[27,21] color=rgb(0, 0, 0) text="Legend" owner=LegendBox<LEGEND> phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[25,29 63x17] glyph_bounding_rect=[25,30 69x15] translation=[25,42.59375] color=rgb(0, 0, 0) text="Content" owner=BlockContainer(anonymous) phase=foreground
 

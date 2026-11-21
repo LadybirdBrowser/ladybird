@@ -7,8 +7,11 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s2/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#child phase=background
+L0 FillRect@s2/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#child phase=background
 
 After perspective change:
 AccumulatedVisualContext Tree:
@@ -20,6 +23,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#child phase=background
+L0 FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#child phase=background
 

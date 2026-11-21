@@ -13,16 +13,19 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[8,8 324x274] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.level1 phase=border
-FillRoundedRectRing@s1/c0/e0 rect=[20,20 145x250] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.level2 phase=border
-FillRoundedRectRing@s1/c0/e0 rect=[175,20 145x250] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.level2 phase=border
-FillRect@s2/c1/e0 rect=[26,26 133x40] color=rgb(255, 136, 136) owner=BlockContainer<DIV>.level3.t1 phase=background
-DrawGlyphRun@s2/c1/e0 font_id=font1 glyphs=3 rect=[26,26 20x16] glyph_bounding_rect=[26,26 26x15] translation=[26,39] color=rgb(0, 0, 0) text="1-1" owner=BlockContainer<DIV>.level3.t1 phase=foreground
-FillRect@s3/c1/e0 rect=[26,71 133x40] color=rgb(136, 255, 136) owner=BlockContainer<DIV>.level3.t2 phase=background
-DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=3 rect=[26,71 22x16] glyph_bounding_rect=[26,72 26x15] translation=[26,84] color=rgb(0, 0, 0) text="1-2" owner=BlockContainer<DIV>.level3.t2 phase=foreground
-FillRect@s4/c2/e0 rect=[181,26 133x40] color=rgb(136, 136, 255) owner=BlockContainer<DIV>.level3.t3 phase=background
-DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=3 rect=[181,26 22x16] glyph_bounding_rect=[181,26 29x15] translation=[181,39] color=rgb(0, 0, 0) text="2-1" owner=BlockContainer<DIV>.level3.t3 phase=foreground
-FillRect@s5/c2/e0 rect=[181,71 133x40] color=rgb(255, 255, 136) owner=BlockContainer<DIV>.level3.t4 phase=background
-DrawGlyphRun@s5/c2/e0 font_id=font1 glyphs=3 rect=[181,71 25x16] glyph_bounding_rect=[181,72 29x15] translation=[181,84] color=rgb(0, 0, 0) text="2-2" owner=BlockContainer<DIV>.level3.t4 phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 324x274] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 0) owner=Box<DIV>.level1 phase=border
+L0 FillRoundedRectRing@s1/c0/e0 rect=[20,20 145x250] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.level2 phase=border
+L0 FillRoundedRectRing@s1/c0/e0 rect=[175,20 145x250] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(128, 128, 128) owner=BlockContainer<DIV>.level2 phase=border
+L0 FillRect@s2/c1/e0 rect=[26,26 133x40] color=rgb(255, 136, 136) owner=BlockContainer<DIV>.level3.t1 phase=background
+L0 DrawGlyphRun@s2/c1/e0 font_id=font1 glyphs=3 rect=[26,26 20x16] glyph_bounding_rect=[26,26 26x15] translation=[26,39] color=rgb(0, 0, 0) text="1-1" owner=BlockContainer<DIV>.level3.t1 phase=foreground
+L0 FillRect@s3/c1/e0 rect=[26,71 133x40] color=rgb(136, 255, 136) owner=BlockContainer<DIV>.level3.t2 phase=background
+L0 DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=3 rect=[26,71 22x16] glyph_bounding_rect=[26,72 26x15] translation=[26,84] color=rgb(0, 0, 0) text="1-2" owner=BlockContainer<DIV>.level3.t2 phase=foreground
+L0 FillRect@s4/c2/e0 rect=[181,26 133x40] color=rgb(136, 136, 255) owner=BlockContainer<DIV>.level3.t3 phase=background
+L0 DrawGlyphRun@s4/c2/e0 font_id=font1 glyphs=3 rect=[181,26 22x16] glyph_bounding_rect=[181,26 29x15] translation=[181,39] color=rgb(0, 0, 0) text="2-1" owner=BlockContainer<DIV>.level3.t3 phase=foreground
+L0 FillRect@s5/c2/e0 rect=[181,71 133x40] color=rgb(255, 255, 136) owner=BlockContainer<DIV>.level3.t4 phase=background
+L0 DrawGlyphRun@s5/c2/e0 font_id=font1 glyphs=3 rect=[181,71 25x16] glyph_bounding_rect=[181,72 29x15] translation=[181,84] color=rgb(0, 0, 0) text="2-2" owner=BlockContainer<DIV>.level3.t4 phase=foreground
 

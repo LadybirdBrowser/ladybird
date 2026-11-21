@@ -2,22 +2,22 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(255,175) bounds=[225,145 60x60] (BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas)
-        [s3] transform=[3,0,0,3,0,0] origin=(270,80) bounds=[250,60 40x40] (BlockContainer<DIV>#scaled-onto-canvas)
+        [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(535,175) bounds=[505,145 60x60] (BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas)
+        [s3] transform=[3,0,0,3,0,0] origin=(550,80) bounds=[530,60 40x40] (BlockContainer<DIV>#scaled-onto-canvas)
         [s4] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(630,430) bounds=[600,400 60x60] (BlockContainer<DIV>#rotated-clear-of-canvas)
-        [s5] transform=[3,0,0,3,0,0] origin=(120,470) bounds=[100,450 40x40] (BlockContainer<DIV>#scaled-clear-of-canvas)
+        [s5] transform=[3,0,0,3,0,0] origin=(720,540) bounds=[700,520 40x40] (BlockContainer<DIV>#scaled-clear-of-canvas)
   effects:
     [e0 in s0] effects=[]
 
 Layers:
-  [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
-  [L2] painted rect=[207,17 126x204]
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[297,17 206x126] shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1
 
 DisplayList:
-L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L2 FillRect@s2/e0 rect=[225,145 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas phase=background
-L2 FillRect@s3/e0 rect=[250,60 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-onto-canvas phase=background
+L1 DrawCanvas@s1/e0 dst_rect=[300,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0,L2 FillRect@s2/e0 rect=[505,145 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas phase=background
+L0,L2 FillRect@s3/e0 rect=[530,60 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-onto-canvas phase=background
 L0 FillRect@s4/e0 rect=[600,400 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-clear-of-canvas phase=background
-L0 FillRect@s5/e0 rect=[100,450 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-clear-of-canvas phase=background
+L0 FillRect@s5/e0 rect=[700,520 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-clear-of-canvas phase=background
 

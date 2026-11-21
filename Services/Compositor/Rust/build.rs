@@ -31,8 +31,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("RawMessage", "IPC::FfiRawMessage"),
         ("EncodedValue", "AK::ReadonlyBytes"),
         ("FfiRasterPainter", "Compositing::RustFFI::FfiRasterPainter"),
-        ("FfiReplaySelection", "Compositing::RustFFI::FfiReplaySelection"),
-        ("RecordSpan", "Compositing::RustFFI::RecordSpan"),
         ("CanvasId", "Compositing::CanvasId"),
         ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),
         ("PaintingSurface", "Gfx::PaintingSurface"),

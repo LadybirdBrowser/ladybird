@@ -10,14 +10,17 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[8,8 178x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT>#foo phase=background
-FillRoundedRectRing@s1/e0 rect=[8,8 178x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT>#foo phase=border
-DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=3 rect=[13,11 23x14] glyph_bounding_rect=[13,12 25x12] translation=[13,22] color=rgb(0, 0, 0) text="foo" owner=BlockContainer<DIV> phase=foreground
-DrawGlyphRun@s1/e0 font_id=font2 glyphs=1 rect=[185,9 9x16] glyph_bounding_rect=[186,10 13x15] translation=[185.6875,22] color=rgb(0, 0, 0) text=" " owner=BlockContainer(anonymous) phase=text-fragment
-FillRectWithRoundedCorners@s1/e0 rect=[194,8 177x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT>#bar phase=background
-FillRoundedRectRing@s1/e0 rect=[194,8 177x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT>#bar phase=border
-DrawGlyphRun@s1/c3/e0 font_id=font1 glyphs=3 rect=[198,11 24x14] glyph_bounding_rect=[199,12 27x12] translation=[198.6875,22] color=rgb(0, 0, 0) text="bar" owner=BlockContainer<DIV> phase=foreground
-PaintCaret@s1/c3/e0 rect=[199,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
-FillRoundedRectRing@s1/e0 rect=[192,6 181x24] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT>#bar phase=outline
+L0 FillRectWithRoundedCorners@s1/e0 rect=[8,8 178x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT>#foo phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[8,8 178x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT>#foo phase=border
+L0 DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=3 rect=[13,11 23x14] glyph_bounding_rect=[13,12 25x12] translation=[13,22] color=rgb(0, 0, 0) text="foo" owner=BlockContainer<DIV> phase=foreground
+L0 DrawGlyphRun@s1/e0 font_id=font2 glyphs=1 rect=[185,9 9x16] glyph_bounding_rect=[186,10 13x15] translation=[185.6875,22] color=rgb(0, 0, 0) text=" " owner=BlockContainer(anonymous) phase=text-fragment
+L0 FillRectWithRoundedCorners@s1/e0 rect=[194,8 177x20] color=rgb(255, 255, 255) corner_radii=[4x4,4x4,4x4,4x4] owner=TextInputBox<INPUT>#bar phase=background
+L0 FillRoundedRectRing@s1/e0 rect=[194,8 177x20] corner_radii=[4x4,4x4,4x4,4x4] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(118, 118, 118) owner=TextInputBox<INPUT>#bar phase=border
+L0 DrawGlyphRun@s1/c3/e0 font_id=font1 glyphs=3 rect=[198,11 24x14] glyph_bounding_rect=[199,12 27x12] translation=[198.6875,22] color=rgb(0, 0, 0) text="bar" owner=BlockContainer<DIV> phase=foreground
+L0 PaintCaret@s1/c3/e0 rect=[199,11 1x14] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[192,6 181x24] corner_radii=[6x6,6x6,6x6,6x6] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT>#bar phase=outline
 

@@ -7,8 +7,11 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillRect@s1/c0/e0 rect=[8,13 150x150] color=rgb(128, 0, 128) owner=BlockContainer<DIV>.clipped phase=background
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=8 rect=[8,13 71x16] glyph_bounding_rect=[8,14 75x15] translation=[8,26] color=rgb(0, 0, 0) text="CSS Clip" owner=BlockContainer<DIV>.clipped phase=foreground
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=8 rect=[8,29 72x16] glyph_bounding_rect=[8,30 78x15] translation=[8,42] color=rgb(0, 0, 0) text="Property" owner=BlockContainer<DIV>.clipped phase=foreground
+L0 FillRect@s1/c0/e0 rect=[8,13 150x150] color=rgb(128, 0, 128) owner=BlockContainer<DIV>.clipped phase=background
+L0 DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=8 rect=[8,13 71x16] glyph_bounding_rect=[8,14 75x15] translation=[8,26] color=rgb(0, 0, 0) text="CSS Clip" owner=BlockContainer<DIV>.clipped phase=foreground
+L0 DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=8 rect=[8,29 72x16] glyph_bounding_rect=[8,30 78x15] translation=[8,42] color=rgb(0, 0, 0) text="Property" owner=BlockContainer<DIV>.clipped phase=foreground
 

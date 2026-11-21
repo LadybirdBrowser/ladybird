@@ -259,6 +259,9 @@ impl IntRect {
     pub const fn inflated(self, w: i32, h: i32) -> Self {
         Self::new(self.x - w / 2, self.y - h / 2, self.width + w, self.height + h)
     }
+    pub const fn translated(self, dx: i32, dy: i32) -> Self {
+        Self::new(self.x + dx, self.y + dy, self.width, self.height)
+    }
     pub const fn inflated_edges(self, top: i32, right: i32, bottom: i32, left: i32) -> Self {
         Self::new(
             self.x - left,

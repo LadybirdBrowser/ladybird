@@ -14,7 +14,7 @@
 <div style="transform: translateX(3px); overflow: hidden"><div class="painted"></div></div>
 <script>
     test(() => {
-        const nodeLines = dump => dump.split("\n").filter(line => /^\s+\[[sc]\d+.*\] (transform|clip)=/.test(line) || line.startsWith("FillRect"));
+        const nodeLines = dump => dump.replace(/^L\d+(,L\d+)* /gm, "").split("\n").filter(line => /^\s+\[[sc]\d+.*\] (transform|clip)=/.test(line) || line.startsWith("FillRect"));
         println("Named in print order:");
         println(nodeLines(internals.dumpDisplayList()).join("\n"));
         println("Named by index:");

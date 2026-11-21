@@ -5,7 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-PaintCaret@s1/e0 rect=[8,8 1x16] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
-FillRoundedRectRing@s1/e0 rect=[6,6 104x24] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=BlockContainer<DIV> phase=outline
+L0 PaintCaret@s1/e0 rect=[8,8 1x16] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=BlockContainer<DIV> phase=foreground
+L0 FillRoundedRectRing@s1/e0 rect=[6,6 104x24] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=BlockContainer<DIV> phase=outline
 

@@ -15,7 +15,7 @@ use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::storage::{
-    PackedChunkSize, ReceivedChunk, receive_packed_chunks_from_shared_memory,
+    ListChunk, PackedChunkSize, receive_packed_chunks_from_shared_memory,
 };
 use libcompositing_rust::host::FfiRasterPainter;
 use libcompositing_rust::ipc_types::{
@@ -58,7 +58,7 @@ pub enum FrameHandOff {
 pub struct FfiCanvasContent {
     pub id: u64,
     pub content_generation: u64,
-    // Whether the window server can show the canvas as it is.
+    /// Whether the window server can show the canvas as it is.
     pub has_presentable_surface: bool,
 }
 
@@ -69,7 +69,7 @@ pub struct FfiVideoSinkContent {
     pub has_frame: bool,
     pub frame_id: u64,
     pub frame_holds_high_dynamic_range: bool,
-    // Whether the window server can show the frame as it is.
+    /// Whether the window server can show the frame as it is.
     pub frame_has_surface: bool,
 }
 
@@ -106,7 +106,7 @@ pub enum MediaKind {
 }
 
 /// Where the window server shows a sublayer, and how it clips it, in device pixels.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FfiSublayerPlacement {
     pub content_rect: IntRect,
@@ -133,7 +133,7 @@ pub enum SublayerContentKind {
 
 /// A sublayer the window server shows above a frame: a canvas of the context by its id, a video by the handle of its
 /// sink, or a surface.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiSublayer {
     pub identity: u64,
@@ -662,8 +662,8 @@ impl RasterHost {
         &self,
         buffer: Core_AnonymousBuffer,
         sizes: &[PackedChunkSize],
-    ) -> Result<Vec<ReceivedChunk>, &'static str> {
-        let Some((size, file)) = buffer.shared_memory else {
+    ) -> Result<Vec<ListChunk>, &'static str> {
+        let Some((size_of_packed_chunks, file)) = buffer.shared_memory else {
             // SAFETY: Nothing is read from an empty buffer.
             return unsafe { receive_packed_chunks_from_shared_memory(std::ptr::null(), 0, sizes) };
         };
@@ -672,18 +672,24 @@ impl RasterHost {
         #[cfg(windows)]
         let descriptor = file.0.into_raw();
         let mut data = std::ptr::null();
-        let mut data_size = 0;
+        let mut mapped_size = 0;
         // SAFETY: The host outlives this, and takes the descriptor over.
-        let mapping =
-            unsafe { (self.0.map_shared_memory)(self.host(), descriptor, size, &raw mut data, &raw mut data_size) };
+        let mapping = unsafe {
+            (self.0.map_shared_memory)(
+                self.host(),
+                descriptor,
+                size_of_packed_chunks,
+                &raw mut data,
+                &raw mut mapped_size,
+            )
+        };
         if mapping.is_null() {
             return Err("Display list buffer is smaller than it claims");
         }
-        // The mapping may hold more than the chunks, which fill the size the buffer was sent with.
-        let chunks = match usize::try_from(size) {
-            Ok(size) if size <= data_size => {
-                // SAFETY: The mapping holds `data_size` readable bytes at `data` until it is dropped below.
-                unsafe { receive_packed_chunks_from_shared_memory(data, size, sizes) }
+        let chunks = match usize::try_from(size_of_packed_chunks) {
+            Ok(size_of_packed_chunks) if size_of_packed_chunks <= mapped_size => {
+                // SAFETY: The mapping holds `mapped_size` readable bytes at `data` until it is dropped below.
+                unsafe { receive_packed_chunks_from_shared_memory(data, size_of_packed_chunks, sizes) }
             }
             _ => Err("Display list buffer is smaller than it claims"),
         };

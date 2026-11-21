@@ -1,0 +1,23 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
+
+Layers:
+  [L0] base space=viewport
+  [L2] canvas #0 space=document region=[17,897 206x126] shown by the window server: clip=[0,0 800x600]
+  [L3] painted space=document above L2
+  [L4] painted space=viewport above band 0 of document
+  [L5] painted space=document band=1
+
+DisplayList:
+L2 DrawCanvas@s1/e0 dst_rect=[20,900 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L3 FillRect@s1/e0 rect=[100,940 100x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+L4 FillRect@s0/e0 rect=[0,0 800x40] color=rgb(0, 0, 128) owner=BlockContainer<DIV>#fixed-header phase=background
+L5 FillRect@s1/e0 rect=[300,1500 50x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#after-header phase=background
+

@@ -5,13 +5,16 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base space=viewport
+
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[166,12.651531 20x110.696945] path_data=[curved path: 20 commands] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[11.232849,113 168.56511x15] path_data=[curved path: 52 commands] color=rgb(0, 128, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[7.999998,14.061594 8.000002x107.876816] path_data=[curved path: 12 commands] color=rgb(255, 165, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[11.232849,8 168.56511x15] path_data=[curved path: 52 commands] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[173,134.20204 15x117.59592] path_data=[curved path: 36 commands] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[12.651531,238 170.69693x20] path_data=[curved path: 20 commands] color=rgb(0, 128, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[8,134.20204 15x117.59592] path_data=[curved path: 36 commands] color=rgb(255, 165, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
-FillPath@s1/e0 path_bounding_rect=[12.651531,128 170.69693x20] path_data=[curved path: 20 commands] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[166,12.651531 20x110.696945] path_data=[curved path: 20 commands] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[11.232849,113 168.56511x15] path_data=[curved path: 52 commands] color=rgb(0, 128, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[7.999998,14.061594 8.000002x107.876816] path_data=[curved path: 12 commands] color=rgb(255, 165, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[11.232849,8 168.56511x15] path_data=[curved path: 52 commands] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.wide-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[173,134.20204 15x117.59592] path_data=[curved path: 36 commands] color=rgb(0, 0, 255) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[12.651531,238 170.69693x20] path_data=[curved path: 20 commands] color=rgb(0, 128, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[8,134.20204 15x117.59592] path_data=[curved path: 36 commands] color=rgb(255, 165, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
+L0 FillPath@s1/e0 path_bounding_rect=[12.651531,128 170.69693x20] path_data=[curved path: 20 commands] color=rgb(255, 0, 0) winding_rule=EvenOdd owner=BlockContainer<DIV>.tall-corners phase=border
 

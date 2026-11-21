@@ -10,9 +10,74 @@ use super::{
     ClipBehavior, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex, EffectsData, SpatialData,
     SpatialNodeIndex, VisualContextTree, WorldTransforms,
 };
+use crate::filter_bytes::filter_functions_graph;
 use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
 use crate::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
 use libgfx_rust::FloatPoint;
+use libgfx_rust::filter::Filter;
+
+/// What the animations of a tree animate, per node, worked out once as they are set, so that the copies of the tree
+/// that share the animations share it too.
+#[derive(Default)]
+pub(crate) struct VisualAnimationTargets {
+    effect_targets: Vec<AnimatedEffect>,
+    transform_animation_leaves_plane_by_spatial_index: Vec<bool>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct AnimatedEffect {
+    opacity_or_filter_is_animated: bool,
+    filter_is_animated: bool,
+    some_keyframe_filter_spreads: bool,
+}
+
+impl VisualAnimationTargets {
+    fn of(animations: &[VisualAnimation]) -> Self {
+        let mut targets = Self::default();
+        for animation in animations {
+            match animation.target_kind {
+                FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => {
+                    let is_filter = animation.target_kind == FfiVisualAnimationTargetKind::Filter;
+                    let some_keyframe_filter_spreads = is_filter
+                        && animation.keyframes.iter().any(|keyframe| {
+                            matches!(&keyframe.value, VisualAnimationValue::Filter(functions)
+                                if filter_functions_graph(functions.iter().copied().map(Filter::from))
+                                    .is_some_and(|graph| graph.may_affect_output_bounds()))
+                        });
+                    for &node_index in &animation.node_indices {
+                        let index = node_index as usize;
+                        if targets.effect_targets.len() <= index {
+                            targets.effect_targets.resize(index + 1, AnimatedEffect::default());
+                        }
+                        let target = &mut targets.effect_targets[index];
+                        target.opacity_or_filter_is_animated = true;
+                        target.filter_is_animated |= is_filter;
+                        target.some_keyframe_filter_spreads |= some_keyframe_filter_spreads;
+                    }
+                }
+                FfiVisualAnimationTargetKind::Transform => {
+                    if crate::display_list::animated_transform_spaces::transform_animation_stays_in_plane(animation) {
+                        continue;
+                    }
+                    for &node_index in &animation.node_indices {
+                        let index = node_index as usize;
+                        let leaves_plane = &mut targets.transform_animation_leaves_plane_by_spatial_index;
+                        if leaves_plane.len() <= index {
+                            leaves_plane.resize(index + 1, false);
+                        }
+                        leaves_plane[index] = true;
+                    }
+                }
+                FfiVisualAnimationTargetKind::BackgroundColor => {}
+            }
+        }
+        targets
+    }
+
+    fn effect(&self, effect: EffectNodeIndex) -> AnimatedEffect {
+        self.effect_targets.get(effect.0 as usize).copied().unwrap_or_default()
+    }
+}
 
 /// What a frame scheduler needs to bound the content the running animations move: the nodes of the
 /// animations whose swept area is bounded, sorted by how the bound is computed, and whether every
@@ -37,13 +102,58 @@ impl VisualContextTree {
     }
 
     pub fn set_visual_animations(&mut self, animations: Vec<VisualAnimation>) {
+        self.visual_animation_targets = std::sync::Arc::new(VisualAnimationTargets::of(&animations));
         self.visual_animations = std::sync::Arc::from(animations);
     }
 
     pub fn clear_visual_animations(&mut self) {
         if self.has_visual_animations() {
             self.visual_animations = std::sync::Arc::from(Vec::new());
+            self.visual_animation_targets = std::sync::Arc::default();
         }
+    }
+
+    /// Whether an opacity or filter animation of the tree animates the effect node.
+    pub fn effect_opacity_or_filter_is_animated(&self, effect: EffectNodeIndex) -> bool {
+        self.visual_animation_targets
+            .effect(effect)
+            .opacity_or_filter_is_animated
+    }
+
+    /// Whether a filter animation of the tree animates the effect node.
+    pub fn effect_filter_is_animated(&self, effect: EffectNodeIndex) -> bool {
+        self.visual_animation_targets.effect(effect).filter_is_animated
+    }
+
+    /// Whether the filter a keyframe of a filter animation of the effect node gives it can spread what it filters
+    /// outside its bounds.
+    pub fn some_keyframe_filter_of_effect_spreads(&self, effect: EffectNodeIndex) -> bool {
+        self.visual_animation_targets
+            .effect(effect)
+            .some_keyframe_filter_spreads
+    }
+
+    /// Whether a transform animation of the tree that turns what it transforms out of the plane at some sample
+    /// animates the spatial node.
+    pub fn transform_animation_of_node_leaves_plane(&self, node: SpatialNodeIndex) -> bool {
+        self.visual_animation_targets
+            .transform_animation_leaves_plane_by_spatial_index
+            .get(node.0 as usize)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Whether a transform animation of the tree animates a plane of a 3D sorting context, whose samples can hold the
+    /// plane in the plane of its context where the tree turns it out of it, or the other way around.
+    pub fn transform_animation_animates_plane_of_sorting_context(&self) -> bool {
+        self.visual_animations
+            .iter()
+            .filter(|animation| animation.target_kind == FfiVisualAnimationTargetKind::Transform)
+            .flat_map(|animation| animation.node_indices.iter())
+            .any(|&node_index| {
+                matches!(self.spatial_nodes.get(node_index as usize).map(|node| &node.data),
+                    Some(SpatialData::Transform(transform)) if transform.sorting_context_root_index.is_some())
+            })
     }
 
     pub fn shared_visual_animations(&self) -> std::sync::Arc<[VisualAnimation]> {
@@ -66,7 +176,9 @@ impl VisualContextTree {
     /// resolved, leaves its nodes as the main thread published them.
     pub fn with_visual_animation_samples(&self, sample_time_ns: i64) -> Self {
         let mut sampled = self.clone();
-        sampled.sampled_background_colors.clear();
+        sampled.animation_samples_taken_from_copy =
+            super::AnimationSamplesTakenFromCopy(Some(self.copy_without_animation_samples()));
+        sampled.sampled_background_color_by_effect_index.clear();
         for animation in self.visual_animations.iter() {
             let Some(sample) = animation.sample(animation.elapsed_since_anchor_ns(sample_time_ns)) else {
                 continue;
@@ -79,7 +191,9 @@ impl VisualContextTree {
                         }
                     }
                     VisualAnimationSample::BackgroundColor(color) => {
-                        sampled.sampled_background_colors.insert(node_index, *color);
+                        sampled
+                            .sampled_background_color_by_effect_index
+                            .insert(node_index, *color);
                     }
                     VisualAnimationSample::Filter(filter) => {
                         if let Some(effects) = sampled.effects_mut(node_index) {
