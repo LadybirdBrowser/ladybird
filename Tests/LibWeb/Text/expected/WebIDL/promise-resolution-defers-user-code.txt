@@ -1,0 +1,15 @@
+a promise resolved with a value that has a then getter: operation returned, then getter ran, fulfilled with the value: true
+resolve with a value that has a then getter: operation returned, then getter ran, fulfilled with the value: true
+resolve with a value that inherits a then getter from Object.prototype: operation returned, then getter ran, fulfilled with the value: true
+resolve with a value whose then getter throws: operation returned, rejected with the exception of the getter: true
+resolve with a value that has a then method: operation returned, then method called on the value: true, arguments: function,function, fulfilled with the value passed by the then method
+resolve with a value that has a then method, and a microtask queued afterwards: then method called, microtask ran
+resolve with a value that has no then property, and a microtask queued afterwards: promise reaction ran, microtask ran
+resolve with a proxy: operation returned, proxy get trap ran, fulfilled with the value: true
+resolve with a value that has a proxy on its prototype chain: operation returned, proxy get trap ran, fulfilled with the value: true
+resolve the promise of a pending read() while Object.prototype has a then getter: then getter calls before enqueue() returned: 0, then getter ran on the result of read()
+resolve the promise of a pending read(), and a microtask queued afterwards: promise reaction ran, microtask ran
+convert a callback return value that has a then getter to a promise: cancel() method called, operation returned, then getter ran
+convert a callback return value whose prototype chain is too deep to walk to a promise: cancel() method called, operation returned, promise settled
+convert an HTMLCollection that has an element named then to a promise: cancel() method called, proxy traps that ran before the operation returned: 0, proxy traps ran afterwards: true
+resolve with an animation that has an HTMLCollection on its prototype chain: proxy traps that ran before the operation returned: 0, proxy traps ran afterwards: true

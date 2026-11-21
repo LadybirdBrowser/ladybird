@@ -61,29 +61,10 @@
         println(`cancel during transform: ${await writer.write(chunk).catch(error => error.name)}`);
     }
 
-    async function releaseBetweenRequests() {
-        let controller;
-        const stream = new ReadableStream({ type: "bytes", start: c => (controller = c) });
-        const reader = stream.getReader({ mode: "byob" });
-        const reads = [reader.read(new Uint8Array(1)), reader.read(new Uint8Array(1))];
-        Object.defineProperty(Object.prototype, "then", {
-            configurable: true,
-            get() {
-                delete Object.prototype.then;
-                reader.releaseLock();
-            },
-        });
-        controller.enqueue(new Uint8Array([1, 2]));
-        delete Object.prototype.then;
-        const results = await Promise.allSettled(reads);
-        println(`release between requests: ${results.map(result => result.status).join(" ")}`);
-    }
-
     promiseTest(async () => {
         await abortAfterTerminate();
         await writeWhileClosing();
         await writeAfterCancel();
         await cancelDuringTransform();
-        await releaseBetweenRequests();
     });
 </script>
