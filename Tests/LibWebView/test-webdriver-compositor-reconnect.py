@@ -6,7 +6,8 @@
 
 # When the Compositor dies, the browser connects a new one, and the page's next rendering update
 # has to bring the new Compositor up to date: its first frame carries the whole display list again,
-# not only what changed since the old Compositor's last frame.
+# not only what changed since the old Compositor's last frame. Every WebGL context of the page, of a
+# canvas element or of an OffscreenCanvas, is lost with the Compositor.
 
 import argparse
 import base64
@@ -26,7 +27,21 @@ webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 PAGE = "data:text/html," + urllib.parse.quote(
     """<style>
 #box { width: 100px; height: 100px; background: blue; }
-</style><div id=box></div>"""
+</style><div id=box></div><canvas id=canvas style="display: none"></canvas><script>
+window.webglContextEvents = [];
+function createWebGLContextThatRecordsItsEvents(name, canvas) {
+    canvas.addEventListener("webglcontextlost", event => {
+        event.preventDefault();
+        webglContextEvents.push(`${name} lost`);
+    });
+    return canvas.getContext("webgl") !== null;
+}
+function createWebGLContexts() {
+    window.offscreenCanvas = new OffscreenCanvas(16, 16);
+    return createWebGLContextThatRecordsItsEvents("canvas element", document.getElementById("canvas"))
+        && createWebGLContextThatRecordsItsEvents("OffscreenCanvas", offscreenCanvas);
+}
+</script>"""
 )
 
 
@@ -82,6 +97,7 @@ def run_test(webdriver_binary):
             status, _, body = webdriver_helpers.request(port, "POST", f"/session/{session}/url", {"url": PAGE})
             assert status == 200, body
             webdriver_helpers.wait_for_compositor(port, session)
+            assert execute(port, session, "return createWebGLContexts();"), "WebGL contexts could not be created"
             first = take_screenshot(port, session)
 
             compositors = descendants_named(webdriver.pid, "Compositor")
@@ -101,6 +117,16 @@ def run_test(webdriver_binary):
             assert take_screenshot(port, session) == first
             execute(port, session, "document.getElementById('box').style.background = 'green';")
             assert take_screenshot(port, session) != first
+
+            expected_webgl_context_events = ["OffscreenCanvas lost", "canvas element lost"]
+            deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
+            while True:
+                webgl_context_events = execute(port, session, "return webglContextEvents.toSorted();")
+                if webgl_context_events == expected_webgl_context_events:
+                    break
+                if time.monotonic() >= deadline:
+                    raise AssertionError(f"WebGL context events: {webgl_context_events}")
+                time.sleep(0.05)
             webdriver_helpers.request(port, "DELETE", f"/session/{session}")
         finally:
             webdriver.terminate()

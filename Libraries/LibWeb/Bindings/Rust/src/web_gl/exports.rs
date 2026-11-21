@@ -11,9 +11,12 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use ak::Utf16String;
+use libjs_rust::api::Vm;
 
 use super::canvas::Canvas;
+use super::context_loss::{
+    fire_webgl_context_event, lose_contexts_of_this_thread, register_context, restore_contexts_of_this_thread,
+};
 use super::fingerprint::verify_that_rust_and_cpp_agree_on_layouts_and_constants;
 use super::host::{ContextCreation, RemoteContext};
 use super::proxy::recorder::Proxy;
@@ -21,11 +24,9 @@ use super::state::{
     ContextParameters, ContextRef, ContextState, RenderingContext, WebGL1, WebGL2, WebGLVersion,
     drawing_buffer_dimension,
 };
-use super::web_gl_context_event::{WebGLContextEvent, WebGLContextEventInit};
 use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
 use crate::bindings::interface::{Interface, allocate, cell_into_abi, realm_arguments};
-use crate::dom::event::EventInit;
 
 /// Mirrors `Web::WebGL::ContextAttributes`.
 #[derive(Clone, Copy)]
@@ -95,7 +96,7 @@ pub struct ContextCreationArguments {
     context_attributes: ContextAttributes,
 }
 
-fn create_remote_context(
+pub(super) fn create_remote_context(
     canvas: Canvas,
     webgl2: bool,
     context_attributes: &WebGLContextAttributes,
@@ -166,6 +167,9 @@ pub unsafe extern "C" fn web_webgl_context_create(
     let Some((remote_context, supported_opengl_extensions)) =
         create_remote_context(canvas, version == WebGLVersion::WebGL2, &context_attributes)
     else {
+        // https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-creation-error
+        // 1. Fire a WebGL context event named "webglcontextcreationerror" at canvas, optionally with its statusMessage attribute set to a platform dependent string about the nature of the failure.
+        fire_webgl_context_event(vm, canvas, "webglcontextcreationerror");
         return core::ptr::null_mut();
     };
     let parameters = ContextParameters {
@@ -176,12 +180,16 @@ pub unsafe extern "C" fn web_webgl_context_create(
         context_attributes,
         supported_opengl_extensions,
     };
+    // NB: The display list must be re-recorded so its DrawCanvas command refers to the new remote context's
+    //     canvas id. Content updates alone don't invalidate the display list, so do it here.
+    canvas.did_create_backing_storage();
     match version {
         WebGLVersion::WebGL1 => {
             let context = allocate(vm, |defer_gc| {
                 RenderingContext::<WebGL1>::new(defer_gc, ContextState::new(defer_gc, parameters))
             });
             context.set_context_ref(ContextRef::WebGL1(context));
+            register_context(vm, ContextRef::WebGL1(context));
             cell_into_abi(context)
         }
         WebGLVersion::WebGL2 => {
@@ -189,14 +197,10 @@ pub unsafe extern "C" fn web_webgl_context_create(
                 RenderingContext::<WebGL2>::new(defer_gc, ContextState::new(defer_gc, parameters))
             });
             context.set_context_ref(ContextRef::WebGL2(context));
+            register_context(vm, ContextRef::WebGL2(context));
             cell_into_abi(context)
         }
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_canvas_host(context: &ContextCell) -> *mut c_void {
-    with_context(context, |context| context.canvas().host.as_ptr())
 }
 
 #[unsafe(no_mangle)]
@@ -250,35 +254,22 @@ pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
     frame.map_or(core::ptr::null_mut(), |frame| frame.hand_over_copy())
 }
 
-/// False when the context was lost already.
+/// # Safety
+///
+/// `vm` must be the live VM of the thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_mark_lost(context: &ContextCell) -> bool {
-    with_context(context, ContextState::mark_lost)
+pub unsafe extern "C" fn web_webgl_lose_contexts_of_this_thread(vm: *mut c_void) {
+    // SAFETY: The caller passes the live VM.
+    lose_contexts_of_this_thread(unsafe { &*vm.cast::<Vm>() });
 }
 
+/// # Safety
+///
+/// `vm` must be the live VM of the thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_set_restore_requested(context: &ContextCell, requested: bool) {
-    with_context(context, |context| context.set_context_restore_requested(requested));
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_wants_restoring(context: &ContextCell) -> bool {
-    with_context(context, ContextState::wants_restoring)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_restore(context: &ContextCell) -> bool {
-    with_context(context, |context| {
-        let Some((remote_context, supported_opengl_extensions)) = create_remote_context(
-            context.canvas(),
-            context.is_webgl2(),
-            &context.actual_context_parameters,
-        ) else {
-            return false;
-        };
-        context.restore(remote_context, supported_opengl_extensions);
-        true
-    })
+pub unsafe extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: *mut c_void) {
+    // SAFETY: The caller passes the live VM.
+    restore_contexts_of_this_thread(unsafe { &*vm.cast::<Vm>() });
 }
 
 /// Converts the options of getContext() to the dictionary, and answers true with the exception that the conversion
@@ -314,30 +305,4 @@ pub unsafe extern "C" fn web_webgl_context_attributes_from_value(
             true
         }
     }
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM, `realm` a live realm, and `type` a raw AK::Utf16String that the call takes over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    r#type: usize,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the type.
-    let r#type = unsafe { Utf16String::from_raw_owned(r#type) };
-    let event_init = WebGLContextEventInit {
-        parent: EventInit {
-            bubbles: false,
-            cancelable: true,
-            composed: false,
-        },
-        status_message: Utf16String::from_utf8(""),
-    };
-    let event = WebGLContextEvent::create(vm, realm, &r#type, &event_init);
-    event.event().set_is_trusted(true);
-    event.event().as_ptr()
 }

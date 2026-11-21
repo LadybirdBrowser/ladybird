@@ -548,6 +548,7 @@ static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
 static_assert(to_underlying(HTML::Task::Source::PerformanceTimeline) == 15);
 static_assert(to_underlying(HTML::Task::Source::Clipboard) == 17);
 static_assert(to_underlying(HTML::Task::Source::Permissions) == 18);
+static_assert(to_underlying(HTML::Task::Source::WebGL) == 26);
 static_assert(to_underlying(HTML::Task::Source::Crypto) == 27);
 static_assert(to_underlying(HTML::Task::Source::Storage) == 29);
 
