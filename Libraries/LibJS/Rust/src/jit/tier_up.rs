@@ -357,13 +357,27 @@ fn install(
     defer_gc: &DeferGc<'_>,
 ) {
     let artifact = compiled.artifact();
-    let embedded_cells = artifact
+    let mut embedded_cells: Vec<Gc<CellHeader>> = artifact
         .embedded_cells()
         .map(|cell| {
             // SAFETY: The snapshot kept every cell it captured alive, and the code embeds only those.
             unsafe { Gc::from_non_null(NonNull::new(cell.0 as *mut CellHeader).expect("embedded cells are not null")) }
         })
         .collect();
+    // NB: Code that embeds an ECMAScript function may also embed the words its frames start with (see
+    //     `FunctionFrameFields`), whose environments the code then keeps from moving like the cells it lists.
+    let frame_field_cells: Vec<Gc<CellHeader>> = embedded_cells
+        .iter()
+        .filter_map(|cell| cell.downcast::<EcmascriptFunctionObject>())
+        .flat_map(|function| {
+            [
+                function.environment().map(Gc::upcast),
+                function.private_environment().map(Gc::upcast),
+            ]
+        })
+        .flatten()
+        .collect();
+    embedded_cells.extend(frame_field_cells);
     let id = vm.jit.next_code_id();
     let mut code = JitCode::new(
         memory,

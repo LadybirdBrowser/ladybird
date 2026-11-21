@@ -36,6 +36,7 @@ use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::realm::Realm;
 use crate::layout::shape::Shape;
 use crate::layout::value::Value;
+use crate::layout_forward::IDENTITY_HASH_STATE_OFFSET;
 use crate::runtime::array::Array;
 use crate::runtime::completion::Must;
 use crate::runtime::declarative_environment::{DECLARATIVE_ENVIRONMENT_CELL_SIZES, inline_binding_size_class};
@@ -67,6 +68,10 @@ fn for_each_cell_word<T>(cell: Gc<T>, size: usize, mut word: impl FnMut(u64)) {
         let len = (size - start).min(8);
         // SAFETY: The cell is live and has `size` bytes, of which these `len` are some, and `bytes` has room for 8.
         unsafe { core::ptr::copy_nonoverlapping(cell.as_ptr().cast::<u8>().add(start), bytes.as_mut_ptr(), len) };
+        // NB: A copy is a new cell, which has not been hashed, whatever the identity hash state of the sample is.
+        if (start..start + len).contains(&IDENTITY_HASH_STATE_OFFSET) {
+            bytes[IDENTITY_HASH_STATE_OFFSET - start] = 0;
+        }
         word(u64::from_ne_bytes(bytes));
     }
 }
@@ -110,6 +115,7 @@ pub fn allocation_infos<'d>(
     };
 
     let object_template = Object::create(vm, realm, Some(realm.object_prototype()));
+    object_template.shape().note_in_allocation_template();
     let mut object = ObjectAllocationInfo {
         empty_object_inline_capacity: u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY),
         heap: heap_address,
@@ -149,6 +155,7 @@ pub fn allocation_infos<'d>(
 
     let array_template = Array::create(vm, realm, 0, None).must();
     let array_shape = array_template.shape();
+    array_shape.note_in_allocation_template();
     // NB: Storage is only allocated inline where the heap gives the addresses of all the free lists it comes from.
     let storage_size_classes = snapshot.begin();
     let mut has_all_free_lists = true;
@@ -580,6 +587,7 @@ fn closure_template(
     if !sample.can_be_copied() {
         return None;
     }
+    sample.shape().note_in_allocation_template();
     let words = cell_words(snapshot, sample, size_of::<EcmascriptFunctionObject>());
     Some((sample, words))
 }
