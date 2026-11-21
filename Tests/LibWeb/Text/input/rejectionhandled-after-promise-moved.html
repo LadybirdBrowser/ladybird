@@ -11,12 +11,12 @@
             events.push(`rejectionhandled: ${event.reason}`);
         });
 
-        // NB: Only the property of the holder refers to the promise, so a collection that moves cells can move it while
+        // NB: Only the property of the holder refers to the promise, so a collection that moves cells moves it while
         //     it is in the outstanding rejected promises weak set.
         const holder = { promise: Promise.reject("moved") };
         await waitForCondition(() => events.length === 1);
 
-        await internals.gcAsync();
+        await internals.gcAsync(true);
 
         holder.promise.catch(() => {});
         await waitForCondition(() => events.length === 2);

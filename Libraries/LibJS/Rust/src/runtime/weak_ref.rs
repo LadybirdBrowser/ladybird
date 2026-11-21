@@ -39,7 +39,10 @@ unsafe impl Trace for WeakRef {
         // SAFETY: The VM owns the heap and destroys it before anything else, so it outlives every WeakRef.
         let execution_generation = unsafe { self.vm_execution_generation.as_ref() }.get();
         if execution_generation == self.last_execution_generation.get() {
-            self.value.get().trace(visitor);
+            self.value.trace(visitor);
+        } else if self.value.get().is_cell() {
+            // NB: The collector cannot update a weak reference, so the target stays where it is.
+            visitor.pin(self.value.get().as_cell());
         }
     }
 }

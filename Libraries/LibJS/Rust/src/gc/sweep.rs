@@ -33,6 +33,14 @@ impl<'vm> Sweep<'vm> {
         header.state.get() != CellState::Live || !unsafe { capi::gc_cell_is_marked(cell.as_ptr().cast()) }
     }
 
+    /// Whether `cell`, which a cache held without keeping it alive, did not survive the collection, or moves in it. A
+    /// cache that keeps the address of a cell without visiting it forgets the cell either way, while what holds cells
+    /// weakly by identity pins them as it is traced (see Visitor::pin()).
+    pub fn is_dead_or_moving<T>(&self, cell: Gc<T>) -> bool {
+        // SAFETY: The cell is a cell, intact until the sweep that follows.
+        self.is_dead(cell) || unsafe { capi::gc_cell_will_move(cell.as_ptr().cast()) }
+    }
+
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection is over.
     pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<FinalizationRegistry>) {
         self.0

@@ -313,6 +313,9 @@ unsafe impl Trace for DeclarativeEnvironment {
     fn trace(&self, visitor: &mut Visitor) {
         self.base.trace(visitor);
         self.rare_data.trace(visitor);
+        if self.binding_values_are_inline() {
+            visitor.visit_self_pointer(&self.binding_values);
+        }
         // SAFETY: The first `binding_count` values are initialized, and nothing writes them while they are visited.
         visitor.visit_values(unsafe {
             ak::slice_from_raw_parts(self.binding_values.get(), self.binding_count.get() as usize)

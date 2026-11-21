@@ -45,7 +45,13 @@ impl ExternalMemorySize for PrimitiveString {
 
 // SAFETY: A string's own data holds no cells. The deferred kinds trace the strings they are made of.
 unsafe impl Trace for PrimitiveString {
-    fn trace(&self, _: &mut Visitor) {}
+    fn trace(&self, visitor: &mut Visitor) {
+        // NB: The VM's table of interned strings holds them weakly, and there may only be one interned string with the
+        //     same contents, so an interned string stays where it is rather than being forgotten.
+        if self.is_interned() {
+            visitor.pin(Gc::from_ref(self));
+        }
+    }
 }
 
 #[repr(C)]
@@ -79,7 +85,9 @@ const _: () = assert!(size_of::<Substring>() == 32);
 
 // SAFETY: The characters hold no cells.
 unsafe impl Trace for InlineString {
-    fn trace(&self, _: &mut Visitor) {}
+    fn trace(&self, visitor: &mut Visitor) {
+        self.base.trace(visitor);
+    }
 }
 
 /// OPTIMIZATION: Copies the at most INLINE_STRING_CAPACITY bytes of `source` to the start of `destination` with two

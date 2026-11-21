@@ -106,6 +106,7 @@ unsafe extern "C" {
     // NB: A collection that does not scan the stack may collect or move the cells that only the stack holds.
     pub fn gc_heap_collect_garbage_without_scanning_the_stack(heap: &GCHeap);
     pub safe fn gc_heap_moves_everything() -> bool;
+    pub safe fn gc_heap_set_moves_everything_for_testing(heap: &GCHeap, moves_everything: bool);
     pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_is_marking_for_collection(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_is_returning_memory_to_system(heap: &GCHeap) -> bool;

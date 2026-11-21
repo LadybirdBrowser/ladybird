@@ -145,6 +145,9 @@ public:
     // Whether LIBGC_MOVE_EVERYTHING has every collection that does not scan the stack move every cell it can, which
     // test runners use to collect without scanning the stack where they safely can.
     static bool moves_everything();
+    // Has the collections of this heap that do not scan the stack move every cell they can, or not, as
+    // LIBGC_MOVE_EVERYTHING does for every heap, for tests of moving cells.
+    void set_moves_everything_for_testing(bool moves_everything) { m_moves_everything = moves_everything; }
 
     void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
     void set_should_collect_on_every_allocation(bool);
@@ -417,6 +420,7 @@ private:
     FFI::EvacuationSet* m_evacuation { nullptr };
     // The identity hashes of the cells that moved since they were hashed, see identity_hash().
     FFI::IdentityHashes* m_identity_hashes { nullptr };
+    bool m_moves_everything { moves_everything() };
     void collect_garbage_from_timer();
     enum class AbandonedObjectGraphState : u8 {
         None,

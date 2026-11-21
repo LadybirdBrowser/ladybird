@@ -1157,7 +1157,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     if (!m_incremental_sweep_active)
         schedule_release_of_allocator_memory();
 
-    if (scan_stack && libgc_move_everything())
+    if (scan_stack && m_moves_everything)
         schedule_collection_that_moves_cells();
 }
 
@@ -1168,7 +1168,7 @@ bool Heap::should_move_cells(CollectionType collection_type, bool scan_stack) co
     if (collection_type != CollectionType::CollectGarbage || scan_stack)
         return false;
     // FIXME: Choose blocks worth evacuating. For now, only the stress mode moves cells.
-    return libgc_move_everything();
+    return m_moves_everything;
 }
 
 bool Heap::moves_everything()
