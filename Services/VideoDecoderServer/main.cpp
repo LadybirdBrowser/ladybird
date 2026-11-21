@@ -16,6 +16,7 @@
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
+#include <LibMediaCodecs/FFmpeg/MallocTuning.h>
 #include <LibMediaCodecs/HardwareVideoDecoders.h>
 #include <LibMediaCodecs/VideoDecoderRegistry.h>
 #include <LibMediaCodecs/Vulkan/VulkanVideoDevice.h>
@@ -45,6 +46,8 @@ static ReadonlySpan<Media::VideoDecoderRegistration> software_video_decoders_for
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
+
+    Media::FFmpeg::set_fixed_mmap_threshold();
 
     int crash_report_fd = -1;
     StringView stats_log_directory;
