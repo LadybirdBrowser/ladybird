@@ -126,3 +126,21 @@ TEST_CASE(channel_bitmap_names_its_top_rear_speakers)
             Audio::Channel::TopBackCenter,
             Audio::Channel::TopBackRight));
 }
+
+TEST_CASE(audio_unit_7_1_layout_puts_its_side_channels_before_its_back_channels)
+{
+    AudioChannelLayout layout {};
+    layout.mChannelLayoutTag = kAudioChannelLayoutTag_AudioUnit_7_1;
+
+    auto channel_map = MUST(Audio::core_audio_channel_layout_to_channel_map(layout, sizeof(layout)));
+    EXPECT_EQ(channel_map,
+        Audio::ChannelMap(
+            Audio::Channel::FrontLeft,
+            Audio::Channel::FrontRight,
+            Audio::Channel::FrontCenter,
+            Audio::Channel::LowFrequency,
+            Audio::Channel::SideLeft,
+            Audio::Channel::SideRight,
+            Audio::Channel::BackLeft,
+            Audio::Channel::BackRight));
+}
