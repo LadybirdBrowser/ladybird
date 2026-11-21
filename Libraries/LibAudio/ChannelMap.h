@@ -35,6 +35,8 @@ enum class Channel : u8 {
     TopBackLeft,
     TopBackCenter,
     TopBackRight,
+    TopSideLeft,
+    TopSideRight,
     Count,
 };
 
@@ -177,6 +179,10 @@ constexpr StringView audio_channel_to_string(Channel channel)
         return "TopBackCenter"sv;
     case Audio::Channel::TopBackRight:
         return "TopBackRight"sv;
+    case Audio::Channel::TopSideLeft:
+        return "TopSideLeft"sv;
+    case Audio::Channel::TopSideRight:
+        return "TopSideRight"sv;
     case Audio::Channel::Count:
         break;
     }

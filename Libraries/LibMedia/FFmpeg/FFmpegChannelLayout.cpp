@@ -26,7 +26,9 @@ namespace Media::FFmpeg {
     C(Audio::Channel::TopFrontRight, AVChannel::AV_CHAN_TOP_FRONT_RIGHT)            \
     C(Audio::Channel::TopBackLeft, AVChannel::AV_CHAN_TOP_BACK_LEFT)                \
     C(Audio::Channel::TopBackCenter, AVChannel::AV_CHAN_TOP_BACK_CENTER)            \
-    C(Audio::Channel::TopBackRight, AVChannel::AV_CHAN_TOP_BACK_RIGHT)
+    C(Audio::Channel::TopBackRight, AVChannel::AV_CHAN_TOP_BACK_RIGHT)              \
+    C(Audio::Channel::TopSideLeft, AVChannel::AV_CHAN_TOP_SIDE_LEFT)                \
+    C(Audio::Channel::TopSideRight, AVChannel::AV_CHAN_TOP_SIDE_RIGHT)
 
 ErrorOr<Audio::ChannelMap> FFmpegChannelLayout::to_channel_map() const
 {
