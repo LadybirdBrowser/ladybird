@@ -54,6 +54,12 @@ struct sockaddr;
 #    include <sys/ucred.h>
 #endif
 
+#if defined(AK_OS_LINUX)
+#    include <sys/vfs.h>
+#elif defined(AK_OS_MACOS)
+#    include <sys/mount.h>
+#endif
+
 #ifdef AK_OS_SOLARIS
 #    include <sys/filio.h>
 #    include <ucred.h>
@@ -77,6 +83,10 @@ CORE_API ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
 #    endif
 CORE_API ErrorOr<struct stat> fstat(int fd);
 CORE_API ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
+#    if defined(AK_OS_LINUX) || defined(AK_OS_MACOS)
+CORE_API ErrorOr<struct statfs> statfs(StringView path);
+CORE_API ErrorOr<struct statfs> fstatfs(int fd);
+#    endif
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
