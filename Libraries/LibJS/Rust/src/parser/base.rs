@@ -34,6 +34,9 @@ pub const USE_DEAD: u32 = u32::MAX;
 /// On the function of a use: the use is inside a `with`.
 pub const USE_IN_WITH: u32 = 1 << 31;
 
+/// How many zero code units the lexer needs after the source.
+pub const SOURCE_PADDING: usize = 64;
+
 /// What the lexer finds past the end of a source without padding once a parse has given up on it.
 static NO_MORE_SOURCE: [u16; 64] = [0; 64];
 
@@ -435,9 +438,19 @@ pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
+/// A function could not be parsed or compiled, because the stack that is left does not hold it.
+#[derive(Clone, Copy, Debug)]
+pub struct OutOfStack;
+
+/// The address that the stack can only go `bytes` below where it is now.
+pub fn stack_limit_for_budget(bytes: usize) -> usize {
+    ak::stack::limit_for_budget(bytes)
+}
+
 impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// A parser for the first parse of `source`, with its work data in `zone`. `initial_names` are the tables of an
-    /// interner with the names that every interner starts with.
+    /// interner with the names that every interner starts with. `vm_stack_limit` is how low a VM lets the stack of this
+    /// thread go, if that can be told.
     ///
     /// # Safety
     /// `source` must be followed by at least 64 units of zeros within the same allocation.
@@ -448,6 +461,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         mode: Mode,
         initial_names: &NameTables<'_>,
         validate_regex: ValidateRegex,
+        vm_stack_limit: Option<usize>,
     ) -> Self {
         let interner = Interner::new(zone, source.len(), initial_names);
         // NB: A lazy parse skips the code of functions, which is most of the code of most sources, so a tree of the
@@ -479,6 +493,8 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             validate_regex,
         );
         parser.ast.likely_most_nodes = whole_source_nodes;
+        // NB: Code can start parsing with less stack left than the budget, as eval near the end of the stack does.
+        parser.stack_limit = stack_limit_for_budget(DEFAULT_STACK_BUDGET).max(vm_stack_limit.unwrap_or(0));
         parser.pending_captures.reserve(estimated_functions * 2);
         if source.len() >= u32::MAX as usize - 64 {
             parser.len = 0;
@@ -546,7 +562,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         estimated_uses: usize,
         validate_regex: ValidateRegex,
     ) -> Self {
-        let mut parser = Self {
+        Self {
             zone,
             row_cursor: core::cell::Cell::new(0),
             marks: false,
@@ -555,7 +571,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             block_mark: NONE,
             last_function_of_block: 0,
             arguments_in_array: false,
-            inline_argument_limit: crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
+            inline_argument_limit: 0,
             tracks_scopes: true,
             validate_regex,
             summary_ordinal: 0,
@@ -641,11 +657,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             initiated_by_eval: false,
             eval_referenced_private_names: ZoneVec::new_in(zone),
             _marker: core::marker::PhantomData,
-        };
-        // NB: Code can start parsing with less stack left than the budget, as eval near the end of the stack does.
-        parser.stack_limit = super::stack_limit_for_budget(DEFAULT_STACK_BUDGET)
-            .max(super::vm_stack_limit_of_this_thread().unwrap_or(0));
-        parser
+        }
     }
 
     /// Allows what `context` allows from the start of the program.
@@ -691,11 +703,12 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         &mut self,
         context: ProgramContext,
         index: FunctionIndexView<'a>,
-    ) -> Result<(Ast<'a>, u32), super::OutOfStack> {
+        inline_argument_limit: usize,
+    ) -> Result<(Ast<'a>, u32), OutOfStack> {
         // NB: The rows are those of the tree, and marks, which some code has many of.
         let nodes = self.ast.tag.len();
         let rows = Ast::with_capacities(self.zone, nodes + nodes / 2, self.ast.extra.len());
-        let tree = std::mem::replace(&mut self.ast, rows);
+        let tree = core::mem::replace(&mut self.ast, rows);
         let private_names = self.eval_referenced_private_names.take();
         let (first_token_start, strict, has_top_level_await) =
             (self.first_token_start, self.strict, self.has_top_level_await);
@@ -704,10 +717,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         self.first_pass_index = Some(index);
         self.tracks_scopes = false;
         self.marks = true;
+        self.inline_argument_limit = inline_argument_limit;
         let node = self.reparse_program(context);
         self.first_pass_index = None;
         let error = self.err.take();
-        let rows = std::mem::replace(&mut self.ast, tree);
+        let rows = core::mem::replace(&mut self.ast, tree);
         self.eval_referenced_private_names = private_names;
         self.first_token_start = first_token_start;
         self.strict = strict;
@@ -719,7 +733,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                     error.message, RECURSION_LIMIT_MESSAGE,
                     "the first parse found no errors"
                 );
-                Err(super::OutOfStack)
+                Err(OutOfStack)
             }
         }
     }
@@ -2177,7 +2191,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         };
         self.summary_ordinal = state.summary_ordinal;
         if !self.is_reparsing() {
-            if self.tok_end as usize + super::SOURCE_PADDING > self.len as usize {
+            if self.tok_end as usize + SOURCE_PADDING > self.len as usize {
                 flags |= function_flag::REACHES_SOURCE_END;
             }
             let row = state.row as usize;

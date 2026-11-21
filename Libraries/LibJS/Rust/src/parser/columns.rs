@@ -10,7 +10,7 @@
 //!
 //! Names and literals are not copied: an identifier operand is an interned name id, and a literal is its source offset.
 
-use std::cell::Cell;
+use core::cell::Cell;
 
 use ak::Zone;
 use ak::ZoneVec;

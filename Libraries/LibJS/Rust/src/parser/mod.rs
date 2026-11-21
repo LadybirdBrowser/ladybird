@@ -40,7 +40,10 @@ use crate::work_zone::with_work_zone;
 use ak::Zone;
 use ak::ZoneVec;
 use base::Mode;
+pub use base::OutOfStack;
 use base::Parser;
+use base::SOURCE_PADDING;
+pub use base::stack_limit_for_budget;
 use columns::Ast;
 use columns::AstColumns;
 use columns::FunctionIndexBuilder;
@@ -59,9 +62,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 use unit::Unit;
-
-/// How many zero code units the lexer needs after the source.
-const SOURCE_PADDING: usize = 64;
 
 /// A function of a source, as the row that the first parse of the source gave it.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -147,15 +147,6 @@ fn validate_regex<'z>(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<
     crate::host::validate_regex(pattern, flags).map_err(|message| {
         core::str::from_utf8(zone.alloc_slice_copy(message.as_bytes())).expect("a copy of a string is one")
     })
-}
-
-/// A function could not be parsed or compiled, because the stack that is left does not hold it.
-#[derive(Clone, Copy, Debug)]
-pub struct OutOfStack;
-
-/// The address that the stack can only go `bytes` below where it is now.
-pub fn stack_limit_for_budget(bytes: usize) -> usize {
-    ak::stack::limit_for_budget(bytes)
 }
 
 /// How low a VM lets the stack of this thread go, or `None` if that cannot be told.
@@ -582,6 +573,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
             },
             &KeptNames::initial(zone).tables(),
             validate_regex,
+            vm_stack_limit_of_this_thread(),
         )
     };
     parser.strict |= options.starts_in_strict_mode;
@@ -603,7 +595,11 @@ fn parse_code_units<'z, U: Unit + Default, R>(
     let lines = LineTable::new(zone, units, options.initial_line_number);
     let index = core::mem::replace(&mut parser.index, FunctionIndexBuilder::with_capacity(zone, 0)).finish();
     let top_level_rows = parser
-        .parse_top_level_rows(options.program_context(), index)
+        .parse_top_level_rows(
+            options.program_context(),
+            index,
+            crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
+        )
         .map(|(rows, node)| (rows.into_columns(), node));
     let default_export_name = Name(parser.interner.intern_bytes(b"*default*"));
     let default_constructor_parameter_name = Name(parser.interner.intern_bytes(b"args"));
