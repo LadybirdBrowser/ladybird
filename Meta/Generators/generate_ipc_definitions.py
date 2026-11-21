@@ -1774,6 +1774,13 @@ def rust_utf8_bytes(parameter: Parameter, value: str) -> Optional[str]:
     raise RuntimeError(f"Cannot apply [UTF8] to Rust parameter {parameter.name!r} of type {parameter.type}")
 
 
+RUST_CODEC_DERIVES = ["::libipc_rust::wire::Encode", "::libipc_rust::wire::Decode"]
+
+
+def write_rust_derives(out: TextIO, derives: List[str], indent: str = "") -> None:
+    out.write(f"{indent}#[derive({', '.join(derives + RUST_CODEC_DERIVES)})]\n")
+
+
 def write_rust_message_struct(out: TextIO, name: str, message_id: int, parameters: List[Parameter]) -> None:
     pascal_name = rust_field_name(pascal_case(name))
     utf8_parameters = [
@@ -1782,6 +1789,9 @@ def write_rust_message_struct(out: TextIO, name: str, message_id: int, parameter
         if "UTF8" in parameter.attributes and rust_utf8_bytes(parameter, "value") is not None
     ]
     out.write("\n")
+    write_rust_derives(out, [], "    ")
+    if utf8_parameters:
+        out.write("    #[ipc(validate = Self::validate)]\n")
     if parameters:
         out.write(f"    pub struct {pascal_name} {{\n")
         for parameter in parameters:
@@ -1794,13 +1804,11 @@ def write_rust_message_struct(out: TextIO, name: str, message_id: int, parameter
     if utf8_parameters:
         out.write(f"""
     impl {pascal_name} {{
-        fn validate_utf8(&self) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
+        fn validate(&self) -> ::std::result::Result<(), &'static str> {{
 """)
         for parameter in utf8_parameters:
             bytes_expression = rust_utf8_bytes(parameter, f"self.{rust_field_name(parameter.name)}")
-            out.write(
-                f'            ::libipc_rust::wire::validate_utf8({bytes_expression}).map_err(|_| ::libipc_rust::wire::EncodeError::InvalidValue("UTF-8"))?;\n'
-            )
+            out.write(f'            ::libipc_rust::wire::validate_utf8({bytes_expression}).map_err(|_| "UTF-8")?;\n')
         out.write("""            ::std::result::Result::Ok(())
         }
     }
@@ -1811,49 +1819,7 @@ def write_rust_message_struct(out: TextIO, name: str, message_id: int, parameter
         const ENDPOINT_MAGIC: u32 = super::ENDPOINT_MAGIC;
         const MESSAGE_ID: i32 = {message_id};
     }}
-
-    impl ::libipc_rust::wire::Encode for {pascal_name} {{
-        fn encode(&self, _encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
 """)
-    if utf8_parameters:
-        out.write("            self.validate_utf8()?;\n")
-    for parameter in parameters:
-        out.write(f"            _encoder.encode(&self.{rust_field_name(parameter.name)})?;\n")
-    out.write("""            ::std::result::Result::Ok(())
-        }
-
-        fn encode_owned(self, _encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {
-""")
-    if utf8_parameters:
-        out.write("            self.validate_utf8()?;\n")
-    for parameter in parameters:
-        out.write(f"            _encoder.encode_owned(self.{rust_field_name(parameter.name)})?;\n")
-    out.write(f"""            ::std::result::Result::Ok(())
-        }}
-    }}
-
-    impl ::libipc_rust::wire::Decode for {pascal_name} {{
-        fn decode(_decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-""")
-    if parameters:
-        out.write("            ::std::result::Result::Ok(Self {\n")
-        for parameter in parameters:
-            field_name = rust_field_name(parameter.name)
-            if parameter not in utf8_parameters:
-                out.write(f"                {field_name}: _decoder.decode()?,\n")
-                continue
-            field_type = rust_type(parameter.type)
-            bytes_expression = rust_utf8_bytes(parameter, "value")
-            out.write(f"""                {field_name}: {{
-                    let value: {field_type} = _decoder.decode()?;
-                    ::libipc_rust::wire::validate_utf8({bytes_expression})?;
-                    value
-                }},
-""")
-        out.write("            })\n")
-    else:
-        out.write("            ::std::result::Result::Ok(Self)\n")
-    out.write("        }\n    }\n")
 
 
 def write_rust_stub(out: TextIO, endpoint: Endpoint) -> None:
@@ -1976,10 +1942,9 @@ def rust_field_refusals(member: Parameter, value: str) -> List[FieldRefusal]:
 
 def write_rust_flags(out: TextIO, declaration: Declaration, name: str) -> None:
     underlying_type = declaration.underlying_type
-    out.write(f"""
-#[allow(dead_code, non_camel_case_types)]
-#[derive({", ".join(declaration.rust_derives())})]
-#[repr(transparent)]
+    out.write("\n#[allow(dead_code, non_camel_case_types)]\n")
+    write_rust_derives(out, declaration.rust_derives())
+    out.write(f"""#[repr(transparent)]
 pub struct {name}(pub {underlying_type});
 
 #[allow(dead_code, non_upper_case_globals)]
@@ -2020,18 +1985,6 @@ impl ::std::ops::Not for {name} {{
         Self(!self.0)
     }}
 }}
-
-impl ::libipc_rust::wire::Encode for {name} {{
-    fn encode(&self, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-        encoder.encode(&self.0)
-    }}
-}}
-
-impl ::libipc_rust::wire::Decode for {name} {{
-    fn decode(decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-        ::std::result::Result::Ok(Self(decoder.decode()?))
-    }}
-}}
 """)
 
 
@@ -2040,165 +1993,54 @@ def write_rust_enum(out: TextIO, declaration: Declaration, name: str) -> None:
         write_rust_flags(out, declaration, name)
         return
 
-    underlying_type = declaration.underlying_type
-    out.write(f"""
-#[allow(dead_code, non_camel_case_types)]
-#[derive({", ".join(declaration.rust_derives())})]
-#[repr({underlying_type})]
-pub enum {name} {{
-""")
+    out.write("\n#[allow(dead_code, non_camel_case_types)]\n")
+    write_rust_derives(out, declaration.rust_derives())
+    out.write(f"#[repr({declaration.underlying_type})]\npub enum {name} {{\n")
     for member in declaration.members:
         value = f" = {member.value}" if declaration.gives_values() else ""
         out.write(f"    {rust_field_name(member.name)}{value},\n")
-    out.write(f"""}}
-
-impl ::libipc_rust::wire::Encode for {name} {{
-    fn encode(&self, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-        encoder.encode(&(*self as {underlying_type}))
-    }}
-}}
-
-impl ::libipc_rust::wire::Decode for {name} {{
-    fn decode(decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-        match decoder.decode::<{underlying_type}>()? {{
-""")
-    for index, member in enumerate(declaration.members):
-        number = member.value if declaration.gives_values() else index
-        out.write(f"            {number} => ::std::result::Result::Ok(Self::{rust_field_name(member.name)}),\n")
-    out.write(f"""            _ => ::std::result::Result::Err(::libipc_rust::wire::DecodeError::InvalidValue("{declaration.name}")),
-        }}
-    }}
-}}
-""")
+    out.write("}\n")
 
 
 def write_rust_struct(out: TextIO, declaration: Declaration, name: str) -> None:
-    fields = [(rust_field_name(member.name), rust_type(member.type)) for member in declaration.members]
+    refusals = [(member, refusal) for member in declaration.members for refusal in rust_field_refusals(member, "self")]
     out.write("\n#[allow(dead_code, non_camel_case_types)]\n")
-    if declaration.rust_derives():
-        out.write(f"#[derive({', '.join(declaration.rust_derives())})]\n")
-    if not fields:
-        out.write(f"""pub struct {name};
-
-impl ::libipc_rust::wire::Encode for {name} {{
-    fn encode(&self, _: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-        ::std::result::Result::Ok(())
-    }}
-}}
-
-impl ::libipc_rust::wire::Decode for {name} {{
-    fn decode(_: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-        ::std::result::Result::Ok(Self)
-    }}
-}}
-""")
+    write_rust_derives(out, declaration.rust_derives())
+    if refusals:
+        out.write("#[ipc(validate = Self::validate)]\n")
+    if not declaration.members:
+        out.write(f"pub struct {name};\n")
         return
 
     out.write(f"pub struct {name} {{\n")
-    for field_name, field_type in fields:
-        out.write(f"    pub {field_name}: {field_type},\n")
-    out.write("}\n")
-
-    refusals = [(member, refusal) for member in declaration.members for refusal in rust_field_refusals(member, "self")]
-    if refusals:
-        out.write(f"""
-impl {name} {{
-    fn validate(&self) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-""")
-        for member, refusal in refusals:
-            out.write(f"""        if {refusal.rust_condition} {{
-            return ::std::result::Result::Err(::libipc_rust::wire::EncodeError::InvalidValue("{declaration.name}::{member.name}"));
-        }}
-""")
-        out.write("        ::std::result::Result::Ok(())\n    }\n}\n")
-    validate = "        self.validate()?;\n" if refusals else ""
-
-    out.write(f"""
-impl ::libipc_rust::wire::Encode for {name} {{
-    fn encode(&self, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-{validate}""")
-    for field_name, _ in fields:
-        out.write(f"        encoder.encode(&self.{field_name})?;\n")
-    out.write(f"""        ::std::result::Result::Ok(())
-    }}
-
-    fn encode_owned(self, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-{validate}""")
-    for field_name, _ in fields:
-        out.write(f"        encoder.encode_owned(self.{field_name})?;\n")
-    checks = [
-        (member, refusal)
-        for member in declaration.members
-        for refusal in rust_field_refusals(member, "value")
-        if refusal.is_checked_after_decoding()
-    ]
-    out.write(f"""        ::std::result::Result::Ok(())
-    }}
-}}
-
-impl ::libipc_rust::wire::Decode for {name} {{
-    fn decode(decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-""")
-    out.write("        let value = Self {\n" if checks else "        ::std::result::Result::Ok(Self {\n")
     for member in declaration.members:
         size = max_size(member)
-        decode = "decoder.decode()?" if size is None else f"decoder.decode_with_max_size({size})?"
-        out.write(f"            {rust_field_name(member.name)}: {decode},\n")
-    if not checks:
-        out.write("        })\n    }\n}\n")
+        if size is not None:
+            out.write(f"    #[ipc(max_size = {size})]\n")
+        out.write(f"    pub {rust_field_name(member.name)}: {rust_type(member.type)},\n")
+    out.write("}\n")
+
+    if not refusals:
         return
-    out.write("        };\n")
-    for member, refusal in checks:
+    out.write(f"""
+impl {name} {{
+    fn validate(&self) -> ::std::result::Result<(), &'static str> {{
+""")
+    for member, refusal in refusals:
         out.write(f"""        if {refusal.rust_condition} {{
-            return ::std::result::Result::Err(::libipc_rust::wire::DecodeError::InvalidValue("{declaration.name}::{member.name}"));
+            return ::std::result::Result::Err("{declaration.name}::{member.name}");
         }}
 """)
-    out.write("""        ::std::result::Result::Ok(value)
-    }
-}
-""")
+    out.write("        ::std::result::Result::Ok(())\n    }\n}\n")
 
 
 def write_rust_variant(out: TextIO, declaration: Declaration, name: str) -> None:
-    alternatives = [(rust_field_name(member.name), rust_type(member.type)) for member in declaration.members]
-    derives = f"#[derive({', '.join(declaration.rust_derives())})]\n" if declaration.rust_derives() else ""
-    out.write(f"""
-#[allow(dead_code, non_camel_case_types)]
-{derives}pub enum {name} {{
-""")
-    for alternative, alternative_type in alternatives:
-        out.write(f"    {alternative}({alternative_type}),\n")
-    out.write(f"""}}
-
-// NB: A variant goes as the index of its alternative, then the alternative, as an AK::Variant does.
-impl ::libipc_rust::wire::Encode for {name} {{
-""")
-    for function, receiver, encode in (("encode", "&self", "encode"), ("encode_owned", "self", "encode_owned")):
-        out.write(f"""    fn {function}({receiver}, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
-        match self {{
-""")
-        for index, (alternative, _) in enumerate(alternatives):
-            out.write(f"""            Self::{alternative}(value) => {{
-                encoder.encode(&{index}u8)?;
-                encoder.{encode}(value)
-            }}
-""")
-        out.write("        }\n    }\n")
-        if function == "encode":
-            out.write("\n")
-    out.write(f"""}}
-
-impl ::libipc_rust::wire::Decode for {name} {{
-    fn decode(decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
-        match decoder.decode::<u8>()? {{
-""")
-    for index, (alternative, _) in enumerate(alternatives):
-        out.write(f"            {index} => ::std::result::Result::Ok(Self::{alternative}(decoder.decode()?)),\n")
-    out.write(f"""            _ => ::std::result::Result::Err(::libipc_rust::wire::DecodeError::InvalidValue("{declaration.name}")),
-        }}
-    }}
-}}
-""")
+    out.write("\n#[allow(dead_code, non_camel_case_types)]\n")
+    write_rust_derives(out, declaration.rust_derives())
+    out.write(f"pub enum {name} {{\n")
+    for member in declaration.members:
+        out.write(f"    {rust_field_name(member.name)}({rust_type(member.type)}),\n")
+    out.write("}\n")
 
 
 def build_rust(out: TextIO, document: Document) -> None:

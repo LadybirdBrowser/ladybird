@@ -99,7 +99,7 @@ fn generated_utf8_validation_matches_cpp() {
                 encoded.encode(&bytes).unwrap();
                 assert!(matches!(
                     Message::decode(&encoded.finish().0, vec![]),
-                    Err(DecodeError::InvalidUtf8)
+                    Err(DecodeError::InvalidValue("UTF-8"))
                 ));
                 let mut encoder = Encoder::new();
                 let (borrowed, owned) = if response {
