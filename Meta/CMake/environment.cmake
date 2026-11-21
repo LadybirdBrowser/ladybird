@@ -13,6 +13,17 @@ if (DEFINED LADYBIRD_VCPKG_TYPE)
         set(ENV{VCPKG_ROOT} "$ENV{LADYBIRD_MAIN_SOURCE_DIR}/Build/vcpkg-${LADYBIRD_VCPKG_TYPE}")
     endif()
 
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux"
+        AND (NOT DEFINED VCPKG_MANIFEST_INSTALL OR VCPKG_MANIFEST_INSTALL)
+        AND (NOT DEFINED ENABLE_GUI_TARGETS OR ENABLE_GUI_TARGETS))
+        cmake_host_system_information(RESULT host_distribution QUERY DISTRIB_INFO)
+
+        # Ubuntu 26.04 is the first release with Qt 6.10 or newer.
+        if (host_distribution_ID STREQUAL "ubuntu" AND host_distribution_VERSION_ID AND host_distribution_VERSION_ID VERSION_LESS 26)
+            list(APPEND VCPKG_MANIFEST_FEATURES "qt")
+        endif()
+    endif()
+
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
     set(VCPKG_INSTALL_OPTIONS "--no-print-usage" CACHE STRING "" FORCE)
     if (CMAKE_HOST_APPLE)
