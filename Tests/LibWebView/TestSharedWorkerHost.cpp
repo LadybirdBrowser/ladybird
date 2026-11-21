@@ -148,7 +148,7 @@ public:
     Tab open(URL::URL const& url, WebView::IsPrivate is_private = WebView::IsPrivate::No)
     {
         auto tab = WebView::HeadlessWebView::create(m_theme, { 800, 600 }, is_private);
-        tab->load(url);
+        tab->load_from_browser_ui(url);
         (void)worker_status_of(*tab);
         return tab;
     }
@@ -283,7 +283,7 @@ static void owner_in_the_host_navigates_away(Browser& browser)
     auto host_pid = host_tab->web_content_pid();
 
     auto id = browser.worker_status_of(*other_tab).id;
-    host_tab->load(browser.server().url("localhost"sv, "/page?name=navigation"sv));
+    host_tab->load_from_browser_ui(browser.server().url("localhost"sv, "/page?name=navigation"sv));
     Core::EventLoop::current().spin_until([&] { return host_tab->web_content_pid() != host_pid; });
     Core::EventLoop::current().spin_until([&] { return browser.worker_status_of(*host_tab).id != id; });
 

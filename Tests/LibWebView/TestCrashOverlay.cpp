@@ -68,9 +68,9 @@ static void test_crash_overlay(bool bidi_reload_only)
     };
     auto first_url = URL::Parser::basic_parse("data:text/html,<title>First</title>first-page"sv).release_value();
     auto failed_url = URL::Parser::basic_parse("data:text/html,<title>Failed page</title>original-page-content"sv).release_value();
-    view->load(first_url);
+    view->load_from_browser_ui(first_url);
     Core::EventLoop::current().spin_until([&] { return loads_finished >= 2; });
-    view->load(failed_url);
+    view->load_from_browser_ui(failed_url);
     Core::EventLoop::current().spin_until([&] { return loads_finished >= 3; });
     auto history_step = view->traversable().session_history().current_step();
 
@@ -142,18 +142,18 @@ static void test_crash_overlay(bool bidi_reload_only)
 
     // A load from the browser's UI navigates the tab whose document was lost as it would the document: to its URL, it
     // replaces its entry, to another it pushes one, and to a fragment of its URL it loads the URL again.
-    crash_and_load([&] { view->load(failed_url); });
+    crash_and_load([&] { view->load_from_browser_ui(failed_url); });
     VERIFY(session_history.current_step() == history_step);
     VERIFY(session_history.used_step_count() == 2);
     VERIFY(evaluate("document.body.textContent === 'original-page-content'"sv).as_bool());
 
-    crash_and_load([&] { view->load(first_url); });
+    crash_and_load([&] { view->load_from_browser_ui(first_url); });
     VERIFY(session_history.used_step_count() == 3);
     VERIFY(evaluate("document.body.textContent === 'first-page'"sv).as_bool());
 
     auto first_url_with_fragment = first_url;
     first_url_with_fragment.set_fragment("fragment"sv);
-    crash_and_load([&] { view->load(first_url_with_fragment); });
+    crash_and_load([&] { view->load_from_browser_ui(first_url_with_fragment); });
     VERIFY(session_history.used_step_count() == 4);
     VERIFY(view->url() == first_url_with_fragment);
     VERIFY(evaluate("document.body.textContent === 'first-page'"sv).as_bool());

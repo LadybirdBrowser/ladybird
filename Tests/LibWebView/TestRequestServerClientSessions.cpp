@@ -169,7 +169,7 @@ TEST_CASE(request_server_client_sessions)
     // A worker uses the cookies of the browsing session of the process it runs in, also one that a page's worker
     // starts after the page's private session was restarted, whether or not the next private session has begun.
     auto worker_owner_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
-    worker_owner_view->load(URL::Parser::basic_parse("data:text/html,<title>workers</title>"sv).release_value());
+    worker_owner_view->load_from_browser_ui(URL::Parser::basic_parse("data:text/html,<title>workers</title>"sv).release_value());
     Core::EventLoop::current().spin_until([&] { return worker_owner_view->title() == "workers"sv; });
     auto& worker_owner_session = worker_owner_view->page().client().session();
     worker_owner_view->run_javascript(R"js(

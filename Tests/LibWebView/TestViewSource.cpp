@@ -112,7 +112,7 @@ TEST_CASE(view_source_of_source_page)
     VERIFY(!app->active_web_view()->can_view_source());
 
     auto loads_before_navigation = app->opened_tab_loads();
-    source_tab.load(URL::Parser::basic_parse("data:text/html,<p>Another page</p>"sv).release_value());
+    source_tab.load_from_browser_ui(URL::Parser::basic_parse("data:text/html,<p>Another page</p>"sv).release_value());
     Core::EventLoop::current().spin_until([&]() { return app->opened_tab_loads() > loads_before_navigation; });
 
     VERIFY(source_tab.can_view_source());

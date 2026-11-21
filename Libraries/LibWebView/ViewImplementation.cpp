@@ -886,7 +886,7 @@ void ViewImplementation::set_has_system_focus(bool has_system_focus)
     traversable().set_has_system_focus(has_system_focus, {});
 }
 
-void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::load_from_browser_ui(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     load(traversable().prepare_navigation(url, {}, history_handling));
 }
@@ -914,7 +914,7 @@ void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation
 void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
 {
     if (auto* view = create_view_for_new_tab_or_window(is_private())) {
-        view->load(url);
+        view->load_from_browser_ui(url);
         return;
     }
 
@@ -954,7 +954,7 @@ void ViewImplementation::open_navigation_in_new_window(Web::HTML::PreparedNaviga
 void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate is_private)
 {
     if (auto* view = create_view_for_new_tab_or_window(is_private)) {
-        view->load(url);
+        view->load_from_browser_ui(url);
         return;
     }
 
@@ -4884,7 +4884,7 @@ Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_t
 void ViewImplementation::retry_navigation(NavigationToRetry retry, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (!retry.navigation.has_value()) {
-        load(retry.url, history_handling);
+        load_from_browser_ui(retry.url, history_handling);
         return;
     }
     auto navigation = retry.navigation.release_value();

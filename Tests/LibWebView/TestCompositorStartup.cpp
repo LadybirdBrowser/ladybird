@@ -55,7 +55,7 @@ TEST_CASE(a_tab_opened_before_the_compositor_launches_paints_once_it_does)
 
     bool painted = false;
     view->on_ready_to_paint = [&] { painted = true; };
-    view->load(URL::Parser::basic_parse("data:text/html,<p>painted"sv).release_value());
+    view->load_from_browser_ui(URL::Parser::basic_parse("data:text/html,<p>painted"sv).release_value());
     Core::EventLoop::current().spin_until([&] { return painted; });
     view->on_ready_to_paint = nullptr;
 
@@ -81,7 +81,7 @@ TEST_CASE(a_video_that_starts_before_the_compositor_launches_plays_once_it_does)
 
     bool can_play = false;
     view->on_title_change = [&](auto const& title) { can_play = title == "canplay"sv; };
-    view->load(URL::create_with_file_scheme(page_path).release_value());
+    view->load_from_browser_ui(URL::create_with_file_scheme(page_path).release_value());
     EXPECT(!app->has_compositor_process());
     Core::EventLoop::current().spin_until([&] { return can_play; });
     view->on_title_change = nullptr;

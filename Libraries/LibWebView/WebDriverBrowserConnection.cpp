@@ -165,7 +165,7 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
         // The wait is armed only as the load starts: The current document can finish loading before then, and its
         // completion would end a wait that was armed for the load.
         view->did_start_webdriver_navigation();
-        view->load(url);
+        view->load_from_browser_ui(url);
         strong_this->async_command_complete(command_id, JsonValue {});
     });
 }

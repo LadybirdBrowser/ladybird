@@ -932,7 +932,7 @@ View* ConnectionFromUI::find_view(u64 view_id)
 void ConnectionFromUI::view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior)
 {
     if (auto* view = find_view(view_id)) {
-        view->load(url, history_behavior);
+        view->load_from_browser_ui(url, history_behavior);
         view->push_state_to_ui();
     }
 }

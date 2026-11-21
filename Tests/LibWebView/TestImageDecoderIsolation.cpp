@@ -139,8 +139,8 @@ TEST_CASE(renderers_of_a_site_share_an_image_decoder)
     second_view->on_load_finish = [&](auto const&) { ++second_view_loads; };
     Core::EventLoop::current().spin_until([&] { return first_view_loads >= 1 && second_view_loads >= 1; });
 
-    first_view->load(page_url);
-    second_view->load(page_url);
+    first_view->load_from_browser_ui(page_url);
+    second_view->load_from_browser_ui(page_url);
     Core::EventLoop::current().spin_until([&] { return first_view_loads >= 2 && second_view_loads >= 2; });
 
     VERIFY(processes_of_type(WebView::ProcessType::WebContent).size() >= 2);
@@ -149,7 +149,7 @@ TEST_CASE(renderers_of_a_site_share_an_image_decoder)
 
     // A renderer that comes to host a second site leaves the decoder, which stays with the renderer that has only the one.
     first_view->page().client().did_host_document_of_site("https://other.example"_utf16);
-    first_view->load(page_url);
+    first_view->load_from_browser_ui(page_url);
     Core::EventLoop::current().spin_until([&] { return first_view_loads >= 3; });
 
     auto decoders_after_second_site = processes_of_type(WebView::ProcessType::ImageDecoder);
@@ -201,11 +201,11 @@ TEST_CASE(pdf_viewer_does_not_make_a_renderer_leave_the_image_decoder_of_its_sit
     second_view->on_title_change = [&](auto const& title) { second_view_decoded_image = title == "decoded"sv; };
     Core::EventLoop::current().spin_until([&] { return first_view_loads >= 1 && second_view_loads >= 1; });
 
-    first_view->load(image_page_url);
+    first_view->load_from_browser_ui(image_page_url);
     Core::EventLoop::current().spin_until([&] { return first_view_loads >= 2; });
     VERIFY(processes_of_type(WebView::ProcessType::ImageDecoder).size() == 1);
 
-    second_view->load(pdf_page_url);
+    second_view->load_from_browser_ui(pdf_page_url);
     Core::EventLoop::current().spin_until([&] { return second_view_decoded_image; });
     VERIFY(processes_of_type(WebView::ProcessType::ImageDecoder).size() == 1);
 

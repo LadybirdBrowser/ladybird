@@ -234,7 +234,7 @@ void load_page(WebView::HeadlessWebView& view, URL::URL const& url)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA bool loaded = false;
     view.on_load_finish = [&](URL::URL const&) { loaded = true; };
-    view.load(url);
+    view.load_from_browser_ui(url);
     Core::EventLoop::current().spin_until([&] { return loaded; });
     view.on_load_finish = nullptr;
 }
