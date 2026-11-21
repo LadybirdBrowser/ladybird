@@ -5,12 +5,21 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
+import functools
 import hashlib
+import io
 import json
+import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from dataclasses import dataclass
 from dataclasses import field
@@ -34,6 +43,15 @@ LGPL_MARKER = "GNU LESSER GENERAL PUBLIC LICENSE"
 
 DYNAMIC_PORTS_PATH = pathlib.PurePosixPath("Meta/CMake/vcpkg/dynamic-ports.txt")
 
+# Release-tools publishes the source archives of the LGPL ports there, for every release that ships them.
+THIRD_PARTY_SOURCES_URL = "https://download.ladybird.org/third-party"
+
+# Ladybird's vcpkg asset cache, which holds the source downloads of the ports by their SHA-512.
+VCPKG_ASSET_CACHE_URL = "https://vcpkg-cache.app.ladybird.org/ladybird/source-assets"
+
+GITHUB_SOURCE_PATTERN = re.compile(r"^git\+https://github\.com/(?P<repository>[^/@]+/[^/@]+)@(?P<ref>.+)$")
+UNSAFE_NAME_CHARACTERS = re.compile(r"[^A-Za-z0-9._+-]")
+
 CRATE_LICENSE_FILE_PATTERN = re.compile(r"^(licen[cs]e|copying|copyright|notice|unlicense|patents)", re.IGNORECASE)
 
 C_FAMILY_COMMENT_PATTERN = re.compile(r"/\*.*?\*/|(?:^[ \t]*//[^\n]*\n?)+", re.DOTALL | re.MULTILINE)
@@ -52,6 +70,31 @@ class Port:
     name: str
     version: str
     copyright: str
+    spdx_path: pathlib.Path
+
+
+@dataclass
+class SourceDownload:
+    file_name: str
+    sha512: str
+    location: str
+
+
+# What builds a port: the files of its vcpkg port, by their path in it and their SHA-256, and what the port downloads.
+# vcpkg records both in the SPDX document that it installs with the port.
+@dataclass
+class PortSource:
+    port: Port
+    port_files: dict[str, str]
+    downloads: list[SourceDownload]
+
+    # The name says what the archive holds, so that every build that uses the same source names the same archive.
+    def archive_name(self) -> str:
+        lines = [f"port {path} {digest}" for path, digest in sorted(self.port_files.items())]
+        lines += sorted(f"download {download.file_name} {download.sha512}" for download in self.downloads)
+        digest = hashlib.sha256("\n".join(lines).encode()).hexdigest()
+        version = self.port.version.partition("#")[0]
+        return UNSAFE_NAME_CHARACTERS.sub("_", f"{self.port.name}-{version}-{digest[:12]}") + ".tar"
 
 
 @dataclass
@@ -164,9 +207,212 @@ def collect_vcpkg_ports(installed_dir: pathlib.Path, triplet: str) -> list[Port]
         if not copyright_file.is_file():
             raise RuntimeError(f"The vcpkg port {name} installs files we ship, but no copyright file")
 
-        ports.append(Port(name, version, trim_source_files(read_text(copyright_file))))
+        spdx_path = installed_dir / triplet / "share" / name / "vcpkg.spdx.json"
+        ports.append(Port(name, version, trim_source_files(read_text(copyright_file)), spdx_path))
 
     return sorted(ports, key=lambda port: port.name.lower())
+
+
+def read_port_source(port: Port) -> PortSource:
+    try:
+        spdx = json.loads(port.spdx_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"The vcpkg port {port.name} has no readable SPDX document: {error}") from error
+
+    files = {entry["SPDXID"]: entry for entry in spdx.get("files", [])}
+    port_files = {}
+    for relationship in spdx.get("relationships", []):
+        if relationship["spdxElementId"] != "SPDXRef-port" or relationship["relationshipType"] != "CONTAINS":
+            continue
+        entry = files[relationship["relatedSpdxElement"]]
+        digests = {checksum["algorithm"]: checksum["checksumValue"] for checksum in entry.get("checksums", [])}
+        path = pathlib.PurePosixPath(entry["fileName"])
+        if path.is_absolute() or ".." in path.parts or "SHA256" not in digests:
+            raise RuntimeError(f"The SPDX document of {port.name} lists the port file {entry['fileName']}")
+        port_files[path.as_posix()] = digests["SHA256"].lower()
+    if not port_files:
+        raise RuntimeError(f"The SPDX document of {port.name} lists no files of its port")
+
+    downloads = []
+    for package in spdx.get("packages", []):
+        if not package["SPDXID"].startswith("SPDXRef-resource-"):
+            continue
+        digests = {checksum["algorithm"]: checksum["checksumValue"] for checksum in package.get("checksums", [])}
+        location = package.get("downloadLocation", "")
+        if "SHA512" not in digests:
+            raise RuntimeError(f"The SPDX document of {port.name} gives no SHA-512 of {location}")
+        if github := GITHUB_SOURCE_PATTERN.match(location):
+            # The file name that vcpkg_from_github() gives the archive that it downloads.
+            file_name = f"{github['repository'].replace('/', '-')}-{github['ref'].replace('/', '_-')}.tar.gz"
+        else:
+            file_name = package.get("name") or urllib.parse.urlparse(location).path.rpartition("/")[2]
+        if not file_name or UNSAFE_NAME_CHARACTERS.search(file_name) or file_name.startswith("."):
+            raise RuntimeError(f"The SPDX document of {port.name} names the download {location} as {file_name!r}")
+        sha512 = digests["SHA512"].lower()
+        if same_name := next((download for download in downloads if download.file_name == file_name), None):
+            if same_name.sha512 != sha512:
+                raise RuntimeError(f"The SPDX document of {port.name} names two different downloads {file_name}")
+            continue
+        downloads.append(SourceDownload(file_name, sha512, location))
+
+    return PortSource(port, port_files, downloads)
+
+
+def configured_overlay_ports(source_dir: pathlib.Path) -> list[pathlib.Path]:
+    configuration = json.loads(read_text(source_dir / "vcpkg-configuration.json"))
+    return [source_dir / path for path in configuration.get("overlay-ports", [])]
+
+
+def read_directory_files(directory: pathlib.Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(directory).as_posix(): path.read_bytes()
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+    }
+
+
+def read_git_tree(repository: pathlib.Path, tree: str) -> dict[str, bytes]:
+    archive = subprocess.run(
+        ["git", "-C", str(repository), "archive", "--format=tar", tree], check=True, stdout=subprocess.PIPE
+    ).stdout
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        return {
+            member.name: file.read()
+            for member in tar.getmembers()
+            if member.isfile() and (file := tar.extractfile(member))
+        }
+
+
+def versioned_port_trees(vcpkg_root: pathlib.Path, source: PortSource) -> list[str]:
+    name = source.port.name
+    versions_file = vcpkg_root / "versions" / f"{name[0]}-" / f"{name}.json"
+    if not versions_file.is_file():
+        return []
+    version, _, port_version = source.port.version.partition("#")
+    trees = []
+    for entry in json.loads(read_text(versions_file))["versions"]:
+        names = [entry.get(key) for key in ("version", "version-semver", "version-date", "version-string")]
+        if version in names and str(entry.get("port-version", 0)) == (port_version or "0"):
+            trees.append(entry["git-tree"])
+    return trees
+
+
+# vcpkg takes an overlay port before the port of its registry, and the port of a version that vcpkg.json pins from
+# the history of the registry. Of these, the one whose files are those that the SPDX document lists is the one that
+# built the port.
+def read_port_files(source_dir: pathlib.Path, vcpkg_root: pathlib.Path, source: PortSource) -> dict[str, bytes]:
+    name = source.port.name
+    candidates = [
+        functools.partial(read_directory_files, overlay / name)
+        for overlay in configured_overlay_ports(source_dir)
+        if (overlay / name / "vcpkg.json").is_file()
+    ]
+    candidates += [
+        functools.partial(read_git_tree, vcpkg_root, tree) for tree in versioned_port_trees(vcpkg_root, source)
+    ]
+    if (vcpkg_root / "ports" / name / "vcpkg.json").is_file():
+        candidates.append(functools.partial(read_directory_files, vcpkg_root / "ports" / name))
+
+    for candidate in candidates:
+        files = candidate()
+        digests = {path: hashlib.sha256(data).hexdigest() for path, data in files.items()}
+        if digests == source.port_files:
+            return files
+    raise RuntimeError(f"Found no port of {name} {source.port.version} with the files that its SPDX document lists")
+
+
+def download_source(download: SourceDownload, downloads_dir: Optional[pathlib.Path], destination: pathlib.Path) -> None:
+    def matches(path: pathlib.Path) -> bool:
+        digest = hashlib.sha512()
+        with open(path, "rb") as file:
+            while chunk := file.read(1 << 20):
+                digest.update(chunk)
+        return digest.hexdigest() == download.sha512
+
+    if downloads_dir and (downloads_dir / download.file_name).is_file() and matches(downloads_dir / download.file_name):
+        shutil.copyfile(downloads_dir / download.file_name, destination)
+        return
+
+    urls = [f"{VCPKG_ASSET_CACHE_URL}/{download.sha512}"]
+    if github := GITHUB_SOURCE_PATTERN.match(download.location):
+        urls.append(f"https://github.com/{github['repository']}/archive/{github['ref']}.tar.gz")
+    elif download.location.startswith("https://"):
+        urls.append(download.location)
+
+    failures = []
+    for url in urls:
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response, open(destination, "wb") as file:
+                shutil.copyfileobj(response, file)
+        except (OSError, urllib.error.URLError) as error:
+            failures.append(f"{url}: {error}")
+            continue
+        if matches(destination):
+            return
+        failures.append(f"{url}: another SHA-512")
+    raise RuntimeError(f"Could not download {download.file_name}:\n  " + "\n  ".join(failures))
+
+
+# The archive holds nothing that differs between the machines that make it, so that every build of the same source
+# makes the very same archive.
+def add_to_archive(archive: tarfile.TarFile, name: str, data: bytes) -> None:
+    info = tarfile.TarInfo(name)
+    info.size = len(data)
+    info.mode = 0o644
+    info.mtime = 0
+    archive.addfile(info, io.BytesIO(data))
+
+
+def write_port_archive(
+    source: PortSource, port_files: dict[str, bytes], work_dir: pathlib.Path, destination: pathlib.Path
+) -> None:
+    root = source.archive_name().removesuffix(".tar")
+    readme = "\n".join(
+        [
+            f"The source code of {source.port.name} {source.port.version}, as Ladybird builds it with vcpkg.",
+            "",
+            "port/ holds the vcpkg port of the library: its build scripts and our patches. The other files are the",
+            "source archives that the port downloads, unchanged:",
+            "",
+            *[f"  {download.file_name}: {download.location}" for download in source.downloads],
+            "",
+        ]
+    )
+    with tarfile.open(destination, "w", format=tarfile.USTAR_FORMAT) as archive:
+        add_to_archive(archive, f"{root}/README", readme.encode())
+        for path, data in sorted(port_files.items()):
+            add_to_archive(archive, f"{root}/port/{path}", data)
+        for download in sorted(source.downloads, key=lambda download: download.file_name):
+            add_to_archive(archive, f"{root}/{download.file_name}", (work_dir / download.file_name).read_bytes())
+
+
+def package_third_party_sources(args: argparse.Namespace) -> None:
+    if not args.vcpkg_installed_dir or not args.vcpkg_triplet or not args.vcpkg_root:
+        raise RuntimeError("Packaging the sources of the LGPL ports needs the vcpkg root, installed tree and triplet")
+
+    ports = collect_vcpkg_ports(args.vcpkg_installed_dir, args.vcpkg_triplet)
+    sources = [read_port_source(port) for port in ports if LGPL_MARKER in port.copyright]
+    downloads_dir = args.vcpkg_root / "downloads"
+
+    with tempfile.TemporaryDirectory() as work:
+        work_dir = pathlib.Path(work)
+        archives = []
+        for source in sources:
+            port_files = read_port_files(args.source_dir, args.vcpkg_root, source)
+            source_dir = work_dir / source.port.name
+            source_dir.mkdir()
+            for download in source.downloads:
+                download_source(
+                    download, downloads_dir if downloads_dir.is_dir() else None, source_dir / download.file_name
+                )
+            write_port_archive(source, port_files, source_dir, work_dir / source.archive_name())
+            archives.append(work_dir / source.archive_name())
+            print(f"Packaged the source of {source.port.name} {source.port.version} as {source.archive_name()}")
+
+        args.third_party_sources.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(args.third_party_sources, "w", format=tarfile.USTAR_FORMAT) as bundle:
+            for archive in archives:
+                bundle.add(archive, arcname=archive.name)
 
 
 def cargo_metadata(cargo: str, source_dir: pathlib.Path, rust_target: Optional[str], offline: bool) -> dict[str, Any]:
@@ -280,7 +526,24 @@ def generate(args: argparse.Namespace) -> str:
         "Ladybird is distributed under the BSD 2-Clause License below. It includes the third-party software listed",
         "after that, under the licenses reproduced with each of them.",
     ]
-    if lgpl_ports:
+    if lgpl_ports and args.release:
+        introduction += [
+            "",
+            "This release of Ladybird uses the following libraries under the GNU Lesser General Public License. The",
+            "source code of each, with our patches and build scripts, is at the address below it:",
+            "",
+        ]
+        for port in lgpl_ports:
+            introduction += [
+                f"  {port.name} {port.version}",
+                f"    {THIRD_PARTY_SOURCES_URL}/{read_port_source(port).archive_name()}",
+            ]
+        introduction += [
+            "",
+            "The source code of Ladybird at https://github.com/LadybirdBrowser/ladybird contains everything needed to",
+            "build it against modified versions of these libraries.",
+        ]
+    elif lgpl_ports:
         introduction += [
             "",
             "This build of Ladybird uses the following libraries under the GNU Lesser General Public License:",
@@ -309,14 +572,34 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Collects the licenses of Ladybird and of the third-party software a build of it includes"
     )
-    parser.add_argument("--output", "-o", required=True, type=pathlib.Path)
+    parser.add_argument("--output", "-o", type=pathlib.Path)
     parser.add_argument("--source-dir", type=pathlib.Path, default=LADYBIRD_SOURCE_DIR)
     parser.add_argument("--vcpkg-installed-dir", type=pathlib.Path)
     parser.add_argument("--vcpkg-triplet")
     parser.add_argument("--cargo", default="cargo")
     parser.add_argument("--rust-target")
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument(
+        "--release", action="store_true", help="name where release-tools publishes the source of each LGPL port"
+    )
+    parser.add_argument(
+        "--third-party-sources",
+        type=pathlib.Path,
+        help="instead of the licenses, write an archive with the source archive of each LGPL port to this path",
+    )
+    parser.add_argument("--vcpkg-root", type=pathlib.Path, default=os.environ.get("VCPKG_ROOT"))
     args = parser.parse_args()
+
+    if args.third_party_sources:
+        try:
+            package_third_party_sources(args)
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    if not args.output:
+        parser.error("the following arguments are required: --output/-o")
 
     try:
         contents = generate(args)
