@@ -225,7 +225,11 @@ impl ContextPresenting {
                 }
                 LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => return false,
             };
+            let Some(remote_layer) = &env.remote_layer else {
+                return false;
+            };
             if !env.raster.remote_layer_can_show(
+                &remote_layer.layer,
                 env.context_id,
                 kind,
                 id,

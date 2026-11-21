@@ -7,10 +7,10 @@
 //! The entry points of the compositor's logic for the C++ of the Compositor around it, which calls them from its event
 //! loop only.
 
-use crate::core::messages::{MessagesFromPresentation, MessagesFromWebContent};
+use crate::core::messages::{MessagesFromControl, MessagesFromPresentation, MessagesFromWebContent};
 use crate::core::presenting::{GpuBackend, PresentationCapabilities};
 use crate::core::{CompositorCore, ContextOwnerCheckResult};
-use crate::host::{ContextTimer, FfiCompositorCoreHost, Host, PresentationId, WebContentClientId};
+use crate::host::{FfiCompositorCoreHost, Host, PresentationId, WebContentClientId};
 use crate::overlays::{
     PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl, PictureInPictureControlsState,
     UIOverlays,
@@ -19,7 +19,8 @@ use crate::raster_host::{FfiRasterHost, RasterHost};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::ipc_types::{
-    Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
+    Compositing_ContextVisibility as ContextVisibility, compositor_control_server, compositor_presentation_server,
+    compositor_web_content_server,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{IntRect, IntSize};
@@ -248,16 +249,6 @@ pub extern "C" fn compositor_core_bind_presentation(
         PresentationId(presentation_id),
         time(now_nanoseconds),
     );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_shown_in_remote_layer(
-    core: &CompositorCore,
-    context_id: u64,
-    shown: bool,
-    now_nanoseconds: i64,
-) {
-    core.set_shown_in_remote_layer(CompositorContextId(context_id), shown, time(now_nanoseconds));
 }
 
 #[unsafe(no_mangle)]
@@ -497,6 +488,28 @@ pub unsafe extern "C" fn compositor_core_handle_presentation_message(
     core.finish_message(time(now_nanoseconds));
 }
 
+/// Takes a message of the CompositorControlServer endpoint that is marked [RustReceiver].
+///
+/// # Safety
+///
+/// `message` must be one `IPC::RawMessage::hand_to_rust()` made.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_core_handle_control_message(
+    core: &CompositorCore,
+    message: RawMessage<'_>,
+    now_nanoseconds: i64,
+) {
+    let mut stub = MessagesFromControl {
+        core,
+        now: time(now_nanoseconds),
+    };
+    // SAFETY: The caller hands over a message of that endpoint.
+    unsafe {
+        message.hand_to(|bytes, attachments| compositor_control_server::dispatch(&mut stub, bytes, attachments));
+    };
+    core.finish_message(time(now_nanoseconds));
+}
+
 /// What the browser draws over a context's page. An action or control is none where it is out of range.
 #[repr(C)]
 pub struct FfiUIOverlays<'a> {
@@ -531,17 +544,8 @@ pub extern "C" fn compositor_core_set_visibility(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_timer_fired(
-    core: &CompositorCore,
-    context_id: u64,
-    timer: ContextTimer,
-    now_nanoseconds: i64,
-) {
-    core.timer_fired(
-        CompositorContextId(context_id),
-        timer,
-        MonotonicTime::from_nanoseconds(now_nanoseconds),
-    );
+pub extern "C" fn compositor_core_timer_fired(core: &CompositorCore, timer_number: u64, now_nanoseconds: i64) {
+    core.timer_fired(timer_number, MonotonicTime::from_nanoseconds(now_nanoseconds));
 }
 
 #[unsafe(no_mangle)]

@@ -9,9 +9,10 @@
 use super::CompositorCore;
 use crate::backing_stores::{StorePublication, StoreResizeOutcome};
 use crate::context_state::ContextState;
-use crate::host::{PendingFrame, PresentScheduling, PresentationId};
+use crate::host::{PendingFrame, PresentScheduling};
 use crate::presenting::{ContextPresenting, NestedContexts, PresentingEnvironment};
-use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, SublayersHandle};
+use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, RasterHost, SublayersHandle};
+use crate::remote_layers::{RemoteLayer, ResizeNotice, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{CompositedContexts, NoCompositedContexts, ResolvedCompositedContext};
@@ -128,6 +129,11 @@ impl CompositorCore {
     ) -> PresentingEnvironment<'a> {
         PresentingEnvironment {
             context_id,
+            remote_layer: self
+                .remote_layers
+                .borrow()
+                .layer_showing(context_id)
+                .map(RemoteLayer::showing_layer),
             raster: &self.raster,
             host: &self.host,
             now,
@@ -460,7 +466,7 @@ impl CompositorCore {
         let hands_off_early = presenting.presents_to_client
             && self.gpu.has_gpu
             && !presenting.presents_from_cpu_memory
-            && self.raster.frame_hand_off(context_id) == FrameHandOff::OnceGpuWorkIsScheduled;
+            && self.frame_hand_off(context_id) == FrameHandOff::OnceGpuWorkIsScheduled;
         drop(presenting);
         if hands_off_early {
             self.raster.hand_off_once_gpu_work_is_scheduled(token);
@@ -577,6 +583,21 @@ impl CompositorCore {
 
     fn show_frame_in_remote_layer(&self, delivery: &mut Delivery, viewport_size: IntSize, now: MonotonicTime) {
         let context_id = delivery.context_id;
+        let shown_in = self
+            .remote_layers
+            .borrow()
+            .layer_showing(context_id)
+            .map(|remote_layer| {
+                (
+                    remote_layer.showing_layer(),
+                    remote_layer.presentation(),
+                    remote_layer.fit_within(),
+                )
+            });
+        let Some((remote_layer, presentation, fit_within)) = shown_in else {
+            self.stop_showing_context_in_remote_layer(context_id, now);
+            return;
+        };
         let presenting = self.presenting_of(context_id);
         let laid_out_by_page = presenting
             .as_ref()
@@ -601,20 +622,58 @@ impl CompositorCore {
             store: store.as_ref().map_or(std::ptr::null(), |store| store.as_ffi()),
             painted_size: viewport_size,
             device_pixel_ratio: delivery.device_pixel_ratio,
-            laid_out_by_page,
+            has_fit_within: fit_within.is_some(),
+            fit_within: fit_within.unwrap_or_default(),
         };
-        let shown = self.raster.show_frame_in_remote_layer(context_id, &frame, sublayers);
-        match shown {
-            None => self.stop_showing_context_in_remote_layer(context_id, now),
-            Some(presentation_id) => self.host.post_to_presentation(
-                PresentationId(presentation_id),
-                compositor_presentation_client::messages::DidPresentFrameInRemoteLayer {
-                    context_id,
-                    content_rect: delivery.viewport_rect,
-                    damage_rect: delivery.damage_rect,
-                    device_pixel_ratio: delivery.device_pixel_ratio,
+        if !self
+            .raster
+            .remote_layer_show_frame(&remote_layer.layer, &frame, sublayers)
+        {
+            self.remote_layers.borrow_mut().stop_showing_context(context_id);
+            self.stop_showing_context_in_remote_layer(context_id, now);
+            return;
+        }
+        let held = self
+            .remote_layers
+            .borrow_mut()
+            .did_show_frame(context_id, viewport_size, laid_out_by_page);
+        self.tell_of_held_synchronized_resize_frames(held);
+        self.host.post_to_presentation(
+            presentation,
+            compositor_presentation_client::messages::DidPresentFrameInRemoteLayer {
+                context_id,
+                content_rect: delivery.viewport_rect,
+                damage_rect: delivery.damage_rect,
+                device_pixel_ratio: delivery.device_pixel_ratio,
+            },
+        );
+    }
+
+    pub(super) fn tell_of_held_synchronized_resize_frames(&self, held: Vec<ResizeNotice>) {
+        for notice in held {
+            self.host.post_to_presentation(
+                notice.presentation,
+                compositor_presentation_client::messages::DidHoldSynchronizedResizeFrame {
+                    remote_layer_id: notice.remote_layer_id,
+                    token: notice.token,
                 },
-            ),
+            );
+        }
+    }
+
+    fn window_server_showing(&self, context_id: CompositorContextId) -> Option<Rc<WindowServerObject>> {
+        self.remote_layers
+            .borrow()
+            .layer_showing(context_id)
+            .map(|remote_layer| remote_layer.showing_layer().window_server)
+    }
+
+    pub(super) fn frame_hand_off(&self, context_id: CompositorContextId) -> FrameHandOff {
+        match self.remote_layers.borrow().layer_showing(context_id) {
+            Some(remote_layer) => self
+                .raster
+                .window_server_frame_hand_off(&remote_layer.showing_layer().window_server),
+            None => RasterHost::frame_hand_off_through_presentation(),
         }
     }
 
@@ -716,7 +775,7 @@ impl CompositorCore {
             StoreResizeOutcome::Unchanged | StoreResizeOutcome::ReallocatedOffscreen => {}
             StoreResizeOutcome::ReallocatedForViewer => self.present_current_frame(context_id, now),
             StoreResizeOutcome::Failed => {
-                self.raster.stop_showing_in_remote_layer(context_id);
+                self.remote_layers.borrow_mut().stop_showing_context(context_id);
                 self.stop_showing_context_in_remote_layer(context_id, now);
             }
         }
@@ -742,10 +801,12 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
+        let window_server = self.window_server_showing(context_id);
         if presenting.add_store_if_window_server_still_reads_every_released_store(
             &self.raster,
             context_id,
             publishing_presentation,
+            window_server.as_deref(),
         ) {
             presenting.schedule_surplus_store_retirement(context_id, &self.host);
         }
@@ -811,10 +872,12 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.borrow().store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
+        let window_server = self.window_server_showing(context_id);
         if presenting.borrow_mut().restore_stores_retired_while_hidden(
             &self.raster,
             context_id,
             publishing_presentation,
+            window_server.as_deref(),
         ) {
             return;
         }

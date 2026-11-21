@@ -47,8 +47,6 @@ public:
     // The stores join the ones allocated last, and leave them again once retired.
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
-    virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) = 0;
-    virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -137,6 +135,7 @@ public:
     // The messages of WebContent and of a presentation that the scroll and input logic takes undecoded.
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
+    IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays);
@@ -163,20 +162,6 @@ public:
 
     // A remote layer shows the frames of one root context at a time, in a view of the presentation it was created
     // for. Answers how that view finds the layer, whose kind is None where the presentation has no remote layers.
-    Compositing::RemoteLayerHostHandle create_remote_layer(CompositorStateClient&, u64 remote_layer_id);
-    void destroy_remote_layer(u64 remote_layer_id);
-    // The layer keeps the frame it shows until the context it is given next presents one.
-    void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);
-    // A view that scales the frames to fit it gives its size, in device pixels.
-    void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within);
-
-    // A window resize is shown together with the page's frame of the new size: the remote layers hold their changes
-    // off screen from when the resize begins until the window commits it, and the presentation hears once the layer
-    // holds a frame that the page laid out at the size it awaits.
-    void begin_synchronized_resize(u64 remote_layer_id, u64 token);
-    void await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize);
-    void commit_synchronized_resize(u64 remote_layer_id, u64 token);
-
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
         u64 secret { 0 };
@@ -197,10 +182,10 @@ private:
     virtual void post_message_to_web_content(WebContentClientId, IPC::MessageBuffer&) override;
     virtual void post_message_to_render_clock_of_web_content(WebContentClientId, IPC::MessageBuffer&) override;
     virtual void post_message_to_presentation(PresentationId, IPC::MessageBuffer&) override;
-    virtual void set_timer(Web::CompositorContextId, ContextTimer, AK::Duration delay) override;
-    virtual void cancel_timer(Web::CompositorContextId, ContextTimer) override;
+    virtual void set_timer(u64 timer_number, AK::Duration delay) override;
+    virtual void cancel_timer(u64 timer_number) override;
+    virtual void destroy_timer(u64 timer_number) override;
     virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) override;
-    void context_timer_fired(Web::CompositorContextId, ContextTimer);
 
     // What the compositor keeps of a context to paint and present its frames.
     struct PresentedContext {
@@ -214,7 +199,6 @@ private:
 
         CompositorStateWebContentClient& web_content_client;
         ContextRasterTargets raster_targets;
-        Optional<u64> remote_layer_id;
     };
 
     PresentedContext* presented_context_if_present(Web::CompositorContextId);
@@ -228,7 +212,7 @@ private:
     static RustFFI::GpuBackend gpu_backend(RefPtr<Gfx::SkiaBackendContext> const&);
     Compositing::RustFFI::FfiRasterPainter begin_painting(Web::CompositorContextId, Gfx::PaintingSurface&, RustFFI::PaintingResources, bool allows_lcd_text);
     void end_painting();
-    bool create_store(Web::CompositorContextId, RustFFI::StoreKind, Gfx::IntSize, RustFFI::FfiNewStore&);
+    bool create_store(Web::CompositorContextId, RustFFI::StoreKind, Gfx::IntSize, WindowServer* window_server_showing_stores, RustFFI::FfiNewStore&);
     void publish_stores(PresentationId, Web::CompositorContextId, bool added, ReadonlySpan<i32> bitmap_ids, ReadonlySpan<void*> images);
     void retire_published_stores(PresentationId, Web::CompositorContextId, ReadonlySpan<i32> bitmap_ids);
     bool take_registered_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
@@ -244,13 +228,10 @@ private:
     void finish_staged_rasterization(WebContentClientId, u64 token);
     void report_live_content(Web::CompositorContextId, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*));
     Optional<RemoteLayer::Content> remote_layer_content(PresentedContext&, RustFFI::MediaKind, u64 media_id);
-    bool remote_layer_can_show(Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
+    bool remote_layer_can_show(RemoteLayer&, Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
     Vector<RemoteSublayer>* build_sublayers(Web::CompositorContextId, ReadonlySpan<RustFFI::FfiSublayer>);
-    WindowServer::FrameHandOff frame_hand_off(Web::CompositorContextId);
     u64 submit_frame(Gfx::PaintingSurface*);
     void hand_off_once_gpu_work_is_scheduled(u64 token);
-    Optional<PresentationId> show_frame_in_remote_layer(Web::CompositorContextId, RustFFI::FfiRemoteLayerFrame const&, NonnullOwnPtr<Vector<RemoteSublayer>>);
-    void stop_showing_in_remote_layer(Web::CompositorContextId);
     void release_store_later(Web::CompositorContextId, i32 bitmap_id);
     void gpu_work_finished(u64 token);
     void schedule_gpu_completion_check();
@@ -303,7 +284,7 @@ private:
     u64 m_next_screenshot_preparation_id { 1 };
     u64 m_next_web_content_client_id { 1 };
     HashMap<WebContentClientId, CompositorStateWebContentClient*> m_web_content_clients;
-    HashMap<Web::CompositorContextId, HashMap<ContextTimer, NonnullRefPtr<Core::Timer>>> m_context_timers;
+    HashMap<u64, NonnullRefPtr<Core::Timer>> m_timers;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CanvasSurfaceRegistry m_canvas_surface_registry;
@@ -320,32 +301,6 @@ private:
 
     u64 m_next_presentation_id { 1 };
     HashMap<PresentationId, CompositorStateClient*> m_presentations_by_id;
-
-    HashMap<CompositorStateClient*, NonnullRefPtr<WindowServer>> m_window_servers;
-
-    struct RemoteLayerState {
-        CompositorStateClient* presentation { nullptr };
-        NonnullRefPtr<WindowServer> window_server;
-        OwnPtr<RemoteLayer> layer;
-        Optional<Web::CompositorContextId> shown_context_id;
-        Optional<Gfx::IntSize> fit_within;
-        // The size the page laid out the frame on display at, if it is the size of the frame.
-        Optional<Gfx::IntSize> size_of_shown_frame_laid_out_by_page;
-    };
-
-    struct SynchronizedResize {
-        u64 remote_layer_id { 0 };
-        u64 token { 0 };
-        Optional<Gfx::IntSize> awaited_size;
-        bool frame_is_held { false };
-    };
-    RemoteLayerState* remote_layer_showing(Web::CompositorContextId);
-    void report_held_synchronized_resize_frames(u64 remote_layer_id);
-    void release_synchronized_resize_hold();
-    Vector<SynchronizedResize> m_synchronized_resizes;
-    Vector<NonnullRefPtr<WindowServer>> m_window_servers_holding_changes;
-    RefPtr<Core::Timer> m_synchronized_resize_hold_timeout;
-    HashMap<u64, RemoteLayerState> m_remote_layers;
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;

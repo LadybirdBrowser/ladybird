@@ -313,6 +313,10 @@ fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), B
             "CompositorWebContentServerEndpoint.rs",
         ),
         (
+            "Services/Compositor/CompositorControlServer.ipc",
+            "CompositorControlServerEndpoint.rs",
+        ),
+        (
             "Services/Compositor/CompositorPresentationClient.ipc",
             "CompositorPresentationClientEndpoint.rs",
         ),

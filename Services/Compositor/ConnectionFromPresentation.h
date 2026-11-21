@@ -25,18 +25,16 @@ public:
 
     void set_on_death(Function<void()> on_death) { m_on_death = move(on_death); }
 
+    virtual PresentationId presentation_id() const override { return m_presentation_id; }
+
 private:
     ConnectionFromPresentation(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<CompositorState>, CompositorState::PresentationCapabilities);
 
     virtual void die() override;
-
-    virtual PresentationId presentation_id() const override { return m_presentation_id; }
     virtual void post_message_to_presentation(IPC::MessageBuffer&) override;
     virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) override;
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) override;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) override;
-    virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) override { async_did_hold_synchronized_resize_frame(remote_layer_id, token); }
-    virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) override { async_did_commit_synchronized_resize(remote_layer_id, token); }
 
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
