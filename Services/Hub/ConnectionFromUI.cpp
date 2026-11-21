@@ -450,6 +450,42 @@ void ConnectionFromUI::view_set_reports_session_history(u64 view_id, bool report
         view->set_reports_session_history(reports_session_history);
 }
 
+void ConnectionFromUI::view_set_compositor_layer_hidden(u64 view_id, u64 layer_id, bool hidden)
+{
+    if (auto* view = find_view(view_id))
+        view->set_compositor_layer_hidden(layer_id, hidden);
+}
+
+void ConnectionFromUI::view_set_selected_compositor_layers(u64 view_id, Vector<u64> layer_ids)
+{
+    if (auto* view = find_view(view_id))
+        view->set_selected_compositor_layers(move(layer_ids));
+}
+
+void ConnectionFromUI::view_set_hovered_compositor_layer(u64 view_id, Optional<u64> layer_id)
+{
+    if (auto* view = find_view(view_id))
+        view->set_hovered_compositor_layer(layer_id);
+}
+
+void ConnectionFromUI::view_show_only_compositor_layers(u64 view_id, Vector<u64> layer_ids)
+{
+    if (auto* view = find_view(view_id))
+        view->show_only_compositor_layers(layer_ids);
+}
+
+void ConnectionFromUI::view_show_all_compositor_layers(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->show_all_compositor_layers();
+}
+
+void ConnectionFromUI::view_reset_compositor_layer_raster_counts(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->reset_compositor_layer_raster_counts();
+}
+
 void ConnectionFromUI::view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files)
 {
     if (auto* view = find_view(view_id))
@@ -749,6 +785,11 @@ void ConnectionFromUI::set_shows_line_box_borders(bool shows)
 void ConnectionFromUI::set_shows_caret_hit_test_debug_overlay(bool shows)
 {
     Application::the().set_shows_caret_hit_test_debug_overlay(shows);
+}
+
+void ConnectionFromUI::set_shows_compositor_layers(bool shows)
+{
+    Application::the().set_shows_compositor_layers(shows);
 }
 
 void ConnectionFromUI::dump_cookies()

@@ -58,6 +58,7 @@
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/ChromeLayout.h>
+#include <UI/Qt/CompositorLayersWindow.h>
 #include <UI/Qt/DownloadsPage.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
@@ -1165,6 +1166,74 @@ Application::~Application()
 
     // A Picture-in-Picture window is a widget too, so it must also go before the QApplication does.
     m_picture_in_picture_windows.clear();
+}
+
+static void place_beside_browser_window_or_over_its_top_right_corner(QWidget& window, QWidget const& browser_window)
+{
+    constexpr int GAP = 12;
+    auto browser_frame = browser_window.frameGeometry();
+    auto window_size = window.size();
+    auto screen = browser_window.screen()->availableGeometry();
+    auto x = browser_frame.right() + GAP;
+    if (x + window_size.width() > screen.right())
+        x = browser_frame.right() - window_size.width() - GAP;
+    window.move(x, browser_frame.top() + GAP);
+}
+
+void Application::set_shows_compositor_layers(bool shows)
+{
+    HubConnection::the().async_set_shows_compositor_layers(shows);
+    if (!shows) {
+        if (m_compositor_layers_window)
+            m_compositor_layers_window->hide();
+        return;
+    }
+    if (!m_compositor_layers_window) {
+        m_compositor_layers_window = make<CompositorLayersWindow>(CompositorLayersWindow::Source {
+            .layers_of_active_tab = [this]() -> Optional<Compositing::CompositorLayersDescription> {
+                if (auto* tab = active_tab())
+                    return tab->compositor_layers();
+                return {};
+            },
+            .set_layer_hidden_in_active_tab = [this](u64 layer_id, bool hidden) {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().set_compositor_layer_hidden(layer_id, hidden); },
+            .set_selected_layers_in_active_tab = [this](Vector<u64> layer_ids) {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().set_selected_compositor_layers(AK::move(layer_ids)); },
+            .set_hovered_layer_in_active_tab = [this](Optional<u64> layer_id) {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().set_hovered_compositor_layer(layer_id); },
+            .show_only_layers_in_active_tab = [this](Vector<u64> layer_ids) {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().show_only_compositor_layers(AK::move(layer_ids)); },
+            .show_all_layers_in_active_tab = [this] {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().show_all_compositor_layers(); },
+            .reset_raster_counts_in_active_tab = [this] {
+                if (auto* tab = active_tab(); tab && tab->is_loaded())
+                    tab->view().reset_compositor_layer_raster_counts(); },
+            .start_picking_layer_in_active_tab = [this](CompositorLayerPicker picker) {
+                auto* tab = active_tab();
+                if (!tab || !tab->is_loaded())
+                    return false;
+                m_view_picking_compositor_layer = &tab->view();
+                tab->view().start_compositor_layer_picker(AK::move(picker));
+                return true; },
+            .stop_picking_layer_in_active_tab = [this] {
+                if (m_view_picking_compositor_layer)
+                    m_view_picking_compositor_layer->stop_compositor_layer_picker();
+                m_view_picking_compositor_layer = nullptr; },
+        });
+        m_compositor_layers_window->on_close = [] {
+            ApplicationActions::the().show_compositor_layers_action().set_checked(false);
+            HubConnection::the().async_set_shows_compositor_layers(false);
+        };
+        if (auto* browser_window = active_window_if_any())
+            place_beside_browser_window_or_over_its_top_right_corner(*m_compositor_layers_window, *browser_window);
+    }
+    m_compositor_layers_window->show();
+    m_compositor_layers_window->raise();
 }
 
 void Application::show_process_manager()

@@ -76,6 +76,16 @@ WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Docu
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, DisplayListDumpOptions const&);
 WEB_API Utf16String display_list_dump_changes(Optional<StringView> previous_jsonl, StringView jsonl);
 
+struct OwnersOfVisualContextNodes {
+    // Zero for a document without a visual context tree.
+    u64 structural_epoch { 0 };
+    // By the position of each node among the spatial nodes and then the effect nodes asked of, empty for a node without
+    // a live owner.
+    Vector<String> owners;
+};
+// Describes the boxes that own the nodes of the document's visual context tree, as the boxes describe themselves.
+WEB_API OwnersOfVisualContextNodes describe_owners_of_visual_context_nodes(DOM::Document const&, ReadonlySpan<u32> spatial_node_indices, ReadonlySpan<u32> effect_node_indices);
+
 WEB_API Layout::RustFFI::FfiVectorImageKey vector_image_key_to_ffi(VectorImageKey const&);
 // Has the compositor rasterize `paint` into `target` as `request` asks, which must be a shareable BGRA8888 bitmap with
 // premultiplied alpha. Returns false if nothing was drawn.

@@ -234,6 +234,7 @@ private:
     virtual void view_crash_overlay_state_change(u64 view_id, bool active) override;
     virtual void view_crash_report_saved(u64 view_id) override;
     virtual void view_performance_stats(u64 view_id, WebView::TabPerformanceStats stats) override;
+    virtual void view_compositor_layers_change(u64 view_id, Compositing::CompositorLayersDescription layers) override;
 };
 
 }

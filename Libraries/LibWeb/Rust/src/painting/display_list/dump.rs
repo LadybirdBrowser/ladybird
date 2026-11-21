@@ -199,6 +199,88 @@ pub unsafe extern "C" fn render_state_dump_compositor_animations(
     flags
 }
 
+/// What describing the owners of nodes of the visual context tree asks the document. The fields are private: the
+/// callbacks are reached only through the method below, which takes the main thread token.
+///
+/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export whose
+///     safety contract keeps them callable, and the private fields let nothing else call them.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiVisualContextNodeOwnerCallbacks {
+    context: *mut c_void,
+    /// Describes the row in the slot, as its layout node describes itself.
+    debug_description: extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
+    /// Takes the description of the owner of the node at `position` among the nodes asked of.
+    take_owner: extern "C" fn(context: *mut c_void, position: usize, bytes: *const u8, byte_count: usize),
+}
+
+impl FfiVisualContextNodeOwnerCallbacks {
+    fn take_owner(&self, _: &MainThread, slot: NodeSlotId, position: usize) {
+        let mut description = Vec::new();
+        // The C++ host fills the description sink synchronously through the exported push function, and copies the
+        // description it takes.
+        (self.debug_description)(self.context, slot, (&raw mut description).cast());
+        (self.take_owner)(self.context, position, description.as_ptr(), description.len());
+    }
+}
+
+/// Describes the boxes that own the nodes of the visual context tree of `host`'s document, prepared up to date, that
+/// `spatial_node_indices` and then `effect_node_indices` name: `take_owner` gets the description of each live owner,
+/// by the position of its node among those asked of. Answers the structural epoch of the tree, or zero where the
+/// document has none, when nothing is described.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. Each pointer and count of indices must make a
+/// valid slice for this call, and the callbacks are called synchronously, with a `Vec<u8>` sink the host fills through
+/// `layout_arena_paint_push_bytes`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn painting_describe_owners_of_visual_context_nodes(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    spatial_node_indices: *const u32,
+    spatial_node_count: usize,
+    effect_node_indices: *const u32,
+    effect_node_count: usize,
+    callbacks: FfiVisualContextNodeOwnerCallbacks,
+) -> u64 {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    // SAFETY: As above.
+    let Some(visual_context_tree) = (unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }) else {
+        return 0;
+    };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let slice_of = |indices: *const u32, count: usize| unsafe { ak::slice_from_raw_parts(indices, count) }.to_vec();
+    let nodes: Vec<(SlotKind, u32)> = slice_of(spatial_node_indices, spatial_node_count)
+        .into_iter()
+        .map(|index| (SlotKind::Spatial, index))
+        .chain(
+            slice_of(effect_node_indices, effect_node_count)
+                .into_iter()
+                .map(|index| (SlotKind::Effect, index)),
+        )
+        .collect();
+    let live_owners = crate::painting::ffi::read_arena(host, read, (viewport, nodes), |arena, (viewport, nodes)| {
+        let owners = VisualContextNodeOwners::collect(arena, viewport);
+        nodes
+            .into_iter()
+            .map(|(kind, index)| {
+                owners
+                    .owner(kind, index)
+                    .filter(|&owner| owner != NodeSlotId::INVALID && arena.slot_is_live(owner))
+            })
+            .collect::<Vec<_>>()
+    });
+    for (position, owner) in live_owners.into_iter().enumerate() {
+        if let Some(owner) = owner {
+            callbacks.take_owner(&main_thread, owner, position);
+        }
+    }
+    visual_context_tree.structural_epoch
+}
+
 /// # Safety
 ///
 /// Dumps `display_list` with the nodes it names of the visual context tree of `host`'s document, prepared up to date.

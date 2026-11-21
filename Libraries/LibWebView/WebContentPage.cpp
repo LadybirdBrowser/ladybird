@@ -1310,6 +1310,12 @@ void WebContentPage::did_get_internal_page_info(WebView::PageInfoType type, Opti
         view().did_receive_internal_page_info({}, type, info);
 }
 
+void WebContentPage::did_describe_owners_of_visual_context_nodes(u64 structural_epoch, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices, Vector<String> owners)
+{
+    if (displays_tab())
+        view().did_describe_owners_of_visual_context_nodes({}, structural_epoch, spatial_node_indices, effect_node_indices, owners);
+}
+
 void WebContentPage::did_get_selected_text(u64 request_id, ByteString selection)
 {
     view().did_receive_selected_text({}, request_id, move(selection));

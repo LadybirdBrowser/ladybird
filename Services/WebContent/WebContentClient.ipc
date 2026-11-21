@@ -180,6 +180,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_take_screenshot(Web::PageId page_id, Gfx::ShareableBitmap screenshot) =|
 
     did_get_internal_page_info(Web::PageId page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) =|
+    did_describe_owners_of_visual_context_nodes(Web::PageId page_id, u64 structural_epoch, Vector<u32> spatial_node_indices, Vector<u32> effect_node_indices, Vector<String> owners) =|
 
     did_get_selected_text(Web::PageId page_id, u64 request_id, ByteString selection) =|
     did_get_selected_text_for_lookup(Web::PageId page_id, u64 request_id, Optional<WebView::DictionaryLookup> lookup) =|

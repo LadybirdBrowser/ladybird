@@ -817,6 +817,16 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 
 void WebContentView::keyPressEvent(QKeyEvent* event)
 {
+    if (m_compositor_layer_picker.has_value()) {
+        if (event->key() == Qt::Key_Escape) {
+            auto picker = m_compositor_layer_picker.release_value();
+            unsetCursor();
+            picker.on_cancel();
+        }
+        event->accept();
+        return;
+    }
+
     if (is_node_picker_active()) {
         if (event->key() == Qt::Key_Escape)
             node_picker_cancel();
@@ -837,7 +847,7 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
 
 void WebContentView::keyReleaseEvent(QKeyEvent* event)
 {
-    if (is_node_picker_active()) {
+    if (m_compositor_layer_picker.has_value() || is_node_picker_active()) {
         event->accept();
         return;
     }
@@ -874,6 +884,11 @@ void WebContentView::leaveEvent(QEvent* event)
 
 void WebContentView::handle_pointer_leave()
 {
+    if (m_compositor_layer_picker.has_value()) {
+        m_compositor_layer_picker->on_leave();
+        return;
+    }
+
     if (is_node_picker_active()) {
         clear_node_picker();
         return;
@@ -891,6 +906,13 @@ void WebContentView::cancel_mouse_press()
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
 {
+    if (m_compositor_layer_picker.has_value()) {
+        auto position = node_picker_position_for(*event);
+        m_compositor_layer_picker->on_hover({ position.x().value(), position.y().value() });
+        event->accept();
+        return;
+    }
+
     if (is_node_picker_active()) {
         node_picker_hover(node_picker_position_for(*event));
         event->accept();
@@ -906,6 +928,18 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
 
 void WebContentView::mousePressEvent(QMouseEvent* event)
 {
+    if (m_compositor_layer_picker.has_value()) {
+        if (event->button() == Qt::MouseButton::LeftButton) {
+            auto position = node_picker_position_for(*event);
+            auto picker = m_compositor_layer_picker.release_value();
+            unsetCursor();
+            m_swallows_mouse_release_after_compositor_layer_pick = true;
+            picker.on_pick({ position.x().value(), position.y().value() });
+        }
+        event->accept();
+        return;
+    }
+
     if (is_node_picker_active()) {
         if (event->button() == Qt::MouseButton::LeftButton) {
             auto position = node_picker_position_for(*event);
@@ -936,7 +970,13 @@ void WebContentView::mousePressEvent(QMouseEvent* event)
 
 void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 {
-    if (is_node_picker_active()) {
+    if (m_swallows_mouse_release_after_compositor_layer_pick) {
+        m_swallows_mouse_release_after_compositor_layer_pick = false;
+        event->accept();
+        return;
+    }
+
+    if (m_compositor_layer_picker.has_value() || is_node_picker_active()) {
         event->accept();
         return;
     }
@@ -2403,6 +2443,24 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
             }
             setCursor(QCursor { qpixmap, image_cursor.hotspot.x(), image_cursor.hotspot.y() });
         });
+}
+
+void WebContentView::start_compositor_layer_picker(CompositorLayerPicker picker)
+{
+    stop_compositor_layer_picker();
+    m_compositor_layer_picker = AK::move(picker);
+    setCursor(Qt::CrossCursor);
+    // The page takes the Escape key that cancels the picking.
+    window()->activateWindow();
+    setFocus();
+}
+
+void WebContentView::stop_compositor_layer_picker()
+{
+    if (!m_compositor_layer_picker.has_value())
+        return;
+    m_compositor_layer_picker.clear();
+    unsetCursor();
 }
 
 Web::DevicePixelPoint WebContentView::node_picker_position_for(QSinglePointEvent const& event) const

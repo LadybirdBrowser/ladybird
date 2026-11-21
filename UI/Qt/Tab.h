@@ -13,6 +13,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/Types.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
@@ -146,6 +147,7 @@ public:
 
     LocationEdit& location_edit() { return *m_location_edit; }
     WebView::TabPerformanceStats const& performance_stats() const { return m_performance_stats; }
+    Optional<Compositing::CompositorLayersDescription> const& compositor_layers() const { return m_compositor_layers; }
 
     void set_window(BrowserWindow&);
     void update_hover_label();
@@ -260,6 +262,7 @@ private:
 
     QAction* m_pin_tab_action { nullptr };
     WebView::TabPerformanceStats m_performance_stats;
+    Optional<Compositing::CompositorLayersDescription> m_compositor_layers;
 
     JavaScriptDialog* m_javascript_dialog { nullptr };
     Function<void(bool)> m_before_unload_completion;
