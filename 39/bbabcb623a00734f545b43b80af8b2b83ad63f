@@ -1,0 +1,49 @@
+Ladybird resolves a replaced box’s intrinsic width
+independently of the min-content contribution it makes to
+its parent. Blink uses ComputeReplacedSizeInternal() for
+the box and ComputeMinAndMaxContentContributionForReplaced()
+for its contribution. Gecko resolves replaced sizes in
+nsContainerFrame::ComputeSizeWithIntrinsicDimensions().
+WebKit resolves the width keywords in
+RenderReplaced::computeIntrinsicKeywordLogicalWidths().
+
+Chrome 158.0.8127.36, Firefox 151.0 and WebKit 26.5 all preserved the
+300 by 150 image under a 100% maximum in a 400px block, and reduced it
+to 200 by 100 under a 50% maximum. A 20 by 30 canvas with a 60px height
+measured 40px across in block, grid and flex containers. Chrome also
+resolved a calc-size() adding 5px to min-content to 45px.
+
+With a ratio-only SVG in a 400px container, Chrome and Firefox both
+keep a 50px width under a min-content minimum. WebKit uses 300px. At
+a definite height of 60px, all three use the 2:1 ratio and resolve the
+minimum to 120px. Blink computes the keyword limits using the definite
+block size or natural dimensions in ComputeReplacedSizeInternal().
+
+In a 200px row flex container, Chrome resolves an intrinsic minimum
+on a 32px-wide ratio-only image to 200px, or 64px with a 32px maximum
+height. FlexLayoutAlgorithm asks the child for its content contribution
+when resolving the main-axis limits. The same image in block and grid
+layout measures 32px. Firefox uses 32px in all three layouts. WebKit
+uses 300px, including when the maximum height caps it at 32px.
+
+In a vertical flex row, a 25% width resolves to 50px in a 200px
+container. Ladybird, Chrome and Firefox use the resolved width to
+derive a 25px height from the image’s 2:1 ratio. WebKit uses its
+300px fallback width and a 150px height in the same case.
+
+For a 2:1 image with a 60px height, Ladybird and Chrome apply the
+calculation in a calc-size() minimum or maximum to the transferred
+120px width. Adding 10px gives a 130px minimum, and subtracting 10px
+gives a 110px maximum. Firefox and WebKit ignore these declarations.
+
+In a grid whose row is 100px, a 200 by 100 replaced item with height:50%
+resolves an intrinsic minimum or maximum width against that row, as it
+does its width. Ladybird sizes it 100 by 50 with width:200px and
+max-width:max-content or min-content, and with width:20px and
+min-width:min-content, as Chrome 158, Firefox 151, and WebKit 26.5 do.
+
+A 100 by 100 canvas with height:60px, min-height:100px and
+max-height:50px is 100px tall, as the minimum wins. In a min-content
+grid column, with width:min-content or max-content, Ladybird transfers
+that 100px height, and the column is 100px wide. Chrome 158 and WebKit
+26.5 do the same. Firefox 151 makes the column and the canvas 60px wide.
