@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] single layer replaying the whole list: empty display list
 
 DisplayList:
@@ -17,7 +17,7 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:

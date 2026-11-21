@@ -7,12 +7,26 @@
 //! Where the window server can show by itself a canvas or a video that is a layer of its own. The window server places
 //! an image with a 2D affine transform and clips it to rectangles, one of which can have rounded corners of a single
 //! radius. A media layer drawn under any other clip has to be replayed instead.
+//!
+//! Also how the window server composites by itself an effect around the layers of what the effect holds: within
+//! rectangles, rounded or not, at an opacity, or over what it shows below the effect's box run through a blur and
+//! color matrices, as a backdrop filter of the root group reads it. An effect that does anything else to its content,
+//! or that is clipped otherwise, has to be composited by the compositor instead.
 
 use crate::display_list::builder::{inline_clips_of, inline_transform_of, read_command};
-use crate::display_list::commands::{ClipMode, DisplayListCommandType, DrawCanvas, DrawVideoFrame, SpatialNodeIndex};
+use crate::display_list::commands::{
+    ClipMode, ClipNodeIndex, DisplayListCommandType, DrawCanvas, DrawVideoFrame, EffectNodeIndex, SpatialNodeIndex,
+};
+use crate::display_list::replay::backdrop_is_drawn_by_masks;
 use crate::display_list::tape::{DisplayListCommandHeader, DisplayListCommandRun, InlineClipKind};
-use crate::visual_context::{ClipNodeData, VisualContextTree, WorldTransforms};
-use libgfx_rust::{AffineTransform, CornerRadii, CornerRadius, FloatRect, IntRect, ScalingMode, multiply_affine};
+use crate::visual_context::{ClipNodeData, EffectNodeData, VisualContextTree, WorldTransforms};
+use libgfx_rust::filter::Filter;
+use libgfx_rust::{
+    AffineTransform, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatRect, IntRect,
+    ScalingMode, multiply_affine,
+};
+
+const UNIFORM_SCALE_TOLERANCE: f32 = 0.0001;
 
 const RADIUS_TOLERANCE_IN_DEVICE_PIXELS: f32 = 0.01;
 
@@ -264,6 +278,378 @@ impl ClipsInViewport {
         });
         Ok(())
     }
+}
+
+/// How the window server composites an effect by itself around the layers of what the effect holds.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WindowServerPlacementOfEffect {
+    /// The clips the effect is composited within, in viewport pixels, with the radii of the corners each rounds.
+    pub clips: Vec<(FloatRect, CornerRadii)>,
+    pub opacity: f32,
+    /// What the effect's backdrop filter does to what the window server shows below the effect's box, if it has one.
+    pub backdrop: Option<WindowServerBackdrop>,
+}
+
+/// What the window server does to what it shows below a box with a backdrop filter, within the box's border box.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WindowServerBackdrop {
+    /// The border box, which the filtered backdrop fills, in viewport pixels, and the radii of its rounded corners.
+    pub region: FloatRect,
+    pub corner_radii: CornerRadii,
+    pub filters: WindowServerBackdropFilters,
+}
+
+/// The functions of a backdrop filter as the window server applies them: a color matrix, a blur and another color
+/// matrix, in that order, each of which a filter can do without. A matrix is row-major with the offsets in the fifth
+/// column, for unpremultiplied colors from 0 to 1.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct WindowServerBackdropFilters {
+    pub color_matrix_before_blur: Option<[f32; 20]>,
+    /// The standard deviation of the blur, in viewport pixels.
+    pub blur_standard_deviation: Option<f32>,
+    pub color_matrix_after_blur: Option<[f32; 20]>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WhyWindowServerCannotCompositeEffect {
+    Masks,
+    BlendsWithWhatIsBelowIt,
+    Filters,
+    WindowServerFiltersNothingBelowLayers,
+    BackdropFilterFunctionWithoutWindowServerEquivalent,
+    BackdropDrawnByMasks,
+    BackdropReadInsideAnotherEffect,
+    BoxWithBackdropFilterHasOpacity,
+    BoxWithBackdropFilterIsNotUniformlyScaled,
+    Clipped(WhyWindowServerCannotShowMedia),
+}
+
+impl std::fmt::Display for WhyWindowServerCannotCompositeEffect {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            WhyWindowServerCannotCompositeEffect::Masks => "it masks",
+            WhyWindowServerCannotCompositeEffect::BlendsWithWhatIsBelowIt => "it blends with what is below it",
+            WhyWindowServerCannotCompositeEffect::Filters => "it filters",
+            WhyWindowServerCannotCompositeEffect::WindowServerFiltersNothingBelowLayers => {
+                "the window server filters nothing below layers"
+            }
+            WhyWindowServerCannotCompositeEffect::BackdropFilterFunctionWithoutWindowServerEquivalent => {
+                "its backdrop filter has a function the window server has no equivalent of"
+            }
+            WhyWindowServerCannotCompositeEffect::BackdropDrawnByMasks => "its backdrop is drawn by masks",
+            WhyWindowServerCannotCompositeEffect::BackdropReadInsideAnotherEffect => {
+                "its backdrop is read inside another effect"
+            }
+            WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterHasOpacity => {
+                "its box has a backdrop filter and an opacity"
+            }
+            WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterIsNotUniformlyScaled => {
+                "its box has a backdrop filter under a transform that is not a uniform scale"
+            }
+            WhyWindowServerCannotCompositeEffect::Clipped(why) => return write!(formatter, "it is {why}"),
+        })
+    }
+}
+
+// The matrices are those of https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation.
+#[rustfmt::skip]
+fn color_filter_matrix(kind: ColorFilterType, amount: f32) -> [f32; 20] {
+    let rest = 1.0 - amount;
+    match kind {
+        ColorFilterType::Grayscale => [
+            0.2126 + 0.7874 * rest, 0.7152 - 0.7152 * rest, 0.0722 - 0.0722 * rest, 0.0, 0.0,
+            0.2126 - 0.2126 * rest, 0.7152 + 0.2848 * rest, 0.0722 - 0.0722 * rest, 0.0, 0.0,
+            0.2126 - 0.2126 * rest, 0.7152 - 0.7152 * rest, 0.0722 + 0.9278 * rest, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0, 0.0,
+        ],
+        ColorFilterType::Brightness => [
+            amount, 0.0, 0.0, 0.0, 0.0,
+            0.0, amount, 0.0, 0.0, 0.0,
+            0.0, 0.0, amount, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0, 0.0,
+        ],
+        ColorFilterType::Contrast => {
+            let intercept = 0.5 - 0.5 * amount;
+            [
+                amount, 0.0, 0.0, 0.0, intercept,
+                0.0, amount, 0.0, 0.0, intercept,
+                0.0, 0.0, amount, 0.0, intercept,
+                0.0, 0.0, 0.0, 1.0, 0.0,
+            ]
+        }
+        ColorFilterType::Invert => {
+            let scale = 1.0 - 2.0 * amount;
+            [
+                scale, 0.0, 0.0, 0.0, amount,
+                0.0, scale, 0.0, 0.0, amount,
+                0.0, 0.0, scale, 0.0, amount,
+                0.0, 0.0, 0.0, 1.0, 0.0,
+            ]
+        }
+        ColorFilterType::Opacity => [
+            1.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, amount, 0.0,
+        ],
+        ColorFilterType::Sepia => [
+            0.393 + 0.607 * rest, 0.769 - 0.769 * rest, 0.189 - 0.189 * rest, 0.0, 0.0,
+            0.349 - 0.349 * rest, 0.686 + 0.314 * rest, 0.168 - 0.168 * rest, 0.0, 0.0,
+            0.272 - 0.272 * rest, 0.534 - 0.534 * rest, 0.131 + 0.869 * rest, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0, 0.0,
+        ],
+        ColorFilterType::Saturate => [
+            0.213 + 0.787 * amount, 0.715 - 0.715 * amount, 0.072 - 0.072 * amount, 0.0, 0.0,
+            0.213 - 0.213 * amount, 0.715 + 0.285 * amount, 0.072 - 0.072 * amount, 0.0, 0.0,
+            0.213 - 0.213 * amount, 0.715 - 0.715 * amount, 0.072 + 0.928 * amount, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0, 0.0,
+        ],
+    }
+}
+
+#[rustfmt::skip]
+fn hue_rotate_matrix(angle_degrees: f32) -> [f32; 20] {
+    let (sin, cos) = ak::math::sincos(angle_degrees.to_radians());
+    [
+        0.213 + cos * 0.787 - sin * 0.213, 0.715 - cos * 0.715 - sin * 0.715, 0.072 - cos * 0.072 + sin * 0.928, 0.0, 0.0,
+        0.213 - cos * 0.213 + sin * 0.143, 0.715 + cos * 0.285 + sin * 0.140, 0.072 - cos * 0.072 - sin * 0.283, 0.0, 0.0,
+        0.213 - cos * 0.213 - sin * 0.787, 0.715 - cos * 0.715 + sin * 0.715, 0.072 + cos * 0.928 + sin * 0.072, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0,
+    ]
+}
+
+/// The one color matrix that does what `first` and then `second` do.
+fn color_matrix_applying_first_then_second(first: &[f32; 20], second: &[f32; 20]) -> [f32; 20] {
+    let mut combined = [0.0; 20];
+    for row in 0..4 {
+        for column in 0..5 {
+            let offset_of_second = if column == 4 { second[row * 5 + 4] } else { 0.0 };
+            combined[row * 5 + column] = (0..4)
+                .map(|through| second[row * 5 + through] * first[through * 5 + column])
+                .sum::<f32>()
+                + offset_of_second;
+        }
+    }
+    combined
+}
+
+impl WindowServerBackdropFilters {
+    fn add_color_matrix(&mut self, matrix: [f32; 20]) {
+        let matrix_to_add_to = if self.blur_standard_deviation.is_some() {
+            &mut self.color_matrix_after_blur
+        } else {
+            &mut self.color_matrix_before_blur
+        };
+        *matrix_to_add_to = Some(match matrix_to_add_to {
+            Some(earlier_matrix) => color_matrix_applying_first_then_second(earlier_matrix, &matrix),
+            None => matrix,
+        });
+    }
+
+    /// Adds the filter functions of a CSS filter list, which nests each function around the one before it, in the
+    /// order they apply, with lengths scaled into the viewport. Answers false for a list the window server has no
+    /// equivalent of: one with another function than blur() or a color function, or with a blur() after a color
+    /// function that follows a blur().
+    fn add_functions_of(&mut self, filter: &Filter, scale: f32) -> bool {
+        match filter {
+            Filter::Compose { outer, inner } => {
+                self.add_functions_of(inner, scale) && self.add_functions_of(outer, scale)
+            }
+            Filter::Blur {
+                radius_x,
+                radius_y,
+                mirrors_at_backdrop_edge: true,
+                input: None,
+            } if radius_x == radius_y && self.color_matrix_after_blur.is_none() => {
+                // Two blurs in a row blur as one whose variance is the sum of theirs.
+                let standard_deviation = radius_x * scale;
+                self.blur_standard_deviation = Some(match self.blur_standard_deviation {
+                    Some(earlier_standard_deviation) => ak::math::hypot(earlier_standard_deviation, standard_deviation),
+                    None => standard_deviation,
+                });
+                true
+            }
+            Filter::ColorFilter {
+                kind,
+                amount,
+                input: None,
+            } => {
+                self.add_color_matrix(color_filter_matrix(*kind, *amount));
+                true
+            }
+            Filter::HueRotate {
+                angle_degrees,
+                input: None,
+            } => {
+                self.add_color_matrix(hue_rotate_matrix(*angle_degrees));
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+// Whether the backdrop holds what is drawn outside every layer, as the canvas color is, which what the window server
+// shows under the box always holds. A replay adds the canvas color under a backdrop read in the root group, and reads
+// the surface itself when there is no root group, but leaves it out of a backdrop read inside any other effect.
+fn backdrop_holds_what_is_drawn_outside_every_layer(tree: &VisualContextTree, effect: EffectNodeIndex) -> bool {
+    let mut enclosing_effect = tree.effect_nodes[effect.0 as usize].parent;
+    while !enclosing_effect.is_none()
+        && matches!(
+            tree.effect_nodes[enclosing_effect.0 as usize].data,
+            EffectNodeData::BackgroundColorAnimation
+        )
+    {
+        enclosing_effect = tree.effect_nodes[enclosing_effect.0 as usize].parent;
+    }
+    match tree.root_isolation_effect {
+        Some(root) => enclosing_effect == root,
+        None => enclosing_effect.is_none(),
+    }
+}
+
+fn corner_radii_scaled_to_whole_device_pixels(corner_radii: CornerRadii, scale: f32) -> CornerRadii {
+    let scaled = |corner: CornerRadius| CornerRadius {
+        horizontal_radius: (corner.horizontal_radius as f32 * scale).round() as i32,
+        vertical_radius: (corner.vertical_radius as f32 * scale).round() as i32,
+    };
+    CornerRadii {
+        top_left: scaled(corner_radii.top_left),
+        top_right: scaled(corner_radii.top_right),
+        bottom_right: scaled(corner_radii.bottom_right),
+        bottom_left: scaled(corner_radii.bottom_left),
+    }
+}
+
+/// What the window server does to what it shows below the box of `effect`, which has a backdrop filter, or why it
+/// cannot apply the filter.
+fn window_server_backdrop_of_effect(
+    tree: &VisualContextTree,
+    world: &WorldTransforms,
+    effect: EffectNodeIndex,
+) -> Result<WindowServerBackdrop, WhyWindowServerCannotCompositeEffect> {
+    let node = &tree.effect_nodes[effect.0 as usize];
+    let EffectNodeData::Effects(effects) = &node.data else {
+        return Err(WhyWindowServerCannotCompositeEffect::Masks);
+    };
+    let Some(backdrop) = &effects.backdrop_filter else {
+        return Err(WhyWindowServerCannotCompositeEffect::BackdropFilterFunctionWithoutWindowServerEquivalent);
+    };
+    if backdrop_is_drawn_by_masks(tree, effect) {
+        return Err(WhyWindowServerCannotCompositeEffect::BackdropDrawnByMasks);
+    }
+    if !backdrop_holds_what_is_drawn_outside_every_layer(tree, effect) {
+        return Err(WhyWindowServerCannotCompositeEffect::BackdropReadInsideAnotherEffect);
+    }
+    // The box's layer composites the filtered backdrop along with its content at the box's opacity, where the window
+    // server filters what is below a group only once the group is composited.
+    if effects.opacity != 1.0 {
+        return Err(WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterHasOpacity);
+    }
+    let Some(matrix) = world.draw_matrix_if_known(node.spatial) else {
+        return Err(WhyWindowServerCannotCompositeEffect::Clipped(
+            WhyWindowServerCannotShowMedia::ClippedInSpaceTreeDoesNotHave,
+        ));
+    };
+    let elements = &matrix.elements;
+    let (scale_x, scale_y) = (elements[0][0], elements[1][1]);
+    if !matrix.is_2d_affine()
+        || elements[0][1] != 0.0
+        || elements[1][0] != 0.0
+        || scale_x <= 0.0
+        || (scale_x - scale_y).abs() > UNIFORM_SCALE_TOLERANCE * scale_x
+    {
+        return Err(WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterIsNotUniformlyScaled);
+    }
+    let mut filters = WindowServerBackdropFilters::default();
+    let filter_has_window_server_equivalent =
+        Filter::deserialize(&backdrop.filter).is_some_and(|filter| filters.add_functions_of(&filter, scale_x));
+    if !filter_has_window_server_equivalent {
+        return Err(WhyWindowServerCannotCompositeEffect::BackdropFilterFunctionWithoutWindowServerEquivalent);
+    }
+    Ok(WindowServerBackdrop {
+        region: matrix.extract_2d_affine().map_rect(backdrop.region.to_float()),
+        corner_radii: corner_radii_scaled_to_whole_device_pixels(backdrop.corner_radii, scale_x),
+        filters,
+    })
+}
+
+/// How the window server composites `effect` by itself around the layers of what the effect holds, or why it cannot.
+/// The effect is entered within the clips from `output_clip` out to `clip_entered_outside_effect`, which is none for
+/// an effect inside no other effect that is composited. A backdrop filter is the window server's to apply only where
+/// `window_server_filters_what_is_below_layers`.
+pub fn window_server_placement_of_effect(
+    tree: &VisualContextTree,
+    world: &WorldTransforms,
+    effect: EffectNodeIndex,
+    output_clip: ClipNodeIndex,
+    clip_entered_outside_effect: ClipNodeIndex,
+    window_server_filters_what_is_below_layers: bool,
+) -> Result<WindowServerPlacementOfEffect, WhyWindowServerCannotCompositeEffect> {
+    let EffectNodeData::Effects(effects) = &tree.effect_nodes[effect.0 as usize].data else {
+        return Err(WhyWindowServerCannotCompositeEffect::Masks);
+    };
+    if effects.blend_mode != CompositingAndBlendingOperator::Normal {
+        return Err(WhyWindowServerCannotCompositeEffect::BlendsWithWhatIsBelowIt);
+    }
+    if effects.filter.is_some() {
+        return Err(WhyWindowServerCannotCompositeEffect::Filters);
+    }
+    let backdrop = match &effects.backdrop_filter {
+        Some(_) if !window_server_filters_what_is_below_layers => {
+            return Err(WhyWindowServerCannotCompositeEffect::WindowServerFiltersNothingBelowLayers);
+        }
+        Some(_) => Some(window_server_backdrop_of_effect(tree, world, effect)?),
+        None => None,
+    };
+    let mut clips_in_viewport = ClipsInViewport::default();
+    let mut clip = output_clip;
+    while !clip.is_none() && clip != clip_entered_outside_effect {
+        let node = &tree.clip_nodes[clip.0 as usize];
+        match &node.data {
+            ClipNodeData::Rect(data) => clips_in_viewport
+                .add(world, node.spatial, data.rect, data.corner_radii, data.mode)
+                .map_err(WhyWindowServerCannotCompositeEffect::Clipped)?,
+            ClipNodeData::Path(_) => {
+                return Err(WhyWindowServerCannotCompositeEffect::Clipped(
+                    WhyWindowServerCannotShowMedia::ClippedByPath,
+                ));
+            }
+            ClipNodeData::Dead => {}
+        }
+        clip = node.parent;
+    }
+    let mut clips = Vec::new();
+    if let Some(intersection_of_rect_clips) = clips_in_viewport
+        .rect_clips
+        .iter()
+        .copied()
+        .reduce(|intersection, rect| intersection.intersected(rect))
+    {
+        clips.push((intersection_of_rect_clips, CornerRadii::default()));
+    }
+    let whole_device_pixels = |(horizontal, vertical): (f32, f32)| CornerRadius {
+        horizontal_radius: horizontal.round() as i32,
+        vertical_radius: vertical.round() as i32,
+    };
+    clips.extend(clips_in_viewport.rounded_clips.iter().map(|rounded_clip| {
+        let [top_left, top_right, bottom_right, bottom_left] =
+            rounded_clip.horizontal_and_vertical_radii_clockwise_from_top_left;
+        (
+            rounded_clip.rect,
+            CornerRadii {
+                top_left: whole_device_pixels(top_left),
+                top_right: whole_device_pixels(top_right),
+                bottom_right: whole_device_pixels(bottom_right),
+                bottom_left: whole_device_pixels(bottom_left),
+            },
+        )
+    }));
+    Ok(WindowServerPlacementOfEffect {
+        clips,
+        opacity: effects.opacity,
+        backdrop,
+    })
 }
 
 /// Where the window server can show the canvas or video that `header` and `payload` draw in `run`, within

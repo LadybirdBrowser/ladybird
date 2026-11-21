@@ -35,6 +35,11 @@
 + (id<LadybirdCoreAnimationContext>)contextWithCGSConnection:(uint32_t)connection options:(NSDictionary*)options;
 @end
 
+// A CABackdropLayer applies CAFilters to what the window server shows under it. Neither is public API either.
+@protocol LadybirdCoreAnimationFilterClass <NSObject>
++ (id)filterWithType:(NSString*)type;
+@end
+
 namespace Compositor {
 
 using WindowServerConnectionIDFunction = uint32_t (*)();
@@ -57,6 +62,28 @@ static Class core_animation_context_class()
         return context_class;
     }();
     return context_class;
+}
+
+static Class core_animation_backdrop_layer_class()
+{
+    static Class backdrop_layer_class = []() -> Class {
+        Class backdrop_layer_class = NSClassFromString(@"CABackdropLayer");
+        if (!backdrop_layer_class || ![backdrop_layer_class isSubclassOfClass:[CALayer class]])
+            return nil;
+        return backdrop_layer_class;
+    }();
+    return backdrop_layer_class;
+}
+
+static Class core_animation_filter_class()
+{
+    static Class filter_class = []() -> Class {
+        Class filter_class = NSClassFromString(@"CAFilter");
+        if (!filter_class || ![filter_class respondsToSelector:@selector(filterWithType:)])
+            return nil;
+        return filter_class;
+    }();
+    return filter_class;
 }
 
 // Changes made outside an explicit transaction open an implicit one, which only a run loop commits, and while it is
@@ -108,6 +135,18 @@ RefPtr<CoreAnimationWindowServer> CoreAnimationWindowServer::try_create()
 OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
 {
     return CoreAnimationRemoteLayer::try_create();
+}
+
+bool CoreAnimationWindowServer::shows_tiles_of_painted_layers() const
+{
+    // Lets a frame composited by the window server be told apart from one composited into a store.
+    static bool is_switched_off = getenv("LADYBIRD_WINDOW_SERVER_SHOWS_NO_TILES") != nullptr;
+    return !is_switched_off;
+}
+
+bool CoreAnimationWindowServer::filters_what_is_below_layers() const
+{
+    return core_animation_backdrop_layer_class() && core_animation_filter_class();
 }
 
 CoreAnimationSurface::CoreAnimationSurface(Gfx::SharedImageBuffer const& shared_image_buffer)
@@ -284,6 +323,11 @@ bool CoreAnimationRemoteLayer::show_frame(Frame frame)
             return true;
         m_painted_size = painted_size;
     }
+    if (frame.shows_no_store) {
+        if (painted_size.is_empty())
+            return true;
+        m_painted_size = painted_size;
+    }
     if (m_painted_size.is_empty())
         return true;
     m_device_pixel_ratio = device_pixel_ratio;
@@ -297,31 +341,78 @@ bool CoreAnimationRemoteLayer::show_frame(Frame frame)
         lay_out_frame(fit_within);
         if (buffer)
             content_layer.contents = (__bridge id)buffer->core_foundation_pointer();
+        else if (frame.shows_no_store && content_layer.contents)
+            content_layer.contents = nil;
         show_sublayers(sublayers);
     });
     release_video_frames_window_server_let_go_of();
     return true;
 }
 
+static CoreAnimationRemoteLayer::SublayerKind kind_of(RemoteSublayer const& sublayer)
+{
+    using Kind = CoreAnimationRemoteLayer::SublayerKind;
+    return sublayer.content.visit(
+        [](RemoteSublayer::Group const&) { return Kind::Group; },
+        [](RemoteSublayer::Tile const&) { return Kind::Tile; },
+        [](Gfx::Color const&) { return Kind::Color; },
+        [](RemoteSublayer::Backdrop const&) { return Kind::Backdrop; },
+        [](auto const&) { return Kind::PlacedContent; });
+}
+
+CoreAnimationRemoteLayer::ShownSublayer& CoreAnimationRemoteLayer::shown_sublayer_of_kind(u64 identity, SublayerKind kind)
+{
+    if (auto shown_sublayer = m_shown_sublayers.find(identity); shown_sublayer != m_shown_sublayers.end()) {
+        if (shown_sublayer->value.kind == kind)
+            return shown_sublayer->value;
+        stop_showing_sublayer(shown_sublayer->value);
+        m_shown_sublayers.remove(shown_sublayer);
+        m_sublayer_got_another_layer = true;
+    }
+    ShownSublayer shown_sublayer;
+    shown_sublayer.kind = kind;
+    Class class_of_outermost_layer = kind == SublayerKind::Backdrop ? core_animation_backdrop_layer_class() : [CALayer class];
+    VERIFY(class_of_outermost_layer);
+    CALayer* outermost_layer = [[class_of_outermost_layer alloc] init];
+    outermost_layer.anchorPoint = CGPointZero;
+    shown_sublayer.outermost_layer = outermost_layer;
+    // A group fades what its sublayers show together, not each of them over the ones below it.
+    if (kind == SublayerKind::Group)
+        outermost_layer.allowsGroupOpacity = YES;
+    if (kind == SublayerKind::PlacedContent) {
+        outermost_layer.masksToBounds = YES;
+        auto* content_layer = [[CALayer alloc] init];
+        content_layer.anchorPoint = CGPointZero;
+        [outermost_layer addSublayer:content_layer];
+        shown_sublayer.content_layer = content_layer;
+    }
+    m_shown_sublayers.set(identity, move(shown_sublayer));
+    return *m_shown_sublayers.get(identity);
+}
+
 void CoreAnimationRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
 {
     HashTable<u64> shown_identities;
-    auto* ordered_layers = [NSMutableArray arrayWithObject:as_layer(m_content_layer)];
-    for (auto& sublayer : sublayers) {
-        auto& shown_sublayer = m_shown_sublayers.ensure(sublayer.identity, [] {
-            ShownSublayer shown_sublayer;
-            auto* clip_layer = [[CALayer alloc] init];
-            clip_layer.anchorPoint = CGPointZero;
-            clip_layer.masksToBounds = YES;
-            auto* content_layer = [[CALayer alloc] init];
-            content_layer.anchorPoint = CGPointZero;
-            [clip_layer addSublayer:content_layer];
-            shown_sublayer.clip_layer = clip_layer;
-            shown_sublayer.content_layer = content_layer;
-            return shown_sublayer;
-        });
-        update_shown_sublayer(shown_sublayer, sublayer);
-        [ordered_layers addObject:as_layer(shown_sublayer.clip_layer)];
+    // Per sublayer, by its index, the identities of the sublayers in it where it is a group, and after those, the
+    // identities of the sublayers of the frame itself.
+    Vector<Vector<u64>> identities_of_sublayers_by_group_index;
+    identities_of_sublayers_by_group_index.resize(sublayers.size() + 1);
+    auto index_of_frame = sublayers.size();
+    for (size_t index = 0; index < sublayers.size(); ++index) {
+        auto& sublayer = sublayers[index];
+        auto& shown_sublayer = shown_sublayer_of_kind(sublayer.identity, kind_of(sublayer));
+        sublayer.content.visit(
+            [&](RemoteSublayer::Group& group) { update_shown_group(shown_sublayer, group); },
+            [&](RemoteSublayer::Tile& tile) { update_shown_tile(shown_sublayer, tile, sublayer.content_rect); },
+            [&](Gfx::Color& color) { update_shown_color(shown_sublayer, color, sublayer.content_rect); },
+            [&](RemoteSublayer::Backdrop& backdrop) { update_shown_backdrop(shown_sublayer, backdrop); },
+            [&](auto&) { update_shown_sublayer(shown_sublayer, sublayer); });
+        shown_sublayer.shown_at_device_pixel_ratio = m_device_pixel_ratio;
+        auto group_index = sublayer.group_index.value_or(index_of_frame);
+        // A group comes before the sublayers in it.
+        if (group_index != index_of_frame && (group_index >= index || !sublayers[group_index].content.has<RemoteSublayer::Group>()))
+            group_index = index_of_frame;
+        identities_of_sublayers_by_group_index[group_index].append(sublayer.identity);
         shown_identities.set(sublayer.identity);
     }
 
@@ -335,7 +426,30 @@ void CoreAnimationRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
         stop_showing_sublayer(shown_sublayer);
     }
 
-    as_layer(m_frame_layer).sublayers = ordered_layers;
+    auto layers_of = [&](Vector<u64> const& identities) {
+        auto* layers = [NSMutableArray arrayWithCapacity:identities.size() + 1];
+        for (auto identity : identities)
+            [layers addObject:as_layer(m_shown_sublayers.get(identity)->outermost_layer)];
+        return layers;
+    };
+    for (size_t index = 0; index < sublayers.size(); ++index) {
+        auto& identities_of_sublayers = identities_of_sublayers_by_group_index[index];
+        auto& shown_group = *m_shown_sublayers.get(sublayers[index].identity);
+        if (shown_group.kind != SublayerKind::Group)
+            continue;
+        if (!m_sublayer_got_another_layer && shown_group.identities_of_sublayers == identities_of_sublayers)
+            continue;
+        as_layer(shown_group.outermost_layer).sublayers = layers_of(identities_of_sublayers);
+        shown_group.identities_of_sublayers = move(identities_of_sublayers);
+    }
+    auto& identities_of_sublayers_of_frame = identities_of_sublayers_by_group_index[index_of_frame];
+    if (m_sublayer_got_another_layer || m_identities_of_sublayers_of_frame != identities_of_sublayers_of_frame) {
+        auto* layers_of_frame = layers_of(identities_of_sublayers_of_frame);
+        [layers_of_frame insertObject:as_layer(m_content_layer) atIndex:0];
+        as_layer(m_frame_layer).sublayers = layers_of_frame;
+        m_identities_of_sublayers_of_frame = move(identities_of_sublayers_of_frame);
+    }
+    m_sublayer_got_another_layer = false;
 }
 
 static CGAffineTransform to_core_graphics(Gfx::AffineTransform const& transform)
@@ -418,7 +532,7 @@ void CoreAnimationRemoteLayer::use_content_layer_of_kind_for(ShownSublayer& show
 void CoreAnimationRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
 {
     auto device_pixel_ratio = m_device_pixel_ratio;
-    auto* clip_layer = as_layer(shown_sublayer.clip_layer);
+    auto* clip_layer = as_layer(shown_sublayer.outermost_layer);
     use_content_layer_of_kind_for(shown_sublayer, sublayer);
     auto* content_layer = as_layer(shown_sublayer.content_layer);
     clip_layer.frame = in_points(sublayer.clip_rect, device_pixel_ratio);
@@ -478,6 +592,198 @@ void CoreAnimationRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublay
     content_layer.minificationFilter = sublayer.scaling_mode == Gfx::ScalingMode::BilinearMipmap ? kCAFilterTrilinear : filter_for_scaling_mode(sublayer.scaling_mode);
 
     show_content(shown_sublayer, sublayer);
+}
+
+static CGPoint in_points(Gfx::FloatPoint point, double device_pixel_ratio)
+{
+    return CGPointMake(point.x() / device_pixel_ratio, point.y() / device_pixel_ratio);
+}
+
+static bool places_alike(RemoteSublayer::Group const& a, RemoteSublayer::Group const& b)
+{
+    auto const& transform = a.to_parent;
+    auto const& other_transform = b.to_parent;
+    return transform.a() == other_transform.a() && transform.b() == other_transform.b() && transform.c() == other_transform.c()
+        && transform.d() == other_transform.d() && transform.e() == other_transform.e() && transform.f() == other_transform.f()
+        && a.clip_rect == b.clip_rect;
+}
+
+static bool rounds_corners_alike(RemoteSublayer::Group const& a, RemoteSublayer::Group const& b)
+{
+    auto size_clipped_to = [](RemoteSublayer::Group const& group) { return group.clip_rect.map([](auto const& clip_rect) { return clip_rect.size(); }); };
+    return a.corner_radii == b.corner_radii && size_clipped_to(a) == size_clipped_to(b);
+}
+
+// The one radius that every rounded corner has, or none where two rounded corners differ or one is elliptical.
+static Optional<int> single_radius_of_rounded_corners(Gfx::CornerRadii const& corner_radii)
+{
+    Optional<int> single_radius;
+    for (auto const& corner : { corner_radii.top_left, corner_radii.top_right, corner_radii.bottom_right, corner_radii.bottom_left }) {
+        if (!corner)
+            continue;
+        if (corner.horizontal_radius != corner.vertical_radius || single_radius.value_or(corner.horizontal_radius) != corner.horizontal_radius)
+            return {};
+        single_radius = corner.horizontal_radius;
+    }
+    return single_radius.value_or(0);
+}
+
+// The outline of a rect of the size whose corners are each rounded by a quarter of an ellipse, in the coordinates of a
+// layer whose y-axis points down.
+static CGPathRef create_outline_of_rect_with_rounded_corners(CGSize size, Gfx::CornerRadii const& corner_radii, double device_pixel_ratio)
+{
+    // How far along a radius the control points of the cubic curve nearest a quarter of an ellipse are.
+    static constexpr CGFloat control_point_distance_along_radius = 0.5522847498;
+    auto radii_in_points = [&](Gfx::CornerRadius const& corner) {
+        if (!corner)
+            return CGSizeZero;
+        return CGSizeMake(min(corner.horizontal_radius / device_pixel_ratio, size.width), min(corner.vertical_radius / device_pixel_ratio, size.height));
+    };
+    auto top_left = radii_in_points(corner_radii.top_left);
+    auto top_right = radii_in_points(corner_radii.top_right);
+    auto bottom_right = radii_in_points(corner_radii.bottom_right);
+    auto bottom_left = radii_in_points(corner_radii.bottom_left);
+    auto distance_to_control_point = [](CGFloat radius) { return radius * (1 - control_point_distance_along_radius); };
+    auto* outline = CGPathCreateMutable();
+    CGPathMoveToPoint(outline, nullptr, top_left.width, 0);
+    CGPathAddLineToPoint(outline, nullptr, size.width - top_right.width, 0);
+    CGPathAddCurveToPoint(outline, nullptr, size.width - distance_to_control_point(top_right.width), 0, size.width, distance_to_control_point(top_right.height), size.width, top_right.height);
+    CGPathAddLineToPoint(outline, nullptr, size.width, size.height - bottom_right.height);
+    CGPathAddCurveToPoint(outline, nullptr, size.width, size.height - distance_to_control_point(bottom_right.height), size.width - distance_to_control_point(bottom_right.width), size.height, size.width - bottom_right.width, size.height);
+    CGPathAddLineToPoint(outline, nullptr, bottom_left.width, size.height);
+    CGPathAddCurveToPoint(outline, nullptr, distance_to_control_point(bottom_left.width), size.height, 0, size.height - distance_to_control_point(bottom_left.height), 0, size.height - bottom_left.height);
+    CGPathAddLineToPoint(outline, nullptr, 0, top_left.height);
+    CGPathAddCurveToPoint(outline, nullptr, 0, distance_to_control_point(top_left.height), distance_to_control_point(top_left.width), 0, top_left.width, 0);
+    CGPathCloseSubpath(outline);
+    return outline;
+}
+
+// A group layer has the rect the group clips to as its bounds, or no bounds at its origin, so that its sublayers are
+// laid out in the pixels of the group. It is placed by where the origin of those bounds goes, with the rest of the
+// group's transform around that point. A frame that only moves the group, as a scroll does, sets nothing else.
+void CoreAnimationRemoteLayer::update_shown_group(ShownSublayer& shown_sublayer, RemoteSublayer::Group const& group)
+{
+    auto device_pixel_ratio = m_device_pixel_ratio;
+    auto const* shown_group = shown_sublayer.shown_group.has_value() && shown_sublayer.shown_at_device_pixel_ratio == device_pixel_ratio ? &shown_sublayer.shown_group.value() : nullptr;
+    auto* group_layer = as_layer(shown_sublayer.outermost_layer);
+    auto bounds = in_points(group.clip_rect.value_or({}), device_pixel_ratio);
+    if (!shown_group || !places_alike(*shown_group, group)) {
+        auto const& to_parent = group.to_parent;
+        group_layer.bounds = bounds;
+        group_layer.position = in_points(to_parent.map(group.clip_rect.value_or({}).location()), device_pixel_ratio);
+        group_layer.affineTransform = CGAffineTransformMake(to_parent.a(), to_parent.b(), to_parent.c(), to_parent.d(), 0, 0);
+        group_layer.masksToBounds = group.clip_rect.has_value();
+    }
+    if (!shown_group || shown_group->opacity != group.opacity)
+        group_layer.opacity = group.opacity;
+    if (!shown_group || !rounds_corners_alike(*shown_group, group)) {
+        // The window server rounds the corners of a layer by one radius. Corners that differ, or that are elliptical,
+        // are cut by a mask of their outline instead, which costs it a pass of its own.
+        auto const& corner_radii = group.corner_radii;
+        auto single_radius = single_radius_of_rounded_corners(corner_radii);
+        group_layer.cornerRadius = single_radius.value_or(0) / device_pixel_ratio;
+        // The corners are named in the layer's own coordinates, whose y-axis points down here like the frame's.
+        CACornerMask masked_corners = 0;
+        if (corner_radii.top_left)
+            masked_corners |= kCALayerMinXMinYCorner;
+        if (corner_radii.top_right)
+            masked_corners |= kCALayerMaxXMinYCorner;
+        if (corner_radii.bottom_right)
+            masked_corners |= kCALayerMaxXMaxYCorner;
+        if (corner_radii.bottom_left)
+            masked_corners |= kCALayerMinXMaxYCorner;
+        group_layer.maskedCorners = masked_corners;
+        if (single_radius.has_value() || !group.clip_rect.has_value()) {
+            group_layer.mask = nil;
+        } else {
+            auto* outline_layer = [CAShapeLayer layer];
+            outline_layer.anchorPoint = CGPointZero;
+            auto* outline = create_outline_of_rect_with_rounded_corners(bounds.size, corner_radii, device_pixel_ratio);
+            outline_layer.path = outline;
+            CGPathRelease(outline);
+            group_layer.mask = outline_layer;
+        }
+    }
+    // The outline is laid out in the pixels of the group, as its sublayers are.
+    if (group_layer.mask)
+        group_layer.mask.frame = bounds;
+    shown_sublayer.shown_group = group;
+}
+
+void CoreAnimationRemoteLayer::update_shown_tile(ShownSublayer& shown_sublayer, RemoteSublayer::Tile& tile, Gfx::IntRect rect)
+{
+    auto device_pixel_ratio = m_device_pixel_ratio;
+    auto* tile_layer = as_layer(shown_sublayer.outermost_layer);
+    if (shown_sublayer.shown_rect != rect || shown_sublayer.shown_at_device_pixel_ratio != device_pixel_ratio) {
+        tile_layer.frame = in_points(rect, device_pixel_ratio);
+        shown_sublayer.shown_rect = rect;
+    }
+    if (shown_sublayer.shown_as_opaque != tile.every_pixel_is_opaque) {
+        tile_layer.opaque = tile.every_pixel_is_opaque;
+        shown_sublayer.shown_as_opaque = tile.every_pixel_is_opaque;
+    }
+    auto const* shown_lease = shown_sublayer.content.get_pointer<PresentableSurface::Lease>();
+    if (shown_lease && &shown_lease->surface() == &tile.surface.surface())
+        return;
+    auto& surface = tile.surface.surface();
+    surface.did_hand_to_window_server();
+    tile_layer.contents = (__bridge id)iosurface_of(surface).core_foundation_pointer();
+    shown_sublayer.content = move(tile.surface);
+}
+
+void CoreAnimationRemoteLayer::update_shown_color(ShownSublayer& shown_sublayer, Gfx::Color color, Gfx::IntRect rect)
+{
+    auto device_pixel_ratio = m_device_pixel_ratio;
+    auto* color_layer = as_layer(shown_sublayer.outermost_layer);
+    if (shown_sublayer.shown_rect != rect || shown_sublayer.shown_at_device_pixel_ratio != device_pixel_ratio) {
+        color_layer.frame = in_points(rect, device_pixel_ratio);
+        shown_sublayer.shown_rect = rect;
+    }
+    if (shown_sublayer.shown_color == color)
+        return;
+    auto* core_graphics_color = CGColorCreateSRGB(color.red() / 255.0, color.green() / 255.0, color.blue() / 255.0, color.alpha() / 255.0);
+    color_layer.backgroundColor = core_graphics_color;
+    CGColorRelease(core_graphics_color);
+    color_layer.opaque = color.alpha() == 255;
+    shown_sublayer.shown_color = color;
+}
+
+// The window server blurs by a standard deviation in points, and fills in what lies past the edge of a backdrop by
+// normalizing, which comes closest to mirroring at the edge. A CAColorMatrix holds the same 20 floats in the same
+// order, and the window server applies it to unpremultiplied colours as well.
+static NSArray* core_animation_filters_of(RemoteSublayer::Backdrop const& backdrop, double device_pixel_ratio)
+{
+    auto filter_class = (Class<LadybirdCoreAnimationFilterClass>)core_animation_filter_class();
+    auto* core_animation_filters = [NSMutableArray arrayWithCapacity:backdrop.filters.size()];
+    for (auto const& filter : backdrop.filters) {
+        switch (filter.kind) {
+        case RemoteSublayer::Backdrop::Filter::Kind::Blur: {
+            id blur = [filter_class filterWithType:@"gaussianBlur"];
+            [blur setValue:@(filter.blur_standard_deviation / device_pixel_ratio) forKey:@"inputRadius"];
+            [blur setValue:@YES forKey:@"inputNormalizeEdges"];
+            [core_animation_filters addObject:blur];
+            break;
+        }
+        case RemoteSublayer::Backdrop::Filter::Kind::ColorMatrix: {
+            id color_matrix = [filter_class filterWithType:@"colorMatrix"];
+            [color_matrix setValue:[NSValue valueWithBytes:filter.color_matrix.data() objCType:"{CAColorMatrix=ffffffffffffffffffff}"] forKey:@"inputColorMatrix"];
+            [core_animation_filters addObject:color_matrix];
+            break;
+        }
+        }
+    }
+    return core_animation_filters;
+}
+
+void CoreAnimationRemoteLayer::update_shown_backdrop(ShownSublayer& shown_sublayer, RemoteSublayer::Backdrop const& backdrop)
+{
+    auto device_pixel_ratio = m_device_pixel_ratio;
+    if (shown_sublayer.shown_backdrop == backdrop && shown_sublayer.shown_at_device_pixel_ratio == device_pixel_ratio)
+        return;
+    auto* backdrop_layer = as_layer(shown_sublayer.outermost_layer);
+    backdrop_layer.frame = in_points(backdrop.region, device_pixel_ratio);
+    backdrop_layer.filters = core_animation_filters_of(backdrop, device_pixel_ratio);
+    shown_sublayer.shown_backdrop = backdrop;
 }
 
 // The window server converts a YCbCr surface to RGB by the matrix it is tagged with. It decodes the transfer of SDR
@@ -675,6 +981,9 @@ void CoreAnimationRemoteLayer::show_content(ShownSublayer& shown_sublayer, Remot
             content_layer.opaque = NO;
             content_layer.contents = (__bridge id)iosurface.core_foundation_pointer();
             shown_sublayer.content = move(lease);
+        },
+        [](auto&) {
+            VERIFY_NOT_REACHED();
         });
 }
 
@@ -689,12 +998,15 @@ void CoreAnimationRemoteLayer::stop_showing_content(ShownSublayer& shown_sublaye
 
 void CoreAnimationRemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
 {
-    stop_showing_content(shown_sublayer);
-    [as_layer(shown_sublayer.clip_layer) removeFromSuperlayer];
-    [as_layer(shown_sublayer.content_layer) release];
+    if (shown_sublayer.kind == SublayerKind::PlacedContent)
+        stop_showing_content(shown_sublayer);
+    shown_sublayer.content = Empty {};
+    [as_layer(shown_sublayer.outermost_layer) removeFromSuperlayer];
+    if (shown_sublayer.content_layer)
+        [as_layer(shown_sublayer.content_layer) release];
     if (shown_sublayer.rounded_clip_layer)
         [as_layer(shown_sublayer.rounded_clip_layer) release];
-    [as_layer(shown_sublayer.clip_layer) release];
+    [as_layer(shown_sublayer.outermost_layer) release];
 }
 
 void CoreAnimationRemoteLayer::keep_video_frame_until_window_server_lets_go(NonnullRefPtr<Media::VideoFrame> frame)

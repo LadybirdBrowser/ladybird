@@ -917,8 +917,8 @@ mod tests {
     use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
     use crate::display_list::layers::{
         BandIndex, CutsOfCell, LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerIndex,
-        MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand,
-        WindowServerPresentationOfMedia,
+        MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand, WhatWindowServerShowsOfFrame,
+        WindowServerCompositing, WindowServerPresentationOfMedia,
     };
     use crate::display_list::placement::{RasterSpace, RasterSpaceGeometry, WhatEverySpaceOfTreeShares};
     use crate::display_list::test_fixtures::{
@@ -2208,8 +2208,28 @@ mod tests {
         for band_index in (0..stack.bands.len()).map(BandIndex) {
             stack.band_has_layer_at_or_above_base_layer(band_index);
         }
-        stack.layers_the_window_server_shows(&composite_offsets, |_| true);
-        let presentation = stack.window_server_presentation_of_media(list, frame_tree, &scroll_offsets, VIEWPORT);
+        let mut presentation = WindowServerPresentationOfMedia::default();
+        for shows_tiles_of_painted_layers in [false, true] {
+            let window_server_compositing = WindowServerCompositing {
+                shows_tiles_of_painted_layers,
+                filters_what_is_below_layers: shows_tiles_of_painted_layers,
+            };
+            stack.layers_the_window_server_shows(
+                &composite_offsets,
+                &WhatWindowServerShowsOfFrame {
+                    compositing: window_server_compositing,
+                    can_show_media_of_layer: &|_| true,
+                    can_composite_effect_of_node: &|_| true,
+                },
+            );
+            presentation = stack.window_server_presentation_of_media(
+                list,
+                frame_tree,
+                &scroll_offsets,
+                VIEWPORT,
+                window_server_compositing,
+            );
+        }
         let planned_with_stack = PlannedLayers {
             stack: stack.clone(),
             placement: planned.placement.clone(),

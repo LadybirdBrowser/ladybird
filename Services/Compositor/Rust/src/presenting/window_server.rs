@@ -4,29 +4,91 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What the window server shows above a frame by itself: the media layers it can show, and the surfaces it shows
-//! painted layers and the overlays of the compositor from.
+//! What the window server shows of a frame by itself: the media layers it can show, the painted layers it shows tile by
+//! tile, each in the groups that place and clip it, and the surfaces it shows the overlays of the compositor from. A
+//! window server that does not show tiles shows a painted layer from one surface that the tiles are copied into.
 
 use super::layers::{LayerCompositingInFrame, PaintedLayers};
+use super::tiles::TileDraw;
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size, size_of};
-use crate::raster_host::{FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, SublayerContentKind};
+use crate::raster_host::{
+    FfiSublayer, FfiSublayerBackdrop, FfiSublayerGroup, FfiSublayerPlacement, LiveContent, MediaKind,
+    SublayerContentKind,
+};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfacePool};
 use libcompositing_rust::display_list::layers::{
-    LayerContent, LayerIdentity, LayerIndex, StackLayer, WindowServerPlacementsOfMedia,
+    BandIndex, LayerContent, LayerIdentity, LayerIndex, SpaceToFrame, StackLayer, WindowServerCompositing,
+    WindowServerPlacementsOfMedia,
 };
 use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
 use libcompositing_rust::display_list::window_server_placement::{
     WhyWindowServerCannotShowMedia, WindowServerPlacement,
 };
-use libgfx_rust::{Color, IntRect, ScalingMode};
+use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 const CANVAS_SUBLAYER_IDENTITY_TAG: u64 = 1 << 60;
 const VIDEO_SUBLAYER_IDENTITY_TAG: u64 = 2 << 60;
 const PAINTED_LAYER_SUBLAYER_IDENTITY_TAG: u64 = 3 << 60;
 const COMPOSITOR_OVERLAY_SUBLAYER_IDENTITY: u64 = 4 << 60;
+const SUBLAYER_OF_TILED_LAYER_IDENTITY_TAG: u64 = 5 << 60;
+const SUBLAYER_IDENTITY_BITS_BELOW_TAG: u64 = (1 << 60) - 1;
+
+// The window server composites each sublayer on its own, so a frame with more of them than this is composited by the
+// compositor instead. Pages show a few hundred tiles at most.
+const MAXIMUM_SUBLAYERS_THE_WINDOW_SERVER_SHOWS_OF_FRAME: usize = 1024;
+
+/// What a sublayer is of a painted layer the window server shows tile by tile.
+#[derive(Hash)]
+enum PartOfTiledLayer {
+    GroupClippingToCompositeClip,
+    GroupClippingToRoundedCompositeClip { ordinal: usize },
+    GroupOfSpace,
+    Tile { column: i32, row: i32 },
+    FillOfJoinedOneColorTiles { ordinal: usize },
+}
+
+/// What a sublayer is of a band of a composited effect the window server composites.
+#[derive(Hash)]
+enum PartOfCompositedBand {
+    GroupClippingToClipAroundEffect { ordinal: usize },
+    GroupOfEffect,
+    GroupClippingToRoundedBackdropRegion,
+    Backdrop,
+}
+
+fn identity_of_sublayer_that_is(part: impl Hash, of_layer_or_composited_band: impl Hash) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    of_layer_or_composited_band.hash(&mut hasher);
+    part.hash(&mut hasher);
+    SUBLAYER_OF_TILED_LAYER_IDENTITY_TAG | (hasher.finish() & SUBLAYER_IDENTITY_BITS_BELOW_TAG)
+}
+
+fn group(identity: u64, group_index: i32, group: FfiSublayerGroup) -> FfiSublayer {
+    FfiSublayer {
+        group_index,
+        group,
+        ..FfiSublayer::of_kind(identity, SublayerContentKind::Group)
+    }
+}
+
+/// A group that clips its sublayers to a rect of the pixels it shares with the group it is in.
+fn group_clipping_to(identity: u64, group_index: i32, clip_rect: FloatRect, corner_radii: CornerRadii) -> FfiSublayer {
+    group(
+        identity,
+        group_index,
+        FfiSublayerGroup {
+            clips: true,
+            clip_rect,
+            corner_radii,
+            ..FfiSublayerGroup::default()
+        },
+    )
+}
+
 // The checks of a plan keep the ordinal of a media layer below the most media layers a plan makes, so it stays clear of
 // the tag.
 const MEDIA_ORDINAL_SHIFT_PAST_CANVAS_AND_VIDEO_IDS: u32 = 44;
@@ -89,13 +151,36 @@ pub(super) struct WindowServerLayers {
     presentation_by_layer: HashMap<LayerIdentity, PaintedLayerPresentation>,
     compositor_overlays_surface_pool: PresentableSurfacePool,
     latest_compositor_overlays_surface_and_rect: Option<(Rc<PresentableSurface>, IntRect)>,
+    /// Whether the surface holds the overlays of the frame painted last, rather than those of a frame before it whose
+    /// overlays went into the frame's store since.
+    compositor_overlays_surface_holds_overlays_of_latest_frame: bool,
     next_sublayer_ordinal: u32,
+    /// A surface on the GPU the compositor renders with, which tiles are made like for a frame painted into no store.
+    surface_tiles_are_made_like_without_store: Option<Rc<PaintingSurface>>,
 }
 
 impl WindowServerLayers {
     pub(super) fn keep_only_layers(&mut self, identities_in_stack: &HashSet<LayerIdentity>) {
         self.presentation_by_layer
             .retain(|identity, _| identities_in_stack.contains(identity));
+    }
+
+    /// Tells that the overlays of a frame were painted into the frame's store, so that the surface the window server
+    /// shows overlays from holds those of an earlier frame.
+    pub(super) fn did_paint_compositor_overlays_into_store(&mut self) {
+        self.compositor_overlays_surface_holds_overlays_of_latest_frame = false;
+    }
+
+    /// A surface that tiles are made like for a frame painted into no store, or none where it cannot be made.
+    pub(super) fn surface_tiles_are_made_like_without_store(
+        &mut self,
+        env: &PresentingEnvironment<'_>,
+    ) -> Option<Rc<PaintingSurface>> {
+        if self.surface_tiles_are_made_like_without_store.is_none() {
+            self.surface_tiles_are_made_like_without_store =
+                env.raster.create_surface(IntSize { width: 1, height: 1 }, None, false);
+        }
+        self.surface_tiles_are_made_like_without_store.clone()
     }
 }
 
@@ -122,9 +207,6 @@ fn unclipped_untransformed_surface_sublayer(
     rect_in_frame: IntRect,
 ) -> FfiSublayer {
     FfiSublayer {
-        identity,
-        content_kind: SublayerContentKind::PresentableSurface,
-        media_id: 0,
         presentable_surface: surface.as_ffi(),
         placement: FfiSublayerPlacement {
             content_rect: rect_in_frame,
@@ -133,6 +215,7 @@ fn unclipped_untransformed_surface_sublayer(
             scaling_mode: ScalingMode::NearestNeighbor,
             ..Default::default()
         },
+        ..FfiSublayer::of_kind(identity, SublayerContentKind::PresentableSurface)
     }
 }
 
@@ -151,6 +234,24 @@ impl ContextPresenting {
             return Some(WhyMediaIsReplayed::ContextIsPresentedFromCpuMemory);
         }
         None
+    }
+
+    /// What the window server composites by itself of the layers of this context's frames, besides canvases and
+    /// videos. It shows no tiles of a frame it scales to fit a view, as it would filter each tile apart from the tiles
+    /// beside it.
+    pub(super) fn window_server_compositing(&self, env: &PresentingEnvironment<'_>) -> WindowServerCompositing {
+        let compositing_of_window_server = env
+            .window_server_showing_context()
+            .map(|window_server| env.raster.window_server_compositing(window_server))
+            .unwrap_or_default();
+        let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_this_context(env).is_none()
+            && !self.scales_frames_to_fit
+            && compositing_of_window_server.shows_tiles_of_painted_layers;
+        WindowServerCompositing {
+            shows_tiles_of_painted_layers,
+            filters_what_is_below_layers: shows_tiles_of_painted_layers
+                && compositing_of_window_server.filters_what_is_below_layers,
+        }
     }
 
     pub(super) fn why_window_server_does_not_show_media_layer(
@@ -287,19 +388,42 @@ impl ContextPresenting {
         true
     }
 
+    /// Paints the overlays of the frame into a surface the window server shows them from, unless the surface holds
+    /// them already: it holds those of the frame painted last, which `overlays_draw_same_as_in_latest_frame` says draw
+    /// the same. Answers false where no surface could be had.
     pub(super) fn present_compositor_overlays_to_window_server(
         &mut self,
         env: &PresentingEnvironment<'_>,
         frame: &FrameToPaint<'_>,
         like: &Rc<PaintingSurface>,
+        overlays_draw_same_as_in_latest_frame: bool,
     ) -> bool {
         let raster = env.raster;
         let mut overlays_rect = frame.frame_inputs.overlays.bounds;
-        if self.layer_overlay.latest_frame().is_some() {
+        let draws_overlay_of_layers = self.layer_overlay.latest_frame().is_some();
+        if draws_overlay_of_layers {
             overlays_rect = overlays_rect.united(self.raster_rect());
         }
         if overlays_rect.is_empty() {
             self.layers.window_server.latest_compositor_overlays_surface_and_rect = None;
+            self.layers
+                .window_server
+                .compositor_overlays_surface_holds_overlays_of_latest_frame = true;
+            return true;
+        }
+        let surface_holds_overlays_of_frame = overlays_draw_same_as_in_latest_frame
+            && !draws_overlay_of_layers
+            && self
+                .layers
+                .window_server
+                .compositor_overlays_surface_holds_overlays_of_latest_frame
+            && self
+                .layers
+                .window_server
+                .latest_compositor_overlays_surface_and_rect
+                .as_ref()
+                .is_some_and(|(_, rect)| *rect == overlays_rect);
+        if surface_holds_overlays_of_frame {
             return true;
         }
         let overlays_size = size_of(overlays_rect);
@@ -320,29 +444,243 @@ impl ContextPresenting {
         self.paint_overlays(env, target, frame.frame_inputs, true);
         raster.restore_to_count(target, save_count);
         self.layers.window_server.latest_compositor_overlays_surface_and_rect = Some((presentable, overlays_rect));
+        // An overlay of the layers shows what the frame did, which the next frame does not repeat.
+        self.layers
+            .window_server
+            .compositor_overlays_surface_holds_overlays_of_latest_frame = !draws_overlay_of_layers;
         true
     }
 
-    pub(super) fn sublayers_shown_by_window_server(&self, live_content: &LiveContent) -> Vec<FfiSublayer> {
+    /// Presents to the window server what it shows of the frame besides canvases and videos, once the tiles of the
+    /// frame are rastered, and answers the sublayers it then shows, bottom to top. None where a surface could not be
+    /// had, or where the frame has more sublayers than the window server shows of one.
+    pub(super) fn present_layers_to_window_server(
+        &mut self,
+        env: &PresentingEnvironment<'_>,
+        frame: &FrameToPaint<'_>,
+        painted_layers: &PaintedLayers,
+        like: &Rc<PaintingSurface>,
+        live_content: &LiveContent,
+        overlays_draw_same_as_in_latest_frame: bool,
+    ) -> Option<Vec<FfiSublayer>> {
+        if !painted_layers.window_server_compositing.shows_tiles_of_painted_layers
+            && !self.present_painted_layers_to_window_server(env, painted_layers, like)
+        {
+            return None;
+        }
+        if !self.present_compositor_overlays_to_window_server(env, frame, like, overlays_draw_same_as_in_latest_frame) {
+            return None;
+        }
+        let sublayers = self.sublayers_shown_by_window_server(painted_layers, live_content);
+        (sublayers.len() <= MAXIMUM_SUBLAYERS_THE_WINDOW_SERVER_SHOWS_OF_FRAME).then_some(sublayers)
+    }
+
+    /// Appends the sublayers of a painted layer the window server shows tile by tile, in the group of `group_index`,
+    /// whose pixels are the frame's: a group per clip the layer is composited within, each in the one before, and in
+    /// the innermost, the group of the layer's space, which holds the tiles of the layer that reach into the viewport,
+    /// and a fill per run of tiles of one color.
+    fn append_sublayers_of_tiled_layer(
+        &self,
+        sublayers: &mut Vec<FfiSublayer>,
+        compositing: &LayerCompositingInFrame,
+        viewport_rect: IntRect,
+        group_index: i32,
+    ) {
+        let draws = self.layers.tiles.draws_reaching_into(compositing, viewport_rect);
+        if draws.is_empty() {
+            return;
+        }
+        let identity_of = |part: PartOfTiledLayer| identity_of_sublayer_that_is(part, compositing.identity);
+        let mut innermost_group_index = group_index;
+        if let Some(composite_clip) = compositing.composite_clip {
+            sublayers.push(group_clipping_to(
+                identity_of(PartOfTiledLayer::GroupClippingToCompositeClip),
+                innermost_group_index,
+                composite_clip.to_float(),
+                CornerRadii::default(),
+            ));
+            innermost_group_index = sublayers.len() as i32 - 1;
+        }
+        for (ordinal, (rounded_clip_rect, corner_radii)) in compositing.rounded_composite_clips.iter().enumerate() {
+            sublayers.push(group_clipping_to(
+                identity_of(PartOfTiledLayer::GroupClippingToRoundedCompositeClip { ordinal }),
+                innermost_group_index,
+                rounded_clip_rect.to_float(),
+                *corner_radii,
+            ));
+            innermost_group_index = sublayers.len() as i32 - 1;
+        }
+        sublayers.push(group(
+            identity_of(PartOfTiledLayer::GroupOfSpace),
+            innermost_group_index,
+            FfiSublayerGroup {
+                to_parent: match compositing.space_to_frame {
+                    SpaceToFrame::Offset(offset) => [1.0, 0.0, 0.0, 1.0, offset.x as f32, offset.y as f32],
+                    SpaceToFrame::Transform(transform) => transform.values,
+                },
+                ..FfiSublayerGroup::default()
+            },
+        ));
+        let index_of_group_of_space = sublayers.len() as i32 - 1;
+        let mut ordinal_of_fill = 0;
+        for draw in draws {
+            match draw {
+                TileDraw::TileSurface {
+                    coord,
+                    surface,
+                    every_pixel_is_opaque,
+                    rect_in_layer_space,
+                } => sublayers.push(FfiSublayer {
+                    group_index: index_of_group_of_space,
+                    presentable_surface: surface.as_ffi(),
+                    rect: rect_in_layer_space,
+                    every_pixel_is_opaque,
+                    ..FfiSublayer::of_kind(
+                        identity_of(PartOfTiledLayer::Tile {
+                            column: coord.column,
+                            row: coord.row,
+                        }),
+                        SublayerContentKind::Tile,
+                    )
+                }),
+                TileDraw::FillOfJoinedOneColorTiles {
+                    rect_in_layer_space,
+                    color,
+                } => {
+                    if color.alpha() == 0 {
+                        continue;
+                    }
+                    sublayers.push(FfiSublayer {
+                        group_index: index_of_group_of_space,
+                        rect: rect_in_layer_space,
+                        color,
+                        ..FfiSublayer::of_kind(
+                            identity_of(PartOfTiledLayer::FillOfJoinedOneColorTiles {
+                                ordinal: ordinal_of_fill,
+                            }),
+                            SublayerContentKind::Color,
+                        )
+                    });
+                    ordinal_of_fill += 1;
+                }
+            }
+        }
+    }
+
+    /// Appends the groups of a band of a composited effect the window server composites, in the group of
+    /// `group_index`, whose pixels are the frame's: a group per clip the effect is entered within, each in the one
+    /// before, and in the innermost, the group of the effect, which composites the layers of the band at the effect's
+    /// opacity. Answers the index of the group of the effect, whose pixels are the frame's too.
+    fn append_groups_of_composited_band(
+        sublayers: &mut Vec<FfiSublayer>,
+        painted: &PaintedLayers,
+        band_index: BandIndex,
+        group_index: i32,
+    ) -> i32 {
+        let band = &painted.stack.bands[band_index.0];
+        let node_index = band.placement_node_index;
+        // The frame holds the layers inside an effect the window server cannot composite.
+        let Some(Ok(placement)) = painted.window_server_placements_of_effects.of_node(node_index) else {
+            return group_index;
+        };
+        let composited_band = (painted.stack.nodes[node_index.0].identity, band.band_ordinal_in_node);
+        let identity_of = |part: PartOfCompositedBand| identity_of_sublayer_that_is(part, composited_band);
+        let mut innermost_group_index = group_index;
+        for (ordinal, (clip_rect, corner_radii)) in placement.clips.iter().enumerate() {
+            sublayers.push(group_clipping_to(
+                identity_of(PartOfCompositedBand::GroupClippingToClipAroundEffect { ordinal }),
+                innermost_group_index,
+                *clip_rect,
+                *corner_radii,
+            ));
+            innermost_group_index = sublayers.len() as i32 - 1;
+        }
+        sublayers.push(group(
+            identity_of(PartOfCompositedBand::GroupOfEffect),
+            innermost_group_index,
+            FfiSublayerGroup {
+                opacity: placement.opacity.clamp(0.0, 1.0),
+                ..FfiSublayerGroup::default()
+            },
+        ));
+        let index_of_group_of_effect = sublayers.len() as i32 - 1;
+        // The filtered backdrop is below all the effect holds.
+        if let Some(backdrop) = &placement.backdrop {
+            let mut index_of_group_of_backdrop = index_of_group_of_effect;
+            if backdrop.corner_radii.has_any_radius() {
+                sublayers.push(group_clipping_to(
+                    identity_of(PartOfCompositedBand::GroupClippingToRoundedBackdropRegion),
+                    index_of_group_of_effect,
+                    backdrop.region,
+                    backdrop.corner_radii,
+                ));
+                index_of_group_of_backdrop = sublayers.len() as i32 - 1;
+            }
+            let filters = &backdrop.filters;
+            sublayers.push(FfiSublayer {
+                group_index: index_of_group_of_backdrop,
+                backdrop: FfiSublayerBackdrop {
+                    region: backdrop.region,
+                    has_color_matrix_before_blur: filters.color_matrix_before_blur.is_some(),
+                    color_matrix_before_blur: filters.color_matrix_before_blur.unwrap_or_default(),
+                    has_blur: filters.blur_standard_deviation.is_some(),
+                    blur_standard_deviation: filters.blur_standard_deviation.unwrap_or_default(),
+                    has_color_matrix_after_blur: filters.color_matrix_after_blur.is_some(),
+                    color_matrix_after_blur: filters.color_matrix_after_blur.unwrap_or_default(),
+                },
+                ..FfiSublayer::of_kind(
+                    identity_of(PartOfCompositedBand::Backdrop),
+                    SublayerContentKind::Backdrop,
+                )
+            });
+        }
+        index_of_group_of_effect
+    }
+
+    /// The sublayers the window server shows of a frame that did `painted` with its layers, bottom to top, each group
+    /// before the sublayers in it.
+    pub(super) fn sublayers_shown_by_window_server(
+        &self,
+        painted: &PaintedLayers,
+        live_content: &LiveContent,
+    ) -> Vec<FfiSublayer> {
         let layers = &self.layers.window_server;
         let mut sublayers = Vec::new();
-        let Some(painted) = self
-            .painted_frame
-            .as_ref()
-            .map(|painted_frame| &painted_frame.layers)
-            .filter(|painted| painted.shown_by_window_server())
-        else {
+        if !painted.shown_by_window_server() {
             return sublayers;
-        };
+        }
+        let viewport_rect = self.raster_rect();
+        let mut entered_composited_bands_and_their_groups: Vec<(BandIndex, i32)> = Vec::new();
+        let mut composited_bands_around_layer: Vec<BandIndex> = Vec::new();
         for compositing in painted
             .compositing_of_layers
             .iter()
-            .skip(1)
             .filter(|compositing| compositing.shown_by_window_server)
             .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity))
         {
             let layer_index = compositing.layer_index;
             let layer = compositing.layer_in(&painted.stack);
+            composited_bands_around_layer.clear();
+            composited_bands_around_layer
+                .extend(painted.stack.composited_bands_around_layer_innermost_first(layer_index));
+            composited_bands_around_layer.reverse();
+            let count_of_bands_still_entered = entered_composited_bands_and_their_groups
+                .iter()
+                .zip(&composited_bands_around_layer)
+                .take_while(|((entered_band, _), band_around_layer)| entered_band == *band_around_layer)
+                .count();
+            entered_composited_bands_and_their_groups.truncate(count_of_bands_still_entered);
+            for &band_index in &composited_bands_around_layer[count_of_bands_still_entered..] {
+                let index_of_group_around = entered_composited_bands_and_their_groups
+                    .last()
+                    .map_or(-1, |(_, group_index)| *group_index);
+                let index_of_group_of_effect =
+                    Self::append_groups_of_composited_band(&mut sublayers, painted, band_index, index_of_group_around);
+                entered_composited_bands_and_their_groups.push((band_index, index_of_group_of_effect));
+            }
+            let group_index = entered_composited_bands_and_their_groups
+                .last()
+                .map_or(-1, |(_, group_index)| *group_index);
             if let LayerIdentity::Media { content, ordinal } = layer.identity {
                 let Some(Ok(placement)) = painted.window_server_placements_of_media.of_layer(layer_index) else {
                     continue;
@@ -372,13 +710,19 @@ impl ContextPresenting {
                     continue;
                 }
                 sublayers.push(FfiSublayer {
-                    identity: sublayer_identity_of_media
-                        | (u64::from(ordinal) << MEDIA_ORDINAL_SHIFT_PAST_CANVAS_AND_VIDEO_IDS),
-                    content_kind: kind,
+                    group_index,
                     media_id: id,
-                    presentable_surface: std::ptr::null(),
                     placement: sublayer_placement_of(placement),
+                    ..FfiSublayer::of_kind(
+                        sublayer_identity_of_media
+                            | (u64::from(ordinal) << MEDIA_ORDINAL_SHIFT_PAST_CANVAS_AND_VIDEO_IDS),
+                        kind,
+                    )
                 });
+                continue;
+            }
+            if painted.window_server_compositing.shows_tiles_of_painted_layers {
+                self.append_sublayers_of_tiled_layer(&mut sublayers, compositing, viewport_rect, group_index);
                 continue;
             }
             let Some(presentation) = layers.presentation_by_layer.get(&compositing.identity) else {

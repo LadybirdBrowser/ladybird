@@ -12,7 +12,7 @@ AccumulatedVisualContext Tree:
       [e2 in s1] effects=[opacity=0.5] (BlockContainer<DIV>#plain)
       [e3 in s1] effects=[backdrop-filter=[region=[400,20 50x50] filter=[blur(2,2)]]] (BlockContainer<DIV>#empty)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
   e1 is not composited: it reads only its own layer
   e3 is not composited: it reads only its own layer

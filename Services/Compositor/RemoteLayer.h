@@ -38,15 +38,18 @@ public:
     virtual bool can_show(WindowServerPlacement const&, Content const&, double device_pixel_ratio) const = 0;
 
     struct Frame {
-        // Without a store, the frame shown before stays, and only the sublayers change.
+        // Without a store, the store shown before stays, and only the sublayers change, unless the frame shows no store.
         Optional<PresentableSurface::Lease> store;
+        // Whether the sublayers are all of the frame, which then shows no store below them.
+        bool shows_no_store { false };
         Gfx::IntSize painted_size;
         double device_pixel_ratio { 1.0 };
         Optional<Gfx::IntSize> fit_within;
         Vector<RemoteSublayer> sublayers;
     };
     // Shows the part of the store that the frame was painted into, at the top left of the layer at its own size, or
-    // scaled to fit within the size of the view given, in device pixels, with the sublayers above it, bottom to top.
+    // scaled to fit within the size of the view given, in device pixels, with the sublayers above it, bottom to top,
+    // each group with the sublayers in it.
     [[nodiscard]] virtual bool show_frame(Frame) = 0;
     // Places the frame on display again, as when the view that it is scaled into changes size.
     virtual void place_frame(Optional<Gfx::IntSize> fit_within) = 0;

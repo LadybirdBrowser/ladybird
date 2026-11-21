@@ -18,7 +18,7 @@ ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1513] is_viewport=true
 ScrollNode scroll_node_index=s3 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
   [L2] painted space=sticky@s2 in document
 

@@ -10,7 +10,7 @@ use super::{AnimatedNode, PlacedEffect, PlannedLayers, WhyEffectIsComposited, fo
 use crate::display_list::commands::EffectNodeIndex;
 use crate::display_list::layers::{
     CompositedEffect, LayerContent, LayerIndex, NodeNamesFromIndices, VisualContextNodeNamer,
-    WindowServerPresentationOfMedia, media_name, wire,
+    WindowServerPlacementsOfEffects, WindowServerPresentationOfMedia, media_name, wire,
 };
 use crate::display_list::reach::Reach;
 use crate::display_list::storage::ListPosition;
@@ -44,10 +44,18 @@ impl PlannedLayers {
     pub fn lines_of_composited_effects<'a>(
         &'a self,
         node_namer: &'a dyn VisualContextNodeNamer,
+        placements_of_effects: &'a WindowServerPlacementsOfEffects,
     ) -> impl Iterator<Item = String> + 'a {
         let stack = &self.stack;
         self.composited_effects_with_why_and_backdrop_read_reach()
             .map(move |(composited, why, backdrop_read_reach)| {
+                let who_composites_it = match placements_of_effects.of_node(composited.placement_node_index) {
+                    Some(Ok(_)) => String::from(", can be composited by the window server"),
+                    Some(Err(why_window_server_cannot_composite)) => {
+                        format!(", composited by the compositor: {why_window_server_cannot_composite}")
+                    }
+                    None => String::new(),
+                };
                 let parent_node_index = stack.nodes[composited.placement_node_index.0]
                     .parent_index
                     .expect("a composited node is inside another");
@@ -57,7 +65,7 @@ impl PlannedLayers {
                     Reach::Anywhere => " reads=anywhere".into(),
                 };
                 format!(
-                    "composited {} space={}{backdrop_read_text}: {}",
+                    "composited {} space={}{backdrop_read_text}: {}{who_composites_it}",
                     node_namer.name_of_effect_node(composited.effect),
                     stack.name_of_node(parent_node_index, node_namer),
                     why
@@ -104,8 +112,9 @@ impl PlannedLayers {
         if self.stack.replays_whole_list() {
             return Vec::new();
         }
+        let placements_of_no_frame = WindowServerPlacementsOfEffects::default();
         wire::note_lines_a_plan_holds(
-            self.lines_of_composited_effects(&NodeNamesFromIndices)
+            self.lines_of_composited_effects(&NodeNamesFromIndices, &placements_of_no_frame)
                 .chain(self.lines_of_media_without_layers())
                 .chain(self.lines_of_effects_reading_only_own_layer(&NodeNamesFromIndices)),
         )
@@ -130,10 +139,10 @@ impl PlannedLayers {
 
     /// The lines of the Layers section of the dump, each with the layer it is about, if it is about one. There is one
     /// line per layer, bottom to top: its index, what it holds, the space it is rastered in, what it sits above, the
-    /// records `describe_records` names for it, what it is clipped to as it is composited, and for a canvas or video
-    /// whether the window server shows it, as `presentation` tells. A layer below the base layer, or one that can hold
-    /// nothing, is left out. Then a line for each effect the compositor composites, each canvas, video or nested context
-    /// without a layer, each animation without a layer, and each effect that reads only its own layer.
+    /// records `describe_records` names for it, what it is clipped to as it is composited, and whether the window
+    /// server that `presentation` is of can show it. A layer below the base layer, or one that can hold nothing, is
+    /// left out. Then a line for each effect the compositor composites, each canvas, video or nested context without a
+    /// layer, each animation without a layer, and each effect that reads only its own layer.
     pub fn layer_lines(
         &self,
         presentation: &WindowServerPresentationOfMedia,
@@ -182,7 +191,7 @@ impl PlannedLayers {
             if matches!(layer.content, LayerContent::Media { .. }) {
                 match presentation.placements.of_layer(layer_index) {
                     Some(Ok(placement)) if presentation.layer_is_shown_by_window_server(layer_index) => {
-                        line.push_str(&format!(" shown by the window server: {placement}"));
+                        line.push_str(&format!(" can be shown by the window server: {placement}"));
                     }
                     Some(Ok(_)) if stack.layer_is_inside_composited_effects(layer_index) => {
                         line.push_str(" replayed: inside an effect the compositor composites");
@@ -193,11 +202,13 @@ impl PlannedLayers {
                     }
                     None => {}
                 }
+            } else if let Some(why_frame_holds_layer) = presentation.why_frame_holds_painted_layer(stack, layer_index) {
+                line.push_str(&format!(" held by the frame: {why_frame_holds_layer}"));
             }
             lines.push((Some(layer_index), line));
         }
         lines.extend(
-            self.lines_of_composited_effects(node_namer)
+            self.lines_of_composited_effects(node_namer, &presentation.placements_of_effects)
                 .chain(self.lines_of_media_without_layers())
                 .chain(self.lines_of_animations_without_layers(node_namer))
                 .chain(self.lines_of_effects_reading_only_own_layer(node_namer))

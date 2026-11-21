@@ -38,10 +38,10 @@ ScrollNode scroll_node_index=s9 parent_scroll_node_index=s0 scrollport_rect=[0,1
 ScrollNode scroll_node_index=s10 parent_scroll_node_index=s0 scrollport_rect=[0,160 400x300] min_scroll_offset=[0,0] max_scroll_offset=[1600,0] is_viewport=false
 ScrollNode scroll_node_index=s11 parent_scroll_node_index=s10 scrollport_rect=[0,170 300x200] min_scroll_offset=[0,0] max_scroll_offset=[0,850] is_viewport=false
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
   [L2] painted space=scroller@s11 in scroller@s10 in viewport composited within [0,160 400x300] of viewport composited within [0,170 300x200] of scroller@s10 in viewport
-  [L3] canvas #0 space=scroller@s11 in scroller@s10 in viewport region=[0,217 203x126] composited within [0,160 400x300] of viewport composited within [0,170 300x200] of scroller@s10 in viewport shown by the window server: clip=[0,170 300x200]
+  [L3] canvas #0 space=scroller@s11 in scroller@s10 in viewport region=[0,217 203x126] composited within [0,160 400x300] of viewport composited within [0,170 300x200] of scroller@s10 in viewport can be shown by the window server: clip=[0,170 300x200]
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata

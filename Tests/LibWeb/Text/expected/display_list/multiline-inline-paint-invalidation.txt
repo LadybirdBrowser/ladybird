@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:
@@ -27,7 +27,7 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:

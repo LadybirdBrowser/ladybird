@@ -6,10 +6,10 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[opacity=0.5] (BlockContainer<DIV>)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
-  [L2] canvas #0 space=viewport inside e1 region=[5,5 206x126] replayed: inside an effect the compositor composites
-  composited e1 space=viewport: it holds a canvas with a layer of its own
+  [L2] canvas #0 space=viewport inside e1 region=[5,5 206x126] can be shown by the window server: clip=[0,0 800x600]
+  composited e1 space=viewport: it holds a canvas with a layer of its own, can be composited by the window server
 
 DisplayList:
 L2 DrawCanvas@s1/e1 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground

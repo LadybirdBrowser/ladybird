@@ -40,8 +40,10 @@ pub(crate) struct PendingAsyncPresent {
     // A frame that started rendering before its context was bound has no published buffer to present to.
     publish_to_presentation: bool,
     shows_in_remote_layer: bool,
-    // A frame that changes only what the window server shows above the frame on screen.
+    // A frame that changes only what the window server shows by itself.
     keeps_shown_store: bool,
+    // A frame the window server shows every layer of by itself, with no store below them.
+    shows_no_store: bool,
     sublayers: Option<SublayersHandle>,
 }
 
@@ -55,6 +57,7 @@ struct Delivery {
     publish_to_presentation: bool,
     shows_in_remote_layer: bool,
     keeps_shown_store: bool,
+    shows_no_store: bool,
     sublayers: Option<SublayersHandle>,
 }
 
@@ -475,6 +478,7 @@ impl CompositorCore {
             publish_to_presentation: !shows_in_remote_layer && bound_presentation.is_some(),
             shows_in_remote_layer,
             keeps_shown_store: prepared_frame.rendered_surface.is_none(),
+            shows_no_store: prepared_frame.window_server_shows_every_layer,
             sublayers,
         });
         presenting.did_submit_prepared_frame(pending_frame.viewport_rect);
@@ -511,6 +515,7 @@ impl CompositorCore {
             publish_to_presentation: present.publish_to_presentation,
             shows_in_remote_layer: present.shows_in_remote_layer,
             keeps_shown_store: present.keeps_shown_store,
+            shows_no_store: present.shows_no_store,
             sublayers: present.sublayers.take(),
         })
     }
@@ -638,6 +643,7 @@ impl CompositorCore {
             .unwrap_or_else(|| self.raster.build_sublayers(context_id, &[]));
         let frame = FfiRemoteLayerFrame {
             store: store.as_ref().map_or(std::ptr::null(), |store| store.as_ffi()),
+            shows_no_store: delivery.shows_no_store,
             painted_size: viewport_size,
             device_pixel_ratio: delivery.device_pixel_ratio,
             has_fit_within: fit_within.is_some(),

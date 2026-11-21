@@ -5,9 +5,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
-  [L1] canvas #0 space=viewport region=[17,17 206x126] shown by the window server: clip=[20,20 200x120] rounded=[20,20 200x120] radius=12
+  [L1] canvas #0 space=viewport region=[17,17 206x126] can be shown by the window server: clip=[20,20 200x120] rounded=[20,20 200x120] radius=12
   [L2] painted space=viewport above L1
 
 DisplayList:

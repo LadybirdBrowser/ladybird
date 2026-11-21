@@ -9,7 +9,7 @@ AccumulatedVisualContext Tree:
       [e1 in s1] effects=[] (BlockContainer<DIV>#opacity)
       [e2 in s1] effects=[] (BlockContainer<DIV>#filter)
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
 
 DisplayList:

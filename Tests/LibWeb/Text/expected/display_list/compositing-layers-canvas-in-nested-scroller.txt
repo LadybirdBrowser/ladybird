@@ -12,9 +12,9 @@ ScrollNodes:
 ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
 ScrollNode scroll_node_index=s2 parent_scroll_node_index=s1 scrollport_rect=[20,300 300x200] min_scroll_offset=[0,0] max_scroll_offset=[0,1200] is_viewport=false
 
-Layers:
+Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
-  [L3] canvas #0 space=scroller@s2 in document region=[20,697 203x126] composited within [20,300 300x200] of document shown by the window server: clip=[20,300 300x200]
+  [L3] canvas #0 space=scroller@s2 in document region=[20,697 203x126] composited within [20,300 300x200] of document can be shown by the window server: clip=[20,300 300x200]
   [L4] painted space=scroller@s2 in document above L3 composited within [20,300 300x200] of document
 
 DisplayList:
