@@ -2614,19 +2614,63 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut runs = Vec::new();
         let mut character_cells = Vec::new();
         let mut advance = 0.0f32;
+        // https://svgwg.org/svg2-draft/text.html#TextLayoutPath
+        // Align the glyph vertically relative to the midpoint-on-the-path based on property alignment-baseline and any
+        // specified values for attribute 'dy' on a 'tspan' element.
+        // NB: A 'dx' moves the text along the path, and a 'dy' moves it off the path. Each is the shift of the first
+        //     character of the element that has it, and stays for the characters after it.
+        let mut shift_off_path = 0.0f32;
+        // NB: A 'dx' on the first character moves the text along the path once it's anchored, so it's no part of the
+        //     extent the anchoring takes.
+        let mut leading_dx = None;
+        // The span the characters cover, which text-anchor places, as for ordinary text: A 'dx' can move a character
+        // back past the ones before it.
+        let (mut extent_start, mut extent_end) = (f32::INFINITY, f32::NEG_INFINITY);
+        // OPTIMIZATION: Which text node is the first that the <textPath> and its <text> render is the same for every text
+        //               node, so it's found once.
+        let first_on_path = self.first_rendered_svg_text_node(text_path_box);
+        let first_of_text = self.first_rendered_svg_text_node(self.parent(text_path_box));
         self.for_each_svg_text_node(text_path_box, |node| {
+            // NB: A text node right after another one is shaped as part of the run that one starts, so the run takes the
+            //     shift of its first character: that of the first of its text nodes that has text left once white space
+            //     is processed.
             let Some(text) = self.svg_text_run_starting_at(node) else {
                 return;
             };
+            let mut first_rendered = node;
+            while self.processed_svg_text(first_rendered).is_empty() {
+                let next = self.next_sibling(first_rendered);
+                if next.is_invalid() || !node_facts::kind_is_text(self.node_kind(next)) {
+                    first_rendered = node;
+                    break;
+                }
+                first_rendered = next;
+            }
+            let (dx, dy) = self.svg_text_on_path_shift_at(first_rendered, text_path_box, first_on_path, first_of_text);
+            advance += dx;
+            shift_off_path += dy;
+            if leading_dx.is_none() && !text.is_empty() {
+                leading_dx = Some(advance);
+            }
+            let run_style = self.style(self.parent(node));
             // AD-HOC: Text on a path is laid out independently, so the 'textLength' of the <text> it's in doesn't
             //         adjust it.
             let shaped = self.shape_svg_text(
-                self.style(self.parent(node)),
+                run_style,
                 &text,
-                FfiFloatPoint { x: advance, y: 0.0 },
+                FfiFloatPoint {
+                    x: advance,
+                    y: self.svg_dominant_baseline_offset(run_style) + shift_off_path,
+                },
                 0.0,
             );
+            let run_start = advance;
             advance += shaped.advance;
+            // NB: A run that white space processing left empty, such as a line break before a <tspan>, covers nothing.
+            if !text.is_empty() {
+                extent_start = extent_start.min(run_start).min(advance);
+                extent_end = extent_end.max(run_start).max(advance);
+            }
             runs.extend(shaped.runs);
             self.append_svg_run_dom_cells(node, shaped.character_cells, &mut character_cells);
         });
@@ -2637,14 +2681,62 @@ impl<'pass> SvgFormattingContext<'pass> {
             .text_path_start_offset
             .resolve_relative_to(shape_path.length());
         // FIXME: Take writing mode and text direction into account.
-        match style.inherited_svg().text_anchor {
-            text_anchor::START => {}
-            text_anchor::MIDDLE => start_offset -= advance / 2.0,
-            text_anchor::END => start_offset -= advance,
-            _ => unreachable!("invalid text-anchor value"),
+        if extent_start <= extent_end {
+            let leading_dx = leading_dx.unwrap_or(0.0);
+            match style.inherited_svg().text_anchor {
+                text_anchor::START => start_offset -= extent_start - leading_dx,
+                text_anchor::MIDDLE => start_offset -= (extent_start + extent_end) / 2.0 - leading_dx,
+                text_anchor::END => start_offset -= extent_end - leading_dx,
+                _ => unreachable!("invalid text-anchor value"),
+            }
         }
 
         (shape_path.place_glyph_runs_along(&runs, start_offset), character_cells)
+    }
+
+    /// The 'dx' and 'dy' that shift the first character of a text node in a <textPath>: those of the innermost element
+    /// that has each, of the elements whose first character it is. That takes in the <text>, where the <textPath>'s
+    /// characters are the first it renders.
+    fn svg_text_on_path_shift_at(
+        &self,
+        text_node: Node,
+        text_path_box: Node,
+        first_on_path: Option<Node>,
+        first_of_text: Option<Node>,
+    ) -> (f32, f32) {
+        let (mut dx, mut dy) = (None, None);
+        let mut element = self.parent(text_node);
+        loop {
+            let first = if element == text_path_box {
+                first_on_path
+            } else if element == self.parent(text_path_box) {
+                first_of_text
+            } else {
+                self.first_rendered_svg_text_node(element)
+            };
+            if first != Some(text_node) {
+                break;
+            }
+            if element == text_path_box {
+                element = self.parent(element);
+                continue;
+            }
+            if self.node_kind(element) != NodeKind::SVGTextBox {
+                break;
+            }
+            let attributes = self.svg_attributes(element);
+            if dx.is_none() && attributes.text_dx.kind != SVG_LENGTH_KIND_NONE {
+                dx = Some(self.resolve_svg_text_length(element, attributes.text_dx, self.viewport_width));
+            }
+            if dy.is_none() && attributes.text_dy.kind != SVG_LENGTH_KIND_NONE {
+                dy = Some(self.resolve_svg_text_length(element, attributes.text_dy, self.viewport_height));
+            }
+            if attributes.is_text_element {
+                break;
+            }
+            element = self.parent(element);
+        }
+        (dx.unwrap_or(0.0), dy.unwrap_or(0.0))
     }
 
     /// The geometry of the shape element an SVG reference names, read from what that element

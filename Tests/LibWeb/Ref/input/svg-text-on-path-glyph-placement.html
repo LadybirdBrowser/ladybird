@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-on-path-glyph-placement-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="500">
+    <defs>
+        <path id="line1" d="M 10 50 H 400" />
+        <path id="line2" d="M 10 100 H 400" />
+        <path id="line3" d="M 10 150 H 400" />
+        <path id="corner" d="M 10 200 H 50 V 400" />
+        <path id="line4" d="M 10 450 H 400" />
+        <path id="line5" d="M 100 300 H 400" />
+        <path id="line6" d="M 100 350 H 400" />
+        <path id="line7" d="M 100 400 H 400" />
+        <path id="line8" d="M 100 480 H 400" />
+        <path id="line9" d="M 200 30 H 400" />
+        <path id="line10" d="M 100 430 H 400" />
+        <path id="line11" d="M 100 260 H 400" />
+    </defs>
+    <!-- A 'dy' on the <text> moves its text off the path. -->
+    <text dy="10"><textPath href="#line1">AB</textPath></text>
+    <!-- The dominant baseline is aligned to the path. -->
+    <text><textPath href="#line2" style="dominant-baseline: central">AB</textPath></text>
+    <!-- A glyph whose middle is before the start of the path isn't drawn. -->
+    <text><textPath href="#line3" startOffset="-15">ABC</textPath></text>
+    <!-- Each glyph is turned to the direction of the path at its middle. -->
+    <text><textPath href="#corner">ABCD</textPath></text>
+    <!-- A 'dy' on a <tspan> in the <textPath> moves the text from there on. -->
+    <text><textPath href="#line4"><tspan dy="10">AB</tspan></textPath></text>
+    <!-- Of a 'dy' on the <text> and one on a <tspan> that starts with the same character, only the inner one counts. -->
+    <text dy="10"><textPath href="#line5"><tspan dy="20">AB</tspan></textPath></text>
+    <!-- The 'dx' of the first character moves the text along the path once it's anchored. -->
+    <text dx="20" text-anchor="end"><textPath href="#line6" startOffset="100">A</textPath></text>
+    <!-- text-anchor places the span the characters cover, which a 'dx' can extend back past the first one. -->
+    <text text-anchor="end"><textPath href="#line7" startOffset="200">A<tspan dx="-60">B</tspan></textPath></text>
+    <text><textPath href="#line8" startOffset="100">A<tspan dx="-40">B</tspan></textPath></text>
+    <!-- Text that white space processing leaves empty, like this line break, covers nothing that text-anchor places. -->
+    <text><textPath href="#line9" startOffset="50">
+<tspan dx="20">X</tspan></textPath></text>
+    <!-- A comment leaves two text nodes side by side, which are laid out as one: The space is collapsed away. -->
+    <text><textPath href="#line10"> <!---->X</textPath></text>
+    <!-- The character after such a collapsed space is the first the <text> renders, so it takes the <text>'s 'dx'. -->
+    <text dx="40"><textPath href="#line11"> <!---->X</textPath></text>
+</svg>
