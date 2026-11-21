@@ -394,6 +394,24 @@ impl<'zone, T> ZoneVec<'zone, T> {
         self.len += 1;
     }
 
+    /// The memory of the list, which a caller may write elements to past the length before it sets the length (see
+    /// `set_len()`).
+    #[inline(always)]
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.first.as_ptr()
+    }
+
+    /// Makes the list `len` elements long, with what its memory holds.
+    ///
+    /// # Safety
+    ///
+    /// `len` must be at most the capacity, and the first `len` elements must be written.
+    #[inline(always)]
+    pub unsafe fn set_len(&mut self, len: usize) {
+        debug_assert!(len <= self.capacity(), "a list is no longer than its capacity");
+        self.len = len as u32;
+    }
+
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             return None;
