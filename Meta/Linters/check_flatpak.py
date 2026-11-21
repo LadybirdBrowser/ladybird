@@ -51,6 +51,7 @@ flatpak_runtime_libs = [
     "qtbase",
     "qtpositioning",
     "qtserialport",
+    "qtsvg",
     "sqlite3",
     "tiff",
     "vulkan",

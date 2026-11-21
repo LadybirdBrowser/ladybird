@@ -1,7 +1,8 @@
 # Writes the debug info of the ELF binary BINARY to SYMBOL_FILES_DIR/.build-id/xx/yyyy.debug, where debuggers and
 # debuginfod look for it by build ID. The STAMP file remembers that path, so a relinked binary replaces its old file.
 
-execute_process(COMMAND "${READELF}" --notes "${BINARY}" OUTPUT_VARIABLE notes COMMAND_ERROR_IS_FATAL ANY)
+# Older GNU readelf versions return a failure status for unfamiliar notes, even if they print the build ID.
+execute_process(COMMAND "${READELF}" --notes "${BINARY}" OUTPUT_VARIABLE notes)
 if (NOT notes MATCHES "Build ID: ([0-9a-f][0-9a-f])([0-9a-f]+)")
     message(FATAL_ERROR "${BINARY} has no build ID")
 endif()

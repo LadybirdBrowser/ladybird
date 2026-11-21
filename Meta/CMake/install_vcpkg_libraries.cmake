@@ -21,7 +21,8 @@ function(ladybird_install_vcpkg_libraries dependency_set)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "DESTINATION;COMPONENT" "")
 
     ladybird_vcpkg_library_directory(vcpkg_library_dir)
-    string(REGEX REPLACE "([][+.*()^$?|\\\\])" "\\\\\\1" vcpkg_library_dir_regex "${vcpkg_library_dir}")
+    file(GLOB vcpkg_shared_libraries LIST_DIRECTORIES false
+        "${vcpkg_library_dir}/*.dylib" "${vcpkg_library_dir}/*.so" "${vcpkg_library_dir}/*.so.*")
 
     set(system_library_regexes "")
     if (APPLE)
@@ -29,9 +30,10 @@ function(ladybird_install_vcpkg_libraries dependency_set)
         set(system_library_regexes "^/usr/lib/" "^/System/")
     endif()
 
+    # A dependency found through a plugin's relative runpath can contain .. segments.
     install(RUNTIME_DEPENDENCY_SET ${dependency_set}
         PRE_EXCLUDE_REGEXES ${system_library_regexes}
-        POST_INCLUDE_REGEXES "^${vcpkg_library_dir_regex}/"
+        POST_INCLUDE_FILES ${vcpkg_shared_libraries}
         POST_EXCLUDE_REGEXES ".*"
         DIRECTORIES "${vcpkg_library_dir}"
         LIBRARY DESTINATION ${ARG_DESTINATION} COMPONENT ${ARG_COMPONENT}

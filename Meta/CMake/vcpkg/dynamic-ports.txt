@@ -7,5 +7,6 @@ libunistring
 qtbase
 qtpositioning
 qtserialport
+qtsvg
 # Qt and Ladybird must share one ICU, as Ladybird hands the ICU data to it once per process.
 icu
