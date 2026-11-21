@@ -32,10 +32,20 @@ void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
     descriptor.cell_size = allocator.cell_size();
     descriptor.cell_index_magic = static_cast<u32>(((static_cast<u64>(1) << 32) + descriptor.cell_size - 1) / descriptor.cell_size);
     descriptor.traced_on_owner_thread_only = allocator.descriptor().trace_thread() == TraceThread::OwnerThreadOnly;
+    descriptor.movable = allocator.descriptor().is_movable();
+    descriptor.evacuation = nullptr;
     clear_marks(descriptor);
     // NB: Markers of other heaps read the heap of any block their cells point into, to leave it alone if it is not theirs.
     __atomic_store_n(&descriptor.heap, static_cast<void*>(&block.heap()), __ATOMIC_RELEASE);
 }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+size_t HeapBlock::cells_offset()
+{
+    return offsetof(HeapBlock, m_storage);
+}
+#pragma GCC diagnostic pop
 
 void retire_block_descriptor(HeapBlock& block)
 {
@@ -110,6 +120,18 @@ void HeapBlock::deallocate(Cell* cell)
 
     if (auto* destroy = type_info().destroy)
         destroy(cell);
+    free_slot(cell);
+}
+
+void HeapBlock::release_moved_cell(Cell* cell)
+{
+    VERIFY(cell->state() == Cell::State::Live);
+    VERIFY(is_valid_cell_pointer(cell));
+    free_slot(cell);
+}
+
+void HeapBlock::free_slot(Cell* cell)
+{
     auto* freelist_entry = new (cell) FreelistEntry();
     freelist_entry->set_state(Cell::State::Dead);
     freelist_entry->next = m_freelist;
@@ -120,7 +142,6 @@ void HeapBlock::deallocate(Cell* cell)
     VERIFY((dword_after_freelist - reinterpret_cast<uintptr_t>(freelist_entry)) <= m_cell_size);
     VERIFY(m_cell_size >= sizeof(FreelistEntry));
     VERIFY(m_cell_size >= FFI::MIN_CELL_SIZE);
-    publish_block_descriptor(*this, cell_allocator);
     // We can't poision the cell tracking data, nor the FreeListEntry's vtable or next pointer
     // This means there's sizeof(FreelistEntry) data at the front of each cell that is always read/write
     // On x86_64, this ends up being 24 bytes due to the size of the FreeListEntry's vtable, while on x86, it's only 12 bytes.

@@ -128,11 +128,15 @@ public:
             visit_cell(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
         }
 
-        // Members are visited through their slot, which a moving collector will update. For now this visits the cell
-        // they point to.
+        // Members are visited through their slot, which a collection that moves cells rewrites.
         template<typename T>
         void visit(Member<T> const& slot)
         {
+            static_assert(sizeof(slot) == sizeof(u32));
+            if (m_marker) {
+                gc_marker_visit_member(m_marker, reinterpret_cast<u32 const*>(&slot));
+                return;
+            }
             if (slot)
                 visit_member_cell(slot.ptr());
         }
@@ -140,6 +144,11 @@ public:
         template<typename T>
         void visit(NonnullMember<T> const& slot)
         {
+            static_assert(sizeof(slot) == sizeof(u32));
+            if (m_marker) {
+                gc_marker_visit_member(m_marker, reinterpret_cast<u32 const*>(&slot));
+                return;
+            }
             visit_member_cell(slot.ptr());
         }
 
@@ -346,9 +355,8 @@ private:
 
     void set_cell_kind(CellKind kind) { m_cell_kind = kind; }
 
-    // NB: Unused since marks live in the descriptors of the blocks. The byte is free for later use, and stays so that no
-    //     cell layout changes.
-    [[maybe_unused]] u8 m_unused_header_byte { 0 };
+    // NB: Holds the state of the cell's identity hash, see identity_hash().
+    [[maybe_unused]] u8 m_identity_hash_state { 0 };
     State m_state { State::Live };
     CellKind m_cell_kind { CellKind::Other };
 };
@@ -378,7 +386,8 @@ private:
     friend struct CAPI;
 
     [[maybe_unused]] void const* m_word_owned_by_the_foreign_implementation;
-    [[maybe_unused]] u8 m_unused_header_byte;
+    // NB: As in Cell.
+    [[maybe_unused]] u8 m_identity_hash_state;
     Cell::State m_state;
     CellKind m_cell_kind;
     // The foreign implementation lays its fields out right after the header. Naming these bytes keeps GCC from
@@ -413,6 +422,40 @@ struct IsVisitable {
 };
 
 GC_API StringView class_name_of(Cell const&);
+
+// Where a cell keeps the state of its identity hash, and the bits of that state. CAPI.cpp checks them against the cell
+// header and the Rust side.
+namespace IdentityHashState {
+
+static constexpr size_t offset = 8;
+static constexpr u8 hashed = 1 << 0;
+static constexpr u8 moved = 1 << 1;
+
+}
+
+// The hash of a cell's identity, which stays the same while the cell lives, wherever the collector moves it. Tables that
+// are keyed by cells that may move hash them with this. See gc_cell_identity_hash().
+ALWAYS_INLINE u32 identity_hash(void const* cell)
+{
+    // NB: The fast path of gc_cell_identity_hash(), for cells that did not move since they were first hashed.
+    auto* state = static_cast<u8*>(const_cast<void*>(cell)) + IdentityHashState::offset;
+    if (!(*state & IdentityHashState::moved)) [[likely]] {
+        *state |= IdentityHashState::hashed;
+        return compress(cell);
+    }
+    return gc_cell_identity_hash(static_cast<GCCell const*>(cell));
+}
+
+// The hash of a cell that a table which holds it weakly keys by, or of null once the cell is gone. A cell defined
+// outside of C++ may move, which keeps its identity hash but not its address, see WeakBlock::update_moved_cells().
+template<typename T>
+ALWAYS_INLINE unsigned weak_key_hash(T const* cell)
+{
+    if constexpr (IsBaseOf<ForeignCell, T>)
+        return cell ? u32_hash(identity_hash(cell)) : 0;
+    else
+        return Traits<T const*>::hash(cell);
+}
 
 inline StringView class_name_of(ForeignCell const& cell)
 {

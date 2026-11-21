@@ -51,6 +51,15 @@ pub struct Utf16StringDataHeader {
     pub flags: u32,
 }
 
+/// The crate's tests never dereference cells, so they hash the compressed address, as cells that never moved do.
+///
+/// # Safety
+///
+/// None, unlike the real one.
+pub unsafe fn cell_identity_hash(cell: *const core::ffi::c_void) -> u32 {
+    (cell.addr() >> 3) as u32
+}
+
 /// The build script never decodes compressed pointers. The crate's tests decode them against this base, which is
 /// aligned like LibGC aligns the real one, and where nothing is mapped.
 pub fn heap_region_base() -> usize {

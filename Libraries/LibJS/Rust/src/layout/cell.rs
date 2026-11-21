@@ -45,10 +45,11 @@ impl<T: ?Sized> PartialEq for Gc<T> {
 
 impl<T: ?Sized> Eq for Gc<T> {}
 
-/// Hashes the address, like the pointer traits of AK's hash tables.
+/// Hashes the identity of the cell, which stays the same wherever the collector moves it.
 impl<T: ?Sized> core::hash::Hash for Gc<T> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.0.as_ptr().cast::<()>().addr().hash(state);
+        // SAFETY: A Gc points at a live cell.
+        state.write_u32(unsafe { crate::layout_forward::cell_identity_hash(self.0.as_ptr().cast()) });
     }
 }
 
@@ -84,8 +85,8 @@ pub enum CellState {
 #[repr(C, packed)]
 pub struct CellHeader {
     pub unused: [u8; 8],
-    /// Free for later use: LibGC keeps the marks of cells in the descriptors of their blocks.
-    pub unused_byte: u8,
+    /// The state of the cell's identity hash, which LibGC keeps here, see `cell_identity_hash()`.
+    pub identity_hash_state: Cell<u8>,
     pub state: Cell<CellState>,
     pub kind: CellKind,
 }
@@ -95,7 +96,7 @@ const _: () = assert!(size_of::<CellHeader>() == 11);
 /// The header of a cell that keeps fields of its own in the first word, which comes right after those fields.
 #[repr(C, packed)]
 pub struct CellHeaderTail {
-    pub unused_byte: u8,
+    pub identity_hash_state: Cell<u8>,
     pub state: Cell<CellState>,
     pub kind: CellKind,
 }

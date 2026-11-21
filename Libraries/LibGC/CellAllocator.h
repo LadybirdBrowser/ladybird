@@ -45,6 +45,11 @@ public:
     TraceThread trace_thread() const { return m_trace_thread; }
     void set_trace_thread(TraceThread trace_thread) { m_trace_thread = trace_thread; }
 
+    // Whether collections may move the cells to other blocks of their allocator, see gc_allocator_set_movable(). Only
+    // allocators of cells defined outside of C++ are ever movable.
+    bool is_movable() const { return m_movable; }
+    void set_movable() { m_movable = true; }
+
     // Where each heap keeps its allocator for this descriptor, see Heap::cell_allocator_for().
     size_t index() const { return m_index; }
 
@@ -64,6 +69,7 @@ private:
     void const* m_foreign_type { nullptr };
     size_t m_index { 0 };
     TraceThread m_trace_thread { TraceThread::OwnerThreadOnly };
+    bool m_movable { false };
 };
 
 class GC_API CellAllocator {

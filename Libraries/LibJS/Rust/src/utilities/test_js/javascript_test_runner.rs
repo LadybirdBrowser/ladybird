@@ -19,6 +19,8 @@ use super::test_runner::{
     get_time_in_ms, iterate_directory_recursively, print_modifiers, set_currently_running_test,
 };
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::heap::Heap;
+use crate::gc::root::Root;
 use crate::hash_table::HashTable;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -391,6 +393,17 @@ impl TestRunner {
         let top_level_result = vm.run_script(file_script, None);
         vm.pop_execution_context();
 
+        // NB: With LIBGC_MOVE_EVERYTHING, the objects the test left behind move before their results are read. Nothing
+        //     on the stack holds a cell then but the error of the script, which this roots, and the realm, which the
+        //     global execution context keeps.
+        let top_level_error = top_level_result.err().map(|throw| Root::new(vm, throw.value()));
+        if Heap::moves_everything() {
+            vm.push_execution_context(global_execution_context);
+            // SAFETY: Every cell the runner holds is rooted, see above, and test-js holds none further up.
+            unsafe { vm.heap().collect_garbage_without_scanning_the_stack() };
+            vm.pop_execution_context();
+        }
+
         vm.push_execution_context(global_execution_context);
         let test_json = get_test_results(vm, realm);
         vm.pop_execution_context();
@@ -492,7 +505,7 @@ impl TestRunner {
             file_result.suites.push(suite);
         }
 
-        if let Err(throw) = top_level_result {
+        if let Some(throw) = top_level_error {
             let mut suite = Suite::new(test_path, b"<top-level>".to_vec());
             suite.most_severe_test_result = TestResult::Crashed;
 

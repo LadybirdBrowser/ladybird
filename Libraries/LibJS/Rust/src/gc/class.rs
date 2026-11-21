@@ -122,6 +122,16 @@ impl Class {
         self.owner_thread_only
     }
 
+    /// Whether collections that do not scan the stack may move the cells of this class, see gc_allocator_set_movable().
+    /// A class may only be movable if everything that keeps the address of its cells visits it through a slot, pins
+    /// the cell, or forgets the address when the cell moves. Classes derived at run time, such as an embedder's host
+    /// objects, never are, as the embedder keeps their addresses.
+    pub fn is_movable(&self) -> bool {
+        // FIXME: No class is movable yet.
+        let _ = self;
+        false
+    }
+
     /// What Cell::class_name() returns for the cells of this class, which printing and messages show. It is the name
     /// of the class unless the Rust type is spelled differently.
     pub fn class_name(&self) -> &'static str {
@@ -418,7 +428,7 @@ impl CellHeaderTail {
     /// The header of a cell of `class` that keeps fields of its own in the first word, like `CellHeader::for_class()`.
     pub fn for_class(class: &'static Class) -> Self {
         Self {
-            unused_byte: 0,
+            identity_hash_state: core::cell::Cell::new(0),
             state: CellState::Live.into(),
             kind: class.kind(),
         }
@@ -430,7 +440,7 @@ impl CellHeader {
     pub fn for_class(class: &'static Class) -> Self {
         Self {
             unused: [0; 8],
-            unused_byte: 0,
+            identity_hash_state: core::cell::Cell::new(0),
             state: CellState::Live.into(),
             kind: class.kind(),
         }

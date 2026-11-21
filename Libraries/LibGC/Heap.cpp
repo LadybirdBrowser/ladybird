@@ -17,6 +17,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
+#include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StackInfo.h>
@@ -122,6 +123,65 @@ i32 libgc_log_level()
 {
     static i32 const level = read_libgc_log_level();
     return level;
+}
+
+// LIBGC_MOVE_EVERYTHING=1 has every collection that may move cells (one that does not scan the stack) evacuate every
+// block of cells defined outside of C++, moving each cell that can move to another slot. This tests that moving cells
+// is safe, and its report tells what keeps cells from moving.
+bool read_libgc_move_everything()
+{
+    char const* env = getenv("LIBGC_MOVE_EVERYTHING");
+    return env && *env && atoi(env) != 0;
+}
+
+bool libgc_move_everything()
+{
+    static bool const value = read_libgc_move_everything();
+    return value;
+}
+
+// What a collection that moves cells did, for its report.
+struct CompactionStats {
+    enum PinReason : u8 {
+        ByValueEdge,
+        ByValueRoot,
+        NonMovableAllocator,
+        PinReasonCount,
+    };
+
+    struct Counts {
+        size_t cells { 0 };
+        size_t bytes { 0 };
+
+        void add(size_t cell_size)
+        {
+            ++cells;
+            bytes += cell_size;
+        }
+    };
+
+    bool active { false };
+    size_t evacuated_blocks { 0 };
+    size_t new_blocks { 0 };
+    size_t freed_blocks { 0 };
+    Counts moved;
+    Array<Counts, PinReasonCount> pinned;
+    size_t recorded_slots { 0 };
+    size_t rewritten_slots { 0 };
+    i64 sweep_us { 0 };
+    i64 copy_us { 0 };
+    i64 fix_up_us { 0 };
+    HashMap<ByteString, Array<Counts, PinReasonCount>> pinned_by_type;
+};
+
+CompactionStats& compaction_stats()
+{
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local CompactionStats stats)
+#else
+    static thread_local CompactionStats stats;
+#endif
+    return stats;
 }
 
 // Per-phase timings recorded during a single collect_garbage() call. We keep
@@ -248,6 +308,49 @@ void print_gc_report(i64 total_us, size_t live_block_count)
         dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
         dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
     }
+    auto const& c = compaction_stats();
+    if (c.active) {
+        auto print_counts = [](StringView label, CompactionStats::Counts const& counts) {
+            dbgln("  {:<27} {:>10} cells ({})", label, counts.cells, human_readable_size(counts.bytes));
+        };
+        dbgln("");
+        dbgln("Compaction:");
+        dbgln("  evacuated blocks            {:>10}", c.evacuated_blocks);
+        dbgln("  new blocks                  {:>10}", c.new_blocks);
+        dbgln("  freed blocks                {:>10}", c.freed_blocks);
+        print_counts("moved"sv, c.moved);
+        print_counts("pinned: by-value edge"sv, c.pinned[CompactionStats::ByValueEdge]);
+        print_counts("pinned: by-value root"sv, c.pinned[CompactionStats::ByValueRoot]);
+        print_counts("pinned: non-movable type"sv, c.pinned[CompactionStats::NonMovableAllocator]);
+        dbgln("  recorded slots              {:>10}", c.recorded_slots);
+        dbgln("  rewritten slots             {:>10}", c.rewritten_slots);
+        dbgln("  sweep for compaction        {:>10} us", c.sweep_us);
+        dbgln("  copy                        {:>10} us", c.copy_us);
+        dbgln("  fix up                      {:>10} us", c.fix_up_us);
+        if (!c.pinned_by_type.is_empty()) {
+            struct Entry {
+                ByteString name;
+                Array<CompactionStats::Counts, CompactionStats::PinReasonCount> counts;
+                size_t bytes;
+            };
+            Vector<Entry> entries;
+            for (auto const& it : c.pinned_by_type) {
+                size_t bytes = 0;
+                for (auto const& counts : it.value)
+                    bytes += counts.bytes;
+                entries.append({ it.key, it.value, bytes });
+            }
+            quick_sort(entries, [](auto const& a, auto const& b) { return a.bytes > b.bytes; });
+            dbgln("  top types by pinned bytes (edge / root / non-movable):");
+            for (size_t i = 0; i < min<size_t>(entries.size(), 25); ++i) {
+                auto const& entry = entries[i];
+                dbgln("    {:<40} {:>10} {:>10} {:>10}", entry.name,
+                    human_readable_size(entry.counts[CompactionStats::ByValueEdge].bytes),
+                    human_readable_size(entry.counts[CompactionStats::ByValueRoot].bytes),
+                    human_readable_size(entry.counts[CompactionStats::NonMovableAllocator].bytes));
+            }
+        }
+    }
     dbgln("=================================================================");
 }
 
@@ -363,6 +466,9 @@ Heap::~Heap()
 
     // A root that outlives its heap would reach into freed memory when it goes.
     VERIFY(m_roots.is_empty());
+
+    FFI::rust_gc_identity_hashes_destroy(m_identity_hashes);
+    m_identity_hashes = nullptr;
 
     free_weak_blocks();
 
@@ -862,6 +968,9 @@ void Heap::clear_weak_pointers_to_dead_cells(bool report)
 
 void Heap::run_post_mark_phases(bool report)
 {
+    // NB: The side table keeps the identity hashes of cells by address, which other cells may take once these are swept.
+    FFI::rust_gc_identity_hashes_drop_dead(m_identity_hashes, heap_region_base());
+
     {
         ScopedPhaseTimer timer { report, g_phase_timings.finalize_unmarked_cells_us };
         finalize_unmarked_cells();
@@ -962,12 +1071,15 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
             m_stats->bytes_before = m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE;
             m_stats->sweep_duration_ns = 0;
         }
+        compaction_stats().active = false;
         if (collection_type == CollectionType::CollectGarbage) {
             HashMap<Cell*, HeapRoot> roots;
             {
                 ScopedPhaseTimer timer { report, g_phase_timings.gather_roots_us };
                 gather_roots(origin, roots);
             }
+            if (should_move_cells(collection_type, scan_stack))
+                begin_evacuation();
             {
                 ScopedPhaseTimer timer { report, g_phase_timings.mark_live_cells_us };
                 mark_live_cells(roots);
@@ -985,9 +1097,17 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         // every cell is collected before the Heap destructor returns. All
         // other collection types defer sweeping to incremental work below,
         // unless incremental sweeping is disabled (no event loop to run it).
-        if (collection_type == CollectionType::CollectEverything || !m_incremental_sweep_enabled) {
+        // NB: A collection that moves cells sweeps first as well, so that the dead cells are gone before any cell
+        //     moves, and their slots are free for the cells that move. Otherwise a dead cell's destructor could reach a
+        //     live cell through a pointer that no longer points at it.
+        if (collection_type == CollectionType::CollectEverything || !m_incremental_sweep_enabled || m_evacuation) {
             ScopedPhaseTimer timer { report, g_phase_timings.sweep_dead_cells_us };
             sweep_dead_cells(report, collection_measurement_timer);
+        }
+        if (m_evacuation) {
+            compaction_stats().sweep_us = g_phase_timings.sweep_dead_cells_us;
+            evacuate();
+            end_evacuation();
         }
 
         if (report) {
@@ -1007,7 +1127,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // Arm incremental sweep before running post-GC tasks so any cells those
     // tasks allocate get tagged as allocated-during-sweep and aren't freed
     // by sweep_block before the next mark phase reaches them.
-    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled)
+    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled && !compaction_stats().active)
         start_incremental_sweep();
     else
         g_next_incremental_sweep_should_report = false;
@@ -1036,6 +1156,198 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
         schedule_release_of_abandoned_object_graph_memory();
     if (!m_incremental_sweep_active)
         schedule_release_of_allocator_memory();
+
+    if (scan_stack && libgc_move_everything())
+        schedule_collection_that_moves_cells();
+}
+
+bool Heap::should_move_cells(CollectionType collection_type, bool scan_stack) const
+{
+    // NB: A cell that only the stack points to has to stay where it is, so only a collection that does not scan the
+    //     stack moves cells.
+    if (collection_type != CollectionType::CollectGarbage || scan_stack)
+        return false;
+    // FIXME: Choose blocks worth evacuating. For now, only the stress mode moves cells.
+    return libgc_move_everything();
+}
+
+bool Heap::moves_everything()
+{
+    return libgc_move_everything();
+}
+
+void Heap::begin_evacuation()
+{
+    VERIFY(!m_evacuation);
+    auto& stats = compaction_stats();
+    stats = {};
+    stats.active = true;
+    m_evacuation = FFI::rust_gc_evacuation_create(
+        {
+            .heap_region_base = heap_region_base(),
+            .block_cells_offset = static_cast<u32>(HeapBlock::cells_offset()),
+            .value_is_cell_pattern = SHIFTED_IS_CELL_PATTERN,
+            .value_offset_mask = HEAP_REGION_OFFSET_MASK,
+        },
+        this);
+    for (auto& allocator : m_all_cell_allocators) {
+        // NB: Cells defined in C++ never move. Blocks of cells defined elsewhere are evacuated whether or not their
+        //     allocator is movable, which tells what keeps cells from moving.
+        if (!allocator.foreign_type())
+            continue;
+        allocator.for_each_block([&](HeapBlock& block) {
+            FFI::rust_gc_evacuation_add_block(m_evacuation, &block);
+            ++stats.evacuated_blocks;
+            return IterationDecision::Continue;
+        });
+    }
+}
+
+Cell* Heap::allocate_destination_for_moved_cell(CellAllocator& allocator)
+{
+    for (;;) {
+        if (allocator.m_usable_blocks.is_empty()) {
+            auto block = HeapBlock::create(*this, allocator);
+            allocator.m_usable_blocks.append(*block.leak_ptr());
+            ++compaction_stats().new_blocks;
+        }
+        auto& block = *allocator.m_usable_blocks.first();
+        auto* cell = block.allocate();
+        if (block.is_full())
+            allocator.m_full_blocks.append(block);
+        if (cell)
+            return cell;
+    }
+}
+
+// Moves the live cells of the evacuated blocks that nothing pinned to free slots of their allocator, then rewrites the
+// slots that marking recorded and the weak pointers, and frees the old slots without destroying their cells. The dead
+// cells are swept already, so their slots are free to take, and no destructor of a dead cell sees a cell that moved.
+void Heap::evacuate()
+{
+    auto& stats = compaction_stats();
+    bool count_by_type = libgc_log_level() >= 2;
+    stats.recorded_slots = FFI::rust_gc_evacuation_recorded_slot_count(m_evacuation);
+
+    auto count_pinned = [&](Cell* cell, size_t cell_size, CompactionStats::PinReason reason) {
+        stats.pinned[reason].add(cell_size);
+        if (count_by_type)
+            stats.pinned_by_type.ensure(class_name_of(*cell))[reason].add(cell_size);
+    };
+
+    struct AllocatorMoves {
+        CellAllocator* allocator;
+        Vector<FFI::CellMove> moves;
+    };
+    Vector<AllocatorMoves> all_moves;
+
+    auto copy_start_ns = MonotonicTime::now().nanoseconds();
+    for (auto& allocator : m_all_cell_allocators) {
+        if (!allocator.foreign_type())
+            continue;
+        auto cell_size = allocator.cell_size();
+        Vector<Cell*> cells_to_move;
+        allocator.for_each_block([&](HeapBlock& block) {
+            if (!block_descriptor_for(&block).evacuation)
+                return IterationDecision::Continue;
+            block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+                if (!allocator.descriptor().is_movable()) {
+                    count_pinned(cell, cell_size, CompactionStats::NonMovableAllocator);
+                    return;
+                }
+                switch (FFI::rust_gc_evacuation_pin_reason(m_evacuation, cell)) {
+                case FFI::PinReason::Root:
+                    count_pinned(cell, cell_size, CompactionStats::ByValueRoot);
+                    return;
+                case FFI::PinReason::Edge:
+                    count_pinned(cell, cell_size, CompactionStats::ByValueEdge);
+                    return;
+                case FFI::PinReason::Unpinned:
+                    cells_to_move.append(cell);
+                    return;
+                }
+                VERIFY_NOT_REACHED();
+            });
+            return IterationDecision::Continue;
+        });
+        if (cells_to_move.is_empty())
+            continue;
+
+        // NB: Every destination is taken before any cell moves, so no cell moves twice, and no old slot is free yet.
+        Vector<FFI::CellMove> moves;
+        moves.ensure_capacity(cells_to_move.size());
+        for (auto* cell : cells_to_move) {
+            moves.unchecked_append({ .from = cell, .to = allocate_destination_for_moved_cell(allocator) });
+            stats.moved.add(cell_size);
+        }
+        FFI::rust_gc_evacuation_move_cells(m_evacuation, moves.data(), moves.size(), cell_size);
+        all_moves.append({ &allocator, move(moves) });
+    }
+    auto fix_up_start_ns = MonotonicTime::now().nanoseconds();
+    stats.copy_us = (fix_up_start_ns - copy_start_ns) / 1000;
+
+    if (!all_moves.is_empty()) {
+        stats.rewritten_slots = FFI::rust_gc_evacuation_fix_up_slots(m_evacuation);
+        auto forwarding_address = [this](void* cell) {
+            return FFI::rust_gc_evacuation_forwarding_address(m_evacuation, cell);
+        };
+        for (auto& weak_block : m_usable_weak_blocks)
+            weak_block.update_moved_cells(forwarding_address);
+        for (auto& weak_block : m_full_weak_blocks)
+            weak_block.update_moved_cells(forwarding_address);
+    }
+    auto release_start_ns = MonotonicTime::now().nanoseconds();
+    stats.fix_up_us = (release_start_ns - fix_up_start_ns) / 1000;
+
+    for (auto& [allocator, moves] : all_moves) {
+        for (auto& cell_move : moves) {
+            auto* cell = static_cast<Cell*>(cell_move.from);
+            HeapBlock::from_cell(cell)->release_moved_cell(cell);
+        }
+
+        // Sorts the blocks of the allocator into full and usable ones again, and lets go of the empty ones.
+        Vector<HeapBlock*> blocks;
+        allocator->for_each_block([&](HeapBlock& block) {
+            blocks.append(&block);
+            return IterationDecision::Continue;
+        });
+        for (auto* block : blocks) {
+            bool has_live_cells = false;
+            block->for_each_cell_in_state<Cell::State::Live>([&](Cell*) { has_live_cells = true; });
+            if (!has_live_cells) {
+                allocator->block_did_become_empty({}, *block, DeferDecommit::No);
+                ++stats.freed_blocks;
+            } else if (block->is_full()) {
+                allocator->m_full_blocks.append(*block);
+            } else {
+                allocator->m_usable_blocks.append(*block);
+            }
+        }
+    }
+}
+
+void Heap::end_evacuation()
+{
+    FFI::rust_gc_evacuation_destroy(m_evacuation);
+    m_evacuation = nullptr;
+}
+
+void Heap::schedule_collection_that_moves_cells()
+{
+    // NB: The stress mode moves cells as often as it can: after each collection that scans the stack, the next turn of
+    //     the event loop collects again without scanning it, if the embedder vouches that its outermost turns hold no
+    //     cells.
+    if (!m_outermost_event_loop_turn_holds_no_cells)
+        return;
+    if (!m_moving_collection_timer) {
+        m_moving_collection_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
+            if (is_gc_deferred() || Core::ThreadEventQueue::current().is_processing_nested())
+                return;
+            collect_garbage_from_timer();
+        });
+    }
+    if (!m_moving_collection_timer->is_active())
+        m_moving_collection_timer->start();
 }
 
 void Heap::update_allocation_rate()
@@ -1576,6 +1888,8 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         .marked_cell_bytes = marked_cell_bytes.data(),
         .marked_external_bytes = marked_external_bytes.data(),
         .threads_used = 0,
+        // NB: Only a collection of one heap moves cells.
+        .evacuation = heaps.size() == 1 ? heaps[0]->m_evacuation : nullptr,
     };
 #pragma GCC diagnostic pop
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 
@@ -45,11 +46,26 @@ DocumentLoadEventDelayer& DocumentLoadEventDelayer::operator=(DocumentLoadEventD
 
 DocumentLoadEventDelayer::~DocumentLoadEventDelayer()
 {
-    if (m_document && !m_document->has_been_destroyed()) {
-        if (m_reason == DocumentLoadEventDelayerReason::StyleSheetRequest)
-            m_document->decrement_number_of_pending_style_sheet_requests({});
-        m_document->decrement_number_of_things_delaying_the_load_event({});
+    if (!m_document)
+        return;
+    auto release = [](GC::Weak<Document> const& document, DocumentLoadEventDelayerReason reason) {
+        if (!document || document->has_been_destroyed())
+            return;
+        if (reason == DocumentLoadEventDelayerReason::StyleSheetRequest)
+            document->decrement_number_of_pending_style_sheet_requests({});
+        document->decrement_number_of_things_delaying_the_load_event({});
+    };
+    // NB: Telling the document may allocate, see Document::schedule_html_parser_end_check(), which no destructor may
+    //     do while a collection is in progress, as a collection that moves cells destroys the cells that died before
+    //     it is over. Tell it once the collection is over.
+    auto& heap = m_document->heap();
+    if (heap.is_marking_for_collection()) {
+        heap.enqueue_post_gc_task([release, document = m_document, reason = m_reason] {
+            release(document, reason);
+        });
+        return;
     }
+    release(m_document, m_reason);
 }
 
 }

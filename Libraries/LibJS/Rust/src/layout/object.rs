@@ -58,8 +58,8 @@ pub const INDEXED_ELEMENTS_HEADER_SIZE: usize = 8;
 pub struct Object {
     pub shape: Member<Shape>,
     pub indexed_array_like_size: Cell<u32>,
-    /// Free for later use, see CellHeader::unused_byte.
-    pub unused_byte: u8,
+    /// See CellHeader::identity_hash_state.
+    pub identity_hash_state: Cell<u8>,
     pub state: Cell<CellState>,
     pub kind: CellKind,
     pub indexed_storage_kind: Cell<IndexedStorageKind>,
@@ -82,7 +82,7 @@ pub struct Object {
 
 const _: () = {
     use core::mem::offset_of;
-    assert!(offset_of!(Object, unused_byte) == offset_of!(CellHeader, unused_byte));
+    assert!(offset_of!(Object, identity_hash_state) == offset_of!(CellHeader, identity_hash_state));
     assert!(offset_of!(Object, state) == offset_of!(CellHeader, state));
     assert!(offset_of!(Object, kind) == offset_of!(CellHeader, kind));
 };

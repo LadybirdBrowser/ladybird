@@ -18,6 +18,7 @@ use core::ptr::NonNull;
 use core::sync::atomic::{AtomicPtr, AtomicU64, Ordering};
 use std::sync::OnceLock;
 
+use crate::evacuation::Evacuation;
 use crate::os;
 
 pub const BLOCK_SIZE: usize = 16 * 1024;
@@ -43,9 +44,13 @@ pub struct BlockDescriptor {
     pub cell_index_magic: u32,
     /// Whether the block's cells may only be traced on the thread that owns their heap, as C++ cells must.
     pub traced_on_owner_thread_only: bool,
+    /// Whether a collection may move the block's cells to other blocks of their allocator.
+    pub movable: bool,
     /// Rounds the descriptor up to 128 bytes, two whole cache lines in the table.
-    pub reserved: [u8; 7],
-    pub reserved_word: u64,
+    pub reserved: [u8; 6],
+    /// What a collection that evacuates the block knows about its cells, and null in every other collection. Marking
+    /// reads it for every cell it visits, to pin the cells of evacuated blocks that something visits by value.
+    pub evacuation: *mut Evacuation,
     /// One bit for each cell, which marking sets atomically, see mark_word().
     pub marked: [UnsafeCell<u64>; MARK_BITMAP_WORDS],
 }
@@ -66,9 +71,38 @@ impl BlockDescriptor {
         unsafe { AtomicU64::from_ptr(self.marked[word].get()) }
     }
 
+    /// The evacuation state of the block, if a collection evacuates it.
+    #[inline(always)]
+    pub fn evacuation(&self) -> Option<&Evacuation> {
+        // SAFETY: The field is only accessed atomically while other threads may read it, only written while no marker
+        //         runs, and the evacuation outlives the collection's use of it.
+        unsafe {
+            AtomicPtr::from_ptr((&raw const self.evacuation).cast_mut())
+                .load(Ordering::Relaxed)
+                .as_ref()
+        }
+    }
+
+    /// The index of the cell at `address` in the block, which is also the index of its mark bit. Cells are a cell size
+    /// apart, so the offsets of their starts divided by the cell size tell them apart.
+    #[inline(always)]
+    pub fn cell_index(&self, address: usize) -> CellIndex {
+        CellIndex((((address & (BLOCK_SIZE - 1)) as u64 * u64::from(self.cell_index_magic)) >> 32) as usize)
+    }
+
+    /// The start of the cell that `address` points into, for a block whose cells start `cells_offset` bytes into it.
+    pub fn cell_containing(&self, address: usize, cells_offset: usize) -> usize {
+        let block = address & !(BLOCK_SIZE - 1);
+        let offset_in_cells = (address & (BLOCK_SIZE - 1)) - cells_offset;
+        // NB: As for the mark bit index, multiplying by the magic and shifting right by 32 divides offsets below 2^14 by
+        //     the cell size exactly.
+        let index = ((offset_in_cells as u64 * u64::from(self.cell_index_magic)) >> 32) as usize;
+        block + cells_offset + index * self.cell_size as usize
+    }
+
     #[inline(always)]
     pub fn mark_bit(&self, address: usize) -> (&AtomicU64, u64) {
-        let index = (((address & (BLOCK_SIZE - 1)) as u64 * u64::from(self.cell_index_magic)) >> 32) as usize;
+        let index = self.cell_index(address).0;
         (self.mark_word(index / 64), 1 << (index % 64))
     }
 
@@ -102,6 +136,13 @@ impl BlockDescriptor {
     }
 }
 
+/// The index of a cell in its block, which marks and other per-cell bits of the block are indexed by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CellIndex(pub usize);
+
+/// The most cells a block has, and so the most bits that per-cell bitmaps of a block need.
+pub const MAX_CELLS_PER_BLOCK: usize = MARK_BITMAP_WORDS * 64;
+
 struct Table {
     descriptors: NonNull<BlockDescriptor>,
     count: usize,
@@ -119,6 +160,40 @@ pub fn descriptor_table() -> NonNull<BlockDescriptor> {
     TABLE.get().expect("the table of block descriptors exists").descriptors
 }
 
+/// The descriptor of the block that `address` is in, for an address in the heap region at `heap_region_base`.
+///
+/// # Safety
+///
+/// `address` must be in a block of the region, whose descriptor is backed by memory.
+#[inline(always)]
+pub unsafe fn descriptor_for<'a>(heap_region_base: usize, address: usize) -> &'a BlockDescriptor {
+    // SAFETY: The caller passes an address in a block, whose descriptor is in the table.
+    unsafe {
+        descriptor_table()
+            .add((address - heap_region_base) / BLOCK_SIZE)
+            .as_ref()
+    }
+}
+
+/// Sets the evacuation state of the block that `address` is in, which only a collection that is not marking may do.
+///
+/// NB: This writes through a pointer from the table rather than through a reference to the descriptor, which would let
+///     the compiler assume that the descriptor does not change.
+///
+/// # Safety
+///
+/// As for descriptor_for().
+pub unsafe fn set_evacuation_of_block(heap_region_base: usize, address: usize, evacuation: *mut Evacuation) {
+    // SAFETY: The caller passes an address in a block, whose descriptor is in the table, and the field is only accessed
+    //         atomically while other threads may read it.
+    unsafe {
+        let descriptor = descriptor_table()
+            .add((address - heap_region_base) / BLOCK_SIZE)
+            .as_ptr();
+        AtomicPtr::from_ptr(&raw mut (*descriptor).evacuation).store(evacuation, Ordering::Relaxed);
+    }
+}
+
 /// The heap of a block, read without borrowing its descriptor. The thread of another heap may be filling in the other
 /// fields of the descriptor of a block that it takes, which a reference to the descriptor would assume do not change.
 ///
@@ -130,6 +205,28 @@ pub unsafe fn heap_of_descriptor(descriptor: *const BlockDescriptor) -> *mut c_v
     // SAFETY: The caller passes a valid descriptor, and the field is only ever accessed atomically while other threads
     //         may read it.
     unsafe { AtomicPtr::from_ptr((&raw const (*descriptor).heap).cast_mut()) }.load(Ordering::Relaxed)
+}
+
+/// The descriptor of the block that `address` is in, if that block belongs to `heap`, which only the calling thread
+/// changes, so nothing changes the descriptor while the reference is in use.
+///
+/// # Safety
+///
+/// As for descriptor_for().
+#[inline(always)]
+pub unsafe fn descriptor_of_heap<'a>(
+    heap_region_base: usize,
+    address: usize,
+    heap: *const c_void,
+) -> Option<&'a BlockDescriptor> {
+    // SAFETY: The caller passes an address in a block, whose descriptor is in the table.
+    let descriptor = unsafe { descriptor_table().add((address - heap_region_base) / BLOCK_SIZE) };
+    // SAFETY: As above.
+    if unsafe { heap_of_descriptor(descriptor.as_ptr()) }.cast_const() != heap {
+        return None;
+    }
+    // SAFETY: As above, and only the calling thread changes the descriptor of a block of the heap.
+    Some(unsafe { descriptor.as_ref() })
 }
 
 /// Reserves the table of block descriptors for a heap region of `region_size` bytes, the first time it is called, and
