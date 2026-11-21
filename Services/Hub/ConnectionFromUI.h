@@ -30,8 +30,9 @@ public:
 
     static Vector<DownloadState> downloads();
 
-    // The ID that the UI gave an input event, from the browser data of the event.
-    static u64 input_id_of(Web::BrowserInputData const&);
+    // The ID that the UI gave an input event, from the browser data of the event. Input the UI didn't send has none,
+    // whether it carries no browser data or someone else's (WebDriver's, e.g.).
+    static Optional<u64> input_id_of(Web::BrowserInputData const*);
 
     virtual void die() override;
 
