@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font: 16px/20px monospace; }
+  .c { width: 600px; outline: 1px solid; margin-bottom: 10px; overflow: hidden; }
+  .f { float: right; width: 200px; height: 100px; background: #ccc; }
+  .fl { float: left; width: 200px; height: 100px; background: #ccc; }
+  td { white-space: nowrap; padding: 0; }
+  table { border-spacing: 0; }
+</style>
+<div class="c"><div class="f"></div><table id="too-wide"><tr><td>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="fits"><tr><td>xxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="wraps-to-fit"><tr><td style="white-space: normal">xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="wider-than-line"><tr><td>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="fl"></div><table id="left-float-too-wide"><tr><td>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="fixed-450" style="width: 450px"><tr><td>x</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="pct-80" style="width: 80%"><tr><td>x</td></tr></table></div>
+<div class="c"><div class="f"></div><div class="f" style="height: 50px; width: 100px; clear: right"></div><table id="two-floats-stepped"><tr><td>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="caption" style="caption-side: top"><caption>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</caption><tr><td>x</td></tr></table></div>
+<div class="c" style="direction: rtl"><div class="f" style="float: left"></div><table id="rtl-too-wide"><tr><td>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="pct-margin-left-wraps" style="margin-left: 10%"><tr><td style="white-space: normal">xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="f"></div><table id="pct-margin-right-wraps" style="margin-right: 10%"><tr><td style="white-space: normal">xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx</td></tr></table></div>
+<div class="c"><div class="fl"></div><table id="left-float-pct-margin-wraps" style="margin-left: 10%"><tr><td style="white-space: normal">xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxxxxxxx</td></tr></table></div>
+<script src="../include.js"></script>
+<script>
+  test(() => {
+    const lines = [];
+    for (const t of document.querySelectorAll("table")) {
+      const r = t.getBoundingClientRect(), c = t.parentElement.getBoundingClientRect();
+      lines.push(`${t.id}: x ${Math.round(r.left - c.left)} y ${Math.round(r.top - c.top)} w ${Math.round(r.width)}`);
+    }
+    for (const line of lines) println(line);
+  });
+</script>

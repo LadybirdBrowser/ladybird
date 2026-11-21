@@ -98,7 +98,11 @@ pub(super) enum SizeDimension {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TableWrapperInlineSizeMode {
-    ClampToAvailableInlineSize,
+    /// An auto-width table shrinks to fit the available inline size, but never below its minimum inline size, and the
+    /// wrapper is as wide as the table box, even when that's wider than the available inline size: A table that
+    /// doesn't fit there reports its real size, so that its captions are laid out as wide as it is, and a table too
+    /// wide for the space next to floats is placed below them.
+    ShrinkToAvailableInlineSize,
     UseTableUsedInlineSizeIfNotAuto,
     /// The wrapper is as wide as the table box, even when that's wider than the available inline size, as for an
     /// absolutely positioned table.
