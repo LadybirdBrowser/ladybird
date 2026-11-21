@@ -73,8 +73,9 @@ ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout 
         return ChannelMap::quadrophonic();
     if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_AudioUnit_5_1)
         return ChannelMap::surround_5_1();
+    // This tag puts its side surround channels before its rear surround channels.
     if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_AudioUnit_7_1)
-        return ChannelMap::surround_7_1();
+        return ChannelMap(Channel::FrontLeft, Channel::FrontRight, Channel::FrontCenter, Channel::LowFrequency, Channel::SideLeft, Channel::SideRight, Channel::BackLeft, Channel::BackRight);
 
     Vector<Channel, ChannelMap::capacity()> channels;
 
