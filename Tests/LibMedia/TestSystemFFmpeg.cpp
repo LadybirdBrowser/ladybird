@@ -6,6 +6,7 @@
 
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
+#include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMediaCodecs/AudioBlock.h>
 #include <LibMediaCodecs/Codecs/AAC.h>
@@ -33,6 +34,29 @@ TEST_CASE(a_missing_library_is_an_error)
     auto result = Media::FFmpeg::SystemFFmpeg::try_load("libavcodec-that-does-not-exist.so"sv);
     EXPECT(result.is_error());
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::NotImplemented);
+}
+
+static void expect_custom_channel_layout_round_trips(Media::FFmpeg::FFmpegFunctions const& functions)
+{
+    // Out of native order, so this needs a custom layout.
+    auto channel_map = Audio::ChannelMap(Audio::Channel::FrontRight, Audio::Channel::FrontLeft, Audio::Channel::LowFrequency);
+    auto layout = TRY_OR_FAIL(Media::FFmpeg::channel_map_to_av_channel_layout(functions, channel_map));
+    EXPECT_EQ(layout.order, AV_CHANNEL_ORDER_CUSTOM);
+    EXPECT_EQ(layout.nb_channels, 3);
+    for (int i = 0; i < layout.nb_channels; i++)
+        EXPECT_EQ(layout.u.map[i].name[0], '\0');
+    EXPECT_EQ(TRY_OR_FAIL(Media::FFmpeg::av_channel_layout_to_channel_map(functions, layout)), channel_map);
+    functions.av_channel_layout_uninit(&layout);
+}
+
+TEST_CASE(custom_channel_layouts_round_trip_through_the_loaded_library)
+{
+    auto library = load_bundled_library();
+    expect_custom_channel_layout_round_trips(library->functions());
+
+    Media::FFmpeg::SystemFFmpeg::load();
+    if (auto const* system_library = Media::FFmpeg::SystemFFmpeg::the())
+        expect_custom_channel_layout_round_trips(system_library->functions());
 }
 
 static size_t decode_every_frame(Media::FFmpeg::SystemFFmpeg const& library, StringView path)

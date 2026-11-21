@@ -6,10 +6,6 @@
 
 #include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
 
-extern "C" {
-#include <libavutil/error.h>
-}
-
 namespace Media::FFmpeg {
 
 #define ENUMERATE_CHANNEL_POSITIONS(C)                                              \
@@ -91,13 +87,19 @@ static AVChannel audio_channel_to_av_channel(Audio::Channel channel)
 
 static ErrorOr<AVChannelLayout> channel_map_to_custom_av_channel_layout(FFmpegFunctions const& functions, Audio::ChannelMap const& channel_map)
 {
-    AVChannelLayout layout;
-    auto init_result = functions.av_channel_layout_custom_init(&layout, channel_map.channel_count());
-    if (init_result == AVERROR(EINVAL))
+    // This does what av_channel_layout_custom_init() does, as that is missing from FFmpeg before 7.0. The map must come
+    // from the same library's allocator, since av_channel_layout_uninit() frees it.
+    if (channel_map.channel_count() == 0)
         return Error::from_string_literal("Attempted to create an FFmpeg channel layout with an invalid channel count");
-    if (init_result == AVERROR(ENOMEM))
+    auto* map = static_cast<AVChannelCustom*>(functions.av_malloc(channel_map.channel_count() * sizeof(AVChannelCustom)));
+    if (map == nullptr)
         return Error::from_string_literal("Failed to allocate an FFmpeg channel layout");
-    VERIFY(layout.nb_channels == channel_map.channel_count());
+    __builtin_memset(map, 0, channel_map.channel_count() * sizeof(AVChannelCustom));
+
+    AVChannelLayout layout {};
+    layout.order = AVChannelOrder::AV_CHANNEL_ORDER_CUSTOM;
+    layout.nb_channels = channel_map.channel_count();
+    layout.u.map = map;
 
     for (u8 i = 0; i < channel_map.channel_count(); i++)
         layout.u.map[i].id = audio_channel_to_av_channel(channel_map.channel_at(i));
