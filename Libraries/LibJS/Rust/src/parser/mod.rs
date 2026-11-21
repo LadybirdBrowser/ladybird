@@ -44,6 +44,7 @@ use core::sync::atomic::AtomicU8;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use intern::Interner;
+use intern::KeptNames;
 pub(crate) use resolve::EnclosingCode;
 pub(crate) use resolve::OuterResolutions;
 use std::cell::Cell;
@@ -63,9 +64,9 @@ pub struct FunctionRow(pub(crate) u32);
 /// in the work zone of its thread, and this on the heap.
 struct ReparseContext {
     /// The names of the source.
-    interner: Interner,
+    names: KeptNames,
     /// The state of each name, which is clean between two parses.
-    names: Box<[base::NameState]>,
+    name_states: Box<[base::NameState]>,
     /// The last stamp of a name state.
     stamp: u32,
     /// What the parses write about the names they declare. Nothing reads it.
@@ -277,7 +278,7 @@ impl ScriptData {
         let (ast, node) = with_work_zone(|zone| {
             let mut context = self.reparse_context.lock().expect("a reparse does not panic");
             if context.is_none() {
-                *context = Some(self.make_reparse_context());
+                *context = Some(self.make_reparse_context(zone));
                 SOURCES_WITH_REPARSE_CONTEXT
                     .lock()
                     .expect("nothing panics with the sources")
@@ -319,12 +320,13 @@ impl ScriptData {
         Ok((tree, node))
     }
 
-    fn make_reparse_context(&self) -> ReparseContext {
-        let interner = Interner::with_names(self.names.parser_names());
-        let names = vec![base::UNUSED_NAME; interner.len().next_power_of_two()].into_boxed_slice();
+    /// A reparse context, whose tables are worked out in `zone` and copied out at their final size.
+    fn make_reparse_context(&self, zone: &Zone) -> ReparseContext {
+        let names = Interner::with_names(zone, self.names.parser_names()).to_kept();
+        let name_states = vec![base::UNUSED_NAME; names.len().next_power_of_two()].into_boxed_slice();
         ReparseContext {
-            interner,
             names,
+            name_states,
             stamp: 0,
             index: FunctionIndex::default(),
         }
@@ -342,15 +344,15 @@ impl ScriptData {
     ) -> Result<(Ast, u32), OutOfStack> {
         let row_index = reparse.row.0 as usize;
         let needs_padding = self.index.flags[row_index] & function_flag::REACHES_SOURCE_END != 0;
-        let name_count = context.interner.len();
+        let name_count = context.names.len();
         // SAFETY: The index of this ScriptData stays where it is, since the ScriptData is shared by an Arc, and never
         //         changes.
         let mut parser = unsafe {
             Parser::for_reparsing(
                 zone,
                 self.program_type == ProgramType::Module,
-                &mut context.interner,
-                &mut context.names,
+                Interner::of_kept(zone, &mut context.names),
+                &mut context.name_states,
                 context.stamp,
                 core::mem::take(&mut context.index),
                 &self.index,
@@ -377,15 +379,15 @@ impl ScriptData {
         parser.ast = reparse.ast;
         let node = parser.reparse_function(reparse.row.0);
         let error = parser.err.take();
-        let (ast, index, stamp) = parser.end_reparse();
-        context.index = index;
-        context.stamp = stamp;
-        // NB: The name states of the context cover the names it has, and no others.
+        // NB: The tables of the context, and the name states that cover them, stay as they are only if no name is new.
         assert_eq!(
-            context.interner.len(),
+            parser.interner.len(),
             name_count,
             "a function has only names that the first parse of its source found"
         );
+        let (ast, index, stamp) = parser.end_reparse();
+        context.index = index;
+        context.stamp = stamp;
         match error {
             None => Ok((ast, node)),
             Some(error) => {
@@ -609,7 +611,8 @@ struct ParserOutput {
     ast: Ast,
     top_level_rows: Option<TopLevelRows>,
     index: FunctionIndex,
-    interner: Interner,
+    /// The names of the source, with the two that a compile adds, for a parse that is for a compile.
+    names: Option<(NameTable, Name, Name)>,
     root: u32,
     first_token_start: u32,
     is_strict_mode: bool,
@@ -630,12 +633,10 @@ fn parse_code_units<U: Unit + Default>(
     let mut padded = ZoneVec::with_capacity_in(source.len() + SOURCE_PADDING, zone);
     padded.extend_from_slice(source);
     padded.resize(source.len() + SOURCE_PADDING, U::default());
-    let mut interner = Interner::new(source.len());
     // SAFETY: The source is followed by the padding.
     let mut parser = unsafe {
         Parser::new(
             zone,
-            &mut interner,
             &padded[..source.len()],
             options.program_type == ProgramType::Module,
             if options.keep_whole_tree {
@@ -660,6 +661,13 @@ fn parse_code_units<U: Unit + Default>(
     }
     let top_level_rows =
         (purpose == ParsePurpose::Compile).then(|| parser.parse_top_level_rows(options.program_context()));
+    let names = (purpose == ParsePurpose::Compile).then(|| {
+        let default_export_name = Name(parser.interner.intern_bytes(b"*default*"));
+        let default_constructor_parameter_name = Name(parser.interner.intern_bytes(b"args"));
+        let interner = &parser.interner;
+        let names = NameTable::from_parser_names((0..interner.len()).map(|name| interner.text(u32_from_usize(name))));
+        (names, default_export_name, default_constructor_parameter_name)
+    });
     let mut global_names_used_in_with = parser.global_names_used_in_with.take();
     global_names_used_in_with.sort_unstable();
     global_names_used_in_with.dedup();
@@ -678,7 +686,7 @@ fn parse_code_units<U: Unit + Default>(
             .collect(),
         global_names_used_in_with: global_names_used_in_with.to_vec(),
         lines,
-        interner,
+        names,
     };
     Ok(output)
 }
@@ -700,10 +708,8 @@ fn parse_source(
 /// Parses `source` into a tree of its top-level code with its identifiers resolved.
 pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result<SyntaxTree, Vec<ParseError>> {
     let mut output = parse_source(source, options, ParsePurpose::Compile)?;
-    let default_export_name = Name(output.interner.intern_bytes(b"*default*"));
-    let default_constructor_parameter_name = Name(output.interner.intern_bytes(b"args"));
-    let names =
-        NameTable::from_parser_names((0..output.interner.len()).map(|name| output.interner.text(u32_from_usize(name))));
+    let (names, default_export_name, default_constructor_parameter_name) =
+        output.names.take().expect("a parse for a compile gives the names");
     output.index.shrink_to_fit();
     let script = Arc::new(ScriptData {
         index: output.index,
