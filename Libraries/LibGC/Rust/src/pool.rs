@@ -7,7 +7,7 @@
 //! The threads that help the thread that owns a heap mark it. They live as long as the process, and wait for the next
 //! collection in between, so a collection does not pay for creating them.
 
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, MutexGuard, OnceLock, PoisonError};
 
 /// The most threads that mark a heap, the thread that owns it included, unless LIBGC_MARKER_THREADS asks for another
@@ -56,6 +56,8 @@ pub(crate) struct Pool {
     helpers_done: Condvar,
     /// Held while a collection uses the helpers. Heaps of other threads collect on their own meanwhile.
     in_use: Mutex<()>,
+    /// Whether the helpers ran a task since they last gave their unused memory back, see release_unused_memory().
+    ran_since_release: AtomicBool,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -81,6 +83,7 @@ impl Pool {
                 task_available: Condvar::new(),
                 helpers_done: Condvar::new(),
                 in_use: Mutex::new(()),
+                ran_since_release: AtomicBool::new(false),
             }));
             // NB: A helper that cannot start, as when the process has as many threads as it may, leaves marking to the
             //     ones that did, or to the thread that owns the heap alone.
@@ -111,6 +114,26 @@ impl Pool {
             pool: self,
             _in_use: guard,
         })
+    }
+
+    /// Has the helpers give back the memory they freed, unless another heap uses them now, which does the same once it is
+    /// done. What a helper allocates while it marks, such as room in its queue, is freed by the thread that collects
+    /// once the collection is over, and the allocator keeps it for the helper until the helper allocates again, which an
+    /// idle helper never does.
+    pub(crate) fn release_unused_memory(&'static self) {
+        if !self.ran_since_release.load(Ordering::Relaxed) {
+            return;
+        }
+        let Some(helpers) = self.try_acquire() else {
+            return;
+        };
+        unsafe fn release(_: *const (), _: usize) {
+            ak::release_unused_allocator_memory();
+        }
+        // SAFETY: release() takes nothing, and any thread may call it.
+        unsafe { helpers.run(release, core::ptr::null(), || {}) };
+        // NB: Running this task set the flag as well. No other task runs while the helpers are taken.
+        self.ran_since_release.store(false, Ordering::Relaxed);
     }
 
     fn run_helper(&self, index: usize) {
@@ -157,6 +180,7 @@ impl PoolGuard {
         owner: impl FnOnce(),
     ) {
         let pool = self.pool;
+        pool.ran_since_release.store(true, Ordering::Relaxed);
         {
             let mut state = lock(&pool.state);
             state.generation += 1;
