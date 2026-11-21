@@ -1218,7 +1218,7 @@ void StyleComputer::sweep_custom_property_environments() const
 
 void StyleComputer::update_root_element_font_metrics(ComputedValues const& values)
 {
-    m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
+    m_root_element_font_metrics = Length::FontMetrics { values.font_size_for_lengths(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
     m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
     m_root_element_effective_zoom = values.effective_zoom();
 }
@@ -1275,7 +1275,7 @@ Length::ResolutionContext StyleComputer::make_length_resolution_context(LengthRe
         return normal_line_height(document().font_computer().initial_font().pixel_metrics());
     }();
     auto font_metrics = Length::FontMetrics {
-        style.font_size(),
+        style.font_size_for_lengths(),
         style.first_available_computed_font(document().font_computer())->pixel_metrics(),
         line_height
     };

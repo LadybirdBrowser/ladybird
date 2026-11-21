@@ -741,6 +741,19 @@ pub struct FirstAvailableFontMetrics {
 }
 
 impl FontValues {
+    /// The computed font size, which `font_size` holds rounded to the nearest pixel fraction, as
+    /// the lengths relative to it read it: An em or rem length scales the size unrounded.
+    pub fn font_size_for_lengths(&self) -> f64 {
+        match self.font_size_value.style_value() {
+            Some(crate::css::style_value::StyleValueData::Length { value, unit })
+                if *unit == crate::css::style_compute::px_length_unit() =>
+            {
+                *value
+            }
+            _ => self.font_size.to_double(),
+        }
+    }
+
     /// https://drafts.csswg.org/css-fonts/#first-available-font
     /// The frozen cascade answers where the font computer published one: a load filling one of its
     /// faces in moves the answer without a new style. A cascade nobody published (a unit test's)

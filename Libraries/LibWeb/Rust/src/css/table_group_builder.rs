@@ -101,6 +101,8 @@ pub(crate) struct GroupBuildInputs<'a> {
 #[repr(C)]
 pub struct FfiFontGroupBuildInputs {
     pub font_size_raw: i32,
+    /// The computed font size, unrounded, which the lengths relative to it scale.
+    pub font_size: f64,
     pub line_height_used_raw: i32,
     pub font_variant_emoji: u8,
     pub font_ascent: f32,

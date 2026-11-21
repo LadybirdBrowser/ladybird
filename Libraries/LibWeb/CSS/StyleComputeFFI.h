@@ -30,7 +30,7 @@ inline constexpr u8 all_container_relative_length_units_mask = cqw_container_rel
 inline ComputedValuesFFI::FfiFontMetrics to_ffi_font_metrics(Length::FontMetrics const& metrics)
 {
     return {
-        .font_size = metrics.font_size.to_double(),
+        .font_size = metrics.font_size,
         .x_height = metrics.x_height.to_double(),
         .cap_height = metrics.cap_height.to_double(),
         .zero_advance = metrics.zero_advance.to_double(),

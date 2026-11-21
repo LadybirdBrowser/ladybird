@@ -685,16 +685,17 @@ fn absolute_size_font_mapping(keyword: u16, default_font_size: CssPixels) -> Opt
 
 /// A <relative-size> keyword is interpreted relative to the computed font-size of the parent
 /// element. User agents may use a simple ratio, which should be around 1.2-1.5.
-fn relative_size_font_mapping(keyword: u16, inherited_font_size: CssPixels) -> Option<CssPixels> {
-    let entry = |numerator: i64, denominator: i64| {
-        Some(
-            (inherited_font_size * CssPixels::from_integer(numerator))
-                .div_as_fraction(CssPixels::from_integer(denominator)),
-        )
-    };
+/// A font size computed from another, in the single precision a computed font size is kept in, so
+/// that a percentage of a size like 13.333333px comes out whole: 300% of it is 40px.
+pub(crate) fn single_precision_font_size(px: f64) -> f64 {
+    f64::from(px as f32)
+}
+
+/// The factor a relative-size keyword scales the inherited font size by.
+fn relative_size_font_ratio(keyword: u16) -> Option<f64> {
     match keyword {
-        keyword::SMALLER => entry(5, 6),
-        keyword::LARGER => entry(6, 5),
+        keyword::SMALLER => Some(5.0 / 6.0),
+        keyword::LARGER => Some(6.0 / 5.0),
         _ => None,
     }
 }
@@ -702,17 +703,17 @@ fn relative_size_font_mapping(keyword: u16, inherited_font_size: CssPixels) -> O
 // https://drafts.csswg.org/css-fonts/#font-size-prop
 // an absolute length
 //
-// The keyword mappings use CSSPixels fixed-point arithmetic, exactly as the
-// C++ implementation does.
+// The absolute-size keywords map through CSSPixels fixed-point arithmetic. A size relative to the
+// inherited one scales it unrounded, as the computed value holds it.
 fn compute_font_size(
     value: &StyleValueData,
     computed_math_depth: i32,
-    inherited_font_size: CssPixels,
+    inherited_font_size: f64,
     inherited_math_depth: i32,
     default_font_size: CssPixels,
     default_font_size_scale: f64,
 ) -> Option<ComputedNumber> {
-    let computed = |px: f64| Some(ComputedNumber::Computed(px));
+    let computed = |px: f64| Some(ComputedNumber::Computed(single_precision_font_size(px)));
     match value {
         // <length-percentage [0,inf]>
         // A length value specifies an absolute font size (independent of the user agent's font
@@ -720,13 +721,13 @@ fn compute_font_size(
         StyleValueData::Length { .. } => Some(ComputedNumber::Unchanged),
         // A percentage value specifies an absolute font size relative to the parent element's
         // computed font-size. Negative percentages are invalid.
-        StyleValueData::Percentage { value } => computed(inherited_font_size.to_double() * (value / 100.0)),
+        StyleValueData::Percentage { value } => computed(inherited_font_size * (value / 100.0)),
         StyleValueData::Keyword { keyword } => {
             if let Some(px) = absolute_size_font_mapping(*keyword, default_font_size) {
-                return computed(px.scaled(default_font_size_scale).to_double());
+                return computed(px.to_double() * default_font_size_scale);
             }
-            if let Some(px) = relative_size_font_mapping(*keyword, inherited_font_size) {
-                return computed(px.to_double());
+            if let Some(ratio) = relative_size_font_ratio(*keyword) {
+                return computed(inherited_font_size * ratio);
             }
             match *keyword {
                 // math
@@ -769,7 +770,7 @@ fn compute_font_size(
                         // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
                         if !invert_scale_factor { scale } else { 1.0 / scale }
                     };
-                    computed(inherited_font_size.scaled(math_scaling_factor).to_double())
+                    computed(inherited_font_size * math_scaling_factor)
                 }
                 _ => None,
             }
@@ -777,8 +778,8 @@ fn compute_font_size(
         // Calc lengths and percentages resolve in the calc core against the inherited
         // font size; anything the core cannot resolve is left to the caller.
         StyleValueData::Calculated { .. } => {
-            crate::css::calc::resolve_calculated_length_without_context(value, inherited_font_size.to_double())
-                .map(ComputedNumber::Computed)
+            crate::css::calc::resolve_calculated_length_without_context(value, inherited_font_size)
+                .map(|px| ComputedNumber::Computed(single_precision_font_size(px)))
         }
         _ => None,
     }
@@ -797,7 +798,7 @@ pub extern "C" fn rust_compute_font_size(
     compute_font_size(
         absolutized_value,
         computed_math_depth,
-        CssPixels::from_raw(inherited_font_size_raw),
+        CssPixels::from_raw(inherited_font_size_raw).to_double(),
         inherited_math_depth,
         CssPixels::from_raw(default_font_size_raw),
         1.0,
@@ -821,7 +822,8 @@ pub enum FontSizeRecascadeStatus {
 pub struct FontSizeRecascadeBatch {
     pub status: FontSizeRecascadeStatus,
     pub next_index: usize,
-    pub current_size_raw: i32,
+    /// The font size reached so far, in pixels, unrounded.
+    pub current_size: f64,
     pub depends_on_viewport_metrics: bool,
 }
 
@@ -867,14 +869,14 @@ pub(crate) fn recascade_font_size_batch<'a>(
     effective_zoom_at: impl Fn(usize) -> f64,
     applies_zoom_at: impl Fn(usize) -> bool,
     start_index: usize,
-    current_size_raw: i32,
+    current_size: f64,
     current_depends_on_viewport_metrics: bool,
     default_size_raw: i32,
     document_inputs: FontSizeRecascadeDocumentInputs,
     supplied_length_resolution_context: Option<&FfiLengthResolutionContext>,
 ) -> FontSizeRecascadeBatch {
     assert!(start_index <= value_count);
-    let mut current_size = CssPixels::from_raw(current_size_raw);
+    let mut current_size = current_size;
     let mut depends_on_viewport_metrics = current_depends_on_viewport_metrics;
     let default_size = CssPixels::from_raw(default_size_raw);
     let root_zoom = if document_inputs.root_effective_zoom > 0.0 {
@@ -882,14 +884,16 @@ pub(crate) fn recascade_font_size_batch<'a>(
     } else {
         1.0
     };
-    let stopped = |status, next_index, current_size: CssPixels, depends_on_viewport_metrics| FontSizeRecascadeBatch {
+    let stopped = |status, next_index, current_size: f64, depends_on_viewport_metrics| FontSizeRecascadeBatch {
         status,
         next_index,
-        current_size_raw: current_size.raw_value(),
+        current_size: single_precision_font_size(current_size),
         depends_on_viewport_metrics,
     };
 
     for index in start_index..value_count {
+        // NB: Each ancestor's size is computed in single precision, as the cascade computes it.
+        current_size = single_precision_font_size(current_size);
         // NB: Keep the size before this ancestor for a batch that must retry this index with font metrics.
         let inherited_size = current_size;
         let zoom = effective_zoom_at(index);
@@ -898,8 +902,8 @@ pub(crate) fn recascade_font_size_batch<'a>(
         let own_zoom = if applies_zoom { zoom / parent_zoom } else { 1.0 };
         let length_zoom = if applies_zoom { zoom } else { 1.0 };
         let root_metric_zoom = if applies_zoom { zoom / root_zoom } else { 1.0 };
-        current_size = current_size.scaled(own_zoom);
-        let zoomed_default_size = default_size.scaled(length_zoom);
+        current_size *= own_zoom;
+        let zoomed_default_size = default_size.to_double() * length_zoom;
         let Some(value) = value_at(index) else {
             continue;
         };
@@ -914,12 +918,12 @@ pub(crate) fn recascade_font_size_batch<'a>(
                     continue;
                 }
                 if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
-                    current_size = px.scaled(length_zoom);
+                    current_size = px.to_double() * length_zoom;
                     depends_on_viewport_metrics = false;
                     continue;
                 }
-                if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
-                    current_size = px;
+                if let Some(ratio) = relative_size_font_ratio(*keyword) {
+                    current_size *= ratio;
                     continue;
                 }
                 // FIXME: Resolve `font-size: math`
@@ -928,7 +932,7 @@ pub(crate) fn recascade_font_size_batch<'a>(
                 }
             }
             StyleValueData::Percentage { value } => {
-                current_size = CssPixels::nearest_value_for(value / 100.0 * current_size.to_double());
+                current_size *= value / 100.0;
                 continue;
             }
             StyleValueData::Length { value, unit } => {
@@ -945,7 +949,7 @@ pub(crate) fn recascade_font_size_batch<'a>(
                     Some(LengthUnitKind::FontRelative {
                         metric: FontMetricSelector::FontSize,
                         root: false,
-                    }) => Some((*value * current_size.to_double(), depends_on_viewport_metrics)),
+                    }) => Some((*value * current_size, depends_on_viewport_metrics)),
                     // NB: Logical viewport units need the ancestor's writing mode from its resolution context.
                     Some(LengthUnitKind::ViewportRelative {
                         axis: ViewportAxis::Inline | ViewportAxis::Block,
@@ -963,7 +967,7 @@ pub(crate) fn recascade_font_size_batch<'a>(
                     _ => None,
                 };
                 if let Some((px, resolved_viewport_relative_length)) = directly_resolved {
-                    current_size = CssPixels::nearest_value_for(px);
+                    current_size = px;
                     depends_on_viewport_metrics = resolved_viewport_relative_length;
                     continue;
                 }
@@ -987,7 +991,7 @@ pub(crate) fn recascade_font_size_batch<'a>(
                         depends_on_viewport_metrics,
                     );
                 }
-                current_size = CssPixels::nearest_value_for(result.px);
+                current_size = result.px;
                 depends_on_viewport_metrics = result.resolved_viewport_relative_length;
                 continue;
             }
@@ -1436,7 +1440,7 @@ fn compute_math_depth(value: &StyleValueData, inherited_math_depth: i32, inherit
 }
 
 // https://drafts.csswg.org/css-inline-3/#line-height-property
-fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) -> ComputedLineHeight {
+fn compute_line_height(value: &StyleValueData, computed_font_size: f64) -> ComputedLineHeight {
     match value {
         // normal
         // <length [0,inf]>
@@ -1447,17 +1451,12 @@ fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) ->
         | StyleValueData::Length { .. }
         | StyleValueData::Number { .. } => ComputedLineHeight::Unchanged,
         // <percentage [0,inf]>
-        StyleValueData::Percentage { value } => {
-            ComputedLineHeight::Px(computed_font_size.to_double() * (value / 100.0))
-        }
+        StyleValueData::Percentage { value } => ComputedLineHeight::Px(computed_font_size * (value / 100.0)),
         // Calc lengths, percentages, and numbers resolve in the calc core against the
         // computed font size.
         StyleValueData::Calculated { .. } => {
-            match crate::css::calc::resolve_calculated_line_height_without_context(
-                value,
-                computed_font_size.to_double(),
-            )
-            .expect("a calculated line-height resolves to a length or a number")
+            match crate::css::calc::resolve_calculated_line_height_without_context(value, computed_font_size)
+                .expect("a calculated line-height resolves to a length or a number")
             {
                 crate::css::calc::ResolvedLineHeightCalc::Px(px) => ComputedLineHeight::Px(px),
                 crate::css::calc::ResolvedLineHeightCalc::Number(number) => ComputedLineHeight::Number(number),
@@ -3305,10 +3304,7 @@ pub(crate) unsafe fn drive_property_computation(
             if zoom.length_zoom() != 1.0 {
                 let recascaded = writer.get(property_id).and_then(|value| {
                     if let StyleValueData::Length { value, unit } = value.data() {
-                        Some((
-                            CssPixels::nearest_value_for(value * zoom.length_zoom()).to_double(),
-                            *unit,
-                        ))
+                        Some((value * zoom.length_zoom(), *unit))
                     } else {
                         None
                     }
@@ -3781,12 +3777,12 @@ pub(crate) unsafe fn drive_property_computation(
                                     // https://drafts.csswg.org/css-viewport/#zoom-property
                                     // NB: The parent's font-size is zoomed by its effective zoom already, so it takes
                                     //     the element's own zoom alone.
-                                    Some((CssPixels::nearest_value_for(*value * zoom.length_zoom()), math_depth))
+                                    Some((*value * zoom.length_zoom(), math_depth))
                                 }
                                 _ => None,
                             },
                             None => Some((
-                                CssPixels::from_raw(initial_font_size_raw).scaled(zoom.length_effective_zoom()),
+                                CssPixels::from_raw(initial_font_size_raw).to_double() * zoom.length_effective_zoom(),
                                 0,
                             )),
                         };
@@ -3886,13 +3882,10 @@ pub(crate) unsafe fn drive_property_computation(
                     ) {
                         let resolution_context =
                             length_resolution_context.expect("line-height must run with a resolution context");
-                        compute_line_height(
-                            value_data,
-                            CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
-                        )
+                        compute_line_height(value_data, resolution_context.font_metrics.font_size)
                     } else {
                         let synthesized = synthesized_px_length(absolutized);
-                        compute_line_height(synthesized.as_ref().unwrap_or(value_data), CssPixels::from_raw(0))
+                        compute_line_height(synthesized.as_ref().unwrap_or(value_data), 0.0)
                     };
                     match result {
                         ComputedLineHeight::Unchanged => absolutized.map_or(NativeValue::Unchanged, NativeValue::Px),
@@ -4924,10 +4917,8 @@ pub(crate) fn compute_font_values<'a>(
                     _ => None,
                 };
                 let inherited_size = match (parentless_font_size, inherited(prop::FONT_SIZE)) {
-                    (Some(size), _) => size,
-                    (None, Some(StyleValueData::Length { value, unit })) if *unit == px_length_unit() => {
-                        CssPixels::nearest_value_for(*value)
-                    }
+                    (Some(size), _) => size.to_double(),
+                    (None, Some(StyleValueData::Length { value, unit })) if *unit == px_length_unit() => *value,
                     _ => return false,
                 };
                 // NB: The element declares no math-depth of its own, so its computed one is the
@@ -4992,7 +4983,7 @@ pub(crate) fn compute_font_values<'a>(
                         (true, false) => value.clone(),
                     }
                 }
-                _ => match compute_line_height(data, CssPixels::nearest_value_for(length.font_metrics.font_size)) {
+                _ => match compute_line_height(data, length.font_metrics.font_size) {
                     ComputedLineHeight::Unchanged => value.clone(),
                     ComputedLineHeight::Number(value) => {
                         RetainedStyleValueData::from_owned(StyleValueData::Number { value })

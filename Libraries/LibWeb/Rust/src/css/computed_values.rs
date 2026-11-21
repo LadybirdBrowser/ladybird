@@ -2533,6 +2533,12 @@ pub extern "C" fn rust_sizing_values_clamp_size(
     *height = clamp(*height, basis_height, &values.min_height, &values.max_height);
 }
 
+/// The computed font size of a font group, unrounded, as [`FontValues::font_size_for_lengths`] reads it.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_font_values_font_size_for_lengths(values: &FontValues) -> f64 {
+    values.font_size_for_lengths()
+}
+
 /// The used line height of a font group, as [`FontValues::line_height_used`] reads it.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_font_values_line_height_used_raw(values: &FontValues) -> i32 {

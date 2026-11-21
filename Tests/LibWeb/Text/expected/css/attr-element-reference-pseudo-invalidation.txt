@@ -1,6 +1,6 @@
-::placeholder-before=19.992188px
-::placeholder-after=39.984375px
-::file-selector-button-before=19.992188px
-::file-selector-button-after=39.984375px
+::placeholder-before=20px
+::placeholder-after=40px
+::file-selector-button-before=20px
+::file-selector-button-after=40px
 ::details-content-before=24px
 ::details-content-after=48px

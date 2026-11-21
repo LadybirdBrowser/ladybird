@@ -113,8 +113,8 @@ unsafe extern "C" {
 pub(crate) struct FontMetricsSource {
     /// The Gfx::FontCascadeList of the font, or null for the font that a context starts with.
     cascade: *const c_void,
-    /// The size of the font, as the raw value of a CSSPixels.
-    font_size: i32,
+    /// The computed size of the font in pixels, unrounded, which lengths relative to it scale.
+    font_size: f64,
 }
 
 impl FontMetricsSource {
@@ -126,7 +126,7 @@ impl FontMetricsSource {
             },
             None => Self {
                 cascade: core::ptr::null(),
-                font_size: 0,
+                font_size: 0.0,
             },
         }
     }
@@ -138,7 +138,7 @@ struct ResolvedFontAbi {
     /// A Gfx::FontCascadeList with a reference that the caller takes over.
     cascade: *const c_void,
     environment_generation: u64,
-    font_size: i32,
+    font_size: f64,
     /// An AK::Utf16String that the caller takes over.
     serialized: usize,
 }
@@ -171,8 +171,8 @@ impl FontSelection {
 pub(crate) struct ResolvedFont {
     pub(crate) cascade: FontCascadeListHandle,
     pub(crate) environment_generation: u64,
-    /// The size of the font, as the raw value of a CSSPixels.
-    pub(crate) font_size: i32,
+    /// The computed size of the font in pixels, unrounded, which lengths relative to it scale.
+    pub(crate) font_size: f64,
     pub(crate) serialized: Utf16String,
 }
 
@@ -300,7 +300,7 @@ impl Canvas {
         let mut resolved = ResolvedFontAbi {
             cascade: core::ptr::null(),
             environment_generation: 0,
-            font_size: 0,
+            font_size: 0.0,
             serialized: 0,
         };
         let is_font = unsafe {

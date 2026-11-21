@@ -676,19 +676,19 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
     }
     auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
     auto const& initial_font = m_style_computer->document().font_computer().initial_font();
-    Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), normal_line_height(initial_font.pixel_metrics()) };
+    Length::FontMetrics const initial_font_metrics { initial_font.pixel_size(), initial_font.pixel_metrics(), normal_line_height(initial_font.pixel_metrics()) };
     lent.inputs = {
         .in_quirks_mode = m_style_computer->document().in_quirks_mode(),
         .viewport_width = viewport_rect.width().to_double(),
         .viewport_height = viewport_rect.height().to_double(),
-        .root_font_size = root_font_metrics.font_size.to_double(),
+        .root_font_size = root_font_metrics.font_size,
         .root_font_x_height = root_font_metrics.x_height.to_double(),
         .root_font_cap_height = root_font_metrics.cap_height.to_double(),
         .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
         .root_line_height = root_font_metrics.line_height.to_double(),
         .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
         .root_effective_zoom = m_style_computer->root_element_effective_zoom(),
-        .initial_font_size = initial_font_metrics.font_size.to_double(),
+        .initial_font_size = initial_font_metrics.font_size,
         .initial_font_x_height = initial_font_metrics.x_height.to_double(),
         .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),
         .initial_font_zero_advance = initial_font_metrics.zero_advance.to_double(),

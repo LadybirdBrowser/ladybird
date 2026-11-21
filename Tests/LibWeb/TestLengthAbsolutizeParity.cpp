@@ -21,8 +21,8 @@ static Length::ResolutionContext make_context(bool* did_resolve_viewport_relativ
     Gfx::FontPixelMetrics const root_pixel_metrics { .x_height = 10, .advance_of_ascii_zero = 9, .ascent = 14, .descent = 5 };
     Length::ResolutionContext context {
         .viewport_rect = { 0, 0, 800, 600 },
-        .font_metrics = { CSSPixels(16), pixel_metrics, CSSPixels(19) },
-        .root_font_metrics = { CSSPixels(20), root_pixel_metrics, CSSPixels(24) },
+        .font_metrics = { 16.0, pixel_metrics, CSSPixels(19) },
+        .root_font_metrics = { 20.0, root_pixel_metrics, CSSPixels(24) },
         .font_metrics_depend_on_viewport_metrics = false,
         .root_font_metrics_depend_on_viewport_metrics = true,
     };
