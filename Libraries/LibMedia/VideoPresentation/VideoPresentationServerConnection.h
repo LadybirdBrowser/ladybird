@@ -41,6 +41,7 @@ private:
     virtual void create_video_edge(VideoSinkHandle video_sink_handle, u64 edge_id) override;
     virtual void release_video_edge(u64 edge_id) override;
     virtual void request_start(u64 edge_id) override;
+    virtual void request_suspend(u64 edge_id) override;
     virtual void request_seek(u64 edge_id, AK::Duration timestamp, InvalidateHeldData, u64 newest_received_lend_id) override;
     virtual void release_frame(u64 edge_id, u64 lend_id) override;
     virtual void notify_sink_status(u64 edge_id, PipelineStatus status, u32 requested_seek_id, PipelineCheckpoint checkpoint) override;

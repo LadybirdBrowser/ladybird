@@ -8,6 +8,7 @@ endpoint VideoPresentationServer {
     release_video_edge(u64 edge_id) =|
 
     request_start(u64 edge_id) =|
+    request_suspend(u64 edge_id) =|
     request_seek(u64 edge_id, AK::Duration timestamp, Media::InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) =|
     release_frame(u64 edge_id, u64 lend_id) =|
 

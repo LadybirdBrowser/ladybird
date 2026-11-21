@@ -12,6 +12,7 @@ namespace Media {
 NonnullRefPtr<RemoteVideoProducer> RemoteVideoProducer::create(Delegates delegates)
 {
     VERIFY(delegates.request_start);
+    VERIFY(delegates.request_suspend);
     VERIFY(delegates.request_seek);
     return adopt_ref(*new RemoteVideoProducer(move(delegates)));
 }
@@ -68,6 +69,11 @@ void RemoteVideoProducer::notify_clock_resumed()
 void RemoteVideoProducer::start()
 {
     m_delegates.request_start();
+}
+
+void RemoteVideoProducer::suspend()
+{
+    m_delegates.request_suspend();
 }
 
 void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)

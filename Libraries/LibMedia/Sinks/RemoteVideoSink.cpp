@@ -31,6 +31,8 @@ public:
     void seek_upstream(AK::Duration timestamp, InvalidateHeldData, u64 newest_received_lend_id);
     void seek_input_directly(AK::Duration timestamp);
     void start_input();
+    void suspend_input();
+    void consumer_started_input();
     void release_frame(u64 lend_id);
 
     void pump_thread_loop();
@@ -62,6 +64,9 @@ private:
     bool m_exit_requested { false };
     bool m_pump_thread_exited { false };
     bool m_wake_pending { false };
+    // The input may still hold what it had for a previous consumer, so it is only peeked once this consumer has started
+    // or suspended it, as it would be in process.
+    bool m_consumer_has_started_input { false };
     u32 m_actual_seek_id { 0 };
     // A seek the input was given directly, whose request from the consumer has yet to arrive.
     Optional<AK::Duration> m_direct_seek_timestamp;
@@ -146,6 +151,7 @@ void RemoteVideoSink::report_remote_resize(Gfx::Size<u32> size)
 }
 
 void RemoteVideoSink::start_input() { m_thread_data->start_input(); }
+void RemoteVideoSink::suspend_input() { m_thread_data->suspend_input(); }
 void RemoteVideoSink::release_frame(u64 lend_id) { m_thread_data->release_frame(lend_id); }
 void RemoteVideoSink::stop() { m_thread_data->stop(); }
 bool RemoteVideoSink::has_lent_frames() const { return m_thread_data->has_lent_frames(); }
@@ -284,6 +290,27 @@ void RemoteVideoSink::ThreadData::start_input()
     }
     if (input)
         input->start();
+    consumer_started_input();
+}
+
+void RemoteVideoSink::ThreadData::suspend_input()
+{
+    RefPtr<VideoProducer> input;
+    {
+        MutexLocker locker { m_mutex };
+        input = m_input;
+    }
+    if (input)
+        input->suspend();
+    consumer_started_input();
+}
+
+void RemoteVideoSink::ThreadData::consumer_started_input()
+{
+    MutexLocker locker { m_mutex };
+    m_consumer_has_started_input = true;
+    m_wake_pending = true;
+    m_wait_condition.broadcast();
 }
 
 void RemoteVideoSink::ThreadData::release_frame(u64 lend_id)
@@ -416,7 +443,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
                     MutexLocker lent_frames_locker { m_lent_frames_mutex };
                     return m_lent_frames.size() < MAX_LENT_FRAME_COUNT;
                 }();
-                if (m_input == nullptr || !may_lend_another_frame || m_direct_seek_timestamp.has_value()) {
+                if (m_input == nullptr || !m_consumer_has_started_input || !may_lend_another_frame || m_direct_seek_timestamp.has_value()) {
                     wait_on_pump_thread(locker);
                     continue;
                 }
