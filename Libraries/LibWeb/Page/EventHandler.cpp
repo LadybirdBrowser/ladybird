@@ -539,8 +539,26 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // NB: The contextmenu event is dispatched even if the page cancelled the pointerdown or mousedown event,
     //     matching other engines. The page can still suppress the native context menu by cancelling the
     //     contextmenu event itself.
-    if (is_context_menu_trigger)
+    if (is_context_menu_trigger) {
+        // NB: A listener may have taken the pressed node out of the document, so the event goes to what is under the
+        //     pointer by now.
+        if (!node->is_connected()) {
+            if (m_navigable->active_document() != document)
+                return EventResult::Accepted;
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+            if (!has_committed_root_box())
+                return EventResult::Accepted;
+            auto current_target = target_for_mouse_position(visual_viewport_position);
+            if (!current_target.has_value())
+                return EventResult::Accepted;
+            node = current_target->dom_node();
+            auto* current_target_layout_node = current_target->layout_node(read);
+            if (!node || !current_target_layout_node || !parent_element_for_event_dispatch(*current_target_layout_node, node, layout_node))
+                return EventResult::Accepted;
+            coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
+        }
         maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
+    }
 
     if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
         return EventResult::Cancelled;
