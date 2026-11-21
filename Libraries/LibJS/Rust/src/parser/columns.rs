@@ -134,20 +134,28 @@ pub struct Ast<'z> {
     /// One row per scope that has bindings: where its bindings start, and its flags.
     pub scope_first_binding: ZoneVec<'z, u32>,
     pub scope_flags: ZoneVec<'z, u32>,
+    /// The most nodes that the tree is likely to have, which the columns make room for at once if they outgrow what
+    /// they started with (see `grow()`).
+    pub likely_most_nodes: usize,
 }
 
 impl<'z> Ast<'z> {
     pub fn with_capacity(zone: &'z Zone, nodes: usize) -> Self {
+        Self::with_capacities(zone, nodes, nodes / 2)
+    }
+
+    pub fn with_capacities(zone: &'z Zone, nodes: usize, extra: usize) -> Self {
         let mut ast = Self {
             tag: ZoneVec::with_capacity_in(nodes, zone),
             pos: ZoneVec::with_capacity_in(nodes, zone),
             a: ZoneVec::with_capacity_in(nodes, zone),
             b: ZoneVec::with_capacity_in(nodes, zone),
-            extra: ZoneVec::with_capacity_in(nodes / 2, zone),
+            extra: ZoneVec::with_capacity_in(extra, zone),
             binding_name: ZoneVec::new_in(zone),
             binding_flags: ZoneVec::new_in(zone),
             scope_first_binding: ZoneVec::new_in(zone),
             scope_flags: ZoneVec::new_in(zone),
+            likely_most_nodes: 0,
         };
         // Node zero stands for "no node" and for what failed to parse, and so does offset zero for "no list".
         ast.push(tag::INVALID, 0, 0, 0);
@@ -177,12 +185,22 @@ impl<'z> Ast<'z> {
 
     #[cold]
     fn grow(&mut self) {
-        let wanted = self.tag.capacity().max(1024);
+        // NB: Columns that grow in steps leave a copy in the zone at each step, which is memory the job has used. A
+        //     tree that outgrows its first room takes room for the most nodes it is likely to have in one step, and
+        //     room that is never written takes no memory.
+        let likely_most_nodes = core::mem::take(&mut self.likely_most_nodes);
+        let wanted = self
+            .tag
+            .capacity()
+            .max(1024)
+            .max(likely_most_nodes.saturating_sub(self.tag.len()));
         self.tag.reserve(wanted);
         let capacity = self.tag.capacity();
         self.pos.reserve(capacity - self.pos.len());
         self.a.reserve(capacity - self.a.len());
         self.b.reserve(capacity - self.b.len());
+        // NB: A list of the tree takes one row of `extra` for each of its items, which are nodes.
+        self.extra.reserve(likely_most_nodes.saturating_sub(self.extra.len()));
     }
 
     pub fn truncate(&mut self, marks: &AstMarks) {
