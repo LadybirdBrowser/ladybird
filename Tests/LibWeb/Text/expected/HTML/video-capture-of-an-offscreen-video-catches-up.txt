@@ -1,0 +1,4 @@
+ticking before capturing: false
+frames presented before capturing: 0
+drawImage: second 0
+createImageBitmap: second 0

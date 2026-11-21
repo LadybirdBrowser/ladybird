@@ -34,6 +34,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
@@ -1064,6 +1065,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_first_base_element_with_target_in_tree_order);
     visitor.visit(m_parser);
     visitor.visit(m_lazy_load_intersection_observer);
+    visitor.visit(m_video_viewport_intersection_observer);
     visitor.visit(m_visual_viewport);
     visitor.visit(m_named_timelines);
     visitor.visit(m_scripts_to_execute_when_parsing_has_finished);
@@ -7909,6 +7911,42 @@ void Document::stop_intersection_observing_a_lazy_loading_element(Element& eleme
 
     // 3. Call doc's lazy load intersection observer unobserve method with element as the argument.
     m_lazy_load_intersection_observer->unobserve(element);
+}
+
+void Document::start_observing_video_viewport_intersection(HTML::HTMLVideoElement& video)
+{
+    VERIFY(&video.document() == this);
+    if (!m_video_viewport_intersection_observer) {
+        auto options = IntersectionObserver::IntersectionObserverOptions {};
+        // Videos start decoding a little before they scroll into view, so that their frames are ready when they do.
+        options.root_margin = "250px"_utf16;
+
+        // The sinks read the observations themselves, in the rendering update that made them.
+        auto& realm = relevant_settings_object().realm();
+        auto callback = JS::NativeFunction::create(realm, Utf16FlyString {}, GC::create_function(GC::Heap::the(), [](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+            return JS::js_undefined();
+        }));
+        auto wrapped_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(callback, realm);
+        m_video_viewport_intersection_observer = IntersectionObserver::IntersectionObserver::create_with_implicit_root_document(wrapped_callback, options, *this).release_value_but_fixme_should_propagate_errors();
+    }
+    m_video_viewport_intersection_observer->observe(video);
+}
+
+void Document::stop_observing_video_viewport_intersection(HTML::HTMLVideoElement& video)
+{
+    if (m_video_viewport_intersection_observer)
+        m_video_viewport_intersection_observer->unobserve(video);
+}
+
+bool Document::video_intersects_viewport(HTML::HTMLVideoElement const& video) const
+{
+    if (!m_video_viewport_intersection_observer)
+        return false;
+    for (auto const& observation_target : m_video_viewport_intersection_observer->observation_targets()) {
+        if (observation_target.target.ptr().ptr() == &video)
+            return observation_target.previous_is_intersecting;
+    }
+    return false;
 }
 
 void Document::process_lazy_load_intersection_observer_entries(ReadonlySpan<GC::Ref<IntersectionObserver::IntersectionObserverEntry>> entries)

@@ -1397,6 +1397,11 @@ public:
     void stop_intersection_observing_a_lazy_loading_element(Element&);
     void process_lazy_load_intersection_observer_entries(ReadonlySpan<GC::Ref<IntersectionObserver::IntersectionObserverEntry>>);
 
+    void start_observing_video_viewport_intersection(HTML::HTMLVideoElement&);
+    void stop_observing_video_viewport_intersection(HTML::HTMLVideoElement&);
+    // Whether the last update of intersection observations found the video near enough to the viewport to be shown.
+    bool video_intersects_viewport(HTML::HTMLVideoElement const&) const;
+
     void shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::HTMLMetaElement const> meta_element = nullptr);
 
     struct TopOfTheDocument { };
@@ -2395,6 +2400,8 @@ private:
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#lazy-load-intersection-observer
     // Each Document has a lazy load intersection observer, initially set to null but can be set to an IntersectionObserver instance.
     GC::Ptr<IntersectionObserver::IntersectionObserver> m_lazy_load_intersection_observer;
+
+    GC::Ptr<IntersectionObserver::IntersectionObserver> m_video_viewport_intersection_observer;
 
     Vector<GC::Weak<ResizeObserver::ResizeObserver>> m_resize_observers;
 

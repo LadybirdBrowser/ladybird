@@ -1,0 +1,3 @@
+ticking before capturing: false
+frames presented before capturing: 0
+drawImage after seeking to 2.5s: second 2

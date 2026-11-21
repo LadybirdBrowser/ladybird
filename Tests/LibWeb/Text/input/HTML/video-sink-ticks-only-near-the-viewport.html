@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="frame-in-flight/frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .spacer { height: 5000px; }
+    video { display: block; width: 320px; height: 240px; }
+</style>
+<div class="spacer"></div>
+<video id="video" muted autoplay loop></video>
+<div class="spacer"></div>
+<script>
+    const video = document.getElementById("video");
+
+    async function committedFrame() {
+        internals.setManualRenderingOpportunities(true);
+        try {
+            const frame = animationFrame();
+            internals.injectRenderingOpportunity(performance.now());
+            await frame;
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+    }
+
+    async function scrollVideoTopBelowTheViewportBy(distance) {
+        window.scrollTo(0, video.offsetTop - window.innerHeight - distance);
+        await committedFrame();
+    }
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/test-webm.webm";
+        await new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
+        await committedFrame();
+        println(`ticking while far below the viewport: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+        println(`frames presented while far below the viewport: ${video.getVideoPlaybackQuality().totalVideoFrames}`);
+        println(`playing while far below the viewport: ${!video.paused}`);
+
+        await scrollVideoTopBelowTheViewportBy(100);
+        println(`ticking 100px below the viewport: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        video.scrollIntoView();
+        await committedFrame();
+        println(`ticking in the viewport: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        await scrollVideoTopBelowTheViewportBy(400);
+        println(`ticking 400px below the viewport: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        window.scrollTo(0, video.offsetTop + video.offsetHeight + 400);
+        await committedFrame();
+        println(`ticking 400px above the viewport: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+        println(`playing after leaving the viewport: ${!video.paused}`);
+        done();
+    });
+</script>
