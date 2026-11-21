@@ -904,7 +904,6 @@ set(SOURCES
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
     WebGL/RemoteWebGLTransportFFI.cpp
-    WebGL/WebGLContextAttributes.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp

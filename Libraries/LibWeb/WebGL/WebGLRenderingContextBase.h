@@ -26,6 +26,23 @@ namespace Web::WebGL {
 using CanvasOwner = Variant<GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>>;
 HTML::CanvasHost& canvas_host_for(CanvasOwner const&);
 
+// https://registry.khronos.org/webgl/specs/latest/1.0/#WEBGLCONTEXTATTRIBUTES
+// `ContextAttributes` of Bindings/Rust/src/web_gl/exports.rs.
+struct ContextAttributes {
+    bool alpha { true };
+    bool depth { true };
+    bool stencil { false };
+    bool antialias { true };
+    bool premultiplied_alpha { true };
+    bool preserve_drawing_buffer { false };
+    // 0 is "default", 1 is "low-power" and 2 is "high-performance".
+    u8 power_preference { 0 };
+    bool fail_if_major_performance_caveat { false };
+    bool desynchronized { false };
+};
+
+JS::ThrowCompletionOr<ContextAttributes> convert_to_context_attributes(JS::VM&, JS::Value);
+
 // The C++ side of a WebGLRenderingContext or a WebGL2RenderingContext, which are implemented in Rust
 // (Libraries/LibWeb/Bindings/Rust/src/web_gl): what the rest of LibWeb calls, and what the Rust code calls back.
 class WEB_API WebGLRenderingContextBase : public Bindings::RustInterfaceCell {
@@ -52,7 +69,7 @@ public:
     void restore_context_after_compositor_reconnect();
 
 protected:
-    static WebGLRenderingContextBase* create(JS::Realm&, CanvasOwner, WebGLContextAttributes const&, WebGLVersion);
+    static WebGLRenderingContextBase* create(JS::Realm&, CanvasOwner, ContextAttributes const&, WebGLVersion);
 };
 
 }

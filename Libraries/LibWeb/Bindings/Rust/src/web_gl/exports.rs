@@ -32,7 +32,7 @@ fn extension_names(names: ak::Span<'_, ak::Span<'_, u8>>) -> Vec<Vec<u8>> {
     names.as_slice().iter().map(|name| name.as_slice().to_vec()).collect()
 }
 
-/// Mirrors `Web::WebGL::RustContextAttributes`.
+/// Mirrors `Web::WebGL::ContextAttributes`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct ContextAttributes {
@@ -281,6 +281,41 @@ pub unsafe extern "C" fn web_webgl_context_restore(
     with_context(context, |context| {
         context.restore(transport, supported_opengl_extensions);
     });
+}
+
+/// Converts the options of getContext() to the dictionary, and answers true with the exception that the conversion
+/// threw.
+///
+/// # Safety
+///
+/// `vm` must be the live VM and `value` a live value.
+#[cfg(web_idl_bindings)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_webgl_context_attributes_from_value(
+    vm: *mut c_void,
+    value: u64,
+    out_context_attributes: &mut ContextAttributes,
+    out_exception: &mut u64,
+) -> bool {
+    use crate::bindings::conversions::FromJs;
+
+    // SAFETY: The caller passes the live VM and a live value.
+    let (vm, value) = unsafe {
+        (
+            &*vm.cast::<libjs_rust::api::Vm>(),
+            libjs_rust::api::Value::from_raw(value),
+        )
+    };
+    match WebGLContextAttributes::from_js(vm, value) {
+        Ok(context_attributes) => {
+            *out_context_attributes = context_attributes.into();
+            false
+        }
+        Err(throw) => {
+            *out_exception = throw.value().to_raw();
+            true
+        }
+    }
 }
 
 /// # Safety

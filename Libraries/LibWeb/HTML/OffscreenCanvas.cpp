@@ -35,7 +35,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
-#include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
@@ -382,7 +381,7 @@ JS::ThrowCompletionOr<OffscreenCanvas::HasOrCreatedContext> OffscreenCanvas::cre
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto context_attributes = TRY(WebGL::convert_value_to_context_attributes_dictionary(vm(), options));
+    auto context_attributes = TRY(WebGL::convert_to_context_attributes(vm(), options));
     TRY(throw_if_detached());
     // AD-HOC: Converting the options can run script that creates a context.
     if (!m_context.has<Empty>())

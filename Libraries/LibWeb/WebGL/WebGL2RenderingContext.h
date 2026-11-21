@@ -18,7 +18,7 @@ class WEB_API WebGL2RenderingContext final : public WebGLRenderingContextBase {
     WEB_RUST_INTERFACE(WebGL2RenderingContext, web_gl2_rendering_context)
 
 public:
-    static GC::Ptr<WebGL2RenderingContext> create(JS::Realm&, CanvasOwner, WebGLContextAttributes const&);
+    static GC::Ptr<WebGL2RenderingContext> create(JS::Realm&, CanvasOwner, ContextAttributes const&);
 };
 
 }

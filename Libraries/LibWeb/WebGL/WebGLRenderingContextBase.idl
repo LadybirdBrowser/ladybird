@@ -1,3 +1,4 @@
+[ImplementedIn=Rust]
 dictionary WebGLContextAttributes {
     boolean alpha = true;
     boolean depth = true;
