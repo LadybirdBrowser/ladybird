@@ -24,6 +24,7 @@ endif()
 
 if (APPLE OR LINUX)
     list(APPEND TEST_SOURCES
+        TestLibCoreFile.cpp
         TestLibCoreProcess.cpp
         TestLibCoreStandardPaths.cpp
     )
