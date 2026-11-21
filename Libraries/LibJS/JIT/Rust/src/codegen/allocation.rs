@@ -37,7 +37,7 @@ pub(super) enum AllocationCall {
     Object(CellId, u32),
     /// `ArrayAllocationInfo::slow_path` with the element count.
     Array(u32),
-    /// `FunctionAllocationInfo::slow_path` with the closure template and
+    /// `FunctionAllocationInfo::slow_path` with the sample slot and
     /// the environments in the node's inputs.
     Function(CellId),
     /// `RuntimeInfo::create_lexical_environment` with the parent in the
@@ -229,7 +229,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                     self.masm.move_imm32(arguments[1], count);
                     self.masm.call_absolute(self.runtime.array_allocation.slow_path);
                 }
-                AllocationCall::Function(sample) => {
+                AllocationCall::Function(sample_slot) => {
                     // NB: The inputs may be in any argument register but
                     //     the first two.
                     let scratch = self.pinned.scratch;
@@ -237,7 +237,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                     self.masm.move64(arguments[2], self.input(allocation.node, 0));
                     self.masm.move64(arguments[3], scratch);
                     self.masm.move64(arguments[0], self.pinned.vm);
-                    self.masm.move_imm64(arguments[1], sample.0);
+                    self.masm.move_imm64(arguments[1], sample_slot.0);
                     self.masm.call_absolute(self.runtime.function_allocation.slow_path);
                 }
                 AllocationCall::Environment(shape_cache, capacity) => {
@@ -608,7 +608,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             .copied()
             .flatten()
             .ok_or(CompileFailure::CodeGeneration)?;
-        let (entry, resume) = self.defer_allocation(node, AllocationCall::Function(closure.sample));
+        let (entry, resume) = self.defer_allocation(node, AllocationCall::Function(closure.sample_slot));
         // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
         let (function, temp) = (self.temp(node, 0), self.temp(node, 1));
         let objects = self.runtime.object_allocation;

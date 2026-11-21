@@ -27,7 +27,7 @@ use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, Repr, ResumeMode, SiteKind, ValueLocation, VirtualObjectDescriptorKind};
 use libjs_runtime_macros::Trace;
 
-use super::allocation::clone_function;
+use super::allocation::{clone_function, sample_in};
 use super::code::{
     CompileState, EXIT_COUNT_BEFORE_DISCARD, FRUITLESS_LOOP_CHECKS_AFTER_EXIT, FrameState, InlinedFunction, JitCode,
     Site,
@@ -222,12 +222,12 @@ impl<'a> SiteValues<'a> {
         }
         let shape = match description.kind() {
             VirtualObjectDescriptorKind::Object { shape } => shape,
-            VirtualObjectDescriptorKind::Closure { sample } => {
-                // SAFETY: The code embeds the sample, which keeps it alive.
-                let sample = unsafe { Gc::from_non_null(NonNull::new(sample.0 as *mut _).expect("a sample")) };
+            VirtualObjectDescriptorKind::Closure { sample_slot } => {
+                // SAFETY: The code keeps the slots of its samples (see `SampleSlots`).
+                let sample_slot = unsafe { &*core::ptr::with_exposed_provenance::<Value>(sample_slot.0 as usize) };
                 let closure = clone_function(
                     self.vm,
-                    sample,
+                    sample_in(sample_slot),
                     read_cell_address(description.property(0).expect("a closure has environments"), self.dump),
                     read_cell_address(description.property(1).expect("a closure has environments"), self.dump),
                 )

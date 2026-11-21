@@ -291,7 +291,8 @@ unsafe impl Trace for ShapeStorage {
 // SAFETY: Visits the keys.
 unsafe impl Trace for OwnStringKeys {
     fn trace(&self, visitor: &mut Visitor) {
-        visitor.visit_values(&self.keys);
+        // SAFETY: The keys are the shape's own, which only with_own_string_keys() replaces, and nothing writes them.
+        unsafe { visitor.visit_owned_values(&self.keys) };
     }
 }
 

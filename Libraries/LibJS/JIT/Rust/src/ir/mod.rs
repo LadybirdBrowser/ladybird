@@ -427,11 +427,11 @@ pub enum VirtualObjectKind {
     /// A plain object of `shape`, whose properties are the inputs in offset
     /// order.
     Object { shape: CellId },
-    /// A closure like `sample`, the sample of the closure template the
-    /// `AllocateFunction` it stands for copies, with the lexical and private
-    /// environments in inputs 0 and 1: cell pointers, the latter null for
-    /// none.
-    Closure { sample: CellId },
+    /// A closure like the sample in `sample_slot`, of the closure template
+    /// the `AllocateFunction` it stands for copies, with the lexical and
+    /// private environments in inputs 0 and 1: cell pointers, the latter null
+    /// for none.
+    Closure { sample_slot: CellId },
 }
 
 /// Defines `Op` and `Op::name()`, the name of each variant, so that names cannot drift from the variants. Everything
@@ -827,14 +827,14 @@ define_ops! {
         /// an inlined one's), a copy of its closure template (see
         /// `FunctionAllocationInfo`) with the lexical environment (a cell
         /// pointer) in input 0 and the private environment in input 1. Like
-        /// `AllocateObject`, the node only allocates. `sample` is the sample
-        /// of the template. `legacy_caller` tells whether the frames of
+        /// `AllocateObject`, the node only allocates. `sample_slot` holds the
+        /// sample of the template. `legacy_caller` tells whether the frames of
         /// inlined calls of the closure show it as the legacy "caller" of the
         /// functions they call.
         AllocateFunction {
             executable: u32,
             shared_function_data_index: u32,
-            sample: CellId,
+            sample_slot: CellId,
             legacy_caller: bool,
         },
         /// A new lexical environment of the compiled function's
@@ -1632,6 +1632,7 @@ pub struct FrameState<'z> {
 pub struct Graph<'z> {
     /// Where the lists of the graph are, and where its nodes, blocks and frame states get their lists.
     pub zone: &'z Zone,
+    /// Every node the graph ever had: passes remove nodes from blocks, never from here.
     pub nodes: ZoneVec<'z, Node<'z>>,
     /// Blocks in linear order. Block 0 is the entry, and every block comes
     /// after all its predecessors except those reaching it over a loop back

@@ -134,7 +134,7 @@ const CALL_WORDS_WITH_OBJECTS: usize = 8;
 const OBJECT_WORDS: usize = 6;
 const OBJECT_KIND: usize = 0;
 const OBJECT_ALLOCATION: usize = 1;
-/// The shape or the sample, as two words.
+/// The shape or the sample slot, as two words.
 const OBJECT_CELL: usize = 2;
 /// Where the locations of the properties start in the run of a site.
 const OBJECT_PROPERTIES: usize = 4;
@@ -475,7 +475,7 @@ impl<'a> ArtifactWriter<'a> {
         for (kind, allocation, property_count) in objects {
             let (kind, cell) = match kind {
                 VirtualObjectDescriptorKind::Object { shape } => (OBJECT_KIND_OBJECT, shape),
-                VirtualObjectDescriptorKind::Closure { sample } => (OBJECT_KIND_CLOSURE, sample),
+                VirtualObjectDescriptorKind::Closure { sample_slot } => (OBJECT_KIND_CLOSURE, sample_slot),
             };
             let mut words = [0; OBJECT_WORDS];
             words[OBJECT_KIND] = kind;
@@ -1114,7 +1114,7 @@ impl<'a, W: Word> ObjectView<'a, W> {
         let cell = CellId(from_halves(&self.record[OBJECT_CELL..]));
         match self.record[OBJECT_KIND].word() {
             OBJECT_KIND_OBJECT => VirtualObjectDescriptorKind::Object { shape: cell },
-            OBJECT_KIND_CLOSURE => VirtualObjectDescriptorKind::Closure { sample: cell },
+            OBJECT_KIND_CLOSURE => VirtualObjectDescriptorKind::Closure { sample_slot: cell },
             kind => unreachable!("{kind} is no kind of object"),
         }
     }

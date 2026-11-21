@@ -1329,10 +1329,15 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// The `CellAddress` of the cell `value`, a constant for constants.
     fn cell_address(&mut self, value: NodeId) -> NodeId {
         match self.graph.constant_value(value) {
-            Some(bits) => self.typed_constant(
-                self.runtime.heap_region_base + (bits & self.runtime.heap_region_offset_mask),
-                Repr::Pointer,
-            ),
+            Some(bits) => {
+                let address = self.runtime.heap_region_base + (bits & self.runtime.heap_region_offset_mask);
+                // NB: Only checks that always exit see constants that hold no cell.
+                let pattern = self.runtime.shifted_is_cell_pattern;
+                if bits & pattern == pattern {
+                    self.embed(CellId(address));
+                }
+                self.typed_constant(address, Repr::Pointer)
+            }
             None => self.emit(Op::CellAddress, &[value], Some(Repr::Pointer)),
         }
     }

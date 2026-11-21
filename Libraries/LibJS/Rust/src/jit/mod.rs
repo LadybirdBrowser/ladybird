@@ -121,6 +121,8 @@ pub struct CompileJob {
     pub executable: Gc<Executable>,
     pub cells: Vec<Gc<CellHeader>>,
     pub snapshot_executables: Vec<SnapshotExecutable>,
+    #[gc(untraced = "the cells keep the samples alive and in place until the code is installed")]
+    pub sample_slots: allocation::SampleSlots,
 }
 
 /// With the "stress-install" option, finished compile jobs wait for at most this many tier-up checks.

@@ -45,7 +45,10 @@ impl<'vm> Sweep<'vm> {
     /// Whether the collection may move cells, which is when what holds cells without visiting their slots hands over
     /// the slots of those that survived (see record_slot()).
     pub fn moves_cells(&self) -> bool {
-        capi::gc_heap_is_moving_cells(self.0.heap().handle())
+        // NB: The VM lets go of its heap before the collection that destroys the heap, which moves nothing.
+        self.0
+            .heap_if_held()
+            .is_some_and(|heap| capi::gc_heap_is_moving_cells(heap.handle()))
     }
 
     /// Has the collection rewrite `slot`, which holds a cell that survived it, if the cell moves, as it rewrites the slots

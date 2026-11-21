@@ -592,19 +592,36 @@ fn closure_template(
     Some((sample, words))
 }
 
-/// The closure templates as the snapshot carries them, with their samples as cells the code embeds.
+/// The slots that hold the samples of the closure templates of JIT code, each in a box of its own, so that its address
+/// stays the same. The code passes the address of a slot to `libjs_jit_clone_function()` and keeps it in the
+/// descriptions of the closures it never allocated, rather than embedding the sample, so that the sample can move: the
+/// code keeps the slots, and visits them as owned values (see Visitor::visit_owned_values()).
+pub type SampleSlots = Vec<Box<Value>>;
+
+/// The closure templates as the snapshot carries them, with the samples in slots added to `sample_slots`. `cell` notes
+/// a cell the snapshot refers to: the samples, until the code is installed, and the cells the words refer to, which
+/// the code embeds.
 pub fn closure_template_snapshots(
     templates: ClosureTemplates,
-    mut cell: impl FnMut(Gc<EcmascriptFunctionObject>) -> CellId,
+    mut cell: impl FnMut(Gc<CellHeader>) -> CellId,
+    sample_slots: &mut SampleSlots,
     _defer_gc: &DeferGc<'_>,
     snapshot: &mut SnapshotWriter,
 ) -> List<Option<ClosureTemplateSnapshot>> {
     let rows = snapshot.begin();
     for template in templates {
-        snapshot.push(template.map(|(sample, words)| ClosureTemplateSnapshot {
-            sample: cell(sample),
-            words,
-            inline_executable: None,
+        snapshot.push(template.map(|(sample, words)| {
+            cell(sample.upcast());
+            let slot = Box::new(Value::from_object(sample.upcast::<Object>()));
+            let sample_slot = CellId(core::ptr::from_ref::<Value>(&slot).expose_provenance() as u64);
+            sample_slots.push(slot);
+            ClosureTemplateSnapshot {
+                sample_slot,
+                shape: cell(sample.shape().upcast()),
+                shared_data: cell(sample.shared_data().upcast()),
+                words,
+                inline_executable: None,
+            }
         }));
     }
     snapshot.end(rows)
@@ -645,18 +662,27 @@ pub extern "C" fn libjs_jit_allocate_array(vm: &Vm, count: u32) -> *mut Array {
     array.as_ptr()
 }
 
-/// `ECMAScriptFunctionObject* libjs_jit_clone_function(VM*, ECMAScriptFunctionObject* sample, Environment*,
+/// `ECMAScriptFunctionObject* libjs_jit_clone_function(VM*, Value const* sample_slot, Environment*,
 /// PrivateEnvironment*)`: a closure like the sample of a closure template, with the given environments.
 ///
-/// JIT code calls this with its VM, a sample it embeds and live environments (or null private environment).
+/// JIT code calls this with its VM, a slot that holds a sample, which the code keeps (see `SampleSlots`), and live
+/// environments (or null private environment).
 #[jit_abi]
 pub extern "C" fn libjs_jit_clone_function(
     vm: &Vm,
-    sample: Gc<EcmascriptFunctionObject>,
+    sample_slot: &Value,
     environment: Option<Gc<Environment>>,
     private_environment: Option<Gc<PrivateEnvironment>>,
 ) -> *mut EcmascriptFunctionObject {
-    clone_function(vm, sample, environment, private_environment).as_ptr()
+    clone_function(vm, sample_in(sample_slot), environment, private_environment).as_ptr()
+}
+
+/// The sample a slot of `SampleSlots` holds.
+pub fn sample_in(sample_slot: &Value) -> Gc<EcmascriptFunctionObject> {
+    sample_slot
+        .as_cell()
+        .downcast::<EcmascriptFunctionObject>()
+        .expect("a sample slot holds an ECMAScript function")
 }
 
 /// A closure like the sample of a closure template, with the given environments.

@@ -26,6 +26,7 @@ use crate::code::Repr;
 use crate::ir::FrameField;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::snapshot::ClosureTemplateSnapshot;
 use crate::snapshot::ObjectShapeCacheSnapshot;
 use crate::snapshot::ShapeSnapshot;
 
@@ -179,10 +180,15 @@ impl GraphBuilder<'_, '_> {
         if has_home_object {
             return Ok(false);
         }
-        let Some((sample, inline_executable)) = self.snapshot[self.function.executable.closure_templates]
+        let Some(&ClosureTemplateSnapshot {
+            sample_slot,
+            shape,
+            shared_data,
+            inline_executable,
+            ..
+        }) = self.snapshot[self.function.executable.closure_templates]
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)
-            .map(|closure| (closure.sample, closure.inline_executable))
         else {
             return Ok(false);
         };
@@ -191,7 +197,8 @@ impl GraphBuilder<'_, '_> {
         //     they are not strict, arrow functions and methods included.
         let legacy_caller =
             inline_executable.is_some_and(|index| self.snapshot.executables[index as usize].is_non_strict_function());
-        self.embed(sample);
+        self.embed(shape);
+        self.embed(shared_data);
         let environment = self.frame_field(FrameField::LexicalEnvironment)?;
         // NB: Only inlined functions without a private environment have closure templates, but the frames of inlined
         //     closures have the environments of the closure.
@@ -205,7 +212,7 @@ impl GraphBuilder<'_, '_> {
             Op::AllocateFunction {
                 executable: self.function.index,
                 shared_function_data_index,
-                sample,
+                sample_slot,
                 legacy_caller,
             },
             &[environment, private_environment],
