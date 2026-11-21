@@ -128,7 +128,7 @@ impl ScriptNames {
     }
 
     #[inline(always)]
-    fn facts_of(&mut self, tree: &SyntaxTree, name: Name) -> NameFacts {
+    fn facts_of(&mut self, tree: &SyntaxTree<'_>, name: Name) -> NameFacts {
         let index = name.0 as usize;
         if index >= self.facts.len() || self.facts[index].hash == 0 {
             return self.learn(tree, name);
@@ -137,7 +137,7 @@ impl ScriptNames {
     }
 
     #[cold]
-    fn learn(&mut self, tree: &SyntaxTree, name: Name) -> NameFacts {
+    fn learn(&mut self, tree: &SyntaxTree<'_>, name: Name) -> NameFacts {
         let index = name.0 as usize;
         if index >= self.facts.len() {
             let unknown = NameFacts {
@@ -155,7 +155,7 @@ impl ScriptNames {
     }
 
     #[inline(always)]
-    fn fly_string(&mut self, tree: &SyntaxTree, name: Name) -> &Utf16FlyString {
+    fn fly_string(&mut self, tree: &SyntaxTree<'_>, name: Name) -> &Utf16FlyString {
         let index = name.0 as usize;
         if index >= self.fly_strings.len() {
             self.fly_strings.resize((index + 1).next_power_of_two(), None);
@@ -267,7 +267,7 @@ impl Table {
     }
 
     #[inline(always)]
-    fn intern_name(&mut self, tree: &SyntaxTree, name: Name, hash: u64) -> u32 {
+    fn intern_name(&mut self, tree: &SyntaxTree<'_>, name: Name, hash: u64) -> u32 {
         let entries = &self.entries;
         let text = tree.name_text(name);
         let found = self.index_of.find(hash, |index| match &entries[index as usize] {
@@ -285,7 +285,7 @@ impl Table {
         }
     }
 
-    fn intern_text(&mut self, tree: &SyntaxTree, script_names: &mut ScriptNames, text: Utf16View<'_>) -> u32 {
+    fn intern_text(&mut self, tree: &SyntaxTree<'_>, script_names: &mut ScriptNames, text: Utf16View<'_>) -> u32 {
         let hash = hash_of_units(text);
         let entries = &self.entries;
         let found = self.index_of.find(hash, |index| match &entries[index as usize] {
@@ -319,7 +319,7 @@ pub(super) struct NameTables {
 macro_rules! define_intern_methods {
     ($name_method:ident, $text_method:ident, $index_type:ident, $table:ident, $slot_field:ident) => {
         #[inline(always)]
-        pub(super) fn $name_method(&mut self, tree: &SyntaxTree, name: Name) -> $index_type {
+        pub(super) fn $name_method(&mut self, tree: &SyntaxTree<'_>, name: Name) -> $index_type {
             let index = self.name_indices.slot_of(name).$slot_field;
             if index != NO_INDEX {
                 return $index_type(index);
@@ -330,7 +330,7 @@ macro_rules! define_intern_methods {
             $index_type(index)
         }
 
-        pub(super) fn $text_method(&mut self, tree: &SyntaxTree, text: Utf16View<'_>) -> $index_type {
+        pub(super) fn $text_method(&mut self, tree: &SyntaxTree<'_>, text: Utf16View<'_>) -> $index_type {
             $index_type(self.$table.intern_text(tree, &mut self.script_names, text))
         }
     };
@@ -356,12 +356,12 @@ impl NameTables {
         identifiers,
         identifier
     );
-    pub(super) fn intern_string_text(&mut self, tree: &SyntaxTree, text: Utf16View<'_>) -> StringTableIndex {
+    pub(super) fn intern_string_text(&mut self, tree: &SyntaxTree<'_>, text: Utf16View<'_>) -> StringTableIndex {
         StringTableIndex(self.strings.intern_text(tree, &mut self.script_names, text))
     }
 
     #[inline(always)]
-    pub(super) fn intern_property_key(&mut self, tree: &SyntaxTree, name: Name) -> PropertyKeyTableIndex {
+    pub(super) fn intern_property_key(&mut self, tree: &SyntaxTree<'_>, name: Name) -> PropertyKeyTableIndex {
         let index = self.name_indices.slot_of(name).property_key;
         if index != NO_INDEX {
             return PropertyKeyTableIndex(index);
@@ -375,7 +375,11 @@ impl NameTables {
         PropertyKeyTableIndex(index)
     }
 
-    pub(super) fn intern_property_key_text(&mut self, tree: &SyntaxTree, text: Utf16View<'_>) -> PropertyKeyTableIndex {
+    pub(super) fn intern_property_key_text(
+        &mut self,
+        tree: &SyntaxTree<'_>,
+        text: Utf16View<'_>,
+    ) -> PropertyKeyTableIndex {
         let index = self.property_keys.intern_text(tree, &mut self.script_names, text);
         if text == utf16!("length") {
             self.length_property_key = Some(index);
@@ -384,7 +388,7 @@ impl NameTables {
     }
 
     #[inline(always)]
-    pub(super) fn class_of(&mut self, tree: &SyntaxTree, name: Name) -> NameClass {
+    pub(super) fn class_of(&mut self, tree: &SyntaxTree<'_>, name: Name) -> NameClass {
         self.script_names.facts_of(tree, name).class
     }
 
@@ -396,7 +400,7 @@ impl NameTables {
     /// The text of an entry of the identifier table as a fly string, which is what environment scopes know names by.
     pub(super) fn identifier_fly_string(
         &mut self,
-        tree: &SyntaxTree,
+        tree: &SyntaxTree<'_>,
         identifier: IdentifierTableIndex,
     ) -> Utf16FlyString {
         match &self.identifiers.entries[identifier.0 as usize] {
@@ -412,7 +416,7 @@ impl NameTables {
     }
 
     /// The fly string of a name, which only takes the global table once per name of a script on this thread.
-    pub(super) fn fly_string_of(&mut self, tree: &SyntaxTree, name: Name) -> Utf16FlyString {
+    pub(super) fn fly_string_of(&mut self, tree: &SyntaxTree<'_>, name: Name) -> Utf16FlyString {
         self.script_names.fly_string(tree, name).clone()
     }
 
@@ -430,7 +434,7 @@ impl NameTables {
     /// strings, which few executables have, on their own.
     pub(super) fn take_tables(
         &mut self,
-        tree: &SyntaxTree,
+        tree: &SyntaxTree<'_>,
         block: &mut SliceBlockBuilder,
         link_block: &mut SliceBlockBuilder,
     ) -> (

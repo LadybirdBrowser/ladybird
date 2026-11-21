@@ -1699,7 +1699,7 @@ impl Generator<'_> {
     fn note_function_resolutions(&mut self, row: u32) {
         let has_direct_eval = self.has_direct_eval();
         let unbound = self.unbound_resolution();
-        let tree: &SyntaxTree = self.tree;
+        let tree: &SyntaxTree<'_> = self.tree;
         let index = &tree.script.index;
         let captures = index.capture_start[row as usize] as usize;
         let capture_count = index.capture_count[row as usize] as usize;
@@ -2030,7 +2030,7 @@ impl Generator<'_> {
 
     /// Finishes the function: what the functions nested in it need, what the function object needs, and the code.
     pub(super) fn finish_function(&mut self) -> PrecompiledFunction {
-        let tree: &SyntaxTree = self.tree;
+        let tree: &SyntaxTree<'_> = self.tree;
         let script = &tree.script;
         let index = &script.index;
         let row = self.context.scope.row;

@@ -235,9 +235,10 @@ pub(crate) const UNUSED_NAME: NameState = NameState {
     stamp: 0,
 };
 
-/// A parser, whose work data is in a zone. It lives as long as one parse job: the first parse of a source, or the
-/// parse of one function again.
-pub struct Parser<'a, U: Unit> {
+/// A parser, whose work data is in a zone for `'a`. It lives as long as one parse job: the first parse of a source, or
+/// the parse of one function again, which borrows the names of the source and their states from its reparse context for
+/// `'k`.
+pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) zone: &'a Zone,
     /// Where in `rows_by_params_start` the last lookup ended up.
     row_cursor: core::cell::Cell<usize>,
@@ -274,9 +275,9 @@ pub struct Parser<'a, U: Unit> {
     pub(crate) prev_start: u32,
     pub(crate) regex_body_end: u32,
     pub(crate) name_buffer: ZoneVec<'a, u8>,
-    pub interner: Interner<'a>,
+    pub interner: Interner<'k>,
 
-    pub ast: Ast,
+    pub ast: Ast<'a>,
     pub index: FunctionIndex,
     pub(crate) scratch: ZoneVec<'a, u32>,
     pub(crate) mode: Mode,
@@ -306,7 +307,7 @@ pub struct Parser<'a, U: Unit> {
 
     /// The state of each name, by its id. A parse of a function again has the states of its reparse context, which
     /// are all clean when it starts and ends.
-    pub(crate) names: &'a mut [NameState],
+    pub(crate) names: &'k mut [NameState],
     pub(crate) uses: ZoneVec<'a, UseRow>,
     pub(crate) decls: ZoneVec<'a, DeclRow>,
     pub(crate) scopes: ZoneVec<'a, Scope>,
@@ -389,7 +390,7 @@ pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
 
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
-impl<'a, U: Unit> Parser<'a, U> {
+impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// A parser for the first parse of `source`, with its work data in `zone`.
     ///
     /// # Safety
@@ -469,12 +470,13 @@ impl<'a, U: Unit> Parser<'a, U> {
     pub(crate) unsafe fn for_reparsing(
         zone: &'a Zone,
         module: bool,
-        interner: Interner<'a>,
-        names: &'a mut [NameState],
+        interner: Interner<'k>,
+        names: &'k mut [NameState],
         stamp: u32,
         index: FunctionIndex,
         first_pass_index: &FunctionIndex,
         source_length: u32,
+        estimated_nodes: usize,
     ) -> Self {
         let mut parser = Self::with_capacities(
             zone,
@@ -485,7 +487,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             interner,
             names,
             index,
-            256,
+            estimated_nodes,
             256,
         );
         parser.stamp = stamp;
@@ -500,8 +502,8 @@ impl<'a, U: Unit> Parser<'a, U> {
         length: usize,
         module: bool,
         mode: Mode,
-        interner: Interner<'a>,
-        names: &'a mut [NameState],
+        interner: Interner<'k>,
+        names: &'k mut [NameState],
         index: FunctionIndex,
         estimated_nodes: usize,
         estimated_uses: usize,
@@ -534,7 +536,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             regex_body_end: 0,
             name_buffer: ZoneVec::new_in(zone),
             interner,
-            ast: Ast::with_capacity(estimated_nodes),
+            ast: Ast::with_capacity(zone, estimated_nodes),
             index,
             scratch: ZoneVec::with_capacity_in(estimated_uses.min(4096), zone),
             mode,
@@ -647,8 +649,13 @@ impl<'a, U: Unit> Parser<'a, U> {
     }
 
     /// Goes through the top level once more with marks for a sweep, past all functions, after a parse that went well.
-    pub(crate) fn parse_top_level_rows(&mut self, context: ProgramContext) -> Result<(Ast, u32), super::OutOfStack> {
-        let tree = std::mem::replace(&mut self.ast, Ast::with_capacity(256));
+    pub(crate) fn parse_top_level_rows(
+        &mut self,
+        context: ProgramContext,
+    ) -> Result<(Ast<'a>, u32), super::OutOfStack> {
+        // NB: The rows are those of the tree, and marks.
+        let rows = Ast::with_capacity(self.zone, self.ast.tag.len());
+        let tree = std::mem::replace(&mut self.ast, rows);
         let private_names = self.eval_referenced_private_names.take();
         let (first_token_start, strict, has_top_level_await) =
             (self.first_token_start, self.strict, self.has_top_level_await);
@@ -2210,7 +2217,7 @@ impl<'a, U: Unit> Parser<'a, U> {
 
     /// Ends the parse of a function again, whether it went well or not. Gives back the tree, and the index and the stamp
     /// for the reparse context, whose name states are clean again.
-    pub(crate) fn end_reparse(mut self) -> (Ast, FunctionIndex, u32) {
+    pub(crate) fn end_reparse(mut self) -> (Ast<'a>, FunctionIndex, u32) {
         self.finish_reparse();
         (self.ast, self.index, self.stamp)
     }

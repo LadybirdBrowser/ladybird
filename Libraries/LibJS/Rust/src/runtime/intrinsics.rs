@@ -842,9 +842,9 @@ pub(crate) fn parse_builtin_file<'vm>(
     script_text: &'static str,
 ) -> MarkedVec<'vm, Gc<SharedFunctionInstanceData>> {
     // Every realm on this thread declares the same builtin files, so each is parsed once and its parse shared.
-    type ParsedBuiltinFile = (Rc<SourceCode>, crate::compile::ParsedProgram);
+    type BuiltinFile = (Rc<SourceCode>, crate::compile::ParsedBuiltinFile);
     thread_local! {
-        static PARSED_BUILTIN_FILES: RefCell<HashMap<(usize, usize), Rc<ParsedBuiltinFile>>> =
+        static PARSED_BUILTIN_FILES: RefCell<HashMap<(usize, usize), Rc<BuiltinFile>>> =
             RefCell::new(HashMap::new());
     }
     let parsed_file = PARSED_BUILTIN_FILES.with(|files| {

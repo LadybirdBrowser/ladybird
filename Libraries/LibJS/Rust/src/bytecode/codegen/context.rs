@@ -95,7 +95,7 @@ thread_local! {
 
 /// The state of generating code for one function.
 pub struct Generator<'t> {
-    pub(super) tree: &'t SyntaxTree,
+    pub(super) tree: &'t SyntaxTree<'t>,
     pub(super) context: ManuallyDrop<Box<CodegenContext>>,
 
     pub(super) current_source_offset: SourceOffset,
@@ -176,7 +176,7 @@ impl Drop for Generator<'_> {
 }
 
 impl<'t> Generator<'t> {
-    pub(super) fn new(tree: &'t SyntaxTree, enclosing_code: Arc<EnclosingCode>, stack_limit: usize) -> Self {
+    pub(super) fn new(tree: &'t SyntaxTree<'t>, enclosing_code: Arc<EnclosingCode>, stack_limit: usize) -> Self {
         let mut context = SPARE_CONTEXT.take().unwrap_or_default();
         context.names.begin_compile(&tree.script);
         Self {

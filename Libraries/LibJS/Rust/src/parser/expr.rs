@@ -52,7 +52,7 @@ pub(crate) fn is_name_like(kind: T) -> bool {
     kind == T::Name || kind == T::EscapedKeyword || kind as u8 >= T::KIn as u8
 }
 
-impl<U: Unit> Parser<'_, U> {
+impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     pub(crate) fn parse_expression(&mut self, no_in: bool, cover_ok: bool) -> u32 {
         let start = self.tok_start;
         let first = self.parse_assign(no_in, cover_ok);

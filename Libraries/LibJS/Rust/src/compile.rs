@@ -35,9 +35,11 @@ use crate::parser::OutOfStack;
 use crate::parser::ParseError;
 use crate::parser::ParseOptions;
 use crate::parser::ScriptData;
+use crate::parser::TopLevelRows;
 use crate::parser::check_syntax;
-use crate::parser::parse_to_tree;
+use crate::parser::with_parsed_tree;
 use crate::utf16::Utf16View;
+use crate::work_zone::with_work_zone;
 use ak::Utf16String;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -53,7 +55,6 @@ const _: fn() = || {
     assert_send::<CompiledModule>();
     assert_send_and_sync::<bytecode::executable_data::PrecompiledFunction>();
     assert_send_and_sync::<ExecutableData>();
-    assert_send_and_sync::<SyntaxTree>();
     assert_send_and_sync::<ScriptData>();
 };
 
@@ -63,34 +64,31 @@ const _: fn() = || {
 
 /// A parsed program (script or module) that can be compiled later.
 /// Contains no GC references, so it can safely be transferred between threads.
+///
+/// The tree of a program lives only as long as the job of its parse, so the parse of a program without errors compiles
+/// its top-level code right away, and this holds that code. All that compiling it later does is compile the functions
+/// that it calls right away, if the caller wants them compiled now.
 pub struct ParsedProgram {
-    /// The tree, unless the program has errors.
-    pub(crate) tree: Option<Arc<SyntaxTree>>,
+    /// The code of the program, unless the program has errors.
+    code: Option<TopLevelCode>,
     pub(crate) program_type: ast::ProgramType,
     pub(crate) is_strict_mode: bool,
     pub(crate) has_top_level_await: bool,
     pub(crate) errors: Vec<ParseError>,
     pub(crate) ast_dump: Option<String>,
+    source: Utf16String,
     options: ParseOptions,
 }
 
+/// The top-level code of a program and its declarations, which the parse of the program compiles in its job.
+struct TopLevelCode {
+    /// The code, in which the functions that it calls right away are marked for an eager compile.
+    executable: ExecutableData,
+    declarations: CompiledProgramDeclarations,
+    script: Arc<ScriptData>,
+}
+
 impl ParsedProgram {
-    fn from_tree(tree: SyntaxTree, options: ParseOptions) -> Self {
-        Self {
-            program_type: tree.program_type(),
-            is_strict_mode: tree.is_strict_mode(),
-            has_top_level_await: tree.has_top_level_await(),
-            tree: Some(Arc::new(tree)),
-            errors: Vec::new(),
-            ast_dump: None,
-            options,
-        }
-    }
-
-    pub(crate) fn tree(&self) -> &Arc<SyntaxTree> {
-        self.tree.as_ref().expect("a program without errors has a tree")
-    }
-
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
@@ -115,18 +113,25 @@ impl ParsedProgram {
     /// first use.
     pub fn ast_dump(&mut self) -> &str {
         self.ast_dump.get_or_insert_with(|| {
-            let source = &self.tree.as_ref().expect("the program has a tree").source;
             let mut options = self.options;
             options.keep_whole_tree = true;
-            let tree = parse_to_tree(source, &options)
+            with_parsed_tree(&self.source, &options, |tree, _| ast_dump::dump_program_to_string(tree))
                 .ok()
-                .expect("a program without errors parses the same way again");
-            ast_dump::dump_program_to_string(&Arc::new(tree))
+                .expect("a program without errors parses the same way again")
         })
+    }
+
+    /// The code of a program without errors, with the functions that it calls right away compiled now if
+    /// `compile_direct_iifes`.
+    fn into_code(self, compile_direct_iifes: bool) -> TopLevelCode {
+        let mut code = self.code.expect("a program without errors has code");
+        finish_top_level_code(&mut code.executable, compile_direct_iifes);
+        code
     }
 }
 
-/// Lex and parse a script or module, then run scope analysis on it.
+/// Lex and parse a script or module, then run scope analysis on it, and compile its top-level code if it has no
+/// errors, all in one job.
 ///
 /// Errors are reported through the returned program rather than by failing,
 /// so check [`ParsedProgram::has_errors()`] before compiling it. Lines are
@@ -140,17 +145,41 @@ pub fn parse(source: &ak::Utf16String, program_type: ProgramType, initial_line_n
     };
     let mut options = ParseOptions::new(program_type);
     options.initial_line_number = crate::u32_from_usize(initial_line_number);
-    match parse_to_tree(source, &options) {
-        Ok(tree) => ParsedProgram::from_tree(tree, options),
-        Err(errors) => ParsedProgram {
-            tree: None,
-            program_type,
-            is_strict_mode: false,
-            has_top_level_await: false,
-            errors,
-            ast_dump: None,
-            options,
-        },
+    let parsed = with_parsed_tree(source, &options, |tree, top_level_rows| {
+        let has_top_level_await = tree.has_top_level_await();
+        let declarations = match program_type {
+            ProgramType::Script => CompiledProgramDeclarations::Script(Arc::new(collect_script_declarations(tree))),
+            ProgramType::Module => CompiledProgramDeclarations::Module(Arc::new(collect_module_declarations(tree))),
+        };
+        let code = TopLevelCode {
+            executable: compile_program(
+                tree,
+                top_level_rows,
+                ProgramOptions {
+                    strict: has_top_level_await || tree.is_strict_mode(),
+                    is_async_module: has_top_level_await,
+                },
+            ),
+            declarations,
+            script: tree.script.clone(),
+        };
+        (code, tree.is_strict_mode(), has_top_level_await)
+    });
+    let (code, is_strict_mode, has_top_level_await, errors) = match parsed {
+        Ok((code, is_strict_mode, has_top_level_await)) => {
+            (Some(code), is_strict_mode, has_top_level_await, Vec::new())
+        }
+        Err(errors) => (None, false, false, errors),
+    };
+    ParsedProgram {
+        code,
+        program_type,
+        is_strict_mode,
+        has_top_level_await,
+        errors,
+        ast_dump: None,
+        source: source.clone(),
+        options,
     }
 }
 
@@ -176,7 +205,7 @@ enum CompiledProgramDeclarations {
 }
 
 /// The scope of the program of `tree`.
-fn program_scope(tree: &SyntaxTree) -> ast::Scope<'_> {
+fn program_scope<'a>(tree: &'a SyntaxTree<'a>) -> ast::Scope<'a> {
     let StatementKind::Program(data) = tree.program().kind() else {
         unreachable!("the root of a tree is a program");
     };
@@ -202,21 +231,12 @@ pub fn compile_script(parsed: ParsedProgram) -> CompiledScript {
         !parsed.has_errors(),
         "compile_script() needs a script without parse errors"
     );
-
-    let tree = parsed.tree().clone();
-    let executable = Arc::new(compile_program(
-        &tree,
-        ProgramOptions {
-            strict: parsed.is_strict_mode,
-            is_async_module: false,
-            eager_compile_direct_iifes: false,
-        },
-    ));
-
-    let declarations = Arc::new(collect_script_declarations(&tree));
-
+    let code = parsed.into_code(false);
+    let CompiledProgramDeclarations::Script(declarations) = code.declarations else {
+        unreachable!("a script has the declarations of a script");
+    };
     CompiledScript {
-        executable,
+        executable: Arc::new(code.executable),
         declarations,
     }
 }
@@ -230,23 +250,47 @@ fn stack_limit_of_this_thread() -> usize {
     }
 }
 
+/// Compiles the functions that `executable`, the top-level code of a program, calls right away if `compile_direct_iifes`,
+/// and otherwise leaves them to compile when they are first called.
+fn finish_top_level_code(executable: &mut ExecutableData, compile_direct_iifes: bool) {
+    let stack_limit = stack_limit_of_this_thread();
+    // NB: Each function compiles in a job of its own (see `compile_function()`), after the job of the parse of the
+    //     program is done, so that jobs never nest.
+    for pending in executable.shared_function_data.iter_mut() {
+        if !pending.should_eager_compile {
+            continue;
+        }
+        if compile_direct_iifes {
+            pending.precompiled_function = compile_function(&pending.description.payload, false, stack_limit)
+                .ok()
+                .map(Arc::new);
+        } else {
+            pending.should_eager_compile = false;
+        }
+    }
+}
+
 /// What the kinds of programs differ in, as far as generating their code goes.
 #[derive(Clone, Copy)]
 struct ProgramOptions {
     strict: bool,
     /// Whether the program is a module with top-level await, which runs like an async function.
     is_async_module: bool,
-    eager_compile_direct_iifes: bool,
 }
 
-/// Generates the code of the program of `tree`.
-fn compile_program(tree: &Arc<SyntaxTree>, options: ProgramOptions) -> ExecutableData {
+/// Generates the code of the program of `tree` from the rows of its top level. The functions that it calls right away
+/// are marked for an eager compile, which is up to the caller.
+fn compile_program<'z>(
+    tree: &SyntaxTree<'z>,
+    top_level_rows: TopLevelRows<'z>,
+    options: ProgramOptions,
+) -> ExecutableData {
     let is_module = options.is_async_module || tree.program_type() == ProgramType::Module;
     let input = bytecode::codegen::ProgramInput {
         tree,
+        top_level_rows,
         strict: options.strict,
         is_async_module: options.is_async_module,
-        eager_compile_direct_iifes: options.eager_compile_direct_iifes,
         enclosing_environment_scope: is_module.then(|| module_environment_scope(&program_scope(tree))),
         stack_limit: stack_limit_of_this_thread(),
     };
@@ -264,34 +308,22 @@ pub fn compile_parsed_program_off_thread(parsed: ParsedProgram) -> CompiledProgr
         !parsed.has_errors(),
         "compile_parsed_program_off_thread() needs a program without parse errors"
     );
-    let tree = parsed.tree().clone();
-    let executable = Arc::new(compile_program(
-        &tree,
-        ProgramOptions {
-            strict: parsed.has_top_level_await || parsed.is_strict_mode,
-            is_async_module: parsed.has_top_level_await,
-            eager_compile_direct_iifes: true,
-        },
-    ));
-    let declarations = match parsed.program_type {
-        ProgramType::Script => CompiledProgramDeclarations::Script(Arc::new(collect_script_declarations(&tree))),
-        ProgramType::Module => CompiledProgramDeclarations::Module(Arc::new(collect_module_declarations(&tree))),
-    };
+    let (program_type, has_top_level_await) = (parsed.program_type, parsed.has_top_level_await);
+    let code = parsed.into_code(true);
 
-    tree.script.index.prepare_for_reparsing();
+    code.script.index.prepare_for_reparsing();
 
-    let declarations_size = match &declarations {
+    let declarations_size = match &code.declarations {
         CompiledProgramDeclarations::Script(declarations) => declarations.memory_size(),
         CompiledProgramDeclarations::Module(declarations) => declarations.memory_size(),
     };
-
     CompiledProgram {
-        program_type: parsed.program_type,
-        has_top_level_await: parsed.has_top_level_await,
-        top_level_size: executable.memory_size() + declarations_size,
-        executable,
-        declarations,
-        script: tree.script.clone(),
+        program_type,
+        has_top_level_await,
+        top_level_size: code.executable.memory_size() + declarations_size,
+        executable: Arc::new(code.executable),
+        declarations: code.declarations,
+        script: code.script,
     }
 }
 
@@ -615,9 +647,10 @@ pub struct EvalContext {
     pub in_class_field_initializer: bool,
 }
 
-/// The code of an eval, parsed and analyzed without errors.
+/// The code of an eval, parsed and analyzed without errors, which its parse also compiled, as the tree of the code
+/// lives only as long as the job of the parse.
 pub struct ParsedEval {
-    pub(crate) tree: Arc<SyntaxTree>,
+    compiled: CompiledEval,
 }
 
 /// Parses the code of an eval, or returns its syntax errors and then its early errors.
@@ -629,8 +662,22 @@ pub fn parse_eval(source: &ak::Utf16String, context: EvalContext) -> Result<Pars
     options.allow_super_property_lookup = context.allow_super_property_lookup;
     options.allow_super_constructor_call = context.allow_super_constructor_call;
     options.in_class_field_initializer = context.in_class_field_initializer;
-    Ok(ParsedEval {
-        tree: Arc::new(parse_to_tree(source, &options)?),
+    with_parsed_tree(source, &options, |tree, top_level_rows| {
+        let mut executable = compile_program(
+            tree,
+            top_level_rows,
+            ProgramOptions {
+                strict: tree.is_strict_mode(),
+                is_async_module: false,
+            },
+        );
+        finish_top_level_code(&mut executable, false);
+        ParsedEval {
+            compiled: CompiledEval {
+                executable: Arc::new(executable),
+                declarations: collect_eval_declarations(tree),
+            },
+        }
     })
 }
 
@@ -642,20 +689,7 @@ pub struct CompiledEval {
 
 /// Compiles the code of an eval.
 pub fn compile_eval(parsed: ParsedEval) -> CompiledEval {
-    let tree = parsed.tree;
-    let executable = Arc::new(compile_program(
-        &tree,
-        ProgramOptions {
-            strict: tree.is_strict_mode(),
-            is_async_module: false,
-            eager_compile_direct_iifes: false,
-        },
-    ));
-    let declarations = collect_eval_declarations(&tree);
-    CompiledEval {
-        executable,
-        declarations,
-    }
+    parsed.compiled
 }
 
 // =============================================================================
@@ -745,7 +779,7 @@ impl ModuleDeclarations {
 }
 
 /// Collects what ParseModule records from a module's top-level scope.
-pub fn collect_module_declarations(tree: &Arc<SyntaxTree>) -> ModuleDeclarations {
+pub fn collect_module_declarations(tree: &SyntaxTree<'_>) -> ModuleDeclarations {
     use ast::ExportEntryKind;
 
     let scope = &program_scope(tree);
@@ -957,18 +991,12 @@ pub fn compile_module(parsed: ParsedProgram) -> CompiledModule {
         parsed.program_type == ProgramType::Module && !parsed.has_errors(),
         "compile_module() needs a module without parse errors"
     );
-    let tree = parsed.tree().clone();
-    let declarations = Arc::new(collect_module_declarations(&tree));
-    let executable = Arc::new(compile_program(
-        &tree,
-        ProgramOptions {
-            strict: true,
-            is_async_module: parsed.has_top_level_await,
-            eager_compile_direct_iifes: false,
-        },
-    ));
+    let code = parsed.into_code(false);
+    let CompiledProgramDeclarations::Module(declarations) = code.declarations else {
+        unreachable!("a module has the declarations of a module");
+    };
     CompiledModule {
-        executable,
+        executable: Arc::new(code.executable),
         declarations,
     }
 }
@@ -978,9 +1006,9 @@ pub fn compile_module(parsed: ParsedProgram) -> CompiledModule {
 // =============================================================================
 
 /// The source of a function that CreateDynamicFunction (new Function() and its relatives) builds, parsed and analyzed
-/// without errors.
+/// without errors, and what its parse found of the function, as the tree lives only as long as the job of the parse.
 pub struct ParsedDynamicFunction {
-    pub(crate) tree: Arc<SyntaxTree>,
+    description: Result<SharedFunctionDescription, Vec<ParseError>>,
 }
 
 // 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
@@ -1038,56 +1066,67 @@ pub fn parse_dynamic_function(
     let mut options = ParseOptions::new(ProgramType::Script);
     options.suppress_globals = true;
     Ok(ParsedDynamicFunction {
-        tree: Arc::new(parse_to_tree(full_source, &options)?),
+        description: with_parsed_tree(full_source, &options, |tree, _| describe_dynamic_function(tree))?,
     })
 }
 
 impl ParsedDynamicFunction {
     /// Describes the function the source defines.
     pub fn into_description(self) -> Result<SharedFunctionDescription, Vec<ParseError>> {
-        // The program is a single ExpressionStatement wrapping a FunctionExpression.
-        let function_id = program_scope(&self.tree)
-            .children
-            .iter()
-            .find_map(|child| match child.kind() {
-                StatementKind::FunctionDeclaration(function_declaration) => Some(function_declaration.function_id),
-                StatementKind::Expression(expression) => match expression.kind() {
-                    ast::ExpressionKind::Function(function_id) => Some(function_id),
-                    _ => None,
-                },
-                _ => None,
-            });
-        let Some(function_id) = function_id else {
-            return Err(vec![ParseError {
-                message: "Failed to parse dynamic function".to_string(),
-                line: 0,
-                column: 0,
-            }]);
-        };
-
-        let is_strict = self.tree.function(function_id).is_strict_mode;
-        Ok(describe_shared_function(
-            &self.tree,
-            function_id,
-            is_strict,
-            None,
-            None,
-            &EnclosingCode::of_program(&self.tree),
-        ))
+        self.description
     }
+}
+
+/// Describes the function that the source of a dynamic function defines.
+fn describe_dynamic_function(tree: &SyntaxTree<'_>) -> Result<SharedFunctionDescription, Vec<ParseError>> {
+    // The program is a single ExpressionStatement wrapping a FunctionExpression.
+    let function_id = program_scope(tree)
+        .children
+        .iter()
+        .find_map(|child| match child.kind() {
+            StatementKind::FunctionDeclaration(function_declaration) => Some(function_declaration.function_id),
+            StatementKind::Expression(expression) => match expression.kind() {
+                ast::ExpressionKind::Function(function_id) => Some(function_id),
+                _ => None,
+            },
+            _ => None,
+        });
+    let Some(function_id) = function_id else {
+        return Err(vec![ParseError {
+            message: "Failed to parse dynamic function".to_string(),
+            line: 0,
+            column: 0,
+        }]);
+    };
+
+    let is_strict = tree.function(function_id).is_strict_mode;
+    Ok(describe_shared_function(
+        tree,
+        function_id,
+        is_strict,
+        None,
+        None,
+        &EnclosingCode::of_program(tree),
+    ))
 }
 
 // =============================================================================
 // Builtin files
 // =============================================================================
 
+/// A file of builtin functions written in JavaScript, parsed: what its parse found of the named functions that it
+/// declares at its top level, in source order.
+pub struct ParsedBuiltinFile {
+    functions: Vec<SharedFunctionDescription>,
+}
+
 /// Parses a file of builtin functions written in JavaScript, which is strict code, and runs scope analysis on it.
 /// Builtin files ship with the engine, so a syntax error in one stops the process.
-pub fn parse_builtin_file(source: &ak::Utf16String) -> ParsedProgram {
+pub fn parse_builtin_file(source: &ak::Utf16String) -> ParsedBuiltinFile {
     let mut options = ParseOptions::new(ProgramType::Script);
     options.starts_in_strict_mode = true;
-    match parse_to_tree(source, &options) {
-        Ok(tree) => ParsedProgram::from_tree(tree, options),
+    match with_parsed_tree(source, &options, |tree, _| describe_named_functions(tree)) {
+        Ok(functions) => ParsedBuiltinFile { functions },
         Err(errors) => {
             let errors: Vec<String> = errors
                 .iter()
@@ -1098,9 +1137,8 @@ pub fn parse_builtin_file(source: &ak::Utf16String) -> ParsedProgram {
     }
 }
 
-/// Describes the named functions that a parsed builtin file declares at its top level, in source order.
-pub fn describe_builtin_file_functions(parsed: &ParsedProgram) -> Vec<SharedFunctionDescription> {
-    let tree = parsed.tree();
+/// Describes the named functions that the program of `tree` declares at its top level, in source order.
+fn describe_named_functions(tree: &SyntaxTree<'_>) -> Vec<SharedFunctionDescription> {
     let enclosing_code = EnclosingCode::of_program(tree);
     let mut descriptions = Vec::new();
     for child in &program_scope(tree).children {
@@ -1118,6 +1156,28 @@ pub fn describe_builtin_file_functions(parsed: &ParsedProgram) -> Vec<SharedFunc
         }
     }
     descriptions
+}
+
+/// Describes the named functions that a parsed builtin file declares at its top level, in source order. Each call
+/// gives the functions payloads of their own.
+pub fn describe_builtin_file_functions(parsed: &ParsedBuiltinFile) -> Vec<SharedFunctionDescription> {
+    parsed
+        .functions
+        .iter()
+        .map(|description| {
+            let payload = &description.payload;
+            SharedFunctionDescription {
+                payload: Arc::new(FunctionPayload {
+                    script: payload.script.clone(),
+                    row: payload.row,
+                    enclosing_environment_scope: payload.enclosing_environment_scope.clone(),
+                    enclosing_code: payload.enclosing_code.clone(),
+                    compiled: Mutex::new(None),
+                }),
+                ..description.clone()
+            }
+        })
+        .collect()
 }
 
 // =============================================================================
@@ -1195,7 +1255,7 @@ impl SharedFunctionDescription {
 
 /// Describes a function of `tree`, whose code does not have to be in the tree.
 pub fn describe_shared_function(
-    tree: &SyntaxTree,
+    tree: &SyntaxTree<'_>,
     function: FunctionId,
     is_strict: bool,
     name_override: Option<ak::Utf16FlyString>,
@@ -1282,7 +1342,7 @@ pub(crate) fn pending_function_of_row(
 impl PendingSharedFunctionData {
     /// Describes a function of `tree` that an executable creates.
     pub fn new(
-        tree: &SyntaxTree,
+        tree: &SyntaxTree<'_>,
         function: FunctionId,
         name_override: Option<ak::Utf16FlyString>,
         enclosing_environment_scope: Option<Arc<bytecode::codegen::EnclosingEnvironmentScope>>,
@@ -1346,14 +1406,17 @@ pub fn compile_function(
     }
 
     let stack_limit = stack_limit.saturating_add(STACK_FOR_SMALL_WALKS);
-    let compiled = bytecode::codegen::compile_function(
-        &payload.script,
-        payload.row,
-        payload.enclosing_environment_scope.clone(),
-        &payload.enclosing_code,
-        builtin_abstract_operations_enabled,
-        stack_limit,
-    )?;
+    let compiled = with_work_zone(|zone| {
+        bytecode::codegen::compile_function(
+            zone,
+            &payload.script,
+            payload.row,
+            payload.enclosing_environment_scope.clone(),
+            &payload.enclosing_code,
+            builtin_abstract_operations_enabled,
+            stack_limit,
+        )
+    })?;
 
     // NB: Code with builtin abstract operations is only for the builtins of the engine, whatever asked for it.
     if payload.script.retains_compiled_functions() && !builtin_abstract_operations_enabled {
@@ -1429,7 +1492,7 @@ impl ScriptDeclarations {
 }
 
 /// Collect what GlobalDeclarationInstantiation needs from a script's top-level scope.
-pub fn collect_script_declarations(tree: &Arc<SyntaxTree>) -> ScriptDeclarations {
+pub fn collect_script_declarations(tree: &SyntaxTree<'_>) -> ScriptDeclarations {
     use ast::DeclarationKind;
 
     let scope = program_scope(tree);
@@ -1469,7 +1532,7 @@ pub fn collect_script_declarations(tree: &Arc<SyntaxTree>) -> ScriptDeclarations
 }
 
 /// Collect what EvalDeclarationInstantiation needs from an eval script's top-level scope.
-pub fn collect_eval_declarations(tree: &Arc<SyntaxTree>) -> EvalDeclarations {
+pub fn collect_eval_declarations(tree: &SyntaxTree<'_>) -> EvalDeclarations {
     let declarations = collect_var_scoped_declarations(tree);
     EvalDeclarations {
         is_strict: tree.is_strict_mode(),
@@ -1494,7 +1557,7 @@ struct VarScopedDeclarations {
 /// initializations, var-scoped names, annex B names, and lexical bindings.
 ///
 /// Shared by both script and eval declaration instantiation.
-fn collect_var_scoped_declarations(tree: &Arc<SyntaxTree>) -> VarScopedDeclarations {
+fn collect_var_scoped_declarations(tree: &SyntaxTree<'_>) -> VarScopedDeclarations {
     use ast::DeclarationKind;
 
     let scope = program_scope(tree);
@@ -1755,16 +1818,6 @@ mod tests {
         assert!(payload.retained_code().is_none());
         compile_with_enough_stack(&payload, false);
         assert!(payload.retained_code().is_some());
-    }
-
-    #[test]
-    fn code_of_an_eval_does_not_keep_its_script_alive() {
-        let parsed = parse_eval(&Utf16String::from_utf8("1 + 1"), EvalContext::default())
-            .ok()
-            .expect("the source parses");
-        let script = Arc::downgrade(&parsed.tree.script);
-        let _compiled = compile_eval(parsed);
-        assert!(script.upgrade().is_none());
     }
 
     #[test]

@@ -50,7 +50,7 @@ fn hex_value(c: u32) -> Option<u32> {
     char::from_u32(c)?.to_digit(16)
 }
 
-impl<U: Unit> Parser<'_, U> {
+impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// The unit at `index`, which may be in the padding after the source.
     #[inline(always)]
     pub fn at(&self, index: usize) -> u32 {

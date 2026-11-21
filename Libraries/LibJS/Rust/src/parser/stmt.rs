@@ -55,7 +55,7 @@ impl VarKind {
     }
 }
 
-impl<U: Unit> Parser<'_, U> {
+impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     pub(crate) fn parse_statement_list_item(&mut self, top_level: bool) -> u32 {
         self.parse_statement(Context::List, top_level)
     }

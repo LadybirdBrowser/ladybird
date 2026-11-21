@@ -13,6 +13,9 @@
 use std::cell::Cell;
 use std::sync::OnceLock;
 
+use ak::Zone;
+use ak::ZoneVec;
+
 use crate::u32_from_usize;
 
 pub const NONE: u32 = u32::MAX;
@@ -118,47 +121,38 @@ pub mod tag {
     pub const CALL_DIRECT_EVAL: u8 = 239; pub const CALL_DIRECT_EVAL_ARRAY: u8 = 240;
 }
 
-pub struct Ast {
-    pub tag: Vec<u8>,
-    pub pos: Vec<u32>,
-    pub a: Vec<u32>,
-    pub b: Vec<u32>,
-    pub extra: Vec<u32>,
+/// The tree that a parse makes, as columns that grow in the work zone of the parse.
+pub struct Ast<'z> {
+    pub tag: ZoneVec<'z, u8>,
+    pub pos: ZoneVec<'z, u32>,
+    pub a: ZoneVec<'z, u32>,
+    pub b: ZoneVec<'z, u32>,
+    pub extra: ZoneVec<'z, u32>,
     /// One row per binding of every scope.
-    pub binding_name: Vec<u32>,
-    pub binding_flags: Vec<u32>,
+    pub binding_name: ZoneVec<'z, u32>,
+    pub binding_flags: ZoneVec<'z, u32>,
     /// One row per scope that has bindings: where its bindings start, and its flags.
-    pub scope_first_binding: Vec<u32>,
-    pub scope_flags: Vec<u32>,
+    pub scope_first_binding: ZoneVec<'z, u32>,
+    pub scope_flags: ZoneVec<'z, u32>,
 }
 
-impl Ast {
-    pub fn with_capacity(nodes: usize) -> Self {
+impl<'z> Ast<'z> {
+    pub fn with_capacity(zone: &'z Zone, nodes: usize) -> Self {
         let mut ast = Self {
-            tag: Vec::with_capacity(nodes),
-            pos: Vec::with_capacity(nodes),
-            a: Vec::with_capacity(nodes),
-            b: Vec::with_capacity(nodes),
-            extra: Vec::with_capacity(nodes / 2),
-            binding_name: Vec::new(),
-            binding_flags: Vec::new(),
-            scope_first_binding: Vec::new(),
-            scope_flags: Vec::new(),
+            tag: ZoneVec::with_capacity_in(nodes, zone),
+            pos: ZoneVec::with_capacity_in(nodes, zone),
+            a: ZoneVec::with_capacity_in(nodes, zone),
+            b: ZoneVec::with_capacity_in(nodes, zone),
+            extra: ZoneVec::with_capacity_in(nodes / 2, zone),
+            binding_name: ZoneVec::new_in(zone),
+            binding_flags: ZoneVec::new_in(zone),
+            scope_first_binding: ZoneVec::new_in(zone),
+            scope_flags: ZoneVec::new_in(zone),
         };
         // Node zero stands for "no node" and for what failed to parse, and so does offset zero for "no list".
         ast.push(tag::INVALID, 0, 0, 0);
         ast.extra.push(0);
         ast
-    }
-
-    /// Goes back to what a new tree starts with, keeping the memory.
-    pub fn reset(&mut self) {
-        self.truncate(&AstMarks {
-            nodes: 1,
-            extra: 1,
-            bindings: 0,
-            scopes: 0,
-        });
     }
 
     #[inline(always)]
@@ -184,11 +178,11 @@ impl Ast {
     #[cold]
     fn grow(&mut self) {
         let wanted = self.tag.capacity().max(1024);
-        self.tag.reserve_exact(wanted);
+        self.tag.reserve(wanted);
         let capacity = self.tag.capacity();
-        self.pos.reserve_exact(capacity - self.pos.len());
-        self.a.reserve_exact(capacity - self.a.len());
-        self.b.reserve_exact(capacity - self.b.len());
+        self.pos.reserve(capacity - self.pos.len());
+        self.a.reserve(capacity - self.a.len());
+        self.b.reserve(capacity - self.b.len());
     }
 
     pub fn truncate(&mut self, marks: &AstMarks) {
@@ -211,6 +205,35 @@ impl Ast {
             scopes: self.scope_flags.len() as u32,
         }
     }
+
+    /// The columns, for as long as the zone holds them.
+    pub fn into_columns(self) -> AstColumns<'z> {
+        AstColumns {
+            tag: self.tag.into_slice(),
+            pos: self.pos.into_slice(),
+            a: self.a.into_slice(),
+            b: self.b.into_slice(),
+            extra: self.extra.into_slice(),
+            binding_name: self.binding_name.into_slice(),
+            binding_flags: self.binding_flags.into_slice(),
+            scope_first_binding: self.scope_first_binding.into_slice(),
+            scope_flags: self.scope_flags.into_slice(),
+        }
+    }
+}
+
+/// The columns of a tree that is done, which is how everything after the parser reads it.
+#[derive(Clone, Copy)]
+pub struct AstColumns<'t> {
+    pub tag: &'t [u8],
+    pub pos: &'t [u32],
+    pub a: &'t [u32],
+    pub b: &'t [u32],
+    pub extra: &'t [u32],
+    pub binding_name: &'t [u32],
+    pub binding_flags: &'t [u32],
+    pub scope_first_binding: &'t [u32],
+    pub scope_flags: &'t [u32],
 }
 
 #[derive(Clone, Copy)]
