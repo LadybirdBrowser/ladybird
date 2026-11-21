@@ -76,7 +76,7 @@ ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpeci
 
     auto init_result = swr_init(m_context);
     if (init_result < 0)
-        return Error::from_string_view(av_error_code_to_string(allocation_result));
+        return Error::from_string_view(av_error_code_to_string(init_result));
 
     free_context.disarm();
     return {};
