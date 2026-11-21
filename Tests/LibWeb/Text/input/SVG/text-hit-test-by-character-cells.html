@@ -15,6 +15,10 @@
 <svg id="hidden-svg" width="300" height="100" style="font: 40px Ahem">
     <text x="10" y="50">X<tspan visibility="hidden">XXX</tspan></text>
 </svg>
+<svg id="on-path-svg" width="300" height="100" style="font: 40px Ahem">
+    <path id="path" d="M 100 80 H 300" />
+    <text><textPath href="#path"><tspan id="on-path">XX</tspan></textPath></text>
+</svg>
 <p><a id="html-link" href="#target">HTML link</a></p>
 <script>
     asyncTest(async done => {
@@ -35,6 +39,11 @@
         const hiddenBox = document.getElementById("hidden-svg").getBoundingClientRect();
         println(`over the text: ${hit(hiddenBox.left + 30, hiddenBox.top + 30)}`);
         println(`over a hidden tspan in the text: ${hit(hiddenBox.left + 100, hiddenBox.top + 30)}`);
+
+        // A <tspan> on a path takes hits where its glyphs are drawn, not where it would be off the path.
+        const pathBox = document.getElementById("on-path-svg").getBoundingClientRect();
+        println(`on a glyph of a tspan on a path: ${hit(pathBox.left + 120, pathBox.top + 70)}`);
+        println(`where the tspan would be off the path: ${hit(pathBox.left + 20, pathBox.top + 2)}`);
 
         // The link rules of the HTML rendering section are for HTML elements only.
         const svgLink = getComputedStyle(document.getElementById("link"));

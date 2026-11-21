@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         SVGTextBox <text> at [10.921875,67.6875] [0+0+0 79.453125 0+0+0] [0+0+0 13.0625 0+0+0] children: not-inline
           SVGTextPathBox <textPath> at [10.921875,67.6875] [0+0+0 79.453125 0+0+0] [0+0+0 13.0625 0+0+0] children: inline
             TextNode <#text> (not painted)
-            SVGTextBox <tspan> (not painted) children: inline
+            SVGTextBox <tspan> at [57.4375,68.015625] [0+0+0 32.9375 0+0+0] [0+0+0 12.515625 0+0+0] children: inline
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 

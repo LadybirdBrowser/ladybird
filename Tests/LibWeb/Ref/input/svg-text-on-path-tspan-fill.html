@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-on-path-tspan-fill-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="150">
+    <defs>
+        <path id="line1" d="M 10 50 H 390" />
+        <path id="line2" d="M 10 100 H 390" />
+        <path id="line3" d="M 200 130 H 390" />
+    </defs>
+    <!-- Each <tspan> on the path paints its text in its own fill, a <tspan> inside another one too. -->
+    <text fill="black"><textPath href="#line1">AB<tspan fill="blue">CD<tspan fill="green">E</tspan>F</tspan>G</textPath></text>
+    <!-- A <tspan> moved off the path by its 'dy' still paints in its own fill. -->
+    <text fill="black"><textPath href="#line2">A<tspan fill="blue" dy="10">BC</tspan>D</textPath></text>
+    <!-- The text that follows a <tspan> paints after it, over the stroke of the <tspan>'s text. -->
+    <text fill="red" stroke="red" stroke-width="8"><textPath href="#line3"><tspan fill="blue" stroke="blue">X</tspan>X</textPath></text>
+    <!-- A <textPath> whose path doesn't resolve renders nothing, its <tspan>s included. -->
+    <text x="10" y="140" fill="red"><textPath href="#missing">A<tspan>BC</tspan></textPath></text>
+</svg>

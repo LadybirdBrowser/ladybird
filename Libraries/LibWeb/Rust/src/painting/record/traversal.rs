@@ -515,8 +515,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // A text content element paints in document order: its text that follows a child element paints after that
         // child.
         // FIXME: Hit testing still tests all of the element's own text after its child elements.
-        let is_text_box =
-            self.source.node_kind_if_live(paintable) == Some(crate::layout::node_data::NodeKind::SVGTextBox);
+        let is_text_box = matches!(
+            self.source.node_kind_if_live(paintable),
+            Some(crate::layout::node_data::NodeKind::SVGTextBox | crate::layout::node_data::NodeKind::SVGTextPathBox)
+        );
         let mut next_text_part = if is_text_box {
             crate::painting::record::paint::svg::text_parts_before_children(self, paintable)
         } else {

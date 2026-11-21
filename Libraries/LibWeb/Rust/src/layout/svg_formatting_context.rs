@@ -915,6 +915,10 @@ pub(super) struct SvgFormattingContext<'pass> {
     /// Where text-transform changed the characters of a text node in `processed_svg_text`, how its characters map to
     /// those it had before the transform.
     svg_text_transform_edits: RefCell<std::collections::HashMap<Node, Vec<super::rendered_text::RenderedTextEdit>>>,
+    /// The glyph outlines, laid along the path, and the character cells of each text content element inside the
+    /// <textPath> laid out last, which that element paints in its own style.
+    text_on_path_glyphs:
+        RefCell<std::collections::HashMap<Node, (libgfx_rust::path::Path, Vec<FfiSvgTextCharacterCell>)>>,
     /// The glyph cells of the text content element laid out last: those of its whole subtree, in document order.
     last_text_subtree_cells: Option<std::sync::Arc<Vec<FfiSvgTextCharacterCell>>>,
     /// The stretches of text in the subtree of the <text>, <tspan>, or <a> laid out last, in document order.
@@ -959,6 +963,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             text_length_adjustment: SvgTextLengthAdjustment::None,
             processed_svg_text: RefCell::new(std::collections::HashMap::new()),
             svg_text_transform_edits: RefCell::new(std::collections::HashMap::new()),
+            text_on_path_glyphs: RefCell::new(std::collections::HashMap::new()),
             last_text_subtree_cells: None,
             last_text_subtree_spans: Vec::new(),
             root_payload: RefCell::new(fragment_tree::PendingPayload::default()),
@@ -2616,15 +2621,31 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// https://svgwg.org/svg2-draft/text.html#TextPathElement
     /// FIXME: The character cells are those of the text shaped from the origin; they aren't moved
     ///        onto the path or rotated along it, so only their advances are meaningful.
-    fn svg_text_path_box_path(&self, text_path_box: Node) -> (libgfx_rust::path::Path, Vec<FfiSvgTextCharacterCell>) {
+    /// Where some of its own text follows a child element, also returns the parts its path paints in.
+    fn svg_text_path_box_path(
+        &self,
+        text_path_box: Node,
+    ) -> (
+        libgfx_rust::path::Path,
+        Vec<FfiSvgTextCharacterCell>,
+        Option<Vec<fragment_tree::SvgTextSegment>>,
+    ) {
         let empty = || libgfx_rust::path::Path::new();
         let Some(shape_path) = self.svg_referenced_shape_path(text_path_box) else {
-            return (empty(), Vec::new());
+            self.text_on_path_glyphs.borrow_mut().clear();
+            return (empty(), Vec::new(), None);
         };
 
         let style = self.style(text_path_box);
-        let mut runs = Vec::new();
+        // The runs of the <textPath>'s own text, each with the child element it follows, or the invalid node for the
+        // text that comes before every child element: Text that follows a child paints after it.
+        let mut runs: Vec<(Node, Vec<libgfx_rust::path::GlyphRun>)> = Vec::new();
+        let mut after_child = Node::INVALID;
         let mut character_cells = Vec::new();
+        // NB: Each text content element inside the <textPath> paints its own text, in its own style.
+        let mut runs_of_elements: Vec<(Node, Vec<libgfx_rust::path::GlyphRun>)> = Vec::new();
+        let mut cells_of_elements: std::collections::HashMap<Node, Vec<FfiSvgTextCharacterCell>> =
+            std::collections::HashMap::new();
         let mut advance = 0.0f32;
         // https://svgwg.org/svg2-draft/text.html#TextLayoutPath
         // Align the glyph vertically relative to the midpoint-on-the-path based on property alignment-baseline and any
@@ -2683,8 +2704,34 @@ impl<'pass> SvgFormattingContext<'pass> {
                 extent_start = extent_start.min(run_start).min(advance);
                 extent_end = extent_end.max(run_start).max(advance);
             }
-            runs.extend(shaped.runs);
+            let first_cell = character_cells.len();
             self.append_svg_run_dom_cells(node, shaped.character_cells, &mut character_cells);
+            let owner = self.parent(node);
+            if owner == text_path_box || self.node_kind(owner) != NodeKind::SVGTextBox {
+                match runs.last_mut() {
+                    Some((child, own_runs)) if *child == after_child => own_runs.extend(shaped.runs),
+                    _ => runs.push((after_child, shaped.runs)),
+                }
+                return;
+            }
+            let mut child = owner;
+            while self.parent(child) != text_path_box {
+                child = self.parent(child);
+            }
+            after_child = child;
+            match runs_of_elements.iter_mut().find(|(element, _)| *element == owner) {
+                Some((_, element_runs)) => element_runs.extend(shaped.runs),
+                None => runs_of_elements.push((owner, shaped.runs)),
+            }
+            // The cells of an element's characters count toward each element it's in, as they do in a <text>.
+            let mut element = owner;
+            while element != text_path_box && self.node_kind(element) == NodeKind::SVGTextBox {
+                cells_of_elements
+                    .entry(element)
+                    .or_default()
+                    .extend_from_slice(&character_cells[first_cell..]);
+                element = self.parent(element);
+            }
         });
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
@@ -2703,7 +2750,33 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        (shape_path.place_glyph_runs_along(&runs, start_offset), character_cells)
+        let mut text_on_path_glyphs = self.text_on_path_glyphs.borrow_mut();
+        text_on_path_glyphs.clear();
+        for (element, element_runs) in runs_of_elements {
+            let cells = cells_of_elements.remove(&element).unwrap_or_default();
+            text_on_path_glyphs.insert(
+                element,
+                (shape_path.place_glyph_runs_along(&element_runs, start_offset), cells),
+            );
+        }
+        for (element, cells) in cells_of_elements {
+            text_on_path_glyphs.insert(element, (libgfx_rust::path::Path::new(), cells));
+        }
+        let mut path = empty();
+        let mut segments = Vec::new();
+        let paints_as_one_path = runs.iter().all(|(after_child, _)| after_child.is_invalid());
+        for (after_child, own_runs) in runs {
+            let part = shape_path.place_glyph_runs_along(&own_runs, start_offset);
+            path.append_path(&part);
+            if !paints_as_one_path {
+                segments.push(fragment_tree::SvgTextSegment {
+                    after_child,
+                    path: part,
+                    color_glyph_runs: Vec::new(),
+                });
+            }
+        }
+        (path, character_cells, (!paints_as_one_path).then_some(segments))
     }
 
     /// The 'dx' and 'dy' that shift the first character of a text node in a <textPath>: those of the innermost element
@@ -3339,6 +3412,15 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut own_character_cells = None;
         let (path, glyph_cells, character_cells) = match kind {
             NodeKind::SVGGeometryBox => (self.svg_geometry_path(graphics_box), None, None),
+            NodeKind::SVGTextBox if self.text_on_path_glyphs.borrow().contains_key(&graphics_box) => {
+                let (path, cells) = self
+                    .text_on_path_glyphs
+                    .borrow_mut()
+                    .remove(&graphics_box)
+                    .expect("the element's glyphs on the path");
+                text_children_bounding_box = self.layout_text_content_children_on_path(run, graphics_box);
+                (path, None, Some(cells))
+            }
             NodeKind::SVGTextBox => {
                 let contents = self.layout_svg_text_box_contents(run, graphics_box);
                 text_segments = contents.segments;
@@ -3351,7 +3433,9 @@ impl<'pass> SvgFormattingContext<'pass> {
                 )
             }
             NodeKind::SVGTextPathBox => {
-                let (path, character_cells) = self.svg_text_path_box_path(graphics_box);
+                let (path, character_cells, segments) = self.svg_text_path_box_path(graphics_box);
+                text_segments = segments;
+                text_children_bounding_box = self.layout_text_content_children_on_path(run, graphics_box);
                 (path, None, Some(character_cells))
             }
             _ => (libgfx_rust::path::Path::new(), None, None),
@@ -3392,6 +3476,31 @@ impl<'pass> SvgFormattingContext<'pass> {
             path_bounding_box
         };
         self.set_content_rect(graphics_box, cells, bounding_box, object_bounding_box)
+    }
+
+    /// Lays out the text content elements inside a <textPath>, or inside one of those, each with the glyphs its own text
+    /// has on the path, and returns the box they cover.
+    fn layout_text_content_children_on_path(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        element: Node,
+    ) -> SvgCssPixelRect {
+        let mut bounding_box = SvgCssPixelRect::default();
+        let children: Vec<Node> = self.run.pass.children(element).collect();
+        for child in children {
+            if self.node_kind(child) != NodeKind::SVGTextBox {
+                continue;
+            }
+            // NB: An element with no text on the path, such as one in a <textPath> whose path doesn't resolve, renders
+            //     nothing, rather than its text laid out as if it weren't on a path.
+            self.text_on_path_glyphs
+                .borrow_mut()
+                .entry(child)
+                .or_insert_with(|| (libgfx_rust::path::Path::new(), Vec::new()));
+            let geometry = self.layout_graphics_element(run, child);
+            bounding_box.unite(float_rect_to_css_pixels(geometry.stroke_bounding_box));
+        }
+        bounding_box
     }
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#Placement

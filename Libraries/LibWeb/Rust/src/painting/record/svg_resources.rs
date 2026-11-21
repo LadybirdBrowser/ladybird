@@ -386,7 +386,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.recorder
             .set_ambient_inline_transform(Some(descendants_to_enclosing_space));
         let mut child = crate::painting::paint_order::first_paint_child(self.source, svg_box);
-        let mut next_text_part = if self.source.node_kind_if_live(svg_box) == Some(NodeKind::SVGTextBox) {
+        let mut next_text_part = if matches!(
+            self.source.node_kind_if_live(svg_box),
+            Some(NodeKind::SVGTextBox | NodeKind::SVGTextPathBox)
+        ) {
             crate::painting::record::paint::svg::text_parts_before_children(self, svg_box)
         } else {
             None
