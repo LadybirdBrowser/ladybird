@@ -28,28 +28,28 @@ namespace Media::FFmpeg {
     C(Audio::Channel::TopBackCenter, AVChannel::AV_CHAN_TOP_BACK_CENTER)            \
     C(Audio::Channel::TopBackRight, AVChannel::AV_CHAN_TOP_BACK_RIGHT)
 
-ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(FFmpegFunctions const& functions, AVChannelLayout const& layout)
+ErrorOr<Audio::ChannelMap> FFmpegChannelLayout::to_channel_map() const
 {
-    if (layout.nb_channels <= 0)
+    if (m_channel_layout.nb_channels <= 0)
         return Error::from_string_literal("FFmpeg channel layout had no channels");
-    if (static_cast<size_t>(layout.nb_channels) > Audio::ChannelMap::capacity())
+    if (static_cast<size_t>(m_channel_layout.nb_channels) > Audio::ChannelMap::capacity())
         return Error::from_string_literal("FFmpeg channel layout had too many channels");
     Vector<Audio::Channel, Audio::ChannelMap::capacity()> channels;
-    channels.resize(layout.nb_channels);
+    channels.resize(m_channel_layout.nb_channels);
 
-    if (layout.order == AVChannelOrder::AV_CHANNEL_ORDER_UNSPEC) {
-        if (layout.nb_channels == 1)
+    if (m_channel_layout.order == AVChannelOrder::AV_CHANNEL_ORDER_UNSPEC) {
+        if (m_channel_layout.nb_channels == 1)
             return Audio::ChannelMap::mono();
-        if (layout.nb_channels == 2)
+        if (m_channel_layout.nb_channels == 2)
             return Audio::ChannelMap::stereo();
-        if (layout.nb_channels == 4)
+        if (m_channel_layout.nb_channels == 4)
             return Audio::ChannelMap::quadrophonic();
-        if (layout.nb_channels == 6)
+        if (m_channel_layout.nb_channels == 6)
             return Audio::ChannelMap::surround_5_1();
-        if (layout.nb_channels == 8)
+        if (m_channel_layout.nb_channels == 8)
             return Audio::ChannelMap::surround_7_1();
 
-        for (int i = 0; i < layout.nb_channels; ++i)
+        for (int i = 0; i < m_channel_layout.nb_channels; ++i)
             channels[i] = Audio::Channel::Unknown;
         return Audio::ChannelMap(channels);
     }
@@ -58,9 +58,9 @@ ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(FFmpegFunctions cons
     case av_channel:                                           \
         return audio_channel;
 
-    for (int i = 0; i < layout.nb_channels; i++) {
+    for (int i = 0; i < m_channel_layout.nb_channels; i++) {
         auto channel = [&] {
-            switch (functions.av_channel_layout_channel_from_index(&layout, i)) {
+            switch (m_functions->av_channel_layout_channel_from_index(&m_channel_layout, i)) {
                 ENUMERATE_CHANNEL_POSITIONS(AV_CHANNEL_TO_AUDIO_CHANNEL)
             default:
                 return Audio::Channel::Unknown;
@@ -107,10 +107,10 @@ static ErrorOr<AVChannelLayout> channel_map_to_custom_av_channel_layout(FFmpegFu
     return layout;
 }
 
-ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const& functions, Audio::ChannelMap const& channel_map)
+ErrorOr<FFmpegChannelLayout> FFmpegChannelLayout::from_channel_map(FFmpegFunctions const& functions, Audio::ChannelMap const& channel_map)
 {
     if (channel_map.channel_count() > NumericLimits<decltype(AVChannelLayout::u.mask)>::digits())
-        return channel_map_to_custom_av_channel_layout(functions, channel_map);
+        return FFmpegChannelLayout(functions, TRY(channel_map_to_custom_av_channel_layout(functions, channel_map)));
 
     AVChannelLayout layout;
     layout.nb_channels = channel_map.channel_count();
@@ -126,12 +126,19 @@ ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const&
         // If we find that one of the channels in our input mapping doesn't match this requirement,
         // fall back to a custom order.
         if (channel <= last_channel)
-            return channel_map_to_custom_av_channel_layout(functions, channel_map);
+            return FFmpegChannelLayout(functions, TRY(channel_map_to_custom_av_channel_layout(functions, channel_map)));
         layout.u.mask |= 1ULL << channel;
         last_channel = channel;
     }
 
-    return layout;
+    return FFmpegChannelLayout(functions, layout);
+}
+
+FFmpegChannelLayout FFmpegChannelLayout::from_opt(FFmpegFunctions const& functions, void* obj, char const* name)
+{
+    AVChannelLayout layout {};
+    VERIFY(functions.av_opt_get_chlayout(obj, name, 0, &layout) == 0);
+    return FFmpegChannelLayout(functions, layout);
 }
 
 }
