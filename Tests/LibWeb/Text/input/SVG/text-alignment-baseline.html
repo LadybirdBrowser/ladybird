@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+</style>
+<svg width="400" height="300" style="font: 20px Ahem">
+    <path id="path" d="M 0 250 H 400" />
+    <text id="plain" x="0" y="100">X</text>
+    <text id="attribute" x="40" y="100" alignment-baseline="central">X</text>
+    <text id="property" x="80" y="100" style="alignment-baseline: central">X</text>
+    <text x="120" y="100">X<tspan id="tspan" alignment-baseline="central">X</tspan></text>
+    <text x="200" y="100" dominant-baseline="central">X<tspan id="hanging" alignment-baseline="hanging">X</tspan></text>
+    <text id="not-inherited" x="280" y="100" alignment-baseline="central">X<tspan id="child">X</tspan></text>
+    <text><textPath id="on-path" href="#path" alignment-baseline="central">X</textPath></text>
+</svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const id of ["plain", "attribute", "property", "tspan", "hanging", "child", "on-path"])
+            println(`${id}: ${document.getElementById(id).getBBox().y}`);
+        println(`computed on the tspan's parent: ${getComputedStyle(document.getElementById("not-inherited")).alignmentBaseline}`);
+        println(`computed on its child: ${getComputedStyle(document.getElementById("child")).alignmentBaseline}`);
+        done();
+    });
+</script>

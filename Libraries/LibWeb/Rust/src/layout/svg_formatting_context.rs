@@ -1967,9 +1967,15 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// https://drafts.csswg.org/css-inline/#dominant-baseline-property
+    /// https://drafts.csswg.org/css-inline/#alignment-baseline-property
+    /// NB: The text of an element sits on the baseline its alignment-baseline names, where that's other than 'baseline',
+    ///     and on its dominant baseline otherwise.
     fn svg_dominant_baseline_offset(&self, style: StyleValues<'_>) -> f32 {
         let svg = style.inherited_svg();
-        let metric = if svg.has_dominant_baseline {
+        let svg_reset = style.svg_reset();
+        let metric = if svg_reset.has_alignment_baseline {
+            svg_reset.alignment_baseline
+        } else if svg.has_dominant_baseline {
             svg.dominant_baseline
         } else {
             // https://drafts.csswg.org/css-inline/#valdef-dominant-baseline-auto
