@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	VTTCue.position, script-created cue
+1 Pass
+Pass	VTTCue.position, script-created cue
