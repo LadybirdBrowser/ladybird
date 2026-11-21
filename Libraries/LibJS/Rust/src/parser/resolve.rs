@@ -22,6 +22,7 @@ use super::base::SCOPE_ROW_EVAL_IN_FUNCTION;
 use super::base::SCOPE_ROW_POISONED;
 use super::base::USE_IN_WITH;
 use super::base::decl;
+use super::columns::FunctionIndexView;
 use super::columns::NONE;
 use super::columns::function_flag;
 use super::columns::tag;
@@ -30,7 +31,7 @@ use super::token::N_DOT_NEW_TARGET;
 use super::token::N_DOT_SUPER;
 use super::token::N_DOT_THIS;
 use super::token::N_DOT_UNBOUND;
-use crate::ast::*;
+use super::tree::*;
 use crate::u32_from_usize;
 use ak::Zone;
 use ak::ZoneVec;
@@ -413,6 +414,23 @@ struct BoundName {
     name: Name,
 }
 
+/// What the resolver reads of what is kept of the source of a tree.
+#[derive(Clone, Copy)]
+pub(crate) struct ScriptView<'t> {
+    pub(crate) index: FunctionIndexView<'t>,
+    /// The name of an anonymous default export.
+    pub(crate) default_export_name: Name,
+    pub(crate) is_module: bool,
+    /// The undeclared names that something in a `with` uses, which are not simply globals, sorted.
+    pub(crate) global_names_used_in_with: &'t [u32],
+}
+
+impl ScriptView<'_> {
+    pub(crate) fn is_global_name_used_in_with(&self, name: Name) -> bool {
+        self.global_names_used_in_with.binary_search(&name.0).is_ok()
+    }
+}
+
 /// How identifiers resolve, which the code around the program decides.
 pub(super) struct ResolveOptions {
     pub(super) initiated_by_eval: bool,
@@ -443,7 +461,8 @@ pub(crate) fn outer_key(row: u32, name: Name) -> u64 {
 }
 
 struct Resolver<'t, 'z> {
-    tree: &'t SyntaxTree<'t>,
+    tree: &'t TreeView<'t>,
+    script: ScriptView<'t>,
     zone: &'z Zone,
     resolutions: ZoneVec<'z, Resolution>,
     scopes: ScopeColumns<'z>,
@@ -466,11 +485,11 @@ struct Resolver<'t, 'z> {
 }
 
 impl<'t, 'z> Resolver<'t, 'z> {
-    fn new(zone: &'z Zone, tree: &'t SyntaxTree<'t>) -> Self {
+    fn new(zone: &'z Zone, tree: &'t TreeView<'t>, script: ScriptView<'t>) -> Self {
         // NB: Each function that the tree does not hold leaves a reference behind for each name that it captures and
         //     one more, see `note_free_names_of_function()`. This counts those of every function in the script, which
         //     is enough for nearly all trees.
-        let index = &tree.script.index;
+        let index = &script.index;
         let outer_reference_count = index.capture_names.len() + index.start.len();
         let mut resolutions = ZoneVec::with_capacity_in(tree.ast.tag.len() + outer_reference_count, zone);
         resolutions.resize(tree.ast.tag.len(), Resolution::default());
@@ -494,10 +513,11 @@ impl<'t, 'z> Resolver<'t, 'z> {
             outer_references: ZoneVec::with_capacity_in(outer_reference_count, zone),
             chain_links: ZoneVec::new_in(zone),
             loop_depth: 0,
-            is_module: tree.script.program_type == ProgramType::Module,
+            is_module: script.is_module,
             initiated_by_eval: false,
             suppress_globals: false,
             tree,
+            script,
         }
     }
 
@@ -529,8 +549,13 @@ impl<'t, 'z> Resolver<'t, 'z> {
 
 /// Resolves the identifiers of the tree of a program that the parser just finished, with the work data and the results
 /// in `zone`.
-pub(super) fn resolve_program<'z>(zone: &'z Zone, tree: &SyntaxTree<'_>, options: &ResolveOptions) -> Resolved<'z> {
-    let mut resolver = Resolver::new(zone, tree);
+pub(super) fn resolve_program<'z>(
+    zone: &'z Zone,
+    tree: &TreeView<'_>,
+    script: &ScriptView<'_>,
+    options: &ResolveOptions,
+) -> Resolved<'z> {
+    let mut resolver = Resolver::new(zone, tree, *script);
     resolver.initiated_by_eval = options.initiated_by_eval;
     resolver.suppress_globals = options.suppress_globals;
     resolver.program(tree.root);
@@ -743,7 +768,7 @@ impl<'t, 'z> Resolver<'t, 'z> {
     /// What a function that is compiled later can see of the code around it comes down to the same references that
     /// the function itself would have left in that code, had it been in the tree.
     fn note_free_names_of_function(&mut self, row: u32) {
-        let index = &self.tree.script.index;
+        let index = &self.script.index;
         let captures = index.capture_start[row as usize] as usize;
         let count = index.capture_count[row as usize] as usize;
         for &capture in &index.capture_names[captures..captures + count] {
@@ -830,7 +855,7 @@ impl<'t, 'z> Resolver<'t, 'z> {
             //     are used in one is known by name.
             let used_in_with = (group.used_inside_with_statement && name != Name(N_DOT_UNBOUND))
                 || flags & decl::USED_IN_WITH != 0
-                || self.tree.script.is_global_name_used_in_with(name);
+                || self.script.is_global_name_used_in_with(name);
             if !used_in_with && !is_module_declaration && !self.initiated_by_eval && !self.suppress_globals {
                 for node in group.nodes(&self.links) {
                     let resolution = &mut self.resolutions[node as usize];
@@ -1116,9 +1141,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
             tag::EXPORT_DEFAULT => {
                 let inner_tag = self.tag(a);
                 if inner_tag == tag::FUNCTION && b != 0 {
-                    let name = self.tree.script.index.name[self.b(a) as usize];
+                    let name = self.script.index.name[self.b(a) as usize];
                     if name == NONE {
-                        let default_name = self.tree.script.default_export_name;
+                        let default_name = self.script.default_export_name;
                         let id = self.names.find_or_add(default_name, &mut self.frames[0]);
                         let entry = self.names.get_mut(id);
                         entry.binding_flags = decl::LEXICAL;
@@ -1275,7 +1300,7 @@ impl<'t, 'z> Resolver<'t, 'z> {
 
     fn function_declaration(&mut self, function: u32, name: u32) {
         let name = if name == NONE {
-            self.tree.script.default_export_name
+            self.script.default_export_name
         } else {
             Name(name)
         };
@@ -1316,7 +1341,7 @@ impl<'t, 'z> Resolver<'t, 'z> {
     fn function_code(&mut self, node: u32, name: Option<Name>) {
         let tree = self.a(node);
         let row = self.b(node);
-        let flags = self.tree.script.index.flags[row as usize];
+        let flags = self.script.index.flags[row as usize];
         let parameters = self.list(self.extra(tree));
         let body = self.extra(tree + 1);
         let scope_row = self.extra(tree + 3);
@@ -1701,9 +1726,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
             | tag::IMPORT_META
             | tag::PRIVATE_NAME => {}
             tag::FUNCTION => {
-                let flags = self.tree.script.index.flags[b as usize];
+                let flags = self.script.index.flags[b as usize];
                 let is_method = flags & function_flag::METHOD != 0;
-                let name = self.tree.script.index.name[b as usize];
+                let name = self.script.index.name[b as usize];
                 if !is_method && name != NONE && flags & function_flag::NAME_UNUSED == 0 {
                     self.note_creates_environment();
                 }
@@ -1802,9 +1827,13 @@ impl<'t, 'z> Resolver<'t, 'z> {
     }
 
     fn optional_chain(&mut self, node: u32) {
-        let (base, links) = OptionalChainData::links(self.tree, node);
+        let start = self.chain_links.len();
+        let tree = self.tree;
+        let base = tree.optional_chain(node, |link| self.chain_links.push(link));
         self.expression(base);
-        for &link in links.iter().rev() {
+        // NB: The links go innermost first.
+        while self.chain_links.len() > start {
+            let link = self.chain_links.pop().expect("a link was pushed");
             let b = self.b(link);
             match self.tag(link) {
                 tag::CALL | tag::OPT_CALL => self.arguments(b),

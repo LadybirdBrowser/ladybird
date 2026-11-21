@@ -24,6 +24,7 @@ pub(crate) mod literals;
 pub(crate) mod resolve;
 mod stmt;
 pub(crate) mod token;
+pub(crate) mod tree;
 pub(crate) mod unit;
 
 use crate::ast::Name;
@@ -32,6 +33,7 @@ use crate::ast::Position;
 use crate::ast::ProgramType;
 use crate::ast::ScopeTable;
 use crate::ast::SyntaxTree;
+use crate::ast::TreeView;
 use crate::source_text::SourceText;
 use crate::u32_from_usize;
 use crate::work_zone::with_work_zone;
@@ -202,16 +204,18 @@ impl ScriptData {
         SyntaxTree {
             script: self.clone(),
             source: self.positions.source.get(),
-            ast: columns,
-            root,
-            first_token_start: 0,
-            is_strict_mode: false,
-            has_top_level_await: false,
-            eval_referenced_private_names: &[],
-            resolutions: &[],
-            scopes: ScopeTable::default(),
-            program_scope_row: 0,
-            function_scope_rows: &[],
+            view: TreeView {
+                ast: columns,
+                root,
+                first_token_start: 0,
+                is_strict_mode: false,
+                has_top_level_await: false,
+                eval_referenced_private_names: &[],
+                resolutions: &[],
+                scopes: ScopeTable::default(),
+                program_scope_row: 0,
+                function_scope_rows: &[],
+            },
             outer_resolutions: None,
         }
     }
@@ -338,6 +342,16 @@ impl ScriptData {
 
     pub(crate) fn is_global_name_used_in_with(&self, name: Name) -> bool {
         self.global_names_used_in_with.binary_search(&name.0).is_ok()
+    }
+
+    /// What the resolver reads of this source.
+    fn resolver_view(&self) -> resolve::ScriptView<'_> {
+        resolve::ScriptView {
+            index: self.index.view(),
+            default_export_name: self.default_export_name,
+            is_module: self.program_type == ProgramType::Module,
+            global_names_used_in_with: &self.global_names_used_in_with,
+        }
     }
 }
 
@@ -617,9 +631,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         retains_compiled_functions: AtomicBool::new(false),
         retained_code_size: AtomicUsize::new(0),
     });
-    let tree = SyntaxTree {
-        script,
-        source: source.clone(),
+    let view = TreeView {
         ast: parser.ast.into_columns(),
         root,
         first_token_start: parser.first_token_start,
@@ -630,23 +642,27 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         scopes: ScopeTable::default(),
         program_scope_row: 0,
         function_scope_rows: &[],
-        outer_resolutions: None,
     };
     let resolved = resolve::resolve_program(
         zone,
-        &tree,
+        &view,
+        &script.resolver_view(),
         &resolve::ResolveOptions {
             initiated_by_eval: options.initiated_by_eval,
             suppress_globals: options.suppress_globals,
         },
     );
     let tree = SyntaxTree {
-        resolutions: resolved.resolutions,
-        scopes: resolved.scopes,
-        program_scope_row: resolved.program_scope_row,
-        function_scope_rows: resolved.function_scope_rows,
+        script,
+        source: source.clone(),
+        view: TreeView {
+            resolutions: resolved.resolutions,
+            scopes: resolved.scopes,
+            program_scope_row: resolved.program_scope_row,
+            function_scope_rows: resolved.function_scope_rows,
+            ..view
+        },
         outer_resolutions: OuterResolutions::of_entries(resolved.outer_entries),
-        ..tree
     };
     Ok(Some(job(&tree, top_level_rows)))
 }
