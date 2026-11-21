@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+use libipc_rust::wire::{Decode, Encode};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum WindingRule {
     #[default]
@@ -31,7 +33,7 @@ pub enum LineStyle {
     Dashed,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum ScalingMode {
     #[default]
@@ -41,7 +43,7 @@ pub enum ScalingMode {
     NearestNeighbor,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum CompositingAndBlendingOperator {
     #[default]
@@ -88,7 +90,7 @@ impl CompositingAndBlendingOperator {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum MaskKind {
     #[default]
@@ -104,7 +106,7 @@ pub enum ShouldAntiAlias {
     No = 1,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum InterpolationColorSpace {
     LinearRGB,
@@ -185,7 +187,7 @@ pub enum JoinStyle {
     Bevel,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum ColorFilterType {
     #[default]
@@ -196,27 +198,6 @@ pub enum ColorFilterType {
     Opacity,
     Saturate,
     Sepia,
-}
-
-impl ScalingMode {
-    pub fn from_i32(value: i32) -> Option<Self> {
-        if (Self::None as i32..=Self::NearestNeighbor as i32).contains(&value) {
-            // SAFETY: the enum is a dense i32 range starting at zero.
-            Some(unsafe { std::mem::transmute::<i32, Self>(value) })
-        } else {
-            None
-        }
-    }
-}
-
-impl InterpolationColorSpace {
-    pub fn from_i32(value: i32) -> Option<Self> {
-        match value {
-            value if value == Self::LinearRGB as i32 => Some(Self::LinearRGB),
-            value if value == Self::SRGB as i32 => Some(Self::SRGB),
-            _ => None,
-        }
-    }
 }
 
 impl ColorFilterType {

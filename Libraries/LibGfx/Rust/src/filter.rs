@@ -23,7 +23,7 @@ use crate::{
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
 /// Which channel of a displacement map input drives the displacement along one axis.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum ChannelSelector {
     Red,
@@ -33,16 +33,7 @@ pub enum ChannelSelector {
     Alpha,
 }
 
-impl ChannelSelector {
-    pub fn from_i32(value: i32) -> Option<Self> {
-        (Self::Red as i32..=Self::Alpha as i32).contains(&value).then(|| {
-            // SAFETY: the enum is a dense i32 range starting at zero.
-            unsafe { std::mem::transmute::<i32, Self>(value) }
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 #[repr(i32)]
 pub enum TurbulenceType {
     FractalNoise,
@@ -50,19 +41,8 @@ pub enum TurbulenceType {
     Turbulence,
 }
 
-impl TurbulenceType {
-    pub fn from_i32(value: i32) -> Option<Self> {
-        (Self::FractalNoise as i32..=Self::Turbulence as i32)
-            .contains(&value)
-            .then(|| {
-                // SAFETY: the enum is a dense i32 range starting at zero.
-                unsafe { std::mem::transmute::<i32, Self>(value) }
-            })
-    }
-}
-
 /// The operation tag that starts every serialized filter node.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum FilterOperationType {
     Arithmetic,
@@ -85,15 +65,6 @@ pub enum FilterOperationType {
     Turbulence,
     ColorSpaceConversion,
     Crop,
-}
-
-impl FilterOperationType {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        (value <= Self::Crop as u8).then(|| {
-            // SAFETY: the enum is a dense u8 range starting at zero.
-            unsafe { std::mem::transmute::<u8, Self>(value) }
-        })
-    }
 }
 
 /// A 256-entry lookup table for one channel of a component transfer.
@@ -704,22 +675,6 @@ fn blended_output_bounds(painted: PaintedInputs, foreground: OutputBounds, backg
         PaintedInputs::ForegroundOnly => foreground,
         PaintedInputs::BackgroundOnly => background,
         PaintedInputs::Either => foreground.united(background),
-    }
-}
-
-impl Encode for FilterOperationType {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&(*self as u8))
-    }
-}
-
-impl Decode for FilterOperationType {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Self::from_u8(decoder.decode()?).ok_or(DecodeError::InvalidValue("Gfx::FilterOperationType"))
     }
 }
 

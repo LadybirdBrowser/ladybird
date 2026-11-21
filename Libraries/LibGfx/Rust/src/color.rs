@@ -5,8 +5,9 @@
  */
 
 use ak::math;
+use libipc_rust::wire::{Decode, Encode};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Encode, Decode)]
 #[repr(transparent)]
 pub struct Color(pub u32);
 

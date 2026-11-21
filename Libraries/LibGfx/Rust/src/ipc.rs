@@ -6,156 +6,8 @@
 
 //! Codecs for the Gfx values carried by IPC.
 
-use crate::filter::{ChannelSelector, TurbulenceType};
-use crate::{
-    Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
-    FloatRect, FloatSize, IntPoint, IntRect, IntSize, InterpolationColorSpace, MaskKind, ScalingMode, WindingRule,
-};
+use crate::FloatMatrix4x4;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
-
-impl Encode for IntPoint {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x)?;
-        encoder.encode(&self.y)
-    }
-}
-
-impl Decode for IntPoint {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: decoder.decode()?,
-            y: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for FloatPoint {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x)?;
-        encoder.encode(&self.y)
-    }
-}
-
-impl Decode for FloatPoint {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<f32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: decoder.decode()?,
-            y: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for IntSize {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.width)?;
-        encoder.encode(&self.height)
-    }
-}
-
-impl Decode for IntSize {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            width: decoder.decode()?,
-            height: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for IntRect {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x)?;
-        encoder.encode(&self.y)?;
-        encoder.encode(&self.width)?;
-        encoder.encode(&self.height)
-    }
-}
-
-impl Decode for IntRect {
-    const MIN_ENCODED_SIZE: usize = 4 * size_of::<i32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: decoder.decode()?,
-            y: decoder.decode()?,
-            width: decoder.decode()?,
-            height: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for FloatRect {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.x)?;
-        encoder.encode(&self.y)?;
-        encoder.encode(&self.width)?;
-        encoder.encode(&self.height)
-    }
-}
-
-impl Decode for FloatRect {
-    const MIN_ENCODED_SIZE: usize = 4 * size_of::<f32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            x: decoder.decode()?,
-            y: decoder.decode()?,
-            width: decoder.decode()?,
-            height: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for Color {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0)
-    }
-}
-
-impl Decode for Color {
-    const MIN_ENCODED_SIZE: usize = size_of::<u32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self(decoder.decode()?))
-    }
-}
-
-impl Encode for FloatSize {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.width)?;
-        encoder.encode(&self.height)
-    }
-}
-
-impl Decode for FloatSize {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<f32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            width: decoder.decode()?,
-            height: decoder.decode()?,
-        })
-    }
-}
 
 impl Encode for FloatMatrix4x4 {
     #[inline]
@@ -180,99 +32,12 @@ impl Decode for FloatMatrix4x4 {
     }
 }
 
-impl Encode for CornerRadius {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.horizontal_radius)?;
-        encoder.encode(&self.vertical_radius)
-    }
-}
-
-impl Decode for CornerRadius {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            horizontal_radius: decoder.decode()?,
-            vertical_radius: decoder.decode()?,
-        })
-    }
-}
-
-impl Encode for CornerRadii {
-    #[inline]
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.top_left)?;
-        encoder.encode(&self.top_right)?;
-        encoder.encode(&self.bottom_right)?;
-        encoder.encode(&self.bottom_left)
-    }
-}
-
-impl Decode for CornerRadii {
-    const MIN_ENCODED_SIZE: usize = 4 * CornerRadius::MIN_ENCODED_SIZE;
-
-    #[inline]
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            top_left: decoder.decode()?,
-            top_right: decoder.decode()?,
-            bottom_right: decoder.decode()?,
-            bottom_left: decoder.decode()?,
-        })
-    }
-}
-
-macro_rules! impl_codec_of_enum_going_as_i32 {
-    ($type:ident, $type_name:literal, $from_i32:expr) => {
-        impl Encode for $type {
-            #[inline]
-            fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-                encoder.encode(&(*self as i32))
-            }
-        }
-
-        impl Decode for $type {
-            const MIN_ENCODED_SIZE: usize = size_of::<i32>();
-
-            #[inline]
-            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-                let from_i32: fn(i32) -> Option<Self> = $from_i32;
-                from_i32(decoder.decode()?).ok_or(DecodeError::InvalidValue($type_name))
-            }
-        }
-    };
-}
-
-impl_codec_of_enum_going_as_i32!(WindingRule, "Gfx::WindingRule", |value| match value {
-    value if value == WindingRule::Nonzero as i32 => Some(WindingRule::Nonzero),
-    value if value == WindingRule::EvenOdd as i32 => Some(WindingRule::EvenOdd),
-    _ => None,
-});
-impl_codec_of_enum_going_as_i32!(MaskKind, "Gfx::MaskKind", |value| match value {
-    value if value == MaskKind::Alpha as i32 => Some(MaskKind::Alpha),
-    value if value == MaskKind::Luminance as i32 => Some(MaskKind::Luminance),
-    _ => None,
-});
-impl_codec_of_enum_going_as_i32!(
-    CompositingAndBlendingOperator,
-    "Gfx::CompositingAndBlendingOperator",
-    CompositingAndBlendingOperator::from_i32
-);
-impl_codec_of_enum_going_as_i32!(ColorFilterType, "Gfx::ColorFilterType", ColorFilterType::from_i32);
-impl_codec_of_enum_going_as_i32!(ScalingMode, "Gfx::ScalingMode", ScalingMode::from_i32);
-impl_codec_of_enum_going_as_i32!(
-    InterpolationColorSpace,
-    "Gfx::InterpolationColorSpace",
-    InterpolationColorSpace::from_i32
-);
-impl_codec_of_enum_going_as_i32!(ChannelSelector, "Gfx::ChannelSelector", ChannelSelector::from_i32);
-impl_codec_of_enum_going_as_i32!(TurbulenceType, "Gfx::TurbulenceType", TurbulenceType::from_i32);
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatSize, MaskKind, WindingRule,
+    };
 
     fn encoded<T: Encode>(value: &T) -> Vec<u8> {
         let mut encoder = Encoder::new();
@@ -346,19 +111,19 @@ mod tests {
 
         assert_eq!(
             decoded::<WindingRule>(&encoded(&2i32)),
-            Err(DecodeError::InvalidValue("Gfx::WindingRule"))
+            Err(DecodeError::InvalidValue("WindingRule"))
         );
         assert_eq!(
             decoded::<MaskKind>(&encoded(&-1i32)),
-            Err(DecodeError::InvalidValue("Gfx::MaskKind"))
+            Err(DecodeError::InvalidValue("MaskKind"))
         );
         assert_eq!(
             decoded::<CompositingAndBlendingOperator>(&encoded(&0i32)),
-            Err(DecodeError::InvalidValue("Gfx::CompositingAndBlendingOperator"))
+            Err(DecodeError::InvalidValue("CompositingAndBlendingOperator"))
         );
         assert_eq!(
             decoded::<ColorFilterType>(&encoded(&(ColorFilterType::Sepia as i32 + 1))),
-            Err(DecodeError::InvalidValue("Gfx::ColorFilterType"))
+            Err(DecodeError::InvalidValue("ColorFilterType"))
         );
     }
 }
