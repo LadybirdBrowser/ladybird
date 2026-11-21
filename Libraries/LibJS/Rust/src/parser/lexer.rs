@@ -488,7 +488,7 @@ impl<U: Unit> Parser<'_, U> {
         let mut p = start;
         let mut escaped = false;
         let mut first = true;
-        let mut buffer = std::mem::take(&mut self.name_buffer);
+        let mut buffer = self.name_buffer.take();
         buffer.clear();
         loop {
             let (mut c, width) = self.code_point_at(p);
@@ -883,12 +883,10 @@ impl<U: Unit> Parser<'_, U> {
             }
             p += width;
         }
-        let units_of = |parser: &Self, start: usize, end: usize| -> Vec<u16> {
-            (start..end).map(|i| parser.at(i) as u16).collect()
-        };
-        let flags = units_of(self, flags_start, p);
+        let zone = self.zone;
+        let flags: &[u16] = zone.alloc_slice_from_iter((flags_start..p).map(|i| self.at(i) as u16));
         let mut seen = [false; 128];
-        for &flag in &flags {
+        for &flag in flags {
             if flag >= 128 || !b"dgimsuvy".contains(&(flag as u8)) {
                 let flag = char::from_u32(flag as u32).unwrap_or('?');
                 self.fail_with(self.tok_start, format!("Invalid RegExp flag '{flag}'"));
@@ -901,8 +899,9 @@ impl<U: Unit> Parser<'_, U> {
             }
             seen[flag as usize] = true;
         }
-        let pattern = units_of(self, start + 1, self.regex_body_end as usize);
-        if let Err(message) = crate::host::validate_regex(&pattern, &flags) {
+        let pattern: &[u16] =
+            zone.alloc_slice_from_iter((start + 1..self.regex_body_end as usize).map(|i| self.at(i) as u16));
+        if let Err(message) = crate::host::validate_regex(pattern, flags) {
             self.fail_with(start as u32, String::from_utf16_lossy(&message.to_utf16()));
             return;
         }

@@ -12,6 +12,9 @@ use super::expr::is_name_like;
 use super::expr::starts_expression;
 use super::token::*;
 use super::unit::Unit;
+use ak::ZoneMap;
+use ak::ZoneSet;
+use ak::ZoneVec;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Context {
@@ -1333,7 +1336,7 @@ impl<U: Unit> Parser<'_, U> {
         }
         self.class_marks
             .push((self.private_declared.len() as u32, self.private_used.len() as u32));
-        self.private_declared.push(std::collections::HashMap::new());
+        self.private_declared.push(ZoneMap::new_in(self.zone));
         self.expect(T::LBrace);
         let mark = self.scratch.len();
         let mut had_constructor = false;
@@ -1402,7 +1405,7 @@ impl<U: Unit> Parser<'_, U> {
     }
 
     pub(crate) fn check_unresolved_private_names(&mut self) {
-        for (name, pos) in std::mem::take(&mut self.private_used) {
+        for (name, pos) in self.private_used.take() {
             self.report_undeclared_private_name(name, pos);
         }
     }
@@ -1778,7 +1781,8 @@ impl<U: Unit> Parser<'_, U> {
     /// formed, which also rules out lone surrogates written as escapes.
     fn intern_string_literal(&mut self) -> u32 {
         let (start, end) = (self.tok_start as usize + 1, self.tok_end as usize - 1);
-        let mut buffer = Vec::with_capacity(end - start);
+        let mut buffer = self.name_buffer.take();
+        buffer.clear();
         let mut p = start;
         while p < end {
             let mut c = self.at(p);
@@ -1831,7 +1835,9 @@ impl<U: Unit> Parser<'_, U> {
                 }
             }
         }
-        self.interner.intern_bytes(&buffer)
+        let name = self.interner.intern_bytes(&buffer);
+        self.name_buffer = buffer;
+        name
     }
 
     /// Returns the list of keys and values, as interned names, or zero if there are none.
@@ -1842,7 +1848,7 @@ impl<U: Unit> Parser<'_, U> {
         self.next();
         self.expect(T::LBrace);
         let mark = self.scratch.len();
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = ZoneSet::new_in(self.zone);
         while self.tok != T::RBrace && self.tok != T::Eof {
             let key = if self.tok == T::Str {
                 self.intern_string_literal()
@@ -2051,7 +2057,7 @@ impl<U: Unit> Parser<'_, U> {
             let mark = self.scratch.len();
             let mut had_string_local = false;
             let locals_mark = self.export_locals.len();
-            let mut pending: Vec<(u32, u32)> = Vec::new();
+            let mut pending = ZoneVec::new_in(self.zone);
             while self.tok != T::RBrace && self.tok != T::Eof {
                 let local_start = self.tok_start;
                 let local_kind = self.tok;
