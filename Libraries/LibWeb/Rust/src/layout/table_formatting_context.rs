@@ -2393,17 +2393,29 @@ impl<'pass> TableFormattingContext<'pass> {
                 let growing_max = growing_tracks
                     .iter()
                     .fold(CssPixels::default(), |sum, &index| sum + self.track_max(axis, index));
-                let share_beyond_max = |index: usize, beyond_max: CssPixels| {
-                    if !growing_tracks.contains(&index) {
-                        CssPixels::default()
-                    } else if growing_max != CssPixels::default() {
-                        CssPixels::nearest_value_for(self.track_max(axis, index).to_double() / growing_max.to_double())
-                            * beyond_max
+                // Each growing track takes its share of what the cell needs beyond the baseline max-content size, in
+                // proportion to its max-content size. The shares are the differences between the rounded running totals
+                // of those proportions, so that they always add up to all of it, however many tracks share it.
+                // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
+                //         This matches how undefined ratios are handled elsewhere.
+                let mut growing_fractions_before = Vec::with_capacity(growing_tracks.len() + 1);
+                growing_fractions_before.push(0.0);
+                let mut fraction_so_far = 0.0;
+                for &index in &growing_tracks {
+                    fraction_so_far += if growing_max != CssPixels::default() {
+                        self.track_max(axis, index).to_double() / growing_max.to_double()
                     } else {
-                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
-                        //         This matches how undefined ratios are handled elsewhere.
-                        beyond_max / growing_tracks.len()
-                    }
+                        1.0 / growing_tracks.len() as f64
+                    };
+                    growing_fractions_before.push(fraction_so_far);
+                }
+                let share_beyond_max = |index: usize, beyond_max: CssPixels| {
+                    let Ok(position) = growing_tracks.binary_search(&index) else {
+                        return CssPixels::default();
+                    };
+                    let running_total = |fraction: f64| CssPixels::nearest_value_for(fraction * beyond_max.to_double());
+                    running_total(growing_fractions_before[position + 1])
+                        - running_total(growing_fractions_before[position])
                 };
                 // Add contribution from all rows / columns, since we've weighted the gap to the desired spanned size by the the
                 // ratio of the max-content size based on cells of span up to N-1 of the row / column to the baseline max-content width.
@@ -3057,6 +3069,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 .show
                 .hidden_by_collapsed_columns = hidden_by_collapsed_columns;
             let height = style.height();
+            let mut specified_outer_block_size = None;
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
                 let cell_size = self.cell_specified_outer_block_size(
@@ -3066,7 +3079,13 @@ impl<'pass> TableFormattingContext<'pass> {
                     offsets,
                 );
                 cell_box.set_content_block_size(cell_size - offsets);
-                self.rows[cell.row_index].base_block_size = self.rows[cell.row_index].base_block_size.max(cell_size);
+                specified_outer_block_size = Some(cell_size);
+                // Only a cell that spans its row exclusively gives the row its specified block size (see below). A
+                // cell spanning several rows reaches them through the row measures instead, as its minimum.
+                if cell.row_span == 1 {
+                    self.rows[cell.row_index].base_block_size =
+                        self.rows[cell.row_index].base_block_size.max(cell_size);
+                }
             }
             // Compute cell inline size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
             // The position of any table cell, track, or track group is defined by the sums of its spanned columns and rows:
@@ -3101,7 +3120,11 @@ impl<'pass> TableFormattingContext<'pass> {
             );
             let cell_box = self.cell_layouts[cell_index].box_cells;
             if self.needs_row_measurement {
-                let measured = cell_box.border_box_block_size(collapsed);
+                // The outer min-content block size of a cell is the larger of its laid-out block size and its
+                // specified one.
+                let measured = cell_box
+                    .border_box_block_size(collapsed)
+                    .max(specified_outer_block_size.unwrap_or_default());
                 self.cells[cell_index].outer_min_block_size = measured;
                 self.cells[cell_index].outer_max_block_size = measured;
             }

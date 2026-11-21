@@ -1,0 +1,12 @@
+spanning-cell-height-only: 40x20; a@0,0+20 1@20,0+20
+spanning-cell-height-10: 40x20; a@0,0+20 1@20,0+20
+spanning-cell-height-40: 40x40; a@0,0+40 1@20,0+40
+spanning-no-height: 40x20; a@0,0+20 1@20,0+20
+spanning-cell-min-height: 40x20; a@0,0+20 1@20,0+20
+first-row-has-cell: 40x40; a@0,0+40 0@20,0+20 1@20,20+20
+one-group: 80x20; a@0,0+20 b@20,0+20 1@40,0+20 x@60,0+20
+rows-already-tall-enough: 40x100; a@0,0+100 1@20,0+20 2@20,20+30 3@20,50+50
+rows-grown-in-proportion: 40x160; a@0,0+160 1@20,0+32 2@20,32+48 3@20,80+80
+zero-baseline-many-rows: height 10.00
+zero-baseline-seven-rows: height 1.00
+tall-cell-over-many-short-rows: height 1000
