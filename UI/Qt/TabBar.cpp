@@ -452,7 +452,19 @@ static bool horizontal_tab_close_button_replaces_favicon(QRectF const& content_r
     if (!is_selected || has_media_indicator)
         return false;
     auto has_room_for_both = horizontal_tab_has_room_for_favicon_before(content_rect.right() - close_button.width(), content_rect.left());
-    return !has_room_for_both && content_rect.width() >= close_button.width();
+    // NB: A tab's padding shrinks as fast as the tab does, so the width of its content can stay at the close button's
+    //     width as the tab grows. It is rounded, so that the button doesn't blink out on a frame where it is a little
+    //     less.
+    return !has_room_for_both && qRound(content_rect.width()) >= close_button.width();
+}
+
+// Where the close button that stands in for the favicon starts. It slides from the middle of the tab's content to its
+// end as the tab grows, and reaches the end as the favicon fits beside it.
+static int horizontal_tab_close_button_x_in_favicon_place(QRectF const& content_rect, QWidget const& close_button)
+{
+    auto slack = content_rect.width() - close_button.width();
+    auto slide = 0.5 + (0.5 * clamp(slack / (TAB_ICON_SIZE + HORIZONTAL_TAB_CONTENT_GAP), 0.0, 1.0));
+    return qRound(content_rect.left() + (slack * slide));
 }
 
 // The selected horizontal tab's body: the whole width of the tab, from just below its top down to the toolbar.
@@ -814,6 +826,10 @@ TabBar::TabBar(TabWidget* tab_widget)
     });
     connect(m_layout_animation, &QVariantAnimation::finished, this, [this] {
         m_closing_tab.clear();
+        m_opening_tabs.clear();
+        // NB: A tab that opened but is still narrower than its place, as when it makes room for a dropped tab, shows its
+        //     buttons now that it is no longer opening.
+        update_tab_button_geometry();
         if (m_selection_animation->state() != QAbstractAnimation::Running)
             m_previously_selected_tab = nullptr;
         update();
@@ -1268,7 +1284,7 @@ void TabBar::paintEvent(QPaintEvent*)
         auto needs_attention = tab_for_index && tab_for_index->needs_attention() && !is_selected;
         auto favicon_shrink = tab_for_index ? tab_for_index->loading_favicon_shrink() : 0;
         auto favicon_opacity = tab_for_index && !tab_for_index->is_loaded() ? UNLOADED_TAB_FAVICON_OPACITY : 1.0;
-        auto paint_icon = [&](QRect const& icon_rect) {
+        auto paint_icon = [&](QRect const& icon_rect, Optional<QRect> favicon_clip = {}) {
             if (ring_opacity > 0) {
                 painter.save();
                 painter.setOpacity(ring_opacity);
@@ -1282,6 +1298,8 @@ void TabBar::paintEvent(QPaintEvent*)
             auto shown_rect = icon.isNull() ? icon_rect.adjusted(-overhang, -overhang, overhang, overhang) : icon_rect;
             painter.save();
             painter.setOpacity(favicon_opacity);
+            if (favicon_clip.has_value())
+                painter.setClipRect(*favicon_clip, Qt::IntersectClip);
             if (favicon_shrink > 0) {
                 // While the tab loads, the favicon shrinks to fit inside the ring, so a square favicon never touches it.
                 auto scale = 1 - ((1 - (static_cast<qreal>(LOADING_FAVICON_SIZE) / TAB_ICON_SIZE)) * favicon_shrink);
@@ -1333,8 +1351,8 @@ void TabBar::paintEvent(QPaintEvent*)
             continue;
         }
 
-        // A tab that grows, such as one opening, lays out its contents at the width it grows to, and shows as much of
-        // them as it has grown into.
+        // A tab that opens lays out its contents at the width it grows to, and shows as much of them as it has grown
+        // into.
         auto layout_rect = tab_rect;
         if (!is_vertical && is_growing_horizontal_tab(index, tab_rect)) {
             layout_rect.setWidth(visual_tab_rect(index).width());
@@ -1360,21 +1378,28 @@ void TabBar::paintEvent(QPaintEvent*)
             // A tab too narrow for its title has it cut entirely.
             if (auto* tab = m_tab_widget ? m_tab_widget->tab(index) : nullptr; tab && !tabText(index).isEmpty())
                 tabs_with_cut_titles.set(tab);
+            auto* close_button = tabButton(index, QTabBar::RightSide);
+            auto close_button_replaces_favicon = close_button && close_button->isVisible()
+                && horizontal_tab_close_button_replaces_favicon(horizontal_tab_contents_rect(index, layout_rect), *close_button, is_selected, tabButton(index, QTabBar::LeftSide) || microphone_indicator(index));
             // NB: A tab too narrow for its favicon next to its mute button shows the mute button alone, rather than
             //     drawing the favicon over it.
-            if (contents_rect.width() < TAB_ICON_SIZE)
+            if (contents_rect.width() < TAB_ICON_SIZE && !close_button_replaces_favicon)
                 continue;
-            if (auto* close_button = tabButton(index, QTabBar::RightSide); close_button && close_button->isVisible()
-                && horizontal_tab_close_button_replaces_favicon(horizontal_tab_contents_rect(index, layout_rect), *close_button, is_selected, tabButton(index, QTabBar::LeftSide) || microphone_indicator(index))) {
-                continue;
-            }
             QRect icon_rect {
-                contents_rect.left() + ((contents_rect.width() - TAB_ICON_SIZE) / 2),
+                contents_rect.left() + max(0, (contents_rect.width() - TAB_ICON_SIZE) / 2),
                 contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
                 TAB_ICON_SIZE,
                 TAB_ICON_SIZE,
             };
-            paint_icon(icon_rect);
+            // NB: As the close button slides from the favicon's place to the end of the tab, the favicon comes into
+            //     view in the room the button leaves before it. The loading ring and the attention dot around the
+            //     favicon come into view with it, but are never drawn over the button.
+            Optional<QRect> favicon_clip;
+            if (close_button_replaces_favicon) {
+                painter.setClipRect(QRect { tab_rect.left(), tab_rect.top(), close_button->x() - tab_rect.left(), tab_rect.height() }, Qt::IntersectClip);
+                favicon_clip = contents_rect;
+            }
+            paint_icon(icon_rect, favicon_clip);
             continue;
         }
 
@@ -1977,14 +2002,19 @@ void TabBar::update_layout_animation()
     if (tabs_were_added_or_removed && can_animate) {
         HashMap<Tab const*, QRect> start_rects;
         HashMap<Tab const*, HorizontalTabEndRoom> start_end_rooms;
+        HashTable<Tab const*> opening_tabs;
         for (auto const& [tab, target] : targets) {
             // A tab starts where it is drawn now, or as nothing at its place if it is new.
             auto settled = m_settled_tab_rects.get(tab);
             if (!settled.has_value()) {
                 start_rects.set(tab, QRect { target.left(), target.top(), 0, target.height() });
                 start_end_rooms.set(tab, *target_end_rooms.get(tab));
+                opening_tabs.set(tab);
                 continue;
             }
+            // NB: A tab that was still opening keeps opening.
+            if (m_layout_animation_progress < 1.0 && m_opening_tabs.contains(tab))
+                opening_tabs.set(tab);
             // NB: A tab that becomes or stops being the first or last one gains or loses the room at the end of the strip
             //     as it moves, so what of it is drawn stays in place.
             auto settled_end_room = m_settled_tab_end_rooms.get(tab).value_or({});
@@ -2006,9 +2036,12 @@ void TabBar::update_layout_animation()
         }
         m_layout_animation_start_rects = AK::move(start_rects);
         m_layout_animation_start_end_rooms = AK::move(start_end_rooms);
+        m_opening_tabs = AK::move(opening_tabs);
         m_layout_animation_progress = 0.0;
         m_layout_animation->stop();
         m_layout_animation->start();
+    } else {
+        m_opening_tabs.remove_all_matching([&](auto* tab) { return !targets.contains(tab); });
     }
 
     m_settled_tab_rects = AK::move(targets);
@@ -2066,6 +2099,8 @@ void TabBar::did_replace_tab(Tab const& old_tab, Tab& new_tab)
     move_entry(m_settled_tab_end_rooms);
     move_entry(m_layout_animation_start_rects);
     move_entry(m_layout_animation_start_end_rooms);
+    if (m_opening_tabs.remove(&old_tab))
+        m_opening_tabs.set(&new_tab);
 }
 
 void TabBar::prepare_for_tab_removal(int index)
@@ -2102,8 +2137,13 @@ QRect TabBar::closing_tab_rect() const
     return rect;
 }
 
+// NB: Only a tab that opens grows in. The tabs that widen to fill the room a closing tab leaves lay out their contents
+//     at the width they have on each frame, and keep showing their buttons.
 bool TabBar::is_growing_horizontal_tab(int index, QRect const& tab_rect) const
 {
+    auto* tab = m_tab_widget ? m_tab_widget->tab(index) : nullptr;
+    if (!tab || !m_opening_tabs.contains(tab))
+        return false;
     return tab_rect.width() < visual_tab_rect(index).width();
 }
 
@@ -2866,7 +2906,7 @@ void TabBar::update_tab_button_geometry()
                 auto has_room = horizontal_tab_has_room_for_favicon_before(close_button_position.x(), content_rect.left());
                 auto replaces_favicon = horizontal_tab_close_button_replaces_favicon(content_rect, *close_button, is_selected, left_button || microphone);
                 if (replaces_favicon)
-                    close_button_position.setX(qRound(content_rect.center().x() - (close_button->width() / 2.0)));
+                    close_button_position.setX(horizontal_tab_close_button_x_in_favicon_place(content_rect, *close_button));
                 if (close_button->pos() != close_button_position)
                     close_button->move(close_button_position);
                 auto show_close_button = !is_dragged && !is_growing && (has_room || replaces_favicon) && is_in_view(close_button);
@@ -2876,7 +2916,9 @@ void TabBar::update_tab_button_geometry()
                     close_button->hide();
                 if (auto* tab_bar_button = qobject_cast<TabBarButton*>(close_button)) {
                     tab_bar_button->set_tab_emphasized(is_selected || index == m_hovered_tab_index);
-                    tab_bar_button->set_revealed(show_close_button);
+                    // NB: A close button that takes the favicon's place shows at once, rather than fading in where the
+                    //     favicon has already gone.
+                    tab_bar_button->set_revealed(show_close_button, replaces_favicon ? TabBarButton::Reveal::AtOnce : TabBarButton::Reveal::Fade);
                 } else if (close_button->isVisible() != show_close_button) {
                     close_button->setVisible(show_close_button);
                 }
@@ -5517,8 +5559,20 @@ void TabBarButton::update_size()
 
 // The close button fades into the slot its tab keeps for it, and out of it, so that nothing else on the tab moves.
 // NB: Other layouts show and hide the button outright, so it is left opaque whenever it is not fading.
-void TabBarButton::set_revealed(bool revealed)
+void TabBarButton::set_revealed(bool revealed, Reveal reveal)
 {
+    if (revealed && reveal == Reveal::AtOnce) {
+        if (m_reveal_animation)
+            m_reveal_animation->stop();
+        m_revealed = true;
+        if (m_opacity != 1) {
+            m_opacity = 1;
+            update();
+        }
+        if (!isVisible())
+            show();
+        return;
+    }
     auto is_fading = m_reveal_animation && m_reveal_animation->state() == QAbstractAnimation::Running;
     if (revealed == m_revealed && (is_fading || isVisible() == revealed))
         return;
