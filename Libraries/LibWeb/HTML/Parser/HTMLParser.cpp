@@ -70,6 +70,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -647,6 +648,53 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     the_end(document, parser, document->parser_generation());
 }
 
+// Fires load at each svg element in the document's shadow-including tree, each one after the svg elements inside it,
+// until a listener replaces the document's parser.
+static void fire_load_event_at_svg_elements(DOM::Document& document, u64 parser_generation)
+{
+    // A shadow root comes first among its host's children, and is followed by the host's own children.
+    auto first_child = [](DOM::Node& node) -> DOM::Node* {
+        if (auto* element = as_if<DOM::Element>(node); element && element->shadow_root())
+            return element->shadow_root().ptr();
+        return node.first_child();
+    };
+    auto next_sibling = [](DOM::Node& node) -> DOM::Node* {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(node))
+            return shadow_root->host()->first_child();
+        return node.next_sibling();
+    };
+    auto parent = [](DOM::Node& node) -> DOM::Node* {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(node))
+            return shadow_root->host();
+        return node.parent();
+    };
+
+    GC::RootVector<GC::Ref<SVG::SVGSVGElement>> svg_elements;
+    DOM::Node* node = &document;
+    while (auto* child = first_child(*node))
+        node = child;
+    while (node != &document) {
+        if (auto* svg_element = as_if<SVG::SVGSVGElement>(*node))
+            svg_elements.append(*svg_element);
+        if (auto* sibling = next_sibling(*node)) {
+            node = sibling;
+            while (auto* child = first_child(*node))
+                node = child;
+        } else {
+            node = parent(*node);
+        }
+    }
+    for (auto& svg_element : svg_elements) {
+        if (document.parser_generation() != parser_generation)
+            return;
+        // A load listener can take an svg element out of the document, or the document out of its browsing context.
+        if (&svg_element->document() != &document || !svg_element->is_connected() || !document.browsing_context())
+            continue;
+        svg_element->dispatch_event(DOM::Event::create(EventNames::load,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(svg_element))));
+    }
+}
+
 static bool parser_was_replaced(DOM::Document const& document, GC::Ptr<HTMLParser> parser, u64 parser_generation)
 {
     return document.parser_generation() != parser_generation || document.parser() != parser;
@@ -1041,6 +1089,15 @@ void HTMLParserEndState::complete()
 
         // 3. Let window be the Document's relevant global object.
         auto& window = relevant_window(*document);
+
+        // AD-HOC: https://svgwg.org/svg2-draft/interact.html#LoadEvent
+        //         "Note that due to it's relationship with Window the load event on 'svg' elements is only dispatched
+        //         when all resources in the document have been completely loaded."
+        //         The HTML spec has no step for it, so fire it here, at each svg element the document has, the
+        //         innermost first, right before the window's, whose timing starts after them.
+        fire_load_event_at_svg_elements(*document, parser_generation);
+        if (document->parser_generation() != parser_generation)
+            return;
 
         // 4. Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(window));

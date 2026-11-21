@@ -6,11 +6,13 @@
         order.push(entry);
     }
 </script>
-<svg>
+<svg id="outer" onload="log('load at the outer svg')">
+    <svg id="inner" onload="log('load at the inner svg')"></svg>
     <rect id="rect" width="10" height="10" onclick="log('click at the rect')"></rect>
 </svg>
+<div><template shadowrootmode="open"><svg onload="log('load at the svg in a shadow tree')"></svg></template></div>
 <script>
-    test(() => {
+    asyncTest(done => {
         const rect = document.getElementById("rect");
         println(`rect.onclick is a function: ${typeof rect.onclick === "function"}`);
         rect.dispatchEvent(new MouseEvent("click"));
@@ -21,7 +23,11 @@
         println(`rect.onclick after removing the attribute: ${rect.onclick}`);
         rect.dispatchEvent(new MouseEvent("click"));
 
-        for (const entry of order)
-            println(entry);
+        window.addEventListener("load", () => {
+            log("load at the window");
+            for (const entry of order)
+                println(entry);
+            done();
+        });
     });
 </script>
