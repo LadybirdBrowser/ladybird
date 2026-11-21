@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" src="../../data/nested-iframe-with-distinct-url.html"></iframe>
+<script>
+    asyncTest(done => {
+        window.onmessage = event => {
+            println(`Deepest nested document: ${event.data.depth}`);
+            done();
+        };
+        window.addEventListener("load", () => frame.contentWindow.postMessage("probe", "*"));
+    });
+</script>
