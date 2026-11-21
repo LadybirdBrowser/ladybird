@@ -24,6 +24,13 @@
 
 namespace GC {
 
+// Which threads may trace the cells of an allocator while the collector marks. C++ cells are only traced on the thread
+// that owns their heap.
+enum class TraceThread : u8 {
+    OwnerThreadOnly,
+    AnyThread,
+};
+
 class GC_API CellAllocatorDescriptorBase {
     AK_MAKE_NONCOPYABLE(CellAllocatorDescriptorBase);
     AK_MAKE_NONMOVABLE(CellAllocatorDescriptorBase);
@@ -35,6 +42,8 @@ public:
     CellTypeInfo const& type_info() const { return m_type_info; }
     size_t cell_size() const { return m_type_info.cell_size; }
     void const* foreign_type() const { return m_foreign_type; }
+    TraceThread trace_thread() const { return m_trace_thread; }
+    void set_trace_thread(TraceThread trace_thread) { m_trace_thread = trace_thread; }
 
     // Where each heap keeps its allocator for this descriptor, see Heap::cell_allocator_for().
     size_t index() const { return m_index; }
@@ -54,6 +63,7 @@ private:
     Optional<StringView> m_class_name;
     void const* m_foreign_type { nullptr };
     size_t m_index { 0 };
+    TraceThread m_trace_thread { TraceThread::OwnerThreadOnly };
 };
 
 class GC_API CellAllocator {

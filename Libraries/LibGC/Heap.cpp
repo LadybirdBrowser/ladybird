@@ -30,6 +30,7 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/CompressedPointer.h>
 #include <LibGC/Heap.h>
@@ -151,6 +152,7 @@ struct PhaseTimings {
     i64 mark_initial_visit_us { 0 };
     i64 mark_bfs_us { 0 };
     i64 mark_clear_uprooted_us { 0 };
+    size_t mark_threads { 0 };
 
     // sweep_dead_cells() subphases. Only populated for CollectEverything;
     // normal collections defer sweep to the incremental sweeper.
@@ -235,6 +237,7 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("    clear uprooted              {:>10} us ({:>5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
     dbgln("    initial visit               {:>10} us ({:>5.1f}%)", t.mark_initial_visit_us, pct(t.mark_initial_visit_us));
     dbgln("    BFS marking                 {:>10} us ({:>5.1f}%)", t.mark_bfs_us, pct(t.mark_bfs_us));
+    dbgln("      marking threads           {:>10}", t.mark_threads);
     dbgln("  finalize_unmarked_cells       {:>10} us ({:>5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
     dbgln("  sweep_weak_blocks             {:>10} us ({:>5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
     dbgln("  prune_weak_containers         {:>10} us ({:>5.1f}%)", t.prune_weak_containers_us, pct(t.prune_weak_containers_us));
@@ -1477,111 +1480,35 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
     }
 }
 
+// The visitor of one marker of a collection, which hands everything it visits straight to the marker.
 class MarkingVisitor final : public Cell::Visitor {
-public:
-    // The domain is a set of heaps whose cells this mark phase is responsible for; cells outside the domain are not visited.
-    explicit MarkingVisitor(ReadonlySpan<Heap* const> domain, HashMap<Cell*, HeapRoot> const& roots)
-        : m_domain(domain)
-    {
-        for (auto* root : roots.keys()) {
-            visit(root);
-        }
-    }
+    AK_ALLOC_WITH_KMALLOC;
 
-    bool cell_is_in_domain(Cell const& cell) const
+public:
+    explicit MarkingVisitor(FFI::Marker* marker)
     {
-        auto& heap = HeapBlockBase::from_cell(&cell)->heap();
-        if (m_domain.size() == 1) [[likely]]
-            return m_domain.data()[0] == &heap;
-        for (auto* domain_heap : m_domain) {
-            if (domain_heap == &heap)
-                return true;
-        }
-        return false;
+        m_marker = reinterpret_cast<GCMarker*>(marker);
     }
 
     virtual void visit_impl(Cell& cell) override
     {
-        if (cell.is_marked())
-            return;
-        if (!cell_is_in_domain(cell))
-            return;
-        dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
-
-        cell.set_marked(true);
-        m_work_queue.append(cell);
+        FFI::rust_gc_marker_visit_cell(marker(), &cell);
     }
 
     virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
     {
-        m_work_queue.grow_capacity(m_work_queue.size() + values.size());
-
-        for (auto value : values) {
-            if (!value.is_cell())
-                continue;
-            auto& cell = value.as_cell();
-            if (cell.is_marked())
-                continue;
-            if (!cell_is_in_domain(cell))
-                continue;
-            dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
-
-            cell.set_marked(true);
-            m_work_queue.unchecked_append(cell);
-        }
+        FFI::rust_gc_marker_visit_values(marker(), reinterpret_cast<u64 const*>(values.data()), values.size());
     }
 
     virtual void visit_ephemeron(Cell& key, NanBoxedValue const& value) override
     {
         if (!value.is_cell())
             return;
-        // NB: This phase does not mark keys outside the domain, so their values stay reachable.
-        if (key.is_marked() || !cell_is_in_domain(key)) {
-            visit(value);
-            return;
-        }
-        m_pending_ephemerons.append({ &key, &value.as_cell() });
-    }
-
-    void mark_all_live_cells()
-    {
-        // Marking can reach the key of a pending ephemeron, so repeat until no more values get marked.
-        for (;;) {
-            while (!m_work_queue.is_empty()) {
-                auto cell = m_work_queue.take_last();
-                if (cell->state() != Cell::State::Live)
-                    continue;
-                auto* block = HeapBlock::from_cell(cell.ptr());
-                auto& heap = block->heap();
-                auto const& type_info = block->type_info();
-                heap.m_marked_cell_bytes += block->cell_size();
-                if (type_info.external_memory_size)
-                    heap.m_marked_external_bytes = saturating_add(heap.m_marked_external_bytes, type_info.external_memory_size(cell.ptr()));
-                type_info.visit_edges(cell.ptr(), this);
-            }
-
-            bool marked_a_value = false;
-            m_pending_ephemerons.remove_all_matching([&](auto const& ephemeron) {
-                if (!ephemeron.key->is_marked())
-                    return false;
-                visit(*ephemeron.value);
-                marked_a_value = true;
-                return true;
-            });
-            if (!marked_a_value)
-                break;
-        }
+        FFI::rust_gc_marker_visit_ephemeron(marker(), &key, &value.as_cell());
     }
 
 private:
-    struct Ephemeron {
-        Cell* key { nullptr };
-        Cell* value { nullptr };
-    };
-
-    ReadonlySpan<Heap* const> m_domain;
-    Vector<Ref<Cell>> m_work_queue;
-    Vector<Ephemeron> m_pending_ephemerons;
+    FFI::Marker* marker() const { return reinterpret_cast<FFI::Marker*>(m_marker); }
 };
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot>& roots)
@@ -1589,6 +1516,10 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot>& roots)
     Heap* domain[] = { this };
     mark_live_cells_across(domain, roots);
 }
+
+// OPTIMIZATION: Marking starts helper threads only once the heaps it marks are this large, and the collecting thread did
+//               not finish alone soon.
+static constexpr size_t GC_PARALLEL_MARKING_MIN_HEAP_BYTES = 8 * MiB;
 
 void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*, HeapRoot>& roots)
 {
@@ -1604,21 +1535,67 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         }
     }
 
-    for (auto* heap : heaps) {
-        heap->m_marked_cell_bytes = 0;
-        heap->m_marked_external_bytes = 0;
-    }
-
-    Optional<MarkingVisitor> visitor;
+    Vector<void const*> root_cells;
+    size_t heap_bytes = 0;
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_initial_visit_us };
-        visitor.emplace(heaps, roots);
+        root_cells.ensure_capacity(roots.size());
+        for (auto* root : roots.keys())
+            root_cells.unchecked_append(root);
+        for (auto* heap : heaps)
+            heap_bytes += heap->m_live_heap_blocks.size() * HeapBlock::BLOCK_SIZE;
     }
+
+    Vector<size_t, 1> marked_cell_bytes;
+    Vector<size_t, 1> marked_external_bytes;
+    marked_cell_bytes.resize(heaps.size());
+    marked_external_bytes.resize(heaps.size());
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+    FFI::MarkRequest request {
+        .layout = {
+            .heap_region_base = heap_region_base(),
+            .cell_state_offset = static_cast<u32>(offsetof(Cell, m_state)),
+            .cell_state_live = to_underlying(Cell::State::Live),
+            .type_info_visit_edges_offset = static_cast<u32>(offsetof(CellTypeInfo, visit_edges)),
+            .type_info_external_memory_size_offset = static_cast<u32>(offsetof(CellTypeInfo, external_memory_size)),
+            .value_is_cell_pattern = SHIFTED_IS_CELL_PATTERN,
+            .value_offset_mask = HEAP_REGION_OFFSET_MASK,
+        },
+        .heaps = reinterpret_cast<void const* const*>(heaps.data()),
+        .heap_count = heaps.size(),
+        .roots = root_cells.data(),
+        .root_count = root_cells.size(),
+        .parallel = heap_bytes >= GC_PARALLEL_MARKING_MIN_HEAP_BYTES,
+        .context = nullptr,
+        .create_visitor = [](void*, FFI::Marker* marker) -> void* {
+            return static_cast<Cell::Visitor*>(new MarkingVisitor(marker));
+        },
+        .destroy_visitor = [](void*, void* visitor) { delete static_cast<MarkingVisitor*>(static_cast<Cell::Visitor*>(visitor)); },
+        .marked_cell_bytes = marked_cell_bytes.data(),
+        .marked_external_bytes = marked_external_bytes.data(),
+        .threads_used = 0,
+    };
+#pragma GCC diagnostic pop
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_bfs_us };
-        visitor->mark_all_live_cells();
+        FFI::rust_gc_marker_mark(&request);
     }
+    g_phase_timings.mark_threads = request.threads_used;
+
+    for (size_t i = 0; i < heaps.size(); ++i) {
+        heaps[i]->m_marked_cell_bytes = marked_cell_bytes[i];
+        heaps[i]->m_marked_external_bytes = marked_external_bytes[i];
+    }
+}
+
+void Heap::mark_cell_allocated_during_incremental_sweep(Cell& cell)
+{
+    auto* block = HeapBlock::from_cell(&cell);
+    if (block->is_pending_sweep() || block->is_being_swept())
+        set_marked(&cell);
 }
 
 void Heap::finalize_unmarked_cells()
@@ -1627,8 +1604,9 @@ void Heap::finalize_unmarked_cells()
         auto* finalize = block.type_info().finalize;
         if (!finalize)
             return IterationDecision::Continue;
+        auto& descriptor = block_descriptor_for(&block);
         block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked())
+            if (!is_marked(descriptor, cell))
                 finalize(cell);
         });
         return IterationDecision::Continue;
@@ -1668,19 +1646,20 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         for_each_block([&](auto& block) {
             bool block_has_live_cells = false;
             bool block_was_full = block.is_full();
+            auto& descriptor = block_descriptor_for(&block);
             block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-                if (!cell->is_marked()) {
+                if (!is_marked(descriptor, cell)) {
                     dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
                     block.deallocate(cell);
                     ++collected_cells;
                     collected_cell_bytes += block.cell_size();
                 } else {
-                    cell->set_marked(false);
                     block_has_live_cells = true;
                     ++live_cells;
                     live_cell_bytes += block.cell_size();
                 }
             });
+            clear_marks(descriptor);
             if (!block_has_live_cells)
                 empty_blocks.append(&block);
             else if (block_was_full != block.is_full())
@@ -1758,18 +1737,20 @@ void Heap::sweep_block(HeapBlock& block)
     size_t collected_cells = 0;
     size_t live_cells = 0;
 
+    auto& descriptor = block_descriptor_for(&block);
     block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-        if (!cell->is_marked()) {
+        if (!is_marked(descriptor, cell)) {
             dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
             block.deallocate(cell);
             ++collected_cells;
         } else {
-            cell->set_marked(false);
             block_has_live_cells = true;
             ++live_cells;
         }
     });
     block.set_being_swept(false);
+    // NB: This also clears the marks of the cells that were allocated in the block while it was swept.
+    clear_marks(descriptor);
 
     if (!block_has_live_cells) {
         dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
@@ -1859,12 +1840,6 @@ void Heap::finish_incremental_sweep()
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_marked_external_bytes, m_marked_external_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Next GC threshold: {} ({} KiB)", m_gc_bytes_threshold, m_gc_bytes_threshold / KiB);
     print_incremental_sweep_report(m_marked_cell_bytes, m_marked_external_bytes, m_gc_bytes_threshold);
-
-    // Clear marks on cells allocated during sweep. Sweep already cleared
-    // marks on cells it visited, so only these remain marked.
-    for (auto cell : m_cells_allocated_during_sweep)
-        cell->set_marked(false);
-    m_cells_allocated_during_sweep.clear();
 
     m_incremental_sweep_active = false;
     if (m_stats)

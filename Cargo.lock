@@ -1875,6 +1875,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "libgc_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "cbindgen",
+ "crossbeam-deque",
+ "ladybird_allocator",
+ "libc",
+ "rustc-demangle",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [

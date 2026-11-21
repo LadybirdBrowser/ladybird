@@ -22,6 +22,12 @@ ladybird_lib(LibGC gc EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibGC PRIVATE LibCore)
 target_link_libraries(LibGC PUBLIC LibThreading)
 
+# The collector's core: the descriptors of blocks, and marking.
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libgc_rust FEATURES allocator FFI_HEADER RustFFI.h)
+target_link_libraries(LibGC PRIVATE libgc_rust)
+get_target_property(_libgc_rust_lib libgc_rust IMPORTED_LOCATION)
+set_property(SOURCE CAPI.cpp Cell.cpp Heap.cpp HeapBlock.cpp WeakBlock.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libgc_rust_lib})
+
 # The first word of a GC::ForeignCell belongs to its foreign implementation rather than holding a vtable pointer, so
 # UBSan's vptr checks misfire whenever LibGC handles such a cell as a GC::Cell.
 if (ENABLE_UNDEFINED_SANITIZER)

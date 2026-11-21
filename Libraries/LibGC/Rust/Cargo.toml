@@ -1,0 +1,30 @@
+[package]
+name = "libgc_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+allocator = ["dep:ladybird_allocator"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+crossbeam-deque = "0.8"
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
+rustc-demangle = "0.1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Memory"] }
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

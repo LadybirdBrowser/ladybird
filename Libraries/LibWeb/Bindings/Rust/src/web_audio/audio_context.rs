@@ -80,6 +80,7 @@ impl Inherits<BaseAudioContext> for AudioContext {
 }
 
 impl Wrappable for AudioContext {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.context.cpp_parent()
     }

@@ -257,27 +257,14 @@ private:
         return cell_allocator_for(descriptor).allocate_cell(*this);
     }
 
-    // Cells allocated during incremental sweep in a block that the sweep has
-    // yet to finish must be marked so that it keeps them. The sweep clears the
-    // marks of the blocks it has yet to sweep; cells in the block it is
-    // sweeping right now are remembered so their marks get cleared when the
-    // sweep finishes. Swept and new blocks need nothing.
-    bool mark_if_allocated_during_incremental_sweep(Cell& cell)
+    // Cells allocated during incremental sweep in a block that the sweep has yet to finish must be marked so that it
+    // keeps them. Sweeping a block clears its marks once it is done, so swept and new blocks need nothing.
+    void mark_if_allocated_during_incremental_sweep(Cell& cell)
     {
-        if (!m_incremental_sweep_active)
-            return false;
-        auto* block = HeapBlock::from_cell(&cell);
-        if (block->is_pending_sweep()) {
-            cell.set_marked(true);
-            return true;
-        }
-        if (block->is_being_swept()) {
-            cell.set_marked(true);
-            m_cells_allocated_during_sweep.append(&cell);
-            return true;
-        }
-        return false;
+        if (m_incremental_sweep_active) [[unlikely]]
+            mark_cell_allocated_during_incremental_sweep(cell);
     }
+    void mark_cell_allocated_during_incremental_sweep(Cell&);
 
     // Marking makes every block pending sweep again, which local free lists
     // must never be in, so every collection does this once it has finished the
@@ -399,7 +386,6 @@ private:
     size_t m_blocks_swept { 0 };
     size_t m_marked_cell_bytes { 0 };
     size_t m_marked_external_bytes { 0 };
-    Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
     CellAllocator::SweepList m_allocators_to_sweep;
     RefPtr<Core::Timer> m_incremental_sweep_timer;
 

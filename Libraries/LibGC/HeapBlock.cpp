@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Heap.h>
@@ -17,6 +18,29 @@
 #endif
 
 namespace GC {
+
+static_assert(HeapBlock::min_possible_cell_size >= FFI::MIN_CELL_SIZE);
+
+FFI::BlockDescriptor* const g_block_descriptors = FFI::rust_gc_block_descriptor_table(HEAP_REGION_SIZE);
+
+void publish_block_descriptor(HeapBlock& block, CellAllocator& allocator)
+{
+    auto index = (bit_cast<FlatPtr>(&block) - heap_region_base()) / HeapBlockBase::BLOCK_SIZE;
+    FFI::rust_gc_block_descriptor_commit(index);
+    auto& descriptor = g_block_descriptors[index];
+    descriptor.type_info = &allocator.type_info();
+    descriptor.cell_size = allocator.cell_size();
+    descriptor.cell_index_magic = static_cast<u32>(((static_cast<u64>(1) << 32) + descriptor.cell_size - 1) / descriptor.cell_size);
+    descriptor.traced_on_owner_thread_only = allocator.descriptor().trace_thread() == TraceThread::OwnerThreadOnly;
+    clear_marks(descriptor);
+    // NB: Markers of other heaps read the heap of any block their cells point into, to leave it alone if it is not theirs.
+    __atomic_store_n(&descriptor.heap, static_cast<void*>(&block.heap()), __ATOMIC_RELEASE);
+}
+
+void retire_block_descriptor(HeapBlock& block)
+{
+    __atomic_store_n(&block_descriptor_for(&block).heap, static_cast<void*>(nullptr), __ATOMIC_RELEASE);
+}
 
 NonnullOwnPtr<HeapBlock> HeapBlock::create(Heap& heap, CellAllocator& cell_allocator)
 {
@@ -34,7 +58,14 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
     , m_cell_count((BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size)
 {
     VERIFY(m_cell_size >= sizeof(FreelistEntry));
+    VERIFY(m_cell_size >= FFI::MIN_CELL_SIZE);
+    publish_block_descriptor(*this, cell_allocator);
     ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));
+}
+
+HeapBlock::~HeapBlock()
+{
+    retire_block_descriptor(*this);
 }
 
 HeapBlock::FreeCells HeapBlock::take_free_cells()
@@ -75,7 +106,7 @@ void HeapBlock::deallocate(Cell* cell)
     // NB: The cell is one of this block's, since for_each_cell() found it, and the free list only ever holds cells
     //     that this function or give_back_free_cells() put there.
     VERIFY(cell->state() == Cell::State::Live);
-    VERIFY(!cell->is_marked());
+    VERIFY(!GC::is_marked(cell));
 
     if (auto* destroy = type_info().destroy)
         destroy(cell);
@@ -88,6 +119,8 @@ void HeapBlock::deallocate(Cell* cell)
     auto dword_after_freelist = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(freelist_entry) + sizeof(FreelistEntry), 8);
     VERIFY((dword_after_freelist - reinterpret_cast<uintptr_t>(freelist_entry)) <= m_cell_size);
     VERIFY(m_cell_size >= sizeof(FreelistEntry));
+    VERIFY(m_cell_size >= FFI::MIN_CELL_SIZE);
+    publish_block_descriptor(*this, cell_allocator);
     // We can't poision the cell tracking data, nor the FreeListEntry's vtable or next pointer
     // This means there's sizeof(FreelistEntry) data at the front of each cell that is always read/write
     // On x86_64, this ends up being 24 bytes due to the size of the FreeListEntry's vtable, while on x86, it's only 12 bytes.

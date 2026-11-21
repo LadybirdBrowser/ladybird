@@ -36,6 +36,7 @@ impl Inherits<AnimationTimeline> for InternalAnimationTimeline {
 }
 
 impl Wrappable for InternalAnimationTimeline {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     const FINALIZES: bool = true;
 
     fn finalize(object: Ref<Self>) {

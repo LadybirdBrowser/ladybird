@@ -73,7 +73,8 @@ unsafe extern "C" {
         name_length: usize,
         foreign_type: *const c_void,
     ) -> *mut c_void;
-    fn gc_heap_allocate_cell(heap: *mut c_void, allocator: *mut c_void, must_mark: *mut bool) -> *mut c_void;
+    fn gc_allocator_set_traced_on_owner_thread_only(allocator: *mut c_void);
+    fn gc_heap_allocate_cell(heap: *mut c_void, allocator: *mut c_void) -> *mut c_void;
     fn gc_heap_defer_gc(heap: *mut c_void);
     fn gc_heap_undefer_gc(heap: *mut c_void);
     fn gc_heap_collect_garbage(heap: *mut c_void, collection_type: i32, print_report: bool);
@@ -104,6 +105,7 @@ fn gc_interface(heap: *mut c_void) -> GcInterface {
         heap,
         gc_get_layout,
         gc_allocator_create,
+        gc_allocator_set_traced_on_owner_thread_only,
         gc_heap_allocate_cell,
         gc_heap_defer_gc,
         gc_heap_undefer_gc,

@@ -160,6 +160,7 @@ static FFI::GcInterface gc_interface(GC::Heap& heap)
         .heap = &heap,
         .gc_get_layout = function_cast<decltype(Interface::gc_get_layout)>(gc_get_layout),
         .gc_allocator_create = function_cast<decltype(Interface::gc_allocator_create)>(gc_allocator_create),
+        .gc_allocator_set_traced_on_owner_thread_only = function_cast<decltype(Interface::gc_allocator_set_traced_on_owner_thread_only)>(gc_allocator_set_traced_on_owner_thread_only),
         .gc_heap_allocate_cell = function_cast<decltype(Interface::gc_heap_allocate_cell)>(gc_heap_allocate_cell),
         .gc_heap_defer_gc = function_cast<decltype(Interface::gc_heap_defer_gc)>(gc_heap_defer_gc),
         .gc_heap_undefer_gc = function_cast<decltype(Interface::gc_heap_undefer_gc)>(gc_heap_undefer_gc),

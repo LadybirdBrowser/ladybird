@@ -60,18 +60,13 @@ fn address(local_free_list: Option<NonNull<*mut core::ffi::c_void>>) -> u64 {
     local_free_list.map_or(0, |list| list.as_ptr() as u64)
 }
 
-/// Gives `word` the bytes of `cell` (of `size` bytes) as u64 words, first to last, with a clear mark: cells allocated
-/// while the incremental sweep is active start out marked, but cells from local free lists never need marking.
+/// Gives `word` the bytes of `cell` (of `size` bytes) as u64 words, first to last.
 fn for_each_cell_word<T>(cell: Gc<T>, size: usize, mut word: impl FnMut(u64)) {
-    let mark = core::mem::offset_of!(CellHeader, mark);
     for start in (0..size).step_by(8) {
         let mut bytes = [0u8; 8];
         let len = (size - start).min(8);
         // SAFETY: The cell is live and has `size` bytes, of which these `len` are some, and `bytes` has room for 8.
         unsafe { core::ptr::copy_nonoverlapping(cell.as_ptr().cast::<u8>().add(start), bytes.as_mut_ptr(), len) };
-        if let Some(byte) = mark.checked_sub(start).and_then(|index| bytes.get_mut(index)) {
-            *byte = 0;
-        }
         word(u64::from_ne_bytes(bytes));
     }
 }

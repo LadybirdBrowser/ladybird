@@ -12,6 +12,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
+#include <LibGC/CAPI.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
 #include <LibGC/Member.h>
@@ -72,8 +73,9 @@ public:
 
     CellKind cell_kind() const { return m_cell_kind; }
 
-    bool is_marked() const { return m_mark; }
-    void set_marked(bool b) { m_mark = b; }
+    // Whether the last collection marked the cell, which it keeps in the descriptor of the cell's block. Only meaningful
+    // from the end of marking until the cell's block is swept.
+    bool is_marked() const;
 
     enum class State : bool {
         Live,
@@ -90,12 +92,12 @@ public:
         void visit(Cell* cell)
         {
             if (cell)
-                visit_impl(*cell);
+                visit_cell(*cell);
         }
 
         void visit(Cell& cell)
         {
-            visit_impl(cell);
+            visit_cell(cell);
         }
 
         void visit(Cell const* cell)
@@ -117,13 +119,13 @@ public:
         void visit(Ptr<T> cell)
         {
             if (cell)
-                visit_impl(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
+                visit_cell(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
         }
 
         template<typename T>
         void visit(Ref<T> cell)
         {
-            visit_impl(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
+            visit_cell(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
         }
 
         // Members are visited through their slot, which a moving collector will update. For now this visits the cell
@@ -153,7 +155,7 @@ public:
         void visit(ReadonlySpan<T> span)
         requires(IsBaseOf<NanBoxedValue, T>)
         {
-            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
+            visit_values(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
         }
 
         template<typename T>
@@ -168,7 +170,7 @@ public:
         void visit(Span<T> span)
         requires(IsBaseOf<NanBoxedValue, T>)
         {
-            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
+            visit_values(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
         }
 
         template<typename T, size_t inline_capacity>
@@ -183,7 +185,7 @@ public:
         void visit(Vector<T, inline_capacity> const& vector)
         requires(IsBaseOf<NanBoxedValue, T>)
         {
-            visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
+            visit_values(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
         }
 
         template<typename T, size_t size>
@@ -284,6 +286,8 @@ public:
         // The caller must drop its entries whose key died, or the next collection reads a freed key.
         virtual void visit_ephemeron(Cell& key, NanBoxedValue const& value);
 
+        static size_t marker_offset();
+
     protected:
         template<typename T>
         ALWAYS_INLINE void visit_member_cell(T* cell)
@@ -291,8 +295,32 @@ public:
             auto* mutable_cell = as_cell(const_cast<RemoveConst<T>*>(cell));
             // A compressed pointer must name the start of its cell.
             ASSERT(static_cast<void const*>(mutable_cell) == static_cast<void const*>(cell));
-            visit_impl(*mutable_cell);
+            visit_cell(*mutable_cell);
         }
+
+        // NB: A marking visitor hands edges to its marker directly, rather than through its own visit_impl().
+        ALWAYS_INLINE void visit_cell(Cell& cell)
+        {
+            if (m_marker) {
+                gc_marker_visit_cell(m_marker, reinterpret_cast<GCCell*>(&cell));
+                return;
+            }
+            visit_impl(cell);
+        }
+
+        ALWAYS_INLINE void visit_values(ReadonlySpan<NanBoxedValue> values)
+        {
+            if (m_marker) {
+                if (!values.is_empty())
+                    gc_marker_visit_values(m_marker, reinterpret_cast<uint64_t const*>(values.data()), values.size());
+                return;
+            }
+            visit_impl(values);
+        }
+
+        // The marker of the collection that a marking visitor marks for, and null in every other visitor. Foreign
+        // implementations find it at GCLayout::visitor_marker_offset.
+        GCMarker* m_marker { nullptr };
 
         virtual void visit_impl(Cell&) = 0;
         virtual void visit_impl(ReadonlySpan<NanBoxedValue>) = 0;
@@ -318,7 +346,9 @@ private:
 
     void set_cell_kind(CellKind kind) { m_cell_kind = kind; }
 
-    bool m_mark { false };
+    // NB: Unused since marks live in the descriptors of the blocks. The byte is free for later use, and stays so that no
+    //     cell layout changes.
+    [[maybe_unused]] u8 m_unused_header_byte { 0 };
     State m_state { State::Live };
     CellKind m_cell_kind { CellKind::Other };
 };
@@ -338,7 +368,7 @@ public:
     ~ForeignCell() = delete;
 
     CellKind cell_kind() const { return m_cell_kind; }
-    bool is_marked() const { return m_mark; }
+    bool is_marked() const { return as_cell(this)->is_marked(); }
     Cell::State state() const { return m_state; }
 
     ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(as_cell(this))->heap(); }
@@ -348,12 +378,12 @@ private:
     friend struct CAPI;
 
     [[maybe_unused]] void const* m_word_owned_by_the_foreign_implementation;
-    bool m_mark;
+    [[maybe_unused]] u8 m_unused_header_byte;
     Cell::State m_state;
     CellKind m_cell_kind;
     // The foreign implementation lays its fields out right after the header. Naming these bytes keeps GCC from
     // placing a field of a derived type in the tail padding, where it would overlap them without changing the size.
-    [[maybe_unused]] u8 m_tail_owned_by_the_foreign_implementation[sizeof(void*) - sizeof(bool) - sizeof(Cell::State) - sizeof(CellKind)];
+    [[maybe_unused]] u8 m_tail_owned_by_the_foreign_implementation[sizeof(void*) - sizeof(u8) - sizeof(Cell::State) - sizeof(CellKind)];
 };
 
 inline void Cell::Visitor::visit(ForeignCell* cell)

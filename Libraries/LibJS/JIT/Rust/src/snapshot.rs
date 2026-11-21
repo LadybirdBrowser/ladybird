@@ -639,8 +639,8 @@ pub struct LexicalEnvironmentTemplateSnapshot {
 /// `ECMAScriptFunctionObject::inline_call_environment()`), with its final
 /// shape and room for its binding values in the cell, as JIT code allocates
 /// it: from the local free list at `allocator` (like
-/// `ObjectSizeClass::allocator`), with `words` (the cell's bytes, with a
-/// clear mark), then the pointer to its binding values, which start right
+/// `ObjectSizeClass::allocator`), with `words` (the cell's bytes), then the
+/// pointer to its binding values, which start right
 /// after `words`, at `binding_values_offset`, and the `this` value the call
 /// binds at `this_value_offset` if `binds_this`. The binding values need no
 /// initialization: the environment has none yet.

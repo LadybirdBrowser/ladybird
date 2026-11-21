@@ -387,7 +387,7 @@ impl Heap {
         // SAFETY: The allocator belongs to this heap and hands out cells of cell_size bytes.
         let cell = match unsafe { self.take_from_local_free_list(allocator, cell_size, kind) } {
             // SAFETY: The storage is a cell of the allocator, so it has the size and the alignment the caller guarantees.
-            Some(storage) => unsafe { Self::write_cell(storage.cast(), cell, initialize_tail, false) },
+            Some(storage) => unsafe { Self::write_cell(storage.cast(), cell, initialize_tail) },
             // SAFETY: The caller's guarantees about the allocator and the tail pass on.
             None => unsafe { self.allocate_from_heap(&defer_gc, allocator, kind, cell, initialize_tail) },
         };
@@ -409,35 +409,27 @@ impl Heap {
         cell: T,
         initialize_tail: impl FnOnce(*mut u8),
     ) -> Gc<T> {
-        let mut must_mark = false;
         let raw = allocator.raw.as_ptr();
         // SAFETY: The heap and the allocator are live.
         let storage = unsafe {
             match kind {
-                AllocationKind::Cell => capi::gc_heap_allocate_cell(self.raw.as_ptr(), raw, &raw mut must_mark),
-                AllocationKind::Storage => {
-                    capi::gc_heap_allocate_storage_cell(self.raw.as_ptr(), raw, &raw mut must_mark)
-                }
+                AllocationKind::Cell => capi::gc_heap_allocate_cell(self.raw.as_ptr(), raw),
+                AllocationKind::Storage => capi::gc_heap_allocate_storage_cell(self.raw.as_ptr(), raw),
             }
         };
         let storage = NonNull::new(storage).expect("LibGC allocates the cell").cast::<T>();
         // SAFETY: LibGC returned uninitialized storage of at least the size and the alignment of a T, as the caller
         // guarantees.
-        unsafe { Self::write_cell(storage, cell, initialize_tail, must_mark) }
+        unsafe { Self::write_cell(storage, cell, initialize_tail) }
     }
 
-    /// Writes `cell` to `storage` and has `initialize_tail` write the rest of the cell, with `must_mark` as its mark.
+    /// Writes `cell` to `storage` and has `initialize_tail` write the rest of the cell.
     ///
     /// # Safety
     ///
     /// `storage` must be uninitialized storage of at least the size and the alignment of a T, which nothing can collect
     /// garbage before it is written, and `initialize_tail` must write every byte beyond the T.
-    unsafe fn write_cell<T: GcCell>(
-        storage: NonNull<T>,
-        cell: T,
-        initialize_tail: impl FnOnce(*mut u8),
-        must_mark: bool,
-    ) -> Gc<T> {
+    unsafe fn write_cell<T: GcCell>(storage: NonNull<T>, cell: T, initialize_tail: impl FnOnce(*mut u8)) -> Gc<T> {
         // SAFETY: The caller passes storage for a T with room for the tail.
         unsafe {
             storage.write(cell);
@@ -447,14 +439,13 @@ impl Heap {
         // SAFETY: Every cell starts with its header.
         unsafe {
             debug_assert!((*header.as_ptr()).class().is_subclass_of(T::CLASS));
-            (*header.as_ptr()).mark.set(must_mark);
             Gc::from_non_null(storage)
         }
     }
 
     /// Takes a cell from the allocator's local free list, or else from its never-allocated cells, unless LibGC has to
     /// collect garbage first or there is no local free cell, with the bookkeeping gc_heap_allocator_local_free_list()
-    /// describes. These cells never need marking.
+    /// describes. These cells are in blocks that are swept already, so they never need marking.
     ///
     /// # Safety
     ///
@@ -529,6 +520,10 @@ impl Heap {
         let raw =
             unsafe { capi::gc_allocator_create(type_info, name.as_ptr().cast(), name.len(), foreign_type.cast()) };
         let raw = NonNull::new(raw).expect("LibGC creates the allocator");
+        if class.is_traced_on_owner_thread_only() {
+            // SAFETY: The allocator is live and has not allocated yet.
+            unsafe { capi::gc_allocator_set_traced_on_owner_thread_only(raw.as_ptr()) };
+        }
         // SAFETY: The heap and the allocator are live.
         let local_free_list = unsafe { capi::gc_heap_allocator_local_free_list(self.raw.as_ptr(), raw.as_ptr()) };
         HeapAllocator { raw, local_free_list }
@@ -561,6 +556,12 @@ impl Heap {
                 && class.type_info.cell_size == allocating_class.type_info.cell_size
                 && allocating_class.type_info.alignment as usize <= size_of::<&'static Class>(),
             "{} cannot share the allocator of {}",
+            class.name,
+            allocating_class.name
+        );
+        assert!(
+            !class.is_traced_on_owner_thread_only() || allocating_class.is_traced_on_owner_thread_only(),
+            "{} is traced on the owner thread only, unlike the allocator of {} it shares",
             class.name,
             allocating_class.name
         );
@@ -796,9 +797,9 @@ fn check_layout() -> GCLayout {
         );
     };
     expect(
-        "cell mark offset",
-        layout.cell_mark_offset.into(),
-        offset_of!(CellHeader, mark) as u64,
+        "visitor marker offset",
+        layout.visitor_marker_offset.into(),
+        super::visitor::VISITOR_MARKER_OFFSET as u64,
     );
     expect(
         "cell state offset",

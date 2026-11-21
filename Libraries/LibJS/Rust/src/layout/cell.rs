@@ -84,7 +84,8 @@ pub enum CellState {
 #[repr(C, packed)]
 pub struct CellHeader {
     pub unused: [u8; 8],
-    pub mark: Cell<bool>,
+    /// Free for later use: LibGC keeps the marks of cells in the descriptors of their blocks.
+    pub unused_byte: u8,
     pub state: Cell<CellState>,
     pub kind: CellKind,
 }
@@ -94,7 +95,7 @@ const _: () = assert!(size_of::<CellHeader>() == 11);
 /// The header of a cell that keeps fields of its own in the first word, which comes right after those fields.
 #[repr(C, packed)]
 pub struct CellHeaderTail {
-    pub mark: Cell<bool>,
+    pub unused_byte: u8,
     pub state: Cell<CellState>,
     pub kind: CellKind,
 }

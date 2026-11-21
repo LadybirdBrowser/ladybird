@@ -157,6 +157,7 @@ unsafe impl Trace for BaseAudioContext {
 }
 
 impl Wrappable for BaseAudioContext {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.event_target.as_cpp_parent()
     }

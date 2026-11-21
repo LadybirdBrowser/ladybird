@@ -7,6 +7,7 @@
 //! The sweep callback of a collection, which runs once the marks are final and before the cells that died are swept,
 //! and has what holds cells without keeping them alive forget the ones that died.
 
+use crate::gc::capi;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, CellState, Gc};
 use crate::runtime::finalization_registry::FinalizationRegistry;
@@ -28,7 +29,8 @@ impl<'vm> Sweep<'vm> {
     pub fn is_dead<T>(&self, cell: Gc<T>) -> bool {
         // SAFETY: Every cell starts with its header, and a cell that died is intact until the sweep that follows.
         let header = unsafe { &*cell.as_ptr().cast::<CellHeader>() };
-        header.state.get() != CellState::Live || !header.mark.get()
+        // SAFETY: The cell is a cell.
+        header.state.get() != CellState::Live || !unsafe { capi::gc_cell_is_marked(cell.as_ptr().cast()) }
     }
 
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection is over.

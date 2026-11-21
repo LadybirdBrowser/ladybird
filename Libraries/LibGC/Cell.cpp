@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/CellTypeInfo.h>
@@ -25,10 +26,23 @@ StringView class_name_of(Cell const& cell)
     return HeapBlock::from_cell(&cell)->cell_allocator().class_name().value_or("Cell"sv);
 }
 
+bool Cell::is_marked() const
+{
+    return GC::is_marked(this);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+size_t Cell::Visitor::marker_offset()
+{
+    return offsetof(Visitor, m_marker);
+}
+#pragma GCC diagnostic pop
+
 void GC::Cell::Visitor::visit(NanBoxedValue const& value)
 {
     if (value.is_cell())
-        visit_impl(value.as_cell());
+        visit_cell(value.as_cell());
 }
 
 void GC::Cell::Visitor::visit_ephemeron(Cell&, NanBoxedValue const& value)

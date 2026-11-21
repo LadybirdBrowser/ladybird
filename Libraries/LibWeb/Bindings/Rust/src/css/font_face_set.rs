@@ -201,6 +201,7 @@ pub(crate) struct FontFaceSet {
 }
 
 impl Wrappable for FontFaceSet {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     fn relevant_realm(&self) -> Option<Gc<Realm>> {
         Some(self.realm)
     }

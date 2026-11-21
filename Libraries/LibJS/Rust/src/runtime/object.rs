@@ -579,7 +579,7 @@ impl Object {
         let object = Object {
             shape: Member::new(shape),
             indexed_array_like_size: Cell::new(0),
-            mark: Cell::new(false),
+            unused_byte: 0,
             state: Cell::new(CellState::Live),
             kind: CellKind::Object,
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
@@ -3940,10 +3940,13 @@ impl Object {
 
     fn indexed_dictionary_pointer(&self) -> *mut IndexedDictionary {
         if self.is_ecmascript_function_object() {
-            return *self
-                .vm()
-                .function_indexed_dictionaries
-                .borrow()
+            // NB: Marker threads read the dictionaries of functions while they trace them, all at once, so this reads
+            //     the map without touching its borrow count.
+            // SAFETY: Only the thread that owns the heap changes the map, and never while the map is read here: not
+            //         while its collections mark, nor while the map is borrowed mutably, which this checks.
+            let dictionaries = unsafe { self.vm().function_indexed_dictionaries.try_borrow_unguarded() }
+                .expect("the indexed dictionaries of functions are not being changed");
+            return *dictionaries
                 .get(&core::ptr::from_ref(self).addr())
                 .expect("a function in dictionary mode has a dictionary");
         }

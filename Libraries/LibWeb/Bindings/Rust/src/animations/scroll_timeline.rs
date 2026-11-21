@@ -72,6 +72,7 @@ impl Inherits<AnimationTimeline> for ScrollTimeline {
 }
 
 impl Wrappable for ScrollTimeline {
+    const TRACED_ON_OWNER_THREAD_ONLY: bool = true;
     const FINALIZES: bool = true;
 
     fn finalize(object: Ref<Self>) {
