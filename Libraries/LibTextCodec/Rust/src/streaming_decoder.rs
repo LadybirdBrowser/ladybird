@@ -47,14 +47,13 @@ impl StreamingDecoder {
 
     /// Decodes the next bytes of the input to UTF-16. Unless more of the input follows, the bytes are its end: the
     /// decoder then flushes what it kept, and starts over for the next input, whether or not decoding succeeded.
-    /// A failure discards the rest of the bytes, and with them whatever the decoder kept of them.
+    /// A failure starts over too, discarding the rest of the bytes and whatever the decoder kept of the input.
     pub fn decode(&mut self, input: &[u8], more_input_follows: bool) -> Result<Vec<u16>, DecodingFailed> {
         let mut decoded = self.decode_with_current_decoder(input, !more_input_follows);
-        match &mut decoded {
-            Ok(output) => self.remove_bom_from_output(output),
-            Err(DecodingFailed) => self.forget_rest_of_input(),
+        if let Ok(output) = &mut decoded {
+            self.remove_bom_from_output(output);
         }
-        if !more_input_follows {
+        if decoded.is_err() || !more_input_follows {
             self.start_over();
         }
         decoded
@@ -80,14 +79,6 @@ impl StreamingDecoder {
         // NB: encoding_rs finishes a decoder for good once it has seen the end of its input.
         self.decoder = self.encoding.new_decoder_without_bom_handling();
         self.bom_seen = false;
-    }
-
-    fn forget_rest_of_input(&mut self) {
-        // NB: Every decoder but ISO-2022-JP's resets its own state on an error, so a new decoder only drops the bytes
-        //     encoding_rs kept of the input that the error discards. ISO-2022-JP's mode outlasts its errors.
-        if self.encoding != encoding_rs::ISO_2022_JP {
-            self.decoder = self.encoding.new_decoder_without_bom_handling();
-        }
     }
 
     fn decode_with_current_decoder(&mut self, input: &[u8], last: bool) -> Result<Vec<u16>, DecodingFailed> {

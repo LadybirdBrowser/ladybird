@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 108 tests
 
-107 Pass
-1 Fail
+108 Pass
 Pass	Invalid Unicode input is replaced: utf-8
 Pass	Invalid Unicode input is replaced: utf-16le
 Pass	Invalid Unicode input is replaced: utf-16be
@@ -106,7 +105,7 @@ Pass	stream: iso-2022-jp
 Pass	fatal stream: utf-8
 Pass	fatal stream: utf-16le
 Pass	fatal stream: utf-16be
-Fail	fatal stream: iso-2022-jp
+Pass	fatal stream: iso-2022-jp
 Pass	WPT mislabels: euc-jp
 Pass	WPT mislabels: shift_jis
 Pass	WPT mislabels: iso-2022-jp
