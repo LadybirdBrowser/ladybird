@@ -7,6 +7,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/Math.h>
 #include <LibGfx/ImageFormats/AVIFLoader.h>
 
 #include <avif/avif.h>
@@ -22,9 +23,7 @@ public:
 
     enum State {
         NotDecoded = 0,
-        Error,
         HeaderDecoded,
-        BitmapDecoded,
     };
 
     State state { State::NotDecoded };
@@ -38,8 +37,6 @@ public:
     size_t image_count { 0 };
     size_t repetition_count { 0 };
     ByteBuffer icc_data;
-
-    Vector<ImageFrameDescriptor> frame_descriptors;
 
     AVIFLoadingContext() = default;
     ~AVIFLoadingContext()
@@ -100,32 +97,38 @@ static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
     return {};
 }
 
-static ErrorOr<void> decode_avif_image(AVIFLoadingContext& context)
+static int frame_duration_in_milliseconds(AVIFLoadingContext const& context, double duration_in_seconds)
+{
+    // NB: The duration comes from the file, so reject NaN and negative values and clamp huge ones.
+    if (context.image_count == 1 || !(duration_in_seconds >= 0))
+        return 0;
+    return AK::clamp_to<int>(duration_in_seconds * 1000);
+}
+
+static ErrorOr<ImageFrameDescriptor> decode_avif_frame(AVIFLoadingContext& context, size_t index)
 {
     VERIFY(context.state >= AVIFLoadingContext::State::HeaderDecoded);
 
+    // NB: libavif decodes the next frame directly when frames are requested in order, does no decoding when the
+    //     current frame is requested again, and otherwise decodes forward from the nearest keyframe.
+    if (avifDecoderNthImage(context.decoder, index) != AVIF_RESULT_OK)
+        return Error::from_string_literal("Failed to decode AVIF frame");
+
+    auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
+    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, AlphaType::Unpremultiplied, context.size.value()));
+
     avifRGBImage rgb;
-    while (avifDecoderNextImage(context.decoder) == AVIF_RESULT_OK) {
-        auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, AlphaType::Unpremultiplied, context.size.value()));
+    avifRGBImageSetDefaults(&rgb, context.decoder->image);
+    rgb.pixels = bitmap->scanline_u8(0);
+    rgb.rowBytes = bitmap->pitch();
+    rgb.format = avifRGBFormat::AVIF_RGB_FORMAT_BGRA;
+    rgb.depth = 8;
 
-        avifRGBImageSetDefaults(&rgb, context.decoder->image);
-        rgb.pixels = bitmap->scanline_u8(0);
-        rgb.rowBytes = bitmap->pitch();
-        rgb.format = avifRGBFormat::AVIF_RGB_FORMAT_BGRA;
-        rgb.depth = 8;
+    avifResult result = avifImageYUVToRGB(context.decoder->image, &rgb);
+    if (result != AVIF_RESULT_OK)
+        return Error::from_string_literal("Conversion from YUV to RGB failed");
 
-        avifResult result = avifImageYUVToRGB(context.decoder->image, &rgb);
-        if (result != AVIF_RESULT_OK)
-            return Error::from_string_literal("Conversion from YUV to RGB failed");
-
-        auto duration = context.decoder->imageCount == 1 ? 0 : static_cast<int>(context.decoder->imageTiming.duration * 1000);
-        context.frame_descriptors.append(ImageFrameDescriptor { bitmap, duration });
-
-        context.state = AVIFLoadingContext::BitmapDecoded;
-    }
-
-    return {};
+    return ImageFrameDescriptor { bitmap, frame_duration_in_milliseconds(context, context.decoder->imageTiming.duration) };
 }
 
 IntSize AVIFImageDecoderPlugin::size()
@@ -175,31 +178,22 @@ ErrorOr<ImageFrameDescriptor> AVIFImageDecoderPlugin::frame(size_t index, Option
     if (index >= frame_count())
         return Error::from_string_literal("AVIFImageDecoderPlugin: Invalid frame index");
 
-    if (m_context->state == AVIFLoadingContext::State::Error)
-        return Error::from_string_literal("AVIFImageDecoderPlugin: Decoding failed");
-
-    if (m_context->state < AVIFLoadingContext::State::BitmapDecoded) {
-        TRY(decode_avif_image(*m_context));
-        m_context->state = AVIFLoadingContext::State::BitmapDecoded;
-    }
-
-    if (index >= m_context->frame_descriptors.size())
-        return Error::from_string_literal("AVIFImageDecoderPlugin: Invalid frame index");
-    return m_context->frame_descriptors[index];
+    return decode_avif_frame(*m_context, index);
 }
 
 int AVIFImageDecoderPlugin::frame_duration(size_t index)
 {
-    if (index >= m_context->frame_descriptors.size())
+    if (index >= frame_count())
         return 0;
-    return m_context->frame_descriptors[index].duration;
+
+    avifImageTiming timing;
+    if (avifDecoderNthImageTiming(m_context->decoder, index, &timing) != AVIF_RESULT_OK)
+        return 0;
+    return frame_duration_in_milliseconds(*m_context, timing.duration);
 }
 
 ErrorOr<Optional<ReadonlyBytes>> AVIFImageDecoderPlugin::icc_data()
 {
-    if (m_context->state < AVIFLoadingContext::State::HeaderDecoded)
-        (void)frame(0);
-
     if (!m_context->icc_data.is_empty())
         return m_context->icc_data;
     return OptionalNone {};

@@ -1564,6 +1564,36 @@ TEST_CASE(test_avif_frame_out_of_bounds)
     EXPECT(plugin_decoder->frame(1).is_error());
 }
 
+TEST_CASE(test_avif_animated)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("loop_forever.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    EXPECT(plugin_decoder->is_animated());
+    EXPECT_EQ(plugin_decoder->frame_count(), 2u);
+    EXPECT_EQ(plugin_decoder->loop_count(), 0u);
+
+    // Durations are known before any frame is decoded.
+    EXPECT_EQ(plugin_decoder->frame_duration(0), 500);
+    EXPECT_EQ(plugin_decoder->frame_duration(1), 500);
+
+    // Frames can be decoded out of order and more than once.
+    auto second_frame = TRY_OR_FAIL(plugin_decoder->frame(1));
+    EXPECT_EQ(second_frame.image->size(), Gfx::IntSize(128, 128));
+    EXPECT_EQ(second_frame.duration, 500);
+    EXPECT_EQ(second_frame.image->get_pixel(64, 64), Gfx::Color(253, 253, 255));
+
+    auto first_frame = TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT_EQ(first_frame.duration, 500);
+    EXPECT_EQ(first_frame.image->get_pixel(64, 64), Gfx::Color(1, 0, 0));
+
+    auto second_frame_again = TRY_OR_FAIL(plugin_decoder->frame(1));
+    EXPECT_EQ(second_frame_again.image->get_pixel(64, 64), Gfx::Color(253, 253, 255));
+
+    EXPECT(plugin_decoder->frame(2).is_error());
+}
+
 TEST_CASE(test_avif_missing_pixi_property)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/missing-pixi-property.avif"sv)));
