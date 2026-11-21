@@ -65,26 +65,4 @@ mod tests {
         assert!((CommandType::Viewport as u16) < COMMAND_TYPE_COUNT);
         assert!((SyncCallType::GetError as u16) < SYNC_CALL_TYPE_COUNT);
     }
-
-    #[test]
-    fn the_table_of_layout_words_describes_every_struct() {
-        let mut struct_count = 0;
-        let mut words = WIRE_STRUCT_LAYOUTS;
-        while let [_name_hash, size, alignment, field_count, rest @ ..] = words {
-            assert!(*size >= 1 && size % alignment == 0);
-            let mut end_of_previous_field = 0;
-            let (fields, rest) = rest.split_at(*field_count as usize * 4);
-            for [_name_hash, _type_hash, offset, field_size] in fields.as_chunks::<4>().0 {
-                assert!(*offset >= end_of_previous_field && offset + field_size <= *size);
-                end_of_previous_field = offset + field_size;
-            }
-            struct_count += 1;
-            words = rest;
-        }
-        assert!(words.is_empty());
-        assert_eq!(
-            struct_count,
-            usize::from(COMMAND_TYPE_COUNT) + 2 * usize::from(SYNC_CALL_TYPE_COUNT)
-        );
-    }
 }

@@ -5,10 +5,7 @@
  */
 
 //! The model of Libraries/LibCompositing/WebGL/GLFunctions.json: which entries the command stream carries and which
-//! structs they serialize to. It mirrors Meta/Generators/libweb_webgl.py, which the C++ side of the stream is
-//! generated from, so the two have to change together. What keeps them from drifting apart silently: the model
-//! rejects everything in the JSON that it does not know, and the recorder compares the layout of its structs with
-//! the one that the C++ side reports before it records anything.
+//! structs they serialize to. The model rejects everything in the JSON that it does not know.
 
 use serde_json::{Map, Value};
 
@@ -565,7 +562,7 @@ pub struct WireField {
 
 #[derive(Debug)]
 pub struct WireStruct {
-    /// The name of the struct inside the C++ namespace Compositing::WebGL, which the table of layout words hashes.
+    /// The name of the struct, such as `Commands::BufferData`.
     pub cpp_name: String,
     pub fields: Vec<WireField>,
     pub size: usize,
@@ -658,11 +655,4 @@ pub fn vocabulary(functions: &[Function]) -> Result<Vocabulary<'_>, String> {
         }
     }
     Ok(Vocabulary { commands, sync_calls })
-}
-
-/// The 32-bit FNV-1a hash that stands for the name of a struct, a field or a type in the table of layout words.
-pub fn wire_layout_name_hash(name: &str) -> u32 {
-    name.bytes().fold(0x811C_9DC5, |hash, byte| {
-        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
-    })
 }
