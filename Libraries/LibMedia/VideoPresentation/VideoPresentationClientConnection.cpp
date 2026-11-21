@@ -75,6 +75,11 @@ void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, MediaTimeR
             connection.async_request_start(edge_id);
         });
     };
+    consumer_delegates.request_suspend = [weak_connection, edge_id] {
+        weak_connection.with_target([&](auto& connection) {
+            connection.async_request_suspend(edge_id);
+        });
+    };
     consumer_delegates.request_seek = [weak_connection, edge_id](AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) {
         weak_connection.with_target([&](auto& connection) {
             connection.async_request_seek(edge_id, timestamp, invalidate_held_data, newest_received_lend_id);

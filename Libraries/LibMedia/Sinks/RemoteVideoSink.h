@@ -63,6 +63,7 @@ public:
     virtual void set_state_change_handler(PipelineStateChangeHandler) override;
     virtual void set_resize_handler(PipelineResizeHandler) override;
     void start_input();
+    void suspend_input();
 
     void report_remote_status(PipelineStatus, PipelineCheckpoint);
     void report_remote_resize(Gfx::Size<u32>);

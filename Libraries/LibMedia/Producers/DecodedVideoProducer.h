@@ -55,6 +55,7 @@ public:
     void set_error_handler(ErrorHandler&&);
 
     virtual void start() override;
+    virtual void suspend() override;
 
     virtual VideoProducerOutput peek() override;
     virtual void consume() override;
@@ -79,6 +80,7 @@ private:
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
+        void suspend();
         VideoDecoderSelection select_decoder_for_frame(CodedFrame const&, VideoDecoderSelection after = {}) const;
         void replace_decoder_once_drained(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<void> receive_into_decoder(CodedFrame const&, DecodeIntent);
@@ -104,7 +106,7 @@ private:
 
         void register_decode_thread();
         void wait_for_start();
-        bool should_thread_exit_while_locked() const;
+        bool should_break_out_of_loop_while_locked() const;
         bool should_thread_exit() const;
         bool handle_auto_suspension();
         template<typename Invokee>
@@ -202,7 +204,12 @@ private:
 
         AK::Duration const m_auto_suspend_idle_timeout;
         mutable MonotonicTime m_last_consumer_activity { MonotonicTime::now() };
-        mutable bool m_auto_suspend_requested { false };
+        enum class SuspensionRequest : u8 {
+            None,
+            Automatic,
+            FromConsumer,
+        };
+        mutable SuspensionRequest m_suspension_request { SuspensionRequest::None };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

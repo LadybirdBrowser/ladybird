@@ -29,6 +29,7 @@ public:
 
     struct Delegates {
         Function<void()> request_start;
+        Function<void()> request_suspend;
         Function<void(AK::Duration, InvalidateHeldData, u64 newest_received_lend_id)> request_seek;
     };
 
@@ -43,6 +44,7 @@ public:
     void stop_consuming();
 
     virtual void start() override;
+    virtual void suspend() override;
     virtual VideoProducerOutput peek() override;
     virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;

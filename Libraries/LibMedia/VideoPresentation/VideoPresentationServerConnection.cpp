@@ -147,6 +147,12 @@ void VideoPresentationServerConnection::request_start(u64 edge_id)
         it->value.pump->start_input();
 }
 
+void VideoPresentationServerConnection::request_suspend(u64 edge_id)
+{
+    if (auto it = m_edge_states.find(edge_id); it != m_edge_states.end())
+        it->value.pump->suspend_input();
+}
+
 void VideoPresentationServerConnection::request_seek(u64 edge_id, AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id)
 {
     if (auto it = m_edge_states.find(edge_id); it != m_edge_states.end())

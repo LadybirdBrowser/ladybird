@@ -171,6 +171,7 @@ public:
     }
 
     virtual void start() override { }
+    virtual void suspend() override { }
     virtual Media::VideoProducerOutput peek() override
     {
         MutexLocker locker { m_mutex };
