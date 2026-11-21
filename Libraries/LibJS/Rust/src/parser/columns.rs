@@ -73,8 +73,10 @@ pub mod tag {
     pub const MARK_KEY: u8 = 156; pub const MARK_COMPUTED_KEY: u8 = 157; pub const MARK_OBJECT: u8 = 158;
     pub const MARK_CONDITIONAL_TEST: u8 = 159; pub const MARK_CONDITIONAL_ELSE: u8 = 160;
     pub const MARK_LOGICAL: u8 = 161; pub const MARK_IF_TEST: u8 = 162; pub const MARK_ELSE: u8 = 163;
-    pub const MARK_LOOP_HEAD: u8 = 164; pub const MARK_WHILE_TEST: u8 = 165; pub const MARK_DO_HEAD: u8 = 166;
-    pub const MARK_DO_TEST: u8 = 167; pub const MARK_BLOCK: u8 = 171;
+    // The start of a `while` or a `do`-`while`. a = the loop.
+    pub const MARK_LOOP_HEAD: u8 = 164; pub const MARK_DO_HEAD: u8 = 166;
+    // The start of the test of an `if`. a = the test.
+    pub const MARK_IF_HEAD: u8 = 165; pub const MARK_BLOCK: u8 = 171;
     // The start of a construct whose rows get walked by what they are rather than in order. a = its root row, or 0 if
     // it turned out to be nothing of the kind, b = what depends on the construct.
     pub const MARK_SUBTREE: u8 = 175;

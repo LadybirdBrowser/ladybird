@@ -23,20 +23,26 @@ pub(super) fn emit_get_by_key(generator: &mut Generator<'_>, dst: Operand, base:
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
         let keyed_feedback = generator.next_keyed_feedback();
-        generator.put(op::GetLength {
-            keyed_feedback,
+        generator.put_with_destination(
+            op::GetLength {
+                keyed_feedback,
+                dst,
+                base,
+                cache,
+            },
             dst,
-            base,
-            cache,
-        });
+        );
     } else {
         let cache = generator.next_property_lookup_cache();
-        generator.put(op::GetById {
+        generator.put_with_destination(
+            op::GetById {
+                dst,
+                base,
+                property: key,
+                cache,
+            },
             dst,
-            base,
-            property: key,
-            cache,
-        });
+        );
     }
 }
 
@@ -63,21 +69,27 @@ fn emit_get_by_key_with_this(
     if generator.context.names.is_length_property_key(key) {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
-        generator.put(op::GetLengthWithThis {
+        generator.put_with_destination(
+            op::GetLengthWithThis {
+                dst,
+                base,
+                this_value,
+                cache,
+            },
             dst,
-            base,
-            this_value,
-            cache,
-        });
+        );
     } else {
         let cache = generator.next_property_lookup_cache();
-        generator.put(op::GetByIdWithThis {
+        generator.put_with_destination(
+            op::GetByIdWithThis {
+                dst,
+                base,
+                property: key,
+                this_value,
+                cache,
+            },
             dst,
-            base,
-            property: key,
-            this_value,
-            cache,
-        });
+        );
     }
 }
 
@@ -89,13 +101,16 @@ pub(super) fn emit_get_by_value(generator: &mut Generator<'_>, dst: Operand, bas
     }
     let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
-    generator.put(op::GetByValue {
-        keyed_feedback,
+    generator.put_with_destination(
+        op::GetByValue {
+            keyed_feedback,
+            dst,
+            base,
+            property,
+            cache,
+        },
         dst,
-        base,
-        property,
-        cache,
-    });
+    );
 }
 
 /// Emit a property read by value with explicit this, optimizing constant string properties.
@@ -111,13 +126,16 @@ pub(super) fn emit_get_by_value_with_this(
         return;
     }
     let value_feedback = generator.next_value_feedback();
-    generator.put(op::GetByValueWithThis {
-        value_feedback,
+    generator.put_with_destination(
+        op::GetByValueWithThis {
+            value_feedback,
+            dst,
+            base,
+            property,
+            this_value,
+        },
         dst,
-        base,
-        property,
-        this_value,
-    });
+    );
 }
 
 /// Emit a normal property write by value with explicit this, optimizing constant string properties.

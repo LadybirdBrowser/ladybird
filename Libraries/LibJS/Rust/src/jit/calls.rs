@@ -767,6 +767,18 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             let control = Runtime::call_with_argument_array(vm, pc, call, &mut values);
             finish_generic_call(vm, &site, control, values.dst)
         }
+        _ if opcode == OpCode::CallWithSpread as u8 => {
+            let call = instruction!(CallWithSpread);
+            let site = site(call.dst, op::CallWithSpread::LENGTH);
+            let mut values = op::CallWithSpreadValues {
+                dst: Value::EMPTY,
+                callee: load(call.callee),
+                this_value: load(call.this_value),
+                iterable: load(call.iterable),
+            };
+            let control = Runtime::call_with_spread(vm, pc, call, &mut values);
+            finish_generic_call(vm, &site, control, values.dst)
+        }
         _ if opcode == OpCode::CallDirectEvalWithArgumentArray as u8 => {
             let call = instruction!(CallDirectEvalWithArgumentArray);
             let site = site(call.dst, op::CallDirectEvalWithArgumentArray::LENGTH);

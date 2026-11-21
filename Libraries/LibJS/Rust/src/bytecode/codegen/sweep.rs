@@ -124,6 +124,11 @@ impl Generator<'_> {
             };
             let node = NodeId(row as u32);
             self.current_source_offset = SourceOffset(position);
+            if self.has_condition_step(row) {
+                self.take_condition_steps(row);
+                row += 1;
+                continue;
+            }
             match row_tag {
                 tag::IDENT => {
                     if let Some(kind) = (a == N_ARGUMENTS).then(|| self.arguments_from_frame()).flatten() {
@@ -225,12 +230,25 @@ impl Generator<'_> {
                 tag::PAREN => {}
                 tag::CALL | tag::OPT_CALL => self.call(tree.node_list(b).len()),
                 tag::NEW => self.construct(tree.node_list(b).len()),
-                tag::CALL_ARRAY => self.call_with_array(),
+                tag::CALL_ARRAY => {
+                    let arguments = tree.node_list(b);
+                    if arguments.len() == 1
+                        && b_column[arguments.at(0).index()] != 0
+                        && tags[arguments.at(0).index()] == tag::SPREAD
+                    {
+                        self.call_with_spread();
+                    } else {
+                        self.call_with_array();
+                    }
+                }
                 tag::CALL_DIRECT_EVAL => self.direct_eval(tree.node_list(b).len()),
                 tag::CALL_DIRECT_EVAL_ARRAY => self.direct_eval_with_array(),
                 tag::NEW_ARRAY => self.construct_with_array(),
                 tag::ARRAY_SPREAD => {}
+                // NB: The parser sets b on the array mark and the spread of a call whose only argument is a spread.
+                tag::MARK_ARRAY_START if b != 0 => {}
                 tag::MARK_ARRAY_START => self.array_begin(a as usize),
+                tag::SPREAD if b != 0 && tags[row + 1] == tag::CALL_ARRAY => {}
                 tag::SPREAD => self.append_element(true),
                 tag::MARK_APPEND => self.append_element(false),
                 tag::OBJECT_SPREAD => self.object_spread(),
@@ -417,24 +435,20 @@ impl Generator<'_> {
                     self.declare(ident, b != 0, declaration_kind, declared_resource);
                 }
                 tag::VAR | tag::LET | tag::CONST | tag::USING | tag::AWAIT_USING | tag::EMPTY => {}
-                tag::MARK_IF_TEST => {
-                    self.reset_completion();
-                    self.if_after_test();
-                }
+                tag::MARK_IF_HEAD => self.begin_if_test(NodeId(a)),
+                tag::MARK_IF_TEST => self.if_after_test(),
                 tag::MARK_ELSE => self.if_else(),
                 tag::IF => self.if_end(),
                 tag::MARK_LOOP_HEAD => {
-                    self.reset_completion();
-                    self.while_head();
+                    self.sweep_while(NodeId(a), row)?;
+                    row = a as usize + 1;
+                    continue;
                 }
-                tag::MARK_WHILE_TEST => self.while_after_test(),
-                tag::WHILE => self.while_end(),
                 tag::MARK_DO_HEAD => {
-                    self.reset_completion();
-                    self.do_head();
+                    self.sweep_do_while(NodeId(a), row)?;
+                    row = a as usize + 1;
+                    continue;
                 }
-                tag::MARK_DO_TEST => self.do_before_test(),
-                tag::DO_WHILE => self.do_end(),
                 tag::MARK_BLOCK => {
                     self.block_begin(a);
                     if b != 0 {

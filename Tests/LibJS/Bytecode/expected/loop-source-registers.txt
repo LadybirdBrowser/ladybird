@@ -76,7 +76,7 @@ Exception handlers:
   [  59 ..   6c] => handler block7
 
 
-forIn$d20b003a loop-source-registers.js:10:16
+forIn$38e1f1b5 loop-source-registers.js:10:16
   Registers: 17
   Blocks:    9
   Locals:    key~0, inner~1
@@ -102,30 +102,29 @@ block2:
 block3:
   [  28] Mov dst:key~0, src:reg5
   [  2b] Mov dst:inner~1, src:<Empty>
-  [  2e] GetByValue keyed_feedback:0, dst:reg11, base:arg0, property:key~0
-  [  36] Mov dst:reg10, src:reg11
-  [  39] JumpNullish condition:reg10, true_target:block7, false_target:block4
+  [  2e] GetByValue keyed_feedback:0, dst:reg10, base:arg0, property:key~0
+  [  36] JumpNullish condition:reg10, true_target:block7, false_target:block4
 
 block4:
-  [  43] GetObjectPropertyIterator dst_keys:reg12, dst_receiver:reg11, object:reg10
-  [  4b] Mov dst:reg13, src:Int32(0)
+  [  40] GetObjectPropertyIterator dst_keys:reg12, dst_receiver:reg11, object:reg10
+  [  48] Mov dst:reg13, src:Int32(0)
 
 block5:
-  [  4e] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg14, receiver:reg11, keys:reg12, cursor:reg13
-  [  54] JumpTrue condition:reg14, target:block7
+  [  4b] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg14, receiver:reg11, keys:reg12, cursor:reg13
+  [  51] JumpTrue condition:reg14, target:block7
 
 block6:
-  [  5a] Mov dst:inner~1, src:reg10
-  [  5d] GetGlobal value_feedback:0, dst:reg15, `console`
-  [  65] GetById dst:reg16, base:reg15, `log`
-  [  6c] Call call_feedback:0, dst:reg15, callee:reg16, this_value:reg15, arguments:[key~0, inner~1]
-  [  75] JumpLoop target:block5
+  [  57] Mov dst:inner~1, src:reg10
+  [  5a] GetGlobal value_feedback:0, dst:reg15, `console`
+  [  62] GetById dst:reg16, base:reg15, `log`
+  [  69] Call call_feedback:0, dst:reg15, callee:reg16, this_value:reg15, arguments:[key~0, inner~1]
+  [  72] JumpLoop target:block5
 
 block7:
-  [  7a] JumpLoop target:block2
+  [  77] JumpLoop target:block2
 
 block8:
-  [  7f] End value:Undefined
+  [  7c] End value:Undefined
 
 
 forAwait$a3c8c82e loop-source-registers.js:18:22

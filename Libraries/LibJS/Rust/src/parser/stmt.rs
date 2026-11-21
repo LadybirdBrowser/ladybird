@@ -130,7 +130,13 @@ impl<U: Unit> Parser<'_, U> {
             T::KIf => {
                 self.next();
                 self.expect(T::LParen);
+                let head = self.ast.tag.len();
+                self.mark(tag::MARK_IF_HEAD, 0);
                 let test = self.parse_expression(false, false);
+                // NB: A sweep branches at each `&&`, `||` and `!` of the test, so it needs the test before its rows.
+                if self.marks {
+                    self.ast.a[head] = test;
+                }
                 self.expect(T::RParen);
                 self.mark(tag::MARK_IF_TEST, 0);
                 self.if_start = start;
@@ -208,28 +214,37 @@ impl<U: Unit> Parser<'_, U> {
             T::KWhile => {
                 self.next();
                 self.expect(T::LParen);
+                let head = self.ast.tag.len();
                 self.mark(tag::MARK_LOOP_HEAD, 0);
                 let test = self.parse_expression(false, false);
                 self.expect(T::RParen);
-                self.mark(tag::MARK_WHILE_TEST, 0);
                 self.push_loop_label();
                 let body = self.parse_statement(Context::Single, false);
                 self.labels.pop();
-                self.ast.push(tag::WHILE, start, test, body)
+                let statement = self.ast.push(tag::WHILE, start, test, body);
+                // NB: A sweep goes through the test and the body of the loop from its head.
+                if self.marks {
+                    self.ast.a[head] = statement;
+                }
+                statement
             }
             T::KDo => {
                 self.next();
+                let head = self.ast.tag.len();
                 self.mark(tag::MARK_DO_HEAD, 0);
                 self.push_loop_label();
                 let body = self.parse_statement(Context::Single, false);
                 self.labels.pop();
                 self.expect(T::KWhile);
                 self.expect(T::LParen);
-                self.mark(tag::MARK_DO_TEST, 0);
                 let test = self.parse_expression(false, false);
                 self.expect(T::RParen);
                 self.eat(T::Semi);
-                self.ast.push(tag::DO_WHILE, start, body, test)
+                let statement = self.ast.push(tag::DO_WHILE, start, body, test);
+                if self.marks {
+                    self.ast.a[head] = statement;
+                }
+                statement
             }
             T::KBreak | T::KContinue => self.parse_break_continue(),
             T::KThrow => {

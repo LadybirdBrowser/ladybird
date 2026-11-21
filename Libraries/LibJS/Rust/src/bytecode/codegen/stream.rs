@@ -674,7 +674,6 @@ pub(super) enum Control {
         break_label: Label,
         /// How many entries of the control stack a `break` leaves, which may be fewer than are below this one.
         break_depth: u32,
-        kind: LoopKind,
     },
     Block {
         environment: Option<ScopeEnvironment>,
@@ -706,18 +705,6 @@ pub(super) enum Control {
     PrivateEnvironment(ClassPrivateEnvironment),
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum LoopKind {
-    /// Whatever put this on the stack knows what the loop looks like.
-    Structured,
-    While {
-        head: Label,
-    },
-    DoWhile {
-        head: Label,
-    },
-}
-
 /// The state of a compile, which keeps its memory for the next one on the thread.
 #[derive(Default)]
 pub struct Stream {
@@ -745,6 +732,9 @@ pub struct Stream {
     /// Whether `this` got resolved in code that everything else comes after.
     has_resolved_this_for_good: bool,
     has_left_entry: bool,
+    /// What the rows of the test being swept do instead, the next one last.
+    pub(super) condition_steps: Vec<super::conditions::ConditionStep>,
+    pub(super) condition_work: Vec<(super::nodes::NodeId, super::conditions::Branch)>,
     /// The operands of a call or an array literal being put together.
     operands: Vec<Operand>,
     /// The copies that copy_locals_on_stack() made, kept so that it does not allocate each time.
@@ -790,6 +780,8 @@ impl Stream {
         self.has_resolved_this_for_good = false;
         self.has_left_entry = false;
         self.unused_value_row = u32::MAX;
+        self.condition_steps.clear();
+        self.condition_work.clear();
         self.handler = None;
         self.handler_changes.clear();
         self.finallies.clear();
@@ -1786,6 +1778,55 @@ impl Generator<'_> {
         self.put_conditional(op::JumpTrueLoop { condition, target });
     }
 
+    /// Goes to `true_target` if `condition` holds and to `false_target` otherwise, one of which is `fallthrough`, the
+    /// code right after this. Going to `back_target` takes the back edge of a loop.
+    pub(super) fn branch(
+        &mut self,
+        condition: Operand,
+        true_target: Label,
+        false_target: Label,
+        fallthrough: Label,
+        back_target: Option<Label>,
+    ) {
+        if let Some(is_truthy) = self.constant_truthiness(condition) {
+            let target = if is_truthy { true_target } else { false_target };
+            if Some(target) == back_target {
+                self.jump_back(target);
+            } else if target != fallthrough {
+                self.jump(target);
+            }
+            return;
+        }
+        let back_edge = back_target.is_some_and(|target| target == true_target || target == false_target);
+        self.reference_label(true_target);
+        self.reference_label(false_target);
+        if let Some(comparison) = self.take_last_comparison(condition) {
+            self.put_fused_jump(comparison, true_target, false_target, back_edge);
+        } else if fallthrough == true_target {
+            if back_edge {
+                self.put_conditional(op::JumpFalseLoop {
+                    condition,
+                    target: false_target,
+                });
+            } else {
+                self.put_conditional(op::JumpFalse {
+                    condition,
+                    target: false_target,
+                });
+            }
+        } else if back_edge {
+            self.put_conditional(op::JumpTrueLoop {
+                condition,
+                target: true_target,
+            });
+        } else {
+            self.put_conditional(op::JumpTrue {
+                condition,
+                target: true_target,
+            });
+        }
+    }
+
     /// Emits a jump that falls through if it does not go anywhere.
     #[inline(always)]
     pub(super) fn put_conditional<I: TypedInstruction>(&mut self, instruction: I) {
@@ -2504,6 +2545,31 @@ impl Generator<'_> {
                 callee: callee_operand,
                 this_value,
                 arguments,
+            },
+            dst,
+        );
+        self.push_value(dst, callee.first_temporary);
+    }
+
+    /// A call whose only argument is a spread of the iterable on top of the stack.
+    pub(super) fn call_with_spread(&mut self) {
+        let (iterable, _) = self.pop_operand();
+        let callee = self.pop_value();
+        let (callee_operand, this_value) = if callee.kind == ValKind::Callee {
+            (callee.a, callee.b)
+        } else {
+            (callee.a, self.context.constants.add_undefined())
+        };
+        self.release_temporaries_from(callee.first_temporary);
+        let dst = self.temporary();
+        let call_feedback = self.next_call_feedback();
+        self.put_with_destination(
+            op::CallWithSpread {
+                call_feedback,
+                dst,
+                callee: callee_operand,
+                this_value,
+                iterable,
             },
             dst,
         );
@@ -3921,79 +3987,6 @@ impl Generator<'_> {
             unreachable!("an if statement is what is going on")
         };
         self.bind_label(end_label.unwrap_or(else_label));
-    }
-
-    pub(super) fn while_head(&mut self) {
-        let head = self.new_label();
-        let break_label = self.new_label();
-        self.reference_label(head);
-        self.bind_label(head);
-        let break_depth = self.control_depth() + 1;
-        self.context.stream.controls.push(Control::Loop {
-            continue_label: head,
-            break_label,
-            break_depth,
-            kind: LoopKind::While { head },
-        });
-    }
-
-    pub(super) fn while_after_test(&mut self) {
-        let (test, _) = self.pop_operand();
-        self.end_of_statement();
-        let Some(&Control::Loop { break_label, .. }) = self.context.stream.controls.last() else {
-            unreachable!("a loop is what is going on")
-        };
-        self.jump_unless(test, break_label);
-    }
-
-    pub(super) fn while_end(&mut self) {
-        let Some(Control::Loop {
-            break_label,
-            kind: LoopKind::While { head },
-            ..
-        }) = self.context.stream.controls.pop()
-        else {
-            unreachable!("a while loop is what is going on")
-        };
-        self.jump_back(head);
-        self.bind_label(break_label);
-    }
-
-    pub(super) fn do_head(&mut self) {
-        let head = self.new_label();
-        let continue_label = self.new_label();
-        let break_label = self.new_label();
-        self.reference_label(head);
-        self.bind_label(head);
-        let break_depth = self.control_depth() + 1;
-        self.context.stream.controls.push(Control::Loop {
-            continue_label,
-            break_label,
-            break_depth,
-            kind: LoopKind::DoWhile { head },
-        });
-    }
-
-    pub(super) fn do_before_test(&mut self) {
-        let Some(&Control::Loop { continue_label, .. }) = self.context.stream.controls.last() else {
-            unreachable!("a loop is what is going on")
-        };
-        self.bind_label(continue_label);
-    }
-
-    pub(super) fn do_end(&mut self) {
-        let Some(Control::Loop {
-            break_label,
-            kind: LoopKind::DoWhile { head },
-            ..
-        }) = self.context.stream.controls.pop()
-        else {
-            unreachable!("a do loop is what is going on")
-        };
-        let (test, _) = self.pop_operand();
-        self.end_of_statement();
-        self.jump_back_if(test, head);
-        self.bind_label(break_label);
     }
 
     /// `break`, out of the statement that `label` names if it has one.

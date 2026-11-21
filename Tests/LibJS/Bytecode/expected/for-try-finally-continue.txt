@@ -1,4 +1,4 @@
-$bf430fa0 for-try-finally-continue.js:1:5
+$afc7ccd3 for-try-finally-continue.js:1:5
   Registers: 9
   Blocks:    14
   Locals:    e~0
@@ -61,16 +61,15 @@ block10:
   [  83] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block1, false_target:block11
 
 block11:
-  [  93] GetGlobal value_feedback:4, dst:reg6, `i`
-  [  9b] StrictlyInequalsRhsInt32 arith_feedback:4, dst:reg6, lhs:reg6, rhs:5
-  [  a4] Mov dst:reg5, src:Undefined
-  [  a7] JumpFalse condition:reg6, target:block13
+  [  93] Mov dst:reg5, src:Undefined
+  [  96] GetGlobal value_feedback:4, dst:reg6, `i`
+  [  9e] JumpStrictlyInequalsRhsInt32 arith_feedback:4, lhs:reg6, rhs:5, true_target:block12, false_target:block13
 
 block12:
-  [  ad] Throw src:String("bad")
+  [  ae] Throw src:String("bad")
 
 block13:
-  [  af] End value:reg5
+  [  b0] End value:reg5
 
 Exception handlers:
   [  15 ..   1d] => handler block3

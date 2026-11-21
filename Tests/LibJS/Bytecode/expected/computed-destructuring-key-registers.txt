@@ -24,7 +24,7 @@ block0:
   [  51] End value:reg5
 
 
-without_rest$56398602 computed-destructuring-key-registers.js:2:5
+without_rest$99ae7356 computed-destructuring-key-registers.js:2:5
   Registers: 8
   Blocks:    1
   Locals:    first~0, second~1, third~2, fourth~3
@@ -40,22 +40,18 @@ block0:
   [   d] ThrowIfNullish src:arg0
   [   f] Mov dst:reg5, src:arg0
   [  12] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  15] GetByValue keyed_feedback:0, dst:reg7, base:reg5, property:reg6
-  [  1d] Mov dst:first~0, src:reg7
-  [  20] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  23] GetByValue keyed_feedback:1, dst:reg7, base:reg5, property:reg6
-  [  2b] Mov dst:second~1, src:reg7
-  [  2e] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  31] GetByValue keyed_feedback:2, dst:reg7, base:reg5, property:reg6
-  [  39] Mov dst:third~2, src:reg7
-  [  3c] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  3f] GetByValue keyed_feedback:3, dst:reg7, base:reg5, property:reg6
-  [  47] Mov dst:fourth~3, src:reg7
-  [  4a] NewArray dst:reg5, elements:[first~0, second~1, third~2, fourth~3]
-  [  51] Return value:reg5
+  [  15] GetByValue keyed_feedback:0, dst:first~0, base:reg5, property:reg6
+  [  1d] ToPrimitiveWithStringHint dst:reg6, value:arg1
+  [  20] GetByValue keyed_feedback:1, dst:second~1, base:reg5, property:reg6
+  [  28] ToPrimitiveWithStringHint dst:reg6, value:arg1
+  [  2b] GetByValue keyed_feedback:2, dst:third~2, base:reg5, property:reg6
+  [  33] ToPrimitiveWithStringHint dst:reg6, value:arg1
+  [  36] GetByValue keyed_feedback:3, dst:fourth~3, base:reg5, property:reg6
+  [  3e] NewArray dst:reg5, elements:[first~0, second~1, third~2, fourth~3]
+  [  45] Return value:reg5
 
 
-with_rest$b8643947 computed-destructuring-key-registers.js:7:5
+with_rest$996db3ad computed-destructuring-key-registers.js:7:5
   Registers: 9
   Blocks:    1
   Locals:    first~0, second~1, rest~2
@@ -70,12 +66,10 @@ block0:
   [   a] ThrowIfNullish src:arg0
   [   c] Mov dst:reg5, src:arg0
   [   f] ToPrimitiveWithStringHint dst:reg6, value:arg1
-  [  12] GetByValue keyed_feedback:0, dst:reg7, base:reg5, property:reg6
-  [  1a] Mov dst:first~0, src:reg7
-  [  1d] ToPrimitiveWithStringHint dst:reg7, value:arg1
-  [  20] GetByValue keyed_feedback:1, dst:reg8, base:reg5, property:reg7
-  [  28] Mov dst:second~1, src:reg8
-  [  2b] CopyObjectExcludingProperties dst:reg8, from_object:reg5, excluded_names_are_in_array:false, excluded_names:[reg6, reg7]
-  [  32] Mov dst:rest~2, src:reg8
-  [  35] NewArray dst:reg5, elements:[first~0, second~1, rest~2]
-  [  3b] Return value:reg5
+  [  12] GetByValue keyed_feedback:0, dst:first~0, base:reg5, property:reg6
+  [  1a] ToPrimitiveWithStringHint dst:reg7, value:arg1
+  [  1d] GetByValue keyed_feedback:1, dst:second~1, base:reg5, property:reg7
+  [  25] CopyObjectExcludingProperties dst:reg8, from_object:reg5, excluded_names_are_in_array:false, excluded_names:[reg6, reg7]
+  [  2c] Mov dst:rest~2, src:reg8
+  [  2f] NewArray dst:reg5, elements:[first~0, second~1, rest~2]
+  [  35] Return value:reg5

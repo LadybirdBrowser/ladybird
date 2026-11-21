@@ -129,6 +129,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         O::Call
         | O::CallConstruct
         | O::CallWithArgumentArray
+        | O::CallWithSpread
         | O::CallConstructWithArgumentArray
         | O::SuperCallWithArgumentArray
         | O::SuperCall => GENERIC_CALL,

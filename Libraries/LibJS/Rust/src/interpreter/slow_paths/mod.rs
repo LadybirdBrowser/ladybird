@@ -1365,6 +1365,17 @@ impl RuntimeFunctions for Runtime {
         feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
     }
 
+    fn call_with_spread(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallWithSpread,
+        values: &mut op::CallWithSpreadValues,
+    ) -> SlowPathControl {
+        feedback::record_call(vm, instruction.call_feedback, values.callee, call_feedback_flags::NONE);
+        let control = calls::call_with_spread(vm, pc, instruction, values);
+        feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
+    }
+
     fn call_direct_eval_with_argument_array(
         vm: &Vm,
         pc: u32,

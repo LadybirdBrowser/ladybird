@@ -44,5 +44,7 @@ test("call of a function named async with spread arguments", () => {
     expect(async(0, ...[1, 2])).toEqual([0, 1, 2]);
     expect(async(0, ...[1], 2, ...[3], 4)).toEqual([0, 1, 2, 3, 4]);
     expect(async(...[1, 2])).toEqual([1, 2]);
+    expect(async(...[1, 2],)).toEqual([1, 2]); // prettier-ignore
+    expect(async(0, ...[1, 2],)).toEqual([0, 1, 2]); // prettier-ignore
     expect(async(...[1, 2]).length).toBe(2);
 });

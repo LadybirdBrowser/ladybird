@@ -51,7 +51,7 @@ block3:
   [  5d] End value:Undefined
 
 
-nested$e57963af tdz-reset-in-loop.js:14:5
+nested$6871031a tdz-reset-in-loop.js:14:16
   Registers: 11
   Blocks:    8
   Locals:    value~0, item~1

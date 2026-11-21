@@ -4438,6 +4438,14 @@ handler CallWithArgumentArray(
     arguments: Operand
 ) @cold = call_slow_path(call_with_argument_array);
 
+handler CallWithSpread(
+    call_feedback: CallFeedbackIndex,
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    iterable: Operand
+) @cold = call_slow_path(call_with_spread);
+
 handler CallDirectEvalWithArgumentArray(
     call_feedback: CallFeedbackIndex,
     dst: out Operand,

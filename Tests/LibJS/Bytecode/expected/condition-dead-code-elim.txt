@@ -87,7 +87,7 @@ block0:
   [   4] Return value:reg5
 
 
-while_falsey$86d89894 condition-dead-code-elim.js:22:17
+while_falsey$2fd56649 condition-dead-code-elim.js:22:12
   Registers: 6
   Blocks:    1
   Constants:

@@ -476,9 +476,8 @@ impl<U: Unit> Parser<'_, U> {
                     match self.tok {
                         T::LParen => {
                             let arguments = self.parse_arguments(chain_pos);
-                            base = self
-                                .ast
-                                .push(self.call_tag(tag::OPT_CALL), operator_pos, base, arguments);
+                            let call_tag = self.call_tag(tag::OPT_CALL);
+                            base = self.ast.push(call_tag, operator_pos, base, arguments);
                         }
                         T::LBracket => {
                             self.next();
@@ -560,12 +559,16 @@ impl<U: Unit> Parser<'_, U> {
 
     /// What a call with the list of arguments that was parsed last is, of a tree for a sweep too.
     #[inline(always)]
-    fn call_tag(&self, plain: u8) -> u8 {
-        if self.marks && self.arguments_in_array {
-            tag::CALL_ARRAY
-        } else {
-            plain
+    fn call_tag(&mut self, plain: u8) -> u8 {
+        if !self.marks || !self.arguments_in_array {
+            return plain;
         }
+        // NB: A sweep passes the iterable of a sole spread to the call instead of an array of the arguments.
+        if let Some((array_mark, spread)) = self.sole_spread_argument.take() {
+            self.ast.b[array_mark as usize] = 1;
+            self.ast.b[spread as usize] = 1;
+        }
+        tag::CALL_ARRAY
     }
 
     /// The arguments of a call, from the `(`, of a call that is at `position`.
@@ -573,6 +576,7 @@ impl<U: Unit> Parser<'_, U> {
         self.next();
         let mark = self.scratch.len();
         let mut in_array = false;
+        let mut array_mark = NONE;
         while self.tok != T::RParen && self.tok != T::Eof {
             if !in_array && self.marks && self.scratch.len() - mark == self.inline_argument_limit {
                 self.mark_array_start(self.scratch.len() - mark, position);
@@ -581,7 +585,7 @@ impl<U: Unit> Parser<'_, U> {
             let item = if self.tok == T::Ellipsis {
                 let start = self.tok_start;
                 if !in_array {
-                    self.mark_array_start(self.scratch.len() - mark, position);
+                    array_mark = self.mark_array_start(self.scratch.len() - mark, position);
                     in_array = true;
                 }
                 self.next();
@@ -601,6 +605,13 @@ impl<U: Unit> Parser<'_, U> {
         }
         self.expect(T::RParen);
         self.arguments_in_array = in_array;
+        // NB: The frame answers a spread of `arguments` without making the object.
+        self.sole_spread_argument = (array_mark != NONE && self.scratch.len() - mark == 1)
+            .then(|| self.scratch[mark])
+            .filter(|&spread| {
+                self.ast.tag[spread as usize] == tag::SPREAD && !self.is_arguments_ident(self.ast.a[spread as usize])
+            })
+            .map(|spread| (array_mark, spread));
         self.finish_list(mark)
     }
 
@@ -683,6 +694,12 @@ impl<U: Unit> Parser<'_, U> {
             self.await_ident_pos = old_await_ident;
         }
         self.close_scope();
+        // NB: A sweep reads the b of a spread argument as the mark of a sole spread, not as a trailing comma.
+        for &item in &self.scratch[mark..] {
+            if self.ast.tag[item as usize] == tag::SPREAD {
+                self.ast.b[item as usize] = 0;
+            }
+        }
         let list = self.finish_list(mark);
         self.note_use(N_ASYNC);
         let call_tag = if self.marks && in_array {

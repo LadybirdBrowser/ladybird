@@ -13,9 +13,9 @@ block0:
   [  14] End value:reg5
 
 
-blocked$6c4aa319 logical-or-in-if-condition.js:6:14
-  Registers: 6
-  Blocks:    8
+blocked$938cfbe3 logical-or-in-if-condition.js:6:14
+  Registers: 5
+  Blocks:    7
   Constants:
     [0] = Undefined
 
@@ -23,23 +23,19 @@ block0:
   [   0] Enter
 
 block1:
-  [   1] Mov dst:reg5, src:arg0
-  [   4] JumpTrue condition:reg5, target:block3
+  [   1] JumpTrue condition:arg0, target:block3
 
 block2:
-  [   a] Mov dst:reg5, src:arg0
+  [   7] JumpFalse condition:arg0, target:block4
 
 block3:
-  [   d] JumpFalse condition:reg5, target:block5
+  [   d] Jump target:block5
 
 block4:
-  [  13] Jump target:block6
+  [  12] Jump target:block6
 
 block5:
-  [  18] Jump target:block7
+  [  17] JumpLoop target:block1
 
 block6:
-  [  1d] JumpLoop target:block1
-
-block7:
-  [  22] End value:Undefined
+  [  1c] End value:Undefined

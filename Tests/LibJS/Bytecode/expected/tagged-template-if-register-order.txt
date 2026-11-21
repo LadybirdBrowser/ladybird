@@ -1,4 +1,4 @@
-$53bf11be tagged-template-if-register-order.js:1:1
+$c2e1d669 tagged-template-if-register-order.js:1:1
   Registers: 9
   Blocks:    6
   Constants:
@@ -17,28 +17,27 @@ block0:
   [  20] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
   [  28] DynamicInitializeLexicalBinding `x`, src:reg6
   [  2e] DynamicInitializeLexicalBinding `y`, src:Null
-  [  34] GetGlobal value_feedback:1, dst:reg6, `x`
-  [  3c] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("hello")
-  [  42] Mov dst:reg5, src:Undefined
-  [  45] JumpFalse condition:reg6, target:block5
+  [  34] Mov dst:reg5, src:Undefined
+  [  37] GetGlobal value_feedback:1, dst:reg6, `x`
+  [  3f] JumpStrictlyEquals arith_feedback:0, lhs:reg6, rhs:String("hello"), true_target:block1, false_target:block5
 
 block1:
-  [  4b] ResolveGlobalBinding dst:reg6, `y`
-  [  51] GetGlobal value_feedback:2, dst:reg7, `x`
-  [  59] GetById dst:reg8, base:reg7, `toUpperCase`
-  [  60] Call call_feedback:1, dst:reg7, callee:reg8, this_value:reg7
-  [  67] JumpIf condition:reg6, true_target:block2, false_target:block3
+  [  4c] ResolveGlobalBinding dst:reg6, `y`
+  [  52] GetGlobal value_feedback:2, dst:reg7, `x`
+  [  5a] GetById dst:reg8, base:reg7, `toUpperCase`
+  [  61] Call call_feedback:1, dst:reg7, callee:reg8, this_value:reg7
+  [  68] JumpIf condition:reg6, true_target:block2, false_target:block3
 
 block2:
-  [  71] SetGlobal `y`, src:reg7
-  [  77] Jump target:block4
+  [  72] SetGlobal `y`, src:reg7
+  [  78] Jump target:block4
 
 block3:
-  [  7c] SetResolvedBinding environment:Null, `y`, src:reg7
-  [  81] Jump target:block4
+  [  7d] SetResolvedBinding environment:Null, `y`, src:reg7
+  [  82] Jump target:block4
 
 block4:
-  [  86] Mov dst:reg5, src:reg7
+  [  87] Mov dst:reg5, src:reg7
 
 block5:
-  [  89] End value:reg5
+  [  8a] End value:reg5

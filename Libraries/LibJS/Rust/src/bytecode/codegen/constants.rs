@@ -52,7 +52,8 @@ impl IndexTable {
 
     #[inline(always)]
     fn first_slot_of(key: u64, slot_count: usize) -> usize {
-        (key.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 40) as usize & (slot_count - 1)
+        // NB: Small integers have many trailing zero bits as f64s, so only the high bits of the product spread them.
+        (key.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> (64 - slot_count.trailing_zeros())) as usize
     }
 
     /// The slots with the key, in the order a lookup visits them, until an empty one: `matches` decides on each index,
@@ -275,6 +276,22 @@ impl ConstantTable {
             self.values.get(operand.index() as usize)
         } else {
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn small_numbers_spread_across_slots() {
+        for slot_count in [32, 64, 128, 256, 512, 1024] {
+            let mut occupied = vec![false; slot_count];
+            for number in 0..24 {
+                occupied[IndexTable::first_slot_of(f64::from(number).to_bits(), slot_count)] = true;
+            }
+            assert!(occupied.iter().filter(|&&used| used).count() >= 12);
         }
     }
 }

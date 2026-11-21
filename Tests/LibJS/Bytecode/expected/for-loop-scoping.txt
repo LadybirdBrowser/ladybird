@@ -61,7 +61,7 @@ block3:
   [  ca] Return value:reg5
 
 
-map$d1c6bef1 BuiltinFile:275:11
+map$b2d03957 BuiltinFile:275:11
   Registers: 6
   Blocks:    8
   Locals:    object~0, length~1, array~2, k~3, kValue~4, mappedValue~5
@@ -78,37 +78,35 @@ block0:
   [   e] ToLength dst:reg5, value:reg5
   [  11] Mov dst:length~1, src:reg5
   [  14] IsCallable dst:reg5, value:arg0
-  [  17] Not dst:reg5, src:reg5
-  [  1a] JumpFalse condition:reg5, target:block2
+  [  17] JumpTrue condition:reg5, target:block2
 
 block1:
-  [  20] ThrowNotAFunction src:arg0
+  [  1d] ThrowNotAFunction src:arg0
 
 block2:
-  [  22] Call call_feedback:0, dst:reg5, callee:Value([object RawNativeFunction]), this_value:Undefined, arguments:[object~0, length~1]
-  [  2b] Mov dst:array~2, src:reg5
-  [  2e] Mov dst:k~3, src:Int32(0)
-  [  31] Jump target:block6
+  [  1f] Call call_feedback:0, dst:reg5, callee:Value([object RawNativeFunction]), this_value:Undefined, arguments:[object~0, length~1]
+  [  28] Mov dst:array~2, src:reg5
+  [  2b] Mov dst:k~3, src:Int32(0)
+  [  2e] Jump target:block6
 
 block3:
-  [  36] In dst:reg5, lhs:k~3, rhs:object~0
-  [  3a] JumpFalse condition:reg5, target:block5
+  [  33] In dst:reg5, lhs:k~3, rhs:object~0
+  [  37] JumpFalse condition:reg5, target:block5
 
 block4:
-  [  40] GetByValue keyed_feedback:1, dst:reg5, base:object~0, property:k~3
-  [  48] Mov dst:kValue~4, src:reg5
-  [  4b] Call call_feedback:1, dst:reg5, callee:arg0, this_value:arg1, arguments:[kValue~4, k~3, object~0]
-  [  55] Mov dst:mappedValue~5, src:reg5
-  [  58] CreateDataPropertyOrThrow object:array~2, property:k~3, value:mappedValue~5
+  [  3d] GetByValue keyed_feedback:1, dst:kValue~4, base:object~0, property:k~3
+  [  45] Call call_feedback:1, dst:reg5, callee:arg0, this_value:arg1, arguments:[kValue~4, k~3, object~0]
+  [  4f] Mov dst:mappedValue~5, src:reg5
+  [  52] CreateDataPropertyOrThrow object:array~2, property:k~3, value:mappedValue~5
 
 block5:
-  [  5c] Increment arith_feedback:0, dst:k~3
+  [  56] Increment arith_feedback:0, dst:k~3
 
 block6:
-  [  60] JumpLessThanLoop arith_feedback:1, lhs:k~3, rhs:length~1, true_target:block3, false_target:block7
+  [  5a] JumpLessThanLoop arith_feedback:1, lhs:k~3, rhs:length~1, true_target:block3, false_target:block7
 
 block7:
-  [  6d] Return value:array~2
+  [  67] Return value:array~2
 
 
 $bb9c872d for-loop-scoping.js:6:20

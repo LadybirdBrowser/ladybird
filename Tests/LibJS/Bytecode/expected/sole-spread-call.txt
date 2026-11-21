@@ -1,0 +1,92 @@
+$6c34e2c8 sole-spread-call.js:21:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:reg5, src:Undefined
+  [   4] GetGlobal value_feedback:0, dst:reg6, `forward`
+  [   c] GetGlobal value_feedback:1, dst:reg7, `callee`
+  [  14] NewPrimitiveArray dst:reg8, elements:[1, 2]
+  [  2a] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
+  [  33] GetGlobal value_feedback:2, dst:reg6, `rest`
+  [  3b] GetGlobal value_feedback:3, dst:reg7, `callee`
+  [  43] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, Int32(1), Int32(2)]
+  [  4d] GetGlobal value_feedback:4, dst:reg6, `method`
+  [  55] NewObject dst:reg7
+  [  59] GetGlobal value_feedback:5, dst:reg8, `callee`
+  [  61] InitObjectLiteralProperty object:reg7, `fn`, src:reg8, shape_cache_index:0, property_slot:0
+  [  6a] CacheObjectShape object:reg7
+  [  6e] NewPrimitiveArray dst:reg8, elements:[1, 2]
+  [  84] Call call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
+  [  8d] GetGlobal value_feedback:6, dst:reg6, `forwardArguments`
+  [  95] GetGlobal value_feedback:7, dst:reg7, `callee`
+  [  9d] Call call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, Int32(1), Int32(2)]
+  [  a7] End value:reg5
+
+
+forward$b354d973 sole-spread-call.js:2:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] CallWithSpread call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, iterable:arg1
+  [   8] Return value:reg5
+
+
+callee$cf9c1f07 sole-spread-call.js:17:17
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   1] CreateRestParams dst:arg0, rest_index:0
+  [   7] GetLength keyed_feedback:0, dst:reg5, base:arg0
+  [   e] Return value:reg5
+
+
+rest$e01202cb sole-spread-call.js:5:19
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] CreateRestParams dst:arg1, rest_index:1
+  [   7] CallWithSpread call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, iterable:arg1
+  [   e] Return value:reg5
+
+
+method$40399ccc sole-spread-call.js:10:5
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   1] GetById dst:reg5, base:arg0, `fn`
+  [   8] CallWithSpread call_feedback:0, dst:reg5, callee:reg5, this_value:arg0, iterable:arg1
+  [   f] Return value:reg5
+
+
+forwardArguments$b93d1782 sole-spread-call.js:14:5
+  Registers: 8
+  Blocks:    1
+  Locals:    arguments~0
+
+block0:
+  [   0] Enter
+  [   1] CreateArguments dst:arguments~0, is_immutable:false, creates_parameter_bindings:true
+  [   6] InitializeLexicalBinding `fn`, src:arg0
+  [   d] GetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `fn`
+  [  17] NewArray dst:reg7
+  [  1a] ArrayAppend dst:reg7, src:arguments~0, is_spread:true
+  [  1e] CallWithArgumentArray call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:reg7
+  [  25] Return value:reg5

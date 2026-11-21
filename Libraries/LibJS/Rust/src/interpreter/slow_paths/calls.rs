@@ -29,6 +29,7 @@ use crate::runtime::abstract_operations::{
     function_with_frame_as_this_environment, get_this_environment, perform_eval,
 };
 use crate::runtime::array::Array;
+use crate::runtime::array_iterator::packed_array_iteration_is_unobservable;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::class_construction::ClassHeritage;
 use crate::runtime::class_construction::class_proto_parent;
@@ -43,11 +44,13 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::FunctionObject;
+use crate::runtime::iterator::get_iterator_values;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{Object, StackFrameInfo};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, FunctionKind};
 use crate::utf16::Utf16Display;
 
@@ -295,7 +298,7 @@ fn copy_arguments_into_callee_context(callee_context: &ExecutionContext, argumen
         .set(argument_count_of(arguments.len()));
 }
 
-#[inline(never)]
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_asm_call(
     call_type: CallType,
@@ -306,11 +309,36 @@ pub(crate) fn execute_asm_call(
     dst: &mut Value,
     strict: Strict,
 ) -> ThrowCompletionOr<()> {
+    execute_asm_call_with_argument_writer(
+        call_type,
+        vm,
+        callee,
+        this_value,
+        argument_count_of(arguments.len()),
+        dst,
+        strict,
+        |callee_context| copy_arguments_into_callee_context(callee_context, arguments),
+    )
+}
+
+/// A call whose arguments get written straight into the callee's frame. Allocating that frame may compile the callee
+/// and collect garbage, but runs no JavaScript.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn execute_asm_call_with_argument_writer(
+    call_type: CallType,
+    vm: &Vm,
+    callee: Value,
+    this_value: Value,
+    argument_count: u32,
+    dst: &mut Value,
+    strict: Strict,
+    write_arguments: impl FnOnce(&ExecutionContext),
+) -> ThrowCompletionOr<()> {
     throw_if_needed_for_asm_call(vm, callee, call_type)?;
 
     let function = callee.as_function();
 
-    let argument_count = argument_count_of(arguments.len());
     let stack_frame_info = stack_frame_info_for_call(vm, function, argument_count)?;
 
     let stack = vm.interpreter_stack();
@@ -330,7 +358,7 @@ pub(crate) fn execute_asm_call(
     // SAFETY: The frame was just allocated and stays allocated until the guard frees it.
     let callee_context = unsafe { callee_context.as_ref() };
 
-    copy_arguments_into_callee_context(callee_context, arguments);
+    write_arguments(callee_context);
 
     let retval = if call_type == CallType::DirectEval {
         if is_intrinsic_eval_function(vm, callee) {
@@ -487,67 +515,31 @@ fn call_with_argument_array_impl(
     dst: &mut Value,
     strict: Strict,
 ) -> ThrowCompletionOr<()> {
-    throw_if_needed_for_asm_call(vm, callee, call_type)?;
-
-    let function = callee.as_function();
-
     let argument_array = as_array_exotic_object(arguments);
-    let argument_array_length = argument_array.indexed_array_like_size();
-
-    let stack_frame_info = stack_frame_info_for_call(vm, function, argument_array_length)?;
-
-    let stack = vm.interpreter_stack();
-    let stack_mark = stack.top.get();
-    let Some(callee_context) = stack.allocate(
-        stack_frame_info.registers_and_locals_count,
-        stack_frame_info.constant_count,
-        argument_array_length.max(stack_frame_info.argument_count),
-    ) else {
-        return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
-    };
-    let _deallocate_guard = ScopeGuard::new(|| {
-        if stack.top.get() > stack_mark {
-            stack.deallocate(stack_mark);
-        }
-    });
-    // SAFETY: The frame was just allocated and stays allocated until the guard frees it.
-    let callee_context = unsafe { callee_context.as_ref() };
-
-    let callee_context_argument_values = callee_context.arguments();
-    let insn_argument_count = argument_array_length as usize;
-
-    for (index, slot) in callee_context_argument_values
-        .iter()
-        .take(insn_argument_count)
-        .enumerate()
-    {
-        let index = u32::try_from(index).expect("the argument index fits in u32");
-        if let Some(value) = argument_array.indexed_get(index) {
-            slot.set(value.value);
-        } else {
-            slot.set(Value::UNDEFINED);
-        }
-    }
-    for slot in &callee_context_argument_values[insn_argument_count..] {
-        slot.set(Value::UNDEFINED);
-    }
-    callee_context.passed_argument_count.set(argument_array_length);
-
-    let retval = if call_type == CallType::DirectEval && is_intrinsic_eval_function(vm, callee) {
-        perform_eval(
-            vm,
-            eval_argument(callee_context),
-            caller_mode_of(strict),
-            EvalMode::Direct,
-        )?
-    } else if call_type == CallType::Construct {
-        Value::from_object(internal_construct(vm, function, callee_context, function)?)
-    } else {
-        internal_call(vm, function, callee_context, this_value)?
-    };
-
-    *dst = retval;
-    Ok(())
+    let argument_count = argument_array.indexed_array_like_size();
+    execute_asm_call_with_argument_writer(
+        call_type,
+        vm,
+        callee,
+        this_value,
+        argument_count,
+        dst,
+        strict,
+        |callee_context| {
+            let slots = callee_context.arguments();
+            for (index, slot) in (0..argument_count).zip(slots) {
+                slot.set(
+                    argument_array
+                        .indexed_get(index)
+                        .map_or(Value::UNDEFINED, |value| value.value),
+                );
+            }
+            for slot in &slots[argument_count as usize..] {
+                slot.set(Value::UNDEFINED);
+            }
+            callee_context.passed_argument_count.set(argument_count);
+        },
+    )
 }
 
 pub fn call_with_argument_array(
@@ -570,6 +562,70 @@ pub fn call_with_argument_array(
         )
     );
     SlowPathControl::continue_at(pc + op::CallWithArgumentArray::LENGTH)
+}
+
+pub fn call_with_spread(
+    vm: &Vm,
+    pc: u32,
+    _instruction: &op::CallWithSpread,
+    values: &mut op::CallWithSpreadValues,
+) -> SlowPathControl {
+    let realm = vm.current_realm().expect("a call runs in a realm");
+    if values.iterable.is_object()
+        && let Some(array) = values.iterable.as_object().downcast::<Array>()
+        && realm_watchpoints::array_is_iterated_unobservably(vm, realm, &array)
+        && packed_array_iteration_is_unobservable(vm, realm, &array, realm.array_prototype_values_function())
+    {
+        // NB: Neither looking up @@iterator nor exhausting it can run JavaScript, so the elements can go straight into
+        //     the callee's frame.
+        let argument_count = array.indexed_packed_element_count();
+        asm_try!(
+            vm,
+            pc,
+            execute_asm_call_with_argument_writer(
+                CallType::Call,
+                vm,
+                values.callee,
+                values.this_value,
+                argument_count,
+                &mut values.dst,
+                strict_at(vm, pc),
+                |callee_context| {
+                    let slots = callee_context.arguments();
+                    for (index, slot) in (0..argument_count).zip(slots) {
+                        slot.set(array.indexed_get(index).expect("the array is packed").value);
+                    }
+                    for slot in &slots[argument_count as usize..] {
+                        slot.set(Value::UNDEFINED);
+                    }
+                    callee_context.passed_argument_count.set(argument_count);
+                },
+            )
+        );
+    } else {
+        let arguments = MarkedVec::new(vm);
+        let completion = get_iterator_values(vm, values.iterable, |value| {
+            arguments.push(value);
+            None
+        });
+        if completion.is_error() {
+            return handle_asm_exception(vm, pc, completion.value());
+        }
+        asm_try!(
+            vm,
+            pc,
+            execute_asm_call(
+                CallType::Call,
+                vm,
+                values.callee,
+                values.this_value,
+                &arguments.values(),
+                &mut values.dst,
+                strict_at(vm, pc),
+            )
+        );
+    }
+    SlowPathControl::continue_at(pc + op::CallWithSpread::LENGTH)
 }
 
 pub fn call_direct_eval_with_argument_array(

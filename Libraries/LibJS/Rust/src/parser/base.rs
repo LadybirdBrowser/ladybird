@@ -236,6 +236,8 @@ pub struct Parser<'a, U: Unit> {
     pub(crate) last_function_of_block: u32,
     /// Whether the list of arguments that was parsed last is evaluated into an array for a sweep.
     pub(crate) arguments_in_array: bool,
+    /// The array mark and the spread of the list of arguments that was parsed last, if a spread is all it has.
+    pub(crate) sole_spread_argument: Option<(u32, u32)>,
     /// How many arguments a sweep can keep as separate operands before putting them into an array.
     pub(crate) inline_argument_limit: usize,
     /// Whether anything uses what scopes declare and what code refers to, which a sweep with a summary does not.
@@ -451,6 +453,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             block_mark: NONE,
             last_function_of_block: 0,
             arguments_in_array: false,
+            sole_spread_argument: None,
             inline_argument_limit: crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
             tracks_scopes: true,
             records_summaries: true,
@@ -1100,10 +1103,11 @@ impl<'a, U: Unit> Parser<'a, U> {
 
     /// A list starts to be built as an array, after `count` elements, in something that is at `position`.
     #[inline(always)]
-    pub(crate) fn mark_array_start(&mut self, count: usize, position: u32) {
-        if self.marks {
-            self.ast.push(tag::MARK_ARRAY_START, position, count as u32, 0);
+    pub(crate) fn mark_array_start(&mut self, count: usize, position: u32) -> u32 {
+        if !self.marks {
+            return NONE;
         }
+        self.ast.push(tag::MARK_ARRAY_START, position, count as u32, 0)
     }
 
     /// The construct that `begin_subtree()` left `mark` for ended with the row `root`.

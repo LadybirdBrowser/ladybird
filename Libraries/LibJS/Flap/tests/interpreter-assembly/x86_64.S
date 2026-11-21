@@ -161,6 +161,7 @@ asm_dispatch_table:
     .quad asm_handler_CallConstruct
     .quad asm_handler_CallDirectEval
     .quad asm_handler_CallWithArgumentArray
+    .quad asm_handler_CallWithSpread
     .quad asm_handler_CallDirectEvalWithArgumentArray
     .quad asm_handler_CallConstructWithArgumentArray
     .quad asm_handler_SuperCallWithArgumentArray
@@ -245,7 +246,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1122,6 +1122,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_CallWithArgumentArray_hot_end
     .quad asm_handler_CallWithArgumentArray_cold
     .quad asm_handler_CallWithArgumentArray_cold_end
+    .quad asm_handler_CallWithSpread
+    .quad asm_handler_CallWithSpread_hot_end
+    .quad asm_handler_CallWithSpread_cold
+    .quad asm_handler_CallWithSpread_cold_end
     .quad asm_handler_CallDirectEvalWithArgumentArray
     .quad asm_handler_CallDirectEvalWithArgumentArray_hot_end
     .quad asm_handler_CallDirectEvalWithArgumentArray_cold
@@ -1458,10 +1462,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -16170,6 +16170,57 @@ asm_handler_CallWithArgumentArray:
 asm_handler_CallWithArgumentArray_hot_end:
 asm_handler_CallWithArgumentArray_cold:
 asm_handler_CallWithArgumentArray_cold_end:
+
+.p2align 4
+asm_handler_CallWithSpread:
+    mov DWORD PTR [rbx + -72], r13d
+    lea r11, [r14 + r13]
+    movzx r10d, BYTE PTR [r11 + 4]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_CallWithSpread.scalar_value_ready_0:
+    mov rcx, rax
+    movzx r10d, BYTE PTR [r11 + 5]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_CallWithSpread.scalar_value_ready_1:
+    mov r8, rax
+    movzx r10d, BYTE PTR [r11 + 6]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_CallWithSpread.scalar_value_ready_2:
+    mov r9, rax
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_call_with_spread)
+    test rax, rax
+    js .Lasm_CallWithSpread.scalar_result_done_3
+    bt rax, 32
+    jnc .Lasm_CallWithSpread.scalar_result_done_3
+    lea rcx, [r14 + r13]
+    movzx r10d, BYTE PTR [rcx + 3]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_CallWithSpread.scalar_result_done_3:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_CallWithSpread.slow_path_transfer_4
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_CallWithSpread.slow_path_transfer_4:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 136
+    mov rcx, QWORD PTR [rbx + -48]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_CallWithSpread_hot_end:
+asm_handler_CallWithSpread_cold:
+asm_handler_CallWithSpread_cold_end:
 
 .p2align 4
 asm_handler_CallDirectEvalWithArgumentArray:

@@ -43,7 +43,6 @@ use super::scope::ScopeBindings;
 use super::stream::ClassPrivateEnvironment;
 use super::stream::Control;
 use super::stream::Handler;
-use super::stream::LoopKind;
 use super::stream::OpenIterator;
 use super::stream::ScopeEnvironment;
 use super::stream::TargetBinding;
@@ -184,7 +183,7 @@ impl Generator<'_> {
     }
 
     /// Goes through the rows of an expression, which leaves its value on the stack, and takes the value.
-    fn sweep_value(&mut self, first_row: usize, expression: NodeId) -> Result<Operand, OutOfStack> {
+    pub(super) fn sweep_value(&mut self, first_row: usize, expression: NodeId) -> Result<Operand, OutOfStack> {
         self.sweep_rows(first_row, expression.index() + 1)?;
         Ok(self.pop_operand().0)
     }
@@ -750,6 +749,59 @@ impl Generator<'_> {
         Ok(())
     }
 
+    /// `while`, whose rows come as test and body, like its code.
+    pub(super) fn sweep_while(&mut self, statement: NodeId, first_row: usize) -> Result<(), OutOfStack> {
+        if self.should_stop_generating() {
+            return Err(OutOfStack);
+        }
+        let tree = self.tree;
+        let test = NodeId(tree.node_a(statement));
+        let body = NodeId(tree.node_b(statement));
+        self.reset_completion();
+        let test_label = self.new_label();
+        let end_label = self.new_label();
+        self.bind_reachable_label(test_label);
+        self.sweep_while_test(first_row + 1, test, end_label)?;
+        let break_depth = self.control_depth() + 1;
+        self.push_control(Control::Loop {
+            continue_label: test_label,
+            break_label: end_label,
+            break_depth,
+        });
+        self.sweep_rows(test.index() + 1, body.index() + 1)?;
+        self.pop_control();
+        self.jump_back(test_label);
+        self.bind_label(end_label);
+        Ok(())
+    }
+
+    /// `do`-`while`, whose rows come as body and test, like its code.
+    pub(super) fn sweep_do_while(&mut self, statement: NodeId, first_row: usize) -> Result<(), OutOfStack> {
+        if self.should_stop_generating() {
+            return Err(OutOfStack);
+        }
+        let tree = self.tree;
+        let body = NodeId(tree.node_a(statement));
+        let test = NodeId(tree.node_b(statement));
+        self.reset_completion();
+        let body_label = self.new_label();
+        let test_label = self.new_label();
+        let end_label = self.new_label();
+        self.bind_reachable_label(body_label);
+        let break_depth = self.control_depth() + 1;
+        self.push_control(Control::Loop {
+            continue_label: test_label,
+            break_label: end_label,
+            break_depth,
+        });
+        self.sweep_rows(first_row + 1, body.index() + 1)?;
+        self.pop_control();
+        self.bind_label(test_label);
+        self.sweep_loop_test(body.index() + 1, test, body_label, end_label)?;
+        self.bind_label(end_label);
+        Ok(())
+    }
+
     /// `for`, whose rows come as init, test, update and body, and whose code comes as init, body, update and test.
     fn sweep_for(&mut self, statement: NodeId, first_row: usize, position: u32) -> Result<(), OutOfStack> {
         let tree = self.tree;
@@ -804,7 +856,6 @@ impl Generator<'_> {
             continue_label,
             break_label: end_label,
             break_depth,
-            kind: LoopKind::Structured,
         });
         self.sweep_rows(row, body as usize + 1)?;
         self.pop_control();
@@ -821,9 +872,7 @@ impl Generator<'_> {
         }
         if test != 0 {
             self.bind_reachable_label(test_label);
-            let value = self.sweep_value(test_first_row, NodeId(test))?;
-            self.end_of_statement();
-            self.jump_back_if(value, body_label);
+            self.sweep_loop_test(test_first_row, NodeId(test), body_label, end_label)?;
         } else {
             self.jump_back(body_label);
         }
@@ -1243,7 +1292,6 @@ impl Generator<'_> {
             continue_label: update_label,
             break_label: end_label,
             break_depth,
-            kind: LoopKind::Structured,
         });
         self.sweep_loop_body(statement, target, bindings, value)?;
         self.pop_control();
@@ -1312,7 +1360,6 @@ impl Generator<'_> {
             continue_label: update_label,
             break_label: end_label,
             break_depth: iterator_depth,
-            kind: LoopKind::Structured,
         });
 
         self.bind_reachable_label(update_label);
