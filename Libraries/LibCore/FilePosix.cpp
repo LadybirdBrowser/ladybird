@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
 
@@ -131,6 +133,56 @@ ErrorOr<struct stat> File::fstat(int fd)
 ErrorOr<void> File::set_blocking(bool enabled)
 {
     return System::set_socket_blocking(fd(), enabled);
+}
+
+ErrorOr<NonnullOwnPtr<File>> File::open_regular_file_or_directory(StringView canonical_path)
+{
+    // Intermediate directories need search permission, not read permission.
+#if defined(O_PATH)
+    static constexpr int directory_options = O_PATH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+#elif defined(O_SEARCH)
+    static constexpr int directory_options = O_SEARCH | O_NOFOLLOW | O_CLOEXEC;
+#else
+    static constexpr int directory_options = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+#endif
+    static constexpr int file_options = O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC;
+
+    auto is_regular_file_or_directory = [](struct stat const& stat) {
+        return S_ISREG(stat.st_mode) || S_ISDIR(stat.st_mode);
+    };
+
+    LexicalPath lexical_path { canonical_path };
+    if (!lexical_path.is_absolute())
+        return Error::from_errno(EINVAL);
+    auto const& components = lexical_path.parts_view();
+
+    int fd = -1;
+    if (components.is_empty()) {
+        fd = TRY(System::open("/"sv, file_options));
+    } else {
+        int directory_fd = TRY(System::open("/"sv, directory_options));
+        ScopeGuard close_directory = [&] { (void)System::close(directory_fd); };
+        for (size_t i = 0; i + 1 < components.size(); ++i) {
+            auto next_directory_fd = TRY(System::openat(directory_fd, components[i], directory_options));
+            (void)System::close(directory_fd);
+            directory_fd = next_directory_fd;
+        }
+
+        if (!is_regular_file_or_directory(TRY(System::fstatat(directory_fd, components.last(), AT_SYMLINK_NOFOLLOW))))
+            return Error::from_errno(EACCES);
+        fd = TRY(System::openat(directory_fd, components.last(), file_options));
+    }
+
+    auto file_or_error = adopt_fd(fd, OpenMode::Read);
+    if (file_or_error.is_error()) {
+        (void)System::close(fd);
+        return file_or_error.release_error();
+    }
+    auto file = file_or_error.release_value();
+    if (!is_regular_file_or_directory(TRY(file->stat())))
+        return Error::from_errno(EACCES);
+    TRY(file->set_blocking(true));
+    return file;
 }
 
 }

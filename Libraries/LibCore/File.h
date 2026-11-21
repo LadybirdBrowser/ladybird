@@ -52,6 +52,10 @@ public:
     static ErrorOr<NonnullOwnPtr<File>> open(StringView filename, OpenMode, mode_t = 0644);
     static ErrorOr<NonnullOwnPtr<File>> adopt_fd(int fd, OpenMode, ShouldCloseFileDescriptor = ShouldCloseFileDescriptor::Yes);
 
+#if !defined(AK_OS_WINDOWS)
+    static ErrorOr<NonnullOwnPtr<File>> open_regular_file_or_directory(StringView canonical_path);
+#endif
+
     static ErrorOr<NonnullOwnPtr<File>> standard_input();
     static ErrorOr<NonnullOwnPtr<File>> standard_output();
     File(File&& other) { operator=(move(other)); }
