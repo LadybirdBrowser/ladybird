@@ -42,6 +42,21 @@ class TestIPCGenerator(unittest.TestCase):
         self.assertIn("static_assert(__is_empty(IPC::SenderClaimReceiver<u32>),", header)
         self.assertNotIn("IPC::SenderClaimReceiver<u64>)", header)
 
+    def test_responses_to_synchronous_messages_sent_from_rust_arrive_raw(self) -> None:
+        generated = generate("endpoint Test { [RustSender] query(u32 value) => (u32 answer) other() => (u32 answer) }")
+        decoder = generated.split("decode_message(")[2].split("name_of_request_that_arrives_raw")[0]
+        self.assertNotIn("MessageID::QueryResponse:", decoder)
+        self.assertIn("MessageID::OtherResponse:", decoder)
+        raw_responses = generated.split("name_of_response_that_arrives_raw(")[2]
+        self.assertIn(
+            """\
+    case (int)Messages::Test::MessageID::QueryResponse:
+        return "Test::QueryResponse"sv;""",
+            raw_responses,
+        )
+        self.assertNotIn("OtherResponse", raw_responses.split("default:")[0])
+        self.assertIn("class QueryResponse final : public IPC::Message", generated)
+
     def test_non_template_implementations_are_only_in_the_cpp_file(self) -> None:
         header, implementation = generate_files(ENDPOINT)
         self.assertIn('#include "TestEndpoint.h"', implementation)
@@ -695,6 +710,18 @@ class TestIPCRustGenerator(unittest.TestCase):
         self.assertNotIn("Other", generated)
 
         self.assertNotIn("Stub", self.generate("endpoint Test { [RustSender] update(u32 value) =| }"))
+
+    def test_synchronous_messages_sent_from_rust_name_their_response(self) -> None:
+        generated = self.generate("endpoint Test { [RustSender] query(u32 value) => (u32 answer) other() =| }")
+        self.assertIn(
+            """\
+        impl ::libipc_rust::wire::SyncMessage for Query {
+            type Response = QueryResponse;
+        }
+""",
+            generated,
+        )
+        self.assertEqual(generated.count("SyncMessage"), 1)
 
     def test_utf8_is_validated_on_requests_and_responses(self) -> None:
         for cpp_type, expression in [

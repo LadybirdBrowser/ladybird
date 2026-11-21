@@ -130,12 +130,6 @@ class Endpoint:
         return any(message.is_received_in_rust() or message.is_sent_from_rust() for message in self.messages)
 
     def validate(self) -> None:
-        for message in self.messages:
-            if message.is_sent_from_rust() and message.is_synchronous:
-                raise RuntimeError(
-                    f"{self.name}::{message.name} is synchronous, and Rust cannot wait for a response yet: "
-                    f"it cannot be [RustSender]"
-                )
         if self.route is None:
             return
         if self.names_rust_for_some_message():
@@ -975,7 +969,7 @@ public:
 
     for message in endpoint.messages:
         names = [] if message.is_received_in_rust() else [message.name]
-        if message.is_synchronous and message.has_cpp_class():
+        if message.is_synchronous and message.has_cpp_class() and not message.is_sent_from_rust():
             names.append(message.response_name())
 
         for name in names:
@@ -1020,6 +1014,31 @@ public:
         implementation,
         f"{endpoint.name}Endpoint",
         "static Optional<StringView> name_of_request_that_arrives_raw([[maybe_unused]] i32 message_id)",
+        body.getvalue(),
+    )
+    body = io.StringIO()
+    responses_sent_to_rust = [
+        message for message in endpoint.messages if message.is_synchronous and message.is_sent_from_rust()
+    ]
+    if responses_sent_to_rust:
+        body.write("\n        switch (message_id) {")
+        for message in responses_sent_to_rust:
+            pascal_name = pascal_case(message.response_name())
+            body.write(f"""
+        case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:
+            return "{endpoint.name}::{pascal_name}"sv;""")
+        body.write("""
+        default:
+            return {};
+        }
+""")
+    else:
+        body.write("        return {};\n")
+    write_method(
+        out,
+        implementation,
+        f"{endpoint.name}Endpoint",
+        "static Optional<StringView> name_of_response_that_arrives_raw([[maybe_unused]] i32 message_id)",
         body.getvalue(),
     )
     out.write("};\n")
@@ -1899,6 +1918,14 @@ pub mod {rust_field_name(snake_case(endpoint.name))} {{
             write_rust_message_struct(message_output, message.response_name(), message_id, message.outputs)
             if not only_messages_naming_rust:
                 variants.append(rust_field_name(pascal_case(message.response_name())))
+            if message.is_sent_from_rust():
+                request_type = rust_field_name(pascal_case(message.name))
+                response_type = rust_field_name(pascal_case(message.response_name()))
+                message_output.write(f"""
+    impl ::libipc_rust::wire::SyncMessage for {request_type} {{
+        type Response = {response_type};
+    }}
+""")
 
     out.write(textwrap.indent(message_output.getvalue(), "    "))
     out.write("    }\n")

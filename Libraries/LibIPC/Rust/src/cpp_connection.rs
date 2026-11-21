@@ -10,10 +10,12 @@
 #![allow(unsafe_code)]
 
 use core::ffi::{c_int, c_void};
+use core::marker::PhantomData;
 
 use crate::attachment::Attachment;
 use crate::wire::{
     Decode, DecodeError, Decoder, DispatchError, EncodeError, EncodedMessage, EndpointMessage, Misbehavior,
+    SyncMessage, decode_message_header,
 };
 
 /// A Mach port name and its disposition on Apple, and a descriptor elsewhere: `IPC::RawAttachment`.
@@ -170,11 +172,110 @@ pub struct FfiThreadSafeMessagePoster {
     unref: unsafe extern "C" fn(*mut c_void),
 }
 
+/// One reference to an `IPC::ConnectionBase`, and how to make synchronous requests on it: `IPC::FfiConnection`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiConnection {
+    connection_with_one_reference: *mut c_void,
+    send_sync_request: unsafe extern "C" fn(
+        *mut c_void,
+        ak::Span<'_, u8>,
+        ak::Span<'_, RawAttachment>,
+        u32,
+        i32,
+        *mut c_void,
+        unsafe extern "C" fn(*mut c_void, RawMessage<'_>),
+    ) -> bool,
+    r#ref: unsafe extern "C" fn(*mut c_void),
+    unref: unsafe extern "C" fn(*mut c_void),
+}
+
 const _: () = {
     assert!(size_of::<RawAttachment>() == 8);
     assert!(size_of::<RawMessage<'_>>() == 7 * size_of::<usize>());
     assert!(size_of::<FfiThreadSafeMessagePoster>() == 4 * size_of::<usize>());
+    assert!(size_of::<FfiConnection>() == 4 * size_of::<usize>());
 };
+
+/// Makes synchronous requests on a C++ connection, on the thread that owns it.
+pub struct CppConnection {
+    ffi: FfiConnection,
+    _used_on_the_thread_that_owns_the_connection: PhantomData<*const ()>,
+}
+
+impl CppConnection {
+    /// # Safety
+    ///
+    /// `ffi` must hold one reference to a live `IPC::ConnectionBase` of this thread, which the caller gives up.
+    pub unsafe fn adopt(ffi: FfiConnection) -> Self {
+        Self {
+            ffi,
+            _used_on_the_thread_that_owns_the_connection: PhantomData,
+        }
+    }
+
+    /// Waits for the response without handling any other message meanwhile. None if the request does not encode, or if
+    /// the peer could not be reached or answered with what does not decode, after which C++ has shut the connection
+    /// down.
+    pub fn send_sync<M: SyncMessage>(&self, request: M) -> Option<M::Response> {
+        unsafe extern "C" fn take_response<R: EndpointMessage + Decode>(
+            response_sink: *mut c_void,
+            response: RawMessage<'_>,
+        ) {
+            // SAFETY: send_sync() passes its sink of the response type, and C++ hands the response over once.
+            unsafe {
+                let response_sink = &mut *response_sink.cast::<Option<R>>();
+                response.hand_to(|bytes, attachments| {
+                    let mut decoder = Decoder::new(bytes, attachments);
+                    let (magic, id) = decode_message_header(&mut decoder)?;
+                    if magic != R::ENDPOINT_MAGIC || id != R::MESSAGE_ID {
+                        return Err(DecodeError::InvalidValue("response header").into());
+                    }
+                    *response_sink = Some(decoder.decode()?);
+                    Ok(None)
+                });
+            }
+        }
+
+        let Ok((bytes, attachments)) = request.encode_message() else {
+            return None;
+        };
+        let raw_attachments: Vec<RawAttachment> = attachments.into_iter().map(RawAttachment::from_attachment).collect();
+        let mut response: Option<M::Response> = None;
+        // SAFETY: This holds a reference to the connection, which copies the bytes and takes every attachment over, and
+        //         hands the response to take_response() before the call returns.
+        let answered = unsafe {
+            (self.ffi.send_sync_request)(
+                self.ffi.connection_with_one_reference,
+                ak::Span::new(&bytes),
+                ak::Span::new(&raw_attachments),
+                <M::Response as EndpointMessage>::ENDPOINT_MAGIC,
+                <M::Response as EndpointMessage>::MESSAGE_ID,
+                (&raw mut response).cast(),
+                take_response::<M::Response>,
+            )
+        };
+        if answered { response } else { None }
+    }
+}
+
+impl Clone for CppConnection {
+    fn clone(&self) -> Self {
+        // SAFETY: This holds a reference to the connection.
+        unsafe { (self.ffi.r#ref)(self.ffi.connection_with_one_reference) };
+        Self {
+            ffi: self.ffi,
+            _used_on_the_thread_that_owns_the_connection: PhantomData,
+        }
+    }
+}
+
+impl Drop for CppConnection {
+    fn drop(&mut self) {
+        // SAFETY: This gives up the reference it holds.
+        unsafe { (self.ffi.unref)(self.ffi.connection_with_one_reference) };
+    }
+}
 
 /// Posts messages to the transport of a C++ connection from any thread.
 pub struct ThreadSafeMessagePoster(FfiThreadSafeMessagePoster);
