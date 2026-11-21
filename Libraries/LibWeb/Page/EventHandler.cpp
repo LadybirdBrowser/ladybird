@@ -4276,9 +4276,8 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = *image_element, .position = page_viewport_position, .link_url = move(link_url), .image_mime_type = image_mime_type });
         m_navigable->page().client().page_did_request_image_context_menu(local_root_id, page_viewport_position, move(navigation), "", modifiers, bitmap, move(link_navigation), move(image_mime_type));
     } else if (link) {
-        // Right-clicking link text without an existing selection first selects the word under the pointer, as the
-        // ordinary page context menu does. A selected range is still only offered when the click lands within it.
-        (void)select_context_menu_text(read, document, coordinates);
+        // A selected range is only offered when the click lands within it.
+        (void)select_context_menu_text(read, document, coordinates, link);
         if (link_url.has_value()) {
             auto const& element = link->hyperlink_element_utils_element();
             auto navigation = HTML::prepare_navigation_from_document(*document, link_url.release_value(), element.hyperlink_referrer_policy());
@@ -4703,8 +4702,20 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
     return true;
 }
 
-bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::Document& document, MouseEventCoordinates const& coordinates)
+static constexpr bool context_menu_press_selects_text()
 {
+#if defined(AK_OS_MACOS)
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::Document& document, MouseEventCoordinates const& coordinates, HTML::HTMLHyperlinkElementUtils const* link)
+{
+    if (!context_menu_press_selects_text())
+        return false;
+
     auto caret_position = document.caret_position_from_point(read, coordinates.visual_viewport_position);
     if (!caret_position.has_value() || selection_contains_position(document, *caret_position))
         return false;
@@ -4714,6 +4725,22 @@ bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::
     auto const* hit_layout_text_node = as_if<Layout::TextNode>(caret_position->boundary_layout_node(read));
     if (user_select == CSS::UserSelect::None || !hit_node || !hit_layout_text_node)
         return false;
+
+    // A link's text selects the whole link, unless the link is editable. Text that reaches the link through a shadow tree
+    // is not among the link's descendants, so it selects as a word.
+    GC::Ptr<DOM::Element> link_element = link ? const_cast<DOM::Element*>(&link->hyperlink_element_utils_element()) : nullptr;
+    if (link_element && hit_node->is_descendant_of(*link_element) && !hit_node->is_editable_or_editing_host()) {
+        if (!range_contains_viewport_position(DOM::Range::create(*hit_node, 0, *hit_node, hit_node->length()), coordinates.viewport_position))
+            return false;
+
+        if (!dispatch_selectstart_event(document, *hit_node) || !hit_node->is_descendant_of(*link_element))
+            return false;
+
+        if (auto selection = document.get_selection())
+            set_user_selection(link_element, 0, link_element, link_element->child_count(), selection, user_select);
+        stop_updating_selection();
+        return true;
+    }
 
     // The caret position is merely the boundary closest to the pointer, so only select text if the pointer is on it,
     // which can also be the word ending at that boundary.

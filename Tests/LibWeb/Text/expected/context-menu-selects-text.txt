@@ -1,13 +1,18 @@
-plain word: "ordinary"
-next to word: ""
-end of word: "two"
-between words: ""
-between words with a non-breaking space: ""
-above glyphs within line box: ""
-url token: "ladybird.org/path?x=1"
-canceled context menu: ""
-existing selection preserved: "existing"
-existing selection replaced: "other"
-anchor selection preserved: "anchor"
-image preserves selection: "existing"
-user-select none: ""
+a word is selected on macOS only: PASS
+nothing is selected next to a word: PASS
+the end of a word selects it on macOS only: PASS
+nothing is selected between words: PASS
+nothing is selected on a non-breaking space between words: PASS
+nothing is selected above the glyphs of a line: PASS
+a URL is selected whole on macOS only: PASS
+nothing is selected for a canceled context menu: PASS
+a press inside the selection keeps it: PASS
+a press outside the selection replaces it on macOS and clears it elsewhere: PASS
+a press inside a selection within a link keeps it: PASS
+a link is selected whole on macOS only: PASS
+a space between a link's words selects the link on macOS only: PASS
+a press on a link replaces the selection on macOS and keeps it elsewhere: PASS
+a press on a link's slotted text selects the word on macOS and keeps the selection elsewhere: PASS
+a press on an image keeps the selection: PASS
+nothing is selected where user-select is none: PASS
+a word in editable text is selected on macOS only: PASS

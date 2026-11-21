@@ -14,9 +14,17 @@
 <div id="existing">existing selection</div>
 <div id="other">other target</div>
 <a id="anchor" href="https://example.com/">anchor selection</a>
+<div><a id="link" href="https://example.com/">a <b id="nested">nested</b> link</a></div>
+<div><span id="slotHost">slotted label</span></div>
 <img id="image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="width: 20px; height: 20px;">
 <div id="none" style="user-select: none;">hidden.org</div>
+<div id="editable" contenteditable>one two</div>
 <script>
+    // Only macOS selects the word or link under the pointer when a context menu opens.
+    const selectsText = navigator.platform.includes("Mac");
+
+    slotHost.attachShadow({ mode: "open" }).innerHTML = '<a href="https://example.com/"><slot></slot></a>';
+
     function rightClick(element) {
         const rect = element.getBoundingClientRect();
         rightClickAt(rect.left + 8, rect.top + rect.height / 2);
@@ -33,60 +41,68 @@
         return range.getBoundingClientRect();
     }
 
-    function selectedText() {
-        return internals.selectedTextForClipboard();
+    function rightClickText(node, start, end) {
+        const rect = textRect(node, start, end);
+        rightClickAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
     }
 
-    test(() => {
-        rightClick(word);
-        println(`plain word: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        const wordRect = textRect(word.firstChild, 0, 8);
-        rightClickAt(wordRect.right + 20, wordRect.top + wordRect.height / 2);
-        println(`next to word: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        const lastGlyphRect = textRect(words.firstChild, 2, 3);
-        rightClickAt(lastGlyphRect.right - 2, lastGlyphRect.top + lastGlyphRect.height / 2);
-        println(`end of word: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        const spaceRect = textRect(words.firstChild, 3, 4);
-        rightClickAt(spaceRect.left + spaceRect.width / 2, spaceRect.top + spaceRect.height / 2);
-        println(`between words: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        const nbspRect = textRect(nbsp.firstChild, 3, 4);
-        rightClickAt(nbspRect.left + nbspRect.width / 2, nbspRect.top + nbspRect.height / 2);
-        println(`between words with a non-breaking space: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        const lineRect = word.getBoundingClientRect();
-        rightClickAt(wordRect.left + 8, lineRect.top + 1);
-        println(`above glyphs within line box: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        rightClick(url);
-        println(`url token: "${selectedText()}"`);
-
-        getSelection().removeAllRanges();
-        prevented.addEventListener("contextmenu", event => event.preventDefault());
-        rightClick(prevented);
-        println(`canceled context menu: "${selectedText()}"`);
-
+    function selectStartOfExisting() {
         const range = document.createRange();
         range.setStart(existing.firstChild, 0);
         range.setEnd(existing.firstChild, 8);
         getSelection().removeAllRanges();
         getSelection().addRange(range);
-        rightClick(existing);
-        println(`existing selection preserved: "${selectedText()}"`);
+    }
+
+    function expectSelection(description, onMac, elsewhere = onMac) {
+        const expected = selectsText ? onMac : elsewhere;
+        const actual = internals.selectedTextForClipboard();
+        println(`${description}: ${actual === expected ? "PASS" : `FAIL, expected "${expected}" but got "${actual}"`}`);
+    }
+
+    test(() => {
+        rightClick(word);
+        expectSelection("a word is selected on macOS only", "ordinary", "");
 
         getSelection().removeAllRanges();
-        getSelection().addRange(range);
+        const wordRect = textRect(word.firstChild, 0, 8);
+        rightClickAt(wordRect.right + 20, wordRect.top + wordRect.height / 2);
+        expectSelection("nothing is selected next to a word", "");
+
+        getSelection().removeAllRanges();
+        const lastGlyphRect = textRect(words.firstChild, 2, 3);
+        rightClickAt(lastGlyphRect.right - 2, lastGlyphRect.top + lastGlyphRect.height / 2);
+        expectSelection("the end of a word selects it on macOS only", "two", "");
+
+        getSelection().removeAllRanges();
+        rightClickText(words.firstChild, 3, 4);
+        expectSelection("nothing is selected between words", "");
+
+        getSelection().removeAllRanges();
+        rightClickText(nbsp.firstChild, 3, 4);
+        expectSelection("nothing is selected on a non-breaking space between words", "");
+
+        getSelection().removeAllRanges();
+        const lineRect = word.getBoundingClientRect();
+        rightClickAt(wordRect.left + 8, lineRect.top + 1);
+        expectSelection("nothing is selected above the glyphs of a line", "");
+
+        getSelection().removeAllRanges();
+        rightClick(url);
+        expectSelection("a URL is selected whole on macOS only", "ladybird.org/path?x=1", "");
+
+        getSelection().removeAllRanges();
+        prevented.addEventListener("contextmenu", event => event.preventDefault());
+        rightClick(prevented);
+        expectSelection("nothing is selected for a canceled context menu", "");
+
+        selectStartOfExisting();
+        rightClick(existing);
+        expectSelection("a press inside the selection keeps it", "existing");
+
+        selectStartOfExisting();
         rightClick(other);
-        println(`existing selection replaced: "${selectedText()}"`);
+        expectSelection("a press outside the selection replaces it on macOS and clears it elsewhere", "other", "");
 
         const anchorRange = document.createRange();
         anchorRange.setStart(anchor.firstChild, 0);
@@ -94,15 +110,35 @@
         getSelection().removeAllRanges();
         getSelection().addRange(anchorRange);
         rightClick(anchor);
-        println(`anchor selection preserved: "${selectedText()}"`);
+        expectSelection("a press inside a selection within a link keeps it", "anchor");
 
         getSelection().removeAllRanges();
-        getSelection().addRange(range);
+        rightClickText(nested.firstChild, 0, 6);
+        expectSelection("a link is selected whole on macOS only", "a nested link", "");
+
+        getSelection().removeAllRanges();
+        rightClickText(link.firstChild, 1, 2);
+        expectSelection("a space between a link's words selects the link on macOS only", "a nested link", "");
+
+        selectStartOfExisting();
+        rightClickText(nested.firstChild, 0, 6);
+        expectSelection("a press on a link replaces the selection on macOS and keeps it elsewhere", "a nested link", "existing");
+
+        selectStartOfExisting();
+        rightClickText(slotHost.firstChild, 0, 7);
+        expectSelection("a press on a link's slotted text selects the word on macOS and keeps the selection elsewhere", "slotted", "existing");
+
+        selectStartOfExisting();
         rightClick(image);
-        println(`image preserves selection: "${selectedText()}"`);
+        expectSelection("a press on an image keeps the selection", "existing");
 
         getSelection().removeAllRanges();
         rightClick(none);
-        println(`user-select none: "${selectedText()}"`);
+        expectSelection("nothing is selected where user-select is none", "");
+
+        editable.focus();
+        getSelection().collapse(editable.firstChild, 0);
+        rightClickText(editable.firstChild, 4, 7);
+        expectSelection("a word in editable text is selected on macOS only", "two", "");
     });
 </script>

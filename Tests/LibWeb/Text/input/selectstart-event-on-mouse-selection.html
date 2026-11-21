@@ -56,7 +56,7 @@
             println(`click count ${clickCount}: selected ${describe()}`);
         }
 
-        // A right press moves the caret and selects the word, each through the same event.
+        // A right press moves the caret through the same event, and once more on macOS, where it selects the word.
         printEvents = false;
         for (const id of ["free", "blocked"]) {
             const element = document.getElementById(id);
@@ -66,7 +66,8 @@
             internals.mouseDown(left + 1, top + 15, 1, 2);
             internals.mouseUp(left + 1, top + 15, 2);
             const caretMoved = getSelection().anchorNode === element.firstChild;
-            const count = eventCount === 2 ? "as often as expected" : `${eventCount} times`;
+            const expectedCount = navigator.platform.includes("Mac") ? 2 : 1;
+            const count = eventCount === expectedCount ? "as often as expected" : `${eventCount} times`;
             println(`right press on ${id}: selectstart fired ${count}, caret ${caretMoved ? "moved" : "did not move"}`);
         }
     });
