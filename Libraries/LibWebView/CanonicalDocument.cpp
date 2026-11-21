@@ -75,7 +75,7 @@ bool CanonicalDocument::is_top_level() const
 
 bool CanonicalDocument::may_share_a_process_with_tabs_of_its_origin() const
 {
-    if (!is_top_level() || m_origin.is_opaque() || m_web_ui_host.has_value() || m_is_local_file_content)
+    if (!is_top_level() || m_origin.is_opaque() || m_web_ui_host.has_value() || is_local_file_content())
         return false;
 
     auto const& scheme = m_origin.scheme();
@@ -103,15 +103,18 @@ void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
     }
 }
 
-// NB: Only a navigation the UI process admitted to a file: URL creates a document from one. A blob: URL entry local file
-//     content added carries that content's origin, as a document created from it does. The entry can be revoked once
-//     the document exists, so this is settled when the document is populated, before a process is chosen to host it.
-void CanonicalDocument::determine_whether_it_is_local_file_content(BlobURLStore const* blob_url_store)
+// NB: Only a navigation the UI process admitted to a file: URL creates a document from one, and the document takes the
+//     root the UI process used to read the file. A blob: URL entry local file content added carries that content's origin, as a document
+//     created from it does. The entry can be revoked once the document exists, so this is settled when the document is
+//     populated, before a process is chosen to host it.
+void CanonicalDocument::determine_whether_it_is_local_file_content(BlobURLStore const* blob_url_store, Optional<LocalFileRoot> root_of_read_file)
 {
-    m_is_local_file_content = m_creation_url.scheme() == "file"sv
-        || (m_creation_url.scheme() == "blob"sv
-            && blob_url_store
-            && blob_url_store->is_entry_of_local_file_content(Utf16String::from_utf8(m_creation_url.serialize(URL::ExcludeFragment::Yes)), m_origin));
+    if (m_creation_url.scheme() == "file"sv)
+        m_local_file_root = move(root_of_read_file);
+    else if (m_creation_url.scheme() == "blob"sv && blob_url_store)
+        m_local_file_root = blob_url_store->local_file_root_of_entry(Utf16String::from_utf8(m_creation_url.serialize(URL::ExcludeFragment::Yes)), m_origin);
+    else
+        m_local_file_root.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active

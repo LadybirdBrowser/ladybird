@@ -354,7 +354,7 @@ static void insert_minimal_entry(Database::Database& database, SessionHistorySna
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, static_cast<i64>(0),
         static_cast<i64>(0), absent_text,
-        absent_text, String {}, ever_populated, false, false, false);
+        absent_text, String {}, ever_populated, false, false, absent_text, Optional<i64> {});
 }
 
 static i32 count_tab_rows(Database::Database& database, StringView table, i64 tab_id)
@@ -545,9 +545,9 @@ TEST_CASE(snapshot_round_trips_flat_entries)
     EXPECT_EQ(loaded.entries[1].document_state.initiator_origin->domain()->serialize(), "b.example"_string);
 }
 
-// The document states the browser populated local file content for survive a round trip, including in nested
-// histories, and a document state that several entries share is named once.
-TEST_CASE(snapshot_round_trip_preserves_document_states_holding_local_file_content)
+// The roots of the local file content the browser populated for document states survive a round trip, with their
+// scopes, including in nested histories, and a document state that several entries share is named once.
+TEST_CASE(snapshot_round_trip_preserves_the_local_file_roots_of_document_states)
 {
     auto database = make_database();
     auto statements = prepare_snapshot_tables(*database);
@@ -566,12 +566,48 @@ TEST_CASE(snapshot_round_trip_preserves_document_states_holding_local_file_conte
     snapshot.entries.append(make_entry(2, "file:///tmp/parent.html#again"sv, 1, 0x77, 0x88, "keyD"sv, "idD"sv, {}));
     snapshot.used_steps = { 0, 1, 2 };
     snapshot.current_used_step_index = 2;
-    snapshot.document_states_holding_local_file_content = { snapshot.entries[0].document_state.id, snapshot.entries[0].document_state.nested_histories[0].entries[0].document_state.id };
+    snapshot.local_file_roots_of_document_states = {
+        { snapshot.entries[0].document_state.id, { "/tmp"sv, WebView::LocalFileRoot::Scope::Directory } },
+        { snapshot.entries[0].document_state.nested_histories[0].entries[0].document_state.id, { "/tmp/child.html"sv, WebView::LocalFileRoot::Scope::File } },
+    };
 
     TRY_OR_FAIL(store_session_history_snapshot(*database, statements, 43, snapshot));
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, statements, 43, 2));
-    EXPECT(loaded.document_states_holding_local_file_content == snapshot.document_states_holding_local_file_content);
+    EXPECT(loaded.local_file_roots_of_document_states == snapshot.local_file_roots_of_document_states);
+}
+
+// A database from before local file roots marked the entries that held local file content, and those come back with no
+// root.
+TEST_CASE(snapshot_entries_that_held_local_file_content_load_without_a_root)
+{
+    auto database = make_database();
+    auto statements = prepare_snapshot_tables(*database);
+
+    insert_tab_row(*database, 44);
+
+    WebView::SessionHistorySnapshot snapshot;
+    snapshot.entries.append(make_entry(0, "file:///tmp/a.html"sv, 1, 0x11, 0x22, "keyA"sv, "idA"sv, {}));
+    snapshot.used_steps = { 0 };
+    snapshot.current_used_step_index = 0;
+
+    TRY_OR_FAIL(store_session_history_snapshot(*database, statements, 44, snapshot));
+
+    // Take the database back to the schema before local file roots, with the entry marked as holding local file content.
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_scope;
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_path;
+        ALTER TABLE SessionEntries ADD COLUMN held_local_file_content INTEGER NOT NULL DEFAULT 0;
+        UPDATE SessionEntries SET held_local_file_content = 1;
+        UPDATE SchemaVersions SET version = 11 WHERE store = 'Sessions';
+    )#"sv));
+
+    auto migrated_statements = prepare_snapshot_tables(*database);
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 12u });
+
+    auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 44, 0));
+    EXPECT_EQ(loaded.entries.size(), 1uz);
+    EXPECT(loaded.local_file_roots_of_document_states.is_empty());
 }
 
 // A database from before the user_agent_initiated column gains it with every entry saved there as No.
@@ -594,7 +630,8 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
 
     // Take the database back to the baseline schema, keeping the entry's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
-        ALTER TABLE SessionEntries DROP COLUMN held_local_file_content;
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_scope;
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_path;
         DROP TABLE SessionUpgradeInsecureNavigations;
         ALTER TABLE SessionPolicyContainers DROP COLUMN insecure_requests_policy;
         ALTER TABLE Sessions DROP COLUMN maximized;
@@ -615,7 +652,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 12u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
     EXPECT_EQ(loaded.entries.size(), 1uz);
@@ -644,7 +681,8 @@ TEST_CASE(snapshot_policy_containers_saved_before_the_insecure_requests_policy_l
 
     // Take the database back to the schema before the insecure requests policy, keeping the container's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
-        ALTER TABLE SessionEntries DROP COLUMN held_local_file_content;
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_scope;
+        ALTER TABLE SessionEntries DROP COLUMN local_file_root_path;
         DROP TABLE SessionUpgradeInsecureNavigations;
         ALTER TABLE SessionPolicyContainers DROP COLUMN insecure_requests_policy;
         ALTER TABLE SessionLifecycle DROP COLUMN restart;
@@ -652,7 +690,7 @@ TEST_CASE(snapshot_policy_containers_saved_before_the_insecure_requests_policy_l
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 12u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 27, 0));
     auto const* container = loaded.entries[0].document_state.history_policy_container.get_pointer<Web::HTML::SerializedPolicyContainer>();
@@ -949,6 +987,27 @@ TEST_CASE(snapshot_store_rejects_oversized_snapshot)
         snapshot.used_steps.append(step);
     }
     snapshot.current_used_step_index = snapshot.used_steps.size() - 1;
+
+    auto result = store_session_history_snapshot(*database, statements, 25, snapshot);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), "Session history snapshot exceeds the maximum size"sv);
+    EXPECT_EQ(count_history_owned_rows(*database, "SessionEntries"sv, 25), 0);
+}
+
+// Each entry of a document state stores its root's path, so a snapshot that loading would refuse is never stored.
+TEST_CASE(snapshot_store_counts_a_shared_local_file_root_path_per_entry)
+{
+    auto database = make_database();
+    auto statements = prepare_snapshot_tables(*database);
+
+    WebView::SessionHistorySnapshot snapshot;
+    for (i32 step = 0; step < 9; ++step) {
+        snapshot.entries.append(make_entry(step, "file:///tmp/a.html"sv, 1, 0, 0, ""sv, ""sv, {}));
+        snapshot.used_steps.append(step);
+    }
+    snapshot.current_used_step_index = snapshot.used_steps.size() - 1;
+    auto path = ByteString::formatted("/{}", ByteString::repeated('a', (8uz * 1024 * 1024) - 1));
+    snapshot.local_file_roots_of_document_states.append({ snapshot.entries[0].document_state.id, { path, WebView::LocalFileRoot::Scope::Directory } });
 
     auto result = store_session_history_snapshot(*database, statements, 25, snapshot);
     EXPECT(result.is_error());

@@ -95,7 +95,7 @@ public:
     Utf16String const& target_name() const;
 
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
-    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {}, Optional<LocalFileRoot> root_of_read_file = {});
     // Populates nothing for a document that would hold access the active document lacks.
     void populate_document_for_javascript_url(CanonicalNavigation&, NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
@@ -121,7 +121,7 @@ public:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
     void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     Web::HTML::PreparedNavigationDescriptor prepare_navigation(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
-    void begin_navigation(Web::HTML::PreparedNavigationDescriptor, RefPtr<WebContentPage> source_page = {});
+    void begin_navigation(Web::HTML::PreparedNavigationDescriptor, RefPtr<WebContentPage> source_page = {}, LocalFileAccess = {});
 
     CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(NavigationLoader::ResponseDocument const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);

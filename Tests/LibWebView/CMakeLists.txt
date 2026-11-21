@@ -108,6 +108,7 @@ if (APPLE OR LINUX)
         TestCrashReportReview.cpp
         TestCrashReportStore.cpp
         TestFontService.cpp
+        TestLocalFileRoot.cpp
         TestOpenLocalFileForRenderer.cpp
         TestRendererFontService.cpp
     )
@@ -156,6 +157,7 @@ if (NOT WIN32)
         TestInputMethodState.cpp
         TestInspectDOMTree.cpp
         TestLinkHoverStatus.cpp
+        TestLocalFileNavigation.cpp
         TestNavigationDownloads.cpp
         TestPictureInPictureUserActivation.cpp
         TestPictureInPictureWindowControls.cpp

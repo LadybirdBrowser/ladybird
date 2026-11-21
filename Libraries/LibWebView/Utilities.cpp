@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
@@ -42,17 +43,21 @@ ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const& file_pat
     return Web::HTML::SelectedFile { move(name), IPC::File::adopt_file(move(file)) };
 }
 
-ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path)
+static ErrorOr<OpenedLocalFile> open_local_file(ByteString const& path, Optional<ReadonlySpan<LocalFileRoot>> roots)
 {
 #if defined(AK_OS_WINDOWS)
+    // FIXME: Check the roots here too, once FileSystem::real_path() resolves links and drive-letter paths.
+    (void)roots;
     auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
 
     // Files and directories are disk handles, while devices and pipes are not.
     if (GetFileType(to_handle(file->fd())) != FILE_TYPE_DISK)
         return Error::from_errno(EACCES);
-    return IPC::File::adopt_file(move(file));
+    return OpenedLocalFile { IPC::File::adopt_file(move(file)), LexicalPath::canonicalized_path(path) };
 #else
     auto canonical_path = TRY(FileSystem::real_path(path));
+    if (roots.has_value() && !any_of(*roots, [&](auto const& root) { return root.covers(canonical_path); }))
+        return Error::from_errno(EACCES);
 
 #    if defined(AK_OS_MACOS)
     // A /dev/fd entry opens a descriptor of the UI process, which reads as whatever file is behind it. Only the path
@@ -71,8 +76,21 @@ ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path)
         return Error::from_errno(EACCES);
 #    endif
 
-    return IPC::File::adopt_file(move(file));
+    return OpenedLocalFile { IPC::File::adopt_file(move(file)), move(canonical_path) };
 #endif
+}
+
+ErrorOr<OpenedLocalFile> open_local_file_for_renderer(ByteString const& path, ReadonlySpan<LocalFileRoot> roots)
+{
+    // NB: Windows doesn't check the roots yet, so a renderer without any is refused before it gets there.
+    if (roots.is_empty())
+        return Error::from_errno(EACCES);
+    return open_local_file(path, roots);
+}
+
+ErrorOr<OpenedLocalFile> open_local_file_the_user_chose(ByteString const& path)
+{
+    return open_local_file(path, {});
 }
 
 ErrorOr<JsonObject> read_json_file(ByteString const& path)

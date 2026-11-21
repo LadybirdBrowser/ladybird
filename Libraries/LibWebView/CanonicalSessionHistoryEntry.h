@@ -75,9 +75,9 @@ public:
     Utf16String navigable_target_name;
     Vector<CanonicalNestedHistory> nested_histories;
 
-    // Whether the UI process populated local file content for this document state. Only then does the UI process read
-    // the file its entry names when populating it again: a process reports an entry's URL, but not this.
-    bool held_local_file_content { false };
+    // Saved root used when repopulating this document state.
+    // The renderer can report entry URLs, but cannot supply this root.
+    Optional<LocalFileRoot> local_file_root;
 
 private:
     explicit CanonicalDocumentState(Web::HTML::CrossProcessId);

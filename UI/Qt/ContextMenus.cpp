@@ -347,8 +347,9 @@ static NonnullRefPtr<Menu> create_media_context_menu(RemoteView& view, ContextMe
     menu->add_separator();
     if (media.media_url.has_value()) {
         auto url = *media.media_url;
-        add_open_in_new_tab_action(*menu, view_id, media.is_video ? "Open Video in New Tab"sv : "Open Audio in New Tab"sv, url, request.navigation);
+        // NB: The page controls the media URL, so it's opened only as a navigation from the page.
         if (request.navigation.has_value()) {
+            add_open_in_new_tab_action(*menu, view_id, media.is_video ? "Open Video in New Tab"sv : "Open Audio in New Tab"sv, url, request.navigation);
             menu->add_action(Action::create(media.is_video ? "Open Video"sv : "Open Audio"sv, media.is_video ? ActionID::OpenVideo : ActionID::OpenAudio, on_view(view_id, [navigation = *request.navigation](RemoteView& view) {
                 view.load(navigation);
             })));
