@@ -268,30 +268,34 @@ void View::forward_callbacks_to_ui(bool is_tab)
 
     on_finish_handling_key_event = [this](Web::KeyEvent const& event) {
         // NB: Input that the Hub came up with itself, such as WebDriver's, is nothing the UI knows about.
-        if (!event.browser_data)
+        auto input_id = ConnectionFromUI::input_id_of(event.browser_data.ptr());
+        if (!input_id.has_value())
             return;
         if (auto* ui = ConnectionFromUI::the()) {
             push_state_to_ui();
-            ui->async_view_finish_handling_key_event(view_id(), ConnectionFromUI::input_id_of(*event.browser_data), event.clone_without_browser_data());
+            ui->async_view_finish_handling_key_event(view_id(), *input_id, event.clone_without_browser_data());
         }
     };
 
     on_finish_handling_mouse_event = [this](Web::MouseEvent const& event, Web::EventResult result) {
-        if (!event.browser_data)
+        // NB: Input that the Hub came up with itself, such as WebDriver's, is nothing the UI knows about.
+        auto input_id = ConnectionFromUI::input_id_of(event.browser_data.ptr());
+        if (!input_id.has_value())
             return;
         if (auto* ui = ConnectionFromUI::the()) {
             push_state_to_ui();
-            ui->async_view_finish_handling_mouse_event(view_id(), ConnectionFromUI::input_id_of(*event.browser_data), event.clone_without_browser_data(), result);
+            ui->async_view_finish_handling_mouse_event(view_id(), *input_id, event.clone_without_browser_data(), result);
         }
     };
 
     on_finish_handling_drag_event = [this](Web::DragEvent const& event) {
         // NB: Input that the Hub came up with itself, such as WebDriver's, is nothing the UI knows about.
-        if (!event.browser_data)
+        auto input_id = ConnectionFromUI::input_id_of(event.browser_data.ptr());
+        if (!input_id.has_value())
             return;
         if (auto* ui = ConnectionFromUI::the()) {
             push_state_to_ui();
-            ui->async_view_finish_handling_drag_event(view_id(), ConnectionFromUI::input_id_of(*event.browser_data), event.clone_without_browser_data());
+            ui->async_view_finish_handling_drag_event(view_id(), *input_id, event.clone_without_browser_data());
         }
     };
 
