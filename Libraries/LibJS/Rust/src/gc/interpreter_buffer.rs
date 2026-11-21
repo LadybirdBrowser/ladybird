@@ -15,6 +15,7 @@ use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use super::visitor::{Trace, Visitor};
 use crate::layout::buffer::{BlockSlice, InterpreterBuffer, ThinSlice};
+use crate::layout::value::Value;
 use crate::slice_block::THIN_SLICE_HEADER_SIZE;
 
 /// Mirrors AK::Vector's growth policy.
@@ -141,6 +142,21 @@ impl InterpreterBuffer<u8> {
 impl<T: Copy> Default for InterpreterBuffer<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl InterpreterBuffer<Value> {
+    /// Visits the values as owned values (see Visitor::visit_owned_values()).
+    ///
+    /// # Safety
+    ///
+    /// As for Visitor::visit_owned_values(): nothing may change or free the buffer until the collection is over.
+    pub unsafe fn trace_owned(&self, visitor: &mut Visitor) {
+        if self.is_empty() {
+            return;
+        }
+        // SAFETY: The first `size` elements are initialized, and the caller vouches for the memory.
+        unsafe { visitor.visit_owned_values(ak::slice_from_raw_parts(self.data.get(), self.size())) };
     }
 }
 

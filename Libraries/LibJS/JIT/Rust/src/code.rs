@@ -381,10 +381,11 @@ pub enum VirtualObjectDescriptorKind {
     /// A plain object of `shape`, with the values of its properties in
     /// offset order.
     Object { shape: CellId },
-    /// A closure like `sample`, the sample of a closure template, with the
-    /// lexical and private environments at the two locations, which are
-    /// `Repr::Pointer`, the latter null for none.
-    Closure { sample: CellId },
+    /// A closure like the sample of a closure template in `sample_slot` (see
+    /// `ClosureTemplateSnapshot::sample_slot`), with the lexical and private
+    /// environments at the two locations, which are `Repr::Pointer`, the
+    /// latter null for none.
+    Closure { sample_slot: CellId },
 }
 
 /// Set in the return pc (`ExecutionContext::caller_return_pc`) of the frame of

@@ -95,6 +95,40 @@ const weakBefore = {
     registryTarget: addressOf(weakHolder.registryTarget),
 };
 
+// Constants of executables are slots the collector can rewrite. Strings this long are not interned.
+const constantString = () =>
+    "a constant string that is long enough not to be interned, which only this function holds ..............................................................................................................................................................................................................................";
+const constantBigInt = () => 123456789012345678901234567890n;
+const internedConstant = () => "an interned constant";
+// NB: JIT code that embeds a constant keeps its cell where it is.
+jit.neverCompile(constantString);
+jit.neverCompile(constantBigInt);
+jit.neverCompile(internedConstant);
+const constantsBefore = {
+    string: addressOf(constantString()),
+    bigint: addressOf(constantBigInt()),
+    interned: addressOf(internedConstant()),
+};
+
+// The key strings of for-in caches and of the own keys of shapes are slots the collector can rewrite.
+const keyed = { firstKey: 1, secondKey: 2 };
+const forInKeys = object => {
+    const keys = [];
+    for (const key in object) keys.push(key);
+    return keys;
+};
+forInKeys(keyed);
+Object.keys(keyed);
+
+// JIT code that creates closures copies a sample, which the code keeps in a slot the collector can rewrite, so the
+// sample can move.
+function makeAdder(n) {
+    return x => x + n;
+}
+jit.prepare(makeAdder);
+for (let i = 0; i < 10; ++i) makeAdder(i)(i);
+jit.compile(makeAdder);
+
 runAfterMovingCollection(() => {
     test("objects with inline storage keep their properties when they move", () => {
         expect(addressOf(holder.small)).not.toBe(before.small);
@@ -197,6 +231,31 @@ runAfterMovingCollection(() => {
         expect(weakRef.deref()).toBe(weakHolder.refTarget);
         expect(addressOf(weakHolder.registryTarget)).not.toBe(weakBefore.registryTarget);
         expect(registry.unregister(weakHolder.registryToken)).toBeTrue();
+    });
+
+    test("constants of executables move", () => {
+        expect(addressOf(constantString())).not.toBe(constantsBefore.string);
+        expect(constantString().startsWith("a constant string")).toBeTrue();
+        expect(constantString().length).toBeGreaterThan(256);
+        expect(addressOf(constantBigInt())).not.toBe(constantsBefore.bigint);
+        expect(constantBigInt()).toBe(123456789012345678901234567890n);
+    });
+
+    test("interned strings move, and stay the interned strings of their contents", () => {
+        expect(addressOf(internedConstant())).not.toBe(constantsBefore.interned);
+        expect(internedConstant()).toBe("an interned constant");
+        const object = { "an interned constant": 1 };
+        expect(object[internedConstant()]).toBe(1);
+    });
+
+    test("cached key strings keep their contents when they move", () => {
+        expect(forInKeys(keyed)).toEqual(["firstKey", "secondKey"]);
+        expect(Object.keys(keyed)).toEqual(["firstKey", "secondKey"]);
+    });
+
+    test("compiled code creates closures after their sample moved", () => {
+        const adders = Array.from({ length: 10 }, (_, i) => makeAdder(i));
+        expect(adders.map((adder, i) => adder(i))).toEqual(Array.from({ length: 10 }, (_, i) => 2 * i));
     });
 });
 

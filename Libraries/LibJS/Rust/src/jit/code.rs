@@ -18,6 +18,7 @@ use libjs_jit::code::ExitKind;
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_runtime_macros::Trace;
 
+use super::allocation::SampleSlots;
 use super::data_memory::DataMemory;
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
@@ -186,6 +187,9 @@ pub struct JitCode {
     /// keep their addresses for as long as the code may run.
     embedded_cells: Vec<Gc<CellHeader>>,
     snapshot_executables: Vec<SnapshotExecutable>,
+    /// The slots of the samples the code copies closures of, whose addresses the code holds rather than those of the
+    /// samples. A collection rewrites them where they are when a sample moves.
+    sample_slots: SampleSlots,
     /// Identifies the code among all code the VM installed, for the dependencies it registers (see
     /// `super::dependencies`).
     id: u64,
@@ -240,6 +244,7 @@ impl JitCode {
             layout,
             embedded_cells,
             snapshot_executables,
+            sample_slots: Vec::new(),
             id: 0,
             invalidated: Cell::new(false),
             site_index_frame_offset: 0,
@@ -305,6 +310,11 @@ impl JitCode {
     /// Gives the code its id among all code the VM installed.
     pub fn set_id(&mut self, id: u64) {
         self.id = id;
+    }
+
+    /// Gives the code the slots of the samples it copies closures of.
+    pub fn set_sample_slots(&mut self, sample_slots: SampleSlots, _defer_gc: &DeferGc<'_>) {
+        self.sample_slots = sample_slots;
     }
 
     /// Whether the handler whose `Catch` is at `pc` has no catch entry only because it never caught an exception
@@ -434,6 +444,10 @@ unsafe impl Trace for JitCode {
             visitor.visit(materialized.object);
         }
         self.snapshot_executables.trace(visitor);
+        for slot in &self.sample_slots {
+            // SAFETY: Nothing writes the slots, and only dropping the code, which no sweep callback does, frees them.
+            unsafe { visitor.visit_owned_values(core::slice::from_ref(&**slot)) };
+        }
     }
 }
 

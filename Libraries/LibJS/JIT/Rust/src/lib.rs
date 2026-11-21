@@ -169,6 +169,42 @@ pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut Compil
     )
 }
 
+/// The cells the code embeds, which keep their addresses for as long as it lives: those the graph lists, those of its
+/// constants and of the values its checks compare against, and those of the constants of the compiled executable, which
+/// the code writes into the frames it initializes. Values that hold cells end up in the code and in its tables as they
+/// are, so the cells of all of them stay where they are.
+fn embedded_cells<'w>(graph: &ir::Graph<'_>, snapshot: &Snapshot, work: &'w Zone) -> ak::ZoneVec<'w, snapshot::CellId> {
+    let runtime = &snapshot.runtime;
+    let pattern = runtime.shifted_is_cell_pattern;
+    let values = graph.nodes.iter().filter_map(|node| match node.op {
+        ir::Op::Constant(bits) if node.repr == Some(code::Repr::Tagged) => Some(bits),
+        ir::Op::CheckValue { expected, .. } => Some(expected),
+        _ => None,
+    });
+    let frame_constants = snapshot
+        .executables
+        .first()
+        .map_or(&[][..], |executable| &snapshot[executable.constants]);
+    let mut value_cells = ak::ZoneVec::from_iter_in(
+        values
+            .chain(frame_constants.iter().copied())
+            .filter(|bits| bits & pattern == pattern)
+            .map(|bits| runtime.heap_region_base + (bits & runtime.heap_region_offset_mask)),
+        work,
+    );
+    value_cells.sort_unstable();
+    value_cells.dedup();
+    let mut listed = ak::ZoneVec::from_slice_in(&graph.embedded_cells, work);
+    listed.sort_unstable();
+    let mut cells = ak::ZoneVec::from_slice_in(&graph.embedded_cells, work);
+    for cell in value_cells.into_iter().map(snapshot::CellId) {
+        if listed.binary_search(&cell).is_err() {
+            cells.push(cell);
+        }
+    }
+    cells
+}
+
 /// With `StressOptions::few_registers`, how many registers values get
 /// besides the ones calls use.
 const STRESS_EXTRA_REGISTERS: u32 = 2;
@@ -265,6 +301,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         work,
     )?;
     generated.osr_entries.sort_unstable();
+    let embedded_cells = embedded_cells(&graph, snapshot, work);
     let layout = artifact.finish(
         &Tail {
             osr_entries: &generated.osr_entries,
@@ -272,7 +309,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             osr_outer_loop_back_edges: &graph.osr_outer_loop_back_edges,
             uncaught_handlers: &graph.uncaught_handlers,
             invalidation_patches: &generated.invalidation_patches,
-            embedded_cells: &graph.embedded_cells,
+            embedded_cells: &embedded_cells,
             dependencies: &graph.dependencies,
         },
         &mut compiled.words,

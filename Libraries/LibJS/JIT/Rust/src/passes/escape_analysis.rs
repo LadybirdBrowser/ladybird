@@ -371,8 +371,8 @@ fn shapes_before_uses<'w>(
                     shapes.insert(node, (shape, property_count));
                 }
                 // NB: A closure has one shape, and no properties that this pass knows.
-                Op::AllocateFunction { sample, .. } if candidates.contains(&node) => {
-                    shapes.insert(node, (sample, 0));
+                Op::AllocateFunction { sample_slot, .. } if candidates.contains(&node) => {
+                    shapes.insert(node, (sample_slot, 0));
                 }
                 Op::AddNamed {
                     shape, property_count, ..
@@ -630,8 +630,8 @@ fn replace_objects<'w>(graph: &mut Graph, analysis: &Analysis, work: &'w Zone) -
                     shapes.insert(node, (shape, property_count));
                     removed.insert(node.index());
                 }
-                Op::AllocateFunction { sample, .. } if is_replaced(node) => {
-                    shapes.insert(node, (sample, 0));
+                Op::AllocateFunction { sample_slot, .. } if is_replaced(node) => {
+                    shapes.insert(node, (sample_slot, 0));
                     removed.insert(node.index());
                 }
                 Op::AddNamed {
@@ -751,7 +751,7 @@ fn virtualize_frame_state(
         }
         let (shape, _) = *shapes.get(&root).expect("replaced objects have shapes");
         let kind = if analysis.closures.contains(&root) {
-            VirtualObjectKind::Closure { sample: shape }
+            VirtualObjectKind::Closure { sample_slot: shape }
         } else {
             VirtualObjectKind::Object { shape }
         };

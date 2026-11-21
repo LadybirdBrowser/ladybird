@@ -333,9 +333,9 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
             ..
         } => inputs.after(f, format_args!("VirtualObject {:#x}", shape.0)),
         Op::VirtualObject {
-            kind: VirtualObjectKind::Closure { sample },
+            kind: VirtualObjectKind::Closure { sample_slot },
             ..
-        } => inputs.after(f, format_args!("VirtualObject closure {:#x}", sample.0)),
+        } => inputs.after(f, format_args!("VirtualObject closure {:#x}", sample_slot.0)),
         Op::AllocateEnvironment { shape_cache, capacity } => {
             inputs.after(f, format_args!("AllocateEnvironment {shape_cache} capacity {capacity}"))
         }

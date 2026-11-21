@@ -1173,7 +1173,8 @@ unsafe impl Trace for ObjectPropertyIteratorCacheData {
     fn trace(&self, visitor: &mut Visitor) {
         self.shape.trace(visitor);
         self.prototype_chain_validity.trace(visitor);
-        self.property_values.trace(visitor);
+        // SAFETY: The values are written once, when the cell is made, and only its finalizer frees them.
+        unsafe { self.property_values.trace_owned(visitor) };
         self.storage.trace(visitor);
     }
 }
@@ -2370,7 +2371,12 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
 // alive.
 unsafe impl Trace for ExecutableHead {
     fn trace(&self, visitor: &mut Visitor) {
-        visitor.visit_values(&self.constants);
+        // NB: The constants are visited as owned values, so that a collection that moves their cells rewrites them where
+        //     they are. They are in the tables of the executable, which nothing writes once it is built, and only its
+        //     destructor frees. JIT code that embeds a constant lists its cell among the cells it embeds, which keeps
+        //     the cell where it is while the code lives.
+        // SAFETY: See above.
+        unsafe { visitor.visit_owned_values(&self.constants) };
     }
 }
 

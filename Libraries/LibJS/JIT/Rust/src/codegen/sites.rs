@@ -194,7 +194,7 @@ impl SiteSource<'_> {
                 };
                 let kind = match kind {
                     VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object { shape },
-                    VirtualObjectKind::Closure { sample } => VirtualObjectDescriptorKind::Closure { sample },
+                    VirtualObjectKind::Closure { sample_slot } => VirtualObjectDescriptorKind::Closure { sample_slot },
                 };
                 let property_count = u32::try_from(graph.node(*object).inputs.len()).expect("inputs fit in u32");
                 (kind, allocation.0, property_count)

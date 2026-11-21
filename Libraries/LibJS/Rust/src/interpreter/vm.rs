@@ -934,6 +934,11 @@ impl Vm {
         self.heap.get().expect("the VM has a heap")
     }
 
+    /// The heap, unless the VM let go of it, as it does while the heap is destroyed.
+    pub(crate) fn heap_if_held(&self) -> Option<&Heap> {
+        self.heap.get()
+    }
+
     pub fn interpreter_stack(&self) -> &InterpreterStack {
         &self.head.interpreter_stack
     }
@@ -1619,7 +1624,7 @@ impl Vm {
     /// Drops the weak cache entries of strings that died in this collection, and every entry of the caches that each
     /// collection empties.
     fn remove_dead_strings_from_weak_caches(&self, sweep: &Sweep<'_>) {
-        // NB: The caches forget strings that move. The interned strings do not move.
+        // NB: The caches forget strings that move.
         let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead_or_moving(string);
         for cache_slot in self.fly_string_cache.iter() {
             if cache_slot.get().is_some_and(is_dead) {
@@ -1631,9 +1636,17 @@ impl Vm {
                 *entry = StringToAtomCacheEntry::default();
             }
         }
-        self.interned_strings
-            .borrow_mut()
-            .retain(|_, string| !sweep.is_dead(*string));
+        let mut interned_strings = self.interned_strings.borrow_mut();
+        interned_strings.retain(|_, string| !sweep.is_dead(*string));
+        if sweep.moves_cells() {
+            // NB: The table is keyed by the identity of the fly strings, which moves of the strings do not change.
+            for string in interned_strings.values() {
+                // SAFETY: Only creating an interned string changes the table, which nothing does until the collection
+                //         is over.
+                unsafe { sweep.record_slot(string) };
+            }
+        }
+        drop(interned_strings);
         self.characters_to_atom_cache
             .borrow_mut()
             .fill_with(CharactersToAtomCacheEntry::default);

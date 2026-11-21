@@ -27,7 +27,7 @@ use libjs_jit::snapshot::{
 };
 
 use super::allocation::{
-    allocation_infos, closure_template_snapshots, closure_templates, function_environment_template,
+    SampleSlots, allocation_infos, closure_template_snapshots, closure_templates, function_environment_template,
     lexical_environment_templates,
 };
 use super::code::{CapturedBindingAccesses, InlinedFunction, SnapshotExecutable, speculated_cache_size};
@@ -87,6 +87,8 @@ pub struct CapturedSnapshot<'d> {
     pub snapshot: Box<Snapshot>,
     pub cells: Deferred<'d, Vec<Gc<CellHeader>>>,
     pub snapshot_executables: Deferred<'d, Vec<SnapshotExecutable>>,
+    /// The slots of the samples of the closure templates, whose samples are among the cells.
+    pub sample_slots: Deferred<'d, SampleSlots>,
 }
 
 /// An executable of the snapshot.
@@ -116,6 +118,7 @@ struct SnapshotBuilder<'vm> {
     /// The samples of the closure templates of inlined functions, by executable and template index, until the
     /// inlining candidates they are get their indices.
     closure_samples: Vec<(u32, usize, Gc<EcmascriptFunctionObject>)>,
+    sample_slots: SampleSlots,
     /// The lexical environment templates of the compiled executable.
     lexical_environment_templates: List<Option<LexicalEnvironmentTemplateSnapshot>>,
     /// The environment templates of the direct calls of the executable whose snapshot is being made.
@@ -411,9 +414,33 @@ fn note_cell<T: Extends<CellHeader>>(cells: &mut Vec<Gc<CellHeader>>, cell: Gc<T
     CellId(cell.as_ptr() as u64)
 }
 
+/// Adds the environments of `function`, whose addresses its FunctionFrameFields hold, to `cells`.
+fn note_frame_field_cells(cells: &mut Vec<Gc<CellHeader>>, function: Gc<EcmascriptFunctionObject>) {
+    if let Some(environment) = function.environment() {
+        note_cell(cells, environment);
+    }
+    if let Some(environment) = function.private_environment() {
+        note_cell(cells, environment);
+    }
+}
+
 impl SnapshotBuilder<'_> {
     fn cell<T: Extends<CellHeader>>(&mut self, cell: Gc<T>) -> CellId {
         note_cell(&mut self.cells, cell)
+    }
+
+    /// The bits of `value`, whose cell, if it has one, is added to the cells the snapshot refers to.
+    fn value_bits(&mut self, value: Value) -> u64 {
+        if value.is_cell() {
+            note_cell(&mut self.cells, value.as_cell());
+        }
+        value.0
+    }
+
+    /// function_frame_fields() of `function`, whose environments are added to the cells the snapshot refers to.
+    fn frame_fields(&mut self, function: Gc<EcmascriptFunctionObject>) -> FunctionFrameFields {
+        note_frame_field_cells(&mut self.cells, function);
+        function_frame_fields(function)
     }
 
     /// Adds `rows` to the snapshot as a list.
@@ -860,12 +887,15 @@ impl SnapshotBuilder<'_> {
             && snapshot.inline_executable.is_some()
         {
             // NB: The bound function, which the code checks the callee against and so embeds, keeps its bound values
-            //     alive.
+            //     alive. The snapshot notes their cells, which keeps them in place until the code is installed.
             let bound_arguments = bound.bound_arguments();
-            snapshot.bound_this = bound.bound_this().0;
+            snapshot.bound_this = self.value_bits(bound.bound_this());
             snapshot.bound_arguments_start = u32::try_from(self.bound_arguments.len()).ok()?;
             snapshot.bound_argument_count = u32::try_from(bound_arguments.len()).ok()?;
-            self.bound_arguments.extend(bound_arguments.iter().map(|value| value.0));
+            for &value in bound_arguments {
+                let bits = self.value_bits(value);
+                self.bound_arguments.push(bits);
+            }
         }
         Some(snapshot)
     }
@@ -1114,7 +1144,7 @@ impl SnapshotBuilder<'_> {
             entry,
             registers_and_locals_count: executable.registers_and_locals_count(),
             registers_and_locals_and_constants_count: executable.head.registers_and_locals_and_constants_count.get(),
-            function_fields: function_frame_fields(function),
+            function_fields: self.frame_fields(function),
             environment,
             closures,
         }
@@ -1227,7 +1257,8 @@ impl SnapshotBuilder<'_> {
         let cells = &mut self.cells;
         closure_template_snapshots(
             templates.into_inner(),
-            |sample| note_cell(cells, sample),
+            |cell| note_cell(cells, cell),
+            &mut self.sample_slots,
             defer_gc,
             &mut self.snapshot,
         )
@@ -1308,7 +1339,12 @@ impl SnapshotBuilder<'_> {
                     .expect("the constant count fits in u32"),
                 number_of_arguments: executable.number_of_arguments(),
             },
-            constants: self.list(executable.constants().iter().map(|constant| constant.0)),
+            constants: {
+                for &constant in executable.constants() {
+                    self.value_bits(constant);
+                }
+                self.list(executable.constants().iter().map(|constant| constant.0))
+            },
             exception_handlers: self.list(executable.exception_handlers().iter().map(|handler| ExceptionHandler {
                 start_offset: handler.start_offset,
                 end_offset: handler.end_offset,
@@ -1333,7 +1369,7 @@ impl SnapshotBuilder<'_> {
                 InlinedFunction::Builtin(function) => self.inlined_builtin(function),
             }),
             function_fields: match entry.function {
-                Some(InlinedFunction::Ecmascript(function)) => Some(function_frame_fields(function)),
+                Some(InlinedFunction::Ecmascript(function)) => Some(self.frame_fields(function)),
                 // NB: The compiled function's script tells which inlined calls
                 //     run in it.
                 None => Some(self.compiled_function_fields),
@@ -1597,6 +1633,7 @@ pub fn capture_snapshot<'d>(
         compiled_function_fields,
         closure_templates: List::empty(),
         closure_samples: Vec::new(),
+        sample_slots: Vec::new(),
         environment_templates: Vec::new(),
         bound_arguments: Vec::new(),
         lexical_environment_templates: List::empty(),
@@ -1605,10 +1642,14 @@ pub fn capture_snapshot<'d>(
         literal_instance_fields: HashMap::new(),
         derived_instance_fields: HashMap::new(),
     };
+    if let Some(function) = function {
+        note_frame_field_cells(&mut builder.cells, function);
+    }
     let cells = &mut builder.cells;
     builder.closure_templates = closure_template_snapshots(
         closure_templates.into_inner(),
-        |sample| note_cell(cells, sample),
+        |cell| note_cell(cells, cell),
+        &mut builder.sample_slots,
         defer_gc,
         &mut builder.snapshot,
     );
@@ -1676,6 +1717,7 @@ pub fn capture_snapshot<'d>(
         snapshot,
         cells,
         entries,
+        sample_slots,
         ..
     } = builder;
     super::compile_queue::give_back_open_lists(snapshot.finish());
@@ -1707,6 +1749,7 @@ pub fn capture_snapshot<'d>(
     CapturedSnapshot {
         snapshot,
         cells: defer_gc.cover(cells),
+        sample_slots: defer_gc.cover(sample_slots),
         snapshot_executables: defer_gc.cover(
             entries
                 .iter()
