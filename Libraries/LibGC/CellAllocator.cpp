@@ -8,8 +8,10 @@
 #include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/BlockDescriptor.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
@@ -80,116 +82,108 @@ BlockAllocator& CellAllocatorDescriptorBase::block_allocator() const
     return *pools->ensure(key, [] { return make<BlockAllocator>(); });
 }
 
-CellAllocator::CellAllocator(CellAllocatorDescriptorBase& descriptor)
+void CellAllocator::initialize_block(void* context, void* block)
+{
+    auto& allocator = *static_cast<CellAllocator*>(context);
+    HeapBlock::initialize(block, allocator.m_heap, allocator);
+}
+
+// Frees the slot of a cell for LibGC's Rust core: runs its destructor first if it died, and marks it dead.
+void CellAllocator::free_cell(void* context, void* address, bool destroy)
+{
+    auto& allocator = *static_cast<CellAllocator*>(context);
+    auto* cell = static_cast<Cell*>(address);
+    VERIFY(cell->state() == Cell::State::Live);
+    if (auto* destroy_cell = allocator.type_info().destroy; destroy && destroy_cell) {
+        allocator.m_heap.will_destroy_swept_cell({});
+        destroy_cell(cell);
+        allocator.m_heap.did_destroy_swept_cell({});
+    }
+    cell->set_state(Cell::State::Dead);
+
+#ifdef HAS_ADDRESS_SANITIZER
+    // NB: The header of a free cell, where its state is, stays accessible.
+    auto after_header = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(cell) + HeapBlock::min_possible_cell_size, 8);
+    VERIFY(after_header - reinterpret_cast<uintptr_t>(cell) <= allocator.cell_size());
+    ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(after_header), allocator.cell_size() - (after_header - reinterpret_cast<uintptr_t>(cell)));
+#endif
+}
+
+CellAllocator::CellAllocator(Heap& heap, CellAllocatorDescriptorBase& descriptor)
     : m_descriptor(descriptor)
     , m_block_allocator(descriptor.block_allocator())
+    , m_heap(heap)
 {
     m_local.cell_size = cell_size();
+    FFI::AllocatorConfig config {
+        .heap_region_base = heap_region_base(),
+        .heap = &heap,
+        .type_info = &type_info(),
+        .pool = m_block_allocator.rust_pool({}),
+        .local = reinterpret_cast<FFI::LocalFreeCells*>(&m_local),
+        .cells_offset = static_cast<u32>(HeapBlock::cells_offset()),
+        .cell_size = static_cast<u32>(cell_size()),
+        .traced_on_owner_thread_only = descriptor.trace_thread() == TraceThread::OwnerThreadOnly,
+        .movable = descriptor.is_movable(),
+        .context = this,
+        .initialize_block = initialize_block,
+        .free_cell = free_cell,
+    };
+    m_allocator = FFI::rust_gc_allocator_create(&config);
 }
 
 CellAllocator::~CellAllocator()
 {
-    m_blocks_pending_sweep.clear();
-
-    auto reclaim_all = [this](BlockList& blocks) {
-        while (auto* block = blocks.take_first()) {
-            block->~HeapBlock();
-            m_block_allocator.deallocate_block(block, DeferDecommit::No);
-        }
-    };
-    reclaim_all(m_full_blocks);
-    reclaim_all(m_usable_blocks);
-
-    // NB: This heap is gone, and another one may not come along to use the blocks of this type for a long time.
-    m_block_allocator.return_freed_blocks_to_system();
+    FFI::rust_gc_allocator_destroy(m_allocator);
 }
+
+static_assert(sizeof(CellAllocator::LocalFreeCells) == sizeof(FFI::LocalFreeCells));
+static_assert(__builtin_offsetof(CellAllocator::LocalFreeCells, cursor) == __builtin_offsetof(FFI::LocalFreeCells, cursor));
+static_assert(__builtin_offsetof(CellAllocator::LocalFreeCells, end) == __builtin_offsetof(FFI::LocalFreeCells, end));
+static_assert(__builtin_offsetof(CellAllocator::LocalFreeCells, cell_size) == __builtin_offsetof(FFI::LocalFreeCells, cell_size));
 
 Cell* CellAllocator::allocate_cell_slow(Heap& heap)
 {
-    // NB: The local block has no free cells left, and take_free_cells() left it full.
-    VERIFY(HeapBlock::is_end_of_freelist(m_local.free_list.ptr()));
-    VERIFY(m_local.cursor == m_local.end);
-    m_local.free_list = nullptr;
-    m_local.cursor = 0;
-    m_local.end = 0;
-    m_local_block = nullptr;
-
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);
 
+    // NB: A heap that collects on every allocation hands out single cells, as code that bumps through runs itself
+    //     would take cells from them without collecting.
     bool can_sweep = heap.is_incremental_sweep_active() && !heap.is_gc_deferred();
-    for (;;) {
-        if (m_usable_blocks.is_empty() && can_sweep && !m_blocks_pending_sweep.is_empty()) {
-            // Sweep our own pending blocks first to try to find free cells
-            // before allocating a new block.
-            heap.sweep_block(*m_blocks_pending_sweep.first());
-            continue;
-        }
-
-        if (m_usable_blocks.is_empty()) {
-            auto block = HeapBlock::create(heap, *this);
-            m_usable_blocks.append(*block.leak_ptr());
-        }
-
-        auto& block = *m_usable_blocks.last();
-        if (block.is_pending_sweep() && can_sweep) {
-            heap.sweep_block(block);
-            continue;
-        }
-
-        // NB: Without sweeping the block first, take a single cell from it,
-        //     which the heap marks as allocated during the sweep. The same
-        //     goes for the block the sweep is in the middle of, which a
-        //     destructor may allocate from. A heap that collects on every
-        //     allocation has no local free lists, which code that pops them
-        //     itself would take cells from without collecting.
-        if (block.is_pending_sweep() || block.is_being_swept() || heap.should_collect_on_every_allocation()) {
-            auto* cell = block.allocate();
-            VERIFY(cell);
-            if (block.is_full())
-                m_full_blocks.append(block);
-            return cell;
-        }
-
-        auto free_cells = block.take_free_cells();
-        VERIFY(!HeapBlock::is_end_of_freelist(free_cells.free_list.ptr()) || free_cells.lazy_start < free_cells.lazy_end);
-        m_local.free_list = free_cells.free_list;
-        m_local.cursor = free_cells.lazy_start;
-        m_local.end = free_cells.lazy_end;
-        m_full_blocks.append(block);
-        m_local_block = &block;
-        return allocate_cell(heap);
-    }
+    FFI::SweepStats stats {};
+    // NB: The time spent sweeping goes into how far the heap grows before the next collection, see
+    //     Heap::next_growth_factor().
+    auto start_ns = can_sweep ? MonotonicTime::now().nanoseconds() : 0;
+    auto* cell = static_cast<Cell*>(FFI::rust_gc_allocator_allocate(m_allocator, can_sweep, heap.should_collect_on_every_allocation(), &stats));
+    if (stats.swept_blocks)
+        heap.did_sweep_blocks_for_allocation({}, stats.swept_blocks, MonotonicTime::now().nanoseconds() - start_ns);
+    ASAN_UNPOISON_MEMORY_REGION(cell, cell_size());
+    return cell;
 }
 
 void CellAllocator::give_back_local_free_list(Badge<Heap>)
 {
-    if (!m_local_block)
-        return;
-    if (!HeapBlock::is_end_of_freelist(m_local.free_list.ptr()) || m_local.cursor < m_local.end) {
-        m_local_block->give_back_free_cells(m_local.free_list.ptr(), m_local.cursor);
-        m_usable_blocks.append(*m_local_block);
-    }
-    m_local.free_list = nullptr;
-    m_local.cursor = 0;
-    m_local.end = 0;
-    m_local_block = nullptr;
+    FFI::rust_gc_allocator_give_back_local_free_cells(m_allocator);
 }
 
-void CellAllocator::block_did_become_empty(Badge<Heap>, HeapBlock& block, DeferDecommit defer_decommit)
+size_t CellAllocator::block_count() const
 {
-    block.m_list_node.remove();
-    --block.heap().m_block_count;
-    block.heap().forget_cells_kept_by_pins(block);
-    // NOTE: HeapBlocks are managed by the BlockAllocator, so we don't want to `delete` the block here.
-    block.~HeapBlock();
-    m_block_allocator.deallocate_block(&block, defer_decommit);
+    return FFI::rust_gc_allocator_block_count(m_allocator);
 }
 
-void CellAllocator::block_did_become_usable(Badge<Heap>, HeapBlock& block)
+HeapBlock* CellAllocator::block_at(size_t index) const
 {
-    VERIFY(!block.is_full());
-    m_usable_blocks.append(block);
+    return static_cast<HeapBlock*>(FFI::rust_gc_allocator_block_at(m_allocator, index));
+}
+
+bool CellAllocator::is_local_block(HeapBlock const& block) const
+{
+    return FFI::rust_gc_allocator_local_block(m_allocator) == &block;
+}
+
+bool CellAllocator::has_blocks_pending_sweep() const
+{
+    return FFI::rust_gc_allocator_has_blocks_pending_sweep(m_allocator);
 }
 
 }

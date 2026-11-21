@@ -6,7 +6,6 @@ set(TEST_SOURCES
     TestExternalEntityTable.cpp
     TestGCContainers.cpp
     TestGCEphemeron.cpp
-    TestGCFreeList.cpp
     TestGCFunction.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp

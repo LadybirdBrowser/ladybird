@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/HashTable.h>
@@ -199,11 +198,21 @@ public:
     FunctionTable& function_table() { return m_function_table; }
     bool is_incremental_sweep_active() const { return m_incremental_sweep_active; }
 
+    // Sweeps the block now if the incremental sweep has yet to, as the sweep timer would.
     void sweep_block(HeapBlock&);
 
     // Whether `cell` points at a cell of this heap that is allocated: one that the sweep did not free yet. Code that keeps
     // pointers to cells that may have died since uses this to tell them apart from live ones.
     bool is_live_cell(Cell const*) const;
+
+    // How many blocks the heap has, for all types of cells.
+    size_t block_count() const;
+
+    void did_sweep_blocks_for_allocation(Badge<CellAllocator>, size_t swept_blocks, i64 duration_ns);
+
+    // A sweep runs the destructors of dead cells between these, see will_allocate().
+    void will_destroy_swept_cell(Badge<CellAllocator>) { ++m_block_sweeps_in_progress; }
+    void did_destroy_swept_cell(Badge<CellAllocator>) { --m_block_sweeps_in_progress; }
 
     template<typename Callback>
     void for_each_block(Callback callback)
@@ -347,6 +356,7 @@ private:
     void run_post_gc_tasks();
 
     bool sweep_next_block();
+    void did_sweep(size_t swept_blocks, i64 duration_ns);
     void start_incremental_sweep();
     void finish_incremental_sweep();
     void finish_pending_incremental_sweep();
@@ -412,15 +422,14 @@ private:
     Vector<AK::Function<void()>> m_post_gc_tasks;
     Vector<AK::Function<void()>> m_sweep_callbacks;
 
-    size_t m_block_count { 0 };
-
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;
 
     bool m_incremental_sweep_active { false };
-    size_t m_block_sweeps_in_progress { 0 };
     size_t m_blocks_to_sweep { 0 };
     size_t m_blocks_swept { 0 };
+    // How many destructors of swept cells are running, see will_allocate().
+    size_t m_block_sweeps_in_progress { 0 };
     size_t m_marked_cell_bytes { 0 };
     size_t m_marked_external_bytes { 0 };
     CellAllocator::SweepList m_allocators_to_sweep;
@@ -436,12 +445,6 @@ private:
     FFI::EvacuationSet* m_evacuation { nullptr };
     // The blocks it evacuates, those of an allocator one after another.
     Vector<HeapBlock*> m_evacuated_blocks;
-    // The cells that pins kept in the blocks that a collection could not empty, one bit per cell, see
-    // FFI::BlockDescriptor::kept_by_pins. A sweep that frees one of them lets compaction take the block again.
-    static constexpr size_t cell_bitmap_words = 11;
-    HashMap<HeapBlock*, Array<u64, cell_bitmap_words>> m_cells_kept_by_pins;
-    void forget_cells_kept_by_pins(HeapBlock&);
-    void cell_in_block_kept_by_pins_died(HeapBlock&, Cell const*);
     // The identity hashes of the cells that moved since they were hashed, see identity_hash().
     FFI::IdentityHashes* m_identity_hashes { nullptr };
     bool m_moves_everything { moves_everything() };

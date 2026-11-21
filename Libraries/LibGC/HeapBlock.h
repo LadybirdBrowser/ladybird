@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/IntrusiveList.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
@@ -16,161 +15,65 @@
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
 
-#ifdef HAS_ADDRESS_SANITIZER
-#    include <sanitizer/asan_interface.h>
-#endif
-
 namespace GC {
 
+// The header of a block of cells. LibGC's Rust core creates blocks and keeps track of which of their cells are
+// allocated, in the block's descriptor, see BlockDescriptor.h. The header is only what C++ reads from a cell's block.
 class GC_API HeapBlock : public HeapBlockBase {
     AK_MAKE_NONCOPYABLE(HeapBlock);
     AK_MAKE_NONMOVABLE(HeapBlock);
 
 public:
     using HeapBlockBase::BLOCK_SIZE;
-    static NonnullOwnPtr<HeapBlock> create(Heap&, CellAllocator&);
-    ~HeapBlock();
+
+    // Fills in the header of a block that an allocator just took.
+    static void initialize(void* block, Heap&, CellAllocator&);
 
     size_t cell_size() const { return m_cell_size; }
     size_t cell_count() const { return m_cell_count; }
-    bool is_full() const { return !has_lazy_freelist() && is_end_of_freelist(freelist_head()); }
 
-    Cell* allocate();
-
-    // Deallocates a cell that for_each_cell() found, which the sweep
-    // found unmarked.
-    void deallocate(Cell*);
-
-    // Frees the slot of a live cell that moved to another slot, without
-    // destroying it, since its copy lives on.
-    void release_moved_cell(Cell*);
-
-    // The free cells of a block: the cells that were freed, as a list linked
-    // through freelist_next_offset, and the cells that were never allocated,
-    // which are the cells from lazy_start up to lazy_end.
-    struct FreeCells {
-        RawPtr<Cell> free_list;
-        FlatPtr lazy_start { 0 };
-        FlatPtr lazy_end { 0 };
-    };
-
-    // Takes every free cell of the block, leaving the block full. The cells
-    // that were never allocated are taken as they are, without writing them.
-    FreeCells take_free_cells();
-
-    // Gives back the free cells of a list taken from this block, and the
-    // cells from lazy_cursor up to the end of the block, which must be the
-    // part of the never-allocated cells taken from this block that is still
-    // unallocated.
-    void give_back_free_cells(Cell* free_list, FlatPtr lazy_cursor);
-
-    // The offset of the link to the next cell in a free cell.
+    // The offset of the link to the next cell in a free cell, and the bits of a link that count, for code that pops
+    // free lists itself, see gc_heap_allocator_local_free_list(). The allocator hands out runs of cells only, so the
+    // lists it hands out are empty.
     static constexpr size_t freelist_next_offset();
+    static constexpr FlatPtr freelist_link_mask = BLOCK_SIZE - 1;
 
     // How far into a block its first cell is.
     static size_t cells_offset();
 
-    // Free cells are in the heap region, where anything may have been
-    // corrupted, so a link read from a free cell must never lead out of its
-    // block: only the bits of the link under freelist_link_mask count, as
-    // the offset of the next cell in the block of the cell holding the link
-    // (or of the block holding the head of the list). Offset 0, where the
-    // block's header is, ends the list, so a null link ends it as well.
-    static constexpr FlatPtr freelist_link_mask = BLOCK_SIZE - 1;
-    static Cell* follow_freelist_link(void const* holder, FlatPtr link)
-    {
-        return bit_cast<Cell*>((bit_cast<FlatPtr>(holder) & ~freelist_link_mask) | (link & freelist_link_mask));
-    }
-    static Cell* next_free_cell(Cell const* free_cell)
-    {
-        return follow_freelist_link(free_cell, *bit_cast<FlatPtr const*>(bit_cast<FlatPtr>(free_cell) + freelist_next_offset()));
-    }
-    static bool is_end_of_freelist(Cell const* cell) { return !(bit_cast<FlatPtr>(cell) & freelist_link_mask); }
-
     // Whether the incremental sweep has yet to sweep the block, or is
     // sweeping it right now. Cells allocated in such a block during the
     // sweep must be marked so that the sweep keeps them.
-    bool is_pending_sweep() const { return m_sweep_list_node.is_in_list(); }
-    bool is_being_swept() const { return m_is_being_swept; }
-    void set_being_swept(bool being_swept) { m_is_being_swept = being_swept; }
+    bool is_pending_sweep() const;
+    bool is_being_swept() const;
 
-    // How many cells of the block are allocated. While an allocator has taken the block's free cells, they count as
-    // allocated too, see take_free_cells().
+    // How many cells of the block are allocated. The cells of a run that an allocator took from the block to hand out
+    // count as allocated too, see CellAllocator::LocalFreeCells.
     u32 allocated_cell_count() const;
-
-    template<typename Callback>
-    void for_each_cell(Callback callback)
-    {
-        auto end = has_lazy_freelist() ? m_next_lazy_freelist_index : cell_count();
-        for (size_t i = 0; i < end; ++i)
-            callback(cell(i));
-    }
-
-    template<Cell::State state, typename Callback>
-    void for_each_cell_in_state(Callback callback)
-    {
-        for_each_cell([&](auto* cell) {
-            if (cell->state() == state)
-                callback(cell);
-        });
-    }
 
     static HeapBlock* from_cell(Cell const* cell)
     {
         return static_cast<HeapBlock*>(HeapBlockBase::from_cell(cell));
     }
 
-    Cell* cell_from_possible_pointer(FlatPtr pointer)
-    {
-        if (pointer < reinterpret_cast<FlatPtr>(m_storage))
-            return nullptr;
-        size_t cell_index = (pointer - reinterpret_cast<FlatPtr>(m_storage)) / m_cell_size;
-        auto end = has_lazy_freelist() ? m_next_lazy_freelist_index : cell_count();
-        if (cell_index >= end)
-            return nullptr;
-        return cell(cell_index);
-    }
-
-    bool is_valid_cell_pointer(Cell const* cell)
-    {
-        return cell_from_possible_pointer((FlatPtr)cell);
-    }
-
-    IntrusiveListNode<HeapBlock> m_list_node;
-    IntrusiveListNode<HeapBlock> m_sweep_list_node;
-
     CellAllocator& cell_allocator() { return m_cell_allocator; }
 
 private:
     HeapBlock(Heap&, CellAllocator&);
 
-    bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
-    void free_slot(Cell*);
-
     struct FreelistEntry final : public Cell {
         GC_CELL(FreelistEntry, Cell);
 
-        // See follow_freelist_link().
         FlatPtr next { 0 };
     };
 
-    Cell* freelist_head() const { return follow_freelist_link(this, m_freelist); }
-
-    Cell* cell(size_t index)
-    {
-        return reinterpret_cast<Cell*>(&m_storage[index * cell_size()]);
-    }
-
     CellAllocator& m_cell_allocator;
     u32 m_cell_size { 0 };
-    u32 m_next_lazy_freelist_index { 0 };
     // NB: Computed once, since dividing by the cell size is slow.
     u32 m_cell_count { 0 };
-    bool m_is_being_swept { false };
-
-    // See follow_freelist_link().
-    FlatPtr m_freelist { 0 };
-    alignas(max_cell_alignment) u8 m_storage[];
+    // NB: Pads the header to the size that sets how many cells of each size a block holds, see cells_offset().
+    [[maybe_unused]] u8 m_reserved[72];
+    [[maybe_unused]] alignas(max_cell_alignment) u8 m_storage[];
 
 public:
     static constexpr size_t min_possible_cell_size = sizeof(FreelistEntry);

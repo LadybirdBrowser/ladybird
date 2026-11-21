@@ -26,7 +26,7 @@ use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 
 use crate::block::{BLOCK_SIZE, BlockDescriptor, descriptor_table, heap_of_descriptor};
 use crate::evacuation::{EvacuationSet, PinReason, RecordedSlot, SlotKind};
-use crate::pool::{Pool, PoolGuard, thread_count};
+use crate::pool::{Pool, PoolGuard};
 use crate::rust_panic::abort_on_panic;
 
 pub(crate) const COMPRESSED_POINTER_SHIFT: u32 = 3;
@@ -598,12 +598,6 @@ pub unsafe extern "C" fn rust_gc_marker_pin_cell(marker: *mut Marker, cell: *con
 pub unsafe extern "C" fn rust_gc_marker_visit_ephemeron(marker: *mut Marker, key: *const c_void, value: *const c_void) {
     // SAFETY: The caller passes a live marker.
     unsafe { &*marker }.visit_ephemeron(key.addr(), value.addr());
-}
-
-/// The most threads that mark a heap, the thread that collects included.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_gc_marker_thread_count() -> usize {
-    thread_count()
 }
 
 /// Marks every cell of the heaps that the roots reach, and adds up the bytes they take.

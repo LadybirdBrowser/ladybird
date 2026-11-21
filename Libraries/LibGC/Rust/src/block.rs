@@ -8,10 +8,9 @@
 //!
 //! A block holds cells of one type and one size. What the collector knows about a block is in its descriptor, which
 //! lives outside the heap region: the heap and the type of the block, and which of its cells are allocated and which
-//! are marked. So nothing that
-//! writes to a cell, or past it, can change what the collector does with the block. The descriptor of a block is at the
-//! block's index in the region in a table of descriptors, which is reserved once for the whole region and only backed
-//! by memory where blocks are.
+//! are marked. So nothing that writes to a cell, or past it, can change what the collector does with the block. The
+//! descriptor of a block is at the block's index in the region in a table of descriptors, which is reserved once for the
+//! whole region and only backed by memory where blocks are.
 
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
@@ -74,7 +73,7 @@ pub struct BlockDescriptor {
     /// Whether the block is on its allocator's list of blocks with free cells.
     pub usable: bool,
     /// Rounds the descriptor up to 256 bytes, four whole cache lines in the table.
-    pub reserved3: [u8; 33],
+    pub reserved2: [u8; 33],
 }
 
 const _: () = assert!(size_of::<BlockDescriptor>() == 256);
@@ -177,7 +176,7 @@ unsafe impl Sync for Table {}
 
 static TABLE: OnceLock<Table> = OnceLock::new();
 
-/// The table of block descriptors, which this reserves for a region of `region_size` bytes on first use.
+/// The table of block descriptors, see rust_gc_block_descriptor_table().
 pub fn descriptor_table() -> NonNull<BlockDescriptor> {
     TABLE.get().expect("the table of block descriptors exists").descriptors
 }
@@ -270,8 +269,7 @@ pub extern "C" fn rust_gc_block_descriptor_table(region_size: usize) -> *mut Blo
 }
 
 /// Makes sure that the `count` descriptors from `first_index` on are backed by memory, before blocks are created there.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_gc_block_descriptor_commit(first_index: usize, count: usize) {
+pub fn commit_descriptors(first_index: usize, count: usize) {
     let table = TABLE.get().expect("the table of block descriptors exists");
     assert!(
         first_index + count <= table.count,
