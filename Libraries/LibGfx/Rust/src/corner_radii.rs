@@ -5,8 +5,9 @@
  */
 
 use crate::geometry::{FloatPoint, FloatRect, IntPoint, IntRect};
+use libipc_rust::wire::{Decode, Encode};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Encode, Decode)]
 #[repr(C)]
 pub struct CornerRadius {
     pub horizontal_radius: i32,
@@ -19,7 +20,7 @@ impl CornerRadius {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Encode, Decode)]
 #[repr(C)]
 pub struct CornerRadii {
     pub top_left: CornerRadius,
