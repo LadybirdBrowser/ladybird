@@ -1,0 +1,7 @@
+middle of the X: text
+blank top of the p's cell: text
+between two cells: text
+above the cells: svg
+past the last cell: svg
+over the text: text
+over a hidden tspan in the text: svg

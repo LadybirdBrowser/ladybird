@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="300" height="100" style="font: 40px Ahem">
+    <a id="link" href="#target"><text id="text" x="10" y="50">X&#x00c9;p</text></a>
+</svg>
+<svg id="hidden-svg" width="300" height="100" style="font: 40px Ahem">
+    <text x="10" y="50">X<tspan visibility="hidden">XXX</tspan></text>
+</svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        // Ahem's X fills its whole cell, but É and p leave parts of their cells blank: above the É's accent and below
+        // the p's descender. Those blank parts of the cells still hit the text.
+        const text = document.getElementById("text");
+        const cells = text.getBoundingClientRect();
+        const cell = 40;
+        const hit = (x, y) => document.elementFromPoint(x, y)?.localName;
+        println(`middle of the X: ${hit(cells.left + cell / 2, cells.top + cell / 2)}`);
+        println(`blank top of the p's cell: ${hit(cells.left + cell * 2.75, cells.top + 2)}`);
+        println(`between two cells: ${hit(cells.left + cell, cells.top + cell / 2)}`);
+        println(`above the cells: ${hit(cells.left + cell / 2, cells.top - 5)}`);
+        println(`past the last cell: ${hit(cells.left + cell * 3 + 5, cells.top + cell / 2)}`);
+
+        // An element takes hits in the cells of its own characters, not in those of a hidden element inside it.
+        const hiddenBox = document.getElementById("hidden-svg").getBoundingClientRect();
+        println(`over the text: ${hit(hiddenBox.left + 30, hiddenBox.top + 30)}`);
+        println(`over a hidden tspan in the text: ${hit(hiddenBox.left + 100, hiddenBox.top + 30)}`);
+        done();
+    });
+</script>

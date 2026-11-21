@@ -161,6 +161,9 @@ pub(crate) struct SvgPayload {
     /// after that child. None where all of the element's text comes before its child elements.
     pub(crate) text_segments: Option<std::sync::Arc<Vec<SvgTextSegment>>>,
     pub(crate) text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+    /// The cells of the characters of a <text> or <tspan>'s own text nodes, without those of the elements inside it,
+    /// which it's hit-tested by.
+    pub(crate) text_own_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
 }
 
 pub(crate) struct CommittedSvgPath {
@@ -240,6 +243,10 @@ impl PartialEq for FcPayload {
                     && same_allocation(left.path.as_ref(), right.path.as_ref())
                     && same_allocation(left.text_segments.as_ref(), right.text_segments.as_ref())
                     && same_allocation(left.text_character_cells.as_ref(), right.text_character_cells.as_ref())
+                    && same_allocation(
+                        left.text_own_character_cells.as_ref(),
+                        right.text_own_character_cells.as_ref(),
+                    )
             }
             _ => false,
         }
@@ -263,6 +270,7 @@ impl FcPayload {
                     && left.path == right.path
                     && left.text_segments == right.text_segments
                     && left.text_character_cells == right.text_character_cells
+                    && left.text_own_character_cells == right.text_own_character_cells
             }
             _ => false,
         }
@@ -277,6 +285,7 @@ impl FcPayload {
                     && svg.path.is_none()
                     && svg.text_segments.is_none()
                     && svg.text_character_cells.is_none()
+                    && svg.text_own_character_cells.is_none()
             }
             Self::Table(_) | Self::Flex(_) | Self::Multicol(_) | Self::Math(_) => false,
         }

@@ -612,6 +612,8 @@ struct SvgTextBoxContents {
     glyph_cells: SvgCssPixelRect,
     /// The glyph cell of each character in the element's subtree, in document order.
     character_cells: Vec<FfiSvgTextCharacterCell>,
+    /// The glyph cell of each character of the element's own text nodes, in document order.
+    own_character_cells: Vec<FfiSvgTextCharacterCell>,
     /// The union of the boxes of the element's text content child elements.
     children_bounding_box: SvgCssPixelRect,
 }
@@ -2424,7 +2426,11 @@ impl<'pass> SvgFormattingContext<'pass> {
                 paint_parts.add_decoration_lines(after_child, lines_over);
 
                 contents.glyph_cells.unite(shaped.glyph_cells);
+                let first_own_cell = contents.character_cells.len();
                 self.append_svg_run_dom_cells(child, shaped.character_cells, &mut contents.character_cells);
+                contents
+                    .own_character_cells
+                    .extend_from_slice(&contents.character_cells[first_own_cell..]);
             } else if matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
                 // <text> and <tspan> elements can contain more text elements, whose glyph cells count toward this
                 // box too.
@@ -3324,12 +3330,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         let kind = self.node_kind(graphics_box);
         let mut text_segments = None;
         let mut text_children_bounding_box = SvgCssPixelRect::default();
+        let mut own_character_cells = None;
         let (path, glyph_cells, character_cells) = match kind {
             NodeKind::SVGGeometryBox => (self.svg_geometry_path(graphics_box), None, None),
             NodeKind::SVGTextBox => {
                 let contents = self.layout_svg_text_box_contents(run, graphics_box);
                 text_segments = contents.segments;
                 text_children_bounding_box = contents.children_bounding_box;
+                own_character_cells = Some(std::sync::Arc::new(contents.own_character_cells));
                 (
                     contents.path,
                     Some(contents.glyph_cells),
@@ -3370,6 +3378,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             svg.path = Some(std::sync::Arc::new(fragment_tree::CommittedSvgPath::new(path)));
             svg.text_segments = text_segments.map(std::sync::Arc::new);
             svg.text_character_cells = character_cells;
+            svg.text_own_character_cells = own_character_cells;
         });
         let object_bounding_box = if is_text_content_box {
             bounding_box.to_float_rect()
