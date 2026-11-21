@@ -13,7 +13,7 @@ use super::tiles::TileDraw;
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size, size_of};
 use crate::raster_host::{
     FfiSublayer, FfiSublayerBackdrop, FfiSublayerGroup, FfiSublayerPlacement, LiveContent, MediaKind,
-    SublayerContentKind,
+    SublayerContentKind, SurfaceSampling,
 };
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfacePool};
@@ -118,6 +118,7 @@ pub(super) enum WhyMediaIsReplayed {
     TilesWerePaintedStraightIntoTheFrame,
     InsideAnEffectTheCompositorComposites,
     UnderALayerTheFrameHolds,
+    FrameScalesOrMovesTheRaster,
 }
 
 impl std::fmt::Display for WhyMediaIsReplayed {
@@ -143,6 +144,9 @@ impl std::fmt::Display for WhyMediaIsReplayed {
                 "it is inside an effect the compositor composites"
             }
             WhyMediaIsReplayed::UnderALayerTheFrameHolds => "it is under a layer the frame holds",
+            WhyMediaIsReplayed::FrameScalesOrMovesTheRaster => {
+                "the frame shows the raster scaled or moved for another visual viewport"
+            }
         })
     }
 }
@@ -244,15 +248,32 @@ impl ContextPresenting {
         None
     }
 
-    /// What the window server composites by itself of the layers of this context's frames, besides canvases and
-    /// videos. It shows no tiles of a frame it scales to fit a view, as it would filter each tile apart from the tiles
-    /// beside it.
-    pub(super) fn window_server_compositing(&self, env: &PresentingEnvironment<'_>) -> WindowServerCompositing {
+    /// Why the window server shows no media of the frame, if it shows none: as for any frame of this context, or as the
+    /// frame maps the raster to its pixels through a transform, which the placements of media do not go through.
+    pub(super) fn why_window_server_shows_no_media_of_frame(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        frame: &FrameToPaint<'_>,
+    ) -> Option<WhyMediaIsReplayed> {
+        self.why_window_server_shows_no_media_of_this_context(env).or(frame
+            .frame_inputs
+            .raster_to_frame
+            .map(|_| WhyMediaIsReplayed::FrameScalesOrMovesTheRaster))
+    }
+
+    /// What the window server composites by itself of the layers of the frame, besides canvases and videos. It shows
+    /// no tiles of a frame it scales to fit a view, as it would filter each tile apart from the tiles beside it, nor of
+    /// a frame that maps the raster to its pixels through a transform.
+    pub(super) fn window_server_compositing(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        frame: &FrameToPaint<'_>,
+    ) -> WindowServerCompositing {
         let compositing_of_window_server = env
             .window_server_showing_context()
             .map(|window_server| env.raster.window_server_compositing(window_server))
             .unwrap_or_default();
-        let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_this_context(env).is_none()
+        let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_frame(env, frame).is_none()
             && !self.scales_frames_to_fit
             && compositing_of_window_server.shows_tiles_of_painted_layers;
         WindowServerCompositing {
@@ -389,7 +410,13 @@ impl ContextPresenting {
             raster.clear(target, Color::TRANSPARENT);
             let save_count = raster.save(target);
             raster.translate(target, -held_rect_in_frame.x as f32, -held_rect_in_frame.y as f32);
-            layers.tiles.copy_into(raster, target, held_rect_in_frame, compositing);
+            layers.tiles.copy_into(
+                raster,
+                target,
+                held_rect_in_frame,
+                compositing,
+                SurfaceSampling::Nearest,
+            );
             raster.restore_to_count(target, save_count);
             presentation.latest_surface = Some(presentable);
             presentation.rect_in_frame = held_rect_in_frame;
