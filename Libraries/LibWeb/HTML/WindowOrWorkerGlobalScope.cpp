@@ -123,7 +123,6 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_crypto);
     visitor.visit(m_cache_storage);
     visitor.visit(m_trusted_type_policy_factory);
-    visitor.ignore(m_outstanding_rejected_promises_weak_set);
     visitor.visit(m_about_to_be_notified_rejected_promises_list);
 }
 
@@ -1387,8 +1386,8 @@ void WindowOrWorkerGlobalScopeMixin::push_onto_outstanding_rejected_promises_wea
 
 bool WindowOrWorkerGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
 {
-    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](GC::Ptr<JS::Promise> promise_in_set) {
-        return promise == promise_in_set;
+    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](auto const& promise_in_set) {
+        return promise == promise_in_set.ptr();
     });
 }
 
@@ -1430,6 +1429,9 @@ void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventL
         auto& self = as<WindowOrWorkerGlobalScopeMixin>(global);
         auto& realm = relevant_realm(self);
 
+        // NB: The weak set drops the promises that died once here, rather than each time a promise is added to it.
+        self.m_outstanding_rejected_promises_weak_set.remove_all_matching([](auto const& promise_in_set) { return !promise_in_set; });
+
         // 1. For each promise p in list:
         for (auto const& promise : list->elements()) {
 
@@ -1458,7 +1460,7 @@ void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventL
 
             // 4. If p's [[PromiseIsHandled]] internal slot is false, add p to settings object's outstanding rejected promises weak set.
             if (!promise->is_handled())
-                self.m_outstanding_rejected_promises_weak_set.append(*promise);
+                self.push_onto_outstanding_rejected_promises_weak_set(promise);
 
             // This algorithm results in promise rejections being marked as handled or not handled. These concepts parallel handled and not handled script errors.
             // If a rejection is still not handled after this, then the rejection may be reported to a developer console.

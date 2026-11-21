@@ -16,6 +16,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -206,7 +207,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
     // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
-    Vector<GC::Ptr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
+    Vector<GC::Weak<JS::Promise>> m_outstanding_rejected_promises_weak_set;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-global-import-map
     // A global object has an import map, initially an empty import map.
