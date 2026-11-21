@@ -1376,7 +1376,7 @@ void Heap::begin_evacuation()
             .value_is_cell_pattern = SHIFTED_IS_CELL_PATTERN,
             .value_offset_mask = HEAP_REGION_OFFSET_MASK,
         },
-        this);
+        this, m_evacuated_blocks.size());
     for (auto* block : m_evacuated_blocks)
         FFI::rust_gc_evacuation_add_block(m_evacuation, block);
 }
@@ -1431,7 +1431,7 @@ void Heap::evacuate()
         while (end < m_evacuated_blocks.size() && &m_evacuated_blocks[end]->cell_allocator() == &allocator)
             ++end;
 
-        Vector<Cell*> cells_to_move;
+        Vector<FFI::CellMove> moves;
         for (size_t i = exchange(first_block_of_allocator, end); i < end; ++i) {
             auto& block = *m_evacuated_blocks[i];
             auto& descriptor = block_descriptor_for(&block);
@@ -1446,9 +1446,9 @@ void Heap::evacuate()
             if (allocator.descriptor().is_movable()) {
                 FFI::PinnedCells pinned {};
                 auto count = FFI::rust_gc_evacuation_cells_to_move(m_evacuation, &block, cells.data(), &pinned);
-                cells_to_move.ensure_capacity(cells_to_move.size() + count);
+                moves.grow_capacity(moves.size() + count);
                 for (size_t j = 0; j < count; ++j)
-                    cells_to_move.unchecked_append(static_cast<Cell*>(cells[j]));
+                    moves.unchecked_append({ .from = cells[j], .to = nullptr });
                 auto& by_edge = stats.pinned[CompactionStats::ByValueEdge];
                 by_edge.cells += pinned.by_edge;
                 by_edge.bytes += pinned.by_edge * cell_size;
@@ -1464,14 +1464,12 @@ void Heap::evacuate()
             }
             clear_marks(descriptor);
         }
-        if (cells_to_move.is_empty())
+        if (moves.is_empty())
             continue;
 
         // NB: Every destination is taken before any cell moves, so no cell moves twice, and no old slot is free yet.
-        Vector<FFI::CellMove> moves;
-        moves.ensure_capacity(cells_to_move.size());
-        for (auto* cell : cells_to_move) {
-            moves.unchecked_append({ .from = cell, .to = allocate_destination_for_moved_cell(allocator) });
+        for (auto& cell_move : moves) {
+            cell_move.to = allocate_destination_for_moved_cell(allocator);
             stats.moved.add(cell_size);
         }
         FFI::rust_gc_evacuation_forward_cells(m_evacuation, moves.data(), moves.size(), cell_size);
@@ -2564,6 +2562,7 @@ void Heap::schedule_release_of_allocator_memory()
     if (!m_allocator_memory_release_timer) {
         m_allocator_memory_release_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(GC_ALLOCATOR_MEMORY_RELEASE_DELAY_MS), [] {
             ak_kmalloc_collect();
+            FFI::rust_gc_marker_release_unused_helper_memory();
         });
     }
     m_allocator_memory_release_timer->restart();

@@ -19,6 +19,7 @@
 //! of such a slot pins its target instead.
 
 use core::ffi::c_void;
+use core::ptr::NonNull;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use crate::block::{
@@ -27,7 +28,117 @@ use crate::block::{
 };
 use crate::identity_hash::{CompressedAddress, IDENTITY_HASH_STATE_OFFSET, identity_hashes_of};
 use crate::marker::COMPRESSED_POINTER_SHIFT;
+use crate::os;
 use crate::rust_panic::abort_on_panic;
+
+/// Zero-filled room for `capacity` values of `T`, mapped from the system and given back to it as a whole when dropped,
+/// for what a collection that moves cells keeps until it is over. Only the pages that are written to take memory.
+///
+/// NB: A compacting collection needs a burst of memory that it frees all at once. Malloc would keep those pages for
+///     later and hand them out among long-lived allocations, which then keep them in the process.
+struct MappedArray<T> {
+    pointer: NonNull<T>,
+    capacity: usize,
+}
+
+impl<T> MappedArray<T> {
+    /// # Safety
+    ///
+    /// All-zero bytes must be a valid `T`.
+    unsafe fn new_zeroed(capacity: usize) -> Self {
+        let capacity = capacity.max(1);
+        let size = capacity * size_of::<T>();
+        let pointer = os::reserve_zeroed(size).expect("map memory for a collection that moves cells");
+        // SAFETY: The range is all of what reserve_zeroed() just returned.
+        unsafe { os::commit_reserved_zeroed(pointer, size) };
+        Self {
+            pointer: pointer.cast(),
+            capacity,
+        }
+    }
+
+    fn get(&self, index: usize) -> &T {
+        assert!(index < self.capacity);
+        // SAFETY: The index is in bounds, and every value is valid from the start, as new_zeroed() requires.
+        unsafe { self.pointer.add(index).as_ref() }
+    }
+}
+
+impl<T> Drop for MappedArray<T> {
+    fn drop(&mut self) {
+        // SAFETY: The range is all of the reservation, which goes away with this.
+        unsafe { os::release(self.pointer.cast(), self.capacity * size_of::<T>()) };
+    }
+}
+
+/// How many slots a chunk of recorded slots has room for: 1 MiB of address space.
+const RECORDED_SLOTS_PER_CHUNK: usize = 128 * 1024;
+
+/// The slots one marker records, in chunks of mapped memory (see MappedArray).
+pub struct RecordedSlots {
+    /// The chunks, the one being filled last.
+    chunks: Vec<MappedArray<RecordedSlot>>,
+    /// Where the next slot goes in the last chunk, and the end of that chunk; both null before the first chunk.
+    next: *mut RecordedSlot,
+    end: *mut RecordedSlot,
+}
+
+impl Default for RecordedSlots {
+    fn default() -> Self {
+        Self {
+            chunks: Vec::new(),
+            next: core::ptr::null_mut(),
+            end: core::ptr::null_mut(),
+        }
+    }
+}
+
+impl RecordedSlots {
+    #[inline(always)]
+    pub fn push(&mut self, slot: RecordedSlot) {
+        if self.next == self.end {
+            self.add_chunk();
+        }
+        // SAFETY: The last chunk has room at next, which stays within it.
+        unsafe {
+            self.next.write(slot);
+            self.next = self.next.add(1);
+        }
+    }
+
+    #[cold]
+    fn add_chunk(&mut self) {
+        // SAFETY: A RecordedSlot is an integer.
+        let chunk = unsafe { MappedArray::<RecordedSlot>::new_zeroed(RECORDED_SLOTS_PER_CHUNK) };
+        self.next = chunk.pointer.as_ptr();
+        // SAFETY: The chunk has room for its capacity.
+        self.end = unsafe { self.next.add(chunk.capacity) };
+        self.chunks.push(chunk);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    /// The recorded slots, chunk by chunk.
+    fn slices(&self) -> impl Iterator<Item = &[RecordedSlot]> {
+        let last = self.chunks.len().wrapping_sub(1);
+        self.chunks.iter().enumerate().map(move |(index, chunk)| {
+            let length = if index == last {
+                // SAFETY: next is in the last chunk.
+                unsafe { self.next.offset_from(chunk.pointer.as_ptr()) as usize }
+            } else {
+                chunk.capacity
+            };
+            // SAFETY: The first length slots of the chunk were written.
+            unsafe { ak::slice_from_raw_parts(chunk.pointer.as_ptr(), length) }
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.slices().map(<[RecordedSlot]>::len).sum()
+    }
+}
 
 /// Why a cell of an evacuated block stays where it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,7 +151,7 @@ pub enum PinReason {
     Root = 2,
 }
 
-/// What a collection that evacuates a block knows about the block's cells.
+/// What a collection that evacuates a block knows about the block's cells. All zeros is nothing pinned or moved yet.
 pub struct Evacuation {
     pinned_by_edge: [AtomicU64; CELL_BITMAP_WORDS],
     pinned_by_root: [AtomicU64; CELL_BITMAP_WORDS],
@@ -49,14 +160,6 @@ pub struct Evacuation {
 }
 
 impl Evacuation {
-    fn new() -> Box<Self> {
-        Box::new(Self {
-            pinned_by_edge: [const { AtomicU64::new(0) }; CELL_BITMAP_WORDS],
-            pinned_by_root: [const { AtomicU64::new(0) }; CELL_BITMAP_WORDS],
-            forwarding: [const { AtomicU32::new(0) }; MAX_CELLS_PER_BLOCK],
-        })
-    }
-
     /// Pins the cell at `address` of the block this evacuates, which markers may do from several threads at once.
     #[inline(always)]
     pub fn pin(&self, descriptor: &BlockDescriptor, address: usize, reason: PinReason) {
@@ -159,12 +262,14 @@ pub struct EvacuationLayout {
 pub struct EvacuationSet {
     layout: EvacuationLayout,
     heap: *mut c_void,
-    blocks: Vec<(usize, Box<Evacuation>)>,
-    slots: Vec<Vec<RecordedSlot>>,
+    /// The evacuated blocks, and their evacuations at the same indices.
+    blocks: Vec<usize>,
+    evacuations: MappedArray<Evacuation>,
+    slots: Vec<RecordedSlots>,
 }
 
 impl EvacuationSet {
-    pub(crate) fn add_recorded_slots(&mut self, slots: Vec<RecordedSlot>) {
+    pub(crate) fn add_recorded_slots(&mut self, slots: RecordedSlots) {
         if !slots.is_empty() {
             self.slots.push(slots);
         }
@@ -270,13 +375,20 @@ impl EvacuationSet {
     }
 }
 
-/// Starts the evacuation state of a collection of `heap`, which owns the evacuations of the blocks it adds.
+/// Starts the evacuation state of a collection of `heap`, which evacuates up to `block_count` blocks that it adds, and
+/// owns their evacuations.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_gc_evacuation_create(layout: EvacuationLayout, heap: *mut c_void) -> *mut EvacuationSet {
+pub extern "C" fn rust_gc_evacuation_create(
+    layout: EvacuationLayout,
+    heap: *mut c_void,
+    block_count: usize,
+) -> *mut EvacuationSet {
     Box::into_raw(Box::new(EvacuationSet {
         layout,
         heap,
-        blocks: Vec::new(),
+        blocks: Vec::with_capacity(block_count),
+        // SAFETY: All zeros is an evacuation that pinned and moved nothing.
+        evacuations: unsafe { MappedArray::new_zeroed(block_count) },
         slots: Vec::new(),
     }))
 }
@@ -285,7 +397,8 @@ pub extern "C" fn rust_gc_evacuation_create(layout: EvacuationLayout, heap: *mut
 ///
 /// # Safety
 ///
-/// `set` must be live, and `block` a live block of its heap that the set does not have yet.
+/// `set` must be live, and `block` a live block of its heap that the set does not have yet. The set must have room for
+/// it, see rust_gc_evacuation_create().
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_add_block(set: *mut EvacuationSet, block: *mut c_void) {
     // SAFETY: The caller passes a live set.
@@ -295,16 +408,16 @@ pub unsafe extern "C" fn rust_gc_evacuation_add_block(set: *mut EvacuationSet, b
     // SAFETY: The caller passes a live block.
     let descriptor = unsafe { descriptor_for(set.layout.heap_region_base, address) };
     debug_assert!(descriptor.heap() == set.heap && descriptor.evacuation().is_none());
-    let evacuation = Evacuation::new();
+    let evacuation = set.evacuations.get(set.blocks.len());
     // SAFETY: The caller passes a live block, and no marker runs yet.
     unsafe {
         set_evacuation_of_block(
             set.layout.heap_region_base,
             address,
-            core::ptr::from_ref(&*evacuation).cast_mut(),
+            core::ptr::from_ref(evacuation).cast_mut(),
         );
     }
-    set.blocks.push((address, evacuation));
+    set.blocks.push(address);
 }
 
 /// Why a live cell of an evacuated block was pinned.
@@ -464,7 +577,7 @@ pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet
         // SAFETY: The caller passes a live set.
         let set = unsafe { &*set };
         let mut rewritten = 0;
-        for slots in &set.slots {
+        for slots in set.slots.iter().flat_map(RecordedSlots::slices) {
             for &slot in slots {
                 // SAFETY: Marking recorded the slot in a live cell, which the caller makes sure is still live and where it was.
                 if unsafe { set.fix_up(slot) } {
@@ -484,7 +597,7 @@ pub unsafe extern "C" fn rust_gc_evacuation_fix_up_slots(set: *mut EvacuationSet
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_gc_evacuation_recorded_slot_count(set: *const EvacuationSet) -> usize {
     // SAFETY: The caller passes a live set.
-    unsafe { &*set }.slots.iter().map(Vec::len).sum()
+    unsafe { &*set }.slots.iter().map(RecordedSlots::len).sum()
 }
 
 /// Where the cell at `cell` moved to, or null if it did not move.
@@ -514,13 +627,13 @@ pub unsafe extern "C" fn rust_gc_evacuation_forwarding_address(
 pub unsafe extern "C" fn rust_gc_evacuation_destroy(set: *mut EvacuationSet) {
     // SAFETY: The caller passes a live set, which it gives up.
     let set = unsafe { Box::from_raw(set) };
-    for (block, evacuation) in &set.blocks {
+    for (index, block) in set.blocks.iter().enumerate() {
         // SAFETY: Every block of the set was in the region, where descriptors stay backed by memory.
         let descriptor = unsafe { descriptor_for(set.layout.heap_region_base, *block) };
         // NB: A block that went away and came back since has a fresh descriptor, which may not be cleared.
         if descriptor
             .evacuation()
-            .is_some_and(|current| core::ptr::eq(current, &raw const **evacuation))
+            .is_some_and(|current| core::ptr::eq(current, set.evacuations.get(index)))
         {
             // SAFETY: The block is in the region, and no marker runs.
             unsafe { set_evacuation_of_block(set.layout.heap_region_base, *block, core::ptr::null_mut()) };

@@ -55,7 +55,8 @@ pub use identity_hash::{
     rust_gc_identity_hashes_destroy,
 };
 pub use marker::{
-    MarkRequest, Marker, MarkerLayout, rust_gc_marker_mark, rust_gc_marker_pin_cell, rust_gc_marker_visit_cell,
-    rust_gc_marker_visit_ephemeron, rust_gc_marker_visit_interior_pointer, rust_gc_marker_visit_member,
-    rust_gc_marker_visit_self_pointer, rust_gc_marker_visit_values,
+    MarkRequest, Marker, MarkerLayout, rust_gc_marker_mark, rust_gc_marker_pin_cell,
+    rust_gc_marker_release_unused_helper_memory, rust_gc_marker_visit_cell, rust_gc_marker_visit_ephemeron,
+    rust_gc_marker_visit_interior_pointer, rust_gc_marker_visit_member, rust_gc_marker_visit_self_pointer,
+    rust_gc_marker_visit_values,
 };

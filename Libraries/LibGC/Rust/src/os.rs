@@ -40,6 +40,15 @@ mod platform {
 
     /// # Safety
     ///
+    /// The range must be all of a reservation that reserve_zeroed() returned, which nothing uses any more.
+    pub unsafe fn release(address: NonNull<u8>, size: usize) {
+        // SAFETY: The caller passes a whole reservation that nothing uses.
+        let result = unsafe { libc::munmap(address.as_ptr().cast(), size) };
+        assert_eq!(result, 0, "munmap() failed");
+    }
+
+    /// # Safety
+    ///
     /// The range must be within memory that reserve_zeroed() returned.
     pub unsafe fn commit_reserved_zeroed(_address: NonNull<u8>, _size: usize) {
         // NB: Anonymous mappings are backed by zeroed pages as they are first touched.
@@ -162,7 +171,8 @@ mod platform {
 mod platform {
     use core::ptr::NonNull;
     use windows_sys::Win32::System::Memory::{
-        MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_NOACCESS, PAGE_READWRITE, VirtualAlloc, VirtualUnlock,
+        MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, MEM_RESET, PAGE_NOACCESS, PAGE_READWRITE, VirtualAlloc, VirtualFree,
+        VirtualUnlock,
     };
 
     pub fn reserve_zeroed(size: usize) -> Option<NonNull<u8>> {
@@ -171,6 +181,15 @@ mod platform {
         // SAFETY: Reserving address space that the system places anywhere touches no existing memory.
         let address = unsafe { VirtualAlloc(core::ptr::null(), size, MEM_RESERVE, PAGE_NOACCESS) };
         NonNull::new(address.cast())
+    }
+
+    /// # Safety
+    ///
+    /// The range must be all of a reservation that reserve_zeroed() returned, which nothing uses any more.
+    pub unsafe fn release(address: NonNull<u8>, _size: usize) {
+        // SAFETY: The caller passes a whole reservation that nothing uses.
+        let released = unsafe { VirtualFree(address.as_ptr().cast(), 0, MEM_RELEASE) };
+        assert!(released != 0, "VirtualFree(MEM_RELEASE) failed");
     }
 
     /// # Safety
@@ -233,6 +252,16 @@ mod platform {
 
 pub fn reserve_zeroed(size: usize) -> Option<NonNull<u8>> {
     platform::reserve_zeroed(size)
+}
+
+/// Gives back all of a reservation that reserve_zeroed() returned.
+///
+/// # Safety
+///
+/// The range must be all of a reservation that reserve_zeroed() returned, which nothing uses any more.
+pub unsafe fn release(address: NonNull<u8>, size: usize) {
+    // SAFETY: Forwarded from the caller.
+    unsafe { platform::release(address, size) }
 }
 
 /// Backs a range of memory that reserve_zeroed() returned with memory, if it was not already.

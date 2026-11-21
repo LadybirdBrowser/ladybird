@@ -25,7 +25,7 @@ use std::sync::Barrier;
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 
 use crate::block::{BLOCK_SIZE, BlockDescriptor, descriptor_table, heap_of_descriptor};
-use crate::evacuation::{EvacuationSet, PinReason, RecordedSlot, SlotKind};
+use crate::evacuation::{EvacuationSet, PinReason, RecordedSlot, RecordedSlots, SlotKind};
 use crate::pool::{Pool, PoolGuard};
 use crate::rust_panic::abort_on_panic;
 
@@ -128,7 +128,7 @@ pub struct Marker {
     /// Ephemerons whose key was not marked yet when they were visited, as (key, value).
     pending_ephemerons: UnsafeCell<Vec<(u32, u32)>>,
     /// The slots that point into evacuated blocks, which a collection that moves cells rewrites.
-    recorded_slots: UnsafeCell<Vec<RecordedSlot>>,
+    recorded_slots: UnsafeCell<RecordedSlots>,
 }
 
 impl Job<'_> {
@@ -600,6 +600,16 @@ pub unsafe extern "C" fn rust_gc_marker_visit_ephemeron(marker: *mut Marker, key
     unsafe { &*marker }.visit_ephemeron(key.addr(), value.addr());
 }
 
+/// Has the threads that help mark give back the memory they no longer use, see Pool::release_unused_memory().
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_gc_marker_release_unused_helper_memory() {
+    abort_on_panic(|| {
+        if let Some(pool) = Pool::the() {
+            pool.release_unused_memory();
+        }
+    });
+}
+
 /// Marks every cell of the heaps that the roots reach, and adds up the bytes they take.
 ///
 /// # Safety
@@ -649,7 +659,7 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
             marked_cell_bytes: (0..heaps.len()).map(|_| Cell::new(0)).collect(),
             marked_external_bytes: (0..heaps.len()).map(|_| Cell::new(0)).collect(),
             pending_ephemerons: UnsafeCell::new(Vec::new()),
-            recorded_slots: UnsafeCell::new(Vec::new()),
+            recorded_slots: UnsafeCell::new(RecordedSlots::default()),
         });
     }
     // NB: The job lives on this stack until every marker is done with it, so the markers may point at it as if it lived
