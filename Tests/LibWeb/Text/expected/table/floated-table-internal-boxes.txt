@@ -1,0 +1,6 @@
+tbody-float: table 0,0 150x23; contents 0,0 150x20
+all-float: table 0,0 150x23; contents 0,0 150x20
+thead-float: table 0,0 100x46; contents 50,0 50x20, 0,23 100x20
+second-tbody-float: table 0,0 150x46; contents 0,0 100x20, 0,23 150x20
+tr-float: table 0,0 150x23; contents 0,0 150x20
+abspos-tbody: table 0,0 0x0; contents 0,0 150x20

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    .box { width: 400px; margin: 0 0 8px; }
+    td { padding: 0; }
+    table { border-spacing: 0; }
+    .content { display: inline-block; width: 150px; height: 20px; }
+    #tbody-float tbody { float: left; width: 100%; }
+    #all-float tbody, #all-float tr, #all-float td { float: left; width: 100%; }
+    #thead-float thead { float: right; }
+    #second-tbody-float tbody:last-child { float: left; }
+    #tr-float > tbody > tr { float: left; }
+    #abspos-tbody tbody { position: absolute; }
+</style>
+<div class="box"><table id="tbody-float"><tbody><tr><td><span class="content"></span></td></tr></tbody></table></div>
+<div class="box"><table id="all-float"><tbody><tr><td><span class="content"></span></td></tr></tbody></table></div>
+<div class="box"><table id="thead-float"><thead><tr><td><span class="content" style="width: 50px"></span></td></tr></thead><tbody><tr><td><span class="content" style="width: 100px"></span></td></tr></tbody></table></div>
+<div class="box"><table id="second-tbody-float"><tbody><tr><td><span class="content" style="width: 100px"></span></td></tr></tbody><tbody><tr><td><span class="content"></span></td></tr></tbody></table></div>
+<div class="box"><table id="tr-float"><tbody><tr><td><span class="content"></span></td></tr></tbody></table></div>
+<div class="box" style="position: relative; height: 20px"><table id="abspos-tbody"><tbody><tr><td><span class="content"></span></td></tr></tbody></table></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = (element, origin) => {
+            const r = element.getBoundingClientRect();
+            return `${Math.round(r.left - origin.left)},${Math.round(r.top - origin.top)} ${Math.round(r.width)}x${Math.round(r.height)}`;
+        };
+        for (const table of document.querySelectorAll("table")) {
+            const origin = table.parentElement.getBoundingClientRect();
+            const contents = [...table.querySelectorAll(".content")].map(content => rect(content, origin)).join(", ");
+            println(`${table.id}: table ${rect(table, origin)}; contents ${contents}`);
+        }
+    });
+</script>
