@@ -72,6 +72,10 @@ unsafe extern "C" {
 
     /// Spins the event loop until the promise, a Promise, is no longer pending.
     fn web_bindings_spin_until_promise_is_settled(promise: *mut c_void);
+
+    fn web_bindings_defer_promise_settlement_if_needed(promise: *mut c_void, rejects: bool, value: u64) -> bool;
+
+    fn web_bindings_promise_state(promise: *mut c_void) -> u8;
 }
 
 /// The task sources of HTML::Task::Source that the bindings queue tasks on.
@@ -181,6 +185,12 @@ pub(crate) fn resolve_promise(vm: &Vm, promise: WebIdlPromise, value: Value) {
     // 1. If x is not given, then let it be the undefined value.
     // 2. Let value be the result of converting x to an ECMAScript value.
     // 3. Perform ! Call(p.[[Resolve]], undefined, « value »).
+    // AD-HOC: Resolving a promise with an object reads its "then" property, which can run script. While a style update
+    //         or layout defers microtask checkpoints, the event loop resolves it from a microtask instead, and later
+    //         settlements wait behind it.
+    if defer_promise_settlement_if_needed(promise, false, value) {
+        return;
+    }
     call(
         vm,
         Value::from_object(promise.resolve().upcast::<Object>()),
@@ -193,6 +203,10 @@ pub(crate) fn resolve_promise(vm: &Vm, promise: WebIdlPromise, value: Value) {
 /// Rejects the promise with the reason, https://webidl.spec.whatwg.org/#reject
 pub(crate) fn reject_promise(vm: &Vm, promise: WebIdlPromise, reason: Value) {
     // 1. Perform ! Call(p.[[Reject]], undefined, « r »).
+    // AD-HOC: A rejection waits behind the settlements that the event loop deferred.
+    if defer_promise_settlement_if_needed(promise, true, reason) {
+        return;
+    }
     call(
         vm,
         Value::from_object(promise.reject().upcast::<Object>()),
@@ -200,6 +214,11 @@ pub(crate) fn reject_promise(vm: &Vm, promise: WebIdlPromise, reason: Value) {
         &[reason],
     )
     .must();
+}
+
+fn defer_promise_settlement_if_needed(promise: WebIdlPromise, rejects: bool, value: Value) -> bool {
+    // SAFETY: The promise and the value are live.
+    unsafe { web_bindings_defer_promise_settlement_if_needed(promise.as_ptr().cast(), rejects, value.to_raw()) }
 }
 
 /// Rejects the promise with the exception, which is created in the realm of the promise.
@@ -365,7 +384,17 @@ pub(crate) fn mark_promise_as_handled(vm: &Vm, promise: WebIdlPromise) {
 }
 
 pub(crate) fn is_promise_fulfilled(promise: WebIdlPromise) -> bool {
-    promise_object(promise).state() == PromiseState::Fulfilled
+    promise_state(promise) == PromiseState::Fulfilled
+}
+
+pub(crate) fn promise_state(promise: WebIdlPromise) -> PromiseState {
+    // SAFETY: The promise is live.
+    match unsafe { web_bindings_promise_state(promise.as_ptr().cast()) } {
+        0 => PromiseState::Pending,
+        1 => PromiseState::Fulfilled,
+        2 => PromiseState::Rejected,
+        state => unreachable!("WebIDL::promise_state() reports a promise state, not {state}"),
+    }
 }
 
 /// A promise that settles once every promise has, https://webidl.spec.whatwg.org/#waiting-for-all-promise

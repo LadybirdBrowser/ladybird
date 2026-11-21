@@ -9,12 +9,12 @@
 
 use core::cell::Cell;
 
-use libjs_rust::api::{Gc, Promise, PromiseState, Realm, Trace, Value, Vm};
+use libjs_rust::api::{Gc, PromiseState, Realm, Trace, Value, Vm};
 
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::promise::{
     WebIdlPromise, create_rejected_promise, create_rejected_promise_from_exception, create_resolved_promise,
-    exception_value, mark_promise_as_handled, promise_realm, reject_promise,
+    exception_value, mark_promise_as_handled, promise_realm, promise_state, reject_promise,
 };
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::streams::writable_stream::{
@@ -275,12 +275,7 @@ pub(crate) fn writable_stream_default_writer_ensure_closed_promise_rejected(
         .expect("a writer that is set up has a closed promise");
 
     // 1. If writer.[[closedPromise]].[[PromiseState]] is "pending", reject writer.[[closedPromise]] with error.
-    let state = closed_promise
-        .promise()
-        .downcast::<Promise>()
-        .expect("a writer's promises are Promises")
-        .state();
-    if state == PromiseState::Pending {
+    if promise_state(closed_promise) == PromiseState::Pending {
         reject_promise(vm, closed_promise, error);
     }
     // 2. Otherwise, set writer.[[closedPromise]] to a promise rejected with error.
@@ -309,12 +304,7 @@ pub(crate) fn writable_stream_default_writer_ensure_ready_promise_rejected(
         .expect("a writer that is set up has a ready promise");
 
     // 1. If writer.[[readyPromise]].[[PromiseState]] is "pending", reject writer.[[readyPromise]] with error.
-    let state = ready_promise
-        .promise()
-        .downcast::<Promise>()
-        .expect("a writer's promises are Promises")
-        .state();
-    if state == PromiseState::Pending {
+    if promise_state(ready_promise) == PromiseState::Pending {
         reject_promise(vm, ready_promise, error);
     }
     // 2. Otherwise, set writer.[[readyPromise]] to a promise rejected with error.

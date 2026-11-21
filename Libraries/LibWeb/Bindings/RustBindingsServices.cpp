@@ -96,6 +96,8 @@ u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, vo
 void web_bindings_remove_tasks(void* realm, ReadonlySpan<u64> task_ids);
 u64 web_bindings_currently_running_task(void* realm);
 void web_bindings_spin_until_promise_is_settled(JSObject* promise);
+bool web_bindings_defer_promise_settlement_if_needed(void* promise, bool rejects, JSValue value);
+u8 web_bindings_promise_state(void* promise);
 void* web_bindings_create_callback_function(JSObject* callable, bool returns_promise);
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void web_bindings_invoke_callback_function_and_report(void* callback, ReadonlySpan<JSValue> arguments);
@@ -537,6 +539,22 @@ void web_bindings_spin_until_promise_is_settled(JSObject* promise)
         return js_promise.state() != JS::Promise::State::Pending;
     }));
 }
+
+bool web_bindings_defer_promise_settlement_if_needed(void* promise, bool rejects, JSValue value)
+{
+    auto settlement = rejects ? HTML::EventLoop::PromiseSettlement::Reject : HTML::EventLoop::PromiseSettlement::Resolve;
+    return HTML::current_event_loop().defer_promise_settlement_if_needed(*static_cast<WebIDL::Promise*>(promise), settlement, JS::HostABI::value_from_abi(value));
+}
+
+u8 web_bindings_promise_state(void* promise)
+{
+    return static_cast<u8>(WebIDL::promise_state(*static_cast<WebIDL::Promise*>(promise)));
+}
+
+// NB: The promise states of the Rust bindings' PromiseState.
+static_assert(to_underlying(JS::Promise::State::Pending) == 0);
+static_assert(to_underlying(JS::Promise::State::Fulfilled) == 1);
+static_assert(to_underlying(JS::Promise::State::Rejected) == 2);
 
 // NB: The task sources of the Rust bindings' TaskSource.
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);

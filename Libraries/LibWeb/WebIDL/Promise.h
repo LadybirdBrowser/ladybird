@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
@@ -56,6 +57,7 @@ WEB_API GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm&, Exce
 WEB_API GC::Ref<Promise> create_rejected_promise_from_exception_for(HTML::EnvironmentSettingsObject&, Exception);
 WEB_API void reject_promise_with_exception(JS::Realm&, Promise const&, Exception);
 WEB_API void reject_promise_with_exception(Promise const&, Exception);
+WEB_API JS::Promise::State promise_state(Promise const&);
 
 template<typename E>
 requires(IsBaseOf<DOMException, E>)

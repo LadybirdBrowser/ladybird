@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -68,7 +69,7 @@ GC::Ref<Promise> create_resolved_promise(JS::Realm& realm, JS::Value value)
     auto promise_capability = MUST(JS::new_promise_capability(vm, constructor));
 
     // 4. Perform ! Call(promiseCapability.[[Resolve]], undefined, « value »).
-    MUST(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), value));
+    resolve_promise(realm, promise_capability, value);
 
     // 5. Return promiseCapability.
     return promise_capability;
@@ -102,7 +103,7 @@ GC::Ref<Promise> create_rejected_promise(JS::Realm& realm, JS::Value reason)
     auto promise_capability = MUST(JS::new_promise_capability(vm, constructor));
 
     // 3. Perform ! Call(promiseCapability.[[Reject]], undefined, « r »).
-    MUST(JS::call(vm, *promise_capability->reject(), JS::js_undefined(), reason));
+    reject_promise(realm, promise_capability, reason);
 
     // 4. Return promiseCapability.
     return promise_capability;
@@ -148,6 +149,11 @@ void resolve_promise(JS::Realm& realm, Promise const& promise, JS::Value value)
 
     // 2. Let value be the result of converting x to an ECMAScript value.
     // 3. Perform ! Call(p.[[Resolve]], undefined, « value »).
+    // AD-HOC: Resolving a promise with an object reads its "then" property, which can run script. While a style update
+    //         or layout defers microtask checkpoints, the event loop resolves it from a microtask instead, and later
+    //         settlements wait behind it.
+    if (HTML::current_event_loop().defer_promise_settlement_if_needed(promise, HTML::EventLoop::PromiseSettlement::Resolve, value))
+        return;
     MUST(JS::call(vm, *promise.resolve(), JS::js_undefined(), value));
 }
 
@@ -162,6 +168,9 @@ void reject_promise(JS::Realm& realm, Promise const& promise, JS::Value reason)
     auto& vm = realm.vm();
 
     // 1. Perform ! Call(p.[[Reject]], undefined, « r »).
+    // AD-HOC: A rejection waits behind the settlements that the event loop deferred.
+    if (HTML::current_event_loop().defer_promise_settlement_if_needed(promise, HTML::EventLoop::PromiseSettlement::Reject, reason))
+        return;
     MUST(JS::call(vm, *promise.reject(), JS::js_undefined(), reason));
 }
 
@@ -280,8 +289,20 @@ void mark_promise_as_handled(Promise const& promise)
 
 bool is_promise_fulfilled(Promise const& promise)
 {
-    auto const& promise_object = as<JS::Promise>(*promise.promise());
-    return promise_object.state() == JS::Promise::State::Fulfilled;
+    return promise_state(promise) == JS::Promise::State::Fulfilled;
+}
+
+JS::Promise::State promise_state(Promise const& promise)
+{
+    auto state = as<JS::Promise>(*promise.promise()).state();
+    if (state != JS::Promise::State::Pending)
+        return state;
+
+    // NB: A promise counts as settled once the event loop has deferred its settlement.
+    auto deferred = HTML::current_event_loop().deferred_promise_settlement(promise);
+    if (!deferred.has_value())
+        return state;
+    return *deferred == HTML::EventLoop::PromiseSettlement::Resolve ? JS::Promise::State::Fulfilled : JS::Promise::State::Rejected;
 }
 
 struct WaitForAllResults : JS::Cell {

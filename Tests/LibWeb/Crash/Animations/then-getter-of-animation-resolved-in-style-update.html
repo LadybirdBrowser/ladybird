@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #content {
+        height: 1000px;
+    }
+    #target {
+        animation: fade 1s linear;
+        animation-timeline: scroll();
+    }
+</style>
+<div id="scroller"><div id="content"><div id="target"></div></div></div>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    (async () => {
+        scroller.scrollTop = 300;
+        await animationFrame();
+        await animationFrame();
+        const animation = target.getAnimations()[0];
+        Object.defineProperty(animation, "then", {
+            get() {
+                target.style.display = "none";
+                document.body.offsetWidth;
+                return undefined;
+            },
+        });
+        target.style.animationPlayState = "paused";
+        getComputedStyle(target).opacity;
+        target.style.animationTimeline = "auto";
+        getComputedStyle(target).color;
+        await animationFrame();
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>

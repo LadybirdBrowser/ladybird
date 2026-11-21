@@ -13,6 +13,8 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapAccess.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/NamedTimelines.h>
 #include <LibWeb/Animations/RecordHandles.h>
@@ -122,6 +124,10 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_idle_period_timer);
     visitor.visit(m_navigables_with_frames_in_flight);
     visitor.visit(m_navigables_with_clock_lanes);
+    m_deferred_promise_settlements.for_each([&](auto const& deferred) {
+        visitor.visit(deferred.promise);
+        visitor.visit(deferred.value);
+    });
 }
 
 void EventLoop::schedule()
@@ -1834,6 +1840,43 @@ void queue_a_microtask(GC::Ptr<DOM::Document const> document, GC::Ref<GC::Functi
 void perform_a_microtask_checkpoint()
 {
     current_event_loop().perform_a_microtask_checkpoint();
+}
+
+bool EventLoop::defer_promise_settlement_if_needed(GC::Ref<JS::PromiseCapability const> promise, PromiseSettlement settlement, JS::Value value)
+{
+    auto can_run_script = settlement == PromiseSettlement::Resolve && value.is_object();
+    if (m_deferred_promise_settlements.is_empty() && !(can_run_script && microtask_checkpoints_are_deferred()))
+        return false;
+
+    if (m_deferred_promise_settlements.is_empty() && !m_settling_deferred_promises) {
+        enqueue_microtask(Task::create(Task::Source::Microtask, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](EventLoop& event_loop) {
+            event_loop.settle_deferred_promises();
+        })));
+    }
+    m_deferred_promise_settlements.enqueue(DeferredPromiseSettlement { promise, settlement, value });
+    return true;
+}
+
+Optional<EventLoop::PromiseSettlement> EventLoop::deferred_promise_settlement(JS::PromiseCapability const& promise) const
+{
+    Optional<PromiseSettlement> settlement;
+    m_deferred_promise_settlements.for_each([&](auto const& deferred) {
+        if (!settlement.has_value() && deferred.promise.ptr() == &promise)
+            settlement = deferred.settlement;
+    });
+    return settlement;
+}
+
+void EventLoop::settle_deferred_promises()
+{
+    TemporaryChange settling { m_settling_deferred_promises, true };
+    while (!m_deferred_promise_settlements.is_empty()) {
+        auto deferred = m_deferred_promise_settlements.dequeue();
+        TemporaryExecutionContext execution_context { relevant_realm(*deferred.promise->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+        auto function = deferred.settlement == PromiseSettlement::Resolve ? deferred.promise->resolve() : deferred.promise->reject();
+        auto result = JS::call(vm(), *function, JS::js_undefined(), deferred.value);
+        VERIFY(!result.is_error() || vm().interrupt_requested());
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint
