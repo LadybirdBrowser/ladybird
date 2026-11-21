@@ -160,8 +160,12 @@ bool libgc_compact()
     return value;
 }
 
+}
+
 // What a collection that moves cells did, for its report.
 struct CompactionStats {
+    AK_ALLOC_WITH_KMALLOC;
+
     enum PinReason : u8 {
         ByValueEdge,
         ByValueRoot,
@@ -182,7 +186,6 @@ struct CompactionStats {
 
     bool active { false };
     size_t evacuated_blocks { 0 };
-    size_t new_blocks { 0 };
     size_t freed_blocks { 0 };
     // What selection expected to recover and move, see rust_gc_compaction_select().
     size_t recoverable_bytes { 0 };
@@ -201,15 +204,7 @@ struct CompactionStats {
     HashMap<ByteString, Array<Counts, PinReasonCount>> pinned_by_type;
 };
 
-CompactionStats& compaction_stats()
-{
-#ifdef AK_COMPILER_CLANG
-    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local CompactionStats stats)
-#else
-    static thread_local CompactionStats stats;
-#endif
-    return stats;
-}
+namespace {
 
 // Per-phase timings recorded during a single collect_garbage() call. We keep
 // these per thread (instead of threading more parameters through the GC's
@@ -313,19 +308,18 @@ StringView collection_trigger_name(CollectionTrigger trigger)
 // the GC's helpers to decide whether they should record subphase timings.
 thread_local bool g_recording_phase_timings { false };
 
-void print_compaction_summary()
+void print_compaction_summary(CompactionStats const& stats)
 {
-    auto const& c = compaction_stats();
-    auto pinned_bytes = [&](CompactionStats::PinReason reason) { return human_readable_size(c.pinned[reason].bytes); };
-    dbgln("Compaction: {} source blocks, {} freed, {} new; moved {} of {} expected; pinned {} by edge, {} by root, {} non-movable; {} recoverable before; {} slots recorded, {} rewritten; select {} us, sweep {} us, compaction {} us (copy {}, fix up {}, release {})",
-        c.evacuated_blocks, c.freed_blocks, c.new_blocks, human_readable_size(c.moved.bytes), human_readable_size(c.bytes_to_move),
+    auto pinned_bytes = [&](CompactionStats::PinReason reason) { return human_readable_size(stats.pinned[reason].bytes); };
+    dbgln("Compaction: {} source blocks, {} freed; moved {} of {} expected; pinned {} by edge, {} by root, {} non-movable; {} recoverable before; {} slots recorded, {} rewritten; select {} us, sweep {} us, compaction {} us (copy {}, fix up {}, release {})",
+        stats.evacuated_blocks, stats.freed_blocks, human_readable_size(stats.moved.bytes), human_readable_size(stats.bytes_to_move),
         pinned_bytes(CompactionStats::ByValueEdge), pinned_bytes(CompactionStats::ByValueRoot),
         pinned_bytes(CompactionStats::NonMovableAllocator),
-        human_readable_size(c.recoverable_bytes), c.recorded_slots, c.rewritten_slots, c.select_us, c.sweep_us,
-        c.select_us + c.copy_us + c.fix_up_us + c.release_us, c.copy_us, c.fix_up_us, c.release_us);
+        human_readable_size(stats.recoverable_bytes), stats.recorded_slots, stats.rewritten_slots, stats.select_us, stats.sweep_us,
+        stats.select_us + stats.copy_us + stats.fix_up_us + stats.release_us, stats.copy_us, stats.fix_up_us, stats.release_us);
 }
 
-void print_gc_report(i64 total_us, size_t live_block_count, bool scan_stack, size_t marked_cell_bytes, u64 allocated_bytes)
+void print_gc_report(i64 total_us, size_t live_block_count, bool scan_stack, size_t marked_cell_bytes, u64 allocated_bytes, CompactionStats const& stats)
 {
     auto const& t = g_phase_timings;
     auto const& s = g_sweep_stats;
@@ -373,35 +367,33 @@ void print_gc_report(i64 total_us, size_t live_block_count, bool scan_stack, siz
         dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
         dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
     }
-    auto const& c = compaction_stats();
-    if (c.active) {
+    if (stats.active) {
         auto print_counts = [](StringView label, CompactionStats::Counts const& counts) {
             dbgln("  {:<27} {:>10} cells ({})", label, counts.cells, human_readable_size(counts.bytes));
         };
         dbgln("");
         dbgln("Compaction:");
-        dbgln("  evacuated blocks            {:>10}", c.evacuated_blocks);
-        dbgln("  new blocks                  {:>10}", c.new_blocks);
-        dbgln("  freed blocks                {:>10}", c.freed_blocks);
-        print_counts("moved"sv, c.moved);
-        print_counts("pinned: by-value edge"sv, c.pinned[CompactionStats::ByValueEdge]);
-        print_counts("pinned: by-value root"sv, c.pinned[CompactionStats::ByValueRoot]);
-        print_counts("pinned: non-movable type"sv, c.pinned[CompactionStats::NonMovableAllocator]);
-        dbgln("  recorded slots              {:>10}", c.recorded_slots);
-        dbgln("  rewritten slots             {:>10}", c.rewritten_slots);
-        dbgln("  select                      {:>10} us", c.select_us);
-        dbgln("  sweep for compaction        {:>10} us", c.sweep_us);
-        dbgln("  copy                        {:>10} us", c.copy_us);
-        dbgln("  fix up                      {:>10} us", c.fix_up_us);
-        dbgln("  release                     {:>10} us", c.release_us);
-        if (!c.pinned_by_type.is_empty()) {
+        dbgln("  evacuated blocks            {:>10}", stats.evacuated_blocks);
+        dbgln("  freed blocks                {:>10}", stats.freed_blocks);
+        print_counts("moved"sv, stats.moved);
+        print_counts("pinned: by-value edge"sv, stats.pinned[CompactionStats::ByValueEdge]);
+        print_counts("pinned: by-value root"sv, stats.pinned[CompactionStats::ByValueRoot]);
+        print_counts("pinned: non-movable type"sv, stats.pinned[CompactionStats::NonMovableAllocator]);
+        dbgln("  recorded slots              {:>10}", stats.recorded_slots);
+        dbgln("  rewritten slots             {:>10}", stats.rewritten_slots);
+        dbgln("  select                      {:>10} us", stats.select_us);
+        dbgln("  sweep for compaction        {:>10} us", stats.sweep_us);
+        dbgln("  copy                        {:>10} us", stats.copy_us);
+        dbgln("  fix up                      {:>10} us", stats.fix_up_us);
+        dbgln("  release                     {:>10} us", stats.release_us);
+        if (!stats.pinned_by_type.is_empty()) {
             struct Entry {
                 ByteString name;
                 Array<CompactionStats::Counts, CompactionStats::PinReasonCount> counts;
                 size_t bytes;
             };
             Vector<Entry> entries;
-            for (auto const& it : c.pinned_by_type) {
+            for (auto const& it : stats.pinned_by_type) {
                 size_t bytes = 0;
                 for (auto const& counts : it.value)
                     bytes += counts.bytes;
@@ -518,6 +510,7 @@ CellAllocator& Heap::create_cell_allocator(CellAllocatorDescriptorBase& descript
 
 Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeThreadDefault become_thread_default)
     : m_gather_embedder_roots(move(gather_embedder_roots))
+    , m_compaction_stats(make<CompactionStats>())
 {
     if (become_thread_default == BecomeThreadDefault::Yes)
         s_the = this;
@@ -706,7 +699,6 @@ void Heap::update_gc_bytes_threshold()
     m_gc_bytes_threshold = max(next_gc_bytes_threshold.value(), GC_MIN_BYTES_THRESHOLD);
 }
 
-// The part of the heap region that can hold cells, read once per scan.
 // Calls the callback for each allocated cell of the block, which includes the cells of a run that an allocator has out.
 template<typename Callback>
 static void for_each_allocated_cell(HeapBlock& block, Callback callback)
@@ -719,6 +711,7 @@ static void for_each_allocated_cell(HeapBlock& block, Callback callback)
     }
 }
 
+// The part of the heap region that can hold cells, read once per scan.
 struct PossiblePointerBounds {
     static PossiblePointerBounds current()
     {
@@ -1148,7 +1141,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
             m_stats->bytes_before = block_count() * HeapBlock::BLOCK_SIZE;
             m_stats->sweep_duration_ns = 0;
         }
-        compaction_stats().active = false;
+        m_compaction_stats->active = false;
         if (collection_type == CollectionType::CollectGarbage) {
             HashMap<Cell*, HeapRoot> roots;
             {
@@ -1186,13 +1179,13 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
             sweep_dead_cells(report, collection_measurement_timer);
         }
         if (m_evacuation) {
-            compaction_stats().sweep_us = g_phase_timings.sweep_dead_cells_us;
+            m_compaction_stats->sweep_us = g_phase_timings.sweep_dead_cells_us;
             evacuate();
             end_evacuation();
             // NB: The blocks this freed go back to the system once the decommit worker gets to them.
             BlockAllocator::wake_decommit_worker_async();
             if (libgc_log_level() >= 1)
-                print_compaction_summary();
+                print_compaction_summary(*m_compaction_stats);
         }
 
         if (report) {
@@ -1201,7 +1194,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
                 ++live_block_count;
                 return IterationDecision::Continue;
             });
-            print_gc_report(collection_measurement_timer.elapsed_time().to_microseconds(), live_block_count, scan_stack, m_marked_cell_bytes, m_total_allocated_bytes - m_total_allocated_bytes_at_last_collection);
+            print_gc_report(collection_measurement_timer.elapsed_time().to_microseconds(), live_block_count, scan_stack, m_marked_cell_bytes, m_total_allocated_bytes - m_total_allocated_bytes_at_last_collection, *m_compaction_stats);
             if (dump_allocators_too)
                 dump_allocators();
         }
@@ -1212,7 +1205,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // Arm incremental sweep before running post-GC tasks so any cells those
     // tasks allocate get tagged as allocated-during-sweep and aren't freed
     // by sweep_block before the next mark phase reaches them.
-    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled && !compaction_stats().active)
+    if (collection_type != CollectionType::CollectEverything && m_incremental_sweep_enabled && !m_compaction_stats->active)
         start_incremental_sweep();
     else
         g_next_incremental_sweep_should_report = false;
@@ -1302,7 +1295,7 @@ void Heap::schedule_compaction_if_worthwhile()
         return;
     // After a collection that compacted, what is left is what went over its budget. A compaction that freed little
     // means that its blocks hold pinned cells or that the counts were off, and the next one would not do better.
-    auto const& last = compaction_stats();
+    auto const& last = *m_compaction_stats;
     size_t recoverable_blocks = 0;
     if (last.active) {
         if (last.freed_blocks * HeapBlock::BLOCK_SIZE >= GC_COMPACTION_MIN_RECOVERABLE_BYTES)
@@ -1334,7 +1327,7 @@ void Heap::begin_evacuation()
     VERIFY(!m_evacuation);
     // NB: A pending sweep is finished before a collection, so every block knows how many cells it holds.
     VERIFY(!m_incremental_sweep_active);
-    auto& stats = compaction_stats();
+    auto& stats = *m_compaction_stats;
     stats = {};
 
     Vector<HeapBlock*> blocks;
@@ -1362,6 +1355,13 @@ void Heap::begin_evacuation()
         stats.bytes_to_move = selection.bytes_to_move;
         stats.blocks_left_by_budget = selection.fitting_blocks - selection.selected_blocks;
         stats.select_us = (MonotonicTime::now().nanoseconds() - select_start_ns) / 1000;
+        // NB: A compacting collection that selects nothing ends the phase in which the heap reduces its memory, which
+        //     would otherwise go on to schedule another collection like this one, see
+        //     schedule_compaction_if_worthwhile().
+        if (blocks.is_empty()) {
+            m_reducing_memory = false;
+            m_compacted_since_activity = true;
+        }
     }
     if (blocks.is_empty())
         return;
@@ -1394,7 +1394,7 @@ Cell* Heap::allocate_destination_for_moved_cell(CellAllocator& allocator)
 // no destructor of a dead cell sees a cell that moved.
 void Heap::evacuate()
 {
-    auto& stats = compaction_stats();
+    auto& stats = *m_compaction_stats;
     bool count_by_type = libgc_log_level() >= 2;
     stats.recorded_slots = FFI::rust_gc_evacuation_recorded_slot_count(m_evacuation);
 
@@ -2435,7 +2435,9 @@ void Heap::idle_gc_on_timer()
     if (m_incremental_sweep_active || is_gc_deferred())
         return;
 
-    bool may_reduce_memory = libgc_compact() && !m_moves_everything;
+    // NB: Only a heap whose outermost event loop turns hold no cells ever runs a collection that moves them, so no other
+    //     heap looks for blocks to compact.
+    bool may_reduce_memory = libgc_compact() && !m_moves_everything && m_outermost_event_loop_turn_holds_no_cells;
     switch (m_idle_collection_policy.evaluate(m_total_allocated_bytes, m_allocated_bytes_since_last_gc, m_gc_bytes_threshold)) {
     case IdleCollectionPolicy::Decision::KeepWaiting:
         // NB: A heap that went quiet with little garbage still has the holes that its last sweep left, which
