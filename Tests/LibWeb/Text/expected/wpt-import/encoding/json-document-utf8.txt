@@ -1,9 +1,11 @@
 Harness status: OK
 
-Found 4 tests
+Found 5 tests
 
 4 Pass
+1 Fail
 Pass	application/json with no charset is decoded as UTF-8 under a windows-1251 parent frame
 Pass	application/json;charset=utf-8 is decoded as UTF-8
 Pass	text/json with no charset is decoded as UTF-8
-Pass	application/json;charset=windows-1251 honors the explicit charset
+Pass	APPLICATION/JSON with no charset is decoded as UTF-8
+Fail	application/json;charset=windows-1251 is decoded as UTF-8
