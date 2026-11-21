@@ -47,6 +47,7 @@ pub struct FfiFontSnapshot {
     pub descent: f32,
     pub line_gap: f32,
     pub x_height: f32,
+    pub cap_height: f32,
     pub zero_advance: f32,
     pub pixel_size: f32,
     pub point_size: f32,
@@ -61,6 +62,7 @@ pub struct FontFacts {
     pub descent: f32,
     pub line_gap: f32,
     pub x_height: f32,
+    pub cap_height: f32,
     pub zero_advance: f32,
     pub pixel_size: f32,
     pub point_size: f32,
@@ -145,6 +147,7 @@ impl FontHandle {
                 descent: snapshot.descent,
                 line_gap: snapshot.line_gap,
                 x_height: snapshot.x_height,
+                cap_height: snapshot.cap_height,
                 zero_advance: snapshot.zero_advance,
                 pixel_size: snapshot.pixel_size,
                 point_size: snapshot.point_size,
@@ -1411,6 +1414,23 @@ impl FrozenFontList {
             .iter()
             .position(|entry| entry.loaded.get() == Some(font))
             .map(|index| index as u32 | CACHED_FILLED_ENTRY)
+    }
+
+    /// https://drafts.csswg.org/css-values-4/#font-relative-lengths
+    /// Wants the loads of the faces still loading ahead of the first available font, as a length
+    /// relative to a metric of that font (ex, cap, ch, ic, lh) reads the first of them that covers
+    /// U+0020 once it loads. The document requests them once the pass ends, as it does those a
+    /// render pass wants.
+    pub fn want_first_available_font_loads(&self) {
+        const SPACE: u32 = 0x20;
+        for entry in self.entries.iter().filter(|entry| entry.covers(SPACE, &self.ranges)) {
+            if entry.font().is_some() {
+                return;
+            }
+            if let Some((face_id, _)) = entry.pending() {
+                self.note_wanted_pending_face(entry, face_id);
+            }
+        }
     }
 
     fn note_wanted_pending_face(&self, entry: &FrozenEntry, face_id: u64) {

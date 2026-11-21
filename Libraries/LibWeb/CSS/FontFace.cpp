@@ -9,7 +9,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Diagnostics.h>
 #include <AK/Mutex.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
@@ -434,85 +433,6 @@ RefPtr<FontFaceState> FontFaceState::with_id(u64 id)
     return font_faces_by_id().get(id).value_or(nullptr);
 }
 
-// The faces the style computations selected, which the main thread loads. A computation notes them on whichever
-// thread it runs, a frame in flight's included, so the list is shared under a lock. Every style update ends by taking
-// them, and almost always finds none, so whether there are any is read without the lock.
-class WantedWebFaces {
-    AK_ALLOC_WITH_KMALLOC;
-
-public:
-    void note(u64 face_id)
-    {
-        MutexLocker locker(m_mutex);
-        if (!m_face_ids.contains_slow(face_id))
-            m_face_ids.append(face_id);
-        m_any.store(true, AK::memory_order_release);
-    }
-
-    Vector<u64> take()
-    {
-        if (!m_any.load(AK::memory_order_acquire))
-            return {};
-        MutexLocker locker(m_mutex);
-        m_any.store(false, AK::memory_order_relaxed);
-        return exchange(m_face_ids, {});
-    }
-
-private:
-    Mutex m_mutex;
-    Vector<u64> m_face_ids;
-    Atomic<bool> m_any { false };
-};
-
-static WantedWebFaces& wanted_web_faces()
-{
-    // NB: A thread without a VM is a stage thread, which only ever works for the window agent. The faces of a worker are
-    //     noted and taken on its own thread.
-    if (JS::VM::exists_on_this_thread() && !HTML::surrounding_agent().is_similar_origin_window_agent()) {
-        // NB: Free what this thread kept when it exits.
-#ifdef AK_COMPILER_CLANG
-        AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local WantedWebFaces wanted_by_worker)
-#else
-        static thread_local WantedWebFaces wanted_by_worker;
-#endif
-        return wanted_by_worker;
-    }
-    static NeverDestroyed<WantedWebFaces> wanted;
-    return *wanted;
-}
-
-static thread_local u32 s_deferred_web_face_load_depth { 0 };
-
-void note_wanted_web_face(u64 face_id)
-{
-    wanted_web_faces().note(face_id);
-}
-
-void request_wanted_web_faces()
-{
-    if (s_deferred_web_face_load_depth != 0)
-        return;
-    // NB: A face that loads at once invalidates the selections that wanted it, and selecting again can want more.
-    for (auto face_ids = wanted_web_faces().take(); !face_ids.is_empty(); face_ids = wanted_web_faces().take()) {
-        for (auto face_id : face_ids) {
-            if (auto face = FontFaceState::with_id(face_id))
-                face->load_for_style();
-        }
-    }
-}
-
-void begin_deferred_web_face_loads()
-{
-    ++s_deferred_web_face_load_depth;
-}
-
-void end_deferred_web_face_loads()
-{
-    VERIFY(s_deferred_web_face_load_depth > 0);
-    --s_deferred_web_face_load_depth;
-    request_wanted_web_faces();
-}
-
 bool FontFaceState::should_be_registered_with_font_computer() const
 {
     return is_css_connected() || has_urls() || status() == FontFaceLoadStatus::Loaded;
@@ -600,7 +520,7 @@ ComputationContext FontFaceState::computation_context() const
         return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     auto const& initial_font = FontComputer::initial_font();
     auto const& pixel_metrics = initial_font.pixel_metrics();
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, pixel_metrics, normal_line_height(pixel_metrics) };
+    Length::FontMetrics font_metrics { initial_font.pixel_size(), pixel_metrics, normal_line_height(pixel_metrics) };
     return ComputationContext {
         .length_resolution_context = {
             .viewport_rect = {},

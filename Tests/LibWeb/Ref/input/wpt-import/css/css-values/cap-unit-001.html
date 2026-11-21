@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Values and Units Test: support for the cap unit</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#font-relative-lengths">
+<link rel="match" href="../../../../expected/wpt-import/css/css-values/reference/cap-unit-001-ref.html">
+<meta name="assert" content="The cap unit is equal to the used cap-height of the first available font.">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+span {
+    background: green;
+    color: green;
+    position: absolute;
+}
+div {
+    font: 50px Ahem; /* cap-height of Ahem is 0.8em */
+    background: red;
+    position: relative;
+    height: 180px;
+    height: calc(180px - 2cap);  /* reduce to 100px if cap correctly supported */
+    width: 100px;
+}
+
+div span {
+    width: 2.5cap;
+    height: 100px;
+}
+</style>
+<body>
+    <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+    <div><span></span></div>
+</body>

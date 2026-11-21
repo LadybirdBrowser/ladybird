@@ -308,7 +308,7 @@ fn font_size_recascade_resolves_em_without_a_host_context() {
         |_| 1.0,
         |_| true,
         0,
-        default_size.raw_value(),
+        default_size.to_double(),
         false,
         default_size.raw_value(),
         FontSizeRecascadeDocumentInputs {
@@ -322,7 +322,7 @@ fn font_size_recascade_resolves_em_without_a_host_context() {
     );
     assert!(batch.status == FontSizeRecascadeStatus::Complete);
     assert_eq!(batch.next_index, values.len());
-    assert_eq!(batch.current_size_raw, CssPixels::from_integer(26).raw_value());
+    assert_eq!(batch.current_size, 26.0);
 }
 
 #[test]
@@ -342,7 +342,7 @@ fn font_size_recascade_resolves_document_lengths() {
         |_| 1.0,
         |_| true,
         0,
-        CssPixels::from_integer(13).raw_value(),
+        13.0,
         false,
         CssPixels::from_integer(13).raw_value(),
         FontSizeRecascadeDocumentInputs {
@@ -355,7 +355,7 @@ fn font_size_recascade_resolves_document_lengths() {
         None,
     );
     assert!(batch.status == FontSizeRecascadeStatus::Complete);
-    assert_eq!(batch.current_size_raw, CssPixels::from_integer(80).raw_value());
+    assert_eq!(batch.current_size, 80.0);
     assert!(batch.depends_on_viewport_metrics);
 }
 
@@ -378,7 +378,7 @@ fn font_size_recascade_applies_each_ancestor_zoom_once() {
         |index| zooms[index],
         |_| true,
         0,
-        CssPixels::from_integer(13).raw_value(),
+        13.0,
         false,
         CssPixels::from_integer(13).raw_value(),
         FontSizeRecascadeDocumentInputs {
@@ -391,7 +391,7 @@ fn font_size_recascade_applies_each_ancestor_zoom_once() {
         None,
     );
     assert!(batch.status == FontSizeRecascadeStatus::Complete);
-    assert_eq!(batch.current_size_raw, CssPixels::from_integer(60).raw_value());
+    assert_eq!(batch.current_size, 60.0);
 }
 
 #[test]
@@ -407,7 +407,7 @@ fn font_size_recascade_stops_for_a_length_that_needs_font_metrics() {
         |_| 1.0,
         |_| true,
         0,
-        CssPixels::from_integer(13).raw_value(),
+        13.0,
         false,
         CssPixels::from_integer(13).raw_value(),
         FontSizeRecascadeDocumentInputs {
@@ -511,12 +511,13 @@ fn font_width_keywords_compute() {
 #[test]
 fn font_size_keywords_compute() {
     let sixteen = CssPixels::from_integer(16);
+    let inherited = 16.0;
     let medium = compute_font_size(
         &StyleValueData::Keyword {
             keyword: keyword::MEDIUM,
         },
         0,
-        sixteen,
+        inherited,
         0,
         sixteen,
         1.0,
@@ -527,7 +528,7 @@ fn font_size_keywords_compute() {
             keyword: keyword::LARGE,
         },
         0,
-        sixteen,
+        inherited,
         0,
         sixteen,
         1.0,
@@ -536,7 +537,7 @@ fn font_size_keywords_compute() {
     let percent = compute_font_size(
         &StyleValueData::Percentage { value: 150.0 },
         0,
-        sixteen,
+        inherited,
         0,
         sixteen,
         1.0,
@@ -545,23 +546,23 @@ fn font_size_keywords_compute() {
     let math = compute_font_size(
         &StyleValueData::Keyword { keyword: keyword::MATH },
         1,
-        sixteen,
+        inherited,
         0,
         sixteen,
         1.0,
     );
-    assert_eq!(math, computed(CssPixels::from_integer(16).scaled(0.71).to_double()));
+    assert_eq!(math, computed(single_precision_font_size(16.0 * 0.71)));
     let math_two_levels = compute_font_size(
         &StyleValueData::Keyword { keyword: keyword::MATH },
         2,
-        sixteen,
+        inherited,
         0,
         sixteen,
         1.0,
     );
     assert_eq!(
         math_two_levels,
-        computed(CssPixels::from_integer(16).scaled(0.71f64.powi(2)).to_double())
+        computed(single_precision_font_size(16.0 * 0.71f64.powi(2)))
     );
 }
 
@@ -581,7 +582,7 @@ fn math_depth_computes() {
 
 #[test]
 fn line_height_computes() {
-    let sixteen = CssPixels::from_integer(16);
+    let sixteen = 16.0;
     assert_eq!(
         compute_line_height(
             &StyleValueData::Keyword {
@@ -817,6 +818,7 @@ fn svg_axis_case(svg: bool, vertical: bool) -> [f64; 3] {
         },
         is_th_element: false,
         has_new_font_size: false,
+        new_font_size_includes_cascaded_value: false,
         has_tree_counting_context: false,
         sibling_count: 0,
         sibling_index: 0,
@@ -949,6 +951,7 @@ fn font_phase_axis_case(
             },
             is_th_element: false,
             has_new_font_size: false,
+            new_font_size_includes_cascaded_value: false,
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,

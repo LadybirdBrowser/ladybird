@@ -39,10 +39,9 @@ impl RecordFont {
         let first_available = font.first_available_font_metrics();
         Self {
             metrics: FfiFontMetrics {
-                font_size: font.font_size.to_double(),
+                font_size: font.font_size_for_lengths(),
                 x_height: drive_font_metric(first_available.x_height),
-                // The host's metrics approximate the cap height with the ascent.
-                cap_height: drive_font_metric(first_available.ascent),
+                cap_height: drive_font_metric(first_available.cap_height),
                 zero_advance: drive_font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },
@@ -244,9 +243,9 @@ impl RetainedState {
         let font_inputs = font.filter(|_| rebuilds_font);
         let own_font = match font_inputs {
             Some(font) => FfiFontMetrics {
-                font_size: CssPixels::from_raw(font.font_size_raw).to_double(),
+                font_size: font.font_size,
                 x_height: drive_font_metric(font.font_x_height),
-                cap_height: drive_font_metric(font.font_ascent),
+                cap_height: drive_font_metric(font.font_cap_height),
                 zero_advance: drive_font_metric(font.font_zero_advance),
                 line_height: CssPixels::from_raw(font.line_height_used_raw).to_double(),
             },
@@ -588,6 +587,7 @@ impl super::StyleEngine {
             },
             is_th_element: false,
             has_new_font_size: false,
+            new_font_size_includes_cascaded_value: false,
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,
@@ -1489,6 +1489,8 @@ pub(super) fn font_group_build_inputs<'a>(
     };
     FfiFontGroupBuildInputs {
         font_size_raw: request.font_size_raw,
+        font_size: request
+            .font_size_for_lengths(values(prop::FONT_SIZE).and_then(RetainedStyleValueData::optional_data)),
         line_height_used_raw: CssPixels::nearest_value_for(line_height_used).raw_value(),
         font_variant_emoji: keyword_code(
             prop::FONT_VARIANT_EMOJI,
@@ -1497,6 +1499,7 @@ pub(super) fn font_group_build_inputs<'a>(
         font_ascent: resolved.ascent,
         font_descent: resolved.descent,
         font_x_height: resolved.x_height,
+        font_cap_height: resolved.cap_height,
         font_zero_advance: resolved.zero_advance,
         first_available_font: resolved.first_available_font.as_pointer(),
         font_cascade_list: resolved.font_cascade_list.as_pointer(),

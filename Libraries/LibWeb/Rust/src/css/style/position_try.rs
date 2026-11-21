@@ -944,10 +944,9 @@ impl RetainedState {
             viewport_width: inputs.viewport_width,
             viewport_height: inputs.viewport_height,
             font_metrics: FfiFontMetrics {
-                font_size: font.font_size.to_double(),
+                font_size: font.font_size_for_lengths(),
                 x_height: font_metric(first_available.x_height),
-                // The C++ metrics approximate the cap height with the ascent.
-                cap_height: font_metric(first_available.ascent),
+                cap_height: font_metric(first_available.cap_height),
                 zero_advance: font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },
@@ -986,6 +985,7 @@ impl RetainedState {
             },
             is_th_element: false,
             has_new_font_size: false,
+            new_font_size_includes_cascaded_value: false,
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,

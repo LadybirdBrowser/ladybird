@@ -1,0 +1,5 @@
+rem margin: -16.5px
+em width: 16.5px
+110%: 19.360001px
+larger: 23.232px
+canvas 10em letter-spacing, per glyph: 176

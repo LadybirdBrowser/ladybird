@@ -1,0 +1,48 @@
+mono: 13px
+mono 110%: 14.3px
+mono 1.1em: 14.3px
+mono medium: 13px
+mono large: 16px
+mono larger: 15.6px
+mono smaller: 10.833333px
+mono 16px: 16px
+mono 1rem: 16px
+mono calc(1em + 2px): 18px
+pre > span serif: 16px
+pre > span serif 110%: 17.6px
+pre > span inherit-family: 13px
+pre > span 2em: 26px
+pre(150%) > span serif: 24px
+pre(20px) > span serif: 20px
+div 20px > mono: 20px
+div 150% > mono: 19.5px
+div 1.5em > mono: 19.5px
+div large > mono: 16px
+div calc(1em+2px) > mono: 18px
+div 150% > div 110% > mono: 21.450001px
+mono,serif: 16px
+Courier New,mono: 16px
+NoSuch,mono: 16px
+mono > serif > mono 110%: 14.3px
+ui-monospace: 16px
+code in p: 13px
+th mono 110% (ffmpeg): 14.3px
+mono > serif child of mono-110%: 17.6px
+pre > span medium: 13px
+pre > span large: 16px
+pre > span initial: 13px
+pre > span font-size unset: 13px
+pre > span serif inherit-size: 16px
+mono initial: 13px
+mono font-family inherit under pre: 14.3px
+div unset > mono: 13px
+pre > b (weight only): 13px
+pre > span serif > span mono: 13px
+zoom 2 > mono 110%: 14.3px
+mono calc(110%): 14.3px
+mono calc(50% + 60%): 14.3px
+mono calc(110% + 0px): 17.6px
+mono calc(1.1em): 17.6px
+div calc(150%) > mono: 19.5px
+div calc(150% + 0px) > mono: 24px
+pre calc(150%) > span serif: 24px

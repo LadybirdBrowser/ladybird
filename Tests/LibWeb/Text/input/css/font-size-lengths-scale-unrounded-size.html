@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    html { font-size: 17.6px; }
+    #rem { margin: 0 -0.9375rem; }
+    #em { font-size: 17.6px; width: 0.9375em; }
+    #percentage { font-size: 110%; }
+    #larger { font-size: larger; }
+</style>
+<div id="rem"></div>
+<div id="em"></div>
+<div id="percentage"><div id="larger"></div></div>
+<canvas id="canvas"></canvas>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A font size of 17.6px isn't a whole number of 1/64px, so a length or a size relative to it scales it unrounded.
+        println(`rem margin: ${getComputedStyle(document.getElementById("rem")).marginLeft}`);
+        println(`em width: ${getComputedStyle(document.getElementById("em")).width}`);
+        println(`110%: ${getComputedStyle(document.getElementById("percentage")).fontSize}`);
+        println(`larger: ${getComputedStyle(document.getElementById("larger")).fontSize}`);
+        const context = document.getElementById("canvas").getContext("2d");
+        context.font = "17.6px serif";
+        const unspaced = context.measureText("ab").width;
+        context.letterSpacing = "10em";
+        println(`canvas 10em letter-spacing, per glyph: ${(context.measureText("ab").width - unspaced) / 2}`);
+    });
+</script>

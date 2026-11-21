@@ -84,8 +84,8 @@ struct ContextCreationArguments {
 // `FontMetricsSource` of Bindings/Rust/src/canvas_2d/canvas.rs: the font of the context, if it has one yet.
 struct FontMetricsSource {
     Gfx::FontCascadeList const* cascade { nullptr };
-    // The size of the font, as the raw value of a CSSPixels.
-    i32 font_size { 0 };
+    // The computed size of the font in pixels, unrounded, which lengths relative to it scale.
+    double font_size { 0 };
 };
 
 // `ResolvedFontAbi` of Bindings/Rust/src/canvas_2d/canvas.rs.
@@ -93,7 +93,7 @@ struct ResolvedFont {
     // A Gfx::FontCascadeList with a reference that Rust takes over.
     Gfx::FontCascadeList const* cascade { nullptr };
     u64 environment_generation { 0 };
-    i32 font_size { 0 };
+    double font_size { 0 };
     // An AK::Utf16String that Rust takes over.
     FlatPtr serialized { 0 };
 };
@@ -525,7 +525,7 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
     out_font = {
         .cascade = &cascade.leak_ref(),
         .environment_generation = font_computer.environment_generation(),
-        .font_size = font_size.raw_value(),
+        .font_size = computed_font_size->as_length().length().absolute_length_to_px_without_rounding(),
         // On getting, the font attribute must return the serialized form of the current font of the context (with no 'line-height' component).
         .serialized = resolved_font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue).into_raw(),
     };
@@ -553,7 +553,7 @@ static CSS::ComputationContext computation_context_for(CanvasHost& canvas_host, 
         }
 
         auto const& first_font = font.cascade->first_available_font();
-        return CSS::Length::FontMetrics { CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height() };
+        return CSS::Length::FontMetrics { font.font_size, first_font.pixel_metrics(), CSS::InitialValues::line_height() };
     }();
 
     return {

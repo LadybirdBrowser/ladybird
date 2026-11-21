@@ -7,6 +7,7 @@
 #include <AK/AnyOf.h>
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -774,8 +775,11 @@ WebIDL::ExceptionOr<Utf16String> Document::query_command_value(Utf16FlyString co
     // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
     if (command_definition.command == Editing::CommandNames::fontSize && value_override.has_value()) {
-        auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value());
-        return Editing::legacy_font_size(pixel_size.to_int());
+        // NB: The sizes are taken where the active range starts, as the effective command value is read there.
+        auto range = Editing::active_range(*this);
+        auto medium_font_size = range ? Editing::medium_font_size_at(*range->start_container()) : CSS::StyleComputer::default_user_font_size();
+        auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value(), medium_font_size);
+        return Editing::legacy_font_size(pixel_size.to_int(), medium_font_size);
     }
 
     // 3. If the value override for command is set, return it.

@@ -114,12 +114,10 @@ static GC::Ptr<DOM::Element const> get_or_compute_query_container_for_axis(Lengt
     return cached_query_container.value();
 }
 
-Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
+Length::FontMetrics::FontMetrics(double font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
     : font_size(font_size)
     , x_height(pixel_metrics.x_height)
-    // FIXME: This is only approximately the cap height. The spec suggests measuring the "O" glyph:
-    //        https://www.w3.org/TR/css-values-4/#cap
-    , cap_height(pixel_metrics.ascent)
+    , cap_height(pixel_metrics.cap_height)
     , zero_advance(pixel_metrics.advance_of_ascii_zero)
     , line_height(line_height)
 {
@@ -236,8 +234,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { computed_values.font_size(), computed_values.font_list().first_available_font().pixel_metrics(), computed_values.line_height() },
-        .root_font_metrics = { root_computed_values->font_size(), root_computed_values->font_list().first_available_font().pixel_metrics(), root_computed_values->line_height() },
+        .font_metrics = { computed_values.font_size_for_lengths(), computed_values.font_list().first_available_font().pixel_metrics(), computed_values.line_height() },
+        .root_font_metrics = { root_computed_values->font_size_for_lengths(), root_computed_values->font_list().first_available_font().pixel_metrics(), root_computed_values->line_height() },
         .font_metrics_depend_on_viewport_metrics = computed_values.font_metrics_depend_on_viewport_metrics(),
         .root_font_metrics_depend_on_viewport_metrics = root_computed_values->font_metrics_depend_on_viewport_metrics(),
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
@@ -253,7 +251,7 @@ Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document 
     // https://drafts.csswg.org/css-values-4/#font-relative-lengths
     // When used outside the context of an element (such as in media queries), the font-relative lengths units refer
     // to the metrics corresponding to the initial values of the font and line-height properties.
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, normal_line_height(initial_font_metrics) };
+    Length::FontMetrics font_metrics { initial_font.pixel_size(), initial_font_metrics, normal_line_height(initial_font_metrics) };
     CSSPixelRect viewport_rect;
 
     if (document.navigable())
@@ -288,8 +286,8 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
 
     return Length::ResolutionContext {
         .viewport_rect = node.navigable()->viewport_rect(),
-        .font_metrics = { node.font_size(), node.first_available_font().pixel_metrics(), node.line_height() },
-        .root_font_metrics = { root_layout_node->font_size(), root_layout_node->first_available_font().pixel_metrics(), node.line_height() },
+        .font_metrics = { node.font_size_for_lengths(), node.first_available_font().pixel_metrics(), node.line_height() },
+        .root_font_metrics = { root_layout_node->font_size_for_lengths(), root_layout_node->first_available_font().pixel_metrics(), node.line_height() },
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(node.writing_mode()),
         .subject_is_pseudo_element = node.is_generated_for_pseudo_element(),
         .subject_element = subject_element,
@@ -365,9 +363,9 @@ double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Le
 {
     switch (font_relative_unit) {
     case LengthUnit::Em:
-        return font_metrics.font_size.to_double();
+        return font_metrics.font_size;
     case LengthUnit::Rem:
-        return root_font_metrics.font_size.to_double();
+        return root_font_metrics.font_size;
     case LengthUnit::Ex:
         return font_metrics.x_height.to_double();
     case LengthUnit::Rex:
@@ -382,10 +380,10 @@ double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Le
         return root_font_metrics.zero_advance.to_double();
     case LengthUnit::Ic:
         // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return font_metrics.font_size.to_double();
+        return font_metrics.font_size;
     case LengthUnit::Ric:
         // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return root_font_metrics.font_size.to_double();
+        return root_font_metrics.font_size;
     case LengthUnit::Lh:
         return font_metrics.line_height.to_double();
     case LengthUnit::Rlh:

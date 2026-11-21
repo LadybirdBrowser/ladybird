@@ -1575,6 +1575,54 @@ pub struct FfiQueryHandle {
 }
 
 impl FfiQueryHandle {
+    /// Which first available fonts a container query's size features hold lengths relative to a
+    /// metric of: the container's, through an `ex`, `cap`, `ch` or `lh`, and the document element's,
+    /// through their root-relative forms.
+    pub(crate) fn container_query_font_metric_reads(&self) -> crate::css::animation::FontMetricReads {
+        // NB: A length can sit inside a value of any type a feature takes, a calculated ratio's, e.g.
+        fn read_value(value: &QueryFeatureValue, reads: &mut crate::css::animation::FontMetricReads) {
+            for kind in [
+                FeatureValueParse::Integer,
+                FeatureValueParse::Length,
+                FeatureValueParse::Number,
+                FeatureValueParse::Ratio,
+                FeatureValueParse::Resolution,
+            ] {
+                if let Some(value) = value.parsed_in(kind, FeatureValueQuery::ContainerSize) {
+                    let dependencies = crate::css::style_compute::collect_external_value_dependencies(value);
+                    reads.own |= dependencies.font_metric_relative_length;
+                    reads.root |= dependencies.root_font_reads == crate::css::style_compute::RootFontReads::Metrics;
+                }
+            }
+        }
+        fn read(expression: &Expression, reads: &mut crate::css::animation::FontMetricReads) {
+            match expression {
+                Expression::Not(child)
+                | Expression::InParens(child)
+                | Expression::StyleFunction(child)
+                | Expression::ScrollStateFunction(child) => read(child, reads),
+                Expression::And(children) | Expression::Or(children) => {
+                    children.iter().for_each(|child| read(child, reads));
+                }
+                Expression::QueryFeature(QueryFeature::Plain { value, .. }) => read_value(value, reads),
+                Expression::QueryFeature(QueryFeature::Range { left, right, .. }) => {
+                    if let Some(left) = left {
+                        read_value(&left.0, reads);
+                    }
+                    if let Some(right) = right {
+                        read_value(&right.1, reads);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut reads = crate::css::animation::FontMetricReads::default();
+        if let QueryTree::Expression { expression, .. } = &self.tree {
+            read(expression, &mut reads);
+        }
+        reads
+    }
+
     pub(crate) fn container_requirements(&self) -> u8 {
         let QueryTree::Expression {
             expression,

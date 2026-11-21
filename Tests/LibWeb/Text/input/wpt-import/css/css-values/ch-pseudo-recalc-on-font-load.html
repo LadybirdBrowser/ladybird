@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Length unit 'ch' used in pseudo elements should be recalculated after loading a web font</title>
+<link rel="help" href="https://www.w3.org/TR/css-font-loading-3/#font-face-load">
+<link rel="help" href="https://www.w3.org/TR/css-values-3/#font-relative-lengths">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-letter-styling">
+<link rel="author" href="xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.container {
+  font: 25px/1 "custom font", monospace;
+}
+
+.before::before,
+.after::after,
+.first-letter::first-letter,
+.first-line::first-line {
+  font-family: monospace;
+  font-size: 1ch; /* Refers to originating element's font metrics, which are different from self font metrics. */
+}
+
+.before::before,
+.after::after {
+  content: 'text';
+}
+
+/* Defined separately so that browsers that haven't shipped it can still pass other tests. */
+.marker::marker {
+  font-family: monospace;
+  font-size: 1ch;
+  content: 'text';
+}
+
+</style>
+
+<div class="container before"></div>
+<div class="container after"></div>
+<div class="container first-letter">text</div>
+<div class="container first-line">text</div>
+<li class="container marker"></li>
+
+<script>
+function parseFontSizeInPx(element, pseudoElement) {
+  const value = getComputedStyle(element, pseudoElement).fontSize;
+  if (!value.endsWith('px'))
+    return NaN;
+  return parseFloat(value);
+}
+
+const testCases = ['before', 'after', 'first-letter', 'first-line', 'marker'];
+const elements = testCases.map(testCase => document.querySelector('.' + testCase));
+const asyncTests = testCases.map(
+    testCase => async_test(`ch in pseudo-element ::${testCase} should be recalculated after loading a web font`));
+
+// Before loading custom font, tests should be rendered with monospace
+// fallback and have a '1ch' measurement much shorter than 25px.
+for (let i = 0; i < testCases.length; ++i) {
+  asyncTests[i].step(() => {
+    const fontSizePx = parseFontSizeInPx(elements[i], '::' + testCases[i]);
+    assert_less_than(fontSizePx, 24);
+  });
+}
+
+// Insert custom font into style sheet and load it
+const customFont = new FontFace('custom font', 'url(/fonts/Ahem.ttf)');
+document.fonts.add(customFont);
+
+// After loading custom font, tests should be rendered with the custom font,
+// which is Ahem, and have a '1ch' measurement that equals 25px.
+customFont.load().then(
+    () => {
+      for (let i = 0; i < testCases.length; ++i) {
+        asyncTests[i].step(() => {
+          const fontSizePx = parseFontSizeInPx(elements[i], '::' + testCases[i]);
+          assert_approx_equals(fontSizePx, 25, 0.1);
+          asyncTests[i].done();
+        });
+      }
+    },
+    () => {
+      for (let i = 0; i < testCases.length; ++i) {
+        asyncTests[i].step(() => {
+          assert_unreached('Failed to load font');
+        });
+      }
+    }
+);
+</script>

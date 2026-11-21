@@ -3379,10 +3379,9 @@ impl<'pass> SvgFormattingContext<'pass> {
 fn font_metrics_for_length_resolution(style: StyleValues<'_>) -> crate::css::style_compute::FfiFontMetrics {
     let font = style.font().first_available_font_metrics();
     crate::css::style_compute::FfiFontMetrics {
-        font_size: style.font_size().to_double(),
+        font_size: style.font().font_size_for_lengths(),
         x_height: CssPixels::nearest_value_for_f32(font.x_height).to_double(),
-        // FIXME: This is only approximately the cap height, exactly as Length::FontMetrics has it.
-        cap_height: CssPixels::nearest_value_for_f32(font.ascent).to_double(),
+        cap_height: CssPixels::nearest_value_for_f32(font.cap_height).to_double(),
         zero_advance: CssPixels::nearest_value_for_f32(font.zero_advance).to_double(),
         line_height: style.line_height().to_double(),
     }

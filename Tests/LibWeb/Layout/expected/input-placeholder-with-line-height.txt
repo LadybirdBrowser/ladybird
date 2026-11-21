@@ -1,19 +1,19 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88.640625 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 72.640625 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 167.6875x66.640625] baseline: 40.609375
-      frag 1 from TextNode start: 0, length: 4, rect: [185.6875,35.609375 32.140625x16] baseline: 13
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88.671875 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 72.671875 0+0+8] children: inline
+      frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 167.6875x66.671875] baseline: 40.625
+      frag 1 from TextNode start: 0, length: 4, rect: [185.6875,35.625 32.140625x16] baseline: 13
           "text"
-      TextInputBox <input> at [13,11] inline-block [0+2+3 167.6875 3+2+0] [0+2+1 66.640625 1+2+0] [BFC] children: not-inline
-        Box <div> at [13,11] flex-container(row) [0+0+0 167.6875 0+0+0] [0+0+0 66.640625 0+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [13,11] flex-item [0+0+0 167.6875 0+0+0] [0+0+0 66.640625 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 0, rect: [13,37.3125 0x14] baseline: 11
+      TextInputBox <input> at [13,11] inline-block [0+2+3 167.6875 3+2+0] [0+2+1 66.671875 1+2+0] [BFC] children: not-inline
+        Box <div> at [13,11] flex-container(row) [0+0+0 167.6875 0+0+0] [0+0+0 66.671875 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [13,11] flex-item [0+0+0 167.6875 0+0+0] [0+0+0 66.671875 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [13,37.328125 0x14] baseline: 11
             TextNode <#text> (not painted)
-          BlockContainer <div> at [13,11] flex-item [-167.6875+0+0 167.6875 0+0+0] [0+0+0 66.640625 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 11, rect: [13,37.3125 74.90625x14] baseline: 11
+          BlockContainer <div> at [13,11] flex-item [-167.6875+0+0 167.6875 0+0+0] [0+0+0 66.671875 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [13,37.328125 74.90625x14] baseline: 11
                 "placeholder"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x88.640625] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x88.671875] (z-index: auto)

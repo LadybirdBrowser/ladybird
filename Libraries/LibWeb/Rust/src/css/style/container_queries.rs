@@ -219,10 +219,9 @@ impl RetainedState {
             viewport_width: document.viewport_width,
             viewport_height: document.viewport_height,
             font_metrics: crate::css::style_compute::FfiFontMetrics {
-                font_size: font.font_size.to_double(),
+                font_size: font.font_size_for_lengths(),
                 x_height: super::pipeline::drive::drive_font_metric(first_available.x_height),
-                // The C++ metrics approximate the cap height with the ascent.
-                cap_height: super::pipeline::drive::drive_font_metric(first_available.ascent),
+                cap_height: super::pipeline::drive::drive_font_metric(first_available.cap_height),
                 zero_advance: super::pipeline::drive::drive_font_metric(first_available.zero_advance),
                 line_height: font.line_height_used().to_double(),
             },
@@ -524,6 +523,31 @@ impl RetainedState {
             let snapshot = self.layout_style_snapshot(candidate).unwrap_or_default();
             let document = &self.document_style_computation_inputs;
             let view = records.record_view(candidate, inputs)?;
+            // https://drafts.csswg.org/css-values-4/#font-relative-lengths
+            // NB: A length in the query relative to a metric of the container's first available font reads that font,
+            //     so the faces still loading ahead of it start loading, as they do for a length in a style.
+            let font_metric_reads = query.container_query_font_metric_reads();
+            if font_metric_reads.own {
+                // SAFETY: The view's font group is live while the query is evaluated.
+                let font = unsafe {
+                    view.payloads[crate::css::table_group_builder::group_index::FONT]
+                        .cast::<crate::css::computed_value_types::FontValues>()
+                        .as_ref()
+                };
+                if let Some(list) = font.and_then(|font| font.frozen_font_list.list()) {
+                    list.want_first_available_font_loads();
+                }
+            }
+            if font_metric_reads.root {
+                self.want_first_available_font_loads_for(
+                    candidate,
+                    None,
+                    crate::css::animation::FontMetricReads {
+                        root: true,
+                        ..Default::default()
+                    },
+                );
+            }
             let mut length = self.record_length_resolution_context(view.payloads, view.dependency_flags)?;
             if let Some(root_font) = records.root_font() {
                 (

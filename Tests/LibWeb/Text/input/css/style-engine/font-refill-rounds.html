@@ -30,8 +30,8 @@
         internals.updateStyle();
         output.push(`warm margin: ${getComputedStyle(target).marginLeft}`);
 
-        // No text is shaped: a synchronous metric probe must keep this face unloaded.
-        // Complete loading explicitly, without relying on a network delay or a timer.
+        // No text is shaped, but the probe's ch length reads the face's metrics, so the probe starts
+        // its load. Complete loading explicitly, without relying on a network delay or a timer.
         const face = new FontFace("RefillFace", 'url("../../../../Assets/HashSans.woff")', { display: "swap" });
         document.fonts.add(face);
         const fallbackWidth = getComputedStyle(probe).width;

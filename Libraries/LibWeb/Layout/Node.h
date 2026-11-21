@@ -474,6 +474,7 @@ public:
     Color text_decoration_color() const { return CSS::resolve_style_color(style_group<CSS::ComputedValues::TextResetValues>().text_decoration_color, color()); }
     CSSPixels line_height() const { return style_group<CSS::ComputedValues::FontValues>().line_height_used_value(); }
     CSSPixels font_size() const { return style_group<CSS::ComputedValues::FontValues>().font_size; }
+    double font_size_for_lengths() const { return style_group<CSS::ComputedValues::FontValues>().font_size_for_lengths(); }
     Gfx::FontCascadeList const& font_list() const { return style_group<CSS::ComputedValues::FontValues>().font_list_value(); }
     CSS::LengthBox inset() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().inset); }
     CSS::LengthBox margin() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().margin); }

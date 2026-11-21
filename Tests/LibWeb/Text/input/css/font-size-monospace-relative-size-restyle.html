@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<div id="parent" style="font-size: 20px"><code id="child" style="font-size: 200%">x</code></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A monospace element's size relative to the one it inherits is computed again from its current
+        // declaration whenever what it inherits changes.
+        const child = document.getElementById("child");
+        const parent = document.getElementById("parent");
+        println(`200% of 20px: ${getComputedStyle(child).fontSize}`);
+        child.style.fontSize = "150%";
+        println(`150% of 20px: ${getComputedStyle(child).fontSize}`);
+        parent.style.fontSize = "22px";
+        println(`150% of 22px: ${getComputedStyle(child).fontSize}`);
+        parent.style.fontSize = "medium";
+        println(`150% of medium: ${getComputedStyle(child).fontSize}`);
+        child.style.fontSize = "inherit";
+        println(`inherit of medium: ${getComputedStyle(child).fontSize}`);
+        parent.style.fontSize = "large";
+        println(`inherit of large: ${getComputedStyle(child).fontSize}`);
+    });
+</script>

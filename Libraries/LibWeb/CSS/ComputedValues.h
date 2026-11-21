@@ -512,6 +512,7 @@ public:
 
     Gfx::FontCascadeList const& font_list() const { return m_inherited.font->font_list_value(); }
     CSSPixels font_size() const { return m_inherited.font->font_size; }
+    double font_size_for_lengths() const { return m_inherited.font->font_size_for_lengths(); }
     double font_weight() const { return m_inherited.font->font_weight; }
     CSSPixels line_height() const { return m_inherited.font->line_height_used_value(); }
 
@@ -641,6 +642,7 @@ public:
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
         FontStyleKeyword font_style_keyword() const;
         CSSPixels line_height_used_value() const { return CSSPixels::from_raw(ComputedValuesFFI::rust_font_values_line_height_used_raw(this)); }
+        double font_size_for_lengths() const { return ComputedValuesFFI::rust_font_values_font_size_for_lengths(this); }
     };
 
 private:

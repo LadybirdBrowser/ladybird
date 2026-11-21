@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Values and Units Test: ex unit computation and dependencies</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-values/#font-relative-lengths">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1529537">
+<link rel="match" href="../../../../expected/wpt-import/css/css-values/reference/ex-unit-001-ref.html">
+<meta name="flags" content="ahem">
+<style>
+  @font-face {
+    font-family: foo;
+    src: url('../../fonts/Ahem.ttf');
+  }
+
+  @font-face {
+    font-family: foo;
+    font-weight: 900;
+    /* A font with significantly different ex-height metric than Aham. */
+    src: url('../../fonts/noto/noto-sans-v8-latin-regular.woff');
+  }
+
+  div {
+    font-family: foo, sans-serif;
+    width: 10ex;
+    height: 20px;
+    background: blue;
+    margin: 20px;
+    font-size: 20px;
+  }
+</style>
+<p>All lines except the first should be the same length</p>
+<div></div>
+<div style="font-weight: 900"></div>
+<div style="font-weight: 900; width: 10ex;"></div>
+<section style="font-weight: 900"><div></div></section>

@@ -191,16 +191,6 @@ struct MatchingFontCandidate {
         auto clamped_variations = variations_clamped_to_weight_descriptor(variations, weight_axis_follows_font_weight, key.weight);
         auto font_list = Gfx::FontCascadeList::create();
         for (auto const& face : *faces) {
-            // https://drafts.csswg.org/css-font-loading/#font-face-load
-            // User agents can initiate font loads on their own, whenever they determine that a given font face is
-            // necessary to render something on the page. When this happens, they must act as if they had called the
-            // corresponding FontFace’s load() method described here.
-            // NB: An unloaded face with no subsetting unicode-range starts loading once a style actually selects
-            //     it. Loading happens via FontFace::load(), which mutates the face, its FontFaceSets and the
-            //     document, so this only leaves the face's number behind; request_wanted_web_faces() loads it
-            //     afterwards, and does nothing for a face past "unloaded" already.
-            if (face.has_urls && !face.has_non_default_unicode_range)
-                note_wanted_web_face(face.id);
             if (auto face_fonts = font_for_face(face, key, size, variations_for_face(face, variations, clamped_variations), shape_features, synthesis_request)) {
                 font_list->extend(*face_fonts);
                 continue;
@@ -311,7 +301,7 @@ static double font_size_adjust_aspect_value(Gfx::Font const& font, FontSizeAdjus
         return metrics.x_height / font_size;
     case FontSizeAdjustMetric::CapHeight:
         // Normalize the cap-height of the fonts, using the cap-height by the font size.
-        return font.cap_height() / font_size;
+        return metrics.cap_height / font_size;
     case FontSizeAdjustMetric::ChWidth:
         // Normalize the horizontal narrow pitch of the fonts, using the advance width of “0” (ZERO, U+0030) divided by
         // the font size.
@@ -626,10 +616,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComp
     // all scopes.
     if (!key.feature_values[to_underlying(FontResolutionFeatureInput::FontVariantAlternates)])
         key.font_feature_values_scope = {};
-    auto font_list = font_computer.font_cascade_memo().resolve(font_computer.font_face_snapshot(), key, font_computer.font_feature_values_provider(key.font_feature_values_scope));
-    // Inside a style update the loads wait for its end; everywhere else, such as canvas, they happen right here.
-    request_wanted_web_faces();
-    return font_list;
+    return font_computer.font_cascade_memo().resolve(font_computer.font_face_snapshot(), key, font_computer.font_feature_values_provider(key.font_feature_values_scope));
 }
 
 NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
@@ -800,6 +787,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .descent = metrics.descent,
         .line_gap = metrics.line_gap,
         .x_height = metrics.x_height,
+        .cap_height = metrics.cap_height,
         .zero_advance = metrics.advance_of_ascii_zero,
         .font_size_adjust_from_font = font_size_adjust_from_font,
     };

@@ -128,15 +128,11 @@ StyleComputer::StyleComputer(DOM::Document& document)
 void StyleComputer::begin_style_update() const
 {
     ++m_style_update_depth;
-    begin_deferred_web_face_loads();
 }
 
 void StyleComputer::end_style_update() const
 {
     VERIFY(m_style_update_depth > 0);
-    // Loading a web face a style selected runs author callbacks and starts a fetch, so it waits for the outermost
-    // update to finish.
-    ScopeGuard load_deferred_web_faces = [] { end_deferred_web_face_loads(); };
     if (--m_style_update_depth != 0)
         return;
     m_style_update_ffi_media_environment.clear();
@@ -533,6 +529,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
         },
         .is_th_element = false,
         .has_new_font_size = false,
+        .new_font_size_includes_cascaded_value = false,
         .has_tree_counting_context = false,
         .sibling_count = 0,
         .sibling_index = 0,
@@ -1218,7 +1215,7 @@ void StyleComputer::sweep_custom_property_environments() const
 
 void StyleComputer::update_root_element_font_metrics(ComputedValues const& values)
 {
-    m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
+    m_root_element_font_metrics = Length::FontMetrics { values.font_size_for_lengths(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
     m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
     m_root_element_effective_zoom = values.effective_zoom();
 }
@@ -1275,7 +1272,7 @@ Length::ResolutionContext StyleComputer::make_length_resolution_context(LengthRe
         return normal_line_height(document().font_computer().initial_font().pixel_metrics());
     }();
     auto font_metrics = Length::FontMetrics {
-        style.font_size(),
+        style.font_size_for_lengths(),
         style.first_available_computed_font(document().font_computer())->pixel_metrics(),
         line_height
     };

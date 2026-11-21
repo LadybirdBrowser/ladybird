@@ -104,6 +104,17 @@ FontPixelMetrics Font::compute_pixel_metrics() const
         metrics.x_height = static_cast<float>(extents.y_bearing) * m_pixel_size / static_cast<float>(y_scale);
     }
 
+    // https://drafts.csswg.org/css-values-4/#cap
+    // In the cases where it is impossible or impractical to determine the cap-height, the font's ascent must be used.
+    // NB: A font whose OS/2 table doesn't give its cap height has it measured from the top of its "H" glyph instead.
+    metrics.cap_height = metrics.ascent;
+    hb_position_t cap_height = 0;
+    if (hb_ot_metrics_get_position(m_harfbuzz_font, HB_OT_METRICS_TAG_CAP_HEIGHT, &cap_height) && cap_height > 0) {
+        metrics.cap_height = static_cast<float>(cap_height) / text_shaping_resolution;
+    } else if (y_scale > 0 && hb_font_get_nominal_glyph(m_harfbuzz_font, 'H', &glyph_id) && hb_font_get_glyph_extents(m_harfbuzz_font, glyph_id, &extents) && extents.y_bearing > 0) {
+        metrics.cap_height = static_cast<float>(extents.y_bearing) * m_pixel_size / static_cast<float>(y_scale);
+    }
+
     // https://drafts.csswg.org/css-values-4/#ch
     // The advance of the glyph that shaping uses for "0". In the cases where it is impossible or impractical to
     // determine the measure of the "0" glyph, it must be assumed to be 0.5em wide.
@@ -112,16 +123,6 @@ FontPixelMetrics Font::compute_pixel_metrics() const
         metrics.advance_of_ascii_zero = static_cast<float>(hb_font_get_glyph_h_advance(m_harfbuzz_font, glyph_id)) / text_shaping_resolution;
 
     return metrics;
-}
-
-float Font::cap_height() const
-{
-    // https://drafts.csswg.org/css-values-4/#cap
-    // In the cases where it is impossible or impractical to determine the cap-height, the font’s ascent must be used.
-    hb_position_t cap_height = 0;
-    if (hb_ot_metrics_get_position(m_harfbuzz_font, HB_OT_METRICS_TAG_CAP_HEIGHT, &cap_height) && cap_height > 0)
-        return static_cast<float>(cap_height) / text_shaping_resolution;
-    return m_pixel_metrics.ascent;
 }
 
 Optional<float> Font::horizontal_advance_of_code_point(u32 code_point) const
@@ -297,6 +298,7 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         .descent = metrics.descent,
         .line_gap = metrics.line_gap,
         .x_height = metrics.x_height,
+        .cap_height = metrics.cap_height,
         .zero_advance = metrics.advance_of_ascii_zero,
         .pixel_size = typed_font.pixel_size(),
         .point_size = typed_font.point_size(),
