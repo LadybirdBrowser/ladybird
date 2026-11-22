@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<head>
+<meta charset="utf-8">
+<title>word-break: normal, arabic</title>
+<link rel='author' title='Richard Ishida' href='mailto:ishida@w3.org'>
+<style type='text/css'>
+.test { word-break: normal; }
+/* the CSS below is not part of the test */
+.test, .ref { border: 1px solid orange;  margin: 20px;  padding: 10px; width: 390px; font: 36px/1 sans-serif; }
+</style>
+</head>
+<body>
+<div id='instructions'>Test passes if the two orange boxes are the same.</div>
+<div class="ref" lang="ar" dir="rtl"><span>العَرَبِيةُ العَرَبِيةُ<br/>العَرَبِيةُ</span></div>
+<div class="ref" lang="ar" dir="rtl"><span>العَرَبِيةُ العَرَبِيةُ<br/>العَرَبِيةُ</span></div>
+</body>
+</html>

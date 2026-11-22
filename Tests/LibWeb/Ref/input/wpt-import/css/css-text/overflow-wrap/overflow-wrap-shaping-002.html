@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: overflow-wrap:anywhere and text-shaping</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#word-break-shaping">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#overflow-wrap-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-shaping-001-ref.html">
+<meta name="assert" content="Shaping characters are still shaped as if the word were not broken when a line is broken by overflow-wrap:anywhere">
+<style>
+  @font-face {
+    font-family: 'csstest_noto';
+    src: url('../../../fonts/noto/NotoNaskhArabic-regular.woff2') format('woff2');
+  }
+  div {
+    font-family: 'csstest_noto';
+    font-size: 4em;
+  }
+  section {
+    float: left; /* to sizing to the intrinsic min of the ref box*/
+    position: relative;
+  }
+  #ref {
+    border: solid orange;
+    margin: 1rem;
+  }
+  #test {
+    border: solid blue;
+    position: absolute; /* to avoid influencing the size of the section */
+    left: 1rem;
+    right: 1rem;
+    overflow-wrap: anywhere;
+  }
+</style>
+
+<p>Test passes if the blue and organge boxes are identical. Pay attention to characters at the left of the first line, and on the second line.
+<section>
+<div dir=rtl lang=ar id=ref>&#xFECB;&#xFE8E;&#xFE8B;&#xFEE0;<br>&#xFE94;</div>
+<div dir=rtl lang=ar id=test>عائلة</div>
+</section>
