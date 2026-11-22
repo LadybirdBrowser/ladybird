@@ -176,9 +176,11 @@ TEST_CASE(events_round_trip_their_payloads)
             .network_error = Requests::NetworkError::IncompleteContent,
         },
     });
+    events.append(Event::FetchEnded {});
 
     Vector<u64> seen_ids;
     bool seen_network_phases = false;
+    bool seen_fetch_end = false;
     Vector<StringView> seen_request_body_events;
     Vector<u64> seen_network_request_ids;
     for (auto const& event : events) {
@@ -255,10 +257,12 @@ TEST_CASE(events_round_trip_their_payloads)
                         EXPECT(finished.network_error == Requests::NetworkError::IncompleteContent);
                     });
                 seen_network_request_ids.append(network_activity.request_id.value());
-            });
+            },
+            [&](Event::FetchEnded const&) { seen_fetch_end = true; });
     }
     EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6 }));
     EXPECT(seen_network_phases);
+    EXPECT(seen_fetch_end);
     EXPECT_EQ(seen_request_body_events, (Vector<StringView> { "progress"sv, "end of body"sv, "read stream"sv, "sent from source"sv }));
     EXPECT_EQ(seen_network_request_ids, (Vector<u64> { 8, 9, 10, 11 }));
 }

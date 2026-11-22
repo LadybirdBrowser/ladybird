@@ -9,17 +9,65 @@
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 
 using namespace Web::Fetch::Engine;
 
 namespace {
 
-class IgnoringEventSink final : public EngineEventSink {
+struct FetchEnds : RefCounted<FetchEnds> {
+    size_t count { 0 };
+};
+
+// Counts the ends of the fetch whose events it receives, and ignores every other event.
+class EndCountingEventSink final : public EngineEventSink {
 public:
-    virtual void handle_event(EngineEvent) override { }
+    explicit EndCountingEventSink(RefPtr<FetchEnds> ends)
+        : m_ends(move(ends))
+    {
+    }
+
+    virtual void handle_event(EngineEvent event) override
+    {
+        if (event.has<Event::FetchEnded>() && m_ends)
+            ++m_ends->count;
+    }
+
+private:
+    RefPtr<FetchEnds> m_ends;
+};
+
+// Records misbehavior instead of dying, for calls that report it while they hold a reference to a record.
+class MisbehaviorRecordingAgent final : public FetchEngineRecords::Agent {
+public:
+    explicit MisbehaviorRecordingAgent(Vector<ByteString>& misbehaviors)
+        : m_misbehaviors(misbehaviors)
+    {
+    }
+
+    virtual void misbehaved(StringView reason) override { m_misbehaviors.append(ByteString { reason }); }
+
+private:
+    Vector<ByteString>& m_misbehaviors;
+};
+
+class IgnoringProducerSink final : public FetchByteChannelProducerSink {
+public:
+    virtual void grant_credit(u64) override { }
+    virtual void consumer_cancelled() override { }
+};
+
+// Counts the cancellations its channel's consumer makes, as the transport of the channel's body hears of them.
+class CancellationCountingProducerSink final : public FetchByteChannelProducerSink {
+public:
+    virtual void grant_credit(u64) override { }
+    virtual void consumer_cancelled() override { ++cancellation_count; }
+
+    size_t cancellation_count { 0 };
 };
 
 // A RequestServer client whose RequestServer end of the connection is held, and never read.
@@ -41,9 +89,9 @@ struct NetworkTransportWithGate {
 
 }
 
-static NonnullRefPtr<FetchEngineRecord> start_fetch(FetchEngineRecords& records, u64 fetch_id)
+static NonnullRefPtr<FetchEngineRecord> start_fetch(FetchEngineRecords& records, u64 fetch_id, RefPtr<FetchEnds> ends = {})
 {
-    auto event_sink = make<IgnoringEventSink>();
+    auto event_sink = make<EndCountingEventSink>(move(ends));
     return records.start(FetchId { fetch_id }, move(event_sink), NetworkActivityObservers::create()).release_nonnull();
 }
 
@@ -231,7 +279,9 @@ static bool has_lease(NetworkTransportWithGate const& transport)
 static ContinuationId hand_over_redirect(FetchEngineRecord& record, NetworkTransportWithGate& redirect)
 {
     record.set_body_transport(*redirect.handle);
-    return record.open_redirect_continuation(redirect.handle.ptr());
+    auto continuation_id = record.open_redirect_continuation(redirect.handle.ptr());
+    record.main_fetch_handed_over();
+    return continuation_id;
 }
 
 TEST_CASE(an_abandoned_redirect_has_its_lease_released_and_its_request_stopped)
@@ -332,6 +382,7 @@ TEST_CASE(an_answer_for_a_settled_redirect_or_an_ended_fetch_does_nothing)
     transport->set_on_stop([&] { stopped = true; });
     record->set_body_transport(transport);
     auto continuation_id = record->open_redirect_continuation(nullptr);
+    record->main_fetch_handed_over();
     EXPECT_EQ(settled(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::AcceptAsFinal {}))).ptr(), record.ptr());
 
     EXPECT(was_dropped(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::Abandon {}))));
@@ -350,4 +401,246 @@ TEST_CASE(an_answer_for_a_redirect_the_engine_never_offered_dies)
 
     auto of_a_fetch_not_started = answer(2, continuation_id, Command::ResolveRedirect::Follow {});
     EXPECT_DEATH("Answering a redirect of a fetch with an id above that of the last fetch started", (void)records.resolve_redirect(of_a_fetch_not_started));
+}
+
+TEST_CASE(an_answer_to_a_redirect_main_fetch_has_not_handed_over_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto record = start_fetch(records, 1);
+    auto continuation_id = record->open_redirect_continuation(nullptr);
+
+    EXPECT(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {})).has<FetchEngineRecords::RedirectAnswerMisbehaved>());
+    EXPECT(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Abandon {})).has<FetchEngineRecords::RedirectAnswerMisbehaved>());
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> { "The agent answered a redirect before it was handed over", "The agent answered a redirect before it was handed over" }));
+}
+
+TEST_CASE(a_fetch_ends_once_main_fetch_has_handed_over_and_its_loads_have_ended)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto first_load = record->start_load();
+    auto second_load = record->start_load();
+
+    record->main_fetch_handed_over();
+    first_load->end();
+    EXPECT_EQ(ends->count, 0u);
+
+    second_load->end();
+    EXPECT_EQ(ends->count, 1u);
+
+    // Nothing sends the end a second time.
+    second_load->end();
+    record->main_fetch_cannot_hand_over();
+    EXPECT_EQ(ends->count, 1u);
+}
+
+TEST_CASE(a_fetch_whose_loads_have_ended_ends_at_its_handover)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    record->start_load()->end();
+    EXPECT_EQ(ends->count, 0u);
+
+    record->main_fetch_handed_over();
+    EXPECT_EQ(ends->count, 1u);
+}
+
+TEST_CASE(a_fetch_ends_once_the_redirect_it_handed_over_is_settled)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto accepted_ends = make_ref_counted<FetchEnds>();
+    auto abandoned_ends = make_ref_counted<FetchEnds>();
+    auto stopped_ends = make_ref_counted<FetchEnds>();
+    auto accepted = start_fetch(records, 1, accepted_ends);
+    auto abandoned = start_fetch(records, 2, abandoned_ends);
+    auto stopped = start_fetch(records, 3, stopped_ends);
+    Vector<ContinuationId> continuation_ids;
+    for (auto const& record : { accepted, abandoned, stopped }) {
+        continuation_ids.append(record->open_redirect_continuation(nullptr));
+        record->main_fetch_handed_over();
+    }
+    EXPECT_EQ(accepted_ends->count + abandoned_ends->count + stopped_ends->count, 0u);
+
+    (void)records.resolve_redirect(answer(1, continuation_ids[0], Command::ResolveRedirect::AcceptAsFinal {}));
+    (void)records.resolve_redirect(answer(2, continuation_ids[1], Command::ResolveRedirect::Abandon {}));
+    records.stop(FetchId { 3 });
+    EXPECT_EQ(accepted_ends->count, 1u);
+    EXPECT_EQ(abandoned_ends->count, 1u);
+    EXPECT_EQ(stopped_ends->count, 1u);
+}
+
+TEST_CASE(a_followed_redirect_keeps_its_fetch_until_the_next_hop_ends)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto continuation_id = record->open_redirect_continuation(nullptr);
+    record->main_fetch_handed_over();
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
+    auto next_hop_load = record->start_load();
+    record->main_fetch_handed_over();
+    EXPECT_EQ(ends->count, 0u);
+
+    next_hop_load->end();
+    EXPECT_EQ(ends->count, 1u);
+}
+
+// Nothing reads the body main fetch reads to its end once main fetch can no longer hand a response over.
+TEST_CASE(main_fetch_that_can_no_longer_hand_over_cancels_the_body_it_reads)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto load = record->start_load();
+    auto producer = adopt_ref(*new CancellationCountingProducerSink);
+    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, producer);
+    record->main_fetch_reads_whole_body(*channel);
+    record->main_fetch_cannot_hand_over();
+    EXPECT(channel->peek_up_to(0).state.has<FetchByteChannel::ConsumerCancelled>());
+    EXPECT_EQ(producer->cancellation_count, 1u);
+    EXPECT_EQ(ends->count, 0u);
+
+    // The transport stops once it hears of the cancellation, and its load ends.
+    load->end();
+    EXPECT_EQ(ends->count, 1u);
+}
+
+TEST_CASE(main_fetch_that_can_no_longer_hand_over_ends_its_fetch)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto load = record->start_load();
+    record->main_fetch_cannot_hand_over();
+    EXPECT_EQ(ends->count, 0u);
+
+    load->end();
+    EXPECT_EQ(ends->count, 1u);
+}
+
+// Main fetch reads a body to its end before it hands the response over, as it does to check the body's integrity.
+TEST_CASE(main_fetch_reading_a_body_that_cannot_reach_its_end_can_no_longer_hand_over)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto make_channel = [] { return FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink)); };
+
+    // A body cancelled or transferred while its load runs.
+    auto cancelled_ends = make_ref_counted<FetchEnds>();
+    auto transferred_ends = make_ref_counted<FetchEnds>();
+    auto cancelled = start_fetch(records, 1, cancelled_ends);
+    auto transferred = start_fetch(records, 2, transferred_ends);
+    auto cancelled_load = cancelled->start_load();
+    auto transferred_load = transferred->start_load();
+    auto cancelled_channel = make_channel();
+    auto transferred_channel = make_channel();
+    cancelled->main_fetch_reads_whole_body(*cancelled_channel);
+    transferred->main_fetch_reads_whole_body(*transferred_channel);
+    (void)cancelled_channel->cancel();
+    (void)transferred_channel->transfer_out();
+    cancelled_load->end();
+    transferred_load->end();
+    EXPECT_EQ(cancelled_ends->count, 1u);
+    EXPECT_EQ(transferred_ends->count, 1u);
+
+    // A body cancelled before main fetch reads it.
+    auto cancelled_before_ends = make_ref_counted<FetchEnds>();
+    auto cancelled_before = start_fetch(records, 3, cancelled_before_ends);
+    cancelled_before->start_load()->end();
+    auto cancelled_before_channel = make_channel();
+    (void)cancelled_before_channel->cancel();
+    cancelled_before->main_fetch_reads_whole_body(*cancelled_before_channel);
+    EXPECT_EQ(cancelled_before_ends->count, 1u);
+
+    // A body that closes is read to its end, and the response is handed over.
+    auto closed_ends = make_ref_counted<FetchEnds>();
+    auto closed = start_fetch(records, 4, closed_ends);
+    auto closed_load = closed->start_load();
+    auto closed_channel = make_channel();
+    closed->main_fetch_reads_whole_body(*closed_channel);
+    (void)closed_channel->close();
+    closed_load->end();
+    EXPECT_EQ(closed_ends->count, 0u);
+
+    closed->main_fetch_handed_over();
+    EXPECT_EQ(closed_ends->count, 1u);
+}
+
+namespace {
+
+// A fetch whose whole-body transport has put the whole body in the channel, after which the transport's load has ended.
+// The transport stays the fetch's body transport.
+struct FetchWithWholeBody {
+    NonnullRefPtr<FetchEngineRecord> record;
+    NonnullRefPtr<FetchByteChannel> channel;
+    NonnullRefPtr<WholeBodyTransport> transport;
+};
+
+}
+
+static FetchWithWholeBody fetch_with_a_whole_body(FetchEngineRecords& records, u64 fetch_id, RefPtr<FetchEnds> ends)
+{
+    auto record = start_fetch(records, fetch_id, move(ends));
+    auto delivery_gate = FetchBodyDeliveryGate::create(FetchBodyDeliveryGate::NavigationHold::None);
+    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
+    auto load = record->start_load();
+    auto transport = Web::Fetch::Fetching::create_whole_body_transport(*delivery_gate, *channel, load);
+    record->set_body_transport(transport);
+    EXPECT_EQ(channel->write(MUST(Core::ImmutableBytes::copy("whole body"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
+    (void)channel->close();
+    load->end();
+    return { move(record), move(channel), move(transport) };
+}
+
+TEST_CASE(a_stop_that_cancels_the_body_main_fetch_reads_after_its_load_has_ended_ends_the_fetch)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto unread_ends = make_ref_counted<FetchEnds>();
+    auto read_ends = make_ref_counted<FetchEnds>();
+    auto unread = fetch_with_a_whole_body(records, 1, unread_ends);
+    auto read = fetch_with_a_whole_body(records, 2, read_ends);
+    unread.record->main_fetch_reads_whole_body(*unread.channel);
+    read.record->main_fetch_reads_whole_body(*read.channel);
+    (void)read.channel->take_all();
+
+    records.stop(FetchId { 1 });
+    records.stop(FetchId { 2 });
+    EXPECT(unread.channel->peek_up_to(0).state.has<FetchByteChannel::ConsumerCancelled>());
+    EXPECT_EQ(unread_ends->count, 1u);
+
+    // A body read to its end leaves main fetch its response to hand over.
+    EXPECT(read.channel->peek_up_to(0).state.has<FetchByteChannel::Closed>());
+    EXPECT_EQ(read_ends->count, 0u);
+    read.record->main_fetch_handed_over();
+    EXPECT_EQ(read_ends->count, 1u);
+}
+
+TEST_CASE(a_load_after_the_end_of_its_fetch_dies)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    record->main_fetch_handed_over();
+
+    EXPECT_DEATH("Starting a load of a fetch that has ended", (void)record->start_load());
+}
+
+// A failed enqueue into the stream of the body main fetch reads to its end cancels the body's channel, and the read's
+// error then reaches the handover, after main fetch has ended at the end of the load.
+TEST_CASE(a_handover_after_main_fetch_has_ended_does_nothing)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto load = record->start_load();
+    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
+    record->main_fetch_reads_whole_body(*channel);
+    (void)channel->cancel();
+    load->end();
+    EXPECT_EQ(ends->count, 1u);
+
+    record->main_fetch_handed_over();
+    EXPECT_EQ(ends->count, 1u);
 }

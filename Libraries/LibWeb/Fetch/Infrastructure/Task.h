@@ -29,7 +29,8 @@ struct WEB_API TaskDestination : public Variant<Empty, GC::Ref<JS::Object>, Nonn
     GC::Ptr<DOM::Document> document_override;
 };
 
-HTML::TaskID queue_fetch_task(TaskDestination, GC::Ref<GC::Function<void()>>);
+// The discard steps run in place of the algorithm if its task is discarded.
+HTML::TaskID queue_fetch_task(TaskDestination, GC::Ref<GC::Function<void()>>, GC::Ptr<GC::Function<void()>> discard_steps = {});
 WEB_API HTML::TaskID queue_fetch_task(GC::Ref<FetchController>, TaskDestination, GC::Ref<GC::Function<void()>>);
 
 }

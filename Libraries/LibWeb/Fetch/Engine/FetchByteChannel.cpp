@@ -250,6 +250,12 @@ FetchByteChannel::TerminateResult FetchByteChannel::cancel()
     return result;
 }
 
+bool FetchByteChannel::can_be_read_to_its_end() const
+{
+    MutexLocker locker { m_mutex };
+    return !m_state.has<ConsumerCancelled>() && !m_state.has<Transferred>();
+}
+
 Vector<Core::ImmutableBytes> FetchByteChannel::transfer_out()
 {
     PendingNotifications notifications;

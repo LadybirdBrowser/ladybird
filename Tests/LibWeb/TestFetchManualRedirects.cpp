@@ -179,6 +179,11 @@ TEST_CASE(a_redirect_without_a_location_is_accepted_as_the_navigations_response)
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "navigation params" }));
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "accept redirect of 1 as final" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /final-redirect" }));
+
+    // The fetch ends once the redirect's body has arrived.
+    request_server.send_finished(redirect_id);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "accept redirect of 1 as final", "end of body of 1", "end of fetch 1" }));
 }
 
 // The navigation leaves at a redirect it does not follow, whose request has not finished.
@@ -199,12 +204,13 @@ static void leave_at_a_redirect(StringView path, StringView location_value, Stri
     request_server.send_headers(redirect_id, 302, { location(location_value) });
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
-    // The navigation abandons the redirect, which releases its request's lease and stops it. Nothing else then keeps the
-    // fetch alive.
+    // The navigation abandons the redirect, which releases its request's lease and stops it, and the fetch ends. Nothing
+    // else then keeps the fetch alive.
     EXPECT_EQ(completions->steps, (Vector<ByteString> { expected_completion }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { ByteString::formatted("start 0 GET {}", path), "release lease 0", "stop 0" }));
     harness.run_queued_invocations();
     EXPECT(is_collected(harness, *token));
@@ -259,12 +265,13 @@ TEST_CASE(an_iframe_navigation_that_leaves_at_a_custom_scheme_location_abandons_
     request_server.send_headers(redirect_id, 302, { location("web+custom:redirected"sv) });
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
-    // The navigation abandons the redirect, which releases its request's lease and stops it. Nothing else then keeps the
-    // fetch alive.
+    // The navigation abandons the redirect, which releases its request's lease and stops it, and the fetch ends. Nothing
+    // else then keeps the fetch alive.
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "non-fetch scheme navigation params for web+custom:redirected" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /iframe-redirect", "release lease 0", "stop 0" }));
     harness.run_queued_invocations();
     EXPECT(is_collected(harness, *token));
@@ -305,10 +312,11 @@ TEST_CASE(a_navigation_blocked_by_content_security_policy_at_its_next_hop_abando
     request_server.send_headers(second_id, 302, { location("/form-action-final"sv) });
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("stop 1"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null: Blocked by Content Security Policy" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /form-action", "release lease 0", "stop 0", "start 1 GET /form-action-other-host", "release lease 1", "stop 1" }));
 }
 
@@ -330,10 +338,11 @@ TEST_CASE(an_iframe_navigation_whose_parent_document_is_no_longer_active_abandon
     request_server.send_headers(redirect_id, 302, { location("http://localhost:8000/parent-gone-other-origin"sv) });
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null: Parent document is no longer active" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /parent-gone", "release lease 0", "stop 0" }));
 }
 
@@ -352,11 +361,12 @@ TEST_CASE(a_redirect_abandoned_after_its_request_finished_has_its_lease_released
     request_server.send_finished(redirect_id);
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("release lease 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
     // A finished request is ended by the release of its lease alone.
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /finished-redirect", "release lease 0" }));
 }
 
@@ -399,8 +409,9 @@ TEST_CASE(a_redirect_followed_after_it_was_answered_leaves_no_next_hop_behind)
 
     abandon_the_redirect_then_follow_it(harness, token);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abandon redirect of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /answered-redirect", "release lease 0", "stop 0" }));
 
     // No next hop waits for the engine, and nothing else keeps the fetch alive.
@@ -432,11 +443,12 @@ TEST_CASE(a_redirect_followed_after_its_fetch_was_aborted_runs_no_hop)
     request_server.wait_for_message("stop 0"sv);
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /aborted-redirect", "release lease 0", "stop 0" }));
 
-    // The follow moves the request on to the next URL, but the engine runs no hop for it.
+    // The follow moves the request on to the next URL, but the engine runs no hop for the fetch, which has ended.
     harness.with_execution_context([&] { controller->process_next_manual_redirect(); });
     harness.run_until_step(commands, "follow redirect of 1"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "follow redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1", "follow redirect of 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /aborted-redirect", "release lease 0", "stop 0" }));
     EXPECT_EQ(describe_responses(*record), (Vector<ByteString> { "302" }));
     EXPECT_EQ(request->redirect_count(), 1);
@@ -476,11 +488,45 @@ TEST_CASE(a_navigation_aborted_while_its_redirect_waits_gets_no_network_error)
     // The queued task still runs the loop and follows the redirect, which runs no hop, so no aborted network error
     // reaches the navigation.
     harness.run_until_step(commands, "follow redirect of 1"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "follow redirect of 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1", "follow redirect of 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /taken-over-redirect", "release lease 0", "stop 0" }));
     EXPECT_EQ(controller->original_fetch_params()->request()->redirect_count(), 1);
+}
+
+// The navigation follows 20 redirects, and HTTP-redirect fetch returns a network error for the 21st without running main
+// fetch.
+TEST_CASE(a_redirect_past_the_last_one_a_navigation_can_follow_is_abandoned)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto completions = make_ref_counted<ReachedSteps>();
+
+    start_navigation(harness, completions, "http://127.0.0.1:8000/redirect-0"sv, "redirects"_utf16);
+    Vector<ByteString> expected_commands { "start fetch 1" };
+    Vector<ByteString> expected_messages;
+    for (size_t hop = 0; hop <= 20; ++hop) {
+        auto request_id = request_server.wait_for_request("GET"sv);
+        auto next_path = ByteString::formatted("/redirect-{}", hop + 1);
+        request_server.send_headers(request_id, 302, { location(next_path) });
+        expected_commands.append(hop < 20 ? "follow redirect of 1" : "abandon redirect of 1");
+        expected_messages.append(ByteString::formatted("start {} GET /redirect-{}", request_id, hop));
+        expected_messages.append(ByteString::formatted("release lease {}", request_id));
+        expected_messages.append(ByteString::formatted("stop {}", request_id));
+    }
+    expected_commands.append("end of fetch 1");
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    // Nothing reaches the navigation, which waits until another one takes over.
+    EXPECT(completions->steps.is_empty());
+    EXPECT_EQ(commands->steps, expected_commands);
+    EXPECT_EQ(request_server.messages(), expected_messages);
 }
 
 // A redirect is followed, and the fetch is aborted, stopped or taken over before the engine runs the next hop.
@@ -505,9 +551,10 @@ TEST_CASE(an_abort_before_the_engine_runs_a_followed_hop_hands_nothing_more_over
     });
     harness.run_until_step(commands, "abort 1"sv);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "abort 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "abort 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /abort-redirect", "release lease 0", "stop 0" }));
     EXPECT_EQ(describe_responses(*record), (Vector<ByteString> { "302" }));
 }
@@ -533,9 +580,10 @@ TEST_CASE(a_stop_before_the_engine_runs_a_followed_hop_starts_no_request)
     });
     harness.run_until_step(commands, "stop 1"sv);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "stop 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "stop 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /stop-redirect", "release lease 0", "stop 0" }));
     EXPECT_EQ(describe_responses(*record), (Vector<ByteString> { "302" }));
     EXPECT(!request->done());
@@ -555,14 +603,15 @@ TEST_CASE(a_navigation_aborted_before_the_engine_runs_its_next_hop_completes_onc
     request_server.send_headers(redirect_id, 302, { location("/hop-taken-over-final"sv) });
 
     // The engine has been handed the follow of the redirect, which it runs one deferred invocation later.
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(commands), [](auto& commands) { return commands->steps.contains_slow("follow redirect of 1"sv); }));
+    harness.run_until_step(commands, "follow redirect of 1"sv);
     change_ongoing_navigation(harness, "taking-over-hop"_utf16);
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null" }));
     harness.run_until_step(commands, "abort 1"sv);
     request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null" }));
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "abort 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "follow redirect of 1", "end of fetch 1", "abort 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /hop-taken-over", "release lease 0", "stop 0" }));
 }

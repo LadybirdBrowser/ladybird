@@ -72,7 +72,8 @@ public:
 
     [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
-    void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination) const;
+    // The discard steps run in place of processBody or processBodyError if the task that runs it is discarded.
+    void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination, GC::Ptr<GC::Function<void()>> discard_steps = {}) const;
     GC::Ref<Streams::ReadableStreamDefaultReader> incrementally_read(JS::Realm&, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
     GC::Ref<Streams::ReadableStreamDefaultReader> incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
     void incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, TaskDestination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error);

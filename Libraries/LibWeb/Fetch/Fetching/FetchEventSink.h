@@ -17,7 +17,8 @@
 
 namespace Web::Fetch::Fetching {
 
-// Receives a fetch's events on the agent that started the fetch, without keeping the fetch's controller alive.
+// Receives a fetch's events on the agent that started the fetch, without keeping the fetch's controller alive. Drops an
+// event that comes after the fetch's end, or once the controller is gone.
 class WEB_API FetchEventSink final : public Engine::EngineEventSink {
 public:
     explicit FetchEventSink(Infrastructure::FetchController const&);
@@ -25,11 +26,12 @@ public:
     virtual void handle_event(Engine::EngineEvent) override;
 
 private:
-    [[nodiscard]] GC::Ref<Infrastructure::FetchController> controller() const;
+    [[nodiscard]] GC::Ptr<Infrastructure::FetchController> controller() const;
 
     Infrastructure::FetchControllerToken m_controller_token;
     WeakPtr<Infrastructure::FetchControllerRegistry> m_controller_registry;
     AK::ThreadID m_agent_thread_id { AK::ThreadID::current() };
+    bool m_fetch_ended { false };
 };
 
 }

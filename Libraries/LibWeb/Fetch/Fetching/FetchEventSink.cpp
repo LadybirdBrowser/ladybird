@@ -24,12 +24,11 @@ FetchEventSink::FetchEventSink(Infrastructure::FetchController const& controller
 {
 }
 
-GC::Ref<Infrastructure::FetchController> FetchEventSink::controller() const
+GC::Ptr<Infrastructure::FetchController> FetchEventSink::controller() const
 {
-    VERIFY(m_controller_registry);
-    auto controller = m_controller_registry->find(m_controller_token);
-    VERIFY(controller);
-    return *controller;
+    if (!m_controller_registry)
+        return {};
+    return m_controller_registry->find(m_controller_token);
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
@@ -136,7 +135,12 @@ static void drain_request_body_stream(GC::Ref<Infrastructure::FetchController> c
 void FetchEventSink::handle_event(Engine::EngineEvent event)
 {
     VERIFY(m_agent_thread_id.is_current_thread());
-    auto controller = this->controller();
+    if (m_fetch_ended)
+        return;
+    auto found_controller = this->controller();
+    if (!found_controller)
+        return;
+    GC::Ref controller = *found_controller;
 
     event.visit(
         [&](Engine::Event::RequestBodyProgress const& progress) {
@@ -167,6 +171,10 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         },
         [&](Engine::Event::EndOfBody const& end_of_body) {
             controller->did_end_body(end_of_body);
+        },
+        [&](Engine::Event::FetchEnded const&) {
+            m_fetch_ended = true;
+            controller->did_end_fetch();
         },
         [](Engine::Event::ResponseDelivery const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::ConsumeBodyResult const&) { VERIFY_NOT_REACHED(); },

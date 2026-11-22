@@ -87,6 +87,9 @@ struct ReadRequestBodyStream { };
 // A request's body is sent from its source.
 struct RequestBodySentFromSource { };
 
+// The fetch's last event: its engine will send nothing more for it.
+struct FetchEnded { };
+
 }
 
 namespace Web::Fetch::Engine {
@@ -103,6 +106,7 @@ using EngineEvent = Variant<
     Event::RequestBodyEndOfBody,
     Event::ReadRequestBodyStream,
     Event::RequestBodySentFromSource,
-    Event::NetworkActivity>;
+    Event::NetworkActivity,
+    Event::FetchEnded>;
 
 }
