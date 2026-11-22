@@ -1234,9 +1234,9 @@ void RTCPeerConnection::on_remote_track_added(u64 receiver_id, u64 transceiver_i
     //   - Firing one RTCTrackEvent per init.
     //   - Muting each track in muteTracks.
     for (auto& pair : add_list)
-        pair.stream->add_track(pair.track);
+        pair.stream->add_a_track(pair.track);
     for (auto& pair : remove_list)
-        pair.stream->remove_track(pair.track);
+        pair.stream->remove_a_track(pair.track);
     for (auto& init : track_event_inits) {
         auto event = RTCTrackEvent::create(HTML::EventNames::track,
             init.receiver, init.track, move(init.streams), init.transceiver,
