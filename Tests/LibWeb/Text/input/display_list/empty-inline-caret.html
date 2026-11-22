@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>before <span contenteditable style="padding: 0 4px; border: 1px solid black"></span> after</div>
+<script>
+    test(() => {
+        document.querySelector("span").focus();
+        println(internals.dumpDisplayList());
+    });
+</script>
