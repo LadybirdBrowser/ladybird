@@ -153,6 +153,22 @@ impl Visitor {
         unsafe { gc_visitor_visit_ephemeron(self.0.as_ptr(), key.as_ptr().cast(), core::ptr::from_ref(value).cast()) };
     }
 
+    /// Visits `value`, a cell that is reachable only while `key` is, by value: it stays where it is in a collection
+    /// that moves cells, even if it dies. Visitors that do not mark see the value as reachable.
+    pub fn visit_ephemeron_cell<K, V>(&mut self, key: Gc<K>, value: Gc<V>) {
+        let Some(marker) = self.marker() else {
+            self.visit(value);
+            return;
+        };
+        // SAFETY: The marker is the visitor's, and both are live cells. The value is pinned, so no slot needs to be
+        //         handed to the collection. The key is only looked at, and moves of it change nothing the caller
+        //         holds.
+        unsafe {
+            gc_marker_pin_cell(marker.as_ptr(), value.as_ptr().cast());
+            gc_marker_visit_ephemeron_without_pinning(marker.as_ptr(), key.as_ptr().cast(), value.as_ptr().cast());
+        }
+    }
+
     /// Visits a value that is reachable only while `key` is, such as a WeakMap entry's, without keeping either from
     /// moving.
     ///
