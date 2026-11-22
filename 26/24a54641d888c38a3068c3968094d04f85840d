@@ -1,0 +1,9 @@
+Ladybird now keeps a computed font size in single precision, and
+resolves em and rem lengths and relative font sizes against that value
+unrounded. Blink holds it as a float in FontDescription and resolves
+lengths against it in CSSToLengthConversionData; Gecko holds it as an
+f32 CSSPixelLength in Stylo’s computed FontSize; WebKit holds it as a
+float in FontDescription::computedSize(). Run in Chrome 158, Firefox 151
+and WebKit 26.5, -0.9375rem at a 17.6px root is -16.5px, 110% of 17.6px
+is 19.36px, larger than that is 23.232px, and 300% of 13.333333px is
+40px, in all three, as in Ladybird now.
