@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selection.toString() with user-select: none elements</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<div id="test-content">
+  <!-- Test case 1: Basic user-select: none -->
+  <div id="basic">
+    a<span style="user-select: none;">b</span>c
+  </div>
+
+  <!-- Test case 2: Nested user-select: none -->
+  <div id="nested">
+    start <span style="user-select: none;">unselectable <strong>nested</strong>
+    text</span> end
+  </div>
+
+  <!-- Test case 3: Selectable children inside unselectable container -->
+  <div id="container" style="user-select: none;">
+    <span style="user-select: text;">selectable</span> unselectable
+    <span style="user-select: text;">text</span>
+  </div>
+</div>
+
+<script>
+function selectAllAndGetSelectionTextInElement(element) {
+  const selection = getSelection();
+  selection.removeAllRanges();
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.addRange(range);
+  return selection.toString();
+}
+
+test(() => {
+  const result = selectAllAndGetSelectionTextInElement(document.getElementById('basic'));
+  assert_equals(result, 'ac',
+    'Basic user-select: none content should be excluded');
+}, 'Selection.toString() excludes basic user-select: none content');
+
+test(() => {
+  const result = selectAllAndGetSelectionTextInElement(document.getElementById('nested'));
+  assert_equals(result, 'start  end',
+    'Nested user-select: none content should be excluded');
+}, 'Selection.toString() excludes nested user-select: none content');
+
+test(() => {
+  const result = selectAllAndGetSelectionTextInElement(document.getElementById('container'));
+  assert_equals(result, 'selectabletext',
+    'Selectable children should be included even in unselectable container');
+}, 'Selection.toString() includes selectable children in unselectable ' +
+   'container');
+</script>

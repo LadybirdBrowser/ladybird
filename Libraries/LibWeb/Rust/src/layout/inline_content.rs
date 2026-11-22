@@ -55,7 +55,10 @@ impl PartialEq for GlyphInkOfLines {
 /// The indices of each node's fragments in its line root's content, which queries that start from a node look up in a
 /// line root with many fragments. Most line roots are never asked, so the index is built the first time one is.
 #[derive(Default)]
-pub struct TextFragmentIndex(std::sync::OnceLock<InlineBoxIndex>);
+pub struct TextFragmentIndex {
+    fragments: std::sync::OnceLock<InlineBoxIndex>,
+    fragmentless_break_lines: std::sync::OnceLock<Box<InlineBoxIndex>>,
+}
 
 // NB: The index follows from the fragments, so a copy builds its own, and it does not tell two contents apart.
 impl Clone for TextFragmentIndex {
@@ -696,8 +699,22 @@ impl InlineContent {
     /// The indices of the fragments of `node`, in fragment order.
     pub(crate) fn fragment_indices_of(&self, node: NodeSlotId) -> &[u32] {
         self.text_fragments
-            .0
+            .fragments
             .get_or_init(|| InlineBoxIndex::of_nodes(self.fragments.iter().map(|fragment| fragment.layout_node)))
+            .piece_indices_of(node)
+    }
+
+    /// Lines with a preserved break owned by this node and no fragments to identify the line by.
+    pub(crate) fn fragmentless_break_lines_of(&self, node: NodeSlotId) -> &[u32] {
+        self.text_fragments
+            .fragmentless_break_lines
+            .get_or_init(|| {
+                Box::new(InlineBoxIndex::of_nodes(self.lines.iter().map(|line| {
+                    line.forced_break
+                        .filter(|_| line.fragment_count == 0)
+                        .map_or(NodeSlotId::INVALID, |position| position.node)
+                })))
+            })
             .piece_indices_of(node)
     }
 

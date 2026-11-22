@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/ClipboardSerializer.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
@@ -539,11 +540,9 @@ Utf16String Selection::to_string() const
     if (auto form_text = try_form_control_selected_text_for_stringifier(); form_text.has_value())
         return form_text.release_value();
 
-    // FIXME: This needs more work to be compatible with other engines.
-    //        See https://www.w3.org/Bugs/Public/show_bug.cgi?id=10583
-    if (!m_range)
+    if (!m_range || m_range->collapsed())
         return {};
-    return m_range->to_string();
+    return Editing::serialize_selection_as_plain_text(*m_range);
 }
 
 GC::Ref<DOM::Document> Selection::document() const

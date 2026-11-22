@@ -719,6 +719,40 @@ pub extern "C" fn render_state_text_has_lines(host: &DocumentHost, primary: Node
     })
 }
 
+/// The first and last DOM offsets on lines belonging to this text, including fragmentless preserved breaks.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_line_bounds(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    bounds: &mut FfiVisualLine,
+) -> bool {
+    fn line_bounds(rows: &impl PaintRead, primary: NodeSlotId) -> Option<FfiVisualLine> {
+        let lines = InlineCursor::new(rows).lines_of_text(primary);
+        Some(FfiVisualLine {
+            start_offset: lines.first()?.start_offset,
+            end_offset: lines.last()?.end_offset,
+        })
+    }
+
+    // A fragmentless break maps its rendered offset back to the DOM through the text of its row.
+    let known = host.read_known_rows(|snapshot, rows| {
+        snapshot
+            .text_awaiting_render()
+            .is_empty()
+            .then(|| line_bounds(rows, primary))
+    });
+    let result = known.flatten().unwrap_or_else(|| {
+        read_arena(host, node_read(), primary, |arena, primary| {
+            line_bounds(&arena.paintable_rows(), primary)
+        })
+    });
+    if let Some(result) = result {
+        *bounds = result;
+        return true;
+    }
+    false
+}
+
 /// The caret position at the start of the first line of the DOM text whose layout node is `primary`, or at the end of
 /// its last line.
 #[unsafe(no_mangle)]
