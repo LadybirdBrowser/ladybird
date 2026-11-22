@@ -23,7 +23,7 @@ pub use libjs_jit::snapshot::CellId;
 use super::code::CompileState;
 use crate::bytecode::executable::Executable;
 use crate::gc::sweep::Sweep;
-use crate::gc::weak::GcWeak;
+use crate::gc::weak::{GcWeak, SweptAfterCollection};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
@@ -42,8 +42,9 @@ struct DependentCode {
 #[derive(Default)]
 pub struct Dependents {
     code: RefCell<HashMap<Dependency, Vec<DependentCode>>>,
-    /// The slots of the named properties of global objects that may have been assigned, as bit sets by the address of
-    /// the object, which only VMs that compile note (see `Dependency::GlobalPropertyUnassigned`).
+    /// The slots of the named properties of global objects that may have been assigned, as bit sets by the object,
+    /// which only VMs that compile note (see `Dependency::GlobalPropertyUnassigned`). The table is keyed by the
+    /// identity of the objects, which moves do not change, and a collection that moves an object rewrites its key.
     ///
     /// A slot is assigned when the runtime changes a value other than undefined in it to another one, or deletes its
     /// property or one before it, which moves the property. Giving a slot its first value that is not undefined, as
@@ -57,8 +58,12 @@ pub struct Dependents {
     /// `global_object_slot_may_have_been_assigned()`). And no other object ever gets one of the shapes of a global
     /// object once it has a dictionary shape, which belongs to it alone, as do the shapes it gets from that one, so
     /// that writes the caches made for other objects never apply to it.
-    assigned_global_object_slots: RefCell<HashMap<usize, Vec<u64>>>,
+    assigned_global_object_slots: RefCell<HashMap<Gc<Object>, Vec<u64>>>,
 }
+
+// SAFETY: The VM's sweep callback calls remove_dead_entries() after each collection, which forgets the global objects
+//         that died.
+unsafe impl SweptAfterCollection for Dependents {}
 
 impl Dependents {
     /// Records that the code with `id` installed for `executable` depends on `dependencies`.
@@ -111,12 +116,15 @@ impl Dependents {
                 sweep.is_dead(cell)
             })
         });
-        self.assigned_global_object_slots.borrow_mut().retain(|&object, _| {
-            // SAFETY: The map only holds objects that were live when their entries were added, and a dead object is
-            //         intact until the sweep that follows this callback.
-            let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
-            !sweep.is_dead(object)
-        });
+        let mut assigned_global_object_slots = self.assigned_global_object_slots.borrow_mut();
+        assigned_global_object_slots.retain(|object, _| !sweep.is_dead(*object));
+        if sweep.moves_cells() {
+            for object in assigned_global_object_slots.keys() {
+                // SAFETY: Only note_global_object_slot_assignments() changes the table, which nothing calls until the
+                //         collection is over.
+                unsafe { sweep.record_slot(object) };
+            }
+        }
     }
 }
 
@@ -128,7 +136,7 @@ pub fn global_object_slot_may_have_been_assigned(vm: &Vm, object: &Object, offse
     }
     let slots = vm.jit.dependents.assigned_global_object_slots.borrow();
     slots
-        .get(&(core::ptr::from_ref(object) as usize))
+        .get(&Gc::from_ref(object))
         .and_then(|bits| bits.get(offset as usize / 64))
         .is_some_and(|word| word & (1 << (offset % 64)) != 0)
 }
@@ -142,7 +150,7 @@ pub fn note_global_object_slot_assignments(vm: &Vm, object: &Object, offsets: Ra
     for offset in offsets {
         {
             let mut slots = vm.jit.dependents.assigned_global_object_slots.borrow_mut();
-            let bits = slots.entry(core::ptr::from_ref(object) as usize).or_default();
+            let bits = slots.entry(Gc::from_ref(object)).or_default();
             let word = offset as usize / 64;
             if bits.len() <= word {
                 bits.resize(word + 1, 0);
