@@ -1268,6 +1268,30 @@ display_list_record_fields!(FillRoundedRectRing {
     color
 });
 
+impl FillRoundedRectRing {
+    /// The widths of the top, right, bottom and left edges, each cut to what the rect holds besides the edge across from
+    /// it.
+    pub fn widths_within_rect(&self) -> [i32; 4] {
+        let top = self.top_width.clamp(0, self.rect.height.max(0));
+        let bottom = self.bottom_width.clamp(0, (self.rect.height - top).max(0));
+        let left = self.left_width.clamp(0, self.rect.width.max(0));
+        let right = self.right_width.clamp(0, (self.rect.width - left).max(0));
+        [top, right, bottom, left]
+    }
+
+    /// The rect inside the inner edge of the ring as if its corners were square, which the ring leaves unfilled. None
+    /// where it lies past the coordinates a rect holds.
+    pub fn unfilled_inner_rect(&self) -> Option<IntRect> {
+        let [top, right, bottom, left] = self.widths_within_rect();
+        Some(IntRect::new(
+            self.rect.x.checked_add(left)?,
+            self.rect.y.checked_add(top)?,
+            self.rect.width - left - right,
+            self.rect.height - top - bottom,
+        ))
+    }
+}
+
 impl DisplayListCommand for FillRoundedRectRing {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::FillRoundedRectRing;
     fn bounding_rect(&self) -> Option<IntRect> {

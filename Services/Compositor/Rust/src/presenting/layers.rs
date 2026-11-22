@@ -1390,43 +1390,35 @@ impl ContextPresenting {
                             PaintedLayerPresentation::HeldByFrame { why }
                         },
                     },
-                    LayerContent::Media { .. } => ModelLayerContent::Media {
+                    LayerContent::Media { .. } | LayerContent::OwnSurface { .. } => ModelLayerContent::Media {
                         reach: layer.reach,
                         presentation: if window_server_shows_layers && compositing.shown_by_window_server {
                             MediaPresentation::ShownByWindowServer
                         } else {
-                            let why = why_context_shows_no_media
-                                .or_else(|| {
-                                    self.why_window_server_does_not_show_media_layer(
+                            let why = match why_context_shows_no_media {
+                                Some(why_context_shows_no_media) => why_context_shows_no_media.to_string(),
+                                // The compositor paints the surface of a caret or scroll bar, which the frame holds only
+                                // as it holds a painted layer.
+                                None if matches!(layer.content, LayerContent::OwnSurface { .. }) => self
+                                    .why_frame_holds_layer(env, &layer_update.layers, layer_index, live_content)
+                                    .to_string(),
+                                None => self
+                                    .why_window_server_does_not_show_media_layer(
                                         env,
                                         &layer_update.layers.window_server_placements_of_media,
                                         layer_index,
                                         layer,
                                         live_content,
                                     )
-                                })
-                                .unwrap_or(if some_tiles_were_painted_straight {
-                                    WhyMediaIsReplayed::TilesWerePaintedStraightIntoTheFrame
-                                } else if stack.layer_is_inside_composited_effects(layer_index) {
-                                    WhyMediaIsReplayed::InsideAnEffectTheCompositorComposites
-                                } else {
-                                    WhyMediaIsReplayed::UnderALayerTheFrameHolds
-                                });
-                            MediaPresentation::Replayed { why: why.to_string() }
-                        },
-                    },
-                    LayerContent::OwnSurface { .. } => ModelLayerContent::Media {
-                        reach: layer.reach,
-                        presentation: if window_server_shows_layers && compositing.shown_by_window_server {
-                            MediaPresentation::ShownByWindowServer
-                        } else {
-                            let why = why_context_shows_no_media.map_or_else(
-                                || {
-                                    self.why_frame_holds_layer(env, &layer_update.layers, layer_index, live_content)
-                                        .to_string()
-                                },
-                                |why| why.to_string(),
-                            );
+                                    .unwrap_or(if some_tiles_were_painted_straight {
+                                        WhyMediaIsReplayed::TilesWerePaintedStraightIntoTheFrame
+                                    } else if stack.layer_is_inside_composited_effects(layer_index) {
+                                        WhyMediaIsReplayed::InsideAnEffectTheCompositorComposites
+                                    } else {
+                                        WhyMediaIsReplayed::UnderALayerTheFrameHolds
+                                    })
+                                    .to_string(),
+                            };
                             MediaPresentation::Replayed { why }
                         },
                     },

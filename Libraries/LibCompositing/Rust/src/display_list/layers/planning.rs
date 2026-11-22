@@ -23,7 +23,7 @@ use super::{
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
 use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
-use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, SpatialNodeIndex};
+use crate::display_list::commands::{EffectNodeIndex, SpatialNodeIndex};
 use crate::display_list::effect_geometry::{
     FiltersOfEffects, KeyframeFiltersOfEffects, backdrop_filter_read_reach, filter_may_spread_at_some_sample,
     filter_read_reach_in_device_pixels,
@@ -979,14 +979,8 @@ impl<'a> ListBeingPlaced<'a> {
     ) -> Option<WhyMediaHasNoLayer> {
         let run_index = record.run_index as usize;
         let (header, _) = self.list.record_at(record.position);
-        if !matches!(
-            header.command_type,
-            DisplayListCommandType::DrawCanvas
-                | DisplayListCommandType::DrawVideoFrame
-                | DisplayListCommandType::DrawCompositedContext
-                | DisplayListCommandType::PaintCaret
-                | DisplayListCommandType::PaintScrollBar
-        ) {
+        // Live content nested in another command is noted at the top-level record around it.
+        if !header.command_type.is_alone_in_its_run() {
             return Some(WhyMediaHasNoLayer::DrawnInsideAnotherCommand);
         }
         let run = self.list.run(run_index);
