@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // The resolved value of a line-height is its computed length, or a number times the computed font size, not the
+        // line box's height, which layout rounds.
+        const cases = [
+            ["17.6px", "10"],
+            ["13.3px", "1.15"],
+            ["16px", "1.2"],
+            ["15px", "1.333"],
+            ["11.7px", "1.5"],
+            ["1.1em", "1.4"],
+            ["16px", "38.4px"],
+            ["17.6px", "1.2em"],
+            ["13.3px", "120%"],
+        ];
+        for (const [font_size, line_height] of cases) {
+            const div = document.createElement("div");
+            div.style.fontSize = font_size;
+            div.style.lineHeight = line_height;
+            div.textContent = "x";
+            root.appendChild(div);
+            println(`font-size: ${font_size}, line-height: ${line_height} -> ${getComputedStyle(div).lineHeight}`);
+            div.remove();
+        }
+    });
+</script>
