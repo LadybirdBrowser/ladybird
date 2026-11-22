@@ -9,6 +9,7 @@ import functools
 import hashlib
 import io
 import json
+import lzma
 import os
 import pathlib
 import re
@@ -51,6 +52,7 @@ VCPKG_ASSET_CACHE_URL = "https://vcpkg-cache.app.ladybird.org/ladybird/source-as
 
 GITHUB_SOURCE_PATTERN = re.compile(r"^git\+https://github\.com/(?P<repository>[^/@]+/[^/@]+)@(?P<ref>.+)$")
 UNSAFE_NAME_CHARACTERS = re.compile(r"[^A-Za-z0-9._+-]")
+GIT_SOURCE_FORMAT = "tar.xz"
 
 CRATE_LICENSE_FILE_PATTERN = re.compile(r"^(licen[cs]e|copying|copyright|notice|unlicense|patents)", re.IGNORECASE)
 
@@ -449,10 +451,13 @@ def flatpak_patch(module: dict[str, Any], source: dict[str, Any], manifest_dir: 
 
 
 # Like the archive of a vcpkg port, the name says what the archive holds: the module that builds the library, which
-# pins the commits and digests of its sources, and the patches that it applies.
+# pins the commits and digests of its sources, the format that its git sources are packed in, and the patches that it
+# applies.
 def flatpak_archive_name(module: dict[str, Any], manifest_dir: pathlib.Path) -> str:
     lines = [f"module {json.dumps(module, sort_keys=True)}"]
     for source in module["sources"]:
+        if source.get("type") == "git":
+            lines.append(f"git {GIT_SOURCE_FORMAT}")
         if source.get("type") == "patch":
             path = flatpak_patch(module, source, manifest_dir)
             lines.append(f"patch {source['path']} {hashlib.sha256(path.read_bytes()).hexdigest()}")
@@ -530,12 +535,12 @@ def fetch_git_source(source: dict[str, Any], work_dir: pathlib.Path) -> tuple[st
     name = source["url"].rstrip("/").removesuffix(".git").rpartition("/")[2]
     root = f"{name}-{source.get('tag') or commit}"
     archive = subprocess.run(
-        ["git", "-C", str(repository), "archive", "--format=tar.gz", f"--prefix={root}/", commit],
+        ["git", "-C", str(repository), "archive", "--format=tar", f"--prefix={root}/", commit],
         check=True,
         stdout=subprocess.PIPE,
     ).stdout
     shutil.rmtree(repository)
-    return f"{root}.tar.gz", archive
+    return f"{root}.{GIT_SOURCE_FORMAT}", lzma.compress(archive, preset=9 | lzma.PRESET_EXTREME)
 
 
 def fetch_archive_source(source: dict[str, Any]) -> tuple[str, bytes]:
