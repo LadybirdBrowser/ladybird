@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Disabled fieldset elements should not prevent click event propagation from native click
+Pass	Disabled fieldset elements should not block click events from native click.
+Pass	Disabled fieldset elements should not prevent click event propagation from click()
+Pass	Disabled fieldset elements should not block click events from click().

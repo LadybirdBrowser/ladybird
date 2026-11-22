@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Testing mousedown events when clicking child of disabled button.
+Pass	Testing mousedown events when clicking child of disabled my-control.
+Pass	Testing mousedown events when clicking disabled button.
+Pass	Testing mousedown events when clicking disabled my-control.
+Pass	Testing mouseup events when clicking child of disabled button.
+Pass	Testing mouseup events when clicking child of disabled my-control.
+Pass	Testing mouseup events when clicking disabled button.
+Pass	Testing mouseup events when clicking disabled my-control.
+Pass	Testing pointerdown events when clicking child of disabled button.
+Pass	Testing pointerdown events when clicking child of disabled my-control.
+Pass	Testing pointerdown events when clicking disabled button.
+Pass	Testing pointerdown events when clicking disabled my-control.
+Pass	Testing pointerup events when clicking child of disabled button.
+Pass	Testing pointerup events when clicking child of disabled my-control.
+Pass	Testing pointerup events when clicking disabled button.
+Pass	Testing pointerup events when clicking disabled my-control.
+Pass	Testing click events when clicking child of disabled button.
+Pass	Testing click events when clicking child of disabled my-control.
+Pass	Testing click events when clicking disabled button.
+Pass	Testing click events when clicking disabled my-control.

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Testing dblclick events when clicking child of disabled button.
+Pass	Testing dblclick events when clicking child of disabled my-control.
+Pass	Testing dblclick events when clicking disabled button.
+Pass	Testing dblclick events when clicking disabled my-control.
+Pass	Testing auxclick events when clicking child of disabled button.
+Pass	Testing auxclick events when clicking child of disabled my-control.
+Pass	Testing auxclick events when clicking disabled button.
+Pass	Testing auxclick events when clicking disabled my-control.

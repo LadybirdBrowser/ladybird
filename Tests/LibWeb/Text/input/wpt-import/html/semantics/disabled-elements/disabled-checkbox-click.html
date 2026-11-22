@@ -1,0 +1,26 @@
+<!doctype html>
+<link rel="author" title="Aditya Keerthi" href="https://github.com/pxlcoder">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#enabling-and-disabling-form-controls:-the-disabled-attribute">
+<title>Test disabled checkbox does not change state when clicked</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+
+<input type="checkbox" disabled>
+<script>
+const input = document.querySelector("input");
+
+promise_test(async function() {
+    assert_false(input.checked);
+
+    await new test_driver.Actions()
+        .pointerMove(0, 0, { origin: input })
+        .pointerDown()
+        .pointerUp()
+        .send();
+
+    assert_false(input.checked);
+}, `Disabled checkbox does not change state when clicked`);
+</script>

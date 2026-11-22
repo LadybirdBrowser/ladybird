@@ -271,7 +271,7 @@ private:
     GC::Ptr<DOM::Node> focus_candidate_for_position(Layout::BegunRead const& read, CSSPixelPoint) const;
 
     void run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count);
-    void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
+    void run_activation_behavior(DOM::Node const&, unsigned button, unsigned modifiers);
 
     void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
     bool maybe_request_paste_for_middle_click(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);

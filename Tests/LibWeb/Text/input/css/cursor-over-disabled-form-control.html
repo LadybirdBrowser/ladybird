@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    button, input { display: block; width: 200px; height: 40px; margin: 0 0 10px; }
+    :disabled { cursor: not-allowed; }
+</style>
+<button id="disabled-button" disabled>disabled</button>
+<input id="disabled-input" disabled>
+<fieldset id="fieldset" disabled><button id="button-in-disabled-fieldset">in a disabled fieldset</button></fieldset>
+<button id="disabled-by-its-click">disabled by its click</button>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    // A disabled form control gets no mouse events, but the pointer over it still shows its cursor, also where it
+    // becomes disabled under a pointer that doesn't move.
+    asyncTest(async done => {
+        const center = element => {
+            const rect = element.getBoundingClientRect();
+            return [rect.left + 50, rect.top + 20];
+        };
+        for (const id of ["disabled-button", "disabled-input", "button-in-disabled-fieldset"]) {
+            internals.mouseMove(...center(document.getElementById(id)));
+            await nextRenderingUpdate();
+            println(`cursor over #${id}: ${internals.currentCursor()}`);
+        }
+
+        const button = document.getElementById("disabled-by-its-click");
+        button.addEventListener("click", () => { button.disabled = true; });
+        internals.mouseMove(...center(button));
+        await nextRenderingUpdate();
+        println(`cursor over #${button.id} before its click: ${internals.currentCursor()}`);
+        internals.click(...center(button));
+        await nextRenderingUpdate();
+        await nextRenderingUpdate();
+        println(`cursor over #${button.id} after its click: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

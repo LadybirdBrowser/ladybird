@@ -378,16 +378,9 @@ static bool parent_element_for_event_dispatch(Layout::Node& target_layout_node, 
             layout_node = generator_layout_node;
     }
 
-    // An event aimed at a disabled form control is not dispatched, and neither is one aimed at
-    // anything under one, including the contents of its shadow tree.
     // NB: The document outlives every live row of its arena.
     VERIFY(arena.document());
     auto& document = *arena.document();
-    for (GC::Ptr<DOM::Node> ancestor = identity.resolve(document); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(*ancestor); form_associated_element && !form_associated_element->enabled())
-            return false;
-    }
-
     while (layout_node && identity && !identity_names_element(identity)) {
         auto row_identity = layout_node->is_anonymous() ? DOM::NodeIdentity {} : layout_node->dom_node_identity();
         if (row_identity && row_identity != identity) {
@@ -400,6 +393,23 @@ static bool parent_element_for_event_dispatch(Layout::Node& target_layout_node, 
     }
     node = identity.resolve(document);
     return node && layout_node;
+}
+
+// A click goes no further than the first disabled form control on its path, so it activates a link inside that control,
+// but not a link the control is in. The walk follows the flat tree, as the click's path and the link lookup do.
+static GC::Ptr<DOM::Element const> link_reached_by_click(DOM::Node const& click_target)
+{
+    auto const* link = click_target.enclosing_link_element();
+    if (!link)
+        return nullptr;
+    auto const& link_element = link->hyperlink_element_utils_element();
+    for (DOM::Node const* ancestor = &click_target; ancestor; ancestor = ancestor->flat_tree_parent()) {
+        if (ancestor == &link_element)
+            return link_element;
+        if (auto const* element = as_if<DOM::Element>(*ancestor); element && element->is_disabled_form_control())
+            return nullptr;
+    }
+    return nullptr;
 }
 
 EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
@@ -922,6 +932,9 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         if (auto* click_layout_node = click_target->layout_node(read))
             coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *click_layout_node);
 
+        // NB: The link a click can activate is decided before its listeners run, as the click's path is.
+        auto const link = link_reached_by_click(*click_target);
+
         // https://www.w3.org/TR/pointerevents3/#event-dispatch
         // Dispatch event to target following the [UIEVENTS] spec.
         if (fire_click_events(*click_target, coordinates, screen_position, button, buttons, modifiers, click_count)
@@ -937,7 +950,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             //        some way to be able to communicate with browsing contexts in remote WebContent processes, and
             //        then step 8 of this algorithm needs to be implemented in LocalNavigable::choose_a_navigable:
             //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
-            run_activation_behavior(*click_target, button, modifiers);
+            if (link)
+                run_activation_behavior(*link, button, modifiers);
         }
     }
 
@@ -3977,9 +3991,9 @@ void EventHandler::finish_selection_from_preserved_mousedown(DOM::Document& docu
 }
 #endif
 
-void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned button, unsigned modifiers)
+void EventHandler::run_activation_behavior(DOM::Node const& node, unsigned button, unsigned modifiers)
 {
-    if (auto const* link = node->enclosing_link_element()) {
+    if (auto const* link = node.enclosing_link_element()) {
         GC::Ref<DOM::Document> document = *m_navigable->active_document();
         auto href = link->href();
 
@@ -4230,6 +4244,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
 static bool is_middle_click_paste_target(DOM::Node const& node)
 {
+    // NB: A disabled input or textarea takes no paste, not even into the editable text inside it.
+    auto const* text_control = node.find_in_shadow_including_ancestry([](DOM::Node const& node) {
+        return is<HTML::HTMLInputElement>(node) || is<HTML::HTMLTextAreaElement>(node);
+    });
+    if (text_control && as<DOM::Element>(*text_control).is_disabled_form_control())
+        return false;
+
     if (node.is_editable_or_editing_host())
         return true;
 
@@ -5492,6 +5513,8 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
                     for (auto* ancestor = mouse_target.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host())
                         touch_hover_ancestors.append(*ancestor);
                 }
+                // NB: The link a click can activate is decided before its listeners run, as the click's path is.
+                auto const link = link_reached_by_click(*click_target);
                 auto click = create_pointer_event(pointer, *click_target, UIEvents::EventNames::click, click_coordinates, screen_position, 0);
                 auto allowed = click_target->dispatch_event(click);
                 if (m_navigable->active_document() != document)
@@ -5505,8 +5528,8 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
                         break;
                     }
                 }
-                if (allowed)
-                    run_activation_behavior(*click_target, to_underlying(input.button), pointer.modifiers);
+                if (allowed && link)
+                    run_activation_behavior(*link, to_underlying(input.button), pointer.modifiers);
             }
         }
     }

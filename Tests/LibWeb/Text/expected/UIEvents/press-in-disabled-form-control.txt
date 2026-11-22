@@ -1,0 +1,14 @@
+left-click on #disabled-input: focused body
+right-click on #disabled-input: focused body
+left-click on #disabled-button: focused body
+right-click on #disabled-button: focused body
+a click on #disabled-button keeps the page's selection: "some plain text here"
+a click on #link-in-button:
+    location.hash is "#from-link-in-button"
+a click on #button-in-link:
+    location.hash is ""
+a click on #slotted:
+    location.hash is ""
+a click on #submit-in-control:
+    the form was submitted
+    location.hash is ""
