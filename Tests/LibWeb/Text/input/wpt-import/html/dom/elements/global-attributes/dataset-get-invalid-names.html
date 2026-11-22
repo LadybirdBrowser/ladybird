@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Dataset - Get with names that do not correspond to a data-* attribute</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-nameditem">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+function makeElement(attributes) {
+  const element = document.createElement("div");
+  for (const [name, value] of attributes)
+    element.setAttributeNS(null, name, value);
+  return element;
+}
+
+const cases = [
+  { attribute: "aria-label", property: "label" },
+  { attribute: "title", property: "" },
+  { attribute: "class", property: "" },
+  { attribute: "dataxfoo", property: "foo" },
+  { attribute: "data-Foo", property: "Foo" },
+  { attribute: "data-foo-bar", property: "foo-bar" },
+  { attribute: "data-foo-bar-baz", property: "foo-barBaz" },
+];
+
+for (const { attribute, property } of cases) {
+  for (const extra of [[], [["id", "x"]]]) {
+    const label = `${extra.length + 1} attribute(s): ${attribute}`;
+
+    test(() => {
+      const element = makeElement([[attribute, "value"], ...extra]);
+      assert_equals(element.dataset[property], undefined);
+    }, `${label}: dataset[${JSON.stringify(property)}] is undefined`);
+
+    test(() => {
+      const element = makeElement([[attribute, "value"], ...extra]);
+      assert_false(property in element.dataset);
+    }, `${label}: ${JSON.stringify(property)} in dataset is false`);
+  }
+}
+</script>

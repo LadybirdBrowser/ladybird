@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	An elements dataset property is an instance of a DOMStringMap
+Pass	Properties on Object.prototype should shine through.

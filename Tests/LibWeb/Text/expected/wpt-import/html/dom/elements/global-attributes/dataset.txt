@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	HTML elements should have a .dataset
+Pass	Should return 'undefined' before setting an attribute
+Pass	Should return 'value' if that's the value
+Pass	Should return the empty string if that's the value
+Pass	Should return 'undefined' after removing an attribute
+Pass	Should not have a .dataset on random elements
+Pass	SVG elements should have a .dataset
+Pass	MathML elements should have a .dataset

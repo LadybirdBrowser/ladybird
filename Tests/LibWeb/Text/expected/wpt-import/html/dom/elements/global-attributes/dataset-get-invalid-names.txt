@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	1 attribute(s): aria-label: dataset["label"] is undefined
+Pass	1 attribute(s): aria-label: "label" in dataset is false
+Pass	2 attribute(s): aria-label: dataset["label"] is undefined
+Pass	2 attribute(s): aria-label: "label" in dataset is false
+Pass	1 attribute(s): title: dataset[""] is undefined
+Pass	1 attribute(s): title: "" in dataset is false
+Pass	2 attribute(s): title: dataset[""] is undefined
+Pass	2 attribute(s): title: "" in dataset is false
+Pass	1 attribute(s): class: dataset[""] is undefined
+Pass	1 attribute(s): class: "" in dataset is false
+Pass	2 attribute(s): class: dataset[""] is undefined
+Pass	2 attribute(s): class: "" in dataset is false
+Pass	1 attribute(s): dataxfoo: dataset["foo"] is undefined
+Pass	1 attribute(s): dataxfoo: "foo" in dataset is false
+Pass	2 attribute(s): dataxfoo: dataset["foo"] is undefined
+Pass	2 attribute(s): dataxfoo: "foo" in dataset is false
+Pass	1 attribute(s): data-Foo: dataset["Foo"] is undefined
+Pass	1 attribute(s): data-Foo: "Foo" in dataset is false
+Pass	2 attribute(s): data-Foo: dataset["Foo"] is undefined
+Pass	2 attribute(s): data-Foo: "Foo" in dataset is false
+Pass	1 attribute(s): data-foo-bar: dataset["foo-bar"] is undefined
+Pass	1 attribute(s): data-foo-bar: "foo-bar" in dataset is false
+Pass	2 attribute(s): data-foo-bar: dataset["foo-bar"] is undefined
+Pass	2 attribute(s): data-foo-bar: "foo-bar" in dataset is false
+Pass	1 attribute(s): data-foo-bar-baz: dataset["foo-barBaz"] is undefined
+Pass	1 attribute(s): data-foo-bar-baz: "foo-barBaz" in dataset is false
+Pass	2 attribute(s): data-foo-bar-baz: dataset["foo-barBaz"] is undefined
+Pass	2 attribute(s): data-foo-bar-baz: "foo-barBaz" in dataset is false
