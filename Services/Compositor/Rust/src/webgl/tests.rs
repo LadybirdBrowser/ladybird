@@ -272,6 +272,140 @@ fn data_that_may_be_null_is_either_there_or_empty() {
     );
 }
 
+struct BufferDataCall {
+    data_address: usize,
+    first_byte: u8,
+    executed_flush_sequence_number: u64,
+}
+
+thread_local! {
+    static BUFFER_DATA_CALLS: core::cell::RefCell<Vec<BufferDataCall>> = const { core::cell::RefCell::new(Vec::new()) };
+    static SHARED_COMMAND_BUFFER_START: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
+}
+
+unsafe extern "system" fn buffer_data_that_notes_where_its_data_is(
+    _: u32,
+    _: isize,
+    data: *const core::ffi::c_void,
+    _: u32,
+) {
+    let shared_command_buffer_start = SHARED_COMMAND_BUFFER_START.get();
+    // SAFETY: The replayer passes data that holds the bytes of the call, and a test that sets the start of a shared
+    //         command buffer holds the buffer.
+    let call = unsafe {
+        BufferDataCall {
+            data_address: data as usize,
+            first_byte: data.cast::<u8>().read(),
+            executed_flush_sequence_number: if shared_command_buffer_start == 0 {
+                0
+            } else {
+                (shared_command_buffer_start as *const u64).read()
+            },
+        }
+    };
+    BUFFER_DATA_CALLS.with_borrow_mut(|calls| calls.push(call));
+}
+
+fn contexts_that_note_where_buffer_data_is(host: &FakeHost) -> (WebGLContexts, CanvasId) {
+    reset();
+    BUFFER_DATA_CALLS.take();
+    SHARED_COMMAND_BUFFER_START.set(0);
+    let mut gl = recording::functions();
+    gl.buffer_data = buffer_data_that_notes_where_its_data_is;
+    let mut contexts = WebGLContexts::with_gl_functions(gl);
+    let canvas_id = contexts.create(host, CLIENT, options(false)).unwrap().canvas_id;
+    (contexts, canvas_id)
+}
+
+fn buffer_data_of(bytes: &[u8]) -> Vec<u8> {
+    let data = InlineData::Bytes(bytes);
+    record_of(
+        &commands::BufferData {
+            target: GL_ARRAY_BUFFER,
+            size: bytes.len() as i64,
+            has_data: true,
+            data: DataSpan::following::<commands::BufferData>(data),
+            usage: GL_STATIC_DRAW,
+            ..commands::BufferData::ZEROED
+        },
+        data,
+    )
+}
+
+#[test]
+fn a_large_upload_is_passed_to_gl_where_webcontent_wrote_it() {
+    let host = FakeHost::default();
+    let (mut contexts, canvas_id) = contexts_that_note_where_buffer_data_is(&host);
+    let records = [
+        buffer_data_of(&[9; 64]),
+        buffer_data_of(&vec![7; 64 * 1024]),
+        buffer_data_of(&[5; 64]),
+    ];
+    let commands = TestMemory::new(&records.concat());
+    let written = commands.bytes().as_ptr_range();
+    let written = written.start as usize..written.end as usize;
+    contexts
+        .execute_commands(&host, CLIENT, canvas_id, Some(&commands), &[])
+        .unwrap();
+    let calls = BUFFER_DATA_CALLS.take();
+    let placements: Vec<(u8, bool)> = calls
+        .iter()
+        .map(|call| (call.first_byte, written.contains(&call.data_address)))
+        .collect();
+    assert_eq!(placements, [(9, false), (7, true), (5, false)]);
+}
+
+#[test]
+fn the_data_of_a_large_upload_lies_inside_its_record() {
+    let host = FakeHost::default();
+    let (mut contexts, canvas_id) = contexts_that_note_where_buffer_data_is(&host);
+    let bytes = vec![7; 64 * 1024];
+    let data = InlineData::Bytes(&bytes);
+    let span = DataSpan::following::<commands::BufferData>(data);
+    let record = record_of(
+        &commands::BufferData {
+            target: GL_ARRAY_BUFFER,
+            size: bytes.len() as i64 + 4096,
+            has_data: true,
+            data: DataSpan {
+                size: span.size + 4096,
+                ..span
+            },
+            usage: GL_STATIC_DRAW,
+            ..commands::BufferData::ZEROED
+        },
+        data,
+    );
+    let commands = TestMemory::new(&record);
+    assert_eq!(
+        contexts.execute_commands(&host, CLIENT, canvas_id, Some(&commands), &[]),
+        Err(ReplayError("WebGL data span lies outside its payload"))
+    );
+    assert!(BUFFER_DATA_CALLS.take().is_empty());
+}
+
+#[test]
+fn a_shared_command_buffer_is_given_back_once_its_records_are_replayed() {
+    let host = FakeHost::default();
+    let (mut contexts, canvas_id) = contexts_that_note_where_buffer_data_is(&host);
+    let record = buffer_data_of(&vec![7; 64 * 1024]);
+    let mut shared = vec![0_u8; SHARED_DATA_REGION_OFFSET + record.len()];
+    shared[SHARED_DATA_REGION_OFFSET..].copy_from_slice(&record);
+    let shared = Box::new(TestMemory::new(&shared));
+    let shared_start = shared.bytes().as_ptr();
+    SHARED_COMMAND_BUFFER_START.set(shared_start as usize);
+    contexts.set_command_buffer(CLIENT, canvas_id, Some(shared)).unwrap();
+    contexts
+        .execute_commands_from_shared_buffer(&host, CLIENT, canvas_id, 0, record.len() as u64, 42, &[])
+        .unwrap();
+    let calls = BUFFER_DATA_CALLS.take();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].executed_flush_sequence_number, 0);
+    // SAFETY: The test owns the memory, which the context holds.
+    assert_eq!(unsafe { shared_start.cast::<u64>().read() }, 42);
+    SHARED_COMMAND_BUFFER_START.set(0);
+}
+
 #[test]
 fn a_record_whose_booleans_or_spans_are_out_of_range_is_rejected() {
     let host = FakeHost::default();
@@ -458,6 +592,7 @@ fn the_errors_of_the_compositor_are_collected_before_those_of_gl() {
         stashed_errors: &mut context.stashed_errors,
         defaults: host.defaults.get(),
         image_sources: &[],
+        payload_in_shared_memory: None,
     };
     assert!(replayer.stash_errors());
     let errors: Vec<u32> = (0..4).map(|_| replayer.get_error()).collect();

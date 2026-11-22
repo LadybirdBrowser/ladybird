@@ -29,6 +29,27 @@ pub struct ReplayError(pub &'static str);
 /// A buffer that a synchronous call fills is never bigger than this.
 const MAX_OUT_DATA_SIZE: usize = 64 * 1024 * 1024;
 
+/// The payload of a record that is replayed where WebContent wrote it, of which only the struct was copied.
+#[derive(Clone, Copy)]
+pub struct PayloadInSharedMemory {
+    pub start: *const u8,
+    pub size: usize,
+}
+
+/// Data that only GL reads, which can be in memory that WebContent writes.
+#[derive(Clone, Copy)]
+pub(super) struct OpaqueData {
+    pub pointer: *const u8,
+    pub size: usize,
+}
+
+impl OpaqueData {
+    pub const EMPTY: Self = Self {
+        pointer: core::ptr::null(),
+        size: 0,
+    };
+}
+
 pub struct Replayer<'a, H: WebGLHost> {
     pub gl: &'a GlFunctions,
     pub host: &'a H,
@@ -39,6 +60,7 @@ pub struct Replayer<'a, H: WebGLHost> {
     pub stashed_errors: &'a mut Vec<u32>,
     pub defaults: DefaultBuffers,
     pub image_sources: &'a [ImageSource],
+    pub payload_in_shared_memory: Option<PayloadInSharedMemory>,
 }
 
 impl<H: WebGLHost> Replayer<'_, H> {
@@ -80,6 +102,26 @@ impl<H: WebGLHost> Replayer<'_, H> {
         }
     }
 
+    pub(super) fn opaque_data(&self, payload: &[u8], span: DataSpan) -> Result<OpaqueData, ReplayError> {
+        let Some(payload_in_shared_memory) = self.payload_in_shared_memory else {
+            let bytes = data_span(payload, span)?;
+            return Ok(OpaqueData {
+                pointer: bytes.as_ptr(),
+                size: bytes.len(),
+            });
+        };
+        let start = span.offset as usize;
+        start
+            .checked_add(span.size as usize)
+            .filter(|&end| end <= payload_in_shared_memory.size)
+            .ok_or(ReplayError("WebGL data span lies outside its payload"))?;
+        Ok(OpaqueData {
+            // SAFETY: The span lies inside the payload, which stays mapped while the record is replayed.
+            pointer: unsafe { payload_in_shared_memory.start.add(start) },
+            size: span.size as usize,
+        })
+    }
+
     pub fn discard_errors(&mut self) {
         loop {
             // SAFETY: The context of the replayer is current.
@@ -105,10 +147,17 @@ pub(super) fn data_span(payload: &[u8], span: DataSpan) -> Result<&[u8], ReplayE
 }
 
 pub(super) fn typed_data<T>(bytes: &[u8]) -> Result<*const T, ReplayError> {
-    if !bytes.as_ptr().cast::<T>().is_aligned() || !bytes.len().is_multiple_of(size_of::<T>()) {
+    typed_opaque_data(OpaqueData {
+        pointer: bytes.as_ptr(),
+        size: bytes.len(),
+    })
+}
+
+pub(super) fn typed_opaque_data<T>(data: OpaqueData) -> Result<*const T, ReplayError> {
+    if !data.pointer.cast::<T>().is_aligned() || !data.size.is_multiple_of(size_of::<T>()) {
         return Err(ReplayError("WebGL data does not hold whole values"));
     }
-    Ok(bytes.as_ptr().cast())
+    Ok(data.pointer.cast())
 }
 
 /// A string that ends at the last byte of its span.

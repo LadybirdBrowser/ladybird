@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function pattern(size, step) {
+        return new Uint8Array(size).map((_, index) => (index * step) & 0xff);
+    }
+
+    test(() => {
+        const gl = document.createElement("canvas").getContext("webgl2");
+
+        const bufferBytes = pattern(64 * 1024, 7);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, bufferBytes, gl.STATIC_DRAW);
+        const bufferReadBack = new Uint8Array(bufferBytes.length);
+        gl.getBufferSubData(gl.ARRAY_BUFFER, 0, bufferReadBack);
+        println(`bufferData: ${bufferReadBack.every((value, index) => value === bufferBytes[index])}`);
+
+        const updateOffset = 1024;
+        const update = pattern(32 * 1024, 11);
+        gl.bufferSubData(gl.ARRAY_BUFFER, updateOffset, update);
+        gl.getBufferSubData(gl.ARRAY_BUFFER, 0, bufferReadBack);
+        const expectedAfterUpdate = bufferBytes.slice();
+        expectedAfterUpdate.set(update, updateOffset);
+        println(`bufferSubData: ${bufferReadBack.every((value, index) => value === expectedAfterUpdate[index])}`);
+
+        const size = 128;
+        const texels = pattern(size * size * 4, 13);
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, texels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, gl.createFramebuffer());
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gl.getParameter(gl.TEXTURE_BINDING_2D), 0);
+        const texelsReadBack = new Uint8Array(texels.length);
+        gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, texelsReadBack);
+        println(`texImage2D: ${texelsReadBack.every((value, index) => value === texels[index])}`);
+
+        println(`error: ${gl.getError()}`);
+    });
+</script>

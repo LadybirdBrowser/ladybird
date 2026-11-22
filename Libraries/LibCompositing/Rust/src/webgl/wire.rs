@@ -291,7 +291,7 @@ pub fn encode_sync_request<R: SyncRequest>(
     true
 }
 
-fn read_header(bytes: &[u8]) -> Option<(u16, usize)> {
+pub fn read_header(bytes: &[u8]) -> Option<(u16, usize)> {
     let header: &[u8; HEADER_SIZE] = bytes.first_chunk()?;
     let type_number = u16::from_ne_bytes([header[0], header[1]]);
     let size_after_header = u32::from_ne_bytes(*header[HEADER_PAYLOAD_SIZE_OFFSET..].first_chunk()?);
