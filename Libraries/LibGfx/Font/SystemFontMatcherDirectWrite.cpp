@@ -275,6 +275,8 @@ static StringView windows_family_for_generic_family(StringView family)
         return "Comic Sans MS"sv;
     if (family == "fantasy"sv)
         return "Impact"sv;
+    if (family == "math"sv)
+        return "Cambria Math"sv;
     return family;
 }
 

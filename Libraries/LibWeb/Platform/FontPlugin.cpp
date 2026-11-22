@@ -88,6 +88,10 @@ void FontPlugin::update_generic_fonts()
     // (We also add Android-specific font names to the list from W3 where required.)
     Vector<FlyString> cursive_fallbacks { "Comic Sans MS"_fly_string, "Comic Sans"_fly_string, "Apple Chancery"_fly_string, "Bradley Hand"_fly_string, "Brush Script MT"_fly_string, "Snell Roundhand"_fly_string, "URW Chancery L"_fly_string, "Dancing Script"_fly_string };
     Vector<FlyString> fantasy_fallbacks { "Impact"_fly_string, "Luminari"_fly_string, "Chalkduster"_fly_string, "Jazz LET"_fly_string, "Blippo"_fly_string, "Stencil Std"_fly_string, "Marker Felt"_fly_string, "Trattatello"_fly_string, "Coming Soon"_fly_string };
+    // NB: Fonts with an OpenType MATH table: the one macOS users most often have first, then the ones TeX and Linux
+    //     distributions ship, then the one Windows ships. STIXGeneral, which macOS ships, has no MATH table, but was
+    //     made for mathematical text.
+    Vector<FlyString> math_fallbacks { "STIX Two Math"_fly_string, "Latin Modern Math"_fly_string, "XITS Math"_fly_string, "Libertinus Math"_fly_string, "TeX Gyre Termes Math"_fly_string, "DejaVu Math TeX Gyre"_fly_string, "Cambria Math"_fly_string, "STIXGeneral"_fly_string };
     Vector<FlyString> monospace_fallbacks { "Andale Mono"_fly_string, "Courier New"_fly_string, "Courier"_fly_string, "FreeMono"_fly_string, "OCR A Std"_fly_string, "Noto Sans Mono"_fly_string, "DejaVu Sans Mono"_fly_string, "Droid Sans Mono"_fly_string, "Liberation Mono"_fly_string };
     Vector<FlyString> sans_serif_fallbacks { "Arial"_fly_string, "Helvetica"_fly_string, "Verdana"_fly_string, "Trebuchet MS"_fly_string, "Gill Sans"_fly_string, "Noto Sans"_fly_string, "Avantgarde"_fly_string, "Optima"_fly_string, "Arial Narrow"_fly_string, "Liberation Sans"_fly_string, "Roboto"_fly_string };
     Vector<FlyString> serif_fallbacks { "Times"_fly_string, "Times New Roman"_fly_string, "Didot"_fly_string, "Georgia"_fly_string, "Palatino"_fly_string, "Bookman"_fly_string, "New Century Schoolbook"_fly_string, "American Typewriter"_fly_string, "Liberation Serif"_fly_string, "Roman"_fly_string, "Noto Serif"_fly_string };
@@ -98,6 +102,7 @@ void FontPlugin::update_generic_fonts()
 
     fallback_set(GenericFont::Cursive) = move(cursive_fallbacks);
     fallback_set(GenericFont::Fantasy) = move(fantasy_fallbacks);
+    fallback_set(GenericFont::Math) = move(math_fallbacks);
     fallback_set(GenericFont::Monospace) = move(monospace_fallbacks);
     fallback_set(GenericFont::SansSerif) = move(sans_serif_fallbacks);
     fallback_set(GenericFont::Serif) = move(serif_fallbacks);
@@ -135,6 +140,9 @@ FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font)
         break;
     case GenericFont::Fantasy:
         generic_family_name = "fantasy"sv;
+        break;
+    case GenericFont::Math:
+        generic_family_name = "math"sv;
         break;
     case GenericFont::Monospace:
     case GenericFont::UiMonospace:
@@ -176,6 +184,10 @@ FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font)
         if (is_available)
             return family;
     }
+
+    // NB: Without a math font, math text is drawn in the serif font, rather than in the family listed after math.
+    if (generic_font == GenericFont::Math)
+        return compute_generic_font_name(GenericFont::Serif);
 
     return fallbacks.first();
 }
