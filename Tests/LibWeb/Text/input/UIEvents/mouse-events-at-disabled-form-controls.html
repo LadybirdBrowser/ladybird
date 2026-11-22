@@ -1,0 +1,70 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    button, input, div, fieldset { display: block; box-sizing: border-box; width: 200px; height: 40px; margin: 0 0 20px; padding: 0; }
+    fieldset { height: auto; border: none; }
+</style>
+<form id="form" onsubmit="event.preventDefault(); println('form submitted')">
+    <button id="button" disabled><span id="span">span</span></button>
+</form>
+<input id="input" disabled value="text">
+<fieldset id="fieldset" disabled><div id="div-in-fieldset">div</div></fieldset>
+<div id="outside">outside</div>
+<script>
+    const types = ["pointerdown", "pointerup", "mouseover", "mouseenter", "mousedown", "mousemove", "mouseup", "click", "dblclick", "mouseleave", "wheel"];
+    let log = [];
+    const name = target => target.id || target.nodeName.toLowerCase();
+    for (const target of [document, document.body, ...document.querySelectorAll("[id]")]) {
+        if (target.id === "outside")
+            continue;
+        for (const type of types) {
+            target.addEventListener(type, event => {
+                if (event.target.id === "outside" || event.target.id === "form" || event.target.id === "fieldset")
+                    return;
+                if (target === document && event.eventPhase === Event.CAPTURING_PHASE)
+                    log.push(`${type} captured at document, target ${name(event.target)}`);
+                else if (target === document.body && event.eventPhase === Event.BUBBLING_PHASE)
+                    log.push(`${type} bubbled to body`);
+                else if (event.eventPhase === Event.AT_TARGET && target !== document && target !== document.body)
+                    log.push(`${type} at ${name(target)}`);
+            }, target === document);
+        }
+    }
+    const center = element => {
+        const rect = element.getBoundingClientRect();
+        return [rect.left + 10, rect.top + 10];
+    };
+    const flush = (label, type) => {
+        println(`${label}:`);
+        // Keep only the first of each event, so the log doesn't depend on how many moves the pointer makes.
+        for (const line of [...new Set(log)].filter(line => !type || line.startsWith(type)))
+            println(`    ${line}`);
+        log = [];
+    };
+
+    // A disabled form control gets every event but mousedown, mouseup, click, and dblclick, and those don't reach
+    // anything above it either. A disabled fieldset's own content gets them all.
+    asyncTest(async done => {
+        const outside = center(document.getElementById("outside"));
+        for (const id of ["button", "span", "input", "div-in-fieldset"]) {
+            await internals.mouseMove(...outside);
+            log = [];
+            const [x, y] = center(document.getElementById(id));
+            await internals.mouseMove(x, y);
+            await internals.click(x, y);
+            await internals.click(x, y, 2);
+            await internals.mouseMove(...outside);
+            flush(`moving over #${id}, and clicking and double-clicking it`);
+        }
+
+        const [x, y] = center(document.getElementById("button"));
+        await internals.mouseMove(x, y);
+        log = [];
+        await internals.wheel(x, y, 0, 120);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        flush("a wheel over #button", "wheel");
+        println(`the page scrolled: ${window.scrollY > 0}`);
+        done();
+    });
+</script>

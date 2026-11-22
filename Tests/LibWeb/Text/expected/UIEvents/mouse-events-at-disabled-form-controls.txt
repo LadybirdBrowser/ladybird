@@ -1,0 +1,93 @@
+moving over #button, and clicking and double-clicking it:
+    mouseover captured at document, target button
+    mouseover at button
+    mouseover bubbled to body
+    mouseenter captured at document, target button
+    mouseenter at button
+    mousemove captured at document, target button
+    mousemove at button
+    mousemove bubbled to body
+    pointerdown captured at document, target button
+    pointerdown at button
+    pointerdown bubbled to body
+    pointerup captured at document, target button
+    pointerup at button
+    pointerup bubbled to body
+    mouseleave captured at document, target button
+    mouseleave at button
+moving over #span, and clicking and double-clicking it:
+    mouseover captured at document, target span
+    mouseover at span
+    mouseover bubbled to body
+    mouseenter captured at document, target button
+    mouseenter at button
+    mouseenter captured at document, target span
+    mouseenter at span
+    mousemove captured at document, target span
+    mousemove at span
+    mousemove bubbled to body
+    pointerdown captured at document, target span
+    pointerdown at span
+    pointerdown bubbled to body
+    mousedown at span
+    pointerup captured at document, target span
+    pointerup at span
+    pointerup bubbled to body
+    mouseup at span
+    click at span
+    dblclick at span
+    mouseleave captured at document, target span
+    mouseleave at span
+    mouseleave captured at document, target button
+    mouseleave at button
+moving over #input, and clicking and double-clicking it:
+    mouseover captured at document, target input
+    mouseover at input
+    mouseover bubbled to body
+    mouseenter captured at document, target input
+    mouseenter at input
+    mousemove captured at document, target input
+    mousemove at input
+    mousemove bubbled to body
+    pointerdown captured at document, target input
+    pointerdown at input
+    pointerdown bubbled to body
+    pointerup captured at document, target input
+    pointerup at input
+    pointerup bubbled to body
+    mouseleave captured at document, target input
+    mouseleave at input
+moving over #div-in-fieldset, and clicking and double-clicking it:
+    mouseover captured at document, target div-in-fieldset
+    mouseover at div-in-fieldset
+    mouseover bubbled to body
+    mouseenter captured at document, target div-in-fieldset
+    mouseenter at div-in-fieldset
+    mousemove captured at document, target div-in-fieldset
+    mousemove at div-in-fieldset
+    mousemove bubbled to body
+    pointerdown captured at document, target div-in-fieldset
+    pointerdown at div-in-fieldset
+    pointerdown bubbled to body
+    mousedown captured at document, target div-in-fieldset
+    mousedown at div-in-fieldset
+    mousedown bubbled to body
+    pointerup captured at document, target div-in-fieldset
+    pointerup at div-in-fieldset
+    pointerup bubbled to body
+    mouseup captured at document, target div-in-fieldset
+    mouseup at div-in-fieldset
+    mouseup bubbled to body
+    click captured at document, target div-in-fieldset
+    click at div-in-fieldset
+    click bubbled to body
+    dblclick captured at document, target div-in-fieldset
+    dblclick at div-in-fieldset
+    dblclick bubbled to body
+    mouseleave captured at document, target div-in-fieldset
+    mouseleave at div-in-fieldset
+a wheel over #button:
+    wheel captured at document, target button
+    wheel at button
+    wheel bubbled to body
+the page scrolled: true

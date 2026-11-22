@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/2368">
+<link rel=help href="https://github.com/whatwg/html/issues/5886">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+
+<div id=targetparent>
+  <button disabled>
+    hello world
+    <span style="border: 1px solid black">child</span>
+  </button>
+  <my-control disabled>
+    hello world
+    <span style="border: 1px solid black">child</span>
+  </my-control>
+</div>
+
+<script>
+customElements.define('my-control', class extends HTMLElement {
+  static get formAssociated() { return true; }
+});
+
+['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'].forEach(eventName => {
+  [true, false].forEach(clickChildElement => {
+    for (const target of targetparent.children) {
+      promise_test(async () => {
+        let parentReceivedEvent = false;
+        targetparent.addEventListener(eventName, () => parentReceivedEvent = true);
+
+        let targetReceivedEvent = false;
+        target.addEventListener(eventName, () => targetReceivedEvent = true);
+
+        let childReceivedEvent = false;
+        let targetchild = target.firstElementChild;
+        targetchild.addEventListener(eventName, () => childReceivedEvent = true);
+
+        await test_driver.click(clickChildElement ? targetchild : target);
+
+        const parentShouldReceiveEvents = eventName.startsWith('pointer');
+        assert_equals(parentReceivedEvent, parentShouldReceiveEvents,
+                      `parent element received ${eventName} events`);
+
+        const targetShouldReceiveEvents = eventName.startsWith('pointer');
+        assert_equals(targetReceivedEvent, targetShouldReceiveEvents,
+                      `target element received ${eventName} events`);
+        assert_equals(childReceivedEvent, clickChildElement,
+                      `child element received ${eventName} events`);
+      }, `Testing ${eventName} events when clicking ${clickChildElement ? 'child of ' : ''}disabled ${target.localName}.`);
+    }
+  });
+});
+</script>

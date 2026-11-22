@@ -1,0 +1,55 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px monospace; }
+    input, button, div, a, my-control { display: block; box-sizing: border-box; width: 300px; height: 30px; margin: 0 0 20px; font: 16px monospace; }
+</style>
+<input id="other">
+<input id="disabled-input" disabled value="disabled input text here">
+<button id="disabled-button" disabled>disabled button</button>
+<div id="plain">some plain text here</div>
+<button id="button-holding-link" disabled><a id="link-in-button" href="#from-link-in-button">link</a></button>
+<a href="#from-link-around-button"><button id="button-in-link" disabled>button in link</button></a>
+<a href="#from-link-around-host"><div id="host"><span id="slotted">slotted</span></div></a>
+<form id="form"><my-control id="control" disabled><button id="submit-in-control">submit</button></my-control></form>
+<script>
+    document.getElementById("host").attachShadow({ mode: "open" }).innerHTML = "<button disabled><slot></slot></button>";
+    customElements.define("my-control", class extends HTMLElement {
+        static get formAssociated() { return true; }
+    });
+    document.getElementById("form").addEventListener("submit", event => {
+        event.preventDefault();
+        println("    the form was submitted");
+    });
+    document.addEventListener("contextmenu", event => event.preventDefault());
+    const center = id => {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return [rect.left + 20, rect.top + rect.height / 2];
+    };
+    const focused = () => document.activeElement.id || document.activeElement.nodeName.toLowerCase();
+
+    // A press in a disabled form control runs its default actions like a press anywhere else, and a click in one
+    // activates whatever it hits below the control, but nothing the control is in.
+    asyncTest(async done => {
+        for (const id of ["disabled-input", "disabled-button"]) {
+            for (const [label, button] of [["left", 0], ["right", 2]]) {
+                document.getElementById("other").focus();
+                await internals.click(...center(id), 1, button);
+                println(`${label}-click on #${id}: focused ${focused()}`);
+            }
+        }
+
+        getSelection().selectAllChildren(document.getElementById("plain"));
+        await internals.click(...center("disabled-button"));
+        println(`a click on #disabled-button keeps the page's selection: ${JSON.stringify(getSelection().toString())}`);
+
+        for (const id of ["link-in-button", "button-in-link", "slotted", "submit-in-control"]) {
+            location.hash = "";
+            println(`a click on #${id}:`);
+            await internals.click(...center(id));
+            await new Promise(resolve => setTimeout(resolve, 50));
+            println(`    location.hash is ${JSON.stringify(location.hash)}`);
+        }
+        done();
+    });
+</script>

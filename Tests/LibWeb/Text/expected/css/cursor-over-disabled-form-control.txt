@@ -1,0 +1,5 @@
+cursor over #disabled-button: Disallowed
+cursor over #disabled-input: Disallowed
+cursor over #button-in-disabled-fieldset: Disallowed
+cursor over #disabled-by-its-click before its click: Arrow
+cursor over #disabled-by-its-click after its click: Disallowed

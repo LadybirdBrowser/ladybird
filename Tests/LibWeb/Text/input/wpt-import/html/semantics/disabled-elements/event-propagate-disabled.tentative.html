@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<meta charset="utf8">
+<meta name="timeout" content="long">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event propagation on disabled form elements</title>
+<link rel="author" href="mailto:krosylight@mozilla.com">
+<link rel="help" href="https://github.com/whatwg/html/issues/2368">
+<link rel="help" href="https://github.com/whatwg/html/issues/5886">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+
+<div id="cases">
+  <input> <!-- Sanity check with non-disabled control -->
+  <select disabled></select>
+  <select disabled>
+    <!-- <option> can't be clicked as it doesn't have its own painting area -->
+    <option>foo</option>
+  </select>
+  <fieldset disabled>Text</fieldset>
+  <fieldset disabled><span class="target">Span</span></fieldset>
+  <button disabled>Text</button>
+  <button disabled><span class="target">Span</span></button>
+  <textarea disabled></textarea>
+  <input disabled type="button">
+  <input disabled type="checkbox">
+  <input disabled type="color" value="#000000">
+  <input disabled type="date">
+  <input disabled type="datetime-local">
+  <input disabled type="email">
+  <input disabled type="file">
+  <input disabled type="image">
+  <input disabled type="month">
+  <input disabled type="number">
+  <input disabled type="password">
+  <input disabled type="radio">
+  <!-- Native click will click the bar -->
+  <input disabled type="range" value="0">
+  <!-- Native click will click the slider -->
+  <input disabled type="range" value="50">
+  <input disabled type="reset">
+  <input disabled type="search">
+  <input disabled type="submit">
+  <input disabled type="tel">
+  <input disabled type="text">
+  <input disabled type="time">
+  <input disabled type="url">
+  <input disabled type="week">
+  <my-control disabled>Text</my-control>
+</div>
+
+<script>
+  customElements.define('my-control', class extends HTMLElement {
+    static get formAssociated() { return true; }
+    get disabled() { return this.hasAttribute("disabled"); }
+  });
+
+  /**
+   * @param {Element} element
+   */
+  function getEventFiringTarget(element) {
+    return element.querySelector(".target") || element;
+  }
+
+  const allEvents = ["pointermove", "mousemove", "pointerdown", "mousedown", "pointerup", "mouseup", "click"];
+
+  /**
+   * @param {*} t
+   * @param {Element} element
+   * @param {Element} observingElement
+   */
+  function setupTest(t, element, observingElement) {
+    /** @type {{type: string, composedPath: Node[]}[]} */
+    const observedEvents = [];
+    const controller = new AbortController();
+    const { signal } = controller;
+    const listenerFn = t.step_func(event => {
+      observedEvents.push({
+        type: event.type,
+        target: event.target,
+        isTrusted: event.isTrusted,
+        composedPath: event.composedPath().map(n => n.constructor.name),
+      });
+    });
+    for (const event of allEvents) {
+      observingElement.addEventListener(event, listenerFn, { signal });
+    }
+    t.add_cleanup(() => controller.abort());
+
+    const target = getEventFiringTarget(element);
+    return { target, observedEvents };
+  }
+
+  /**
+   * @param {Element} element
+   * @returns {boolean}
+   */
+  function isFormControl(element) {
+    if (["button", "input", "select", "textarea"].includes(element.localName)) {
+      return true;
+    }
+    return element.constructor.formAssociated;
+  }
+
+  function isDisabledFormControl(element) {
+    return isFormControl(element) && element.disabled;
+  }
+
+  /**
+   * @param {Element} target
+   * @param {*} observedEvent
+   */
+  function shouldNotBubble(target, observedEvent) {
+    return (
+      isDisabledFormControl(target) &&
+      observedEvent.isTrusted &&
+      ["mousedown", "mouseup", "click"].includes(observedEvent.type)
+    );
+  }
+
+  /**
+   * @param {Event} event
+   */
+  function getExpectedComposedPath(event) {
+    let target = event.target;
+    const result = [];
+    while (target) {
+      if (shouldNotBubble(target, event)) {
+        return result;
+      }
+      result.push(target.constructor.name);
+      target = target.parentNode;
+    }
+    result.push("Window");
+    return result;
+  }
+
+  /**
+  * @param {object} options
+  * @param {Element & { disabled: boolean }} options.element
+  * @param {Element} options.observingElement
+  * @param {string[]} options.expectedEvents
+  * @param {(target: Element) => (Promise<void> | void)} options.clickerFn
+  * @param {string} options.title
+  */
+  function promise_event_test({ element, observingElement, expectedEvents, nonDisabledExpectedEvents, clickerFn, title }) {
+    promise_test(async t => {
+      const { target, observedEvents } = setupTest(t, element, observingElement);
+
+      await t.step_func(clickerFn)(target);
+      await new Promise(resolve => t.step_timeout(resolve, 0));
+
+      const expected = isDisabledFormControl(element) ? expectedEvents : nonDisabledExpectedEvents;
+
+      t.step_wait_func_done(() => observedEvents.length > 0,
+        () => assert_array_equals(observedEvents.map(e => e.type), expected, "Observed events"),
+        undefined, 1000, 10);
+      ;
+
+      for (const observed of observedEvents) {
+        assert_equals(observed.target, target, `${observed.type}.target`)
+        assert_array_equals(
+          observed.composedPath,
+          getExpectedComposedPath(observed),
+          `${observed.type}.composedPath`
+        );
+      }
+
+    }, `${title} on ${element.outerHTML}, observed from <${observingElement.localName}>`);
+  }
+
+  /**
+   * @param {object} options
+   * @param {Element & { disabled: boolean }} options.element
+   * @param {string[]} options.expectedEvents
+   * @param {(target: Element) => (Promise<void> | void)} options.clickerFn
+   * @param {string} options.title
+   */
+  function promise_event_test_hierarchy({ element, expectedEvents, nonDisabledExpectedEvents, clickerFn, title }) {
+    const targets = [element, document.body];
+    if (element.querySelector(".target")) {
+      targets.unshift(element.querySelector(".target"));
+    }
+    for (const observingElement of targets) {
+      promise_event_test({ element, observingElement, expectedEvents, nonDisabledExpectedEvents, clickerFn, title });
+    }
+  }
+
+  function trusted_click(target) {
+    // To workaround type=file clicking issue
+    // https://github.com/w3c/webdriver/issues/1666
+    return new test_driver.Actions()
+      .pointerMove(0, 0, { origin: target })
+      .pointerDown()
+      .pointerUp()
+      .send();
+  }
+
+  const mouseEvents = ["mousemove", "mousedown", "mouseup", "click"];
+  const pointerEvents = ["pointermove", "pointerdown", "pointerup"];
+
+  // Events except mousedown/up/click
+  const allowedEvents = ["pointermove", "mousemove", "pointerdown", "pointerup"];
+
+  const elements = document.getElementById("cases").children;
+  for (const element of elements) {
+    // Observe on a child element of the control, if exists
+    const target = element.querySelector(".target");
+    if (target) {
+      promise_event_test({
+        element,
+        observingElement: target,
+        expectedEvents: allEvents,
+        nonDisabledExpectedEvents: allEvents,
+        clickerFn: trusted_click,
+        title: "Trusted click"
+      });
+    }
+
+    // Observe on the control itself
+    promise_event_test({
+      element,
+      observingElement: element,
+      expectedEvents: allowedEvents,
+      nonDisabledExpectedEvents: allEvents,
+      clickerFn: trusted_click,
+      title: "Trusted click"
+    });
+
+    // Observe on document.body
+    promise_event_test({
+      element,
+      observingElement: document.body,
+      expectedEvents: allowedEvents,
+      nonDisabledExpectedEvents: allEvents,
+      clickerFn: trusted_click,
+      title: "Trusted click"
+    });
+
+    const eventFirePair = [
+      [MouseEvent, mouseEvents],
+      [PointerEvent, pointerEvents]
+    ];
+
+    for (const [eventInterface, events] of eventFirePair) {
+      promise_event_test_hierarchy({
+        element,
+        expectedEvents: events,
+        nonDisabledExpectedEvents: events,
+        clickerFn: target => {
+          for (const event of events) {
+            target.dispatchEvent(new eventInterface(event, { bubbles: true }))
+          }
+        },
+        title: `Dispatch new ${eventInterface.name}()`
+      })
+    }
+
+    promise_event_test_hierarchy({
+      element,
+      expectedEvents: getEventFiringTarget(element) === element ? [] : ["click"],
+      nonDisabledExpectedEvents: ["click"],
+      clickerFn: target => target.click(),
+      title: `click()`
+    })
+  }
+</script>
