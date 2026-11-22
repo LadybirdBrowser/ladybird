@@ -1,0 +1,8 @@
+Ladybird now compiles an event handler content attribute on an SVG
+element into the element’s event handler, as the HTML spec’s event
+handler attribute change steps say for every element that includes
+GlobalEventHandlers. The other engines do the same: Blink, in its
+SVGElement::ParseAttribute(), looks the attribute up with HTMLElement::
+EventNameForAttributeName(). Gecko’s SVGElement::AfterSetAttr() checks
+IsEventAttributeName(). And WebKit’s SVGElement::attributeChanged()
+looks it up with HTMLElement::eventNameForEventHandlerAttribute().
