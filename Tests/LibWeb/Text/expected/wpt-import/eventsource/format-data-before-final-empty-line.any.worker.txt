@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	EventSource: a data before final empty line
+1 Pass
+Pass	EventSource: a data before final empty line

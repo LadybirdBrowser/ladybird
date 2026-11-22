@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        // Each stream ends in the middle of an event, which the next stream must not continue.
+        const url = await server.createEcho("GET", "/event-source-incomplete-event", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: "retry: 10\ndata: x\n\nevent: custom\ndata: partial\n",
+        });
+
+        const source = new EventSource(url);
+        await new Promise(resolve => {
+            let count = 0;
+            const record = event => {
+                println(`${event.type}: ${JSON.stringify(event.data)}`);
+                if (++count === 2)
+                    resolve();
+            };
+            source.addEventListener("message", record);
+            source.addEventListener("custom", record);
+        });
+        source.close();
+    });
+</script>
