@@ -1,0 +1,15 @@
+Ladybird now gives emoji presentation to an emoji modifier base followed
+by a modifier, and to an Extended_Pictographic character followed by a
+zero width joiner. Run in Chrome 158, Firefox 151 and WebKit 26.5, “☝🏻”,
+“✌🏽” and “🕵🏿” draw as one emoji in all three, and the ZWJ sequences
+“👁‍🗨” and “🕵‍♀” written without variation selectors do in Chrome and
+WebKit; Firefox splits the second. Blink’s emoji segmenter, in
+emoji_presentation_scanner.rl, matches an emoji_modifier_sequence as
+EMOJI_MODIFIER_BASE EMOJI_MODIFIER, and an emoji_zwj_sequence whose
+elements include any_emoji, text-default ones too, so both run as emoji.
+A joiner that no pictograph follows keeps the base’s own presentation:
+“☝‍x” draws the text glyph in WebKit, as Ladybird now does, and “©‍x”
+stays text in all three; Firefox draws “☝‍x” as an emoji. Under
+“font-variant-emoji: text”, Firefox and WebKit still draw “☝🏻” as one
+emoji, as Ladybird does with the forced presentation; Chrome draws two
+missing-glyph boxes for it instead.
