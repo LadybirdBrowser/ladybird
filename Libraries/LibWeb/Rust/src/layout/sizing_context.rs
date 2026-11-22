@@ -2256,6 +2256,26 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
     }
 
+    fn native_control_block_size_is_clamped(
+        &self,
+        sized: SizedBox<'_>,
+        block_size: CssPixels,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
+        let node = sized.node;
+        let facts = self.facts(node);
+        let style = self.style(node);
+        facts.is_native_form_control_box()
+            && !style.height().is_intrinsic_sizing_constraint()
+            && facts.auto_content_size().height.is_some_and(|natural_height| {
+                (!is_plain_auto(style.min_height()) && block_size > natural_height)
+                    || (!style.max_height().is_auto()
+                        && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+                        && block_size < natural_height)
+            })
+    }
+
     /// The block size of `node` where its preferred block size is treated as auto: its automatic block size, given as
     /// `child_automatic_block_size` or found by `automatic_block_size_fallback`, unless it is sized as a replaced box.
     pub(crate) fn used_block_size_if_treated_as_auto(
@@ -2292,6 +2312,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             )
         };
         block_size = self.clamp_block_size_to_min_max(sized, block_size, available_space, constraints);
+
+        if box_is_sized_as_replaced_element {
+            makes_block_size_definite |=
+                self.native_control_block_size_is_clamped(sized, block_size, available_space, constraints);
+        }
 
         if facts.document_in_quirks_mode() && facts.is_html_html_element() && is_plain_auto(style.height()) {
             // 3.6. The html element fills the viewport quirk
@@ -2436,7 +2461,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let sized = sized_cells.sized_box();
         let node = sized.node;
         let containing_inline_size = available_space.inline_size.to_px_or_zero();
-        let style = self.style(node);
         self.resolve_box_model_metrics_against_inline_basis(sized_cells, containing_inline_size);
 
         let facts = self.facts(node);
@@ -2447,18 +2471,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             let block_size = self.compute_block_size_for_replaced_element(sized, available_space, constraints);
             sized_cells.cells.set_content_block_size(block_size);
 
-            // Native form controls lay out their internal shadow contents against the concrete size produced by
-            // replaced sizing. That size remains definite when a min/max constraint clamps the automatic preferred
-            // height, unless the preferred height is itself an intrinsic sizing constraint.
-            let native_control_block_size_constraint_is_active = facts.is_native_form_control_box()
-                && !style.height().is_intrinsic_sizing_constraint()
-                && facts.auto_content_size().height.is_some_and(|auto_content_height| {
-                    (!is_plain_auto(style.min_height()) && block_size > auto_content_height)
-                        || (!style.max_height().is_auto()
-                            && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
-                            && block_size < auto_content_height)
-                });
-
             let block_size_is_automatic = self.preferred_block_size(node, constraints).is_auto()
                 || self.should_treat_block_size_as_auto(sized, available_space, constraints);
             let block_size_is_definite_from_aspect_ratio = sized_cells.cells.has_definite_inline_size()
@@ -2468,7 +2480,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             //     its internal track resolves a percentage block size against it, and centers in it.
             let block_size_is_definite_from_slider_size = facts.is_slider() && block_size_is_automatic;
 
-            if native_control_block_size_constraint_is_active
+            if self.native_control_block_size_is_clamped(sized, block_size, available_space, constraints)
                 || block_size_is_definite_from_aspect_ratio
                 || block_size_is_definite_from_slider_size
             {
