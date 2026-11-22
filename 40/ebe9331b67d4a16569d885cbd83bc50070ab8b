@@ -1,0 +1,13 @@
+Ladybird’s UA link rules now match HTML elements only, so an SVG <a>
+keeps its text-decoration none and its color. Blink and WebKit do the
+same: Both of their html.css style sheets declare the XHTML namespace as
+the default one. Gecko’s html.css does too, but Firefox still colors an
+SVG link with LinkText, though it doesn’t underline it. In Chrome
+158.0.8127.36, Firefox 151.0, and WebKit 26.5 (engine-compare), an SVG
+<a> computes text-decoration-line none and cursor pointer, and its color
+is black in Chrome and WebKit.
+
+MathML links keep the link color: Blink’s mathml.css gives a:-webkit-
+any-link the -webkit-link color, and WebKit’s gives :any-link the same,
+both without an underline. Ladybird’s MathML style sheet now colors them
+itself, rather than through the HTML rules.
