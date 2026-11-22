@@ -356,13 +356,15 @@ impl EventSource {
 
     pub(crate) fn process_body_chunk(this: Ref<Self>, vm: &Vm, body: &[u8]) {
         let mut pending_data = this.pending_data.borrow_mut();
+        // The bytes kept from earlier chunks hold no line break.
+        let kept_length = pending_data.len();
         pending_data.extend_from_slice(body);
 
-        let Some(last_line_break) = pending_data.iter().rposition(|byte| *byte == b'\r' || *byte == b'\n') else {
+        let Some(last_line_break) = body.iter().rposition(|byte| *byte == b'\r' || *byte == b'\n') else {
             return;
         };
 
-        let end_index = last_line_break + 1;
+        let end_index = kept_length + last_line_break + 1;
         let response: Vec<u8> = pending_data.drain(..end_index).collect();
         drop(pending_data);
 
