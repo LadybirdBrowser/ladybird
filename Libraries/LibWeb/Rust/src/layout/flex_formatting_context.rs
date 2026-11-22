@@ -4233,19 +4233,26 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.resolve_own_auto_block_size_from_max_content_main_size();
 
         // 3. Determine the flex base size and hypothetical main size of each item
-        let mut all_items_have_definite_main_sizes = true;
+        // NB: An item's automatic minimum size is never more than its specified size suggestion, so it can't raise a
+        //     flex base size that's at least that suggestion. A flex-basis smaller than the item's width or height,
+        //     e.g., is raised to the smaller of that size and the item's content size.
+        let mut automatic_minimum_sizes_cannot_raise_base_sizes = true;
         let mut sum_of_flex_base_sizes = CssPixels::default();
         for index in 0..self.flex_items.len() {
             self.determine_flex_base_size(index);
-            all_items_have_definite_main_sizes &= self.has_definite_main_size(index);
-            sum_of_flex_base_sizes += self.flex_items[index].flex_base_size;
+            let flex_base_size = self.flex_items[index].flex_base_size;
+            automatic_minimum_sizes_cannot_raise_base_sizes &= self
+                .specified_size_suggestion(index)
+                .is_some_and(|suggestion| flex_base_size >= suggestion);
+            sum_of_flex_base_sizes += flex_base_size;
         }
 
         // OPTIMIZATION: We try to avoid calculating the "automatic minimum size" if possible,
         //               since it may require expensive intrinsic sizing layout.
         //               If this is a single-line flex container and the sum of flex bases sizes
         //               won't exceed the available space in the main axis, we know the layout
-        //               algorithm won't have to shrink anything, thus not needing the minimum size.
+        //               algorithm won't have to shrink anything. And where no automatic minimum size can raise an
+        //               item's flex base size either, the minimum size isn't needed at all.
         let should_skip_automatic_minimum_size_clamp = !self
             .available_space
             .unwrap()
@@ -4253,7 +4260,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             .is_intrinsic_sizing_constraint()
             && self.is_single_line()
             && self.has_definite_main_size_used(&self.container_cells)
-            && all_items_have_definite_main_sizes
+            && automatic_minimum_sizes_cannot_raise_base_sizes
             && sum_of_flex_base_sizes <= self.available_space_for_items.unwrap().main.to_px_or_zero();
 
         for index in 0..self.flex_items.len() {

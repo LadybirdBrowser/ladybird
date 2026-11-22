@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/flex-item-automatic-minimum-size-with-definite-flex-basis-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    .outer {
+        display: flex;
+        width: 600px;
+        margin-bottom: 4px;
+    }
+    .item {
+        background: green;
+        height: 20px;
+    }
+    .content {
+        width: 300px;
+        height: 20px;
+    }
+</style>
+<!-- A flex-basis smaller than the item's width doesn't make its automatic minimum size smaller than that width, or
+     than its content where that's smaller. -->
+<div class="outer"><div class="item" style="flex-basis: 0px; width: 100px"><div class="content"></div></div></div>
+<div class="outer"><div class="item" style="flex-basis: 50px; width: 100px"><div class="content"></div></div></div>
+<div class="outer"><div class="item" style="flex-basis: 50px; width: 400px"><div class="content"></div></div></div>
+<div class="outer"><div class="item" style="flex-basis: 0%; width: 400px"><div class="content"></div></div></div>
+<div class="outer" style="flex-direction: column; width: auto; height: 300px">
+    <div class="item" style="flex-basis: 0%; height: 100px; width: 20px"><div class="content" style="width: 20px; height: 200px"></div></div>
+</div>
