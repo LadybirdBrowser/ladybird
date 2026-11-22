@@ -1,0 +1,5 @@
+hebrew-break-word: breaks true, fits true, lines in logical order true, each line starts at its right end true
+hebrew-anywhere: breaks true, fits true, lines in logical order true, each line starts at its right end true
+hebrew-word-break-break-word: breaks true, fits true, lines in logical order true, each line starts at its right end true
+hebrew-anywhere-in-rtl-block: breaks true, fits true, lines in logical order true, each line starts at its right end true
+arabic-anywhere-in-rtl-block: breaks true, fits true, lines in logical order true, each line starts at its right end true

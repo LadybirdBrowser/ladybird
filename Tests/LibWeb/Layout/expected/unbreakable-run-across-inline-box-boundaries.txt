@@ -400,10 +400,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "bbbb"
             TextNode <#text> (not painted)
       BlockContainer <div> at [8,1208] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [100.6875,1208 7.3125x10] baseline: 8
+        frag 0 from TextNode start: 0, length: 2, rect: [60.46875,1208 7.3125x10] baseline: 8
             "שש"
-        frag 1 from TextNode start: 0, length: 20, rect: [34.875,1218 73.125x10] baseline: 8
-            "שששששששששששששששששששש"
+        frag 1 from TextNode start: 0, length: 11, rect: [67.78125,1208 40.21875x10] baseline: 8
+            "ששששששששששש"
+        frag 2 from TextNode start: 11, length: 9, rect: [75.09375,1218 32.90625x10] baseline: 8
+            "ששששששששש"
         TextNode <#text> (not painted)
         BlockContainer <span> at [8,1208] floating [0+0+0 50 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
         TextNode <#text> (not painted)

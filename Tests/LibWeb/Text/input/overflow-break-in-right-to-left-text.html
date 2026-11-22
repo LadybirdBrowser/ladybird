@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .c { width: 100px; font: 16px/20px sans-serif; }
+</style>
+<div class="c" id="hebrew-break-word" style="overflow-wrap: break-word">אבגדהוזחטיכלמנסעפצקרשתאבגדהוזחטיכלמנסעפצקרשת</div>
+<div class="c" id="hebrew-anywhere" style="overflow-wrap: anywhere">אבגדהוזחטיכלמנסעפצקרשתאבגדהוזחטיכלמנסעפצקרשת</div>
+<div class="c" id="hebrew-word-break-break-word" style="word-break: break-word">אבגדהוזחטיכלמנסעפצקרשתאבגדהוזחטיכלמנסעפצקרשת</div>
+<div class="c" id="hebrew-anywhere-in-rtl-block" dir="rtl" style="overflow-wrap: anywhere">אבגדהוזחטיכלמנסעפצקרשתאבגדהוזחטיכלמנסעפצקרשת</div>
+<div class="c" id="arabic-anywhere-in-rtl-block" dir="rtl" style="overflow-wrap: anywhere">الاستقلاليةالاستقلاليةالاستقلالية</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const c of document.querySelectorAll(".c")) {
+            const text = c.firstChild;
+            const box = c.getBoundingClientRect();
+            const rectOf = index => {
+                const range = document.createRange();
+                range.setStart(text, index);
+                range.setEnd(text, index + 1);
+                return range.getClientRects()[0];
+            };
+            const lines = [];
+            for (let index = 0; index < text.data.length; index++) {
+                const rect = rectOf(index);
+                let line = lines.find(line => Math.abs(line.top - rect.top) < 1);
+                if (!line) {
+                    line = { top: rect.top, first: index, right: rect.right, inOrder: true, previous: index - 1 };
+                    lines.push(line);
+                }
+                line.inOrder &&= line.previous === index - 1;
+                line.previous = index;
+                line.right = Math.max(line.right, rect.right);
+            }
+            const firstCharactersAtRightEnd = lines.every(line => rectOf(line.first).right >= line.right - 0.5);
+            const inLogicalOrder = lines.every(line => line.inOrder) && lines.every((line, index) => index === 0 || line.top > lines[index - 1].top);
+            println(`${c.id}: breaks ${lines.length > 1}, fits ${c.scrollWidth <= box.width}, lines in logical order ${inLogicalOrder}, each line starts at its right end ${firstCharactersAtRightEnd}`);
+        }
+    });
+</script>

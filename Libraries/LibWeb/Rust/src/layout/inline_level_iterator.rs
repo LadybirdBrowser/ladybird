@@ -731,12 +731,20 @@ impl Item {
         take_first_grapheme_when_none_fits: bool,
     ) -> Option<Item> {
         let run = self.glyph_run(prepared)?;
-        if run.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL || run.glyphs.len() < 2 {
+        if run.glyphs.len() < 2 {
             return None;
         }
         let shaped_length_in_code_units: usize = run.glyphs.iter().map(|glyph| glyph.length_in_code_units()).sum();
         if shaped_length_in_code_units != self.length_in_node {
             return None;
+        }
+        if run.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL {
+            return self.split_right_to_left_at_shaped_glyph(
+                prepared,
+                segmenter,
+                max_border_box_inline_size,
+                take_first_grapheme_when_none_fits,
+            );
         }
 
         let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
@@ -775,6 +783,79 @@ impl Item {
         Some(self.take_prefix_before(self.offset_in_node + split_code_units, prefix, remainder))
     }
 
+    /// Splits off the longest logical prefix of a right-to-left run that fits `max_border_box_inline_size`, from its
+    /// shaped glyphs. Those are in visual order, so the logical prefix is the glyphs at the right end of the run.
+    fn split_right_to_left_at_shaped_glyph(
+        &mut self,
+        prepared: &PreparedInlineContent,
+        segmenter: &text_chunker::GraphemeSegmenter,
+        max_border_box_inline_size: CssPixels,
+        take_first_grapheme_when_none_fits: bool,
+    ) -> Option<Item> {
+        let run = self.glyph_run(prepared)?;
+        let placed: Vec<_> = run.glyphs.placed().collect();
+        // NB: The spacer glyphs of leading tabs come first, with ascending clusters, so in a run that has them, the
+        //     logical prefix isn't the glyphs at the right end. Leave such a run to reshaping.
+        if placed
+            .windows(2)
+            .any(|pair| pair[0].cluster_start < pair[1].cluster_start)
+        {
+            return None;
+        }
+        let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
+        // NB: The prefix is the glyphs from the split on, and the cluster just left of the split starts where it ends.
+        let mut split: Option<(usize, usize)> = None;
+        for glyph_index in (1..placed.len()).rev() {
+            let (left, right) = (&placed[glyph_index - 1], &placed[glyph_index]);
+            if left.cluster_start <= right.cluster_start {
+                continue;
+            }
+            let prefix_length = left.cluster_start as usize;
+            let offset = self.offset_in_node + prefix_length;
+            if segmenter.next_boundary(offset, true) != Some(offset) {
+                continue;
+            }
+            let prefix_inline_size = CssPixels::nearest_value_for_f32(run.width - right.x);
+            if leading_edge_inline_size + prefix_inline_size > max_border_box_inline_size {
+                if split.is_none() && take_first_grapheme_when_none_fits {
+                    split = Some((glyph_index, prefix_length));
+                }
+                break;
+            }
+            split = Some((glyph_index, prefix_length));
+        }
+        let (split_glyph_index, prefix_length) = split?;
+
+        let run = self.take_owned_glyph_run(prepared);
+        let split_x = run.glyphs.placed().nth(split_glyph_index)?.x;
+        let mut prefix_glyphs = libgfx_rust::text_layout::GlyphBuffer::default();
+        let mut remainder_glyphs = libgfx_rust::text_layout::GlyphBuffer::default();
+        for (glyph_index, placed) in run.glyphs.placed().enumerate() {
+            if glyph_index >= split_glyph_index {
+                prefix_glyphs.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                    x: placed.x - split_x,
+                    ..placed
+                });
+            } else {
+                remainder_glyphs.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                    cluster_start: placed.cluster_start - prefix_length as u32,
+                    ..placed
+                });
+            }
+        }
+        let prefix = OwnedGlyphRun {
+            glyphs: prefix_glyphs,
+            width: run.width - split_x,
+            is_upright: run.is_upright,
+        };
+        let remainder = OwnedGlyphRun {
+            glyphs: remainder_glyphs,
+            width: split_x,
+            is_upright: run.is_upright,
+        };
+        Some(self.take_prefix_before(self.offset_in_node + prefix_length, prefix, remainder))
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn split_by_reshaping(
         &mut self,
@@ -791,9 +872,8 @@ impl Item {
         }
         let prepared_item = self.prepared_item(prepared);
         let text_type = prepared_item.text_type();
-        if text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL {
-            return None;
-        }
+        // NB: A right-to-left run splits at a grapheme boundary from its logical start too, so the part that fits is the
+        //     run's logical beginning, which the line then draws at its right end.
         let font = prepared.font_of(prepared_item);
         let start = self.offset_in_node;
         let end = start + self.length_in_node;
