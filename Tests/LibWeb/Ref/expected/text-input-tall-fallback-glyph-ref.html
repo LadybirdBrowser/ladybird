@@ -1,0 +1,12 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Primary; src: url("../data/fonts/Ahem.ttf"); unicode-range: U+0020, U+0061; }
+    @font-face { font-family: Tall; src: url("../data/fonts/Ahem.ttf"); size-adjust: 180%; }
+    input:not(.native), div { display: block; box-sizing: border-box; width: 200px; height: 60px; padding: 0; margin: 0;
+        border: 0; appearance: none; font: 20px/normal Primary, Tall; background: white; color: black; }
+    .native { display: block; box-sizing: border-box; width: 200px; height: 60px; font: 20px/normal Tall; }
+    input::placeholder { color: black; opacity: 1; }
+    div { align-content: center; }
+</style>
+<div>X</div><div>X</div>
+<input class="native" type="search" value="X"><input class="native" type="search" placeholder="X">

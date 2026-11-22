@@ -917,7 +917,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
         style->set_declarations_from_text(R"~~~(
                 display: block;
                 width: 100%;
-                height: 1lh;
+                min-height: 1lh;
                 overflow: hidden;
                 text-overflow: clip;
                 white-space: nowrap;
@@ -1289,7 +1289,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 style = CSS::CSSStyleProperties::create({}, {});
                 style->set_declarations_from_text(R"~~~(
                 width: 100%;
-                height: 1lh;
+                min-height: 1lh;
                 overflow: auto;
                 scrollbar-width: none;
                 text-overflow: clip;
