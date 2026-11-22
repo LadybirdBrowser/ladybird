@@ -136,6 +136,9 @@ This command will build the Flatpak bundle and install it into the local Flatpak
 to take a long time, as it will download and build all the dependencies of Ladybird as well. `flatpak-builder` will drop
 caches and build files in `.flatpak-builder`, as well as in the two subfolders `Build/repo` and `Build/flatpak`.
 
+`flatpak-builder` 1.4.5 and newer record the license files of the dependencies, which the `LICENSES.txt` of the
+Flatpak reproduces. With an older version, `LICENSES.txt` only names the dependencies.
+
 The Flatpak can be run with the following command:
 
 ```bash
