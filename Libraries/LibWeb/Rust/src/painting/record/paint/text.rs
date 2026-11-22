@@ -19,7 +19,7 @@ use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::path::Path;
-use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
+use libgfx_rust::{Color, FloatPoint, GlyphRunOrientation, IntPoint, IntRect, WindingRule};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -464,7 +464,7 @@ fn compute_render_spans<O: Observer>(
 
 pub(crate) struct GlyphRunEmission {
     pub baseline_start: FloatPoint,
-    pub orientation: Orientation,
+    pub orientation: GlyphRunOrientation,
     pub glyph_bounding_rect: IntRect,
 }
 
@@ -472,13 +472,49 @@ pub(crate) struct GlyphRunEmission {
 /// width and turning it a quarter turn clockwise about the rect's top-left corner, so the blob's
 /// bounds follow the same mapping.
 fn vertical_glyph_bounds(horizontal_bounds: IntRect, fragment_device_rect: IntRect) -> IntRect {
+    let (bounds, fragment) = (WideRect::of(horizontal_bounds), WideRect::of(fragment_device_rect));
     IntRect::new(
-        fragment_device_rect.x + fragment_device_rect.width
-            - (horizontal_bounds.y + horizontal_bounds.height - fragment_device_rect.y),
-        fragment_device_rect.y + (horizontal_bounds.x - fragment_device_rect.x),
+        saturated(fragment.x + fragment.width - (bounds.y + bounds.height - fragment.y)),
+        saturated(fragment.y + (bounds.x - fragment.x)),
         horizontal_bounds.height,
         horizontal_bounds.width,
     )
+}
+
+/// The player draws a counterclockwise run by turning the horizontal blob a quarter turn counterclockwise, so the
+/// blob's start lands on the bottom-left corner of the fragment rect, and its bounds follow the same mapping.
+fn counterclockwise_glyph_bounds(horizontal_bounds: IntRect, fragment_device_rect: IntRect) -> IntRect {
+    let (bounds, fragment) = (WideRect::of(horizontal_bounds), WideRect::of(fragment_device_rect));
+    IntRect::new(
+        saturated(fragment.x + (bounds.y - fragment.y)),
+        saturated(fragment.y + fragment.height - (bounds.x + bounds.width - fragment.x)),
+        horizontal_bounds.height,
+        horizontal_bounds.width,
+    )
+}
+
+/// A device rect with room to add its coordinates to its sizes: Glyph bounds come from float coordinates that saturate
+/// at the ends of the i32 range, so their sums can go past it.
+struct WideRect {
+    x: i64,
+    y: i64,
+    width: i64,
+    height: i64,
+}
+
+impl WideRect {
+    fn of(rect: IntRect) -> Self {
+        Self {
+            x: rect.x.into(),
+            y: rect.y.into(),
+            width: rect.width.into(),
+            height: rect.height.into(),
+        }
+    }
+}
+
+fn saturated(value: i64) -> i32 {
+    value.clamp(i32::MIN.into(), i32::MAX.into()) as i32
 }
 
 pub(crate) fn glyph_run_emission(
@@ -493,10 +529,12 @@ pub(crate) fn glyph_run_emission(
         x: (fragment_absolute_rect.x.to_float() as f64 * scale) as f32,
         y: ((fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) as f64 * scale) as f32,
     };
-    let orientation = if fragment.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
-        Orientation::Horizontal
-    } else {
-        Orientation::Vertical
+    // https://drafts.csswg.org/css-writing-modes-4/#valdef-writing-mode-sideways-lr
+    // "... and all text is typeset sideways, with the glyphs' tops facing left (the line-over side)."
+    let orientation = match fragment.writing_mode {
+        crate::css::css_enums::writing_mode::HORIZONTAL_TB => GlyphRunOrientation::Horizontal,
+        crate::css::css_enums::writing_mode::SIDEWAYS_LR => GlyphRunOrientation::VerticalCounterclockwise,
+        _ => GlyphRunOrientation::Vertical,
     };
     let horizontal_bounds = IntRect::new(
         (bounds.x * scale as f32 + baseline_start.x).round_ties_even() as i32,
@@ -505,8 +543,11 @@ pub(crate) fn glyph_run_emission(
         (bounds.height * scale as f32).round_ties_even() as i32,
     );
     let glyph_bounding_rect = match orientation {
-        Orientation::Horizontal => horizontal_bounds,
-        Orientation::Vertical => vertical_glyph_bounds(horizontal_bounds, fragment_device_rect),
+        GlyphRunOrientation::Horizontal => horizontal_bounds,
+        GlyphRunOrientation::Vertical => vertical_glyph_bounds(horizontal_bounds, fragment_device_rect),
+        GlyphRunOrientation::VerticalCounterclockwise => {
+            counterclockwise_glyph_bounds(horizontal_bounds, fragment_device_rect)
+        }
     };
     GlyphRunEmission {
         baseline_start,
@@ -982,5 +1023,14 @@ mod tests {
         // Its advance runs down the fragment from two pixels in, and its ascent side ends up on the
         // right, four pixels short of the fragment's right edge.
         assert_eq!(vertical, IntRect::new(100, 52, 24, 40));
+    }
+
+    #[test]
+    fn turned_glyph_bounds_saturate_rather_than_overflow() {
+        let fragment = IntRect::new(16, 16, 20, 60);
+        // A run so long that its width saturated when its float bounds were taken to device pixels.
+        let horizontal = IntRect::new(16, 16, i32::MAX, 24);
+        assert_eq!(vertical_glyph_bounds(horizontal, fragment).height, i32::MAX);
+        assert_eq!(counterclockwise_glyph_bounds(horizontal, fragment).y, i32::MIN + 77);
     }
 }

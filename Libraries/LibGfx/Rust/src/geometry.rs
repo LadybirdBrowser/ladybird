@@ -81,6 +81,17 @@ pub enum Orientation {
     Vertical,
 }
 
+/// How a glyph run is set along its line: as horizontal text, or turned a quarter turn clockwise to run down a vertical
+/// line, or a quarter turn counterclockwise to run up one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(i32)]
+pub enum GlyphRunOrientation {
+    #[default]
+    Horizontal,
+    Vertical,
+    VerticalCounterclockwise,
+}
+
 impl FloatPoint {
     pub fn primary_offset_for_orientation(self, orientation: Orientation) -> f32 {
         match orientation {

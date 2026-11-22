@@ -257,6 +257,8 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
                 let coordinate = CssPixels::nearest_value_for_f32(coordinate);
                 if text_fragment::is_horizontal(fragment) {
                     rect.x = origin.x + coordinate;
+                } else if text_fragment::runs_upwards(fragment) {
+                    rect.y = origin.bottom() - coordinate - rect.height;
                 } else {
                     rect.y = origin.y + coordinate;
                 }
@@ -341,7 +343,10 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         // The line box is unpositioned; move its block-axis extent with the atomic box and its inline ancestors.
         rect.x += item_rect.x - fragment_rect.x + fragment.relpos_delta.x;
         rect.y += item_rect.y - fragment_rect.y + fragment.relpos_delta.y;
-        let at_end = after != arena.node_style_if_live(node)?.inline_axis_is_reverse();
+        // NB: The box's start side comes from the way its line runs and the box's direction, not from the box's own
+        //     writing mode, which can turn its inline axis across the line.
+        let rtl = arena.node_style_if_live(node)?.direction() == crate::css::css_enums::direction::RTL;
+        let at_end = after != (rtl != text_fragment::runs_upwards(fragment));
         let thickness = CssPixels::from_integer(1);
         if text_fragment::is_horizontal(fragment) {
             rect.x = if at_end { item_rect.right() } else { item_rect.x };
@@ -420,6 +425,14 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         side.lines()
             .get(line.index as usize)
             .is_none_or(|record| record.writing_mode == writing_mode::HORIZONTAL_TB)
+    }
+
+    /// Whether the inline axis of `line` runs upwards, as in sideways-lr.
+    fn line_runs_upwards(&self, line: InlineLine) -> bool {
+        let side = self.arena.committed_side_data(line.root);
+        side.lines()
+            .get(line.index as usize)
+            .is_some_and(|record| record.writing_mode == writing_mode::SIDEWAYS_LR)
     }
 
     /// The middle of `line` along the block axis.
@@ -700,8 +713,26 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let arena = self.arena;
         let side = arena.committed_side_data(line.root);
         let horizontal = self.line_is_horizontal(line);
-        let x = if horizontal { point.x } else { point.y };
-        let inline_start = |rect: CssPixelRect| if horizontal { rect.x } else { rect.y };
+        // NB: Positions along the line are measured in the direction of its inline axis, so the inline axis of a line
+        //     that runs upwards is measured from the bottom: negated.
+        let upwards = self.line_runs_upwards(line);
+        let zero = CssPixels::from_raw(0);
+        let x = if horizontal {
+            point.x
+        } else if upwards {
+            zero - point.y
+        } else {
+            point.y
+        };
+        let inline_start = |rect: CssPixelRect| {
+            if horizontal {
+                rect.x
+            } else if upwards {
+                zero - rect.bottom()
+            } else {
+                rect.y
+            }
+        };
         let mut chosen = None;
         for fragment in self.fragments_on_line(&side, line, accepts) {
             let rect = text_fragment::absolute_rect(arena, fragment);
@@ -713,7 +744,15 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
             return self.position_before_forced_break(line);
         };
         // INTEROP: A point in the gap between two atomic inlines goes to the one after it.
-        let inline_end = |rect: CssPixelRect| if horizontal { rect.right() } else { rect.bottom() };
+        let inline_end = |rect: CssPixelRect| {
+            if horizontal {
+                rect.right()
+            } else if upwards {
+                zero - rect.y
+            } else {
+                rect.bottom()
+            }
+        };
         if fragment.is_atomic_inline
             && x >= inline_end(rect)
             && let Some(next) = self
@@ -730,11 +769,10 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
             && !last.is_atomic_inline
         {
             let last_rect = text_fragment::absolute_rect(arena, last);
-            let past_line_end = match (horizontal, last.direction == crate::css::css_enums::direction::LTR) {
-                (true, true) => x >= last_rect.right(),
-                (true, false) => x < last_rect.x,
-                (false, true) => x >= last_rect.bottom(),
-                (false, false) => x < last_rect.y,
+            let past_line_end = if last.direction == crate::css::css_enums::direction::LTR {
+                x >= inline_end(last_rect)
+            } else {
+                x < inline_start(last_rect)
             };
             if past_line_end {
                 let collapsible = matches!(
@@ -752,11 +790,14 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         if fragment.is_atomic_inline {
             return Some(self.position_for_point_at_atomic_inline(fragment.layout_node, line, point, accepts));
         }
+        // NB: A point in front of the fragment's inline start is taken to be at it.
         let mut point_in_fragment = point;
         if horizontal {
-            point_in_fragment.x = rect.x.max(x);
+            point_in_fragment.x = rect.x.max(point.x);
+        } else if upwards {
+            point_in_fragment.y = rect.bottom().min(point.y);
         } else {
-            point_in_fragment.y = rect.y.max(x);
+            point_in_fragment.y = rect.y.max(point.y);
         }
         let offset = text_fragment::index_in_node_for_point(arena, fragment, point_in_fragment);
         Some(self.text_position_in_fragment(fragment, offset))
@@ -833,33 +874,54 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let side = arena.committed_side_data(line.root);
         let mut fragments = self.fragments_on_line(&side, line, accepts);
         let horizontal = self.line_is_horizontal(line);
-        let rect = |fragment: &&FragmentRecord| text_fragment::absolute_rect(arena, fragment);
+        // NB: The left and right of a line are its line-left and line-right sides, so a line that runs upwards has
+        //     its left end at the bottom.
+        //     https://drafts.csswg.org/css-writing-modes-4/#line-left
+        let upwards = self.line_runs_upwards(line);
+        let zero = CssPixels::from_raw(0);
+        let line_left = |fragment: &&FragmentRecord| {
+            let rect = text_fragment::absolute_rect(arena, fragment);
+            if horizontal {
+                rect.x
+            } else if upwards {
+                zero - rect.bottom()
+            } else {
+                rect.y
+            }
+        };
+        let line_right = |fragment: &&FragmentRecord| {
+            let rect = text_fragment::absolute_rect(arena, fragment);
+            if horizontal {
+                rect.right()
+            } else if upwards {
+                zero - rect.y
+            } else {
+                rect.bottom()
+            }
+        };
         let fragment = match edge {
             LineEdge::Start => fragments.next(),
             LineEdge::End => fragments.last(),
-            LineEdge::Left => fragments.min_by_key(|fragment| {
-                let rect = rect(fragment);
-                if horizontal { rect.x } else { rect.y }
-            }),
-            LineEdge::Right => fragments.max_by_key(|fragment| {
-                let rect = rect(fragment);
-                if horizontal { rect.right() } else { rect.bottom() }
-            }),
+            LineEdge::Left => fragments.min_by_key(line_left),
+            LineEdge::Right => fragments.max_by_key(line_right),
         };
         let Some(fragment) = fragment else {
             return self.position_before_forced_break(line);
         };
         if fragment.is_atomic_inline {
-            let reverse = arena
+            // NB: A box's line-left side is its inline-start side whenever its direction is ltr. That's so even in
+            //     sideways-lr, whose inline axis runs upwards from the bottom of the line.
+            //     https://drafts.csswg.org/css-writing-modes-4/#line-left
+            let rtl = arena
                 .node_style_if_live(fragment.layout_node)
-                .is_some_and(|style| style.inline_axis_is_reverse());
+                .is_some_and(|style| style.direction() == crate::css::css_enums::direction::RTL);
             return Some(CaretPosition::BesideAtomicInline {
                 node: fragment.layout_node,
                 after: match edge {
                     LineEdge::Start => false,
                     LineEdge::End => true,
-                    LineEdge::Left => reverse,
-                    LineEdge::Right => !reverse,
+                    LineEdge::Left => rtl,
+                    LineEdge::Right => !rtl,
                 },
             });
         }

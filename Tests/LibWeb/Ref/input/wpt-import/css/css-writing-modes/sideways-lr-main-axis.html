@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>sideways-lr flexbox main axis progresses in correct direction</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#box-model">
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/reference/sideways-lr-main-axis-ref.html">
+<style>
+    .container {
+        display: flex;
+    }
+    .item {
+        width: 20px;
+        height: 20px;
+    }
+    .item:nth-child(1) { background-color: lime; }
+    .item:nth-child(2) { background-color: limegreen; }
+    .item:nth-child(3) { background-color: green; }
+</style>
+<div class="container" style="writing-mode: sideways-lr; flex-direction: row;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; direction: rtl; flex-direction: row;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; flex-direction: row-reverse;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; direction: rtl; flex-direction: row-reverse;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; flex-direction: column;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; direction: rtl; flex-direction: column;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; flex-direction: column-reverse;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container" style="writing-mode: sideways-lr; direction: rtl; flex-direction: column-reverse;">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>

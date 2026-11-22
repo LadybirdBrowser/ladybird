@@ -14,7 +14,7 @@ use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
-use libgfx_rust::{Color, FloatPoint, Orientation};
+use libgfx_rust::{Color, FloatPoint, GlyphRunOrientation};
 
 /// Paints what MathML layout drew for a box: its fraction bar, its radical symbol and overbar, or the glyphs of its
 /// stretched operator.
@@ -95,7 +95,7 @@ pub(crate) fn paint_foreground<O: Observer>(
                 width,
                 ink_rect,
                 scale,
-                Orientation::Horizontal,
+                GlyphRunOrientation::Horizontal,
                 ink_rect,
                 ForceDarkRole::Foreground,
             );

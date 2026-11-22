@@ -19,7 +19,7 @@ use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::{InspectorHighlight, OverlayLabelFonts};
-use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
+use libgfx_rust::{Color, FloatPoint, GlyphRunOrientation, IntPoint, IntRect, LineStyle};
 
 pub(crate) fn record_inspector_overlays<O: Observer>(recorder: &mut PaintRecorder<'_, O>) {
     let inputs = recorder.inputs;
@@ -536,7 +536,7 @@ fn draw_label<O: Observer>(recorder: &mut PaintRecorder<'_, O>, label: &OverlayL
         0.0,
         rect,
         1.0,
-        Orientation::Horizontal,
+        GlyphRunOrientation::Horizontal,
         glyph_bounding_rect,
         ForceDarkRole::None,
     );

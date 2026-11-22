@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>Sideways Inline Layout: Basic Case</title>
+<meta charset=utf-8>
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-4/#block-flow">
+
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/sideways-inline-001-ref.html">
+
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+div {
+  /* styling */
+  border: solid silver;
+  font: 30px/1 Ahem;
+  color: blue;
+  float: left;
+
+  /* test */
+  padding: 2px 4px 6px 8px;
+  margin: 2px 4px 6px 8px;
+}
+</style>
+
+<div style="writing-mode: sideways-lr">ApÉx</div>
+
+<div style="writing-mode: sideways-rl">ApÉx</div>
