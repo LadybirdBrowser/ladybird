@@ -9,15 +9,18 @@
 #include "FetchTestDocument.h"
 #include <AK/RefCounted.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineCommandSink.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -69,9 +72,53 @@ inline ByteString describe_transport_control(Web::Fetch::Engine::Command::Transp
     return ByteString::formatted("{} of request {} of epoch {}", description, request_id.value(), transport_epoch.value());
 }
 
+// Hands each event of a fetch on to the fetch's event sink, and records the ends of the fetch's bodies and of the fetch,
+// and each event that comes after the fetch's end.
+class EventRecordingSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    EventRecordingSink(NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> event_sink, NonnullRefPtr<ReachedSteps> reached, ByteString fetch)
+        : m_event_sink(move(event_sink))
+        , m_reached(move(reached))
+        , m_fetch(move(fetch))
+    {
+    }
+
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent event) override
+    {
+        if (m_fetch_ended)
+            m_reached->steps.append(ByteString::formatted("event after the end of fetch {}", m_fetch));
+        else if (event.has<Web::Fetch::Engine::Event::EndOfBody>())
+            m_reached->steps.append(ByteString::formatted("end of body of {}", m_fetch));
+        else if (event.has<Web::Fetch::Engine::Event::FetchEnded>())
+            m_reached->steps.append(ByteString::formatted("end of fetch {}", m_fetch));
+        m_fetch_ended |= event.has<Web::Fetch::Engine::Event::FetchEnded>();
+        m_event_sink->handle_event(move(event));
+    }
+
+private:
+    NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> m_event_sink;
+    NonnullRefPtr<ReachedSteps> m_reached;
+    ByteString m_fetch;
+    bool m_fetch_ended { false };
+};
+
+class IgnoringEventSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent) override { }
+};
+
+// A load of a fetch that an engine of its own starts, for a transport that a case drives itself.
+inline NonnullRefPtr<Web::Fetch::Engine::FetchLoad> start_a_load_of_another_engine()
+{
+    Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+    auto record = records.start(Web::Fetch::Engine::FetchId { 1 }, make<IgnoringEventSink>(), Web::Fetch::Engine::NetworkActivityObservers::create());
+    return record->start_load();
+}
+
 // Records each command that reaches the fetch engine, then hands it to a fetch engine through its executor, keeps it
 // for the test to hand on, or drops it. A fetch the recorder saw start is named by its number in the order of the
-// starts, from 1, and any other fetch by its id.
+// starts, from 1, and any other fetch by its id. The fetch engine's events record the ends of the bodies of the
+// fetches it starts, and of the fetches.
 class CommandRecordingEngine final : public Web::Fetch::Engine::EngineCommandSink {
 public:
     using Destination = Variant<Empty, NonnullRefPtr<PostedCommands>, NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>;
@@ -87,6 +134,8 @@ public:
         using namespace Web::Fetch::Engine::Command;
         m_reached->steps.append(describe(command));
         if (auto const* engine_executor = m_destination.get_pointer<NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>()) {
+            if (auto* start = command.get_pointer<StartFetch>())
+                start->input.event_sink = make<EventRecordingSink>(move(start->input.event_sink), m_reached, fetch(start->input.fetch_id));
             (*engine_executor)->post(move(command));
             return;
         }
@@ -366,6 +415,13 @@ public:
     void send_finished(u64 request_id, Requests::RequestTimingInfo timing_info = {}, Optional<Requests::NetworkError> network_error = {})
     {
         send(MUST(Messages::RequestClient::RequestFinished::static_encode(request_id, 0, timing_info, network_error)));
+    }
+
+    // Delivers the body the file holds, as RequestServer does for a body it keeps in a file.
+    void send_body_file(u64 request_id, ByteString const& path, size_t size)
+    {
+        auto file = IPC::File::adopt_file(MUST(Core::File::open(path, Core::File::OpenMode::Read)));
+        send(MUST(Messages::RequestClient::RequestBodyFileAvailable::static_encode(request_id, file, 0, size)));
     }
 
     void send_transferred(u64 request_id)

@@ -180,6 +180,8 @@ void FetchController::resolve_redirect(Engine::Command::ResolveRedirect::Resolut
 
 void FetchController::when_body_ends(Engine::DeliveryId delivery_id, Response& response, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps)
 {
+    if (m_fetch_ended)
+        return;
     m_awaited_end_of_body = AwaitedEndOfBody { delivery_id, response.make_weak_ptr<Response>(), steps };
 }
 
@@ -194,6 +196,12 @@ void FetchController::did_end_body(Engine::Event::EndOfBody const& end_of_body)
 
     if (awaited.steps)
         awaited.steps->function()(end_of_body.end_time);
+}
+
+void FetchController::did_end_fetch()
+{
+    m_fetch_ended = true;
+    m_awaited_end_of_body.clear();
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info

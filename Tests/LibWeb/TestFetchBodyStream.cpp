@@ -14,6 +14,7 @@
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -463,9 +464,14 @@ public:
     size_t wake_count { 0 };
 };
 
+class IgnoringEventSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent) override { }
+};
+
 }
 
-TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_and_wakes_its_reader)
+TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_ends_its_load_and_wakes_its_reader)
 {
     Core::EventLoop event_loop;
     auto gate = FetchBodyDeliveryGate::create(FetchBodyDeliveryGate::NavigationHold::None);
@@ -475,7 +481,10 @@ TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_and_wakes_its_read
     channel->attach_consumer(reader);
     (void)channel->arm_waiter(FetchByteChannel::EndOnly {});
 
-    auto transport = Web::Fetch::Fetching::create_whole_body_transport(*gate, *channel);
+    Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+    auto record = records.start(Web::Fetch::Engine::FetchId { 1 }, make<IgnoringEventSink>(), Web::Fetch::Engine::NetworkActivityObservers::create());
+    auto load = record->start_load();
+    auto transport = Web::Fetch::Fetching::create_whole_body_transport(*gate, *channel, load);
     transport->attach_to(gate);
     transport->set_body(make_bytes(1000, 0), [&](Requests::ResponseData data) {
         EXPECT_EQ(gate->did_deliver(data.bytes().size()), Web::Fetch::Engine::FetchBodyDeliveryGate::DeliveryResult::Accepted);
@@ -487,6 +496,7 @@ TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_and_wakes_its_read
 
     transport->stop();
     EXPECT(channel->peek_up_to(0).state.has<FetchByteChannel::ConsumerCancelled>());
+    EXPECT(load->has_ended());
     EXPECT_EQ(reader->wake_count, 1u);
 }
 

@@ -109,6 +109,8 @@ public:
 
     // Either side may cancel; the producer hears of it unless it has already ended the body.
     TerminateResult cancel();
+    // Whether a read of the channel can still reach its end, which a cancellation or a transfer rules out.
+    [[nodiscard]] bool can_be_read_to_its_end() const;
 
     // Ends an open or closed channel for a body that moves to another process, returning its undrained bytes. The
     // transport hears nothing, and later writes and endings do nothing.

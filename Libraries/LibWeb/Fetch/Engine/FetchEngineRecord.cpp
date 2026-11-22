@@ -60,6 +60,7 @@ void FetchEngineRecord::stop()
     if (m_redirect_continuation.has_value())
         abandon_redirect();
     stop_body_transport();
+    end_main_fetch_if_its_read_cannot_end();
 }
 
 void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
@@ -92,17 +93,25 @@ ContinuationId FetchEngineRecord::open_redirect_continuation(NetworkTransportHan
     return continuation_id;
 }
 
-bool FetchEngineRecord::resolve_redirect(ContinuationId continuation_id, Command::ResolveRedirect::Resolution const& resolution)
+FetchEngineRecord::RedirectAnswerResult FetchEngineRecord::resolve_redirect(ContinuationId continuation_id, Command::ResolveRedirect::Resolution const& resolution)
 {
     ASSERT(is_on_owner_thread());
     if (!m_redirect_continuation.has_value() || m_redirect_continuation->id != continuation_id)
-        return false;
+        return RedirectAnswerResult::NotOpen;
+    if (!m_main_fetch.has<MainFetchEnded>())
+        return RedirectAnswerResult::NotHandedOver;
 
     resolution.visit(
-        [&](Command::ResolveRedirect::Follow) { m_redirect_continuation.clear(); },
-        [&](Command::ResolveRedirect::AcceptAsFinal) { m_redirect_continuation.clear(); },
+        [&](Command::ResolveRedirect::Follow) {
+            m_redirect_continuation.clear();
+            m_main_fetch = MainFetchRunning {};
+        },
+        [&](Command::ResolveRedirect::AcceptAsFinal) {
+            m_redirect_continuation.clear();
+            end_fetch_unless_anything_is_left();
+        },
         [&](Command::ResolveRedirect::Abandon) { abandon_redirect(); });
-    return true;
+    return RedirectAnswerResult::Settled;
 }
 
 void FetchEngineRecord::abandon_redirect()
@@ -111,6 +120,102 @@ void FetchEngineRecord::abandon_redirect()
     if (auto network_transport = continuation.network_transport.strong_ref())
         network_transport->release_transfer_lease();
     stop_body_transport();
+    end_fetch_unless_anything_is_left();
+}
+
+NonnullRefPtr<FetchLoad> FetchEngineRecord::start_load()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_main_fetch.has<MainFetchRunning>());
+    ++m_live_load_count;
+    return adopt_ref(*new FetchLoad(*this));
+}
+
+void FetchEngineRecord::main_fetch_handed_over()
+{
+    ASSERT(is_on_owner_thread());
+    if (m_main_fetch.has<MainFetchEnded>())
+        return;
+    VERIFY(m_main_fetch.has<MainFetchRunning>() || m_main_fetch.has<MainFetchReadsWholeBody>());
+    end_main_fetch();
+}
+
+void FetchEngineRecord::main_fetch_cannot_hand_over()
+{
+    ASSERT(is_on_owner_thread());
+    if (m_main_fetch.has<MainFetchEnded>())
+        return;
+    RefPtr<FetchByteChannel> channel_main_fetch_reads;
+    if (auto const* reads_whole_body = m_main_fetch.get_pointer<MainFetchReadsWholeBody>())
+        channel_main_fetch_reads = reads_whole_body->channel;
+    end_main_fetch();
+    if (channel_main_fetch_reads)
+        (void)channel_main_fetch_reads->cancel();
+}
+
+void FetchEngineRecord::main_fetch_reads_whole_body(FetchByteChannel& channel)
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_main_fetch.has<MainFetchRunning>());
+    m_main_fetch = MainFetchReadsWholeBody { channel };
+    end_main_fetch_if_its_read_cannot_end();
+}
+
+void FetchEngineRecord::did_end_load()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_live_load_count > 0);
+    --m_live_load_count;
+    end_main_fetch_if_its_read_cannot_end();
+    end_fetch_unless_anything_is_left();
+}
+
+void FetchEngineRecord::end_main_fetch_if_its_read_cannot_end()
+{
+    auto const* reads_whole_body = m_main_fetch.get_pointer<MainFetchReadsWholeBody>();
+    if (reads_whole_body && !reads_whole_body->channel->can_be_read_to_its_end())
+        end_main_fetch();
+}
+
+void FetchEngineRecord::end_main_fetch()
+{
+    m_main_fetch = MainFetchEnded {};
+    end_fetch_unless_anything_is_left();
+}
+
+void FetchEngineRecord::end_fetch_unless_anything_is_left()
+{
+    if (m_ended || !m_main_fetch.has<MainFetchEnded>() || m_live_load_count > 0 || m_redirect_continuation.has_value())
+        return;
+    m_ended = true;
+    m_event_sink->handle_event(Event::FetchEnded {});
+}
+
+FetchLoad::FetchLoad(FetchEngineRecord& record)
+    : m_record(record)
+{
+}
+
+void FetchLoad::did_give_response()
+{
+    ASSERT(m_record->is_on_owner_thread());
+    m_gave_response = true;
+}
+
+void FetchLoad::end()
+{
+    ASSERT(m_record->is_on_owner_thread());
+    if (m_ended)
+        return;
+    m_ended = true;
+    m_record->did_end_load();
+}
+
+void FetchLoad::end_at_its_last_callback()
+{
+    end();
+    if (!m_gave_response)
+        m_record->main_fetch_cannot_hand_over();
 }
 
 void FetchEngineRecords::Agent::misbehaved(StringView reason)
@@ -168,9 +273,16 @@ FetchEngineRecords::RedirectAnswerOutcome FetchEngineRecords::resolve_redirect(C
     if (!found_record.has_value())
         return RedirectAnswerDropped {};
     NonnullRefPtr record = **found_record;
-    if (!record->resolve_redirect(resolve.continuation_id, resolve.resolution))
+    switch (record->resolve_redirect(resolve.continuation_id, resolve.resolution)) {
+    case FetchEngineRecord::RedirectAnswerResult::Settled:
+        return record;
+    case FetchEngineRecord::RedirectAnswerResult::NotOpen:
         return RedirectAnswerDropped {};
-    return record;
+    case FetchEngineRecord::RedirectAnswerResult::NotHandedOver:
+        m_agent->misbehaved("The agent answered a redirect before it was handed over"sv);
+        return RedirectAnswerMisbehaved {};
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void FetchEngineRecords::did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId continuation_id)

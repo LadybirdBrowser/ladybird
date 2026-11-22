@@ -34,6 +34,7 @@ namespace Web::Fetch::Engine {
 class FetchBodyDeliveryGate;
 class FetchByteChannel;
 class FetchEngineRecord;
+class FetchLoad;
 class WholeBodyTransport;
 
 }
@@ -43,6 +44,7 @@ class WholeBodyTransport;
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchBodyDeliveryGate);
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchByteChannel);
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchEngineRecord);
+GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchLoad);
 GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::Fetch::Engine::WholeBodyTransport);
 GC_UNTRACED_CAPTURE(Gfx::Typeface);
 GC_UNTRACED_CAPTURE(HTTP::HeaderList);

@@ -9,9 +9,12 @@
 #include <LibGC/Root.h>
 #include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
+#include <LibWeb/Fetch/Engine/EngineEvent.h>
+#include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 
+using Web::Fetch::Fetching::FetchEventSink;
 using Web::Fetch::Infrastructure::FetchController;
 using Web::Fetch::Infrastructure::FetchControllerRegistry;
 using Web::Fetch::Infrastructure::FetchControllerToken;
@@ -39,6 +42,21 @@ static NEVER_INLINE FetchControllerToken create_preflighted_fetch_controller(Fet
 static NEVER_INLINE bool is_registered(FetchControllerRegistry const& registry, FetchControllerToken token)
 {
     return !!registry.find(token);
+}
+
+namespace {
+
+struct EventSinkOfController {
+    NonnullOwnPtr<FetchEventSink> event_sink;
+    FetchControllerToken token;
+};
+
+}
+
+static NEVER_INLINE EventSinkOfController create_event_sink_of_unreferenced_controller(FetchControllerRegistry& registry)
+{
+    auto controller = FetchController::create(registry);
+    return { make<FetchEventSink>(controller), controller->token() };
 }
 
 TEST_SETUP
@@ -107,4 +125,24 @@ TEST_CASE(a_token_is_rejected_by_a_registry_that_did_not_issue_it)
     auto controller = GC::make_root(FetchController::create(registry));
 
     EXPECT_DEATH("Finding a token in another registry", (void)other_registry.find(controller->token()));
+}
+
+// The sink finds its controller through the registry for each event, and drops the event once either is gone.
+TEST_CASE(an_event_for_a_collected_controller_or_a_registry_that_is_gone_is_dropped)
+{
+    FetchControllerRegistry registry;
+    auto [event_sink, token] = create_event_sink_of_unreferenced_controller(registry);
+    GC::scrub_stack_for_testing();
+    test_heap().collect_garbage();
+    EXPECT(!registry.find(token));
+    event_sink->handle_event(Web::Fetch::Engine::Event::RequestBodyProgress { .length = 1 });
+
+    OwnPtr<FetchEventSink> sink_of_registry_that_is_gone;
+    GC::Root<FetchController> controller;
+    {
+        FetchControllerRegistry registry_that_is_gone;
+        controller = GC::make_root(FetchController::create(registry_that_is_gone));
+        sink_of_registry_that_is_gone = make<FetchEventSink>(*controller);
+    }
+    sink_of_registry_that_is_gone->handle_event(Web::Fetch::Engine::Event::RequestBodyProgress { .length = 1 });
 }

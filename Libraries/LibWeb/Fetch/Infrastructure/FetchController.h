@@ -64,9 +64,10 @@ public:
     [[nodiscard]] bool has_unanswered_redirect() const { return m_redirect_continuation_id.has_value(); }
 
     // Once the network has delivered all of the delivery's body, records its sizes in the response, if still alive, then
-    // runs the steps given its end time. An abort, termination or stop of the fetch, or a later call, drops this first.
+    // runs the steps given its end time, unless the fetch has ended. An abort, termination, stop or later call drops it.
     void when_body_ends(Engine::DeliveryId, Response&, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps);
     void did_end_body(Engine::Event::EndOfBody const&);
+    void did_end_fetch();
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
     Optional<HTML::IPCSerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
@@ -146,6 +147,7 @@ private:
         GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps;
     };
     Optional<AwaitedEndOfBody> m_awaited_end_of_body;
+    bool m_fetch_ended { false };
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // serialized abort reason (default null)
