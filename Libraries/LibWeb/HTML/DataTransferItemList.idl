@@ -1,10 +1,10 @@
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitemlist
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DataTransferItemList {
     readonly attribute unsigned long length;
     getter DataTransferItem (unsigned long index);
-    DataTransferItem? add(DOMString data, DOMString type);
-    DataTransferItem? add(File data);
+    [ImplementedAs=add_string] DataTransferItem? add(DOMString data, DOMString type);
+    [ImplementedAs=add_file] DataTransferItem? add(File data);
     undefined remove(unsigned long index);
     undefined clear();
 };

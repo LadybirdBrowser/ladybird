@@ -42,19 +42,7 @@ public:
     Utf16FlyString effect_allowed() const;
     void set_effect_allowed_internal(Utf16FlyString const&);
 
-    Optional<DragDataStore::Mode> mode() const;
     void disassociate_with_drag_data_store();
-
-    GC::Ref<DataTransferItem> add_item(DragDataStoreItem);
-    void remove_item(size_t index);
-    static void set_item_index(DataTransferItem&, Optional<size_t>);
-    bool contains_item_with_type(DragDataStoreItem::Kind, Utf16View type) const;
-    GC::Ref<DataTransferItem> item(size_t index) const;
-    DragDataStoreItem const& drag_data(size_t index) const;
-    size_t length() const;
-
-private:
-    DragDataStore* drag_data_store() const;
 };
 
 }
