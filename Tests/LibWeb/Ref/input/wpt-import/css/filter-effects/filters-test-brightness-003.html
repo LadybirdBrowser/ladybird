@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Filter Effects: brightness(...) without argument</title>
+    <link rel="author" title="Jun Ichikawa" href="mailto:jun1ka0@gmail.com">
+    <link rel="reviewer" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#FilterProperty">
+    <link rel="help" href="https://www.w3.org/TR/filter-effects-1/#funcdef-filter-brightness">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/filters-ref-brightness-003.html">
+    <meta name="assert" content="This test verifies that the brightness shorthand works. Green rectangle must shown,
+    when brightness is not set.">
+    <style type="text/css">
+
+        div.brightness_noset {
+            width: 200px;
+            height: 200px;
+            background-color: rgb(0, 255, 0);
+            filter: brightness(0);
+            filter: brightness();
+        }
+    </style>
+</head>
+<body>
+    <p>You should see green rectangle.</p>
+    <div class="brightness_noset"></div>
+
+</body>
+</html>

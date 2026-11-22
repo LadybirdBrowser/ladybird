@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Filter contrast: Test for CSS contrast filter shorthand</title>
+    <link rel="author" title="Takeshi Kurosawa" href="mailto:taken.spc@gmail.com">
+    <link rel="reviewer" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#FilterProperty">
+    <link rel="help" href="https://www.w3.org/TR/filter-effects-1/#funcdef-filter-contrast">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/filter-contrast-003-ref.html">
+    <meta name="assert" content="CSS contrast filter will apply a component transfer to the div element to adjust the
+    contrast of the colors. Since contrast is 200%, it will be less contrast.">
+    <style type="text/css">
+       div {
+           width: 200px;
+           height: 200px;
+           background-color: #3f0000;
+           filter: contrast(200%);
+       }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is a black box and no dark red.</p>
+
+    <div></div>
+</body>
+</html>
