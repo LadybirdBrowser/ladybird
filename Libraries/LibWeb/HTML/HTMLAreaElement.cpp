@@ -36,7 +36,7 @@ void HTMLAreaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
     if (name == HTML::AttributeNames::href) {
         href_content_attribute_changed();
-    } else if (name == HTML::AttributeNames::rel) {
+    } else if (!namespace_.has_value() && name == HTML::AttributeNames::rel) {
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value);
     }

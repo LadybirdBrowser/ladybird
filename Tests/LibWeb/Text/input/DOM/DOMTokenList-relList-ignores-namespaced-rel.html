@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const elements = ["a", "area", "form", "link"].map(name => document.createElement(name));
+        elements.push(document.createElementNS("http://www.w3.org/2000/svg", "a"));
+        for (const element of elements) {
+            element.setAttribute("rel", "first");
+            const list = element.relList;
+            element.setAttributeNS("urn:x", "rel", "second");
+            const afterSet = `${list.length} ${list[0]}`;
+            element.removeAttributeNS("urn:x", "rel");
+            println(`${element.namespaceURI}:${element.localName}: after set ${afterSet}, after removal ${list.length} ${list[0]}`);
+        }
+    });
+</script>

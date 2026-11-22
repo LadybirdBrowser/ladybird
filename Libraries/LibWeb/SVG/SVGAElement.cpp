@@ -42,7 +42,7 @@ void SVGAElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
 
     if (name == SVG::AttributeNames::href && (!namespace_.has_value() || namespace_ == Namespace::XLink))
         href_content_attribute_changed();
-    if (name == HTML::AttributeNames::rel) {
+    if (!namespace_.has_value() && name == HTML::AttributeNames::rel) {
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value);
     }

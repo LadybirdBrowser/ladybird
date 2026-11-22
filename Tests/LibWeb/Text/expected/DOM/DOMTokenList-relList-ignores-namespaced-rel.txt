@@ -1,0 +1,5 @@
+http://www.w3.org/1999/xhtml:a: after set 1 first, after removal 1 first
+http://www.w3.org/1999/xhtml:area: after set 1 first, after removal 1 first
+http://www.w3.org/1999/xhtml:form: after set 1 first, after removal 1 first
+http://www.w3.org/1999/xhtml:link: after set 1 first, after removal 1 first
+http://www.w3.org/2000/svg:a: after set 1 first, after removal 1 first
