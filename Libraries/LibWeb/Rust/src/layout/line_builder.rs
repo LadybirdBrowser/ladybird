@@ -1191,19 +1191,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             if !self.line(line_index).fragments[fragment_index].takes_part_in_line_alignment() {
                 continue;
             }
-            let (node, style_source, content_baselines, box_cells, is_block_ellipsis) = {
+            // NB: An ellipsis is text in the block's style, whichever node it stands at.
+            let (node, style_source, content_baselines, box_cells, is_ellipsis) = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
                 (
                     fragment.layout_node,
                     fragment.style_source,
                     fragment.content_baselines,
                     fragment.box_cells,
-                    fragment.is_block_ellipsis,
+                    fragment.is_block_ellipsis || fragment.is_text_overflow_ellipsis,
                 )
             };
             let style = self.style(style_source);
             let fragment_baseline =
-                if is_block_ellipsis || self.facts(node).is_text_node() || self.facts(node).is_fragmented_inline() {
+                if is_ellipsis || self.facts(node).is_text_node() || self.facts(node).is_fragmented_inline() {
                     self.text_fragment_layout_bounds(line_index, fragment_index, style)
                         .ascent
                 } else {
@@ -2103,6 +2104,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
 
             let is_text_node = self.line(line_index).fragments[fragment_index].is_block_ellipsis
+                || self.line(line_index).fragments[fragment_index].is_text_overflow_ellipsis
                 || self.facts(snapshot.layout_node).is_text_node()
                 || self.facts(snapshot.layout_node).is_fragmented_inline();
             if is_text_node {

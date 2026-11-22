@@ -254,6 +254,36 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData, context: &Inlin
     }
 }
 
+/// Where a fragment's border box starts and ends on its line: The fragment of an atomic inline is its content box.
+fn border_box_inline_extent(fragment: &line_box_fragment::LineBoxFragmentData) -> (CssPixels, CssPixels) {
+    let start = fragment.inline_offset;
+    let end = start + fragment.inline_length;
+    match fragment.box_cells.filter(|_| fragment.is_atomic_inline) {
+        Some(cells) => (
+            start - cells.border_left - cells.padding_left,
+            end + cells.padding_right + cells.border_right,
+        ),
+        None => (start, end),
+    }
+}
+
+/// Hides a fragment that text-overflow elides, and the box of an atomic inline with it, since that box paints itself.
+fn hide_fragment_for_text_overflow(
+    fragment: &mut line_box_fragment::LineBoxFragmentData,
+    context: &InlineFormattingContext<'_>,
+) {
+    fragment.is_fully_truncated = true;
+    fragment.is_hidden_by_text_overflow = true;
+    if fragment.is_atomic_inline {
+        context.hide_atomic_inline(fragment.layout_node);
+    }
+}
+
+// https://drafts.csswg.org/css-overflow-4/#text-overflow
+// "For the ellipsis and string values, implementations must hide characters and atomic inline-level elements at the
+// applicable edge(s) of the line as necessary to fit the ellipsis/string, and place the ellipsis/string immediately
+// adjacent to the applicable edge(s) of the remaining inline content. The first character or atomic inline-level
+// element on a line must be clipped rather than ellipsed."
 fn apply_text_overflow_at_right_edge(
     line: &mut line_box::LineBoxData,
     context: &InlineFormattingContext<'_>,
@@ -266,12 +296,46 @@ fn apply_text_overflow_at_right_edge(
     let mut line_has_visible_content = false;
     for index in 0..line.fragments.len() {
         let fragment_start = line.fragments[index].inline_offset;
-        if fragment_start + line.fragments[index].inline_length <= content_right_limit {
+        if border_box_inline_extent(&line.fragments[index]).1 <= content_right_limit {
             line_has_visible_content = true;
             continue;
         }
         let Some(glyph_data) = &line.fragments[index].glyphs else {
-            continue;
+            if !line.fragments[index].is_atomic_inline {
+                continue;
+            }
+            // NB: An atomic inline is hidden as a whole, unless it's the first content on the line, and the ellipsis
+            //     then follows the content before it.
+            let keeps_atomic_inline = !line_has_visible_content;
+            let original_inline_length = line.fragments[index].inline_length;
+            let ellipsis_offset = if keeps_atomic_inline {
+                border_box_inline_extent(&line.fragments[index]).1
+            } else {
+                line.fragments[..index]
+                    .iter()
+                    .filter(|fragment| !fragment.is_fully_truncated)
+                    .map(|fragment| border_box_inline_extent(fragment).1)
+                    .max()
+                    .unwrap_or_else(|| border_box_inline_extent(&line.fragments[index]).0)
+                    .min(content_right_limit)
+            };
+            line.text_overflow_elision = Some(line_box::TextOverflowElision {
+                inline_length: line.inline_length,
+                ellipsis_fragment_start: fragment_start,
+                ellipsis_fragment_inline_length: original_inline_length,
+                ellipsis_fragment_inline_length_lost_on_left: None,
+            });
+            let first_hidden = if keeps_atomic_inline { index + 1 } else { index };
+            for hidden in &mut line.fragments[first_hidden..] {
+                hide_fragment_for_text_overflow(hidden, context);
+            }
+            line.fragments[index].has_text_overflow_ellipsis = true;
+            let layout_node = line.fragments[index].layout_node;
+            let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, 0, ellipsis_offset);
+            line.fragments.insert(index + 1, ellipsis_fragment);
+            line.inline_length = available_inline_size;
+            line.clamp_static_position_markers_to_inline_length();
+            break;
         };
         let max_text_end = (content_right_limit - fragment_start).to_double() as f32;
         let (mut kept, mut kept_extent) = glyphs_of_clusters_kept(&glyph_data.glyphs, |_, end| end <= max_text_end);
@@ -304,8 +368,7 @@ fn apply_text_overflow_at_right_edge(
             ellipsis_fragment_inline_length_lost_on_left: None,
         });
         for later in &mut line.fragments[index + 1..] {
-            later.is_fully_truncated = true;
-            later.is_hidden_by_text_overflow = true;
+            hide_fragment_for_text_overflow(later, context);
         }
         let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, ellipsis_start, ellipsis_offset);
         line.fragments.insert(index + 1, ellipsis_fragment);
@@ -331,12 +394,56 @@ fn apply_text_overflow_at_left_edge(
     let mut line_has_visible_content = false;
     for index in (0..line.fragments.len()).rev() {
         let fragment_start = line.fragments[index].inline_offset;
-        if fragment_start >= content_left_limit {
+        if border_box_inline_extent(&line.fragments[index]).0 >= content_left_limit {
             line_has_visible_content = true;
             continue;
         }
         let Some(glyph_data) = &line.fragments[index].glyphs else {
-            continue;
+            if !line.fragments[index].is_atomic_inline {
+                continue;
+            }
+            // NB: An atomic inline is hidden as a whole, unless it's the first content on the line, and the ellipsis
+            //     then precedes the content after it.
+            let keeps_atomic_inline = !line_has_visible_content;
+            let ellipsis_offset = if keeps_atomic_inline {
+                border_box_inline_extent(&line.fragments[index]).0 - ellipsis_inline_size
+            } else {
+                line.fragments[index + 1..]
+                    .iter()
+                    .filter(|fragment| !fragment.is_fully_truncated)
+                    .map(|fragment| border_box_inline_extent(fragment).0)
+                    .min()
+                    .unwrap_or_else(|| border_box_inline_extent(&line.fragments[index]).1)
+                    .max(content_left_limit)
+                    - ellipsis_inline_size
+            };
+            let original_inline_length = line.fragments[index].inline_length;
+            let elided_inline_length = line.inline_length;
+            let last_hidden = if keeps_atomic_inline { index } else { index + 1 };
+            for hidden in &mut line.fragments[..last_hidden] {
+                hide_fragment_for_text_overflow(hidden, context);
+            }
+            line.fragments[index].has_text_overflow_ellipsis = true;
+            let layout_node = line.fragments[index].layout_node;
+            let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, 0, ellipsis_offset);
+            line.fragments.insert(index, ellipsis_fragment);
+            if shift != CssPixels::default() {
+                for fragment in &mut line.fragments {
+                    fragment.inline_offset -= shift;
+                }
+                for marker in &mut line.static_position_markers {
+                    marker.inline_offset -= shift;
+                }
+            }
+            line.text_overflow_elision = Some(line_box::TextOverflowElision {
+                inline_length: elided_inline_length,
+                ellipsis_fragment_start: line.fragments[index + 1].inline_offset,
+                ellipsis_fragment_inline_length: original_inline_length,
+                ellipsis_fragment_inline_length_lost_on_left: Some(CssPixels::default()),
+            });
+            line.inline_length = available_inline_size;
+            line.clamp_static_position_markers_to_inline_length();
+            break;
         };
         let min_text_start = (content_left_limit - fragment_start).to_double() as f32;
         let (mut kept, mut kept_extent) =
@@ -368,8 +475,7 @@ fn apply_text_overflow_at_left_edge(
         };
         let elided_inline_length = line.inline_length;
         for earlier in &mut line.fragments[..index] {
-            earlier.is_fully_truncated = true;
-            earlier.is_hidden_by_text_overflow = true;
+            hide_fragment_for_text_overflow(earlier, context);
         }
         let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, ellipsis_start, ellipsis_offset);
         line.fragments.insert(index, ellipsis_fragment);
@@ -537,7 +643,7 @@ fn apply_block_ellipsis(
         fragment.is_fully_truncated = true;
         fragment.is_hidden_by_text_overflow = false;
         if fragment.is_atomic_inline {
-            context.hide_atomic_inline_for_line_clamp(fragment.layout_node);
+            context.hide_atomic_inline(fragment.layout_node);
         }
     }
     line.static_position_markers
@@ -1532,7 +1638,8 @@ impl<'context> InlineFormattingContext<'context> {
         self.block_axis_float_clearance.set(clearance);
     }
 
-    fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
+    /// Hides an atomic inline that a line clamp or text-overflow left out of its line.
+    fn hide_atomic_inline(&self, node: Node) {
         self.discard_unplaced_atomic_inline(node);
         self.hide_placed_atomic_inline_for_line_clamp(node);
     }
@@ -3402,7 +3509,7 @@ impl<'context> InlineFormattingContext<'context> {
             let remaining_items = iterator.items().iter().map(|item| (item.type_, item.node));
             for (item_type, node) in items_after_clamp_point.into_iter().chain(remaining_items) {
                 if item_type == inline_level_iterator::ItemType::Element {
-                    self.hide_atomic_inline_for_line_clamp(node);
+                    self.hide_atomic_inline(node);
                 } else if item_type == inline_level_iterator::ItemType::AbsolutelyPositionedElement
                     && self.facts(node).is_box()
                     && self.line_data().line_boxes.iter().any(|line| {

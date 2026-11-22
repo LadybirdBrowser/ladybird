@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/30px Ahem; color: gray; }
+    .c { width: 200px; overflow: hidden; white-space: nowrap; margin-bottom: 8px; }
+    .box { display: inline-block; width: 60px; height: 20px; background: green; }
+    .other { background: blue; }
+    .wide { width: 250px; }
+    .hidden { visibility: hidden; }
+</style>
+<div class="c">xxxxxxx&#x2026;</div>
+<div class="c"><span class="box"></span><span class="box other"></span><span class="box"></span>&#x2026;</div>
+<div class="c">xxxxxxxx&#x2026;</div>
+<div class="c">xxxxxxxxx&#x2026;</div>
+<div class="c">xxxxxx&#x2026;</div>
+<div class="c">xxxxxxx&#x2026;</div>
+<div class="c"><span class="box wide"></span></div>
+<div class="c" style="direction: rtl">&#x2026;xxxxxxx</div>
+<div class="c">xx&#x2026;</div>

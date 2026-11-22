@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/text-overflow-ellipsis-hides-atomic-inlines-ref.html">
+<style>
+    @font-face { font-family: Ahem; src: url("../data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/30px Ahem; color: gray; }
+    .c { width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 8px; }
+    .box { display: inline-block; width: 60px; height: 20px; background: green; }
+    .other { background: blue; }
+    .wide { width: 250px; }
+    img { width: 60px; height: 20px; background: orange; }
+</style>
+<div class="c">xxxxxxx<span class="box"></span>xx</div>
+<div class="c"><span class="box"></span><span class="box other"></span><span class="box"></span><span class="box other"></span></div>
+<div class="c">xxxxxxxx<img>x</div>
+<div class="c">xxxxxxxxxxx<span class="box"></span></div>
+<div class="c">xxxxxx<span class="box" style="margin-left: 10px"></span>xx</div>
+<div class="c">xxxxxxx<span class="box"></span><span class="box other"></span></div>
+<div class="c"><span class="box wide"></span>xx</div>
+<div class="c" style="direction: rtl">xx<span class="box"></span>xxxxxxx</div>
+<div class="c">xx<span class="box" style="width: 120px; border-right: 30px solid blue"></span>xx</div>
