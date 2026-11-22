@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/text-overflow-ellipsis-periods-from-font-with-a-period-ref.html">
+<style>
+    @font-face { font-family: CapitalsAndSpace; src: url("../data/fonts/Ahem.ttf"); unicode-range: U+0020, U+0041-005A; }
+    @font-face { font-family: FiraCode; src: url("../../Assets/FiraCode-Latin.woff2"); }
+    body { margin: 0; }
+    div { width: 200px; font: 20px/30px CapitalsAndSpace, FiraCode; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+</style>
+<div>ABCDEFGHIJKLMNOPQRST</div>
