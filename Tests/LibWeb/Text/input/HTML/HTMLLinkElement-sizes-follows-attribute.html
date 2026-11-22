@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const link = document.createElement("link");
+        const sizes = link.sizes;
+        link.setAttribute("sizes", "16x16 32x32");
+        println(`after set: ${sizes.length}, ${sizes[1]}`);
+        link.removeAttribute("sizes");
+        println(`after removal: ${sizes.length}`);
+    });
+</script>

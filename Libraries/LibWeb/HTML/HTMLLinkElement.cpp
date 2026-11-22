@@ -244,6 +244,8 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
     Base::attribute_changed(name, old_value, value, namespace_);
     if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
         m_blocking->associated_attribute_changed(value);
+    if (!namespace_.has_value() && name == AttributeNames::sizes && m_sizes)
+        m_sizes->associated_attribute_changed(value);
 
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     auto old_relationship = m_relationship;

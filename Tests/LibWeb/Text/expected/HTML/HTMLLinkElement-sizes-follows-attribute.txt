@@ -1,0 +1,2 @@
+after set: 2, 32x32
+after removal: 0
