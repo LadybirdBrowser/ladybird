@@ -11,6 +11,8 @@ crate-type = ["staticlib"]
 default = []
 allocator = ["dep:ladybird_allocator"]
 
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 ak = { path = "../../../AK/Rust" }
 ladybird_allocator = { path = "../../../Libraries/RustAllocator", optional = true }
@@ -18,6 +20,23 @@ libcompositing_rust = { path = "../../../Libraries/LibCompositing/Rust" }
 libgfx_rust = { path = "../../../Libraries/LibGfx/Rust", default-features = false }
 libipc_rust = { path = "../../../Libraries/LibIPC/Rust" }
 rustc-demangle = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_DirectComposition",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_HiDpi",
+    "Win32_UI_WindowsAndMessaging",
+] }
+windows-numerics = "0.3"
 
 [build-dependencies]
 cbindgen = "0.29"

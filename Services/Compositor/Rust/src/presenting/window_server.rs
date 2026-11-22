@@ -264,7 +264,7 @@ impl ContextPresenting {
         let Some(remote_layer) = &env.remote_layer else {
             return Some(WhyMediaIsReplayed::ContextIsNotShownInARemoteLayer);
         };
-        if !remote_layer.layer.can_show(placement, media, self.device_pixel_ratio) {
+        if !remote_layer.layer.can_show(placement, media) {
             return Some(WhyMediaIsReplayed::WindowServerCannotShowThePlacement);
         }
         None

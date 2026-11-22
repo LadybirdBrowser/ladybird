@@ -22,46 +22,19 @@ namespace Compositor {
 struct FfiWeakPresentableSurface;
 struct FfiPresentableSurfacePool;
 
-class WindowServerSurface {
-public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    virtual ~WindowServerSurface() = default;
-
-    virtual bool may_be_read_by_window_server() const = 0;
-};
-
-// A surface whose content the window server can show as it is, instead of after it is composited into a frame. While a
-// lease of it is held, as by a frame on its way to the window server and by the layer that shows it, or while the
-// window server still reads it, the surface is busy, and its content must stay as it is. A pointer to it is the Rust
-// core's surface itself, which the core and the C++ around it share by reference counting. Only the Compositor's main
-// thread may use it.
+// A surface whose content the window server can show as it is, instead of after it is composited into a frame. While the
+// core holds it busy, as for a frame on its way to the window server and for the layer that shows it, or while the
+// window server still reads it, its content must stay as it is. A pointer to it is the Rust core's surface itself, which
+// the core and the C++ around it share by reference counting. Only the Compositor's main thread may use it.
 class PresentableSurface {
     AK_MAKE_NONCOPYABLE(PresentableSurface);
     AK_MAKE_NONMOVABLE(PresentableSurface);
 
 public:
-    // Keeps the content of the surface as it is for as long as it is held. Holding the surface itself does not.
-    class Lease {
-    public:
-        Lease(Lease const&);
-        Lease(Lease&&);
-        Lease& operator=(Lease const&);
-        Lease& operator=(Lease&&);
-        ~Lease();
-
-        PresentableSurface& surface() const { return *m_surface; }
-
-    private:
-        friend class PresentableSurface;
-
-        explicit Lease(PresentableSurface&);
-        void release();
-
-        RefPtr<PresentableSurface> m_surface;
-    };
-
-    static NonnullRefPtr<PresentableSurface> create(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface> = {});
+    // Over memory that the window server cannot read.
+    static NonnullRefPtr<PresentableSurface> create(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin);
+    // A surface for the stores that remote layers show frames from, or an error where no window server shows them.
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_for_stores(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
 #ifdef AK_OS_MACOS
     // Over the IOSurface that the painting surface draws into, which the window server shows as it is. The surface owns
     // the buffer of the IOSurface where it is given one.
@@ -69,17 +42,16 @@ public:
     // Over a new IOSurface, painted on the GPU where a Skia backend context is given, or in memory otherwise.
     static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_over_new_iosurface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
 #endif
+#ifdef USE_DIRECTX
+    // Over the shared texture that the painting surface draws into, which the window server shows as it is where it
+    // can, and copies into a swap chain otherwise.
+    static NonnullRefPtr<PresentableSurface> create_over_d3d_shared_texture(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, NonnullRefPtr<Gfx::D3DSharedTexture>);
+    // Over memory on the GPU that the window server cannot read, which is copied into a swap chain to be shown.
+    static NonnullRefPtr<PresentableSurface> create_copied_into_swap_chain(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin);
+#endif
 
     Gfx::PaintingSurface& painting_surface() const;
     Gfx::IntSize size() const { return painting_surface().size(); }
-    bool content_is_upside_down() const;
-
-    // Null for a surface that draws into memory the window server cannot read.
-    WindowServerSurface const* window_server_surface() const;
-
-    // GPU work in flight on a surface counts as use too, so only a surface handed to the window server is checked.
-    void did_hand_to_window_server();
-    Lease lease() { return Lease { *this }; }
     bool is_busy() const;
 
     void ref() const;

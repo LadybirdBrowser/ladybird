@@ -15,7 +15,6 @@
 #include <Compositor/CompositorCoreRustFFI.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/PresentableSurface.h>
-#include <Compositor/WindowServer.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SharedImageBuffer.h>

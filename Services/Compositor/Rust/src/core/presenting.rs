@@ -651,6 +651,10 @@ impl CompositorCore {
             sublayers: std::mem::take(&mut delivery.sublayers),
         };
         if !remote_layer.layer.show_frame(frame) {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: A remote layer failed to show a frame, which its presentation shows again"
+            );
             self.remote_layers.borrow_mut().stop_showing_context(context_id);
             self.stop_showing_context_in_remote_layer(context_id, now);
             return;

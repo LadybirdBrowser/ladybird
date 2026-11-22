@@ -81,6 +81,10 @@ public:
     // Over the texture as one that is drawn from as well as into, so that a snapshot of the surface shares the texture
     // instead of copying it.
     static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture_also_drawn_from(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
+    // Over a buffer of a swap chain, an ID3D12Resource of the size in the state that presenting leaves it in.
+    static ErrorOr<NonnullRefPtr<PaintingSurface>> create_over_swap_chain_buffer(NonnullRefPtr<SkiaBackendContext>, void* buffer, IntSize);
+    // Flushes what was drawn into a buffer of a swap chain, and leaves it ready to be presented.
+    void flush_for_presentation();
 #endif
 
     // The pixels of the bitmap are in the color space, which is sRGB unless one is given. The surface converts them

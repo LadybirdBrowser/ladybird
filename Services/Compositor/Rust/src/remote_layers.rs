@@ -412,7 +412,7 @@ mod tests {
             }
         }
 
-        fn can_show(&self, _: &WindowServerPlacement, _: MediaToShow<'_>, _: f64) -> bool {
+        fn can_show(&self, _: &WindowServerPlacement, _: MediaToShow<'_>) -> bool {
             true
         }
 

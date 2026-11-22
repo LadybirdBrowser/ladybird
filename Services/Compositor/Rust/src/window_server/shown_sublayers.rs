@@ -184,6 +184,14 @@ impl<Native> ShownSublayers<Native> {
         }
     }
 
+    /// Runs `visit` on the native layers of every sublayer shown.
+    #[cfg(windows)]
+    pub(super) fn for_each_native_mut(&mut self, mut visit: impl FnMut(&mut Native)) {
+        for shown in self.shown.values_mut() {
+            visit(&mut shown.native);
+        }
+    }
+
     /// Stops showing every sublayer, which leaves the frame without any.
     pub(super) fn stop_showing_all(&mut self, natives: &mut impl NativeSublayers<Native = Native>) {
         natives.remove_sublayers_of_frame();

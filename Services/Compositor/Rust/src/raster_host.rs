@@ -23,14 +23,10 @@ use libcompositing_rust::display_list::storage::{
     ListChunk, PackedChunkSize, receive_packed_chunks_from_shared_memory,
 };
 use libcompositing_rust::host::FfiRasterPainter;
-use libcompositing_rust::ipc_types::{
-    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Core_AnonymousBuffer, Gfx_AlphaType,
-    Web_Bindings_PredefinedColorSpace,
-};
+use libcompositing_rust::ipc_types::{Core_AnonymousBuffer, Gfx_AlphaType, Web_Bindings_PredefinedColorSpace};
 use libcompositing_rust::time::MonotonicTime;
 use libcompositing_rust::webgl::ImageSource;
-use libgfx_rust::path::ffi::PathGeometryData;
-use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode, WindingRule};
+use libgfx_rust::{Color, IntRect, IntSize};
 use std::collections::HashMap;
 use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
@@ -183,172 +179,14 @@ pub struct LiveContent {
     pub image_frames: HashMap<u64, u64>,
 }
 
-/// Where the window server shows a sublayer, and how it clips it, in device pixels.
-#[derive(Clone, Copy, Debug, Default)]
+/// The GPU that the main thread's Skia context paints with on Direct3D 12: its `IDXGIAdapter1`, its
+/// `ID3D12CommandQueue`, and the Skia backend context, which tells the surfaces it paints apart from others. Each lives
+/// for as long as the process.
 #[repr(C)]
-pub struct FfiSublayerPlacement {
-    pub content_rect: IntRect,
-    /// The a, b, c, d, e and f of an affine transform.
-    pub content_to_frame: [f32; 6],
-    pub clip_rect: FloatRect,
-    pub has_rounded_clip: bool,
-    pub rounded_clip_rect: FloatRect,
-    pub rounded_clip_radius: f32,
-    pub rounds_top_left: bool,
-    pub rounds_top_right: bool,
-    pub rounds_bottom_right: bool,
-    pub rounds_bottom_left: bool,
-    /// Whether the content is also clipped by a path, which is in a space of its own.
-    pub is_clipped_by_path: bool,
-    pub clip_path_identity: u64,
-    pub clip_path_fill_rule: WindingRule,
-    /// The a, b, c, d, e and f of the affine transform from the space of the path to the frame.
-    pub clip_path_to_frame: [f32; 6],
-    /// Lent for the call that builds the sublayers, or that asks whether a remote layer can show the placement.
-    pub clip_path_contours: PathGeometryData,
-    pub scaling_mode: ScalingMode,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum SublayerContentKind {
-    Video,
-    PresentableSurface,
-    /// Holds the sublayers that name it as their group, which the window server places and clips together.
-    Group,
-    /// The surface of a tile of a painted layer, shown at `rect` of the group it is in.
-    Tile,
-    /// A fill of `rect` of the group it is in with `color`.
-    Color,
-    /// What the window server shows below the sublayer, within a rect of the group it is in, run through filters.
-    Backdrop,
-}
-
-/// What the window server shows below a sublayer, within `region` of the group the sublayer is in, run through a color
-/// matrix, a blur and another color matrix, in that order, each of which can be left out. A matrix is row-major with
-/// the offsets in the fifth column, for unpremultiplied colors from 0 to 1.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct FfiSublayerBackdrop {
-    pub region: FloatRect,
-    pub has_color_matrix_before_blur: bool,
-    pub color_matrix_before_blur: [f32; 20],
-    pub has_blur: bool,
-    /// In device pixels.
-    pub blur_standard_deviation: f32,
-    pub has_color_matrix_after_blur: bool,
-    pub color_matrix_after_blur: [f32; 20],
-}
-
-/// Where the window server places the sublayers of a group, how it clips them, and how it fades them together, in
-/// device pixels.
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct FfiSublayerGroup {
-    /// The a, b, c, d, e and f of the affine transform from the pixels of the group to those of the group it is in, or
-    /// to those of the frame.
-    pub to_parent: [f32; 6],
-    /// Whether the group clips its sublayers to `clip_rect`, in its own pixels, with the corners of the rect rounded
-    /// by the radii.
-    pub clips: bool,
-    pub clip_rect: FloatRect,
-    pub corner_radii: CornerRadii,
-    /// The opacity the group composites its sublayers at, once they are composited with each other.
-    pub opacity: f32,
-}
-
-impl Default for FfiSublayerGroup {
-    fn default() -> Self {
-        Self {
-            to_parent: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            clips: false,
-            clip_rect: FloatRect::default(),
-            corner_radii: CornerRadii::default(),
-            opacity: 1.0,
-        }
-    }
-}
-
-/// A sublayer the window server shows of a frame: a frame of a video, a surface, a tile, a fill, a backdrop, or a group
-/// of other sublayers.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiSublayer {
-    pub identity: u64,
-    /// The index, among the sublayers of the frame, of the group the sublayer is in, or -1 for one in the frame itself.
-    /// A group comes before the sublayers in it, and sublayers of one group are shown bottom to top.
-    pub group_index: i32,
-    pub content_kind: SublayerContentKind,
-    /// Of a video, a `VideoFrameForRust` lent for the call.
-    pub video_frame: *mut c_void,
-    /// Of a surface or a tile.
-    pub presentable_surface: *const PresentableSurface,
-    /// Of a canvas, a video or a surface.
-    pub placement: FfiSublayerPlacement,
-    pub group: FfiSublayerGroup,
-    /// Of a tile or a fill, in the pixels of the group it is in.
-    pub rect: IntRect,
-    /// Of a tile, what of its surface shows at `rect`.
-    pub rect_in_surface: IntRect,
-    pub color: Color,
-    /// Of a tile.
-    pub every_pixel_is_opaque: bool,
-    pub backdrop: FfiSublayerBackdrop,
-}
-
-impl FfiSublayer {
-    /// A sublayer of the frame itself that shows nothing, for the fields of each kind of content to be set on.
-    pub fn of_kind(identity: u64, content_kind: SublayerContentKind) -> Self {
-        Self {
-            identity,
-            group_index: -1,
-            content_kind,
-            video_frame: std::ptr::null_mut(),
-            presentable_surface: std::ptr::null(),
-            placement: FfiSublayerPlacement::default(),
-            group: FfiSublayerGroup::default(),
-            rect: IntRect::default(),
-            rect_in_surface: IntRect::default(),
-            color: Color::TRANSPARENT,
-            every_pixel_is_opaque: false,
-            backdrop: FfiSublayerBackdrop::default(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiRemoteLayerFrame {
-    /// Lent for the call. Without the store, the store shown before stays, and only the sublayers change, unless the
-    /// frame shows no store.
-    pub store: *const PresentableSurface,
-    /// Whether the sublayers are all of the frame, which then shows no store below them.
-    pub shows_no_store: bool,
-    pub painted_size: IntSize,
-    pub device_pixel_ratio: f64,
-    /// Where the frame is scaled to fit within the view, in device pixels, rather than shown at its own size.
-    pub has_fit_within: bool,
-    pub fit_within: IntSize,
-}
-
-/// How the presentation shows a remote layer: the kind of its host handle, which is that of
-/// `Compositing::RemoteLayerHostKind`, and its id.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiRemoteLayerHostHandle {
-    pub kind: u8,
-    pub id: u64,
-}
-
-/// What the window server that shows a context composites by itself of the layers of its frames, besides the canvases
-/// and videos it shows.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiWindowServerCompositing {
-    /// Whether it shows each tile of a painted layer as a sublayer of its own, in a group it places and clips.
-    pub shows_tiles_of_painted_layers: bool,
-    /// Whether it runs what it shows below a sublayer through a blur and color matrices.
-    pub filters_what_is_below_layers: bool,
+pub struct FfiWindowServerGpuDevice {
+    pub adapter: *mut c_void,
+    pub queue: *mut c_void,
+    pub backend_context: *const c_void,
 }
 
 #[repr(C)]
@@ -378,7 +216,8 @@ pub struct FfiRasterHost {
     pub surface_clip_rect: unsafe extern "C" fn(*const PaintingSurface, IntRect),
     pub surface_clear: unsafe extern "C" fn(*const PaintingSurface, Color),
     /// Arguments: the target, the source, the rect of the source drawn, the rect of the target it is drawn into, how
-    /// it is blended, and how it is sampled.
+    /// it is blended, and how it is sampled. Answers false where no snapshot of the source could be taken, which then
+    /// draws nothing.
     pub surface_draw_surface: unsafe extern "C" fn(
         *const PaintingSurface,
         *const PaintingSurface,
@@ -386,7 +225,7 @@ pub struct FfiRasterHost {
         IntRect,
         SurfaceBlend,
         SurfaceSampling,
-    ),
+    ) -> bool,
     pub flush_surface: unsafe extern "C" fn(*const PaintingSurface),
 
     /// Arguments: the host, the context, the surface, whose resources it draws with, whether it allows LCD text,
@@ -408,8 +247,6 @@ pub struct FfiRasterHost {
     /// where none could be made.
     pub create_presentable_surface:
         unsafe extern "C" fn(*mut c_void, IntSize, *const PaintingSurface) -> *const PresentableSurface,
-    /// What the window server composites by itself of the layers of the frames its remote layers show.
-    pub window_server_compositing: unsafe extern "C" fn(*mut c_void) -> FfiWindowServerCompositing,
 
     pub live_content: unsafe extern "C" fn(
         *mut c_void,
@@ -418,40 +255,23 @@ pub struct FfiRasterHost {
         *mut c_void,
         unsafe extern "C" fn(*mut c_void, *const FfiLiveContent<'_>),
     ),
-    /// Arguments: the remote layer, the surface or the `VideoFrameForRust` it is asked about, where it is placed, and
-    /// the device pixel ratio.
-    pub remote_layer_can_show: unsafe extern "C" fn(
-        *mut c_void,
-        *const PresentableSurface,
-        *mut c_void,
-        *const FfiSublayerPlacement,
-        f64,
-    ) -> bool,
-    /// Builds the sublayers of a remote layer, which hold their content busy until the list is destroyed or shown.
-    pub build_sublayers: unsafe extern "C" fn(*mut c_void, ak::Span<'_, FfiSublayer>) -> *mut c_void,
-    pub destroy_sublayers: unsafe extern "C" fn(*mut c_void),
 
     /// Submits the GPU work drawn into the surface, or into the surfaces the window server shows where it is null,
     /// answering a token that `compositor_core_gpu_work_finished` hands back once it is done, on a later turn.
     pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface) -> u64,
     /// Calls `compositor_core_frame_ready_for_hand_off` with the token on a later turn, once the work is scheduled.
     pub hand_off_once_gpu_work_is_scheduled: unsafe extern "C" fn(*mut c_void, u64),
-    /// Writes the window server of a new presentation, or nothing where frames reach the screen only through the
-    /// presentation.
-    pub create_window_server: unsafe extern "C" fn(*mut c_void, *mut FfiCppObject) -> bool,
-    pub window_server_frame_hand_off: unsafe extern "C" fn(*mut c_void) -> FrameHandOff,
-    /// While held, what every remote layer of the window server shows changes nowhere on screen, and changes all at
-    /// once when released.
-    pub window_server_hold_changes_on_screen: unsafe extern "C" fn(*mut c_void),
-    pub window_server_release_changes_held_off_screen: unsafe extern "C" fn(*mut c_void),
-    /// Arguments: the window server, and where the layer and its host handle are written.
-    pub create_remote_layer:
-        unsafe extern "C" fn(*mut c_void, *mut FfiCppObject, *mut FfiRemoteLayerHostHandle) -> bool,
-    /// Arguments: the layer, whether the frame is scaled to fit, and the size it fits within.
-    pub remote_layer_place_frame: unsafe extern "C" fn(*mut c_void, bool, IntSize),
-    /// Shows the frame in the layer with the sublayers given, which it takes over. Answers false where the layer could
-    /// not show it.
-    pub remote_layer_show_frame: unsafe extern "C" fn(*mut c_void, *const FfiRemoteLayerFrame, *mut c_void) -> bool,
+    /// Writes the GPU that the main thread's Skia context paints with, where it paints with Direct3D 12, which the
+    /// window server of Windows shows the surfaces of that context on. Answers false otherwise.
+    pub window_server_gpu_device: unsafe extern "C" fn(*mut c_void, *mut FfiWindowServerGpuDevice) -> bool,
+    /// A surface over a buffer of a swap chain, an `ID3D12Resource` of the size, with one reference that the caller
+    /// takes over, or null where it could not be made.
+    pub wrap_d3d12_resource_as_surface:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, IntSize) -> *const PaintingSurface,
+    /// Flushes what was drawn into the surface, which a swap chain then presents.
+    pub flush_surface_for_presentation: unsafe extern "C" fn(*const PaintingSurface),
+    /// Waits until the GPU is done with every work submitted to it.
+    pub finish_gpu_work: unsafe extern "C" fn(*mut c_void),
     pub log_presented_frame: unsafe extern "C" fn(*mut c_void, u64, IntRect),
     /// Calls `compositor_core_presented_store_released` on a later turn.
     pub release_store_later: unsafe extern "C" fn(*mut c_void, u64, i32),
@@ -652,27 +472,6 @@ impl Drop for SharedMemory {
     }
 }
 
-/// Sublayers whose content the C++ side resolved, which keep that content busy until they are shown or dropped.
-pub struct SublayersHandle {
-    sublayers: NonNull<c_void>,
-    destroy: unsafe extern "C" fn(*mut c_void),
-}
-
-impl SublayersHandle {
-    pub fn into_raw(self) -> *mut c_void {
-        let sublayers = self.sublayers.as_ptr();
-        std::mem::forget(self);
-        sublayers
-    }
-}
-
-impl Drop for SublayersHandle {
-    fn drop(&mut self) {
-        // SAFETY: This owns the sublayers.
-        unsafe { (self.destroy)(self.sublayers.as_ptr()) };
-    }
-}
-
 #[derive(Clone)]
 pub struct RasterHost(FfiRasterHost);
 
@@ -739,7 +538,7 @@ impl RasterHost {
         target_rect: IntRect,
         blend: SurfaceBlend,
         sampling: SurfaceSampling,
-    ) {
+    ) -> bool {
         // SAFETY: Both surfaces are live.
         unsafe {
             (self.0.surface_draw_surface)(
@@ -749,7 +548,7 @@ impl RasterHost {
                 target_rect,
                 blend,
                 sampling,
-            );
+            )
         }
     }
 
@@ -842,11 +641,6 @@ impl RasterHost {
         }
     }
 
-    pub fn window_server_compositing(&self, window_server: &CppObject) -> FfiWindowServerCompositing {
-        // SAFETY: The window server is live.
-        unsafe { (self.0.window_server_compositing)(window_server.as_ptr()) }
-    }
-
     pub fn live_content(&self, context_id: CompositorContextId, canvas_ids: &[u64]) -> LiveContent {
         unsafe extern "C" fn receive(receiver: *mut c_void, content: *const FfiLiveContent<'_>) {
             // SAFETY: The receiver is the content below, and the host lends what it found for the call.
@@ -914,37 +708,6 @@ impl RasterHost {
         content
     }
 
-    pub fn remote_layer_can_show(
-        &self,
-        remote_layer: &CppObject,
-        surface: Option<&PresentableSurface>,
-        video_frame: Option<&VideoFrameForWindowServer>,
-        placement: &FfiSublayerPlacement,
-        device_pixel_ratio: f64,
-    ) -> bool {
-        let surface = surface.map_or(std::ptr::null(), std::ptr::from_ref);
-        let video_frame = video_frame.map_or(std::ptr::null_mut(), VideoFrameForWindowServer::as_ffi);
-        // SAFETY: The layer is live, and so is the content it is asked about.
-        unsafe {
-            (self.0.remote_layer_can_show)(
-                remote_layer.as_ptr(),
-                surface,
-                video_frame,
-                placement,
-                device_pixel_ratio,
-            )
-        }
-    }
-
-    pub fn build_sublayers(&self, sublayers: &[FfiSublayer]) -> SublayersHandle {
-        // SAFETY: The host outlives this, and the content of the sublayers is live.
-        let built = unsafe { (self.0.build_sublayers)(self.host(), ak::Span::new(sublayers)) };
-        SublayersHandle {
-            sublayers: NonNull::new(built).expect("the host builds a list of sublayers"),
-            destroy: self.0.destroy_sublayers,
-        }
-    }
-
     /// When a frame shown through the presentation can be handed to it.
     pub fn frame_hand_off_through_presentation() -> FrameHandOff {
         if cfg!(target_os = "macos") {
@@ -952,11 +715,6 @@ impl RasterHost {
         } else {
             FrameHandOff::OnceGpuWorkIsFinished
         }
-    }
-
-    pub fn window_server_frame_hand_off(&self, window_server: &CppObject) -> FrameHandOff {
-        // SAFETY: The window server is live.
-        unsafe { (self.0.window_server_frame_hand_off)(window_server.as_ptr()) }
     }
 
     pub fn submit_frame(&self, context_id: CompositorContextId, surface: Option<&Rc<PaintingSurface>>) -> u64 {
@@ -968,16 +726,6 @@ impl RasterHost {
     pub fn hand_off_once_gpu_work_is_scheduled(&self, token: u64) {
         // SAFETY: The host outlives this.
         unsafe { (self.0.hand_off_once_gpu_work_is_scheduled)(self.host(), token) };
-    }
-
-    pub fn remote_layer_show_frame(
-        &self,
-        remote_layer: &CppObject,
-        frame: &FfiRemoteLayerFrame,
-        sublayers: SublayersHandle,
-    ) -> bool {
-        // SAFETY: The layer is live, and takes the sublayers over.
-        unsafe { (self.0.remote_layer_show_frame)(remote_layer.as_ptr(), frame, sublayers.into_raw()) }
     }
 
     pub fn log_presented_frame(&self, page_id: u64, damage_rect: IntRect) {
@@ -1461,63 +1209,41 @@ impl Canvas2DPainting<'_> {
 }
 
 impl RasterHost {
-    /// A `Compositor::WindowServer` for a new presentation, or none where frames reach the screen only through the
-    /// presentation.
-    pub fn create_window_server(&self) -> Option<CppObject> {
-        let mut window_server = FfiCppObject::default();
-        // SAFETY: The host outlives this, and writes the window server it made.
-        if !unsafe { (self.0.create_window_server)(self.host(), &raw mut window_server) } {
-            return None;
-        }
-        // SAFETY: The host handed a window server over.
-        unsafe { CppObject::adopt(window_server) }
-    }
-
-    /// A `Compositor::RemoteLayer` of the window server, with its host handle.
-    pub fn create_remote_layer(
-        &self,
-        window_server: &CppObject,
-    ) -> Option<(CppObject, Compositing_RemoteLayerHostHandle)> {
-        let mut layer = FfiCppObject::default();
-        let mut host_handle = FfiRemoteLayerHostHandle::default();
-        // SAFETY: The window server is live, and the host writes the layer it made with its handle.
-        if !unsafe { (self.0.create_remote_layer)(window_server.as_ptr(), &raw mut layer, &raw mut host_handle) } {
-            return None;
-        }
-        // SAFETY: The host handed the layer over.
-        let layer = unsafe { CppObject::adopt(layer) }?;
-        let kind = match host_handle.kind {
-            1 => Compositing_RemoteLayerHostKind::CoreAnimationContext,
-            2 => Compositing_RemoteLayerHostKind::Win32ChildWindow,
-            _ => return None,
+    /// The GPU that the main thread's Skia context paints with on Direct3D 12, where it does.
+    pub fn window_server_gpu_device(&self) -> Option<FfiWindowServerGpuDevice> {
+        let mut device = FfiWindowServerGpuDevice {
+            adapter: std::ptr::null_mut(),
+            queue: std::ptr::null_mut(),
+            backend_context: std::ptr::null(),
         };
-        Some((
-            layer,
-            Compositing_RemoteLayerHostHandle {
-                kind,
-                id: host_handle.id,
-            },
-        ))
+        // SAFETY: The host outlives this, and writes the device where it answers true.
+        unsafe { (self.0.window_server_gpu_device)(self.host(), &raw mut device) }.then_some(device)
     }
 
-    pub fn remote_layer_place_frame(&self, remote_layer: &CppObject, fit_within: Option<IntSize>) {
-        // SAFETY: The layer is live.
+    /// A surface over a buffer of a swap chain, which the surface holds a reference to.
+    ///
+    /// # Safety
+    ///
+    /// `resource` must be a live `ID3D12Resource` of the size.
+    pub unsafe fn wrap_d3d12_resource_as_surface(
+        &self,
+        resource: *mut c_void,
+        size: IntSize,
+    ) -> Option<Rc<PaintingSurface>> {
+        // SAFETY: The host outlives this, the caller passes a live resource, and the host hands over a new surface or
+        // null.
         unsafe {
-            (self.0.remote_layer_place_frame)(
-                remote_layer.as_ptr(),
-                fit_within.is_some(),
-                fit_within.unwrap_or_default(),
-            );
+            PaintingSurface::adopted_from_ffi((self.0.wrap_d3d12_resource_as_surface)(self.host(), resource, size))
         }
     }
 
-    pub fn window_server_hold_changes_on_screen(&self, window_server: &CppObject) {
-        // SAFETY: The window server is live.
-        unsafe { (self.0.window_server_hold_changes_on_screen)(window_server.as_ptr()) };
+    pub fn flush_surface_for_presentation(&self, surface: &Rc<PaintingSurface>) {
+        // SAFETY: The surface is live.
+        unsafe { (self.0.flush_surface_for_presentation)(Rc::as_ptr(surface)) };
     }
 
-    pub fn window_server_release_changes_held_off_screen(&self, window_server: &CppObject) {
-        // SAFETY: The window server is live.
-        unsafe { (self.0.window_server_release_changes_held_off_screen)(window_server.as_ptr()) };
+    pub fn finish_gpu_work(&self) {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.finish_gpu_work)(self.host()) };
     }
 }
