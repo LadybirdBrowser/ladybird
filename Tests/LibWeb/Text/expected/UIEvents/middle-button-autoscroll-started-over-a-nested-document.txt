@@ -1,0 +1,10 @@
+#iframe: scrolled with the pointer away from the start: true
+#iframe: stopped with the pointer back over the start: true
+#iframe: stopped by a press outside it: true
+#object: scrolled with the pointer away from the start: true
+#object: stopped with the pointer back over the start: true
+#object: stopped by a press outside it: true
+#scrollable-iframe: scrolled itself true, and the page false
+#iframe: a drag released outside it stops: true
+#iframe: a drag released before the next frame stops: true
+#iframe: a middle press over #object ends the scroll and starts none: true

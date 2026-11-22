@@ -522,7 +522,11 @@ EventResult Page::handle_mouseup(HTML::LocalNavigable& root, DevicePixelPoint po
             navigable->event_handler().reset_mouse_input_tracking({});
         }
     };
-    return root.event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, remote_target);
+    GC::Ptr<HTML::LocalNavigable> middle_button_scrolling_navigable = m_middle_button_scrolling_navigable.ptr();
+    auto result = root.event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, remote_target);
+    if (middle_button_scrolling_navigable && !middle_button_scrolling_navigable->has_been_destroyed())
+        middle_button_scrolling_navigable->event_handler().end_middle_button_scroll_after_release_elsewhere({}, button);
+    return result;
 }
 
 EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
@@ -537,7 +541,15 @@ EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint 
             navigable->event_handler().reset_mouse_input_tracking({});
         m_mouse_event_tracking_navigable = nullptr;
     }
-    return root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, remote_target);
+    // NB: A press anywhere, in any document, ends a middle button scroll. It still goes where it's aimed, but it has no
+    //     default actions there, so it can't start a scroll of its own.
+    GC::Ptr<HTML::LocalNavigable> middle_button_scrolling_navigable = m_middle_button_scrolling_navigable.ptr();
+    m_press_ends_a_middle_button_scroll = middle_button_scrolling_navigable && !middle_button_scrolling_navigable->has_been_destroyed();
+    auto result = root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, remote_target);
+    if (m_press_ends_a_middle_button_scroll && !middle_button_scrolling_navigable->has_been_destroyed())
+        middle_button_scrolling_navigable->event_handler().end_middle_button_scroll_for_press({});
+    m_press_ends_a_middle_button_scroll = false;
+    return result;
 }
 
 EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
@@ -555,8 +567,16 @@ void Page::set_hover_reporting_navigable(Badge<EventHandler>, GC::Ptr<HTML::Loca
     m_hover_reporting_navigable = navigable;
 }
 
+void Page::set_middle_button_scrolling_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable> navigable)
+{
+    m_middle_button_scrolling_navigable = navigable;
+}
+
 EventResult Page::handle_mousemove(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target)
 {
+    // A middle button scroll follows the pointer wherever it moves, whichever document the move goes to.
+    if (auto navigable = m_middle_button_scrolling_navigable; navigable && !navigable->has_been_destroyed())
+        navigable->event_handler().update_middle_button_scroll({}, device_to_css_point(screen_position));
     return root.event_handler().handle_mousemove(device_to_css_point(position), device_to_css_point(screen_position), buttons, modifiers, remote_target);
 }
 

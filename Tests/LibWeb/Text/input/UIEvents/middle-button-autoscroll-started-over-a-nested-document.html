@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 6000px; }
+    .row { height: 300px; }
+    iframe, object { display: block; width: 200px; height: 100px; border: 0; }
+</style>
+<div class="row"><iframe id="iframe" srcdoc="<p>frame</p>"></iframe></div>
+<div class="row"><iframe id="scrollable-iframe" srcdoc="<body style='height: 3000px'>tall</body>"></iframe></div>
+<div class="row"><object id="object" type="image/svg+xml" data="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'%3E%3Crect width='200' height='100' fill='green'/%3E%3C/svg%3E" width="200" height="100"></object></div>
+<script>
+    // A middle button scroll started over a nested document follows the pointer wherever it moves, and a press
+    // anywhere, or the release of a drag, ends it.
+    promiseTest(async () => {
+        await new Promise(resolve => document.readyState === "complete" ? resolve() : addEventListener("load", resolve));
+        const frames = async count => {
+            for (let i = 0; i < count; i++) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                await animationFrame();
+            }
+        };
+        async function startOver(id) {
+            const element = document.getElementById(id);
+            element.scrollIntoView();
+            scrollBy(0, -20);
+            await animationFrame();
+            const rect = element.getBoundingClientRect();
+            return [rect.left + 50, rect.top + 50];
+        }
+
+        for (const id of ["iframe", "object"]) {
+            const [x, y] = await startOver(id);
+            const start = scrollY;
+            internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+            internals.mouseUp(x, y, internals.BUTTON_MIDDLE);
+            internals.mouseMove(x + 400, y + 100);
+            await frames(3);
+            println(`#${id}: scrolled with the pointer away from the start: ${scrollY > start}`);
+            internals.mouseMove(x, y);
+            await frames(1);
+            const back = scrollY;
+            await frames(3);
+            println(`#${id}: stopped with the pointer back over the start: ${scrollY === back}`);
+            internals.mouseMove(x + 400, y + 100);
+            await frames(1);
+            internals.mouseDown(x + 400, y + 100, 1, internals.BUTTON_LEFT);
+            internals.mouseUp(x + 400, y + 100, internals.BUTTON_LEFT);
+            const pressed = scrollY;
+            await frames(3);
+            println(`#${id}: stopped by a press outside it: ${scrollY === pressed}`);
+        }
+
+        // A nested document that can scroll scrolls itself, and the page stays put.
+        {
+            const iframe = document.getElementById("scrollable-iframe");
+            const [x, y] = await startOver("scrollable-iframe");
+            const start = scrollY;
+            internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+            internals.mouseUp(x, y, internals.BUTTON_MIDDLE);
+            internals.mouseMove(x + 400, y + 100);
+            await frames(3);
+            internals.mouseDown(x + 400, y + 100, 1, internals.BUTTON_LEFT);
+            internals.mouseUp(x + 400, y + 100, internals.BUTTON_LEFT);
+            println(`#scrollable-iframe: scrolled itself ${iframe.contentWindow.scrollY > 0}, and the page ${scrollY !== start}`);
+        }
+
+        const [x, y] = await startOver("iframe");
+        internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+        internals.mouseMove(x + 400, y + 100);
+        await frames(3);
+        internals.mouseUp(x + 400, y + 100, internals.BUTTON_MIDDLE);
+        const released = scrollY;
+        await frames(3);
+        println(`#iframe: a drag released outside it stops: ${scrollY === released}`);
+
+        // So does a drag released before a rendering update has scrolled anything.
+        {
+            const [x, y] = await startOver("iframe");
+            internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+            internals.mouseMove(x + 400, y + 100);
+            internals.mouseUp(x + 400, y + 100, internals.BUTTON_MIDDLE);
+            const released = scrollY;
+            await frames(3);
+            println(`#iframe: a drag released before the next frame stops: ${scrollY === released}`);
+        }
+
+        // A middle press in another nested document ends the scroll without starting one of its own.
+        {
+            const [x, y] = await startOver("iframe");
+            internals.mouseDown(x, y, 1, internals.BUTTON_MIDDLE);
+            internals.mouseUp(x, y, internals.BUTTON_MIDDLE);
+            internals.mouseMove(x + 400, y + 100);
+            await frames(2);
+            const object = document.getElementById("object").getBoundingClientRect();
+            internals.mouseDown(object.left + 50, object.top + 50, 1, internals.BUTTON_MIDDLE);
+            internals.mouseUp(object.left + 50, object.top + 50, internals.BUTTON_MIDDLE);
+            internals.mouseMove(object.left + 450, object.top + 150);
+            const pressed = scrollY;
+            await frames(3);
+            println(`#iframe: a middle press over #object ends the scroll and starts none: ${scrollY === pressed}`);
+        }
+
+    });
+</script>

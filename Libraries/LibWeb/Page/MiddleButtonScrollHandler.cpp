@@ -8,11 +8,13 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/Scrolling.h>
 
 namespace Web {
 
@@ -21,10 +23,11 @@ static constexpr double SPEED_FACTOR = 5.0;
 static constexpr double MAX_SPEED_PER_SECOND = 5000.0;
 static constexpr double MAX_FRAME_INTERVAL_MS = 100.0;
 
-MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CSSPixelPoint origin)
+MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CSSPixelPoint origin, CSSPixelPoint screen_origin)
     : m_container_element(container)
     , m_origin(origin)
-    , m_mouse_position(origin)
+    , m_screen_origin(screen_origin)
+    , m_mouse_screen_position(screen_origin)
 {
     request_indicator_repaint();
 }
@@ -52,9 +55,24 @@ GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::D
             return element;
     }
 
+    auto const* viewport = document.layout_node(layout_node.held_read());
+    auto document_can_scroll = viewport && Painting::could_be_scrolled_by_wheel_event(*viewport);
+
     if (auto* containing_block = layout_node.containing_block(); containing_block) {
-        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*containing_block))
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*containing_block); container && (document_can_scroll || container != document.scrolling_element()))
             return container;
+    }
+
+    // A nested document that can't scroll hands the scroll to the document it's nested in, from its container on.
+    if (!document_can_scroll) {
+        if (auto navigable = document.navigable(); navigable && navigable->container()) {
+            auto& container = *navigable->container();
+            auto& parent_document = container.document();
+            Layout::ForcedReadScope read { parent_document };
+            parent_document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+            if (auto* container_layout_node = container.layout_node(read))
+                return find_scrollable_ancestor(parent_document, *container_layout_node);
+        }
     }
 
     if (auto scrolling_element = document.scrolling_element())
@@ -63,13 +81,24 @@ GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::D
     return {};
 }
 
+// NB: A drag out of the dead zone counts as soon as the pointer gets there, so that releasing the button ends the
+//     scroll even before a rendering update has scrolled anything.
+void MiddleButtonScrollHandler::update_mouse_screen_position(CSSPixelPoint screen_position)
+{
+    m_mouse_screen_position = screen_position;
+    auto distance_x = (m_mouse_screen_position.x() - m_screen_origin.x()).to_double();
+    auto distance_y = (m_mouse_screen_position.y() - m_screen_origin.y()).to_double();
+    if (AK::hypot(distance_x, distance_y) >= DEAD_ZONE_RADIUS)
+        m_mouse_has_moved_beyond_dead_zone = true;
+}
+
 void MiddleButtonScrollHandler::perform_tick(double frame_timestamp)
 {
     auto elapsed_ms = clamp(frame_timestamp - m_last_frame_time.value_or(frame_timestamp), 0.0, MAX_FRAME_INTERVAL_MS);
     m_last_frame_time = frame_timestamp;
 
-    auto distance_x = (m_mouse_position.x() - m_origin.x()).to_double();
-    auto distance_y = (m_mouse_position.y() - m_origin.y()).to_double();
+    auto distance_x = (m_mouse_screen_position.x() - m_screen_origin.x()).to_double();
+    auto distance_y = (m_mouse_screen_position.y() - m_screen_origin.y()).to_double();
 
     if (auto distance = AK::hypot(distance_x, distance_y); distance < DEAD_ZONE_RADIUS)
         return;

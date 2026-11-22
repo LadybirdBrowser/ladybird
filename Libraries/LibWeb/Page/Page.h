@@ -291,6 +291,9 @@ public:
 
     GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable() const { return m_hover_reporting_navigable.ptr(); }
     void set_hover_reporting_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable>);
+    void set_middle_button_scrolling_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable>);
+    GC::Ptr<HTML::LocalNavigable> middle_button_scrolling_navigable() const { return m_middle_button_scrolling_navigable.ptr(); }
+    bool press_ends_a_middle_button_scroll() const { return m_press_ends_a_middle_button_scroll; }
 
     Gfx::Cursor current_cursor() const { return m_cursor->current(); }
     PageCursor& cursor() { return *m_cursor; }
@@ -581,6 +584,11 @@ private:
     // that handler ends the hover when its document is replaced; another navigable's replacement (an iframe the pointer
     // once passed through, e.g.) leaves the report standing.
     GC::Weak<HTML::LocalNavigable> m_hover_reporting_navigable;
+
+    // The navigable whose middle button scroll is running. It hears of every mouse event, wherever the pointer is.
+    GC::Weak<HTML::LocalNavigable> m_middle_button_scrolling_navigable;
+    // Whether the press being handled ends a middle button scroll, and so has no default actions.
+    bool m_press_ends_a_middle_button_scroll { false };
 
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
     OwnPtr<Compositor::CompositorContextHandle> m_retired_page_compositor_context;
