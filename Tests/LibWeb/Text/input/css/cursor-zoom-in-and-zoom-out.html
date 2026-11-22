@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    div { height: 40px; }
+</style>
+<div id="zoom-in" style="cursor: zoom-in"></div>
+<div id="zoom-out" style="cursor: zoom-out"></div>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    // zoom-in and zoom-out are two distinct cursors.
+    asyncTest(async done => {
+        for (const element of [document.getElementById("zoom-in"), document.getElementById("zoom-out")]) {
+            const rect = element.getBoundingClientRect();
+            internals.mouseMove(rect.left + 20, rect.top + 20);
+            await nextRenderingUpdate();
+            println(`cursor over #${element.id}: ${internals.currentCursor()}`);
+        }
+        done();
+    });
+</script>

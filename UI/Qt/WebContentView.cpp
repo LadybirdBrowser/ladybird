@@ -2360,6 +2360,41 @@ Optional<RemoteView::ScreenRects> WebContentView::screen_rects() const
     return screen_rects_from_qt();
 }
 
+// Qt has no zoom cursors, so draw a magnifier with a plus or a minus in its lens, with the hotspot at the lens's center.
+static QCursor make_zoom_cursor(bool zoom_in, qreal device_pixel_ratio)
+{
+    static constexpr int size = 24;
+    static constexpr QPointF lens_center { 9.5, 9.5 };
+    static constexpr qreal lens_radius = 6.5;
+
+    QPixmap pixmap { qRound(size * device_pixel_ratio), qRound(size * device_pixel_ratio) };
+    pixmap.setDevicePixelRatio(device_pixel_ratio);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter { &pixmap };
+    painter.setRenderHint(QPainter::Antialiasing);
+    auto draw_shape = [&](QColor const& color, qreal width) {
+        painter.setPen(QPen { color, width, Qt::SolidLine, Qt::RoundCap });
+        painter.setBrush(Qt::NoBrush);
+        painter.drawEllipse(lens_center, lens_radius, lens_radius);
+        painter.setPen(QPen { color, width + 1.5, Qt::SolidLine, Qt::RoundCap });
+        painter.drawLine(QPointF { 14.5, 14.5 }, QPointF { 21, 21 });
+        painter.setPen(QPen { color, width, Qt::SolidLine, Qt::RoundCap });
+        painter.drawLine(QPointF { 6.5, 9.5 }, QPointF { 12.5, 9.5 });
+        if (zoom_in)
+            painter.drawLine(QPointF { 9.5, 6.5 }, QPointF { 9.5, 12.5 });
+    };
+    // NB: A white outline under the black shape keeps the cursor visible on dark and light backgrounds alike.
+    draw_shape(Qt::white, 3.5);
+    painter.setBrush(QColor { 255, 255, 255, 160 });
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(lens_center, lens_radius - 1, lens_radius - 1);
+    draw_shape(Qt::black, 1.5);
+    painter.end();
+
+    return QCursor { pixmap, qRound(lens_center.x()), qRound(lens_center.y()) };
+}
+
 void WebContentView::update_cursor(Gfx::Cursor cursor)
 {
     cursor.visit([this](Gfx::StandardCursor standard_cursor) {
@@ -2418,9 +2453,14 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
         case Gfx::StandardCursor::Disallowed:
             setCursor(Qt::ForbiddenCursor);
             break;
+        case Gfx::StandardCursor::ZoomIn:
+            setCursor(make_zoom_cursor(true, devicePixelRatioF()));
+            break;
+        case Gfx::StandardCursor::ZoomOut:
+            setCursor(make_zoom_cursor(false, devicePixelRatioF()));
+            break;
         case Gfx::StandardCursor::Eyedropper:
-        case Gfx::StandardCursor::Zoom:
-            // FIXME: No corresponding Qt cursors, default to Arrow
+            // FIXME: No corresponding Qt cursor, default to Arrow
         default:
             setCursor(Qt::ArrowCursor);
             break;

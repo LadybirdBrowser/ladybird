@@ -35,7 +35,8 @@ enum class StandardCursor {
     Wait,
     Disallowed,
     Eyedropper,
-    Zoom,
+    ZoomIn,
+    ZoomOut,
 };
 
 struct ImageCursor {
@@ -90,8 +91,10 @@ constexpr StringView standard_cursor_to_string(StandardCursor cursor)
         return "Disallowed"sv;
     case StandardCursor::Eyedropper:
         return "Eyedropper"sv;
-    case StandardCursor::Zoom:
-        return "Zoom"sv;
+    case StandardCursor::ZoomIn:
+        return "ZoomIn"sv;
+    case StandardCursor::ZoomOut:
+        return "ZoomOut"sv;
     }
     VERIFY_NOT_REACHED();
 }
