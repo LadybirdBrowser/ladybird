@@ -1,0 +1,19 @@
+Ladybird now resolves the math generic family to an installed math font.
+Run in Chrome 158, Firefox 151 and WebKit 26.5 on macOS, all three draw
+“font-family: math” in a math font rather than in the family after it.
+Each engine keeps its own list. Chrome’s default math_font_family is
+STIX Two Math on macOS, Latin Modern Math on Linux and Cambria Math on
+Windows (IDS_MATH_FONT_FAMILY); Firefox’s font.name-list.serif.x-math
+starts Latin Modern Math, STIX Two Math, XITS Math, Cambria Math,
+Libertinus Math, DejaVu Math TeX Gyre; and WebKit’s CSSFontSelector
+tries the math font setting, then Latin Modern Math, STIX Two Math, XITS
+Math, STIX Math, Libertinus Math and TeX Gyre fonts. Ladybird’s list
+puts STIX Two Math first, as Chrome does on macOS, then takes the others
+in the order Firefox and WebKit list them, ending with Cambria Math and
+with STIXGeneral, which macOS ships. With no math font installed, it
+falls back to the serif font, as Firefox’s list and WebKit’s do at their
+ends; Chrome skips to the next family instead. The CI image has no math
+font, and fontconfig there has no math alias. The report also named
+emoji and fangsong, which stay family names: Chrome and WebKit serialize
+them quoted or not without quotes, as they do any family name, and on
+macOS no engine draws text any differently in either of them.
