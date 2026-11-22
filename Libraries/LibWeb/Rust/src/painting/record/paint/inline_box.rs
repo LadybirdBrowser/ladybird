@@ -9,7 +9,6 @@ use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
 use crate::painting::record::paint::border::{
     ALL_PIECE_EDGES, paint_box_borders, present_css_border_widths, style_borders_data,
@@ -269,7 +268,9 @@ fn paint_pieces<O: Observer>(
             let color = caret.color;
             if color.alpha() != 0 {
                 let rect = recorder.converter.rounded_device_rect(caret.rect);
-                recorder.recorder.fill_rect(rect, color, ForceDarkRole::Foreground);
+                recorder
+                    .recorder
+                    .paint_caret(rect, color, caret.blink_cycle_start_time_ns, caret.should_blink);
             }
         }
     }

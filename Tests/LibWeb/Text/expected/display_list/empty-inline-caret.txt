@@ -1,0 +1,19 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport held by the frame: it is under a layer the frame holds
+  [L1] caret #0 space=viewport region=[71,5 7x22]
+  [L2] painted space=viewport above L1
+
+DisplayList:
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[8,8 61x16] glyph_bounding_rect=[8,8 66x15] translation=[8,21] color=rgb(0, 0, 0) text="before " owner=BlockContainer<DIV> phase=text-fragment
+L0 FillRoundedRectRing@s1/e0 rect=[69,7 10x18] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=inline-piece
+L0 DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[78,8 41x16] glyph_bounding_rect=[79,8 45x15] translation=[78.53125,21] color=rgb(0, 0, 0) text="after" owner=BlockContainer<DIV> phase=text-fragment
+L1 PaintCaret@s1/e0 rect=[74,8 1x16] color=rgb(0, 0, 0) blink_cycle_start_time_ns=t1 owner=InlineNode<SPAN> phase=foreground
+L2 FillRoundedRectRing@s1/e0 rect=[67,5 14x22] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=InlineNode<SPAN> phase=outline
+
