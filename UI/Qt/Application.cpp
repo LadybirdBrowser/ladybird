@@ -418,7 +418,13 @@ public:
         update_reopen_recently_closed_action();
 
         m_close_current_tab_action = make_action("&Close Current Tab");
-        m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
+        auto close_tab_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::Close);
+#if !defined(AK_OS_MACOS)
+        QKeySequence control_f4(Qt::CTRL | Qt::Key_F4);
+        if (!close_tab_shortcuts.contains(control_f4))
+            close_tab_shortcuts.append(control_f4);
+#endif
+        m_close_current_tab_action->setShortcuts(close_tab_shortcuts);
         QObject::connect(m_close_current_tab_action, &QAction::triggered, this, []() {
             auto* tab = Application::the().active_tab();
             if (!tab)
