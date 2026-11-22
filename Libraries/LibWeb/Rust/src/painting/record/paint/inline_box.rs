@@ -89,36 +89,46 @@ fn paint_pieces<O: Observer>(
 
         // https://drafts.csswg.org/css-break-4/#valdef-box-decoration-break-slice
         // "The effect is as though the element were rendered with no breaks present, and then sliced by the breaks
-        // afterward." So a background image of a box broken across lines is laid out once, over a strip as long as
-        // all of its pieces placed end to end in the inline direction, and each piece shows its own slice of it.
-        let background_strip = style
-            .filter(|style| {
-                style.misc_layout().box_decoration_break == crate::css::css_enums::box_decoration_break::SLICE
-                    && style_queries::background_layers_have_image(*style)
+        // afterward." So the background image or box shadow of a box broken across lines is drawn once, over a strip
+        // as long as all its pieces placed end to end in the inline direction, and each piece shows its own slice.
+        let slices = style.is_some_and(|style| {
+            style.misc_layout().box_decoration_break == crate::css::css_enums::box_decoration_break::SLICE
+        });
+        // NB: The pieces are painted one by one, interleaved with the text of their lines, so a strip is measured once
+        //     per recording over all of the box's pieces, in logical order, rather than over those painted now.
+        let strip_of =
+            |recorder: &mut PaintRecorder<'_, O>,
+             kind: InlineStripKind,
+             rect_of: &dyn Fn(&crate::layout::inline_content::InlineBoxPieceRecord) -> CssPixelRect| {
+                if let Some(strip) = recorder.scratch.inline_strips.get(&(paintable, kind)) {
+                    return strip.clone();
+                }
+                let strip = style.and_then(|style| {
+                    InlineStrip::measure(
+                        style,
+                        side.inline_box_piece_indices(paintable)
+                            .iter()
+                            .filter(|index| !root_pieces[**index as usize].is_geometry_only_placeholder)
+                            .map(|index| (*index, rect_of(&root_pieces[*index as usize]))),
+                    )
+                    .map(std::sync::Arc::new)
+                });
+                recorder.scratch.inline_strips.insert((paintable, kind), strip.clone());
+                strip
+            };
+        let background_strip = if slices && style.is_some_and(style_queries::background_layers_have_image) {
+            strip_of(recorder, InlineStripKind::Background, &background_rect_of)
+        } else {
+            None
+        };
+        let shadow_layers = style.map_or(&[][..], |style| style.effects().box_shadows.as_slice());
+        let shadow_strip = if slices && !shadow_layers.is_empty() {
+            strip_of(recorder, InlineStripKind::BoxShadow, &|piece| {
+                CssPixelRect::from(piece.border_box_rect).translated_by(root_position_of(piece))
             })
-            .map(|style| {
-                let is_horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
-                let inline_axis_is_reverse = style.inline_axis_is_reverse();
-                let inline_size_of = |rect: CssPixelRect| if is_horizontal { rect.width } else { rect.height };
-                // NB: The pieces are painted one by one, interleaved with the text of their lines, so the strip is
-                //     measured over all of the box's pieces, in logical order, rather than those painted now.
-                let all_piece_indices = side.inline_box_piece_indices(paintable);
-                let inline_sizes: Vec<(u32, CssPixels)> = all_piece_indices
-                    .iter()
-                    .filter(|index| !root_pieces[**index as usize].is_geometry_only_placeholder)
-                    .map(|index| {
-                        (
-                            *index,
-                            inline_size_of(background_rect_of(&root_pieces[*index as usize])),
-                        )
-                    })
-                    .collect();
-                let strip_inline_size = inline_sizes
-                    .iter()
-                    .fold(CssPixels::default(), |total, (_, size)| total + *size);
-                (is_horizontal, inline_axis_is_reverse, strip_inline_size, inline_sizes)
-            })
-            .filter(|(_, _, _, inline_sizes)| inline_sizes.len() > 1);
+        } else {
+            None
+        };
 
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
@@ -130,42 +140,8 @@ fn paint_pieces<O: Observer>(
             let border_radii = recorder.piece_border_radii(paintable, piece);
             if !background_is_propagated_to_root {
                 let piece_background_rect = background_rect_of(piece);
-                if let Some((is_horizontal, inline_axis_is_reverse, strip_inline_size, inline_sizes)) =
-                    &background_strip
-                {
-                    let (is_horizontal, inline_axis_is_reverse, strip_inline_size) =
-                        (*is_horizontal, *inline_axis_is_reverse, *strip_inline_size);
-                    let inline_offset_in_strip = inline_sizes
-                        .iter()
-                        .take_while(|(index, _)| index != piece_index)
-                        .fold(CssPixels::default(), |total, (_, size)| total + *size);
-                    let piece_inline_size = if is_horizontal {
-                        piece_background_rect.width
-                    } else {
-                        piece_background_rect.height
-                    };
-                    // Where the inline axis runs right to left, or bottom to top, the first piece takes the physical
-                    // end of the strip.
-                    let offset = if inline_axis_is_reverse {
-                        strip_inline_size - inline_offset_in_strip - piece_inline_size
-                    } else {
-                        inline_offset_in_strip
-                    };
-                    let strip_rect = if is_horizontal {
-                        CssPixelRect::new(
-                            piece_background_rect.x - offset,
-                            piece_background_rect.y,
-                            strip_inline_size,
-                            piece_background_rect.height,
-                        )
-                    } else {
-                        CssPixelRect::new(
-                            piece_background_rect.x,
-                            piece_background_rect.y - offset,
-                            piece_background_rect.width,
-                            strip_inline_size,
-                        )
-                    };
+                if let Some(strip) = &background_strip {
+                    let strip_rect = strip.rect_of_piece_at(*piece_index, piece_background_rect);
                     let piece_clip =
                         crate::painting::display_list::builder::PendingInlineClip::intersecting_rounded_rect(
                             recorder.converter.rounded_device_rect(piece_background_rect).to_float(),
@@ -192,13 +168,67 @@ fn paint_pieces<O: Observer>(
                     );
                 }
             }
-            crate::painting::record::paint::shadow::paint_box_shadow(
-                recorder,
-                paintable,
-                border_box_rect,
-                padding_box_rect,
-                border_radii,
-            );
+            if let (Some(strip), Some(style)) = (&shadow_strip, style) {
+                let strip_rect = strip.rect_of_piece_at(*piece_index, border_box_rect);
+                let strip_radii = crate::painting::visual_context::node_values::piece_border_radii_data(
+                    style,
+                    strip_rect.width,
+                    strip_rect.height,
+                    ALL_PIECE_EDGES,
+                );
+                // NB: A slice ends only where the box breaks: On every other side, the shadow reaches out as far as
+                //     it does from the whole box.
+                let reach = shadow_layers
+                    .iter()
+                    .map(|layer| {
+                        CssPixels::from_raw(layer.offset_x.saturating_abs())
+                            + CssPixels::from_raw(layer.offset_y.saturating_abs())
+                            + CssPixels::from_raw(layer.spread_distance.saturating_abs()) * 8
+                            + CssPixels::from_raw(layer.blur_radius) * 4
+                    })
+                    .max()
+                    .unwrap_or_default();
+                // The reach is measured in device pixels, with one more for the shadow painter rounding the box's edge
+                // and the shadow's offset each on their own. The broken edges stay where the piece's own edges round to.
+                let device_reach = recorder.converter.enclosing_device_pixels(reach) + 1;
+                let reach_beyond = |edge: u8| {
+                    if piece.present_edges & edge != 0 {
+                        device_reach
+                    } else {
+                        0
+                    }
+                };
+                use crate::painting::paintable_data::{
+                    PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP,
+                };
+                let slice_rect = recorder.converter.rounded_device_rect(border_box_rect).inflated_edges(
+                    reach_beyond(PIECE_EDGE_TOP),
+                    reach_beyond(PIECE_EDGE_RIGHT),
+                    reach_beyond(PIECE_EDGE_BOTTOM),
+                    reach_beyond(PIECE_EDGE_LEFT),
+                );
+                let slice_clip = crate::painting::display_list::builder::PendingInlineClip::intersecting_rounded_rect(
+                    slice_rect.to_float(),
+                    Default::default(),
+                );
+                recorder.record_with_inline_clips(&[slice_clip], |recorder| {
+                    crate::painting::record::paint::shadow::paint_box_shadow(
+                        recorder,
+                        paintable,
+                        strip_rect,
+                        strip_rect.shrunken(border.top, border.right, border.bottom, border.left),
+                        strip_radii,
+                    );
+                });
+            } else {
+                crate::painting::record::paint::shadow::paint_box_shadow(
+                    recorder,
+                    paintable,
+                    border_box_rect,
+                    padding_box_rect,
+                    border_radii,
+                );
+            }
         }
     }
 
@@ -272,6 +302,72 @@ fn paint_pieces<O: Observer>(
                     .recorder
                     .paint_caret(rect, color, caret.blink_cycle_start_time_ns, caret.should_blink);
             }
+        }
+    }
+}
+
+/// What an inline box draws over the strip of its pieces.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum InlineStripKind {
+    Background,
+    BoxShadow,
+}
+
+/// A strip as long as all the pieces of an inline box placed end to end in the inline direction, over which a box
+/// broken with "box-decoration-break: slice" draws what it draws once, and from which each piece shows its own slice.
+pub(crate) struct InlineStrip {
+    is_horizontal: bool,
+    inline_axis_is_reverse: bool,
+    inline_size: CssPixels,
+    /// Where each piece starts in the strip, in logical order.
+    piece_inline_offsets: std::collections::HashMap<u32, CssPixels>,
+}
+
+impl InlineStrip {
+    /// The strip over `pieces`, each with the rect it takes, or None where there's only the one piece to slice.
+    fn measure(
+        style: crate::css::computed_value_views::ComputedValuesView<'_>,
+        pieces: impl Iterator<Item = (u32, CssPixelRect)>,
+    ) -> Option<Self> {
+        let is_horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+        let mut inline_size = CssPixels::default();
+        let piece_inline_offsets: std::collections::HashMap<u32, CssPixels> = pieces
+            .map(|(index, rect)| {
+                let offset = inline_size;
+                inline_size += if is_horizontal { rect.width } else { rect.height };
+                (index, offset)
+            })
+            .collect();
+        if piece_inline_offsets.len() < 2 {
+            return None;
+        }
+        Some(Self {
+            is_horizontal,
+            inline_axis_is_reverse: style.inline_axis_is_reverse(),
+            inline_size,
+            piece_inline_offsets,
+        })
+    }
+
+    /// The strip placed so that the piece at `piece_index`, which takes `piece_rect`, shows its own slice of it.
+    fn rect_of_piece_at(&self, piece_index: u32, piece_rect: CssPixelRect) -> CssPixelRect {
+        let inline_offset_in_strip = self.piece_inline_offsets.get(&piece_index).copied().unwrap_or_default();
+        let piece_inline_size = if self.is_horizontal {
+            piece_rect.width
+        } else {
+            piece_rect.height
+        };
+        // Where the inline axis runs right to left, or bottom to top, the first piece takes the physical end of the
+        // strip.
+        let offset = if self.inline_axis_is_reverse {
+            self.inline_size - inline_offset_in_strip - piece_inline_size
+        } else {
+            inline_offset_in_strip
+        };
+        if self.is_horizontal {
+            CssPixelRect::new(piece_rect.x - offset, piece_rect.y, self.inline_size, piece_rect.height)
+        } else {
+            CssPixelRect::new(piece_rect.x, piece_rect.y - offset, piece_rect.width, self.inline_size)
         }
     }
 }
