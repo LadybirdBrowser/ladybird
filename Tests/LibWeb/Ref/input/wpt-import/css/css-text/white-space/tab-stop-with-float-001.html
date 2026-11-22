@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>Tab stops should be anchored to the block's content edge regardless of floats</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#white-space-processing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/tab-stop-with-float-001-ref.html">
+<meta name="variant" content="?class=ltr">
+<meta name="variant" content="?class=rtl">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<script>
+const params = new URLSearchParams(window.location.search);
+let classes = ['ltr'];
+if (params.has('class')) {
+  classes = params.getAll('class').flatMap(value => value.split(','));
+}
+document.documentElement.classList.add(...classes);
+</script>
+<style>
+body {
+    margin: 0;
+}
+div {
+    font: 20px/1 Ahem;
+    white-space: pre;
+    tab-size: 4;
+    width: 400px;
+}
+.rtl div {
+    direction: rtl;
+}
+.float {
+    float: inline-start;
+    width: 40px;
+    height: 20px;
+}
+</style>
+<p>Tab stops should align vertically in both lines.</p>
+
+<div><span class="float"></span>a&#9;b</div>
+<div>a&#9;b</div>

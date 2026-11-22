@@ -1815,6 +1815,25 @@ impl<'context> InlineFormattingContext<'context> {
         self.parent.intrusion_by_floats_into_rect(rect, block_start, block_end)
     }
 
+    /// How far floats reach into the start side of a line between these block offsets. A line laid out in an
+    /// indefinite inline size, as for an intrinsic size, has no floats beside it to measure.
+    pub(crate) fn start_side_float_intrusion(
+        &self,
+        block_start: CssPixels,
+        block_end: CssPixels,
+        line_direction: u8,
+    ) -> CssPixels {
+        if !matches!(self.input.available_space.inline_size, AvailableSize::Definite(_)) {
+            return CssPixels::default();
+        }
+        let intrusion = self.intrusion_by_floats_into_containing_block(block_start, block_end);
+        if line_direction == direction::RTL {
+            intrusion.right
+        } else {
+            intrusion.left
+        }
+    }
+
     pub(crate) fn leftmost_inline_offset_at(&self, block_offset: CssPixels, line_block_size: CssPixels) -> CssPixels {
         self.intrusion_by_floats_into_containing_block(block_offset, block_offset + line_block_size)
             .left
@@ -2726,6 +2745,14 @@ impl<'context> InlineFormattingContext<'context> {
             // NB: The start edges that collapsed whitespace left for the next item come before that item too.
             let pending_leading_edges =
                 item_state.leading_margin + item_state.leading_border + item_state.leading_padding;
+            // NB: An empty inline box after a tab is placed after where the tab ends on this line, so the tabs move
+            //     there before the boxes are.
+            let start_edges_before_transfer =
+                pending_leading_edges + item.margin_start + item.border_start + item.padding_start;
+            line_builder.note_next_content(iterator.prepared_content(), &item);
+            item.place_tabs_at_line_position(iterator.prepared_content(), || {
+                line_builder.inline_position_of_next_content() + start_edges_before_transfer
+            });
             if iterator.has_empty_inline_boxes() {
                 for empty_box in iterator.empty_inline_boxes_before_last_item() {
                     line_builder
@@ -2964,6 +2991,16 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
+                    // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+                    // "each preserved tab is rendered as a horizontal shift that lines up the start edge of the next
+                    // glyph with the next tab stop."
+                    // NB: Where the item starts on its line decides where its tabs end: on the line it would join, for
+                    //     the measurements that decide where the line breaks, and then on the line it does join.
+                    // NB: The item's start edges took the leading edges that collapsed whitespace left for it.
+                    let start_edges = item.margin_start + item.border_start + item.padding_start;
+                    item.place_tabs_at_line_position(iterator.prepared_content(), || {
+                        line_builder.inline_position_of_next_content() + start_edges
+                    });
                     let style = self.style(self.parent_node(item.node));
                     if style.text_wrap_mode() == text_wrap_mode::WRAP {
                         let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
@@ -3000,7 +3037,12 @@ impl<'context> InlineFormattingContext<'context> {
                                 let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
                                     line_builder.break_if_needed_before_overflow_breakable_item(sequence_inline_size)
                                 } else {
-                                    line_builder.break_if_needed(sequence_inline_size)
+                                    // NB: The white space stays at the end of this line, so a line past floats has to
+                                    //     fit only what follows it.
+                                    let after_whitespace =
+                                        sequence_inline_size - inline_level_iterator::inline_extent([&item]);
+                                    line_builder
+                                        .break_if_needed_sized_by(sequence_inline_size, &mut |_| after_whitespace)
                                 };
                                 line_builder.set_hanging_whitespace_inline_size(CssPixels::default());
                                 line_builder.set_end_edges_of_whitespace_at_break(CssPixels::default());
@@ -3035,7 +3077,15 @@ impl<'context> InlineFormattingContext<'context> {
                                     line_builder
                                         .break_if_needed_before_overflow_breakable_item(unbreakable_run_inline_size);
                                 } else {
-                                    line_builder.break_if_needed(unbreakable_run_inline_size);
+                                    // NB: Lines past floats start elsewhere, which moves tabs that start the item.
+                                    let prepared = iterator.prepared_content();
+                                    line_builder.break_if_needed_sized_by(
+                                        unbreakable_run_inline_size,
+                                        &mut |position| {
+                                            unbreakable_run_inline_size - item.inline_size
+                                                + item.inline_size_with_tabs_at(prepared, position + start_edges)
+                                        },
+                                    );
                                 }
                                 line_builder.note_soft_wrap_opportunity();
                             }
@@ -3071,6 +3121,9 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
+                    item.place_tabs_at_line_position(iterator.prepared_content(), || {
+                        line_builder.inline_position_of_next_content() + start_edges
+                    });
                     line_builder.append_text_item(&mut item, iterator.prepared_content(), style);
                 }
             }

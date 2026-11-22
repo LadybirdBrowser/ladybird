@@ -114,6 +114,41 @@ fn glyphs_after_tab_spacers(
     with_spacer
 }
 
+/// The advance of each tab of `tab_stop`, for tabs that start `position` from the start of their line.
+fn advances_of_tabs(tab_stop: &PreparedTabStop, position: CssPixels) -> Vec<f32> {
+    let tab_inline_size = tab_stop.tab_inline_size;
+    // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+    // "each preserved tab is rendered as a horizontal shift that lines up the start edge of the next glyph with the
+    // next tab stop. If this distance is less than 0.5ch, then the subsequent tab stop is used instead."
+    // NB: So each tab of a run advances from where the tab before it ended, to a tab stop of its own.
+    let distance_to_tab_stop = |position: CssPixels| {
+        // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+        // "If the tab size is zero, preserved tabs are not rendered."
+        if tab_inline_size == CssPixels::default() {
+            return CssPixels::default();
+        }
+        // NB: The next tab stop is the first one after the position, even if the position is on a tab stop.
+        let mut distance = position.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - position;
+        if distance <= CssPixels::default() {
+            distance += tab_inline_size;
+        }
+        if distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
+            distance += tab_inline_size;
+        }
+        distance
+    };
+    let mut advances = Vec::with_capacity(tab_stop.tab_count as usize);
+    let mut end = position;
+    let mut previous_end = 0.0f32;
+    for _ in 0..tab_stop.tab_count {
+        end += distance_to_tab_stop(end);
+        let end_from_start = (end - position).to_double() as f32;
+        advances.push(end_from_start - previous_end);
+        previous_end = end_from_start;
+    }
+    advances
+}
+
 fn reshaped_glyph_run(
     text: &[u16],
     range: std::ops::Range<usize>,
@@ -244,6 +279,80 @@ fn shape_set_upright(
 
 impl Item {
     const NOT_RESOLVED_FROM_A_PREPARED_ITEM: usize = u32::MAX as usize;
+
+    /// Moves the tabs that start this text item to the tab stops after `line_position`, where the item starts on its
+    /// line: Resolving the item placed them as if its paragraph never wrapped. Only an item with tabs asks for that
+    /// position.
+    pub(crate) fn place_tabs_at_line_position(
+        &mut self,
+        prepared: &PreparedInlineContent,
+        line_position: impl FnOnce() -> CssPixels,
+    ) {
+        let Some((prepared_item, tab_stop)) = self.leading_tabs(prepared) else {
+            return;
+        };
+        let shape = prepared_item.shape();
+        let tab_advances = advances_of_tabs(tab_stop, line_position());
+        let inline_offset: f32 = tab_advances.iter().sum();
+        let inline_size = CssPixels::nearest_value_for_f32(shape.width() + inline_offset);
+        if inline_size == self.inline_size {
+            return;
+        }
+        let glyphs = glyphs_after_tab_spacers(&shaped_glyphs_from(shape, inline_offset), &tab_advances);
+        self.owned_glyph_run = Some(Box::new(OwnedGlyphRun {
+            glyphs,
+            width: shape.width(),
+            is_upright: false,
+        }));
+        self.inline_size = inline_size;
+        if prepared_item.has(PreparedItem::TRAILING_WHITESPACE_IS_WHOLE_ITEM) {
+            self.trailing_whitespace.inline_size = inline_size;
+            self.trailing_whitespace.ascii_inline_size = inline_size;
+        }
+    }
+
+    /// The prepared item and tab stop of the tabs that start this text item, if it starts with any that move with
+    /// where it starts on its line. Upright text keeps its tabs as they are, and only an item that still starts where
+    /// its prepared item does holds the tabs at all.
+    fn leading_tabs<'prepared>(
+        &self,
+        prepared: &'prepared PreparedInlineContent,
+    ) -> Option<(&'prepared PreparedItem, &'prepared PreparedTabStop)> {
+        if self.type_ != ItemType::Text {
+            return None;
+        }
+        let prepared_item = &prepared.items[self.prepared_item_index as usize];
+        if !prepared_item.has(PreparedItem::TAB_STOP)
+            || prepared_item.has(PreparedItem::UPRIGHT)
+            || self.offset_in_node != prepared_item.offset_in_node()
+            || self.length_in_node != prepared_item.length_in_node()
+        {
+            return None;
+        }
+        Some((prepared_item, prepared.tab_stop_of_item(self.prepared_item_index)?))
+    }
+
+    pub(crate) fn prepared_item_index(&self) -> u32 {
+        self.prepared_item_index
+    }
+
+    pub(crate) fn starts_with_tabs(&self, prepared: &PreparedInlineContent) -> bool {
+        self.leading_tabs(prepared).is_some()
+    }
+
+    /// This item's inline size with the tabs that start it placed after `line_position`, where it would start on its
+    /// line.
+    pub(crate) fn inline_size_with_tabs_at(
+        &self,
+        prepared: &PreparedInlineContent,
+        line_position: CssPixels,
+    ) -> CssPixels {
+        let Some((prepared_item, tab_stop)) = self.leading_tabs(prepared) else {
+            return self.inline_size;
+        };
+        let inline_offset: f32 = advances_of_tabs(tab_stop, line_position).iter().sum();
+        CssPixels::nearest_value_for_f32(prepared_item.shape().width() + inline_offset)
+    }
 
     fn new(type_: ItemType, node: Node, prepared_item_index: usize) -> Self {
         Self {
@@ -1775,6 +1884,9 @@ impl<'pass> InlineContentPreparer<'pass> {
         if let Some(tab_stop) = tab_stop {
             flags |= PreparedItem::TAB_STOP;
             self.buffers.tab_stops.push(tab_stop);
+            self.buffers
+                .tab_stop_items
+                .push(u32::try_from(self.buffers.items.len()).expect("prepared item indices fit in 32 bits"));
         }
         let font_index = self.buffers.index_of_font(font);
         let item = PreparedItem::text(
@@ -2275,37 +2387,10 @@ impl<'context> RunItemResolver<'_, 'context> {
         if prepared_item.has(PreparedItem::TAB_STOP) {
             let tab_stop = prepared.tab_stops[self.next_tab_stop];
             self.next_tab_stop += 1;
-            let tab_inline_size = tab_stop.tab_inline_size;
-            // https://drafts.csswg.org/css-text-3/#white-space-phase-2
-            // "each preserved tab is rendered as a horizontal shift that lines up the start edge of the next glyph with
-            // the next tab stop. If this distance is less than 0.5ch, then the subsequent tab stop is used instead."
-            // NB: So each tab of a run advances from where the tab before it ended, to a tab stop of its own.
-            let distance_to_tab_stop = |position: CssPixels| {
-                // https://drafts.csswg.org/css-text-3/#white-space-phase-2
-                // "If the tab size is zero, preserved tabs are not rendered."
-                if tab_inline_size == CssPixels::default() {
-                    return CssPixels::default();
-                }
-                // NB: The next tab stop is the first one after the position, even if the position is on a tab stop.
-                let mut distance = position.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - position;
-                if distance <= CssPixels::default() {
-                    distance += tab_inline_size;
-                }
-                if distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
-                    distance += tab_inline_size;
-                }
-                distance
-            };
-            let accumulated = self.accumulated_inline_size_for_tabs;
-            let mut position = accumulated;
-            let mut previous_end = 0.0f32;
-            for _ in 0..tab_stop.tab_count {
-                position += distance_to_tab_stop(position);
-                let end = (position - accumulated).to_double() as f32;
-                tab_advances.push(end - previous_end);
-                previous_end = end;
-            }
-            inline_offset = previous_end;
+            // NB: The tabs are placed as if the paragraph didn't wrap, and the line builder moves them once it knows
+            //     where the item starts on its line.
+            tab_advances = advances_of_tabs(&tab_stop, self.accumulated_inline_size_for_tabs);
+            inline_offset = tab_advances.iter().sum();
             upright_advance_after_tabs = tab_stop.upright_advance;
         }
         let shape = prepared_item.shape();

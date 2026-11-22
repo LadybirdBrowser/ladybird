@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: break-space tabs don't hang</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-phase-2">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/break-spaces-tab-005-ref.html">
+<meta name="assert" content="a sequence of break-spaces tabs at the end of a line does not hang.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 20px/1 Ahem;
+}
+#test {
+  white-space: break-spaces;
+  color: green;
+  width: 2ch;
+}
+#ref {
+  white-space: pre;
+  width: 2ch;
+  background: red;
+  color: green;
+  position: absolute;
+  z-index:-1;
+}
+</style>
+
+<p>Test passes if there is a green rectangle and no red.
+<div id=ref> X<br> X<br>XX<br>XX<br>XX<br>XX<br>  </div>
+<div id=test>X<wbr>X&#x09;&#x09;&#x09;&#x09;&#x09;XX</div>

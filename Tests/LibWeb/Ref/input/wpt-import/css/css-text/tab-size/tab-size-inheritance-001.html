@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: tab-size in lengths inherit as absolute lengths</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/tab-size/tab-size-inheritance-001-ref.html">
+<meta name="assert" content="tab-size in lengths inherit as absolute lengths">
+<style>
+.test {
+  font-family: monospace;
+  font-size: 10px;
+  tab-size: 5em;
+}
+.test div {
+  white-space: pre;
+  font-size: 20px
+}
+.test span {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: green;
+}
+.ref {
+  z-index: -1;
+  margin-left: 50px;
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: red;
+
+  /* this is to avoid antialiasing effects at the edge */
+  box-sizing: border-box;
+  border: 2px solid white;
+}
+</style>
+
+<p>Test passes if there is a green square and no red.
+<div class=ref></div>
+<div class=test><div>&#x09;<span></span></div></div>

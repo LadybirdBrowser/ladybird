@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	testing tab-size: 4
+Pass	testing tab-size: 0.5in
+Pass	testing tab-size: 2.54cm
+Pass	testing tab-size: 25.4mm
+Pass	testing tab-size: 18pt
+Pass	testing tab-size: 5pc
+Pass	testing tab-size: 101.6Q
+Pass	testing tab-size: 7px
+Pass	testing tab-size: 1em
+Pass	testing tab-size: 2ex
+Pass	testing tab-size: 3rem

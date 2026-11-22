@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Reference: tab stops with float</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<script>
+const params = new URLSearchParams(window.location.search);
+let classes = ['ltr'];
+if (params.has('class')) {
+  classes = params.getAll('class').flatMap(value => value.split(','));
+}
+document.documentElement.classList.add(...classes);
+</script>
+<style>
+body {
+    margin: 0;
+}
+div {
+    font: 20px/1 Ahem;
+    white-space: pre;
+    tab-size: 4;
+    width: 400px;
+}
+.rtl div {
+    direction: rtl;
+}
+.spacer {
+    display: inline-block;
+    width: 40px;
+}
+</style>
+<p>Tab stops should align vertically in both lines.</p>
+
+<div><span class="spacer"></span>a&#9;b</div>
+<div>a&#9;b</div>

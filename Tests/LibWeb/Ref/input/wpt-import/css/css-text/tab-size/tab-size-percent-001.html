@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Text Test: tab-size: 100%</title>
+    <link rel="author" title="David Storey" href="mailto:david@openweb.io">
+    <link rel="reviewer" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-text-3/#tab-size">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-text/tab-size/tab-size-length-001-ref.html">
+    <meta name="assert" content="Tab-size percentage values are not allowed">
+    <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+    <style type="text/css">
+        .container {
+            position: absolute;
+        }
+        .test {
+            font-family: Ahem;
+            font-size: 20px;
+
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .green {
+            background: green;
+         }
+        .red {
+            background: red;
+            tab-size: 0;
+            tab-size: 100%;
+        }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is no red.</p>
+    <div class="container">
+        <pre class="red test">&#09;</pre>
+        <pre class="green test">  </pre>
+    </div>
+</body>
+</html>
