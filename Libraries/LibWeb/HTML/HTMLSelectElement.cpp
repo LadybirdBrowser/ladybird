@@ -541,7 +541,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     m_select_item_option_elements.clear();
     auto create_select_item_option = [&](HTMLOptionElement& option_element) {
         m_select_item_option_elements.append(option_element);
-        return SelectItemOption { static_cast<u32>(m_select_item_option_elements.size()), option_element.selected(), option_element.disabled(), Infra::strip_and_collapse_whitespace(option_element.label()), option_element.value() };
+        return SelectItemOption { static_cast<u32>(m_select_item_option_elements.size()), option_element.selected(), option_element.disabled(), Infra::strip_and_collapse_whitespace(option_element.display_label()), option_element.value() };
     };
     for (auto const& child : children_as_vector()) {
         if (auto const* opt_group_element = as_if<HTMLOptGroupElement>(*child)) {
@@ -820,7 +820,7 @@ void HTMLSelectElement::clone_selected_option_into_select_button()
 
     // 3. If option is not null, then set text to option's label.
     if (option.has_value())
-        text = (*option)->label();
+        text = (*option)->display_label();
 
     // 4. Set select's select fallback button text to text.
     m_selected_label_element->string_replace_all(move(text));
@@ -1205,7 +1205,7 @@ void HTMLSelectElement::update_list_box()
         if (option.has_attribute(AttributeNames::hidden))
             return;
         auto row = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-        MUST(row->append_child(document().create_text_node(Infra::strip_and_collapse_whitespace(option.label()))));
+        MUST(row->append_child(document().create_text_node(Infra::strip_and_collapse_whitespace(option.display_label()))));
         update_list_box_row_style(row, option);
         MUST(m_list_box_element->append_child(row));
         m_list_box_rows.append({ row, option });
