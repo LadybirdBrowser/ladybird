@@ -42,14 +42,19 @@ GC::Ptr<HTML::HTMLFormElement> SubtreeInsertionScope::nearest_inclusive_form_anc
 
 ReadonlySpan<GC::Ref<Element>> SubtreeInsertionScope::inclusive_fieldset_ancestors_of_parent()
 {
-    if (!m_inclusive_fieldset_ancestors_of_parent.has_value()) {
-        GC::RootVector<GC::Ref<Element>> fieldsets;
+    if (!m_has_collected_inclusive_fieldset_ancestors_of_parent) {
+        m_has_collected_inclusive_fieldset_ancestors_of_parent = true;
+        // NB: Most parents have no fieldset ancestor, so the list is rooted only once it has one.
         for (GC::Ptr<Element> element = as_if<Element>(*m_parent); element; element = element->parent_element()) {
-            if (is<HTML::HTMLFieldSetElement>(*element))
-                fieldsets.append(*element);
+            if (!is<HTML::HTMLFieldSetElement>(*element))
+                continue;
+            if (!m_inclusive_fieldset_ancestors_of_parent.has_value())
+                m_inclusive_fieldset_ancestors_of_parent.emplace();
+            m_inclusive_fieldset_ancestors_of_parent->append(*element);
         }
-        m_inclusive_fieldset_ancestors_of_parent = move(fieldsets);
     }
+    if (!m_inclusive_fieldset_ancestors_of_parent.has_value())
+        return {};
     return *m_inclusive_fieldset_ancestors_of_parent;
 }
 
