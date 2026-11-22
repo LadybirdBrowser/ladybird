@@ -74,6 +74,15 @@ class Port:
 
 
 @dataclass
+class FlatpakModule:
+    name: str
+    version: str
+    copyright: str
+    definition: dict[str, Any]
+    manifest_dir: pathlib.Path
+
+
+@dataclass
 class SourceDownload:
     file_name: str
     sha512: str
@@ -448,9 +457,59 @@ def flatpak_archive_name(module: dict[str, Any], manifest_dir: pathlib.Path) -> 
             path = flatpak_patch(module, source, manifest_dir)
             lines.append(f"patch {source['path']} {hashlib.sha256(path.read_bytes()).hexdigest()}")
     digest = hashlib.sha256("\n".join(lines).encode()).hexdigest()
-    git = next((source for source in module["sources"] if source.get("type") == "git"), {})
-    version = git.get("tag") or git.get("commit", "")[:12] or "source"
+    version = flatpak_module_version(module) or "source"
     return UNSAFE_NAME_CHARACTERS.sub("_", f"{module['name']}-{version}-{digest[:12]}") + ".tar"
+
+
+def flatpak_module_version(module: dict[str, Any]) -> str:
+    for source in module.get("sources", []):
+        if isinstance(source, dict) and source.get("type") == "git":
+            return source.get("tag") or source.get("commit", "")[:12]
+        if isinstance(source, dict) and source.get("type") == "archive":
+            name = urllib.parse.urlparse(source["url"]).path.rpartition("/")[2]
+            version = re.sub(r"\.tar(\.[a-z0-9]+)?$|\.zip$", "", name).removeprefix(f"{module['name']}-")
+            return version[:12] if re.fullmatch(r"[0-9a-f]{40}", version) else version
+    return ""
+
+
+# flatpak-builder 1.4.5 and newer record the license files of every module that they build in a directory of the
+# module's name. A release needs them, while other builds may use an older flatpak-builder. A module that cleans up all
+# of its files, such as a build tool, ships nothing.
+def collect_flatpak_modules(
+    manifest_path: pathlib.Path, licenses_dir: pathlib.Path, release: bool
+) -> list[FlatpakModule]:
+    manifest_dir = manifest_path.resolve().parent
+    modules = []
+    pending = list(json.loads(read_text(manifest_path))["modules"])
+    while pending:
+        module = pending.pop(0)
+        if isinstance(module, str):
+            raise RuntimeError(f"The Flatpak manifest includes the module file {module}, which this script cannot read")
+        pending += module.get("modules", [])
+        if module["name"] == "Ladybird" or module.get("cleanup") == ["*"]:
+            continue
+        directory = licenses_dir / module["name"]
+        files = sorted(path for path in directory.iterdir() if path.is_file()) if directory.is_dir() else []
+        if not files:
+            message = (
+                f"The Flatpak module {module['name']} ships files, but has no license files in {directory}, where "
+                "flatpak-builder 1.4.5 and newer record them"
+            )
+            if release:
+                raise RuntimeError(message)
+            print(f"warning: {message}", file=sys.stderr)
+        modules.append(
+            FlatpakModule(
+                module["name"],
+                flatpak_module_version(module),
+                "\n\n".join(read_text(path).strip() for path in files) + "\n"
+                if files
+                else "flatpak-builder recorded no license files of this module.\n",
+                module,
+                manifest_dir,
+            )
+        )
+    return sorted(modules, key=lambda module: module.name.lower())
 
 
 def fetch_git_source(source: dict[str, Any], work_dir: pathlib.Path) -> tuple[str, bytes]:
@@ -644,39 +703,61 @@ def generate(args: argparse.Namespace) -> str:
     crates = linked_third_party_crates(metadata)
     crate_licenses = collect_crate_licenses(crates)
 
+    modules = []
+    if args.flatpak_manifest:
+        if not args.flatpak_licenses_dir:
+            raise RuntimeError(
+                "The licenses of a Flatpak build need the directory that flatpak-builder records them in"
+            )
+        modules = collect_flatpak_modules(args.flatpak_manifest, args.flatpak_licenses_dir, args.release)
+
     lgpl_ports = [port for port in ports if LGPL_MARKER in port.copyright]
 
     lgpl_libraries = read_lgpl_libraries(args.source_dir)
-    if unlisted_lgpl_ports := [port.name for port in lgpl_ports if port.name not in lgpl_libraries]:
-        raise RuntimeError(f"LGPL ports missing from {LGPL_LIBRARIES_PATH}: {', '.join(unlisted_lgpl_ports)}")
+    unlisted = [port.name for port in lgpl_ports if port.name not in lgpl_libraries]
+    unlisted += [
+        module.name for module in modules if LGPL_MARKER in module.copyright and module.name not in lgpl_libraries
+    ]
+    if unlisted:
+        raise RuntimeError(f"LGPL libraries missing from {LGPL_LIBRARIES_PATH}: {', '.join(unlisted)}")
+
+    # Each with the archive that release-tools publishes its source code in.
+    lgpl = [
+        (f"{port.name} {port.version}", lambda port=port: read_port_source(port).archive_name()) for port in lgpl_ports
+    ]
+    lgpl += [
+        (
+            f"{module.name} {module.version}",
+            lambda module=module: flatpak_archive_name(module.definition, module.manifest_dir),
+        )
+        for module in modules
+        if module.name in lgpl_libraries
+    ]
 
     introduction = [
         "Ladybird is distributed under the BSD 2-Clause License below. It includes the third-party software listed",
         "after that, under the licenses reproduced with each of them.",
     ]
-    if lgpl_ports and args.release:
+    if lgpl and args.release:
         introduction += [
             "",
             "This release of Ladybird uses the following libraries under the GNU Lesser General Public License. The",
             "source code of each, with our patches and build scripts, is at the address below it:",
             "",
         ]
-        for port in lgpl_ports:
-            introduction += [
-                f"  {port.name} {port.version}",
-                f"    {THIRD_PARTY_SOURCES_URL}/{read_port_source(port).archive_name()}",
-            ]
+        for library, archive_name in lgpl:
+            introduction += [f"  {library}", f"    {THIRD_PARTY_SOURCES_URL}/{archive_name()}"]
         introduction += [
             "",
             "The source code of Ladybird at https://github.com/LadybirdBrowser/ladybird contains everything needed to",
             "build it against modified versions of these libraries.",
         ]
-    elif lgpl_ports:
+    elif lgpl:
         introduction += [
             "",
             "This build of Ladybird uses the following libraries under the GNU Lesser General Public License:",
             "",
-            *[f"  {port.name} {port.version}" for port in lgpl_ports],
+            *[f"  {library}" for library, _ in lgpl],
             "",
             "The source code of Ladybird at https://github.com/LadybirdBrowser/ladybird contains everything needed to",
             "build it against modified versions of these libraries, and the build downloads the source code of each",
@@ -688,6 +769,9 @@ def generate(args: argparse.Namespace) -> str:
 
     for port in ports:
         output.append(section(f"{port.name} {port.version}", port.copyright))
+
+    for module in modules:
+        output.append(section(f"{module.name} {module.version}".strip(), module.copyright))
 
     for crate_license in crate_licenses:
         title = "\n".join(f"{crate} (Rust crate)" for crate in crate_license.crates)
@@ -719,7 +803,10 @@ def main() -> int:
     parser.add_argument(
         "--flatpak-manifest",
         type=pathlib.Path,
-        help="with --third-party-sources, package the LGPL modules of this Flatpak manifest instead of vcpkg ports",
+        help="list the modules of this Flatpak manifest, or with --third-party-sources, package its LGPL modules",
+    )
+    parser.add_argument(
+        "--flatpak-licenses-dir", type=pathlib.Path, help="where flatpak-builder records the license files of modules"
     )
     args = parser.parse_args()
 
