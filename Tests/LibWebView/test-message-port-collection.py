@@ -41,27 +41,47 @@ for (let i = 0; i < count; ++i) {
 """
 
 
+def thread_names(pid):
+    names = []
+    for task in os.listdir(f"/proc/{pid}/task"):
+        try:
+            names.append(Path(f"/proc/{pid}/task/{task}/comm").read_text().strip())
+        except FileNotFoundError:
+            pass
+    return names
+
+
 def thread_count(pid):
     if sys.platform == "darwin":
         output = subprocess.run(["ps", "-M", "-p", str(pid)], capture_output=True, text=True).stdout
         return len(output.splitlines()) - 1
-    return len(os.listdir(f"/proc/{pid}/task"))
+    # The thread pool starts all of its threads for its first job, which has nothing to do with transports and can
+    # come at any time.
+    return sum(1 for name in thread_names(pid) if not name.startswith("Pool/"))
 
 
-def web_content_threads(root_pid):
+def web_content_pids(root_pid):
     output = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True).stdout
     processes = [line.split(None, 2) for line in output.splitlines()]
     children = {}
     for pid, ppid, command in processes:
         children.setdefault(int(ppid), []).append((int(pid), command))
-    total = 0
     pending = [root_pid]
     while pending:
         for pid, command in children.get(pending.pop(), []):
             pending.append(pid)
             if command.split()[0].endswith("/WebContent"):
-                total += thread_count(pid)
-    return total
+                yield pid
+
+
+def web_content_threads(root_pid):
+    return sum(thread_count(pid) for pid in web_content_pids(root_pid))
+
+
+def describe_web_content_threads(root_pid):
+    if sys.platform == "darwin":
+        return ""
+    return "; threads: " + ", ".join(sorted(name for pid in web_content_pids(root_pid) for name in thread_names(pid)))
 
 
 def main():
@@ -101,6 +121,7 @@ def main():
         baseline = collect_and_count(warm_up + UNRELATED_THREAD_SLACK)
         assert baseline <= warm_up + UNRELATED_THREAD_SLACK, (
             f"{baseline} WebContent threads after collecting the warm-up channels, {warm_up} before"
+            f"{describe_web_content_threads(process.pid)}"
         )
 
         # Neither end of these channels is started, so no message could ever reach script through them.
@@ -108,6 +129,7 @@ def main():
         threads = collect_and_count(baseline + UNRELATED_THREAD_SLACK)
         assert threads <= baseline + UNRELATED_THREAD_SLACK, (
             f"{threads} WebContent threads after collecting {CHANNEL_COUNT} dropped channels, {baseline} before"
+            f"{describe_web_content_threads(process.pid)}"
         )
 
         # A started port that script forgot keeps receiving messages from the end it's entangled with.
