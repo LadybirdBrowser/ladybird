@@ -50,10 +50,10 @@ class DirectCompositionWindowServer final : public WindowServer {
 public:
     static RefPtr<DirectCompositionWindowServer> try_create();
     static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface_on_gpu(Gfx::IntSize, Gfx::SkiaBackendContext&);
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
     virtual ~DirectCompositionWindowServer() override;
 
-    virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) override;
-    virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) override;
+    virtual OwnPtr<RemoteLayer> try_create_remote_layer() override;
     virtual bool shows_tiles_of_painted_layers() const override;
     virtual FrameHandOff frame_hand_off() const override;
     virtual void hold_changes_on_screen() override;

@@ -18,10 +18,11 @@ mod window_server;
 use crate::backing_stores::{AllocationOutcome, BackingStores, Publication, StorePublication, StoreResizeOutcome};
 use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame};
-use crate::raster_host::{FfiSublayer, PaintingResources, RasterHost, SurfaceBlend, SurfaceSampling};
-use crate::remote_layers::{ShowingLayer, WindowServerObject};
+use crate::raster_host::{PaintingResources, RasterHost, SurfaceBlend, SurfaceSampling};
+use crate::remote_layers::ShowingLayer;
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
+use crate::window_server::{FrameSublayer, PlannedSublayer, WindowServer, sublayers_for_frame};
 use damage::{FrameDamage, PaintedFrame, StoreDamage};
 use layer_overlay::LayerOverlaySwitch;
 use layers::ContextLayers;
@@ -75,7 +76,7 @@ pub struct PresentingEnvironment<'a> {
 }
 
 impl PresentingEnvironment<'_> {
-    pub fn window_server_showing_context(&self) -> Option<&WindowServerObject> {
+    pub fn window_server_showing_context(&self) -> Option<&dyn WindowServer> {
         self.remote_layer
             .as_ref()
             .map(|remote_layer| &*remote_layer.window_server)
@@ -88,9 +89,8 @@ pub struct PreparedFrame {
     pub bitmap_id: i32,
     pub damage_rect: IntRect,
     pub device_pixel_ratio: f64,
-    /// What the window server shows of the frame by itself, bottom to top, lent by the presenting state until the next
-    /// frame.
-    pub sublayers: Vec<FfiSublayer>,
+    /// What the window server shows of the frame by itself, bottom to top.
+    pub sublayers: Vec<FrameSublayer>,
     /// Whether the sublayers are all of the frame, so that the window server shows no store below them.
     pub window_server_shows_every_layer: bool,
 }
@@ -277,7 +277,7 @@ pub struct ContextPresenting {
 
     frame_without_store_in_flight: bool,
     backing_stores: BackingStores,
-    sublayers_of_latest_frame: Vec<FfiSublayer>,
+    sublayers_of_latest_frame: Vec<PlannedSublayer>,
     /// Whether the window server showed every layer of the frame presented last by itself, with no store below them.
     latest_frame_was_presented_without_store_below_sublayers: bool,
     size_of_latest_rendered_frame: IntSize,
@@ -412,8 +412,7 @@ impl ContextPresenting {
             match self
                 .backing_stores
                 .allocate(allocation, publication, shares_gpu_images, &mut |kind, size| {
-                    env.raster
-                        .create_store(env.context_id, kind, size, env.window_server_showing_context())
+                    env.raster.create_store(env.context_id, kind, size)
                 }) {
                 AllocationOutcome::Offscreen => StoreResizeOutcome::ReallocatedOffscreen,
                 AllocationOutcome::Failed => StoreResizeOutcome::Failed,
@@ -515,12 +514,11 @@ impl ContextPresenting {
         raster: &RasterHost,
         context_id: CompositorContextId,
         publishing_presentation: Option<u64>,
-        window_server: Option<&WindowServerObject>,
     ) -> bool {
         let Some(stores) = self
             .backing_stores
             .add_store_if_window_server_still_reads_every_released_store(&mut |kind, size| {
-                raster.create_store(context_id, kind, size, window_server)
+                raster.create_store(context_id, kind, size)
             })
         else {
             return false;
@@ -561,11 +559,11 @@ impl ContextPresenting {
         raster: &RasterHost,
         context_id: CompositorContextId,
         publishing_presentation: Option<u64>,
-        window_server: Option<&WindowServerObject>,
     ) -> bool {
-        let Some(stores) = self.backing_stores.add_stores_up_to_initial_count(&mut |kind, size| {
-            raster.create_store(context_id, kind, size, window_server)
-        }) else {
+        let Some(stores) = self
+            .backing_stores
+            .add_stores_up_to_initial_count(&mut |kind, size| raster.create_store(context_id, kind, size))
+        else {
             return false;
         };
         Self::publish_added_stores(raster, context_id, publishing_presentation, stores);
@@ -996,13 +994,14 @@ impl ContextPresenting {
                 (None, -1, damage_rect)
             }
         };
-        self.sublayers_of_latest_frame = sublayers.clone();
+        let sublayers_for_frame = sublayers_for_frame(&sublayers, &live_content);
+        self.sublayers_of_latest_frame = sublayers;
         Some(PreparedFrame {
             rendered_surface,
             bitmap_id,
             damage_rect,
             device_pixel_ratio: self.device_pixel_ratio,
-            sublayers,
+            sublayers: sublayers_for_frame,
             window_server_shows_every_layer,
         })
     }

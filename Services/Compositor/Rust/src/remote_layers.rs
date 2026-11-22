@@ -6,64 +6,15 @@
 
 //! The remote layers that root contexts are shown in, which the window server of the presentation that made them shows
 //! in views of their own, and the window resizes that hold what the window servers show until the presentation commits
-//! them. The window servers and the layers are C++ objects, which the raster host works on.
+//! them.
 
-use crate::cpp_object::{CppObject, FfiCppObject};
 use crate::host::PresentationId;
+use crate::window_server::{RemoteLayer as WindowServerLayer, WindowServer};
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::ipc_types::{Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind};
 use libgfx_rust::IntSize;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-/// A `Compositor::WindowServer`, of which the core owns a reference.
-pub struct WindowServerObject(CppObject);
-
-impl WindowServerObject {
-    /// # Safety
-    ///
-    /// A non-null object must be a live `Compositor::WindowServer` that is handed over, with the function that gives up
-    /// the reference.
-    pub unsafe fn adopt(object: FfiCppObject) -> Option<Self> {
-        // SAFETY: The caller hands over the window server.
-        unsafe { CppObject::adopt(object) }.map(Self)
-    }
-
-    pub fn as_ptr(&self) -> *mut std::ffi::c_void {
-        self.0.as_ptr()
-    }
-}
-
-/// A `Compositor::RemoteLayer`, which the core owns.
-pub struct RemoteLayerObject(CppObject);
-
-impl RemoteLayerObject {
-    /// # Safety
-    ///
-    /// A non-null object must be a live `Compositor::RemoteLayer` that is handed over, with the function that destroys
-    /// it.
-    pub unsafe fn adopt(object: FfiCppObject) -> Option<Self> {
-        // SAFETY: The caller hands over the layer.
-        unsafe { CppObject::adopt(object) }.map(Self)
-    }
-
-    pub fn as_ptr(&self) -> *mut std::ffi::c_void {
-        self.0.as_ptr()
-    }
-}
-
-/// What is done to the window servers and the layers.
-pub trait RemoteLayerHost {
-    fn create_window_server(&self) -> Option<WindowServerObject>;
-    fn create_remote_layer(
-        &self,
-        window_server: &WindowServerObject,
-        remote_layer_id: u64,
-    ) -> Option<(RemoteLayerObject, Compositing_RemoteLayerHostHandle)>;
-    fn place_frame(&self, remote_layer: &RemoteLayerObject, fit_within: Option<IntSize>);
-    fn hold_changes_on_screen(&self, window_server: &WindowServerObject);
-    fn release_changes_held_off_screen(&self, window_server: &WindowServerObject);
-}
 
 /// A resize of a remote layer that the presentation is to hear of.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,14 +34,14 @@ pub struct ShownContextChange {
 /// The layer that shows a context, and the window server it is in.
 #[derive(Clone)]
 pub struct ShowingLayer {
-    pub layer: Rc<RemoteLayerObject>,
-    pub window_server: Rc<WindowServerObject>,
+    pub layer: Rc<dyn WindowServerLayer>,
+    pub window_server: Rc<dyn WindowServer>,
 }
 
 pub struct RemoteLayer {
     presentation: PresentationId,
-    layer: Rc<RemoteLayerObject>,
-    window_server: Rc<WindowServerObject>,
+    layer: Rc<dyn WindowServerLayer>,
+    window_server: Rc<dyn WindowServer>,
     shown_context: Option<CompositorContextId>,
     fit_within: Option<IntSize>,
     // The size of the frame shown, where the page laid it out at that size.
@@ -123,11 +74,11 @@ struct SynchronizedResize {
 
 #[derive(Default)]
 pub struct RemoteLayers {
-    window_servers: HashMap<PresentationId, Rc<WindowServerObject>>,
+    window_servers: HashMap<PresentationId, Rc<dyn WindowServer>>,
     layers: HashMap<u64, RemoteLayer>,
     layer_showing_context: HashMap<CompositorContextId, u64>,
     synchronized_resizes: Vec<SynchronizedResize>,
-    window_servers_holding_changes: Vec<Rc<WindowServerObject>>,
+    window_servers_holding_changes: Vec<Rc<dyn WindowServer>>,
 }
 
 fn no_host_handle() -> Compositing_RemoteLayerHostHandle {
@@ -138,18 +89,16 @@ fn no_host_handle() -> Compositing_RemoteLayerHostHandle {
 }
 
 impl RemoteLayers {
-    pub fn register_presentation(&mut self, presentation: PresentationId, host: &dyn RemoteLayerHost) {
-        if let Some(window_server) = host.create_window_server() {
-            self.window_servers.insert(presentation, Rc::new(window_server));
+    /// Registers the presentation with its window server, which it has none of where frames reach the screen only
+    /// through it.
+    pub fn register_presentation(&mut self, presentation: PresentationId, window_server: Option<Rc<dyn WindowServer>>) {
+        if let Some(window_server) = window_server {
+            self.window_servers.insert(presentation, window_server);
         }
     }
 
     /// Destroys the layers of the presentation, answering the contexts that were shown in them.
-    pub fn unregister_presentation(
-        &mut self,
-        presentation: PresentationId,
-        host: &dyn RemoteLayerHost,
-    ) -> Vec<CompositorContextId> {
+    pub fn unregister_presentation(&mut self, presentation: PresentationId) -> Vec<CompositorContextId> {
         let mut remote_layer_ids: Vec<u64> = self
             .layers
             .iter()
@@ -159,7 +108,7 @@ impl RemoteLayers {
         remote_layer_ids.sort_unstable();
         let stopped = remote_layer_ids
             .into_iter()
-            .filter_map(|remote_layer_id| self.destroy_remote_layer(remote_layer_id, host))
+            .filter_map(|remote_layer_id| self.destroy_remote_layer(remote_layer_id))
             .collect();
         if let Some(window_server) = self.window_servers.remove(&presentation)
             && let Some(index) = self
@@ -168,7 +117,7 @@ impl RemoteLayers {
                 .position(|holding| Rc::ptr_eq(holding, &window_server))
         {
             self.window_servers_holding_changes.remove(index);
-            host.release_changes_held_off_screen(&window_server);
+            window_server.release_changes_held_off_screen();
         }
         stopped
     }
@@ -179,7 +128,6 @@ impl RemoteLayers {
         &mut self,
         presentation: PresentationId,
         remote_layer_id: u64,
-        host: &dyn RemoteLayerHost,
     ) -> Compositing_RemoteLayerHostHandle {
         if self.layers.contains_key(&remote_layer_id) {
             return no_host_handle();
@@ -187,14 +135,15 @@ impl RemoteLayers {
         let Some(window_server) = self.window_servers.get(&presentation).cloned() else {
             return no_host_handle();
         };
-        let Some((layer, host_handle)) = host.create_remote_layer(&window_server, remote_layer_id) else {
+        let Some(layer) = window_server.create_remote_layer() else {
             return no_host_handle();
         };
+        let host_handle = layer.host_handle();
         self.layers.insert(
             remote_layer_id,
             RemoteLayer {
                 presentation,
-                layer: Rc::new(layer),
+                layer,
                 window_server,
                 shown_context: None,
                 fit_within: None,
@@ -205,11 +154,7 @@ impl RemoteLayers {
     }
 
     /// Answers the context that the layer showed.
-    pub fn destroy_remote_layer(
-        &mut self,
-        remote_layer_id: u64,
-        host: &dyn RemoteLayerHost,
-    ) -> Option<CompositorContextId> {
+    pub fn destroy_remote_layer(&mut self, remote_layer_id: u64) -> Option<CompositorContextId> {
         let stopped = self
             .show_context_in_remote_layer(remote_layer_id, None, |_| false)
             .stopped;
@@ -218,7 +163,7 @@ impl RemoteLayers {
         self.synchronized_resizes
             .retain(|resize| resize.remote_layer_id != remote_layer_id);
         if had_synchronized_resizes && self.synchronized_resizes.is_empty() {
-            self.release_synchronized_resize_hold(host);
+            self.release_synchronized_resize_hold();
         }
         stopped
     }
@@ -286,12 +231,7 @@ impl RemoteLayers {
         self.layers.get(self.layer_showing_context.get(&context_id)?)
     }
 
-    pub fn set_remote_layer_fit(
-        &mut self,
-        remote_layer_id: u64,
-        fit_within: Option<IntSize>,
-        host: &dyn RemoteLayerHost,
-    ) {
+    pub fn set_remote_layer_fit(&mut self, remote_layer_id: u64, fit_within: Option<IntSize>) {
         let Some(layer) = self.layers.get_mut(&remote_layer_id) else {
             return;
         };
@@ -299,14 +239,14 @@ impl RemoteLayers {
             return;
         }
         layer.fit_within = fit_within;
-        host.place_frame(&layer.layer, fit_within);
+        layer.layer.place_frame(fit_within);
     }
 
     pub fn is_holding_changes(&self) -> bool {
         !self.window_servers_holding_changes.is_empty()
     }
 
-    pub fn begin_synchronized_resize(&mut self, remote_layer_id: u64, token: u64, host: &dyn RemoteLayerHost) {
+    pub fn begin_synchronized_resize(&mut self, remote_layer_id: u64, token: u64) {
         let Some(layer) = self.layers.get(&remote_layer_id) else {
             return;
         };
@@ -316,7 +256,7 @@ impl RemoteLayers {
             .any(|holding| Rc::ptr_eq(holding, &layer.window_server))
         {
             self.window_servers_holding_changes.push(layer.window_server.clone());
-            host.hold_changes_on_screen(&layer.window_server);
+            layer.window_server.hold_changes_on_screen();
         }
         self.synchronized_resizes.push(SynchronizedResize {
             remote_layer_id,
@@ -365,16 +305,11 @@ impl RemoteLayers {
         held
     }
 
-    pub fn commit_synchronized_resize(
-        &mut self,
-        remote_layer_id: u64,
-        token: u64,
-        host: &dyn RemoteLayerHost,
-    ) -> Option<ResizeNotice> {
+    pub fn commit_synchronized_resize(&mut self, remote_layer_id: u64, token: u64) -> Option<ResizeNotice> {
         self.synchronized_resizes
             .retain(|resize| !(resize.remote_layer_id == remote_layer_id && resize.token == token));
         if self.synchronized_resizes.is_empty() {
-            self.release_synchronized_resize_hold(host);
+            self.release_synchronized_resize_hold();
         }
         let layer = self.layers.get(&remote_layer_id)?;
         Some(ResizeNotice {
@@ -384,10 +319,10 @@ impl RemoteLayers {
         })
     }
 
-    pub fn release_synchronized_resize_hold(&mut self, host: &dyn RemoteLayerHost) {
+    pub fn release_synchronized_resize_hold(&mut self) {
         self.synchronized_resizes.clear();
         for window_server in std::mem::take(&mut self.window_servers_holding_changes) {
-            host.release_changes_held_off_screen(&window_server);
+            window_server.release_changes_held_off_screen();
         }
     }
 
@@ -412,53 +347,72 @@ impl RemoteLayers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cpp_object::testing::object_for_testing;
+    use crate::raster_host::FrameHandOff;
+    use crate::window_server::{Frame, MediaToShow};
+    use libcompositing_rust::display_list::layers::WindowServerCompositing;
+    use libcompositing_rust::display_list::window_server_placement::WindowServerPlacement;
     use std::cell::{Cell, RefCell};
 
     #[derive(Default)]
-    struct RecordingHost {
-        next_address: Cell<usize>,
-        held: RefCell<Vec<usize>>,
-        released: RefCell<Vec<usize>>,
+    struct Recording {
+        next_host_handle_id: Cell<u64>,
+        holds: Cell<usize>,
+        releases: Cell<usize>,
         placed: RefCell<Vec<Option<IntSize>>>,
     }
 
-    impl RecordingHost {
-        fn next_object(&self) -> CppObject {
-            self.next_address.set(self.next_address.get() + 0x10);
-            object_for_testing(self.next_address.get())
+    struct RecordingWindowServer(Rc<Recording>);
+
+    struct RecordingLayer {
+        recording: Rc<Recording>,
+        host_handle_id: u64,
+    }
+
+    impl WindowServer for RecordingWindowServer {
+        fn compositing(&self) -> WindowServerCompositing {
+            WindowServerCompositing::default()
+        }
+
+        fn frame_hand_off(&self) -> FrameHandOff {
+            FrameHandOff::OnceGpuWorkIsScheduled
+        }
+
+        fn create_remote_layer(&self) -> Option<Rc<dyn WindowServerLayer>> {
+            let host_handle_id = self.0.next_host_handle_id.get() + 1;
+            self.0.next_host_handle_id.set(host_handle_id);
+            Some(Rc::new(RecordingLayer {
+                recording: self.0.clone(),
+                host_handle_id,
+            }))
+        }
+
+        fn hold_changes_on_screen(&self) {
+            self.0.holds.set(self.0.holds.get() + 1);
+        }
+
+        fn release_changes_held_off_screen(&self) {
+            self.0.releases.set(self.0.releases.get() + 1);
         }
     }
 
-    impl RemoteLayerHost for RecordingHost {
-        fn create_window_server(&self) -> Option<WindowServerObject> {
-            Some(WindowServerObject(self.next_object()))
+    impl WindowServerLayer for RecordingLayer {
+        fn host_handle(&self) -> Compositing_RemoteLayerHostHandle {
+            Compositing_RemoteLayerHostHandle {
+                kind: Compositing_RemoteLayerHostKind::CoreAnimationContext,
+                id: self.host_handle_id,
+            }
         }
 
-        fn create_remote_layer(
-            &self,
-            _: &WindowServerObject,
-            remote_layer_id: u64,
-        ) -> Option<(RemoteLayerObject, Compositing_RemoteLayerHostHandle)> {
-            Some((
-                RemoteLayerObject(self.next_object()),
-                Compositing_RemoteLayerHostHandle {
-                    kind: Compositing_RemoteLayerHostKind::CoreAnimationContext,
-                    id: remote_layer_id,
-                },
-            ))
+        fn can_show(&self, _: &WindowServerPlacement, _: MediaToShow<'_>, _: f64) -> bool {
+            true
         }
 
-        fn place_frame(&self, _: &RemoteLayerObject, fit_within: Option<IntSize>) {
-            self.placed.borrow_mut().push(fit_within);
+        fn show_frame(&self, _: Frame) -> bool {
+            true
         }
 
-        fn hold_changes_on_screen(&self, window_server: &WindowServerObject) {
-            self.held.borrow_mut().push(window_server.as_ptr() as usize);
-        }
-
-        fn release_changes_held_off_screen(&self, window_server: &WindowServerObject) {
-            self.released.borrow_mut().push(window_server.as_ptr() as usize);
+        fn place_frame(&self, fit_within: Option<IntSize>) {
+            self.recording.placed.borrow_mut().push(fit_within);
         }
     }
 
@@ -469,33 +423,33 @@ mod tests {
         height: 600,
     };
 
-    fn layers_with_one_layer(host: &RecordingHost) -> RemoteLayers {
+    fn layers_with_one_layer(recording: &Rc<Recording>) -> RemoteLayers {
         let mut layers = RemoteLayers::default();
-        layers.register_presentation(PRESENTATION, host);
-        let handle = layers.create_remote_layer(PRESENTATION, 1, host);
+        layers.register_presentation(PRESENTATION, Some(Rc::new(RecordingWindowServer(recording.clone()))));
+        let handle = layers.create_remote_layer(PRESENTATION, 1);
         assert_eq!(handle.id, 1);
         layers
     }
 
     #[test]
     fn a_layer_is_created_once_per_id() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
         assert_eq!(
-            layers.create_remote_layer(PRESENTATION, 1, &host).kind,
+            layers.create_remote_layer(PRESENTATION, 1).kind,
             Compositing_RemoteLayerHostKind::None
         );
         assert_eq!(
-            layers.create_remote_layer(PresentationId(2), 2, &host).kind,
+            layers.create_remote_layer(PresentationId(2), 2).kind,
             Compositing_RemoteLayerHostKind::None
         );
     }
 
     #[test]
     fn a_context_moves_between_layers() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
-        layers.create_remote_layer(PRESENTATION, 2, &host);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
+        layers.create_remote_layer(PRESENTATION, 2);
         assert_eq!(
             layers.show_context_in_remote_layer(1, Some(CONTEXT), |_| true),
             ShownContextChange {
@@ -509,14 +463,14 @@ mod tests {
             layers.layer_showing(CONTEXT).map(|layer| layer.presentation()),
             Some(PRESENTATION)
         );
-        assert_eq!(layers.destroy_remote_layer(2, &host), Some(CONTEXT));
+        assert_eq!(layers.destroy_remote_layer(2), Some(CONTEXT));
         assert!(layers.layer_showing(CONTEXT).is_none());
     }
 
     #[test]
     fn a_context_that_cannot_be_shown_is_ignored() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
         let change = layers.show_context_in_remote_layer(1, Some(CONTEXT), |_| false);
         assert_eq!(change, ShownContextChange::default());
         assert!(layers.layer_showing(CONTEXT).is_none());
@@ -524,41 +478,41 @@ mod tests {
 
     #[test]
     fn a_resize_is_held_until_the_frame_of_its_size_is_shown_and_released_when_committed() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
         layers.show_context_in_remote_layer(1, Some(CONTEXT), |_| true);
-        layers.begin_synchronized_resize(1, 5, &host);
+        layers.begin_synchronized_resize(1, 5);
         assert!(layers.is_holding_changes());
-        assert_eq!(host.held.borrow().len(), 1);
+        assert_eq!(recording.holds.get(), 1);
         assert!(layers.await_synchronized_resize_frame(1, 5, SIZE).is_empty());
         assert!(layers.did_show_frame(CONTEXT, SIZE, false).is_empty());
         let held = layers.did_show_frame(CONTEXT, SIZE, true);
         assert_eq!(held.len(), 1);
         assert_eq!(held[0].token, 5);
         assert!(layers.did_show_frame(CONTEXT, SIZE, true).is_empty());
-        let committed = layers.commit_synchronized_resize(1, 5, &host);
+        let committed = layers.commit_synchronized_resize(1, 5);
         assert_eq!(committed.map(|notice| notice.token), Some(5));
         assert!(!layers.is_holding_changes());
-        assert_eq!(host.released.borrow().len(), 1);
+        assert_eq!(recording.releases.get(), 1);
     }
 
     #[test]
     fn destroying_the_presentation_releases_what_its_window_server_holds() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
         layers.show_context_in_remote_layer(1, Some(CONTEXT), |_| true);
-        layers.begin_synchronized_resize(1, 5, &host);
-        assert_eq!(layers.unregister_presentation(PRESENTATION, &host), vec![CONTEXT]);
+        layers.begin_synchronized_resize(1, 5);
+        assert_eq!(layers.unregister_presentation(PRESENTATION), vec![CONTEXT]);
         assert!(!layers.is_holding_changes());
-        assert_eq!(host.released.borrow().len(), 1);
+        assert_eq!(recording.releases.get(), 1);
     }
 
     #[test]
     fn the_frame_is_placed_again_only_when_the_fit_changes() {
-        let host = RecordingHost::default();
-        let mut layers = layers_with_one_layer(&host);
-        layers.set_remote_layer_fit(1, Some(SIZE), &host);
-        layers.set_remote_layer_fit(1, Some(SIZE), &host);
-        assert_eq!(*host.placed.borrow(), vec![Some(SIZE)]);
+        let recording = Rc::new(Recording::default());
+        let mut layers = layers_with_one_layer(&recording);
+        layers.set_remote_layer_fit(1, Some(SIZE));
+        layers.set_remote_layer_fit(1, Some(SIZE));
+        assert_eq!(*recording.placed.borrow(), vec![Some(SIZE)]);
     }
 }

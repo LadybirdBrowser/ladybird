@@ -11,12 +11,12 @@
 use crate::backing_stores::{FfiNewStore, NewStore, Publication, SharedImageToPublish, StoreKind};
 use crate::cpp_object::{CppObject, FfiCppObject};
 use crate::host::WebContentClientId;
-use crate::remote_layers::{RemoteLayerHost, RemoteLayerObject, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use crate::webgl::host::{
     ContextOptions, DefaultBuffers, ImageConversion, ImageConversionOutcome, PresentOutcome, VideoFrameCopy, WebGLHost,
 };
+use crate::window_server::VideoFrameForWindowServer;
 use libcompositing_rust::display_list::commands::VideoSinkHandle;
 use libcompositing_rust::display_list::commands::{CanvasId, CompositorContextId, DisplayListCommandType};
 use libcompositing_rust::display_list::storage::{
@@ -71,24 +71,24 @@ pub enum FrameHandOff {
     OnceGpuWorkIsFinished,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCanvasContent {
     pub id: u64,
     pub content_generation: u64,
-    /// Whether the window server can show the canvas as it is.
-    pub has_presentable_surface: bool,
+    /// The surface the canvas presents from, lent for the call, or null where it has none.
+    pub presentable_surface: *const PresentableSurface,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiVideoSinkContent {
     pub handle: u64,
     pub has_frame: bool,
     pub frame_id: u64,
     pub frame_holds_high_dynamic_range: bool,
-    /// Whether the window server can show the frame as it is.
+    /// Whether the frame is in a surface the window server can show as it is.
     pub frame_has_surface: bool,
+    /// The frame, handed over, or null without a frame.
+    pub frame: FfiCppObject,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -107,20 +107,32 @@ pub struct FfiLiveContent<'a> {
     pub image_frames: ak::Span<'a, FfiImageFrameContent>,
 }
 
+#[derive(Clone, Debug)]
+pub struct CanvasContent {
+    pub content_generation: u64,
+    /// The surface the canvas presents from, which the window server can show as it is where it is one the window
+    /// server can show.
+    pub presentable_surface: Option<Rc<PresentableSurface>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct VideoSinkContent {
+    pub handle: u64,
+    pub has_frame: bool,
+    pub frame_id: u64,
+    pub frame_holds_high_dynamic_range: bool,
+    /// Whether the frame is in a surface the window server can show as it is.
+    pub frame_has_surface: bool,
+    pub frame: Option<Rc<VideoFrameForWindowServer>>,
+}
+
 /// The live content of a context as it is now: the canvases asked about by ID, every video sink the context draws by
 /// its handle, and the pixel generation of every image frame by ID.
 #[derive(Clone, Default, Debug)]
 pub struct LiveContent {
-    pub canvases: HashMap<u64, FfiCanvasContent>,
-    pub video_sinks: HashMap<u64, FfiVideoSinkContent>,
+    pub canvases: HashMap<u64, CanvasContent>,
+    pub video_sinks: HashMap<u64, VideoSinkContent>,
     pub image_frames: HashMap<u64, u64>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum MediaKind {
-    Canvas,
-    Video,
 }
 
 /// Where the window server shows a sublayer, and how it clips it, in device pixels.
@@ -144,57 +156,14 @@ pub struct FfiSublayerPlacement {
     pub clip_path_fill_rule: WindingRule,
     /// The a, b, c, d, e and f of the affine transform from the space of the path to the frame.
     pub clip_path_to_frame: [f32; 6],
-    /// Lent for the call that builds the sublayers, or that asks whether a remote layer can show the placement: the
-    /// window server placement this is made from holds the path, and that of a sublayer lives in the layers of the
-    /// frame painted last. A copy kept past that call, as the sublayers of the latest frame are, is never read
-    /// through, so placements are told apart by the identity of the path, never by these contours.
+    /// Lent for the call that builds the sublayers, or that asks whether a remote layer can show the placement.
     pub clip_path_contours: PathGeometryData,
     pub scaling_mode: ScalingMode,
-}
-
-impl PartialEq for FfiSublayerPlacement {
-    fn eq(&self, other: &Self) -> bool {
-        // Each field is named, so a new field does not compile until it is compared too.
-        let Self {
-            content_rect,
-            content_to_frame,
-            clip_rect,
-            has_rounded_clip,
-            rounded_clip_rect,
-            rounded_clip_radius,
-            rounds_top_left,
-            rounds_top_right,
-            rounds_bottom_right,
-            rounds_bottom_left,
-            is_clipped_by_path,
-            clip_path_identity,
-            clip_path_fill_rule,
-            clip_path_to_frame,
-            clip_path_contours: _,
-            scaling_mode,
-        } = self;
-        *content_rect == other.content_rect
-            && *content_to_frame == other.content_to_frame
-            && *clip_rect == other.clip_rect
-            && *has_rounded_clip == other.has_rounded_clip
-            && *rounded_clip_rect == other.rounded_clip_rect
-            && *rounded_clip_radius == other.rounded_clip_radius
-            && *rounds_top_left == other.rounds_top_left
-            && *rounds_top_right == other.rounds_top_right
-            && *rounds_bottom_right == other.rounds_bottom_right
-            && *rounds_bottom_left == other.rounds_bottom_left
-            && *is_clipped_by_path == other.is_clipped_by_path
-            && *clip_path_identity == other.clip_path_identity
-            && *clip_path_fill_rule == other.clip_path_fill_rule
-            && *clip_path_to_frame == other.clip_path_to_frame
-            && *scaling_mode == other.scaling_mode
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SublayerContentKind {
-    Canvas,
     Video,
     PresentableSurface,
     /// Holds the sublayers that name it as their group, which the window server places and clips together.
@@ -252,9 +221,9 @@ impl Default for FfiSublayerGroup {
     }
 }
 
-/// A sublayer the window server shows of a frame: a canvas of the context by its id, a video by the handle of its sink,
-/// a surface, a tile, a fill, or a group of other sublayers.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A sublayer the window server shows of a frame: a frame of a video, a surface, a tile, a fill, a backdrop, or a group
+/// of other sublayers.
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiSublayer {
     pub identity: u64,
@@ -262,7 +231,8 @@ pub struct FfiSublayer {
     /// A group comes before the sublayers in it, and sublayers of one group are shown bottom to top.
     pub group_index: i32,
     pub content_kind: SublayerContentKind,
-    pub media_id: u64,
+    /// Of a video, a `VideoFrameForRust` lent for the call.
+    pub video_frame: *mut c_void,
     /// Of a surface or a tile.
     pub presentable_surface: *const PresentableSurface,
     /// Of a canvas, a video or a surface.
@@ -285,7 +255,7 @@ impl FfiSublayer {
             identity,
             group_index: -1,
             content_kind,
-            media_id: 0,
+            video_frame: std::ptr::null_mut(),
             presentable_surface: std::ptr::null(),
             placement: FfiSublayerPlacement::default(),
             group: FfiSublayerGroup::default(),
@@ -378,9 +348,8 @@ pub struct FfiRasterHost {
     pub end_painting: unsafe extern "C" fn(*mut c_void),
 
     /// Makes a store of the context, writing what it made. Answers false where none could be made.
-    /// Arguments: the context, the kind and size of the store, the window server that shows it, if one does, and where
-    /// the store is written.
-    pub create_store: unsafe extern "C" fn(*mut c_void, u64, StoreKind, IntSize, *mut c_void, *mut FfiNewStore) -> bool,
+    /// Arguments: the context, the kind and size of the store, and where the store is written.
+    pub create_store: unsafe extern "C" fn(*mut c_void, u64, StoreKind, IntSize, *mut FfiNewStore) -> bool,
     /// Arguments: the presentation, the context, whether the stores were added to those it has rather than replacing
     /// them, and the stores with their images, which it takes over.
     pub publish_stores: unsafe extern "C" fn(*mut c_void, u64, u64, bool, ak::Span<'_, i32>, ak::Span<'_, *mut c_void>),
@@ -401,12 +370,17 @@ pub struct FfiRasterHost {
         *mut c_void,
         unsafe extern "C" fn(*mut c_void, *const FfiLiveContent<'_>),
     ),
-    /// Arguments: the remote layer, the context, the media, where it is placed, and the device pixel ratio.
-    pub remote_layer_can_show:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, u64, MediaKind, u64, *const FfiSublayerPlacement, f64) -> bool,
-    /// Resolves the content of the sublayers, which the window server then holds busy until the list is destroyed or
-    /// shown.
-    pub build_sublayers: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, FfiSublayer>) -> *mut c_void,
+    /// Arguments: the remote layer, the surface or the `VideoFrameForRust` it is asked about, where it is placed, and
+    /// the device pixel ratio.
+    pub remote_layer_can_show: unsafe extern "C" fn(
+        *mut c_void,
+        *const PresentableSurface,
+        *mut c_void,
+        *const FfiSublayerPlacement,
+        f64,
+    ) -> bool,
+    /// Builds the sublayers of a remote layer, which hold their content busy until the list is destroyed or shown.
+    pub build_sublayers: unsafe extern "C" fn(*mut c_void, ak::Span<'_, FfiSublayer>) -> *mut c_void,
     pub destroy_sublayers: unsafe extern "C" fn(*mut c_void),
 
     /// Submits the GPU work drawn into the surface, or into the surfaces the window server shows where it is null,
@@ -422,9 +396,9 @@ pub struct FfiRasterHost {
     /// once when released.
     pub window_server_hold_changes_on_screen: unsafe extern "C" fn(*mut c_void),
     pub window_server_release_changes_held_off_screen: unsafe extern "C" fn(*mut c_void),
-    /// Arguments: the window server, the id of the layer, and where the layer and its host handle are written.
+    /// Arguments: the window server, and where the layer and its host handle are written.
     pub create_remote_layer:
-        unsafe extern "C" fn(*mut c_void, u64, *mut FfiCppObject, *mut FfiRemoteLayerHostHandle) -> bool,
+        unsafe extern "C" fn(*mut c_void, *mut FfiCppObject, *mut FfiRemoteLayerHostHandle) -> bool,
     /// Arguments: the layer, whether the frame is scaled to fit, and the size it fits within.
     pub remote_layer_place_frame: unsafe extern "C" fn(*mut c_void, bool, IntSize),
     /// Shows the frame in the layer with the sublayers given, which it takes over. Answers false where the layer could
@@ -651,6 +625,7 @@ impl Drop for SublayersHandle {
     }
 }
 
+#[derive(Clone)]
 pub struct RasterHost(FfiRasterHost);
 
 impl RasterHost {
@@ -762,17 +737,10 @@ impl RasterHost {
         unsafe { (self.0.end_painting)(self.host()) };
     }
 
-    pub fn create_store(
-        &self,
-        context_id: CompositorContextId,
-        kind: StoreKind,
-        size: IntSize,
-        window_server: Option<&WindowServerObject>,
-    ) -> Option<NewStore> {
+    pub fn create_store(&self, context_id: CompositorContextId, kind: StoreKind, size: IntSize) -> Option<NewStore> {
         let mut store = FfiNewStore::default();
-        let window_server = window_server.map_or(std::ptr::null_mut(), WindowServerObject::as_ptr);
-        // SAFETY: The host outlives this, the window server is live, and the host writes the store it made.
-        if !unsafe { (self.0.create_store)(self.host(), context_id.0, kind, size, window_server, &raw mut store) } {
+        // SAFETY: The host outlives this, and writes the store it made.
+        if !unsafe { (self.0.create_store)(self.host(), context_id.0, kind, size, &raw mut store) } {
             return None;
         }
         // SAFETY: The host handed the store over.
@@ -826,7 +794,7 @@ impl RasterHost {
         }
     }
 
-    pub fn window_server_compositing(&self, window_server: &WindowServerObject) -> FfiWindowServerCompositing {
+    pub fn window_server_compositing(&self, window_server: &CppObject) -> FfiWindowServerCompositing {
         // SAFETY: The window server is live.
         unsafe { (self.0.window_server_compositing)(window_server.as_ptr()) }
     }
@@ -839,13 +807,38 @@ impl RasterHost {
                 .canvases
                 .as_slice()
                 .iter()
-                .map(|canvas| (canvas.id, *canvas))
+                .map(|canvas| {
+                    let content = CanvasContent {
+                        content_generation: canvas.content_generation,
+                        // SAFETY: The host lends a live surface, of which this takes a reference of its own.
+                        presentable_surface: unsafe {
+                            PresentableSurface::retained_from_ffi(canvas.presentable_surface)
+                        },
+                    };
+                    (canvas.id, content)
+                })
                 .collect();
             receiver.video_sinks = content
                 .video_sinks
                 .as_slice()
                 .iter()
-                .map(|sink| (sink.handle, *sink))
+                .map(|sink| {
+                    let frame = FfiCppObject {
+                        object: sink.frame.object,
+                        destroy: sink.frame.destroy,
+                    };
+                    let content = VideoSinkContent {
+                        handle: sink.handle,
+                        has_frame: sink.has_frame,
+                        frame_id: sink.frame_id,
+                        frame_holds_high_dynamic_range: sink.frame_holds_high_dynamic_range,
+                        frame_has_surface: sink.frame_has_surface,
+                        // SAFETY: The host hands the frame over.
+                        frame: unsafe { CppObject::adopt(frame) }
+                            .map(|frame| Rc::new(VideoFrameForWindowServer::new(frame))),
+                    };
+                    (sink.handle, content)
+                })
                 .collect();
             receiver.image_frames = content
                 .image_frames
@@ -870,30 +863,29 @@ impl RasterHost {
 
     pub fn remote_layer_can_show(
         &self,
-        remote_layer: &RemoteLayerObject,
-        context_id: CompositorContextId,
-        kind: MediaKind,
-        id: u64,
+        remote_layer: &CppObject,
+        surface: Option<&PresentableSurface>,
+        video_frame: Option<&VideoFrameForWindowServer>,
         placement: &FfiSublayerPlacement,
         device_pixel_ratio: f64,
     ) -> bool {
-        // SAFETY: The host outlives this, and the layer is live.
+        let surface = surface.map_or(std::ptr::null(), std::ptr::from_ref);
+        let video_frame = video_frame.map_or(std::ptr::null_mut(), VideoFrameForWindowServer::as_ffi);
+        // SAFETY: The layer is live, and so is the content it is asked about.
         unsafe {
             (self.0.remote_layer_can_show)(
-                self.host(),
                 remote_layer.as_ptr(),
-                context_id.0,
-                kind,
-                id,
+                surface,
+                video_frame,
                 placement,
                 device_pixel_ratio,
             )
         }
     }
 
-    pub fn build_sublayers(&self, context_id: CompositorContextId, sublayers: &[FfiSublayer]) -> SublayersHandle {
-        // SAFETY: The host outlives this, and the presentable surfaces of the sublayers are live.
-        let built = unsafe { (self.0.build_sublayers)(self.host(), context_id.0, ak::Span::new(sublayers)) };
+    pub fn build_sublayers(&self, sublayers: &[FfiSublayer]) -> SublayersHandle {
+        // SAFETY: The host outlives this, and the content of the sublayers is live.
+        let built = unsafe { (self.0.build_sublayers)(self.host(), ak::Span::new(sublayers)) };
         SublayersHandle {
             sublayers: NonNull::new(built).expect("the host builds a list of sublayers"),
             destroy: self.0.destroy_sublayers,
@@ -909,7 +901,7 @@ impl RasterHost {
         }
     }
 
-    pub fn window_server_frame_hand_off(&self, window_server: &WindowServerObject) -> FrameHandOff {
+    pub fn window_server_frame_hand_off(&self, window_server: &CppObject) -> FrameHandOff {
         // SAFETY: The window server is live.
         unsafe { (self.0.window_server_frame_hand_off)(window_server.as_ptr()) }
     }
@@ -927,7 +919,7 @@ impl RasterHost {
 
     pub fn remote_layer_show_frame(
         &self,
-        remote_layer: &RemoteLayerObject,
+        remote_layer: &CppObject,
         frame: &FfiRemoteLayerFrame,
         sublayers: SublayersHandle,
     ) -> bool {
@@ -1415,37 +1407,32 @@ impl Canvas2DPainting<'_> {
     }
 }
 
-impl RemoteLayerHost for RasterHost {
-    fn create_window_server(&self) -> Option<WindowServerObject> {
+impl RasterHost {
+    /// A `Compositor::WindowServer` for a new presentation, or none where frames reach the screen only through the
+    /// presentation.
+    pub fn create_window_server(&self) -> Option<CppObject> {
         let mut window_server = FfiCppObject::default();
         // SAFETY: The host outlives this, and writes the window server it made.
         if !unsafe { (self.0.create_window_server)(self.host(), &raw mut window_server) } {
             return None;
         }
         // SAFETY: The host handed a window server over.
-        unsafe { WindowServerObject::adopt(window_server) }
+        unsafe { CppObject::adopt(window_server) }
     }
 
-    fn create_remote_layer(
+    /// A `Compositor::RemoteLayer` of the window server, with its host handle.
+    pub fn create_remote_layer(
         &self,
-        window_server: &WindowServerObject,
-        remote_layer_id: u64,
-    ) -> Option<(RemoteLayerObject, Compositing_RemoteLayerHostHandle)> {
+        window_server: &CppObject,
+    ) -> Option<(CppObject, Compositing_RemoteLayerHostHandle)> {
         let mut layer = FfiCppObject::default();
         let mut host_handle = FfiRemoteLayerHostHandle::default();
         // SAFETY: The window server is live, and the host writes the layer it made with its handle.
-        if !unsafe {
-            (self.0.create_remote_layer)(
-                window_server.as_ptr(),
-                remote_layer_id,
-                &raw mut layer,
-                &raw mut host_handle,
-            )
-        } {
+        if !unsafe { (self.0.create_remote_layer)(window_server.as_ptr(), &raw mut layer, &raw mut host_handle) } {
             return None;
         }
         // SAFETY: The host handed the layer over.
-        let layer = unsafe { RemoteLayerObject::adopt(layer) }?;
+        let layer = unsafe { CppObject::adopt(layer) }?;
         let kind = match host_handle.kind {
             1 => Compositing_RemoteLayerHostKind::CoreAnimationContext,
             2 => Compositing_RemoteLayerHostKind::Win32ChildWindow,
@@ -1460,7 +1447,7 @@ impl RemoteLayerHost for RasterHost {
         ))
     }
 
-    fn place_frame(&self, remote_layer: &RemoteLayerObject, fit_within: Option<IntSize>) {
+    pub fn remote_layer_place_frame(&self, remote_layer: &CppObject, fit_within: Option<IntSize>) {
         // SAFETY: The layer is live.
         unsafe {
             (self.0.remote_layer_place_frame)(
@@ -1471,12 +1458,12 @@ impl RemoteLayerHost for RasterHost {
         }
     }
 
-    fn hold_changes_on_screen(&self, window_server: &WindowServerObject) {
+    pub fn window_server_hold_changes_on_screen(&self, window_server: &CppObject) {
         // SAFETY: The window server is live.
         unsafe { (self.0.window_server_hold_changes_on_screen)(window_server.as_ptr()) };
     }
 
-    fn release_changes_held_off_screen(&self, window_server: &WindowServerObject) {
+    pub fn window_server_release_changes_held_off_screen(&self, window_server: &CppObject) {
         // SAFETY: The window server is live.
         unsafe { (self.0.window_server_release_changes_held_off_screen)(window_server.as_ptr()) };
     }

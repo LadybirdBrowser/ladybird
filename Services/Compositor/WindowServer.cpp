@@ -26,6 +26,17 @@ RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 #endif
 }
 
+ErrorOr<NonnullRefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_stores([[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+#ifdef AK_OS_MACOS
+    return CoreAnimationWindowServer::try_create_presentable_surface(size, skia_backend_context);
+#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+    return DirectCompositionWindowServer::try_create_presentable_surface(size, skia_backend_context);
+#else
+    return Error::from_string_literal("No window server shows the stores");
+#endif
+}
+
 ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_sublayers(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
     // NB: A surface larger than the GPU's largest texture can't be a sublayer of its own, so it's drawn into the frame

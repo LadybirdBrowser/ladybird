@@ -48,8 +48,9 @@ public:
     static RefPtr<CoreAnimationWindowServer> try_create();
     static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface_over_new_iosurface(Gfx::IntSize, Gfx::SkiaBackendContext&);
 
-    virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) override;
-    virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) override;
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
+
+    virtual OwnPtr<RemoteLayer> try_create_remote_layer() override;
     virtual bool shows_tiles_of_painted_layers() const override;
     virtual bool filters_what_is_below_layers() const override;
     virtual FrameHandOff frame_hand_off() const override { return FrameHandOff::OnceGpuWorkIsScheduled; }

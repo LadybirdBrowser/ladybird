@@ -69,6 +69,20 @@ impl PresentableSurface {
 
     /// # Safety
     ///
+    /// `surface` must be a live surface that the caller lends, or null.
+    pub unsafe fn retained_from_ffi(surface: *const PresentableSurface) -> Option<Rc<PresentableSurface>> {
+        if surface.is_null() {
+            return None;
+        }
+        // SAFETY: The caller lends the PresentableSurface of a live Rc, of which this takes a reference of its own.
+        unsafe {
+            Rc::increment_strong_count(surface);
+            Some(Rc::from_raw(surface))
+        }
+    }
+
+    /// # Safety
+    ///
     /// `surface` must be a surface whose one reference the caller hands over, or null.
     pub unsafe fn adopted_from_ffi(surface: *const PresentableSurface) -> Option<Rc<PresentableSurface>> {
         if surface.is_null() {
@@ -108,7 +122,25 @@ impl Drop for PresentableSurface {
     }
 }
 
+/// A surface is the same as no other surface, whatever it holds.
+impl PartialEq for PresentableSurface {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+impl std::fmt::Debug for PresentableSurface {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PresentableSurface")
+            .field("address", &std::ptr::from_ref(self))
+            .field("size", &self.size())
+            .finish()
+    }
+}
+
 /// Keeps the content of the surface as it is for as long as it is held. Holding the surface itself does not.
+#[derive(Debug)]
 pub struct PresentableSurfaceLease(Rc<PresentableSurface>);
 
 impl PresentableSurfaceLease {

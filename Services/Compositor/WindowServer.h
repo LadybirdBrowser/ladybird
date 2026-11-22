@@ -35,8 +35,9 @@ public:
     static RefPtr<WindowServer> try_create_for_presentation();
     virtual ~WindowServer() = default;
 
-    virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) = 0;
-    virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) = 0;
+    virtual OwnPtr<RemoteLayer> try_create_remote_layer() = 0;
+    // A surface for the stores that remote layers show frames from, or an error where no window server shows them.
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface_for_stores(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
     // None where no window server shows surfaces above the frames.
     static ErrorOr<RefPtr<PresentableSurface>> try_create_presentable_surface_for_sublayers(Gfx::IntSize, Gfx::SkiaBackendContext&);
 

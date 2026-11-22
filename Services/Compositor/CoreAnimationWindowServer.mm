@@ -135,7 +135,7 @@ RefPtr<CoreAnimationWindowServer> CoreAnimationWindowServer::try_create()
     return adopt_ref(*new CoreAnimationWindowServer);
 }
 
-OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
+OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer()
 {
     return CoreAnimationRemoteLayer::try_create();
 }
