@@ -22,6 +22,7 @@ VCPKG_OVERLAYS_PORTS = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "vcpkg" / "overl
 VCPKG_REPO = LADYBIRD_SOURCE_DIR / "Build" / "vcpkg-release"
 VCPKG_BASELINE_URL = "https://raw.githubusercontent.com/microsoft/vcpkg/{}/versions/baseline.json"
 FLATPAK_MANIFEST = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "org.ladybird.Ladybird.json"
+LGPL_LIBRARIES = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "lgpl-libraries.txt"
 CARGO_LOCK = LADYBIRD_SOURCE_DIR / "Cargo.lock"
 CARGO_SOURCES = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "cargo-sources.json"
 GENERATE_CARGO_SOURCES = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "generate-cargo-sources.py"
@@ -232,6 +233,39 @@ def check_vcpkg_vs_flatpak_versioning(vcpkg_repo: Path):
     return mismatch_found
 
 
+# The build options that make a library shared, by the build systems of the modules, and those that make it static.
+SHARED_BUILD_OPTIONS = ("--enable-shared", "-DBUILD_SHARED_LIBS=ON", "-DBUILD_SHARED=ON", "-Ddefault_library=shared")
+STATIC_BUILD_OPTIONS = ("--disable-shared", "--enable-static", "-DBUILD_SHARED_LIBS=OFF", "-DBUILD_SHARED=OFF")
+
+
+def check_lgpl_modules_build_shared_libraries():
+    """Every module under the LGPL has to build a shared library, so that the library can be relinked."""
+    with open(LGPL_LIBRARIES) as input:
+        lgpl_libraries = {line.strip() for line in input if line.strip() and not line.startswith("#")}
+    with open(FLATPAK_MANIFEST) as input:
+        modules = [module for module in json.load(input)["modules"] if module["name"] in lgpl_libraries]
+
+    failed = False
+    for module in modules:
+        options = " ".join([*module.get("config-opts", []), *module.get("build-commands", [])]).split()
+        # A CMake cache entry may name its type, as in -DBUILD_SHARED:BOOL=ON.
+        options = [re.sub(r"^(-D[^:=]+):[A-Za-z]+=", r"\1=", option) for option in options]
+        # Autotools-style builds make static libraries too unless told not to.
+        static_by_default = "--enable-shared" in options and "--disable-static" not in options
+        if (
+            static_by_default
+            or any(option in STATIC_BUILD_OPTIONS for option in options)
+            or not any(option in SHARED_BUILD_OPTIONS for option in options)
+        ):
+            failed = True
+            print(
+                f"The Flatpak module {module['name']} is under the LGPL, so it has to build a shared library only, with "
+                f"one of {', '.join(SHARED_BUILD_OPTIONS)} (--enable-shared together with --disable-static) and none "
+                f"of {', '.join(STATIC_BUILD_OPTIONS)}"
+            )
+    return failed
+
+
 def check_cargo_sources_match_cargo_lock():
     return subprocess.run([sys.executable, GENERATE_CARGO_SOURCES, "--check"]).returncode != 0
 
@@ -239,7 +273,9 @@ def check_cargo_sources_match_cargo_lock():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vcpkg-repo", required=False, type=Path, default=VCPKG_REPO)
-    parser.add_argument("file_list", type=Path, nargs="*", default=[VCPKG, CARGO_LOCK])
+    parser.add_argument(
+        "file_list", type=Path, nargs="*", default=[VCPKG, FLATPAK_MANIFEST, LGPL_LIBRARIES, CARGO_LOCK]
+    )
     args = parser.parse_args()
 
     vcpkg_repo = args.vcpkg_repo.resolve()
@@ -249,6 +285,9 @@ def main():
 
     if VCPKG in file_list or FLATPAK_MANIFEST in file_list:
         did_fail = check_vcpkg_vs_flatpak_versioning(vcpkg_repo)
+
+    if FLATPAK_MANIFEST in file_list or LGPL_LIBRARIES in file_list:
+        did_fail |= check_lgpl_modules_build_shared_libraries()
 
     if any(path in requested for path in (CARGO_LOCK, CARGO_SOURCES, GENERATE_CARGO_SOURCES)):
         did_fail |= check_cargo_sources_match_cargo_lock()

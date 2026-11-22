@@ -409,10 +409,138 @@ def package_third_party_sources(args: argparse.Namespace) -> None:
             archives.append(work_dir / source.archive_name())
             print(f"Packaged the source of {source.port.name} {source.port.version} as {source.archive_name()}")
 
-        args.third_party_sources.parent.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(args.third_party_sources, "w", format=tarfile.USTAR_FORMAT) as bundle:
-            for archive in archives:
-                bundle.add(archive, arcname=archive.name)
+        write_bundle(args.third_party_sources, archives)
+
+
+def write_bundle(path: pathlib.Path, archives: list[pathlib.Path]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(path, "w", format=tarfile.USTAR_FORMAT) as bundle:
+        for archive in archives:
+            bundle.add(archive, arcname=archive.name)
+
+
+def flatpak_lgpl_modules(manifest_path: pathlib.Path, source_dir: pathlib.Path) -> list[dict[str, Any]]:
+    lgpl_libraries = read_lgpl_libraries(source_dir)
+    found = []
+    pending = list(json.loads(read_text(manifest_path))["modules"])
+    while pending:
+        module = pending.pop(0)
+        if isinstance(module, str):
+            raise RuntimeError(f"The Flatpak manifest includes the module file {module}, which this script cannot read")
+        pending += module.get("modules", [])
+        if module["name"] in lgpl_libraries:
+            found.append(module)
+    return found
+
+
+def flatpak_patch(module: dict[str, Any], source: dict[str, Any], manifest_dir: pathlib.Path) -> pathlib.Path:
+    if "path" not in source:
+        raise RuntimeError(f"A patch of the Flatpak module {module['name']} has no single path")
+    return manifest_dir / source["path"]
+
+
+# Like the archive of a vcpkg port, the name says what the archive holds: the module that builds the library, which
+# pins the commits and digests of its sources, and the patches that it applies.
+def flatpak_archive_name(module: dict[str, Any], manifest_dir: pathlib.Path) -> str:
+    lines = [f"module {json.dumps(module, sort_keys=True)}"]
+    for source in module["sources"]:
+        if source.get("type") == "patch":
+            path = flatpak_patch(module, source, manifest_dir)
+            lines.append(f"patch {source['path']} {hashlib.sha256(path.read_bytes()).hexdigest()}")
+    digest = hashlib.sha256("\n".join(lines).encode()).hexdigest()
+    git = next((source for source in module["sources"] if source.get("type") == "git"), {})
+    version = git.get("tag") or git.get("commit", "")[:12] or "source"
+    return UNSAFE_NAME_CHARACTERS.sub("_", f"{module['name']}-{version}-{digest[:12]}") + ".tar"
+
+
+def fetch_git_source(source: dict[str, Any], work_dir: pathlib.Path) -> tuple[str, bytes]:
+    reference = source.get("commit") or f"refs/tags/{source['tag']}"
+    repository = work_dir / "git"
+    subprocess.run(["git", "init", "--quiet", "--bare", str(repository)], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "fetch", "--quiet", "--depth=1", source["url"], reference], check=True
+    )
+    commit = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "FETCH_HEAD^{commit}"],
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    ).stdout.strip()
+    if source.get("commit") and commit != source["commit"]:
+        raise RuntimeError(f"{source['url']} has {commit} at {reference}, not {source['commit']}")
+    name = source["url"].rstrip("/").removesuffix(".git").rpartition("/")[2]
+    root = f"{name}-{source.get('tag') or commit}"
+    archive = subprocess.run(
+        ["git", "-C", str(repository), "archive", "--format=tar.gz", f"--prefix={root}/", commit],
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    shutil.rmtree(repository)
+    return f"{root}.tar.gz", archive
+
+
+def fetch_archive_source(source: dict[str, Any]) -> tuple[str, bytes]:
+    with urllib.request.urlopen(source["url"], timeout=60) as response:
+        data = response.read()
+    if hashlib.sha256(data).hexdigest() != source.get("sha256"):
+        raise RuntimeError(f"{source['url']} does not have the SHA-256 that the Flatpak manifest names")
+    return source.get("dest-filename") or urllib.parse.urlparse(source["url"]).path.rpartition("/")[2], data
+
+
+def write_flatpak_module_archive(
+    module: dict[str, Any], manifest_dir: pathlib.Path, work_dir: pathlib.Path, destination: pathlib.Path
+) -> None:
+    files: dict[str, bytes] = {}
+    listing = []
+    for source in module["sources"]:
+        kind = source.get("type")
+        if kind == "git":
+            name, data = fetch_git_source(source, work_dir)
+            listing.append(f"  {name}: the tree of {source['url']} at {source.get('tag') or source['commit']}")
+        elif kind == "archive":
+            name, data = fetch_archive_source(source)
+            listing.append(f"  {name}: {source['url']}")
+        elif kind == "patch":
+            path = flatpak_patch(module, source, manifest_dir)
+            name, data = f"patches/{path.name}", path.read_bytes()
+        else:
+            raise RuntimeError(
+                f"The Flatpak module {module['name']} has a {kind} source, which this script cannot read"
+            )
+        if name in files or UNSAFE_NAME_CHARACTERS.search(name.removeprefix("patches/")):
+            raise RuntimeError(f"The Flatpak module {module['name']} names the source {name!r} unsafely or twice")
+        files[name] = data
+
+    root = destination.name.removesuffix(".tar")
+    readme = "\n".join(
+        [
+            f"The source code of {module['name']}, as the Ladybird Flatpak builds it with flatpak-builder.",
+            "",
+            "flatpak-module.json is the module of the Flatpak manifest that builds the library, and patches/ holds",
+            "our patches, which it applies in order. The other files are the sources that it fetches:",
+            "",
+            *listing,
+            "",
+        ]
+    )
+    with tarfile.open(destination, "w", format=tarfile.USTAR_FORMAT) as archive:
+        add_to_archive(archive, f"{root}/README", readme.encode())
+        add_to_archive(archive, f"{root}/flatpak-module.json", (json.dumps(module, indent=4) + "\n").encode())
+        for name, data in sorted(files.items()):
+            add_to_archive(archive, f"{root}/{name}", data)
+
+
+def package_flatpak_third_party_sources(args: argparse.Namespace) -> None:
+    manifest_dir = args.flatpak_manifest.resolve().parent
+    with tempfile.TemporaryDirectory() as work:
+        work_dir = pathlib.Path(work)
+        archives = []
+        for module in flatpak_lgpl_modules(args.flatpak_manifest, args.source_dir):
+            name = flatpak_archive_name(module, manifest_dir)
+            write_flatpak_module_archive(module, manifest_dir, work_dir, work_dir / name)
+            archives.append(work_dir / name)
+            print(f"Packaged the source of {module['name']} as {name}")
+        write_bundle(args.third_party_sources, archives)
 
 
 def cargo_metadata(cargo: str, source_dir: pathlib.Path, rust_target: Optional[str], offline: bool) -> dict[str, Any]:
@@ -588,11 +716,19 @@ def main() -> int:
         help="instead of the licenses, write an archive with the source archive of each LGPL port to this path",
     )
     parser.add_argument("--vcpkg-root", type=pathlib.Path, default=os.environ.get("VCPKG_ROOT"))
+    parser.add_argument(
+        "--flatpak-manifest",
+        type=pathlib.Path,
+        help="with --third-party-sources, package the LGPL modules of this Flatpak manifest instead of vcpkg ports",
+    )
     args = parser.parse_args()
 
     if args.third_party_sources:
         try:
-            package_third_party_sources(args)
+            if args.flatpak_manifest:
+                package_flatpak_third_party_sources(args)
+            else:
+                package_third_party_sources(args)
         except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
             print(f"error: {error}", file=sys.stderr)
             return 1
