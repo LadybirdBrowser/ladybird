@@ -92,12 +92,13 @@ public:
     RefPtr<Media::VideoFrame> held_video_frame(Media::VideoSinkHandle, u64 generation) const;
     WebGLImageConversion convert_image_for_webgl_upload(WebGLImageSource, Compositing::RegisteredImageFrames const&, Gfx::ExportFormat, int export_flags, Optional<Gfx::IntSize> target_size, Gfx::BitmapExportResult& out_pixels) const;
     // The pixels come back in the color space.
-    Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace const& = {});
+    Optional<Gfx::IntSize> read_back_canvas_2d_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace const&, Bytes pixels);
     RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
 
     void forget_video_sink(Media::VideoSinkHandle);
 
     static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
+    static Optional<Gfx::IntSize> read_back_surface_into(Gfx::PaintingSurface&, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace const&, Bytes pixels);
 
 private:
     struct Canvas2DContext {

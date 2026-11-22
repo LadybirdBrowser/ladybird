@@ -64,7 +64,6 @@ private:
     virtual void unregister_image_frame(Compositing::ImageFrameResourceId) override;
     virtual void describe_display_list_fonts(Web::CompositorContextId, Vector<Compositing::DisplayListFontDescription>) override;
     virtual void describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription>) override;
-    virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace) override;
     virtual Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse allocate_placeholder_canvas() override;
     virtual void release_placeholder_canvas(Compositing::CanvasId) override;
     virtual void commit_placeholder_canvas(Compositing::CanvasId, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) override;

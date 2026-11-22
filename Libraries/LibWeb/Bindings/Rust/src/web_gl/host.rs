@@ -9,6 +9,7 @@
 
 use core::cell::Cell;
 
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace};
 use libcompositing_rust::display_list::commands::{CanvasId, ImageFrameResourceId, VideoSinkHandle};
 use libcompositing_rust::ipc_types::Compositing_WebGL_WebGLVersion;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
@@ -329,6 +330,6 @@ impl Transport for RemoteContext {
         if width <= 0 || height <= 0 {
             return None;
         }
-        pixels.into_image_frame(width, height)
+        pixels.into_image_frame(width, height, AlphaType::Premultiplied, ColorSpace::Srgb)
     }
 }

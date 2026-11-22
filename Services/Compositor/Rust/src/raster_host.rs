@@ -24,7 +24,7 @@ use libcompositing_rust::display_list::storage::{
 };
 use libcompositing_rust::host::FfiRasterPainter;
 use libcompositing_rust::ipc_types::{
-    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Core_AnonymousBuffer,
+    Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Core_AnonymousBuffer, Gfx_AlphaType,
     Web_Bindings_PredefinedColorSpace,
 };
 use libcompositing_rust::time::MonotonicTime;
@@ -321,6 +321,19 @@ pub struct FfiRasterHost {
         Web_Bindings_PredefinedColorSpace,
     ) -> bool,
     pub destroy_canvas_2d_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId),
+    /// Arguments: the client, the canvas, the rect, the alpha type and the color space of the pixels, where they go,
+    /// how many bytes fit there, and where the size of what was read is written.
+    pub read_back_canvas_2d_pixels: unsafe extern "C" fn(
+        *mut c_void,
+        u64,
+        CanvasId,
+        IntRect,
+        u8,
+        Web_Bindings_PredefinedColorSpace,
+        *mut u8,
+        usize,
+        *mut IntSize,
+    ) -> bool,
     /// Arguments: the client, the canvas of a context it made, and where the painter is written. The painting lasts
     /// until `end_canvas_2d_painting`.
     pub begin_canvas_2d_painting: unsafe extern "C" fn(*mut c_void, u64, CanvasId, *mut FfiCanvas2DPainter),
@@ -950,6 +963,33 @@ impl RasterHost {
     pub fn destroy_canvas_2d_context(&self, client: u64, canvas_id: CanvasId) {
         // SAFETY: The host outlives this.
         unsafe { (self.0.destroy_canvas_2d_context)(self.host(), client, canvas_id) };
+    }
+
+    pub fn read_back_canvas_2d_pixels(
+        &self,
+        client: u64,
+        canvas_id: CanvasId,
+        rect: IntRect,
+        alpha_type: Gfx_AlphaType,
+        color_space: Web_Bindings_PredefinedColorSpace,
+        pixels: &SharedMemory,
+    ) -> Option<IntSize> {
+        let mut size = IntSize::default();
+        // SAFETY: The host outlives this, the mapping holds as many writable bytes, and the host writes the size.
+        unsafe {
+            (self.0.read_back_canvas_2d_pixels)(
+                self.host(),
+                client,
+                canvas_id,
+                rect,
+                alpha_type as u8,
+                color_space,
+                pixels.as_ptr(),
+                pixels.len(),
+                &raw mut size,
+            )
+        }
+        .then_some(size)
     }
 
     pub fn begin_canvas_2d_painting(&self, client: u64, canvas_id: CanvasId) -> Canvas2DPainting<'_> {

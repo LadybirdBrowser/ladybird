@@ -5,6 +5,7 @@
  */
 
 #include <AK/StdLibExtras.h>
+#include <LibCompositing/CanvasSize.h>
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
@@ -29,6 +30,8 @@
 // The Rust side mirrors these LibGfx value types field for field; the checks keep the two in step.
 
 namespace Compositing {
+
+static_assert(Compositing::RustFFI::MAX_CANVAS_AREA == max_canvas_area);
 
 static_assert(sizeof(Compositing::RustFFI::IntPoint) == sizeof(Gfx::IntPoint));
 static_assert(alignof(Compositing::RustFFI::IntPoint) == alignof(Gfx::IntPoint));

@@ -7,7 +7,8 @@
 # When the Compositor dies, the browser connects a new one, and the page's next rendering update
 # has to bring the new Compositor up to date: its first frame carries the whole display list again,
 # not only what changed since the old Compositor's last frame. Every WebGL context of the page, of a
-# canvas element or of an OffscreenCanvas, is lost with the Compositor.
+# canvas element or of an OffscreenCanvas, is lost with the Compositor, and a 2D canvas made after
+# the reconnect draws in the new one.
 
 import argparse
 import base64
@@ -35,6 +36,12 @@ function createWebGLContextThatRecordsItsEvents(name, canvas) {
         webglContextEvents.push(`${name} lost`);
     });
     return canvas.getContext("webgl") !== null;
+}
+function pixelOfNew2DCanvas() {
+    const context = document.createElement("canvas").getContext("2d");
+    context.fillStyle = "rgb(0, 128, 0)";
+    context.fillRect(0, 0, 1, 1);
+    return Array.from(context.getImageData(0, 0, 1, 1).data).join(",");
 }
 function createWebGLContexts() {
     window.offscreenCanvas = new OffscreenCanvas(16, 16);
@@ -98,6 +105,7 @@ def run_test(webdriver_binary):
             assert status == 200, body
             webdriver_helpers.wait_for_compositor(port, session)
             assert execute(port, session, "return createWebGLContexts();"), "WebGL contexts could not be created"
+            assert execute(port, session, "return pixelOfNew2DCanvas();") == "0,128,0,255"
             first = take_screenshot(port, session)
 
             compositors = descendants_named(webdriver.pid, "Compositor")
@@ -117,6 +125,7 @@ def run_test(webdriver_binary):
             assert take_screenshot(port, session) == first
             execute(port, session, "document.getElementById('box').style.background = 'green';")
             assert take_screenshot(port, session) != first
+            assert execute(port, session, "return pixelOfNew2DCanvas();") == "0,128,0,255"
 
             expected_webgl_context_events = ["OffscreenCanvas lost", "canvas element lost"]
             deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS

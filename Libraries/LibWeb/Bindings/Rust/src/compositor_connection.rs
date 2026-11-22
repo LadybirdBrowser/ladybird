@@ -8,6 +8,7 @@ use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace};
 use libcompositing_rust::ipc_types::Core_AnonymousBuffer;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libipc_rust::cpp_connection::{CppConnection, FfiConnection, FfiThreadSafeMessagePoster, ThreadSafeMessagePoster};
@@ -27,7 +28,14 @@ unsafe extern "C" {
     fn web_compositor_create_shared_buffer(size: usize, out: &mut FfiSharedBuffer) -> bool;
     fn web_compositor_shared_buffer_release(owner: *mut c_void);
     fn web_compositor_shared_buffer_clone_descriptor(owner: *mut c_void) -> i32;
-    fn web_compositor_shared_buffer_image_frame(owner: *mut c_void, width: i32, height: i32) -> *mut c_void;
+    fn web_compositor_shared_buffer_image_frame(
+        owner: *mut c_void,
+        width: i32,
+        height: i32,
+        alpha_type: AlphaType,
+        color_space: ColorSpace,
+    ) -> *mut c_void;
+    fn web_compositor_connection_serial(connection: *mut c_void) -> u64;
 }
 
 #[derive(Clone, Copy)]
@@ -45,6 +53,10 @@ impl CompositorConnection {
 
     pub(crate) fn as_ptr(self) -> *mut c_void {
         self.0.as_ptr()
+    }
+
+    pub(crate) fn serial(self) -> u64 {
+        unsafe { web_compositor_connection_serial(self.0.as_ptr()) }
     }
 
     /// # Safety
@@ -156,10 +168,18 @@ impl SharedBuffer {
         }
     }
 
-    pub(crate) fn into_image_frame(self, width: i32, height: i32) -> Option<ImageFrameHandle> {
+    pub(crate) fn into_image_frame(
+        self,
+        width: i32,
+        height: i32,
+        alpha_type: AlphaType,
+        color_space: ColorSpace,
+    ) -> Option<ImageFrameHandle> {
         // SAFETY: The value owns the memory, which the frame shares, and LibWeb hands over a frame it allocated with new,
         //         or null.
-        let frame = unsafe { web_compositor_shared_buffer_image_frame(self.owner.as_ptr(), width, height) };
+        let frame = unsafe {
+            web_compositor_shared_buffer_image_frame(self.owner.as_ptr(), width, height, alpha_type, color_space)
+        };
         (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
     }
 }

@@ -71,12 +71,11 @@ public:
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     RefPtr<IPC::ThreadSafeMessagePoster> poster_while_compositor_is_reachable();
-    Optional<Compositing::CanvasId> reserve_canvas_2d_context_id(Gfx::IntSize);
     bool post_canvas_2d_stream_batch_fonts_and_image_frames(ReadonlySpan<Gfx::Font const*>, ReadonlySpan<Gfx::DecodedImageFrame const*>);
     void did_fail_to_post_canvas_2d_message();
     bool register_image_frames(ReadonlySpan<Gfx::DecodedImageFrame const*>);
     bool can_send_message_to_compositor() const;
-    Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
+    u64 serial() const { return m_serial; }
     Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas();
     void release_placeholder_canvas(Compositing::CanvasId);
     void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
@@ -148,8 +147,6 @@ private:
 
     // Posts to the transport from any thread: the Paint thread presents through it, and Rust posts what it encodes.
     NonnullRefPtr<IPC::ThreadSafeMessagePoster> m_poster;
-    u64 m_next_reserved_canvas_id { 0 };
-    u64 m_reserved_canvas_ids_remaining { 0 };
 
     HashMap<Compositing::ScreenshotRequestId, PendingScreenshot> m_screenshots;
     HashMap<u64, Function<void()>> m_remote_descendant_preparations;
@@ -158,6 +155,7 @@ private:
     HashMap<Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates> m_pending_async_scroll_updates;
     u64 m_next_screenshot_request_id { 1 };
     Atomic<u64> m_next_rasterization_token { 1 };
+    u64 m_serial { 0 };
     bool m_has_lost_compositor { false };
     // The media server whose presentation channel the Compositor holds; a replacement server needs a new channel.
     Optional<u64> m_video_presentation_channel_media_client_generation;

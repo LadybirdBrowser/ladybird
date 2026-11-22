@@ -57,7 +57,7 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
-    [RustReceiver] reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
+    [RustReceiver, RustSender] reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
     // The pixels of the context, and the colors of its commands, are in the color space.
     [RustReceiver, RustSender] create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Web::Bindings::PredefinedColorSpace color_space) =|
     // The fonts are those that the segments of the canvas 2D stream that follow draw. The fonts described before that
@@ -66,7 +66,8 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments) =|
     [RustReceiver, RustSender] destroy_canvas_2d_context(Compositing::CanvasId canvas_id) =|
     // The pixels come back in the color space.
-    get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space) => (Gfx::ShareableBitmap pixels)
+    // Unpremultiplied pixels are RGBA8888 and premultiplied ones BGRA8888, as rows of the size answered.
+    [RustReceiver, RustSender] read_back_canvas_2d_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Web::Bindings::PredefinedColorSpace color_space, Core::AnonymousBuffer pixels) => (Gfx::IntSize size)
 
     allocate_placeholder_canvas() => (Compositing::CanvasId canvas_id, u64 secret)
     release_placeholder_canvas(Compositing::CanvasId canvas_id) =|

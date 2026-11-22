@@ -305,20 +305,7 @@ Optional<Gfx::IntSize> CanvasHost::read_back_webgl_drawing_buffer(Compositing::C
     auto surface = from_presented_frame ? gl_context.presented_surface() : gl_context.drawing_buffer_surface();
     if (!surface)
         return {};
-
-    auto clipped_rect = rect.intersected(surface->rect());
-    if (clipped_rect.is_empty())
-        return {};
-    auto pitch = static_cast<size_t>(clipped_rect.width()) * sizeof(u32);
-    if (pitch * static_cast<size_t>(clipped_rect.height()) > pixels.size())
-        return {};
-
-    auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, clipped_rect.size(), pitch, pixels.data());
-    if (bitmap.is_error())
-        return {};
-    surface->flush();
-    surface->read_into_bitmap(*bitmap.value(), clipped_rect.location());
-    return clipped_rect.size();
+    return read_back_surface_into(*surface, rect, Gfx::AlphaType::Premultiplied, {}, pixels);
 }
 
 RefPtr<Media::VideoFrame> CanvasHost::held_video_frame(Media::VideoSinkHandle handle, u64 generation) const
@@ -386,6 +373,24 @@ Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 
+Optional<Gfx::IntSize> CanvasHost::read_back_surface_into(Gfx::PaintingSurface& surface, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space, Bytes pixels)
+{
+    auto clipped_rect = rect.intersected(surface.rect());
+    if (clipped_rect.is_empty())
+        return {};
+    auto pitch = static_cast<size_t>(clipped_rect.width()) * sizeof(u32);
+    if (pitch * static_cast<size_t>(clipped_rect.height()) > pixels.size())
+        return {};
+
+    auto format = alpha_type == Gfx::AlphaType::Unpremultiplied ? Gfx::BitmapFormat::RGBA8888 : Gfx::BitmapFormat::BGRA8888;
+    auto bitmap = Gfx::Bitmap::create_wrapper(format, alpha_type, clipped_rect.size(), pitch, pixels.data());
+    if (bitmap.is_error())
+        return {};
+    surface.flush();
+    surface.read_into_bitmap(*bitmap.value(), clipped_rect.location(), color_space);
+    return clipped_rect.size();
+}
+
 RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId canvas_id)
 {
     auto* context = this->context(canvas_id);
@@ -401,19 +406,15 @@ RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId
         });
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
+Optional<Gfx::IntSize> CanvasHost::read_back_canvas_2d_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space, Bytes pixels)
 {
     auto* context = this->context(canvas_id);
     if (!context)
         return {};
-
-    return context->visit(
-        [rect, alpha_type, &color_space](Canvas2DContext& canvas_context) {
-            return read_back_surface(canvas_context.command_player->surface(), rect, alpha_type, color_space);
-        },
-        [](WebGLContext&) -> Gfx::ShareableBitmap {
-            return {};
-        });
+    auto* canvas_context = context->get_pointer<Canvas2DContext>();
+    if (!canvas_context)
+        return {};
+    return read_back_surface_into(canvas_context->command_player->surface(), rect, alpha_type, color_space, pixels);
 }
 
 }

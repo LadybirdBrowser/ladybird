@@ -13,13 +13,14 @@ use crate::ipc_types::Web_Bindings_PredefinedColorSpace;
 use libgfx_rust::{
     AffineTransform, Color, FloatPoint, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, WindingRule,
 };
+use libipc_rust::wire::{Decode, Encode};
 
 /// The number of commands that the shared stream carries to the Compositor at most in one batch. A batch holds the
 /// image frames of its commands, each a bitmap that an IPC attachment carries, so it has to stay small.
 pub const MAX_PENDING_COMMANDS: usize = 64;
 
 // The values of Gfx::AlphaType.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 #[repr(u8)]
 pub enum AlphaType {
     Premultiplied,
@@ -36,6 +37,12 @@ pub enum ColorSpace {
     SrgbLinear,
     DisplayP3,
     DisplayP3Linear,
+}
+
+pub const MAX_CANVAS_AREA: i64 = 16384 * 16384;
+
+pub fn is_valid_canvas_2d_size(size: IntSize) -> bool {
+    size.width > 0 && size.height > 0 && i64::from(size.width) * i64::from(size.height) <= MAX_CANVAS_AREA
 }
 
 impl From<ColorSpace> for Web_Bindings_PredefinedColorSpace {
