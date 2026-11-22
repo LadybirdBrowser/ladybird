@@ -95,19 +95,11 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     return names;
 }
 
-// OPTIMIZATION: A name is one of supported_property_names() if an attribute in the list has it as its qualified name,
-//               and it has no ASCII uppercase when the element is in the HTML namespace and its node document is an HTML
-//               document. Checking that directly avoids building the whole list for each name.
+// AD-HOC: DOM lists only lowercase property names for HTML elements in HTML documents, but sites also read
+// attributes by mixed-case names. Apply the same lookup as getNamedItem() when looking up a single property.
 bool NamedNodeMap::is_supported_property_name(Utf16FlyString const& name) const
 {
-    if (associated_element().namespace_uri() == Namespace::HTML && associated_element().document().is_html_document() && contains_ascii_uppercase(name.view()))
-        return false;
-
-    for (size_t index = 0; index < length(); ++index) {
-        if (associated_element().m_attributes->at(index).name.as_string() == name)
-            return true;
-    }
-    return false;
+    return associated_element().find_attribute_index(name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-item
