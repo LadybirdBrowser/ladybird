@@ -1,0 +1,42 @@
+<!doctype html>
+<title>WebVTT cue data parser test tags</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'d49e42f7582c6f00b2569f2d14629611c0c6b0e6', input:'%3C', expected:'%23document-fragment'},
+{name:'9dd187edd10c907e6b92148fd82940e401dbe79f', input:'%3C%3C', expected:'%23document-fragment'},
+{name:'2d2c4333983e23a4962083e8120e5d42c839f77b', input:'%3C%09', expected:'%23document-fragment'},
+{name:'94f898df44b470e2d05d74c6816fd908e55c9fdf', input:'%3C%0A', expected:'%23document-fragment'},
+{name:'2fdc1b84ba41ec98833851e80781df1fbe72182f', input:'%3C%20', expected:'%23document-fragment'},
+{name:'487690a6f5da4666f9caaf3a3ecc10992aca1414', input:'%3C.', expected:'%23document-fragment'},
+{name:'0d7df935b172f2a1b357b94596d68f2443f30f8b', input:'%3Cc.', expected:'%23document-fragment%0A%7C%20%3Cspan%3E'},
+{name:'cd1d6dd274e03ae8fc56bc4ef163998d9ff24496', input:'%3C/', expected:'%23document-fragment'},
+{name:'fca1a11d42b735453117f42456360e88082a3fd7', input:'%3Cc%3E%3C/%3Ex', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20%22x%22'},
+{name:'fe3b6277edf5c2f84e7a6779eddd0cac30552bca', input:'%3Cc%3E%3C/%0Ac%3Ex', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20%22x%22'},
+{name:'6ceded63b53eeab3681a0fc540e959ca88f7dce9', input:'%3Cc%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20%22test%22'},
+{name:'cdcdb0d5d6a975c5612eabcbea5d732ff3bc9f56', input:'a%3Cc.d%20e%3Eb%3C/c%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cspan%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'},
+{name:'71de37451e7d5524eacc8a190d21cd64c4304e14', input:'%3Ci%3Etest', expected:'%23document-fragment%0A%7C%20%3Ci%3E%0A%7C%20%20%20%22test%22'},
+{name:'70f72cc4d2139d9e8c33189a1a9b89ecd6014a15', input:'a%3Ci.d%20e%3Eb%3C/i%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Ci%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'},
+{name:'985284b688a09f1f55e3c9aab49d7e4ca11f870a', input:'%3Cb%3Etest', expected:'%23document-fragment%0A%7C%20%3Cb%3E%0A%7C%20%20%20%22test%22'},
+{name:'39c36af6d6850bc474f1d9962c1133933fd50dd0', input:'a%3Cb.d%20e%3Eb%3C/b%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cb%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'},
+{name:'fa6993eaa94404648d8b52e2830e53369404fdcb', input:'%3Cu%3Etest', expected:'%23document-fragment%0A%7C%20%3Cu%3E%0A%7C%20%20%20%22test%22'},
+{name:'45221829445210412642152bfb22fa2ed222d46e', input:'a%3Cu.d%20e%3Eb%3C/u%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cu%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'},
+{name:'e4d351e1a6b40a7dace801b722efaa200c4895f2', input:'%3Cruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22'},
+{name:'a8481eabd1dcac1d02e57e74d499e2395ac171cd', input:'a%3Cruby.f%20g%3Eb%3Crt.h%20j%3Ec%3C/rt%3Ed%3C/ruby%3Ee', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cruby%3E%0A%7C%20%20%20class%3D%22f%22%0A%7C%20%20%20%22b%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20class%3D%22h%22%0A%7C%20%20%20%20%20%22c%22%0A%7C%20%20%20%22d%22%0A%7C%20%22e%22'},
+{name:'68e1d0376f827ebe0c047751a2067594ff41b612', input:'%3Crt%3Etest', expected:'%23document-fragment%0A%7C%20%22test%22'},
+{name:'ab2024b4e65ed64a751adbe8aae1e84ee61bf3e6', input:'%3Cv%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20title%3D%22%22%0A%7C%20%20%20%22test%22'},
+{name:'10f4823ffb17c71654c4602bc45c58300e3ecbcc', input:'%3Cv%20a%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20title%3D%22a%22%0A%7C%20%20%20%22test%22'},
+{name:'909924ef392fb20c9526acfa4f18f891eda61a0c', input:'%3Cv%20a%20b%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20title%3D%22a%20b%22%0A%7C%20%20%20%22test%22'},
+{name:'e5ca35cc29404efc0ebd58aa5f6efefc86fc5287', input:'%3Cv.a%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20class%3D%22a%22%0A%7C%20%20%20title%3D%22%22%0A%7C%20%20%20%22test%22'},
+{name:'e535c486dac7dc571463b150adc55fd841bc3008', input:'%3Cv.a.b%3Etest', expected:'%23document-fragment%0A%7C%20%3Cspan%3E%0A%7C%20%20%20class%3D%22a%20b%22%0A%7C%20%20%20title%3D%22%22%0A%7C%20%20%20%22test%22'},
+{name:'bb7abafab60a0ea63f57420759fac4093148ecc8', input:'a%3Cv.d%20e%3Eb%3C/v%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cspan%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20title%3D%22e%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'},
+{name:'b53365151e0b2434837d6cce15c3d51e666a813e', input:'a%3Clang.d%20e%3Eb%3C/lang%3Ec', expected:'%23document-fragment%0A%7C%20%22a%22%0A%7C%20%3Cspan%3E%0A%7C%20%20%20class%3D%22d%22%0A%7C%20%20%20lang%3D%22e%22%0A%7C%20%20%20%22b%22%0A%7C%20%22c%22'}
+]);
+</script>

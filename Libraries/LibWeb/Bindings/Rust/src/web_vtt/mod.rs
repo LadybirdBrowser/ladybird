@@ -6,6 +6,7 @@
 
 //! WebVTT: The Web Video Text Tracks Format, https://w3c.github.io/webvtt/
 
+mod cue_text;
 pub(crate) mod exports;
 pub(crate) mod parser;
 pub(crate) mod vtt_cue;

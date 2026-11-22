@@ -2139,6 +2139,7 @@ dependencies = [
  "libunicode_rust",
  "liburl_rust",
  "libwasm_engine",
+ "libweb_html_tokenizer",
  "libweb_rust",
  "libwebcommon_rust",
  "rustc-demangle",

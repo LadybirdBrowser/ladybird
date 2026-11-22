@@ -1,0 +1,16 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<title>WebVTT cue data parser unescapes entities under require-trusted-types-for</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'amp', input:'%26amp%3B', expected:'%23document-fragment%0A%7C%20%22%26%22'}
+]);
+</script>

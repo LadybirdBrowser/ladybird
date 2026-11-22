@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	VTTCue.getCueAsHTML(), creating the cue
+Pass	VTTCue.getCueAsHTML(), <c>
+Pass	VTTCue.getCueAsHTML(), <c.a.b>
+Pass	VTTCue.getCueAsHTML(), <i>
+Pass	VTTCue.getCueAsHTML(), <b>
+Pass	VTTCue.getCueAsHTML(), <u>
+Pass	VTTCue.getCueAsHTML(), <ruby>
+Pass	VTTCue.getCueAsHTML(), <rt>
+Pass	VTTCue.getCueAsHTML(), <v>
+Pass	VTTCue.getCueAsHTML(), <v a b>
+Pass	VTTCue.getCueAsHTML(), <v Foo&amp;Bar>
+Pass	VTTCue.getCueAsHTML(), <1:00:13.500>
+Pass	VTTCue.getCueAsHTML(), <00:09.500>
+Pass	VTTCue.getCueAsHTML(), x\0
+Pass	VTTCue.getCueAsHTML(), <lang en-US>

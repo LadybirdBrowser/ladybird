@@ -1,0 +1,117 @@
+<!doctype html>
+<title>VTTCue.getCueAsHTML()</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#dom-vttcue-getcueashtml">
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(function(){
+    var video = document.createElement('video');
+    var t1 = video.addTextTrack('subtitles');
+    document.body.appendChild(video);
+    var c1 = new VTTCue(0, 1, '<c></c><c.a.b></c><i></i><b></b><u></u><ruby><rt></rt></ruby><v></v><v a b></v><v Foo&amp;Bar>text</v><1:00:13.500><00:09.500>x\0<lang en-US>text</lang>');
+    t1.addCue(c1);
+    window.frag = c1.getCueAsHTML();
+    assert_equals(frag.childNodes.length, 13, 'childNodes.length');
+    assert_true(frag instanceof DocumentFragment, 'getCueAsHTML() should return DocumentFragment');
+}, document.title+', creating the cue');
+test(function(){
+    assert_equals(frag.childNodes[0].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[0].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[0].attributes.length, 0, 'attributes');
+    assert_false(frag.childNodes[0].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[0] instanceof HTMLElement, 'instanceof');
+}, document.title+', <c>');
+test(function(){
+    assert_equals(frag.childNodes[1].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[1].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[1].attributes.length, 1, 'attributes');
+    assert_equals(frag.childNodes[1].getAttributeNS('', 'class'), 'a b', 'class attribute');
+    assert_false(frag.childNodes[1].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[1] instanceof HTMLElement, 'instanceof');
+}, document.title+', <c.a.b>');
+test(function(){
+    assert_equals(frag.childNodes[2].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[2].localName, 'i', 'localName');
+    assert_equals(frag.childNodes[2].attributes.length, 0, 'attributes');
+    assert_false(frag.childNodes[2].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[2] instanceof HTMLElement, 'instanceof');
+}, document.title+', <i>');
+test(function(){
+    assert_equals(frag.childNodes[3].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[3].localName, 'b', 'localName');
+    assert_equals(frag.childNodes[3].attributes.length, 0, 'attributes');
+    assert_false(frag.childNodes[3].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[3] instanceof HTMLElement, 'instanceof');
+}, document.title+', <b>');
+test(function(){
+    assert_equals(frag.childNodes[4].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[4].localName, 'u', 'localName');
+    assert_equals(frag.childNodes[4].attributes.length, 0, 'attributes');
+    assert_false(frag.childNodes[4].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[4] instanceof HTMLElement, 'instanceof');
+}, document.title+', <u>');
+test(function(){
+    assert_equals(frag.childNodes[5].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[5].localName, 'ruby', 'localName');
+    assert_equals(frag.childNodes[5].attributes.length, 0, 'attributes');
+    assert_true(frag.childNodes[5].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[5] instanceof HTMLElement, 'instanceof');
+}, document.title+', <ruby>');
+test(function(){
+    assert_equals(frag.childNodes[5].firstChild.namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[5].firstChild.localName, 'rt', 'localName');
+    assert_equals(frag.childNodes[5].firstChild.attributes.length, 0, 'attributes');
+    assert_false(frag.childNodes[5].firstChild.hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[5].firstChild instanceof HTMLElement, 'instanceof');
+}, document.title+', <rt>');
+test(function(){
+    assert_equals(frag.childNodes[6].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[6].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[6].attributes.length, 1, 'attributes');
+    assert_equals(frag.childNodes[6].getAttributeNS('', 'title'), '', 'title attribute');
+    assert_false(frag.childNodes[6].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[6] instanceof HTMLElement, 'instanceof');
+}, document.title+', <v>');
+test(function(){
+    assert_equals(frag.childNodes[7].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[7].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[7].attributes.length, 1, 'attributes');
+    assert_equals(frag.childNodes[7].getAttributeNS('', 'title'), 'a b', 'title attribute');
+    assert_false(frag.childNodes[7].hasChildNodes(), 'hasChildNodes()');
+    assert_true(frag.childNodes[7] instanceof HTMLElement, 'instanceof');
+}, document.title+', <v a b>');
+test(function(){
+    assert_equals(frag.childNodes[8].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[8].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[8].attributes.length, 1, 'attributes');
+    assert_equals(frag.childNodes[8].getAttributeNS('', 'title'), 'Foo&Bar', 'title attribute');
+    assert_true(frag.childNodes[8].hasChildNodes(), 'hasChildNodes()');
+    assert_equals(frag.childNodes[8].firstChild.data, 'text', 'child text');
+    assert_true(frag.childNodes[8] instanceof HTMLElement, 'instanceof');
+}, document.title+', <v Foo&amp;Bar>');
+test(function(){
+    assert_equals(frag.childNodes[9].target, 'timestamp', 'target');
+    assert_equals(frag.childNodes[9].data, '01:00:13.500', 'data');
+    assert_true(frag.childNodes[9] instanceof ProcessingInstruction, 'instanceof');
+}, document.title+', <1:00:13.500>');
+test(function(){
+    assert_equals(frag.childNodes[10].target, 'timestamp', 'target');
+    assert_equals(frag.childNodes[10].data, '00:00:09.500', 'data');
+    assert_true(frag.childNodes[10] instanceof ProcessingInstruction, 'instanceof');
+}, document.title+', <00:09.500>');
+test(function(){
+    assert_equals(frag.childNodes[11].data, 'x\0', 'data');
+    assert_true(frag.childNodes[11] instanceof Text, 'instanceof');
+}, document.title+', x\\0');
+test(function(){
+    assert_equals(frag.childNodes[12].namespaceURI, 'http://www.w3.org/1999/xhtml', 'namespaceURI');
+    assert_equals(frag.childNodes[12].localName, 'span', 'localName');
+    assert_equals(frag.childNodes[12].attributes.length, 1, 'attributes');
+    assert_equals(frag.childNodes[12].getAttributeNS('', 'lang'), 'en-US', 'lang attribute');
+    assert_equals(frag.childNodes[12].getAttributeNS('', 'title'), null, 'no title attribute');
+    assert_true(frag.childNodes[12].hasChildNodes(), 'hasChildNodes()');
+    assert_equals(frag.childNodes[12].firstChild.data, 'text', 'child text');
+    assert_true(frag.childNodes[12] instanceof HTMLElement, 'instanceof');
+}, document.title+', <lang en-US>');
+</script>

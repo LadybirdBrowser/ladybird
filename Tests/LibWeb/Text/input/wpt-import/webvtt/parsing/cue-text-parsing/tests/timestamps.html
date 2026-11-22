@@ -1,0 +1,24 @@
+<!doctype html>
+<title>WebVTT cue data parser test timestamps</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'54c245f3fbe7a3e25398b13971d44f2bb3a5f947', input:'%3C0', expected:'%23document-fragment'},
+{name:'5e190a1b4541fcb10e403af111c14ef152fecb0d', input:'%3C0.500', expected:'%23document-fragment'},
+{name:'92b97d3497836259e0b9305e27f2b91ea1dc9b31', input:'%3C0%3A00.500', expected:'%23document-fragment'},
+{name:'2f0e84518d356cb1e56a366296fa491c5bed1e3a', input:'%3C00%3A%0000%3A00.500%3E', expected:'%23document-fragment'},
+{name:'47fa4306a695161da88533d456ce94829e53b13d', input:'%3C00%3A00.500', expected:'%23document-fragment%0A%7C%20%3C%3Ftimestamp%2000%3A00%3A00.500%3E'},
+{name:'c1036a4322c1852e02e5a1843a9a81dfca6d7af3', input:'%3C00%3A00%3A00.500', expected:'%23document-fragment%0A%7C%20%3C%3Ftimestamp%2000%3A00%3A00.500%3E'},
+{name:'70ec34d828ca661a583c651207becb968bb41653', input:'test%3C00%3A00%3A00.500%3Etest', expected:'%23document-fragment%0A%7C%20%22test%22%0A%7C%20%3C%3Ftimestamp%2000%3A00%3A00.500%3E%0A%7C%20%22test%22'},
+{name:'66ba641ff047a226fa60fe867fd2479d40f3ff0f', input:'test%3C01%3A00%3A00.000%3Etest', expected:'%23document-fragment%0A%7C%20%22test%22%0A%7C%20%3C%3Ftimestamp%2001%3A00%3A00.000%3E%0A%7C%20%22test%22'},
+{name:'398e8da1aaaf392739ca72057fef58bd5333f74d', input:'test%3C10%3A00%3A00.000%3Etest', expected:'%23document-fragment%0A%7C%20%22test%22%0A%7C%20%3C%3Ftimestamp%2010%3A00%3A00.000%3E%0A%7C%20%22test%22'},
+{name:'391fce67644cf4dd9967e1436d1449ef5baf675f', input:'test%3C100%3A00%3A00.000%3Etest', expected:'%23document-fragment%0A%7C%20%22test%22%0A%7C%20%3C%3Ftimestamp%20100%3A00%3A00.000%3E%0A%7C%20%22test%22'}
+]);
+</script>
