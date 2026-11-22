@@ -856,13 +856,8 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         auto locker = take_lock();
         enter_halting_state(status, move(error));
 
-        while (true) {
-            if (m_seek_id != m_last_processed_seek_id)
-                return;
+        while (m_seek_id == m_last_processed_seek_id && !should_thread_exit_while_locked())
             m_wait_state->condition.wait();
-            if (should_thread_exit_while_locked())
-                return;
-        }
     };
 
     // If a prior seek encountered a decoding error, stop here to ensure that the pipeline state stays Error.
