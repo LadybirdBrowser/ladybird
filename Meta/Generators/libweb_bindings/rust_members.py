@@ -238,10 +238,12 @@ class RustIndexedPropertySetter:
 
 @dataclass
 class RustNamedProperties:
-    """The named property getter of an interface and its named property setter and deleter, if it has them, each of
-    which has an identifier: the operation of that identifier, whose method the legacy platform object algorithms call
-    as well, https://webidl.spec.whatwg.org/#idl-named-properties. The implementation gives its supported property names
-    through its method supported_property_names."""
+    """The named property getter of an interface and its named property setter and deleter, if it has them,
+    https://webidl.spec.whatwg.org/#idl-named-properties. One declared with an identifier is the operation of that
+    identifier, whose method the legacy platform object algorithms call as well. The implementation defines the steps of
+    one declared without an identifier as the methods determine_value_of_named_property(),
+    set_value_of_new_named_property() and set_value_of_existing_named_property(), or delete_existing_named_property().
+    The implementation gives its supported property names through its method supported_property_names()."""
 
     getter: RustOperation
     setter: Optional[RustOperation]
@@ -249,7 +251,12 @@ class RustNamedProperties:
 
     @property
     def operations(self) -> List[RustOperation]:
-        return [operation for operation in (self.getter, self.setter, self.deleter) if operation is not None]
+        """The operations declared with an identifier, which the interface prototype object holds as well."""
+        return [
+            operation
+            for operation in (self.getter, self.setter, self.deleter)
+            if operation is not None and operation.operation.name
+        ]
 
 
 @dataclass
@@ -477,23 +484,34 @@ def rust_members(interface: Interface) -> RustMembers:
             fail("its indexed property setter has an identifier, which the Rust bindings do not handle yet")
         members.indexed_property_setter = RustIndexedPropertySetter(setter.parameters[1])
 
-    def named_property_operation(special_operation: Optional[SpecialOperation], kind: str) -> Optional[RustOperation]:
+    def named_property_operation(
+        special_operation: Optional[SpecialOperation], kind: str, anonymous_method: str
+    ) -> Optional[RustOperation]:
         if special_operation is None:
             return None
-        if not special_operation.name:
-            fail(f"its named property {kind} has no identifier, which the Rust bindings do not handle yet")
-        check_extended_attributes(special_operation.name, special_operation.extended_attributes, {"ImplementedAs"})
         operation = Operation(
             special_operation.name,
             special_operation.return_type,
             special_operation.parameters,
             special_operation.extended_attributes,
         )
+        if not special_operation.name:
+            # FIXME: Apply [CEReactions] to a named property setter or deleter, which the C++ bindings do not either.
+            supported = set() if kind == "getter" else {"CEReactions"}
+            check_extended_attributes(f"its named property {kind}", special_operation.extended_attributes, supported)
+            return RustOperation(operation, anonymous_method)
+        check_extended_attributes(special_operation.name, special_operation.extended_attributes, {"ImplementedAs"})
         return RustOperation(operation, method_of(special_operation.name, special_operation.extended_attributes))
 
-    named_getter = named_property_operation(interface.named_property_getter, "getter")
-    named_setter = named_property_operation(interface.named_property_setter, "setter")
-    named_deleter = named_property_operation(interface.named_property_deleter, "deleter")
+    named_getter = named_property_operation(
+        interface.named_property_getter, "getter", "determine_value_of_named_property"
+    )
+    # NB: An anonymous setter has two methods, set_value_of_new_named_property() and
+    #     set_value_of_existing_named_property(), which the bindings name themselves.
+    named_setter = named_property_operation(interface.named_property_setter, "setter", "")
+    named_deleter = named_property_operation(
+        interface.named_property_deleter, "deleter", "delete_existing_named_property"
+    )
     if named_getter is None and (named_setter is not None or named_deleter is not None):
         fail("it has a named property setter or deleter and no named property getter")
     if named_getter is not None:
@@ -501,10 +519,10 @@ def rust_members(interface: Interface) -> RustMembers:
             fail("it supports both indexed and named properties, which the Rust bindings do not handle yet")
         if interface.parent_name:
             fail("it supports named properties and inherits from another interface")
-        if not named_getter.operation.return_type.nullable:
+        if named_getter.operation.name and not named_getter.operation.return_type.nullable:
             fail(
-                "its named property getter does not return a nullable type, by which the Rust bindings tell the "
-                "names that are not supported property names"
+                "its named property getter has an identifier and does not return a nullable type, by which the Rust "
+                "bindings tell the names that are not supported property names"
             )
         if named_deleter is not None and named_deleter.operation.return_type.name != "undefined":
             fail("its named property deleter returns a value, which the Rust bindings do not handle yet")
