@@ -6,6 +6,8 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/ByteString.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -393,6 +395,30 @@ TEST_CASE(expand_range_case_insensitive)
     EXPECT(any_of(k_ranges, [](auto const& range) {
         return range.from == 0x212A && range.to == 0x212A;
     }));
+}
+
+TEST_CASE(likely_language_for_script_of)
+{
+    auto language = [](u32 code_point) -> ByteString {
+        auto language = Unicode::likely_language_for_script_of(code_point);
+        return language.has_value() ? language->to_byte_string() : ByteString { "(none)"sv };
+    };
+
+    EXPECT_EQ(language(0x0E01), "th"sv); // THAI CHARACTER KO KAI
+    EXPECT_EQ(language(0x0905), "hi"sv); // DEVANAGARI LETTER A
+    EXPECT_EQ(language(0x0627), "ar"sv); // ARABIC LETTER ALEF
+    EXPECT_EQ(language(0x05D0), "he"sv); // HEBREW LETTER ALEF
+    EXPECT_EQ(language(0x0430), "ru"sv); // CYRILLIC SMALL LETTER A
+    EXPECT_EQ(language(0x3042), "ja"sv); // HIRAGANA LETTER A
+    EXPECT_EQ(language(0xAC00), "ko"sv); // HANGUL SYLLABLE GA
+    EXPECT_EQ(language(0x1200), "am"sv); // ETHIOPIC SYLLABLE HA
+
+    // Many languages share Latin and Han, and common characters and combining marks have no script of their own.
+    EXPECT_EQ(language('a'), "(none)"sv);
+    EXPECT_EQ(language(0x4E2D), "(none)"sv); // CJK UNIFIED IDEOGRAPH-4E2D
+    EXPECT_EQ(language(' '), "(none)"sv);
+    EXPECT_EQ(language('1'), "(none)"sv);
+    EXPECT_EQ(language(0x0301), "(none)"sv); // COMBINING ACUTE ACCENT
 }
 
 TEST_CASE(for_each_case_folded_code_point)

@@ -5,15 +5,18 @@
  */
 
 #include <AK/Array.h>
+#include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Diagnostics.h>
 #include <AK/Find.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/String.h>
 #include <AK/Traits.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
 
+#include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/uniset.h>
 #include <unicode/uscript.h>
@@ -452,6 +455,33 @@ bool code_point_has_script(u32 code_point, Script script)
     if (auto result = uscript_getScript(icu_code_point, &status); icu_success(status))
         return result == icu_script;
     return false;
+}
+
+Optional<String> likely_language_for_script_of(u32 code_point)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto script = uscript_getScript(static_cast<UChar32>(code_point), &status);
+    if (icu_failure(status))
+        return {};
+    switch (script) {
+    case USCRIPT_COMMON:
+    case USCRIPT_INHERITED:
+    case USCRIPT_UNKNOWN:
+    case USCRIPT_LATIN:
+    case USCRIPT_HAN:
+        return {};
+    default:
+        break;
+    }
+
+    auto locale = icu::Locale::createFromName(ByteString::formatted("und_{}", uscript_getShortName(script)).characters());
+    locale.addLikelySubtags(status);
+    if (icu_failure(status))
+        return {};
+    StringView language { locale.getLanguage(), strlen(locale.getLanguage()) };
+    if (language.is_empty() || language == "und"sv)
+        return {};
+    return MUST(String::from_utf8(language));
 }
 
 bool code_point_has_script_extension(u32 code_point, Script script)

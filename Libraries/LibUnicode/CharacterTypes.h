@@ -48,6 +48,9 @@ Vector<String> get_property_strings(Property);
 Optional<Script> script_from_string(StringView);
 bool code_point_has_script(u32 code_point, Script script);
 bool code_point_has_script_extension(u32 code_point, Script script);
+// The language most likely written in the script of a code point, such as "th" for Thai. There's none for a script that
+// many languages share (Latin, Han), or for a code point that has no script of its own.
+Optional<String> likely_language_for_script_of(u32 code_point);
 
 enum class BidiClass {
     ArabicNumber,             // AN
