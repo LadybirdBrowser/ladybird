@@ -11,6 +11,8 @@ pub(crate) mod abort_controller;
 #[cfg(not(test))]
 pub(crate) mod abort_signal;
 #[cfg(not(test))]
+pub(crate) mod custom_event;
+#[cfg(not(test))]
 pub(crate) mod document;
 #[cfg(not(test))]
 pub(crate) mod dom_token_list;

@@ -34,9 +34,9 @@ static Utf16FlyString const& web_ui_loaded_event()
     return *event;
 }
 
-static FlyString const& web_ui_message_event()
+static Utf16FlyString const& web_ui_message_event()
 {
-    static NeverDestroyed<FlyString> event { "WebUIMessage"_fly_string };
+    static NeverDestroyed<Utf16FlyString> event { "WebUIMessage"_utf16_fly_string };
     return *event;
 }
 
@@ -90,10 +90,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
         return;
     }
 
-    Web::DOM::CustomEventInit event_init {};
-    event_init.detail = serialized_detail.value();
-
-    m_document->dispatch_event(Web::DOM::CustomEvent::create(realm.global_object(), web_ui_message_event(), event_init));
+    m_document->dispatch_event(Web::DOM::create_custom_event(realm, web_ui_message_event(), serialized_detail.value()));
 }
 
 void WebUIConnection::received_message_from_web_ui(Utf16String const& name, JS::Value data)
