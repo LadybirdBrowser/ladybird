@@ -180,6 +180,8 @@ extern "C" {
 FlatPtr web_dom_element_local_name(Element const*);
 FlatPtr web_dom_element_get_attribute_ns(Element const*, FlatPtr namespace_, FlatPtr name);
 void web_dom_element_set_attribute_value(Element*, FlatPtr name, FlatPtr value);
+void web_dom_element_remove_attribute(Element*, FlatPtr name);
+void web_dom_element_for_each_attribute(Element const*, void* callback, void (*on_attribute)(void*, FlatPtr name, FlatPtr value));
 void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr));
 }
 
@@ -7170,6 +7172,18 @@ FlatPtr web_dom_element_get_attribute_ns(Element const* element, FlatPtr namespa
 void web_dom_element_set_attribute_value(Element* element, FlatPtr name, FlatPtr value)
 {
     element->set_attribute_value(Utf16FlyString::from_raw(name), Utf16String::adopt_raw(value));
+}
+
+void web_dom_element_remove_attribute(Element* element, FlatPtr name)
+{
+    element->remove_attribute(Utf16FlyString::from_raw(name));
+}
+
+void web_dom_element_for_each_attribute(Element const* element, void* callback, void (*on_attribute)(void*, FlatPtr name, FlatPtr value))
+{
+    element->for_each_attribute([&](Utf16FlyString const& name, Utf16String const& value) {
+        on_attribute(callback, name.raw_identity(), value.raw_identity());
+    });
 }
 
 void web_dom_element_attribute(Element* element, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr))
