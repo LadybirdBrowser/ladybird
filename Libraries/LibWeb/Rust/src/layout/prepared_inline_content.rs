@@ -17,6 +17,8 @@ pub(crate) struct PreparedInlineContent {
     pub(super) box_events: Box<[InlineBoxEvent]>,
     pub(super) fonts: Box<[FontHandle]>,
     pub(super) tab_stops: Box<[PreparedTabStop]>,
+    /// The prepared item index of each tab stop, in the same order.
+    pub(super) tab_stop_items: Box<[u32]>,
     /// Prepared item indices paired with UTF-16 offsets in their text nodes, ordered by item and then offset.
     pub(super) soft_wraps: Box<[(u32, u32)]>,
 }
@@ -198,6 +200,7 @@ pub(crate) struct InlineContentPreparationBuffers {
     pub(super) box_events: Vec<InlineBoxEvent>,
     pub(super) fonts: Vec<FontHandle>,
     pub(super) tab_stops: Vec<PreparedTabStop>,
+    pub(super) tab_stop_items: Vec<u32>,
     pub(super) soft_wraps: Vec<(u32, u32)>,
     pub(super) box_stack: Vec<Node>,
 }
@@ -223,12 +226,42 @@ impl InlineContentPreparationBuffers {
             box_events: self.box_events.drain(..).collect(),
             fonts: self.fonts.drain(..).collect(),
             tab_stops: self.tab_stops.drain(..).collect(),
+            tab_stop_items: self.tab_stop_items.drain(..).collect(),
             soft_wraps: self.soft_wraps.drain(..).collect(),
         }
     }
 }
 
 impl PreparedInlineContent {
+    /// The tab stop of `item`, a text item that starts with tabs.
+    pub(super) fn tab_stop_of_item(&self, item: u32) -> Option<&PreparedTabStop> {
+        let index = self.tab_stop_items.binary_search(&item).ok()?;
+        self.tab_stops.get(index)
+    }
+
+    /// The first text with a strong direction from `item` on, up to the next forced break or block-level box: The
+    /// index the search stopped at (that text's item, the boundary, or the end of the items), and that text's type if
+    /// it found one. Every item from `item` to that index has the same answer.
+    pub(super) fn first_strong_text_from(&self, item: u32) -> (u32, Option<u8>) {
+        for (index, prepared_item) in self.items.iter().enumerate().skip(item as usize) {
+            let index = u32::try_from(index).expect("prepared item indices fit in 32 bits");
+            match prepared_item.type_() {
+                ItemType::ForcedBreak | ItemType::BlockLevelBox => return (index, None),
+                ItemType::Text
+                    if matches!(
+                        prepared_item.text_type(),
+                        line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
+                    ) =>
+                {
+                    return (index, Some(prepared_item.text_type()));
+                }
+                _ => {}
+            }
+        }
+        let end = u32::try_from(self.items.len()).expect("prepared item indices fit in 32 bits");
+        (end, None)
+    }
+
     /// The font the text of `item`, one of this content's text items, is set in.
     pub(super) fn font_of(&self, item: &PreparedItem) -> &FontHandle {
         &self.fonts[usize::from(item.font_index)]
@@ -280,6 +313,7 @@ impl PreparedInlineContent {
             .or_else(|| first_difference("inline box event", &self.box_events, &fresh.box_events))
             .or_else(|| first_difference("font", &self.fonts, &fresh.fonts))
             .or_else(|| first_difference("tab stop", &self.tab_stops, &fresh.tab_stops))
+            .or_else(|| first_difference("tab stop item", &self.tab_stop_items, &fresh.tab_stop_items))
             .or_else(|| first_difference("soft wrap", &self.soft_wraps, &fresh.soft_wraps))
     }
 }

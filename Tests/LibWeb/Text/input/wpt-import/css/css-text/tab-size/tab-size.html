@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test: CSS value type of the CSS property 'tab-size'</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+body {
+  font-family: Ahem;
+  font-size: 13px;
+}
+.px-tab-size {
+  tab-size: 60px;
+}
+.em-tab-size {
+  tab-size: 7em;
+}
+.int-tab-size {
+  tab-size: 9;
+}
+.fractional-tab-size {
+  tab-size: 2.5;
+}
+</style>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<div style="background-repeat: repeat-x;">
+<div><pre id="leading-px" class="px-tab-size">&Tab;<span>leading text, tab-size in px.</span></pre></div>
+<div><pre id="leading-em" class="em-tab-size">&Tab;<span>leading text, tab-size in em.</span></pre></div>
+<div><pre id="leading-int" class="int-tab-size">&Tab;<span>leading text, tab-size in spaces.</span></pre></div>
+<div><pre id="leading-fraction" class="fractional-tab-size">&Tab;<span>leading text, tab-size in fraction.</span></pre></div>
+<div><pre id="trailing-px" class="px-tab-size"><span>leading text</span>&Tab;<span>trailing text, tab-size in px.</span></pre></div>
+<div><pre id="trailing-em" class="em-tab-size"><span>leading text</span>&Tab;<span>trailing text, tab-size in em.</span></pre></div>
+<div><pre id="trailing-int" class="int-tab-size"><span>leading text</span>&Tab;<span>trailing text, tab-size in spaces.</span></pre></div>
+<div><pre id="trailing-fraction" class="fractional-tab-size"><span>leading text</span>&Tab;<span>trailing text, tab-size in fraction.</span></pre></div>
+<div><pre>Some spaces... '<span id="space-size-reference">         </span>' ... for size reference.</pre></div>
+<div><pre>A space... '<span id="one-space-size-reference"> </span>' ... for size reference.</pre></div>
+<div><pre>'<span id="leading-text-size-reference">leading text</span>', for size reference.</pre></div>
+<script>
+test(function() {
+  // Tests with a tab character at the beginning of the line.
+  var pxPre = document.getElementById('leading-px');
+  var emPre = document.getElementById('leading-em');
+  var intPre = document.getElementById('leading-int');
+  var fractionPre = document.getElementById("leading-fraction");
+
+  var pxLeadingSpan = pxPre.firstElementChild;
+  var emLeadingSpan = emPre.firstElementChild;
+  var intLeadingSpan = intPre.firstElementChild;
+  var fractionLeadingspan = fractionPre.firstElementChild;
+
+  var pxExpected = 60;  // tab size in px.
+  var emExpected = 13 * 7;  // (font size) * (tab size in em)
+  var intExpected = document.getElementById('space-size-reference').getBoundingClientRect().width;
+  var fractionExpected = 2.5 * document.getElementById('one-space-size-reference').getBoundingClientRect().width;
+
+  var pxTabLength = pxLeadingSpan.getBoundingClientRect().left - pxPre.getBoundingClientRect().left;
+  var emTabLength = emLeadingSpan.getBoundingClientRect().left - emPre.getBoundingClientRect().left;
+  var intTabLength = intLeadingSpan.getBoundingClientRect().left - intPre.getBoundingClientRect().left;
+  var fractionTabLength = fractionLeadingspan.getBoundingClientRect().left - fractionPre.getBoundingClientRect().left;
+
+  assert_approx_equals(pxTabLength, pxExpected, 0.02);
+  assert_approx_equals(emTabLength, emExpected, 0.02);
+  assert_approx_equals(intTabLength, intExpected, 0.02);
+  assert_approx_equals(fractionTabLength, fractionExpected, 0.02);
+
+  // Tests with a tab character after leading text.
+  var leadingTextSize = document.getElementById('leading-text-size-reference').getBoundingClientRect().width;
+  pxExpected = pxExpected - (leadingTextSize % pxExpected);
+  emExpected = emExpected - (leadingTextSize % emExpected);
+  intExpected = intExpected - (leadingTextSize % intExpected);
+  fractionExpected = fractionExpected - (leadingTextSize % fractionExpected);
+
+  pxPre = document.getElementById('trailing-px');
+  emPre = document.getElementById('trailing-em');
+  intPre = document.getElementById('trailing-int');
+  fractionPre = document.getElementById("trailing-fraction");
+
+  pxLeadingSpan = pxPre.firstElementChild;
+  emLeadingSpan = emPre.firstElementChild;
+  intLeadingSpan = intPre.firstElementChild;
+  fractionLeadingspan = fractionPre.firstElementChild;
+
+  pxTrailingSpan = pxPre.lastElementChild;
+  emTrailingSpan = emPre.lastElementChild;
+  intTrailingSpan = intPre.lastElementChild;
+  fractionTrailingSpan = fractionPre.lastElementChild;
+
+  pxTabLength = pxTrailingSpan.getBoundingClientRect().left - pxLeadingSpan.getBoundingClientRect().right;
+  emTabLength = emTrailingSpan.getBoundingClientRect().left - emLeadingSpan.getBoundingClientRect().right;
+  intTabLength = intTrailingSpan.getBoundingClientRect().left - intLeadingSpan.getBoundingClientRect().right;
+  fractionTabLength = fractionTrailingSpan.getBoundingClientRect().left - fractionLeadingspan.getBoundingClientRect().right;
+
+  assert_approx_equals(pxTabLength, pxExpected, 0.02);
+  assert_approx_equals(emTabLength, emExpected, 0.02);
+  assert_approx_equals(intTabLength, intExpected, 0.02);
+  assert_approx_equals(fractionTabLength, fractionExpected, 0.02);
+}, "Test tab-size measurements");
+</script>

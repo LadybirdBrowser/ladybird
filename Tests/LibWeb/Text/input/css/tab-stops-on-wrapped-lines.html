@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; font: 10px/1 Ahem; }
+    div.t { display: flow-root; white-space: pre-wrap; tab-size: 8; width: 105px; }
+    .float { float: left; width: 20px; height: 30px; }
+</style>
+<div class="t" id="after-a-wrap-at-a-space">aaaaaaaa aaa	b</div>
+<div class="t" id="after-a-wrap-at-a-wbr">aaaaaaaaaa<wbr>aaa	b</div>
+<div class="t" id="after-two-wraps">aaaaaaaa aaaaaaaa aa	b</div>
+<div class="t" id="after-a-forced-break">aaaaaaaa
+aaa	b</div>
+<div class="t" id="in-a-padded-span">aaaaaaaa <span style="padding-left: 10px">aa	b</span></div>
+<div class="t" id="with-a-length-tab-size" style="tab-size: 25px">aaaaaaaa aaa	b</div>
+<div class="t" id="after-a-text-indent" style="text-indent: 20px">aa	b</div>
+<div class="t" id="beside-a-float"><div class="float"></div>aa	b</div>
+<div class="t" id="beside-a-float-on-a-wrapped-line"><div class="float" style="margin-top: 10px"></div>aaaaaaaa aaa	b</div>
+<div class="t" id="in-a-max-content-box-with-a-float" style="width: max-content"><div class="float"></div>aa	b</div>
+<div class="t" id="after-hanging-white-space-beside-a-float" style="tab-size: 80px; width: 150px"><div class="float" style="width: 61px; height: 40px"></div><span style="display: inline-block; width: 89px; height: 10px"></span> 	b</div>
+<div class="t" id="before-an-empty-span">aaaaaaaa aaa	<span class="empty"></span>b</div>
+<div class="t" id="before-rtl-text-under-plaintext" data-measures-the-tab style="unicode-bidi: plaintext; tab-size: 80px; width: 200px"><div class="float"></div>	א</div>
+<div class="t" id="vertical" style="writing-mode: vertical-rl; height: 105px; width: auto">aaaaaaaa aaa	b</div>
+<script>
+    // Tab stops are measured from the content edge of the line a tab is on, past any float, wherever the line starts:
+    // after a soft wrap just as after a forced break.
+    asyncTest(async done => {
+        await document.fonts.ready;
+        for (const div of document.querySelectorAll("div[id]")) {
+            if (div.hasAttribute("data-measures-the-tab")) {
+                const text = [...div.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+                const range = document.createRange();
+                range.setStart(text, 0);
+                range.setEnd(text, 1);
+                println(`${div.id}: the tab is ${Math.round(range.getBoundingClientRect().width)}px wide`);
+                continue;
+            }
+            const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+            let b = null;
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                const index = node.data.lastIndexOf("b");
+                if (index >= 0)
+                    b = [node, index];
+            }
+            const range = document.createRange();
+            range.setStart(b[0], b[1]);
+            range.setEnd(b[0], b[1] + 1);
+            const rect = range.getBoundingClientRect();
+            const box = div.getBoundingClientRect();
+            println(`${div.id}: "b" at (${Math.round(rect.left - box.left)}, ${Math.round(rect.top - box.top)})`);
+            const empty = div.querySelector(".empty");
+            if (empty) {
+                const emptyRect = empty.getClientRects()[0];
+                println(`${div.id}: the empty span at (${Math.round(emptyRect.left - box.left)}, ${Math.round(emptyRect.top - box.top)})`);
+            }
+        }
+        done();
+    });
+</script>

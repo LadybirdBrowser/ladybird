@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: overflowing white-space: pre tab after a soft wrap opportunity</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-phase-2">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/pre-tab-001-ref.html">
+<meta name="assert" content="A preserved tab with white-space: pre does not hang, so when it overflows the line it wraps at the soft wrap opportunity before it.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 25px/1 Ahem;
+  width: 85px;
+  tab-size: 4;
+}
+span {
+  white-space: pre;
+  background-color: green;
+}
+</style>
+<div>X <span>&#x09;</span> X</div>
