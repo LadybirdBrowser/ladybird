@@ -253,6 +253,16 @@ pub(crate) mod largest_contentful_paint;
     clippy::unnecessary_wraps,
     reason = "the bindings call every attribute and operation as one that can throw"
 )]
+pub(crate) mod media_capture;
+#[cfg(not(test))]
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings call every attribute and operation as one that can throw"
+)]
 pub(crate) mod media_source_extensions;
 #[cfg(not(test))]
 #[cfg_attr(

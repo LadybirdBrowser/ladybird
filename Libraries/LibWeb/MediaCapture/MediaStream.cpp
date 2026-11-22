@@ -8,7 +8,6 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrackEvent.h>
 
@@ -132,9 +131,7 @@ void MediaStream::add_track(JS::Object& global_object, GC::Ref<MediaStreamTrack>
     m_tracks.append(track);
 
     // 4. Fire a track event named addtrack with track at stream.
-    MediaStreamTrackEventInit event_init { {}, track };
-    auto event = MediaStreamTrackEvent::create(HTML::EventNames::addtrack, event_init,
-        HighResolutionTime::current_high_resolution_time(global_object));
+    auto event = create_media_stream_track_event(HTML::relevant_realm(global_object), HTML::EventNames::addtrack, {}, track);
     dispatch_event(event);
 }
 
@@ -165,9 +162,7 @@ void MediaStream::remove_track(JS::Object& global_object, GC::Ref<MediaStreamTra
         return;
 
     // 4. Fire a track event named removetrack with track at stream.
-    MediaStreamTrackEventInit event_init { {}, track };
-    auto event = MediaStreamTrackEvent::create(HTML::EventNames::removetrack, event_init,
-        HighResolutionTime::current_high_resolution_time(global_object));
+    auto event = create_media_stream_track_event(HTML::relevant_realm(global_object), HTML::EventNames::removetrack, {}, track);
     dispatch_event(event);
 }
 
