@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const html = document.createElement("div");
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const xml = document.implementation.createDocument("http://www.w3.org/1999/xhtml", "div").documentElement;
+        for (const element of [html, svg, xml]) {
+            element.setAttribute("data-name", "value");
+            const attributes = element.attributes;
+            println(attributes["data-Name"]?.value ?? "missing");
+            println(Object.getOwnPropertyNames(attributes).includes("data-Name"));
+        }
+        html.removeAttribute("data-name");
+        println(html.attributes["data-Name"] === undefined);
+    });
+</script>
