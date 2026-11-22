@@ -302,25 +302,10 @@ impl TileKeyingOfRasterSpace<'_> {
                 hasher.write_u32(ring.color.0);
                 color = ring.color;
                 draws_recorded_color_with_source_over = true;
-                let top_width = ring.top_width.clamp(0, ring.rect.height.max(0));
-                let bottom_width = ring.bottom_width.clamp(0, (ring.rect.height - top_width).max(0));
-                let left_width = ring.left_width.clamp(0, ring.rect.width.max(0));
-                let right_width = ring.right_width.clamp(0, (ring.rect.width - left_width).max(0));
-                for width in [top_width, right_width, bottom_width, left_width] {
+                for width in ring.widths_within_rect() {
                     hasher.write_i32(width);
                 }
-                let (Some(unfilled_inner_x), Some(unfilled_inner_y)) =
-                    (ring.rect.x.checked_add(left_width), ring.rect.y.checked_add(top_width))
-                else {
-                    return None;
-                };
-                let unfilled_inner_rect = IntRect::new(
-                    unfilled_inner_x,
-                    unfilled_inner_y,
-                    ring.rect.width - left_width - right_width,
-                    ring.rect.height - top_width - bottom_width,
-                );
-                (ring.rect, ring.corner_radii, Some(unfilled_inner_rect))
+                (ring.rect, ring.corner_radii, Some(ring.unfilled_inner_rect()?))
             }
             _ => return None,
         };

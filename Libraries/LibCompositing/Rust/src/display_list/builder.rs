@@ -185,13 +185,12 @@ pub fn record_can_paint_within(header: &DisplayListCommandHeader, payload: &[u8]
     if header.command_type != DisplayListCommandType::FillRoundedRectRing || header.has_inline_transform {
         return true;
     }
-    let ring = read_command::<FillRoundedRectRing>(payload);
-    let inner = ring
-        .rect
-        .shrunken(ring.top_width, ring.right_width, ring.bottom_width, ring.left_width);
+    let Some(inner) = read_command::<FillRoundedRectRing>(payload).unfilled_inner_rect() else {
+        return true;
+    };
     // The rounded corners of the inner edge reach into it no farther than the largest radius, so a rect clear of
     // those corners lies inside the inner rect made that much narrower or that much shorter.
-    let radii = ring.corner_radii;
+    let radii = read_command::<FillRoundedRectRing>(payload).corner_radii;
     let corner = [radii.top_left, radii.top_right, radii.bottom_right, radii.bottom_left]
         .iter()
         .map(|radius| radius.horizontal_radius.max(radius.vertical_radius).max(0))
