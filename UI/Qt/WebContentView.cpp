@@ -796,6 +796,9 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && (key == Qt::Key_BracketLeft || key == Qt::Key_BracketRight))
         return true;
+#else
+    if (modifiers == Qt::ControlModifier && key == Qt::Key_F4)
+        return true;
 #endif
 
     if (modifiers == Qt::ControlModifier && key == Qt::Key_PageUp)

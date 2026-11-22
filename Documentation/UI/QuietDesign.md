@@ -812,7 +812,7 @@ address field → page. F6 moves between the chrome and the page.
 | Action | macOS | Windows and Linux |
 |---|---|---|
 | New tab | ⌘T | Ctrl+T |
-| Close tab | ⌘W | Ctrl+W |
+| Close tab | ⌘W | Ctrl+W, Ctrl+F4 |
 | Reopen closed tab | ⇧⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+N |
 | New private window | ⇧⌘N | Ctrl+Shift+N |
