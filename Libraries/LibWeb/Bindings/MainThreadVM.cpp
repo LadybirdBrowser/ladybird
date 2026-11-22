@@ -57,7 +57,6 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Location.h>
-#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -865,7 +864,6 @@ void shut_down_agent()
     // What the agent keeps outside its heap refers to cells in it, so that goes while the heap is alive.
     Platform::discard_thread_pool_completions();
     Fetch::Fetching::disarm_all_body_stream_wakes();
-    HTML::clear_message_event_ports_caches();
     ServiceWorker::clear_service_worker_container_ready_promise_caches();
     FileAPI::forget_blob_url_store_of_this_agent();
     Fetch::Fetching::clear_http_memory_cache();

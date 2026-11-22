@@ -14,7 +14,7 @@
 use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
 
-use ak::Utf16String;
+use ak::{Utf16FlyString, Utf16String};
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, JSVM, MarkedVec, Object, RawNativeFunctionResult, Value, Vm, vm_from_abi};
 use liburl_rust::FfiOrigin;
@@ -24,6 +24,7 @@ use super::event_source::EventSource;
 use super::image_bitmap::ImageBitmap;
 use super::image_bitmap_rendering_context::ImageBitmapRenderingContext;
 use super::image_data::ImageData;
+use super::message_event::{MessageEvent, MessageEventInit, MessageEventSource};
 use super::message_port::MessagePort;
 use super::storage::{Storage, StorageType};
 use super::storage_event::{StorageEvent, StorageEventInit};
@@ -602,6 +603,64 @@ pub unsafe extern "C" fn web_rust_html_create_storage_event(vm: *mut c_void, rea
     StorageEvent::create(vm, realm, &Utf16String::from_utf8(""), event_init)
         .event()
         .as_ptr()
+}
+
+/// The Event of a new MessageEvent in the realm, for C++ to fire. Its origin is the origin if there is one, and the
+/// empty string otherwise.
+///
+/// # Safety
+///
+/// The VM, the realm, the data and each port must be live, and so must the source if it is not null. The type, the
+/// port array and the origin are lent for the call.
+#[allow(clippy::too_many_arguments, reason = "C++ passes each member of the dictionary")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_html_create_message_event(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    r#type: usize,
+    data: u64,
+    ports: *const *mut c_void,
+    count: usize,
+    source: *mut c_void,
+    origin: *const FfiOrigin,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    let mut event_init = MessageEventInit::new(vm);
+    // SAFETY: The caller passes live data.
+    event_init.data = unsafe { Value::from_raw(data) };
+    // SAFETY: The caller lends the ports for the call.
+    for &port in unsafe { ak::slice_from_raw_parts(ports, count) } {
+        // SAFETY: Each port is a live MessagePort.
+        event_init.ports.push(unsafe { cell_from_abi::<MessagePort>(port) });
+    }
+    if !source.is_null() {
+        // SAFETY: A source that is not null is a live MessagePort.
+        let source = unsafe { cell_from_abi::<MessagePort>(source) };
+        event_init.source = Some(MessageEventSource::MessagePort(source));
+    }
+    // SAFETY: An origin that is not null is lent for the call.
+    let origin = (!origin.is_null()).then(|| unsafe { (*origin).to_origin() });
+    // SAFETY: The caller lends the type for the call.
+    let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
+    MessageEvent::create(vm, realm, &r#type, event_init, origin)
+        .event()
+        .as_ptr()
+}
+
+/// The Event of a new MessageEvent in the realm whose type is the empty string, for createEvent().
+///
+/// # Safety
+///
+/// The VM and the realm must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_html_create_message_event_for_create_event(
+    vm: *mut c_void,
+    realm: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    MessageEvent::create_for_create_event(vm, realm).event().as_ptr()
 }
 
 /// # Safety

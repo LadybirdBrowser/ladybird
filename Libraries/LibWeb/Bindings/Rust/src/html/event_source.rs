@@ -28,6 +28,7 @@ use crate::domurl::url_input;
 use crate::fetch::infrastructure::fetch_controller::CppFetchController;
 use crate::fetch::infrastructure::http::requests::CppRequest;
 use crate::fetch::infrastructure::http::response_view::CppResponseView;
+use crate::html::message_event::{MessageEvent, MessageEventInit};
 use crate::platform::timer::CppTimer;
 
 unsafe extern "C" {
@@ -673,16 +674,17 @@ impl EventSource {
         let origin = origin
             .as_ref()
             .expect("Interpreting the event stream follows its response");
-        let event = CppEvent::create_message_event(
+        let mut event_init = MessageEventInit::new(vm);
+        event_init.data = Value::from_string(PrimitiveString::create(vm, Utf16String::from_utf8(data_buffer)));
+        event_init.last_event_id = Utf16String::from_utf8(&last_event_id);
+        let event = MessageEvent::create(
+            vm,
             this.realm,
-            r#type,
-            Value::from_string(PrimitiveString::create(vm, Utf16String::from_utf8(data_buffer))),
-            &[],
-            Some(origin),
-            &last_event_id,
-            None,
+            &Utf16String::from_utf8(r#type),
+            event_init,
+            Some(origin.clone()),
         );
-        event.set_is_trusted(true);
+        event.event().set_is_trusted(true);
 
         // 7. Set the data buffer and the event type buffer to the empty string.
         event_type.clear();
@@ -692,7 +694,7 @@ impl EventSource {
         //    event at the EventSource object.
         queue_a_task(vm, TaskSource::RemoteEvent, (this, event), |_, (this, event)| {
             if this.ready_state.get() != ReadyState::Closed {
-                this.event_target.dispatch_event(&event);
+                this.event_target.dispatch_event(event.event());
             }
         });
     }

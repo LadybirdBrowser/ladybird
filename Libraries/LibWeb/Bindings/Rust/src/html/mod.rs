@@ -72,6 +72,8 @@ pub(crate) mod image_data;
 #[cfg(not(test))]
 pub(crate) mod message_channel;
 #[cfg(not(test))]
+pub(crate) mod message_event;
+#[cfg(not(test))]
 pub(crate) mod message_port;
 #[cfg(not(test))]
 pub(crate) mod navigable;

@@ -24,13 +24,15 @@ use libjs_rust::api::{
     is_host_instance_of,
 };
 
-use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent, set_event_handler_attribute};
+use crate::bindings::event_target::{CppEventTarget, GetTheParent, set_event_handler_attribute};
 use crate::bindings::interface::{
-    Interface, Ref, Wrappable, Wrapped, allocate, implementation_if_wrapper, with_temporary_execution_context,
+    Interface, Ref, Wrappable, Wrapped, allocate, implementation_if_wrapper, implementation_of,
+    with_temporary_execution_context,
 };
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::message_event::{MessageEvent, MessageEventInit};
 use crate::html::port_channel::{PeerState, PortChannelEnd};
 use crate::html::structured_serialize::transfer_data_holder::{
     RawAttachment, ReceivePayload, TransferPayload, append_attachments,
@@ -516,9 +518,15 @@ impl MessagePort {
         TransferRecord::discard(serialize_with_transfer_result);
         let Ok(deserialize_record) = deserialize_record else {
             // If this throws an exception, catch it, fire an event named messageerror at messageEventTarget, using MessageEvent, and then return.
-            let event = CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], None, "", None);
-            event.set_is_trusted(true);
-            message_event_target.dispatch_event(&event);
+            let event = MessageEvent::create(
+                vm,
+                target_realm,
+                &Utf16String::from_utf8("messageerror"),
+                MessageEventInit::new(vm),
+                None,
+            );
+            event.event().set_is_trusted(true);
+            message_event_target.dispatch_event(event.event());
             return;
         };
 
@@ -530,22 +538,17 @@ impl MessagePort {
         let new_ports = MarkedVec::new(vm);
         for value in deserialize_record.transferred_values.values().iter() {
             if is_host_instance_of(value, Self::wrapper_class()) {
-                new_ports.push(*value);
+                new_ports.push(implementation_of::<Self>(*value));
             }
         }
 
         // 7. Fire an event named message at messageEventTarget, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
-        let event = CppEvent::create_message_event(
-            target_realm,
-            "message",
-            message_clone,
-            &new_ports.values(),
-            None,
-            "",
-            None,
-        );
-        event.set_is_trusted(true);
-        message_event_target.dispatch_event(&event);
+        let mut event_init = MessageEventInit::new(vm);
+        event_init.data = message_clone;
+        event_init.ports = new_ports;
+        let event = MessageEvent::create(vm, target_realm, &Utf16String::from_utf8("message"), event_init, None);
+        event.event().set_is_trusted(true);
+        message_event_target.dispatch_event(event.event());
     }
 
     pub(crate) fn enable(this: Ref<Self>, vm: &Vm) {

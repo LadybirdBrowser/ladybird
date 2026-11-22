@@ -57,6 +57,11 @@ impl<T> WorldEntries<T> {
         entries
     }
 
+    /// Forgets the collection of each world.
+    pub(crate) fn clear(&self) {
+        self.entries.borrow_mut().clear();
+    }
+
     /// Calls back with each live collection, for the caller to update when the object changes. The collections stay
     /// alive through the walk, as updating one can allocate and nothing else holds the rest.
     pub(crate) fn for_each_live(&self, vm: &Vm, mut callback: impl FnMut(Gc<T>)) {

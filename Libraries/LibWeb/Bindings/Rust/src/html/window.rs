@@ -20,11 +20,13 @@ use libjs_rust::api::{
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
+use crate::bindings::conversions::window_proxy_from_object;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::event_target::{CppEvent, CppEventTarget};
-use crate::bindings::interface::{Interface, with_temporary_execution_context_and_callbacks};
+use crate::bindings::event_target::CppEventTarget;
+use crate::bindings::interface::{Interface, implementation_of, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::message_event::{MessageEvent, MessageEventInit, MessageEventSource};
 use crate::html::message_port::MessagePort;
 use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::{structured_deserialize_with_transfer, structured_serialize_with_transfer};
@@ -35,6 +37,7 @@ unsafe extern "C" {
     fn web_window_post_message_incumbent_settings() -> *mut c_void;
     fn web_window_post_message_settings_origin(settings: *mut c_void, context: *mut c_void, receive: ReceiveOrigin);
     fn web_window_post_message_source(settings: *mut c_void) -> *mut c_void;
+    fn web_window_post_message_source_object(source: *mut c_void) -> *mut c_void;
     fn web_window_post_message_parse_target_origin(target: usize, context: *mut c_void, receive: ReceiveOrigin);
     fn web_window_post_message_realm(window: *mut c_void) -> *mut c_void;
     fn web_window_post_message_document_origin(window: *mut c_void, context: *mut c_void, receive: ReceiveOrigin);
@@ -223,7 +226,14 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
     // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
     // NB: Both were snapshotted before the task was queued.
     let origin = &posted_message.origin;
-    let source = posted_message.source.as_ref();
+    let source = posted_message.source.as_ref().map(|source| {
+        // SAFETY: The source is a live WindowProxy, and C++ returns its live object.
+        let object = unsafe { web_window_post_message_source_object(source.as_ptr()) };
+        let object = NonNull::new(object.cast()).expect("a WindowProxy has an object");
+        // SAFETY: The object is live.
+        let object = unsafe { Gc::<Object>::from_non_null(object) };
+        MessageEventSource::WindowProxy(window_proxy_from_object(object).expect("the source is a WindowProxy"))
+    });
 
     // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
     // NB: The execution context must not stay on the stack while the event is dispatched, so that a microtask
@@ -240,10 +250,17 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
     //    If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
     //    with its origin initialized to origin and the source attribute initialized to source, and then return.
     let Ok(deserialize_record) = deserialize_record else {
-        let event =
-            CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], Some(origin), "", source);
-        event.set_is_trusted(true);
-        target_window.dispatch_event(&event);
+        let mut event_init = MessageEventInit::new(vm);
+        event_init.source = source;
+        let event = MessageEvent::create(
+            vm,
+            target_realm,
+            &Utf16String::from_utf8("messageerror"),
+            event_init,
+            Some(origin.clone()),
+        );
+        event.event().set_is_trusted(true);
+        target_window.dispatch_event(event.event());
         return;
     };
 
@@ -256,22 +273,24 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
     let new_ports = MarkedVec::new(vm);
     for &value in deserialize_record.transferred_values.values().iter() {
         if is_host_instance_of(&value, MessagePort::wrapper_class()) {
-            new_ports.push(value);
+            new_ports.push(implementation_of::<MessagePort>(value));
         }
     }
 
     // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
     //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
     //    attribute initialized to newPorts.
-    let event = CppEvent::create_message_event(
+    let mut event_init = MessageEventInit::new(vm);
+    event_init.data = message_clone;
+    event_init.source = source;
+    event_init.ports = new_ports;
+    let event = MessageEvent::create(
+        vm,
         target_realm,
-        "message",
-        message_clone,
-        &new_ports.values(),
-        Some(origin),
-        "",
-        source,
+        &Utf16String::from_utf8("message"),
+        event_init,
+        Some(origin.clone()),
     );
-    event.set_is_trusted(true);
-    target_window.dispatch_event(&event);
+    event.event().set_is_trusted(true);
+    target_window.dispatch_event(event.event());
 }

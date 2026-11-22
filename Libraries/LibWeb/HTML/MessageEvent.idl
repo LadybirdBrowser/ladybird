@@ -2,7 +2,7 @@
 typedef (WindowProxy or MessagePort) MessageEventSource;
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface MessageEvent : Event {
     constructor(DOMString type, optional MessageEventInit eventInitDict = {});
 

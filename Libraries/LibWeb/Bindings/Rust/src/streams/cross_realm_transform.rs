@@ -13,7 +13,6 @@ use libjs_rust::api::{
     Trace, Value, Vm,
 };
 
-use crate::bindings::event_target::message_event_data;
 use crate::bindings::interface::{Ref, allocate, implementation_of, wrap};
 use crate::bindings::promise::{
     NativeSteps, WebIdlPromise, create_promise, create_rejected_promise_from_exception, create_resolved_promise,
@@ -21,6 +20,7 @@ use crate::bindings::promise::{
 };
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter};
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
+use crate::html::message_event::MessageEvent;
 use crate::html::message_port::MessagePort;
 use crate::streams::algorithms::{
     AbortAlgorithm, CancelAlgorithm, CloseAlgorithm, PullAlgorithm, SizeAlgorithm, StartAlgorithm, WriteAlgorithm,
@@ -61,7 +61,7 @@ fn add_handlers<C: Trace + Copy + 'static>(
         |vm: &Vm, function: &NativeSteps<(C, Gc<Realm>), MessageSteps<C>>| {
             let (state, realm) = function.captures;
             // NB: The port's message event handler is called with a MessageEvent.
-            let data = message_event_data(vm.argument(0));
+            let data = implementation_of::<MessageEvent>(vm.argument(0).as_object()).data_value();
             (function.steps)(&CallContext::new(vm, realm), state, data);
             Ok(Value::UNDEFINED)
         },

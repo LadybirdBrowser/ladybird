@@ -1678,6 +1678,7 @@ void web_window_queue_posted_message(JSVM*, Window*, SerializedTransferRecord*, 
 EnvironmentSettingsObject* web_window_post_message_incumbent_settings();
 void web_window_post_message_settings_origin(EnvironmentSettingsObject*, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
 WindowProxy* web_window_post_message_source(EnvironmentSettingsObject*);
+JSObject* web_window_post_message_source_object(WindowProxy*);
 void web_window_post_message_parse_target_origin(FlatPtr, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
 void* web_window_post_message_realm(Window*);
 void web_window_post_message_document_origin(Window*, void*, void (*)(void*, URL::FFI::FfiOrigin const*));
@@ -1696,6 +1697,11 @@ void web_window_post_message_settings_origin(EnvironmentSettingsObject* settings
 WindowProxy* web_window_post_message_source(EnvironmentSettingsObject* settings)
 {
     return window_proxy_from_global_this_value(settings->realm().global_environment().global_this_value()).ptr();
+}
+
+JSObject* web_window_post_message_source_object(WindowProxy* source)
+{
+    return JS::HostABI::object_to_abi(&source->object());
 }
 
 void web_window_post_message_parse_target_origin(FlatPtr raw_target_origin, void* context, void (*receive)(void*, URL::FFI::FfiOrigin const*))
