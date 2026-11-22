@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    iframe { display: block; width: 400px; height: 400px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    let boxes = "";
+    for (let i = 0; i < 16; ++i) {
+        const angle = 100 + i * 10;
+        boxes += `<div style="position: absolute; left: ${20 + (i % 4) * 100}px; top: ${20 + Math.floor(i / 4) * 100}px; width: 60px; height: 60px; background: navy; transform: rotate(${angle}deg)"></div>`;
+    }
+    document.querySelector("iframe").srcdoc = `<!DOCTYPE html><style>body { margin: 0; }</style>${boxes}`;
+</script>

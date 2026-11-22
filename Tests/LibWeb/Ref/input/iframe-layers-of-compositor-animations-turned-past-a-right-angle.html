@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-layers-of-compositor-animations-turned-past-a-right-angle-ref.html">
+<!-- The compositor resamples the rotated tiles bilinearly, which a direct raster of the rotated boxes does not. -->
+<meta name="fuzzy" content="maxDifference=0-80;totalPixels=0-6400">
+<style>
+    iframe { display: block; width: 400px; height: 400px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    // Each box holds a third of its turn from 0 to three times its angle for the whole test: an angle past a right one,
+    // whose sampled rotation the compositor still composites as a 2D one.
+    let boxes = "";
+    for (let i = 0; i < 16; ++i) {
+        const angle = 100 + i * 10;
+        boxes += `<style>@keyframes turn-${i} { from { transform: rotate(0deg); } to { transform: rotate(${angle * 3}deg); } }</style>`;
+        boxes += `<div style="position: absolute; left: ${20 + (i % 4) * 100}px; top: ${20 + Math.floor(i / 4) * 100}px; width: 60px; height: 60px; background: navy; animation: turn-${i} 300s steps(2, jump-both) infinite"></div>`;
+    }
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html><style>body { margin: 0; }</style>${boxes}`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>
