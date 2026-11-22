@@ -10,7 +10,7 @@
 //! A procedure changes the records it runs on and records what it asks the host to do as `HostEffects`, in the order
 //! its steps ask for them, which the host performs once it has returned.
 
-use super::animation::{AnimationHandle, AnimationKind, CssAnimationFlag, TransitionPhase};
+use super::animation::{AnimationHandle, AnimationKind, AnimationRecord, CssAnimationFlag, TransitionPhase};
 use super::composite_order::{TreeOrder, composite_order};
 use super::effect::{EffectFlag, EffectHandle};
 use super::host_effects::{HostEffectKind, HostEffects, PlaybackEventType};
@@ -1842,15 +1842,8 @@ impl Procedures<'_> {
 
         // - The existence of the animation is not prescribed by markup. That is, it is not a CSS animation with an
         //   owning element, nor a CSS transition with an owning element.
-        {
-            let animation = self.animation.borrow();
-            if matches!(
-                animation.kind(),
-                AnimationKind::CssAnimation(_) | AnimationKind::CssTransition(_)
-            ) && animation.owning_element().is_some()
-            {
-                return false;
-            }
+        if is_prescribed_by_markup(&self.animation.borrow()) {
+            return false;
         }
 
         // - The animation's play state is finished.
@@ -2024,6 +2017,16 @@ pub(crate) fn set_effect_target(effect: &EffectHandle, element: Option<NonNull<c
     effects
 }
 
+/// Whether the existence of `animation` is prescribed by markup: it is a CSS animation or a CSS transition with an
+/// owning element.
+/// https://www.w3.org/TR/web-animations-1/#replaceable-animation
+fn is_prescribed_by_markup(animation: &AnimationRecord) -> bool {
+    matches!(
+        animation.kind(),
+        AnimationKind::CssAnimation(_) | AnimationKind::CssTransition(_)
+    ) && animation.owning_element().is_some()
+}
+
 /// https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
 /// For the document whose associated timelines are `timelines`, where `is_descendant_of_document` answers whether the
 /// host's `DOM::Element` is a descendant of it, and `tree_order` compares elements in tree order. Hands back what that
@@ -2051,6 +2054,11 @@ pub(crate) fn remove_replaced_animations<'a>(
             // AD-HOC: Like a CSS animation with an owning element, an SVG animation element prescribes its animation in
             //         markup, so it is not replaceable.
             if matches!(animation.borrow().kind(), AnimationKind::Smil { .. }) {
+                continue;
+            }
+            // OPTIMIZATION: A CSS animation or CSS transition with an owning element is never replaceable. Rule those
+            //               out before looking up the effect target and running the full replaceability check.
+            if is_prescribed_by_markup(&animation.borrow()) {
                 continue;
             }
             let target = animation
