@@ -131,7 +131,6 @@ impl std::fmt::Display for WhyMediaIsReplayed {
             WhyMediaIsReplayed::NoPlacement(LiveMedia::CompositedContext(_)) => {
                 "the window server does not show nested contexts"
             }
-            WhyMediaIsReplayed::NoPlacement(LiveMedia::Caret) => "the window server does not show carets",
             WhyMediaIsReplayed::NoPlacement(_) => "where the window server would show it is not worked out",
             WhyMediaIsReplayed::CanvasHasNoPresentableSurface => "the canvas has no surface the window server can show",
             WhyMediaIsReplayed::VideoHasNoFrame => "the video has no frame",
@@ -299,7 +298,10 @@ impl ContextPresenting {
                 }
                 (MediaKind::Video, id.0)
             }
-            LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) | LiveMedia::Caret => {
+            LiveMedia::ImageFrame(_)
+            | LiveMedia::CompositedContext(_)
+            | LiveMedia::Caret
+            | LiveMedia::ScrollBar { .. } => {
                 return Some(WhyMediaIsReplayed::NoPlacement(*content));
             }
         };
@@ -714,7 +716,10 @@ impl ContextPresenting {
                             .get(&id.0)
                             .is_some_and(|sink| sink.has_frame && sink.frame_has_surface),
                     ),
-                    LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) | LiveMedia::Caret => continue,
+                    LiveMedia::ImageFrame(_)
+                    | LiveMedia::CompositedContext(_)
+                    | LiveMedia::Caret
+                    | LiveMedia::ScrollBar { .. } => continue,
                 };
                 if !has_content {
                     continue;
@@ -731,9 +736,8 @@ impl ContextPresenting {
                 });
                 continue;
             }
-            if let LayerContent::Caret { .. } = layer.content {
-                if let Some((surface, rect_in_layer_space)) = self.layers.tiles.caret_surface_of(&compositing.identity)
-                {
+            if let LayerContent::OwnSurface { .. } = layer.content {
+                if let Some((surface, rect_in_layer_space)) = self.layers.tiles.own_surface_of(&compositing.identity) {
                     let draw = TileDraw::TileSurface {
                         coord: TileCoord::new(0, 0),
                         surface,

@@ -18,8 +18,8 @@
 use super::wire::plan_holds_more_than_compositor_decodes;
 use super::{
     BandOfPlan, BarrierCut, BarrierOfPlan, CutOfPlan, LayerIndex, LayerStack, LayeredPlan, LayeringObstacles,
-    MAXIMUM_MEDIA_LAYER_COUNT, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex,
-    WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
+    MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex, WhyCompositorCannotCompositeEffect,
+    WhyListIsOneLayer, maximum_layer_count_of_live_content_like, media_name,
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
 use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
@@ -282,7 +282,7 @@ pub struct PlacedEffect {
     pub why_composited_regardless_of_layer_content: Option<WhyEffectIsComposited>,
 }
 
-/// A canvas, video, nested context or caret that is a layer of its own, alone in its run.
+/// Live content that is a layer of its own, alone in its run.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PlacedMedia {
     pub content: LiveContent,
@@ -923,7 +923,7 @@ impl<'a> ListBeingPlaced<'a> {
                     let record_span = list.span_of_run(run_index as usize);
                     debug_assert_eq!(
                         record_position, record_span.begin,
-                        "a canvas, video, nested context or caret is alone in its run"
+                        "live content with a layer is alone in its run"
                     );
                     let reach = runs.reach_of_run_by_run_index[run_index as usize];
                     placed_media.push(PlacedMedia {
@@ -938,18 +938,26 @@ impl<'a> ListBeingPlaced<'a> {
                 Some(why_no_layer) => media_without_layers.push((content, why_no_layer)),
             }
         }
-        if placed_media.len() > MAXIMUM_MEDIA_LAYER_COUNT {
-            let canvases_and_videos_then_nested_contexts_then_carets = |media: &PlacedMedia| match media.content {
-                LiveContent::CompositedContext(_) => 1,
-                LiveContent::Caret => 2,
-                _ => 0,
-            };
-            placed_media.sort_by_key(canvases_and_videos_then_nested_contexts_then_carets);
-            for media_past_limit in placed_media.drain(MAXIMUM_MEDIA_LAYER_COUNT..) {
-                media_without_layers.push((media_past_limit.content, WhyMediaHasNoLayer::MoreMediaThanLayersFor));
+        // Past the most layers that live content of its kind gets, canvases and videos keep theirs before nested
+        // contexts, and carets before scroll bars.
+        let gives_way_to_others_of_its_kind = |media: &PlacedMedia| {
+            matches!(
+                media.content,
+                LiveContent::CompositedContext(_) | LiveContent::ScrollBar { .. }
+            )
+        };
+        placed_media.sort_by_key(gives_way_to_others_of_its_kind);
+        let mut layer_count_by_kind = [0usize; 2];
+        placed_media.retain(|media| {
+            let layer_count = &mut layer_count_by_kind[usize::from(media.content.is_drawn_by_its_record())];
+            *layer_count += 1;
+            let gets_layer = *layer_count <= maximum_layer_count_of_live_content_like(media.content);
+            if !gets_layer {
+                media_without_layers.push((media.content, WhyMediaHasNoLayer::MoreMediaThanLayersFor));
             }
-            placed_media.sort_by_key(|media| media.record_span.begin);
-        }
+            gets_layer
+        });
+        placed_media.sort_by_key(|media| media.record_span.begin);
         for index in 0..placed_media.len() {
             placed_media[index].ordinal = placed_media[..index]
                 .iter()
@@ -960,8 +968,8 @@ impl<'a> ListBeingPlaced<'a> {
     }
 
     // Under a transform animation that leaves the plane, a sample can draw the media through a matrix that is not 2D
-    // affine, whatever the tree holds. A caret does not get the effects around it composited, as the other media do:
-    // it has no layer inside an effect that a replay draws into a layer of its own.
+    // affine, whatever the tree holds. A caret or a scroll bar does not get the effects around it composited, as other
+    // live content does: it has no layer inside an effect that a replay draws into a layer of its own.
     fn why_media_has_no_layer(
         &self,
         runs: &RunGroupsPlaced,
@@ -977,6 +985,7 @@ impl<'a> ListBeingPlaced<'a> {
                 | DisplayListCommandType::DrawVideoFrame
                 | DisplayListCommandType::DrawCompositedContext
                 | DisplayListCommandType::PaintCaret
+                | DisplayListCommandType::PaintScrollBar
         ) {
             return Some(WhyMediaHasNoLayer::DrawnInsideAnotherCommand);
         }
@@ -986,7 +995,7 @@ impl<'a> ListBeingPlaced<'a> {
         {
             return Some(WhyMediaHasNoLayer::UnderTransformThatIsNot2DAffine);
         }
-        if content == LiveContent::Caret {
+        if content.is_drawn_by_its_record() {
             if !self
                 .tree
                 .content_under_effect_composites_into_root_group(run.context.effect)
@@ -2359,10 +2368,13 @@ mod tests {
         BarrierCut, BarrierIdentity, CutsOfCell, LayerIdentity, NodeNamesFromIndices, WindowServerPresentationOfMedia,
         media_name,
     };
+    use crate::display_list::layers::{
+        MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_MEDIA_LAYER_COUNT,
+    };
     use crate::display_list::test_fixtures::{
         GREEN, ListOfOneChunk, VIEWPORT, animation_of, canvas, caret, effects, fill, frosted_glass,
-        opacity_animation_of, scroll_node, scroll_record, spinning, transform, transform_animation_of,
-        tree_with_document_scroll, tree_with_root_isolation_effect,
+        opacity_animation_of, scroll_bar, scroll_node, scroll_record, spinning, transform, transform_animation_of,
+        tree_with_document_scroll, tree_with_document_scroller, tree_with_root_isolation_effect,
     };
     use crate::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
     use crate::node_slot_id::NodeSlotId;
@@ -2966,6 +2978,77 @@ mod tests {
             )]
         );
         assert!(planned.stack.composited_effects.is_empty());
+    }
+
+    #[test]
+    fn a_scroll_bar_gets_a_layer_of_its_own() {
+        let (tree, _, contexts) = tree_with_document_scroller(&[IntRect::new(100, 100, 300, 200)]);
+        let (document, scroller) = (contexts[0], contexts[1]);
+        let planned = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(fill(IntRect::new(100, 100, 300, 700), GREEN), scroller)
+            .with(scroll_bar(scroller.spatial, IntRect::new(390, 100, 10, 200)), document)
+            .planned(&tree, &[]);
+        assert!(planned.placement.media_without_layers.is_empty());
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&planned.stack),
+            [
+                "base document band 0",
+                "painted scroller@s2 in document band 0",
+                "vertical scroll bar #0 document"
+            ]
+        );
+    }
+
+    // Carets and scroll bars get layers past the most canvases, videos and nested contexts that do, and past the most
+    // carets and scroll bars that get layers, carets keep theirs.
+    #[test]
+    fn carets_and_scroll_bars_count_against_a_limit_of_their_own() {
+        let (tree, _, contexts) = tree_with_document_scroller(&[IntRect::new(100, 100, 300, 200)]);
+        let (document, scroller) = (contexts[0], contexts[1]);
+        let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document);
+        for index in 0..MAXIMUM_MEDIA_LAYER_COUNT {
+            list = list.with(
+                canvas(IntRect::new(10 + index as i32 * 60, 1000, 50, 50), index as u64 + 1),
+                document,
+            );
+        }
+        for index in 0..MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD as i32 {
+            list = list.with(
+                scroll_bar(scroller.spatial, IntRect::new(10 + index * 12, 100, 10, 200)),
+                document,
+            );
+        }
+        let planned = list
+            .with(caret(IntRect::new(20, 400, 2, 16)), document)
+            .planned(&tree, &[]);
+        let placed_count = |is_of_kind: fn(&LiveContent) -> bool| {
+            planned
+                .placement
+                .placed_media
+                .iter()
+                .filter(|media| is_of_kind(&media.content))
+                .count()
+        };
+        assert_eq!(
+            placed_count(|content| matches!(content, LiveContent::Canvas(_))),
+            MAXIMUM_MEDIA_LAYER_COUNT
+        );
+        assert_eq!(placed_count(|content| *content == LiveContent::Caret), 1);
+        assert_eq!(
+            placed_count(|content| matches!(content, LiveContent::ScrollBar { .. })),
+            MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD - 1
+        );
+        assert_eq!(
+            planned.placement.media_without_layers,
+            [(
+                LiveContent::ScrollBar {
+                    scroll_node: scroller.spatial,
+                    vertical: true
+                },
+                WhyMediaHasNoLayer::MoreMediaThanLayersFor
+            )]
+        );
     }
 
     #[test]

@@ -33,7 +33,7 @@ impl IndexedRecord {
     }
 }
 
-/// Content that changes under the list's immutable commands.
+/// Content that changes under the list's immutable commands. A record that draws it can be a layer of its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LiveContent {
     Canvas(CanvasId),
@@ -42,6 +42,20 @@ pub enum LiveContent {
     CompositedContext(CompositorContextId),
     /// A caret, which blinks.
     Caret,
+    /// The vertical or horizontal scroll bar of the scroller of `scroll_node`, which draws what the frame shows of the
+    /// scroller.
+    ScrollBar {
+        scroll_node: SpatialNodeIndex,
+        vertical: bool,
+    },
+}
+
+impl LiveContent {
+    /// Whether its record draws all of it, as that of a caret or a scroll bar does, rather than pixels from outside the
+    /// list.
+    pub fn is_drawn_by_its_record(self) -> bool {
+        matches!(self, LiveContent::Caret | LiveContent::ScrollBar { .. })
+    }
 }
 
 /// A top-level record that draws live content, itself or in a record nested in it.
@@ -102,6 +116,13 @@ pub(crate) fn live_content_of(command_type: DisplayListCommandType, payload: &[u
             read_command::<DrawCompositedContext>(payload).child_context_id,
         )),
         T::PaintCaret => Some(LiveContent::Caret),
+        T::PaintScrollBar => {
+            let scroll_bar = read_command::<PaintScrollBar>(payload);
+            Some(LiveContent::ScrollBar {
+                scroll_node: scroll_bar.scroll_node_index,
+                vertical: scroll_bar.vertical,
+            })
+        }
         _ => None,
     }
 }

@@ -9,7 +9,8 @@
 use crate::display_list::builder::DisplayListBuilder;
 use crate::display_list::commands::{
     CanvasId, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommand, DrawCanvas, EffectNodeIndex,
-    FillRect, ImageFrameResourceId, PaintCaret, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
+    FillRect, ImageFrameResourceId, PaintCaret, PaintScrollBar, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    VideoSinkHandle,
 };
 use crate::display_list::layers::LayerStack;
 use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
@@ -203,6 +204,22 @@ pub fn caret(rect: IntRect) -> PaintCaret {
         color: Color::from_rgb(0, 0, 0),
         blink_cycle_start_time_ns: 0,
         should_blink: true,
+    }
+}
+
+/// The vertical scroll bar of the scroller of `scroll_node`, along the right edge of `track_rect`.
+pub fn scroll_bar(scroll_node: SpatialNodeIndex, track_rect: IntRect) -> PaintScrollBar {
+    PaintScrollBar {
+        scroll_node_index: scroll_node,
+        gutter_rect: track_rect,
+        thumb_rect: IntRect::new(track_rect.x, track_rect.y, track_rect.width, track_rect.height / 4),
+        track_rect,
+        expanded_gutter_rect: track_rect,
+        scroll_size: 1.0,
+        thumb_color: Color::from_rgb(128, 128, 128),
+        thumb_outline_color: Color::TRANSPARENT,
+        track_color: Color::TRANSPARENT,
+        vertical: true,
     }
 }
 

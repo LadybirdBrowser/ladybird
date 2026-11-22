@@ -96,7 +96,7 @@ impl PlannedLayers {
             })
     }
 
-    /// What the dump says of each canvas, video, nested context or caret that was not given a layer, and why.
+    /// What the dump says of each drawing of live content that was not given a layer, and why.
     pub fn lines_of_media_without_layers(&self) -> impl Iterator<Item = String> + '_ {
         self.placement
             .media_without_layers
@@ -105,9 +105,8 @@ impl PlannedLayers {
     }
 
     /// The lines the overlay of layers shows of the stack past its layers, which WebContent sends with the plan: those
-    /// of the effects the compositor composites, of the canvases, videos, nested contexts and carets without layers,
-    /// and of the effects that read only their own layer, with nodes named by their indices, as many and as long as a
-    /// plan holds.
+    /// of the effects the compositor composites, of the live content without layers, and of the effects that read only
+    /// their own layer, with nodes named by their indices, as many and as long as a plan holds.
     /// A stack of one layer that replays the whole list has none.
     pub fn note_lines_for_layers_overlay(&self) -> Vec<String> {
         if self.stack.replays_whole_list() {
@@ -142,8 +141,8 @@ impl PlannedLayers {
     /// line per layer, bottom to top: its index, what it holds, the space it is rastered in, what it sits above, the
     /// records `describe_records` names for it, what it is clipped to as it is composited, and whether the window
     /// server that `presentation` is of can show it. A layer below the base layer, or one that can hold nothing, is
-    /// left out. Then a line for each effect the compositor composites, each canvas, video, nested context or caret
-    /// without a layer, each animation without a layer, and each effect that reads only its own layer.
+    /// left out. Then a line for each effect the compositor composites, each drawing of live content without a layer,
+    /// each animation without a layer, and each effect that reads only its own layer.
     pub fn layer_lines(
         &self,
         presentation: &WindowServerPresentationOfMedia,
@@ -225,7 +224,8 @@ impl PlannedLayers {
             return vec![LayerIndex(0)];
         }
         for (index, layer) in stack.layers.iter().enumerate() {
-            let (LayerContent::Media { record_span } | LayerContent::Caret { record_span }) = &layer.content else {
+            let (LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span }) = &layer.content
+            else {
                 continue;
             };
             if record_span.contains(position) {
