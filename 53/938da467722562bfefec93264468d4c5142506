@@ -1,0 +1,10 @@
+Ladybird now hit-tests SVG text by its character cells, as SVG 2 says,
+so a point in a cell hits the text whether or not a glyph covers it.
+
+Gecko does the same: SVGTextFrame::GetFrameForPoint() tests the rect of
+each TextRenderedRun, in that run’s user space. And so does Blink:
+BoxFragmentPainter::HitTestTextItem() tests an SVG text item’s cell quad
+(SvgUnscaledQuad()) or its text bounds rect. In Chrome 158.0.8127.36,
+Firefox 151.0, and WebKit 26.5 (engine-compare), elementFromPoint()
+finds the <text> anywhere in its cells, including over blank parts of
+Ahem’s “É” and “p” cells.
