@@ -1,0 +1,22 @@
+audio
+Root display: block
+Root overflow: hidden
+Timestamp line height: normal
+Timestamp letter spacing: normal
+Timestamp text transform: none
+Play is left of mute: true
+Controls display: flex
+Hidden controls: hidden
+Disabled pointer events: none
+Hidden cursor: none
+video
+Root display: block
+Root overflow: hidden
+Timestamp line height: normal
+Timestamp letter spacing: normal
+Timestamp text transform: none
+Play is left of mute: true
+Controls display: flex
+Hidden controls: hidden
+Disabled pointer events: none
+Hidden cursor: none

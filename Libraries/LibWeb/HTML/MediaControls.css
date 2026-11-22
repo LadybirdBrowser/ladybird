@@ -1,4 +1,6 @@
 .container {
+    all: initial;
+
     --accent-color: #9d7cf2;
     --dark-accent-color: #8a64e5;
     --light-accent-color: #e0d4ff;
@@ -6,8 +8,12 @@
     --track-color: rgb(20, 20, 20);
     --panel-color: rgb(38, 38, 38);
 
+    display: block;
     overflow: hidden;
-    text-align: left;
+    direction: ltr;
+    visibility: inherit;
+    pointer-events: inherit;
+    cursor: inherit;
 }
 
 .container.video {
