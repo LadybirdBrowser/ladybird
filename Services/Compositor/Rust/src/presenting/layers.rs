@@ -98,7 +98,7 @@ impl LiveContentVersions for LiveContentVersionsOfFrame<'_> {
         self.live_content
             .video_sinks
             .get(&video_sink.0)
-            .and_then(|sink| sink.has_frame.then_some(sink.frame_id))
+            .and_then(|sink| sink.frame.is_some().then_some(sink.frame_id))
     }
 
     fn image_frame_pixel_generation(&self, image_frame: ImageFrameResourceId) -> Option<u64> {

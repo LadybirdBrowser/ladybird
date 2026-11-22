@@ -82,8 +82,8 @@ if (USE_VULKAN_DMABUF_IMAGES)
 endif()
 
 if (APPLE)
-    target_sources(compositorservice PRIVATE CoreAnimationWindowServer.mm MainDispatchQueue.mm VideoFrameSkia.mm)
-    target_link_libraries(compositorservice PUBLIC "-framework AVFoundation" "-framework CoreGraphics" "-framework CoreMedia" "-framework CoreVideo" "-framework QuartzCore")
+    target_sources(compositorservice PRIVATE MainDispatchQueue.mm VideoFrameSkia.mm)
+    target_link_libraries(compositorservice PUBLIC "-framework AVFoundation" "-framework CoreGraphics" "-framework CoreMedia" "-framework CoreVideo" "-framework IOSurface" "-framework QuartzCore")
 endif()
 
 if (WIN32 AND HAS_DIRECTX)

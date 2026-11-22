@@ -7,9 +7,7 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/WindowServer.h>
 
-#ifdef AK_OS_MACOS
-#    include <Compositor/CoreAnimationWindowServer.h>
-#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+#if defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
 #    include <Compositor/DirectCompositionWindowServer.h>
 #endif
 
@@ -17,9 +15,7 @@ namespace Compositor {
 
 RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 {
-#ifdef AK_OS_MACOS
-    return CoreAnimationWindowServer::try_create();
-#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+#if defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
     return DirectCompositionWindowServer::try_create();
 #else
     return nullptr;
@@ -29,7 +25,7 @@ RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 ErrorOr<NonnullRefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_stores([[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
 #ifdef AK_OS_MACOS
-    return CoreAnimationWindowServer::try_create_presentable_surface(size, skia_backend_context);
+    return PresentableSurface::try_create_over_new_iosurface(size, skia_backend_context);
 #elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
     return DirectCompositionWindowServer::try_create_presentable_surface(size, skia_backend_context);
 #else
@@ -44,7 +40,7 @@ ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface
     if (!skia_backend_context.can_hold_texture_of_size(size))
         return nullptr;
 #ifdef AK_OS_MACOS
-    return RefPtr<PresentableSurface> { TRY(CoreAnimationWindowServer::try_create_presentable_surface_over_new_iosurface(size, skia_backend_context)) };
+    return RefPtr<PresentableSurface> { TRY(PresentableSurface::try_create_over_new_iosurface(size, skia_backend_context)) };
 #elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
     return RefPtr<PresentableSurface> { TRY(DirectCompositionWindowServer::try_create_presentable_surface_on_gpu(size, skia_backend_context)) };
 #else

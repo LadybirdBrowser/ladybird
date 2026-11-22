@@ -9,6 +9,7 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/WindowServer.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/SharedImageBuffer.h>
 
 namespace Compositor {
 
@@ -36,6 +37,32 @@ NonnullRefPtr<PresentableSurface> PresentableSurface::create(NonnullRefPtr<Gfx::
         window_server_surface_may_be_read,
         destroy_window_server_surface));
 }
+
+#ifdef AK_OS_MACOS
+NonnullRefPtr<PresentableSurface> PresentableSurface::create_over_iosurface(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin, Gfx::SharedImageBuffer const& buffer, OwnPtr<Gfx::SharedImageBuffer> owned_buffer)
+{
+    RustFFI::FfiCppObject owner {};
+    if (owned_buffer) {
+        owner.object = owned_buffer.leak_ptr();
+        owner.destroy = [](void* buffer) { (void)adopt_own(*static_cast<Gfx::SharedImageBuffer*>(buffer)); };
+    }
+    return adopt_presentable_surface(RustFFI::compositor_presentable_surface_create_over_io_surface(
+        painting_surface.ptr(),
+        origin == Gfx::PaintingSurface::Origin::BottomLeft,
+        buffer.iosurface_handle().core_foundation_pointer(),
+        owner));
+}
+
+ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurface::try_create_over_new_iosurface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    auto buffer = make<Gfx::SharedImageBuffer>(TRY(Gfx::SharedImageBuffer::try_create(size)));
+    auto painting_surface = skia_backend_context
+        ? Gfx::PaintingSurface::create_from_shared_image_buffer(*buffer, *skia_backend_context)
+        : Gfx::PaintingSurface::wrap_bitmap(*buffer->bitmap());
+    auto const& buffer_of_surface = *buffer;
+    return create_over_iosurface(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft, buffer_of_surface, move(buffer));
+}
+#endif
 
 Gfx::PaintingSurface& PresentableSurface::painting_surface() const
 {

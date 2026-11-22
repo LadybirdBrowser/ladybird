@@ -16,7 +16,7 @@ use crate::surfaces::presentable_surface::PresentableSurface;
 use crate::webgl::host::{
     ContextOptions, DefaultBuffers, ImageConversion, ImageConversionOutcome, PresentOutcome, VideoFrameCopy, WebGLHost,
 };
-use crate::window_server::VideoFrameForWindowServer;
+use crate::window_server::{VideoColorMetadata, VideoFrameForWindowServer};
 use libcompositing_rust::display_list::commands::VideoSinkHandle;
 use libcompositing_rust::display_list::commands::{CanvasId, CompositorContextId, DisplayListCommandType};
 use libcompositing_rust::display_list::storage::{
@@ -82,13 +82,63 @@ pub struct FfiCanvasContent {
 #[repr(C)]
 pub struct FfiVideoSinkContent {
     pub handle: u64,
-    pub has_frame: bool,
     pub frame_id: u64,
-    pub frame_holds_high_dynamic_range: bool,
     /// Whether the frame is in a surface the window server can show as it is.
     pub frame_has_surface: bool,
     /// The frame, handed over, or null without a frame.
     pub frame: FfiCppObject,
+    /// The surface of the frame that the window server reads, an IOSurface on macOS, which lives as long as the frame,
+    /// or null.
+    pub frame_surface: *mut c_void,
+    pub frame_visible_size: IntSize,
+    pub frame_color: FfiVideoColorMetadata,
+}
+
+/// SMPTE ST 2086 mastering display color volume, with chromaticities as x and y, and luminances in cd/m².
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct MasteringDisplayColorVolume {
+    pub red: [f32; 2],
+    pub green: [f32; 2],
+    pub blue: [f32; 2],
+    pub white_point: [f32; 2],
+    pub maximum_luminance: f32,
+    pub minimum_luminance: f32,
+}
+
+/// CTA-861.3 content light level information, in cd/m². A value of zero is unknown.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct ContentLightLevelInformation {
+    pub maximum_content_light_level: u16,
+    pub maximum_frame_average_light_level: u16,
+}
+
+#[repr(C)]
+pub struct FfiVideoColorMetadata {
+    pub color_primaries: u8,
+    pub transfer_characteristics: u8,
+    pub matrix_coefficients: u8,
+    pub has_mastering_display_color_volume: bool,
+    pub mastering_display_color_volume: MasteringDisplayColorVolume,
+    pub has_content_light_level_information: bool,
+    pub content_light_level_information: ContentLightLevelInformation,
+}
+
+impl FfiVideoColorMetadata {
+    fn metadata(&self) -> VideoColorMetadata {
+        VideoColorMetadata {
+            color_primaries: self.color_primaries,
+            transfer_characteristics: self.transfer_characteristics,
+            matrix_coefficients: self.matrix_coefficients,
+            mastering_display_color_volume: self
+                .has_mastering_display_color_volume
+                .then_some(self.mastering_display_color_volume),
+            content_light_level_information: self
+                .has_content_light_level_information
+                .then_some(self.content_light_level_information),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -118,9 +168,7 @@ pub struct CanvasContent {
 #[derive(Clone, Debug)]
 pub struct VideoSinkContent {
     pub handle: u64,
-    pub has_frame: bool,
     pub frame_id: u64,
-    pub frame_holds_high_dynamic_range: bool,
     /// Whether the frame is in a surface the window server can show as it is.
     pub frame_has_surface: bool,
     pub frame: Option<Rc<VideoFrameForWindowServer>>,
@@ -829,13 +877,18 @@ impl RasterHost {
                     };
                     let content = VideoSinkContent {
                         handle: sink.handle,
-                        has_frame: sink.has_frame,
                         frame_id: sink.frame_id,
-                        frame_holds_high_dynamic_range: sink.frame_holds_high_dynamic_range,
                         frame_has_surface: sink.frame_has_surface,
-                        // SAFETY: The host hands the frame over.
-                        frame: unsafe { CppObject::adopt(frame) }
-                            .map(|frame| Rc::new(VideoFrameForWindowServer::new(frame))),
+                        // SAFETY: The host hands the frame over, with the surface it is in, which lives as long as it does.
+                        frame: unsafe { CppObject::adopt(frame) }.map(|frame| unsafe {
+                            Rc::new(VideoFrameForWindowServer::new(
+                                frame,
+                                sink.frame_id,
+                                sink.frame_surface,
+                                sink.frame_visible_size,
+                                sink.frame_color.metadata(),
+                            ))
+                        }),
                     };
                     (sink.handle, content)
                 })

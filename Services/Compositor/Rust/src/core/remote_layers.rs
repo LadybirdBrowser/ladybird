@@ -135,6 +135,7 @@ impl CompositorCore {
             "Compositor: Releasing the window resize that was never committed"
         );
         self.remote_layers.borrow_mut().release_synchronized_resize_hold();
+        self.release_content_window_server_let_go_of();
     }
 
     pub(super) fn update_synchronized_resize_hold_timer(&self, was_holding_changes: bool) {
@@ -144,6 +145,21 @@ impl CompositorCore {
                 .schedule(Timer::SynchronizedResizeHold, SYNCHRONIZED_RESIZE_HOLD_LIMIT);
         } else if !is_holding_changes && was_holding_changes {
             self.host.unschedule(Timer::SynchronizedResizeHold);
+            // What the layers stopped showing while changes were held is let go of once the changes reach the screen.
+            self.release_content_window_server_let_go_of();
+        }
+    }
+
+    /// Lets the remote layers go of what the window server can no longer be reading, and asks again once more of it
+    /// can be let go of.
+    pub(super) fn release_content_window_server_let_go_of(&self) {
+        let ask_again_in = self.remote_layers.borrow().release_content_window_server_let_go_of();
+        match ask_again_in {
+            Some(delay) => self.host.schedule(
+                Timer::ReleaseContentWindowServerLetGoOf,
+                Duration::from_nanoseconds(i64::try_from(delay.as_nanos()).unwrap_or(i64::MAX)),
+            ),
+            None => self.host.unschedule(Timer::ReleaseContentWindowServerLetGoOf),
         }
     }
 }

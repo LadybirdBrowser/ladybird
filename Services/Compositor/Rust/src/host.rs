@@ -43,6 +43,8 @@ pub enum Timer {
     Context(CompositorContextId, ContextTimer),
     /// Releases what the window servers hold off screen for a window resize that its presentation never commits.
     SynchronizedResizeHold,
+    /// Lets go of what remote layers stopped showing once the window server can no longer be reading it.
+    ReleaseContentWindowServerLetGoOf,
 }
 
 // The host knows a timer by a number of its own, which stays the same for as long as the timer exists.

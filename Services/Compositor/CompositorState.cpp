@@ -1220,10 +1220,32 @@ struct VideoFrameForRust {
 
 }
 
-static bool video_frame_holds_high_dynamic_range(Media::VideoFrame const& frame)
+static RustFFI::FfiVideoColorMetadata ffi_video_color_metadata_of(Media::ColorMetadata const& color_metadata)
 {
-    auto transfer_characteristics = frame.cicp().transfer_characteristics();
-    return transfer_characteristics == Media::TransferCharacteristics::SMPTE2084 || transfer_characteristics == Media::TransferCharacteristics::HLG;
+    auto const& cicp = color_metadata.cicp;
+    RustFFI::FfiVideoColorMetadata metadata {};
+    metadata.color_primaries = to_underlying(cicp.color_primaries());
+    metadata.transfer_characteristics = to_underlying(cicp.transfer_characteristics());
+    metadata.matrix_coefficients = to_underlying(cicp.matrix_coefficients());
+    if (auto const& volume = color_metadata.mastering_display_color_volume; volume.has_value()) {
+        metadata.has_mastering_display_color_volume = true;
+        metadata.mastering_display_color_volume = {
+            .red = { volume->red.x, volume->red.y },
+            .green = { volume->green.x, volume->green.y },
+            .blue = { volume->blue.x, volume->blue.y },
+            .white_point = { volume->white_point.x, volume->white_point.y },
+            .maximum_luminance = volume->maximum_luminance,
+            .minimum_luminance = volume->minimum_luminance,
+        };
+    }
+    if (auto const& information = color_metadata.content_light_level_information; information.has_value()) {
+        metadata.has_content_light_level_information = true;
+        metadata.content_light_level_information = {
+            .maximum_content_light_level = information->maximum_content_light_level,
+            .maximum_frame_average_light_level = information->maximum_frame_average_light_level,
+        };
+    }
+    return metadata;
 }
 
 void CompositorState::report_live_content(Web::CompositorContextId context_id, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*))
@@ -1250,17 +1272,26 @@ void CompositorState::report_live_content(Web::CompositorContextId context_id, R
     for (auto handle : raster_targets.drawn_video_sinks()) {
         auto frame = current_video_frame(context.web_content_client, handle);
         RustFFI::FfiCppObject frame_object {};
+        void* frame_surface = nullptr;
+        RustFFI::FfiVideoColorMetadata frame_color {};
         if (frame) {
             frame_object.object = make<VideoFrameForRust>(*frame).leak_ptr();
             frame_object.destroy = [](void* object) { delete static_cast<VideoFrameForRust*>(object); };
+#ifdef AK_OS_MACOS
+            // The frame holds its surface, so the IOSurface lives as long as the frame.
+            if (auto surface = frame->surface())
+                frame_surface = surface->io_surface().core_foundation_pointer();
+#endif
+            frame_color = ffi_video_color_metadata_of(frame->color_metadata());
         }
         video_sinks.unchecked_append({
             .handle = handle.value(),
-            .has_frame = frame != nullptr,
             .frame_id = frame ? frame->id() : 0,
-            .frame_holds_high_dynamic_range = frame && video_frame_holds_high_dynamic_range(*frame),
             .frame_has_surface = frame && frame->surface(),
             .frame = frame_object,
+            .frame_surface = frame_surface,
+            .frame_visible_size = frame ? frame->size().to_type<int>() : Gfx::IntSize {},
+            .frame_color = frame_color,
         });
     }
     Vector<RustFFI::FfiImageFrameContent> image_frames;

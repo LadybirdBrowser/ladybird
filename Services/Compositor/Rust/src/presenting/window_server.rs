@@ -246,14 +246,10 @@ impl ContextPresenting {
                 MediaToShow::Surface(surface)
             }
             LiveMedia::VideoFrame(id) => {
-                let Some((sink, frame)) = live_content
-                    .video_sinks
-                    .get(&id.0)
-                    .and_then(|sink| Some((sink, sink.frame.as_ref()?)))
-                else {
+                let Some(frame) = live_content.video_sinks.get(&id.0).and_then(|sink| sink.frame.as_ref()) else {
                     return Some(WhyMediaIsReplayed::VideoHasNoFrame);
                 };
-                if !env.window_server_may_show_high_dynamic_range && sink.frame_holds_high_dynamic_range {
+                if !env.window_server_may_show_high_dynamic_range && frame.color.holds_high_dynamic_range() {
                     return Some(WhyMediaIsReplayed::HighDynamicRangeIsNotShownNow);
                 }
                 MediaToShow::Video(frame)
@@ -602,7 +598,7 @@ impl ContextPresenting {
                         live_content
                             .video_sinks
                             .get(&id.0)
-                            .is_some_and(|sink| sink.has_frame && sink.frame_has_surface),
+                            .is_some_and(|sink| sink.frame.is_some() && sink.frame_has_surface),
                     ),
                     LiveMedia::ImageFrame(_)
                     | LiveMedia::CompositedContext(_)

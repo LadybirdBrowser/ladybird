@@ -62,6 +62,13 @@ public:
     };
 
     static NonnullRefPtr<PresentableSurface> create(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface> = {});
+#ifdef AK_OS_MACOS
+    // Over the IOSurface that the painting surface draws into, which the window server shows as it is. The surface owns
+    // the buffer of the IOSurface where it is given one.
+    static NonnullRefPtr<PresentableSurface> create_over_iosurface(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, Gfx::SharedImageBuffer const&, OwnPtr<Gfx::SharedImageBuffer> owned_buffer = {});
+    // Over a new IOSurface, painted on the GPU where a Skia backend context is given, or in memory otherwise.
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_over_new_iosurface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
+#endif
 
     Gfx::PaintingSurface& painting_surface() const;
     Gfx::IntSize size() const { return painting_surface().size(); }
