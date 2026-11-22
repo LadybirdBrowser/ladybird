@@ -1,0 +1,9 @@
+Ladybird applies math-auto to single-character text. Blink checks
+the text length in ApplyMathAutoTransform(), and Gecko checks it in
+nsCaseTransformTextRunFactory::TransformString(). WebKit also checks for
+a single character in convertToMathAuto(), and has a separate path for
+identifiers in RenderMathMLToken::updateMathVariantGlyph().
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all kept sin
+upright in an mi element. Chrome and Firefox applied math-auto to a
+single x in an HTML span. WebKit left the span upright.
