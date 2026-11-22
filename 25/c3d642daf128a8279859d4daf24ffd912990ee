@@ -1,0 +1,15 @@
+Ladybird now gives a row only the specified block sizes of the
+cells that span it alone, and takes a spanning cell’s specified
+block size into its outer min-content block size, which the row
+measures spread over the rows it spans. Blink does the same in
+ComputeMinimumRowBlockSize(): A cell with an effective rowspan
+of 1 adds its CSS block size to the row’s, and a spanning cell’s
+goes into the minimum block size of its RowspanCell record, which
+DistributeRowspanCellToRows() then spreads over the rows it spans.
+WebKit’s RenderTableSection::calcRowLogicalHeight() leaves spanning
+cells out of each row’s base height, and takes their extent into
+account at the last row of their span. Gecko’s nsTableRowGroupFrame::
+CalculateRowBSizes() sizes rows from cells with a rowspan of 1 first,
+and then grows the spanned rows by what a spanning cell needs beyond
+them. Chrome 158, Firefox 151 and WebKit 26.5 all give the rows
+of the test 0px and 40px.
