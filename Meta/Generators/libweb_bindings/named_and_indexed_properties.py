@@ -190,7 +190,6 @@ def named_property_getter_call(interface: Interface) -> Optional[str]:
         return None
 
     method_name_by_interface = {
-        "DOMStringMap": "determine_value_of_named_property",
         "Storage": "get_item",
     }
     method_name = method_name_by_interface.get(interface.name, idl_implementation_cpp_name(operation))
@@ -201,8 +200,6 @@ def named_property_getter_call(interface: Interface) -> Optional[str]:
 
 
 def named_property_getter_value_mode(interface: Interface) -> str:
-    if interface.name in ("DOMStringMap",):
-        return "value"
     if interface.name in ("Storage",):
         return "optional_undefined"
     if interface.name in ("MimeTypeArray", "Plugin", "PluginArray"):
@@ -532,8 +529,6 @@ def write_named_item_value_implementation(
     value_mode = named_property_getter_value_mode(interface)
     conversion_type = operation.return_type.clone_with_nullable(False)
     value_setup = {
-        "value": """    auto named_property_value = {call};
-""",
         "optional_undefined": """    auto named_property_value = {call};
     if (!named_property_value.has_value())
         return JS::js_undefined();
