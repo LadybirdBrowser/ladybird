@@ -3,21 +3,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 40 0+0+8] children: not-inline
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 40 0+0+0] children: not-inline
         ListItemBox <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
-          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,9 40.625x19] baseline: 15
-          frag 1 from ImageBox start: 0, length: 0, rect: [48.625,8 16x16] baseline: 16
-          ListItemMarkerBox <(anonymous)> at [8,9] [0+0+0 40.625 0+0+0] [0+0+0 19 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,11 40.625x16] baseline: 13
-                "▪ "
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,9 28.3125x19] baseline: 15
+          frag 1 from ImageBox start: 0, length: 0, rect: [36.3125,8 16x16] baseline: 16
+          ListItemMarkerBox <(anonymous)> at [8,9] [0+0+0 28.3125 0+0+0] [0+0+0 19 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,11 20.3125x16] baseline: 13
+                "▪"
+            frag 1 from GeneratedTextNode start: 1, length: 1, rect: [28.3125,11 8x16] baseline: 13
+                " "
             GeneratedTextNode <(anonymous)> (not painted)
-          ImageBox <(anonymous)> at [48.625,8] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ImageBox <(anonymous)> at [36.3125,8] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] children: not-inline
         ListItemBox <(anonymous)> at [8,28] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
-          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,29 40.625x19] baseline: 15
-          frag 1 from ImageBox start: 0, length: 0, rect: [48.625,28 16x16] baseline: 16
-          ListItemMarkerBox <(anonymous)> at [8,29] [0+0+0 40.625 0+0+0] [0+0+0 19 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,31 40.625x16] baseline: 13
-                "▪ "
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,29 28.3125x19] baseline: 15
+          frag 1 from ImageBox start: 0, length: 0, rect: [36.3125,28 16x16] baseline: 16
+          ListItemMarkerBox <(anonymous)> at [8,29] [0+0+0 28.3125 0+0+0] [0+0+0 19 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,31 20.3125x16] baseline: 13
+                "▪"
+            frag 1 from GeneratedTextNode start: 1, length: 1, rect: [28.3125,31 8x16] baseline: 13
+                " "
             GeneratedTextNode <(anonymous)> (not painted)
-          ImageBox <(anonymous)> at [48.625,28] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          ImageBox <(anonymous)> at [36.3125,28] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x56] (z-index: auto)
