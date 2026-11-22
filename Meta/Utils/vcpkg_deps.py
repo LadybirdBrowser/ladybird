@@ -31,6 +31,10 @@ MANIFEST_FEATURE_OPTIONS = {
     "sparkle": {"LADYBIRD_ENABLE_UPDATE_CHECK": True, "LADYBIRD_ENABLE_SPARKLE": True},
 }
 
+# The lists in Meta/CMake of the ports that distribution builds link dynamically. Keep in sync with
+# Meta/CMake/vcpkg/distribution-triplets/distribution.cmake.
+DYNAMIC_LIBRARY_LISTS = ("lgpl-libraries.txt", "dynamic-libraries.txt")
+
 DEPEND_INFO_REGEX = re.compile(r"^([a-zA-Z0-9-]+)(?:\[([^]]*)\])?(:host)?:\s*(.*)$")
 
 
@@ -294,7 +298,7 @@ def generate_build_files(
         overlay_triplets_dir(preset).parent / "base-triplets",
     ):
         triplet_inputs.extend(sorted(str(f) for f in triplet_dir.glob("*.cmake")))
-    triplet_inputs.append(str(overlay_triplets_dir(preset).parent / "dynamic-ports.txt"))
+    triplet_inputs.extend(str(LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / name) for name in DYNAMIC_LIBRARY_LISTS)
 
     lines = [
         "ninja_required_version = 1.5",
