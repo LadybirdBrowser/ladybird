@@ -176,7 +176,7 @@ static ErrorOr<NewBackingStore> create_shared_gpu_image_backing_store([[maybe_un
 #endif
 }
 
-ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind kind, Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, WindowServer* window_server_showing_stores)
+ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind kind, Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     switch (kind) {
     case RustFFI::StoreKind::Offscreen:
@@ -191,9 +191,7 @@ ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind kind, Gfx::IntS
     case RustFFI::StoreKind::SharedGpuImage:
         return create_shared_gpu_image_backing_store(size, skia_backend_context);
     case RustFFI::StoreKind::ShownByWindowServer: {
-        if (!window_server_showing_stores)
-            return Error::from_string_literal("No window server shows the stores");
-        auto surface = TRY(window_server_showing_stores->try_create_presentable_surface(size, skia_backend_context));
+        auto surface = TRY(WindowServer::try_create_presentable_surface_for_stores(size, skia_backend_context));
         return NewBackingStore {
             .surface = surface->painting_surface(),
             .window_server_surface = move(surface),

@@ -21,8 +21,9 @@ use super::{
     apply_raster_transform, composite_inside_effects_of_frame, inflated, replay_into, replay_with_scroll_offsets,
 };
 use crate::context_scene::ReceivedLayerPlan;
-use crate::raster_host::{FfiSublayer, LiveContent, RasterHost, SurfaceSampling};
+use crate::raster_host::{LiveContent, RasterHost, SurfaceSampling};
 use crate::surfaces::painting_surface::PaintingSurface;
+use crate::window_server::PlannedSublayer;
 use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VideoSinkHandle,
 };
@@ -1646,7 +1647,7 @@ impl ContextPresenting {
         live_content: &LiveContent,
         frame_changes_nothing_it_holds: bool,
         overlays_draw_same_as_in_latest_frame: bool,
-    ) -> (Vec<FfiSublayer>, Vec<IntRect>) {
+    ) -> (Vec<PlannedSublayer>, Vec<IntRect>) {
         let layer_update = &mut frame_damage.layers;
         let rects_painted_straight = if frame_changes_nothing_it_holds && !layer_update.shown_by_window_server() {
             Vec::new()

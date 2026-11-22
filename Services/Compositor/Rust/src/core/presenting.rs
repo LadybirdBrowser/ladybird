@@ -11,9 +11,10 @@ use crate::backing_stores::{StorePublication, StoreResizeOutcome};
 use crate::context_state::ContextState;
 use crate::host::{PendingFrame, PresentScheduling};
 use crate::presenting::{ContextPresenting, NestedContexts, PresentingEnvironment};
-use crate::raster_host::{FfiRemoteLayerFrame, FrameHandOff, RasterHost, SublayersHandle};
-use crate::remote_layers::{RemoteLayer, ResizeNotice, WindowServerObject};
+use crate::raster_host::{FrameHandOff, RasterHost};
+use crate::remote_layers::{RemoteLayer, ResizeNotice};
 use crate::surfaces::painting_surface::PaintingSurface;
+use crate::window_server::{Frame, FrameSublayer};
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{CompositedContexts, NoCompositedContexts, ResolvedCompositedContext};
 use libcompositing_rust::ipc_types::{
@@ -46,7 +47,8 @@ pub(crate) struct PendingAsyncPresent {
     keeps_shown_store: bool,
     // A frame the window server shows every layer of by itself, with no store below them.
     shows_no_store: bool,
-    sublayers: Option<SublayersHandle>,
+    // What the window server shows of the frame by itself, which holds its content as it is until it is shown.
+    sublayers: Vec<FrameSublayer>,
 }
 
 // What delivering a frame needs of its pending present.
@@ -60,7 +62,7 @@ struct Delivery {
     shows_in_remote_layer: bool,
     keeps_shown_store: bool,
     shows_no_store: bool,
-    sublayers: Option<SublayersHandle>,
+    sublayers: Vec<FrameSublayer>,
 }
 
 /// What a presentation makes of the frames and the scrolling of the contexts it shows.
@@ -470,10 +472,6 @@ impl CompositorCore {
             .raster
             .submit_frame(context_id, prepared_frame.rendered_surface.as_ref());
         let shows_in_remote_layer = presenting.store_publication() == StorePublication::ShownInRemoteLayer;
-        // A frame that the window server shows nothing above needs no list, which a remote layer makes when it shows
-        // the frame.
-        let sublayers = (!prepared_frame.sublayers.is_empty())
-            .then(|| self.raster.build_sublayers(context_id, &prepared_frame.sublayers));
         self.async_presents.borrow_mut().push(PendingAsyncPresent {
             token,
             context_id,
@@ -487,7 +485,7 @@ impl CompositorCore {
             shows_in_remote_layer,
             keeps_shown_store: prepared_frame.rendered_surface.is_none(),
             shows_no_store: prepared_frame.window_server_shows_every_layer,
-            sublayers,
+            sublayers: prepared_frame.sublayers,
         });
         presenting.did_submit_prepared_frame(pending_frame.viewport_rect);
         // Handing the frame to the client before its GPU work finishes keeps it ahead of the window server's deadline for
@@ -524,7 +522,7 @@ impl CompositorCore {
             shows_in_remote_layer: present.shows_in_remote_layer,
             keeps_shown_store: present.keeps_shown_store,
             shows_no_store: present.shows_no_store,
-            sublayers: present.sublayers.take(),
+            sublayers: std::mem::take(&mut present.sublayers),
         })
     }
 
@@ -644,23 +642,15 @@ impl CompositorCore {
             });
             Some(store.expect("a frame shown in a remote layer was rendered into a store the window server shows"))
         };
-        // The sublayers go with the frame, which keeps them.
-        let sublayers = delivery
-            .sublayers
-            .take()
-            .unwrap_or_else(|| self.raster.build_sublayers(context_id, &[]));
-        let frame = FfiRemoteLayerFrame {
-            store: store.as_ref().map_or(std::ptr::null(), |store| store.as_ffi()),
+        let frame = Frame {
+            store: store.map(|store| store.lease()),
             shows_no_store: delivery.shows_no_store,
             painted_size: viewport_size,
             device_pixel_ratio: delivery.device_pixel_ratio,
-            has_fit_within: fit_within.is_some(),
-            fit_within: fit_within.unwrap_or_default(),
+            fit_within,
+            sublayers: std::mem::take(&mut delivery.sublayers),
         };
-        if !self
-            .raster
-            .remote_layer_show_frame(&remote_layer.layer, &frame, sublayers)
-        {
+        if !remote_layer.layer.show_frame(frame) {
             self.remote_layers.borrow_mut().stop_showing_context(context_id);
             self.stop_showing_context_in_remote_layer(context_id, now);
             return;
@@ -693,18 +683,9 @@ impl CompositorCore {
         }
     }
 
-    fn window_server_showing(&self, context_id: CompositorContextId) -> Option<Rc<WindowServerObject>> {
-        self.remote_layers
-            .borrow()
-            .layer_showing(context_id)
-            .map(|remote_layer| remote_layer.showing_layer().window_server)
-    }
-
     pub(super) fn frame_hand_off(&self, context_id: CompositorContextId) -> FrameHandOff {
         match self.remote_layers.borrow().layer_showing(context_id) {
-            Some(remote_layer) => self
-                .raster
-                .window_server_frame_hand_off(&remote_layer.showing_layer().window_server),
+            Some(remote_layer) => remote_layer.showing_layer().window_server.frame_hand_off(),
             None => RasterHost::frame_hand_off_through_presentation(),
         }
     }
@@ -833,12 +814,10 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        let window_server = self.window_server_showing(context_id);
         if presenting.add_store_if_window_server_still_reads_every_released_store(
             &self.raster,
             context_id,
             publishing_presentation,
-            window_server.as_deref(),
         ) {
             presenting.schedule_surplus_store_retirement(context_id, &self.host);
         }
@@ -904,12 +883,10 @@ impl CompositorCore {
         let publishing_presentation = bound_presentation
             .filter(|_| presenting.borrow().store_publication() == StorePublication::Published)
             .map(|presentation| presentation.0);
-        let window_server = self.window_server_showing(context_id);
         if presenting.borrow_mut().restore_stores_retired_while_hidden(
             &self.raster,
             context_id,
             publishing_presentation,
-            window_server.as_deref(),
         ) {
             return;
         }

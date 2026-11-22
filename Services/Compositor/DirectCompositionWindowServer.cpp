@@ -1237,7 +1237,7 @@ DirectCompositionWindowServer::~DirectCompositionWindowServer()
     VERIFY(m_layers.is_empty());
 }
 
-OwnPtr<RemoteLayer> DirectCompositionWindowServer::try_create_remote_layer(u64)
+OwnPtr<RemoteLayer> DirectCompositionWindowServer::try_create_remote_layer()
 {
     return DirectCompositionRemoteLayer::try_create(*this);
 }

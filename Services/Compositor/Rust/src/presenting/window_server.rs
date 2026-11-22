@@ -12,12 +12,10 @@ use super::tiles::TileDraw;
 use super::{
     ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_raster_shown_through, rect_of_size, size_of,
 };
-use crate::raster_host::{
-    FfiSublayer, FfiSublayerBackdrop, FfiSublayerGroup, FfiSublayerPlacement, LiveContent, MediaKind,
-    SublayerContentKind,
-};
+use crate::raster_host::LiveContent;
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfacePool};
+use crate::window_server::{Backdrop, Group, MediaToShow, PlannedContent, PlannedSublayer, SublayerContent};
 use libcompositing_rust::display_list::layers::{
     BandIndex, LayerContent, LayerIdentity, LayerIndex, SpaceToFrame, StackLayer, WindowServerCompositing,
     WindowServerPlacementsOfMedia,
@@ -68,24 +66,28 @@ fn identity_of_sublayer_that_is(part: impl Hash, of_layer_or_composited_band: im
     SUBLAYER_OF_TILED_LAYER_IDENTITY_TAG | (hasher.finish() & SUBLAYER_IDENTITY_BITS_BELOW_TAG)
 }
 
-fn group(identity: u64, group_index: i32, group: FfiSublayerGroup) -> FfiSublayer {
-    FfiSublayer {
+fn group(identity: u64, group_index: Option<usize>, group: Group) -> PlannedSublayer {
+    PlannedSublayer {
+        identity,
         group_index,
-        group,
-        ..FfiSublayer::of_kind(identity, SublayerContentKind::Group)
+        content: SublayerContent::Group(group),
     }
 }
 
 /// A group that clips its sublayers to a rect of the pixels it shares with the group it is in.
-fn group_clipping_to(identity: u64, group_index: i32, clip_rect: FloatRect, corner_radii: CornerRadii) -> FfiSublayer {
+fn group_clipping_to(
+    identity: u64,
+    group_index: Option<usize>,
+    clip_rect: FloatRect,
+    corner_radii: CornerRadii,
+) -> PlannedSublayer {
     group(
         identity,
         group_index,
-        FfiSublayerGroup {
-            clips: true,
-            clip_rect,
+        Group {
+            clip_rect: Some(clip_rect),
             corner_radii,
-            ..FfiSublayerGroup::default()
+            ..Group::default()
         },
     )
 }
@@ -156,45 +158,25 @@ impl WindowServerLayers {
     }
 }
 
-/// The placement as the window server is handed it, whose path contours are lent from `placement`.
-fn sublayer_placement_of(placement: &WindowServerPlacement) -> FfiSublayerPlacement {
-    let rounded_clip = placement.rounded_clip;
-    let path_clip = placement.path_clip.as_ref();
-    FfiSublayerPlacement {
-        content_rect: placement.content_rect,
-        content_to_frame: placement.content_to_viewport.values,
-        clip_rect: placement.clip_rect,
-        has_rounded_clip: rounded_clip.is_some(),
-        rounded_clip_rect: rounded_clip.map(|clip| clip.rect).unwrap_or_default(),
-        rounded_clip_radius: rounded_clip.map_or(0.0, |clip| clip.radius),
-        rounds_top_left: rounded_clip.is_some_and(|clip| clip.rounded_corners.top_left),
-        rounds_top_right: rounded_clip.is_some_and(|clip| clip.rounded_corners.top_right),
-        rounds_bottom_right: rounded_clip.is_some_and(|clip| clip.rounded_corners.bottom_right),
-        rounds_bottom_left: rounded_clip.is_some_and(|clip| clip.rounded_corners.bottom_left),
-        is_clipped_by_path: path_clip.is_some(),
-        clip_path_identity: path_clip.map_or(0, |clip| clip.path.identity()),
-        clip_path_fill_rule: path_clip.map(|clip| clip.fill_rule).unwrap_or_default(),
-        clip_path_to_frame: path_clip.map_or([0.0; 6], |clip| clip.path_to_viewport.values),
-        clip_path_contours: path_clip.map(|clip| clip.path.geometry_data()).unwrap_or_default(),
-        scaling_mode: placement.scaling_mode,
-    }
-}
-
 fn unclipped_untransformed_surface_sublayer(
     identity: u64,
     surface: &Rc<PresentableSurface>,
     rect_in_frame: IntRect,
-) -> FfiSublayer {
-    FfiSublayer {
-        presentable_surface: surface.as_ffi(),
-        placement: FfiSublayerPlacement {
-            content_rect: rect_in_frame,
-            content_to_frame: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            clip_rect: rect_in_frame.to_float(),
-            scaling_mode: ScalingMode::NearestNeighbor,
-            ..Default::default()
+) -> PlannedSublayer {
+    PlannedSublayer {
+        identity,
+        group_index: None,
+        content: SublayerContent::Placed {
+            content: PlannedContent::Surface(surface.clone()),
+            placement: WindowServerPlacement {
+                content_rect: rect_in_frame,
+                content_to_viewport: AffineTransform::identity(),
+                clip_rect: rect_in_frame.to_float(),
+                rounded_clip: None,
+                path_clip: None,
+                scaling_mode: ScalingMode::NearestNeighbor,
+            },
         },
-        ..FfiSublayer::of_kind(identity, SublayerContentKind::PresentableSurface)
     }
 }
 
@@ -215,11 +197,7 @@ impl ContextPresenting {
         let Some(window_server) = env.window_server_showing_context() else {
             return Some(WhyMediaIsReplayed::ContextIsNotShownInARemoteLayer);
         };
-        if !env
-            .raster
-            .window_server_compositing(window_server)
-            .shows_tiles_of_painted_layers
-        {
+        if !window_server.compositing().shows_tiles_of_painted_layers {
             return Some(WhyMediaIsReplayed::WindowServerShowsNoTiles);
         }
         None
@@ -230,7 +208,7 @@ impl ContextPresenting {
     pub(super) fn window_server_compositing(&self, env: &PresentingEnvironment<'_>) -> WindowServerCompositing {
         let compositing_of_window_server = env
             .window_server_showing_context()
-            .map(|window_server| env.raster.window_server_compositing(window_server))
+            .map(|window_server| window_server.compositing())
             .unwrap_or_default();
         let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_this_context(env).is_none();
         WindowServerCompositing {
@@ -256,25 +234,29 @@ impl ContextPresenting {
             Some(Err(why)) => return Some(WhyMediaIsReplayed::Placement(*why)),
             None => return Some(WhyMediaIsReplayed::NoPlacement(*content)),
         };
-        let (kind, id) = match content {
+        let media = match content {
             LiveMedia::Canvas(id) => {
-                let has_presentable_surface = live_content
+                let Some(surface) = live_content
                     .canvases
                     .get(&id.0)
-                    .is_some_and(|canvas| canvas.has_presentable_surface);
-                if !has_presentable_surface {
+                    .and_then(|canvas| canvas.presentable_surface.as_ref())
+                else {
                     return Some(WhyMediaIsReplayed::CanvasHasNoPresentableSurface);
-                }
-                (MediaKind::Canvas, id.0)
+                };
+                MediaToShow::Surface(surface)
             }
             LiveMedia::VideoFrame(id) => {
-                let Some(sink) = live_content.video_sinks.get(&id.0).filter(|sink| sink.has_frame) else {
+                let Some((sink, frame)) = live_content
+                    .video_sinks
+                    .get(&id.0)
+                    .and_then(|sink| Some((sink, sink.frame.as_ref()?)))
+                else {
                     return Some(WhyMediaIsReplayed::VideoHasNoFrame);
                 };
                 if !env.window_server_may_show_high_dynamic_range && sink.frame_holds_high_dynamic_range {
                     return Some(WhyMediaIsReplayed::HighDynamicRangeIsNotShownNow);
                 }
-                (MediaKind::Video, id.0)
+                MediaToShow::Video(frame)
             }
             LiveMedia::ImageFrame(_)
             | LiveMedia::CompositedContext(_)
@@ -286,14 +268,7 @@ impl ContextPresenting {
         let Some(remote_layer) = &env.remote_layer else {
             return Some(WhyMediaIsReplayed::ContextIsNotShownInARemoteLayer);
         };
-        if !env.raster.remote_layer_can_show(
-            &remote_layer.layer,
-            env.context_id,
-            kind,
-            id,
-            &sublayer_placement_of(placement),
-            self.device_pixel_ratio,
-        ) {
+        if !remote_layer.layer.can_show(placement, media, self.device_pixel_ratio) {
             return Some(WhyMediaIsReplayed::WindowServerCannotShowThePlacement);
         }
         None
@@ -373,7 +348,7 @@ impl ContextPresenting {
         like: &Rc<PaintingSurface>,
         live_content: &LiveContent,
         overlays_draw_same_as_in_latest_frame: bool,
-    ) -> Option<Vec<FfiSublayer>> {
+    ) -> Option<Vec<PlannedSublayer>> {
         if !self.present_compositor_overlays_to_window_server(env, frame, like, overlays_draw_same_as_in_latest_frame) {
             return None;
         }
@@ -387,10 +362,10 @@ impl ContextPresenting {
     /// tiles of one color.
     fn append_sublayers_of_tiled_layer(
         &self,
-        sublayers: &mut Vec<FfiSublayer>,
+        sublayers: &mut Vec<PlannedSublayer>,
         compositing: &LayerCompositingInFrame,
         draws: Vec<TileDraw<'_>>,
-        group_index: i32,
+        group_index: Option<usize>,
         raster_moves_by_whole_pixels_only: bool,
     ) {
         if draws.is_empty() {
@@ -405,7 +380,7 @@ impl ContextPresenting {
                 composite_clip.to_float(),
                 CornerRadii::default(),
             ));
-            innermost_group_index = sublayers.len() as i32 - 1;
+            innermost_group_index = Some(sublayers.len() - 1);
         }
         for (ordinal, (rounded_clip_rect, corner_radii)) in compositing.rounded_composite_clips.iter().enumerate() {
             sublayers.push(group_clipping_to(
@@ -414,20 +389,22 @@ impl ContextPresenting {
                 rounded_clip_rect.to_float(),
                 *corner_radii,
             ));
-            innermost_group_index = sublayers.len() as i32 - 1;
+            innermost_group_index = Some(sublayers.len() - 1);
         }
         sublayers.push(group(
             identity_of(PartOfTiledLayer::GroupOfSpace),
             innermost_group_index,
-            FfiSublayerGroup {
+            Group {
                 to_parent: match compositing.space_to_frame {
-                    SpaceToFrame::Offset(offset) => [1.0, 0.0, 0.0, 1.0, offset.x as f32, offset.y as f32],
-                    SpaceToFrame::Transform(transform) => transform.values,
+                    SpaceToFrame::Offset(offset) => AffineTransform {
+                        values: [1.0, 0.0, 0.0, 1.0, offset.x as f32, offset.y as f32],
+                    },
+                    SpaceToFrame::Transform(transform) => transform,
                 },
-                ..FfiSublayerGroup::default()
+                ..Group::default()
             },
         ));
-        let index_of_group_of_space = sublayers.len() as i32 - 1;
+        let index_of_group_of_space = Some(sublayers.len() - 1);
         // Scaled or moved by a fraction of a pixel, a tile is sampled at its border too, which can be transparent
         // beside an opaque tile.
         let window_server_samples_no_tile_border = raster_moves_by_whole_pixels_only
@@ -444,19 +421,18 @@ impl ContextPresenting {
                     every_pixel_is_opaque,
                     rect_in_layer_space,
                     rect_in_surface,
-                } => sublayers.push(FfiSublayer {
+                } => sublayers.push(PlannedSublayer {
+                    identity: identity_of(PartOfTiledLayer::Tile {
+                        column: coord.column,
+                        row: coord.row,
+                    }),
                     group_index: index_of_group_of_space,
-                    presentable_surface: surface.as_ffi(),
-                    rect: rect_in_layer_space,
-                    rect_in_surface,
-                    every_pixel_is_opaque: every_pixel_is_opaque && window_server_samples_no_tile_border,
-                    ..FfiSublayer::of_kind(
-                        identity_of(PartOfTiledLayer::Tile {
-                            column: coord.column,
-                            row: coord.row,
-                        }),
-                        SublayerContentKind::Tile,
-                    )
+                    content: SublayerContent::Tile {
+                        surface: surface.clone(),
+                        rect: rect_in_layer_space,
+                        rect_in_surface,
+                        every_pixel_is_opaque: every_pixel_is_opaque && window_server_samples_no_tile_border,
+                    },
                 }),
                 TileDraw::FillOfJoinedOneColorTiles {
                     rect_in_layer_space,
@@ -465,16 +441,15 @@ impl ContextPresenting {
                     if color.alpha() == 0 {
                         continue;
                     }
-                    sublayers.push(FfiSublayer {
+                    sublayers.push(PlannedSublayer {
+                        identity: identity_of(PartOfTiledLayer::FillOfJoinedOneColorTiles {
+                            ordinal: ordinal_of_fill,
+                        }),
                         group_index: index_of_group_of_space,
-                        rect: rect_in_layer_space,
-                        color,
-                        ..FfiSublayer::of_kind(
-                            identity_of(PartOfTiledLayer::FillOfJoinedOneColorTiles {
-                                ordinal: ordinal_of_fill,
-                            }),
-                            SublayerContentKind::Color,
-                        )
+                        content: SublayerContent::Color {
+                            color,
+                            rect: rect_in_layer_space,
+                        },
                     });
                     ordinal_of_fill += 1;
                 }
@@ -487,11 +462,11 @@ impl ContextPresenting {
     /// before, and in the innermost, the group of the effect, which composites the layers of the band at the effect's
     /// opacity. Answers the index of the group of the effect, whose pixels are the frame's too.
     fn append_groups_of_composited_band(
-        sublayers: &mut Vec<FfiSublayer>,
+        sublayers: &mut Vec<PlannedSublayer>,
         painted: &PaintedLayers,
         band_index: BandIndex,
-        group_index: i32,
-    ) -> i32 {
+        group_index: Option<usize>,
+    ) -> Option<usize> {
         let band = &painted.stack.bands[band_index.0];
         let node_index = band.placement_node_index;
         // The frame holds the layers inside an effect the window server cannot composite.
@@ -508,17 +483,17 @@ impl ContextPresenting {
                 *clip_rect,
                 *corner_radii,
             ));
-            innermost_group_index = sublayers.len() as i32 - 1;
+            innermost_group_index = Some(sublayers.len() - 1);
         }
         sublayers.push(group(
             identity_of(PartOfCompositedBand::GroupOfEffect),
             innermost_group_index,
-            FfiSublayerGroup {
+            Group {
                 opacity: placement.opacity.clamp(0.0, 1.0),
-                ..FfiSublayerGroup::default()
+                ..Group::default()
             },
         ));
-        let index_of_group_of_effect = sublayers.len() as i32 - 1;
+        let index_of_group_of_effect = Some(sublayers.len() - 1);
         // The filtered backdrop is below all the effect holds.
         if let Some(backdrop) = &placement.backdrop {
             let mut index_of_group_of_backdrop = index_of_group_of_effect;
@@ -529,24 +504,15 @@ impl ContextPresenting {
                     backdrop.region,
                     backdrop.corner_radii,
                 ));
-                index_of_group_of_backdrop = sublayers.len() as i32 - 1;
+                index_of_group_of_backdrop = Some(sublayers.len() - 1);
             }
-            let filters = &backdrop.filters;
-            sublayers.push(FfiSublayer {
+            sublayers.push(PlannedSublayer {
+                identity: identity_of(PartOfCompositedBand::Backdrop),
                 group_index: index_of_group_of_backdrop,
-                backdrop: FfiSublayerBackdrop {
+                content: SublayerContent::Backdrop(Backdrop {
                     region: backdrop.region,
-                    has_color_matrix_before_blur: filters.color_matrix_before_blur.is_some(),
-                    color_matrix_before_blur: filters.color_matrix_before_blur.unwrap_or_default(),
-                    has_blur: filters.blur_standard_deviation.is_some(),
-                    blur_standard_deviation: filters.blur_standard_deviation.unwrap_or_default(),
-                    has_color_matrix_after_blur: filters.color_matrix_after_blur.is_some(),
-                    color_matrix_after_blur: filters.color_matrix_after_blur.unwrap_or_default(),
-                },
-                ..FfiSublayer::of_kind(
-                    identity_of(PartOfCompositedBand::Backdrop),
-                    SublayerContentKind::Backdrop,
-                )
+                    filters: backdrop.filters,
+                }),
             });
         }
         index_of_group_of_effect
@@ -558,7 +524,7 @@ impl ContextPresenting {
         &self,
         painted: &PaintedLayers,
         live_content: &LiveContent,
-    ) -> Vec<FfiSublayer> {
+    ) -> Vec<PlannedSublayer> {
         let layers = &self.layers.window_server;
         let mut sublayers = Vec::new();
         if !painted.shown_by_window_server() {
@@ -569,26 +535,26 @@ impl ContextPresenting {
         // group.
         sublayers.push(group(
             GROUP_OF_RASTER_SUBLAYER_IDENTITY,
-            -1,
-            FfiSublayerGroup {
-                to_parent: painted.raster_to_frame.unwrap_or_else(AffineTransform::identity).values,
-                ..FfiSublayerGroup::default()
+            None,
+            Group {
+                to_parent: painted.raster_to_frame.unwrap_or_else(AffineTransform::identity),
+                ..Group::default()
             },
         ));
-        let index_of_group_of_raster = sublayers.len() as i32 - 1;
+        let index_of_group_of_raster = Some(sublayers.len() - 1);
         // The remote layer scales the sublayers of a frame it scales to fit a view along with the frame.
         let raster_moves_by_whole_pixels_only = !self.scales_frames_to_fit
             && painted
                 .raster_to_frame
                 .is_none_or(AffineTransform::is_whole_pixel_translation);
         let rect_of_raster_shown = rect_of_raster_shown_through(painted.raster_to_frame, self.raster_rect());
-        let mut groups_of_entered_composited_bands: Vec<i32> = Vec::new();
+        let mut groups_of_entered_composited_bands: Vec<Option<usize>> = Vec::new();
         let layers_shown = painted
             .compositing_of_layers
             .iter()
             .filter(|compositing| compositing.shown_by_window_server)
             .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity));
-        let innermost_group_index = |groups_of_entered_composited_bands: &[i32]| {
+        let innermost_group_index = |groups_of_entered_composited_bands: &[Option<usize>]| {
             groups_of_entered_composited_bands
                 .last()
                 .copied()
@@ -621,19 +587,17 @@ impl ContextPresenting {
                 let Some(Ok(placement)) = painted.window_server_placements_of_media.of_layer(layer_index) else {
                     return;
                 };
-                let (kind, id, sublayer_identity_of_media, has_content) = match content {
+                let (planned_content, sublayer_identity_of_media, has_content) = match content {
                     LiveMedia::Canvas(id) => (
-                        SublayerContentKind::Canvas,
-                        id.0,
+                        PlannedContent::Canvas(id.0),
                         CANVAS_SUBLAYER_IDENTITY_TAG | id.0,
                         live_content
                             .canvases
                             .get(&id.0)
-                            .is_some_and(|canvas| canvas.has_presentable_surface),
+                            .is_some_and(|canvas| canvas.presentable_surface.is_some()),
                     ),
                     LiveMedia::VideoFrame(id) => (
-                        SublayerContentKind::Video,
-                        id.0,
+                        PlannedContent::Video(id.0),
                         VIDEO_SUBLAYER_IDENTITY_TAG | id.0,
                         live_content
                             .video_sinks
@@ -648,15 +612,14 @@ impl ContextPresenting {
                 if !has_content {
                     return;
                 }
-                sublayers.push(FfiSublayer {
+                sublayers.push(PlannedSublayer {
+                    identity: sublayer_identity_of_media
+                        | (u64::from(ordinal) << MEDIA_ORDINAL_SHIFT_PAST_CANVAS_AND_VIDEO_IDS),
                     group_index,
-                    media_id: id,
-                    placement: sublayer_placement_of(placement),
-                    ..FfiSublayer::of_kind(
-                        sublayer_identity_of_media
-                            | (u64::from(ordinal) << MEDIA_ORDINAL_SHIFT_PAST_CANVAS_AND_VIDEO_IDS),
-                        kind,
-                    )
+                    content: SublayerContent::Placed {
+                        content: planned_content,
+                        placement: placement.clone(),
+                    },
                 });
                 return;
             }

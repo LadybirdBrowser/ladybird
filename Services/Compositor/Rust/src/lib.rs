@@ -40,6 +40,7 @@ pub mod scrollbar_controller;
 pub mod surfaces;
 pub mod webgl;
 pub mod wheel_gesture_routing;
+pub mod window_server;
 
 #[cfg(test)]
 mod test_stubs;

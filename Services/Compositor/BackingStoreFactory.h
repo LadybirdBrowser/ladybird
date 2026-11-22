@@ -37,7 +37,7 @@ struct NewBackingStore {
 // this is empty.
 void set_presentation_drm_format_modifiers(Vector<u64>);
 
-ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, WindowServer* window_server_showing_stores);
+ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
 
 // Whether something other than the compositor still holds the memory of a store, such as the window server, or the
 // presentation that has yet to import it.

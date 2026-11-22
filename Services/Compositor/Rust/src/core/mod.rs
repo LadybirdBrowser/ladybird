@@ -359,9 +359,10 @@ impl CompositorCore {
         let _entered = self.enter();
 
         self.presentations.borrow_mut().insert(presentation_id, capabilities);
+        let window_server = crate::window_server::create_for_presentation(&self.raster);
         self.remote_layers
             .borrow_mut()
-            .register_presentation(presentation_id, &self.raster);
+            .register_presentation(presentation_id, window_server);
     }
 
     // Leaves every context bound to the presentation unbound.
@@ -369,10 +370,7 @@ impl CompositorCore {
         let _entered = self.enter();
 
         let was_holding_changes = self.remote_layers.borrow().is_holding_changes();
-        let stopped = self
-            .remote_layers
-            .borrow_mut()
-            .unregister_presentation(presentation_id, &self.raster);
+        let stopped = self.remote_layers.borrow_mut().unregister_presentation(presentation_id);
         self.update_synchronized_resize_hold_timer(was_holding_changes);
         for context_id in stopped {
             self.stop_showing_context_in_remote_layer(context_id, now);
