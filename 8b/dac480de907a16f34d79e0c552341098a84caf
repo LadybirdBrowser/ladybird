@@ -1,0 +1,7 @@
+Ladybird now shifts the text of a <text>, <tspan>, or <textPath> to the
+baseline its alignment-baseline names, in place of its dominant
+baseline. Chrome 158 does the same in every case of the new test,
+including a <tspan> with alignment-baseline: hanging in a <text> whose
+dominant baseline is central (engine-compare). WebKit 26.5 agrees for
+<text> and <textPath>, but leaves a <tspan> on its dominant baseline.
+Firefox 151 ignores alignment-baseline in SVG text altogether.
