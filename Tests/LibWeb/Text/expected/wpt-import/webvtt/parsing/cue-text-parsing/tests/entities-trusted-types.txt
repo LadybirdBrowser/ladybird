@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	WebVTT cue data parser unescapes entities under require-trusted-types-for - amp

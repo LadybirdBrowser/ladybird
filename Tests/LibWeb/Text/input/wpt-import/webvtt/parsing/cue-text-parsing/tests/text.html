@@ -1,0 +1,19 @@
+<!doctype html>
+<title>WebVTT cue data parser test text</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'aa785adca3fcdfe1884ae840e13c6d294a2414e8', input:'text', expected:'%23document-fragment%0A%7C%20%22text%22'},
+{name:'3979f3c0c7664ee8a9f78854626bc7bc39b86c96', input:'text1%0Atext2', expected:'%23document-fragment%0A%7C%20%22text1%0Atext2%22'},
+{name:'6805ac5ddce21cfceb4eccf04a6a9013760f5d5b', input:'foo%00bar', expected:'%23document-fragment%0A%7C%20%22foo%EF%BF%BDbar%22'},
+{name:'5cfbdbe32701516fc90c3786da1db4716ac09fb8', input:'%E2%9C%93', expected:'%23document-fragment%0A%7C%20%22%E2%9C%93%22'},
+{name:'a34d27ca7b23f07db6ec2e32226fca105e958db6', input:'text1%0A%0Atext2', expected:'%23document-fragment%0A%7C%20%22text1%22'}
+]);
+</script>

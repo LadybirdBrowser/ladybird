@@ -1,0 +1,24 @@
+<!doctype html>
+<title>WebVTT cue data parser test tree-building</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'4e1243bd22c66e76c2ba9eddc1f91394e57f9f83', input:'test', expected:'%23document-fragment%0A%7C%20%22test%22'},
+{name:'2564487cfc7e317428fb437ef8de8de4f4963426', input:'%3Cruby%3Etest%3Crt%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%22test%22'},
+{name:'9b1902c975558eeaff4afbaf0a6dc100e1978769', input:'%3Cruby%3Etest%3Crt%3Etest%3C/rt%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%22test%22%0A%7C%20%20%20%22test%22'},
+{name:'119c596ea09649d3bd03934485e3067e89377412', input:'%3Cruby%3Etest%3Crt%3Etest%3C/rt%3E%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%22test%22%0A%7C%20%22test%22'},
+{name:'c94512b045699cb72f730e46b2a0a3bed2c939f9', input:'%3Cruby%3Etest%3Crt%3Etest%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%22test%22%0A%7C%20%22test%22'},
+{name:'325c1e590e74f1ff33ca5b4838c04cf6b6dd71ba', input:'%3Cruby%3Etest%3Crt%3E%3Cb%3Etest%3C/rt%3E%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%22test%22%0A%7C%20%20%20%20%20%20%20%22test%22'},
+{name:'92847ed2694c9639ba96f4cc61e2215362a74904', input:'%3Cruby%3Etest%3Crt%3E%3Cb%3Etest%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%22test%22%0A%7C%20%20%20%20%20%20%20%22test%22'},
+{name:'c0da62d1c8716ca544c96799f06ac7e4664500fb', input:'%3Cruby%3Etest%3Crt%3E%3Cb%3Etest%3C/rt%3E%3C/ruby%3E%3C/b%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%22test%22%0A%7C%20%20%20%20%20%22test%22'},
+{name:'b85bd616672eba0591718182ef32e3307d223bb0', input:'%3Cruby%3Etest%3Crt%3E%3Cb%3Etest%3C/rt%3E%3C/b%3E%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%22test%22%0A%7C%20%22test%22'},
+{name:'132f07c3ab0e86dd1b93bf434c94c0d1cfdd4fde', input:'%3Cruby%3Etest%3Crt%3E%3Cb%3Etest%3C/rt%3E%3C/b%3Etest%3C/ruby%3Etest', expected:'%23document-fragment%0A%7C%20%3Cruby%3E%0A%7C%20%20%20%22test%22%0A%7C%20%20%20%3Crt%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%22test%22%0A%7C%20%20%20%20%20%22test%22%0A%7C%20%22test%22'}
+]);
+</script>

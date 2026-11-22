@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	WebVTT cue data parser test text - aa785adca3fcdfe1884ae840e13c6d294a2414e8
+Pass	WebVTT cue data parser test text - 3979f3c0c7664ee8a9f78854626bc7bc39b86c96
+Pass	WebVTT cue data parser test text - 6805ac5ddce21cfceb4eccf04a6a9013760f5d5b
+Pass	WebVTT cue data parser test text - 5cfbdbe32701516fc90c3786da1db4716ac09fb8
+Pass	WebVTT cue data parser test text - a34d27ca7b23f07db6ec2e32226fca105e958db6

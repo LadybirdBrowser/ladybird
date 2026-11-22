@@ -45,7 +45,7 @@ fn interpret_as_base_ten_integer(digits: &[u16]) -> u64 {
 }
 
 // https://w3c.github.io/webvtt/#collect-a-webvtt-timestamp
-fn collect_a_webvtt_timestamp(lexer: &mut GenericLexer<'_, u16>) -> Option<f64> {
+pub(super) fn collect_a_webvtt_timestamp(lexer: &mut GenericLexer<'_, u16>) -> Option<f64> {
     // 1. Let input and position be the same variables as those of the same name in the algorithm that invoked these
     //    steps.
 

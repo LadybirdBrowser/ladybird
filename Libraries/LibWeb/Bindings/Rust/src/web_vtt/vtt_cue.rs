@@ -14,6 +14,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libjs_rust::api::{Trace, Vm};
 
+use crate::bindings::conversions::CppInterface;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -332,6 +333,12 @@ impl VTTCue {
     pub(crate) fn set_align(&self, _: &mut CallContext, value: AlignSetting) -> WebIdlResult<()> {
         self.text_alignment.set(value);
         Ok(())
+    }
+
+    // https://w3c.github.io/webvtt/#dom-vttcue-getcueashtml
+    pub(crate) fn get_cue_as_html(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+        let text = self.text.borrow().clone();
+        Ok(super::cue_text::create_fragment(cx, &text))
     }
 
     // https://w3c.github.io/webvtt/#dom-vttcue-text

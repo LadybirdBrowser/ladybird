@@ -1,0 +1,39 @@
+<!doctype html>
+<title>WebVTT cue data parser test entities</title>
+<link rel="help" href="https://w3c.github.io/webvtt/#cue-text-parsing-rules">
+<style>video { display:none }</style>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src=../../../../html/syntax/parsing/resources/template.js></script>
+<script src=../../../../html/syntax/parsing/resources/common.js></script>
+<script src=../common.js></script>
+<div id=log></div>
+<script>
+runTests([
+{name:'3686fc0cdc60dc536e75df054b0bd372273db2cc', input:'%26', expected:'%23document-fragment%0A%7C%20%22%26%22'},
+{name:'f1869f6e2853635eec81cc3afa3e2b8148ccbdc0', input:'%26amp', expected:'%23document-fragment%0A%7C%20%22%26%22'},
+{name:'92d76530d723b6b4e4ef8280c01cf1c80f9bebdb', input:'%26amp%3B', expected:'%23document-fragment%0A%7C%20%22%26%22'},
+{name:'261cd4e9df4a12535b66a0c39e9635aab2bb19aa', input:'%26AMP%3B', expected:'%23document-fragment%0A%7C%20%22%26%22'},
+{name:'1a2269cdb73bf97ec6a99b0edabfe646c471b67e', input:'%26lt%3B', expected:'%23document-fragment%0A%7C%20%22%3C%22'},
+{name:'44ceb90884cceeeccb4f7024e3598f7dc5ceebfa', input:'%26gt%3B', expected:'%23document-fragment%0A%7C%20%22%3E%22'},
+{name:'05def72af03fc2b1617da950d871b9fd0ba20e5a', input:'a%26lrm%3Bb', expected:'%23document-fragment%0A%7C%20%22a%E2%80%8Eb%22'},
+{name:'da999a55445eca43aa41e039ec439c1a812db297', input:'a%26rlm%3Bb', expected:'%23document-fragment%0A%7C%20%22a%E2%80%8Fb%22'},
+{name:'0fd9e3823b62c028c1d50e35b1f3ee3df02a62eb', input:'%26quot%3B', expected:'%23document-fragment%0A%7C%20%22%22%22'},
+{name:'e7387003fbacb22b706796c98b781eb4ebf5ff85', input:'%26nbsp%3B', expected:'%23document-fragment%0A%7C%20%22%C2%A0%22'},
+{name:'216cd0e914b9f2ccd04eff6d02a0b1ce24441d95', input:'%26copy%3B', expected:'%23document-fragment%0A%7C%20%22%C2%A9%22'},
+{name:'2cdf20980d17a5d077299215e6a7e97f3c6b07e2', input:'%26%26', expected:'%23document-fragment%0A%7C%20%22%26%26%22'},
+{name:'83f4500c0bd8598480713997a041d8f70fd3f11e', input:'%261', expected:'%23document-fragment%0A%7C%20%22%261%22'},
+{name:'2c6b2ba38a08eca45370f28a5b7df2aa463fb3dc', input:'%261%3B', expected:'%23document-fragment%0A%7C%20%22%261%3B%22'},
+{name:'f4bb977c0a06851bdd19260c035a766c5c8ea093', input:'%26%3C', expected:'%23document-fragment%0A%7C%20%22%26%22'},
+{name:'b1fff1ac42688d16e00f6c758d84e5152e39702d', input:'%26%3Cc', expected:'%23document-fragment%0A%7C%20%22%26%22%0A%7C%20%3Cspan%3E'},
+{name:'bd68f6beda2c2264e61dff7359c1ad48bc0a9934', input:'%26%2332%3B', expected:'%23document-fragment%0A%7C%20%22%20%22'},
+{name:'5b77a0be23453dfe6eea59d43bb0708f89e1df82', input:'%26%23x20%3B', expected:'%23document-fragment%0A%7C%20%22%20%22'},
+{name:'87986551b0e6180cb279f2aa4cdddf77daa90c11', input:'%26%3B', expected:'%23document-fragment%0A%7C%20%22%26%3B%22'},
+{name:'e3ac2060b915f0f499b2863f999dcdb38a5db79b', input:'%26ClockwiseContourIntegral%3B', expected:'%23document-fragment%0A%7C%20%22%E2%88%B2%22'},
+{name:'31c8a5ecfa5c54d8c0ec5b4ee8f0bbea0d6d40af', input:'%26nsubE%3B', expected:'%23document-fragment%0A%7C%20%22%E2%AB%85%CC%B8%22'},
+{name:'9ed59950764468c4ef2948d71cf75c3f2b60c74d', input:'%26notin%3B', expected:'%23document-fragment%0A%7C%20%22%E2%88%89%22'},
+{name:'71a6efcfab81264fb95bb3234c59687c11c72baf', input:'%26not%3B', expected:'%23document-fragment%0A%7C%20%22%C2%AC%22'},
+{name:'86d7c20ca3c060f9e699c7da43927c4a07a5d569', input:'%26not', expected:'%23document-fragment%0A%7C%20%22%C2%AC%22'},
+{name:'314cd94292df37044e90ce27b5606bf8ec636b94', input:'%26notit%3B', expected:'%23document-fragment%0A%7C%20%22%C2%ACit%3B%22'}
+]);
+</script>

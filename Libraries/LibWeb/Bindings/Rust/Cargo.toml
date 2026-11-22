@@ -32,6 +32,7 @@ libtextcodec_rust = { path = "../../../LibTextCodec/Rust" }
 libunicode_rust = { path = "../../../LibUnicode/Rust", default-features = false }
 liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
 libwasm_engine = { path = "../../../LibWasm/Engine" }
+libweb_html_tokenizer = { path = "../../HTML/Parser/Rust" }
 libweb_rust = { path = "../../Rust" }
 libwebcommon_rust = { path = "../../../LibWebCommon/Rust" }
 rustc-demangle = "0.1"

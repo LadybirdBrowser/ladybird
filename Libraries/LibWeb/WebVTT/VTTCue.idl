@@ -19,5 +19,5 @@ interface VTTCue : TextTrackCue {
     attribute double size;
     attribute AlignSetting align;
     attribute DOMString text;
-    [FIXME] DocumentFragment getCueAsHTML();
+    DocumentFragment getCueAsHTML();
 };

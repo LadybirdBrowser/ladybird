@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const input = "&#4294967361; &#x100000041; &notit; &acE; &#x; &bogus;&amp;";
+        const cue = new VTTCue(0, 1, "<v " + input + ">" + input + "</v>");
+        const voice = cue.getCueAsHTML().firstChild;
+        println(voice.title);
+        println(voice.textContent);
+        const literal = "\r\n\x00\ud800";
+        const text = new VTTCue(0, 1, literal + "&amp;" + literal).getCueAsHTML().textContent;
+        println(text === literal + "&" + literal);
+    });
+</script>
