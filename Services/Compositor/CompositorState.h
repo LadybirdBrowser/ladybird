@@ -17,10 +17,8 @@
 #include <Compositor/CompositorCore.h>
 #include <Compositor/ContextRasterTargets.h>
 #include <Compositor/DisplayListPlayerSkia.h>
-#include <Compositor/RemoteLayer.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
-#include <Compositor/WindowServer.h>
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -219,6 +217,9 @@ private:
     void begin_canvas_2d_painting(WebContentClientId, Compositing::CanvasId, RustFFI::FfiCanvas2DPainter&);
     bool end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu();
     void report_live_content(Web::CompositorContextId, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*));
+    bool window_server_gpu_device(RustFFI::FfiWindowServerGpuDevice&);
+    Gfx::PaintingSurface const* wrap_d3d12_resource_as_surface(void* resource, Gfx::IntSize);
+    void finish_gpu_work();
     u64 submit_frame(Gfx::PaintingSurface*);
     void hand_off_once_gpu_work_is_scheduled(u64 token);
     void release_store_later(Web::CompositorContextId, i32 bitmap_id);

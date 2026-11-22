@@ -33,9 +33,6 @@ extern "C" {
 #include <Compositor/OpenGLContext.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
-#if defined(USE_DIRECTX)
-#    include <Compositor/DirectCompositionWindowServer.h>
-#endif
 
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
@@ -494,7 +491,7 @@ bool OpenGLContext::allocate_d3d_color_buffer(ColorBuffer& color_buffer, Gfx::In
         return false;
     }
     color_buffer.painting_surface = painting_surface.release_value();
-    color_buffer.presentable_surface = PresentableSurface::create(*color_buffer.painting_surface, origin, make<DirectCompositionSurface>());
+    color_buffer.presentable_surface = PresentableSurface::create_copied_into_swap_chain(*color_buffer.painting_surface, origin);
 
     create_texture_from_egl_image(color_buffer);
     return true;

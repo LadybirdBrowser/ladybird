@@ -11,13 +11,15 @@
 
 #[cfg(target_os = "macos")]
 mod core_animation;
-#[cfg(not(target_os = "macos"))]
-mod cpp_backed;
-#[cfg(target_os = "macos")]
+#[cfg(windows)]
+mod direct_composition;
+#[cfg(any(target_os = "macos", windows))]
 mod shown_sublayers;
 
 #[cfg(target_os = "macos")]
 pub use core_animation::{IOSurface, IOSurfaceRef};
+#[cfg(windows)]
+pub use direct_composition::{SharedTexture, can_show_surfaces_shared_with_it};
 
 use crate::cpp_object::CppObject;
 use crate::raster_host::{
@@ -49,7 +51,7 @@ pub trait WindowServer {
 pub trait RemoteLayer {
     fn host_handle(&self) -> Compositing_RemoteLayerHostHandle;
     /// Whether the layer can show the media as it is, placed and clipped as the frame would draw it.
-    fn can_show(&self, placement: &WindowServerPlacement, media: MediaToShow<'_>, device_pixel_ratio: f64) -> bool;
+    fn can_show(&self, placement: &WindowServerPlacement, media: MediaToShow<'_>) -> bool;
     /// Shows the part of the store that the frame was painted into, at the top left of the layer at its own size, or
     /// scaled to fit within the size of the view given, in device pixels, with the sublayers above it, bottom to top,
     /// each group with the sublayers in it. Answers false where the layer could not show the frame.
@@ -71,8 +73,15 @@ pub fn create_for_presentation(raster: &RasterHost) -> Option<Rc<dyn WindowServe
         let _ = raster;
         core_animation::CoreAnimationWindowServer::create()
     }
-    #[cfg(not(target_os = "macos"))]
-    cpp_backed::CppBackedWindowServer::create(raster)
+    #[cfg(windows)]
+    {
+        direct_composition::DirectCompositionWindowServer::create(raster)
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = raster;
+        None
+    }
 }
 
 /// Media that a remote layer is asked whether it can show as it is.
@@ -136,10 +145,6 @@ impl VideoFrameForWindowServer {
             visible_size,
             color,
         }
-    }
-
-    pub fn as_ffi(&self) -> *mut c_void {
-        self.frame.as_ptr()
     }
 
     /// The surface the frame is in where the window server can read it, an IOSurface on macOS, or null.

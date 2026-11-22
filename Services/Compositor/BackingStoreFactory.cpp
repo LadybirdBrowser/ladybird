@@ -191,7 +191,7 @@ ErrorOr<NewBackingStore> create_backing_store(RustFFI::StoreKind kind, Gfx::IntS
     case RustFFI::StoreKind::SharedGpuImage:
         return create_shared_gpu_image_backing_store(size, skia_backend_context);
     case RustFFI::StoreKind::ShownByWindowServer: {
-        auto surface = TRY(WindowServer::try_create_presentable_surface_for_stores(size, skia_backend_context));
+        auto surface = TRY(PresentableSurface::try_create_for_stores(size, skia_backend_context));
         return NewBackingStore {
             .surface = surface->painting_surface(),
             .window_server_surface = move(surface),

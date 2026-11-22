@@ -253,7 +253,7 @@ impl RemoteLayer for CoreAnimationRemoteLayer {
         }
     }
 
-    fn can_show(&self, _: &WindowServerPlacement, media: MediaToShow<'_>, _: f64) -> bool {
+    fn can_show(&self, _: &WindowServerPlacement, media: MediaToShow<'_>) -> bool {
         match media {
             MediaToShow::Surface(surface) => surface.io_surface().is_some(),
             // A frame that a decoder left in memory has no surface that the window server could read. The window

@@ -168,6 +168,27 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture
         return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
     return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
 }
+
+ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_over_swap_chain_buffer(NonnullRefPtr<SkiaBackendContext> context, void* buffer, IntSize size)
+{
+    GrD3DTextureResourceInfo info(nullptr, nullptr, D3D12_RESOURCE_STATE_PRESENT, DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* sampleCount */ 1, /* levelCount */ 1, /* sampleQualityLevel */ 0);
+    // NOTE: The positional resource argument of GrD3DTextureResourceInfo would adopt our reference, so attach it with retain() instead.
+    info.fResource.retain(static_cast<ID3D12Resource*>(buffer));
+    auto render_target = GrBackendRenderTargets::MakeD3D(size.width(), size.height(), info);
+    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), render_target, kTopLeft_GrSurfaceOrigin,
+        kRGBA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr);
+    if (!surface)
+        return Error::from_string_literal("Failed to wrap a buffer of a swap chain in a Skia surface");
+    return adopt_impl(size, make<Impl>(context, surface, nullptr, false));
+}
+
+void PaintingSurface::flush_for_presentation()
+{
+    auto& context = *impl().context->sk_context();
+    context.flush(impl().surface.get(), SkSurfaces::BackendSurfaceAccess::kPresent, GrFlushInfo {});
+    context.submit(GrSyncCpu::kNo);
+}
 #endif
 
 // The Skia color space of pixels in the color space, where sRGB is explicit.
