@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Selection.toString() excludes basic user-select: none content
+Pass	Selection.toString() excludes nested user-select: none content
+Pass	Selection.toString() includes selectable children in unselectable container

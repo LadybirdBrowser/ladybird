@@ -1,0 +1,98 @@
+<!doctype html>
+<script src="include.js"></script>
+<div id="target">a<style>.hidden { display: none; }</style><script type="text/plain">script</script><span class="hidden">hidden</span><span style="visibility: hidden">invisible</span><br hidden><br style="user-select:none"><img alt="image">b</div>
+<script>
+    test(() => {
+        const selection = getSelection();
+        selection.selectAllChildren(target);
+        println(selection.toString());
+        println(selection.getRangeAt(0).toString());
+
+        target.textContent = "xy  z";
+        target.style.textTransform = "uppercase";
+        selection.setBaseAndExtent(target.firstChild, 1, target.firstChild, 5);
+        println(selection.toString());
+        target.style.cssText = "font: 20px monospace; width: 60px";
+        target.innerHTML = "aaa<span> </span>inside";
+        selection.selectAllChildren(target);
+        println(selection.toString());
+        selection.collapseToStart();
+        println(JSON.stringify(selection.toString()));
+
+        function printContents(node) {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            println(JSON.stringify(selection.toString()));
+        }
+        target.style.cssText = "";
+        target.innerHTML = '<span style="white-space: pre"></span>';
+        const text = target.firstChild.appendChild(document.createTextNode("\n"));
+        printContents(text);
+        text.data = "x\n\n";
+        selection.setBaseAndExtent(text, 1, text, 3);
+        println(JSON.stringify(selection.toString()));
+        target.firstChild.style.whiteSpace = "normal";
+        printContents(text);
+
+        target.innerHTML = '<span>a </span><span style="white-space: pre">\nb</span>';
+        printContents(target);
+        target.lastChild.textContent = "\n";
+        printContents(target);
+        target.lastChild.hidden = true;
+        printContents(target);
+        target.innerHTML = 'a<div style="content-visibility: hidden"><span style="white-space: pre">\n</span></div>';
+        printContents(target);
+        target.innerHTML = "<table><tbody><tr><td>a</td><td></td><td>b</td></tr><tr><td>c</td></tr></tbody></table>";
+        const table = target.firstChild;
+        printContents(table.rows[0].cells[0]);
+        printContents(table.rows[0]);
+        printContents(table);
+        selection.setBaseAndExtent(table.rows[0].cells[0].firstChild, 0, table.rows[0].cells[2].firstChild, 0);
+        println(JSON.stringify(selection.toString()));
+
+        table.style.userSelect = "none";
+        printContents(table);
+        table.rows[1].style.userSelect = "text";
+        printContents(table);
+        table.rows[1].style.userSelect = "";
+        table.rows[0].cells[2].innerHTML = '<span style="user-select: text">b</span>';
+        printContents(table);
+
+        table.style.userSelect = "";
+        table.rows[0].cells[2].textContent = "b";
+        table.style.visibility = "hidden";
+        printContents(table);
+        table.rows[0].cells[1].innerHTML = '<span style="visibility: visible">v</span>';
+        printContents(table);
+        table.style.visibility = "";
+        table.rows[0].cells[1].style.visibility = "hidden";
+        table.rows[0].cells[1].textContent = "hidden";
+        printContents(table);
+        table.rows[0].style.visibility = "hidden";
+        printContents(table);
+
+        target.style.whiteSpace = "pre-line";
+        target.innerHTML = "<span>a </span><span>\n b</span>";
+        printContents(target);
+        selection.setBaseAndExtent(target.lastChild.firstChild, 0, target.lastChild.firstChild, 1);
+        println(JSON.stringify(selection.toString()));
+        target.innerHTML = "<span>a \n</span><span> b</span>";
+        printContents(target);
+        selection.setBaseAndExtent(target.firstChild.firstChild, 2, target.firstChild.firstChild, 3);
+        println(JSON.stringify(selection.toString()));
+        target.style.whiteSpace = "";
+
+        target.innerHTML = '<svg><title>title</title><text y="20">ab<tspan>cd</tspan>ef</text></svg>';
+        const svgText = target.querySelector("text");
+        printContents(target);
+        selection.setBaseAndExtent(svgText.firstChild, 1, svgText.lastChild, 1);
+        println(JSON.stringify(selection.toString()));
+        svgText.style.visibility = "hidden";
+        svgText.firstElementChild.style.visibility = "visible";
+        printContents(target);
+        svgText.firstElementChild.style.display = "none";
+        printContents(target);
+    });
+</script>

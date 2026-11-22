@@ -11,6 +11,7 @@
 
 namespace Web::Editing {
 
+Utf16String serialize_selection_as_plain_text(DOM::Range const&);
 Utf16String serialize_range_as_plain_text_for_clipboard(DOM::Range const&);
 Utf16String serialize_range_as_html_for_clipboard(DOM::Range&);
 

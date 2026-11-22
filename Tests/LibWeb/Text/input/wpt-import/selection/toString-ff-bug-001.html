@@ -1,0 +1,23 @@
+<!doctype html>
+<title>Can serialize a range which starts at the end of an element</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1571517">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<table>
+  <tr>
+    <td id="left">Foo</td>
+    <td id="right">Hello</td>
+  </tr>
+</table>
+<script>
+test(function() {
+  let s = getSelection();
+  let r = new Range();
+  r.setStart(document.getElementById("left"), 1);
+  r.setEnd(document.getElementById("right").firstChild, 4);
+  s.addRange(r);
+  assert_equals(s.toString().trim(), "Hell");
+}, "Can serialize a range which starts at the end of an element");
+</script>
