@@ -193,6 +193,7 @@ pub(super) fn adjust_element_style(
         new_display = FfiDisplay::inline_block();
     }
     if input.is_button_element
+        && new_display != FfiDisplay::block()
         && !(new_display.is_flex_inside()
             || new_display.is_grid_inside()
             || new_display.is_none()

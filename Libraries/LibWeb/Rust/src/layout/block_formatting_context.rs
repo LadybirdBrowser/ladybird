@@ -8517,6 +8517,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if facts.has_dom_node()
             && (facts.is_floating()
                 || facts.is_absolutely_positioned()
+                || facts.uses_button_layout()
                 || self.style(node).own_style_establishes_block_formatting_context()
                 || !self.style(node).display().is_flow_inside())
         {
