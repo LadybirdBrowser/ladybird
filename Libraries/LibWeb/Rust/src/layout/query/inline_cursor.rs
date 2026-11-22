@@ -1010,33 +1010,27 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
             }
             true
         });
-        let mut roots: Vec<NodeSlotId> = nodes
-            .iter()
-            .filter_map(|&node| text_fragment::containing_block_paintable_of_node(arena, node))
-            .collect();
-        roots.dedup();
-        for root in roots {
-            for (index, record) in arena.committed_side_data(root).lines().iter().enumerate() {
-                if let Some(position) = record.forced_break
-                    && record.fragment_count == 0
-                    && nodes.contains(&position.node)
-                {
-                    let offset = arena.dom_offset_for_rendered_text_offset(
-                        position.node,
-                        position.rendered_offset as usize,
-                        RenderedTextBoundary::Start,
-                    );
-                    lines.push(TextLine {
-                        line: InlineLine {
-                            root,
-                            index: index as u32,
-                        },
-                        start_offset: offset,
-                        end_offset: offset,
-                        end_offset_with_trailing_whitespace: offset,
-                        has_fragments: false,
-                    });
-                }
+        for &node in nodes {
+            let Some(root) = text_fragment::containing_block_paintable_of_node(arena, node) else {
+                continue;
+            };
+            let content = arena.committed_side_data(root);
+            for &index in content.fragmentless_break_lines_of(node) {
+                let position = content.lines()[index as usize]
+                    .forced_break
+                    .expect("indexed forced break");
+                let offset = arena.dom_offset_for_rendered_text_offset(
+                    node,
+                    position.rendered_offset as usize,
+                    RenderedTextBoundary::Start,
+                );
+                lines.push(TextLine {
+                    line: InlineLine { root, index },
+                    start_offset: offset,
+                    end_offset: offset,
+                    end_offset_with_trailing_whitespace: offset,
+                    has_fragments: false,
+                });
             }
         }
         lines.sort_by_key(|line| line.start_offset);

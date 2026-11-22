@@ -1,2 +1,3 @@
-selection.toString(): "hiddenvisiblealso hiddenalso visible"
+range.toString(): "hiddenvisiblealso hiddenalso visible"
+selection.toString(): "visible\n\nalso visible"
 clipboard text: "visible\n\nalso visible"
