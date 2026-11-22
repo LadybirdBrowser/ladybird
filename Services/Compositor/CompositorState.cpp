@@ -1230,6 +1230,22 @@ static Gfx::AffineTransform content_to_frame_of(RustFFI::FfiSublayerPlacement co
     return { transform[0], transform[1], transform[2], transform[3], transform[4], transform[5] };
 }
 
+static Optional<RemoteSublayer::PathClip> path_clip_of(RustFFI::FfiSublayerPlacement const& placement)
+{
+    if (!placement.is_clipped_by_path)
+        return {};
+    auto contours = Gfx::PathData::from_ffi(placement.clip_path_contours);
+    auto const* path_to_frame = placement.clip_path_to_frame;
+    RemoteSublayer::PathClip path_clip;
+    path_clip.path_identity = placement.clip_path_identity;
+    path_clip.verbs.append(contours.verbs.data(), contours.verbs.size());
+    path_clip.points.append(contours.points.data(), contours.points.size());
+    path_clip.conic_weights.append(contours.conic_weights.data(), contours.conic_weights.size());
+    path_clip.winding_rule = placement.clip_path_fill_rule;
+    path_clip.path_to_frame = { path_to_frame[0], path_to_frame[1], path_to_frame[2], path_to_frame[3], path_to_frame[4], path_to_frame[5] };
+    return path_clip;
+}
+
 bool CompositorState::remote_layer_can_show(RemoteLayer& remote_layer, Web::CompositorContextId context_id, RustFFI::MediaKind kind, u64 media_id, RustFFI::FfiSublayerPlacement const& placement, double device_pixel_ratio)
 {
     auto content = remote_layer_content(presented_context(context_id), kind, media_id);
@@ -1240,6 +1256,7 @@ bool CompositorState::remote_layer_can_show(RemoteLayer& remote_layer, Web::Comp
         .content_to_viewport = content_to_frame_of(placement),
         .clip_rect = placement.clip_rect,
         .rounded_clip = rounded_clip_of(placement),
+        .is_clipped_by_path = placement.is_clipped_by_path,
         .scaling_mode = placement.scaling_mode,
     };
     return remote_layer.can_show(window_server_placement, *content, device_pixel_ratio);
@@ -1332,6 +1349,7 @@ Vector<RemoteSublayer>* CompositorState::build_sublayers(Web::CompositorContextI
             .content_to_frame = content_to_frame_of(placement),
             .clip_rect = placement.clip_rect,
             .rounded_clip = rounded_clip_of(placement),
+            .path_clip = path_clip_of(placement),
             .scaling_mode = placement.scaling_mode,
         });
     }

@@ -184,8 +184,10 @@ impl WindowServerLayers {
     }
 }
 
+/// The placement as the window server is handed it, whose path contours are lent from `placement`.
 fn sublayer_placement_of(placement: &WindowServerPlacement) -> FfiSublayerPlacement {
     let rounded_clip = placement.rounded_clip;
+    let path_clip = placement.path_clip.as_ref();
     FfiSublayerPlacement {
         content_rect: placement.content_rect,
         content_to_frame: placement.content_to_viewport.values,
@@ -197,6 +199,11 @@ fn sublayer_placement_of(placement: &WindowServerPlacement) -> FfiSublayerPlacem
         rounds_top_right: rounded_clip.is_some_and(|clip| clip.rounded_corners.top_right),
         rounds_bottom_right: rounded_clip.is_some_and(|clip| clip.rounded_corners.bottom_right),
         rounds_bottom_left: rounded_clip.is_some_and(|clip| clip.rounded_corners.bottom_left),
+        is_clipped_by_path: path_clip.is_some(),
+        clip_path_identity: path_clip.map_or(0, |clip| clip.path.identity()),
+        clip_path_fill_rule: path_clip.map(|clip| clip.fill_rule).unwrap_or_default(),
+        clip_path_to_frame: path_clip.map_or([0.0; 6], |clip| clip.path_to_viewport.values),
+        clip_path_contours: path_clip.map(|clip| clip.path.geometry_data()).unwrap_or_default(),
         scaling_mode: placement.scaling_mode,
     }
 }

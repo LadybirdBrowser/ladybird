@@ -8,8 +8,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 Layers (for a window server that shows tiles and filters what is below layers):
-  [L0] base space=viewport held by the frame: it is under a layer the frame holds
-  [L1] canvas #0 space=viewport region=[67,27 106x106] replayed: clipped by a path
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[67,27 106x106] can be shown by the window server: clip=[70,30 100x100] path=[70,30 100x100]
 
 DisplayList:
 L1 DrawCanvas@s1/c0/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground

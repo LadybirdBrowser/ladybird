@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box { position: absolute; left: 20px; top: 20px; width: 200px; height: 120px; overflow: hidden; border-radius: 40px; corner-shape: squircle; }
+    canvas { display: block; }
+</style>
+<div id="box"><canvas id="canvas" width="200" height="120"></canvas></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const dump = internals.dumpDisplayList();
+        println(dump.slice(dump.indexOf("\nLayers") + 1, dump.indexOf("\nDisplayList:")));
+    });
+</script>

@@ -90,6 +90,10 @@ private:
         // content, or the one layer of a group, a tile or a color.
         void* outermost_layer { nullptr };
         void* rounded_clip_layer { nullptr };
+        // The mask of the outermost layer of placed content clipped by a path, and the identity of the path its
+        // outline was made of.
+        void* path_clip_mask_layer { nullptr };
+        Optional<u64> identity_of_path_in_clip_mask;
         void* content_layer { nullptr };
         Variant<Empty, NonnullRefPtr<Media::VideoFrame>, PresentableSurface::Lease> content;
         // What a group, a tile or a color was last shown with, so that a frame sets only what it changes.
@@ -108,6 +112,7 @@ private:
     ShownSublayer& shown_sublayer_of_kind(u64 identity, SublayerKind);
     void use_content_layer_of_kind_for(ShownSublayer&, RemoteSublayer const&);
     void update_shown_sublayer(ShownSublayer&, RemoteSublayer&);
+    void update_path_clip_mask(ShownSublayer&, RemoteSublayer const&);
     void update_shown_group(ShownSublayer&, RemoteSublayer::Group const&);
     void update_shown_tile(ShownSublayer&, RemoteSublayer::Tile&, Gfx::IntRect);
     void update_shown_color(ShownSublayer&, Gfx::Color, Gfx::IntRect);

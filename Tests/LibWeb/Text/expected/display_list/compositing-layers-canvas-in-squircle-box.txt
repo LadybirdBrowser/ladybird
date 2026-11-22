@@ -1,0 +1,4 @@
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[17,17 206x126] can be shown by the window server: clip=[20,20 200x120] path=[20,20 200x120]
+

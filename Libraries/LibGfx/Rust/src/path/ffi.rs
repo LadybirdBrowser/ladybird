@@ -15,6 +15,7 @@ use crate::geometry::FloatPoint;
 
 /// The contours of a path, valid until the path changes or is destroyed. A path without geometry has
 /// none.
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PathGeometryData {
     pub verbs: *const u8,
@@ -24,6 +25,21 @@ pub struct PathGeometryData {
     pub conic_weights: *const f32,
     pub conic_weight_count: usize,
     pub fill_rule: u8,
+}
+
+/// No contours.
+impl Default for PathGeometryData {
+    fn default() -> Self {
+        Self {
+            verbs: std::ptr::null(),
+            verb_count: 0,
+            points: std::ptr::null(),
+            point_count: 0,
+            conic_weights: std::ptr::null(),
+            conic_weight_count: 0,
+            fill_rule: 0,
+        }
+    }
 }
 
 fn point(x: f32, y: f32) -> FloatPoint {

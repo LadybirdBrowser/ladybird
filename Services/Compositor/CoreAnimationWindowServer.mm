@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/HashTable.h>
 #include <AK/Math.h>
 #include <AK/ScopeGuard.h>
@@ -15,6 +16,8 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
+#include <core/SkPath.h>
+#include <core/SkPoint.h>
 #include <dlfcn.h>
 #include <objc/runtime.h>
 
@@ -534,6 +537,7 @@ void CoreAnimationRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublay
     use_content_layer_of_kind_for(shown_sublayer, sublayer);
     auto* content_layer = as_layer(shown_sublayer.content_layer);
     clip_layer.frame = in_points(sublayer.clip_rect, device_pixel_ratio);
+    update_path_clip_mask(shown_sublayer, sublayer);
 
     // The content layer is placed relative to the innermost layer that clips it.
     auto origin_of_content_parent = sublayer.clip_rect.location();
@@ -590,6 +594,134 @@ void CoreAnimationRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublay
     content_layer.minificationFilter = sublayer.scaling_mode == Gfx::ScalingMode::BilinearMipmap ? kCAFilterTrilinear : filter_for_scaling_mode(sublayer.scaling_mode);
 
     show_content(shown_sublayer, sublayer);
+}
+
+// CoreGraphics has no conic curves, so a conic is drawn as quadratic curves that stray from it by at most this, in the
+// units of the space of its path.
+static constexpr float conic_tolerance_in_units_of_path = 0.1f;
+static constexpr int most_halvings_of_conic_into_quadratic_curves = 5;
+
+// How many times a conic is halved into quadratic curves for them to stay within the tolerance of it, by the bound on
+// how far a single quadratic curve strays from it. Each halving quarters how far the curves stray.
+static int halvings_of_conic_into_quadratic_curves(SkPoint start, SkPoint control, SkPoint end, float weight)
+{
+    auto weight_past_parabola = weight - 1;
+    auto factor = weight_past_parabola / (4 * (2 + weight_past_parabola));
+    auto x = factor * (start.x() - 2 * control.x() + end.x());
+    auto y = factor * (start.y() - 2 * control.y() + end.y());
+    auto distance_strayed = AK::sqrt(x * x + y * y);
+    int halvings = 0;
+    while (halvings < most_halvings_of_conic_into_quadratic_curves && distance_strayed > conic_tolerance_in_units_of_path) {
+        distance_strayed *= 0.25f;
+        ++halvings;
+    }
+    return halvings;
+}
+
+static void append_conic_as_quadratic_curves(CGMutablePathRef outline, Gfx::FloatPoint control, Gfx::FloatPoint end, float weight)
+{
+    auto current_point = CGPathGetCurrentPoint(outline);
+    auto start = SkPoint::Make(current_point.x, current_point.y);
+    auto skia_control = SkPoint::Make(control.x(), control.y());
+    auto skia_end = SkPoint::Make(end.x(), end.y());
+    auto halvings = halvings_of_conic_into_quadratic_curves(start, skia_control, skia_end, weight);
+    Array<SkPoint, 1 + 2 * (1 << most_halvings_of_conic_into_quadratic_curves)> quadratic_curve_points;
+    auto quadratic_curve_count = SkPath::ConvertConicToQuads(start, skia_control, skia_end, weight, quadratic_curve_points.data(), halvings);
+    for (int index = 0; index < quadratic_curve_count; ++index) {
+        auto const& curve_control = quadratic_curve_points[1 + 2 * index];
+        auto const& curve_end = quadratic_curve_points[2 + 2 * index];
+        CGPathAddQuadCurveToPoint(outline, nullptr, curve_control.x(), curve_control.y(), curve_end.x(), curve_end.y());
+    }
+}
+
+// The outline of the path in its own space.
+static CGPathRef create_outline_of_path(RemoteSublayer::PathClip const& path_clip)
+{
+    auto* outline = CGPathCreateMutable();
+    auto const& points = path_clip.points;
+    size_t index_of_next_point = 0;
+    size_t index_of_next_conic_weight = 0;
+    auto next_point = [&] { return points[index_of_next_point++]; };
+    for (auto verb : path_clip.verbs) {
+        switch (verb) {
+        case Gfx::PathVerb::Move: {
+            auto point = next_point();
+            CGPathMoveToPoint(outline, nullptr, point.x(), point.y());
+            break;
+        }
+        case Gfx::PathVerb::Line: {
+            auto point = next_point();
+            CGPathAddLineToPoint(outline, nullptr, point.x(), point.y());
+            break;
+        }
+        case Gfx::PathVerb::Quad: {
+            auto control = next_point();
+            auto end = next_point();
+            CGPathAddQuadCurveToPoint(outline, nullptr, control.x(), control.y(), end.x(), end.y());
+            break;
+        }
+        case Gfx::PathVerb::Conic: {
+            auto control = next_point();
+            auto end = next_point();
+            append_conic_as_quadratic_curves(outline, control, end, path_clip.conic_weights[index_of_next_conic_weight++]);
+            break;
+        }
+        case Gfx::PathVerb::Cubic: {
+            auto first_control = next_point();
+            auto second_control = next_point();
+            auto end = next_point();
+            CGPathAddCurveToPoint(outline, nullptr, first_control.x(), first_control.y(), second_control.x(), second_control.y(), end.x(), end.y());
+            break;
+        }
+        case Gfx::PathVerb::Close:
+            CGPathCloseSubpath(outline);
+            break;
+        }
+    }
+    return outline;
+}
+
+// The mask stays in the space of the path, and its transform maps that space into the clip layer, whose points have
+// their origin at the origin of the clip rect: from the path's space to the frame's pixels, then to pixels from the
+// origin of the clip rect, then to points. With its anchor point and position at the origin, the mask is placed by
+// that transform alone.
+void CoreAnimationRemoteLayer::update_path_clip_mask(ShownSublayer& shown_sublayer, RemoteSublayer const& sublayer)
+{
+    auto* clip_layer = as_layer(shown_sublayer.outermost_layer);
+    if (!sublayer.path_clip.has_value()) {
+        if (shown_sublayer.path_clip_mask_layer) {
+            clip_layer.mask = nil;
+            [as_layer(shown_sublayer.path_clip_mask_layer) release];
+            shown_sublayer.path_clip_mask_layer = nullptr;
+            shown_sublayer.identity_of_path_in_clip_mask = {};
+        }
+        return;
+    }
+    auto const& path_clip = *sublayer.path_clip;
+    if (!shown_sublayer.path_clip_mask_layer) {
+        auto* mask_layer = [[CAShapeLayer alloc] init];
+        mask_layer.anchorPoint = CGPointZero;
+        mask_layer.position = CGPointZero;
+        clip_layer.mask = mask_layer;
+        shown_sublayer.path_clip_mask_layer = mask_layer;
+    }
+    auto* mask_layer = static_cast<CAShapeLayer*>(shown_sublayer.path_clip_mask_layer);
+    if (shown_sublayer.identity_of_path_in_clip_mask != path_clip.path_identity) {
+        auto* outline = create_outline_of_path(path_clip);
+        mask_layer.path = outline;
+        CGPathRelease(outline);
+        shown_sublayer.identity_of_path_in_clip_mask = path_clip.path_identity;
+    }
+    auto* fill_rule = path_clip.winding_rule == Gfx::WindingRule::EvenOdd ? kCAFillRuleEvenOdd : kCAFillRuleNonZero;
+    if (![mask_layer.fillRule isEqualToString:fill_rule])
+        mask_layer.fillRule = fill_rule;
+
+    auto device_pixel_ratio = m_device_pixel_ratio;
+    auto origin_of_clip_rect = sublayer.clip_rect.location();
+    auto path_to_clip_layer = to_core_graphics(path_clip.path_to_frame);
+    path_to_clip_layer = CGAffineTransformConcat(path_to_clip_layer, CGAffineTransformMakeTranslation(-origin_of_clip_rect.x(), -origin_of_clip_rect.y()));
+    path_to_clip_layer = CGAffineTransformConcat(path_to_clip_layer, CGAffineTransformMakeScale(1 / device_pixel_ratio, 1 / device_pixel_ratio));
+    mask_layer.affineTransform = path_to_clip_layer;
 }
 
 static CGPoint in_points(Gfx::FloatPoint point, double device_pixel_ratio)
@@ -1004,6 +1136,8 @@ void CoreAnimationRemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublay
         [as_layer(shown_sublayer.content_layer) release];
     if (shown_sublayer.rounded_clip_layer)
         [as_layer(shown_sublayer.rounded_clip_layer) release];
+    if (shown_sublayer.path_clip_mask_layer)
+        [as_layer(shown_sublayer.path_clip_mask_layer) release];
     [as_layer(shown_sublayer.outermost_layer) release];
 }
 

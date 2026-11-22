@@ -16,9 +16,12 @@
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>
+#include <LibGfx/PathData.h>
+#include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
+#include <LibGfx/WindingRule.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositor {
@@ -34,6 +37,19 @@ struct RemoteSublayer {
         bool rounds_top_right { false };
         bool rounds_bottom_right { false };
         bool rounds_bottom_left { false };
+    };
+
+    // A path that clips the content, with a copy of its contours, as the path the copy is of may be gone by the time
+    // the frame is shown. The contours are in a space of their own, which the transform maps into the frame.
+    struct PathClip {
+        // Tells the path apart from every other path of the process, so that a frame that clips by the same path as
+        // the one before does not make its outline again.
+        u64 path_identity { 0 };
+        Vector<Gfx::PathVerb> verbs;
+        Vector<Gfx::FloatPoint> points;
+        Vector<float> conic_weights;
+        Gfx::WindingRule winding_rule { Gfx::WindingRule::Nonzero };
+        Gfx::AffineTransform path_to_frame;
     };
 
     // Holds the sublayers that name it as their group.
@@ -88,6 +104,7 @@ struct RemoteSublayer {
     Gfx::AffineTransform content_to_frame;
     Gfx::FloatRect clip_rect;
     Optional<RoundedClip> rounded_clip;
+    Optional<PathClip> path_clip;
     Gfx::ScalingMode scaling_mode { Gfx::ScalingMode::Bilinear };
 };
 
@@ -97,6 +114,7 @@ struct WindowServerPlacement {
     Gfx::AffineTransform content_to_viewport;
     Gfx::FloatRect clip_rect;
     Optional<RemoteSublayer::RoundedClip> rounded_clip;
+    bool is_clipped_by_path { false };
     Gfx::ScalingMode scaling_mode { Gfx::ScalingMode::Bilinear };
 };
 
