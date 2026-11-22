@@ -141,8 +141,8 @@ mod platform {
         // SAFETY: Forwarded from the caller.
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         unsafe {
-            discard(address, size)
-        };
+            discard(address, size);
+        }
     }
 
     /// # Safety
