@@ -1,0 +1,13 @@
+Ladybird now gives a space the first font in the font list whose
+unicode-range covers it and that has a glyph for it, as for any other
+character. Run in Chrome 158, Firefox 151 and WebKit 26.5, all three
+do the same: A space between digits from a digits-only Ahem face takes
+the next font’s space, a space between words from a later font takes
+the first font’s 1em Ahem space, and spaces after a Japanese word in
+monospace text are one column wide. Blink’s HarfBuzzShaper shapes a
+run with the primary font, and reshapes only the characters it has no
+glyph for with the next font from its FontFallbackIterator. Gecko’s
+gfxFontGroup::FindFontForChar() continues the previous character’s font
+only for cluster extenders and NNBSP, and walks the font group for a
+space. An emoji font listed first still gives way to the first text
+font for a space, which keeps baa9b6cc345’s rule.
