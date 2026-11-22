@@ -179,6 +179,28 @@ pub fn bounding_rect_computed_from_payload(header: &DisplayListCommandHeader, pa
     )
 }
 
+/// Whether a record whose bounds meet `rect` can paint within it. A ring paints nothing where `rect` lies inside its
+/// inner edge, as the focus ring of a field does nowhere over the field's caret.
+pub fn record_can_paint_within(header: &DisplayListCommandHeader, payload: &[u8], rect: IntRect) -> bool {
+    if header.command_type != DisplayListCommandType::FillRoundedRectRing || header.has_inline_transform {
+        return true;
+    }
+    let ring = read_command::<FillRoundedRectRing>(payload);
+    let inner = ring
+        .rect
+        .shrunken(ring.top_width, ring.right_width, ring.bottom_width, ring.left_width);
+    // The rounded corners of the inner edge reach into it no farther than the largest radius, so a rect clear of
+    // those corners lies inside the inner rect made that much narrower or that much shorter.
+    let radii = ring.corner_radii;
+    let corner = [radii.top_left, radii.top_right, radii.bottom_right, radii.bottom_left]
+        .iter()
+        .map(|radius| radius.horizontal_radius.max(radius.vertical_radius).max(0))
+        .max()
+        .unwrap_or(0);
+    !inner.shrunken(0, corner, 0, corner).contains_rect(rect)
+        && !inner.shrunken(corner, 0, corner, 0).contains_rect(rect)
+}
+
 // A finished tape together with the run table summarizing it and the chunks it is cut into.
 #[derive(Clone, Default)]
 pub struct RecordedDisplayList {

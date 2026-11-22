@@ -9,7 +9,7 @@
 use crate::display_list::builder::DisplayListBuilder;
 use crate::display_list::commands::{
     CanvasId, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommand, DrawCanvas, EffectNodeIndex,
-    FillRect, ImageFrameResourceId, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
+    FillRect, ImageFrameResourceId, PaintCaret, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
 };
 use crate::display_list::layers::LayerStack;
 use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
@@ -194,6 +194,15 @@ pub fn canvas(rect: IntRect, id: u64) -> DrawCanvas {
         dst_rect: rect,
         canvas_id: CanvasId(id),
         scaling_mode: ScalingMode::NearestNeighbor,
+    }
+}
+
+pub fn caret(rect: IntRect) -> PaintCaret {
+    PaintCaret {
+        rect,
+        color: Color::from_rgb(0, 0, 0),
+        blink_cycle_start_time_ns: 0,
+        should_blink: true,
     }
 }
 

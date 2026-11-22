@@ -278,6 +278,8 @@ fn version_of_live_content(live_content: &dyn LiveContentVersions, content: Live
         LiveContent::CompositedContext(nested_context) => live_content
             .nested_context_frame_generation(nested_context)
             .unwrap_or(u64::MAX),
+        // The blink phase of a caret is hashed from its record.
+        LiveContent::Caret => 0,
     }
 }
 
@@ -1562,6 +1564,7 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
                     LiveContent::VideoFrame(_) => 2,
                     LiveContent::ImageFrame(_) => 3,
                     LiveContent::CompositedContext(_) => 4,
+                    LiveContent::Caret => 5,
                 });
                 hasher.write_u64(version_of_live_content(frame_state.live_content, content));
                 if matches!(content, LiveContent::CompositedContext(_)) {

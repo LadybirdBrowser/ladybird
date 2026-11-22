@@ -22,17 +22,18 @@ use super::{
     WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
+use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
 use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, SpatialNodeIndex};
 use crate::display_list::effect_geometry::{
     FiltersOfEffects, KeyframeFiltersOfEffects, backdrop_filter_read_reach, filter_may_spread_at_some_sample,
     filter_read_reach_in_device_pixels,
 };
 use crate::display_list::placement::{
-    CompositeClip, FiltersAndClipsOfList, RasterSpace, RasterSpaceAnchorKind, RasterSpaceGeometry, RasterSpaceIndex,
-    RunGroupIndex, RunGroups, enclosing_int_rect_within_extent_limit, is_finite_rect,
+    ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, CompositeClip, FiltersAndClipsOfList, RasterSpace, RasterSpaceAnchorKind,
+    RasterSpaceIndex, RunGroupIndex, RunGroups, enclosing_int_rect_within_extent_limit, is_finite_rect,
 };
 use crate::display_list::reach::Reach;
-use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan, RunIndexInList};
+use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan, RunIndexInChunk, RunIndexInList};
 use crate::display_list::summary::{IndexedRecord, LiveContent};
 use crate::display_list::tiles::{CellRange, reaches_too_many_cells_to_follow_one_by_one, tile_coords_touching};
 use crate::visual_context::queries::{BackdropReader, NestingOfLiveEffects, backdrop_reader_by_reading_effect_index};
@@ -107,6 +108,8 @@ pub enum WhyMediaHasNoLayer {
     MoreMediaThanLayersFor,
     SortedByDepthInA3DSortingContext,
     InsideAnEffectTheCompositorCannotComposite(WhyCompositorCannotCompositeEffect),
+    InsideAnEffectThatPushesALayerAtReplay,
+    MovesWithinItsSpace,
 }
 
 impl std::fmt::Display for WhyMediaHasNoLayer {
@@ -120,6 +123,10 @@ impl std::fmt::Display for WhyMediaHasNoLayer {
             WhyMediaHasNoLayer::InsideAnEffectTheCompositorCannotComposite(why) => {
                 return write!(formatter, "inside a {why}");
             }
+            WhyMediaHasNoLayer::InsideAnEffectThatPushesALayerAtReplay => {
+                "inside an effect that pushes a layer at replay"
+            }
+            WhyMediaHasNoLayer::MovesWithinItsSpace => "moves within its space",
         })
     }
 }
@@ -275,7 +282,7 @@ pub struct PlacedEffect {
     pub why_composited_regardless_of_layer_content: Option<WhyEffectIsComposited>,
 }
 
-/// A canvas, video or nested context that is a layer of its own, alone in its run.
+/// A canvas, video, nested context or caret that is a layer of its own, alone in its run.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PlacedMedia {
     pub content: LiveContent,
@@ -285,6 +292,10 @@ pub struct PlacedMedia {
     pub run_index: RunIndexInList,
     /// Where it can show, in the raster coordinates of the space of its run's group.
     pub reach: IntRect,
+    /// Whether a record painted after it can show where it can, so that it cuts the tiles it touches. Where none can, it
+    /// cuts none, and the records of its band painted after it stay in the layers below it, such as the base layer,
+    /// where text takes LCD antialiasing.
+    pub cuts_band: bool,
 }
 
 /// Where each part of a list is placed at the spaces a tree offers, under the values a frame shows. What it decides
@@ -898,10 +909,9 @@ impl<'a> ListBeingPlaced<'a> {
                 Some(WhyMediaHasNoLayer::SortedByDepthInA3DSortingContext)
             } else {
                 self.why_media_has_no_layer(
-                    &self.geometries[self.space_of_run(runs, run_index as usize).0].raster,
-                    run_index,
-                    record_position,
-                    runs.reach_of_run_by_run_index[run_index as usize],
+                    runs,
+                    content,
+                    record,
                     spatial_node_is_under_transform_animation_leaving_plane
                         .get(list.run(run_index as usize).context.spatial.0 as usize)
                         .copied()
@@ -913,23 +923,28 @@ impl<'a> ListBeingPlaced<'a> {
                     let record_span = list.span_of_run(run_index as usize);
                     debug_assert_eq!(
                         record_position, record_span.begin,
-                        "a canvas, video or nested context is alone in its run"
+                        "a canvas, video, nested context or caret is alone in its run"
                     );
+                    let reach = runs.reach_of_run_by_run_index[run_index as usize];
                     placed_media.push(PlacedMedia {
                         content,
                         ordinal: 0,
                         record_span,
                         run_index: RunIndexInList(run_index),
-                        reach: runs.reach_of_run_by_run_index[run_index as usize],
+                        reach,
+                        cuts_band: self.record_painted_after_can_show_over(runs, run_index as usize, reach),
                     });
                 }
                 Some(why_no_layer) => media_without_layers.push((content, why_no_layer)),
             }
         }
         if placed_media.len() > MAXIMUM_MEDIA_LAYER_COUNT {
-            let nested_contexts_after_canvases_and_videos =
-                |media: &PlacedMedia| matches!(media.content, LiveContent::CompositedContext(_));
-            placed_media.sort_by_key(nested_contexts_after_canvases_and_videos);
+            let canvases_and_videos_then_nested_contexts_then_carets = |media: &PlacedMedia| match media.content {
+                LiveContent::CompositedContext(_) => 1,
+                LiveContent::Caret => 2,
+                _ => 0,
+            };
+            placed_media.sort_by_key(canvases_and_videos_then_nested_contexts_then_carets);
             for media_past_limit in placed_media.drain(MAXIMUM_MEDIA_LAYER_COUNT..) {
                 media_without_layers.push((media_past_limit.content, WhyMediaHasNoLayer::MoreMediaThanLayersFor));
             }
@@ -945,36 +960,89 @@ impl<'a> ListBeingPlaced<'a> {
     }
 
     // Under a transform animation that leaves the plane, a sample can draw the media through a matrix that is not 2D
-    // affine, whatever the tree holds.
+    // affine, whatever the tree holds. A caret does not get the effects around it composited, as the other media do:
+    // it has no layer inside an effect that a replay draws into a layer of its own.
     fn why_media_has_no_layer(
         &self,
-        geometry: &RasterSpaceGeometry,
-        run_index: u32,
-        media_record_position: ListPosition,
-        reach_of_run_holding_only_media: IntRect,
+        runs: &RunGroupsPlaced,
+        content: LiveContent,
+        record: IndexedRecord,
         is_under_transform_animation_leaving_plane: bool,
     ) -> Option<WhyMediaHasNoLayer> {
-        let (header, _) = self.list.record_at(media_record_position);
+        let run_index = record.run_index as usize;
+        let (header, _) = self.list.record_at(record.position);
         if !matches!(
             header.command_type,
             DisplayListCommandType::DrawCanvas
                 | DisplayListCommandType::DrawVideoFrame
                 | DisplayListCommandType::DrawCompositedContext
+                | DisplayListCommandType::PaintCaret
         ) {
             return Some(WhyMediaHasNoLayer::DrawnInsideAnotherCommand);
         }
-        let run = self.list.run(run_index as usize);
+        let run = self.list.run(run_index);
+        let geometry = &self.geometries[self.space_of_run(runs, run_index).0].raster;
         if is_under_transform_animation_leaving_plane || !geometry.world.draw_matrix(run.context.spatial).is_2d_affine()
         {
             return Some(WhyMediaHasNoLayer::UnderTransformThatIsNot2DAffine);
         }
-        if let Some(why) = self.why_compositor_cannot_composite_effect_or_effects_around(run.context.effect) {
+        if content == LiveContent::Caret {
+            if !self
+                .tree
+                .content_under_effect_composites_into_root_group(run.context.effect)
+            {
+                return Some(WhyMediaHasNoLayer::InsideAnEffectThatPushesALayerAtReplay);
+            }
+            // Its reach is then wherever its fixed clips let it show.
+            if runs.run_moves_within_space_by_run_index[run_index] {
+                return Some(WhyMediaHasNoLayer::MovesWithinItsSpace);
+            }
+        } else if let Some(why) = self.why_compositor_cannot_composite_effect_or_effects_around(run.context.effect) {
             return Some(WhyMediaHasNoLayer::InsideAnEffectTheCompositorCannotComposite(why));
         }
-        if reach_of_run_holding_only_media.is_empty() {
+        if runs.reach_of_run_by_run_index[run_index].is_empty() {
             return Some(WhyMediaHasNoLayer::DrawsNothingVisible);
         }
         None
+    }
+
+    // Whether a record painted after the media alone in run `run_index`, which can show within `reach`, can show where
+    // the media can, so that the media cuts the tiles of its band that it touches. Records of other spaces go into
+    // other bands. A record of a run on the same spatial node can show where its bounds meet those of the media, and
+    // one of a run on another node wherever its run can.
+    fn record_painted_after_can_show_over(&self, runs: &RunGroupsPlaced, run_index: usize, reach: IntRect) -> bool {
+        let list = self.list;
+        let space = self.space_of_run(runs, run_index);
+        let spatial = list.run(run_index).context.spatial;
+        let (header, payload) = list.record_at(list.span_of_run(run_index).begin);
+        let Some(bounds) = bounding_rect_computed_from_payload(&header, payload) else {
+            return true;
+        };
+        let margin = ANTIALIASING_MARGIN_IN_DEVICE_PIXELS;
+        let bounds = bounds.inflated_edges(margin, margin, margin, margin);
+        (run_index + 1..list.run_count()).any(|later_run_index| {
+            if self.space_of_run(runs, later_run_index) != space
+                || runs.reach_of_run_by_run_index[later_run_index]
+                    .intersected(reach)
+                    .is_empty()
+            {
+                return false;
+            }
+            if list.run(later_run_index).context.spatial != spatial {
+                return true;
+            }
+            let (chunk_index, run_index_in_chunk) = list.chunk_of_run(later_run_index);
+            let chunk = list.chunk(chunk_index);
+            let table = chunk.record_table();
+            table
+                .records_in(table.record_indices_of_run(RunIndexInChunk(run_index_in_chunk as u32)))
+                .iter()
+                .any(|record| {
+                    let (header, payload) = chunk.record_at(record.offset);
+                    !record.bounding_rect.intersected(bounds).is_empty()
+                        && record_can_paint_within(&header, payload, bounds)
+                })
+        })
     }
 
     fn effects_composited_regardless_of_layer_content(
@@ -1903,12 +1971,14 @@ impl StackBeingBuilt<'_> {
                         ordinal: media.ordinal,
                         record_span: media_stretch.record_span,
                         reach: media_stretch.reach,
+                        cuts_band: media.cuts_band,
                     };
-                    (
-                        barrier_of_plan,
-                        media_stretch.record_span.begin,
-                        Reach::Within(media_stretch.reach),
-                    )
+                    let cut_reach = if media.cuts_band {
+                        Reach::Within(media_stretch.reach)
+                    } else {
+                        Reach::Nothing
+                    };
+                    (barrier_of_plan, media_stretch.record_span.begin, cut_reach)
                 }
                 BarrierBeingBuilt::NestedNodeBand {
                     band_being_built_index: nested_band_being_built_index,
@@ -2284,14 +2354,15 @@ impl InputsOfLayerPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display_list::commands::{CanvasId, ContextRef};
+    use crate::display_list::commands::{CanvasId, ContextRef, FillRoundedRectRing};
     use crate::display_list::layers::{
-        CutsOfCell, LayerIdentity, NodeNamesFromIndices, WindowServerPresentationOfMedia, media_name,
+        BarrierCut, BarrierIdentity, CutsOfCell, LayerIdentity, NodeNamesFromIndices, WindowServerPresentationOfMedia,
+        media_name,
     };
     use crate::display_list::test_fixtures::{
-        GREEN, ListOfOneChunk, VIEWPORT, animation_of, canvas, effects, fill, frosted_glass, opacity_animation_of,
-        scroll_node, scroll_record, spinning, transform, transform_animation_of, tree_with_document_scroll,
-        tree_with_root_isolation_effect,
+        GREEN, ListOfOneChunk, VIEWPORT, animation_of, canvas, caret, effects, fill, frosted_glass,
+        opacity_animation_of, scroll_node, scroll_record, spinning, transform, transform_animation_of,
+        tree_with_document_scroll, tree_with_root_isolation_effect,
     };
     use crate::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
     use crate::node_slot_id::NodeSlotId;
@@ -2731,6 +2802,187 @@ mod tests {
         assert_eq!(
             kinds_of_layers_from_base_up_that_may_hold_content(&stack),
             ["base viewport band 0", "canvas #0 animated@s1 in viewport"]
+        );
+    }
+
+    // The cut of the band at the layer of the first drawing of `content`.
+    fn cut_of_media<'a>(stack: &'a LayerStack, content: LiveContent) -> &'a BarrierCut {
+        stack
+            .bands
+            .iter()
+            .flat_map(|band| &band.cuts)
+            .find(|cut| {
+                matches!(stack.layers[cut.layer_above_cut.0 - 1].identity,
+                    LayerIdentity::Media { content: layer_content, .. } if layer_content == content)
+            })
+            .expect("the media is a barrier of a band")
+    }
+
+    #[test]
+    fn a_caret_gets_a_layer_of_its_own() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let planned = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(20, 20, 2, 16)), document)
+            .planned(&tree, &[]);
+        assert!(planned.placement.media_without_layers.is_empty());
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&planned.stack),
+            ["base document band 0", "caret #0 document"]
+        );
+    }
+
+    #[test]
+    fn records_painted_after_a_caret_go_above_it_in_the_tiles_it_touches() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(20, 20, 2, 16)), document)
+            .with(fill(IntRect::new(10, 10, 100, 40), GREEN), document)
+            .with(fill(IntRect::new(10, 1500, 100, 40), GREEN), document)
+            .stack(&tree, &[]);
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&stack),
+            [
+                "base document band 0",
+                "caret #0 document",
+                "painted document band 0 above L2"
+            ]
+        );
+        let layer_above_caret = stack
+            .layers
+            .iter()
+            .find(|layer| {
+                matches!(
+                    layer.identity,
+                    LayerIdentity::Painted {
+                        above_barrier: Some(BarrierIdentity::Media {
+                            content: LiveContent::Caret,
+                            ..
+                        }),
+                        ..
+                    }
+                )
+            })
+            .expect("a layer is above the caret");
+        assert!(
+            crate::display_list::tiles::TileCoord::new(0, 0)
+                .cell_rect()
+                .contains_rect(layer_above_caret.reach),
+            "only the records in the tiles the caret touches go above it"
+        );
+    }
+
+    // Text painted after a caret that it does not overlap stays in the base layer, where it takes LCD antialiasing.
+    #[test]
+    fn records_painted_after_a_caret_that_cannot_show_where_it_can_stay_below_it() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(20, 20, 2, 16)), document)
+            .with(fill(IntRect::new(10, 100, 100, 40), GREEN), document)
+            .stack(&tree, &[]);
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&stack),
+            ["base document band 0", "caret #0 document"]
+        );
+        assert_eq!(cut_of_media(&stack, LiveContent::Caret).cut_reach, Reach::Nothing);
+    }
+
+    // A focused text field draws its focus ring after its caret, around it.
+    #[test]
+    fn a_focus_ring_around_a_caret_keeps_text_painted_after_both_below_the_caret() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let focus_ring = FillRoundedRectRing {
+            rect: IntRect::new(-2, -2, 74, 24),
+            corner_radii: libgfx_rust::CornerRadii::uniform(4),
+            top_width: 2,
+            right_width: 2,
+            bottom_width: 2,
+            left_width: 2,
+            color: GREEN,
+        };
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(19, 3, 1, 14)), document)
+            .with(focus_ring, document)
+            .with(fill(IntRect::new(0, 23, 24, 16), GREEN), document)
+            .stack(&tree, &[]);
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&stack),
+            ["base document band 0", "caret #0 document"]
+        );
+    }
+
+    #[test]
+    fn a_focus_ring_whose_rounded_corner_can_show_over_a_caret_goes_above_it() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let focus_ring = FillRoundedRectRing {
+            rect: IntRect::new(-2, -2, 74, 24),
+            corner_radii: libgfx_rust::CornerRadii::uniform(12),
+            top_width: 2,
+            right_width: 2,
+            bottom_width: 2,
+            left_width: 2,
+            color: GREEN,
+        };
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(4, 3, 1, 14)), document)
+            .with(focus_ring, document)
+            .stack(&tree, &[]);
+        assert_ne!(cut_of_media(&stack, LiveContent::Caret).cut_reach, Reach::Nothing);
+    }
+
+    #[test]
+    fn carets_are_numbered_by_the_carets_painted_before_them() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(20, 20, 2, 16)), document)
+            .with(caret(IntRect::new(20, 1000, 2, 16)), document)
+            .stack(&tree, &[]);
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&stack),
+            ["base document band 0", "caret #0 document", "caret #1 document"]
+        );
+    }
+
+    // Unlike a canvas, a caret does not get the effects around it composited.
+    #[test]
+    fn a_caret_inside_an_opacity_group_stays_in_the_tiles_around_it() {
+        let (mut tree, _, document) = tree_with_document_scroll();
+        let faded = tree.append_effect_node_under(document, effects(0.5, CompositingAndBlendingOperator::Normal));
+        let planned = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(caret(IntRect::new(20, 20, 2, 16)), faded)
+            .planned(&tree, &[]);
+        assert!(planned.placement.placed_media.is_empty());
+        assert_eq!(
+            planned.placement.media_without_layers,
+            [(
+                LiveContent::Caret,
+                WhyMediaHasNoLayer::InsideAnEffectThatPushesALayerAtReplay
+            )]
+        );
+        assert!(planned.stack.composited_effects.is_empty());
+    }
+
+    #[test]
+    fn a_canvas_that_no_record_painted_after_it_overlaps_cuts_no_tile() {
+        let (tree, _, document) = tree_with_document_scroll();
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(canvas(IntRect::new(20, 20, 100, 100), 1), document)
+            .with(fill(IntRect::new(20, 200, 100, 40), GREEN), document)
+            .stack(&tree, &[]);
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&stack),
+            ["base document band 0", "canvas #0 document"]
+        );
+        assert_eq!(
+            cut_of_media(&stack, LiveContent::Canvas(CanvasId(1))).cut_reach,
+            Reach::Nothing
         );
     }
 
