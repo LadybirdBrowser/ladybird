@@ -11,12 +11,12 @@
 #include <AK/Time.h>
 #include <LibCore/DirIterator.h>
 #include <LibSandbox/ConnectBroker.h>
+#include <LibSandbox/LinuxFcntl.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
 #include <dirent.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <ifaddrs.h>
 #include <linux/filter.h>
 #include <linux/landlock.h>
@@ -123,6 +123,26 @@ static int run_with_policy(Configure configure, Body body)
     int status = 0;
     VERIFY(waitpid(child, &status, 0) == child);
     return status;
+}
+
+TEST_CASE(file_descriptor_policy_allows_open_file_description_queries)
+{
+    auto body = [] {
+        int descriptors[2];
+        VERIFY(pipe(descriptors) == 0);
+        auto result = fcntl(descriptors[0], F_DUPFD_QUERY, descriptors[0]);
+        if (result == -1) {
+            // Kernels before Linux 6.10 don't implement F_DUPFD_QUERY.
+            VERIFY(errno == EINVAL);
+            return;
+        }
+        VERIFY(result == 1);
+        VERIFY(fcntl(descriptors[0], F_DUPFD_QUERY, descriptors[1]) == 0);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST_CASE(runtime_policy_refuses_other_processes_and_resource_limit_changes)
