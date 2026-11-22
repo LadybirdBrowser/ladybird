@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#domstringlist
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface DOMStringList {
     readonly attribute unsigned long length;
     getter DOMString? item(unsigned long index);

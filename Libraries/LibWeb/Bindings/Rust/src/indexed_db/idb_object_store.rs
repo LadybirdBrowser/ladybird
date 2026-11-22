@@ -14,9 +14,10 @@ use core::cell::RefCell;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, Must, Object, Realm, Trace, Value, Vm};
 
-use crate::bindings::conversions::{CppInterface, DOMStringOrDOMStringSequence, ToJs};
+use crate::bindings::conversions::{DOMStringOrDOMStringSequence, ToJs};
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::dom_string_list::DOMStringList;
 use crate::indexed_db::idb_cursor::{AnyIDBCursor, CursorSourceHandle, IDBCursor, IDBCursorDirection};
 use crate::indexed_db::idb_index::IDBIndex;
 use crate::indexed_db::idb_request::{AnyIDBRequest, IDBRequest, IDBRequestSource};
@@ -241,12 +242,12 @@ impl IDBObjectStore {
     }
 
     // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-indexnames
-    pub(crate) fn index_names(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn index_names(&self, cx: &mut CallContext) -> WebIdlResult<Ref<DOMStringList>> {
         // 1. Let names be a list of the names of the indexes in this's index set.
         let names = self.indexes.borrow().iter().map(|(name, _)| name.clone()).collect();
 
         // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-        Ok(create_a_sorted_name_list(cx, names))
+        Ok(create_a_sorted_name_list(cx.vm(), names))
     }
 
     // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-transaction

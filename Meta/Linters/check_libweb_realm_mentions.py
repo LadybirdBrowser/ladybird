@@ -72,7 +72,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "IndexedDB": (
         4,
-        11,
+        10,
         "the C++ glue of the Rust IndexedDB creates the factory in a global's realm and wraps values in a given realm",
     ),
     "Infra": (2, 13, "JSON parse/serialization helpers still expose JS values in selected realms"),

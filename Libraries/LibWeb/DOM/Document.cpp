@@ -12085,12 +12085,12 @@ GC::Ref<HTML::DOMStringList> Document::ancestor_origins_list_creation_steps() co
     VERIFY(ancestor_origins.has_value());
 
     // 3. Let output be « ».
-    Vector<String> output;
+    Vector<Utf16String> output;
 
     // 4. For each origin of ancestorOrigins:
     for (auto const& origin : ancestor_origins.value()) {
         // 1. Append the serialization of origin to output.
-        output.append(origin.serialize());
+        output.append(Utf16String::from_utf8(origin.serialize()));
     }
 
     // 5. Return a new DOMStringList object whose associated list is output.
