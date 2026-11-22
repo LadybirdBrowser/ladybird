@@ -1,0 +1,26 @@
+Ladybird now lays out text on a path as SVG 2’s text layout algorithm
+does: Each glyph sits at the point of the middle of its advance, turned
+to the direction of the path there, with its baseline shift and any dy
+applied at a right angle to the path, and a glyph whose middle is off
+either end of the path is hidden.
+
+Blink does the same in SvgTextLayoutAlgorithm::PositionOnPath(), which
+samples PathPositionMapper::PointAndNormalAtLength() at the middle of
+each glyph, and hides the glyphs that are off the path. Gecko does it in
+SVGTextFrame::DoTextPathLayout(), and WebKit in the position-on-path
+step of its SVGTextLayoutAlgorithm. Each of the three turns a glyph to
+the tangent at its middle, rather than to the line through the start and
+the end of its advance that the spec describes.
+
+The new reftest’s page and its reference render identically in Chrome
+158.0.8127.36, Firefox 151.0, and WebKit 26.5 (engine-compare).
+
+Of a dy on the <text> and one on a <tspan> that starts with the same
+character, Chrome, Firefox, and WebKit all apply only the inner one; and
+a dx on the first character moves the text after text-anchor places it.
+Ladybird now does both (engine-compare, the same versions).
+
+text-anchor on a path places the span the characters cover, as it does
+for ordinary text, so a dx that moves a character back past the first
+one extends it. Chrome 158 and Firefox 151 do the same; WebKit 26.5
+anchors by the final advance instead (engine-compare).
