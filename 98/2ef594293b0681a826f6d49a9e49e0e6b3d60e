@@ -1,0 +1,6 @@
+Ladybird now paints the text of each <tspan> on a <textPath> in that
+<tspan>’s fill and stroke. Chrome 158.0.8127.36, Firefox 151.0, and
+WebKit 26.5 all do: The new reftest’s page, with nested and shifted
+<tspan>s on a straight path, renders identically in each of them to its
+reference, plain <text> along the same line (engine-compare). The
+engines’ painting code wasn’t traced.
