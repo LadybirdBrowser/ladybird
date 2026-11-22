@@ -1802,10 +1802,9 @@ void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::
     // A new style can change the states and the text formatting the accessibility tree reports for the element.
     if (document().page().accessibility_interested())
         document().invalidate_cached_accessibility_records_after_style_change(*this);
-    auto const style_record = m_installed_style.record();
     // NB: The render side installed the record in a box it styles itself, which the box adopts.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(style_record);
+        layout_node->set_style_record_identity(m_installed_style);
 }
 
 Element::CustomHighlightStyles const* Element::custom_highlight_styles() const
@@ -5267,7 +5266,7 @@ void Element::replace_installed_style(Layout::BegunRead const& read, CSS::Instal
     // what it moves from, and everything below that compares against the old record is read from it, before the
     // element lets go of it. The engine keeps the old record until it takes the new one in.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(m_installed_style.record());
+        layout_node->set_style_record_identity(m_installed_style);
     bool const was_display_none = !held_before || held_before.display_is_none();
     // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
     bool const timeline_declarations_changed = timeline_declarations_differ(held_before, m_installed_style);
