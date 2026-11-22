@@ -3629,6 +3629,10 @@ impl<'context> InlineFormattingContext<'context> {
                     self.discard_unplaced_atomic_inline(node);
                 }
             }
+        } else if let Some(last_line) = self.line_data().line_boxes.iter().rfind(|line| !line.is_empty()) {
+            let lines_block_end_in_root = self.content_box_position_in_bfc_root().y + last_line.block_end;
+            self.parent
+                .note_unfragmented_line_root(self.containing_block, lines_block_end_in_root);
         }
         if lines_are_fragmented {
             let stop = kept_lines_end.unwrap_or(fragmentation::LinePosition::AFTER_LAST_LINE);

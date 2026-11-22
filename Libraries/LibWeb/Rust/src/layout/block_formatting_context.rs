@@ -5354,24 +5354,29 @@ impl<'pass> BlockFormattingContext<'pass> {
             if fragmentainer.keeps_box_layouts {
                 return self.in_flow_reuse_storing_layout(key, validity, containing_block_position_in_root);
             }
-            return fragmentainer
+            let Some(layout) = fragmentainer
                 .box_layouts
                 .layout_of(node)
-                .filter(|layout| {
-                    layout.entry.validity == validity
-                        && layout.entry.key == key
-                        && self.column_box_layout_stays_unbroken_here(
-                            node,
-                            block_container,
-                            fragmentainer,
-                            layout,
-                            containing_block_position_in_root,
-                        )
-                })
-                .map_or(InFlowReuse::Ineligible, |layout| InFlowReuse::Hit {
-                    entry: layout.entry.clone(),
-                    fragment: layout.fragment.clone(),
-                });
+                .filter(|layout| layout.entry.validity == validity && layout.entry.key == key)
+            else {
+                return InFlowReuse::Ineligible;
+            };
+            let Some(block_end) = self.column_box_layout_block_end_here(
+                node,
+                block_container,
+                fragmentainer,
+                &layout,
+                containing_block_position_in_root,
+            ) else {
+                return InFlowReuse::Ineligible;
+            };
+            // NB: The stored layout places the box's contents without laying them out, so the column notes how far
+            //     they reach here.
+            fragmentainer.note_content_block_end(block_end);
+            return InFlowReuse::Hit {
+                entry: layout.entry.clone(),
+                fragment: layout.fragment.clone(),
+            };
         }
         if self.run.pass.in_flow_block_cache_store().is_none()
             || !self.in_flow_child_may_be_reused(node, block_container, containing_line_box_fragment)
@@ -5420,22 +5425,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    /// Whether placing `layout` at the next position in this flow leaves every block end a column tests in the box
-    /// within this column, with nothing about the start of the column changing how the box lays out.
-    fn column_box_layout_stays_unbroken_here(
+    /// How far the box of `layout` reaches when placed at the next position in this flow, where that leaves every
+    /// block end a column tests in the box within this column, with nothing about the start of the column changing how
+    /// the box lays out.
+    fn column_box_layout_block_end_here(
         &self,
         node: Node,
         block_container: Node,
         fragmentainer: &fragmentation::Fragmentainer<'_>,
         layout: &fragmentation::ColumnBoxLayout,
         containing_block_position_in_root: FfiCssPixelPoint,
-    ) -> bool {
+    ) -> Option<CssPixels> {
         let entry = &layout.entry;
         if self.discard_block_start_margin_of_next_child.get()
             || self.margin_state().has_open_top_margin_group()
             || !self.floats_read_by_contents_still_stand(node, entry, containing_block_position_in_root)
         {
-            return false;
+            return None;
         }
         self.rebuild_float_bands();
         let flow_position = self.flow_position();
@@ -5466,7 +5472,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
             + position_past_floats.unwrap_or(flow_position)
             + block_start_margin;
-        !fragmentainer.exceeds(border_box_block_start_in_root + layout.block_size_that_stays_unbroken)
+        let block_end = border_box_block_start_in_root + layout.block_size_that_stays_unbroken;
+        (!fragmentainer.exceeds(block_end)).then_some(block_end)
     }
 
     pub(crate) fn keeps_column_box_layouts(&self) -> bool {
@@ -6485,6 +6492,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some(outcome) = outcome else {
             return FragmentationStep::LayOut;
         };
+        let nested_lines_block_end = fragmentainer.take_pending_nested_lines_block_end();
         if let Some(broken) = &outcome.broken_inside {
             if self.allows_unforced_breaks() {
                 let content_block_end = state.container_content_box_block_start_in_root
@@ -6501,6 +6509,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                     }
                     fragmentainer.outcome_mut().overflows = true;
                 }
+                fragmentainer.note_content_block_end(content_block_end);
+                if let Some(nested_lines_block_end) = nested_lines_block_end {
+                    fragmentainer.note_content_block_end(nested_lines_block_end);
+                }
+            } else if let Some(nested_lines_block_end) = nested_lines_block_end {
+                fragmentainer.note_pending_nested_lines_block_end(nested_lines_block_end);
             }
             self.fragmentainer_has_content.set(true);
             state.container_stop_token = self.stop_fragmentainer(
@@ -6537,6 +6551,17 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
                 fragmentainer.outcome_mut().overflows = true;
             }
+            // NB: A box that its margins collapse through holds no content, and where it ends is only provisional: A
+            //     later sibling's margin can still move it.
+            if !outcome.collapses_through {
+                fragmentainer.note_content_block_end(block_end);
+            }
+            if let Some(nested_lines_block_end) = nested_lines_block_end {
+                fragmentainer.note_content_block_end(nested_lines_block_end);
+            }
+        } else if let Some(nested_lines_block_end) = nested_lines_block_end {
+            // NB: Inside a box that avoids breaks, the step after that box decides if its lines stay.
+            fragmentainer.note_pending_nested_lines_block_end(nested_lines_block_end);
         }
         let break_after = self.propagated_break_after(child);
         if fragmentation::is_forced_column_break(break_after) {
@@ -6734,6 +6759,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             fragmentainer.note_space_shortage(line_block_end_in_root);
         }
         if is_kept {
+            fragmentainer.note_content_block_end(line_block_end_in_root);
             self.fragmentainer_has_content.set(true);
         }
     }
@@ -6744,18 +6770,33 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    pub(crate) fn note_unbreakable_line_root(&self, line_root: Node, lines_block_end_in_root: CssPixels) {
-        if line_root != self.run.box_ {
+    /// Notes how far the lines of `line_root` reach where the run lays them out without breaks, as inside a box that
+    /// avoids breaks or has size containment.
+    pub(crate) fn note_unfragmented_line_root(&self, line_root: Node, lines_block_end_in_root: CssPixels) {
+        if line_root == self.run.box_ {
             return;
         }
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
+            fragmentainer.note_pending_nested_lines_block_end(lines_block_end_in_root);
+        }
+    }
+
+    pub(crate) fn note_unbreakable_line_root(&self, line_root: Node, lines_block_end_in_root: CssPixels) {
         let Some(fragmentainer) = self.run.fragmentainer.as_ref() else {
             return;
         };
+        // NB: A line root inside a box of the run breaks, or doesn't, with that box: Its lines reach as far as they do
+        //     only if that box stays in the fragmentainer, which the step after the box decides.
+        if line_root != self.run.box_ {
+            fragmentainer.note_pending_nested_lines_block_end(lines_block_end_in_root);
+            return;
+        }
         fragmentainer.note_unbreakable_block_size(lines_block_end_in_root);
         if fragmentainer.exceeds(lines_block_end_in_root) {
             fragmentainer.note_space_shortage(lines_block_end_in_root);
             fragmentainer.outcome_mut().overflows = true;
         }
+        fragmentainer.note_content_block_end(lines_block_end_in_root);
     }
 
     pub(crate) fn note_overflowing_content(&self) {
@@ -7340,9 +7381,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             // NB: Only the attempt that is kept tells the host what it found out.
             self.run.pass.receive_residue(layout.residue);
+            // NB: A column is as tall as the content it holds reaches, even where the content ends with a negative
+            //     margin: That margin moves up only what follows it in the column, and nothing does.
+            let consumed_block_size = layout
+                .outcome
+                .automatic_content_block_size
+                .max(outcome.content_block_end);
             return ColumnLayout {
                 outcome,
-                consumed_block_size: layout.outcome.automatic_content_block_size,
+                consumed_block_size,
                 baselines: layout.outcome.baselines,
                 root_line_data,
                 contents,

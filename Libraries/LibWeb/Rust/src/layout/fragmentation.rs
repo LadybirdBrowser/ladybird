@@ -257,6 +257,12 @@ pub(crate) struct FragmentainerOutcome {
     pub(crate) tallest_unbreakable_block_size: CssPixels,
     pub(crate) violates_break_avoidance: bool,
     pub(crate) overflows: bool,
+    /// How far the in-flow content laid out in the fragmentainer reaches: the furthest block end of its boxes and lines,
+    /// which a negative margin after them doesn't take back.
+    pub(crate) content_block_end: CssPixels,
+    /// The furthest block end of the unbreakable lines of a line root inside the box being laid out, which counts toward
+    /// `content_block_end` only once that box stays in the fragmentainer.
+    pub(crate) pending_nested_lines_block_end: Option<CssPixels>,
 }
 
 /// The space a fragmentainer run lays out in: the fragmentainer's size, the break the run continues from, how it
@@ -334,6 +340,24 @@ impl<'run> Fragmentainer<'run> {
     pub(crate) fn note_unbreakable_block_size(&self, block_size: CssPixels) {
         let mut outcome = self.outcome.borrow_mut();
         outcome.tallest_unbreakable_block_size = outcome.tallest_unbreakable_block_size.max(block_size);
+    }
+
+    pub(crate) fn note_content_block_end(&self, block_end: CssPixels) {
+        let mut outcome = self.outcome.borrow_mut();
+        outcome.content_block_end = outcome.content_block_end.max(block_end);
+    }
+
+    pub(crate) fn note_pending_nested_lines_block_end(&self, block_end: CssPixels) {
+        let mut outcome = self.outcome.borrow_mut();
+        outcome.pending_nested_lines_block_end = Some(
+            outcome
+                .pending_nested_lines_block_end
+                .map_or(block_end, |end| end.max(block_end)),
+        );
+    }
+
+    pub(crate) fn take_pending_nested_lines_block_end(&self) -> Option<CssPixels> {
+        self.outcome.borrow_mut().pending_nested_lines_block_end.take()
     }
 }
 
