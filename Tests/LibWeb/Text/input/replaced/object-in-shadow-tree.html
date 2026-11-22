@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="document-host"></div>
+<div id="image-host"></div>
+<script>
+    promiseTest(async () => {
+        const loadedObject = (host, data) => {
+            const object = document.createElement("object");
+            const loaded = new Promise(resolve => object.addEventListener("load", resolve, { once: true }));
+            object.data = data;
+            host.attachShadow({ mode: "open" }).append(object);
+            return loaded.then(() => object);
+        };
+        const [documentObject, imageObject] = await Promise.all([
+            loadedObject(document.getElementById("document-host"), "../../data/blank.html"),
+            loadedObject(document.getElementById("image-host"), "../wpt-import/images/green-16x16.png"),
+        ]);
+        println(`document object in a shadow tree: ${documentObject.offsetWidth}x${documentObject.offsetHeight}, contentDocument ${documentObject.contentDocument !== null}`);
+        println(`image object in a shadow tree: ${imageObject.offsetWidth}x${imageObject.offsetHeight}`);
+    });
+</script>
