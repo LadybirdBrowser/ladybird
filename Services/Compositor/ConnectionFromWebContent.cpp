@@ -301,38 +301,10 @@ void ConnectionFromWebContent::describe_display_list_fonts(Web::CompositorContex
         did_misbehave("WebContent described a font of a typeface it has not registered");
 }
 
-// NB: The pixels of a 2D context are in one of the predefined color spaces of a canvas, which WebContent describes by
-//     coding-independent code points, or as sRGB without color space data. Nothing else can name one.
-//     https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
-static bool is_predefined_canvas_color_space(Gfx::ColorSpace const& color_space)
-{
-    return color_space.data().visit(
-        [](Empty) { return true; },
-        [](Gfx::ColorSpace::CICP const& cicp) {
-            auto has_valid_primaries = cicp.color_primaries == Media::ColorPrimaries::BT709 || cicp.color_primaries == Media::ColorPrimaries::SMPTE432;
-            auto has_valid_transfer_characteristics = cicp.transfer_characteristics == Media::TransferCharacteristics::SRGB || cicp.transfer_characteristics == Media::TransferCharacteristics::Linear;
-            return has_valid_primaries && has_valid_transfer_characteristics;
-        },
-        [](NonnullRefPtr<Gfx::ColorSpace::ICCProfile const> const&) { return false; });
-}
-
 void ConnectionFromWebContent::describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> fonts)
 {
     if (!m_canvas_host.describe_canvas_2d_fonts(fonts, m_registered_typefaces))
         did_misbehave("WebContent described a font of a typeface it has not registered");
-}
-
-Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space)
-{
-    if (!Gfx::is_valid_alpha_type(to_underlying(alpha_type))) {
-        did_misbehave("WebContent asked for canvas pixels with an invalid alpha type");
-        return Gfx::ShareableBitmap {};
-    }
-    if (!is_predefined_canvas_color_space(color_space)) {
-        did_misbehave("WebContent asked for canvas pixels in a color space that is not a predefined one");
-        return Gfx::ShareableBitmap {};
-    }
-    return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type, color_space);
 }
 
 void ConnectionFromWebContent::stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::ImageFrameResourceId> image_frame_ids, Gfx::ShareableBitmap target_bitmap)

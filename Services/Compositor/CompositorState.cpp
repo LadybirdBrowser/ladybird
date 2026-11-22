@@ -1582,6 +1582,13 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .reserve_canvas_ids = [](void* host, u64 count) { return state_of(host).m_canvas_surface_registry.reserve_canvas_ids(count).value(); },
         .create_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Web::Bindings::PredefinedColorSpace color_space) { return state_of(host).canvas_host_of(WebContentClientId { client }).create_2d_context(canvas_id, size, alpha, will_read_frequently, Compositing::gfx_color_space_for(color_space)); },
         .destroy_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { state_of(host).canvas_host_of(WebContentClientId { client }).destroy_2d_context(canvas_id); },
+        .read_back_canvas_2d_pixels = [](void* host, u64 client, Compositing::CanvasId canvas_id, Gfx::IntRect rect, u8 alpha_type, Web::Bindings::PredefinedColorSpace color_space, u8* pixels, size_t pixels_size, Gfx::IntSize* size) {
+            VERIFY(Gfx::is_valid_alpha_type(alpha_type));
+            auto read_size = state_of(host).canvas_host_of(WebContentClientId { client }).read_back_canvas_2d_pixels(canvas_id, rect, static_cast<Gfx::AlphaType>(alpha_type), Compositing::gfx_color_space_for(color_space), { pixels, pixels_size });
+            if (!read_size.has_value())
+                return false;
+            *size = *read_size;
+            return true; },
         .begin_canvas_2d_painting = [](void* host, u64 client, Compositing::CanvasId canvas_id, RustFFI::FfiCanvas2DPainter* painter) { state_of(host).begin_canvas_2d_painting(WebContentClientId { client }, canvas_id, *painter); },
         .end_canvas_2d_painting = [](void* host) { return state_of(host).end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu(); },
         .present_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { return state_of(host).canvas_host_of(WebContentClientId { client }).try_present_2d_context(canvas_id); },

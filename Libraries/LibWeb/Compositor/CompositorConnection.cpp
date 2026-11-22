@@ -10,7 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
-#include <LibCompositing/CanvasSize.h>
+#include <LibCompositing/CanvasColorSpace.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -25,6 +25,7 @@
 #include <LibMediaClient/Client.h>
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -241,9 +242,12 @@ static bool post_fonts_and_register_image_frames(IPC::ThreadSafeMessagePoster& p
     return poster.try_post(encoded_message);
 }
 
+static Atomic<u64> s_next_connection_serial { 1 };
+
 CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
     , m_poster(IPC::ThreadSafeMessagePoster::create(this->transport()))
+    , m_serial(s_next_connection_serial++)
 {
     start_registering_resources_with_compositor(*m_poster);
 }
@@ -364,33 +368,6 @@ RefPtr<IPC::ThreadSafeMessagePoster> CompositorConnection::poster_while_composit
     return m_poster;
 }
 
-Optional<Compositing::CanvasId> CompositorConnection::reserve_canvas_2d_context_id(Gfx::IntSize size)
-{
-    if (!can_send_message_to_compositor())
-        return {};
-
-    // NB: The Compositor refuses the same sizes, so a context it is asked to create always exists afterwards.
-    if (!Compositing::is_valid_canvas_2d_size(size))
-        return {};
-
-    // OPTIMIZATION: Creating a context is asynchronous, under an ID from a range reserved up front. A synchronous
-    //               reply would wait for the Compositor to replay every canvas command queued before it.
-    if (m_reserved_canvas_ids_remaining == 0) {
-        auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::ReserveCanvasIds>();
-        if (!response) {
-            did_lose_compositor();
-            return {};
-        }
-        m_next_reserved_canvas_id = response->first_canvas_id().value();
-        m_reserved_canvas_ids_remaining = response->count();
-        if (m_reserved_canvas_ids_remaining == 0)
-            return {};
-    }
-    auto canvas_id = Compositing::CanvasId { m_next_reserved_canvas_id++ };
-    --m_reserved_canvas_ids_remaining;
-    return canvas_id;
-}
-
 bool CompositorConnection::post_canvas_2d_stream_batch_fonts_and_image_frames(ReadonlySpan<Gfx::Font const*> fonts, ReadonlySpan<Gfx::DecodedImageFrame const*> image_frames)
 {
     if (!register_typefaces_of_fonts_with_compositor(*m_poster, fonts) || !register_image_frames_with_compositor(*m_poster, image_frames)) {
@@ -417,19 +394,6 @@ bool CompositorConnection::register_image_frames(ReadonlySpan<Gfx::DecodedImageF
     if (!can_send_message_to_compositor())
         return false;
     return register_image_frames_with_compositor(*m_poster, image_frames);
-}
-
-Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space)
-{
-    if (!can_send_message_to_compositor())
-        return {};
-
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect, alpha_type, color_space);
-    if (!response) {
-        did_lose_compositor();
-        return {};
-    }
-    return response->take_pixels();
 }
 
 Optional<Web::Compositor::PlaceholderCanvasLink> CompositorConnection::allocate_placeholder_canvas()
@@ -918,7 +882,8 @@ extern "C" WEB_API bool web_compositor_post_fonts_and_image_frames(void* poster,
 extern "C" WEB_API bool web_compositor_create_shared_buffer(size_t size, Web::Compositor::FfiSharedBuffer* out);
 extern "C" WEB_API void web_compositor_shared_buffer_release(void* owner);
 extern "C" WEB_API int web_compositor_shared_buffer_clone_descriptor(void* owner);
-extern "C" WEB_API Gfx::DecodedImageFrame* web_compositor_shared_buffer_image_frame(void* owner, i32 width, i32 height);
+extern "C" WEB_API Gfx::DecodedImageFrame* web_compositor_shared_buffer_image_frame(void* owner, i32 width, i32 height, u8 alpha_type, u8 color_space);
+extern "C" WEB_API u64 web_compositor_connection_serial(Web::Compositor::CompositorConnection const*);
 extern "C" WEB_API bool web_compositor_connection_for_sync_requests(Web::Compositor::CompositorConnection*, IPC::FfiConnection* out_connection);
 extern "C" WEB_API bool web_compositor_connection_register_image_frames(Web::Compositor::CompositorConnection*, void const* const* image_frames, size_t image_frame_count);
 extern "C" WEB_API bool web_compositor_post_screenshot_request(void* poster, void* request);
@@ -966,13 +931,22 @@ extern "C" WEB_API int web_compositor_shared_buffer_clone_descriptor(void* owner
     return descriptor.value().take_fd();
 }
 
-extern "C" WEB_API Gfx::DecodedImageFrame* web_compositor_shared_buffer_image_frame(void* owner, i32 width, i32 height)
+// NB: A color space is the underlying value of a Bindings::PredefinedColorSpace.
+extern "C" WEB_API Gfx::DecodedImageFrame* web_compositor_shared_buffer_image_frame(void* owner, i32 width, i32 height, u8 alpha_type, u8 color_space)
 {
+    VERIFY(Gfx::is_valid_alpha_type(alpha_type));
     auto& buffer = static_cast<Web::Compositor::SharedBufferForRust*>(owner)->buffer;
-    auto frame = Gfx::DecodedImageFrame::create_over_shared_memory(buffer, 0, { width, height }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    auto format = static_cast<Gfx::AlphaType>(alpha_type) == Gfx::AlphaType::Unpremultiplied ? Gfx::BitmapFormat::RGBA8888 : Gfx::BitmapFormat::BGRA8888;
+    auto gfx_color_space = Compositing::gfx_color_space_for(Web::HTML::predefined_color_space_from_underlying(color_space));
+    auto frame = Gfx::DecodedImageFrame::create_over_shared_memory(buffer, 0, { width, height }, format, static_cast<Gfx::AlphaType>(alpha_type), move(gfx_color_space));
     if (frame.is_error())
         return nullptr;
     return new Gfx::DecodedImageFrame { frame.release_value() };
+}
+
+extern "C" WEB_API u64 web_compositor_connection_serial(Web::Compositor::CompositorConnection const* connection)
+{
+    return connection->serial();
 }
 
 extern "C" WEB_API bool web_compositor_connection_for_sync_requests(Web::Compositor::CompositorConnection* connection, IPC::FfiConnection* out_connection)

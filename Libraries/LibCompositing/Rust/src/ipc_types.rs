@@ -22,6 +22,7 @@ use std::sync::Arc;
 pub type Web_CompositorContextId = CompositorContextId;
 pub type Compositing_CanvasId = CanvasId;
 pub type Compositing_WebGL_ImageSource = crate::webgl::ImageSource;
+pub type Gfx_AlphaType = crate::display_list::canvas_2d_recorder::AlphaType;
 pub type Web_UniqueNodeID = UniqueNodeId;
 pub type Web_CSSPixelPoint = CssPixelPoint;
 pub type Gfx_IntPoint = libgfx_rust::IntPoint;

@@ -10,28 +10,25 @@
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use std::ops::Range;
 use std::rc::Rc;
 
-use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Transport};
+use libcompositing_rust::display_list::canvas_2d_recorder::{
+    AlphaType, ColorSpace, Transport, is_valid_canvas_2d_size,
+};
 use libcompositing_rust::display_list::commands::{CanvasId, FontResourceId, ImageFrameResourceId};
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
-    CreateCanvas2dContext, DestroyCanvas2dContext,
+    CreateCanvas2dContext, DestroyCanvas2dContext, ReadBackCanvas2dPixels, ReserveCanvasIds,
 };
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
 
-use crate::compositor_connection::CompositorConnection;
+use crate::compositor_connection::{CompositorConnection, SharedBuffer};
 
 use super::stream::{Canvas2DStream, flush, shared_stream};
 
 unsafe extern "C" {
-    fn web_canvas_2d_connection_reserve_context_id(
-        connection: *mut c_void,
-        width: i32,
-        height: i32,
-        out_canvas_id: *mut u64,
-    ) -> bool;
     fn web_canvas_2d_connection_post_stream_batch_fonts_and_image_frames(
         connection: *mut c_void,
         fonts: *const *const c_void,
@@ -39,30 +36,46 @@ unsafe extern "C" {
         image_frames: *const *const c_void,
         image_frame_count: usize,
     ) -> bool;
-    fn web_canvas_2d_connection_read_back_pixels(
-        connection: *mut c_void,
-        canvas_id: u64,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
-        alpha_type: AlphaType,
-        color_space: ColorSpace,
-    ) -> *mut c_void;
     fn web_canvas_2d_video_frame_hold_ref(hold: *mut c_void);
     fn web_canvas_2d_video_frame_hold_unref(hold: *mut c_void);
     fn web_canvas_2d_video_frame_hold_note_sent_to_compositor(hold: *mut c_void);
+}
+
+struct ReservedCanvasIds {
+    connection_serial: u64,
+    ids: Range<u64>,
+}
+
+thread_local! {
+    static RESERVED_CANVAS_IDS: RefCell<Option<ReservedCanvasIds>> = const { RefCell::new(None) };
 }
 
 // SAFETY (of every call below): The connection is live, and the fonts and image frames are lent for the call, in which
 // C++ takes references of its own.
 impl CompositorConnection {
     fn reserve_context_id(self, size: IntSize) -> Option<CanvasId> {
-        let mut canvas_id = 0;
-        unsafe {
-            web_canvas_2d_connection_reserve_context_id(self.as_ptr(), size.width, size.height, &raw mut canvas_id)
+        // NB: The Compositor refuses the same sizes, so a context it is asked to create always exists afterwards.
+        if !is_valid_canvas_2d_size(size) {
+            return None;
         }
-        .then_some(CanvasId(canvas_id))
+        let connection_serial = self.serial();
+        let reserved_id = RESERVED_CANVAS_IDS.with_borrow_mut(|reserved| {
+            reserved
+                .as_mut()
+                .filter(|reserved| reserved.connection_serial == connection_serial)
+                .and_then(|reserved| reserved.ids.next())
+        });
+        if let Some(canvas_id) = reserved_id {
+            return Some(CanvasId(canvas_id));
+        }
+        // OPTIMIZATION: Creating a context is asynchronous, under an ID from a range reserved up front. A synchronous
+        //               reply would wait for the Compositor to replay every canvas command queued before it.
+        let response = self.send_sync(ReserveCanvasIds)?;
+        let first_canvas_id = response.first_canvas_id.0;
+        let mut ids = first_canvas_id..first_canvas_id.checked_add(response.count)?;
+        let canvas_id = ids.next();
+        RESERVED_CANVAS_IDS.set(Some(ReservedCanvasIds { connection_serial, ids }));
+        canvas_id.map(CanvasId)
     }
 
     pub(crate) fn post_stream_batch_fonts_and_image_frames(
@@ -90,20 +103,23 @@ impl CompositorConnection {
         alpha_type: AlphaType,
         color_space: ColorSpace,
     ) -> Option<ImageFrameHandle> {
-        let frame = unsafe {
-            web_canvas_2d_connection_read_back_pixels(
-                self.as_ptr(),
-                canvas_id.0,
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
-                alpha_type,
-                color_space,
-            )
-        };
-        // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
-        (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
+        let size = usize::try_from(rect.width)
+            .ok()?
+            .checked_mul(usize::try_from(rect.height).ok()?)?
+            .checked_mul(4)?;
+        let pixels = SharedBuffer::create(size)?;
+        let response = self.send_sync(ReadBackCanvas2dPixels {
+            canvas_id,
+            rect,
+            alpha_type,
+            color_space: color_space.into(),
+            pixels: pixels.for_message(),
+        })?;
+        let IntSize { width, height } = response.size;
+        if width <= 0 || height <= 0 {
+            return None;
+        }
+        pixels.into_image_frame(width, height, alpha_type, color_space)
     }
 }
 

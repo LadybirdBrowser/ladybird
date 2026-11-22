@@ -31,9 +31,9 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, CreateCanvas2dContext,
     CreateWebglContext, CreateWebglContextResponse, DestroyCanvas2dContext, DestroyWebglContext,
     InvalidateKeyboardScrollState, InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState,
-    RasterizeDisplayList, RasterizeDisplayListResponse, ReserveCanvasIds, ReserveCanvasIdsResponse,
-    RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse, ScrollStateForTesting,
-    ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
+    RasterizeDisplayList, RasterizeDisplayListResponse, ReadBackCanvas2dPixels, ReadBackCanvas2dPixelsResponse,
+    ReserveCanvasIds, ReserveCanvasIdsResponse, RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse,
+    ScrollStateForTesting, ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
     TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
     TakeWheelEventFromMainThreadResponse, UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState,
     UpdateVisualContextTree, WebglClearDrawingBuffer, WebglCommands, WebglCommandsFromSharedBuffer,
@@ -502,6 +502,26 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             )
             .map_err(misbehavior)?;
         Ok(WebglReadBufferSubDataResponse { success })
+    }
+
+    fn read_back_canvas_2d_pixels(
+        &mut self,
+        message: ReadBackCanvas2dPixels,
+    ) -> Result<ReadBackCanvas2dPixelsResponse, Misbehavior> {
+        let pixels = self.map_shared_memory(message.pixels)?;
+        let size = pixels.and_then(|pixels| {
+            self.core.raster().read_back_canvas_2d_pixels(
+                self.client_id.0,
+                message.canvas_id,
+                message.rect,
+                message.alpha_type,
+                message.color_space,
+                &pixels,
+            )
+        });
+        Ok(ReadBackCanvas2dPixelsResponse {
+            size: size.unwrap_or_default(),
+        })
     }
 
     fn webgl_read_back_drawing_buffer(
