@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../Ref/data/fonts/Ahem.ttf"); }
+    body { font: 10px/20px Ahem; }
+    .c { width: 100px; }
+</style>
+<div class="c" id="right" style="text-align: right"><span>aaa </span><br><span>bbb</span></div>
+<div class="c" id="center" style="text-align: center"><span>aaa </span><br><span>bbb</span></div>
+<div class="c" id="end" style="text-align: end"><span>aaa </span><br><span>bbb</span></div>
+<div class="c" id="right-two-spaces" style="text-align: right"><span>aaa  </span><br><span>bbb</span></div>
+<div class="c" id="right-space-outside-span" style="text-align: right"><span>aaa</span> <br><span>bbb</span></div>
+<div class="c" id="right-rtl" dir="rtl" style="text-align: left"><span>aaa </span><br><span>bbb</span></div>
+<div class="c" id="right-pre-wrap" style="text-align: right; white-space: pre-wrap"><span>aaa </span><br><span>bbb</span></div>
+<div class="c" id="right-no-break-space" style="text-align: right"><span>aaa&nbsp;</span><br><span>bbb</span></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const c of document.querySelectorAll(".c")) {
+            const left = c.getBoundingClientRect().left;
+            const spans = [...c.querySelectorAll("span")].map(span => {
+                const rect = span.getClientRects()[0];
+                return `${rect.left - left}..${rect.right - left}`;
+            });
+            println(`${c.id}: ${spans.join(" | ")}`);
+        }
+        done();
+    });
+</script>

@@ -1577,10 +1577,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             );
         }
 
-        // Mirroring must use the retained line width, so discarded trailing spaces don't become leading gaps.
-        if self.context().atomic_items_are_right_to_left
-            && self.line(line_index).inline_length_before_block_ellipsis.is_none()
-        {
+        // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+        // "A sequence of collapsible spaces at the end of a line is removed"
+        // NB: That happens before the line is aligned, so that its alignment doesn't count the spaces, and mirroring
+        //     uses the retained line width, so that discarded trailing spaces don't become leading gaps.
+        if self.line(line_index).inline_length_before_block_ellipsis.is_none() {
             self.line_mut(line_index).trim_trailing_whitespace();
         }
 
