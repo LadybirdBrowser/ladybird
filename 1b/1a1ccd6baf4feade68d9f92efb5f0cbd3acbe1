@@ -1,0 +1,16 @@
+Ladybird now sizes an auto-width table against the space its wrapper
+has, never below its minimum inline size, and makes the wrapper as wide
+as the table box, so the captions take the table’s inline size, and a
+table too wide for the space next to floats goes below them. Blink lays
+captions out at the table’s inline size in its LayoutCaption() function,
+and BlockLayoutAlgorithm::LayoutNewFormattingContext() lays a table out
+in each layout opportunity next to the floats, moving on to the next
+one while the table’s fragment is wider than the opportunity. WebKit’s
+RenderTable::layoutCaption() lays captions out in the table’s logical
+width, and RenderBlockFlow::computedClearDeltaForChild() moves a box
+that avoids floats down until its border box fits next to them. Gecko’s
+nsTableWrapperFrame::Reflow() sizes the inner table first and then the
+caption, and BlockReflowState::FloatAvoidingBlockFitsInAvailSpace()
+decides if a float-avoiding block fits next to the floats. Chrome
+158, Firefox 151 and WebKit 26.5 agree with Ladybird now on all
+22 cases of the two tests.
