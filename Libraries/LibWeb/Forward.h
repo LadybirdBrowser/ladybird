@@ -1006,7 +1006,6 @@ class Permissions;
 namespace Web::PictureInPicture {
 
 class PictureInPictureController;
-class PictureInPictureEvent;
 class PictureInPictureWindow;
 
 }

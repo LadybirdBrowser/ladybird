@@ -14,7 +14,6 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/PictureInPicture/PictureInPictureEvent.h>
@@ -66,8 +65,7 @@ static void reject_promise_with_invalid_state_error(WebIDL::Promise& promise, Ut
 
 static void fire_picture_in_picture_event(DOM::Element& element, Utf16FlyString const& event_name, PictureInPictureWindow& window)
 {
-    PictureInPictureEventInit event_init { { .bubbles = true }, window };
-    auto event = PictureInPictureEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(element)));
+    auto event = create_picture_in_picture_event(HTML::relevant_realm(element), event_name, { .bubbles = true }, window);
     element.dispatch_event(event);
 }
 

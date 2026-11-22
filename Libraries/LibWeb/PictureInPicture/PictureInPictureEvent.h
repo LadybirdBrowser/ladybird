@@ -6,33 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PictureInPictureEvent.h>
+#include <AK/Utf16FlyString.h>
+#include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::PictureInPicture {
 
-using PictureInPictureEventInit = Bindings::PictureInPictureEventInit;
-
-// https://w3c.github.io/picture-in-picture/#pictureinpictureevent
-class PictureInPictureEvent final : public DOM::Event {
-    WEB_WRAPPABLE(PictureInPictureEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(PictureInPictureEvent);
-
-public:
-    static constexpr size_t picture_in_picture_window_offset() { return offsetof(PictureInPictureEvent, m_picture_in_picture_window); }
-    [[nodiscard]] static GC::Ref<PictureInPictureEvent> create(Utf16FlyString const& event_name, PictureInPictureEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~PictureInPictureEvent() override;
-
-    GC::Ref<PictureInPictureWindow> picture_in_picture_window() const { return m_picture_in_picture_window; }
-
-private:
-    PictureInPictureEvent(Utf16FlyString const& event_name, PictureInPictureEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ref<PictureInPictureWindow> m_picture_in_picture_window;
-};
+GC::Ref<DOM::Event> create_picture_in_picture_event(JS::Realm&, Utf16FlyString const& event_name, DOM::EventInit const&, PictureInPictureWindow& window);
 
 }
