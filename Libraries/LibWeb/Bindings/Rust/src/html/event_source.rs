@@ -88,6 +88,8 @@ pub(crate) struct EventSource {
     event_type: RefCell<String>,
     #[gc(untraced)]
     data: RefCell<String>,
+    #[gc(untraced)]
+    last_event_id_buffer: RefCell<String>,
 
     with_credentials: Cell<bool>,
 
@@ -205,6 +207,7 @@ impl EventSource {
             last_event_id: RefCell::new(String::new()),
             event_type: RefCell::new(String::new()),
             data: RefCell::new(String::new()),
+            last_event_id_buffer: RefCell::new(String::new()),
             with_credentials: Cell::new(false),
             ready_state: Cell::new(ReadyState::Connecting),
             pending_data: RefCell::new(Vec::new()),
@@ -332,6 +335,14 @@ impl EventSource {
             this.pending_data.borrow_mut().clear();
             this.is_start_of_stream.set(true);
             this.last_was_cr.set(false);
+
+            // When a stream is parsed, a data buffer, an event type buffer, and a last event ID buffer must be associated with
+            // it. They must be initialized to the empty string.
+            // AD-HOC: The last event ID buffer starts as the last event ID string, which other engines keep across streams.
+            this.data.borrow_mut().clear();
+            this.event_type.borrow_mut().clear();
+            *this.last_event_id_buffer.borrow_mut() = this.last_event_id.borrow().clone();
+
             // SAFETY: The realm, the response and this are live.
             unsafe {
                 web_html_event_source_incrementally_read_body(
@@ -597,7 +608,7 @@ impl EventSource {
                 // If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value.
                 // Otherwise, ignore the field.
                 if !value.contains('\0') {
-                    *self.last_event_id.borrow_mut() = value.to_owned();
+                    *self.last_event_id_buffer.borrow_mut() = value.to_owned();
                 }
             }
             // -> If the field name is "retry"
@@ -622,6 +633,7 @@ impl EventSource {
         // 1. Set the last event ID string of the event source to the value of the last event ID buffer. The buffer does not
         //    get reset, so the last event ID string of the event source remains set to this value until the next time it is
         //    set by the server.
+        *this.last_event_id.borrow_mut() = this.last_event_id_buffer.borrow().clone();
         let last_event_id = this.last_event_id.borrow();
 
         // 2. If the data buffer is an empty string, set the data buffer and the event type buffer to the empty string and return.
