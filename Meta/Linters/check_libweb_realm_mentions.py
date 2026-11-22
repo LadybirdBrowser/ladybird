@@ -50,9 +50,10 @@ ALLOWED_REALM_MENTIONS = {
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 3, "the C++ facade creates the Rust CookieStore in a given realm"),
     "DOM": (
-        9,
-        30,
-        "The AbortSignal and AbortController facades and node helpers use callback/materialization realms",
+        11,
+        35,
+        "The AbortSignal and AbortController facades and node helpers use callback/materialization realms; "
+        "the C++ glue of the Rust CustomEvent creates it in a given realm",
     ),
     "Fetch": (
         22,

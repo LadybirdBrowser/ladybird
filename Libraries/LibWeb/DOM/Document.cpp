@@ -3909,7 +3909,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
         event = UIEvents::CompositionEvent::create(String {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
-        event = CustomEvent::create(FlyString {}, {}, time_stamp);
+        event = create_custom_event(realm);
     } else if (interface.equals_ignoring_ascii_case("devicemotionevent"sv)) {
         event = Event::create(FlyString {}, time_stamp); // FIXME: Create DeviceMotionEvent
     } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {

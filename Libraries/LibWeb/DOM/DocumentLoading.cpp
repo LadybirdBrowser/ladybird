@@ -43,7 +43,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -61,10 +60,9 @@ static void add_pdf_viewer_ready_listener(DOM::Document& document, GC::Ref<Fetch
 
     auto listener_function = JS::NativeFunction::create(
         realm, GC::create_function(GC::Heap::the(), GC::captures(document, js_response), [](DOM::Document& document, GC::Ref<Fetch::Response>& js_response, JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-            DOM::CustomEventInit init;
             auto& realm = document.relevant_settings_object().realm();
-            init.detail = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { js_response });
-            document.dispatch_event(*DOM::CustomEvent::create("ladybirdpdf"_fly_string, init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document))));
+            auto detail = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { js_response });
+            document.dispatch_event(*DOM::create_custom_event(realm, "ladybirdpdf"_utf16_fly_string, detail));
             return JS::js_undefined();
         }),
         0, Utf16FlyString {}, &realm);
