@@ -7,15 +7,16 @@
 
 //! DataTransfer, https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface
 
-use core::cell::RefCell;
+use core::cell::{self, Cell, RefCell};
 use core::ffi::c_void;
-use core::ptr::{NonNull, null_mut};
+use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_rust::api::{Gc, GcRefCell, Must, Object, Trace, Utf16View, Value, Vm};
+use libjs_rust::api::{Gc, GcRefCell, Must, Object, Realm, Trace, Utf16View, Value, Vm};
 
+use super::data_transfer_item::DataTransferItem;
+use super::data_transfer_item_list::DataTransferItemList;
 use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
-use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
@@ -30,18 +31,16 @@ unsafe extern "C" {
     fn web_data_transfer_store_item(store: *mut c_void, index: usize) -> DragDataStoreItemView;
     fn web_data_transfer_store_add_text(store: *mut c_void, type_: usize, data: usize);
     fn web_data_transfer_store_remove_item(store: *mut c_void, index: usize);
-    fn web_data_transfer_create_item(transfer: *mut c_void, index: usize) -> *mut c_void;
-    fn web_data_transfer_set_item_index(item: *mut c_void, index: usize, has_index: bool);
-    fn web_data_transfer_create_item_list(transfer: *mut c_void) -> *mut c_void;
-    fn web_data_transfer_wrap_item_list(realm: *mut c_void, items: *mut c_void) -> *mut c_void;
+    fn web_data_transfer_store_add_file(store: *mut c_void, file: *mut c_void);
     fn web_data_transfer_create_file(store: *mut c_void, index: usize) -> *mut c_void;
+    fn web_data_transfer_create_file_entry(store: *mut c_void, index: usize, realm: *mut c_void) -> *mut c_void;
 }
 
-const READ_WRITE: u8 = 0;
-const PROTECTED: u8 = 2;
+pub(super) const READ_WRITE: u8 = 0;
+pub(super) const PROTECTED: u8 = 2;
 
 // The store is shared with the native drag, drop and clipboard handlers. This holds one reference to it.
-struct DragDataStore(NonNull<c_void>);
+pub(super) struct DragDataStore(NonNull<c_void>);
 
 impl Drop for DragDataStore {
     fn drop(&mut self) {
@@ -58,17 +57,17 @@ struct DragDataStoreItemView {
 }
 
 impl DragDataStore {
-    fn mode(&self) -> u8 {
+    pub(super) fn mode(&self) -> u8 {
         // SAFETY: This holds the store alive.
         unsafe { web_data_transfer_store_mode(self.0.as_ptr()) }
     }
 
-    fn len(&self) -> usize {
+    pub(super) fn len(&self) -> usize {
         // SAFETY: This holds the store alive.
         unsafe { web_data_transfer_store_size(self.0.as_ptr()) }
     }
 
-    fn item(&self, index: usize) -> (bool, Utf16FlyString, Utf16String) {
+    pub(super) fn item(&self, index: usize) -> (bool, Utf16FlyString, Utf16String) {
         // SAFETY: All callers pass an index within the live store. The strings are lent by that item.
         unsafe {
             let item = web_data_transfer_store_item(self.0.as_ptr(), index);
@@ -80,9 +79,27 @@ impl DragDataStore {
         }
     }
 
-    fn add_text(&self, type_string: &Utf16FlyString, data: &Utf16String) {
+    pub(super) fn add_text(&self, type_string: &Utf16FlyString, data: &Utf16String) {
         // SAFETY: This holds the store alive and the strings are lent for the call.
         unsafe { web_data_transfer_store_add_text(self.0.as_ptr(), type_string.raw_identity(), data.raw_identity()) };
+    }
+
+    pub(super) fn add_file(&self, file: Ref<File>) {
+        // SAFETY: This holds the store alive and the file is live.
+        unsafe { web_data_transfer_store_add_file(self.0.as_ptr(), cell_into_abi(file)) };
+    }
+
+    pub(super) fn create_file(&self, index: usize) -> Ref<File> {
+        // SAFETY: This holds the store alive, and the index refers to a file item. LibWeb returns the new File cell.
+        unsafe { cell_from_abi(web_data_transfer_create_file(self.0.as_ptr(), index)) }
+    }
+
+    pub(super) fn create_file_entry(&self, index: usize, realm: Gc<Realm>) -> CppInterface {
+        // SAFETY: The store and realm are live, and the index refers to a file item.
+        let wrapper = unsafe { web_data_transfer_create_file_entry(self.0.as_ptr(), index, realm.as_ptr().cast()) };
+        let wrapper = NonNull::new(wrapper.cast()).expect("LibWeb wraps the file entry");
+        // SAFETY: LibWeb returns a live FileSystemEntry wrapper.
+        unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
     }
 
     fn remove_item(&self, index: usize) {
@@ -100,8 +117,8 @@ pub(crate) struct DataTransfer {
     drop_effect: RefCell<Utf16FlyString>,
     #[gc(untraced)]
     effect_allowed: RefCell<Utf16FlyString>,
-    items: GcRefCell<Option<CppCell>>,
-    item_list: GcRefCell<Vec<CppCell>>,
+    items: Cell<Option<Ref<DataTransferItemList>>>,
+    item_list: GcRefCell<Vec<Ref<DataTransferItem>>>,
     #[gc(untraced)]
     types: RefCell<Vec<Utf16String>>,
     types_arrays: WorldEntries<Object>,
@@ -116,7 +133,7 @@ impl DataTransfer {
             store: RefCell::new(Some(store)),
             drop_effect: RefCell::new(Utf16FlyString::from_utf8("none")),
             effect_allowed: RefCell::new(Utf16FlyString::from_utf8("none")),
-            items: GcRefCell::default(),
+            items: Cell::default(),
             item_list: GcRefCell::new(Vec::with_capacity(count)),
             types: RefCell::default(),
             types_arrays: WorldEntries::default(),
@@ -204,21 +221,21 @@ impl DataTransfer {
     }
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
-    pub(crate) fn items(this: &Ref<Self>, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn items(this: &Ref<Self>, cx: &mut CallContext) -> WebIdlResult<Ref<DataTransferItemList>> {
         // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
-        let items = this.items.borrow().as_ref().map(CppCell::as_ptr);
-        let items = items.unwrap_or_else(|| {
-            // SAFETY: The transfer is live. LibWeb returns its new item list.
-            let items = unsafe { web_data_transfer_create_item_list(cell_into_abi(*this)) };
-            // SAFETY: LibWeb returns a live DataTransferItemList.
-            *this.items.borrow_mut(cx.vm()) = Some(unsafe { CppCell::from_raw(items) });
+        Ok(this.items.get().unwrap_or_else(|| {
+            let items = DataTransferItemList::create(cx.vm(), *this);
+            this.items.set(Some(items));
             items
-        });
-        // SAFETY: The realm and list are live. LibWeb returns the wrapper for that list in the wrapper world.
-        let wrapper = unsafe { web_data_transfer_wrap_item_list(cx.realm().as_ptr().cast(), items) };
-        let wrapper = NonNull::new(wrapper.cast()).expect("LibWeb wraps the item list");
-        // SAFETY: LibWeb returns the live wrapper of a DataTransferItemList.
-        Ok(unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) })
+        }))
+    }
+
+    pub(super) fn store(&self) -> Option<cell::Ref<'_, DragDataStore>> {
+        cell::Ref::filter_map(self.store.borrow(), Option::as_ref).ok()
+    }
+
+    pub(super) fn item(&self, index: usize) -> Ref<DataTransferItem> {
+        self.item_list.borrow()[index]
     }
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
@@ -369,9 +386,7 @@ impl DataTransfer {
         for index in 0..store.len() {
             let (is_file, _, _) = store.item(index);
             if is_file {
-                // SAFETY: The store is live and the index is within it. LibWeb returns the new File cell.
-                let file = unsafe { cell_from_abi::<File>(web_data_transfer_create_file(store.0.as_ptr(), index)) };
-                files.add_file(vm, file);
+                files.add_file(vm, store.create_file(index));
             }
         }
 
@@ -379,33 +394,26 @@ impl DataTransfer {
         Ok(files)
     }
 
-    fn append_item(this: &Ref<Self>, vm: &Vm, index: usize) -> *mut c_void {
-        // SAFETY: The transfer is live and the index exists in its store.
-        let item = unsafe { web_data_transfer_create_item(cell_into_abi(*this), index) };
-        // SAFETY: LibWeb returns a live DataTransferItem.
-        this.item_list.borrow_mut(vm).push(unsafe { CppCell::from_raw(item) });
+    fn append_item(this: &Ref<Self>, vm: &Vm, index: usize) -> Ref<DataTransferItem> {
+        let item = DataTransferItem::create(vm, *this, index);
+        this.item_list.borrow_mut(vm).push(item);
         item
     }
 
-    fn did_add_item(this: &Ref<Self>, vm: &Vm) -> *mut c_void {
+    pub(super) fn did_add_item(this: &Ref<Self>, vm: &Vm) -> Ref<DataTransferItem> {
         let index = this.item_list.borrow().len();
         let item = Self::append_item(this, vm, index);
         this.update_types();
         item
     }
 
-    fn remove_item(&self, vm: &Vm, index: usize) {
+    pub(super) fn remove_item(&self, vm: &Vm, index: usize) {
         let mut items = self.item_list.borrow_mut(vm);
-        let store = self.store.borrow();
-        let store = store.as_ref().expect("removing an item requires a drag data store");
+        let store = self.store().expect("removing an item requires a drag data store");
         store.remove_item(index);
-        let removed = items.remove(index);
-        // SAFETY: These cells are live. The removed item becomes disabled and the remaining indices shift.
-        unsafe {
-            web_data_transfer_set_item_index(removed.as_ptr(), 0, false);
-            for (index, item) in items.iter().enumerate().skip(index) {
-                web_data_transfer_set_item_index(item.as_ptr(), index, true);
-            }
+        items.remove(index).set_index(None);
+        for (index, item) in items.iter().enumerate().skip(index) {
+            item.set_index(Some(index));
         }
         drop(items);
         self.update_types();
@@ -474,16 +482,6 @@ pub unsafe extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: NonNull<c
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_drag_data_store(transfer: *mut c_void) -> *mut c_void {
-    // SAFETY: LibWeb passes a live DataTransfer. It keeps the returned store alive until disassociation.
-    unsafe { cell_from_abi::<DataTransfer>(transfer) }
-        .store
-        .borrow()
-        .as_ref()
-        .map_or(null_mut(), |store| store.0.as_ptr())
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_data_transfer_disassociate(transfer: *mut c_void) {
     // SAFETY: LibWeb passes a live DataTransfer.
     let transfer = unsafe { cell_from_abi::<DataTransfer>(transfer) };
@@ -525,23 +523,4 @@ pub unsafe extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(tran
     unsafe {
         cell_from_abi::<DataTransfer>(transfer).set_effect_allowed_internal(Utf16FlyString::from_raw_borrowed(effect));
     }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_did_add_item(vm: &Vm, transfer: *mut c_void) -> *mut c_void {
-    // SAFETY: LibWeb passes a live DataTransfer whose store has just gained an item.
-    let transfer = unsafe { cell_from_abi::<DataTransfer>(transfer) };
-    DataTransfer::did_add_item(&transfer, vm)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_remove_item(vm: &Vm, transfer: *mut c_void, index: usize) {
-    // SAFETY: LibWeb passes a live DataTransfer and an index within its store.
-    unsafe { cell_from_abi::<DataTransfer>(transfer) }.remove_item(vm, index);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_item(transfer: *mut c_void, index: usize) -> *mut c_void {
-    // SAFETY: LibWeb passes a live DataTransfer and an index within its store.
-    unsafe { cell_from_abi::<DataTransfer>(transfer) }.item_list.borrow()[index].as_ptr()
 }

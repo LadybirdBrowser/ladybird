@@ -1,7 +1,7 @@
 callback FunctionStringCallback = undefined (DOMString data);
 
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitem
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DataTransferItem {
     readonly attribute DOMString kind;
     readonly attribute DOMString type;

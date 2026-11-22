@@ -9,3 +9,8 @@ fileItem: kind=file, type=text/plain
 length=3, types=custom-type,text/plain,Files
 fileItemAsFile: name=file.txt, type=text/plain
 fileItemAsEntry: name=file.txt, file=true, directory=false
+item indices after removal: 0,1
+surviving file item keeps its identity: true
+removed item kind: ""
+callback ran before yielding: false
+queued string after removal: well hello friends

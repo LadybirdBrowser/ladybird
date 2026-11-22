@@ -663,8 +663,6 @@ class CustomElementDefinition;
 class CustomElementRegistry;
 class CustomStateSet;
 class DataTransfer;
-class DataTransferItem;
-class DataTransferItemList;
 class DecodedImageData;
 class DedicatedWorkerThreadLink;
 class DocumentState;

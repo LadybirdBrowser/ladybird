@@ -53,5 +53,19 @@
         if (dataTransferItemList[3] !== undefined) {
             println("FAILED");
         }
+
+        let callbackRan = false;
+        const queuedData = new Promise(resolve => {
+            stringItem.getAsString(data => {
+                callbackRan = true;
+                resolve(data);
+            });
+        });
+        dataTransferItemList.remove(0);
+        println(`item indices after removal: ${Object.keys(dataTransferItemList).join(",")}`);
+        println(`surviving file item keeps its identity: ${dataTransferItemList[1] === fileItem}`);
+        println(`removed item kind: ${JSON.stringify(stringItem.kind)}`);
+        println(`callback ran before yielding: ${callbackRan}`);
+        println(`queued string after removal: ${await queuedData}`);
     });
 </script>
