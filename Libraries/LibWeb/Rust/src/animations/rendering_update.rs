@@ -403,11 +403,12 @@ pub unsafe extern "C" fn animations_document_run_pending_css_play_tasks(
     // SAFETY: Guaranteed by the caller, and the borrow ends here.
     let timelines = unsafe { &*animations }.timelines.clone();
     let mut pending: Vec<AnimationHandle> = Vec::new();
+    // NB: An animation with a pending task needs updates, so only those are looked at.
     for timeline in &timelines {
-        let associated = timeline.associated_animations().borrow();
         pending.extend(
-            associated
-                .iter()
+            timeline
+                .associated_animations_needing_update()
+                .into_iter()
                 .filter(|animation| rendering_update_makes_ready(animation)),
         );
     }

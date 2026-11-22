@@ -8,7 +8,7 @@
 //! https://www.w3.org/TR/web-animations-1/#timelines
 
 use super::animation::{
-    AttachmentInterval, AttachmentRangeEdge, AttachmentRangeEdgeOffset, HostCellKind, WeakAnimationSet,
+    AnimationHandle, AttachmentInterval, AttachmentRangeEdge, AttachmentRangeEdgeOffset, HostCellKind, WeakAnimationSet,
 };
 use super::snapshot::{TimelineClock, TimelineClockSource};
 use super::timeline_state::TimelineState;
@@ -884,6 +884,10 @@ pub struct TimelineCell {
     record: RefCell<TimelineRecord>,
     /// NB: The animations associated with the timeline, none of which it keeps alive.
     associated_animations: RefCell<WeakAnimationSet>,
+    /// OPTIMIZATION: The animations associated with the timeline that an update of its current time may change, none of
+    ///               which it keeps alive. An animation that has finished on a monotonically increasing timeline, with
+    ///               no pending task, stays as it is until a procedure runs on it, which adds it back.
+    animations_needing_update: RefCell<WeakAnimationSet>,
     /// The cell of the object script sees of the timeline, which holds a reference to the record until it is finalized
     /// and clears this as it does, if script has asked for it yet. Each holder of the record keeps it alive, or the
     /// cells the record names where it has none.
@@ -949,6 +953,28 @@ impl TimelineCell {
 
     pub(crate) fn associated_animations(&self) -> &RefCell<WeakAnimationSet> {
         &self.associated_animations
+    }
+
+    pub(crate) fn animations_needing_update(&self) -> &RefCell<WeakAnimationSet> {
+        &self.animations_needing_update
+    }
+
+    /// The animations associated with the timeline that an update of its current time may change, in the order of the
+    /// animations associated with it, forgetting that the others need updates.
+    pub(crate) fn associated_animations_needing_update(&self) -> Vec<AnimationHandle> {
+        let associated = self.associated_animations.borrow();
+        let mut needing_update = self.animations_needing_update.borrow_mut();
+        let mut animations = Vec::new();
+        for animation in needing_update.alive() {
+            match associated.position(&animation) {
+                Some(position) => animations.push((position, animation)),
+                None => {
+                    needing_update.remove(&animation);
+                }
+            }
+        }
+        animations.sort_unstable_by_key(|(position, _)| *position);
+        animations.into_iter().map(|(_, animation)| animation).collect()
     }
 
     /// https://drafts.csswg.org/web-animations-1/#timeline
@@ -1326,6 +1352,7 @@ impl TimelineHandle {
                 kind,
             }),
             associated_animations: RefCell::default(),
+            animations_needing_update: RefCell::default(),
             object_cell: Cell::new(None),
         }))
     }

@@ -268,6 +268,8 @@ public:
     }
     EndIterator end() const { return {}; }
 
+    bool contains(AnimationRef const& animation) const { return RustFFI::animations_weak_animation_set_contains(m_set, &animation.record()); }
+
 protected:
     RustFFI::WeakAnimationSet* m_set { nullptr };
 };
@@ -276,6 +278,21 @@ protected:
 inline WeakAnimationSetView associated_animations_of(TimelineView timeline)
 {
     return WeakAnimationSetView { *RustFFI::animations_timeline_associated_animations(&timeline.record()) };
+}
+
+// NB: The animations associated with a timeline that an update of its current time may change, none of which it keeps
+//     alive. The others have finished on a monotonically increasing timeline and have no pending task. This includes
+//     every running animation of the timeline, and may include some that are no longer associated with it, until the
+//     timeline next updates.
+inline WeakAnimationSetView animations_needing_update_of(TimelineView timeline)
+{
+    return WeakAnimationSetView { *RustFFI::animations_timeline_animations_needing_update(&timeline.record()) };
+}
+
+// NB: The animations associated with the elements of a document, none of which it keeps alive.
+inline WeakAnimationSetView associated_animations_of(RustFFI::DocumentAnimations& animations)
+{
+    return WeakAnimationSetView { *RustFFI::animations_document_associated_animations(&animations) };
 }
 
 }

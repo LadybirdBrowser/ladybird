@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div id="first"></div>
+<div id="second"></div>
+<script src="../include.js"></script>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    asyncTest(async done => {
+        const duration = 100000;
+        const a = document.getElementById("first").animate({ opacity: [0, 1] }, duration);
+        const b = document.getElementById("second").animate({ opacity: [0, 1] }, duration);
+        await Promise.all([a.ready, b.ready]);
+
+        // Finish the first animation and let the timeline update it, so that it settles as finished.
+        a.finish();
+        await nextFrame();
+        await nextFrame();
+
+        // Seek the first animation, then the second, so that both end on the same timeline update.
+        a.currentTime = duration - 1;
+        b.currentTime = duration - 1;
+
+        const order = [];
+        const finished = [a.finished.then(() => order.push("first")), b.finished.then(() => order.push("second"))];
+        await Promise.all(finished);
+        println(order.join(", "));
+        done();
+    });
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    asyncTest(async done => {
+        const animation = document.getElementById("target").animate({ opacity: [0, 1] }, 100000);
+        await animation.ready;
+
+        // Finish the animation and let the timeline update it, so that it settles as finished.
+        animation.finish();
+        await animation.finished;
+        await nextFrame();
+        await nextFrame();
+        println(`Before: ${animation.playState}`);
+
+        // A longer duration makes it run again, and the timeline must update it on to its new end.
+        const time = animation.currentTime;
+        animation.effect.updateTiming({ duration: time + 20 });
+        println(`After updateTiming: ${animation.playState}`);
+        await animation.finished;
+        println(`Finished again: ${animation.playState}, moved on: ${animation.currentTime > time}`);
+        done();
+    });
+</script>

@@ -715,6 +715,17 @@ pub extern "C" fn animations_animation_effect(animation: &AnimationCell) -> *con
     })
 }
 
+/// https://www.w3.org/TR/web-animations-1/#animation-timeline
+/// The record of the timeline of `animation`, or null where it has none. The pointer stays valid while the animation
+/// keeps that timeline.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_animation_timeline(animation: &AnimationCell) -> *const TimelineCell {
+    animation
+        .borrow()
+        .timeline()
+        .map_or(std::ptr::null(), |timeline| &raw const **timeline)
+}
+
 /// https://www.w3.org/TR/web-animations-1/#play-states
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_animation_play_state(animation: &AnimationCell) -> AnimationPlayState {
@@ -2031,9 +2042,7 @@ pub unsafe extern "C" fn animations_document_animations_run_transition_step(
             {
                 return false;
             }
-            procedures::run(animation, |procedures| Ok(procedures.is_relevant()))
-                .expect("reading relevance does not throw")
-                .0
+            procedures::query(animation, |procedures| procedures.is_relevant())
         })
         .cloned()
         .collect();
@@ -2588,6 +2597,12 @@ pub extern "C" fn animations_weak_animation_set_entry_count(set: &WeakAnimationS
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_weak_animation_set_get(set: &WeakAnimationSet, index: usize) -> *const AnimationCell {
     set.get(index).map_or(std::ptr::null(), AnimationHandle::into_raw)
+}
+
+/// Whether `set` holds `animation`.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_weak_animation_set_contains(set: &WeakAnimationSet, animation: &AnimationCell) -> bool {
+    set.contains(animation)
 }
 
 /// New empty lists of the animations of an element, which the element owns.
@@ -3214,4 +3229,20 @@ pub extern "C" fn animations_timeline_read(timeline: &TimelineCell) -> FfiTimeli
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_timeline_associated_animations(timeline: &TimelineCell) -> *mut WeakAnimationSet {
     timeline.associated_animations().as_ptr()
+}
+
+/// The animations associated with `timeline` that an update of its current time may change, which lives as long as the
+/// timeline. The others have finished on a monotonically increasing timeline and have no pending task.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_timeline_animations_needing_update(timeline: &TimelineCell) -> *mut WeakAnimationSet {
+    timeline.animations_needing_update().as_ptr()
+}
+
+/// The animations associated with the elements of a document whose animations are `animations`, which lives as long as
+/// the document.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_document_associated_animations(
+    animations: &mut DocumentAnimations,
+) -> *mut WeakAnimationSet {
+    animations.set_mut(DocumentAnimationSetKind::Associated)
 }
