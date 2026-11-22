@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Text Test: line-break: anywhere</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" title="5.3. Line Breaking Strictness: the line-break property" href="https://www.w3.org/TR/css-text-3/#propdef-line-break">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-line-break-anywhere">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/line-break/reference/line-break-anywhere-001-ref.html">
+<meta name="assert" content="line-break:anywhere puts a soft wrap opportunity betwwen letters in the middle of words and hyphenation is not applied.">
+<style>
+#green {
+  position: absolute;
+  background: green;
+  font-family: monospace;
+  width: 1ch;
+  height: 19em;
+}
+#test {
+  width: 1ch;
+  line-height: 1;
+  color: red;
+  font-family: monospace;
+  line-break: anywhere;
+  hyphens: auto;
+}
+</style>
+
+<p>Test passes if there is a green rectangle below and no red.</p>
+<div id=green></div>
+<!-- Hyphenation, if it occurs, will produce a hyphen that sticks out from under the green rectangle.
+     Also, if the words fails to be wrapped between all letters, letters will also stick out from under the green rectangle -->
+<div id=test>no hyphenation</div>

@@ -3448,6 +3448,7 @@
     "inherited": true,
     "requires-computation": "never",
     "valid-identifiers": [
+      "anywhere",
       "auto",
       "loose",
       "normal",

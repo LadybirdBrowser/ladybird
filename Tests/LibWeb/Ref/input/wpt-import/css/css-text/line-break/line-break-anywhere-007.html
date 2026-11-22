@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Text Test: line-break: anywhere</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.3. Line Breaking Strictness: the line-break property" href="https://www.w3.org/TR/css-text-3/#propdef-line-break">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-line-break-anywhere">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/line-break/reference/line-break-anywhere-004-ref.html">
+<meta name="assert" content="line-break:anywhere allows breaking opportunities around punctuaction characters.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  position: relative;
+  font-size: 20px;
+  font-family: Ahem;
+  line-height: 1em;
+}
+.red {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: green;
+  color: red;
+  z-index: -1;
+}
+.test {
+  color: green;
+  width: 5ch;
+  line-break: anywhere;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div class="red">X XXX<br>XX</div>
+  <div class="test">X XX...</div>
+</body>

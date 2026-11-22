@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: getComputedStyle().lineBreak</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-line-break">
+<meta name="assert" content="line-break computed value is specified keyword.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("line-break", "auto");
+test_computed_value("line-break", "loose");
+test_computed_value("line-break", "normal");
+test_computed_value("line-break", "strict");
+test_computed_value("line-break", "anywhere");
+</script>
+</body>
+</html>

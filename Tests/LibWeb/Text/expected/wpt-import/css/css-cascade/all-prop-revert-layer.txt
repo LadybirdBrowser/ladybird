@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 355 tests
+Found 356 tests
 
-355 Pass
+356 Pass
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -48,6 +48,7 @@ Pass	hyphenate-character
 Pass	hyphens
 Pass	image-rendering
 Pass	letter-spacing
+Pass	line-break
 Pass	line-height
 Pass	list-style-image
 Pass	list-style-position

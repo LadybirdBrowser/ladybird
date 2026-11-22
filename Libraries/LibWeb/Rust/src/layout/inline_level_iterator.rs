@@ -154,7 +154,11 @@ pub(crate) fn hyphen_glyph_run(
 pub(crate) fn soft_hyphen_hyphenates(style: StyleValues<'_>) -> bool {
     // https://drafts.csswg.org/css-text-3/#valdef-word-break-break-all
     // Hyphenation is not applied.
-    style.hyphens() != hyphens::NONE && style.word_break() != word_break::BREAK_ALL
+    // https://drafts.csswg.org/css-text-3/#valdef-line-break-anywhere
+    // Hyphenation is not applied.
+    style.hyphens() != hyphens::NONE
+        && style.word_break() != word_break::BREAK_ALL
+        && style.line_break() != line_break::ANYWHERE
 }
 
 /// The inline size of the hyphen that a line ends in if it breaks right after `item`: none, unless the item's text ends
