@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .multicol { columns: 1; column-gap: 0; width: 300px; margin-bottom: 100px; }
+    .two { columns: 2; }
+    .line { height: 24px; }
+    .lines { line-height: 24px; font-size: 16px; }
+</style>
+<!-- The content ends with a negative margin, which doesn't take back the space its lines take. -->
+<div class="multicol" id="minus-10"><div style="margin-bottom: -10px"><div class="line"></div><div class="line last"></div></div></div>
+<div class="multicol" id="minus-1"><div style="margin-bottom: -1px"><div class="line"></div><div class="line last"></div></div></div>
+<div class="multicol two" id="two-columns"><div style="margin-bottom: -10px"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line last"></div></div></div>
+<div class="multicol two" id="two-columns-minus-24"><div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line last" style="margin-bottom: -24px"></div></div></div>
+<div class="multicol" id="collapsing-through"><div><div class="line"></div><div class="line last" style="margin-bottom: -30px"></div></div></div>
+<div class="multicol" id="empty-last-child"><div><div class="line"></div><div class="line last"></div><div style="margin-bottom: -40px"></div></div></div>
+<div class="multicol" id="lines-overflowing-a-box"><div class="lines" style="height: 10px">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div></div>
+<!-- The lines of a box that doesn't break reach as far as they do, too, where the box stays in the column. -->
+<div class="multicol" id="lines-overflowing-an-unbreakable-box"><div style="height: 1px"></div><div class="lines" style="height: 10px; break-inside: avoid; margin-bottom: -1px">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div></div>
+<div class="multicol" id="lines-overflowing-a-nested-unbreakable-box"><div style="height: 1px"></div><div><div class="lines" style="height: 10px; break-inside: avoid; margin-bottom: -1px">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div></div></div>
+<div class="multicol" id="lines-in-a-block-of-an-unbreakable-box"><div style="height: 1px"></div><div style="height: 10px; break-inside: avoid; margin-bottom: -1px"><div class="lines">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div></div></div>
+<div class="multicol" id="lines-in-an-unbreakable-box-with-a-positioned-child"><div style="height: 1px"></div><div style="position: relative; height: 10px; break-inside: avoid; margin-bottom: -1px"><div class="lines">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div><div style="position: absolute; top: 0; width: 1px; height: 1px"></div></div></div>
+<div class="multicol" id="lines-in-an-unbreakable-box-before-a-forced-break"><div style="height: 1px"></div><div style="height: 10px; break-inside: avoid; margin-bottom: -1px"><div class="lines">First<br><span class="last" style="display: inline-block; width: 10px; height: 24px; vertical-align: top"></span></div><div style="break-before: column; height: 5px"></div></div></div>
+<!-- Columns filled in order hold all of a box whose own content ends past it, too. -->
+<div class="multicol" id="fill-auto" style="column-fill: auto"><div><div class="last" style="height: 100px; margin-bottom: -50px"></div><div style="height: 10px"></div></div></div>
+<div class="multicol two" id="fill-auto-two-columns" style="column-fill: auto"><div><div class="last" style="height: 100px; margin-bottom: -50px"></div><div style="height: 10px"></div></div></div>
+<!-- An empty box takes no space of its own where a later margin takes its margin back. -->
+<div class="multicol" id="empty-box-margin-taken-back" style="column-fill: auto"><div><div style="margin-top: 100px"></div><div class="line last" style="margin-top: -100px"></div></div></div>
+<div class="multicol" id="empty-box-margin-taken-back-balanced"><div><div style="margin-top: 100px"></div><div class="line last" style="margin-top: -100px"></div></div></div>
+<!-- A box after the content still takes its space, but no more than where its margin ends. -->
+<div class="multicol" id="trailing-box"><div><div class="line"></div><div class="line"></div><div class="last" style="height: 20px; margin-bottom: -40px"></div></div></div>
+<div class="multicol" id="overlapping-boxes"><div><div class="line" style="margin-bottom: -40px"></div><div class="line last"></div></div></div>
+<div class="multicol" id="negative-top-margin"><div style="margin-top: -10px"><div class="line"></div><div class="line last"></div></div></div>
+<div class="multicol" id="positive-margin"><div style="margin-bottom: 10px"><div class="line"></div><div class="line last"></div></div></div>
+<!-- A definite height still sends what doesn't fit into a column of its own. -->
+<div class="multicol" id="definite-height" style="height: 30px"><div style="margin-bottom: -10px"><div class="line"></div><div class="line last"></div></div></div>
+<script>
+    test(() => {
+        for (const multicol of document.querySelectorAll(".multicol")) {
+            const origin = multicol.getBoundingClientRect();
+            const last = multicol.querySelector(".last").getBoundingClientRect();
+            println(`${multicol.id}: height ${origin.height}, last at ${last.x - origin.x},${last.y - origin.y}`);
+        }
+    });
+</script>
