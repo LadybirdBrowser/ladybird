@@ -3357,6 +3357,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     layout_config
         .includes
         .push("LibIPC/ThreadSafeMessagePoster.h".to_string());
+    // Rust sends synchronous requests to the compositor through the connection C++ made.
+    layout_config.export.exclude.push("FfiConnection".to_string());
+    layout_config
+        .export
+        .rename
+        .insert("FfiConnection".to_string(), "IPC::FfiConnection".to_string());
+    layout_config.includes.push("LibIPC/FfiConnection.h".to_string());
     // A compositor animation carries its effect's timing as the animations header describes it.
     layout_config.export.exclude.push("AnimationEffectTiming".to_string());
     layout_config.export.rename.insert(

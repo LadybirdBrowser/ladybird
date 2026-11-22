@@ -23,7 +23,7 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::Ras
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, IntSize, ScalingMode};
-use libipc_rust::cpp_connection::FfiThreadSafeMessagePoster;
+use libipc_rust::cpp_connection::{CppConnection, FfiConnection, FfiThreadSafeMessagePoster};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -127,10 +127,18 @@ unsafe fn record_image(image: &FfiImageRasterization) -> (RecordedDisplayList, D
     (recorder.into_builder().finish(), resources)
 }
 
-/// Stages what the display list draws under `token` and hands it to the compositor to rasterize into `target_bitmap`,
-/// against `tree`, the visual context tree it was recorded against. Answers whether the compositor could still be
-/// reached.
-fn post_rasterization(
+#[repr(u8)]
+pub enum RasterizationOutcome {
+    Rasterized,
+    NotRasterized,
+    CompositorLost,
+}
+
+/// Stages what the display list draws under `token` and has the compositor rasterize it into `target_bitmap`, against
+/// `tree`, the visual context tree it was recorded against.
+#[allow(clippy::too_many_arguments)]
+fn rasterize(
+    connection: &CppConnection,
     poster: &CompositorPoster,
     token: u64,
     display_list: &RecordedDisplayList,
@@ -138,14 +146,14 @@ fn post_rasterization(
     root_group_color: libgfx_rust::Color,
     resources: &DisplayListResources,
     target_bitmap: *const c_void,
-) -> bool {
+) -> RasterizationOutcome {
     let display_list = display_list_holding_vector_image_records(display_list, &resources.vector_images);
     let resources = resources.with_vector_image_resources();
     let fonts: Vec<FontHandle> = resources.fonts.values().cloned().collect();
     let image_frames: Vec<ImageFrameHandle> = resources.image_frames.values().cloned().collect();
     // SAFETY: The caller keeps the bitmap live for the call.
     if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, target_bitmap) } {
-        return false;
+        return RasterizationOutcome::NotRasterized;
     }
     // The list goes whole, as chunks named by what the compositor replays.
     let chunks: Vec<Chunk> = chunks_of(&display_list.bytes, &display_list.command_runs, &display_list.chunks)
@@ -175,34 +183,41 @@ fn post_rasterization(
             "WebContent: Could not place a {} byte display list to rasterize in shared memory",
             display_list.bytes.len()
         );
-        return false;
+        return RasterizationOutcome::NotRasterized;
     };
-    poster.post(RasterizeDisplayList {
+    match connection.send_sync(RasterizeDisplayList {
         token,
         display_list,
         visual_context_tree: tree,
-    })
+    }) {
+        Some(response) if response.success => RasterizationOutcome::Rasterized,
+        Some(_) => RasterizationOutcome::NotRasterized,
+        None => RasterizationOutcome::CompositorLost,
+    }
 }
 
-/// Has the compositor rasterize `image` into `target_bitmap`, a shareable `Gfx::Bitmap`, through `poster`, under `token`,
-/// which the compositor's answer names. Answers whether the image went to the compositor.
+/// Has the compositor rasterize `image` into `target_bitmap`, a shareable `Gfx::Bitmap`, under `token`, and waits for it
+/// to.
 ///
 /// # Safety
 ///
-/// `poster` must hold one reference to a live poster on the transport of the connection to the compositor, which the
-/// caller gives up, and what `image` points at and `target_bitmap` must be live for the call.
+/// `connection` must hold one reference to the live connection to the compositor of this thread, and `poster` one
+/// reference to a live poster on its transport, which the caller gives up, and what `image` points at and
+/// `target_bitmap` must be live for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_rasterize_image(
+    connection: FfiConnection,
     poster: FfiThreadSafeMessagePoster,
     token: u64,
     image: &FfiImageRasterization,
     target_bitmap: *const c_void,
-) -> bool {
+) -> RasterizationOutcome {
     // SAFETY: Guaranteed by the caller.
-    let poster = unsafe { CompositorPoster::adopt(poster) };
+    let (connection, poster) = unsafe { (CppConnection::adopt(connection), CompositorPoster::adopt(poster)) };
     // SAFETY: As above.
     let (display_list, resources) = unsafe { record_image(image) };
-    post_rasterization(
+    rasterize(
+        &connection,
         &poster,
         token,
         &display_list,
@@ -214,33 +229,34 @@ pub unsafe extern "C" fn render_state_rasterize_image(
 }
 
 /// Has the compositor rasterize the recording the document of `host` took in last into `target_bitmap`, a shareable
-/// `Gfx::Bitmap` the size of the document's viewport, through `poster`, under `token`, which the compositor's answer
-/// names. Answers whether the recording went to the compositor.
+/// `Gfx::Bitmap` the size of the document's viewport, under `token`, and waits for it to.
 ///
 /// # Safety
 ///
-/// `poster` must hold one reference to a live poster on the transport of the connection to the compositor, which the
-/// caller gives up, `host` must be a live document host, on its document's thread, and `target_bitmap` must be live for
-/// the call.
+/// `connection` must hold one reference to the live connection to the compositor of this thread, and `poster` one
+/// reference to a live poster on its transport, which the caller gives up, `host` must be a live document host, on its
+/// document's thread, and `target_bitmap` must be live for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_rasterize_last_recording(
+    connection: FfiConnection,
     poster: FfiThreadSafeMessagePoster,
     token: u64,
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     target_bitmap: *const c_void,
-) -> bool {
+) -> RasterizationOutcome {
     // SAFETY: Guaranteed by the caller.
-    let poster = unsafe { CompositorPoster::adopt(poster) };
+    let (connection, poster) = unsafe { (CppConnection::adopt(connection), CompositorPoster::adopt(poster)) };
     let recording =
         crate::painting::ffi::read_arena(host, read, (), |arena, ()| arena.paint_state().last_recording.clone());
     let Some((recording, tree)) = recording.and_then(|recording| {
         let tree = recording.visual_context_tree.clone()?;
         Some((recording, tree))
     }) else {
-        return false;
+        return RasterizationOutcome::NotRasterized;
     };
-    post_rasterization(
+    rasterize(
+        &connection,
         &poster,
         token,
         &recording.display_list,
