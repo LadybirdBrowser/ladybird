@@ -135,14 +135,12 @@ void NetworkBodyPump::handle_network_complete(Optional<i64> request_server_encod
         m_encoded_body_size = static_cast<u64>(max<i64>(*request_server_encoded_body_size, 0));
     else
         m_encoded_body_size = m_decoded_body_size;
-    auto delivery_id = m_channel->delivery_id();
-    if (m_response && !delivery_id.has_value())
+    if (m_response)
         m_response->set_body_sizes(m_encoded_body_size, m_decoded_body_size);
     finalize_cache_entry();
-    if (delivery_id.has_value()) {
+    if (auto delivery_id = m_channel->delivery_id(); delivery_id.has_value()) {
         Engine::Event::EndOfBody end_of_body {
             .delivery_id = *delivery_id,
-            .final_sizes = { .encoded_body_size = m_encoded_body_size, .decoded_body_size = m_decoded_body_size },
             .end_time = HighResolutionTime::unsafe_shared_current_time(),
         };
         auto* engine_record = m_fetch_params->engine_record();

@@ -58,7 +58,9 @@ void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page&, Infrastr
 void run_deferred_main_fetch_steps(Engine::FetchId, NonnullRefPtr<Engine::FetchEngineRecord>);
 void drop_deferred_main_fetch_steps(Engine::FetchId);
 void populate_request_from_client(Infrastructure::Request&, Optional<HTML::FetchClient> const& client);
-void fetch_response_handover(JS::Realm&, Infrastructure::FetchParams const&, GC::Ref<Infrastructure::FetchController>, Infrastructure::Response&);
+void fetch_response_handover(Infrastructure::FetchParams const&, Infrastructure::Response&);
+// Runs the steps of fetch response handover that follow the response's delivery to the agent that started the fetch.
+void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController>, Engine::Event::ResponseDelivery);
 GC::Ref<PendingResponse> scheme_fetch(JS::Realm&, Infrastructure::FetchParams const&);
 GC::Ref<PendingResponse> http_fetch(JS::Realm&, Infrastructure::FetchParams const&, MakeCORSPreflight make_cors_preflight = MakeCORSPreflight::No);
 WEB_API GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);

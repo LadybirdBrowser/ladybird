@@ -7,6 +7,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -143,6 +144,9 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
     GC::Ref controller = *found_controller;
 
     event.visit(
+        [&](Engine::Event::ResponseDelivery& delivery) {
+            finish_fetch_response_handover(controller, move(delivery));
+        },
         [&](Engine::Event::RequestBodyProgress const& progress) {
             Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(controller, progress.length), [](auto& controller, auto& length) {
                 process_body_chunk(controller, length);
@@ -176,7 +180,6 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
             m_fetch_ended = true;
             controller->did_end_fetch();
         },
-        [](Engine::Event::ResponseDelivery const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::ConsumeBodyResult const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::BodyChannelReadable const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::DeliveryEnd const&) { VERIFY_NOT_REACHED(); },

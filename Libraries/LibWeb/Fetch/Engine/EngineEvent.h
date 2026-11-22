@@ -6,30 +6,31 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Variant.h>
 #include <LibWeb/Fetch/Engine/BodyPresentation.h>
 #include <LibWeb/Fetch/Engine/FetchTimingSeed.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Engine/NetworkActivity.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Engine::Event {
 
+// The response main fetch hands over to the fetch's agent.
 struct ResponseDelivery {
-    DeliveryId delivery_id;
+    NonnullRefPtr<Infrastructure::Response const> response;
+    // The body of the response's internal response. A channel moves out of the response into the delivery.
     LocalBodyPresentation body;
     FetchTimingSeed timing_seed;
+    // The manual redirect's continuation that is open at the handover, which waits for the agent's answer.
+    Optional<ContinuationId> redirect_continuation_id;
 };
 
 // Sent only for a body still arriving at its response's handover, once the network completes it.
 struct EndOfBody {
-    struct FinalSizes {
-        u64 encoded_body_size { 0 };
-        u64 decoded_body_size { 0 };
-    };
-
     DeliveryId delivery_id;
-    FinalSizes final_sizes;
     HighResolutionTime::DOMHighResTimeStamp end_time { 0 };
 };
 

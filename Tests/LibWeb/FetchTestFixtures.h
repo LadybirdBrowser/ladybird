@@ -454,6 +454,13 @@ public:
         send(MUST(Messages::RequestClient::RequestTransferred::static_encode(request_id)));
     }
 
+    // Has the agent's client handle every message sent so far, one after another, before anything else runs.
+    void deliver_sent_messages()
+    {
+        m_request_server->flush();
+        m_client->dispatch_pending_messages();
+    }
+
 private:
     FetchHarness const& m_harness;
     RefPtr<Requests::RequestClient> m_client;
