@@ -750,6 +750,15 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         { Qt::Key_Z, Web::UIEvents::Key_Z },
     };
 
+#if defined(AK_OS_MACOS)
+    // Qt reports the Command key as Key_Control and the Control key as Key_Meta on macOS, just as it swaps their
+    // modifiers (see get_modifiers_from_qt_keyboard_modifiers()), so swap them back.
+    if (event.key() == Qt::Key_Control)
+        return Web::UIEvents::Key_LeftSuper;
+    if (event.key() == Qt::Key_Meta)
+        return Web::UIEvents::Key_LeftControl;
+#endif
+
     for (auto const& mapping : mappings) {
         if (event.key() == mapping.qt_key)
             return mapping.serenity_key;
