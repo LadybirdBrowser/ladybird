@@ -1092,6 +1092,13 @@ impl ArrayPrototype {
         // 3. Let len be ? LengthOfArrayLike(obj).
         let length = length_of_array_like(vm, &object)?;
 
+        // AD-HOC: Step 8.a says "Perform ? Set(obj, ! ToString(𝔽(j)), sortedList[j], true)." All major engines skip
+        // indexed reads and writes for lengths below two. Sites rely on this when sorting frozen singletons.
+        // https://github.com/tc39/ecma262/issues/4101
+        if length < 2 {
+            return Ok(Value::from_object(object));
+        }
+
         // 4. Let SortCompare be a new Abstract Closure with parameters (x, y) that captures comparefn and performs the following steps when called:
         let comparefn_function = (!comparefn.is_undefined()).then(|| comparefn.as_function());
         let sort_compare = |x: Value, y: Value| -> ThrowCompletionOr<f64> {
