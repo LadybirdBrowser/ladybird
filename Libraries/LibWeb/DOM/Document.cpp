@@ -1203,10 +1203,17 @@ void Document::invalidate_content_blocker_style_sheet()
 
 bool Document::content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf16FlyString const* id, ReadonlySpan<Utf16FlyString> class_names)
 {
-    if (is_decoded_svg() || !content_blocking_enabled())
+    if (is_decoded_svg() || !m_content_blocker_style_sheet.has_value())
         return false;
 
-    if (!m_content_blocker_style_sheet.has_value())
+    // OPTIMIZATION: Most tokens have been checked already, which is cheaper to tell than whether content blocking is
+    //               enabled, so the policy is asked only once a token turns out to be new.
+    auto is_new_token = [](Utf16FlyString const& token, HashTable<Utf16FlyString> const& checked_tokens) {
+        return !token.is_empty() && !checked_tokens.contains(token);
+    };
+    auto has_new_token = (id && is_new_token(*id, m_content_blocker_style_sheet_checked_ids))
+        || any_of(class_names, [&](auto const& class_name) { return is_new_token(class_name, m_content_blocker_style_sheet_checked_classes); });
+    if (!has_new_token || !content_blocking_enabled())
         return false;
 
     Vector<Utf16FlyString> classes_to_check;
@@ -1221,9 +1228,6 @@ bool Document::content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf1
 
     for (auto const& class_name : class_names)
         append_new_token(class_name, m_content_blocker_style_sheet_checked_classes, classes_to_check);
-
-    if (classes_to_check.is_empty() && ids_to_check.is_empty())
-        return false;
 
     return ContentBlocker::the().has_generic_cosmetic_selectors_for_url(fallback_base_url(), classes_to_check, ids_to_check);
 }
