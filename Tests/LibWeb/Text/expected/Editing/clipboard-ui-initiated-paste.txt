@@ -1,5 +1,6 @@
 paste events: paste(bubbles=true cancelable=true composed=true isTrusted=true types=["text/plain"] data="pasted text") beforeinput(inputType=insertFromPaste data="pasted text")
 value after paste: "pasted text"
+clipboard data after paste: ""
 canceled paste events: paste(bubbles=true cancelable=true composed=true isTrusted=true types=["text/plain"] data="must not appear")
 value after canceled paste: ""
 verification code fields: 1 2 3 4 5 6

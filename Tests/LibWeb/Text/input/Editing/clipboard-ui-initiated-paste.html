@@ -13,7 +13,10 @@
         const plain = document.getElementById("plain");
 
         const log = [];
+        let clipboardData;
         plain.addEventListener("paste", e => {
+            clipboardData = e.clipboardData;
+            clipboardData.setData("text/plain", "ignored");
             log.push(`paste(bubbles=${e.bubbles} cancelable=${e.cancelable} composed=${e.composed} isTrusted=${e.isTrusted} types=${JSON.stringify(e.clipboardData.types)} data=${JSON.stringify(e.clipboardData.getData("text/plain"))})`);
         });
         plain.addEventListener("beforeinput", e => {
@@ -23,6 +26,7 @@
         internals.paste(plain, "pasted text");
         println(`paste events: ${log.join(" ")}`);
         println(`value after paste: ${JSON.stringify(plain.value)}`);
+        println(`clipboard data after paste: ${JSON.stringify(clipboardData.getData("text/plain"))}`);
 
         // Canceling the paste event must suppress the insertion.
         log.length = 0;

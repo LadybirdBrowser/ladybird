@@ -1,71 +1,52 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Enumerate.h>
-#include <AK/Find.h>
-#include <AK/NeverDestroyed.h>
-#include <LibGC/Heap.h>
-#include <LibGC/WeakInlines.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
-#include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
 #include <LibWeb/HTML/DataTransferItemList.h>
-#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(DataTransfer);
-
-struct DataTransferTypesCacheEntry {
-    GC::Weak<DataTransfer> data_transfer;
-    u64 types_revision { 0 };
-    Bindings::WrapperWorldWeakValueCache<JS::Array> types_arrays;
+struct DragDataStoreItemView {
+    FlatPtr type_string;
+    FlatPtr data;
+    bool is_file;
 };
 
-static Vector<DataTransferTypesCacheEntry>& data_transfer_types_caches()
-{
-    static NeverDestroyed<Vector<DataTransferTypesCacheEntry>> caches;
-    return *caches;
-}
+extern "C" {
 
-static void prune_data_transfer_types_caches()
-{
-    data_transfer_types_caches().remove_all_matching([](auto const& entry) {
-        return !entry.data_transfer;
-    });
-}
+// Defined in Bindings/Rust/src/html/data_transfer.rs.
+DataTransfer* web_rust_data_transfer_create(JSVM*, DragDataStore*);
+DragDataStore* web_rust_data_transfer_drag_data_store(DataTransfer const*);
+void web_rust_data_transfer_disassociate(DataTransfer*);
+FlatPtr web_rust_data_transfer_drop_effect(DataTransfer const*);
+FlatPtr web_rust_data_transfer_effect_allowed(DataTransfer const*);
+void web_rust_data_transfer_set_drop_effect(DataTransfer*, FlatPtr);
+void web_rust_data_transfer_set_effect_allowed_internal(DataTransfer*, FlatPtr);
+DataTransferItem* web_rust_data_transfer_did_add_item(JSVM*, DataTransfer*);
+void web_rust_data_transfer_remove_item(JSVM*, DataTransfer*, size_t index);
+DataTransferItem* web_rust_data_transfer_item(DataTransfer const*, size_t index);
 
-static DataTransferTypesCacheEntry& types_cache_for(DataTransfer& data_transfer)
-{
-    auto& caches = data_transfer_types_caches();
-    prune_data_transfer_types_caches();
-
-    for (auto& entry : caches) {
-        if (entry.data_transfer.ptr().ptr() != &data_transfer)
-            continue;
-
-        if (entry.types_revision != data_transfer.types_revision()) {
-            entry.types_arrays.clear();
-            entry.types_revision = data_transfer.types_revision();
-        }
-
-        return entry;
-    }
-
-    caches.append(DataTransferTypesCacheEntry {
-        data_transfer,
-        data_transfer.types_revision(),
-        {},
-    });
-    return caches.last();
+DragDataStore* web_data_transfer_create_writable_store();
+void web_data_transfer_store_unref(DragDataStore*);
+u8 web_data_transfer_store_mode(DragDataStore const*);
+size_t web_data_transfer_store_size(DragDataStore const*);
+DragDataStoreItemView web_data_transfer_store_item(DragDataStore const*, size_t index);
+void web_data_transfer_store_add_text(DragDataStore*, FlatPtr type, FlatPtr data);
+void web_data_transfer_store_remove_item(DragDataStore*, size_t index);
+DataTransferItem* web_data_transfer_create_item(DataTransfer*, size_t index);
+void web_data_transfer_set_item_index(DataTransferItem*, size_t index, bool has_index);
+DataTransferItemList* web_data_transfer_create_item_list(DataTransfer*);
+JS::Object* web_data_transfer_wrap_item_list(JS::Realm*, DataTransferItemList*);
+FileAPI::File* web_data_transfer_create_file(DragDataStore const*, size_t index);
 }
 
 namespace DataTransferEffect {
@@ -76,380 +57,169 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 }
 
-struct NormalizedFormatForLookup {
-    Utf16View type;
-    bool convert_to_url { false };
-};
-
-static NormalizedFormatForLookup normalize_format_for_lookup(Utf16View format)
+GC::Ref<DataTransfer> DataTransfer::create(NonnullRefPtr<DragDataStore> store)
 {
-    if (format.equals_ignoring_ascii_case(u"text"sv))
-        return { u"text/plain"sv };
-    if (format.equals_ignoring_ascii_case(u"url"sv))
-        return { u"text/uri-list"sv, true };
-    return { format };
+    return *web_rust_data_transfer_create(JS::HostABI::vm_to_abi(JS::VM::the()), &store.leak_ref());
 }
 
-static Utf16FlyString normalize_format_for_storage(Utf16View format)
+DragDataStore* DataTransfer::drag_data_store() const
 {
-    if (format.equals_ignoring_ascii_case(u"text"sv))
-        return "text/plain"_utf16_fly_string;
-    if (format.equals_ignoring_ascii_case(u"url"sv))
-        return "text/uri-list"_utf16_fly_string;
-    return Utf16FlyString::from_utf16(format);
+    return web_rust_data_transfer_drag_data_store(this);
 }
 
-GC::Ref<DataTransfer> DataTransfer::create(NonnullRefPtr<DragDataStore> drag_data_store)
+Utf16FlyString DataTransfer::drop_effect() const
 {
-    auto data_transfer = GC::Heap::the().allocate<DataTransfer>(move(drag_data_store));
-
-    for (auto const& [i, item] : enumerate(data_transfer->m_associated_drag_data_store->item_list())) {
-        auto data_transfer_item = DataTransferItem::create(data_transfer, i);
-        data_transfer->m_item_list.append(data_transfer_item);
-    }
-
-    data_transfer->update_data_transfer_types_list();
-    return data_transfer;
+    return Utf16FlyString::adopt_raw(web_rust_data_transfer_drop_effect(this));
 }
 
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
-GC::Ref<DataTransfer> DataTransfer::create_for_constructor()
+void DataTransfer::set_drop_effect(Utf16FlyString const& effect)
 {
-    // 1. Set the drag data store's item list to be an empty list.
-    auto drag_data_store = DragDataStore::create();
-
-    // 2. Set the drag data store's mode to read/write mode.
-    drag_data_store->set_mode(DragDataStore::Mode::ReadWrite);
-
-    // 3. Set the dropEffect and effectAllowed to "none".
-    // NOTE: This is done by the default-initializers.
-
-    return create(move(drag_data_store));
+    web_rust_data_transfer_set_drop_effect(this, effect.raw_identity());
 }
 
-DataTransfer::DataTransfer(NonnullRefPtr<DragDataStore> drag_data_store)
-    : m_associated_drag_data_store(move(drag_data_store))
+Utf16FlyString DataTransfer::effect_allowed() const
 {
+    return Utf16FlyString::adopt_raw(web_rust_data_transfer_effect_allowed(this));
 }
 
-DataTransfer::~DataTransfer() = default;
-
-void DataTransfer::visit_edges(GC::Cell::Visitor& visitor)
+void DataTransfer::set_effect_allowed_internal(Utf16FlyString const& effect)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_items);
-    visitor.visit(m_item_list);
-}
-
-void DataTransfer::set_drop_effect(Utf16FlyString drop_effect)
-{
-    using namespace DataTransferEffect;
-
-    // On setting, if the new value is one of "none", "copy", "link", or "move", then the attribute's current value must
-    // be set to the new value. Other values must be ignored.
-    if (drop_effect.is_one_of(none, copy, link, move))
-        m_drop_effect = AK::move(drop_effect);
-}
-
-void DataTransfer::set_effect_allowed(Utf16FlyString effect_allowed)
-{
-    // On setting, if drag data store's mode is the read/write mode and the new value is one of "none", "copy", "copyLink",
-    // "copyMove", "link", "linkMove", "move", "all", or "uninitialized", then the attribute's current value must be set
-    // to the new value. Otherwise, it must be left unchanged.
-    if (m_associated_drag_data_store && m_associated_drag_data_store->mode() == DragDataStore::Mode::ReadWrite)
-        set_effect_allowed_internal(move(effect_allowed));
-}
-
-void DataTransfer::set_effect_allowed_internal(Utf16FlyString effect_allowed)
-{
-    // AD-HOC: We need to be able to set the effectAllowed attribute internally regardless of the state of the drag data store.
-    using namespace DataTransferEffect;
-
-    if (effect_allowed.is_one_of(none, copy, copyLink, copyMove, link, linkMove, move, all, uninitialized))
-        m_effect_allowed = AK::move(effect_allowed);
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
-GC::Ref<DataTransferItemList> DataTransfer::items()
-{
-    // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
-    if (!m_items)
-        m_items = DataTransferItemList::create(*this);
-    return *m_items;
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
-ReadonlySpan<Utf16String> DataTransfer::types_list() const
-{
-    // The types attribute must return this DataTransfer object's types array.
-    return m_types;
-}
-
-JS::ThrowCompletionOr<JS::Value> DataTransfer::types(JS::Realm& realm)
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    auto& cache = types_cache_for(*this);
-
-    if (auto types_array = cache.types_arrays.get(wrapper_world))
-        return JS::Value { types_array };
-
-    auto& vm = realm.vm();
-    auto types = types_list();
-    auto types_array = MUST(JS::Array::create(realm, 0));
-    for (size_t i = 0; i < types.size(); ++i) {
-        auto wrapped_type = JS::PrimitiveString::create(vm, types[i]);
-        MUST(types_array->create_data_property(JS::PropertyKey { i }, wrapped_type));
-    }
-
-    TRY(types_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
-    cache.types_arrays.set(wrapper_world, types_array);
-    return JS::Value { types_array };
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-getdata
-Utf16String DataTransfer::get_data(Utf16View format_argument) const
-{
-    // 1. If the DataTransfer object is no longer associated with a drag data store, then return the empty string.
-    if (!m_associated_drag_data_store)
-        return {};
-
-    // 2. If the drag data store's mode is the protected mode, then return the empty string.
-    if (m_associated_drag_data_store->mode() == DragDataStore::Mode::Protected)
-        return {};
-
-    // 3. Let format be the first argument, converted to ASCII lowercase.
-    // 4. Let convert-to-URL be false.
-    // 5. If format equals "text", change it to "text/plain".
-    // 6. If format equals "url", change it to "text/uri-list" and set convert-to-URL to true.
-    auto format = normalize_format_for_lookup(format_argument);
-    [[maybe_unused]] auto convert_to_url = format.convert_to_url;
-
-    // 7. If there is no item in the drag data store item list whose kind is text and whose type string is equal to
-    //    format, return the empty string.
-    auto item_list = m_associated_drag_data_store->item_list();
-
-    auto it = find_if(item_list.begin(), item_list.end(), [&](auto const& item) {
-        return item.kind == DragDataStoreItem::Kind::Text && item.type_string.equals_ignoring_ascii_case(format.type);
-    });
-
-    if (it == item_list.end())
-        return {};
-
-    // 8. Let result be the data of the item in the drag data store item list whose kind is Plain Unicode string and
-    //    whose type string is equal to format.
-    auto const& result = it->data;
-
-    // FIXME: 9. If convert-to-URL is true, then parse result as appropriate for text/uri-list data, and then set result to
-    //           the first URL from the list, if any, or the empty string otherwise.
-
-    // 10. Return result.
-    return result;
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-setdata
-void DataTransfer::set_data(Utf16View format_argument, Utf16View value)
-{
-    // 1. If the DataTransfer object is no longer associated with a drag data store, then return.
-    if (!m_associated_drag_data_store)
-        return;
-
-    // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
-    if (m_associated_drag_data_store->mode() != DragDataStore::Mode::ReadWrite)
-        return;
-
-    // 3. Let format be the first argument, converted to ASCII lowercase.
-    auto format = normalize_format_for_storage(format_argument);
-
-    // 5. Remove the item in the drag data store item list whose kind is text and whose type string is equal to format, if there is one.
-    for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
-        if (item.kind == DragDataStoreItem::Kind::Text && item.type_string == format) {
-            remove_item(i);
-            break;
-        }
-    }
-
-    // 6. Add an item to the drag data store item list
-    // whose kind is text, whose type string is equal to format, and whose data is the string given by the method's second argument.
-    DragDataStoreItem item {};
-    item.kind = DragDataStoreItem::Kind::Text;
-    item.type_string = format;
-    item.data = Utf16String::from_utf16(value);
-    add_item(move(item));
-
-    update_data_transfer_types_list();
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
-GC::Ref<FileAPI::FileList> DataTransfer::files() const
-{
-    // 1. Start with an empty list L.
-    auto files = FileAPI::FileList::create();
-
-    // 2. If the DataTransfer object is no longer associated with a drag data store, the FileList is empty. Return
-    //    the empty list L.
-    if (!m_associated_drag_data_store)
-        return files;
-
-    // 3. If the drag data store's mode is the protected mode, return the empty list L.
-    if (m_associated_drag_data_store->mode() == DragDataStore::Mode::Protected)
-        return files;
-
-    // 4. For each item in the drag data store item list whose kind is File, add the item's data (the file, in
-    //    particular its name and contents, as well as its type) to the list L.
-    for (auto const& item : m_associated_drag_data_store->item_list()) {
-        if (item.kind != DragDataStoreItem::Kind::File)
-            continue;
-
-        // FIXME: Fill in other fields (e.g. last_modified).
-        auto file = FileAPI::File::create(item.file_data, item.file_name, item.type_string.to_utf16_string());
-        files->add_file(file);
-    }
-
-    // 5. The files found by these steps are those in the list L.
-    return files;
+    web_rust_data_transfer_set_effect_allowed_internal(this, effect.raw_identity());
 }
 
 Optional<DragDataStore::Mode> DataTransfer::mode() const
 {
-    if (m_associated_drag_data_store)
-        return m_associated_drag_data_store->mode();
+    if (auto* store = drag_data_store())
+        return store->mode();
     return {};
 }
 
 void DataTransfer::disassociate_with_drag_data_store()
 {
-    m_associated_drag_data_store.clear();
-    update_data_transfer_types_list();
+    web_rust_data_transfer_disassociate(this);
 }
 
 GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
 {
-    VERIFY(m_associated_drag_data_store);
-    m_associated_drag_data_store->add_item(move(item));
-
-    auto data_transfer_item = DataTransferItem::create(*this, m_associated_drag_data_store->size() - 1);
-    m_item_list.append(data_transfer_item);
-
-    update_data_transfer_types_list();
-
-    return data_transfer_item;
+    auto* store = drag_data_store();
+    VERIFY(store);
+    store->add_item(move(item));
+    return *web_rust_data_transfer_did_add_item(JS::HostABI::vm_to_abi(JS::VM::the()), this);
 }
 
 void DataTransfer::remove_item(size_t index)
 {
-    VERIFY(m_associated_drag_data_store);
-    VERIFY(index < m_item_list.size());
-
-    m_associated_drag_data_store->remove_item_at(index);
-    auto& item = m_item_list.at(index);
-    item->set_item_index({}, OptionalNone {});
-    m_item_list.remove(index);
-    for (size_t i = index; i < m_item_list.size(); ++i) {
-        m_item_list.at(i)->set_item_index({}, i);
-    }
-
-    update_data_transfer_types_list();
+    web_rust_data_transfer_remove_item(JS::HostABI::vm_to_abi(JS::VM::the()), this, index);
 }
 
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-cleardata
-void DataTransfer::clear_data(Optional<Utf16String> const& maybe_format)
+void DataTransfer::set_item_index(DataTransferItem& item, Optional<size_t> index)
 {
-    // 1. If the DataTransfer object is no longer associated with a drag data store, return. Nothing happens.
-    if (!m_associated_drag_data_store)
-        return;
-
-    // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
-    if (m_associated_drag_data_store->mode() != DragDataStore::Mode::ReadWrite)
-        return;
-
-    auto remove_items_from_drag_data_store = [&](Optional<Utf16View> format = {}) {
-        for (size_t i = m_associated_drag_data_store->item_list().size(); i > 0; --i) {
-            auto const& item = m_associated_drag_data_store->item_list().at(i - 1);
-            if (item.kind == DragDataStoreItem::Kind::Text && (!format.has_value() || item.type_string.equals_ignoring_ascii_case(*format)))
-                remove_item(i - 1);
-        }
-    };
-
-    // 3. If the method was called with no arguments, remove each item in the drag data store item list whose kind is
-    //    Plain Unicode string, and return.
-    if (!maybe_format.has_value()) {
-        remove_items_from_drag_data_store();
-        return;
-    }
-
-    // 4. Set format to format, converted to ASCII lowercase.
-    auto format = normalize_format_for_lookup(maybe_format->utf16_view());
-
-    // 6. Remove each item in the drag data store item list whose kind is Plain Unicode string and whose type string is equal to format.
-    remove_items_from_drag_data_store(format.type);
+    item.set_item_index({}, index);
 }
 
 bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, Utf16View type) const
 {
-    VERIFY(m_associated_drag_data_store);
-
-    for (auto const& item : m_associated_drag_data_store->item_list()) {
+    auto* store = drag_data_store();
+    VERIFY(store);
+    for (auto const& item : store->item_list()) {
         if (item.kind == kind && item.type_string.equals_ignoring_ascii_case(type))
             return true;
     }
-
     return false;
 }
 
 GC::Ref<DataTransferItem> DataTransfer::item(size_t index) const
 {
-    VERIFY(index < m_item_list.size());
-    return m_item_list[index];
+    return *web_rust_data_transfer_item(this, index);
 }
 
 DragDataStoreItem const& DataTransfer::drag_data(size_t index) const
 {
-    VERIFY(m_associated_drag_data_store);
-    VERIFY(index < m_item_list.size());
-
-    return m_associated_drag_data_store->item_list()[index];
+    auto* store = drag_data_store();
+    VERIFY(store);
+    return store->item_list()[index];
 }
 
 size_t DataTransfer::length() const
 {
-    if (m_associated_drag_data_store)
-        return m_associated_drag_data_store->size();
-    return 0;
+    auto* store = drag_data_store();
+    return store ? store->size() : 0;
 }
 
-// https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
-void DataTransfer::update_data_transfer_types_list()
+DragDataStore* web_data_transfer_create_writable_store()
 {
-    // 1. Let L be an empty sequence.
-    Vector<Utf16String> types;
+    auto store = DragDataStore::create();
+    store->set_mode(DragDataStore::Mode::ReadWrite);
+    return &store.leak_ref();
+}
 
-    // 2. If the DataTransfer object is still associated with a drag data store, then:
-    if (m_associated_drag_data_store) {
-        bool contains_file = false;
+void web_data_transfer_store_unref(DragDataStore* store)
+{
+    store->unref();
+}
 
-        // 1. For each item in the DataTransfer object's drag data store item list whose kind is text, add an entry to L
-        //    consisting of the item's type string.
-        for (auto const& item : m_associated_drag_data_store->item_list()) {
-            switch (item.kind) {
-            case DragDataStoreItem::Kind::Text:
-                types.append(item.type_string.to_utf16_string());
-                break;
-            case DragDataStoreItem::Kind::File:
-                contains_file = true;
-                break;
-            }
-        }
+u8 web_data_transfer_store_mode(DragDataStore const* store)
+{
+    // These values match the mode queries in Bindings/Rust/src/html/data_transfer.rs.
+    static_assert(to_underlying(DragDataStore::Mode::ReadWrite) == 0);
+    static_assert(to_underlying(DragDataStore::Mode::ReadOnly) == 1);
+    static_assert(to_underlying(DragDataStore::Mode::Protected) == 2);
+    return to_underlying(store->mode());
+}
 
-        // 2. If there are any items in the DataTransfer object's drag data store item list whose kind is File, then add
-        //    an entry to L consisting of the string "Files". (This value can be distinguished from the other values
-        //    because it is not lowercase.)
-        if (contains_file)
-            types.append("Files"_utf16);
-    }
+size_t web_data_transfer_store_size(DragDataStore const* store)
+{
+    return store->size();
+}
 
-    // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
-    m_types = move(types);
-    ++m_types_revision;
+DragDataStoreItemView web_data_transfer_store_item(DragDataStore const* store, size_t index)
+{
+    auto const& item = store->item_list()[index];
+    return { item.type_string.raw_identity(), item.data.raw_identity(), item.kind == DragDataStoreItem::Kind::File };
+}
+
+void web_data_transfer_store_add_text(DragDataStore* store, FlatPtr type, FlatPtr data)
+{
+    store->add_item({
+        .kind = DragDataStoreItem::Kind::Text,
+        .type_string = Utf16FlyString::from_raw(type),
+        .data = Utf16String::from_raw(data),
+        .file_data = {},
+        .file_name = {},
+    });
+}
+
+void web_data_transfer_store_remove_item(DragDataStore* store, size_t index)
+{
+    store->remove_item_at(index);
+}
+
+DataTransferItem* web_data_transfer_create_item(DataTransfer* transfer, size_t index)
+{
+    return DataTransferItem::create(*transfer, index).ptr();
+}
+
+void web_data_transfer_set_item_index(DataTransferItem* item, size_t index, bool has_index)
+{
+    DataTransfer::set_item_index(*item, has_index ? Optional<size_t> { index } : Optional<size_t> {});
+}
+
+DataTransferItemList* web_data_transfer_create_item_list(DataTransfer* transfer)
+{
+    return DataTransferItemList::create(*transfer).ptr();
+}
+
+JS::Object* web_data_transfer_wrap_item_list(JS::Realm* realm, DataTransferItemList* items)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *items }).ptr();
+}
+
+FileAPI::File* web_data_transfer_create_file(DragDataStore const* store, size_t index)
+{
+    auto const& item = store->item_list()[index];
+    VERIFY(item.kind == DragDataStoreItem::Kind::File);
+    // FIXME: Fill in other fields (e.g. last_modified).
+    return FileAPI::File::create(item.file_data, item.file_name, item.type_string.to_utf16_string()).ptr();
 }
 
 }

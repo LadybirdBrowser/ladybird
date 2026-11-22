@@ -1,10 +1,10 @@
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransfer
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DataTransfer {
     constructor();
 
-    attribute [FlyString] DOMString dropEffect;
-    attribute [FlyString] DOMString effectAllowed;
+    attribute DOMString dropEffect;
+    attribute DOMString effectAllowed;
 
     [SameObject] readonly attribute DataTransferItemList items;
 
