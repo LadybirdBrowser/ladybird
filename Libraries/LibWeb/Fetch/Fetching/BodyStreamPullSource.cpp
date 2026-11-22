@@ -80,10 +80,9 @@ void BodyStreamWakeSink::wake(Engine::WakeTicket ticket)
     });
 }
 
-BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink, GC::Ptr<GC::Function<void()>> pull_task_discard_steps)
+BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
     : m_realm(realm)
     , m_fetch_controller(fetch_controller)
-    , m_pull_task_discard_steps(pull_task_discard_steps)
     , m_stream(stream)
     , m_channel(move(channel))
     , m_registry_token(wake_sink.registry_token())
@@ -97,7 +96,6 @@ void BodyStreamPullSource::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_realm);
     visitor.visit(m_fetch_controller);
-    visitor.visit(m_pull_task_discard_steps);
     visitor.visit(m_stream);
     visitor.visit(m_pending_pull_promise);
     visitor.visit(m_on_resource_header);
@@ -232,7 +230,7 @@ void BodyStreamPullSource::on_pull_wake()
         self.run_pull_task();
     });
     if (m_fetch_controller) {
-        Infrastructure::queue_fetch_task(m_fetch_controller->task_destination(), steps, m_pull_task_discard_steps);
+        Infrastructure::queue_fetch_task(m_fetch_controller->task_destination(), steps);
         return;
     }
 
@@ -365,7 +363,7 @@ void BodyStreamPullSource::drain_into_stream()
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // NB: Steps 10 to 13 of HTTP-network fetch.
-GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, NonnullRefPtr<Engine::FetchByteChannel> channel, GC::Ptr<GC::Function<void()>> pull_task_discard_steps)
+GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchController> fetch_controller, NonnullRefPtr<Engine::FetchByteChannel> channel)
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -374,7 +372,7 @@ GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm& realm, GC::Ptr
 
     // 10. Let stream be a new ReadableStream.
     auto stream = Streams::ReadableStream::create(realm);
-    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_controller, stream, move(channel), *wake_sink, pull_task_discard_steps);
+    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_controller, stream, move(channel), *wake_sink);
 
     // 11. Let pullAlgorithm be the following steps:
     auto pull_algorithm = GC::create_function(GC::Heap::the(), GC::captures(pull_source), [](GC::Ref<BodyStreamPullSource> pull_source) {

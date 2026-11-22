@@ -10,6 +10,7 @@
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 
 using namespace Web::Fetch::Engine;
@@ -21,6 +22,9 @@ struct RecordedCommands {
     Vector<u64> fetch_ids;
     Vector<AK::ThreadID> threads;
     Optional<IPC::TransportHandle> adopted_transport;
+    FetchExecutor* attached_executor { nullptr };
+    // The engine's records, which defer work through the executor that runs the engine.
+    FetchEngineRecords* records { nullptr };
 };
 
 class RecordingSink final : public EngineCommandSink {
@@ -28,6 +32,13 @@ public:
     explicit RecordingSink(RecordedCommands& recorded)
         : m_recorded(recorded)
     {
+        m_recorded.records = &m_records;
+    }
+
+    virtual void attach_to_executor(FetchExecutor& executor) override
+    {
+        m_recorded.attached_executor = &executor;
+        m_records.attach_to_executor(executor);
     }
 
     virtual void handle_command(EngineCommand command) override
@@ -41,6 +52,7 @@ public:
 
 private:
     RecordedCommands& m_recorded;
+    FetchEngineRecords m_records { make<FetchEngineRecords::Agent>() };
 };
 
 FetchExecutorServices services_for_current_thread()
@@ -97,6 +109,8 @@ TEST_CASE(commands_run_in_posting_order_when_a_command_spins_a_nested_loop)
             , m_executor(executor)
         {
         }
+
+        virtual void attach_to_executor(FetchExecutor&) override { }
 
         virtual void handle_command(EngineCommand command) override
         {
@@ -236,4 +250,43 @@ TEST_CASE(a_network_transport_is_adopted_exactly_once)
     EXPECT(!peer_has_hung_up(*pair.local));
     recorded.adopted_transport.clear();
     wait_for_peer_to_hang_up(*pair.local);
+}
+
+TEST_CASE(an_engine_is_attached_to_the_executor_that_runs_it)
+{
+    Core::EventLoop loop;
+    RecordedCommands recorded;
+    auto executor = InlineFetchExecutor::create(services_for_current_thread(), make<RecordingSink>(recorded));
+    EXPECT_EQ(recorded.attached_executor, executor.ptr());
+}
+
+TEST_CASE(deferred_work_runs_on_the_loop_after_the_commands_posted_before_it)
+{
+    Core::EventLoop loop;
+    RecordedCommands recorded;
+    auto executor = InlineFetchExecutor::create(services_for_current_thread(), make<RecordingSink>(recorded));
+
+    executor->post(Command::Stop { .fetch_id = FetchId(1) });
+    recorded.records->defer([&] { recorded.fetch_ids.append(2); });
+    executor->post(Command::Stop { .fetch_id = FetchId(3) });
+    EXPECT(recorded.fetch_ids.is_empty());
+
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(recorded.fetch_ids, (Vector<u64> { 1, 2, 3 }));
+}
+
+TEST_CASE(deferred_work_is_dropped_by_shutdown)
+{
+    Core::EventLoop loop;
+    RecordedCommands recorded;
+    auto executor = InlineFetchExecutor::create(services_for_current_thread(), make<RecordingSink>(recorded));
+    size_t runs = 0;
+
+    recorded.records->defer([&] { ++runs; });
+    executor->shutdown();
+    recorded.records->defer([&] { ++runs; });
+
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(runs, 0u);
+    EXPECT(!has_queued_tasks(*executor));
 }

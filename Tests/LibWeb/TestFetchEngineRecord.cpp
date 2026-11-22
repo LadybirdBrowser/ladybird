@@ -12,6 +12,7 @@
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
+#include <LibWeb/Fetch/Engine/WholeBodyRead.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 
@@ -106,15 +107,6 @@ class IgnoringProducerSink final : public FetchByteChannelProducerSink {
 public:
     virtual void grant_credit(u64) override { }
     virtual void consumer_cancelled() override { }
-};
-
-// Counts the cancellations its channel's consumer makes, as the transport of the channel's body hears of them.
-class CancellationCountingProducerSink final : public FetchByteChannelProducerSink {
-public:
-    virtual void grant_credit(u64) override { }
-    virtual void consumer_cancelled() override { ++cancellation_count; }
-
-    size_t cancellation_count { 0 };
 };
 
 // A RequestServer client whose RequestServer end of the connection is held, and never read.
@@ -604,26 +596,6 @@ TEST_CASE(a_followed_redirect_keeps_its_fetch_until_the_next_hop_ends)
     EXPECT_EQ(ends->count, 1u);
 }
 
-// Nothing reads the body main fetch reads to its end once main fetch can no longer hand a response over.
-TEST_CASE(main_fetch_that_can_no_longer_hand_over_cancels_the_body_it_reads)
-{
-    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
-    auto ends = make_ref_counted<FetchEnds>();
-    auto record = start_fetch(records, 1, ends);
-    auto load = record->start_load();
-    auto producer = adopt_ref(*new CancellationCountingProducerSink);
-    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, producer);
-    record->main_fetch_reads_whole_body(*channel);
-    record->main_fetch_cannot_hand_over();
-    EXPECT(channel->peek_up_to(0).state.has<FetchByteChannel::ConsumerCancelled>());
-    EXPECT_EQ(producer->cancellation_count, 1u);
-    EXPECT_EQ(ends->count, 0u);
-
-    // The transport stops once it hears of the cancellation, and its load ends.
-    load->end();
-    EXPECT_EQ(ends->count, 1u);
-}
-
 TEST_CASE(main_fetch_that_can_no_longer_hand_over_ends_its_fetch)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
@@ -637,11 +609,19 @@ TEST_CASE(main_fetch_that_can_no_longer_hand_over_ends_its_fetch)
     EXPECT_EQ(ends->count, 1u);
 }
 
-// Main fetch reads a body to its end before it hands the response over, as it does to check the body's integrity.
-TEST_CASE(main_fetch_reading_a_body_that_cannot_reach_its_end_can_no_longer_hand_over)
+// Main fetch reads a body to its end before it hands the response over, as it does to check the body's integrity. A read
+// that cannot reach the end of the body hands a network error over in its place.
+TEST_CASE(a_fetch_whose_body_main_fetch_reads_ends_once_the_read_hands_over)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto make_channel = [] { return FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink)); };
+    Vector<StringView> outcomes;
+    auto read_and_hand_over = [&outcomes](NonnullRefPtr<FetchEngineRecord> const& record, NonnullRefPtr<FetchByteChannel> const& channel) {
+        read_whole_body(Web::Fetch::Infrastructure::ResponseBody { channel, {} }, [record, &outcomes](WholeBodyReadResult result) {
+            outcomes.append(result.has<WholeBodyReadFailure>() ? "failure"sv : "bytes"sv);
+            record->main_fetch_hands_over(delivery());
+        });
+    };
 
     // A body cancelled or transferred while its load runs.
     auto cancelled_ends = make_ref_counted<FetchEnds>();
@@ -652,85 +632,67 @@ TEST_CASE(main_fetch_reading_a_body_that_cannot_reach_its_end_can_no_longer_hand
     auto transferred_load = transferred->start_load();
     auto cancelled_channel = make_channel();
     auto transferred_channel = make_channel();
-    cancelled->main_fetch_reads_whole_body(*cancelled_channel);
-    transferred->main_fetch_reads_whole_body(*transferred_channel);
+    read_and_hand_over(cancelled, cancelled_channel);
+    read_and_hand_over(transferred, transferred_channel);
+    EXPECT(outcomes.is_empty());
     (void)cancelled_channel->cancel();
     (void)transferred_channel->transfer_out();
+    EXPECT_EQ(outcomes, (Vector<StringView> { "failure"sv, "failure"sv }));
+    EXPECT_EQ(cancelled_ends->count + transferred_ends->count, 0u);
     cancelled_load->end();
     transferred_load->end();
     EXPECT_EQ(cancelled_ends->count, 1u);
     EXPECT_EQ(transferred_ends->count, 1u);
 
-    // A body cancelled before main fetch reads it.
+    // A body cancelled before main fetch reads it, after its load has ended.
     auto cancelled_before_ends = make_ref_counted<FetchEnds>();
     auto cancelled_before = start_fetch(records, 3, cancelled_before_ends);
     cancelled_before->start_load()->end();
+    EXPECT_EQ(cancelled_before_ends->count, 0u);
     auto cancelled_before_channel = make_channel();
     (void)cancelled_before_channel->cancel();
-    cancelled_before->main_fetch_reads_whole_body(*cancelled_before_channel);
+    read_and_hand_over(cancelled_before, cancelled_before_channel);
+    EXPECT_EQ(outcomes.last(), "failure"sv);
     EXPECT_EQ(cancelled_before_ends->count, 1u);
 
-    // A body that closes is read to its end, and the response is handed over.
+    // A body that closes is read to its end.
     auto closed_ends = make_ref_counted<FetchEnds>();
     auto closed = start_fetch(records, 4, closed_ends);
     auto closed_load = closed->start_load();
     auto closed_channel = make_channel();
-    closed->main_fetch_reads_whole_body(*closed_channel);
+    read_and_hand_over(closed, closed_channel);
     (void)closed_channel->close();
-    closed_load->end();
+    EXPECT_EQ(outcomes.last(), "bytes"sv);
     EXPECT_EQ(closed_ends->count, 0u);
-
-    closed->main_fetch_hands_over(delivery());
+    closed_load->end();
     EXPECT_EQ(closed_ends->count, 1u);
 }
 
-namespace {
-
-// A fetch whose whole-body transport has put the whole body in the channel, after which the transport's load has ended.
-// The transport stays the fetch's body transport.
-struct FetchWithWholeBody {
-    NonnullRefPtr<FetchEngineRecord> record;
-    NonnullRefPtr<FetchByteChannel> channel;
-    NonnullRefPtr<WholeBodyTransport> transport;
-};
-
-}
-
-static FetchWithWholeBody fetch_with_a_whole_body(FetchEngineRecords& records, u64 fetch_id, RefPtr<FetchEnds> ends)
-{
-    auto record = start_fetch(records, fetch_id, move(ends));
-    auto delivery_gate = FetchBodyDeliveryGate::create(FetchBodyDeliveryGate::NavigationHold::None);
-    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
-    auto load = record->start_load();
-    auto transport = Web::Fetch::Fetching::create_whole_body_transport(*delivery_gate, *channel, load);
-    record->set_body_transport(transport);
-    EXPECT_EQ(channel->write(MUST(Core::ImmutableBytes::copy("whole body"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
-    (void)channel->close();
-    load->end();
-    return { move(record), move(channel), move(transport) };
-}
-
-TEST_CASE(a_stop_that_cancels_the_body_main_fetch_reads_after_its_load_has_ended_ends_the_fetch)
+TEST_CASE(a_stop_during_the_read_of_the_body_main_fetch_reads_hands_its_failure_over)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
-    auto unread_ends = make_ref_counted<FetchEnds>();
-    auto read_ends = make_ref_counted<FetchEnds>();
-    auto unread = fetch_with_a_whole_body(records, 1, unread_ends);
-    auto read = fetch_with_a_whole_body(records, 2, read_ends);
-    unread.record->main_fetch_reads_whole_body(*unread.channel);
-    read.record->main_fetch_reads_whole_body(*read.channel);
-    (void)read.channel->take_all();
+    auto received = make_ref_counted<ReceivedEvents>();
+    auto record = start_fetch_recording_events(records, 1, received);
+    auto load = record->start_load();
+    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
+    auto transport = WholeBodyTransport::create();
+    transport->set_on_stop([channel] { (void)channel->cancel(); });
+    record->set_body_transport(transport);
+    EXPECT_EQ(channel->write(MUST(Core::ImmutableBytes::copy("the start"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
+
+    Vector<StringView> outcomes;
+    read_whole_body(Web::Fetch::Infrastructure::ResponseBody { channel, {} }, [record, &outcomes](WholeBodyReadResult result) {
+        outcomes.append(result.has<WholeBodyReadFailure>() ? "failure"sv : "bytes"sv);
+        record->main_fetch_hands_over(delivery());
+    });
+    EXPECT(outcomes.is_empty());
 
     records.stop(FetchId { 1 });
-    records.stop(FetchId { 2 });
-    EXPECT(unread.channel->peek_up_to(0).state.has<FetchByteChannel::ConsumerCancelled>());
-    EXPECT_EQ(unread_ends->count, 1u);
+    EXPECT_EQ(outcomes, (Vector<StringView> { "failure"sv }));
+    EXPECT_EQ(received->events, (Vector<StringView> { "response delivery"sv }));
 
-    // A body read to its end leaves main fetch its response to hand over.
-    EXPECT(read.channel->peek_up_to(0).state.has<FetchByteChannel::Closed>());
-    EXPECT_EQ(read_ends->count, 0u);
-    read.record->main_fetch_hands_over(delivery());
-    EXPECT_EQ(read_ends->count, 1u);
+    load->end();
+    EXPECT_EQ(received->events, (Vector<StringView> { "response delivery"sv, "end of fetch"sv }));
 }
 
 TEST_CASE(a_load_after_the_end_of_its_fetch_dies)
@@ -742,18 +704,12 @@ TEST_CASE(a_load_after_the_end_of_its_fetch_dies)
     EXPECT_DEATH("Starting a load of a fetch that has ended", (void)record->start_load());
 }
 
-// A failed enqueue into the stream of the body main fetch reads to its end cancels the body's channel, and the read's
-// error then reaches the handover, after main fetch has ended at the end of the load.
 TEST_CASE(a_handover_after_main_fetch_has_ended_delivers_nothing)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto received = make_ref_counted<ReceivedEvents>();
     auto record = start_fetch_recording_events(records, 1, received);
-    auto load = record->start_load();
-    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
-    record->main_fetch_reads_whole_body(*channel);
-    (void)channel->cancel();
-    load->end();
+    record->main_fetch_cannot_hand_over();
     EXPECT(record->main_fetch_has_ended());
     EXPECT_EQ(received->events, (Vector<StringView> { "end of fetch"sv }));
 

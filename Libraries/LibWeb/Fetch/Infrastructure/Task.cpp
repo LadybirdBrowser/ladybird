@@ -47,18 +47,18 @@ bool TaskDestination::is_for_document(DOM::Document const& document) const
 }
 
 // https://fetch.spec.whatwg.org/#queue-a-fetch-task
-HTML::TaskID queue_fetch_task(TaskDestination task_destination, GC::Ref<GC::Function<void()>> algorithm, GC::Ptr<GC::Function<void()>> discard_steps)
+HTML::TaskID queue_fetch_task(TaskDestination task_destination, GC::Ref<GC::Function<void()>> algorithm)
 {
     VERIFY(!task_destination.has<Empty>());
 
     // 1. If taskDestination is a parallel queue, then enqueue algorithm to taskDestination.
     if (auto* parallel_queue = task_destination.get_pointer<NonnullRefPtr<HTML::ParallelQueue>>())
-        return (*parallel_queue)->enqueue(algorithm, discard_steps);
+        return (*parallel_queue)->enqueue(algorithm);
 
     // 2. Otherwise, queue a global task on the networking task source with taskDestination and algorithm.
     auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(task_destination.document_override, SVG::ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage);
 
-    return HTML::queue_global_task(HTML::Task::Source::Networking, task_destination.get<GC::Ref<JS::Object>>(), algorithm, HTML::Task::Priority::Normal, discard_steps);
+    return HTML::queue_global_task(HTML::Task::Source::Networking, task_destination.get<GC::Ref<JS::Object>>(), algorithm);
 }
 
 // AD-HOC: This overload allows tracking the queued task within the fetch controller so that we may cancel queued tasks

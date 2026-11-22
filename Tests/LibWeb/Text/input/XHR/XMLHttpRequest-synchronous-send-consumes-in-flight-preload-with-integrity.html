@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A sync XHR that consumes a <link rel=preload> with integrity metadata, still in flight, completes once the
+    // preload's fetch has read its body, checked its integrity and handed its response over, while send() has the
+    // event loop paused.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `xhr-sync-preload-integrity-${uniqueID()}`;
+        const url = await server.createEcho("GET", "/xhr-sync-consumes-in-flight-preload-with-integrity", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            // The response waits until the worker releases it.
+            wait_for_unblock: token,
+            body: "preloaded",
+        });
+
+        const worker = new Worker(
+            URL.createObjectURL(
+                new Blob(['onmessage = event => fetch(event.data).catch(() => {}); postMessage("ready");'], {
+                    type: "text/javascript",
+                })
+            )
+        );
+        await new Promise(resolve => (worker.onmessage = resolve));
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "fetch";
+        // The preload key must match the XHR's request: XHR fetches with mode "cors" and credentials mode
+        // "same-origin", which is exactly what crossorigin="anonymous" gives the preload.
+        link.crossOrigin = "anonymous";
+        link.integrity = "sha256-IfQTIauQexu0exrwdXHLIg43vv5PKlRiRMYbf7gHdxY=";
+        link.href = url;
+        document.head.appendChild(link);
+        await server.waitForRequest(url);
+
+        // The page cannot release the response while send() blocks, so the worker does. The worker may release it
+        // before send() starts, but the page handles the response only after that, as this script does not yield
+        // between postMessage() and send().
+        worker.postMessage(`${server.baseURL}/unblock/${token}`);
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, false);
+        xhr.send();
+        println(`status=${xhr.status} body=${xhr.responseText}`);
+
+        // The XHR consumed the preload's response rather than making a request of its own.
+        const requestCount = await (await fetch(server.recordedRequestCountURL(url))).json();
+        println(`requests=${requestCount}`);
+        done();
+    });
+</script>

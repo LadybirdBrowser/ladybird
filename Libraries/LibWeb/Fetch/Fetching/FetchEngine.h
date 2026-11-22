@@ -20,6 +20,7 @@ class FetchEngine final : public Engine::EngineCommandSink {
 public:
     FetchEngine(NonnullRefPtr<Engine::NetworkActivityObservers const>, NonnullOwnPtr<Engine::FetchEngineRecords::Agent>);
 
+    virtual void attach_to_executor(Engine::FetchExecutor& executor) override { m_records.attach_to_executor(executor); }
     virtual void handle_command(Engine::EngineCommand) override;
 
 private:
