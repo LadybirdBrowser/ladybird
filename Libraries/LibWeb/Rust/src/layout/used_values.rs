@@ -605,9 +605,10 @@ pub(crate) fn cells_before_sizing(
             // The inline size of a non-flex-item block is definite when
             // it is auto and its containing block has a definite inline
             // size. This is the stretch-fit case from css-sizing-3.
-            // Replaced boxes remain content-based until layout.
+            // Replaced boxes and auto-width buttons are sized from their content during layout.
             if matches!(axis, Axis::Inline)
                 && !facts.is_replaced_box()
+                && !facts.uses_button_layout()
                 && !facts.is_floating()
                 && !facts.is_absolutely_positioned()
                 && facts.display().is_block_outside()
