@@ -40,6 +40,8 @@ pub enum LiveContent {
     VideoFrame(VideoSinkHandle),
     ImageFrame(ImageFrameResourceId),
     CompositedContext(CompositorContextId),
+    /// A caret, which blinks.
+    Caret,
 }
 
 /// A top-level record that draws live content, itself or in a record nested in it.
@@ -99,6 +101,7 @@ pub(crate) fn live_content_of(command_type: DisplayListCommandType, payload: &[u
         T::DrawCompositedContext => Some(LiveContent::CompositedContext(
             read_command::<DrawCompositedContext>(payload).child_context_id,
         )),
+        T::PaintCaret => Some(LiveContent::Caret),
         _ => None,
     }
 }

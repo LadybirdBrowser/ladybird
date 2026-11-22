@@ -130,6 +130,7 @@ impl std::fmt::Display for WhyMediaIsReplayed {
             WhyMediaIsReplayed::NoPlacement(LiveMedia::CompositedContext(_)) => {
                 "the window server does not show nested contexts"
             }
+            WhyMediaIsReplayed::NoPlacement(LiveMedia::Caret) => "the window server does not show carets",
             WhyMediaIsReplayed::NoPlacement(_) => "where the window server would show it is not worked out",
             WhyMediaIsReplayed::CanvasHasNoPresentableSurface => "the canvas has no surface the window server can show",
             WhyMediaIsReplayed::VideoHasNoFrame => "the video has no frame",
@@ -297,7 +298,7 @@ impl ContextPresenting {
                 }
                 (MediaKind::Video, id.0)
             }
-            LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => {
+            LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) | LiveMedia::Caret => {
                 return Some(WhyMediaIsReplayed::NoPlacement(*content));
             }
         };
@@ -711,7 +712,7 @@ impl ContextPresenting {
                             .get(&id.0)
                             .is_some_and(|sink| sink.has_frame && sink.frame_has_surface),
                     ),
-                    LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => continue,
+                    LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) | LiveMedia::Caret => continue,
                 };
                 if !has_content {
                     continue;

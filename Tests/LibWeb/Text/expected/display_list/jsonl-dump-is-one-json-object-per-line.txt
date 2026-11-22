@@ -1,4 +1,4 @@
-types: {"header":1,"node":5,"layer":3,"chunk":1,"record":6}
+types: {"header":1,"node":5,"layer":2,"chunk":1,"record":6}
 header: ladybird-display-list-dump version 1 viewport [0,0,800,600] print-order 6 records
 record ids count up from 1: true
 {"type":"node","kind":"spatial","name":"s0","raw":0,"depth":0,"description":"transform=[1,0,0,1,0,0] origin=(0,0)","owner":"Viewport<#document>"}
@@ -6,9 +6,8 @@ record ids count up from 1: true
 {"type":"node","kind":"spatial","name":"s2","raw":2,"depth":2,"parent":"s1","description":"transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(625,45) bounds=[600,20 50x50]","owner":"BlockContainer<DIV>#transformed"}
 {"type":"node","kind":"effect","name":"e0","raw":0,"depth":0,"space":"s0","description":"effects=[]"}
 {"type":"node","kind":"effect","name":"e1","raw":1,"depth":1,"parent":"e0","space":"s1","description":"mask=[700,20 50x50] kind=alpha origin=css-mask-layers","owner":"BlockContainer<DIV>#masked"}
-{"type":"layer","name":"L0","line":"[L0] base space=viewport","records":[[2,5]]}
+{"type":"layer","name":"L0","line":"[L0] base space=viewport","records":[[2,6]]}
 {"type":"layer","name":"L1","line":"[L1] canvas #0 space=viewport region=[17,17 206x126] can be shown by the window server: clip=[0,0 800x600]","records":[[1,1]]}
-{"type":"layer","name":"L2","line":"[L2] painted space=viewport above L1","records":[[6,6]]}
 {"type":"record","id":2,"op":"FillRect","depth":0,"layer":"L0","chunk":"k1","context":{"spatial":{"name":"s2","raw":2},"effect":{"name":"e0","raw":0}},"fields":{"rect":[600,20,50,50],"color":"#008000ff"},"owner":"BlockContainer<DIV>#transformed","phase":"background"}
 {"type":"record","id":3,"op":"DeclareMaskContent","depth":0,"layer":"L0","chunk":"k1","context":{"spatial":{"name":"s1","raw":1},"effect":{"name":"e1","raw":1}},"fields":{"rect":[700,20,50,50],"effect":{"name":"e1","raw":1}},"owner":"BlockContainer<DIV>#masked","phase":"preamble"}
 {"type":"record","id":4,"op":"PaintLinearGradient","depth":1,"parent":3,"role":"mask-content","layer":"L0","chunk":"k1","context":{"spatial":{"name":"s1","raw":1},"effect":{"name":"e1","raw":1}},"fields":{"gradient_rect":[700,20,50,50],"gradient_angle":180,"color_stops":[{"color":"#000000ff","position":0},{"color":"#00000000","position":1}],"repeat_length":1,"interpolation_method":{"rectangular_color_space":"Srgb"}},"inline_clips":[{"kind":"Rect","rect":[700,20,50,50]}],"owner":"BlockContainer<DIV>#masked","phase":"preamble"}
