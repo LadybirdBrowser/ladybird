@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Filter contrast: CSS contrast filter shotrhand</title>
+    <link rel="author" title="Takeshi Kurosawa" href="mailto:taken.spc@gmail.com">
+    <link rel="reviewer" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#FilterProperty">
+    <link rel="help" href="https://www.w3.org/TR/filter-effects-1/#funcdef-filter-contrast">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/filter-contrast-001-ref.html">
+    <meta name="assert" content="CSS contrast filter will apply a component transfer to the div element to adjust the
+    contrast of the colors. Since contrast is 100%, it will leave unchanged.">
+    <style type="text/css">
+
+       div {
+           width: 200px;
+           height: 200px;
+           background-color: green;
+           filter: contrast(100%);
+       }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is a green box.</p>
+
+    <div></div>
+</body>
+</html>

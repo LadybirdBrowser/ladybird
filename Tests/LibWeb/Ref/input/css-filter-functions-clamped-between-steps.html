@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-filter-functions-clamped-between-steps-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-4;totalPixels=0-10000" />
+<style>
+    body {
+        margin: 0;
+    }
+    div {
+        float: left;
+        width: 50px;
+        height: 50px;
+        margin-right: 10px;
+    }
+</style>
+<!-- Each filter function's result is clamped to the range of a color before the next function applies to it. -->
+<div style="background: rgb(128, 128, 128); filter: brightness(3) brightness(0.5)"></div>
+<div style="background: rgb(200, 100, 50); filter: contrast(4) contrast(0.5)"></div>
+<div style="background: rgb(200, 100, 50); filter: saturate(8) brightness(0.5)"></div>
+<div style="background: #ffcd22; filter: hue-rotate(-20deg) saturate(10)"></div>

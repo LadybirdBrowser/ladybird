@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Filter Test: Test for Saturate short hand</title>
+    <link rel="author" title="Akihiro Oyamada" href="mailto:admin@yomotsu.net">
+    <link rel="reviewer" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#FilterProperty">
+    <link rel="help" href="https://www.w3.org/TR/filter-effects-1/#funcdef-filter-saturate">
+    <link rel="help" href="http://www.w3.org/TR/filter-effects-1/#saturateEquivalent">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/filter-saturate-001-ref.html">
+    <meta name="assert" content="the test passes if you see gray box.">
+    <style type="text/css">
+    div {
+        width: 200px;
+        height: 200px;
+        background: yellow;
+        filter: saturate( 0% );
+    }
+
+    </style>
+</head>
+<body>
+    <p>You should see a gray rectangle.</p>
+
+    <div></div>
+
+</body>
+</html>
