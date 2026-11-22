@@ -277,7 +277,7 @@ pub(crate) fn to_boolean(value: Value) -> ThrowCompletionOr<bool> {
 
 /// A JS value converted to a long, https://webidl.spec.whatwg.org/#js-long
 pub(crate) fn to_long(vm: &Vm, value: Value) -> ThrowCompletionOr<i32> {
-    // 1. Let x be ? ConvertToInt(V, 32, "signed"), which is ToInt32 without the extended attributes that change it.
+    // 1. Let x be ? ConvertToInt(V, 32, "signed").
     // 2. Return the IDL long value that represents the same numeric value as x.
     value.to_i32(vm)
 }
@@ -291,8 +291,7 @@ pub(crate) fn to_unsigned_short(vm: &Vm, value: Value) -> ThrowCompletionOr<u16>
 
 /// A JS value converted to an unsigned long, https://webidl.spec.whatwg.org/#js-unsigned-long
 pub(crate) fn to_unsigned_long(vm: &Vm, value: Value) -> ThrowCompletionOr<u32> {
-    // 1. Let x be ? ConvertToInt(V, 32, "unsigned"), which is ToUint32 without the extended attributes that change
-    //    it.
+    // 1. Let x be ? ConvertToInt(V, 32, "unsigned").
     // 2. Return the IDL unsigned long value that represents the same numeric value as x.
     value.to_u32(vm)
 }
