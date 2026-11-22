@@ -1029,8 +1029,11 @@ static void run_post_connection_steps(Nodes const& nodes)
     for (auto& node : nodes) {
         // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
         //    order: append inclusiveDescendant to staticNodeList.
+        // OPTIMIZATION: The post-connection steps of a node whose class has none do nothing, so only nodes with some
+        //               are collected.
         node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
-            static_node_list.append(inclusive_descendant);
+            if (inclusive_descendant.has_post_connection_steps())
+                static_node_list.append(inclusive_descendant);
             return TraversalDecision::Continue;
         });
     }
