@@ -1,0 +1,9 @@
+Ladybird now clamps a cell’s row span to the end of its row group.
+Blink clamps a cell’s rowspan to the row count of its section in
+ComputeMinimumRowBlockSize(), in table_layout_utils.cc. Gecko keeps
+a cell map of its own for each row group, so a span never reaches
+into another, and clamps it to the group’s row count in nsCellMap::
+ExpandWithCells(). WebKit keeps a separate grid of cells for every
+section, filled by RenderTableSection::addCell(), so a span ends with
+its section there too. Chrome 158, Firefox 151 and WebKit 26.5 all start
+the cells of each tbody in its first column.
