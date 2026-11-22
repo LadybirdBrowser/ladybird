@@ -946,7 +946,6 @@ class MediaSession;
 
 namespace Web::MediaSourceExtensions {
 
-class BufferedChangeEvent;
 class ManagedMediaSource;
 class ManagedSourceBuffer;
 class MediaSource;

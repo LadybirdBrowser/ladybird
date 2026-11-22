@@ -1,5 +1,5 @@
 // https://w3c.github.io/media-source/#dom-bufferedchangeevent
-[Exposed=(Window,DedicatedWorker)]
+[Exposed=(Window,DedicatedWorker), ImplementedIn=Rust]
 interface BufferedChangeEvent : Event {
     constructor(DOMString type, optional BufferedChangeEventInit eventInitDict = {});
 
