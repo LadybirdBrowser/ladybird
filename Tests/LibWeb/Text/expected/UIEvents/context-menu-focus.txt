@@ -5,6 +5,8 @@ right-click #textarea: focused=textarea, menu=true
 contextmenu: focused=editable
 right-click #editable: focused=editable, menu=true
 right-click #disabled: focused=other, menu=false
+contextmenu: focused=body
+right-click #plain: focused=body, menu=true
 mousedown: focused=other
 focus: focused=input
 contextmenu: focused=input
