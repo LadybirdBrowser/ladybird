@@ -36,6 +36,7 @@ TEST_CASE(commands_round_trip_their_payloads)
         .response = { .outcome = Command::CompletedPreloadResponse::Completed { .body = Delivered<Core::ImmutableBytes> { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("preloaded"sv.bytes()))) } } },
     });
     commands.append(Command::TransportControl { .request_id = RequestId(8), .transport_epoch = TransportEpoch(9), .operation = Command::TransportControl::ReleaseNavigationHoldUpTo { .byte_count = 4096 } });
+    commands.append(Command::PreloadWaitAbandoned { .fetch_id = FetchId(10) });
 
     Vector<u64> seen_ids;
     for (auto& command : commands) {
@@ -54,6 +55,7 @@ TEST_CASE(commands_round_trip_their_payloads)
                 EXPECT_EQ(completed.body.handle().bytes(), "preloaded"sv.bytes());
                 seen_ids.append(preload.fetch_id.value());
             },
+            [&](Command::PreloadWaitAbandoned const& abandoned) { seen_ids.append(abandoned.fetch_id.value()); },
             [&](Command::TransportControl const& control) {
                 EXPECT_EQ(control.transport_epoch, TransportEpoch(9));
                 EXPECT_EQ(control.operation.get<Command::TransportControl::ReleaseNavigationHoldUpTo>().byte_count, 4096u);
@@ -62,7 +64,7 @@ TEST_CASE(commands_round_trip_their_payloads)
             [&](Command::NavigationBodyAdopted const&) { FAIL("no navigation body was adopted"); },
             [&](Command::AdoptNetworkTransport const&) { FAIL("no transport was posted"); });
     }
-    EXPECT_EQ(seen_ids, (Vector<u64> { 2, 3, 4, 5, 7, 8 }));
+    EXPECT_EQ(seen_ids, (Vector<u64> { 2, 3, 4, 5, 7, 8, 10 }));
 }
 
 static bool peer_has_hung_up(IPC::Transport& transport)

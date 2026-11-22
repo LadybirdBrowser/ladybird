@@ -62,6 +62,11 @@ struct PreloadResponseResolved {
     CompletedPreloadResponse response;
 };
 
+// Main fetch's wait for a preload's response, which the agent can no longer resolve.
+struct PreloadWaitAbandoned {
+    FetchId fetch_id;
+};
+
 struct TransportControl {
     struct StopTransport { };
     struct ReleaseNavigationHold { };
@@ -97,6 +102,7 @@ using EngineCommand = Variant<
     Command::Stop,
     Command::ResolveRedirect,
     Command::PreloadResponseResolved,
+    Command::PreloadWaitAbandoned,
     Command::TransportControl,
     Command::NavigationBodyAdopted,
     Command::AdoptNetworkTransport>;

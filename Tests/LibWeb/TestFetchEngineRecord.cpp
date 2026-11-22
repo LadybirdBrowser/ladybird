@@ -644,3 +644,57 @@ TEST_CASE(a_handover_after_main_fetch_has_ended_does_nothing)
     record->main_fetch_handed_over();
     EXPECT_EQ(ends->count, 1u);
 }
+
+TEST_CASE(an_abandoned_preload_wait_ends_the_fetch_whose_main_fetch_waits)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto waiting_ends = make_ref_counted<FetchEnds>();
+    auto waiting = start_fetch(records, 1, waiting_ends);
+    waiting->main_fetch_waits_for_preload();
+    records.abandon_preload_wait(FetchId { 1 });
+    EXPECT_EQ(waiting_ends->count, 1u);
+
+    // The fetch has ended, and a later abandonment changes nothing.
+    records.abandon_preload_wait(FetchId { 1 });
+    EXPECT_EQ(waiting_ends->count, 1u);
+
+    // A wait the agent resolved ends as any other main fetch does.
+    auto resolved_ends = make_ref_counted<FetchEnds>();
+    auto resolved = start_fetch(records, 2, resolved_ends);
+    resolved->main_fetch_waits_for_preload();
+    resolved->main_fetch_stops_waiting_for_preload();
+    EXPECT_EQ(resolved_ends->count, 0u);
+    resolved->main_fetch_handed_over();
+    EXPECT_EQ(resolved_ends->count, 1u);
+    records.abandon_preload_wait(FetchId { 2 });
+    EXPECT_EQ(resolved_ends->count, 1u);
+}
+
+TEST_CASE(an_abandoned_preload_wait_of_a_fetch_that_waits_for_none_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto record = start_fetch(records, 1);
+    records.abandon_preload_wait(FetchId { 1 });
+
+    record->main_fetch_waits_for_preload();
+    record->main_fetch_stops_waiting_for_preload();
+    records.abandon_preload_wait(FetchId { 1 });
+    records.abandon_preload_wait(FetchId { 2 });
+
+    EXPECT(!record->has_ended());
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> {
+                                "The agent abandoned a preload wait of a fetch that waits for no preload",
+                                "The agent abandoned a preload wait of a fetch that waits for no preload",
+                                "The agent abandoned a preload wait of a fetch it has not started",
+                            }));
+}
+
+TEST_CASE(a_handover_while_main_fetch_waits_for_a_preload_dies)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    record->main_fetch_waits_for_preload();
+
+    EXPECT_DEATH("Handing a response over while main fetch waits for a preload", record->main_fetch_handed_over());
+}

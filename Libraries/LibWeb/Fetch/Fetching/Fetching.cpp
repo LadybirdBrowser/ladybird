@@ -39,6 +39,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
+#include <LibWeb/Fetch/Fetching/PreloadWaitHandle.h>
 #include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -426,13 +427,19 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
         // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
         //    response: set fetchParams’s preloaded response candidate to response.
-        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), GC::captures(fetch_params, controller), [](auto& fetch_params, auto& controller, NonnullRefPtr<Infrastructure::Response> response) {
+        auto preload_wait_handle = PreloadWaitHandle::create();
+        controller->set_preload_wait_handle(preload_wait_handle);
+        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), GC::captures(fetch_params, controller, preload_wait_handle), [](auto& fetch_params, auto& controller, auto& preload_wait_handle, NonnullRefPtr<Infrastructure::Response> response) {
+            preload_wait_handle->disarm();
             fetch_params->set_preloaded_response_candidate(response);
 
             // NB: main fetch may already be parked on this preload result.
             // Resolve that waiter here instead of spinning the event loop.
             if (auto pending_preloaded_response = controller->pending_preloaded_response()) {
                 controller->set_pending_preloaded_response(nullptr);
+                fetch_params->engine_record()->main_fetch_stops_waiting_for_preload();
+                if (auto* registry = controller->registry().ptr())
+                    registry->root_fetch(*controller->started_fetch_id(), controller);
                 pending_preloaded_response->resolve(response);
             }
         });
@@ -724,8 +731,24 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 if (auto pending_preloaded_response = controller->pending_preloaded_response())
                     return *pending_preloaded_response;
 
+                // NB: Nothing can end the wait without the preload entry's callback, so main fetch hands nothing over.
+                auto preload_wait_handle = controller->preload_wait_handle().strong_ref();
+                if (!preload_wait_handle) {
+                    fetch_params->engine_record()->main_fetch_cannot_hand_over();
+                    return PendingResponse::create(controller);
+                }
+
                 auto pending_preloaded_response = PendingResponse::create(controller);
                 controller->set_pending_preloaded_response(pending_preloaded_response);
+
+                // NB: While main fetch waits, the fetch is not rooted. The handle in the preload entry's callback ends the
+                //     fetch if the callback goes without resolving the wait.
+                auto fetch_id = controller->started_fetch_id();
+                VERIFY(fetch_id.has_value());
+                fetch_params->engine_record()->main_fetch_waits_for_preload();
+                preload_wait_handle->arm(*fetch_id, controller->started_fetch_executor());
+                if (auto* registry = controller->registry().ptr())
+                    registry->release_fetch(*fetch_id);
                 return pending_preloaded_response;
             }
 
@@ -1034,6 +1057,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     }
 
     auto fetch_id = agent.fetch_controller_registry.defer_main_fetch_steps(in_parallel_steps);
+    agent.fetch_controller_registry.root_fetch(fetch_id, controller);
     auto& fetch_executor = *agent.fetch_executor;
     controller->set_started_fetch(fetch_id, fetch_executor);
     auto event_sink = make<FetchEventSink>(*controller);
@@ -3329,14 +3353,15 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     // FIXME: The spec doesn't say anything about timing_info here, but FetchParams requires a non-null FetchTimingInfo object.
     auto timing_info = Infrastructure::FetchTimingInfo::create();
     auto& controller_registry = HTML::relevant_agent(realm.global_object()).fetch_controller_registry;
-    // NB: The preflight's controller stays alive until the preflight's pending response holds it.
-    auto preflight_controller = GC::make_root(Infrastructure::FetchController::create(controller_registry));
+    auto preflight_controller = Infrastructure::FetchController::create(controller_registry);
+    auto fetch_id = fetch_params.controller()->started_fetch_id();
+    VERIFY(fetch_id.has_value());
+    controller_registry.root_cors_preflight(*fetch_id, preflight_controller);
     auto preflight_algorithms = Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard });
     auto preflight_fetch_params = Infrastructure::FetchParams::create(*preflight_controller, preflight, preflight_algorithms, timing_info, fetch_params.loader_config_snapshot());
     // AD-HOC: The preflight's network request is loaded for the page of the fetch it is for, and reported as one of
     //         that fetch's network requests.
     preflight_controller->set_page(fetch_params.controller()->page());
-    preflight_controller->set_preflighted_fetch_controller(fetch_params.controller());
     VERIFY(fetch_params.engine_record());
     preflight_fetch_params->set_engine_record(*fetch_params.engine_record());
     preflight_fetch_params->set_is_cors_preflight();
