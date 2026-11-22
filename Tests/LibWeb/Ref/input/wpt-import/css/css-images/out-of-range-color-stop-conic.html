@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Conic gradient with out-of-range stops</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-images-4/#conic-gradients">
+<meta name="assert" content="Rendering of conic-gradient with stops positioned outside of [0, 1]">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-40000">
+<link rel="match" href="../../../../expected/wpt-import/css/css-images/reference/200x200-blue-black-green-red.html">
+<style>
+  #gradient {
+    width: 200px;
+    height: 200px;
+    background-image: conic-gradient(orange -50% -25%, black -25% 25%, red 25% 50%, green 50% 75%, blue 75% 125%, purple 125% 150%);
+  }
+</style>
+<div id="gradient"></div>
