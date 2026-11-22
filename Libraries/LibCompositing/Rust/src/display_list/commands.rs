@@ -94,9 +94,8 @@ impl DisplayListCommandType {
         )
     }
 
-    /// A top-level record of this command is the only record of its run: a canvas, video, nested context or caret,
-    /// which the compositor can give a layer of its own between the records around it, and a scroll bar, which draws
-    /// what the frame shows of its scroller rather than what the list holds.
+    /// A top-level record of this command is the only record of its run: a canvas, video, nested context, caret or
+    /// scroll bar, which the compositor can give a layer of its own between the records around it.
     pub const fn is_alone_in_its_run(self) -> bool {
         matches!(
             self,

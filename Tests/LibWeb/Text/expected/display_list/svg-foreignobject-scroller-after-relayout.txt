@@ -16,6 +16,7 @@ ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0
 
 Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
+  [L1] vertical scroll bar #0 space=viewport region=[70,5 21x86]
 
 DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
@@ -29,5 +30,5 @@ L0 CompositorWheelHitTestTarget@s2/c1/e0 target_scroll_node_index=s3 rect=[0,0 8
 L0 CompositorWheelHitTestTarget@s3/c2/e0 target_scroll_node_index=s3 rect=[0,0 80x300] owner=BlockContainer<DIV> phase=scroll-metadata
 L0 FillRect@s3/c2/e0 rect=[0,0 80x300] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
 L0 CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] expanded_thumb_rect=[67,2 11x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 max_scroll_offset=220 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
-L0 PaintScrollBar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] scroll_size=0.23636363636363636 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
+L1 PaintScrollBar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] scroll_size=0.23636363636363636 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
 

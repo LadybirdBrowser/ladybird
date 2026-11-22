@@ -6,8 +6,8 @@
 
 //! The tiles the layers of a context hold, the pool of their pixels, and the surface tiles are rastered through. The
 //! pixels of a tile are pooled under the tile's content hash, which hashes all they depend on, so a layer finds the
-//! tiles another layer or an earlier stack rastered. A window server that shows tiles shows each caret from a surface
-//! of its own, painted anew each time the caret blinks or moves.
+//! tiles another layer or an earlier stack rastered. A window server that shows tiles shows each caret and scroll bar
+//! from a surface of its own, painted anew each time what it draws changes, as a caret blinks or a thumb moves.
 
 use super::layer_overlay::{ModelTile, RasterCause};
 use super::layers::LayerCompositingInFrame;
@@ -179,19 +179,19 @@ pub(super) struct RasteredLayer {
     pub(super) tile_count: u64,
 }
 
-/// What the surface of a caret holds: what the caret's records draw, rastered into `rect` of the layer's space under
-/// the raster transform of the frame.
+/// What the surface of a caret or a scroll bar holds: what its records draw, rastered into `rect` of the layer's space
+/// under the raster transform of the frame.
 #[derive(Clone, Copy, PartialEq)]
-pub(super) struct CaretPainting {
+pub(super) struct OwnSurfacePainting {
     pub(super) content_hash: ContentHash,
     pub(super) rect: IntRect,
     pub(super) raster_scale: FloatSize,
     pub(super) raster_translation: FloatPoint,
 }
 
-struct CaretSurface {
+struct HeldOwnSurface {
     surface: Rc<PresentableSurface>,
-    painting: CaretPainting,
+    painting: OwnSurfacePainting,
 }
 
 /// The tiles the layers of a context hold under the identities of the layers, and the pool of their pixels.
@@ -199,8 +199,8 @@ struct CaretSurface {
 pub(super) struct LayerTiles {
     held_by_layer: HashMap<LayerIdentity, HeldTiles>,
     pool: TilePool,
-    /// The surface a window server that shows tiles shows each caret from.
-    caret_surface_by_layer: HashMap<LayerIdentity, CaretSurface>,
+    /// The surface a window server that shows tiles shows each caret and scroll bar from.
+    own_surface_by_layer: HashMap<LayerIdentity, HeldOwnSurface>,
     /// Whether a layer took or let go of tiles, or the pixels of pooled tiles changed, since spare tiles were last
     /// evicted.
     changed_since_eviction: bool,
@@ -211,7 +211,7 @@ pub(super) struct LayerTiles {
 impl LayerTiles {
     pub(super) fn invalidate_every_tile(&mut self) {
         self.changed_since_eviction = true;
-        self.caret_surface_by_layer.clear();
+        self.own_surface_by_layer.clear();
         for tile in self.pool.values_mut() {
             tile.holds_current_pixels = false;
         }
@@ -419,30 +419,31 @@ impl LayerTiles {
         let layer_count_before = self.held_by_layer.len();
         self.held_by_layer.retain(|identity, _| identities.contains(identity));
         self.changed_since_eviction |= self.held_by_layer.len() != layer_count_before;
-        self.caret_surface_by_layer
+        self.own_surface_by_layer
             .retain(|identity, _| identities.contains(identity));
     }
 
-    /// Keeps the surface that the window server shows the caret of the layer of `identity` from, and paints `painting`
-    /// into it with `paint` where it holds something else, as each time the caret blinks or moves. Nothing is painted
-    /// into a surface the window server shows or still reads, so the caret takes a spare surface and spares the one it
-    /// held. Answers whether it painted. Where no surface can be had, the window server shows no caret.
-    pub(super) fn paint_caret_surface(
+    /// Keeps the surface that the window server shows the caret or scroll bar of the layer of `identity` from, and
+    /// paints `painting` into it with `paint` where it holds something else, as each time a caret blinks or a thumb
+    /// moves. Nothing is painted into a surface the window server shows or still reads, so the layer takes a spare
+    /// surface and spares the one it held. Answers whether it painted. Where no surface can be had, the window server
+    /// shows nothing of the layer.
+    pub(super) fn paint_own_surface(
         &mut self,
         env: &PresentingEnvironment<'_>,
         like: &Rc<PaintingSurface>,
         identity: LayerIdentity,
-        painting: CaretPainting,
+        painting: OwnSurfacePainting,
         paint: impl FnOnce(&Rc<PaintingSurface>),
     ) -> bool {
         if self
-            .caret_surface_by_layer
+            .own_surface_by_layer
             .get(&identity)
             .is_some_and(|held| held.painting == painting)
         {
             return false;
         }
-        if let Some(left) = self.caret_surface_by_layer.remove(&identity) {
+        if let Some(left) = self.own_surface_by_layer.remove(&identity) {
             self.spare_surfaces
                 .keep(left.surface, size_of(left.painting.rect), env.now);
             self.changed_since_eviction = true;
@@ -465,15 +466,15 @@ impl LayerTiles {
         raster.clear(target, Color::TRANSPARENT);
         paint(target);
         raster.restore_to_count(target, save_count);
-        self.caret_surface_by_layer
-            .insert(identity, CaretSurface { surface, painting });
+        self.own_surface_by_layer
+            .insert(identity, HeldOwnSurface { surface, painting });
         true
     }
 
-    /// The surface the window server shows the caret of the layer of `identity` from, and where it lies in the layer's
-    /// space.
-    pub(super) fn caret_surface_of(&self, identity: &LayerIdentity) -> Option<(&Rc<PresentableSurface>, IntRect)> {
-        let held = self.caret_surface_by_layer.get(identity)?;
+    /// The surface the window server shows the caret or scroll bar of the layer of `identity` from, and where it lies in
+    /// the layer's space.
+    pub(super) fn own_surface_of(&self, identity: &LayerIdentity) -> Option<(&Rc<PresentableSurface>, IntRect)> {
+        let held = self.own_surface_by_layer.get(identity)?;
         Some((&held.surface, held.painting.rect))
     }
 

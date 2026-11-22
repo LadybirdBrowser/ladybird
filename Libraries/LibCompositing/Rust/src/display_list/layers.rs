@@ -10,12 +10,12 @@
 //! Content is rastered in the space of the scroll node, sticky box or node whose transform the compositor animates
 //! that it moves with, and its raster is composited within the clips it leaves to apply then (its composite clips), and
 //! inside the effects the compositor applies to it: content of one space, one set of composite clips and at most one
-//! composited effect makes a placement node. The records of a node are cut into bands. Within a band, a canvas, video,
-//! nested context or caret that is a layer of its own, and each band of a node nested in it, sits between the band's
-//! records as a barrier. A barrier cuts the band's tiles that it can show in, or for an effect that reads what is
-//! composited below it, that it reads, at its paint position: there, the band's records painted before the barrier go
-//! into the layer below the cut and those painted after it into the layer above the cut. Elsewhere it cuts nothing. A
-//! canvas, video, nested context or caret cuts no tile where no record of its band painted after it can show where it
+//! composited effect makes a placement node. The records of a node are cut into bands. Within a band, live content that
+//! is a layer of its own (a canvas, video, nested context, caret or scroll bar), and each band of a node nested in it,
+//! sits between the band's records as a barrier. A barrier cuts the band's tiles that it can show in, or for an effect
+//! that reads what is composited below it, that it reads, at its paint position: there, the band's records painted
+//! before the barrier go into the layer below the cut and those painted after it into the layer above the cut.
+//! Elsewhere it cuts nothing. Live content cuts no tile where no record of its band painted after it can show where it
 //! can.
 
 use crate::display_list::commands::ClipNodeIndex;
@@ -53,7 +53,21 @@ pub use wire::{LayerPlan, UnvalidatedLayerPlan, compositor_takes_plans_within};
 // a rect offset by such an offset still fits in an `IntRect`.
 const COORDINATE_LIMIT_IN_DEVICE_PIXELS: i32 = 2 * EXTENT_LIMIT_IN_DEVICE_PIXELS as i32;
 
+/// The most canvases, videos and nested contexts that get layers.
 pub const MAXIMUM_MEDIA_LAYER_COUNT: usize = 8;
+
+/// The most carets and scroll bars that get layers, each of which the compositor paints into a small surface of its
+/// own. Each cuts its band once, and a plan cuts a band at most `MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND` times.
+pub const MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD: usize = 64;
+
+/// The most layers a plan gives live content of the kind of `content`.
+pub(crate) fn maximum_layer_count_of_live_content_like(content: LiveContent) -> usize {
+    if content.is_drawn_by_its_record() {
+        MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD
+    } else {
+        MAXIMUM_MEDIA_LAYER_COUNT
+    }
+}
 
 /// The most composited effects that nest around a layer of a plan: the effects a frame composites the layer inside,
 /// each inside the next. Pages nest far fewer, as the compositor composites only an effect that it animates, or one
@@ -72,6 +86,8 @@ pub(crate) fn media_name(content: LiveContent) -> &'static str {
         LiveContent::ImageFrame(_) => "image",
         LiveContent::CompositedContext(_) => "composited context",
         LiveContent::Caret => "caret",
+        LiveContent::ScrollBar { vertical: true, .. } => "vertical scroll bar",
+        LiveContent::ScrollBar { vertical: false, .. } => "horizontal scroll bar",
     }
 }
 
@@ -172,7 +188,7 @@ pub struct PlacementNodeIdentity(pub u64);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BarrierIdentity {
-    /// The `ordinal`th drawing of a canvas, video, nested context or caret in paint order.
+    /// The `ordinal`th drawing of live content in paint order.
     Media { content: LiveContent, ordinal: u32 },
     /// The `band_ordinal_in_node`th band of content of a node, counted over the whole list.
     NestedNodeBand {
@@ -368,9 +384,9 @@ pub enum LayerContent {
     /// A canvas, video or nested context, replayed or shown by the window server, whose content the identity of the
     /// layer names.
     Media { record_span: ListSpan },
-    /// A caret, alone in the run of `record_span`, which a frame replays and a window server that shows tiles shows
-    /// from a surface of its own.
-    Caret { record_span: ListSpan },
+    /// A caret or a scroll bar, alone in the run of `record_span`, which a frame replays and a window server that shows
+    /// tiles shows from a surface of its own.
+    OwnSurface { record_span: ListSpan },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -687,9 +703,9 @@ struct CutOfPlan {
 
 #[derive(Clone, Copy, Debug)]
 enum BarrierOfPlan {
-    /// A canvas, video, nested context or caret that is a layer of its own, the `ordinal`th drawing of its content in
-    /// paint order. Where `cuts_band` is set, it cuts the tiles its reach touches, and otherwise no tile, as no record
-    /// of the band painted after it can show where it can.
+    /// Live content that is a layer of its own, the `ordinal`th drawing of its content in paint order. Where `cuts_band`
+    /// is set, it cuts the tiles its reach touches, and otherwise no tile, as no record of the band painted after it can
+    /// show where it can.
     Media {
         content: LiveContent,
         ordinal: u32,
@@ -792,7 +808,7 @@ impl LayerStack {
 
     /// The stack of a plan of more than one layer, as the planner and the compositor both work it out. The layers come
     /// in the order of the walk of the bands: a band's layer below all cuts, then per cut the layers of its barrier,
-    /// which are a canvas, video, nested context or caret or those of the nested band, and the layer above the cut.
+    /// which are of live content or those of the nested band, and the layer above the cut.
     /// The ordinal of a band in its node counts the bands of the node before it in the walk. The base layer is the first
     /// layer that can hold content where that is the layer below all cuts of a band of a node that covers the viewport,
     /// and the first layer otherwise.
@@ -870,8 +886,8 @@ impl LayerStack {
                         identity: LayerIdentity::Media { content, ordinal },
                         placement_node_index: bands[band_index.0].placement_node_index,
                         band_index,
-                        content: if content == LiveContent::Caret {
-                            LayerContent::Caret { record_span }
+                        content: if content.is_drawn_by_its_record() {
+                            LayerContent::OwnSurface { record_span }
                         } else {
                             LayerContent::Media { record_span }
                         },
@@ -1245,8 +1261,8 @@ impl LayerStack {
         let window_server_cannot_show_content = match self.layers[layer_index.0].content {
             LayerContent::Painted => false,
             LayerContent::Media { .. } => !(window_server.can_show_media_of_layer)(layer_index),
-            // The window server shows a caret from a surface of its own as it shows a tile.
-            LayerContent::Caret { .. } => !shows_tiles_of_painted_layers,
+            // The window server shows a caret or a scroll bar from a surface of its own as it shows a tile.
+            LayerContent::OwnSurface { .. } => !shows_tiles_of_painted_layers,
         };
         if !window_server_composites_effects_around_layer {
             Some(WhyFrameHoldsLayer::InsideAnEffectTheCompositorComposites)
@@ -1485,8 +1501,9 @@ impl LayerStack {
         world_of_frame: impl FnOnce() -> &'world WorldTransforms,
         viewport_rect: IntRect,
     ) -> WindowServerPlacementsOfMedia {
-        let window_server_may_show_content =
-            |content: &LiveContent| !matches!(content, LiveContent::CompositedContext(_) | LiveContent::Caret);
+        let window_server_may_show_content = |content: &LiveContent| {
+            !matches!(content, LiveContent::CompositedContext(_)) && !content.is_drawn_by_its_record()
+        };
         let has_media_the_window_server_may_show = self.layers.iter().any(|layer| {
             matches!(&layer.identity, LayerIdentity::Media { content, .. } if window_server_may_show_content(content))
         });
@@ -1554,8 +1571,8 @@ impl LayerStack {
         name
     }
 
-    // The layer right below a layer above a cut is the layer of the cut's canvas, video, nested context or caret, or the
-    // topmost layer of the cut's nested band.
+    // The layer right below a layer above a cut is the layer of the cut's live content, or the topmost layer of the cut's
+    // nested band.
     fn name_of_barrier_below(&self, layer_index: LayerIndex, node_namer: &dyn VisualContextNodeNamer) -> String {
         let layer_below = &self.layers[layer_index.0 - 1];
         match layer_below.identity {
