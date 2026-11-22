@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/box-decoration-break-slice-box-shadow-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    div {
+        position: absolute;
+        width: 100px;
+        font: 20px/40px Ahem;
+    }
+    span {
+        box-shadow: 0 10px 0 5px green;
+    }
+</style>
+<!-- A box sliced across lines draws its shadow around all of its pieces placed end to end, so no shadow shows at the breaks. -->
+<div style="left: 20px; top: 0"><span>XXXX XXXX</span></div>
+<div style="left: 170px; top: 0" dir="rtl"><span>XXXX XXXX</span></div>
+<!-- A cloned box draws its shadow around each piece. -->
+<div style="left: 320px; top: 0"><span style="box-decoration-break: clone">XXXX XXXX</span></div>
+<!-- At a fractional position and offset, the shadow still shows past the last piece's end, rounded as the shadow is. -->
+<div style="left: 20.625px; top: 100px"><span style="box-shadow: 0.625px 0 0 green">XXXX XXXX</span></div>
