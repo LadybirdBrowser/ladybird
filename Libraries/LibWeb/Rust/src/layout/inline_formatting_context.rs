@@ -3676,7 +3676,22 @@ impl<'context> InlineFormattingContext<'context> {
             }
             None => inline_level_iterator::InlineLevelIterator::new(self),
         };
+        let uses_token_ink_metrics = self.facts(self.containing_block).display().is_math_inside()
+            && matches!(
+                self.pass.arena().math_layout_kind(self.containing_block),
+                math_formatting_context::MathLayoutKind::Token
+                    | math_formatting_context::MathLayoutKind::Mtext
+                    | math_formatting_context::MathLayoutKind::Mo
+            )
+            && self
+                .pass
+                .children(self.containing_block)
+                .all(|child| self.facts(child).is_text_node())
+            && iterator.contains_only_unbreakable_text(self);
         self.generate_line_boxes(iterator);
+        if uses_token_ink_metrics && let [line] = self.line_data.get_mut().line_boxes.as_mut_slice() {
+            math_formatting_context::size_token_line_to_ink(line);
+        }
         if self.run.fragments.is_some() {
             self.fold_inline_ancestor_relative_insets_into_line_data();
             self.register_inline_anchor_candidates();

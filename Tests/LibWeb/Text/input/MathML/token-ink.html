@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    math { font: 40px/2 Ahem; }
+    mi { text-transform: none; }
+</style>
+<math>
+    <mspace id="baseline" width="1px" height="0px"></mspace>
+    <mi>p</mi>
+    <mn>x</mn>
+    <mtext id="space-only" style="white-space:pre"> </mtext>
+    <mo stretchy="false">p</mo>
+    <mtext>xp</mtext>
+    <mtext id="breakable">x p</mtext>
+    <mtext id="nested"><span>x</span></mtext>
+</math>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("40px Ahem");
+        const baseline = document.getElementById("baseline").getBoundingClientRect().top;
+        for (const token of document.querySelectorAll("mi, mn, mo, mtext")) {
+            const rect = token.getBoundingClientRect();
+            println(`${token.id || token.localName} ${token.textContent}: ascent ${baseline - rect.top}, descent ${rect.bottom - baseline}`);
+        }
+        done();
+    });
+</script>

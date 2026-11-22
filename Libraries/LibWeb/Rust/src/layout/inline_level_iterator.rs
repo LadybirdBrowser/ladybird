@@ -2648,6 +2648,14 @@ impl InlineLevelIterator {
         self.items.as_slice()
     }
 
+    pub(crate) fn contains_only_unbreakable_text(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> bool {
+        self.items().iter().all(|item| item.type_ == ItemType::Text)
+            && sequence_length(context, &self.prepared, self.items(), false, false).0 == self.items().len()
+    }
+
     pub(crate) fn skip_items(&mut self, count: usize) {
         self.items.skip(count);
     }
