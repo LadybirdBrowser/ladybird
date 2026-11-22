@@ -1,0 +1,3 @@
+types = ["text/plain","text/html"]
+items.length = 2
+getData("text/plain") = third
