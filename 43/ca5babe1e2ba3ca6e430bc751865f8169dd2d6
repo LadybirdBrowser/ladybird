@@ -1,0 +1,24 @@
+In a quirks-mode document, Ladybird now records which margins of an
+element the user agent’s style sheet sets, and a quirks-mode body
+or table cell leaves out the quirky ones among them (block-start
+margins of the elements with default margins, and block-end margins
+of p and the preformatted elements) where they collapse into its own
+block start or block end. Blink does the same: Its html.css gives
+those margins in the quirky __qem unit, which its ComputedStyle::
+HasMarginBlockStartQuirk() and HasMarginBlockEndQuirk() read; and
+BlockLayoutAlgorithm sets is_quirky_container_start on the margin
+strut of a BlockNode::IsQuirkyContainer() (a quirks-mode body or table
+cell), MarginStrut::Append() drops quirky margins while it’s set, and
+the container sums its block-end margins with QuirkyContainerSum(),
+which leaves them out. WebKit’s html.css uses the same unit, and
+RenderBlockFlow::collapseMarginsWithChildInfo() ignores a quirky
+margin in a MarginInfo whose quirkContainer() is a table cell or the
+body. Gecko follows the spec’s text instead: Its quirk.css zeroes
+the margins of the children of body, td and th with :-moz-first-node,
+:-moz-last-node and :-moz-only-whitespace. On 35 static cases and
+8 dynamic changes, Ladybird now gives exactly the results of Chrome
+158, which WebKit 26.5 shares on all but one. Firefox 151 agrees on
+the dynamic changes, and its quirk gives other results on 13 of the
+static cases: nested paragraphs, a span or script before a paragraph,
+floated and inline-block paragraphs, pre, empty paragraphs, and a
+“display: table-cell” box.
