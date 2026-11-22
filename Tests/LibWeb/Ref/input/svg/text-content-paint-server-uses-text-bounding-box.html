@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/text-content-paint-server-uses-text-bounding-box-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="280">
+    <defs>
+        <linearGradient id="split">
+            <stop offset="0.5" stop-color="green" />
+            <stop offset="0.5" stop-color="orange" />
+        </linearGradient>
+        <pattern id="stripes" width="0.5" height="1" patternContentUnits="objectBoundingBox">
+            <rect width="0.25" height="1" fill="green" />
+            <rect x="0.25" width="0.25" height="1" fill="orange" />
+        </pattern>
+        <path id="path1" d="M 90 150 H 390" />
+        <path id="path2" d="M 130 190 H 390" />
+    </defs>
+    <!-- An objectBoundingBox paint server on a <tspan> maps onto the whole <text>'s box, not the <tspan>'s. -->
+    <text x="10" y="30">XXXXXX<tspan fill="url(#split)">XX</tspan></text>
+    <text x="10" y="70">XXXXXX<tspan fill="url(#stripes)">XX</tspan></text>
+    <!-- A <tspan> inside another one. -->
+    <text x="10" y="110">XX<tspan>XXXX<tspan fill="url(#split)">XX</tspan></tspan></text>
+    <!-- A <tspan> inside a <textPath>, and a <textPath> itself. -->
+    <text x="10" y="150">XXXX<textPath href="#path1">XX<tspan fill="url(#split)">XX</tspan></textPath></text>
+    <text x="10" y="190">XXXXXX<textPath href="#path2" fill="url(#split)">XX</textPath></text>
+    <!-- A <tspan> on a line of its own. -->
+    <text x="10" y="230">XXXXXX<tspan x="10" y="270" fill="url(#split)">XX</tspan></text>
+</svg>

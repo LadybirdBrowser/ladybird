@@ -500,6 +500,37 @@ fn svg_content_force_dark_role(source: &impl PaintRead, paintable: NodeSlotId) -
     }
 }
 
+/// The box that a paint server on `paintable`, whose own geometry is `geometry`, maps its object bounding box units onto.
+fn paint_server_object_bounding_box(
+    source: &impl PaintRead,
+    paintable: NodeSlotId,
+    geometry: &crate::layout::svg_formatting_context::SvgGeometry,
+) -> FloatRect {
+    // https://svgwg.org/svg2-draft/text.html#ObjectBoundingBoxUnitsTextObjects
+    // When one of these facilities is applied to text and keyword 'objectBoundingBox' is used (see Object bounding box
+    // units) to specify a graphical effect relative to the "object bounding box", then the object bounding box units
+    // are computed relative to the entire 'text' element in all cases, even when different effects are applied to
+    // different 'tspan' or 'textPath' elements within the same 'text' element.
+    // NB: The layout of a <text> lays out every element inside it again, so a change to the <text>'s box records the
+    //     elements that paint with it again too.
+    let mut text = paintable;
+    while let Some(parent) = source.node_parent_if_live(text)
+        && matches!(
+            source.node_kind_if_live(parent),
+            Some(NodeKind::SVGTextBox | NodeKind::SVGTextPathBox)
+        )
+    {
+        text = parent;
+    }
+    if text == paintable {
+        return geometry.object_bounding_box;
+    }
+    crate::painting::paintable_geometry::committed_svg_geometry(source, text)
+        .map_or(geometry.object_bounding_box, |text_geometry| {
+            text_geometry.object_bounding_box
+        })
+}
+
 fn paint_path_parts<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
@@ -598,13 +629,14 @@ fn paint_path_parts<O: Observer>(
 
     let geometry =
         crate::painting::paintable_geometry::committed_svg_geometry(recorder.source, paintable).unwrap_or_default();
+    let object_bounding_box = paint_server_object_bounding_box(recorder.source, paintable, &geometry);
     for (path, path_bounding_box, color_glyph_runs) in &parts {
         // NB: A paint server is placed from the bounding box of the path it paints, so each part is painted with its
         //     own.
         let paint_context = SvgPaintContext {
             viewport: geometry.viewport_user_rect,
             path_bounding_box: *path_bounding_box,
-            object_bounding_box: geometry.object_bounding_box,
+            object_bounding_box,
             paint_transform: affine(paint_transform),
             content_scale: recorder.own_accumulated_2d_scale(paintable),
         };

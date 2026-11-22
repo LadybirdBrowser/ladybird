@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="match" href="../../../../../expected/wpt-import/svg/pservers/reftests/gradient-on-text-after-font-size-change-ref.html">
+<link rel="help" href="https://issues.chromium.org/issues/557821366">
+<link rel="help" href="https://svgwg.org/svg2-draft/text.html#ObjectBoundingBoxUnitsTextObjects">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../common/reftest-wait.js"></script>
+<script>
+document.documentElement.addEventListener('TestRendered', () => {
+  document.querySelector('text').setAttribute('font-size', '18');
+  takeScreenshot();
+});
+</script>
+<svg width="600" height="80">
+  <linearGradient id="g" gradientUnits="objectBoundingBox">
+    <stop offset="0.5" stop-color="green"/>
+    <stop offset="0.5" stop-color="orange"/>
+  </linearGradient>
+  <text x="10" y="55" font-family="Ahem" font-size="36">
+    <tspan fill="url(#g)">X</tspan>
+  </text>
+</svg>
+</html>
