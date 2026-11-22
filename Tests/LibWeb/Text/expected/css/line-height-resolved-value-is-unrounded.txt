@@ -1,0 +1,9 @@
+font-size: 17.6px, line-height: 10 -> 176px
+font-size: 13.3px, line-height: 1.15 -> 15.295px
+font-size: 16px, line-height: 1.2 -> 19.2px
+font-size: 15px, line-height: 1.333 -> 19.995px
+font-size: 11.7px, line-height: 1.5 -> 17.55px
+font-size: 1.1em, line-height: 1.4 -> 24.64px
+font-size: 16px, line-height: 38.4px -> 38.4px
+font-size: 17.6px, line-height: 1.2em -> 21.12px
+font-size: 13.3px, line-height: 120% -> 15.96px

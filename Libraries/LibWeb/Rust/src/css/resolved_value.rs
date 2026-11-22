@@ -862,12 +862,23 @@ impl ResolvedValueBox<'_> {
 
             // -> line-height
             //    The resolved value is normal if the computed value is normal, or the used value otherwise.
+            // NB: The used value is the computed length, or a number times the computed font size, before layout
+            //     rounds the line box's height.
             property_id::LINE_HEIGHT => {
                 let line_height = self.computed(property);
-                if matches!(&*line_height, StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL) {
-                    return line_height;
+                match &*line_height {
+                    StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => line_height,
+                    StyleValueData::Number { value } => {
+                        match absolute_length_px(&self.computed(property_id::FONT_SIZE)) {
+                            Some(font_size) => length_value(value * font_size),
+                            None => length_value(self.element_style.font().line_height_used().to_double()),
+                        }
+                    }
+                    computed => match absolute_length_px(computed) {
+                        Some(length) => length_value(length),
+                        None => length_value(self.element_style.font().line_height_used().to_double()),
+                    },
                 }
-                length_value(self.element_style.font().line_height_used().to_double())
             }
 
             property_id::HEIGHT => self.resolved_value_for_size(property, |size| size.height),
