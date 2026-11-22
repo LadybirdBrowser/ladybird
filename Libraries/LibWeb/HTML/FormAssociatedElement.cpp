@@ -396,10 +396,14 @@ void FormAssociatedElement::reset_form_owner()
     //         However, this is not specified as algorithmic steps, so we have to do this ourselves.
     //         Spec issue: https://github.com/whatwg/html/issues/12169
     // 3. Set element's form owner to null.
-    set_form(nullptr);
+    // OPTIMIZATION: An element with no form owner has nothing to unset.
+    if (old_form)
+        set_form(nullptr);
 
     // 4. If element is listed, has a form content attribute, and is connected, then:
-    if (is_listed() && html_element.is_connected() && html_element.has_attribute(HTML::AttributeNames::form)) {
+    // OPTIMIZATION: The subtree attribute name filter rules out the attribute for most elements without a lookup.
+    auto might_have_form_attribute = (html_element.subtree_name_filter() & DOM::Element::name_filter_bit(HTML::AttributeNames::form)) != 0;
+    if (might_have_form_attribute && is_listed() && html_element.is_connected() && html_element.has_attribute(HTML::AttributeNames::form)) {
         // 1. If the first element in element's tree, in tree order, to have an ID that is identical to element's form content attribute's value, is a form element, then associate the element with that form element.
         auto form_value = html_element.attribute(HTML::AttributeNames::form);
         html_element.root().for_each_in_inclusive_subtree_of_type<HTMLElement>([this, &form_value](auto& element) {
