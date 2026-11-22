@@ -1,0 +1,8 @@
+Ladybird now resolves a numeric line-height to the number times the
+computed font size, and a length line-height to its computed length. Run
+in Chrome 158 and WebKit 26.5, every case of the test matches Chrome
+exactly (15.295px for 1.15 at 13.3px, 38.4px for 38.4px), and WebKit to
+within its single-precision digits (19.200001px). Both lay out a
+1/64px-rounded line box while they report the unrounded value.
+Firefox 151 reports its line box height, which it rounds to its 1/60px
+app units (15.3px and 20px, where Chrome gives 15.295px and 19.995px).
