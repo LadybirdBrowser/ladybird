@@ -6,8 +6,8 @@
 
 # When the Compositor dies, the browser connects a new one, and the page's next rendering update
 # has to bring the new Compositor up to date: its first frame carries the whole display list again,
-# not only what changed since the old Compositor's last frame. Every WebGL context of the page, of a
-# canvas element or of an OffscreenCanvas, is lost with the Compositor, and a 2D canvas made after
+# not only what changed since the old Compositor's last frame. Every WebGL context of the page and
+# of its worker is lost with the Compositor and restored in the new one, and a 2D canvas made after
 # the reconnect draws in the new one.
 
 import argparse
@@ -30,13 +30,24 @@ PAGE = "data:text/html," + urllib.parse.quote(
 #box { width: 100px; height: 100px; background: blue; }
 </style><div id=box></div><canvas id=canvas style="display: none"></canvas><script>
 window.webglContextEvents = [];
+window.workerWebGLContext = "pending";
 function createWebGLContextThatRecordsItsEvents(name, canvas) {
     canvas.addEventListener("webglcontextlost", event => {
         event.preventDefault();
         webglContextEvents.push(`${name} lost`);
     });
+    canvas.addEventListener("webglcontextrestored", () => webglContextEvents.push(`${name} restored`));
     return canvas.getContext("webgl") !== null;
 }
+const workerSource = `
+    const canvas = new OffscreenCanvas(16, 16);
+    canvas.addEventListener("webglcontextlost", event => {
+        event.preventDefault();
+        postMessage("OffscreenCanvas in a worker lost");
+    });
+    canvas.addEventListener("webglcontextrestored", () => postMessage("OffscreenCanvas in a worker restored"));
+    postMessage(canvas.getContext("webgl") !== null ? "created" : "not created");
+`;
 function pixelOfNew2DCanvas() {
     const context = document.createElement("canvas").getContext("2d");
     context.fillStyle = "rgb(0, 128, 0)";
@@ -45,6 +56,13 @@ function pixelOfNew2DCanvas() {
 }
 function createWebGLContexts() {
     window.offscreenCanvas = new OffscreenCanvas(16, 16);
+    window.worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" })));
+    worker.onmessage = event => {
+        if (event.data === "created" || event.data === "not created")
+            workerWebGLContext = event.data;
+        else
+            webglContextEvents.push(event.data);
+    };
     return createWebGLContextThatRecordsItsEvents("canvas element", document.getElementById("canvas"))
         && createWebGLContextThatRecordsItsEvents("OffscreenCanvas", offscreenCanvas);
 }
@@ -81,6 +99,17 @@ def execute(port, session, script):
     return payload["value"]
 
 
+def wait_for_script_result(port, session, script, expected):
+    deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
+    while True:
+        result = execute(port, session, script)
+        if result == expected:
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"{script} gave {result}, not {expected}")
+        time.sleep(0.05)
+
+
 def take_screenshot(port, session):
     status, payload, body = webdriver_helpers.request(port, "GET", f"/session/{session}/screenshot")
     assert status == 200, body
@@ -105,6 +134,7 @@ def run_test(webdriver_binary):
             assert status == 200, body
             webdriver_helpers.wait_for_compositor(port, session)
             assert execute(port, session, "return createWebGLContexts();"), "WebGL contexts could not be created"
+            wait_for_script_result(port, session, "return workerWebGLContext;", "created")
             assert execute(port, session, "return pixelOfNew2DCanvas();") == "0,128,0,255"
             first = take_screenshot(port, session)
 
@@ -127,15 +157,14 @@ def run_test(webdriver_binary):
             assert take_screenshot(port, session) != first
             assert execute(port, session, "return pixelOfNew2DCanvas();") == "0,128,0,255"
 
-            expected_webgl_context_events = ["OffscreenCanvas lost", "canvas element lost"]
-            deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
-            while True:
-                webgl_context_events = execute(port, session, "return webglContextEvents.toSorted();")
-                if webgl_context_events == expected_webgl_context_events:
-                    break
-                if time.monotonic() >= deadline:
-                    raise AssertionError(f"WebGL context events: {webgl_context_events}")
-                time.sleep(0.05)
+            expected_webgl_context_events = sorted(
+                f"{context} {event}"
+                for context in ("canvas element", "OffscreenCanvas", "OffscreenCanvas in a worker")
+                for event in ("lost", "restored")
+            )
+            wait_for_script_result(
+                port, session, "return webglContextEvents.toSorted();", expected_webgl_context_events
+            )
             webdriver_helpers.request(port, "DELETE", f"/session/{session}")
         finally:
             webdriver.terminate()

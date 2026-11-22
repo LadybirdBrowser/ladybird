@@ -24,9 +24,14 @@ pub(crate) struct Canvas2DStream {
     pending: Batch,
 }
 
+struct PendingSegment {
+    connection_serial: u64,
+    segment: Compositing_Canvas2DCommandStreamSegment,
+}
+
 #[derive(Default)]
 struct Batch {
-    segments: Vec<Compositing_Canvas2DCommandStreamSegment>,
+    segments: Vec<PendingSegment>,
     command_count: usize,
     fonts: HashMap<u64, FontHandle>,
     image_frames: HashMap<u64, ImageFrameHandle>,
@@ -46,32 +51,46 @@ impl Batch {
 }
 
 impl Canvas2DStream {
-    pub(crate) fn append_command(&mut self, canvas_id: CanvasId, record: &[u8]) {
+    pub(crate) fn append_command(&mut self, connection_serial: u64, canvas_id: CanvasId, record: &[u8]) {
         // A presented segment must keep its position in the stream, so recording after a present marker starts a new
         // segment for the same canvas.
         let segments = &mut self.pending.segments;
         match segments.last_mut() {
-            Some(segment) if segment.canvas_id == canvas_id && !segment.present => {
-                segment.tape.extend_from_slice(record);
+            Some(pending)
+                if pending.connection_serial == connection_serial
+                    && pending.segment.canvas_id == canvas_id
+                    && !pending.segment.present =>
+            {
+                pending.segment.tape.extend_from_slice(record);
             }
-            _ => segments.push(Compositing_Canvas2DCommandStreamSegment {
-                canvas_id,
-                tape: record.to_vec(),
-                present: false,
+            _ => segments.push(PendingSegment {
+                connection_serial,
+                segment: Compositing_Canvas2DCommandStreamSegment {
+                    canvas_id,
+                    tape: record.to_vec(),
+                    present: false,
+                },
             }),
         }
         self.pending.command_count += 1;
     }
 
     /// Marks the canvas as presentable at this point of the stream.
-    pub(crate) fn record_present(&mut self, canvas_id: CanvasId) {
+    pub(crate) fn record_present(&mut self, connection_serial: u64, canvas_id: CanvasId) {
         let segments = &mut self.pending.segments;
         match segments.last_mut() {
-            Some(segment) if segment.canvas_id == canvas_id => segment.present = true,
-            _ => segments.push(Compositing_Canvas2DCommandStreamSegment {
-                canvas_id,
-                tape: Vec::new(),
-                present: true,
+            Some(pending)
+                if pending.connection_serial == connection_serial && pending.segment.canvas_id == canvas_id =>
+            {
+                pending.segment.present = true;
+            }
+            _ => segments.push(PendingSegment {
+                connection_serial,
+                segment: Compositing_Canvas2DCommandStreamSegment {
+                    canvas_id,
+                    tape: Vec::new(),
+                    present: true,
+                },
             }),
         }
     }
@@ -114,6 +133,24 @@ pub(crate) fn flush(stream: &RefCell<Canvas2DStream>, connection: CompositorConn
         stream.borrow_mut().pending.put_back_ahead(batch);
         return;
     };
+    // NB: The canvases that a connection made are named by the IDs that its Compositor handed out, which the next
+    //     Compositor hands out again. So the records of canvases of an older connection are dropped, and those of a
+    //     newer one wait for it.
+    let connection_serial = connection.serial();
+    if batch
+        .segments
+        .iter()
+        .any(|pending| pending.connection_serial > connection_serial)
+    {
+        stream.borrow_mut().pending.put_back_ahead(batch);
+        return;
+    }
+    batch
+        .segments
+        .retain(|pending| pending.connection_serial == connection_serial);
+    if batch.segments.is_empty() {
+        return;
+    }
     let fonts: Vec<&FontHandle> = batch.fonts.values().collect();
     let image_frames: Vec<&ImageFrameHandle> = batch.image_frames.values().collect();
     if !connection.post_stream_batch_fonts_and_image_frames(&fonts, &image_frames) {
@@ -121,7 +158,10 @@ pub(crate) fn flush(stream: &RefCell<Canvas2DStream>, connection: CompositorConn
         return;
     }
     let message = UpdateCanvas2dStream {
-        segments: std::mem::take(&mut batch.segments),
+        segments: std::mem::take(&mut batch.segments)
+            .into_iter()
+            .map(|pending| pending.segment)
+            .collect(),
     };
     if !connection.post_or_lose_compositor(&poster, message) {
         return;

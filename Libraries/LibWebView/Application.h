@@ -281,6 +281,8 @@ public:
     // Compositor connection to pair it with.
     bool connect_video_presentation_to_compositor(WebContentClient&, IPC::TransportHandle compositor_end);
     ErrorOr<IPC::TransportHandle> connect_new_compositor_canvas_client();
+    // Counts the Compositor processes that were launched, so that a client can tell which one it is connected to.
+    u64 compositor_generation() const { return m_compositor_generation; }
     void register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
     void update_compositor_viewport(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress = Compositing::WindowResizingInProgress::No);
@@ -672,6 +674,7 @@ private:
     OwnPtr<RequestServerManager> m_request_server_manager;
     OwnPtr<ImageDecoderManager> m_image_decoder_manager;
     RefPtr<CompositorClient> m_compositor_client;
+    u64 m_compositor_generation { 0 };
     RefPtr<CompositorPresentationClient> m_compositor_presentation_client;
     u64 m_compositor_presentation_id { 0 };
     // IDs are never reused, so one from before a Compositor restart names no layer of the new process.

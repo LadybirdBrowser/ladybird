@@ -2215,6 +2215,7 @@ ErrorOr<void> Application::launch_compositor_process()
     if (exchange(m_compositor_gpu_painting_enabled, gpu_painting_enabled) != gpu_painting_enabled)
         on_compositor_gpu_painting_changed();
     m_compositor_client = TRY(WebView::launch_compositor_process(m_compositor_launched_features));
+    ++m_compositor_generation;
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
@@ -2415,6 +2416,7 @@ void Application::bring_up_compositor_process()
         client->replay_compositor_view_state_after_reconnect({});
     for (auto& client : clients)
         client->notify_compositor_process_reconnected({});
+    WorkerAgentManager::the().notify_compositor_process_reconnected(m_compositor_generation);
 }
 
 ErrorOr<void> Application::launch_request_server()

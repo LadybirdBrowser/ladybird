@@ -174,6 +174,7 @@ impl Default for TransportAbi {
 pub(crate) struct CompositorTransport {
     stream: Rc<RefCell<Canvas2DStream>>,
     connection: CompositorConnection,
+    connection_serial: u64,
     canvas_id: Cell<Option<CanvasId>>,
 }
 
@@ -184,11 +185,13 @@ impl CompositorTransport {
     pub(crate) unsafe fn adopt(transport: TransportAbi) -> Self {
         let stream = NonNull::new(transport.stream).expect("LibWeb passes the stream of the host");
         let connection = NonNull::new(transport.connection).expect("LibWeb passes the connection");
+        // SAFETY: The value owns a reference to the connection, which it gives up when dropped.
+        let connection = unsafe { CompositorConnection::lent(connection) };
         Self {
             // SAFETY: The host keeps the stream while it hands it out.
             stream: unsafe { shared_stream(stream) },
-            // SAFETY: The value owns a reference to the connection, which it gives up when dropped.
-            connection: unsafe { CompositorConnection::lent(connection) },
+            connection,
+            connection_serial: connection.serial(),
             canvas_id: Cell::new(None),
         }
     }
@@ -250,7 +253,9 @@ impl Transport for CompositorTransport {
 
     fn append_command(&self, record: &[u8]) {
         let canvas_id = self.recording_canvas_id();
-        self.stream.borrow_mut().append_command(canvas_id, record);
+        self.stream
+            .borrow_mut()
+            .append_command(self.connection_serial, canvas_id, record);
     }
 
     fn add_font(&self, font: &FontHandle) -> FontResourceId {
@@ -267,7 +272,9 @@ impl Transport for CompositorTransport {
 
     fn record_present(&self) {
         let canvas_id = self.recording_canvas_id();
-        self.stream.borrow_mut().record_present(canvas_id);
+        self.stream
+            .borrow_mut()
+            .record_present(self.connection_serial, canvas_id);
     }
 
     fn pending_command_count(&self) -> usize {

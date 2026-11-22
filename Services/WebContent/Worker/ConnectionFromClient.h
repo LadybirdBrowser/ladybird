@@ -82,6 +82,7 @@ private:
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;
     virtual void blob_url_entry_removed(Utf16String url) override;
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
+    virtual void compositor_process_reconnected(u64 compositor_generation) override;
 
     GC::Root<PageHost> m_page_host;
 
@@ -89,6 +90,7 @@ private:
 
     RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
     bool m_did_ask_for_compositor_connection { false };
+    u64 m_compositor_generation { 0 };
 
     // FIXME: Route console messages to the Browser UI using a ConsoleClient
 

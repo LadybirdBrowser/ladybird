@@ -114,27 +114,32 @@ pub(crate) fn lose_contexts_of_this_thread(vm: &Vm) {
             let state = context.state();
             let page_wants_context_restored = !fire_webgl_context_event(vm, state.canvas(), "webglcontextlost");
             state.set_context_restore_requested(page_wants_context_restored);
+            // NB: A Compositor that came back before the page asked for the context is not announced again.
+            restore_context_if_wanted(vm, context);
         });
     }
+}
+
+fn restore_context_if_wanted(vm: &Vm, context: ContextRef) {
+    let state = context.state();
+    if !state.wants_restoring() {
+        return;
+    }
+    let Some((remote_context, supported_opengl_extensions)) =
+        create_remote_context(state.canvas(), state.is_webgl2(), &state.actual_context_parameters)
+    else {
+        return;
+    };
+    state.restore(remote_context, supported_opengl_extensions);
+    state.canvas().did_create_backing_storage();
+    queue_a_task(vm, state.realm(), TaskSource::WebGL, context, |vm, context| {
+        fire_webgl_context_event(vm, context.state().canvas(), "webglcontextrestored");
+    });
 }
 
 pub(crate) fn restore_contexts_of_this_thread(vm: &Vm) {
     let contexts = live_contexts_of_this_thread(vm);
     for index in 0..contexts.len() {
-        let context = contexts.get(index).expect("the index is in bounds");
-        let state = context.state();
-        if !state.wants_restoring() {
-            continue;
-        }
-        let Some((remote_context, supported_opengl_extensions)) =
-            create_remote_context(state.canvas(), state.is_webgl2(), &state.actual_context_parameters)
-        else {
-            continue;
-        };
-        state.restore(remote_context, supported_opengl_extensions);
-        state.canvas().did_create_backing_storage();
-        queue_a_task(vm, state.realm(), TaskSource::WebGL, context, |vm, context| {
-            fire_webgl_context_event(vm, context.state().canvas(), "webglcontextrestored");
-        });
+        restore_context_if_wanted(vm, contexts.get(index).expect("the index is in bounds"));
     }
 }
