@@ -89,6 +89,36 @@ describe("Array.prototype.sort", () => {
         expect(arr[2].other_property == 2);
     });
 
+    test("sorting a frozen singleton returns the array", () => {
+        const array = Object.freeze([1]);
+        expect(array.sort()).toBe(array);
+        expect(() => array.sort(null)).toThrow(TypeError);
+        expect(() => Object.freeze([1, 2]).sort()).toThrow(TypeError);
+    });
+
+    test("sorting a singleton array-like only reads its length", () => {
+        const accesses = [];
+        const object = new Proxy(
+            { 0: 1, length: 1 },
+            {
+                get(target, property) {
+                    accesses.push(property);
+                    return target[property];
+                },
+                has(target, property) {
+                    accesses.push(property);
+                    return property in target;
+                },
+                set(target, property) {
+                    accesses.push(property);
+                    return false;
+                },
+            }
+        );
+        expect(Array.prototype.sort.call(object)).toBe(object);
+        expect(accesses).toEqual(["length"]);
+    });
+
     test("that it makes no unnecessary calls to compare function", () => {
         expectNoCallCompareFunction = function (a, b) {
             expect().fail();
