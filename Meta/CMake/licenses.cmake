@@ -13,7 +13,7 @@ set(licenses_dependencies
     "${licenses_generator}"
     "${LADYBIRD_SOURCE_DIR}/LICENSE"
     "${LADYBIRD_SOURCE_DIR}/Cargo.lock"
-    "${LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/dynamic-ports.txt"
+    "${LADYBIRD_SOURCE_DIR}/Meta/CMake/lgpl-libraries.txt"
 )
 
 if (NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "" AND NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")

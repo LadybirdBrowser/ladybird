@@ -41,7 +41,7 @@ SHIPPED_PORT_DIRECTORIES = {"bin", "Frameworks", "include", "lib"}
 
 LGPL_MARKER = "GNU LESSER GENERAL PUBLIC LICENSE"
 
-DYNAMIC_PORTS_PATH = pathlib.PurePosixPath("Meta/CMake/vcpkg/dynamic-ports.txt")
+LGPL_LIBRARIES_PATH = pathlib.PurePosixPath("Meta/CMake/lgpl-libraries.txt")
 
 # Release-tools publishes the source archives of the LGPL ports there, for every release that ships them.
 THIRD_PARTY_SOURCES_URL = "https://download.ladybird.org/third-party"
@@ -178,8 +178,8 @@ def port_is_shipped(name: str, installed_files: list[str], triplet: str) -> bool
     return False
 
 
-def read_dynamic_ports(source_dir: pathlib.Path) -> set[str]:
-    lines = read_text(source_dir / DYNAMIC_PORTS_PATH).splitlines()
+def read_lgpl_libraries(source_dir: pathlib.Path) -> set[str]:
+    lines = read_text(source_dir / LGPL_LIBRARIES_PATH).splitlines()
     return {line.strip() for line in lines if line.strip() and not line.startswith("#")}
 
 
@@ -518,9 +518,9 @@ def generate(args: argparse.Namespace) -> str:
 
     lgpl_ports = [port for port in ports if LGPL_MARKER in port.copyright]
 
-    dynamic_ports = read_dynamic_ports(args.source_dir)
-    if statically_linked_lgpl_ports := [port.name for port in lgpl_ports if port.name not in dynamic_ports]:
-        raise RuntimeError(f"LGPL ports missing from {DYNAMIC_PORTS_PATH}: {', '.join(statically_linked_lgpl_ports)}")
+    lgpl_libraries = read_lgpl_libraries(args.source_dir)
+    if unlisted_lgpl_ports := [port.name for port in lgpl_ports if port.name not in lgpl_libraries]:
+        raise RuntimeError(f"LGPL ports missing from {LGPL_LIBRARIES_PATH}: {', '.join(unlisted_lgpl_ports)}")
 
     introduction = [
         "Ladybird is distributed under the BSD 2-Clause License below. It includes the third-party software listed",
