@@ -14,6 +14,7 @@
 <textarea id="textarea"></textarea>
 <div id="editable" contenteditable><span id="child">editable text</span></div>
 <input id="disabled" disabled />
+<div id="plain">plain text</div>
 <script>
     test(() => {
         const other = document.getElementById("other");
@@ -25,13 +26,15 @@
             internals.mouseDown(x, y, 1, internals.BUTTON_RIGHT);
             internals.mouseUp(x, y, internals.BUTTON_RIGHT);
         };
-        document.addEventListener("contextmenu", () => println(`contextmenu: focused=${document.activeElement.id}`));
+        document.addEventListener("contextmenu", () =>
+            println(`contextmenu: focused=${document.activeElement.id || document.activeElement.nodeName.toLowerCase()}`)
+        );
 
-        for (const id of ["input", "textarea", "editable", "disabled"]) {
+        for (const id of ["input", "textarea", "editable", "disabled", "plain"]) {
             other.focus();
             rightClick(document.getElementById(id));
             println(
-                `right-click #${id}: focused=${document.activeElement.id}, menu=${!!internals.takeContextMenuRequest()}`
+                `right-click #${id}: focused=${document.activeElement.id || document.activeElement.nodeName.toLowerCase()}, menu=${!!internals.takeContextMenuRequest()}`
             );
         }
 

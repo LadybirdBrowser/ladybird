@@ -512,8 +512,12 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         if (!has_committed_root_box())
             return EventResult::Accepted;
 
-        if (auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position))
+        if (auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position)) {
             HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
+        } else {
+            // INTEROP: As for a left click, a right click without a focusable target focuses the document's viewport.
+            HTML::run_focusing_steps(document);
+        }
 
         // NB: Focusing may have run script that navigated away from the document.
         if (m_navigable->active_document() != document)
