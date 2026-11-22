@@ -53,8 +53,16 @@ pub(crate) fn shape_text(
     // The presentation the code point at `index` has: Its default one, or the one a variation selector after it asks
     // for.
     let presentation_at = |index: usize, code_point: u32, length: usize| -> EmojiPresentation {
-        let next_code_point = (index + length < text.len()).then(|| code_point_at(text, index + length).0);
-        emoji_presentation_for_code_point(code_point, next_code_point)
+        let next = (index + length < text.len()).then(|| code_point_at(text, index + length));
+        let code_point_after_next = next.and_then(|(_, next_length)| {
+            let index_after_next = index + length + next_length;
+            (index_after_next < text.len()).then(|| code_point_at(text, index_after_next).0)
+        });
+        emoji_presentation_for_code_point(
+            code_point,
+            next.map(|(next_code_point, _)| next_code_point),
+            code_point_after_next,
+        )
     };
 
     let mut runs = Vec::new();
@@ -99,7 +107,11 @@ pub(crate) fn shape_text(
         //     does one before a character with a variation selector that asks for its text presentation: Those are no
         //     part of an emoji sequence.
         if code_point == ZERO_WIDTH_JOINER {
-            joiner_joins_emoji = code_point_ends_emoji_zwj_element(previous_code_point);
+            // NB: A pictograph that defaults to text presentation ends an emoji ZWJ element too, when the joiner
+            //     joins it to another pictograph.
+            let joined_code_point = (index + length < text.len()).then(|| code_point_at(text, index + length).0);
+            joiner_joins_emoji = code_point_ends_emoji_zwj_element(previous_code_point)
+                || emoji_presentation_for_code_point(previous_code_point, Some(code_point), joined_code_point).is_emoji;
         }
         let presentation = presentation_at(index, code_point, length);
         let is_joined = previous_code_point == ZERO_WIDTH_JOINER

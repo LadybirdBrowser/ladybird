@@ -25,6 +25,8 @@ extern "C" fn ladybird_gfx_emoji_presentation_for_code_point(
     _code_point: u32,
     _next_code_point: u32,
     _has_next_code_point: bool,
+    _code_point_after_next: u32,
+    _has_code_point_after_next: bool,
 ) -> u8 {
     unreachable!("no unit test reads a font");
 }

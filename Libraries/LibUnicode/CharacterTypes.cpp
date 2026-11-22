@@ -275,6 +275,16 @@ bool code_point_has_emoji_presentation_property(u32 code_point)
     return code_point_has_property(code_point, UCHAR_EMOJI_PRESENTATION);
 }
 
+bool code_point_has_emoji_modifier_base_property(u32 code_point)
+{
+    return code_point_has_property(code_point, UCHAR_EMOJI_MODIFIER_BASE);
+}
+
+bool code_point_has_extended_pictographic_property(u32 code_point)
+{
+    return code_point_has_property(code_point, UCHAR_EXTENDED_PICTOGRAPHIC);
+}
+
 bool code_point_has_default_ignorable_code_point_property(u32 code_point)
 {
     return code_point_has_property(code_point, UCHAR_DEFAULT_IGNORABLE_CODE_POINT);
