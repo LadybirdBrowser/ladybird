@@ -1,0 +1,12 @@
+# Libraries under the (L)GPL that builds ship. Builds link them dynamically so that they can be relinked, and releases
+# publish their source code. The names are those of the vcpkg ports, which the Flatpak modules share.
+ffmpeg
+gettext-libintl
+libdwarf
+libiconv
+libidn2
+libunistring
+qtbase
+qtpositioning
+qtserialport
+qtsvg
