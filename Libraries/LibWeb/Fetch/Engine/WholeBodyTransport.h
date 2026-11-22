@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/ThreadID.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Export.h>
@@ -14,13 +15,17 @@
 
 namespace Web::Fetch::Engine {
 
-// Delivers a body that is available all at once, in pieces no larger than the gate allows. Every method runs on the
-// loop the transport was created on.
+// Delivers a body that is available all at once, in pieces no larger than the gate allows. Every method, and the
+// transport's destruction, runs on the loop the transport was created on.
 class WEB_API WholeBodyTransport final : public FetchBodyDeliveryGate::Transport {
 public:
     using OnData = Function<void(Requests::ResponseData)>;
 
     [[nodiscard]] static NonnullRefPtr<WholeBodyTransport> create();
+    virtual ~WholeBodyTransport() override;
+
+    static void stop_all_on_this_thread();
+    static void forget_all_on_this_thread();
 
     void attach_to(FetchBodyDeliveryGate&);
     [[nodiscard]] bool is_attached() const { return m_attached; }
@@ -40,9 +45,11 @@ public:
 private:
     WholeBodyTransport() = default;
 
+    [[nodiscard]] bool is_on_owner_thread() const { return m_owner_thread.is_current_thread(); }
     void schedule_delivery();
     void deliver();
 
+    AK::ThreadID m_owner_thread { AK::ThreadID::current() };
     Optional<Core::ImmutableBytes> m_body;
     OnData m_on_data;
     Function<void()> m_on_delivered;

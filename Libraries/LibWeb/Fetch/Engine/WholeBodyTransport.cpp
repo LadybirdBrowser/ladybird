@@ -4,20 +4,53 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCore/EventLoop.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 
 namespace Web::Fetch::Engine {
+
+static HashTable<WholeBodyTransport*>& transports_of_this_thread()
+{
+    static thread_local NeverDestroyed<HashTable<WholeBodyTransport*>> transports;
+    return *transports;
+}
 
 NonnullRefPtr<WholeBodyTransport> WholeBodyTransport::create()
 {
     return adopt_ref(*new WholeBodyTransport);
 }
 
+WholeBodyTransport::~WholeBodyTransport()
+{
+    ASSERT(is_on_owner_thread());
+    if (m_attached)
+        transports_of_this_thread().remove(this);
+}
+
+void WholeBodyTransport::stop_all_on_this_thread()
+{
+    // Stopping a transport can drop the last reference to it, which removes it from the set.
+    Vector<NonnullRefPtr<WholeBodyTransport>> transports;
+    transports.ensure_capacity(transports_of_this_thread().size());
+    for (auto* transport : transports_of_this_thread())
+        transports.unchecked_append(*transport);
+    for (auto& transport : transports)
+        transport->stop();
+}
+
+void WholeBodyTransport::forget_all_on_this_thread()
+{
+    transports_of_this_thread().clear();
+}
+
 void WholeBodyTransport::attach_to(FetchBodyDeliveryGate& gate)
 {
+    ASSERT(is_on_owner_thread());
     VERIFY(!m_attached);
     m_attached = true;
+    transports_of_this_thread().set(this);
     gate.attach_transport(*this);
 }
 
