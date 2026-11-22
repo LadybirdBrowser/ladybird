@@ -27,6 +27,7 @@ set(TEST_SOURCES
     TestFetchEngineMessages.cpp
     TestFetchEngineRecord.cpp
     TestFetchExecutor.cpp
+    TestFetchManualRedirects.cpp
     TestFetchResponse.cpp
     TestFetchTaskDestination.cpp
     TestFetchURL.cpp

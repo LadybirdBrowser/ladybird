@@ -1000,8 +1000,23 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         }));
     });
     auto& agent = HTML::relevant_agent(realm.global_object());
-    auto fetch_id = agent.fetch_controller_registry.defer_main_fetch_steps(in_parallel_steps);
     auto controller = fetch_params.controller();
+
+    // AD-HOC: A manual redirect's next hop runs under its fetch's id once the engine is told of the follow. It does not
+    //         run for a redirect answered before, or for a fetch no longer ongoing, whose hop could only stop or fail.
+    if (auto started_fetch_id = controller->started_fetch_id(); started_fetch_id.has_value()) {
+        if (!controller->has_unanswered_redirect())
+            return GC::Ptr<PendingResponse> {};
+        auto next_hop_steps = GC::create_function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, in_parallel_steps), [](auto& control_block, auto& in_parallel_steps, NonnullRefPtr<Engine::FetchEngineRecord> engine_record) {
+            if (control_block->is_ongoing())
+                in_parallel_steps->function()(move(engine_record));
+        });
+        agent.fetch_controller_registry.defer_main_fetch_steps(*started_fetch_id, next_hop_steps);
+        controller->resolve_redirect(Engine::Command::ResolveRedirect::Follow {});
+        return GC::Ptr<PendingResponse> {};
+    }
+
+    auto fetch_id = agent.fetch_controller_registry.defer_main_fetch_steps(in_parallel_steps);
     auto& fetch_executor = *agent.fetch_executor;
     controller->set_started_fetch(fetch_id, fetch_executor);
     auto event_sink = make<FetchEventSink>(*controller);
@@ -1016,6 +1031,11 @@ void run_deferred_main_fetch_steps(Engine::FetchId fetch_id, NonnullRefPtr<Engin
     // An agent's fetch engine runs on the agent's thread.
     auto steps = HTML::surrounding_agent().fetch_controller_registry.take_deferred_main_fetch_steps(fetch_id);
     steps->function()(move(engine_record));
+}
+
+void drop_deferred_main_fetch_steps(Engine::FetchId fetch_id)
+{
+    (void)HTML::surrounding_agent().fetch_controller_registry.take_deferred_main_fetch_steps(fetch_id);
 }
 
 using RequestEnvironment = Variant<Empty, NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const>, NonnullRefPtr<Infrastructure::ClientContextSnapshot const>>;
@@ -1957,7 +1977,12 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 // 1. If request’s mode is "navigate", then set fetchParams’s controller’s next manual redirect steps
                 //    to run HTTP-redirect fetch given fetchParams and response.
                 if (request->mode() == Infrastructure::Request::Mode::Navigate) {
-                    controller->set_next_manual_redirect_steps(GC::create_function(GC::Heap::the(), GC::captures(realm, fetch_params, response), [](auto& realm, auto& fetch_params, auto& response) {
+                    auto* engine_record = fetch_params->engine_record();
+                    VERIFY(engine_record);
+                    auto const& network_transport = internal_response->network_transport();
+                    auto* network_transport_handle = network_transport.has_value() ? network_transport->handle.ptr() : nullptr;
+                    auto continuation_id = engine_record->open_redirect_continuation(network_transport_handle);
+                    controller->set_next_manual_redirect_steps(continuation_id, GC::create_function(GC::Heap::the(), GC::captures(realm, fetch_params, response), [](auto& realm, auto& fetch_params, auto& response) {
                         (void)http_redirect_fetch(realm, *fetch_params, *response);
                     }));
                 }

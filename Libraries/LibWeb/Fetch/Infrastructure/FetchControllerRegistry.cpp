@@ -50,8 +50,14 @@ Vector<GC::Root<FetchController>> FetchControllerRegistry::controllers() const
 Engine::FetchId FetchControllerRegistry::defer_main_fetch_steps(GC::Ref<DeferredMainFetchSteps> steps)
 {
     Engine::FetchId fetch_id { s_next_fetch_id.fetch_add(1) };
-    m_deferred_main_fetch_steps.set(fetch_id, GC::make_root(steps));
+    defer_main_fetch_steps(fetch_id, steps);
     return fetch_id;
+}
+
+void FetchControllerRegistry::defer_main_fetch_steps(Engine::FetchId fetch_id, GC::Ref<DeferredMainFetchSteps> steps)
+{
+    auto result = m_deferred_main_fetch_steps.set(fetch_id, GC::make_root(steps));
+    VERIFY(result == HashSetResult::InsertedNewEntry);
 }
 
 GC::Root<FetchControllerRegistry::DeferredMainFetchSteps> FetchControllerRegistry::take_deferred_main_fetch_steps(Engine::FetchId fetch_id)

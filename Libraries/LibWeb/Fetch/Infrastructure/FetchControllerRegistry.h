@@ -39,8 +39,10 @@ public:
 
     [[nodiscard]] Vector<GC::Root<FetchController>> controllers() const;
 
-    // Keeps main fetch's in-parallel steps alive while they wait to be taken.
+    // Keeps main fetch's in-parallel steps alive while they wait to be taken, under a new fetch id, or under the id of
+    // the fetch whose manual redirect they follow.
     [[nodiscard]] Engine::FetchId defer_main_fetch_steps(GC::Ref<DeferredMainFetchSteps> steps);
+    void defer_main_fetch_steps(Engine::FetchId, GC::Ref<DeferredMainFetchSteps> steps);
     [[nodiscard]] GC::Root<DeferredMainFetchSteps> take_deferred_main_fetch_steps(Engine::FetchId);
 
 private:

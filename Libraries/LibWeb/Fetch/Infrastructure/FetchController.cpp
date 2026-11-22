@@ -137,9 +137,10 @@ void FetchController::set_report_timing_steps(GC::Ref<GC::Function<void(JS::Obje
     m_report_timing_steps = report_timing_steps;
 }
 
-void FetchController::set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps)
+void FetchController::set_next_manual_redirect_steps(Engine::ContinuationId continuation_id, GC::Ref<GC::Function<void()>> next_manual_redirect_steps)
 {
     m_next_manual_redirect_steps = next_manual_redirect_steps;
+    m_redirect_continuation_id = continuation_id;
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing
@@ -160,6 +161,21 @@ void FetchController::process_next_manual_redirect() const
 
     // 2. Call controller’s next manual redirect steps.
     m_next_manual_redirect_steps->function()();
+}
+
+void FetchController::resolve_redirect(Engine::Command::ResolveRedirect::Resolution resolution)
+{
+    auto continuation_id = exchange(m_redirect_continuation_id, {});
+    if (!continuation_id.has_value())
+        return;
+
+    VERIFY(m_started_fetch.has_value());
+    Engine::Command::ResolveRedirect resolve {
+        .fetch_id = m_started_fetch->fetch_id,
+        .continuation_id = *continuation_id,
+        .resolution = move(resolution),
+    };
+    m_started_fetch->fetch_executor->post(move(resolve));
 }
 
 void FetchController::when_body_ends(Engine::DeliveryId delivery_id, Response& response, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps)
@@ -233,7 +249,15 @@ void FetchController::terminate()
 
 void FetchController::set_started_fetch(Engine::FetchId fetch_id, Engine::FetchExecutor& fetch_executor)
 {
+    VERIFY(!m_started_fetch.has_value());
     m_started_fetch = StartedFetch { fetch_id, fetch_executor };
+}
+
+Optional<Engine::FetchId> FetchController::started_fetch_id() const
+{
+    if (!m_started_fetch.has_value())
+        return {};
+    return m_started_fetch->fetch_id;
 }
 
 void FetchController::stop_fetch()

@@ -18,10 +18,13 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineCommandSink.h>
+#include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
+#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -66,32 +69,69 @@ inline ByteString describe_transport_control(Web::Fetch::Engine::Command::Transp
     return ByteString::formatted("{} of request {} of epoch {}", description, request_id.value(), transport_epoch.value());
 }
 
-// Records each command that reaches the fetch engine, and applies none of them.
+// Records each command that reaches the fetch engine, then hands it to a fetch engine through its executor, keeps it
+// for the test to hand on, or drops it. A fetch the recorder saw start is named by its number in the order of the
+// starts, from 1, and any other fetch by its id.
 class CommandRecordingEngine final : public Web::Fetch::Engine::EngineCommandSink {
 public:
-    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, RefPtr<PostedCommands> posted_commands = {})
+    using Destination = Variant<Empty, NonnullRefPtr<PostedCommands>, NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>;
+
+    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, Destination destination = Empty {})
         : m_reached(move(reached))
-        , m_posted_commands(move(posted_commands))
+        , m_destination(move(destination))
     {
     }
 
     virtual void handle_command(Web::Fetch::Engine::EngineCommand command) override
     {
         using namespace Web::Fetch::Engine::Command;
-        command.visit(
-            [&](Abort const& abort) { m_reached->steps.append(ByteString::formatted("abort {}", abort.fetch_id.value())); },
-            [&](Terminate const& terminate) { m_reached->steps.append(ByteString::formatted("terminate {}", terminate.fetch_id.value())); },
-            [&](Stop const& stop) { m_reached->steps.append(ByteString::formatted("stop {}", stop.fetch_id.value())); },
-            [&](NavigationBodyAdopted const&) { m_reached->steps.append("navigation body adopted"); },
-            [&](TransportControl const& control) { m_reached->steps.append(describe_transport_control(control.operation, control.request_id, control.transport_epoch)); },
-            [](auto const&) { FAIL("unexpected command"); });
-        if (m_posted_commands)
-            m_posted_commands->commands.append(move(command));
+        m_reached->steps.append(describe(command));
+        if (auto const* engine_executor = m_destination.get_pointer<NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>()) {
+            (*engine_executor)->post(move(command));
+            return;
+        }
+
+        // Without a fetch engine, a case expects only stops, transport controls and adopted navigation bodies.
+        if (!command.has<Abort>() && !command.has<Terminate>() && !command.has<Stop>() && !command.has<TransportControl>() && !command.has<NavigationBodyAdopted>())
+            FAIL("unexpected command");
+        if (auto const* posted_commands = m_destination.get_pointer<NonnullRefPtr<PostedCommands>>())
+            (*posted_commands)->commands.append(move(command));
     }
 
 private:
+    ByteString fetch(Web::Fetch::Engine::FetchId fetch_id) const
+    {
+        if (auto index = m_started_fetches.find_first_index(fetch_id); index.has_value())
+            return ByteString::number(*index + 1);
+        return ByteString::number(fetch_id.value());
+    }
+
+    ByteString describe(Web::Fetch::Engine::EngineCommand const& command)
+    {
+        using namespace Web::Fetch::Engine::Command;
+        return command.visit(
+            [&](StartFetch const& start) {
+                m_started_fetches.append(start.input.fetch_id);
+                return ByteString::formatted("start fetch {}", fetch(start.input.fetch_id));
+            },
+            [&](Abort const& abort) { return ByteString::formatted("abort {}", fetch(abort.fetch_id)); },
+            [&](Terminate const& terminate) { return ByteString::formatted("terminate {}", fetch(terminate.fetch_id)); },
+            [&](Stop const& stop) { return ByteString::formatted("stop {}", fetch(stop.fetch_id)); },
+            [&](ResolveRedirect const& resolve) {
+                return resolve.resolution.visit(
+                    [&](ResolveRedirect::Follow) { return ByteString::formatted("follow redirect of {}", fetch(resolve.fetch_id)); },
+                    [&](ResolveRedirect::AcceptAsFinal) { return ByteString::formatted("accept redirect of {} as final", fetch(resolve.fetch_id)); },
+                    [&](ResolveRedirect::Abandon) { return ByteString::formatted("abandon redirect of {}", fetch(resolve.fetch_id)); });
+            },
+            [&](PreloadResponseResolved const& resolved) { return ByteString::formatted("preload response resolved {}", fetch(resolved.fetch_id)); },
+            [](TransportControl const& control) { return describe_transport_control(control.operation, control.request_id, control.transport_epoch); },
+            [](NavigationBodyAdopted const&) { return ByteString { "navigation body adopted"sv }; },
+            [](AdoptNetworkTransport const&) { return ByteString { "adopt network transport"sv }; });
+    }
+
     NonnullRefPtr<ReachedSteps> m_reached;
-    RefPtr<PostedCommands> m_posted_commands;
+    Destination m_destination;
+    Vector<Web::Fetch::Engine::FetchId> m_started_fetches;
 };
 
 struct FetchHarness {
@@ -102,6 +142,17 @@ struct FetchHarness {
         // Each case has an event loop of its own, which the window agent's fetches have to run on.
         auto& agent = Web::HTML::surrounding_agent();
         agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
+    }
+
+    // Records each command the agent posts from now on, before the agent's fetch engine gets it.
+    NonnullRefPtr<ReachedSteps> record_commands() const
+    {
+        auto commands = make_ref_counted<ReachedSteps>();
+        auto& agent = Web::HTML::surrounding_agent();
+        Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+        auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor });
+        agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
+        return commands;
     }
 
     // An unknown scheme: scheme fetch returns a network error, which has no body.
@@ -121,6 +172,17 @@ struct FetchHarness {
         return request;
     }
 
+    // A request like the one a navigation fetches, whose fetch hands each redirect over without following it.
+    NonnullRefPtr<Web::Fetch::Infrastructure::Request> create_navigation_request_for(StringView url_string) const
+    {
+        using Web::Fetch::Infrastructure::Request;
+        auto request = create_request_for(url_string);
+        request->set_mode(Request::Mode::Navigate);
+        request->set_destination(Request::Destination::Document);
+        request->set_redirect_mode(Request::RedirectMode::Manual);
+        return request;
+    }
+
     // Fetches from the harness's document, or from the given one.
     GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch(Web::Fetch::Infrastructure::Request& request, Web::Fetch::Infrastructure::FetchAlgorithms::Input input, GC::Ptr<Web::DOM::Document> from_document = {}) const
     {
@@ -135,41 +197,97 @@ struct FetchHarness {
         return Web::Fetch::Fetching::fetch(settings.realm(), request, algorithms);
     }
 
-    // Runs the fetch's steps and the tasks they queue until the condition holds, or for ten seconds.
-    void run_tasks_until(GC::Ref<GC::Function<bool()>> condition) const
+    // Fetches as a navigation does: on a parallel queue, with a transfer lease on each response's body.
+    GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch_as_a_navigation(Web::Fetch::Infrastructure::Request& request, Web::Fetch::Infrastructure::FetchAlgorithms::Input input) const
     {
-        auto deadline = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [] { });
+        Web::HTML::TemporaryExecutionContext execution_context { *realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        auto algorithms = Web::Fetch::Infrastructure::FetchAlgorithms::create(move(input));
+        return Web::Fetch::Fetching::fetch(*realm, request, algorithms, Web::Fetch::Fetching::UseParallelQueue::Yes, Web::Fetch::Fetching::CreateResponseBodyTransferLease::Yes);
+    }
+
+    void with_execution_context(Function<void()> steps) const
+    {
+        Web::HTML::TemporaryExecutionContext execution_context { *realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        steps();
+    }
+
+    // Runs the fetch's steps and the tasks they queue until the condition holds, or for the given time.
+    void run_tasks_until(GC::Ref<GC::Function<bool()>> condition, AK::Duration timeout = AK::Duration::from_seconds(10)) const
+    {
+        auto deadline = Core::Timer::create_single_shot(timeout, [] { });
         deadline->start();
         Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(condition, deadline->make_weak_ptr<Core::Timer>()), [](auto& condition, auto& deadline) {
             return condition->function()() || !deadline || !deadline->is_active();
         }));
     }
 
+    void run_until_step(NonnullRefPtr<ReachedSteps> const& reached, StringView step) const
+    {
+        auto expected = ByteString { step };
+        run_tasks_until(GC::create_function(realm->heap(), GC::captures(reached, expected), [](auto& reached, auto& expected) { return reached->steps.contains_slow(expected); }));
+    }
+
+    void run_until_responses(NonnullRefPtr<AlgorithmCalls> const& record, size_t count) const
+    {
+        run_tasks_until(GC::create_function(realm->heap(), GC::captures(record, count), [](auto& record, auto& count) { return record->responses.size() == count; }));
+        VERIFY(record->responses.size() == count);
+    }
+
+    // Runs everything for a while. What has not happened by then is taken not to happen.
+    void settle(AK::Duration duration = AK::Duration::from_milliseconds(300)) const
+    {
+        run_tasks_until(GC::create_function(realm->heap(), [] { return false; }), duration);
+    }
+
+    // Runs the deferred invocations queued so far, then those that they queue.
+    void run_queued_invocations() const
+    {
+        auto reached = make_ref_counted<ReachedSteps>();
+        Core::deferred_invoke([reached] {
+            Core::deferred_invoke([reached] { reached->marker_reached = true; });
+        });
+        run_tasks_until(GC::create_function(realm->heap(), GC::captures(reached), [](auto& reached) { return reached->marker_reached; }));
+    }
+
     GC::Ref<Web::DOM::Document> document;
     GC::Ref<JS::Realm> realm;
 };
 
-// Runs the deferred invocations queued so far, then those that they queue.
-inline void run_queued_invocations(FetchHarness const& harness)
-{
-    auto reached = make_ref_counted<ReachedSteps>();
-    Core::deferred_invoke([reached] {
-        Core::deferred_invoke([reached] { reached->marker_reached = true; });
-    });
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(reached), [](auto& reached) { return reached->marker_reached; }));
-}
-
-// What a RequestServer the test stands in for has been asked to start.
-struct StartedRequests : RefCounted<StartedRequests> {
+// What a RequestServer the test stands in for has been sent: each message, in the order it came, as
+// "start <id> <method> <path>", "stop <id>", "release lease <id>", or the message's name.
+struct RequestServerMessages : RefCounted<RequestServerMessages> {
     GC_HOLDS_NO_CELL_EDGES;
 
-    IPC::Transport* request_server { nullptr };
-    Vector<u64> ids;
-    Vector<ByteString> methods;
+    void read()
+    {
+        (void)transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
+            auto message = MUST(RequestServerEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
+            auto message_id = message->message_id();
+            if (message_id == Messages::RequestServer::StartRequest::static_message_id()) {
+                auto const& start = static_cast<Messages::RequestServer::StartRequest&>(*message);
+                started_ids.append(start.request_id());
+                started_methods.append(start.method());
+                messages.append(ByteString::formatted("start {} {} {}", start.request_id(), start.method(), start.url().serialize_path()));
+            } else if (message_id == Messages::RequestServer::StopRequest::static_message_id()) {
+                auto const& stop = static_cast<Messages::RequestServer::StopRequest&>(*message);
+                messages.append(ByteString::formatted("stop {}", stop.request_id()));
+            } else if (message_id == Messages::RequestServer::ReleaseRequestTransferLease::static_message_id()) {
+                auto const& release = static_cast<Messages::RequestServer::ReleaseRequestTransferLease&>(*message);
+                messages.append(ByteString::formatted("release lease {}", release.source_request_id()));
+            } else {
+                messages.append(message->message_name());
+            }
+        });
+    }
+
+    IPC::Transport* transport { nullptr };
+    Vector<ByteString> messages;
+    Vector<u64> started_ids;
+    Vector<ByteString> started_methods;
 };
 
-// A RequestServer client of the agent's resource loader, whose RequestServer end of the connection the test holds and
-// answers for.
+// A RequestServer client of the agent's resource loader, whose RequestServer end of the connection the test holds: it
+// records each message RequestServer gets, and answers only as the test says.
 class StandInRequestServer {
 public:
     explicit StandInRequestServer(FetchHarness const& harness)
@@ -180,7 +298,7 @@ public:
         m_client = make_ref_counted<Requests::RequestClient>(move(pair.local), 1);
         Web::ResourceLoader::the().set_client({}, *m_client);
         m_request_server = MUST(pair.remote_handle.create_transport());
-        m_started->request_server = m_request_server.ptr();
+        m_received->transport = m_request_server.ptr();
     }
 
     ~StandInRequestServer()
@@ -198,28 +316,41 @@ public:
         wake_timer->start();
 
         auto expected = ByteString { method };
-        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(m_started, m_taken_count, expected), [](auto& started, auto& taken_count, auto& expected) {
-            (void)started->request_server->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
-                auto message = MUST(RequestServerEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
-                if (message->message_id() != Messages::RequestServer::StartRequest::static_message_id())
-                    return;
-                auto const& start = static_cast<Messages::RequestServer::StartRequest&>(*message);
-                started->ids.append(start.request_id());
-                started->methods.append(start.method());
-            });
-            for (size_t index = taken_count; index < started->methods.size(); ++index) {
-                if (started->methods[index] == expected)
+        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(m_received, m_taken_count, expected), [](auto& received, auto& taken_count, auto& expected) {
+            received->read();
+            for (size_t index = taken_count; index < received->started_methods.size(); ++index) {
+                if (received->started_methods[index] == expected)
                     return true;
             }
             return false;
         }));
-        for (size_t index = m_taken_count; index < m_started->methods.size(); ++index) {
-            if (m_started->methods[index] == method) {
+        for (size_t index = m_taken_count; index < m_received->started_methods.size(); ++index) {
+            if (m_received->started_methods[index] == method) {
                 m_taken_count = index + 1;
-                return m_started->ids[index];
+                return m_received->started_ids[index];
             }
         }
         VERIFY_NOT_REACHED();
+    }
+
+    // Runs the agent's tasks until RequestServer has been sent the message, named as messages() names it.
+    void wait_for_message(StringView message)
+    {
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
+        wake_timer->start();
+
+        auto expected = ByteString { message };
+        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(m_received, expected), [](auto& received, auto& expected) {
+            received->read();
+            return received->messages.contains_slow(expected);
+        }));
+    }
+
+    // The messages RequestServer has been sent so far.
+    Vector<ByteString> const& messages() const
+    {
+        m_received->read();
+        return m_received->messages;
     }
 
     void send(IPC::MessageBuffer message)
@@ -232,7 +363,7 @@ public:
         send(MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, URL::about_blank(), move(headers), status_code, Optional<String> {}, Requests::CacheState::NotCached, ByteString {})));
     }
 
-    void send_finished(u64 request_id, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error = {})
+    void send_finished(u64 request_id, Requests::RequestTimingInfo timing_info = {}, Optional<Requests::NetworkError> network_error = {})
     {
         send(MUST(Messages::RequestClient::RequestFinished::static_encode(request_id, 0, timing_info, network_error)));
     }
@@ -246,7 +377,7 @@ private:
     FetchHarness const& m_harness;
     RefPtr<Requests::RequestClient> m_client;
     OwnPtr<IPC::Transport> m_request_server;
-    NonnullRefPtr<StartedRequests> m_started { make_ref_counted<StartedRequests>() };
+    NonnullRefPtr<RequestServerMessages> m_received { make_ref_counted<RequestServerMessages>() };
     // The started requests a wait has already returned or passed over.
     size_t m_taken_count { 0 };
 };
@@ -260,10 +391,32 @@ inline Web::Fetch::Infrastructure::FetchAlgorithms::Input recording_responses(GC
     return input;
 }
 
-inline void run_until_responses(FetchHarness const& harness, NonnullRefPtr<AlgorithmCalls> const& record, size_t count)
+// The token of the agent's fetch whose fetch params match, which a test holds instead of the fetch's controller.
+inline NEVER_INLINE Optional<Web::Fetch::Infrastructure::FetchControllerToken> token_of_fetch(Function<bool(Web::Fetch::Infrastructure::FetchParams const&)> const& matches)
 {
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(record, count), [](auto& record, auto& count) { return record->responses.size() == count; }));
-    VERIFY(record->responses.size() == count);
+    for (auto const& controller : Web::HTML::surrounding_agent().fetch_controller_registry.controllers()) {
+        auto fetch_params = controller->original_fetch_params();
+        if (fetch_params && matches(*fetch_params))
+            return controller->token();
+    }
+    return {};
+}
+
+// The token of the fetch whose request's first URL has the path.
+inline Optional<Web::Fetch::Infrastructure::FetchControllerToken> token_of_fetch_for(StringView path)
+{
+    return token_of_fetch([&](auto const& fetch_params) { return fetch_params.request()->url().serialize_path() == path; });
+}
+
+inline NEVER_INLINE GC::Ptr<Web::Fetch::Infrastructure::FetchController> find_controller(Web::Fetch::Infrastructure::FetchControllerToken token)
+{
+    return Web::HTML::surrounding_agent().fetch_controller_registry.find(token);
+}
+
+// Whether the fetch has handed a response over, whose process response task the handover queued.
+inline bool was_handed_over(Web::Fetch::Infrastructure::FetchController const& controller)
+{
+    return controller.control_block().agent_timing_info();
 }
 
 }

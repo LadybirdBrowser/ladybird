@@ -2861,6 +2861,16 @@ static void create_navigation_params_by_fetching(
     state_holder->navigation_id = move(navigation_id);
 
     perform_navigation_params_fetch(realm, state_holder, completion_steps, GC::create_function(realm.heap(), GC::captures(state_holder, user_involvement, completion_steps), [](auto& state_holder, auto& user_involvement, auto& completion_steps) {
+        // AD-HOC: Tell the fetch whether a manual redirect it handed over is the navigation's response, which is the case
+        //         when neither step 22 nor step 23 returns.
+        if (auto fetch_controller = state_holder->fetch_controller) {
+            auto const& location_url = state_holder->location_url;
+            if (!state_holder->response->is_network_error() && !location_url.is_error() && !location_url.value().has_value())
+                fetch_controller->resolve_redirect(Fetch::Engine::Command::ResolveRedirect::AcceptAsFinal {});
+            else
+                fetch_controller->resolve_redirect(Fetch::Engine::Command::ResolveRedirect::Abandon {});
+        }
+
         auto result = GC::Heap::the().allocate<InternalNavigationResult>();
         result->redirected_url = move(state_holder->redirected_url);
         result->redirect_replaced_fragment = state_holder->redirect_replaced_fragment;

@@ -60,7 +60,7 @@ TEST_CASE(a_stop_of_a_fetch_stops_its_body_transport_and_leaves_that_of_its_cors
     preflight_transport->set_on_stop([&] { preflight_stopped = true; });
     record->set_cors_preflight_body_transport(preflight_transport);
 
-    records.stop_body_transport(FetchId { 1 });
+    records.stop(FetchId { 1 });
     EXPECT(stopped);
     EXPECT(!preflight_stopped);
 
@@ -81,7 +81,7 @@ TEST_CASE(a_stop_of_a_fetch_whose_record_is_gone_stops_nothing)
     transport->set_on_stop([&] { stopped = true; });
     record->set_body_transport(transport);
 
-    records.stop_body_transport(FetchId { 1 });
+    records.stop(FetchId { 1 });
     EXPECT(!ended_stopped);
     EXPECT(!stopped);
 }
@@ -93,11 +93,11 @@ static ConnectedClient connect_client()
     return { move(client), move(pair.remote_handle) };
 }
 
-static NetworkTransportWithGate start_network_transport(Requests::RequestClient& client)
+static NetworkTransportWithGate start_network_transport(Requests::RequestClient& client, Requests::RequestClient::TransferLease transfer_lease = Requests::RequestClient::TransferLease::No)
 {
     auto url = URL::Parser::basic_parse("https://example.com/"sv);
     VERIFY(url.has_value());
-    auto request = client.start_request("GET"sv, *url, HTTP::Cookie::SameSiteContext {});
+    auto request = client.start_request("GET"sv, *url, HTTP::Cookie::SameSiteContext {}, {}, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, transfer_lease);
     VERIFY(request);
 
     auto handle = NetworkTransportHandle::create(request.release_nonnull());
@@ -201,5 +201,153 @@ TEST_CASE(a_stop_of_a_fetch_the_engine_has_not_started_dies)
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto record = start_fetch(records, 1);
 
-    EXPECT_DEATH("Stopping a fetch with an id above that of the last fetch started", records.stop_body_transport(FetchId { 2 }));
+    EXPECT_DEATH("Stopping a fetch with an id above that of the last fetch started", records.stop(FetchId { 2 }));
+}
+
+static Command::ResolveRedirect answer(u64 fetch_id, ContinuationId continuation_id, Command::ResolveRedirect::Resolution resolution)
+{
+    return { .fetch_id = FetchId { fetch_id }, .continuation_id = continuation_id, .resolution = move(resolution) };
+}
+
+// The record of the fetch whose continuation the answer settled, or null for any other outcome.
+static RefPtr<FetchEngineRecord> settled(FetchEngineRecords::RedirectAnswerOutcome outcome)
+{
+    if (auto* record = outcome.get_pointer<NonnullRefPtr<FetchEngineRecord>>())
+        return *record;
+    return {};
+}
+
+static bool was_dropped(FetchEngineRecords::RedirectAnswerOutcome const& outcome)
+{
+    return outcome.has<FetchEngineRecords::RedirectAnswerDropped>();
+}
+
+static bool has_lease(NetworkTransportWithGate const& transport)
+{
+    return transport.handle->transfer_lease().has_value();
+}
+
+// The record's fetch hands over a manual redirect whose response arrived through the transport, its body transport.
+static ContinuationId hand_over_redirect(FetchEngineRecord& record, NetworkTransportWithGate& redirect)
+{
+    record.set_body_transport(*redirect.handle);
+    return record.open_redirect_continuation(redirect.handle.ptr());
+}
+
+TEST_CASE(an_abandoned_redirect_has_its_lease_released_and_its_request_stopped)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto continuation_id = hand_over_redirect(*record, redirect);
+    EXPECT(has_lease(redirect));
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Abandon {}))).ptr(), record.ptr());
+    EXPECT(!has_lease(redirect));
+    EXPECT(redirect.teardowns->reasons == (Vector<Requests::Request::TeardownReason> { Requests::Request::TeardownReason::Stopped }));
+}
+
+TEST_CASE(a_redirect_accepted_as_final_keeps_its_request)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto continuation_id = hand_over_redirect(*record, redirect);
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::AcceptAsFinal {}))).ptr(), record.ptr());
+    EXPECT(has_lease(redirect));
+    EXPECT(redirect.teardowns->reasons.is_empty());
+
+    // A stop of the fetch then stops the request as that of any other response it handed over.
+    records.stop(FetchId { 1 });
+    EXPECT(has_lease(redirect));
+    EXPECT(redirect.teardowns->reasons == (Vector<Requests::Request::TeardownReason> { Requests::Request::TeardownReason::Stopped }));
+}
+
+TEST_CASE(a_followed_redirect_gives_its_record_to_the_next_hop)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto continuation_id = hand_over_redirect(*record, redirect);
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
+
+    // The next hop hands over a redirect of its own.
+    auto next_redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto next_continuation_id = hand_over_redirect(*record, next_redirect);
+    EXPECT_NE(next_continuation_id, continuation_id);
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, next_continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
+}
+
+TEST_CASE(a_stop_of_a_fetch_abandons_the_redirect_it_waits_on)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto continuation_id = hand_over_redirect(*record, redirect);
+
+    records.stop(FetchId { 1 });
+    EXPECT(!has_lease(redirect));
+    EXPECT(redirect.teardowns->reasons == (Vector<Requests::Request::TeardownReason> { Requests::Request::TeardownReason::Stopped }));
+
+    // The agent's task that follows the redirect before it heard of the stop gets no next hop.
+    EXPECT(was_dropped(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))));
+}
+
+TEST_CASE(a_redirect_handed_over_after_a_stop_of_its_fetch_is_abandoned_at_once)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    record->set_body_transport(*redirect.handle);
+
+    // The pipeline hands the redirect over once the stop has stopped its request.
+    records.stop(FetchId { 1 });
+    EXPECT(has_lease(redirect));
+    auto continuation_id = record->open_redirect_continuation(redirect.handle.ptr());
+    EXPECT(!has_lease(redirect));
+    EXPECT(was_dropped(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))));
+}
+
+TEST_CASE(an_answer_for_a_settled_redirect_or_an_ended_fetch_does_nothing)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ended_continuation_id = start_fetch(records, 1)->open_redirect_continuation(nullptr);
+    EXPECT(was_dropped(records.resolve_redirect(answer(1, ended_continuation_id, Command::ResolveRedirect::Follow {}))));
+
+    auto record = start_fetch(records, 2);
+    auto transport = WholeBodyTransport::create();
+    bool stopped = false;
+    transport->set_on_stop([&] { stopped = true; });
+    record->set_body_transport(transport);
+    auto continuation_id = record->open_redirect_continuation(nullptr);
+    EXPECT_EQ(settled(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::AcceptAsFinal {}))).ptr(), record.ptr());
+
+    EXPECT(was_dropped(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::Abandon {}))));
+    EXPECT(was_dropped(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::Follow {}))));
+    EXPECT(!stopped);
+}
+
+TEST_CASE(an_answer_for_a_redirect_the_engine_never_offered_dies)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto continuation_id = record->open_redirect_continuation(nullptr);
+
+    auto above_every_offered = answer(1, ContinuationId { continuation_id.value() + 1 }, Command::ResolveRedirect::Follow {});
+    EXPECT_DEATH("Answering a redirect with a continuation id above every one the engine offered", (void)records.resolve_redirect(above_every_offered));
+
+    auto of_a_fetch_not_started = answer(2, continuation_id, Command::ResolveRedirect::Follow {});
+    EXPECT_DEATH("Answering a redirect of a fetch with an id above that of the last fetch started", (void)records.resolve_redirect(of_a_fetch_not_started));
 }
