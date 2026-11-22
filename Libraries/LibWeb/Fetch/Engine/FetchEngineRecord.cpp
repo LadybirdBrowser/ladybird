@@ -161,6 +161,29 @@ void FetchEngineRecord::main_fetch_reads_whole_body(FetchByteChannel& channel)
     end_main_fetch_if_its_read_cannot_end();
 }
 
+void FetchEngineRecord::main_fetch_waits_for_preload()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_main_fetch.has<MainFetchRunning>());
+    m_main_fetch = MainFetchWaitsForPreload {};
+}
+
+void FetchEngineRecord::main_fetch_stops_waiting_for_preload()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_main_fetch.has<MainFetchWaitsForPreload>());
+    m_main_fetch = MainFetchRunning {};
+}
+
+bool FetchEngineRecord::abandon_preload_wait()
+{
+    ASSERT(is_on_owner_thread());
+    if (!m_main_fetch.has<MainFetchWaitsForPreload>())
+        return false;
+    end_main_fetch();
+    return true;
+}
+
 void FetchEngineRecord::did_end_load()
 {
     ASSERT(is_on_owner_thread());
@@ -289,6 +312,24 @@ void FetchEngineRecords::did_offer_redirect_continuation(Badge<FetchEngineRecord
 {
     ASSERT(is_on_owner_thread());
     m_last_offered_continuation_id = continuation_id;
+}
+
+void FetchEngineRecords::abandon_preload_wait(FetchId fetch_id)
+{
+    ASSERT(is_on_owner_thread());
+    if (fetch_id > m_last_started_fetch_id) {
+        m_agent->misbehaved("The agent abandoned a preload wait of a fetch it has not started"sv);
+        return;
+    }
+
+    auto found_record = m_records.get(fetch_id);
+    if (!found_record.has_value())
+        return;
+    NonnullRefPtr record = **found_record;
+    if (record->has_ended())
+        return;
+    if (!record->abandon_preload_wait())
+        m_agent->misbehaved("The agent abandoned a preload wait of a fetch that waits for no preload"sv);
 }
 
 void FetchEngineRecords::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)

@@ -91,8 +91,6 @@ public:
     [[nodiscard]] GC::Ref<Page> page() const;
     void set_page(Page& page) { m_page = page; }
 
-    void set_preflighted_fetch_controller(FetchController& controller) { m_preflighted_fetch_controller = controller; }
-
     // Moves the fetch, before its response has arrived, to another task destination and body intent.
     void retarget(TaskDestination, Engine::BodyIntent);
 
@@ -102,6 +100,10 @@ public:
     [[nodiscard]] bool response_arrived() const { return m_control_block->response_arrived(); }
     [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
     void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
+    // The handle in the callback of the preload entry whose response the fetch's preloaded response candidate waits for,
+    // while that callback lives.
+    [[nodiscard]] WeakPtr<Fetching::PreloadWaitHandle> const& preload_wait_handle() const { return m_preload_wait_handle; }
+    void set_preload_wait_handle(WeakPtr<Fetching::PreloadWaitHandle> preload_wait_handle) { m_preload_wait_handle = move(preload_wait_handle); }
 
     bool requires_network() const { return m_control_block->requires_network(); }
     bool has_started_request() const { return m_control_block->has_started_request(); }
@@ -109,6 +111,7 @@ public:
     // stops and redirect answers are posted there, for that fetch.
     void set_started_fetch(Engine::FetchId, Engine::FetchExecutor&);
     [[nodiscard]] Optional<Engine::FetchId> started_fetch_id() const;
+    [[nodiscard]] Engine::FetchExecutor& started_fetch_executor() const;
 
     void stop_fetch();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
@@ -186,15 +189,12 @@ private:
     TaskDestination m_task_destination;
     GC::Ptr<Page> m_page;
 
-    // A CORS preflight's controller keeps alive the controller of the fetch the preflight is for, which the
-    // preflight's requests report to.
-    GC::Ptr<FetchController> m_preflighted_fetch_controller;
-
     bool m_is_keepalive { false };
 
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.
     GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
+    WeakPtr<Fetching::PreloadWaitHandle> m_preload_wait_handle;
 
     struct StartedFetch {
         Engine::FetchId fetch_id;

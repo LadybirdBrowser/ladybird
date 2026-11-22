@@ -585,6 +585,7 @@ struct NetworkActivity;
 namespace Web::Fetch::Fetching {
 
 class PendingResponse;
+class PreloadWaitHandle;
 class RefCountedFlag;
 
 }

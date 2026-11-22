@@ -30,18 +30,23 @@ static NEVER_INLINE FetchControllerToken create_unreferenced_controller(FetchCon
     return FetchController::create(registry)->token();
 }
 
-// Returns the token of a controller that only the given CORS preflight's controller references.
-static NEVER_INLINE FetchControllerToken create_preflighted_fetch_controller(FetchControllerRegistry& registry, GC::Root<FetchController>& preflight_controller)
-{
-    auto controller = FetchController::create(registry);
-    preflight_controller = GC::make_root(FetchController::create(registry));
-    preflight_controller->set_preflighted_fetch_controller(controller);
-    return controller->token();
-}
-
 static NEVER_INLINE bool is_registered(FetchControllerRegistry const& registry, FetchControllerToken token)
 {
     return !!registry.find(token);
+}
+
+static NEVER_INLINE FetchControllerToken create_controller_rooted_for(FetchControllerRegistry& registry, Web::Fetch::Engine::FetchId fetch_id)
+{
+    auto controller = FetchController::create(registry);
+    registry.root_fetch(fetch_id, controller);
+    return controller->token();
+}
+
+static NEVER_INLINE FetchControllerToken create_cors_preflight_rooted_for(FetchControllerRegistry& registry, Web::Fetch::Engine::FetchId fetch_id)
+{
+    auto controller = FetchController::create(registry);
+    registry.root_cors_preflight(fetch_id, controller);
+    return controller->token();
 }
 
 namespace {
@@ -92,22 +97,6 @@ TEST_CASE(a_collected_controller_is_not_found)
     EXPECT(!registry.find(token));
 }
 
-TEST_CASE(a_cors_preflights_controller_keeps_the_controller_of_its_fetch)
-{
-    FetchControllerRegistry registry;
-    GC::Root<FetchController> preflight_controller;
-    auto token = create_preflighted_fetch_controller(registry, preflight_controller);
-    GC::scrub_stack_for_testing();
-
-    test_heap().collect_garbage();
-    EXPECT(is_registered(registry, token));
-
-    preflight_controller = {};
-    GC::scrub_stack_for_testing();
-    test_heap().collect_garbage();
-    EXPECT(!is_registered(registry, token));
-}
-
 TEST_CASE(a_controller_can_be_collected_after_its_registry_is_gone)
 {
     {
@@ -145,4 +134,29 @@ TEST_CASE(an_event_for_a_collected_controller_or_a_registry_that_is_gone_is_drop
         sink_of_registry_that_is_gone = make<FetchEventSink>(*controller);
     }
     sink_of_registry_that_is_gone->handle_event(Web::Fetch::Engine::Event::RequestBodyProgress { .length = 1 });
+}
+
+TEST_CASE(a_fetchs_controller_and_those_of_its_cors_preflights_are_kept_until_the_fetch_ends)
+{
+    FetchControllerRegistry registry;
+    Web::Fetch::Engine::FetchId fetch_id { 1 };
+    auto token = create_controller_rooted_for(registry, fetch_id);
+    auto preflight_token = create_cors_preflight_rooted_for(registry, fetch_id);
+    GC::scrub_stack_for_testing();
+    test_heap().collect_garbage();
+    EXPECT(registry.roots(token));
+    EXPECT(registry.roots(preflight_token));
+    EXPECT(is_registered(registry, token));
+    EXPECT(is_registered(registry, preflight_token));
+
+    registry.release_fetch(fetch_id);
+    EXPECT(!registry.roots(token));
+    EXPECT(!registry.roots(preflight_token));
+    GC::scrub_stack_for_testing();
+    test_heap().collect_garbage();
+    EXPECT(!is_registered(registry, token));
+    EXPECT(!is_registered(registry, preflight_token));
+
+    // The release of a fetch the registry no longer roots changes nothing.
+    registry.release_fetch(fetch_id);
 }

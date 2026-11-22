@@ -14,6 +14,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/BodyIntent.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
@@ -42,13 +43,13 @@ struct PreloadKey {
 };
 
 // https://html.spec.whatwg.org/multipage/links.html#create-a-preload-key
-PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const&);
+WEB_API PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const&);
 
 // https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
 Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Utf16View destination);
 
 // https://html.spec.whatwg.org/multipage/links.html#preload-entry
-class PreloadEntry final : public JS::Cell {
+class WEB_API PreloadEntry final : public JS::Cell {
     GC_CELL(PreloadEntry, JS::Cell);
     GC_DECLARE_ALLOCATOR(PreloadEntry);
 

@@ -97,6 +97,16 @@ public:
     // cancelled or transferred before its end.
     void main_fetch_reads_whole_body(FetchByteChannel&);
 
+    // Main fetch waits for a preload's response, until the agent resolves the wait or abandons it.
+    void main_fetch_waits_for_preload();
+    void main_fetch_stops_waiting_for_preload();
+    // Ends main fetch's wait for a preload's response, after which main fetch can no longer hand a response over. Returns
+    // whether main fetch was waiting.
+    [[nodiscard]] bool abandon_preload_wait();
+
+    // Whether the fetch has ended: main fetch has ended, no load is live and no redirect continuation is open.
+    [[nodiscard]] bool has_ended() const { return m_ended; }
+
 private:
     friend class FetchEngineRecords;
     friend class FetchLoad;
@@ -109,8 +119,7 @@ private:
     void did_end_load();
     void end_main_fetch_if_its_read_cannot_end();
     void end_main_fetch();
-    // Sends the fetch's end as its last event once main fetch has ended, no load is live and no redirect continuation
-    // is open.
+    // Sends the fetch's end as its last event once nothing keeps the fetch from ending.
     void end_fetch_unless_anything_is_left();
 
     AK::ThreadID m_owner_thread { AK::ThreadID::current() };
@@ -131,12 +140,13 @@ private:
     bool m_stopped { false };
 
     struct MainFetchRunning { };
+    struct MainFetchWaitsForPreload { };
     // Main fetch reads the whole of the body in the channel before it hands the response over.
     struct MainFetchReadsWholeBody {
         NonnullRefPtr<FetchByteChannel> channel;
     };
     struct MainFetchEnded { };
-    Variant<MainFetchRunning, MainFetchReadsWholeBody, MainFetchEnded> m_main_fetch { MainFetchRunning {} };
+    Variant<MainFetchRunning, MainFetchWaitsForPreload, MainFetchReadsWholeBody, MainFetchEnded> m_main_fetch { MainFetchRunning {} };
     size_t m_live_load_count { 0 };
     bool m_ended { false };
 };
@@ -200,6 +210,10 @@ public:
     // above every start, a continuation id above every offer, or an answer before the redirect's handover.
     [[nodiscard]] RedirectAnswerOutcome resolve_redirect(Command::ResolveRedirect const&);
     void did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId);
+
+    // Does nothing once the fetch has ended or its record is gone. Reports to the agent a fetch id above that of every
+    // started fetch, or a fetch whose main fetch does not wait for a preload.
+    void abandon_preload_wait(FetchId);
 
     // Records a network transport, which the agent's transport controls name by the id and transport epoch of its
     // request.

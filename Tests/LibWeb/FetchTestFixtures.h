@@ -73,14 +73,20 @@ inline ByteString describe_transport_control(Web::Fetch::Engine::Command::Transp
 }
 
 // Hands each event of a fetch on to the fetch's event sink, and records the ends of the fetch's bodies and of the fetch,
-// and each event that comes after the fetch's end.
+// and each event that comes after the fetch's end. It is destroyed with the fetch's engine record, and records that too.
 class EventRecordingSink final : public Web::Fetch::Engine::EngineEventSink {
 public:
-    EventRecordingSink(NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> event_sink, NonnullRefPtr<ReachedSteps> reached, ByteString fetch)
+    EventRecordingSink(NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> event_sink, NonnullRefPtr<ReachedSteps> reached, NonnullRefPtr<ReachedSteps> records_gone, ByteString fetch)
         : m_event_sink(move(event_sink))
         , m_reached(move(reached))
+        , m_records_gone(move(records_gone))
         , m_fetch(move(fetch))
     {
+    }
+
+    virtual ~EventRecordingSink() override
+    {
+        m_records_gone->steps.append(m_fetch);
     }
 
     virtual void handle_event(Web::Fetch::Engine::EngineEvent event) override
@@ -98,6 +104,7 @@ public:
 private:
     NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> m_event_sink;
     NonnullRefPtr<ReachedSteps> m_reached;
+    NonnullRefPtr<ReachedSteps> m_records_gone;
     ByteString m_fetch;
     bool m_fetch_ended { false };
 };
@@ -123,8 +130,9 @@ class CommandRecordingEngine final : public Web::Fetch::Engine::EngineCommandSin
 public:
     using Destination = Variant<Empty, NonnullRefPtr<PostedCommands>, NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>;
 
-    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, Destination destination = Empty {})
+    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, Destination destination = Empty {}, RefPtr<ReachedSteps> records_gone = {})
         : m_reached(move(reached))
+        , m_records_gone(records_gone ? records_gone.release_nonnull() : make_ref_counted<ReachedSteps>())
         , m_destination(move(destination))
     {
     }
@@ -135,7 +143,7 @@ public:
         m_reached->steps.append(describe(command));
         if (auto const* engine_executor = m_destination.get_pointer<NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>()) {
             if (auto* start = command.get_pointer<StartFetch>())
-                start->input.event_sink = make<EventRecordingSink>(move(start->input.event_sink), m_reached, fetch(start->input.fetch_id));
+                start->input.event_sink = make<EventRecordingSink>(move(start->input.event_sink), m_reached, m_records_gone, fetch(start->input.fetch_id));
             (*engine_executor)->post(move(command));
             return;
         }
@@ -173,15 +181,27 @@ private:
                     [&](ResolveRedirect::Abandon) { return ByteString::formatted("abandon redirect of {}", fetch(resolve.fetch_id)); });
             },
             [&](PreloadResponseResolved const& resolved) { return ByteString::formatted("preload response resolved {}", fetch(resolved.fetch_id)); },
+            [&](PreloadWaitAbandoned const& abandoned) { return ByteString::formatted("abandon preload wait of {}", fetch(abandoned.fetch_id)); },
             [](TransportControl const& control) { return describe_transport_control(control.operation, control.request_id, control.transport_epoch); },
             [](NavigationBodyAdopted const&) { return ByteString { "navigation body adopted"sv }; },
             [](AdoptNetworkTransport const&) { return ByteString { "adopt network transport"sv }; });
     }
 
     NonnullRefPtr<ReachedSteps> m_reached;
+    NonnullRefPtr<ReachedSteps> m_records_gone;
     Destination m_destination;
     Vector<Web::Fetch::Engine::FetchId> m_started_fetches;
 };
+
+// Runs the agent's tasks until the condition holds, or for the given time.
+inline void run_tasks_until(GC::Heap& heap, GC::Ref<GC::Function<bool()>> condition, AK::Duration timeout = AK::Duration::from_seconds(10))
+{
+    auto deadline = Core::Timer::create_single_shot(timeout, [] { });
+    deadline->start();
+    Web::HTML::main_thread_event_loop().spin_until(GC::create_function(heap, GC::captures(condition, deadline->make_weak_ptr<Core::Timer>()), [](auto& condition, auto& deadline) {
+        return condition->function()() || !deadline || !deadline->is_active();
+    }));
+}
 
 struct FetchHarness {
     FetchHarness()
@@ -193,13 +213,14 @@ struct FetchHarness {
         agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
     }
 
-    // Records each command the agent posts from now on, before the agent's fetch engine gets it.
+    // Records each command the agent posts from now on, before the agent's fetch engine gets it, and the fetches whose
+    // engine records are gone in records_gone.
     NonnullRefPtr<ReachedSteps> record_commands() const
     {
         auto commands = make_ref_counted<ReachedSteps>();
         auto& agent = Web::HTML::surrounding_agent();
         Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
-        auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor });
+        auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor }, records_gone);
         agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
         return commands;
     }
@@ -260,14 +281,17 @@ struct FetchHarness {
         steps();
     }
 
+    // The event loop runs no task while the handle lives.
+    Web::HTML::EventLoop::PauseHandle pause_event_loop() const
+    {
+        Web::HTML::TemporaryExecutionContext execution_context { *realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        return Web::HTML::main_thread_event_loop().pause(Web::HTML::EventLoop::UpdateTheRendering::No);
+    }
+
     // Runs the fetch's steps and the tasks they queue until the condition holds, or for the given time.
     void run_tasks_until(GC::Ref<GC::Function<bool()>> condition, AK::Duration timeout = AK::Duration::from_seconds(10)) const
     {
-        auto deadline = Core::Timer::create_single_shot(timeout, [] { });
-        deadline->start();
-        Web::HTML::main_thread_event_loop().spin_until(GC::create_function(realm->heap(), GC::captures(condition, deadline->make_weak_ptr<Core::Timer>()), [](auto& condition, auto& deadline) {
-            return condition->function()() || !deadline || !deadline->is_active();
-        }));
+        FetchTest::run_tasks_until(realm->heap(), condition, timeout);
     }
 
     void run_until_step(NonnullRefPtr<ReachedSteps> const& reached, StringView step) const
@@ -300,6 +324,7 @@ struct FetchHarness {
 
     GC::Ref<Web::DOM::Document> document;
     GC::Ref<JS::Realm> realm;
+    NonnullRefPtr<ReachedSteps> records_gone { make_ref_counted<ReachedSteps>() };
 };
 
 // What a RequestServer the test stands in for has been sent: each message, in the order it came, as
@@ -473,6 +498,12 @@ inline NEVER_INLINE GC::Ptr<Web::Fetch::Infrastructure::FetchController> find_co
 inline bool was_handed_over(Web::Fetch::Infrastructure::FetchController const& controller)
 {
     return controller.control_block().agent_timing_info();
+}
+
+// Whether the agent's registry keeps the controller alive, as that of a fetch or of a fetch's CORS preflight.
+inline bool is_rooted(Web::Fetch::Infrastructure::FetchControllerToken token)
+{
+    return Web::HTML::surrounding_agent().fetch_controller_registry.roots(token);
 }
 
 }

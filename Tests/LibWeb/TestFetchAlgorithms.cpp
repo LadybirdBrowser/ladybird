@@ -20,6 +20,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Script.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
@@ -44,6 +45,7 @@
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -53,6 +55,7 @@
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 using Web::Fetch::Engine::FetchBodyDeliveryGate;
@@ -374,11 +377,11 @@ static FetchAlgorithms::Input upload_algorithms(GC::Heap& heap, NonnullRefPtr<Up
 }
 
 // A request body that only its stream has, which the steps set up before the stream is read.
-static FetchAlgorithms::RequestBodyReader create_request_body_reader(JS::Realm& realm, Function<void(Web::Streams::ReadableStream&)> set_up_stream)
+static FetchAlgorithms::RequestBodyReader create_request_body_reader(JS::Realm& realm, Function<void(Web::Streams::ReadableStream&)> set_up_stream, GC::Ptr<Web::Streams::PullAlgorithm> pull = {})
 {
     Web::HTML::TemporaryExecutionContext execution_context { realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
     auto stream = Web::Streams::ReadableStream::create(realm);
-    stream->set_up_with_byte_reading_support(realm);
+    stream->set_up_with_byte_reading_support(realm, pull);
     set_up_stream(stream);
     auto reader = MUST(stream->get_a_reader());
     return { Web::Fetch::Infrastructure::Body::create(stream), reader };
@@ -558,6 +561,40 @@ TEST_CASE(an_error_from_a_request_body_stream_aborts_or_terminates_the_fetch)
     EXPECT_EQ(aborted->state(), FetchController::State::Aborted);
     EXPECT_EQ(terminated->state(), FetchController::State::Terminated);
     EXPECT(record->calls.is_empty());
+}
+
+// The network step reads a request body from its stream, whose pull aborts the fetch and spins the event loop until
+// the fetch has ended.
+TEST_CASE(a_request_body_stream_that_aborts_its_fetch_while_the_network_step_reads_it_ends_the_fetch_once)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto& heap = harness.realm->heap();
+    auto pull = GC::create_function(heap, GC::captures(harness.realm, commands), [](auto& realm, auto& commands) {
+        find_controller(*token_of_fetch_for("/pulled"sv))->abort(*realm, {});
+        run_tasks_until(realm->heap(), GC::create_function(realm->heap(), GC::captures(commands), [](auto& commands) { return commands->steps.contains_slow("end of fetch 1"sv); }));
+        return Web::WebIDL::create_resolved_promise(*realm, JS::js_undefined());
+    });
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto input = recording_responses(heap, record);
+    input.request_body_reader = create_request_body_reader(*harness.realm, [](auto&) { }, pull);
+    auto request = harness.create_request_for("http://127.0.0.1:8000/pulled"sv);
+    request->set_method("POST"sv);
+    request->set_body(Web::Fetch::Infrastructure::FetchBody {});
+    auto controller = GC::make_root(harness.fetch(request, move(input)));
+
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    // The network step sends nothing more once the fetch has ended inside it.
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 POST /pulled", "stop 0" }));
+    EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(controller->token()));
 }
 
 TEST_CASE(the_stream_of_a_request_body_sent_from_its_source_is_read_to_its_end_and_runs_no_algorithm)
@@ -1018,6 +1055,8 @@ TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end_and_ends_its_fetch)
 
     auto failed = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/failed"sv);
     auto transferred = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/transferred"sv);
+    EXPECT(is_rooted(failed.controller->token()));
+    EXPECT(is_rooted(transferred.controller->token()));
     request_server.send_finished(failed.request_id, finished_timing_info(1000), Requests::NetworkError::IncompleteContent);
     request_server.send_transferred(transferred.request_id);
     harness.run_until_step(commands, "end of fetch 1"sv);
@@ -1026,6 +1065,8 @@ TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end_and_ends_its_fetch)
     EXPECT(failed.response->network_transport()->body_channel->peek_up_to(0).state.has<FetchByteChannel::Errored>());
     EXPECT(transferred.response->network_transport()->body_channel->peek_up_to(0).state.has<FetchByteChannel::Transferred>());
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "start fetch 2", "end of fetch 1", "end of fetch 2" }));
+    EXPECT(!is_rooted(failed.controller->token()));
+    EXPECT(!is_rooted(transferred.controller->token()));
 
     // The end of each fetch drops the wait for the end of its body.
     report_end_of_body(failed);
@@ -1045,20 +1086,24 @@ TEST_CASE(a_fetch_ends_once_its_response_is_handed_over_and_its_body_has_arrived
     // The body arrives after the handover.
     auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/arrives-after-handover"sv);
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1" }));
+    EXPECT(is_rooted(delivered.controller->token()));
     request_server.send_finished(delivered.request_id, finished_timing_info(1000));
     harness.run_until_step(commands, "end of fetch 1"sv);
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1" }));
+    EXPECT(!is_rooted(delivered.controller->token()));
 
-    // The body arrives before the handover.
+    // The body arrives before the handover. The fetch is rooted from its start, before the engine runs it.
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/arrives-before-handover"sv);
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    EXPECT(is_rooted(controller->token()));
     auto request_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_finished(request_id, finished_timing_info(1000));
     harness.run_until_responses(record, 1);
     EXPECT(!record->responses[0]->is_network_error());
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1", "start fetch 2", "end of fetch 2" }));
+    EXPECT(!is_rooted(controller->token()));
 }
 
 // HTTP-network-or-cache fetch retries a request whose response is a 421 on a new connection, and nothing stops the
@@ -1073,7 +1118,7 @@ TEST_CASE(a_fetch_retried_after_a_421_ends_once_the_load_of_its_first_request_ha
 
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = harness.create_request_for("http://127.0.0.1:8000/misdirected"sv);
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto first_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(first_id, 421);
     auto retry_id = request_server.wait_for_request("GET"sv);
@@ -1086,11 +1131,13 @@ TEST_CASE(a_fetch_retried_after_a_421_ends_once_the_load_of_its_first_request_ha
     // The retry's response is handed over and its body has arrived, but the first request's body still arrives.
     EXPECT_EQ(record->responses[0]->record()->unsafe_response()->status(), 200u);
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1" }));
+    EXPECT(is_rooted(controller->token()));
 
     request_server.send_finished(first_id);
     harness.run_until_step(commands, "end of fetch 1"sv);
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /misdirected", "start 1 GET /misdirected" }));
+    EXPECT(!is_rooted(controller->token()));
 }
 
 TEST_CASE(a_fetch_whose_request_fails_before_its_response_ends_at_the_handover_of_its_network_error)
@@ -1103,13 +1150,45 @@ TEST_CASE(a_fetch_whose_request_fails_before_its_response_ends_at_the_handover_o
 
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = harness.create_request_for("http://127.0.0.1:8000/fails"sv);
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto request_id = request_server.wait_for_request("GET"sv);
     request_server.send_finished(request_id, {}, Requests::NetworkError::UnableToConnect);
     harness.run_until_responses(record, 1);
 
     EXPECT(record->responses[0]->is_network_error());
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1" }));
+    EXPECT(!is_rooted(controller->token()));
+}
+
+TEST_CASE(a_cors_preflights_controller_is_rooted_until_the_fetch_it_is_for_ends)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preflighted"sv);
+    request->set_mode(Request::Mode::CORS);
+    request->set_use_cors_preflight(true);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto preflight_id = request_server.wait_for_request("OPTIONS"sv);
+    auto preflight_token = token_of_fetch([](auto const& fetch_params) { return fetch_params.is_cors_preflight(); });
+    VERIFY(preflight_token.has_value());
+    EXPECT(is_rooted(*preflight_token));
+
+    // The preflight's request has ended once the fetch's own request starts.
+    request_server.send_headers(preflight_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+    auto request_id = request_server.wait_for_request("GET"sv);
+    EXPECT(is_rooted(*preflight_token));
+
+    request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+    request_server.send_finished(request_id);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 OPTIONS /preflighted", "stop 0", "start 1 GET /preflighted" }));
+    EXPECT(!is_rooted(controller->token()));
+    EXPECT(!is_rooted(*preflight_token));
 }
 
 // A request torn down before its response arrives leaves main fetch nothing to hand over.
@@ -1130,6 +1209,8 @@ TEST_CASE(a_fetch_stopped_or_aborted_before_its_response_ends_without_a_handover
     auto aborted = GC::make_root(harness.fetch(aborted_request, recording_responses(heap, record)));
     (void)request_server.wait_for_request("GET"sv);
 
+    EXPECT(is_rooted(stopped->token()));
+    EXPECT(is_rooted(aborted->token()));
     harness.with_execution_context([&] {
         stopped->stop_fetch();
         aborted->abort(*harness.realm, {});
@@ -1140,6 +1221,290 @@ TEST_CASE(a_fetch_stopped_or_aborted_before_its_response_ends_without_a_handover
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "start fetch 2", "stop 1", "abort 2", "end of fetch 1", "end of fetch 2" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /stopped", "start 1 GET /aborted", "stop 0", "stop 1" }));
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(stopped->token()));
+    EXPECT(!is_rooted(aborted->token()));
+}
+
+namespace {
+
+// A fetch that waits for a preload, which a test names once it has started, and each time the preload resolved it.
+struct WaitingFetch : RefCounted<WaitingFetch> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    Optional<Web::Fetch::Infrastructure::FetchControllerToken> token;
+    Vector<ByteString> resolutions;
+};
+
+}
+
+// A preload of the URL, as HTMLLinkElement::preload makes one: once its body has been read, its entry keeps the
+// response, or gives it to the fetch waiting on the entry.
+static NEVER_INLINE Web::Fetch::Infrastructure::FetchControllerToken start_preload(FetchHarness const& harness, StringView url, NonnullRefPtr<WaitingFetch> const& waiting_fetch)
+{
+    auto entry = Web::HTML::PreloadEntry::create();
+    auto request = harness.create_request_for(url);
+    FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
+    input.process_response_consume_body = GC::create_function(harness.realm->heap(), GC::captures(entry, waiting_fetch), [](auto& entry, auto& waiting_fetch, GC::Ref<ResponseView> response_view, FetchAlgorithms::BodyBytes body_bytes) {
+        auto response = response_view->record()->clone();
+        if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
+            response->unsafe_response()->set_body(Web::Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
+        else
+            response = Response::network_error("Expected preload response to contain a body"_string);
+
+        if (!entry->on_response_available) {
+            entry->response = response;
+            return;
+        }
+        auto preload_was_stopped = entry->controller->state() == FetchController::State::Stopped;
+        entry->on_response_available->function()(response);
+        auto waiting_fetch_is_rooted = waiting_fetch->token.has_value() && is_rooted(*waiting_fetch->token);
+        waiting_fetch->resolutions.append(ByteString::formatted("resolved by a {} preload, rooted: {}", preload_was_stopped ? "stopped"sv : "live"sv, waiting_fetch_is_rooted));
+    });
+    auto controller = harness.fetch(request, move(input));
+    entry->controller = controller;
+    harness.document->map_of_preloaded_resources().set(Web::HTML::create_a_preload_key(*request), entry);
+    return controller->token();
+}
+
+static void run_until_handed_over(FetchHarness const& harness, Web::Fetch::Infrastructure::FetchControllerToken token)
+{
+    auto controller = find_controller(token);
+    VERIFY(controller);
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(GC::Ref { *controller }), [](auto& controller) { return was_handed_over(*controller); }));
+}
+
+static void run_until_waiting_for_preload(FetchHarness const& harness, FetchController& controller)
+{
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(GC::Ref { controller }), [](auto& controller) { return !!controller->pending_preloaded_response(); }));
+    VERIFY(controller.pending_preloaded_response());
+}
+
+TEST_CASE(a_fetch_is_not_rooted_while_it_waits_for_a_preload)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto waiting_fetch = make_ref_counted<WaitingFetch>();
+    (void)start_preload(harness, "http://127.0.0.1:8000/preloaded"sv, waiting_fetch);
+    auto preload_id = request_server.wait_for_request("GET"sv);
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preloaded"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    waiting_fetch->token = controller->token();
+    EXPECT(is_rooted(controller->token()));
+    run_until_waiting_for_preload(harness, *controller);
+    EXPECT(!is_rooted(controller->token()));
+
+    // The preload resolves the wait, and the fetch is rooted again before its main fetch goes on.
+    request_server.send_headers(preload_id, 200);
+    request_server.send_finished(preload_id);
+    harness.run_until_responses(record, 1);
+    EXPECT_EQ(waiting_fetch->resolutions, (Vector<ByteString> { "resolved by a live preload, rooted: true" }));
+    EXPECT(!record->responses[0]->is_network_error());
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    EXPECT(!is_rooted(controller->token()));
+}
+
+struct HeldWaitingFetch {
+    GC::Root<FetchController> controller;
+    Web::Fetch::Infrastructure::FetchControllerToken token;
+};
+
+// Starts a fetch of the preload's URL, lets its main fetch wait for the preload, then stops both fetches as a document's
+// abort stops them. It runs away from the test's own stack frame, so a conservative scan of it finds no controller.
+static NEVER_INLINE HeldWaitingFetch wait_for_a_preload_then_stop_both(FetchHarness const& harness, StringView url, Web::Fetch::Infrastructure::FetchControllerToken preload_token, NonnullRefPtr<AlgorithmCalls> const& record)
+{
+    auto request = harness.create_request_for(url);
+    auto controller = harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    run_until_waiting_for_preload(harness, *controller);
+    harness.with_execution_context([&] {
+        find_controller(preload_token)->stop_fetch();
+        controller->stop_fetch();
+    });
+    return { GC::make_root(controller), controller->token() };
+}
+
+// Both fetches are stopped as a document's abort stops them, which leaves the preload's entry unresolved.
+static void leave_a_fetch_waiting_for_a_preload_unresolved(bool preload_body_in_flight)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto waiting_fetch = make_ref_counted<WaitingFetch>();
+    auto preload_token = start_preload(harness, "http://127.0.0.1:8000/preloaded"sv, waiting_fetch);
+    auto preload_id = request_server.wait_for_request("GET"sv);
+    if (preload_body_in_flight) {
+        request_server.send_headers(preload_id, 200);
+        run_until_handed_over(harness, preload_token);
+    }
+
+    // The test holds the waiting fetch, as its fetch group holds a keepalive fetch.
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto waiting = wait_for_a_preload_then_stop_both(harness, "http://127.0.0.1:8000/preloaded"sv, preload_token, record);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT(!commands->steps.contains_slow("end of fetch 2"sv));
+
+    // Once the heap collects the preload's entry, the handle in its callback abandons the wait, and the fetch ends
+    // without handing anything over.
+    GC::scrub_stack_for_testing();
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(harness.realm, commands), [](auto& realm, auto& commands) {
+        realm->heap().collect_garbage();
+        return commands->steps.contains_slow("end of fetch 2"sv);
+    }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "start fetch 2", "stop 1", "stop 2", "end of fetch 1", "abandon preload wait of 2", "end of fetch 2" }));
+    EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(waiting.token));
+
+    // With nothing else holding the fetch, its engine record leaves the engine's table.
+    waiting.controller = {};
+    GC::scrub_stack_for_testing();
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(harness.realm, harness.records_gone), [](auto& realm, auto& records_gone) {
+        realm->heap().collect_garbage();
+        return records_gone->steps.contains_slow("2"sv);
+    }));
+    EXPECT(harness.records_gone->steps.contains_slow("2"sv));
+}
+
+TEST_CASE(a_fetch_waiting_for_a_preload_stopped_before_its_response_ends_once_the_preload_entry_is_collected)
+{
+    leave_a_fetch_waiting_for_a_preload_unresolved(false);
+}
+
+TEST_CASE(a_fetch_waiting_for_a_preload_stopped_with_its_body_in_flight_ends_once_the_preload_entry_is_collected)
+{
+    leave_a_fetch_waiting_for_a_preload_unresolved(true);
+}
+
+// Starts a fetch of the preload's URL, which consumes the preload's entry, then stops both fetches as a document's abort
+// stops them. Nothing then holds the entry.
+static NEVER_INLINE Web::Fetch::Infrastructure::FetchControllerToken fetch_a_preload_then_stop_both(FetchHarness const& harness, StringView url, Web::Fetch::Infrastructure::FetchControllerToken preload_token, NonnullRefPtr<AlgorithmCalls> const& record)
+{
+    auto request = harness.create_request_for(url);
+    auto controller = harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    harness.with_execution_context([&] {
+        find_controller(preload_token)->stop_fetch();
+        controller->stop_fetch();
+    });
+    return controller->token();
+}
+
+static NEVER_INLINE bool preload_wait_handle_is_gone(Web::Fetch::Infrastructure::FetchControllerToken token)
+{
+    return find_controller(token)->preload_wait_handle().is_null();
+}
+
+// The entry's callback is collected after the waiting fetch consumed the entry, but before its main fetch runs.
+TEST_CASE(a_fetch_whose_preload_entry_is_collected_before_main_fetch_waits_for_it_ends_without_a_handover)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto waiting_fetch = make_ref_counted<WaitingFetch>();
+    auto preload_token = start_preload(harness, "http://127.0.0.1:8000/preloaded"sv, waiting_fetch);
+    (void)request_server.wait_for_request("GET"sv);
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto token = fetch_a_preload_then_stop_both(harness, "http://127.0.0.1:8000/preloaded"sv, preload_token, record);
+
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage_and_return_memory_to_system();
+    EXPECT(preload_wait_handle_is_gone(token));
+
+    // Main fetch does not wait, and the fetch ends without handing anything over.
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "start fetch 2", "stop 1", "stop 2", "end of fetch 2", "end of fetch 1" }));
+    EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(token));
+
+    // Nothing else holds the fetch, so its engine record leaves the engine's table.
+    GC::scrub_stack_for_testing();
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(harness.realm, harness.records_gone), [](auto& realm, auto& records_gone) {
+        realm->heap().collect_garbage();
+        return records_gone->steps.contains_slow("2"sv);
+    }));
+    EXPECT(harness.records_gone->steps.contains_slow("2"sv));
+}
+
+// The heap collects the preload entry's callback once it has resolved the wait, before the fetch ends. The handle in
+// the callback abandons nothing then.
+TEST_CASE(a_preload_entry_collected_after_it_resolved_the_wait_abandons_nothing)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto waiting_fetch = make_ref_counted<WaitingFetch>();
+    (void)start_preload(harness, "http://127.0.0.1:8000/preloaded"sv, waiting_fetch);
+    auto preload_id = request_server.wait_for_request("GET"sv);
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preloaded"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(heap, record)));
+    run_until_waiting_for_preload(harness, *controller);
+
+    request_server.send_headers(preload_id, 200);
+    request_server.send_finished(preload_id);
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(waiting_fetch), [](auto& waiting_fetch) { return !waiting_fetch->resolutions.is_empty(); }));
+    EXPECT(!commands->steps.contains_slow("end of fetch 2"sv));
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage_and_return_memory_to_system();
+    EXPECT(preload_wait_handle_is_gone(controller->token()));
+
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    harness.settle();
+    EXPECT_EQ(record->responses.size(), 1u);
+    EXPECT(!commands->steps.contains_slow("abandon preload wait of 2"sv));
+}
+
+TEST_CASE(a_preload_stopped_just_after_its_end_still_resolves_the_fetch_waiting_for_it)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto waiting_fetch = make_ref_counted<WaitingFetch>();
+    auto preload_token = start_preload(harness, "http://127.0.0.1:8000/preloaded"sv, waiting_fetch);
+    auto preload_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(preload_id, 200);
+    run_until_handed_over(harness, preload_token);
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preloaded"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    waiting_fetch->token = controller->token();
+    run_until_waiting_for_preload(harness, *controller);
+
+    // The event loop runs the preload's consume body steps only once the preload has ended and been stopped.
+    {
+        auto pause = harness.pause_event_loop();
+        request_server.send_finished(preload_id);
+        harness.run_until_step(commands, "end of fetch 1"sv);
+        harness.with_execution_context([&] { find_controller(preload_token)->stop_fetch(); });
+    }
+
+    harness.run_until_responses(record, 1);
+    EXPECT_EQ(waiting_fetch->resolutions, (Vector<ByteString> { "resolved by a stopped preload, rooted: true" }));
+    EXPECT(!record->responses[0]->is_network_error());
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    EXPECT(!is_rooted(controller->token()));
 }
 
 namespace {
@@ -1253,6 +1618,187 @@ TEST_CASE(a_request_that_starts_after_its_fetch_was_stopped_reports_the_stop)
                                  "network.beforeRequestSent 1",
                                  "network.fetchError 1: Fetch was stopped",
                              }));
+}
+
+// Has the WebDriver BiDi session block each request before it is sent, as an intercept for that phase does.
+static void block_each_request_before_it_is_sent()
+{
+    auto session_state = Web::WebDriver::BiDi::session_state();
+    session_state.enabled_event_contexts.set("network.beforeRequestSent"_string, {});
+    session_state.network_intercepts.append({ .id = "intercept"_string, .url_patterns = {}, .phases = { "beforeRequestSent"_string }, .browsing_contexts = {} });
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+}
+
+// Records the id of each request the session blocks.
+static WebDriverBiDiSession::OnEvent recording_blocked_requests(NonnullRefPtr<ReportedNetworkEvents> const& events)
+{
+    return [events](Web::HTML::Navigable const&, String const&, JsonValue params) {
+        if (params.as_object().get_bool("isBlocked"sv).value_or(false))
+            events->request_ids.append(*params.as_object().get_object("request"sv)->get_string("request"sv));
+    };
+}
+
+static void run_until_blocked(FetchHarness const& harness, NonnullRefPtr<ReportedNetworkEvents> const& blocked)
+{
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(blocked), [](auto& blocked) { return !blocked->request_ids.is_empty(); }));
+    VERIFY(blocked->request_ids.size() == 1);
+}
+
+TEST_CASE(a_fetch_whose_request_webdriver_bidi_blocks_ends_once_a_command_resumes_it)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked) };
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/blocked"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    run_until_blocked(harness, blocked);
+    harness.settle();
+
+    // The blocked fetch has started no request, and is rooted while it waits.
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1" }));
+    EXPECT(request_server.messages().is_empty());
+    EXPECT(is_rooted(controller->token()));
+
+    JsonObject params;
+    params.set("request"sv, blocked->request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+    });
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200);
+    harness.run_until_responses(record, 1);
+    request_server.send_finished(request_id);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1" }));
+    EXPECT(!is_rooted(controller->token()));
+}
+
+TEST_CASE(a_fetch_whose_request_webdriver_bidi_blocks_ends_once_aborted)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked) };
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/blocked"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    run_until_blocked(harness, blocked);
+    EXPECT(is_rooted(controller->token()));
+
+    // The fetch hands its network error over without sending its request.
+    harness.with_execution_context([&] { controller->abort(*harness.realm, {}); });
+    harness.run_until_responses(record, 1);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    EXPECT(record->responses[0]->is_aborted_network_error());
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
+    EXPECT(request_server.messages().is_empty());
+    EXPECT(!is_rooted(controller->token()));
+}
+
+static JS::Value run_script(FetchHarness const& harness, StringView source)
+{
+    auto source_text = Utf16String::from_utf8_without_validation(source.bytes());
+    auto script = JS::Script::parse(source_text.utf16_view(), *harness.realm);
+    VERIFY(!script.is_error());
+    auto result = harness.realm->vm().run(script.value());
+    if (result.is_throw_completion()) {
+        FAIL("the script threw");
+        return JS::js_undefined();
+    }
+    return result.release_value();
+}
+
+// A sync XHR runs no task while it waits for its response, so the tasks of a fetch that ends meanwhile wait too.
+TEST_CASE(a_fetch_that_ends_while_a_sync_xhr_waits_ends_once_and_runs_its_algorithms_afterwards)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto input = recording_responses(heap, record);
+    input.process_response_end_of_body = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView>) {
+        record->calls.append("process response end of body"sv);
+    });
+    auto request = harness.create_request_for("http://127.0.0.1:8000/ends-during-sync-xhr"sv);
+    auto token = harness.fetch(request, move(input))->token();
+    auto request_id = request_server.wait_for_request("GET"sv);
+
+    // Once the XHR's request has started, the fetch's response arrives whole. Once the fetch has ended, the heap
+    // collects its garbage and the XHR's response arrives. Ten seconds after the XHR starts, each arrives regardless.
+    struct {
+        bool answered_fetch { false };
+        bool answered_xhr { false };
+        bool fetch_ended { false };
+        bool rooted_at_end { true };
+        size_t algorithm_calls_at_end { 0 };
+        size_t ticks { 0 };
+    } seen;
+    auto timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [&] {
+        if (seen.answered_xhr)
+            return;
+        auto out_of_time = ++seen.ticks >= 10'000;
+        if (!seen.answered_fetch) {
+            if (!request_server.messages().contains_slow("start 1 GET /sync-xhr"sv) && !out_of_time)
+                return;
+            seen.answered_fetch = true;
+            request_server.send_headers(request_id, 200);
+            request_server.send_finished(request_id);
+            return;
+        }
+        if (commands->steps.contains_slow("end of fetch 1"sv)) {
+            seen.fetch_ended = true;
+            seen.rooted_at_end = is_rooted(token);
+            seen.algorithm_calls_at_end = record->responses.size() + record->calls.size();
+            heap.collect_garbage_and_return_memory_to_system();
+        } else if (!out_of_time) {
+            return;
+        }
+        seen.answered_xhr = true;
+        request_server.send_headers(1, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+        request_server.send_finished(1);
+    });
+    timer->start();
+    auto status = run_script(harness, "const xhr = new XMLHttpRequest(); xhr.open('GET', 'http://127.0.0.1:8000/sync-xhr', false); xhr.send(); xhr.status;"sv);
+    timer->stop();
+
+    // The fetch ended inside the XHR's nested event loop, before any of its algorithms ran.
+    EXPECT(status.is_number() && status.as_double() == 200);
+    EXPECT(seen.fetch_ended);
+    EXPECT(!seen.rooted_at_end);
+    EXPECT_EQ(seen.algorithm_calls_at_end, 0u);
+
+    // Its algorithms run once the event loop runs tasks again.
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return !record->calls.is_empty(); }));
+    harness.settle();
+    EXPECT_EQ(record->responses.size(), 1u);
+    EXPECT_EQ(record->calls, (Vector<StringView> { "process response end of body"sv }));
+    size_t end_count = 0;
+    for (auto const& step : commands->steps)
+        end_count += step == "end of fetch 1"sv;
+    EXPECT_EQ(end_count, 1u);
+    EXPECT(!is_rooted(token));
 }
 
 namespace {
@@ -1882,6 +2428,7 @@ TEST_CASE(a_fetch_without_a_request_server_request_stopped_before_its_response_e
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "stop 1", "end of fetch 1" }));
     EXPECT(controller->control_block().agent_timing_info());
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(controller->token()));
 }
 
 // The tasks of the document no longer run once its navigable is destroyed, so they stay queued until it is destroyed too.
@@ -1908,7 +2455,7 @@ TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_its_body_en
 
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/destroyed-mid-read"sv);
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record), document);
+    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
     auto request_id = request_server.wait_for_request("GET"sv);
     hold_the_tasks_of(*document);
     auto task_count = queued_task_count();
@@ -1924,6 +2471,7 @@ TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_its_body_en
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1", "stop 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /destroyed-mid-read" }));
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(token));
 }
 
 // A body that is already in memory is read without a pull task, and the read's end is the task the document holds.
@@ -1939,7 +2487,7 @@ TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_a_body_in_m
     auto request = create_request_checked_for_integrity(harness, "data:,"sv);
     hold_the_tasks_of(*document);
     auto task_count = queued_task_count();
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record), document);
+    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
     harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(task_count), [](auto& task_count) { return queued_task_count() > task_count; }));
 
     harness.with_execution_context([&] { document->destroy(); });
@@ -1948,6 +2496,7 @@ TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_a_body_in_m
 
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1", "stop 1" }));
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(token));
 }
 
 // The abort stops the request while main fetch reads the body to check its integrity, so the read never ends.
@@ -1988,6 +2537,7 @@ TEST_CASE(a_fetch_aborted_while_main_fetch_reads_its_body_ends_without_a_handove
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /aborted-mid-read", "stop 0" }));
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(controller->token()));
 
     // The held task goes with the document.
     harness.with_execution_context([&] { document->destroy(); });
@@ -2016,7 +2566,7 @@ TEST_CASE(a_keepalive_fetch_whose_document_is_destroyed_while_main_fetch_reads_i
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/keepalive-mid-read"sv);
     request->set_keepalive(true);
-    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record), document);
+    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
     auto request_id = request_server.wait_for_request("GET"sv);
     hold_the_tasks_of(*document);
     auto task_count = queued_task_count();
@@ -2032,6 +2582,7 @@ TEST_CASE(a_keepalive_fetch_whose_document_is_destroyed_while_main_fetch_reads_i
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /keepalive-mid-read", "stop 0" }));
     EXPECT(record->responses.is_empty());
+    EXPECT(!is_rooted(token));
 }
 
 // A request with a transfer lease runs the callbacks for what arrives with its finish, after its load has ended.
@@ -2047,7 +2598,7 @@ TEST_CASE(what_a_leased_request_delivers_after_its_load_has_ended_reaches_no_fet
     auto request = harness.create_navigation_request_for("http://127.0.0.1:8000/leased"sv);
     request->set_method("POST");
     request->set_body(MUST(ByteBuffer::copy("hello"sv.bytes())));
-    (void)harness.fetch_as_a_navigation(request, recording_responses(harness.realm->heap(), record));
+    auto token = harness.fetch_as_a_navigation(request, recording_responses(harness.realm->heap(), record))->token();
     auto request_id = request_server.wait_for_request("POST"sv);
     request_server.send_headers(request_id, 200);
     harness.run_until_responses(record, 1);
@@ -2058,6 +2609,7 @@ TEST_CASE(what_a_leased_request_delivers_after_its_load_has_ended_reaches_no_fet
     harness.settle();
 
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1" }));
+    EXPECT(!is_rooted(token));
 }
 
 TEST_CASE(algorithms_that_consume_a_body_need_a_consuming_intent)

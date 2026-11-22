@@ -670,6 +670,15 @@ TEST_CASE(a_fetch_started_just_before_close_never_runs_its_in_parallel_steps)
         // Those steps keep the fetch's controller alive.
         EXPECT(has_queued_commands(*Web::HTML::surrounding_agent().fetch_executor, 1));
 
+        // So does the agent's registry, until the fetch ends, which it never does. The registry's roots go with the agent,
+        // before its heap.
+        {
+            auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
+            auto controllers = registry.controllers();
+            EXPECT_EQ(controllers.size(), 1u);
+            EXPECT(registry.roots(controllers.first()->token()));
+        }
+
         agent.shut_down();
 
         // Main fetch's in-parallel steps would make the response tainting of this no-cors request opaque.

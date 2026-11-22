@@ -60,7 +60,6 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_algorithms);
     visitor.visit(m_task_destination);
     visitor.visit(m_page);
-    visitor.visit(m_preflighted_fetch_controller);
     visitor.visit(m_pending_preloaded_response);
     visitor.visit(m_stop_steps);
     visitor.visit(m_pending_responses);
@@ -202,6 +201,10 @@ void FetchController::did_end_fetch()
 {
     m_fetch_ended = true;
     m_awaited_end_of_body.clear();
+
+    VERIFY(m_started_fetch.has_value());
+    if (auto* registry = m_registry.ptr())
+        registry->release_fetch(m_started_fetch->fetch_id);
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info
@@ -266,6 +269,12 @@ Optional<Engine::FetchId> FetchController::started_fetch_id() const
     if (!m_started_fetch.has_value())
         return {};
     return m_started_fetch->fetch_id;
+}
+
+Engine::FetchExecutor& FetchController::started_fetch_executor() const
+{
+    VERIFY(m_started_fetch.has_value());
+    return *m_started_fetch->fetch_executor;
 }
 
 void FetchController::stop_fetch()
