@@ -1,38 +1,60 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/ContentSecurityPolicy/SecurityPolicyViolationEvent.h>
 
 namespace Web::ContentSecurityPolicy {
 
-GC_DEFINE_ALLOCATOR(SecurityPolicyViolationEvent);
+// Matches the Rust FfiSecurityPolicyViolationEventInit.
+struct FfiSecurityPolicyViolationEventInit {
+    bool bubbles;
+    bool cancelable;
+    bool composed;
+    FlatPtr document_uri;
+    FlatPtr referrer;
+    FlatPtr blocked_uri;
+    FlatPtr violated_directive;
+    FlatPtr effective_directive;
+    FlatPtr original_policy;
+    FlatPtr source_file;
+    FlatPtr sample;
+    Bindings::SecurityPolicyViolationEventDisposition disposition;
+    u16 status_code;
+    u32 line_number;
+    u32 column_number;
+};
 
-GC::Ref<SecurityPolicyViolationEvent> SecurityPolicyViolationEvent::create(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<SecurityPolicyViolationEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/content_security_policy/security_policy_violation_event.rs.
+DOM::Event* web_rust_security_policy_violation_event_create(JSVM*, void* realm, FlatPtr event_name, FfiSecurityPolicyViolationEventInit const*);
 }
 
-SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : Event(FlyString { event_name.view().to_utf8_but_should_be_ported_to_utf16() }, event_init, time_stamp)
-    , m_document_uri(event_init.document_uri)
-    , m_referrer(event_init.referrer)
-    , m_blocked_uri(event_init.blocked_uri)
-    , m_violated_directive(event_init.violated_directive)
-    , m_effective_directive(event_init.effective_directive)
-    , m_original_policy(event_init.original_policy)
-    , m_source_file(event_init.source_file)
-    , m_sample(event_init.sample)
-    , m_disposition(event_init.disposition)
-    , m_status_code(event_init.status_code)
-    , m_line_number(event_init.line_number)
-    , m_column_number(event_init.column_number)
+GC::Ref<DOM::Event> create_security_policy_violation_event(JS::Realm& realm, Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init)
 {
+    FfiSecurityPolicyViolationEventInit ffi_event_init {
+        .bubbles = event_init.bubbles,
+        .cancelable = event_init.cancelable,
+        .composed = event_init.composed,
+        .document_uri = event_init.document_uri.raw_identity(),
+        .referrer = event_init.referrer.raw_identity(),
+        .blocked_uri = event_init.blocked_uri.raw_identity(),
+        .violated_directive = event_init.violated_directive.raw_identity(),
+        .effective_directive = event_init.effective_directive.raw_identity(),
+        .original_policy = event_init.original_policy.raw_identity(),
+        .source_file = event_init.source_file.raw_identity(),
+        .sample = event_init.sample.raw_identity(),
+        .disposition = event_init.disposition,
+        .status_code = event_init.status_code,
+        .line_number = event_init.line_number,
+        .column_number = event_init.column_number,
+    };
+    return *web_rust_security_policy_violation_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, event_name.raw_identity(), &ffi_event_init);
 }
-
-SecurityPolicyViolationEvent::~SecurityPolicyViolationEvent() = default;
 
 }

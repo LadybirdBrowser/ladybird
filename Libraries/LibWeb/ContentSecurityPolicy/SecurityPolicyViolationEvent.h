@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,53 +9,29 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
-#include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
+#include <LibWebCommon/Bindings/SecurityPolicyViolationEvent.h>
 
 namespace Web::ContentSecurityPolicy {
 
-using SecurityPolicyViolationEventInit = Bindings::SecurityPolicyViolationEventInit;
-
-class SecurityPolicyViolationEvent final : public DOM::Event {
-    WEB_WRAPPABLE(SecurityPolicyViolationEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(SecurityPolicyViolationEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
-
-    virtual ~SecurityPolicyViolationEvent() override;
-
-    Utf16String const& document_uri() const { return m_document_uri; }
-    Utf16String const& referrer() const { return m_referrer; }
-    Utf16String const& blocked_uri() const { return m_blocked_uri; }
-    Utf16String const& violated_directive() const { return m_violated_directive; }
-    Utf16String const& effective_directive() const { return m_effective_directive; }
-    Utf16String const& original_policy() const { return m_original_policy; }
-    Utf16String const& source_file() const { return m_source_file; }
-    Utf16String const& sample() const { return m_sample; }
-    Bindings::SecurityPolicyViolationEventDisposition disposition() const { return m_disposition; }
-    u16 status_code() const { return m_status_code; }
-    u32 line_number() const { return m_line_number; }
-    u32 column_number() const { return m_column_number; }
-
-private:
-    SecurityPolicyViolationEvent(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    Utf16String m_document_uri;
-    Utf16String m_referrer;
-    Utf16String m_blocked_uri;
-    Utf16String m_violated_directive;
-    Utf16String m_effective_directive;
-    Utf16String m_original_policy;
-    Utf16String m_source_file;
-    Utf16String m_sample;
-    Bindings::SecurityPolicyViolationEventDisposition m_disposition { Bindings::SecurityPolicyViolationEventDisposition::Enforce };
-    u16 m_status_code { 0 };
-    u32 m_line_number { 0 };
-    u32 m_column_number { 0 };
+struct SecurityPolicyViolationEventInit : public DOM::EventInit {
+    Utf16String document_uri;
+    Utf16String referrer;
+    Utf16String blocked_uri;
+    Utf16String violated_directive;
+    Utf16String effective_directive;
+    Utf16String original_policy;
+    Utf16String source_file;
+    Utf16String sample;
+    Bindings::SecurityPolicyViolationEventDisposition disposition { Bindings::SecurityPolicyViolationEventDisposition::Enforce };
+    u16 status_code { 0 };
+    u32 line_number { 0 };
+    u32 column_number { 0 };
 };
+
+GC::Ref<DOM::Event> create_security_policy_violation_event(JS::Realm&, Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const&);
 
 }
