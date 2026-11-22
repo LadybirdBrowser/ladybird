@@ -634,6 +634,20 @@ JoiningType joining_type(u32 code_point)
     }
 }
 
+VerticalOrientation vertical_orientation(u32 code_point)
+{
+    switch (u_getIntPropertyValue(static_cast<UChar32>(code_point), UCHAR_VERTICAL_ORIENTATION)) {
+    case U_VO_TRANSFORMED_ROTATED:
+        return VerticalOrientation::TransformedRotated;
+    case U_VO_TRANSFORMED_UPRIGHT:
+        return VerticalOrientation::TransformedUpright;
+    case U_VO_UPRIGHT:
+        return VerticalOrientation::Upright;
+    default:
+        return VerticalOrientation::Rotated;
+    }
+}
+
 // 22.2.2.7.3 Canonicalize ( rer, ch ), https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
 u32 canonicalize(u32 code_point, bool unicode_mode)
 {
@@ -862,6 +876,7 @@ u8 unicode_layout_bidirectional_class(u32);
 u8 unicode_layout_line_break_class(u32);
 u8 unicode_layout_joining_type(u32);
 bool unicode_layout_code_point_has_emoji_property(u32);
+u8 unicode_layout_vertical_orientation(u32);
 }
 
 extern "C" bool unicode_property_matches(
@@ -1075,4 +1090,9 @@ extern "C" u8 unicode_layout_joining_type(u32 code_point)
 extern "C" bool unicode_layout_code_point_has_emoji_property(u32 code_point)
 {
     return Unicode::code_point_has_emoji_property(code_point);
+}
+
+extern "C" u8 unicode_layout_vertical_orientation(u32 code_point)
+{
+    return to_underlying(Unicode::vertical_orientation(code_point));
 }

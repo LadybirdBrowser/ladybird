@@ -161,6 +161,7 @@ unsafe extern "C" {
         letter_spacing: f32,
         word_spacing: f32,
         joining_context: JoiningContext,
+        vertical_forms: bool,
         sink: *mut c_void,
         emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, f32, bool),
     );
@@ -713,6 +714,8 @@ struct ShapeParams {
     letter_spacing: f32,
     word_spacing: f32,
     joining_context: JoiningContext,
+    /// Whether the glyphs are set upright in vertical text, which takes the vertical forms the font has for them.
+    vertical_forms: bool,
 }
 
 impl ShapeParams {
@@ -723,6 +726,7 @@ impl ShapeParams {
             && self.letter_spacing.to_bits() == other.letter_spacing.to_bits()
             && self.word_spacing.to_bits() == other.word_spacing.to_bits()
             && self.joining_context == other.joining_context
+            && self.vertical_forms == other.vertical_forms
     }
 }
 
@@ -877,6 +881,7 @@ impl FontShapeCache {
             && params.letter_spacing == 0.0
             && params.word_spacing == 0.0
             && params.joining_context == JoiningContext::default()
+            && !params.vertical_forms
         {
             return self.single_ascii_common_shapes[code_unit as usize]
                 .get_or_insert_with(|| Arc::new(shape_uncached()));
@@ -1073,6 +1078,7 @@ fn shape_text_uncached(font: &FontHandle, text: &[u16], params: ShapeParams) -> 
             params.letter_spacing,
             params.word_spacing,
             params.joining_context,
+            params.vertical_forms,
             (&raw mut shape).cast(),
             emit,
         );
@@ -1112,12 +1118,14 @@ pub fn shape_text_shared(
     letter_spacing: f32,
     word_spacing: f32,
     joining_context: JoiningContext,
+    vertical_forms: bool,
 ) -> SharedShape {
     let params = ShapeParams {
         text_type,
         letter_spacing,
         word_spacing,
         joining_context,
+        vertical_forms,
     };
     with_cached_shape(font, text, params, |shape| SharedShape(shape.clone()))
 }
@@ -1129,12 +1137,14 @@ pub fn shaped_text_width(
     letter_spacing: f32,
     word_spacing: f32,
     joining_context: JoiningContext,
+    vertical_forms: bool,
 ) -> f32 {
     let params = ShapeParams {
         text_type,
         letter_spacing,
         word_spacing,
         joining_context,
+        vertical_forms,
     };
     with_cached_shape(font, text, params, |shape| shape.width)
 }
@@ -1152,6 +1162,7 @@ pub fn shape_text(
         letter_spacing,
         word_spacing,
         joining_context: JoiningContext::default(),
+        vertical_forms: false,
     };
     with_cached_shape(font, text, params, |shape| {
         shaped_text_with_baseline_start(shape, baseline_start_x)
@@ -1433,6 +1444,7 @@ mod shaping_cache_tests {
             letter_spacing,
             word_spacing: 0.0,
             joining_context: JoiningContext::default(),
+            vertical_forms: false,
         }
     }
 

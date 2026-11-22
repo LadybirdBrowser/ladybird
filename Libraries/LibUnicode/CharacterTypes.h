@@ -115,6 +115,15 @@ enum class JoiningType {
 
 JoiningType joining_type(u32 code_point);
 
+// https://www.unicode.org/reports/tr50/#vo
+enum class VerticalOrientation : u8 {
+    Rotated,
+    TransformedRotated,
+    TransformedUpright,
+    Upright,
+};
+VerticalOrientation vertical_orientation(u32 code_point);
+
 struct CodePointRange {
     u32 from { 0 };
     u32 to { 0 };

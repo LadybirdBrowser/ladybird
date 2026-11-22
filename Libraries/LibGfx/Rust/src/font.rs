@@ -226,6 +226,7 @@ impl FontHandle {
             0.0,
             0.0,
             crate::text_layout::JoiningContext::default(),
+            false,
         )
     }
 

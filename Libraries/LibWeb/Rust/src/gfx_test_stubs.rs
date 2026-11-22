@@ -121,6 +121,7 @@ extern "C" fn ladybird_gfx_shape_text_uncached(
     _letter_spacing: f32,
     _word_spacing: f32,
     _joining_context: JoiningContext,
+    _vertical_forms: bool,
     _sink: *mut c_void,
     _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, f32, bool),
 ) {
