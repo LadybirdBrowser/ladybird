@@ -1,0 +1,6 @@
+add: SyntaxError
+contains a: false
+class: b
+remove: InvalidCharacterError
+contains a: true
+class: a b c
