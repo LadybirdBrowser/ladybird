@@ -1764,7 +1764,7 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
 }
 
 // After Ladybird quit unexpectedly, a card over the top of the page offers to restore the tabs that were open.
-void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& window)
+void Application::offer_to_restore_unexpectedly_closed_tabs()
 {
     auto& store = session_store(WebView::IsPrivate::No);
     if (store.consecutive_unclean_exits() == 0)
@@ -1778,7 +1778,11 @@ void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& windo
         unit_ids.append(unit.id);
         tab_count += unit.tab_count;
     }
-    if (unit_ids.is_empty() || !window.current_tab())
+    if (unit_ids.is_empty())
+        return;
+
+    auto& window = active_window();
+    if (!window.current_tab())
         return;
 
     auto restore_tabs = [window = QPointer<BrowserWindow>(&window), unit_ids = AK::move(unit_ids)] {

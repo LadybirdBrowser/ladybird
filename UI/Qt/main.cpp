@@ -128,11 +128,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             auto restored_everything = app->launch_restore_policy() == Ladybird::SessionLaunchPolicy::Everything;
             if (!follows_restart && (!restored_everything || !browser_options.raw_urls.is_empty()))
                 app->open_startup_tabs(*restored_window, browser_options.urls);
-            app->offer_to_restore_unexpectedly_closed_tabs(*restored_window);
+            app->offer_to_restore_unexpectedly_closed_tabs();
         } else {
             auto& window = app->new_window(browser_options.urls, configuration);
             window.setWindowTitle(BROWSER_PRODUCT_NAME);
-            app->offer_to_restore_unexpectedly_closed_tabs(window);
+            app->offer_to_restore_unexpectedly_closed_tabs();
         }
     }
 
