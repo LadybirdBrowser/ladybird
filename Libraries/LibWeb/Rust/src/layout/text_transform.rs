@@ -287,14 +287,16 @@ pub(super) fn render_text(
         map_code_points(&source, |_| 0x2022)
     } else {
         match options.text_transform {
-            text_transform::NONE | text_transform::FULL_SIZE_KANA => {
+            // https://w3c.github.io/mathml-core/#math-auto-transform
+            // Every character with a mathematical italic mapping occupies one UTF-16 code unit.
+            text_transform::MATH_AUTO if source.len() == 1 => map_code_points(&source, math_auto),
+            text_transform::NONE | text_transform::FULL_SIZE_KANA | text_transform::MATH_AUTO => {
                 // FIXME: Implement full-size-kana.
                 TransformedText {
                     text: source,
                     edits: Vec::new(),
                 }
             }
-            text_transform::MATH_AUTO => map_code_points(&source, math_auto),
             text_transform::LOWERCASE | text_transform::UPPERCASE
                 if locale.is_none() && source.iter().all(|unit| *unit <= 0x7f) =>
             {

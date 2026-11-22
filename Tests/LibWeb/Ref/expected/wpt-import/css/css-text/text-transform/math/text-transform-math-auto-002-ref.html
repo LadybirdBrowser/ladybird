@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>text-transform math-auto (reference)</title>
+<style>
+  @font-face {
+    font-family: TestFont;
+    src: url("../../../../fonts/math/mathvariant-italic.woff");
+  }
+  body > div {
+    padding: 10px;
+  }
+  div > span {
+    font-family: monospace;
+    font-size: 16px;
+  }
+  .testfont {
+    font-family: TestFont;
+    font-size: 16px;
+  }
+</style>
+<body>
+  <p>Test passes if all the equalities below are true.</p>
+  <div>Single character: <span class="testfont">&#x1D715;</span>=<span>1D715</span></div>
+  <div>Two characters: <span class="testfont">&#x2202;&#x2207;</span>=<span>0220202207</span></div>
+  <div>Three characters: <span class="testfont">&#x2202;&#x2207;&#x237;</span>=<span>022020220700237</span></div>
+ </body>
+</html>
