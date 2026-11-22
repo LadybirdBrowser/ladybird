@@ -1431,7 +1431,9 @@ void Node::update_layout_tree_for_removal(Node& parent)
 }
 
 // The layout nodes a removal leaves for the parent's rebuild stop being the removed nodes' layout nodes once the style
-// engine retires their StyleNodeIDs, so anything the removal does to them has to happen before.
+// engine retires their StyleNodeIDs, so anything the removal does to them has to happen before. The detach pins the
+// style record of each box the rebuild still reads and frees the boxes of synthetic pseudo-elements, so a removal that
+// detaches has no style records left to pin itself.
 void Node::detach_remaining_layout_nodes_for_removal()
 {
     auto* arena = document().layout_node_arena_if_created();
@@ -1631,8 +1633,6 @@ void Node::remove(bool suppress_observers)
     auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*this, *parent);
     bool const holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*this);
 
-    if (was_tracked_by_style_engine)
-        pin_bound_box_style_records_for_detachment(*this);
     if (was_tracked_by_style_engine) {
         // Layout goes first, while the removed nodes still have the StyleNodeIDs the style engine retires.
         update_layout_tree_for_removal(*parent);
@@ -3026,8 +3026,6 @@ void Node::remove_all_children(bool suppress_observers)
         auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*child, *this);
         bool const child_holds_a_propagating_state_source = a_child_holds_a_propagating_state_source && CSS::Invalidation::holds_a_propagating_state_source(*child);
 
-        if (was_tracked_by_style_engine)
-            pin_bound_box_style_records_for_detachment(*child);
         if (was_tracked_by_style_engine) {
             child->update_layout_tree_for_removal(*this);
             child->detach_remaining_layout_nodes_for_removal();
