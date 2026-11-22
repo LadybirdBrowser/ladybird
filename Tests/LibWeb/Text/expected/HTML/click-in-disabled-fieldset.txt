@@ -1,0 +1,6 @@
+click() on #div: div, fieldset, parent
+click() on #span: span, fieldset, parent
+click() on #fieldset: fieldset, parent
+click() on #button: no click
+click() on #button-in-legend: button-in-legend, fieldset, parent
+click() on #disabled-button: no click

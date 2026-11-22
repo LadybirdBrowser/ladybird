@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="parent">
+    <fieldset disabled id="fieldset">
+        <legend><button id="button-in-legend">in the legend</button></legend>
+        <div id="div">div</div>
+        <button id="button">button</button>
+        <span id="span">span</span>
+    </fieldset>
+</div>
+<button id="disabled-button" disabled>disabled</button>
+<script>
+    // click() only does nothing on a form control that's disabled: An element that a disabled fieldset contains, but
+    // isn't a form control, still gets its click.
+    test(() => {
+        for (const id of ["div", "span", "fieldset", "button", "button-in-legend", "disabled-button"]) {
+            const clicked = [];
+            for (const element of document.querySelectorAll("[id]"))
+                element.onclick = () => clicked.push(element.id);
+            document.getElementById(id).click();
+            println(`click() on #${id}: ${clicked.length ? clicked.join(", ") : "no click"}`);
+        }
+    });
+</script>
