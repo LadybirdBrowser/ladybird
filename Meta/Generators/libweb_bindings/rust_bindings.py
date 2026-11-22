@@ -2049,6 +2049,9 @@ def write_rust_named_properties(
         )
         for hook, entry_point in named_property_setter_hooks_and_entry_points(interface, setter):
             method = setter.method if setter.operation.name else hook
+            call = f"Implementation::{method}(&implementation, &mut cx, name, idl_value)"
+            if "CEReactions" in setter.operation.extended_attributes:
+                call = with_ce_reactions(call)
             out.write(
                 f"""
     /// Sets the named property of the wrapper, https://webidl.spec.whatwg.org/#invoke-named-setter
@@ -2075,7 +2078,7 @@ def write_rust_named_properties(
         let mut cx = CallContext::new(vm, realm);
         let steps = || -> ThrowCompletionOr<Value> {{
             let idl_value = {value_conversion}?;
-            Implementation::{method}(&implementation, &mut cx, name, idl_value)
+            {call}
                 .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
             Ok(Value::UNDEFINED)
         }};
@@ -2085,6 +2088,9 @@ def write_rust_named_properties(
             )
     if named_properties.deleter is not None:
         deleter = named_properties.deleter
+        call = f"Implementation::{deleter.method}(&implementation, &mut cx, name)"
+        if "CEReactions" in deleter.operation.extended_attributes:
+            call = with_ce_reactions(call)
         out.write(
             f"""
     /// Deletes the named property of the wrapper, https://webidl.spec.whatwg.org/#legacy-platform-object-delete
@@ -2106,7 +2112,7 @@ def write_rust_named_properties(
         let name = Utf16String::from(unsafe {{ Utf16FlyString::from_raw_borrowed(name) }});
         let implementation = implementation_of::<Implementation>(wrapper);
         let mut cx = CallContext::new(vm, realm);
-        let result = Implementation::{deleter.method}(&implementation, &mut cx, name)
+        let result = {call}
             .map(|()| Value::UNDEFINED)
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()));
         RawNativeFunctionResult::from_completion(result)

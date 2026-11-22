@@ -496,7 +496,6 @@ def rust_members(interface: Interface) -> RustMembers:
             special_operation.extended_attributes,
         )
         if not special_operation.name:
-            # FIXME: Apply [CEReactions] to a named property setter or deleter, which the C++ bindings do not either.
             supported = set() if kind == "getter" else {"CEReactions"}
             check_extended_attributes(f"its named property {kind}", special_operation.extended_attributes, supported)
             return RustOperation(operation, anonymous_method)
