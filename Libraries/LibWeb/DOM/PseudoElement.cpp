@@ -91,7 +91,7 @@ void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& re
     // The pseudo-element holds the record it installed before until the engine takes the new one in, so the layout node
     // reads what it moves from before the pseudo-element lets go of it.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(m_installed_style.record());
+        layout_node->set_style_record_identity(m_installed_style);
     if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0)
         CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), {}, style_record_identity.value(), held_before.record_pointer());
 }
@@ -106,7 +106,7 @@ void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read,
         return;
     m_installed_style = move(style);
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(style_record);
+        layout_node->set_style_record_identity(m_installed_style);
 }
 
 void SyntheticPseudoElement::set_computed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)

@@ -398,11 +398,13 @@ bool style_record_installed_by_render_state(NodeWithStyle const& node, CSS::Styl
 // build would otherwise lay out a box of one kind by the style of another. The element holds the new record from now
 // on, so the box pins the one it keeps until the build replaces it. A record the render side installed in the box
 // already passed its own check.
-bool NodeWithStyle::keeps_style_until_rebuilt(CSS::StyleRecordID style_record_identity)
+bool NodeWithStyle::keeps_style_until_rebuilt(CSS::StyleRecordID style_record_identity, CSS::InstalledStyle const* known_style)
 {
     if (!m_style_record || m_has_layout_derived_style || style_record_installed_by_render_state(*this, style_record_identity))
         return false;
-    auto const style = document().style_computer().install_style(held_read(), style_record_identity);
+    // OPTIMIZATION: A caller that holds the style of the record hands it over, sparing a round trip to the engine for
+    //               each element whose style changes, as each animated element's does in each frame.
+    auto const style = known_style ? *known_style : document().style_computer().install_style(held_read(), style_record_identity);
     if (!style || RustFFI::layout_box_can_show_style(kind(), m_style_record, style.groups()))
         return false;
     pin_style_record_for_cxx_consumers();
@@ -574,8 +576,9 @@ static bool uses_button_layout(Node const& node)
     return html_element && html_element->uses_button_layout();
 }
 
-void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
+void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& style)
 {
+    auto const style_record_identity = style.record();
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
     if (m_has_layout_derived_style)
@@ -585,7 +588,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
     }
 
-    if (keeps_style_until_rebuilt(style_record_identity))
+    if (keeps_style_until_rebuilt(style_record_identity, &style))
         return;
 
     bool should_repin_style_record = m_style_record_pinned_for_cxx_consumers;
@@ -595,9 +598,9 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     if (style_record_installed_by_render_state(*this, style_record_identity))
-        adopt_style_record_installed_by_render_state();
+        adopt_style_record_installed_by_render_state(&style);
     else
-        publish_style_record_to_node_data();
+        publish_style_record_to_node_data(&style);
     release_pinned_style_record();
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
@@ -636,14 +639,14 @@ static Node const* scroll_snap_container_of(NodeWithStyle const& node)
     return &node;
 }
 
-void NodeWithStyle::publish_style_record_to_node_data()
+void NodeWithStyle::publish_style_record_to_node_data(CSS::InstalledStyle const* known_style)
 {
     // A row the render side styled is never published with another record behind its back.
     if constexpr (LIBWEB_CHECK_RENDER_STATE_INSTALLS) {
         auto const installed = RustFFI::render_state_installed_style_record(document_host(), slot_id(this));
         VERIFY(installed == 0 || installed == m_style_record_identity.value());
     }
-    auto const style = document().style_computer().install_style(held_read(), m_style_record_identity);
+    auto const style = known_style ? *known_style : document().style_computer().install_style(held_read(), m_style_record_identity);
     VERIFY(style);
     m_style_record = style.groups();
     RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), style.groups());
@@ -651,9 +654,9 @@ void NodeWithStyle::publish_style_record_to_node_data()
     did_update_style_record();
 }
 
-void NodeWithStyle::adopt_style_record_installed_by_render_state()
+void NodeWithStyle::adopt_style_record_installed_by_render_state(CSS::InstalledStyle const* known_style)
 {
-    auto const style = document().style_computer().install_style(held_read(), m_style_record_identity);
+    auto const style = known_style ? *known_style : document().style_computer().install_style(held_read(), m_style_record_identity);
     VERIFY(style);
     m_style_record = style.groups();
     m_has_layout_derived_style = false;
