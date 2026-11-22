@@ -1,0 +1,12 @@
+Ladybird maps valign on thead, tbody and tfoot to vertical-align now,
+by parsing the attribute as a vertical-align value, as it already
+did for tr, td and th. Blink does the same for all six elements in
+HTMLTablePartElement::CollectStyleForPresentationAttribute(), and WebKit
+in HTMLTablePartElement::collectPresentationalHintsForAttribute():
+Both of them map the values top, middle, bottom and baseline to those
+keywords, and take any other value as a vertical-align value. Gecko
+parses valign with ParseTableVAlignValue() into one of those four
+keywords only, in HTMLTableSectionElement::ParseAttribute(), and
+maps it in nsGenericHTMLElement::MapTableVAlignAttributeInto(). So a
+value such as sub or 10px applies in Ladybird, Chrome 158 and WebKit
+26.5, and not in Firefox 151.
