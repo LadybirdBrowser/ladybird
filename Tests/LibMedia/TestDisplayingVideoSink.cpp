@@ -882,6 +882,39 @@ TEST_CASE(sink_reports_changes_to_its_freshness)
     EXPECT_EQ(changes, 3u);
 }
 
+// A blocked catch-up isn't counted as catching up, so an input that suspends during it changes the sink's freshness.
+TEST_CASE(sink_reports_its_freshness_when_its_input_suspends_during_a_blocked_catch_up)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    size_t changes = 0;
+    sink->set_on_freshness_changed([&] { changes++; });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(false);
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    clock->seek(AK::Duration::from_milliseconds(2000));
+    sink->catch_up_to_clock();
+    producer->consume();
+    producer->append_output(nullptr, Media::PipelineStatus::Blocked);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(!sink->is_catching_up());
+
+    auto changes_before_suspending = changes;
+    producer->consume();
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(sink->is_catching_up());
+    EXPECT_EQ(changes, changes_before_suspending + 1);
+}
+
 TEST_CASE(sink_reconnected_to_a_new_input_takes_its_frames)
 {
     auto& loop = never_destroyed_event_loop();
@@ -973,4 +1006,31 @@ TEST_CASE(catch_up_that_waits_for_data_leaves_the_frame_up_to_date)
     EXPECT(!sink->is_catching_up());
     EXPECT(sink->frame_is_up_to_date());
     EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::zero());
+}
+
+// A sink that stops ticking dispatches its input's statuses directly, which can overtake a status that an earlier update
+// left to be dispatched later. The later one must not report the earlier checkpoint after the newer one.
+TEST_CASE(deferred_status_does_not_report_an_older_checkpoint)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineCheckpoint> dispatched_checkpoints;
+    sink->set_state_change_handler([&](Media::PipelineStatus, Media::PipelineCheckpoint checkpoint) { dispatched_checkpoints.append(checkpoint); });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    dispatched_checkpoints.clear();
+
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended, 1);
+    (void)sink->update(MonotonicTime::now());
+
+    sink->set_ticking(false);
+    producer->consume();
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended, 2);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(dispatched_checkpoints, Vector<Media::PipelineCheckpoint> { 2 });
 }

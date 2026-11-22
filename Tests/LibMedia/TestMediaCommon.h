@@ -158,10 +158,10 @@ public:
         append_output(move(frame), Media::PipelineStatus::HaveData);
     }
 
-    void append_output(RefPtr<Media::VideoFrame> frame, Media::PipelineStatus status)
+    void append_output(RefPtr<Media::VideoFrame> frame, Media::PipelineStatus status, Media::PipelineCheckpoint checkpoint = 0)
     {
         MutexLocker locker { m_mutex };
-        m_outputs.append({ move(frame), status });
+        m_outputs.append({ move(frame), status, checkpoint });
     }
 
     void wake()
