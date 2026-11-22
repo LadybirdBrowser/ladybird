@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #parent { width: 400px; }
+    button { border: 0; padding: 0; aspect-ratio: 1; }
+    span { display: inline-block; width: 24px; height: 24px; }
+</style>
+<div id="parent"><button id="target"><span></span></button></div>
+<script>
+    test(() => {
+        for (const display of ["block", "flex", "grid"]) {
+            target.style.display = display;
+            println(target.offsetWidth);
+        }
+        target.style.width = "48px";
+        println(target.offsetWidth);
+        target.style.width = "auto";
+        target.style.height = "48px";
+        println(target.offsetWidth);
+        target.style.height = "auto";
+        target.style.writingMode = "vertical-rl";
+        println(target.offsetWidth);
+    });
+</script>
