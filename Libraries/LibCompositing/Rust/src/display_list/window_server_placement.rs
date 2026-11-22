@@ -6,7 +6,7 @@
 
 //! Where the window server can show by itself a canvas or a video that is a layer of its own. The window server places
 //! an image with a 2D affine transform and clips it to rectangles, one of which can have rounded corners of a single
-//! radius. A media layer drawn under any other clip has to be replayed instead.
+//! radius, and to one path. A media layer drawn under any other clip has to be replayed instead.
 //!
 //! Also how the window server composites by itself an effect around the layers of what the effect holds: within
 //! rectangles, rounded or not, at an opacity, or over what it shows below the effect's box run through a blur and
@@ -19,26 +19,55 @@ use crate::display_list::commands::{
 };
 use crate::display_list::replay::backdrop_is_drawn_by_masks;
 use crate::display_list::tape::{DisplayListCommandHeader, DisplayListCommandRun, InlineClipKind};
-use crate::visual_context::{ClipNodeData, EffectNodeData, VisualContextTree, WorldTransforms};
+use crate::visual_context::{ClipNodeData, ClipPathData, EffectNodeData, VisualContextTree, WorldTransforms};
 use libgfx_rust::filter::Filter;
+use libgfx_rust::path::Path;
 use libgfx_rust::{
-    AffineTransform, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatRect, IntRect,
-    ScalingMode, multiply_affine,
+    AffineTransform, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4,
+    FloatRect, IntRect, ScalingMode, WindingRule, multiply_affine,
 };
+use std::sync::Arc;
 
 const UNIFORM_SCALE_TOLERANCE: f32 = 0.0001;
 
 const RADIUS_TOLERANCE_IN_DEVICE_PIXELS: f32 = 0.01;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct WindowServerPlacement {
     /// Where the record draws its content, in the record's own space.
     pub content_rect: IntRect,
     pub content_to_viewport: AffineTransform,
-    /// The intersection of every clip the record is drawn under, rounded or not, in viewport pixels.
+    /// The intersection of every clip the record is drawn under, rounded or not, and of the bounds of the path it is
+    /// clipped by, in viewport pixels.
     pub clip_rect: FloatRect,
     pub rounded_clip: Option<RoundedClip>,
+    pub path_clip: Option<PathClip>,
     pub scaling_mode: ScalingMode,
+}
+
+/// A path the record is clipped by, which stays in the space of its clip node.
+#[derive(Clone, Debug)]
+pub struct PathClip {
+    pub path: Arc<Path>,
+    /// The bounds of the path, in its own space.
+    pub bounding_rect: IntRect,
+    pub path_to_viewport: AffineTransform,
+    pub fill_rule: WindingRule,
+}
+
+impl PartialEq for PathClip {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.identity() == other.path.identity()
+            && self.bounding_rect == other.bounding_rect
+            && self.path_to_viewport == other.path_to_viewport
+            && self.fill_rule == other.fill_rule
+    }
+}
+
+impl PathClip {
+    pub fn bounds_in_viewport(&self) -> FloatRect {
+        self.path_to_viewport.map_rect(self.bounding_rect.to_float())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -65,6 +94,7 @@ impl RoundedCorners {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WhyWindowServerCannotShowMedia {
     ClippedByPath,
+    ClippedByMoreThanOnePath,
     ClippedByExcludingClip,
     ClippedInRotatedOrSkewedSpace,
     ClippedInSpaceTreeDoesNotHave,
@@ -76,6 +106,7 @@ impl std::fmt::Display for WhyWindowServerCannotShowMedia {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             WhyWindowServerCannotShowMedia::ClippedByPath => "clipped by a path",
+            WhyWindowServerCannotShowMedia::ClippedByMoreThanOnePath => "clipped by more than one path",
             WhyWindowServerCannotShowMedia::ClippedByExcludingClip => "clipped by an excluding clip",
             WhyWindowServerCannotShowMedia::ClippedInRotatedOrSkewedSpace => "clipped in a rotated or skewed space",
             WhyWindowServerCannotShowMedia::ClippedInSpaceTreeDoesNotHave => {
@@ -94,26 +125,32 @@ impl std::fmt::Display for WindowServerPlacement {
             write!(formatter, "transform=[{a},{b},{c},{d},{e},{f}] ")?;
         }
         write_float_rect(formatter, "clip", self.clip_rect)?;
-        let Some(rounded_clip) = self.rounded_clip else {
-            return Ok(());
-        };
-        formatter.write_str(" ")?;
-        write_float_rect(formatter, "rounded", rounded_clip.rect)?;
-        write!(formatter, " radius={}", rounded_clip.radius)?;
-        let corners = rounded_clip.rounded_corners;
-        if !corners.are_all_rounded() {
-            let names = [
-                (corners.top_left, "top-left"),
-                (corners.top_right, "top-right"),
-                (corners.bottom_right, "bottom-right"),
-                (corners.bottom_left, "bottom-left"),
-            ];
-            let rounded: Vec<&str> = names
-                .iter()
-                .filter(|(rounded, _)| *rounded)
-                .map(|(_, name)| *name)
-                .collect();
-            write!(formatter, " corners={}", rounded.join(","))?;
+        if let Some(rounded_clip) = self.rounded_clip {
+            formatter.write_str(" ")?;
+            write_float_rect(formatter, "rounded", rounded_clip.rect)?;
+            write!(formatter, " radius={}", rounded_clip.radius)?;
+            let corners = rounded_clip.rounded_corners;
+            if !corners.are_all_rounded() {
+                let names = [
+                    (corners.top_left, "top-left"),
+                    (corners.top_right, "top-right"),
+                    (corners.bottom_right, "bottom-right"),
+                    (corners.bottom_left, "bottom-left"),
+                ];
+                let rounded: Vec<&str> = names
+                    .iter()
+                    .filter(|(rounded, _)| *rounded)
+                    .map(|(_, name)| *name)
+                    .collect();
+                write!(formatter, " corners={}", rounded.join(","))?;
+            }
+        }
+        if let Some(path_clip) = &self.path_clip {
+            formatter.write_str(" ")?;
+            write_float_rect(formatter, "path", path_clip.bounds_in_viewport())?;
+            if path_clip.fill_rule == WindingRule::EvenOdd {
+                formatter.write_str(" evenodd")?;
+            }
         }
         Ok(())
     }
@@ -218,10 +255,27 @@ fn clip_leaves_content_whole(
     !rounded_rect.rounded_corner_reaches_into(content_rect)
 }
 
+/// The matrix from a space that a clip is in to the viewport, where the window server can clip in that space: one
+/// that is 2D affine, without rotation or skew.
+fn clip_space_to_viewport(
+    world: &WorldTransforms,
+    space: SpatialNodeIndex,
+) -> Result<FloatMatrix4x4, WhyWindowServerCannotShowMedia> {
+    let matrix = world
+        .draw_matrix_if_known(space)
+        .ok_or(WhyWindowServerCannotShowMedia::ClippedInSpaceTreeDoesNotHave)?;
+    let elements = &matrix.elements;
+    if !matrix.is_2d_affine() || elements[0][1] != 0.0 || elements[1][0] != 0.0 {
+        return Err(WhyWindowServerCannotShowMedia::ClippedInRotatedOrSkewedSpace);
+    }
+    Ok(matrix)
+}
+
 #[derive(Default)]
 struct ClipsInViewport {
     rect_clips: Vec<FloatRect>,
     rounded_clips: Vec<RoundedRect>,
+    path_clip: Option<PathClip>,
 }
 
 impl ClipsInViewport {
@@ -236,13 +290,8 @@ impl ClipsInViewport {
         if mode == ClipMode::Difference {
             return Err(WhyWindowServerCannotShowMedia::ClippedByExcludingClip);
         }
-        let matrix = world
-            .draw_matrix_if_known(space)
-            .ok_or(WhyWindowServerCannotShowMedia::ClippedInSpaceTreeDoesNotHave)?;
+        let matrix = clip_space_to_viewport(world, space)?;
         let elements = &matrix.elements;
-        if !matrix.is_2d_affine() || elements[0][1] != 0.0 || elements[1][0] != 0.0 {
-            return Err(WhyWindowServerCannotShowMedia::ClippedInRotatedOrSkewedSpace);
-        }
         let rect_in_viewport = matrix.extract_2d_affine().map_rect(rect);
         if !corner_radii.has_any_radius() {
             self.rect_clips.push(rect_in_viewport);
@@ -276,6 +325,27 @@ impl ClipsInViewport {
             rect: rect_in_viewport,
             horizontal_and_vertical_radii_clockwise_from_top_left: radii,
         });
+        Ok(())
+    }
+
+    /// Adds a clip by a path in `space`, whose bounds join the rect clips.
+    fn add_path(
+        &mut self,
+        world: &WorldTransforms,
+        space: SpatialNodeIndex,
+        clip_path: &ClipPathData,
+    ) -> Result<(), WhyWindowServerCannotShowMedia> {
+        if self.path_clip.is_some() {
+            return Err(WhyWindowServerCannotShowMedia::ClippedByMoreThanOnePath);
+        }
+        let path_clip = PathClip {
+            path: clip_path.path.clone(),
+            bounding_rect: clip_path.bounding_rect,
+            path_to_viewport: clip_space_to_viewport(world, space)?.extract_2d_affine(),
+            fill_rule: clip_path.fill_rule,
+        };
+        self.rect_clips.push(path_clip.bounds_in_viewport());
+        self.path_clip = Some(path_clip);
         Ok(())
     }
 }
@@ -721,7 +791,7 @@ pub fn window_server_placement(
                         content_bounds_in_record_space,
                     ) => {}
             ClipNodeData::Rect(data) => clips.add(world, node.spatial, data.rect, data.corner_radii, data.mode)?,
-            ClipNodeData::Path(_) => return Err(WhyWindowServerCannotShowMedia::ClippedByPath),
+            ClipNodeData::Path(data) => clips.add_path(world, node.spatial, data)?,
             ClipNodeData::Dead => {}
         }
         clip = node.parent;
@@ -754,6 +824,7 @@ pub fn window_server_placement(
         content_to_viewport,
         clip_rect,
         rounded_clip,
+        path_clip: clips.path_clip,
         scaling_mode,
     })
 }

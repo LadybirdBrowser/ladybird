@@ -29,7 +29,8 @@ use libcompositing_rust::ipc_types::{
 };
 use libcompositing_rust::time::MonotonicTime;
 use libcompositing_rust::webgl::ImageSource;
-use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
+use libgfx_rust::path::ffi::PathGeometryData;
+use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode, WindingRule};
 use std::collections::HashMap;
 use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
@@ -113,7 +114,7 @@ pub enum MediaKind {
 }
 
 /// Where the window server shows a sublayer, and how it clips it, in device pixels.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSublayerPlacement {
     pub content_rect: IntRect,
@@ -127,7 +128,57 @@ pub struct FfiSublayerPlacement {
     pub rounds_top_right: bool,
     pub rounds_bottom_right: bool,
     pub rounds_bottom_left: bool,
+    /// Whether the content is also clipped by a path, which is in a space of its own.
+    pub is_clipped_by_path: bool,
+    pub clip_path_identity: u64,
+    pub clip_path_fill_rule: WindingRule,
+    /// The a, b, c, d, e and f of the affine transform from the space of the path to the frame.
+    pub clip_path_to_frame: [f32; 6],
+    /// Lent for the call that builds the sublayers, or that asks whether a remote layer can show the placement: the
+    /// window server placement this is made from holds the path, and that of a sublayer lives in the layers of the
+    /// frame painted last. A copy kept past that call, as the sublayers of the latest frame are, is never read
+    /// through, so placements are told apart by the identity of the path, never by these contours.
+    pub clip_path_contours: PathGeometryData,
     pub scaling_mode: ScalingMode,
+}
+
+impl PartialEq for FfiSublayerPlacement {
+    fn eq(&self, other: &Self) -> bool {
+        // Each field is named, so a new field does not compile until it is compared too.
+        let Self {
+            content_rect,
+            content_to_frame,
+            clip_rect,
+            has_rounded_clip,
+            rounded_clip_rect,
+            rounded_clip_radius,
+            rounds_top_left,
+            rounds_top_right,
+            rounds_bottom_right,
+            rounds_bottom_left,
+            is_clipped_by_path,
+            clip_path_identity,
+            clip_path_fill_rule,
+            clip_path_to_frame,
+            clip_path_contours: _,
+            scaling_mode,
+        } = self;
+        *content_rect == other.content_rect
+            && *content_to_frame == other.content_to_frame
+            && *clip_rect == other.clip_rect
+            && *has_rounded_clip == other.has_rounded_clip
+            && *rounded_clip_rect == other.rounded_clip_rect
+            && *rounded_clip_radius == other.rounded_clip_radius
+            && *rounds_top_left == other.rounds_top_left
+            && *rounds_top_right == other.rounds_top_right
+            && *rounds_bottom_right == other.rounds_bottom_right
+            && *rounds_bottom_left == other.rounds_bottom_left
+            && *is_clipped_by_path == other.is_clipped_by_path
+            && *clip_path_identity == other.clip_path_identity
+            && *clip_path_fill_rule == other.clip_path_fill_rule
+            && *clip_path_to_frame == other.clip_path_to_frame
+            && *scaling_mode == other.scaling_mode
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

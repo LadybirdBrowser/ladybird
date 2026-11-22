@@ -646,8 +646,10 @@ Compositing::RemoteLayerHostHandle DirectCompositionRemoteLayer::host_handle() c
     return { .kind = Compositing::RemoteLayerHostKind::Win32ChildWindow, .id = static_cast<u64>(reinterpret_cast<uintptr_t>(m_window)) };
 }
 
-bool DirectCompositionRemoteLayer::can_show(WindowServerPlacement const&, Content const& content, double) const
+bool DirectCompositionRemoteLayer::can_show(WindowServerPlacement const& placement, Content const& content, double) const
 {
+    if (placement.is_clipped_by_path)
+        return false;
     return content.visit(
         [&](NonnullRefPtr<PresentableSurface> const& surface) {
             return surface->window_server_surface() != nullptr && surface->painting_surface().skia_backend_context() == window_server_impl().skia_backend_context.ptr();

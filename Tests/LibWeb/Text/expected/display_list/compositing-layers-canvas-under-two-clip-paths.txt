@@ -1,0 +1,17 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  clips:
+    [c0 in s1] clip_path=[bounds: 60,20 120x120, curved path: 129 commands] (BlockContainer<DIV>#outer)
+      [c1 in s1] clip_path=[bounds: 30,30 180x100, curved path: 129 commands] (CanvasBox<CANVAS>#canvas)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport held by the frame: it is under a layer the frame holds
+  [L1] canvas #0 space=viewport region=[57,27 126x106] replayed: clipped by more than one path
+
+DisplayList:
+L1 DrawCanvas@s1/c1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+
