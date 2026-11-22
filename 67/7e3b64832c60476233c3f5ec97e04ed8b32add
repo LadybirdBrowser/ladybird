@@ -1,0 +1,16 @@
+When an SVG text node has a text-transform, Ladybird shapes the
+transformed text and keeps SVG DOM indices on the characters before it:
+The two capitals that “ß” uppercases to are one addressable character.
+
+Gecko does the same. SVGTextFrame shapes through the nsTextFrame text
+run, which applies the transform, and maps back to content offsets
+through gfxSkipChars, so Firefox 151 counts 7 characters for an
+uppercased “straße!”. Blink’s LayoutSVGInlineText::TextDidChange() takes
+TransformedText() and then normalizes its white space, the same order as
+here; Chrome 158 crashed on the “ß” page. WebKit transforms the text in
+RenderText too, but it counts the transformed characters instead, which
+makes it 8 in WebKit 26.5.
+
+All three draw the transformed text, as wide as literal capitals, in
+<text>, <tspan>, and <textPath> (engine-compare, Chrome 158.0.8127.36,
+Firefox 151.0, WebKit 26.5).
