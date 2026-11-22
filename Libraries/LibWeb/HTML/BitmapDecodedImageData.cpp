@@ -276,7 +276,18 @@ Optional<Gfx::Color> BitmapDecodedImageData::color_if_single_pixel_bitmap() cons
     auto frame = ensure_frame();
     if (!frame.has_value())
         return {};
-    return frame->bitmap_sharing_pixels()->get_pixel(0, 0);
+    auto bitmap = frame->bitmap_sharing_pixels();
+    auto color = bitmap->get_pixel(0, 0);
+    // NB: The color fills the background like any other color, which applies its alpha, so the pixel of a
+    //     premultiplied bitmap is unpremultiplied first.
+    if (bitmap->alpha_type() != Gfx::AlphaType::Premultiplied || color.alpha() == 255)
+        return color;
+    if (color.alpha() == 0)
+        return Gfx::Color(Gfx::Color::Transparent);
+    auto unpremultiplied = [alpha = color.alpha()](u8 channel) {
+        return static_cast<u8>(min(255, (channel * 255 + alpha / 2) / alpha));
+    };
+    return Gfx::Color(unpremultiplied(color.red()), unpremultiplied(color.green()), unpremultiplied(color.blue()), color.alpha());
 }
 
 Optional<Painting::ImagePaint> BitmapDecodedImageData::image_paint(Painting::ImagePaintRequest const&) const
