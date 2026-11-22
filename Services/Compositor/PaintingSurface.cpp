@@ -150,6 +150,24 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture
         return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
     return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
 }
+
+ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture_also_drawn_from(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<D3DSharedTexture> texture, Origin origin)
+{
+    auto size = texture->size();
+    GrD3DTextureResourceInfo info(nullptr, nullptr, D3D12_RESOURCE_STATE_COMMON, DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* sampleCount */ 1, /* levelCount */ 1, /* sampleQualityLevel */ 0);
+    // NOTE: The positional resource argument of GrD3DTextureResourceInfo would adopt our reference, so attach it with retain() instead.
+    info.fResource.retain(texture->resource());
+    auto backend_texture = GrBackendTextures::MakeD3D(size.width(), size.height(), info);
+    // Note, we're implicitly giving Skia a reference to the texture. It will eventually be released by the callback function,
+    // which is guaranteed to be invoked even if wrapping fails.
+    texture->ref();
+    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendTexture(context->sk_context(), backend_texture, origin_to_sk_origin(origin),
+        /* sampleCnt */ 1, kRGBA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr, release_d3d_texture, texture.ptr());
+    if (!surface)
+        return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
+    return adopt_impl(size, make<Impl>(context, surface, nullptr, true));
+}
 #endif
 
 // The Skia color space of pixels in the color space, where sRGB is explicit.
