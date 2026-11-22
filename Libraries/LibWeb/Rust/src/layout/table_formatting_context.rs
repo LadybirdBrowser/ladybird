@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style::bridge::element_adjustment_fact;
 use std::ops::Range;
 
 pub(crate) const LINE_STYLE_NONE: u8 = 0;
@@ -3929,6 +3930,20 @@ impl<'pass> TableFormattingContext<'pass> {
     /// Rows are positioned in the coordinate space of the table wrapper (see position_row_boxes), so the baselines are
     /// made relative to the content box of the table box here.
     fn derive_table_box_baselines(&self) {
+        let arena = self.run.pass.arena();
+        if arena.element_adjustment_facts(arena.dom_node_style_node(self.run.box_))
+            & element_adjustment_fact::IS_MATHML_MTABLE
+            != 0
+        {
+            let baseline = math_formatting_context::table_baseline(&self.style(self.run.box_), self.table_box_cells());
+            self.derived_baselines_of_root_box.set(DerivedBaselines {
+                first: Some(baseline),
+                last: Some(baseline),
+                inline_alignment: Some(baseline),
+            });
+            return;
+        }
+
         let baseline_in_wrapper =
             |row_index: usize| self.row_boxes[row_index].content_offset.get().y + self.row_baseline(row_index);
         // Collapsed rows are removed from the display (https://www.w3.org/TR/CSS22/tables.html#dynamic-effects).

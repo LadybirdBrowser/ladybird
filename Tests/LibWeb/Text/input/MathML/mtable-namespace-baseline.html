@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .probe { display: inline-table; border-spacing: 0; }
+    .row { display: table-row; }
+    .cell { display: table-cell; height: 20px; }
+    #baseline { display: inline-block; width: 1px; height: 0; }
+</style>
+<div><i id="baseline"></i></div>
+<script>
+    test(() => {
+        const marker = document.getElementById("baseline");
+        function baseline(namespace, name) {
+            const table = document.createElementNS(namespace, name);
+            table.setAttribute("class", "probe");
+            for (let i = 0; i < 3; ++i) {
+                const row = document.createElement("span");
+                row.className = "row";
+                const cell = document.createElement("span");
+                cell.className = "cell";
+                cell.textContent = "x";
+                row.append(cell);
+                table.append(row);
+            }
+            marker.before(table);
+            const offset = marker.getBoundingClientRect().top - table.getBoundingClientRect().top;
+            table.remove();
+            return offset;
+        }
+
+        const html = "http://www.w3.org/1999/xhtml";
+        const mathml = "http://www.w3.org/1998/Math/MathML";
+        const ordinary = baseline(html, "table");
+        println("HTML mtable uses the first row: " + (baseline(html, "mtable") === ordinary));
+        println("XML mtable uses the first row: " + (baseline("urn:test", "mtable") === ordinary));
+        println("Uppercase MathML MTABLE uses the first row: " + (baseline(mathml, "MTABLE") === ordinary));
+    });
+</script>
