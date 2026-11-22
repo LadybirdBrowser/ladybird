@@ -1,0 +1,3 @@
+line-full-at-inline-box-start: height 40, first b on line 2
+line-full-at-inline-box-end: height 40, first b on line 2
+a manual soft hyphen widens the min-content by 0

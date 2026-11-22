@@ -792,6 +792,7 @@
     "anchor-center"
   ],
   "line-break": [
+    "anywhere",
     "auto",
     "loose",
     "normal",

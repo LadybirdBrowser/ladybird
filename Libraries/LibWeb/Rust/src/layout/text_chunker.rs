@@ -889,7 +889,7 @@ pub(crate) fn soft_wrap_opportunity_between(
     let (Some(&last), Some(&first)) = (before.last(), after.first()) else {
         return false;
     };
-    if last == SOFT_HYPHEN && !breaks_after_soft_hyphen {
+    if last == SOFT_HYPHEN && !breaks_after_soft_hyphen && line_break != line_break::ANYWHERE {
         return false;
     }
     // NB: Whitespace gives its own soft wrap opportunities.
@@ -924,8 +924,9 @@ pub(crate) fn soft_wrap_opportunity_between(
     text.extend_from_slice(&before[before_start..]);
     let boundary = text.len();
     text.extend_from_slice(&after[..after_end]);
-    // OPTIMIZATION: Printable ASCII on both sides needs no line segmenter.
+    // OPTIMIZATION: Printable ASCII on both sides needs no line segmenter, unless line-break: anywhere breaks it.
     if word_break != word_break::BREAK_ALL
+        && line_break != line_break::ANYWHERE
         && let Some(is_boundary) = ascii_line_break_at(&text, boundary)
     {
         return is_boundary;
@@ -1024,6 +1025,8 @@ fn break_all_adds_soft_wrap_opportunity(before: u32, after: u32, line_break: u8)
 struct LineBreaker<'text> {
     text: &'text [u16],
     line_segmenter: LineSegmenter<'text>,
+    /// The grapheme clusters of the text, which `line-break: anywhere` breaks between.
+    grapheme_segmenter: std::cell::OnceCell<GraphemeSegmenter>,
     word_break: u8,
     line_break: u8,
     breaks_after_soft_hyphen: bool,
@@ -1040,6 +1043,7 @@ impl<'text> LineBreaker<'text> {
         Self {
             text,
             line_segmenter: LineSegmenter::new(text, line_break, line_break_language),
+            grapheme_segmenter: std::cell::OnceCell::new(),
             word_break,
             line_break,
             breaks_after_soft_hyphen,
@@ -1047,6 +1051,20 @@ impl<'text> LineBreaker<'text> {
     }
 
     fn is_at_line_break_opportunity(&self, index: usize) -> bool {
+        // https://drafts.csswg.org/css-text-3/#valdef-line-break-anywhere
+        // "There is a soft wrap opportunity around every typographic character unit, including around any punctuation
+        // character or preserved white spaces, or in the middle of words, disregarding any prohibition against line
+        // breaks, even those introduced by characters with the GL, WJ, or ZWJ line breaking classes or mandated by the
+        // 'word-break' property."
+        if self.line_break == line_break::ANYWHERE {
+            return index > 0
+                && index < self.text.len()
+                && self
+                    .grapheme_segmenter
+                    .get_or_init(|| GraphemeSegmenter::new(self.text))
+                    .next_boundary(index, true)
+                    == Some(index);
+        }
         // https://drafts.csswg.org/css-text-3/#valdef-hyphens-none
         // Words are not hyphenated, even if characters inside the word explicitly define hyphenation opportunities.
         if !self.breaks_after_soft_hyphen && index > 0 && self.text.get(index - 1) == Some(&SOFT_HYPHEN) {

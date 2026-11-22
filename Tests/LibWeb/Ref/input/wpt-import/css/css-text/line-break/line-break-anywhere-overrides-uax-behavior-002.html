@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Text Test: line-break: anywhere overrides behavior defined for the WJ, ZW, GL, and ZWJ classes</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.1. Line Breaking Details" href="https://drafts.csswg.org/css-text-3/#line-break-details">
+<link rel="help" title="5.3. Line Breaking Strictness: the line-break property" href="https://drafts.csswg.org/css-text-3/#line-break-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-line-break-anywhere">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/line-break/reference/line-break-anywhere-004-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="flags" content="Ahem">
+<meta name="assert" content="Except where explicitly defined by 'line-break: anywhere' line breaking behavior defined for the WJ classes in [UAX14] must be honored. ">
+<style>
+div {
+  position: relative;
+  font: 50px / 1 Ahem;
+}
+.red {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: red;
+  z-index: -1;
+}
+.test {
+  color: green;
+  width: 2ch;
+  line-break: anywhere;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div class="red"></div>
+  <div class="test">XX&#xFEFF;XX</div>
+</body>

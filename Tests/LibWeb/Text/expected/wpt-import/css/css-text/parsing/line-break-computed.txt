@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Property line-break value 'auto'
+Pass	Property line-break value 'loose'
+Pass	Property line-break value 'normal'
+Pass	Property line-break value 'strict'
+Pass	Property line-break value 'anywhere'

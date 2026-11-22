@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Module Test: parsing line-break with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-line-break">
+<meta name="assert" content="line-break supports only the grammar 'auto | loose | normal | strict | anywhere'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("line-break", "none");
+test_invalid_value("line-break", "auto loose");
+test_invalid_value("line-break", "strict normal");
+test_invalid_value("line-break", "anywhere anywhere");
+test_invalid_value("line-break", "after-white-space");
+</script>
+</body>
+</html>

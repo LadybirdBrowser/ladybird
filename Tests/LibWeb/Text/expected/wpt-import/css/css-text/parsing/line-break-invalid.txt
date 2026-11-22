@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['line-break'] = "none" should not set the property value
+Pass	e.style['line-break'] = "auto loose" should not set the property value
+Pass	e.style['line-break'] = "strict normal" should not set the property value
+Pass	e.style['line-break'] = "anywhere anywhere" should not set the property value
+Pass	e.style['line-break'] = "after-white-space" should not set the property value
