@@ -63,7 +63,8 @@ fn replay(
     image_sources: &[ImageSource],
 ) -> Result<(), ReplayError> {
     let commands = TestMemory::new(&records.concat());
-    contexts.execute_commands(host, CLIENT, canvas_id, Some(&commands), image_sources)
+    let size = commands.bytes().len() as u64;
+    contexts.execute_commands(host, CLIENT, canvas_id, Some(&commands), size, image_sources)
 }
 
 fn ids(ids: &[u32]) -> Vec<u8> {
@@ -345,7 +346,14 @@ fn a_large_upload_is_passed_to_gl_where_webcontent_wrote_it() {
     let written = commands.bytes().as_ptr_range();
     let written = written.start as usize..written.end as usize;
     contexts
-        .execute_commands(&host, CLIENT, canvas_id, Some(&commands), &[])
+        .execute_commands(
+            &host,
+            CLIENT,
+            canvas_id,
+            Some(&commands),
+            commands.bytes().len() as u64,
+            &[],
+        )
         .unwrap();
     let calls = BUFFER_DATA_CALLS.take();
     let placements: Vec<(u8, bool)> = calls
@@ -378,10 +386,35 @@ fn the_data_of_a_large_upload_lies_inside_its_record() {
     );
     let commands = TestMemory::new(&record);
     assert_eq!(
-        contexts.execute_commands(&host, CLIENT, canvas_id, Some(&commands), &[]),
+        contexts.execute_commands(&host, CLIENT, canvas_id, Some(&commands), record.len() as u64, &[]),
         Err(ReplayError("WebGL data span lies outside its payload"))
     );
     assert!(BUFFER_DATA_CALLS.take().is_empty());
+}
+
+#[test]
+fn only_the_records_that_webcontent_wrote_into_a_command_buffer_are_replayed() {
+    let host = FakeHost::default();
+    let (mut contexts, canvas_id) = contexts_with_one(&host, false);
+    let enable = record_of(&commands::Enable { cap: 1 }, InlineData::NONE);
+    let commands = TestMemory::new(&[enable.clone(), vec![0; 64]].concat());
+    contexts
+        .execute_commands(&host, CLIENT, canvas_id, Some(&commands), enable.len() as u64, &[])
+        .unwrap();
+    assert_eq!(take_calls(), ["host.make_current", "glEnable(1)"]);
+    assert_eq!(
+        contexts.execute_commands(
+            &host,
+            CLIENT,
+            canvas_id,
+            Some(&commands),
+            commands.bytes().len() as u64 + 1,
+            &[]
+        ),
+        Err(ReplayError(
+            "WebContent sent more WebGL commands than their buffer holds"
+        ))
+    );
 }
 
 #[test]

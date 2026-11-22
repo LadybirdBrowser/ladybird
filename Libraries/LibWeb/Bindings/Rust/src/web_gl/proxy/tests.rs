@@ -105,6 +105,10 @@ enum Call {
         records: Vec<Record>,
         frames: Vec<u32>,
     },
+    SendCommandsWrittenToSharedMemory {
+        records: Vec<Record>,
+        frames: Vec<u32>,
+    },
     PresentCanvas {
         preserve_drawing_buffer: bool,
     },
@@ -295,6 +299,13 @@ impl Transport for MockTransport {
     fn send_commands(&self, commands: &[u8], frames: &[u32]) {
         self.replayer.called(Call::SendCommands {
             records: records_in(commands),
+            frames: frames.to_vec(),
+        });
+    }
+
+    fn send_commands_written_to(&self, memory: &MockMemory, size_in_bytes: usize, frames: &[u32]) {
+        self.replayer.called(Call::SendCommandsWrittenToSharedMemory {
+            records: records_in(&memory.bytes(0, size_in_bytes)),
             frames: frames.to_vec(),
         });
     }
@@ -573,7 +584,7 @@ fn a_record_larger_than_the_region_is_sent_on_its_own() {
     let data = vec![5u8; SMALL_CAPACITY];
     recorder.buffer_sub_data(GL_ARRAY_BUFFER, 8, data.len() as i64, &data);
     let calls = replayer.take_calls();
-    let [first, Call::SendCommands { records, frames }] = calls.as_slice() else {
+    let [first, Call::SendCommandsWrittenToSharedMemory { records, frames }] = calls.as_slice() else {
         panic!("{} calls", calls.len());
     };
     assert_eq!(*first, sent_from_shared_buffer(0, vec![record_of(&VIEWPORT)], 1));
@@ -1033,7 +1044,7 @@ fn the_transport_is_not_called_while_data_is_borrowed() {
     record_viewport(&recorder);
     record_with_borrowed_data(&[5; 1024]);
     let calls = replayer.take_calls();
-    let [first, Call::SendCommands { records, .. }] = calls.as_slice() else {
+    let [first, Call::SendCommandsWrittenToSharedMemory { records, .. }] = calls.as_slice() else {
         panic!("{} calls", calls.len());
     };
     assert_eq!(*first, sent_from_shared_buffer(0, vec![record_of(&VIEWPORT)], 3));

@@ -65,6 +65,10 @@ pub(crate) struct Proxy<T: Transport> {
     deferred_flush_is_due: Cell<bool>,
     /// The record that had no room at the cursor while the calls of the transport that make room were deferred.
     deferred_record: Cell<Vec<u8>>,
+    /// Memory made before the data of a record was borrowed, for a record that the region is too small for.
+    memory_for_deferred_oversized_record: Cell<Option<T::SharedMemory>>,
+    /// That memory, with the record written to it, and the size of the record.
+    deferred_oversized_record: Cell<Option<(T::SharedMemory, usize)>>,
 }
 
 impl<T: Transport> Proxy<T> {
@@ -94,6 +98,8 @@ impl<T: Transport> Proxy<T> {
             deferred_record_count: Cell::new(0),
             deferred_flush_is_due: Cell::new(false),
             deferred_record: Cell::new(Vec::new()),
+            memory_for_deferred_oversized_record: Cell::new(None),
+            deferred_oversized_record: Cell::new(None),
         };
         proxy.initialize_shared_command_buffer();
         proxy
@@ -221,11 +227,21 @@ impl<T: Transport> Proxy<T> {
         if transport_calls_are_deferred {
             self.rewind_shared_data_cursor_if_all_published_commands_executed();
             if record.size() > self.shared_data_capacity.get() - self.shared_data_cursor.get() {
+                let memory = self
+                    .memory_for_deferred_oversized_record
+                    .take()
+                    .filter(|memory| record.size() > self.shared_data_capacity.get() && record.size() <= memory.len());
+                if let Some(memory) = memory {
+                    // SAFETY: The memory has room for the record, and holds neither its payload nor its data.
+                    unsafe { record.write_to(memory.as_ptr()) };
+                    self.deferred_oversized_record.set(Some((memory, record.size())));
+                    return;
+                }
                 self.deferred_record.set(record.encoded());
                 return;
             }
         } else if record.size() > self.shared_data_capacity.get() {
-            self.send_oversized_record(&record.encoded());
+            self.send_oversized_record(&record);
             return;
         } else {
             self.rewind_shared_data_cursor_if_all_published_commands_executed();
@@ -245,7 +261,8 @@ impl<T: Transport> Proxy<T> {
             return;
         }
         if record.len() > self.shared_data_capacity.get() {
-            self.send_oversized_record(record);
+            self.flush_commands();
+            self.transport().send_commands(record, &[]);
             return;
         }
         self.rewind_shared_data_cursor_if_all_published_commands_executed();
@@ -286,9 +303,16 @@ impl<T: Transport> Proxy<T> {
         }
     }
 
-    fn send_oversized_record(&self, record: &[u8]) {
+    fn send_oversized_record(&self, record: &Record<'_>) {
         self.flush_commands();
-        self.transport().send_commands(record, &[]);
+        let transport = self.transport();
+        let Some(memory) = transport.create_shared_memory(record.size()) else {
+            transport.send_commands(&record.encoded(), &[]);
+            return;
+        };
+        // SAFETY: The memory has room for the record, and holds neither its payload nor its data.
+        unsafe { record.write_to(memory.as_ptr()) };
+        transport.send_commands_written_to(&memory, record.size(), &[]);
     }
 
     /// Runs `record`, which records one command with data that is borrowed from memory of script, without a call of
@@ -309,10 +333,14 @@ impl<T: Transport> Proxy<T> {
                 .checked_add(1)
                 .and_then(|data_size| padded_record_size(MAX_COMMAND_STRUCT_SIZE, data_size));
             if let (Some(smallest_record_size), Some(largest_record_size)) = (smallest_record_size, largest_record_size)
-                && smallest_record_size <= capacity
             {
-                self.rewind_shared_data_cursor_if_all_published_commands_executed();
-                self.ensure_shared_data_capacity(largest_record_size.min(capacity));
+                if smallest_record_size <= capacity {
+                    self.rewind_shared_data_cursor_if_all_published_commands_executed();
+                    self.ensure_shared_data_capacity(largest_record_size.min(capacity));
+                } else {
+                    self.memory_for_deferred_oversized_record
+                        .set(self.transport().create_shared_memory(largest_record_size));
+                }
             }
         }
 
@@ -323,6 +351,11 @@ impl<T: Transport> Proxy<T> {
             record()
         };
 
+        self.memory_for_deferred_oversized_record.take();
+        if let Some((memory, size)) = self.deferred_oversized_record.take() {
+            self.flush_commands();
+            self.transport().send_commands_written_to(&memory, size, &[]);
+        }
         let deferred_record = self.deferred_record.take();
         if !deferred_record.is_empty() {
             self.record_encoded(&deferred_record);
