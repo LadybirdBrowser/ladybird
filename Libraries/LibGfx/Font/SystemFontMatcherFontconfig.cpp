@@ -12,6 +12,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/GlobalFontConfig.h>
 #include <LibGfx/Font/SystemFontMatcher.h>
+#include <LibUnicode/CharacterTypes.h>
 
 #include <fontconfig/fontconfig.h>
 
@@ -176,6 +177,12 @@ static Optional<MatchedFile> match_file_for_code_point(u32 code_point, u16 weigh
     if (prefer_color_emoji) {
         OwnedLangSet lang_set { FcLangSetCreate() };
         FcLangSetAdd(lang_set.get(), fontconfig_string("und-zsye"));
+        FcPatternAddLangSet(pattern.get(), FC_LANG, lang_set.get());
+    } else if (auto language = Unicode::likely_language_for_script_of(code_point); language.has_value()) {
+        // NB: Without a language, fontconfig ranks every font that has the code point alike, and can pick one that
+        //     covers every script only crudely (GNU Unifont, e.g.) over one made for the code point's script.
+        OwnedLangSet lang_set { FcLangSetCreate() };
+        FcLangSetAdd(lang_set.get(), fontconfig_string(language->to_byte_string().characters()));
         FcPatternAddLangSet(pattern.get(), FC_LANG, lang_set.get());
     }
 
