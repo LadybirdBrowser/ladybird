@@ -283,7 +283,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
             start = i + 1;
         }
 
-        if (m_rel_list)
+        if (!namespace_.has_value() && m_rel_list)
             m_rel_list->associated_attribute_changed(value);
 
         // NB: A link that no longer represents a stylesheet will not run stylesheet completion steps.
