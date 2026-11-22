@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const contextType of ["webgl", "webgl2"]) {
+            const gl = document.createElement("canvas").getContext(contextType);
+            const shader = gl.createShader(gl.VERTEX_SHADER);
+            println(`${contextType}: before shaderSource: "${gl.getShaderSource(shader)}"`);
+            const source = "void main() {\n    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n}\n";
+            gl.shaderSource(shader, source);
+            println(`${contextType}: after shaderSource: ${gl.getShaderSource(shader) === source}`);
+            gl.compileShader(shader);
+            println(`${contextType}: after compileShader: ${gl.getShaderSource(shader) === source}`);
+            gl.deleteShader(shader);
+            println(`${contextType}: after deleteShader: ${gl.getShaderSource(shader)}`);
+        }
+    });
+</script>
