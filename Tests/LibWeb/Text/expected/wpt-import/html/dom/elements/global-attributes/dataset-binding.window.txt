@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Getting property descriptor for key 9
+Pass	Setting property for key 9 with accessor property on prototype
+Pass	Getting property descriptor for key x
+Pass	Setting property for key x with accessor property on prototype

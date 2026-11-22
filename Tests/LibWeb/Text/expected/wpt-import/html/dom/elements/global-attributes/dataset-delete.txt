@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Deleting element.dataset['foo'] should also remove an attribute with name 'data-foo' should it exist.
+Pass	Deleting element.dataset['fooBar'] should also remove an attribute with name 'data-foo-bar' should it exist.
+Pass	Deleting element.dataset['-'] should also remove an attribute with name 'data--' should it exist.
+Pass	Deleting element.dataset['Foo'] should also remove an attribute with name 'data--foo' should it exist.
+Pass	Deleting element.dataset['-foo'] should not remove an attribute with name 'data--foo' should it exist.
+Pass	Deleting element.dataset['-Foo'] should also remove an attribute with name 'data---foo' should it exist.
+Pass	Deleting element.dataset[''] should also remove an attribute with name 'data-' should it exist.
+Pass	Deleting element.dataset['à'] should also remove an attribute with name 'data-à' should it exist.
+Pass	Deleting element.dataset['foo'] should not throw if even if the element does now have an attribute with the name data-foo.

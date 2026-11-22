@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>dataset: should exist and work on HTML and SVG elements, but not random elements</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var div = document.createElement("div");
+test(function() {
+  assert_true(div.dataset instanceof DOMStringMap);
+}, "HTML elements should have a .dataset");
+test(function() {
+  assert_false("foo" in div.dataset);
+  assert_equals(div.dataset.foo, undefined);
+}, "Should return 'undefined' before setting an attribute")
+test(function() {
+  div.setAttribute("data-foo", "value");
+  assert_true("foo" in div.dataset);
+  assert_equals(div.dataset.foo, "value");
+}, "Should return 'value' if that's the value")
+test(function() {
+  div.setAttribute("data-foo", "");
+  assert_true("foo" in div.dataset);
+  assert_equals(div.dataset.foo, "");
+}, "Should return the empty string if that's the value")
+test(function() {
+  div.removeAttribute("data-foo");
+  assert_false("foo" in div.dataset);
+  assert_equals(div.dataset.foo, undefined);
+}, "Should return 'undefined' after removing an attribute")
+test(function() {
+  assert_equals(document.createElementNS("test", "test").dataset, undefined);
+}, "Should not have a .dataset on random elements");
+test(function() {
+  var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  assert_true(svg.dataset instanceof DOMStringMap);
+}, "SVG elements should have a .dataset");
+test(function() {
+  var mathml = document.createElementNS("http://www.w3.org/1998/Math/MathML", "math");
+  assert_true(mathml.dataset instanceof DOMStringMap);
+}, "MathML elements should have a .dataset");
+</script>

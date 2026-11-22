@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Getting element.dataset['foo'] should return the value of element.getAttribute('data-foo')'
+Pass	Getting element.dataset['fooBar'] should return the value of element.getAttribute('data-foo-bar')'
+Pass	Getting element.dataset['-'] should return the value of element.getAttribute('data--')'
+Pass	Getting element.dataset['Foo'] should return the value of element.getAttribute('data--foo')'
+Pass	Getting element.dataset['-Foo'] should return the value of element.getAttribute('data---foo')'
+Pass	Getting element.dataset['foo'] should return the value of element.getAttribute('data-Foo')'
+Pass	Getting element.dataset[''] should return the value of element.getAttribute('data-')'
+Pass	Getting element.dataset['à'] should return the value of element.getAttribute('data-à')'
+Pass	Getting element.dataset['toString'] should return the value of element.getAttribute('data-to-string')'
+Pass	Tests that an attribute named dataFoo does not make an entry in the dataset DOMStringMap.

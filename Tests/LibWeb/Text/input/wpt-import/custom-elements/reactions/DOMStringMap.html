@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on DOMStringMap interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="setter and deleter of DOMStringMap interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#domstringmap">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test(function () {
+    var element = define_new_custom_element(['data-foo']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.dataset.foo = 'bar';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'data-foo', oldValue: null, newValue: 'bar', namespace: null});
+}, 'setter on DOMStringMap must enqueue an attributeChanged reaction when adding an observed data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-bar']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), []);
+}, 'setter on DOMStringMap must not enqueue an attributeChanged reaction when adding an unobserved data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-foo']);
+    var instance = document.createElement(element.name);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.dataset.foo = 'baz';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'data-foo', oldValue: 'bar', newValue: 'baz', namespace: null});
+}, 'setter on DOMStringMap must enqueue an attributeChanged reaction when mutating the value of an observed data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-foo']);
+    var instance = document.createElement(element.name);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.dataset.foo = 'bar';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'data-foo', oldValue: 'bar', newValue: 'bar', namespace: null});
+}, 'setter on DOMStringMap must enqueue an attributeChanged reaction when mutating the value of an observed data attribute to the same value');
+
+test(function () {
+    var element = define_new_custom_element(['data-zero']);
+    var instance = document.createElement(element.name);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.dataset.foo = 'baz';
+    assert_array_equals(element.takeLog().types(), []);
+}, 'setter on DOMStringMap must not enqueue an attributeChanged reaction when mutating the value of an unobserved data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-foo']);
+    var instance = document.createElement(element.name);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    delete instance.dataset.foo;
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'data-foo', oldValue: 'bar', newValue: null, namespace: null});
+}, 'deleter on DOMStringMap must enqueue an attributeChanged reaction when removing an observed data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-bar']);
+    var instance = document.createElement(element.name);
+    instance.dataset.foo = 'bar';
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    delete instance.dataset.foo;
+    assert_array_equals(element.takeLog().types(), []);
+}, 'deleter on DOMStringMap must not enqueue an attributeChanged reaction when removing an unobserved data attribute');
+
+test(function () {
+    var element = define_new_custom_element(['data-foo']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    delete instance.dataset.foo;
+    assert_array_equals(element.takeLog().types(), []);
+}, 'deleter on DOMStringMap must not enqueue an attributeChanged reaction when it does not remove a data attribute');
+
+</script>
+</body>
+</html>

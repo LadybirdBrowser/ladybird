@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	A dataset should be enumeratable.
+Pass	Only attributes who qualify as dataset properties should be enumeratable in the dataset.
