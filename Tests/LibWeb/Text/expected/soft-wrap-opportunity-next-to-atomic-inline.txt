@@ -1,0 +1,11 @@
+box-at-end-of-nowrap-text: height 20, boxes at 3, min-content 130
+image-at-end-of-nobr: height 20, boxes at 3, min-content 120
+box-after-space-in-nowrap-text: height 20, boxes at 3, min-content 120
+nowrap-boxes-in-wrapping-text: height 40, boxes at 3, 23, min-content 40
+nowrap-span-of-boxes-after-wrapping-text: height 40, boxes at 23, 23, min-content 40
+box-after-word-joiner: height 40, boxes at 23, min-content 70
+box-after-word-joiner-at-line-end: height 40, boxes at 23, min-content 90
+box-after-no-break-space: height 40, boxes at 23, min-content 70
+nowrap-span-of-boxes-and-a-space: height 40, boxes at 23, 23, min-content 60
+nowrap-boxes-ending-together-by-negative-margin: height 40, boxes at 23, 23, min-content 80
+nowrap-boxes-overlapping-by-negative-margin: height 20, boxes at 3, 3, min-content 40

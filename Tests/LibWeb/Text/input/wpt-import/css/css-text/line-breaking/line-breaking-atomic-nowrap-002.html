@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+
+<title>CSS Text Test: `text-wrap-mode: none` should prevent a soft wrap opportunity between atomics</title>
+<link rel="author" title="Martin Robinson" href="mailto:mrobinson@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#white-space-property">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+    img {
+        width: 50px;
+        height: 100px;
+        border: 0;
+    }
+    span {
+        display: inline-block;
+        background: green;
+        text-wrap-mode: nowrap;
+        width: min-content;
+    }
+</style>
+
+<div style="width: 0;">
+    <span data-expected-client-width="100" id="test"><img><img></span>
+</div>
+
+<script>
+    document.fonts.ready.then(() => checkLayout("#test"));
+</script>
