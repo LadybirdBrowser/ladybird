@@ -35,8 +35,7 @@ public:
     [[nodiscard]] NonnullRefPtr<Engine::FetchByteChannel> const& channel() const { return m_channel; }
     [[nodiscard]] NonnullRefPtr<Engine::FetchBodyDeliveryGate> const& delivery_gate() const { return m_delivery_gate; }
 
-    // The pump records the body's sizes in the response once the body completes, unless the response was handed over
-    // while its body still arrived. The fetch's agent then records them when the pump reports the body's end.
+    // The pump records the body's sizes in the response once the body completes.
     void set_response(NonnullRefPtr<Fetch::Infrastructure::Response>);
 
     void handle_network_data(Requests::ResponseData);

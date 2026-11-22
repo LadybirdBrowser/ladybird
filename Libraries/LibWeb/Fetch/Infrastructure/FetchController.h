@@ -50,7 +50,7 @@ public:
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
 
     void set_report_timing_steps(GC::Ref<GC::Function<void(JS::Object&)>> report_timing_steps);
-    void set_next_manual_redirect_steps(Engine::ContinuationId, GC::Ref<GC::Function<void()>> next_manual_redirect_steps);
+    void set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_control_block->state(); }
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_control_block->full_timing_info(); }
@@ -62,10 +62,12 @@ public:
     // Posts the answer to the manual redirect handed over last, unless it was answered before.
     void resolve_redirect(Engine::Command::ResolveRedirect::Resolution);
     [[nodiscard]] bool has_unanswered_redirect() const { return m_redirect_continuation_id.has_value(); }
+    // The continuation of the manual redirect handed over last, if it waits for an answer.
+    void set_redirect_continuation_id(Optional<Engine::ContinuationId> continuation_id) { m_redirect_continuation_id = continuation_id; }
 
-    // Once the network has delivered all of the delivery's body, records its sizes in the response, if still alive, then
-    // runs the steps given its end time, unless the fetch has ended. An abort, termination, stop or later call drops it.
-    void when_body_ends(Engine::DeliveryId, Response&, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps);
+    // Once the network has delivered all of the delivery's body, runs the steps given its end time, unless the fetch has
+    // ended. An abort, termination, stop or later call drops it.
+    void when_body_ends(Engine::DeliveryId, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps);
     void did_end_body(Engine::Event::EndOfBody const&);
     void did_end_fetch();
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> extract_full_timing_info() const;
@@ -79,6 +81,22 @@ public:
     // The fetch params created with the controller, for which WebDriver BiDi reports errors and intercepts requests.
     void set_original_fetch_params(Badge<FetchParams>, FetchParams const&);
     [[nodiscard]] RefPtr<FetchParams> original_fetch_params() const;
+
+    // The request the controller's fetch params were created with.
+    void set_request(Badge<FetchParams>, NonnullRefPtr<Request>);
+    [[nodiscard]] NonnullRefPtr<Request> request() const;
+
+    // The realm that started the fetch.
+    void set_realm(JS::Realm& realm) { m_realm = realm; }
+    [[nodiscard]] JS::Realm& realm() const
+    {
+        VERIFY(m_realm);
+        return *m_realm;
+    }
+
+    // AD-HOC: Whether the preload whose response the fetch consumes reports its own timing to Resource Timing.
+    [[nodiscard]] bool preload_reports_timing() const { return m_preload_reports_timing; }
+    void set_preload_reports_timing(bool preload_reports_timing) { m_preload_reports_timing = preload_reports_timing; }
 
     // The network observation of the request the controller's fetch params were created with.
     void set_network_observation(Badge<FetchParams>, NonnullRefPtr<NetworkObservation>);
@@ -137,6 +155,8 @@ private:
     FetchControllerToken m_token;
     NonnullRefPtr<FetchControlBlock> m_control_block;
     WeakPtr<FetchParams> m_original_fetch_params;
+    RefPtr<Request> m_request;
+    GC::Ptr<JS::Realm> m_realm;
     RefPtr<NetworkObservation> m_network_observation;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
@@ -146,7 +166,6 @@ private:
 
     struct AwaitedEndOfBody {
         Engine::DeliveryId delivery_id;
-        WeakPtr<Response> response;
         GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps;
     };
     Optional<AwaitedEndOfBody> m_awaited_end_of_body;
@@ -190,6 +209,7 @@ private:
     GC::Ptr<Page> m_page;
 
     bool m_is_keepalive { false };
+    bool m_preload_reports_timing { false };
 
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.

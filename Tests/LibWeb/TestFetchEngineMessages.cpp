@@ -123,9 +123,17 @@ TEST_CASE(events_round_trip_their_payloads)
     timing_seed.start_time = 12.5;
     timing_seed.render_blocking = true;
 
+    auto response = Web::Fetch::Infrastructure::Response::create();
+    response->set_status(201);
+
     Vector<EngineEvent> events;
-    events.append(Event::ResponseDelivery { .delivery_id = DeliveryId(1), .body = NullBody {}, .timing_seed = move(timing_seed) });
-    events.append(Event::EndOfBody { .delivery_id = DeliveryId(2), .final_sizes = { .encoded_body_size = 10, .decoded_body_size = 20 }, .end_time = 99 });
+    events.append(Event::ResponseDelivery {
+        .response = response,
+        .body = NullBody {},
+        .timing_seed = move(timing_seed),
+        .redirect_continuation_id = ContinuationId(1),
+    });
+    events.append(Event::EndOfBody { .delivery_id = DeliveryId(2), .end_time = 99 });
     events.append(Event::ConsumeBodyResult { .delivery_id = DeliveryId(3), .outcome = Event::ConsumeBodyResult::Bytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("body"sv.bytes()))) } });
     events.append(Event::BodyChannelReadable { .delivery_id = DeliveryId(4), .ticket = WakeTicket(7) });
     events.append(Event::DeliveryEnd { .delivery_id = DeliveryId(5), .outcome = Event::DeliveryEnd::Revoked {} });
@@ -188,13 +196,15 @@ TEST_CASE(events_round_trip_their_payloads)
     for (auto const& event : events) {
         event.visit(
             [&](Event::ResponseDelivery const& delivery) {
+                EXPECT_EQ(delivery.response.ptr(), response.ptr());
+                EXPECT_EQ(delivery.response->status(), 201);
                 EXPECT(delivery.body.has<NullBody>());
                 EXPECT_EQ(delivery.timing_seed.start_time, 12.5);
                 EXPECT(delivery.timing_seed.render_blocking);
-                seen_ids.append(delivery.delivery_id.value());
+                seen_ids.append(delivery.redirect_continuation_id->value());
             },
             [&](Event::EndOfBody const& end) {
-                EXPECT_EQ(end.final_sizes.decoded_body_size, 20u);
+                EXPECT_EQ(end.end_time, 99);
                 seen_ids.append(end.delivery_id.value());
             },
             [&](Event::ConsumeBodyResult const& result) {

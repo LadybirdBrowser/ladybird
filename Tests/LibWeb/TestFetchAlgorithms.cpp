@@ -50,6 +50,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -155,6 +156,128 @@ TEST_CASE(each_algorithm_gets_the_same_response_with_a_body_in_order)
     EXPECT_EQ(responses[2].ptr(), responses[0].ptr());
     VERIFY(consumed_bytes.has_value());
     EXPECT_EQ(*consumed_bytes, MUST(ByteBuffer::copy("hello"sv.bytes())));
+}
+
+namespace {
+
+class IgnoringProducerSink final : public Web::Fetch::Engine::FetchByteChannelProducerSink {
+public:
+    virtual void grant_credit(u64) override { }
+    virtual void consumer_cancelled() override { }
+};
+
+}
+
+static FetchAlgorithms::Input algorithms_recording_their_calls(GC::Heap& heap, NonnullRefPtr<AlgorithmCalls> const& record)
+{
+    FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
+    input.process_response = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView> response) {
+        record->calls.append("process response"sv);
+        record->responses.append(GC::make_root(response));
+    });
+    input.process_response_end_of_body = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView>) {
+        record->calls.append("process response end-of-body"sv);
+    });
+    input.process_response_consume_body = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView>, FetchAlgorithms::BodyBytes body) {
+        record->calls.append("process response consume body"sv);
+        if (auto const* bytes = body.get_pointer<Core::ImmutableBytes>())
+            record->consumed_bytes = MUST(ByteBuffer::copy(bytes->bytes()));
+    });
+    return input;
+}
+
+// Delivers the response with the body to a fetch of the harness's document, as the fetch engine hands a response over,
+// and returns what the fetch's algorithms saw once each has run.
+static NonnullRefPtr<AlgorithmCalls> deliver_to_a_fetch(FetchHarness const& harness, NonnullRefPtr<Response> response, Web::Fetch::Engine::LocalBodyPresentation body)
+{
+    auto& heap = harness.realm->heap();
+    auto& agent = Web::HTML::surrounding_agent();
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto controller = GC::make_root(FetchController::create(agent.fetch_controller_registry));
+    auto request = harness.create_request_for("https://example.com/delivered"sv);
+    auto algorithms = FetchAlgorithms::create(algorithms_recording_their_calls(heap, record));
+    auto timing_info = Web::Fetch::Infrastructure::FetchTimingInfo::create();
+    auto fetch_params = FetchParams::create(*controller, move(request), algorithms, move(timing_info), Web::current_loader_config());
+    controller->set_realm(*harness.realm);
+    controller->set_task_destination(GC::Ref { harness.realm->global_object() });
+    Web::Fetch::Engine::FetchId fetch_id { 1 };
+    controller->set_started_fetch(fetch_id, *agent.fetch_executor);
+
+    Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+    auto event_sink = make<FetchEventSink>(*controller);
+    auto engine_record = records.start(fetch_id, move(event_sink), Web::Fetch::Engine::NetworkActivityObservers::create());
+    Web::Fetch::Engine::Event::ResponseDelivery delivery {
+        .response = move(response),
+        .body = move(body),
+        .timing_seed = {},
+        .redirect_continuation_id = {},
+    };
+    engine_record->main_fetch_hands_over(move(delivery));
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->calls.size() == 3; }));
+    return record;
+}
+
+TEST_CASE(a_delivered_response_runs_the_algorithms_in_order_over_the_body_it_was_delivered_with)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    using Web::Fetch::Engine::Delivered;
+    using Web::Fetch::Engine::NonNullLocalBodyHandle;
+    auto expected_calls = Vector<StringView> { "process response"sv, "process response end-of-body"sv, "process response consume body"sv };
+
+    // A body of bytes, which stays in the response.
+    auto bytes = MUST(Core::ImmutableBytes::copy("bytes"sv.bytes()));
+    auto response_with_bytes = Response::create();
+    response_with_bytes->set_body(Web::Fetch::Infrastructure::ResponseBody::from_bytes(bytes));
+    auto over_bytes = deliver_to_a_fetch(harness, response_with_bytes, Delivered<NonNullLocalBodyHandle> { bytes });
+    EXPECT_EQ(over_bytes->calls, expected_calls);
+    VERIFY(over_bytes->responses.size() == 1);
+    EXPECT_EQ(over_bytes->responses[0]->record().ptr(), response_with_bytes.ptr());
+    VERIFY(over_bytes->consumed_bytes.has_value());
+    EXPECT_EQ(*over_bytes->consumed_bytes, MUST(ByteBuffer::copy("bytes"sv.bytes())));
+
+    // A body in a channel, which the response no longer holds.
+    auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
+    EXPECT_EQ(channel->write(MUST(Core::ImmutableBytes::copy("channel"sv.bytes()))), FetchByteChannel::WriteResult::Accepted);
+    (void)channel->close();
+    auto response_with_channel = Response::create();
+    response_with_channel->set_body(Web::Fetch::Infrastructure::ResponseBody { Web::Fetch::Infrastructure::ResponseBody::ReadThroughStream {}, 7 });
+    auto over_channel = deliver_to_a_fetch(harness, response_with_channel, Delivered<NonNullLocalBodyHandle> { channel });
+    EXPECT_EQ(over_channel->calls, expected_calls);
+    VERIFY(over_channel->responses.size() == 1);
+    EXPECT_EQ(over_channel->responses[0]->record().ptr(), response_with_channel.ptr());
+    VERIFY(over_channel->consumed_bytes.has_value());
+    EXPECT_EQ(*over_channel->consumed_bytes, MUST(ByteBuffer::copy("channel"sv.bytes())));
+}
+
+// The fetches of a data: URL and of a network error have no live load at their handover, and end right after it.
+TEST_CASE(a_fetch_with_no_live_load_at_its_handover_ends_after_its_response_reaches_the_agent)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    auto& heap = harness.realm->heap();
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto run_until_responses = [&](size_t count) {
+        harness.run_tasks_until(GC::create_function(heap, GC::captures(record, count), [](auto& record, auto& count) { return record->responses.size() == count; }));
+    };
+
+    auto data_request = harness.create_request_for("data:text/plain,hello"sv);
+    (void)harness.fetch(data_request, recording_responses(heap, record));
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    run_until_responses(1);
+
+    auto network_error_request = harness.create_request();
+    (void)harness.fetch(network_error_request, recording_responses(heap, record));
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    run_until_responses(2);
+
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1", "start fetch 2", "end of fetch 2" }));
+    VERIFY(record->responses.size() == 2);
+    EXPECT(!record->responses[0]->is_network_error());
+    EXPECT(record->responses[1]->is_network_error());
 }
 
 TEST_CASE(a_fetch_stopped_before_its_response_runs_no_algorithm_but_its_request_is_done)
@@ -443,21 +566,14 @@ TEST_CASE(a_fetch_that_has_ended_awaits_the_end_of_no_body)
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = harness.create_request();
     auto controller = harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
-    auto response = Response::create();
     auto steps = GC::create_function(heap, GC::captures(record), [](auto& record, double) { ++record->call_count; });
-    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(1), response, steps);
+    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(1), steps);
     FetchEventSink { controller }.handle_event(Web::Fetch::Engine::Event::FetchEnded {});
-    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(2), response, steps);
+    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(2), steps);
 
-    for (u64 delivery_id : { 1, 2 }) {
-        controller->did_end_body({
-            .delivery_id = Web::Fetch::Engine::DeliveryId(delivery_id),
-            .final_sizes = { .encoded_body_size = 1, .decoded_body_size = 1 },
-            .end_time = 1,
-        });
-    }
+    for (u64 delivery_id : { 1, 2 })
+        controller->did_end_body({ .delivery_id = Web::Fetch::Engine::DeliveryId(delivery_id), .end_time = 1 });
     EXPECT_EQ(record->call_count, 0u);
-    EXPECT_EQ(response->body_info().encoded_size, 0u);
 }
 
 TEST_CASE(a_canceled_fetch_runs_no_algorithm_of_a_non_null_request_body)
@@ -959,12 +1075,11 @@ static DeliveredBody deliver_a_body(FetchHarness const& harness, StandInRequestS
     return { move(controller), move(response), *delivery_id, request_id };
 }
 
-// Reports the end of the delivered body, as the engine would once the body had arrived whole.
+// Reports the end of the delivered body as the engine would once the body had arrived whole.
 static void report_end_of_body(DeliveredBody const& delivered)
 {
     EndOfBody end_of_body {
         .delivery_id = delivered.delivery_id,
-        .final_sizes = { .encoded_body_size = 1, .decoded_body_size = 1 },
         .end_time = 1,
     };
     FetchEventSink event_sink { *delivered.controller };
@@ -1039,10 +1154,10 @@ TEST_CASE(a_stopped_fetch_no_longer_awaits_the_end_of_its_body)
     FetchHarness harness;
     StandInRequestServer request_server { harness };
 
-    auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/stopped"sv);
+    auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/stopped"sv, Request::InitiatorType::Fetch);
     delivered.controller->stop_fetch();
     report_end_of_body(delivered);
-    EXPECT_EQ(delivered.response->body_info().encoded_size, 0u);
+    EXPECT_NE(delivered.controller->control_block().end_time(), 1);
 }
 
 TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end_and_ends_its_fetch)
@@ -1053,8 +1168,8 @@ TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end_and_ends_its_fetch)
     auto commands = harness.record_commands();
     StandInRequestServer request_server { harness };
 
-    auto failed = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/failed"sv);
-    auto transferred = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/transferred"sv);
+    auto failed = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/failed"sv, Request::InitiatorType::Fetch);
+    auto transferred = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/transferred"sv, Request::InitiatorType::Fetch);
     EXPECT(is_rooted(failed.controller->token()));
     EXPECT(is_rooted(transferred.controller->token()));
     request_server.send_finished(failed.request_id, finished_timing_info(1000), Requests::NetworkError::IncompleteContent);
@@ -1071,8 +1186,8 @@ TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end_and_ends_its_fetch)
     // The end of each fetch drops the wait for the end of its body.
     report_end_of_body(failed);
     report_end_of_body(transferred);
-    EXPECT_EQ(failed.response->body_info().encoded_size, 0u);
-    EXPECT_EQ(transferred.response->body_info().encoded_size, 0u);
+    EXPECT_NE(failed.controller->control_block().end_time(), 1);
+    EXPECT_NE(transferred.controller->control_block().end_time(), 1);
 }
 
 TEST_CASE(a_fetch_ends_once_its_response_is_handed_over_and_its_body_has_arrived)
@@ -1801,6 +1916,60 @@ TEST_CASE(a_fetch_that_ends_while_a_sync_xhr_waits_ends_once_and_runs_its_algori
     EXPECT(!is_rooted(token));
 }
 
+// A sync XHR whose body is whole at its handover reads it at once, and the agent posts the stop of its request to the
+// fetch engine, which stops the request and ends the fetch.
+TEST_CASE(a_sync_xhr_whose_body_is_whole_at_its_handover_posts_the_stop_of_its_request)
+{
+    auto const body = "the whole body"sv;
+    auto const path = ByteString::formatted("{}/TestFetchAlgorithms-{:016x}", Core::StandardPaths::tempfile_directory(), get_random<u64>());
+    {
+        auto file = MUST(Core::File::open(path, Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew));
+        MUST(file->write_until_depleted(body.bytes()));
+    }
+    // A file that is still mapped cannot be removed on Windows, so this runs last, once the request has unmapped it.
+    ScopeGuard remove_file = [&path] { MUST(FileSystem::remove(path, FileSystem::RecursionMode::Disallowed)); };
+
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    // Once the XHR's request has started, its headers and its whole body arrive together, before its response is handed
+    // over, and the request is left unfinished. Ten seconds after the XHR starts, they arrive regardless.
+    struct {
+        bool answered { false };
+        size_t ticks { 0 };
+    } seen;
+    auto timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [&] {
+        if (seen.answered)
+            return;
+        if (!request_server.messages().contains_slow("start 0 GET /whole-body-sync-xhr"sv) && ++seen.ticks < 10'000)
+            return;
+        seen.answered = true;
+        request_server.send_headers(0, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+        request_server.send_body_file(0, path, body.length());
+        request_server.deliver_sent_messages();
+    });
+    timer->start();
+    auto result = run_script(harness, "const xhr = new XMLHttpRequest(); xhr.open('GET', 'http://127.0.0.1:8000/whole-body-sync-xhr', false); xhr.send(); `${xhr.status} ${xhr.responseText}`;"sv);
+    timer->stop();
+    request_server.wait_for_message("stop 0"sv);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    EXPECT(result.is_string());
+    if (result.is_string())
+        EXPECT_EQ(result.as_string().utf16_string(), "200 the whole body"_utf16);
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /whole-body-sync-xhr", "stop 0" }));
+    EXPECT_EQ(commands->steps.size(), 3u);
+    if (commands->steps.size() != 3)
+        return;
+    EXPECT_EQ(commands->steps[0], "start fetch 1"sv);
+    EXPECT(commands->steps[1].starts_with("stop transport of request 0 of epoch "sv));
+    EXPECT_EQ(commands->steps[2], "end of fetch 1"sv);
+}
+
 namespace {
 
 // A page client that records the network activity reported to it, and opens the files its page asks for.
@@ -2183,10 +2352,9 @@ TEST_CASE(the_network_phases_of_a_load_reach_the_agent_before_the_end_of_its_bod
     auto controller = FetchController::create(Web::HTML::surrounding_agent().fetch_controller_registry);
     FetchEventSink event_sink { controller };
     auto agent_timing_info = controller->control_block().hand_over_timing({});
-    auto response = Response::create();
 
     auto steps = make_ref_counted<EndOfBodySteps>();
-    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(1), response, GC::create_function(harness.realm->heap(), GC::captures(steps, agent_timing_info), [](auto& steps, auto& agent_timing_info, double end_time) {
+    controller->when_body_ends(Web::Fetch::Engine::DeliveryId(1), GC::create_function(harness.realm->heap(), GC::captures(steps, agent_timing_info), [](auto& steps, auto& agent_timing_info, double end_time) {
         steps->end_times.append(end_time);
         steps->had_network_phases = agent_timing_info->final_connection_timing_info().has_value();
     }));
@@ -2197,14 +2365,11 @@ TEST_CASE(the_network_phases_of_a_load_reach_the_agent_before_the_end_of_its_bod
 
     EndOfBody end_of_body {
         .delivery_id = Web::Fetch::Engine::DeliveryId(1),
-        .final_sizes = { .encoded_body_size = 3, .decoded_body_size = 4 },
         .end_time = 30,
     };
     event_sink.handle_event(move(end_of_body));
     EXPECT_EQ(steps->end_times, (Vector<double> { 30 }));
     EXPECT(steps->had_network_phases);
-    EXPECT_EQ(response->body_info().encoded_size, 3u);
-    EXPECT_EQ(response->body_info().decoded_size, 4u);
 }
 
 namespace {

@@ -96,9 +96,8 @@ public:
     void keep_whole_body(Core::ImmutableBytes);
     [[nodiscard]] Optional<Core::ImmutableBytes> whole_body() const;
 
-    // The delivery of the handed-over response these bytes are the body of. Set once, unless the channel is Closed, and
-    // returns whether it was set.
-    [[nodiscard]] bool set_delivery_id_unless_closed(DeliveryId);
+    // The delivery of the handed-over response these bytes are the body of. Set once, unless the channel is Closed.
+    void set_delivery_id_unless_closed(DeliveryId);
     [[nodiscard]] Optional<DeliveryId> delivery_id() const;
 
     // Consumer side.

@@ -41,6 +41,53 @@ private:
     RefPtr<FetchEnds> m_ends;
 };
 
+struct ReceivedEvents : RefCounted<ReceivedEvents> {
+    Vector<StringView> events;
+};
+
+// Records the response deliveries and the end of the fetch whose events it receives, in the order they come.
+class DeliveryAndEndRecordingEventSink final : public EngineEventSink {
+public:
+    explicit DeliveryAndEndRecordingEventSink(NonnullRefPtr<ReceivedEvents> received)
+        : m_received(move(received))
+    {
+    }
+
+    virtual void handle_event(EngineEvent event) override
+    {
+        if (event.has<Event::ResponseDelivery>())
+            m_received->events.append("response delivery"sv);
+        else if (event.has<Event::FetchEnded>())
+            m_received->events.append("end of fetch"sv);
+    }
+
+private:
+    NonnullRefPtr<ReceivedEvents> m_received;
+};
+
+struct MainFetchEndsAtDeliveries : RefCounted<MainFetchEndsAtDeliveries> {
+    FetchEngineRecord* record { nullptr };
+    Vector<bool> main_fetch_has_ended;
+};
+
+// Records, as each response delivery reaches it, whether main fetch of the record has ended.
+class MainFetchEndRecordingEventSink final : public EngineEventSink {
+public:
+    explicit MainFetchEndRecordingEventSink(NonnullRefPtr<MainFetchEndsAtDeliveries> recorded)
+        : m_recorded(move(recorded))
+    {
+    }
+
+    virtual void handle_event(EngineEvent event) override
+    {
+        if (event.has<Event::ResponseDelivery>())
+            m_recorded->main_fetch_has_ended.append(m_recorded->record->main_fetch_has_ended());
+    }
+
+private:
+    NonnullRefPtr<MainFetchEndsAtDeliveries> m_recorded;
+};
+
 // Records misbehavior instead of dying, for calls that report it while they hold a reference to a record.
 class MisbehaviorRecordingAgent final : public FetchEngineRecords::Agent {
 public:
@@ -93,6 +140,23 @@ static NonnullRefPtr<FetchEngineRecord> start_fetch(FetchEngineRecords& records,
 {
     auto event_sink = make<EndCountingEventSink>(move(ends));
     return records.start(FetchId { fetch_id }, move(event_sink), NetworkActivityObservers::create()).release_nonnull();
+}
+
+static NonnullRefPtr<FetchEngineRecord> start_fetch_recording_events(FetchEngineRecords& records, u64 fetch_id, NonnullRefPtr<ReceivedEvents> received)
+{
+    auto event_sink = make<DeliveryAndEndRecordingEventSink>(move(received));
+    return records.start(FetchId { fetch_id }, move(event_sink), NetworkActivityObservers::create()).release_nonnull();
+}
+
+// The delivery of a response without a body.
+static Event::ResponseDelivery delivery()
+{
+    return {
+        .response = Web::Fetch::Infrastructure::Response::create(),
+        .body = NullBody {},
+        .timing_seed = {},
+        .redirect_continuation_id = {},
+    };
 }
 
 TEST_CASE(a_stop_of_a_fetch_stops_its_body_transport_and_leaves_that_of_its_cors_preflight)
@@ -275,12 +339,19 @@ static bool has_lease(NetworkTransportWithGate const& transport)
     return transport.handle->transfer_lease().has_value();
 }
 
+// Opens the continuation of a manual redirect of the record's fetch, which stays open, and returns its id.
+static ContinuationId open_continuation(FetchEngineRecord& record, NetworkTransportHandle* network_transport = nullptr)
+{
+    record.open_redirect_continuation(network_transport);
+    return record.open_redirect_continuation_id().value();
+}
+
 // The record's fetch hands over a manual redirect whose response arrived through the transport, its body transport.
 static ContinuationId hand_over_redirect(FetchEngineRecord& record, NetworkTransportWithGate& redirect)
 {
     record.set_body_transport(*redirect.handle);
-    auto continuation_id = record.open_redirect_continuation(redirect.handle.ptr());
-    record.main_fetch_handed_over();
+    auto continuation_id = open_continuation(record, redirect.handle.ptr());
+    record.main_fetch_hands_over(delivery());
     return continuation_id;
 }
 
@@ -297,6 +368,39 @@ TEST_CASE(an_abandoned_redirect_has_its_lease_released_and_its_request_stopped)
     EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Abandon {}))).ptr(), record.ptr());
     EXPECT(!has_lease(redirect));
     EXPECT(redirect.teardowns->reasons == (Vector<Requests::Request::TeardownReason> { Requests::Request::TeardownReason::Stopped }));
+}
+
+TEST_CASE(a_followed_redirect_has_its_lease_released_and_its_request_stopped)
+{
+    Core::EventLoop event_loop;
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto connected = connect_client();
+    auto redirect = start_network_transport(*connected.client, Requests::RequestClient::TransferLease::Yes);
+    auto continuation_id = hand_over_redirect(*record, redirect);
+    EXPECT(has_lease(redirect));
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
+    EXPECT(!has_lease(redirect));
+    EXPECT(redirect.teardowns->reasons == (Vector<Requests::Request::TeardownReason> { Requests::Request::TeardownReason::Stopped }));
+}
+
+// The load of the redirect's response can end as its body transport stops.
+TEST_CASE(a_followed_redirect_keeps_its_fetch_through_the_end_of_its_load)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    auto load = record->start_load();
+    auto transport = WholeBodyTransport::create();
+    transport->set_on_stop([load] { load->end(); });
+    record->set_body_transport(transport);
+    auto continuation_id = open_continuation(*record);
+    record->main_fetch_hands_over(delivery());
+
+    EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
+    EXPECT(load->has_ended());
+    EXPECT_EQ(ends->count, 0u);
 }
 
 TEST_CASE(a_redirect_accepted_as_final_keeps_its_request)
@@ -365,15 +469,15 @@ TEST_CASE(a_redirect_handed_over_after_a_stop_of_its_fetch_is_abandoned_at_once)
     // The pipeline hands the redirect over once the stop has stopped its request.
     records.stop(FetchId { 1 });
     EXPECT(has_lease(redirect));
-    auto continuation_id = record->open_redirect_continuation(redirect.handle.ptr());
+    record->open_redirect_continuation(redirect.handle.ptr());
     EXPECT(!has_lease(redirect));
-    EXPECT(was_dropped(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))));
+    EXPECT(!record->open_redirect_continuation_id().has_value());
 }
 
 TEST_CASE(an_answer_for_a_settled_redirect_or_an_ended_fetch_does_nothing)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
-    auto ended_continuation_id = start_fetch(records, 1)->open_redirect_continuation(nullptr);
+    auto ended_continuation_id = open_continuation(*start_fetch(records, 1));
     EXPECT(was_dropped(records.resolve_redirect(answer(1, ended_continuation_id, Command::ResolveRedirect::Follow {}))));
 
     auto record = start_fetch(records, 2);
@@ -381,8 +485,8 @@ TEST_CASE(an_answer_for_a_settled_redirect_or_an_ended_fetch_does_nothing)
     bool stopped = false;
     transport->set_on_stop([&] { stopped = true; });
     record->set_body_transport(transport);
-    auto continuation_id = record->open_redirect_continuation(nullptr);
-    record->main_fetch_handed_over();
+    auto continuation_id = open_continuation(*record);
+    record->main_fetch_hands_over(delivery());
     EXPECT_EQ(settled(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::AcceptAsFinal {}))).ptr(), record.ptr());
 
     EXPECT(was_dropped(records.resolve_redirect(answer(2, continuation_id, Command::ResolveRedirect::Abandon {}))));
@@ -394,7 +498,7 @@ TEST_CASE(an_answer_for_a_redirect_the_engine_never_offered_dies)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto record = start_fetch(records, 1);
-    auto continuation_id = record->open_redirect_continuation(nullptr);
+    auto continuation_id = open_continuation(*record);
 
     auto above_every_offered = answer(1, ContinuationId { continuation_id.value() + 1 }, Command::ResolveRedirect::Follow {});
     EXPECT_DEATH("Answering a redirect with a continuation id above every one the engine offered", (void)records.resolve_redirect(above_every_offered));
@@ -408,7 +512,7 @@ TEST_CASE(an_answer_to_a_redirect_main_fetch_has_not_handed_over_is_misbehavior)
     Vector<ByteString> misbehaviors;
     FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
     auto record = start_fetch(records, 1);
-    auto continuation_id = record->open_redirect_continuation(nullptr);
+    auto continuation_id = open_continuation(*record);
 
     EXPECT(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {})).has<FetchEngineRecords::RedirectAnswerMisbehaved>());
     EXPECT(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Abandon {})).has<FetchEngineRecords::RedirectAnswerMisbehaved>());
@@ -423,7 +527,7 @@ TEST_CASE(a_fetch_ends_once_main_fetch_has_handed_over_and_its_loads_have_ended)
     auto first_load = record->start_load();
     auto second_load = record->start_load();
 
-    record->main_fetch_handed_over();
+    record->main_fetch_hands_over(delivery());
     first_load->end();
     EXPECT_EQ(ends->count, 0u);
 
@@ -436,16 +540,27 @@ TEST_CASE(a_fetch_ends_once_main_fetch_has_handed_over_and_its_loads_have_ended)
     EXPECT_EQ(ends->count, 1u);
 }
 
-TEST_CASE(a_fetch_whose_loads_have_ended_ends_at_its_handover)
+TEST_CASE(a_fetch_whose_loads_have_ended_ends_at_its_handover_after_the_delivery)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
-    auto ends = make_ref_counted<FetchEnds>();
-    auto record = start_fetch(records, 1, ends);
+    auto received = make_ref_counted<ReceivedEvents>();
+    auto record = start_fetch_recording_events(records, 1, received);
     record->start_load()->end();
-    EXPECT_EQ(ends->count, 0u);
+    EXPECT(received->events.is_empty());
 
-    record->main_fetch_handed_over();
-    EXPECT_EQ(ends->count, 1u);
+    record->main_fetch_hands_over(delivery());
+    EXPECT_EQ(received->events, (Vector<StringView> { "response delivery"sv, "end of fetch"sv }));
+}
+
+TEST_CASE(main_fetch_has_ended_once_its_delivery_reaches_the_agent)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto recorded = make_ref_counted<MainFetchEndsAtDeliveries>();
+    auto record = records.start(FetchId { 1 }, make<MainFetchEndRecordingEventSink>(recorded), NetworkActivityObservers::create()).release_nonnull();
+    recorded->record = record.ptr();
+
+    record->main_fetch_hands_over(delivery());
+    EXPECT_EQ(recorded->main_fetch_has_ended, (Vector<bool> { true }));
 }
 
 TEST_CASE(a_fetch_ends_once_the_redirect_it_handed_over_is_settled)
@@ -459,8 +574,8 @@ TEST_CASE(a_fetch_ends_once_the_redirect_it_handed_over_is_settled)
     auto stopped = start_fetch(records, 3, stopped_ends);
     Vector<ContinuationId> continuation_ids;
     for (auto const& record : { accepted, abandoned, stopped }) {
-        continuation_ids.append(record->open_redirect_continuation(nullptr));
-        record->main_fetch_handed_over();
+        continuation_ids.append(open_continuation(*record));
+        record->main_fetch_hands_over(delivery());
     }
     EXPECT_EQ(accepted_ends->count + abandoned_ends->count + stopped_ends->count, 0u);
 
@@ -477,12 +592,12 @@ TEST_CASE(a_followed_redirect_keeps_its_fetch_until_the_next_hop_ends)
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto ends = make_ref_counted<FetchEnds>();
     auto record = start_fetch(records, 1, ends);
-    auto continuation_id = record->open_redirect_continuation(nullptr);
-    record->main_fetch_handed_over();
+    auto continuation_id = open_continuation(*record);
+    record->main_fetch_hands_over(delivery());
 
     EXPECT_EQ(settled(records.resolve_redirect(answer(1, continuation_id, Command::ResolveRedirect::Follow {}))).ptr(), record.ptr());
     auto next_hop_load = record->start_load();
-    record->main_fetch_handed_over();
+    record->main_fetch_hands_over(delivery());
     EXPECT_EQ(ends->count, 0u);
 
     next_hop_load->end();
@@ -565,7 +680,7 @@ TEST_CASE(main_fetch_reading_a_body_that_cannot_reach_its_end_can_no_longer_hand
     closed_load->end();
     EXPECT_EQ(closed_ends->count, 0u);
 
-    closed->main_fetch_handed_over();
+    closed->main_fetch_hands_over(delivery());
     EXPECT_EQ(closed_ends->count, 1u);
 }
 
@@ -614,7 +729,7 @@ TEST_CASE(a_stop_that_cancels_the_body_main_fetch_reads_after_its_load_has_ended
     // A body read to its end leaves main fetch its response to hand over.
     EXPECT(read.channel->peek_up_to(0).state.has<FetchByteChannel::Closed>());
     EXPECT_EQ(read_ends->count, 0u);
-    read.record->main_fetch_handed_over();
+    read.record->main_fetch_hands_over(delivery());
     EXPECT_EQ(read_ends->count, 1u);
 }
 
@@ -622,27 +737,28 @@ TEST_CASE(a_load_after_the_end_of_its_fetch_dies)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto record = start_fetch(records, 1);
-    record->main_fetch_handed_over();
+    record->main_fetch_hands_over(delivery());
 
     EXPECT_DEATH("Starting a load of a fetch that has ended", (void)record->start_load());
 }
 
 // A failed enqueue into the stream of the body main fetch reads to its end cancels the body's channel, and the read's
 // error then reaches the handover, after main fetch has ended at the end of the load.
-TEST_CASE(a_handover_after_main_fetch_has_ended_does_nothing)
+TEST_CASE(a_handover_after_main_fetch_has_ended_delivers_nothing)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
-    auto ends = make_ref_counted<FetchEnds>();
-    auto record = start_fetch(records, 1, ends);
+    auto received = make_ref_counted<ReceivedEvents>();
+    auto record = start_fetch_recording_events(records, 1, received);
     auto load = record->start_load();
     auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
     record->main_fetch_reads_whole_body(*channel);
     (void)channel->cancel();
     load->end();
-    EXPECT_EQ(ends->count, 1u);
+    EXPECT(record->main_fetch_has_ended());
+    EXPECT_EQ(received->events, (Vector<StringView> { "end of fetch"sv }));
 
-    record->main_fetch_handed_over();
-    EXPECT_EQ(ends->count, 1u);
+    record->main_fetch_hands_over(delivery());
+    EXPECT_EQ(received->events, (Vector<StringView> { "end of fetch"sv }));
 }
 
 TEST_CASE(an_abandoned_preload_wait_ends_the_fetch_whose_main_fetch_waits)
@@ -664,7 +780,7 @@ TEST_CASE(an_abandoned_preload_wait_ends_the_fetch_whose_main_fetch_waits)
     resolved->main_fetch_waits_for_preload();
     resolved->main_fetch_stops_waiting_for_preload();
     EXPECT_EQ(resolved_ends->count, 0u);
-    resolved->main_fetch_handed_over();
+    resolved->main_fetch_hands_over(delivery());
     EXPECT_EQ(resolved_ends->count, 1u);
     records.abandon_preload_wait(FetchId { 2 });
     EXPECT_EQ(resolved_ends->count, 1u);
@@ -696,5 +812,5 @@ TEST_CASE(a_handover_while_main_fetch_waits_for_a_preload_dies)
     auto record = start_fetch(records, 1);
     record->main_fetch_waits_for_preload();
 
-    EXPECT_DEATH("Handing a response over while main fetch waits for a preload", record->main_fetch_handed_over());
+    EXPECT_DEATH("Handing a response over while main fetch waits for a preload", record->main_fetch_hands_over(delivery()));
 }

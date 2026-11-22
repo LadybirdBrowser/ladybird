@@ -66,13 +66,14 @@ public:
 
     void add_network_transport(NetworkTransportHandle&, FetchBodyDeliveryGate&);
 
-    // Marks the channel as the body of a response handed over to the agent that started the fetch, and returns the id
-    // of that delivery. A Closed channel, whose body has arrived whole, is not marked and gets none.
-    Optional<DeliveryId> deliver_body(FetchByteChannel&);
+    // Marks the channel as the body of a response handed over to the agent that started the fetch, with the id of that
+    // delivery. A Closed channel, whose body has arrived whole, is not marked.
+    void deliver_body(FetchByteChannel&);
 
     // Opens the continuation of a manual redirect the fetch hands over, which waits for the agent's answer. The
     // redirect's response arrived through the given network transport, if any.
-    [[nodiscard]] ContinuationId open_redirect_continuation(NetworkTransportHandle*);
+    void open_redirect_continuation(NetworkTransportHandle*);
+    [[nodiscard]] Optional<ContinuationId> open_redirect_continuation_id() const;
 
     enum class RedirectAnswerResult : u8 {
         Settled,
@@ -81,15 +82,17 @@ public:
         // Main fetch has not handed the redirect over yet.
         NotHandedOver,
     };
-    // Settles the open continuation with the agent's answer once main fetch has handed the redirect over. Abandoning
-    // releases the lease of its network transport and stops the body transport; following lets main fetch run again.
+    // Settles the open continuation with the agent's answer once main fetch has handed the redirect over. Following also
+    // lets main fetch run again.
     [[nodiscard]] RedirectAnswerResult resolve_redirect(ContinuationId, Command::ResolveRedirect::Resolution const&);
 
     // Starts a load of the fetch's request, which main fetch runs.
     [[nodiscard]] NonnullRefPtr<FetchLoad> start_load();
 
-    // Main fetch has handed a response over to the agent. Does nothing once main fetch has ended.
-    void main_fetch_handed_over();
+    // Main fetch hands a response over to the agent that started the fetch, unless main fetch has ended. Main fetch has
+    // ended before the agent receives the delivery, and the fetch ends after it if nothing else is left.
+    void main_fetch_hands_over(Event::ResponseDelivery);
+    [[nodiscard]] bool main_fetch_has_ended() const { return m_main_fetch.has<MainFetchEnded>(); }
     // Main fetch can no longer hand a response over, and the channel of the body it reads to its end, if any, is
     // cancelled. Does nothing once main fetch has ended.
     void main_fetch_cannot_hand_over();
@@ -115,6 +118,9 @@ private:
 
     [[nodiscard]] bool is_on_owner_thread() const { return m_owner_thread.is_current_thread(); }
 
+    // Closes the open redirect continuation, releasing the lease of its network transport and stopping the body
+    // transport.
+    void close_redirect_continuation();
     void abandon_redirect();
     void did_end_load();
     void end_main_fetch_if_its_read_cannot_end();

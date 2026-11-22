@@ -53,6 +53,7 @@ GC::Ref<FetchController> FetchController::create(FetchControllerRegistry& regist
 void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_realm);
     visitor.visit(m_report_timing_steps);
     if (m_awaited_end_of_body.has_value())
         visitor.visit(m_awaited_end_of_body->steps);
@@ -119,6 +120,18 @@ RefPtr<FetchParams> FetchController::original_fetch_params() const
     return m_original_fetch_params.strong_ref();
 }
 
+void FetchController::set_request(Badge<FetchParams>, NonnullRefPtr<Request> request)
+{
+    VERIFY(!m_request);
+    m_request = move(request);
+}
+
+NonnullRefPtr<Request> FetchController::request() const
+{
+    VERIFY(m_request);
+    return *m_request;
+}
+
 GC::Ref<FetchAlgorithms const> FetchController::algorithms() const
 {
     VERIFY(m_algorithms);
@@ -136,10 +149,9 @@ void FetchController::set_report_timing_steps(GC::Ref<GC::Function<void(JS::Obje
     m_report_timing_steps = report_timing_steps;
 }
 
-void FetchController::set_next_manual_redirect_steps(Engine::ContinuationId continuation_id, GC::Ref<GC::Function<void()>> next_manual_redirect_steps)
+void FetchController::set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps)
 {
     m_next_manual_redirect_steps = next_manual_redirect_steps;
-    m_redirect_continuation_id = continuation_id;
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing
@@ -177,11 +189,11 @@ void FetchController::resolve_redirect(Engine::Command::ResolveRedirect::Resolut
     m_started_fetch->fetch_executor->post(move(resolve));
 }
 
-void FetchController::when_body_ends(Engine::DeliveryId delivery_id, Response& response, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps)
+void FetchController::when_body_ends(Engine::DeliveryId delivery_id, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps)
 {
     if (m_fetch_ended)
         return;
-    m_awaited_end_of_body = AwaitedEndOfBody { delivery_id, response.make_weak_ptr<Response>(), steps };
+    m_awaited_end_of_body = AwaitedEndOfBody { delivery_id, steps };
 }
 
 void FetchController::did_end_body(Engine::Event::EndOfBody const& end_of_body)
@@ -189,10 +201,6 @@ void FetchController::did_end_body(Engine::Event::EndOfBody const& end_of_body)
     if (!m_awaited_end_of_body.has_value() || m_awaited_end_of_body->delivery_id != end_of_body.delivery_id)
         return;
     auto awaited = m_awaited_end_of_body.release_value();
-
-    if (auto response = awaited.response.strong_ref())
-        response->set_body_sizes(end_of_body.final_sizes.encoded_body_size, end_of_body.final_sizes.decoded_body_size);
-
     if (awaited.steps)
         awaited.steps->function()(end_of_body.end_time);
 }

@@ -18,6 +18,7 @@
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -35,6 +36,7 @@ using Web::Fetch::Engine::FetchByteChannel;
 using Web::Fetch::Engine::FetchByteChannelConsumerSink;
 using Web::Fetch::Engine::FetchByteChannelProducerSink;
 using Web::Fetch::Engine::Event::EndOfBody;
+using Web::Fetch::Fetching::NetworkBodyPump;
 using Web::Fetch::Infrastructure::Body;
 using Web::Fetch::Infrastructure::FetchAlgorithms;
 using Web::Fetch::Infrastructure::FetchParams;
@@ -500,13 +502,9 @@ TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_ends_its_load_and_
     EXPECT_EQ(reader->wake_count, 1u);
 }
 
-static EndOfBody end_of_body(DeliveryId delivery_id, u64 encoded_body_size, u64 decoded_body_size, double end_time)
+static EndOfBody end_of_body(DeliveryId delivery_id, double end_time)
 {
-    return {
-        .delivery_id = delivery_id,
-        .final_sizes = { .encoded_body_size = encoded_body_size, .decoded_body_size = decoded_body_size },
-        .end_time = end_time,
-    };
+    return { .delivery_id = delivery_id, .end_time = end_time };
 }
 
 TEST_CASE(the_end_of_a_body_runs_only_the_steps_awaited_for_its_delivery)
@@ -517,59 +515,79 @@ TEST_CASE(the_end_of_a_body_runs_only_the_steps_awaited_for_its_delivery)
     auto& heap = harness.realm->heap();
     auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
     auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
-    auto earlier = Response::create();
-    auto later = Response::create();
 
     // A later delivery's steps replace an earlier delivery's, and run once, given the body's end time.
     auto earlier_runs = make_ref_counted<SharedValue<size_t>>();
     auto later_end_times = make_ref_counted<SharedValue<Vector<double>>>();
-    controller->when_body_ends(DeliveryId(1), earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
-    controller->when_body_ends(DeliveryId(2), later, GC::create_function(heap, GC::captures(later_end_times), [](auto& later_end_times, double end_time) { later_end_times->value.append(end_time); }));
-    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
+    controller->when_body_ends(DeliveryId(1), GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
+    controller->when_body_ends(DeliveryId(2), GC::create_function(heap, GC::captures(later_end_times), [](auto& later_end_times, double end_time) { later_end_times->value.append(end_time); }));
+    controller->did_end_body(end_of_body(DeliveryId(1), 30));
     EXPECT_EQ(earlier_runs->value, 0u);
     EXPECT(later_end_times->value.is_empty());
-    EXPECT_EQ(earlier->body_info().encoded_size, 0u);
-    controller->did_end_body(end_of_body(DeliveryId(2), 40, 50, 60));
-    controller->did_end_body(end_of_body(DeliveryId(2), 70, 80, 90));
+    controller->did_end_body(end_of_body(DeliveryId(2), 60));
+    controller->did_end_body(end_of_body(DeliveryId(2), 90));
     EXPECT_EQ(later_end_times->value, (Vector<double> { 60 }));
-    EXPECT_EQ(later->body_info().encoded_size, 40u);
-    EXPECT_EQ(later->body_info().decoded_size, 50u);
 
-    // A stopped fetch runs no awaited steps and records no sizes.
-    controller->when_body_ends(DeliveryId(3), earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
+    // A stopped fetch runs no awaited steps.
+    controller->when_body_ends(DeliveryId(3), GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
     controller->stop_fetch();
-    controller->did_end_body(end_of_body(DeliveryId(3), 10, 20, 30));
+    controller->did_end_body(end_of_body(DeliveryId(3), 30));
     EXPECT_EQ(earlier_runs->value, 0u);
-    EXPECT_EQ(earlier->body_info().encoded_size, 0u);
 }
 
-TEST_CASE(the_end_of_a_body_without_steps_records_its_sizes)
+namespace {
+
+// The sizes of a response's body as the end of the body reached the fetch's agent.
+struct BodySizesAtItsEnd : RefCounted<BodySizesAtItsEnd> {
+    Vector<Response::BodyInfo> sizes;
+};
+
+class BodySizesRecordingEventSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    BodySizesRecordingEventSink(NonnullRefPtr<Response const> response, NonnullRefPtr<BodySizesAtItsEnd> recorded)
+        : m_response(move(response))
+        , m_recorded(move(recorded))
+    {
+    }
+
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent event) override
+    {
+        if (event.has<EndOfBody>())
+            m_recorded->sizes.append(m_response->body_info());
+    }
+
+private:
+    NonnullRefPtr<Response const> m_response;
+    NonnullRefPtr<BodySizesAtItsEnd> m_recorded;
+};
+
+}
+
+TEST_CASE(a_body_records_its_sizes_in_its_response_before_its_end_reaches_the_agent)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
     BodyStreamHarness harness;
     auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
     auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
+    auto fetch_params = create_sync_xhr_fetch_params(*controller);
     auto response = Response::create();
+    auto recorded = make_ref_counted<BodySizesAtItsEnd>();
 
-    controller->when_body_ends(DeliveryId(1), response, nullptr);
-    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
-    EXPECT_EQ(response->body_info().encoded_size, 10u);
-    EXPECT_EQ(response->body_info().decoded_size, 20u);
-}
+    Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+    auto record = records.start(Web::Fetch::Engine::FetchId { 1 }, make<BodySizesRecordingEventSink>(response, recorded), Web::Fetch::Engine::NetworkActivityObservers::create());
+    fetch_params->set_engine_record(*record);
 
-TEST_CASE(an_awaited_end_of_body_does_not_keep_its_response)
-{
-    Core::EventLoop event_loop;
-    install_font_plugin();
-    BodyStreamHarness harness;
-    auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
-    auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
-    RefPtr<Response> response = Response::create();
-    auto weak_response = response->make_weak_ptr<Response>();
+    auto pump = NetworkBodyPump::create(fetch_params.ptr(), FetchBodyDeliveryGate::NavigationHold::None, nullptr);
+    pump->set_response(response);
+    record->deliver_body(*pump->channel());
+    VERIFY(pump->channel()->delivery_id().has_value());
+    pump->handle_network_data(Requests::ResponseData::from_bytes("body"sv.bytes()));
+    pump->handle_network_complete(3);
 
-    controller->when_body_ends(DeliveryId(1), *response, nullptr);
-    response = nullptr;
-    EXPECT(!weak_response.strong_ref());
-    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
+    EXPECT_EQ(recorded->sizes.size(), 1u);
+    if (recorded->sizes.size() != 1)
+        return;
+    EXPECT_EQ(recorded->sizes[0].encoded_size, 3u);
+    EXPECT_EQ(recorded->sizes[0].decoded_size, 4u);
 }
