@@ -64,6 +64,13 @@ unsafe extern "C" {
     /// an interface that LibWeb implements in C++.
     pub(crate) fn web_bindings_object_implements_interface(object: *mut c_void, interface_name: u16) -> bool;
 
+    /// Whether the object is the exotic object of a WindowProxy.
+    pub(crate) fn web_bindings_object_is_window_proxy(object: *mut c_void) -> bool;
+
+    /// The object that scripts of the realm see for the WindowProxy whose exotic object this is: that of the
+    /// WindowProxy of its browsing context for the wrapper world of the realm, or the object itself if it has none.
+    pub(crate) fn web_bindings_window_proxy_object_in_realm(object: *mut c_void, realm: *mut c_void) -> *mut c_void;
+
     /// Runs the extract an origin operation of the object, https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin,
     /// if it is a platform object of an interface implemented in C++ or a WindowProxy, and calls `on_origin` with the
     /// origin, which it lends for the call, if that is not null. Returns whether it called `on_origin`.

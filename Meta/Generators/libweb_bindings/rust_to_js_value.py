@@ -16,6 +16,7 @@ from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import dictionary_holds_sequence_of_cells
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import is_sequence_of_cells
+from Generators.libweb_bindings.rust_types import is_window_proxy
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
 from Generators.libweb_bindings.rust_types import rust_enumeration_path
@@ -79,6 +80,8 @@ def rust_to_js_value(
                 "bindings do not convert yet"
             )
         return f"record_to_js({call_context}, {expression}, |value| {inner(value_type)})"
+    if is_window_proxy(idl_type):
+        return f"Ok(window_proxy_to_js({call_context}, {expression}))"
     return f"{expression}.to_js({call_context})"
 
 

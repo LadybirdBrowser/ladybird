@@ -32,6 +32,7 @@ from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import is_record_of_cells
 from Generators.libweb_bindings.rust_types import is_sequence_of_cells
 from Generators.libweb_bindings.rust_types import is_unnamed_union_of_cpp_interfaces
+from Generators.libweb_bindings.rust_types import is_window_proxy
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
@@ -184,6 +185,8 @@ def rust_to_idl_value(
         if inheriting_interfaces(interface, context):
             return f"<{rust_any_interface_path(interface)}>::from_js(vm, {value})"
         return f"to_interface::<{rust_interface_path(interface)}>(vm, {value})"
+    if is_window_proxy(idl_type):
+        return f"to_window_proxy(vm, {value})"
     interface = cpp_interface(idl_type, context)
     if interface is not None:
         return f'to_cpp_interface(vm, {value}, {cpp_interface_name_constant(interface)}, "{interface.name}")'
@@ -305,7 +308,11 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             members.enumeration_types.append(member_type)
         elif member_type.name in TYPED_ARRAY_NAMES:
             members.typed_array_types.append(member_type)
-        elif cpp_interface(member_type, context) is not None or rust_interface(member_type, context) is not None:
+        elif (
+            is_window_proxy(member_type)
+            or cpp_interface(member_type, context) is not None
+            or rust_interface(member_type, context) is not None
+        ):
             members.interface_types.append(member_type)
         elif (
             isinstance(member_type, IDLParameterizedType)
@@ -643,13 +650,21 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
             )
         steps.append("            if value.is_object() {\n")
         for interface_type in members.interface_types:
-            interface = context.interfaces[interface_type.name]
             steps.append(
                 """                // 5. If V is a platform object, then:
                 //     1. If types includes an interface type that V implements, then return the IDL value that is a
                 //        reference to the object V.
 """
             )
+            if is_window_proxy(interface_type):
+                steps.append(
+                    f"""                if let Some(window_proxy) = window_proxy_from_object(value.as_object()) {{
+                    return Ok(Self::{rust_union_variant(interface_type)}(window_proxy));
+                }}
+"""
+                )
+                continue
+            interface = context.interfaces[interface_type.name]
             if rust_interface(interface_type, context) is not None and inheriting_interfaces(interface, context):
                 # NB: A wrapper of the interface wraps an object of the interface or of one that inherits from it,
                 #     which the variant holds as such.
