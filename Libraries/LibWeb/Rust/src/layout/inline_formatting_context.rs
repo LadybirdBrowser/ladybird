@@ -93,7 +93,13 @@ impl TextOverflowEllipsis {
         } else {
             &THREE_PERIODS
         };
-        let font = first_available_font.clone();
+        // NB: The periods come from whichever font of the block has a period for them, which needn't be its first
+        //     available font: That one can be a font whose unicode-range leaves the period out.
+        let code_point = u32::from(text[0]);
+        let font = font_list.font_for_code_point(
+            code_point,
+            libgfx_rust::font::emoji_presentation_for_code_point(code_point, None),
+        );
         let shaped = libgfx_rust::text_layout::shape_text(
             &font,
             text,
