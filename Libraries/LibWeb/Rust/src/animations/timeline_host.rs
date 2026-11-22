@@ -11,6 +11,7 @@ use super::animation::AnimationCell;
 use super::document_animations::DocumentAnimations;
 use super::effect::EffectFlag;
 use super::ffi::{FfiKeepAlive, FfiScrollTimelineSource, FfiTimelineDescription, HostEffectPerformer, run_procedure};
+use super::procedures::update_leaves_animation_as_it_is;
 use super::rendering_trace::note_rendering_trace_event;
 use super::throttling::can_skip_per_frame_animation_tick;
 use super::timeline::{ScrollTimelineBoxes, TimelineCell, TimelineHandle, TimelineKind, TimelineUpdate};
@@ -130,13 +131,20 @@ fn update_associated_animations(timeline: &TimelineCell, host: &TimelineUpdateHo
     note_rendering_trace_event("animation timeline updated its animations");
     // NB: Updating an animation can run script that changes which animations are associated with this timeline. Skip
     //     the ones it disassociates. The host keeps the animations alive through it.
-    let animations = timeline.associated_animations().borrow_mut().alive();
+    // OPTIMIZATION: Only the animations an update may change are updated, in the order they are associated with the
+    //               timeline. The others stay as they are until a procedure runs on them, which notes that they need
+    //               updates again.
+    let animations = timeline.associated_animations_needing_update();
     for animation in &animations {
         (host.keep_alive)(animation);
     }
     for animation in &animations {
-        if timeline.associated_animations().borrow().contains(animation) {
+        let is_associated = timeline.associated_animations().borrow().contains(animation);
+        if is_associated {
             run_procedure(animation, host.perform, |procedures| procedures.update());
+        }
+        if !is_associated || update_leaves_animation_as_it_is(animation) {
+            timeline.animations_needing_update().borrow_mut().remove(animation);
         }
     }
 }

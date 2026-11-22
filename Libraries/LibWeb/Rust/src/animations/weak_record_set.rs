@@ -51,6 +51,11 @@ impl<T> WeakRecordSet<T> {
             .copied()
     }
 
+    /// The index of the entry of `record` in the set's order, if the set holds it.
+    pub(crate) fn position(&self, record: *const T) -> Option<u32> {
+        self.find(record)
+    }
+
     /// Whether the set holds `record`.
     pub(crate) fn contains(&self, record: *const T) -> bool {
         self.find(record).is_some()

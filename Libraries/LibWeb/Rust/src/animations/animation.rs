@@ -722,6 +722,11 @@ impl WeakAnimationSet {
         self.0.contains(animation)
     }
 
+    /// The index of the entry of `animation` in the set's order, if the set holds it.
+    pub(crate) fn position(&self, animation: &AnimationCell) -> Option<u32> {
+        self.0.position(animation)
+    }
+
     /// Drops the entries of animations that died.
     pub(crate) fn prune(&mut self) {
         self.0.prune();

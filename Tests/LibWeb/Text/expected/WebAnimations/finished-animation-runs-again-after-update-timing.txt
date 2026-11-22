@@ -1,0 +1,3 @@
+Before: finished
+After updateTiming: running
+Finished again: finished, moved on: true
