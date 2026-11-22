@@ -31,7 +31,7 @@ struct EmojiPresentationResult {
     ForcedPresentation forced { ForcedPresentation::No };
 };
 
-EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point);
+EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point, Optional<u32> code_point_after_next = {});
 
 enum class PendingFontState : u8 {
     Invisible,

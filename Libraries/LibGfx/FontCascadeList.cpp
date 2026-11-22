@@ -84,7 +84,7 @@ FontCascadeList::~FontCascadeList()
         ladybird_gfx_frozen_font_list_release(m_frozen_list);
 }
 
-EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point)
+EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point, Optional<u32> code_point_after_next)
 {
     // VARIATION SELECTOR-16 (emoji)
     if (next_code_point == 0xFE0Fu)
@@ -92,6 +92,22 @@ EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Option
     // VARIATION SELECTOR-15 (text)
     if (next_code_point == 0xFE0Eu)
         return { EmojiPresentation::Text, ForcedPresentation::Yes };
+
+    // https://www.unicode.org/reports/tr51/#Diversity
+    // "Emoji presentation selectors are neither needed nor recommended for emoji characters when they are followed by
+    //  emoji modifiers, and should not be used in newly generated emoji modifier sequences; the emoji modifier
+    //  automatically implies the emoji presentation style."
+    if (next_code_point.has_value() && *next_code_point >= 0x1F3FBu && *next_code_point <= 0x1F3FFu && Unicode::code_point_has_emoji_modifier_base_property(code_point))
+        return { EmojiPresentation::Emoji, ForcedPresentation::Yes };
+
+    // https://www.unicode.org/reports/tr51/#def_emoji_zwj_sequence
+    // NB: A ZERO WIDTH JOINER between two pictographic characters joins them into an emoji ZWJ sequence, which is one
+    //     emoji, so it takes emoji presentation even when the first character's own default is text, as in U+1F441
+    //     U+200D U+1F5E8. A joiner that no pictographic character follows joins nothing.
+    if (next_code_point == 0x200Du && code_point_after_next.has_value()
+        && Unicode::code_point_has_extended_pictographic_property(code_point)
+        && Unicode::code_point_has_extended_pictographic_property(*code_point_after_next))
+        return { EmojiPresentation::Emoji, ForcedPresentation::Yes };
 
     if (Unicode::code_point_has_emoji_presentation_property(code_point))
         return { EmojiPresentation::Emoji, ForcedPresentation::No };
@@ -451,7 +467,7 @@ void const* ladybird_gfx_font_cascade_list_first(void const*);
 void ladybird_gfx_font_cascade_list_ref(void const*);
 void ladybird_gfx_font_cascade_list_unref(void const*);
 bool ladybird_gfx_font_cascade_list_equals(void const*, void const*);
-u8 ladybird_gfx_emoji_presentation_for_code_point(u32, u32, bool);
+u8 ladybird_gfx_emoji_presentation_for_code_point(u32, u32, bool, u32, bool);
 void const* ladybird_gfx_font_cascade_list_frozen(void const*);
 void const* ladybird_gfx_cascade_snapshot_begin(void const*);
 void ladybird_gfx_cascade_snapshot_header(void const*, Gfx::FFI::FfiCascadeSnapshotHeader*);
@@ -496,10 +512,12 @@ extern "C" bool ladybird_gfx_font_cascade_list_equals(void const* list, void con
     return static_cast<Gfx::FontCascadeList const*>(list)->equals(*static_cast<Gfx::FontCascadeList const*>(other));
 }
 
-extern "C" u8 ladybird_gfx_emoji_presentation_for_code_point(u32 code_point, u32 next_code_point, bool has_next_code_point)
+extern "C" u8 ladybird_gfx_emoji_presentation_for_code_point(u32 code_point, u32 next_code_point, bool has_next_code_point, u32 code_point_after_next, bool has_code_point_after_next)
 {
     auto result = Gfx::emoji_presentation_for_code_point(
-        code_point, has_next_code_point ? Optional<u32> { next_code_point } : Optional<u32> {});
+        code_point,
+        has_next_code_point ? Optional<u32> { next_code_point } : Optional<u32> {},
+        has_code_point_after_next ? Optional<u32> { code_point_after_next } : Optional<u32> {});
     u8 encoded = 0;
     if (result.presentation == Gfx::EmojiPresentation::Emoji)
         encoded |= 1;

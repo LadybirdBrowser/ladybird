@@ -79,7 +79,7 @@ impl TextOverflowEllipsis {
             .font()
             .first_available_font()
             .expect("layout read a font group that never received a frozen font list");
-        let presentation = libgfx_rust::font::emoji_presentation_for_code_point(ELLIPSIS_CODE_POINT, None);
+        let presentation = libgfx_rust::font::emoji_presentation_for_code_point(ELLIPSIS_CODE_POINT, None, None);
         // NB: Where the block's first available font has no glyph for U+2026 HORIZONTAL ELLIPSIS, three periods stand
         //     for it, rather than an ellipsis from whatever font the cascade falls back to.
         const ELLIPSIS: [u16; 1] = [ELLIPSIS_CODE_POINT as u16];
@@ -406,12 +406,14 @@ fn apply_block_ellipsis(
     ellipsis_text: &[u16],
 ) {
     let (style_source, style) = (context.containing_block, context.style(context.containing_block));
-    let first_code_point = char::decode_utf16(ellipsis_text.iter().copied())
-        .next()
-        .map_or(char::REPLACEMENT_CHARACTER, |result| {
-            result.unwrap_or(char::REPLACEMENT_CHARACTER)
-        }) as u32;
-    let presentation = libgfx_rust::font::emoji_presentation_for_code_point(first_code_point, None);
+    // NB: The code points after the first can make it the start of an emoji sequence.
+    let mut code_points = char::decode_utf16(ellipsis_text.iter().copied())
+        .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER) as u32);
+    let first_code_point = code_points.next().unwrap_or(char::REPLACEMENT_CHARACTER as u32);
+    let next_code_point = code_points.next();
+    let code_point_after_next = code_points.next();
+    let presentation =
+        libgfx_rust::font::emoji_presentation_for_code_point(first_code_point, next_code_point, code_point_after_next);
     let font = style
         .frozen_font_list()
         .font_for_code_point(first_code_point, presentation);

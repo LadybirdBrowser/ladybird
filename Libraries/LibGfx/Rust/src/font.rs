@@ -36,6 +36,8 @@ unsafe extern "C" {
         code_point: u32,
         next_code_point: u32,
         has_next_code_point: bool,
+        code_point_after_next: u32,
+        has_code_point_after_next: bool,
     ) -> u8;
 }
 
@@ -293,16 +295,24 @@ pub fn code_point_extends_emoji_sequence(code_point: u32) -> bool {
 /// https://www.unicode.org/reports/tr51/#def_emoji_zwj_element
 pub fn code_point_ends_emoji_zwj_element(code_point: u32) -> bool {
     matches!(code_point, 0xfe0f | 0x20e3 | 0x1f3fb..=0x1f3ff | 0xe007f)
-        || emoji_presentation_for_code_point(code_point, None).is_emoji
+        || emoji_presentation_for_code_point(code_point, None, None).is_emoji
 }
 
-pub fn emoji_presentation_for_code_point(code_point: u32, next_code_point: Option<u32>) -> EmojiPresentation {
+/// The presentation `code_point` takes, given the code point after it and the one after that, which can make it the
+/// start of an emoji sequence.
+pub fn emoji_presentation_for_code_point(
+    code_point: u32,
+    next_code_point: Option<u32>,
+    code_point_after_next: Option<u32>,
+) -> EmojiPresentation {
     // SAFETY: The lookup reads only immutable Unicode tables.
     let encoded = unsafe {
         ladybird_gfx_emoji_presentation_for_code_point(
             code_point,
             next_code_point.unwrap_or(0),
             next_code_point.is_some(),
+            code_point_after_next.unwrap_or(0),
+            code_point_after_next.is_some(),
         )
     };
     EmojiPresentation {

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    span { font-size: 32px; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const width = text => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            root.appendChild(span);
+            const result = span.getBoundingClientRect().width;
+            span.remove();
+            return result;
+        };
+        // Each base below defaults to text presentation. A skin-tone modifier after it makes the sequence one emoji, as
+        // wide as the base with VARIATION SELECTOR-16. And a zero width joiner after it makes the ZWJ sequence one
+        // emoji, as wide as the sequence written with VARIATION SELECTOR-16 after each pictograph.
+        const cases = [
+            ["U+261D U+1F3FB", "\u261D\u{1F3FB}", "\u261D\uFE0F"],
+            ["U+270C U+1F3FD", "\u270C\u{1F3FD}", "\u270C\uFE0F"],
+            ["U+1F575 U+1F3FF", "\u{1F575}\u{1F3FF}", "\u{1F575}\uFE0F"],
+            ["U+1F441 U+200D U+1F5E8", "\u{1F441}\u200D\u{1F5E8}", "\u{1F441}\uFE0F\u200D\u{1F5E8}\uFE0F"],
+            ["U+1F575 U+200D U+2640", "\u{1F575}\u200D\u2640", "\u{1F575}\uFE0F\u200D\u2640\uFE0F"],
+        ];
+        for (const [name, sequence, with_selectors] of cases)
+            println(`${name}: one emoji: ${width(sequence) === width(with_selectors)}`);
+        // A joiner that no pictograph follows joins nothing, so the base before it keeps its own presentation.
+        const incomplete = [
+            ["U+261D U+200D x", "\u261D\u200D\u0078", "\u261D\u0078"],
+            ["U+00A9 U+200D x", "\u00A9\u200D\u0078", "\u00A9\u0078"],
+        ];
+        for (const [name, sequence, without_joiner] of incomplete)
+            println(`${name}: as wide as without the joiner: ${width(sequence) === width(without_joiner)}`);
+    });
+</script>

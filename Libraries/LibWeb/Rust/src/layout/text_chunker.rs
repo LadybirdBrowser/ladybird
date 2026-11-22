@@ -1223,15 +1223,19 @@ impl<'text> TextChunker<'text> {
     fn emoji_presentation_at(&self, code_unit_offset: usize, code_point: u32) -> EmojiPresentation {
         let next_offset = code_unit_offset + code_unit_length_for_code_point(code_point);
         let next_code_point = (next_offset < self.text.len()).then(|| code_point_at(self.text, next_offset));
+        let code_point_after_next = next_code_point.and_then(|next_code_point| {
+            let offset_after_next = next_offset + code_unit_length_for_code_point(next_code_point);
+            (offset_after_next < self.text.len()).then(|| code_point_at(self.text, offset_after_next))
+        });
         // OPTIMIZATION: No code point below U+0300 has the Emoji_Presentation property, so only a variation selector
-        //               can give one of them anything but the default text presentation.
-        let default_presentation = if code_point < 0x300 && !matches!(next_code_point, Some(0xfe0e | 0xfe0f)) {
+        //               or a zero width joiner can give one of them anything but the default text presentation.
+        let default_presentation = if code_point < 0x300 && !matches!(next_code_point, Some(0xfe0e | 0xfe0f | 0x200d)) {
             EmojiPresentation {
                 is_emoji: false,
                 forced: false,
             }
         } else {
-            emoji_presentation_for_code_point(code_point, next_code_point)
+            emoji_presentation_for_code_point(code_point, next_code_point, code_point_after_next)
         };
         // OPTIMIZATION: Below U+0300, only '#', '*', the ASCII digits, U+00A9 and U+00AE have the Emoji property.
         let has_emoji_property = if code_point < 0x300 {
@@ -1241,7 +1245,8 @@ impl<'text> TextChunker<'text> {
         };
         debug_assert!(
             code_point >= 0x300 || {
-                let presentation = emoji_presentation_for_code_point(code_point, next_code_point);
+                let presentation =
+                    emoji_presentation_for_code_point(code_point, next_code_point, code_point_after_next);
                 let has_property = unicode_layout_code_point_has_emoji_property(code_point);
                 presentation.is_emoji == default_presentation.is_emoji
                     && presentation.forced == default_presentation.forced

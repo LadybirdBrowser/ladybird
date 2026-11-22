@@ -3187,7 +3187,7 @@ impl RadicalMetrics {
         const SQUARE_ROOT: u32 = 0x221A;
         let font = style.frozen_font_list().font_for_code_point(
             SQUARE_ROOT,
-            libgfx_rust::font::emoji_presentation_for_code_point(SQUARE_ROOT, None),
+            libgfx_rust::font::emoji_presentation_for_code_point(SQUARE_ROOT, None, None),
         );
         let glyph_id = font.glyph_id_for_code_point(SQUARE_ROOT);
         // The radical gap is given by RadicalVerticalGap if the math-style is compact and

@@ -2033,7 +2033,11 @@ impl<'pass> SvgFormattingContext<'pass> {
             let code_point = code_point_at(text, offset);
             let next_offset = offset + code_point_length_at(text, offset);
             let next_code_point = (next_offset < text.len()).then(|| code_point_at(text, next_offset));
-            libgfx_rust::font::emoji_presentation_for_code_point(code_point, next_code_point)
+            let offset_after_next =
+                next_offset + next_code_point.map_or(0, |_| code_point_length_at(text, next_offset));
+            let code_point_after_next = (next_code_point.is_some() && offset_after_next < text.len())
+                .then(|| code_point_at(text, offset_after_next));
+            libgfx_rust::font::emoji_presentation_for_code_point(code_point, next_code_point, code_point_after_next)
         };
         let font_for =
             |offset: usize| frozen_font_list.font_for_code_point(code_point_at(text, offset), presentation_at(offset));
@@ -2050,7 +2054,17 @@ impl<'pass> SvgFormattingContext<'pass> {
             //     and neither does one before a character with a variation selector that asks for its text
             //     presentation: Those are no part of an emoji sequence.
             if code_point == ZERO_WIDTH_JOINER {
-                joiner_joins_emoji = libgfx_rust::font::code_point_ends_emoji_zwj_element(previous_code_point);
+                // NB: A pictograph that defaults to text presentation ends an emoji ZWJ element too, when the joiner
+                //     joins it to another pictograph.
+                let joined_offset = offset + code_point_length_at(text, offset);
+                let joined_code_point = (joined_offset < text.len()).then(|| code_point_at(text, joined_offset));
+                joiner_joins_emoji = libgfx_rust::font::code_point_ends_emoji_zwj_element(previous_code_point)
+                    || libgfx_rust::font::emoji_presentation_for_code_point(
+                        previous_code_point,
+                        Some(code_point),
+                        joined_code_point,
+                    )
+                    .is_emoji;
             }
             let presentation = presentation_at(offset);
             let is_joined = previous_code_point == ZERO_WIDTH_JOINER

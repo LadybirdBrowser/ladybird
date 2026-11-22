@@ -1,0 +1,7 @@
+U+261D U+1F3FB: one emoji: true
+U+270C U+1F3FD: one emoji: true
+U+1F575 U+1F3FF: one emoji: true
+U+1F441 U+200D U+1F5E8: one emoji: true
+U+1F575 U+200D U+2640: one emoji: true
+U+261D U+200D x: as wide as without the joiner: true
+U+00A9 U+200D x: as wide as without the joiner: true
