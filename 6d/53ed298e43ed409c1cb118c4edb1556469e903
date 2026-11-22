@@ -1,0 +1,12 @@
+In Ladybird, a non-replaced box with an automatic inline size and
+an intrinsic block size now takes its inline size by the normal
+rules, rather than through its aspect ratio. Blink’s BlockNode::
+ComputeMinMaxSizes() transfers a block size through the aspect ratio
+only when the box’s intrinsic block size is definite, which an intrinsic
+keyword leaves it not. Gecko’s nsIFrame::ComputeSize() transfers it only
+when the block size isn’t automatic, and nsLayoutUtils::IsAutoBSize()
+counts the intrinsic keywords as automatic. WebKit’s RenderBox::
+shouldComputeLogicalWidthFromAspectRatio() transfers only a fixed,
+resolvable-percentage, or stretch block size. Chrome 158, Firefox 151
+and WebKit 26.5 all agree with Ladybird now on the 15 cases checked,
+including vertical-rl, block, float, and a 2/1 ratio.
