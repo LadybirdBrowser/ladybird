@@ -1,0 +1,11 @@
+Ladybird now fires load at every svg element of a document, the
+innermost first, right before the load event at the Window. Firefox 151
+does exactly that. WebKit 26.5 fires it at the outermost svg element
+only, also right before the Window’s. Chrome 158 fires it at each svg
+element as it’s parsed, as SVG 1.1’s SVGLoad was, so before the Window’s
+too. None of them fires it at an svg element inserted once the document
+has loaded, nor does Ladybird (engine-compare).
+
+All three also fire it at an svg element in a declarative shadow root,
+before the Window’s load event (engine-compare), and so does Ladybird
+now.
