@@ -6,7 +6,8 @@
 
 //! The tiles the layers of a context hold, the pool of their pixels, and the surface tiles are rastered through. The
 //! pixels of a tile are pooled under the tile's content hash, which hashes all they depend on, so a layer finds the
-//! tiles another layer or an earlier stack rastered.
+//! tiles another layer or an earlier stack rastered. A window server that shows tiles shows each caret from a surface
+//! of its own, painted anew each time the caret blinks or moves.
 
 use super::layer_overlay::{ModelTile, RasterCause};
 use super::layers::LayerCompositingInFrame;
@@ -19,7 +20,7 @@ use libcompositing_rust::display_list::layers::{BarrierCutsOfCell, LayerIdentity
 use libcompositing_rust::display_list::tile_keys::{ContentHash, TileCoverage};
 use libcompositing_rust::display_list::tiles::{CellRange, TileCoord, entries_within};
 use libcompositing_rust::time::{Duration, MonotonicTime};
-use libgfx_rust::{Color, IntRect, IntSize};
+use libgfx_rust::{Color, FloatPoint, FloatSize, IntRect, IntSize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 
@@ -178,11 +179,28 @@ pub(super) struct RasteredLayer {
     pub(super) tile_count: u64,
 }
 
+/// What the surface of a caret holds: what the caret's records draw, rastered into `rect` of the layer's space under
+/// the raster transform of the frame.
+#[derive(Clone, Copy, PartialEq)]
+pub(super) struct CaretPainting {
+    pub(super) content_hash: ContentHash,
+    pub(super) rect: IntRect,
+    pub(super) raster_scale: FloatSize,
+    pub(super) raster_translation: FloatPoint,
+}
+
+struct CaretSurface {
+    surface: Rc<PresentableSurface>,
+    painting: CaretPainting,
+}
+
 /// The tiles the layers of a context hold under the identities of the layers, and the pool of their pixels.
 #[derive(Default)]
 pub(super) struct LayerTiles {
     held_by_layer: HashMap<LayerIdentity, HeldTiles>,
     pool: TilePool,
+    /// The surface a window server that shows tiles shows each caret from.
+    caret_surface_by_layer: HashMap<LayerIdentity, CaretSurface>,
     /// Whether a layer took or let go of tiles, or the pixels of pooled tiles changed, since spare tiles were last
     /// evicted.
     changed_since_eviction: bool,
@@ -193,6 +211,7 @@ pub(super) struct LayerTiles {
 impl LayerTiles {
     pub(super) fn invalidate_every_tile(&mut self) {
         self.changed_since_eviction = true;
+        self.caret_surface_by_layer.clear();
         for tile in self.pool.values_mut() {
             tile.holds_current_pixels = false;
         }
@@ -400,6 +419,62 @@ impl LayerTiles {
         let layer_count_before = self.held_by_layer.len();
         self.held_by_layer.retain(|identity, _| identities.contains(identity));
         self.changed_since_eviction |= self.held_by_layer.len() != layer_count_before;
+        self.caret_surface_by_layer
+            .retain(|identity, _| identities.contains(identity));
+    }
+
+    /// Keeps the surface that the window server shows the caret of the layer of `identity` from, and paints `painting`
+    /// into it with `paint` where it holds something else, as each time the caret blinks or moves. Nothing is painted
+    /// into a surface the window server shows or still reads, so the caret takes a spare surface and spares the one it
+    /// held. Answers whether it painted. Where no surface can be had, the window server shows no caret.
+    pub(super) fn paint_caret_surface(
+        &mut self,
+        env: &PresentingEnvironment<'_>,
+        like: &Rc<PaintingSurface>,
+        identity: LayerIdentity,
+        painting: CaretPainting,
+        paint: impl FnOnce(&Rc<PaintingSurface>),
+    ) -> bool {
+        if self
+            .caret_surface_by_layer
+            .get(&identity)
+            .is_some_and(|held| held.painting == painting)
+        {
+            return false;
+        }
+        if let Some(left) = self.caret_surface_by_layer.remove(&identity) {
+            self.spare_surfaces
+                .keep(left.surface, size_of(left.painting.rect), env.now);
+            self.changed_since_eviction = true;
+        }
+        let size = size_of(painting.rect);
+        let usable = |surface: &Rc<PresentableSurface>| {
+            surface.can_be_shown_by_window_server() && surface.painting_surface().shares_backend_with(like)
+        };
+        let Some(surface) = self
+            .spare_surfaces
+            .take(size, usable)
+            .or_else(|| create_tile_surface_on_backend_of(env.raster, size, like, true).filter(usable))
+        else {
+            return false;
+        };
+        let (raster, target) = (env.raster, surface.painting_surface());
+        let save_count = raster.save(target);
+        raster.translate(target, -painting.rect.x as f32, -painting.rect.y as f32);
+        raster.clip_rect(target, painting.rect);
+        raster.clear(target, Color::TRANSPARENT);
+        paint(target);
+        raster.restore_to_count(target, save_count);
+        self.caret_surface_by_layer
+            .insert(identity, CaretSurface { surface, painting });
+        true
+    }
+
+    /// The surface the window server shows the caret of the layer of `identity` from, and where it lies in the layer's
+    /// space.
+    pub(super) fn caret_surface_of(&self, identity: &LayerIdentity) -> Option<(&Rc<PresentableSurface>, IntRect)> {
+        let held = self.caret_surface_by_layer.get(identity)?;
+        Some((&held.surface, held.painting.rect))
     }
 
     /// Evicts spare tiles where the tiles changed since spare tiles were last evicted, as otherwise every tile held then

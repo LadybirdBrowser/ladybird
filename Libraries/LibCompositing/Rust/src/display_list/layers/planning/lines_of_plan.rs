@@ -225,7 +225,7 @@ impl PlannedLayers {
             return vec![LayerIndex(0)];
         }
         for (index, layer) in stack.layers.iter().enumerate() {
-            let LayerContent::Media { record_span, .. } = &layer.content else {
+            let (LayerContent::Media { record_span } | LayerContent::Caret { record_span }) = &layer.content else {
                 continue;
             };
             if record_span.contains(position) {

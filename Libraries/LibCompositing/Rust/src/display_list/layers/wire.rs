@@ -418,7 +418,7 @@ impl Encode for LayerStack {
                 match &self.layers[cut.layer_above_cut.0 - 1] {
                     StackLayer {
                         identity: LayerIdentity::Media { content, ordinal },
-                        content: LayerContent::Media { record_span },
+                        content: LayerContent::Media { record_span } | LayerContent::Caret { record_span },
                         reach,
                         ..
                     } => {
@@ -928,7 +928,7 @@ mod tests {
     use crate::display_list::layers::{
         BandIndex, CutsOfCell, LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerIndex,
         MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand, WhatWindowServerShowsOfFrame,
-        WindowServerCompositing, WindowServerPresentationOfMedia,
+        WhyFrameHoldsLayer, WindowServerCompositing, WindowServerPresentationOfMedia,
     };
     use crate::display_list::placement::{RasterSpace, RasterSpaceGeometry, WhatEverySpaceOfTreeShares};
     use crate::display_list::test_fixtures::{
@@ -2231,6 +2231,41 @@ mod tests {
     }
 
     // Reads the stack as the compositor reads it for a frame over the whole viewport, and as the dump reads it.
+    // A window server that shows tiles shows a caret from a surface of its own, as it shows a tile, and the base layer
+    // with it. Any other leaves the caret to the frame.
+    #[test]
+    fn only_a_window_server_that_shows_tiles_shows_a_caret() {
+        let stack = page_with_carets().planned().stack;
+        let composite_offsets = stack.composite_offsets(&[FloatPoint::default(); 4]);
+        let window_server = |shows_tiles_of_painted_layers| WhatWindowServerShowsOfFrame {
+            compositing: WindowServerCompositing {
+                shows_tiles_of_painted_layers,
+                filters_what_is_below_layers: shows_tiles_of_painted_layers,
+            },
+            can_show_media_of_layer: &|_| true,
+            can_composite_effect_of_node: &|_| true,
+        };
+        let caret_layers: Vec<LayerIndex> = (0..stack.layers.len())
+            .map(LayerIndex)
+            .filter(|layer| matches!(stack.layers[layer.0].content, LayerContent::Caret { .. }))
+            .collect();
+        assert_eq!(caret_layers.len(), 2);
+        let shown_by_window_server_that_shows_tiles =
+            stack.layers_the_window_server_shows(&composite_offsets, &window_server(true));
+        assert!(shown_by_window_server_that_shows_tiles[stack.base_layer.0]);
+        assert!(
+            caret_layers
+                .iter()
+                .all(|layer| shown_by_window_server_that_shows_tiles[layer.0])
+        );
+        for layer in caret_layers {
+            assert_eq!(
+                stack.why_frame_holds_layer(layer, &window_server(false)),
+                WhyFrameHoldsLayer::WindowServerCannotShowItsContent
+            );
+        }
+    }
+
     fn read_as_consumers_do(page: &Page, frame_tree: &VisualContextTree, planned: &PlannedLayers, stack: &LayerStack) {
         let list = &page.list;
         let scroll_offsets = [FloatPoint { x: 0.0, y: 300.0 }; 4];

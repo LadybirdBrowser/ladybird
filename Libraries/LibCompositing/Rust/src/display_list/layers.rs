@@ -365,9 +365,12 @@ pub enum BarrierCutsOfCell {
 pub enum LayerContent {
     /// The records of a band that the layer holds in some of its tiles.
     Painted,
-    /// A canvas, video, nested context or caret, replayed or shown by the window server, whose content the identity of
-    /// the layer names.
+    /// A canvas, video or nested context, replayed or shown by the window server, whose content the identity of the
+    /// layer names.
     Media { record_span: ListSpan },
+    /// A caret, alone in the run of `record_span`, which a frame replays and a window server that shows tiles shows
+    /// from a surface of its own.
+    Caret { record_span: ListSpan },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -867,7 +870,11 @@ impl LayerStack {
                         identity: LayerIdentity::Media { content, ordinal },
                         placement_node_index: bands[band_index.0].placement_node_index,
                         band_index,
-                        content: LayerContent::Media { record_span },
+                        content: if content == LiveContent::Caret {
+                            LayerContent::Caret { record_span }
+                        } else {
+                            LayerContent::Media { record_span }
+                        },
                         may_hold_content: true,
                         reach,
                     });
@@ -1235,14 +1242,19 @@ impl LayerStack {
                 shows_tiles_of_painted_layers
                     && (window_server.can_composite_effect_of_node)(self.bands[band_index.0].placement_node_index)
             });
-        let is_media = matches!(self.layers[layer_index.0].content, LayerContent::Media { .. });
+        let window_server_cannot_show_content = match self.layers[layer_index.0].content {
+            LayerContent::Painted => false,
+            LayerContent::Media { .. } => !(window_server.can_show_media_of_layer)(layer_index),
+            // The window server shows a caret from a surface of its own as it shows a tile.
+            LayerContent::Caret { .. } => !shows_tiles_of_painted_layers,
+        };
         if !window_server_composites_effects_around_layer {
             Some(WhyFrameHoldsLayer::InsideAnEffectTheCompositorComposites)
         } else if !shows_tiles_of_painted_layers && self.layer_is_composited_within_rounded_clips(layer_index) {
             Some(WhyFrameHoldsLayer::CompositedWithinRoundedCorners)
         } else if !shows_tiles_of_painted_layers && self.layer_is_in_animated_space(layer_index) {
             Some(WhyFrameHoldsLayer::InSpaceTheCompositorAnimates)
-        } else if is_media && !(window_server.can_show_media_of_layer)(layer_index) {
+        } else if window_server_cannot_show_content {
             Some(WhyFrameHoldsLayer::WindowServerCannotShowItsContent)
         } else {
             None

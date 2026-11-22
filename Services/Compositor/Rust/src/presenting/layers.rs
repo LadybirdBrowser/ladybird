@@ -11,7 +11,9 @@ use super::layer_overlay::{
     FrameWorkCounts, LayerOverlayModel, MediaPresentation, ModelLayer, ModelLayerContent, NamedVisualContextNode,
     PaintedLayerPresentation, RasterCountsByCause, layers_whose_names_are_shown,
 };
-use super::tiles::{LayerTiles, LayerToRaster, TileDraw, TileShownInFrame, joined_rects_of_grid_given_row_by_row};
+use super::tiles::{
+    CaretPainting, LayerTiles, LayerToRaster, TileDraw, TileShownInFrame, joined_rects_of_grid_given_row_by_row,
+};
 use super::window_server::{WhyMediaIsReplayed, WindowServerLayers};
 use super::{
     ContextPresenting, FrameToPaint, NestedContexts, PresentingEnvironment, apply_raster_transform,
@@ -37,6 +39,7 @@ use libcompositing_rust::display_list::placement::{
 };
 use libcompositing_rust::display_list::reach::Reach;
 use libcompositing_rust::display_list::replay::{CompositeClipsOfRaster, ReplaySelection};
+use libcompositing_rust::display_list::storage::ListSpan;
 use libcompositing_rust::display_list::tile_keys::{
     BandTileKeys, ContentHash, FrameStateReadByReplay, LayerRasterSettings, LiveContentVersions, TileCoverage,
     TileKeyingOfList, TileKeyingOfRasterSpace,
@@ -1278,7 +1281,7 @@ impl ContextPresenting {
         for compositing in &compositing_of_layers {
             let layer_index = compositing.layer_index;
             let layer = &stack.layers[layer_index.0];
-            if let LayerContent::Media { record_span } = &layer.content {
+            if let LayerContent::Media { record_span } | LayerContent::Caret { record_span } = &layer.content {
                 let raster_space_index = stack.space_of_layer(layer_index);
                 let media_replayed = MediaRecordsReplayedInFrame {
                     content_hash: tile_keying_by_raster_space[raster_space_index.0]
@@ -1410,6 +1413,21 @@ impl ContextPresenting {
                                     WhyMediaIsReplayed::UnderALayerTheFrameHolds
                                 });
                             MediaPresentation::Replayed { why: why.to_string() }
+                        },
+                    },
+                    LayerContent::Caret { .. } => ModelLayerContent::Media {
+                        reach: layer.reach,
+                        presentation: if window_server_shows_layers && compositing.shown_by_window_server {
+                            MediaPresentation::ShownByWindowServer
+                        } else {
+                            let why = why_context_shows_no_media.map_or_else(
+                                || {
+                                    self.why_frame_holds_layer(env, &layer_update.layers, layer_index, live_content)
+                                        .to_string()
+                                },
+                                |why| why.to_string(),
+                            );
+                            MediaPresentation::Replayed { why }
                         },
                     },
                 };
@@ -1670,23 +1688,17 @@ impl ContextPresenting {
                 compositing.space_to_frame,
                 viewport_rect,
             );
-            let replay_tiles = |target: &Rc<PaintingSurface>, tiles_replayed: &[&TileShownInFrame]| {
-                let band_tile_keys = stack_of_frames.band_tile_keys[layer.band_index.0]
+            let band_tile_keys = || {
+                stack_of_frames.band_tile_keys[layer.band_index.0]
                     .as_ref()
-                    .expect("a band with shown tiles has tile keys");
-                let geometry = &band_tile_keys.geometry;
-                let record_spans = (!tiles_replay_the_whole_list).then(|| {
-                    band_tile_keys
-                        .tile_keys
-                        .record_spans_of_tiles(tiles_replayed.iter().map(|tile| {
-                            band_tile_keys
-                                .tile_keys
-                                .tile(tile.coord, layer_index)
-                                .expect("a shown tile is keyed")
-                        }))
-                });
+                    .expect("a band with a layer the frame shows has tile keys")
+            };
+            // Replays the records within `record_spans`, or the whole list, into a target whose origin is that of the
+            // layer's space.
+            let replay = |target: &Rc<PaintingSurface>, record_spans: Option<&[ListSpan]>| {
+                let geometry = &band_tile_keys().geometry;
                 let selection = ReplaySelection {
-                    record_spans: record_spans.as_deref(),
+                    record_spans,
                     clips_left_to_composite: (!geometry.clips_left_to_composite.is_empty())
                         .then_some(&geometry.clips_left_to_composite[..]),
                     composited_effect: stack.nodes[layer.placement_node_index.0].composited_effect,
@@ -1697,6 +1709,36 @@ impl ContextPresenting {
                 };
                 apply_raster_transform(raster, target, raster_scale, raster_translation);
                 replay_with_scroll_offsets(env, target, frame, selection, &geometry.raster_scroll_offsets);
+            };
+            if let LayerContent::Caret { record_span } = layer.content {
+                if layer_update.layers.window_server_shows_tiles_of(compositing) {
+                    let painting = CaretPainting {
+                        content_hash: layer_update.layers.media_replayed_by_identity[&compositing.identity]
+                            .content_hash,
+                        rect: layer.reach,
+                        raster_scale,
+                        raster_translation,
+                    };
+                    let painted =
+                        self.layers
+                            .tiles
+                            .paint_caret_surface(env, like, compositing.identity, painting, |target| {
+                                replay(target, Some(std::slice::from_ref(&record_span)));
+                            });
+                    layer_update.work_counts.tiles_rastered += u64::from(painted);
+                }
+                continue;
+            }
+            let replay_tiles = |target: &Rc<PaintingSurface>, tiles_replayed: &[&TileShownInFrame]| {
+                let tile_keys = &band_tile_keys().tile_keys;
+                let record_spans = (!tiles_replay_the_whole_list).then(|| {
+                    tile_keys.record_spans_of_tiles(
+                        tiles_replayed
+                            .iter()
+                            .map(|tile| tile_keys.tile(tile.coord, layer_index).expect("a shown tile is keyed")),
+                    )
+                });
+                replay(target, record_spans.as_deref());
             };
             let rastered = self.layers.tiles.raster_layer(
                 env,
@@ -1894,7 +1936,7 @@ impl ContextPresenting {
                     compositing_session.enter_effect(effect);
                     entered_composited_bands.push(band_index);
                 }
-                if let LayerContent::Media { record_span } = &layer.content {
+                if let LayerContent::Media { record_span } | LayerContent::Caret { record_span } = &layer.content {
                     if !compositing
                         .rect_in_frame(layer.reach, damage_grown_by_filter_reads)
                         .is_empty()
