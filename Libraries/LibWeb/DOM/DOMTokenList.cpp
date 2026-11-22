@@ -15,7 +15,7 @@ namespace Web::DOM {
 extern "C" {
 
 // Defined in Bindings/Rust/src/dom/dom_token_list.rs.
-void* web_dom_token_list_create(JSVM*, Element*, FlatPtr attribute_name, FlatPtr initial_value);
+void* web_dom_token_list_create(JSVM*, Element*, FlatPtr attribute_name);
 void web_dom_token_list_attribute_changed(DOMTokenList*, FlatPtr value);
 void web_dom_token_list_add(DOMTokenList*, FlatPtr token);
 void web_dom_token_list_remove(DOMTokenList*, FlatPtr token);
@@ -24,10 +24,8 @@ void web_dom_token_list_toggle(DOMTokenList*, FlatPtr token, bool force);
 
 GC::Ref<DOMTokenList> DOMTokenList::create(Element& element, Utf16FlyString const& associated_attribute)
 {
-    auto value = element.attribute(associated_attribute);
     return GC::Ref { *static_cast<DOMTokenList*>(web_dom_token_list_create(
-        JS::HostABI::vm_to_abi(JS::VM::the()), &element, associated_attribute.raw_identity(),
-        value.has_value() ? value.release_value().into_raw() : 0)) };
+        JS::HostABI::vm_to_abi(JS::VM::the()), &element, associated_attribute.raw_identity())) };
 }
 
 void DOMTokenList::associated_attribute_changed(Optional<Utf16String> const& value)

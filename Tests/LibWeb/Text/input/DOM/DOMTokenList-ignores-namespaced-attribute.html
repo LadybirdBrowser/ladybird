@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        element.setAttributeNS("urn:x", "class", "foo");
+        const list = element.classList;
+        println(`length: ${list.length}`);
+        list.add("bar");
+        println(`null namespace: ${element.getAttributeNS(null, "class")}`);
+        println(`urn:x: ${element.getAttributeNS("urn:x", "class")}`);
+    });
+</script>

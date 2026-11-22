@@ -45,7 +45,7 @@ impl Wrappable for DOMTokenList {
 
 impl DOMTokenList {
     // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A2
-    fn new(associated_element: CppElement, associated_attribute: Utf16FlyString, value: Option<Utf16String>) -> Self {
+    fn new(associated_element: CppElement, associated_attribute: Utf16FlyString) -> Self {
         let list = Self {
             associated_element,
             associated_attribute,
@@ -57,7 +57,10 @@ impl DOMTokenList {
         // 1. Let element be set’s element.
         // 2. Let attributeName be set’s attribute name.
         // 3. Let value be the result of getting an attribute value given element and attributeName.
-        // NB: The caller gets the attribute value.
+        let value = list
+            .associated_element
+            .get_attribute_ns(None, &list.associated_attribute);
+
         // 4. Run the attribute change steps for element, attributeName, value, value, and null.
         list.associated_attribute_changed(value);
         list
@@ -444,15 +447,9 @@ fn serialize_ordered_set(token_set: &[Utf16String]) -> Utf16String {
 
 /// # Safety
 ///
-/// The caller passes a live VM and Element, lends the interned attribute name, and transfers ownership
-/// of the initial attribute value if it is nonzero.
+/// The caller passes a live VM and Element, and lends the interned attribute name.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_create(
-    vm: &Vm,
-    element: *mut c_void,
-    attribute: usize,
-    value: usize,
-) -> *mut c_void {
+pub unsafe extern "C" fn web_dom_token_list_create(vm: &Vm, element: *mut c_void, attribute: usize) -> *mut c_void {
     // SAFETY: The caller passes a live Element and a live, borrowed attribute name.
     let (element, attribute) = unsafe {
         (
@@ -460,9 +457,7 @@ pub unsafe extern "C" fn web_dom_token_list_create(
             Utf16FlyString::from_raw_borrowed(attribute),
         )
     };
-    // SAFETY: A nonzero value transfers an ownership reference.
-    let value = (value != 0).then(|| unsafe { Utf16String::from_raw_owned(value) });
-    cell_into_abi(allocate(vm, |_| DOMTokenList::new(element, attribute, value)))
+    cell_into_abi(allocate(vm, |_| DOMTokenList::new(element, attribute)))
 }
 
 /// # Safety
