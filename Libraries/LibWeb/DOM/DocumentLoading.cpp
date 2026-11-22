@@ -420,28 +420,17 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));
 
-    } else if (type.type() == "video"sv) {
-        auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
-        set_host_element_style(video_element, host_element_style);
-        video_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
-        video_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
-        video_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
-        TRY(document->body()->append_child(video_element));
-        TRY(insert_title(document, url_string));
-
-    } else if (type.type() == "audio"sv) {
-        auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
-        set_host_element_style(audio_element, host_element_style);
-        audio_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
-        audio_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
-        audio_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
-        TRY(document->body()->append_child(audio_element));
-        TRY(insert_title(document, url_string));
-
     } else {
-        // FIXME: According to https://mimesniff.spec.whatwg.org/#audio-or-video-mime-type we might have to deal with
-        //        "application/ogg" and figure out whether it's audio or video.
-        VERIFY_NOT_REACHED();
+        VERIFY(type.is_audio_or_video());
+        // An application/ogg resource may contain video as well as audio.
+        auto& tag_name = type.type() == "audio"sv ? HTML::TagNames::audio : HTML::TagNames::video;
+        auto media_element = TRY(DOM::create_element(document, tag_name, Namespace::HTML));
+        set_host_element_style(media_element, host_element_style);
+        media_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
+        media_element->set_attribute_value(HTML::AttributeNames::autoplay, Utf16String {});
+        media_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
+        TRY(document->body()->append_child(media_element));
+        TRY(insert_title(document, url_string));
     }
 
     auto& realm = document->relevant_settings_object().realm();
