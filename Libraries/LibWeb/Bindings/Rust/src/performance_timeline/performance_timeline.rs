@@ -428,15 +428,11 @@ impl PerformanceTimeline {
             self.resource_timing_buffer_full_event_pending.set(true);
 
             // b. Queue a task on the performance timeline task source to run fire a buffer full event.
-            queue_a_task(
-                vm,
-                self.realm,
-                TaskSource::PerformanceTimeline,
-                self.realm,
-                |vm, realm| {
+            queue_a_task(vm, TaskSource::PerformanceTimeline, self.realm, |vm, realm| {
+                with_temporary_execution_context_and_callbacks(realm, || {
                     Self::of(vm, realm).fire_resource_timing_buffer_full_event(vm);
-                },
-            );
+                });
+            });
         }
 
         // 3. Add new entry to the resource timing secondary buffer.

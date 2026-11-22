@@ -22,7 +22,7 @@ use crate::bindings::global_object::CppWindow;
 use crate::bindings::interface::{
     Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context, wrap,
 };
-use crate::bindings::promise::{TaskSource, deferred_invoke, queue_a_task_without_execution_context};
+use crate::bindings::promise::{TaskSource, deferred_invoke, queue_a_task};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::document::{CppDocument, WeakCppDocument};
 use crate::geolocation::geolocation_coordinates::{CoordinatesData, GeolocationCoordinates};
@@ -196,7 +196,7 @@ impl Geolocation {
     }
 
     fn queue_success_callback(&self, vm: &Vm, callback: CallbackFunction, position: Ref<GeolocationPosition>) {
-        queue_a_task_without_execution_context(
+        queue_a_task(
             vm,
             TaskSource::Geolocation,
             (callback, position),
@@ -787,7 +787,7 @@ impl Geolocation {
         let error = GeolocationPositionError::create(vm, code);
 
         // 3. Queue a task on the geolocation task source with a step that invokes callback with « error » and "report".
-        queue_a_task_without_execution_context(
+        queue_a_task(
             vm,
             TaskSource::Geolocation,
             (callback, error),
