@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="match" href="../../expected/css/vertical-text-uses-vertical-forms-ref.html">
+<style>
+    @font-face { font-family: CJK; src: url(../wpt-import/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-chws.otf); }
+    div { writing-mode: vertical-rl; font: 40px/1 CJK; }
+</style>
+<!-- Brackets and the ideographic comma are set upright in mixed orientation, in the vertical forms the font has for them. -->
+<div>&#x300C;&#xFF08;&#x3001;&#xFF09;&#x300D;</div>
+<div style="text-orientation: upright">&#x300C;&#xFF08;&#x3001;&#xFF09;&#x300D;</div>

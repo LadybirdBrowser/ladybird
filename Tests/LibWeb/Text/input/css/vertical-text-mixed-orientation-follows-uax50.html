@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    div { writing-mode: vertical-rl; font: 20px/1 serif; }
+</style>
+<div id="mixed"></div>
+<div id="sideways" style="text-orientation: sideways"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // In mixed orientation, a character is set upright when its Vertical_Orientation is U, Tu or Tr, and sideways,
+        // as in text-orientation: sideways, when it's R.
+        const inline_size = (parent, code_point) => {
+            const span = document.createElement("span");
+            span.textContent = String.fromCodePoint(code_point);
+            parent.appendChild(span);
+            const size = span.getBoundingClientRect().height;
+            span.remove();
+            return size;
+        };
+        const names = {
+            0x00A7: "SECTION SIGN",
+            0x00A9: "COPYRIGHT SIGN",
+            0x00B1: "PLUS-MINUS SIGN",
+            0x00D7: "MULTIPLICATION SIGN",
+            0x0061: "LATIN SMALL LETTER A",
+            0x0021: "EXCLAMATION MARK",
+        };
+        for (const [code_point, name] of Object.entries(names)) {
+            const upright = inline_size(mixed, Number(code_point)) !== inline_size(sideways, Number(code_point));
+            println(`${name}: ${upright ? "upright" : "sideways"}`);
+        }
+    });
+</script>

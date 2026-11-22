@@ -165,6 +165,7 @@ unsafe extern "C" {
     safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
     safe fn unicode_layout_joining_type(code_point: u32) -> u8;
     safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
+    safe fn unicode_layout_vertical_orientation(code_point: u32) -> u8;
 }
 
 // LibUnicode's LineBreakClass, in declaration order.
@@ -387,6 +388,11 @@ mod unicode_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_code_point_has_emoji_property(_code_point: u32) -> bool {
         unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_vertical_orientation(_code_point: u32) -> u8 {
+        unreachable!("no unit test sets text vertically");
     }
 }
 
@@ -691,27 +697,14 @@ fn is_utf16_low_surrogate(code_unit: u16) -> bool {
 }
 
 /// Whether a code point is typeset upright in vertical text whose text orientation is 'mixed'.
-// FIXME: Use the Vertical_Orientation property of Unicode (UAX #50) instead of these blocks of characters, which are
-//        mostly upright.
+// https://drafts.csswg.org/css-writing-modes-4/#vertical-orientations
+// "When text-orientation is mixed, the UA must determine the orientation of each typographic character unit by its
+//  Vertical_Orientation property: typesetting it upright if its orientation property is U, Tu, or Tr; or typesetting
+//  it sideways (90° clockwise from horizontal) if its orientation property is R."
 pub(crate) fn code_point_is_upright_in_mixed_orientation(code_point: u32) -> bool {
-    matches!(
-        code_point,
-        0x1100..=0x11FF
-            | 0x2E80..=0x303F
-            | 0x3040..=0x31FF
-            | 0x3200..=0x4DBF
-            | 0x4E00..=0x9FFF
-            | 0xA960..=0xA97F
-            | 0xAC00..=0xD7FF
-            | 0xF900..=0xFAFF
-            | 0xFE10..=0xFE1F
-            | 0xFE30..=0xFE4F
-            | 0xFF01..=0xFF0C
-            | 0xFF0E..=0xFF1B
-            | 0xFF1F..=0xFF60
-            | 0xFFE0..=0xFFE6
-            | 0x20000..=0x3FFFF
-    )
+    // LibUnicode's VerticalOrientation, in declaration order: Rotated comes first.
+    const ROTATED: u8 = 0;
+    unicode_layout_vertical_orientation(code_point) != ROTATED
 }
 
 /// Mirrors AK::Utf16View::code_point_at, including its lone-surrogate

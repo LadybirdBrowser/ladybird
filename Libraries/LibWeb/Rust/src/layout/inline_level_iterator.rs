@@ -121,6 +121,7 @@ fn reshaped_glyph_run(
     text_type: u8,
     letter_spacing: f32,
     word_spacing: f32,
+    is_upright: bool,
 ) -> OwnedGlyphRun {
     let shape = libgfx_rust::text_layout::shape_text_shared(
         font,
@@ -129,11 +130,12 @@ fn reshaped_glyph_run(
         letter_spacing,
         word_spacing,
         text_chunker::joining_context(text, range),
+        is_upright,
     );
     OwnedGlyphRun {
         glyphs: shape.glyphs().clone(),
         width: shape.width(),
-        is_upright: false,
+        is_upright,
     }
 }
 
@@ -147,7 +149,7 @@ pub(crate) fn hyphen_glyph_run(
     word_spacing: f32,
 ) -> OwnedGlyphRun {
     let hyphen = [if font.contains_glyph(0x2010) { 0x2010 } else { 0x2d }];
-    reshaped_glyph_run(&hyphen, 0..1, font, text_type, letter_spacing, word_spacing)
+    reshaped_glyph_run(&hyphen, 0..1, font, text_type, letter_spacing, word_spacing, false)
 }
 
 /// Whether a line that breaks after a soft hyphen in text of this style ends in a hyphen.
@@ -515,6 +517,7 @@ impl Item {
                     letter_spacing,
                     word_spacing,
                     text_chunker::joining_context(text, start..end),
+                    item.has(PreparedItem::UPRIGHT),
                 );
                 // NB: A segment that ends in a soft hyphen ends its line in a hyphen, unless it ends the item and no break
                 //     follows the item.
@@ -549,6 +552,7 @@ impl Item {
             item.text_type(),
             letter_spacing,
             word_spacing,
+            item.has(PreparedItem::UPRIGHT),
         )
     }
 
@@ -656,6 +660,7 @@ impl Item {
                     prepared_item.text_type(),
                     letter_spacing,
                     word_spacing,
+                    prepared_item.has(PreparedItem::UPRIGHT),
                 )
             });
         self.drop_prefix(split_offset_in_node, remainder_glyphs);
@@ -791,6 +796,7 @@ impl Item {
             return None;
         }
         let font = prepared.font_of(prepared_item);
+        let is_upright = prepared_item.has(PreparedItem::UPRIGHT);
         let start = self.offset_in_node;
         let end = start + self.length_in_node;
 
@@ -808,7 +814,7 @@ impl Item {
         }
 
         let shape = |range: std::ops::Range<usize>| {
-            reshaped_glyph_run(text, range, font, text_type, letter_spacing, word_spacing)
+            reshaped_glyph_run(text, range, font, text_type, letter_spacing, word_spacing, is_upright)
         };
 
         let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
@@ -820,6 +826,7 @@ impl Item {
                 letter_spacing,
                 word_spacing,
                 text_chunker::joining_context(text, start..boundary),
+                is_upright,
             );
             leading_edge_inline_size + CssPixels::nearest_value_for_f32(width) <= max_border_box_inline_size
         };
@@ -875,6 +882,7 @@ impl Item {
             letter_spacing,
             word_spacing,
             text_chunker::joining_context(text, start..boundary),
+            run.is_upright,
         );
         Some(CssPixels::nearest_value_for_f32(width))
     }
@@ -1633,6 +1641,14 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         let shaped_range = shaped_start..shaped_start + shaped_length;
         let mut shaped_text = &full_text[shaped_range.clone()];
+        let is_set_upright = |text: &[u16]| {
+            !text.is_empty()
+                && text_is_set_upright(
+                    text_context.writing_mode,
+                    text_context.text_orientation,
+                    text_chunker::code_point_at(text, 0),
+                )
+        };
         let mut shape = libgfx_rust::text_layout::shape_text_shared(
             font,
             shaped_text,
@@ -1640,6 +1656,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             text_context.letter_spacing,
             text_context.word_spacing,
             text_chunker::joining_context(full_text, shaped_range),
+            is_set_upright(shaped_text),
         );
         // Remember the decision only if every combined run is restored to its original chunks. Text, font, and break-rule
         // changes replace the chunk memo, while spacing is checked separately.
@@ -1664,16 +1681,11 @@ impl<'pass> InlineContentPreparer<'pass> {
                 text_context.letter_spacing,
                 text_context.word_spacing,
                 text_chunker::joining_context(full_text, chunk.start..chunk.start + chunk.length),
+                is_set_upright(shaped_text),
             );
         }
         let mut flags = if has_soft_wraps { PreparedItem::SOFT_WRAPS } else { 0 };
-        if !shaped_text.is_empty()
-            && text_is_set_upright(
-                text_context.writing_mode,
-                text_context.text_orientation,
-                text_chunker::code_point_at(shaped_text, 0),
-            )
-        {
+        if is_set_upright(shaped_text) {
             // NB: The font's own size takes any font-size-adjust into account.
             let advance = font.facts().pixel_size + text_context.letter_spacing;
             match &mut tab_stop {

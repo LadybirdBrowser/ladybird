@@ -409,7 +409,7 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGl
     return intervals;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, FFI::JoiningContext joining_context = {})
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, FFI::JoiningContext joining_context = {}, bool vertical_forms = false)
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
@@ -446,7 +446,16 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
 
     auto* hb_font = font.harfbuzz_font();
     Vector<hb_feature_t, 8> hb_features;
-    hb_features.ensure_capacity(font.features().size());
+    hb_features.ensure_capacity(font.features().size() + (vertical_forms ? 1 : 0));
+    // https://drafts.csswg.org/css-writing-modes-4/#typeset-upright
+    // "Additionally, font features (such as alternate glyphs and other transformation) intended for use in vertical
+    //  typesetting must be used. (E.g. the OpenType vert feature must be enabled.)"
+    // NB: That gives glyphs set upright the vertical forms the font has for them: the vertical long vowel mark,
+    //     brackets that open downwards, and punctuation that sits in the top-right corner of the em box.
+    // NB: It goes first, so that font-feature-settings can still turn it off.
+    if (vertical_forms)
+        hb_features.append({ .tag = HB_TAG('v', 'e', 'r', 't'), .value = 1, .start = 0, .end = HB_FEATURE_GLOBAL_END });
+
     for (auto const& feature : font.features()) {
         hb_features.unchecked_append({
             .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
@@ -582,10 +591,10 @@ struct ShapedGlyphs {
     bool requires_context_for_breaks { false };
 };
 
-static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing, FFI::JoiningContext joining_context)
+static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing, FFI::JoiningContext joining_context, bool vertical_forms)
 {
     auto const& metrics = font.pixel_metrics();
-    auto* buffer = setup_text_shaping(string, font, text_type, letter_spacing, joining_context);
+    auto* buffer = setup_text_shaping(string, font, text_type, letter_spacing, joining_context, vertical_forms);
 
     u32 glyph_count;
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
@@ -743,7 +752,7 @@ static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_id) == offsetof(Gfx::ShapedG
 static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::ShapedGlyph, should_paint));
 
 extern "C" {
-void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool));
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, bool, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
@@ -758,6 +767,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     float letter_spacing,
     float word_spacing,
     Gfx::FFI::JoiningContext joining_context,
+    bool vertical_forms,
     void* sink,
     void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool))
 {
@@ -773,7 +783,8 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         text_type,
         letter_spacing,
         word_spacing,
-        joining_context);
+        joining_context,
+        vertical_forms);
     emit(
         sink,
         reinterpret_cast<Gfx::FFI::ShapedGlyph const*>(shape.glyphs.data()),

@@ -240,6 +240,7 @@ impl LineBoxFragmentData {
                 letter_spacing,
                 word_spacing,
                 text_chunker::joining_context(full_text, start..run_end),
+                glyphs.is_upright,
             );
             let inline_size = CssPixels::nearest_value_for_f32(shape.width());
             let run = ItemGlyphRun {
