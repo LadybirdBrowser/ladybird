@@ -33,14 +33,14 @@ struct Stop {
     FetchId fetch_id;
 };
 
-// The answer to a manual-redirect delivery's continuation, given exactly once.
+// The answer to the continuation of a manual redirect a fetch handed over, given at most once.
 struct ResolveRedirect {
     struct Follow { };
     struct AcceptAsFinal { };
     struct Abandon { };
     using Resolution = Variant<Follow, AcceptAsFinal, Abandon>;
 
-    DeliveryId delivery_id;
+    FetchId fetch_id;
     ContinuationId continuation_id;
     Resolution resolution;
 };

@@ -24,7 +24,6 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
-#include <LibWeb/Fetch/Engine/EngineCommandSink.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
@@ -56,8 +55,6 @@
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
-using Web::Fetch::Engine::EngineCommand;
-using Web::Fetch::Engine::EngineCommandSink;
 using Web::Fetch::Engine::FetchBodyDeliveryGate;
 using Web::Fetch::Engine::FetchByteChannel;
 using Web::Fetch::Engine::NetworkTransportHandle;
@@ -260,9 +257,6 @@ TEST_CASE(each_stop_of_a_started_fetch_reaches_the_engine_for_its_fetch_id)
     auto aborted = create_controller(2);
     auto terminated = create_controller(3);
     auto never_started = create_controller({});
-    // A navigation's manual redirect starts another fetch with the same controller.
-    auto redirected = create_controller(4);
-    redirected->set_started_fetch(Web::Fetch::Engine::FetchId { 5 }, *fetch_executor);
 
     stopped->stop_fetch();
     {
@@ -272,10 +266,9 @@ TEST_CASE(each_stop_of_a_started_fetch_reaches_the_engine_for_its_fetch_id)
     }
     terminated->terminate();
     never_started->terminate();
-    redirected->stop_fetch();
-    run_queued_invocations(harness);
+    harness.run_queued_invocations();
 
-    EXPECT_EQ(reached->steps, (Vector<ByteString> { "stop 1", "abort 2", "terminate 3", "stop 5" }));
+    EXPECT_EQ(reached->steps, (Vector<ByteString> { "stop 1", "abort 2", "terminate 3" }));
 }
 
 TEST_CASE(a_stop_reaches_the_body_transport_of_the_fetch_before_deliveries_queued_after_it)
@@ -300,7 +293,7 @@ TEST_CASE(a_stop_reaches_the_body_transport_of_the_fetch_before_deliveries_queue
         deliver_body(*fetch, [reached](Requests::ResponseData) { reached->steps.append("data"); });
         fetch->transport->when_delivered([reached] { reached->steps.append("end"); });
     }
-    run_queued_invocations(harness);
+    harness.run_queued_invocations();
 
     EXPECT(reached->steps.is_empty());
     for (auto* fetch : { &stopped, &aborted, &terminated })
@@ -316,7 +309,7 @@ TEST_CASE(body_bytes_queued_before_a_stop_are_not_delivered)
     auto fetch = fetch_with_a_body(harness);
     deliver_body(fetch, [body_pump = fetch.body_pump](Requests::ResponseData data) { body_pump->handle_network_data(move(data)); });
     fetch.controller->stop_fetch();
-    run_queued_invocations(harness);
+    harness.run_queued_invocations();
 
     auto buffered = fetch.body_pump->channel()->peek_up_to(5);
     EXPECT(buffered.taken.is_empty());
@@ -691,11 +684,11 @@ public:
     // Hands the commands posted so far to a fetch engine, and runs them.
     void apply_posted_commands()
     {
-        run_queued_invocations(m_harness);
+        m_harness.run_queued_invocations();
         for (auto& command : m_posted_commands->commands)
             m_engine_executor->post(move(command));
         m_posted_commands->commands.clear();
-        run_queued_invocations(m_harness);
+        m_harness.run_queued_invocations();
     }
 
     ByteString describe(TransportControl::Operation const& operation) const
@@ -808,7 +801,7 @@ TEST_CASE(an_adopted_navigation_body_takes_none_of_its_data_once_its_stop_is_req
     EXPECT(buffered.state.has<FetchByteChannel::Open>());
 
     adopted.finish_request();
-    run_queued_invocations(harness);
+    harness.run_queued_invocations();
     EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::ConsumerCancelled>());
 }
 
@@ -824,7 +817,7 @@ TEST_CASE(the_holders_of_an_adopted_navigation_body_post_its_controls_to_the_age
     EXPECT(Web::HTML::stop_body_delivery(NonnullRefPtr { adopted.handle() }));
     EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "Transferred navigation response was stopped" }));
 
-    run_queued_invocations(harness);
+    harness.run_queued_invocations();
     auto release = adopted.describe(TransportControl::ReleaseNavigationHold {});
     auto release_up_to = adopted.describe(TransportControl::ReleaseNavigationHoldUpTo { .byte_count = 512 });
     auto stop = adopted.describe(TransportControl::StopTransport {});
@@ -869,7 +862,7 @@ static DeliveredBody deliver_a_body(FetchHarness const& harness, StandInRequestS
     auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto request_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(request_id, 200);
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
     auto response = record->responses[0]->record()->unsafe_response();
     auto delivery_id = response->network_transport()->body_channel->delivery_id();
     VERIFY(delivery_id.has_value());
@@ -911,7 +904,7 @@ TEST_CASE(a_body_that_ends_before_its_response_is_handed_over_gets_its_sizes_fro
     auto request_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_finished(request_id, finished_timing_info(1000));
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
 
     auto response = record->responses[0]->record()->unsafe_response();
     EXPECT_EQ(response->body_info().encoded_size, 1234u);
@@ -1381,7 +1374,7 @@ TEST_CASE(a_load_that_finishes_before_its_response_is_handed_over_gives_the_agen
     auto request_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_finished(request_id, finished_timing_info(1000));
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
 
     auto agent_timing_info = controller->control_block().agent_timing_info();
     VERIFY(agent_timing_info);
@@ -1559,7 +1552,7 @@ TEST_CASE(a_redirected_fetch_reports_the_end_time_of_its_final_body_to_webdriver
 
     // The final body ends once the clock is past the redirect's end time by more than a coarsening interval.
     request_server.send_headers(final_id, 200);
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
     auto clock_tick = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [] { });
     clock_tick->start();
     harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(redirect_end_time), [](auto& redirect_end_time) {
@@ -1595,17 +1588,14 @@ TEST_CASE(the_next_response_of_a_manual_redirect_takes_the_end_time_last_set_for
     WebDriverBiDiSession session { { "network.responseCompleted"_string }, [](Web::HTML::Navigable const&, String const&, JsonValue) { } };
 
     auto record = make_ref_counted<AlgorithmCalls>();
-    auto request = harness.create_request_for("http://127.0.0.1:8000/manual-redirect"sv);
-    request->set_mode(Request::Mode::Navigate);
-    request->set_destination(Request::Destination::Document);
-    request->set_redirect_mode(Request::RedirectMode::Manual);
+    auto request = harness.create_navigation_request_for("http://127.0.0.1:8000/manual-redirect"sv);
     auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto& control_block = controller->control_block();
 
     // WebDriver BiDi completes the redirect, which sets the fetch's end time before the redirect is handed over.
     auto redirect_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(redirect_id, 302, { { "Location"sv, "/final"sv } });
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
     auto redirect_end_time = control_block.end_time();
     EXPECT_NE(redirect_end_time, 0);
     auto redirect_timing_info = control_block.agent_timing_info();
@@ -1619,7 +1609,7 @@ TEST_CASE(the_next_response_of_a_manual_redirect_takes_the_end_time_last_set_for
     auto final_id = request_server.wait_for_request("GET"sv);
     request_server.send_headers(final_id, 200);
     request_server.send_finished(final_id, finished_timing_info(2000));
-    run_until_responses(harness, record, 2);
+    harness.run_until_responses(record, 2);
     run_until_encoded_size(harness, record->responses[1]->record()->unsafe_response(), 1234);
 
     // The final response's timing info takes the fetch's end time, and the redirect and network fields of its own hop.
@@ -1657,7 +1647,7 @@ TEST_CASE(a_cors_preflight_reports_none_of_its_network_phases_to_its_fetch)
     request_server.send_finished(preflight_id, finished_timing_info(9000));
     auto request_id = request_server.wait_for_request("PUT"sv);
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
 
     auto agent_timing_info = controller->control_block().agent_timing_info();
     VERIFY(agent_timing_info);
@@ -1687,14 +1677,11 @@ TEST_CASE(a_file_navigation_keeps_the_network_phases_of_its_load)
     auto record = make_ref_counted<AlgorithmCalls>();
     auto url = URL::create_with_file_scheme(path);
     VERIFY(url.has_value());
-    auto request = harness.create_request_for(url->serialize());
     // A traversal back to a file: entry, which fetches it with the client of the document it replaces.
-    request->set_mode(Request::Mode::Navigate);
-    request->set_destination(Request::Destination::Document);
-    request->set_redirect_mode(Request::RedirectMode::Manual);
+    auto request = harness.create_navigation_request_for(url->serialize());
     request->set_history_navigation(true);
     auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record), document));
-    run_until_responses(harness, record, 1);
+    harness.run_until_responses(record, 1);
     auto response = record->responses[0]->record()->unsafe_response();
     run_until_encoded_size(harness, response, 11);
 

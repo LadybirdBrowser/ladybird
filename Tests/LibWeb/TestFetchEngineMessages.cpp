@@ -30,7 +30,7 @@ TEST_CASE(commands_round_trip_their_payloads)
     commands.append(Command::Abort { .fetch_id = FetchId(2) });
     commands.append(Command::Terminate { .fetch_id = FetchId(3) });
     commands.append(Command::Stop { .fetch_id = FetchId(4) });
-    commands.append(Command::ResolveRedirect { .delivery_id = DeliveryId(5), .continuation_id = ContinuationId(6), .resolution = Command::ResolveRedirect::AcceptAsFinal {} });
+    commands.append(Command::ResolveRedirect { .fetch_id = FetchId(5), .continuation_id = ContinuationId(6), .resolution = Command::ResolveRedirect::AcceptAsFinal {} });
     commands.append(Command::PreloadResponseResolved {
         .fetch_id = FetchId(7),
         .response = { .outcome = Command::CompletedPreloadResponse::Completed { .body = Delivered<Core::ImmutableBytes> { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("preloaded"sv.bytes()))) } } },
@@ -47,7 +47,7 @@ TEST_CASE(commands_round_trip_their_payloads)
             [&](Command::ResolveRedirect const& resolve) {
                 EXPECT(resolve.resolution.has<Command::ResolveRedirect::AcceptAsFinal>());
                 EXPECT_EQ(resolve.continuation_id, ContinuationId(6));
-                seen_ids.append(resolve.delivery_id.value());
+                seen_ids.append(resolve.fetch_id.value());
             },
             [&](Command::PreloadResponseResolved const& preload) {
                 auto const& completed = preload.response.outcome.get<Command::CompletedPreloadResponse::Completed>();

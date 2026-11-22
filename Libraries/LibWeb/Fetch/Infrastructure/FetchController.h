@@ -50,7 +50,7 @@ public:
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
 
     void set_report_timing_steps(GC::Ref<GC::Function<void(JS::Object&)>> report_timing_steps);
-    void set_next_manual_redirect_steps(GC::Ref<GC::Function<void()>> next_manual_redirect_steps);
+    void set_next_manual_redirect_steps(Engine::ContinuationId, GC::Ref<GC::Function<void()>> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_control_block->state(); }
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_control_block->full_timing_info(); }
@@ -58,6 +58,10 @@ public:
     [[nodiscard]] bool has_report_timing_steps() const { return m_report_timing_steps != nullptr; }
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
+
+    // Posts the answer to the manual redirect handed over last, unless it was answered before.
+    void resolve_redirect(Engine::Command::ResolveRedirect::Resolution);
+    [[nodiscard]] bool has_unanswered_redirect() const { return m_redirect_continuation_id.has_value(); }
 
     // Once the network has delivered all of the delivery's body, records its sizes in the response, if still alive, then
     // runs the steps given its end time. An abort, termination or stop of the fetch, or a later call, drops this first.
@@ -100,9 +104,10 @@ public:
 
     bool requires_network() const { return m_control_block->requires_network(); }
     bool has_started_request() const { return m_control_block->has_started_request(); }
-    // The fetch this controller's fetch params started last, and the executor its start was posted to. The controller's
-    // stops are posted there, for that fetch.
+    // The fetch this controller's fetch params started, and the executor its start was posted to. The controller's
+    // stops and redirect answers are posted there, for that fetch.
     void set_started_fetch(Engine::FetchId, Engine::FetchExecutor&);
+    [[nodiscard]] Optional<Engine::FetchId> started_fetch_id() const;
 
     void stop_fetch();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
@@ -151,6 +156,9 @@ private:
     // next manual redirect steps (default null)
     //     Null or an algorithm accepting nothing.
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
+
+    // The continuation of the manual redirect opened last, until it is answered.
+    Optional<Engine::ContinuationId> m_redirect_continuation_id;
 
     // AD-HOC: The fetch params' algorithms are kept on their controller, which every copy of the fetch params shares.
     // https://fetch.spec.whatwg.org/#fetch-params-process-request-body

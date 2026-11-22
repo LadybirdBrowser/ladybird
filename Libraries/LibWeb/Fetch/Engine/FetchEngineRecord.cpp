@@ -11,6 +11,7 @@
 namespace Web::Fetch::Engine {
 
 static Atomic<u64> s_next_delivery_id { 1 };
+static Atomic<u64> s_next_continuation_id { 1 };
 
 FetchEngineRecord::FetchEngineRecord(FetchEngineRecords& records, FetchId fetch_id, NonnullOwnPtr<EngineEventSink> event_sink, NonnullRefPtr<NetworkActivityObservers const> network_activity_observers)
     : m_records(records)
@@ -28,38 +29,88 @@ FetchEngineRecord::~FetchEngineRecord()
 
 void FetchEngineRecord::set_body_transport(FetchBodyDeliveryGate::Transport& transport)
 {
+    ASSERT(is_on_owner_thread());
     m_body_transport = transport;
 }
 
 void FetchEngineRecord::stop_body_transport()
 {
+    ASSERT(is_on_owner_thread());
     if (auto transport = exchange(m_body_transport, nullptr).strong_ref())
         transport->stop();
 }
 
 void FetchEngineRecord::set_cors_preflight_body_transport(FetchBodyDeliveryGate::Transport& transport)
 {
+    ASSERT(is_on_owner_thread());
     m_cors_preflight_body_transport = transport;
 }
 
 void FetchEngineRecord::stop_cors_preflight_body_transport()
 {
+    ASSERT(is_on_owner_thread());
     if (auto transport = exchange(m_cors_preflight_body_transport, nullptr).strong_ref())
         transport->stop();
 }
 
+void FetchEngineRecord::stop()
+{
+    ASSERT(is_on_owner_thread());
+    m_stopped = true;
+    if (m_redirect_continuation.has_value())
+        abandon_redirect();
+    stop_body_transport();
+}
+
 void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
 {
+    ASSERT(is_on_owner_thread());
     if (auto* records = m_records.ptr())
         records->add_network_transport(handle, delivery_gate);
 }
 
 Optional<DeliveryId> FetchEngineRecord::deliver_body(FetchByteChannel& channel)
 {
+    ASSERT(is_on_owner_thread());
     DeliveryId delivery_id { s_next_delivery_id.fetch_add(1) };
     if (!channel.set_delivery_id_unless_closed(delivery_id))
         return {};
     return delivery_id;
+}
+
+ContinuationId FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* network_transport)
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(!m_redirect_continuation.has_value());
+
+    ContinuationId continuation_id { s_next_continuation_id.fetch_add(1) };
+    if (auto* records = m_records.ptr())
+        records->did_offer_redirect_continuation({}, continuation_id);
+    m_redirect_continuation = RedirectContinuation { continuation_id, network_transport };
+    if (m_stopped)
+        abandon_redirect();
+    return continuation_id;
+}
+
+bool FetchEngineRecord::resolve_redirect(ContinuationId continuation_id, Command::ResolveRedirect::Resolution const& resolution)
+{
+    ASSERT(is_on_owner_thread());
+    if (!m_redirect_continuation.has_value() || m_redirect_continuation->id != continuation_id)
+        return false;
+
+    resolution.visit(
+        [&](Command::ResolveRedirect::Follow) { m_redirect_continuation.clear(); },
+        [&](Command::ResolveRedirect::AcceptAsFinal) { m_redirect_continuation.clear(); },
+        [&](Command::ResolveRedirect::Abandon) { abandon_redirect(); });
+    return true;
+}
+
+void FetchEngineRecord::abandon_redirect()
+{
+    auto continuation = m_redirect_continuation.release_value();
+    if (auto network_transport = continuation.network_transport.strong_ref())
+        network_transport->release_transfer_lease();
+    stop_body_transport();
 }
 
 void FetchEngineRecords::Agent::misbehaved(StringView reason)
@@ -87,15 +138,45 @@ RefPtr<FetchEngineRecord> FetchEngineRecords::start(FetchId fetch_id, NonnullOwn
     return record;
 }
 
-void FetchEngineRecords::stop_body_transport(FetchId fetch_id)
+void FetchEngineRecords::stop(FetchId fetch_id)
 {
     ASSERT(is_on_owner_thread());
     if (fetch_id > m_last_started_fetch_id) {
         m_agent->misbehaved("The agent stopped a fetch it has not started"sv);
         return;
     }
-    if (auto record = m_records.get(fetch_id); record.has_value())
-        (*record)->stop_body_transport();
+    auto found_record = m_records.get(fetch_id);
+    if (!found_record.has_value())
+        return;
+    NonnullRefPtr record = **found_record;
+    record->stop();
+}
+
+FetchEngineRecords::RedirectAnswerOutcome FetchEngineRecords::resolve_redirect(Command::ResolveRedirect const& resolve)
+{
+    ASSERT(is_on_owner_thread());
+    if (resolve.fetch_id > m_last_started_fetch_id) {
+        m_agent->misbehaved("The agent resolved a redirect of a fetch it has not started"sv);
+        return RedirectAnswerMisbehaved {};
+    }
+    if (resolve.continuation_id > m_last_offered_continuation_id) {
+        m_agent->misbehaved("The agent resolved a redirect the engine never offered"sv);
+        return RedirectAnswerMisbehaved {};
+    }
+
+    auto found_record = m_records.get(resolve.fetch_id);
+    if (!found_record.has_value())
+        return RedirectAnswerDropped {};
+    NonnullRefPtr record = **found_record;
+    if (!record->resolve_redirect(resolve.continuation_id, resolve.resolution))
+        return RedirectAnswerDropped {};
+    return record;
+}
+
+void FetchEngineRecords::did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId continuation_id)
+{
+    ASSERT(is_on_owner_thread());
+    m_last_offered_continuation_id = continuation_id;
 }
 
 void FetchEngineRecords::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
