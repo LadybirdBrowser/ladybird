@@ -1,0 +1,13 @@
+Ladybird now passes fontconfig the language most likely written in a
+code point’s script when it asks for a fallback font. In the CI image
+with fonts-noto-core and fonts-unifont installed, the pattern without a
+language matches Unifont for Thai, Devanagari, Arabic, Georgian and
+Ethiopic, and with th, hi, ar, ka and am it matches Noto Sans Thai, Noto
+Sans Devanagari, Noto Kufi Arabic, Noto Sans Georgian and Noto Sans
+Ethiopic. Chrome’s Linux fallback, gfx::GetFallbackFontForChar(), sorts
+the fonts for the element’s locale (FontDescription::LocaleOrDefault())
+and takes the first with the character: That gives Noto Sans Thai for
+en-US and th, but Unifont for ja. Gecko derives the language from the
+character itself, with gfxPlatformFontList::GetFontPrefLangFor(), and
+searches that language’s preferred fonts, as Ladybird now does with the
+script’s likely language.
