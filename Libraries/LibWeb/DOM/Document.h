@@ -669,6 +669,8 @@ public:
     void update_style_and_layout_once(Layout::BegunRead const&, UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] bool layout_is_up_to_date() const;
+    // Whether anything the document's style depends on may have moved since its last style update.
+    [[nodiscard]] bool has_style_work(Layout::BegunRead const&) const;
     [[nodiscard]] bool layout_is_known_stale() const;
     void clear_devtools_layout_inspection_data();
     void sample_animation_effects_needing_style_update();

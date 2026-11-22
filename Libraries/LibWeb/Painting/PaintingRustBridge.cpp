@@ -285,7 +285,11 @@ OwnersOfVisualContextNodes describe_owners_of_visual_context_nodes(DOM::Document
 
     Layout::ForcedReadScope read_scope { document };
     Layout::BegunRead const& read = read_scope;
-    if (!document.has_committed_viewport_box())
+    // NB: Bringing the tree up to date describes the paint servers it paints with, which the elements its boxes refer to
+    //     have to have styles for. With style work pending, those can be elements no style update has styled yet, so
+    //     this answers for no tree, which the view asks of again with the next frame, rather than updating style for a
+    //     debugging aid.
+    if (!document.has_committed_viewport_box() || document.has_style_work(read))
         return { .structural_epoch = 0, .owners = move(context.owners) };
 
     Layout::RustFFI::FfiVisualContextNodeOwnerCallbacks callbacks {

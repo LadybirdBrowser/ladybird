@@ -215,6 +215,9 @@ interface Internals {
     DOMString takeVisualContextTrace();
     // Lays out and brings the visual context tree up to date, as a read of paint properties does.
     undefined updateVisualContextsForTesting();
+    // Asks for the owners of no nodes of the visual context tree, as the layers window does without updating style or
+    // layout first, and answers the structural epoch of the tree the answer is for: 0 for none yet.
+    unsigned long long describeOwnersOfVisualContextNodes();
     // Records where the compositor and this process route each input event, and why, until takeInputTrace().
     undefined beginInputTrace();
     object takeInputTrace();
