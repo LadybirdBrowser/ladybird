@@ -1,0 +1,3 @@
+set the ID
+reset the ID, Last-Event-ID was 1
+Last-Event-ID is none

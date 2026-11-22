@@ -524,6 +524,10 @@ impl EventSource {
                         // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
                         request.set_header(b"Last-Event-ID", last_event_id_value);
                     }
+                    // AD-HOC: Delete the header an earlier reconnection set, as other engines do.
+                    else {
+                        request.delete_header(b"Last-Event-ID");
+                    }
                     drop(last_event_id);
 
                     // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this
