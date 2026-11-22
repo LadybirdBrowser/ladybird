@@ -224,6 +224,12 @@ def cpp_interface(idl_type: IDLType, context: GenerationContext) -> Optional[Int
     return interface
 
 
+def is_window_proxy(idl_type: IDLType) -> bool:
+    """Whether the type is WindowProxy, which no IDL file defines. Rust holds its values as the objects that scripts
+    see."""
+    return not isinstance(idl_type, (IDLParameterizedType, IDLUnionType)) and idl_type.name == "WindowProxy"
+
+
 def is_callback_interface(idl_type: IDLType, context: GenerationContext) -> bool:
     """Whether the type names a callback interface."""
     if isinstance(idl_type, (IDLParameterizedType, IDLUnionType)):
@@ -511,7 +517,11 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
             #     that an implementation returns is one of exactly the interface, whose cell it created.
             return rust_any_interface_path(interface)
         return f"Ref<{rust_interface_path(interface)}>"
-    if cpp_interface(idl_type, context) is not None or is_unnamed_union_of_cpp_interfaces(idl_type, context):
+    if (
+        is_window_proxy(idl_type)
+        or cpp_interface(idl_type, context) is not None
+        or is_unnamed_union_of_cpp_interfaces(idl_type, context)
+    ):
         return "CppInterface"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:

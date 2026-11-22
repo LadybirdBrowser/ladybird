@@ -17,6 +17,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -148,6 +149,8 @@ double web_bindings_environment_settings_object_current_wall_time(HTML::Environm
 void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject*, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
+bool web_bindings_object_is_window_proxy(JSObject* object);
+JSObject* web_bindings_window_proxy_object_in_realm(JSObject* object, void* realm);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 JSCompletion web_bindings_perform_a_security_check(void* realm, JSValue platform_object, ReadonlyBytes identifier, u8 type);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
@@ -458,6 +461,20 @@ bool web_bindings_object_implements_interface(JSObject* object, u16 interface_na
 {
     auto* wrappable = wrappable_impl_from(JS::HostABI::object_from_abi(object));
     return wrappable && wrappable->implements_interface(static_cast<InterfaceName>(interface_name));
+}
+
+bool web_bindings_object_is_window_proxy(JSObject* object)
+{
+    return HTML::WindowProxy::from_object(*JS::HostABI::object_from_abi(object));
+}
+
+JSObject* web_bindings_window_proxy_object_in_realm(JSObject* object, void* realm)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto& window_proxy = *HTML::WindowProxy::from_object(*JS::HostABI::object_from_abi(object));
+    if (auto browsing_context = window_proxy.associated_browsing_context())
+        return JS::HostABI::object_to_abi(&browsing_context->window_proxy_for(host_defined_wrapper_world(js_realm), js_realm)->object());
+    return object;
 }
 
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message)

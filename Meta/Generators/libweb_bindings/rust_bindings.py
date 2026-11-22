@@ -1154,7 +1154,8 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         to_long_long_clamping, to_long_long_enforcing_range, to_object, to_promise, to_shared_array_buffer, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping,
         to_unsigned_long_enforcing_range,
-        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
+        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string, to_window_proxy,
+        window_proxy_from_object, window_proxy_to_js,
     };
     use crate::bindings::interface::{
         Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, create_dictionary_object,
@@ -2576,7 +2577,8 @@ pub(crate) mod definitions {
         to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_shared_array_buffer, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping,
         to_unsigned_long_enforcing_range,
-        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
+        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string, to_window_proxy,
+        window_proxy_from_object, window_proxy_to_js,
     };
     use crate::bindings::interface::{
         Interface, Ref, create_dictionary_object, implementation_if, implementation_of, set_dictionary_member,
