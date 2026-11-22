@@ -19,9 +19,12 @@ mod testing;
 mod tests;
 
 use std::collections::HashMap;
+use std::ops::Range;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use libcompositing_rust::display_list::commands::CanvasId;
+use libcompositing_rust::webgl::vocabulary::{CommandType, MAX_COMMAND_STRUCT_SIZE};
+use libcompositing_rust::webgl::wire::{HEADER_SIZE, read_header};
 use libcompositing_rust::webgl::{ImageSource, SHARED_DATA_REGION_OFFSET};
 use libgfx_rust::{IntRect, IntSize};
 
@@ -30,13 +33,17 @@ use self::gl::GlFunctions;
 use self::gl_constants::GL_MAP_READ_BIT;
 use self::host::{ContextOptions, DefaultBuffers, MappedMemory, PresentOutcome, WebGLHost};
 use self::object_map::ObjectMap;
-use self::replay::{ReplayError, Replayer};
+use self::replay::{PayloadInSharedMemory, ReplayError, Replayer, only_gl_reads_the_data_of};
 use crate::host::WebContentClientId;
 
 const MAX_DRAWING_BUFFER_DIMENSION: i32 = 16384;
 
 /// A copy of what is replayed that holds more than this is not kept for the next message.
 const MAX_KEPT_SCRATCH_SIZE: usize = 1024 * 1024;
+
+/// A record with a payload this big, which holds data that only GL reads, is replayed where WebContent wrote it rather
+/// than copied.
+const SMALLEST_PAYLOAD_REPLAYED_IN_PLACE: usize = 16 * 1024;
 
 pub struct CreatedContext {
     pub canvas_id: CanvasId,
@@ -95,6 +102,73 @@ unsafe fn copy_to_scratch(scratch: &mut Vec<u64>, bytes: *const u8, size: usize)
         core::ptr::copy_nonoverlapping(bytes, scratch.as_mut_ptr().cast::<u8>(), size);
         ak::slice_from_raw_parts(scratch.as_ptr().cast::<u8>(), size)
     }
+}
+
+/// # Safety
+///
+/// `commands` is valid for reads of the bytes of `records`.
+unsafe fn replay_copied_records<H: WebGLHost>(
+    replayer: &mut Replayer<'_, H>,
+    scratch: &mut Vec<u64>,
+    commands: *const u8,
+    records: Range<usize>,
+) -> Result<(), ReplayError> {
+    if records.is_empty() {
+        return Ok(());
+    }
+    // SAFETY: Guaranteed by the caller.
+    let copy = unsafe { copy_to_scratch(scratch, commands.add(records.start), records.len()) };
+    replayer.replay_commands(copy)
+}
+
+/// Replays records that WebContent can write while they are replayed. Runs of records are copied before they are
+/// replayed, and a record with a large payload that only GL reads is replayed where it is, with only its struct copied.
+///
+/// # Safety
+///
+/// `commands` is valid for reads of `size` bytes, which stay mapped while they are replayed.
+unsafe fn replay_records_in_shared_memory<H: WebGLHost>(
+    replayer: &mut Replayer<'_, H>,
+    scratch: &mut Vec<u64>,
+    commands: *const u8,
+    size: usize,
+) -> Result<(), ReplayError> {
+    let mut copied_records_start = 0;
+    let mut offset = 0;
+    while size - offset >= HEADER_SIZE {
+        let mut header = [0_u8; HEADER_SIZE];
+        // SAFETY: The header lies inside the records.
+        unsafe { core::ptr::copy_nonoverlapping(commands.add(offset), header.as_mut_ptr(), HEADER_SIZE) };
+        let Some((type_number, payload_size)) = read_header(&header) else {
+            break;
+        };
+        let payload_start = offset + HEADER_SIZE;
+        if payload_size > size - payload_start {
+            break;
+        }
+        let command_type = CommandType::from_number(type_number).filter(|&command_type| {
+            payload_size >= SMALLEST_PAYLOAD_REPLAYED_IN_PLACE && only_gl_reads_the_data_of(command_type)
+        });
+        if let Some(command_type) = command_type {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { replay_copied_records(replayer, scratch, commands, copied_records_start..offset)? };
+            // SAFETY: The payload lies inside the records.
+            let payload = unsafe { commands.add(payload_start) };
+            // SAFETY: As above.
+            let struct_bytes = unsafe { copy_to_scratch(scratch, payload, payload_size.min(MAX_COMMAND_STRUCT_SIZE)) };
+            replayer.payload_in_shared_memory = Some(PayloadInSharedMemory {
+                start: payload,
+                size: payload_size,
+            });
+            let result = replayer.replay_record(command_type, struct_bytes);
+            replayer.payload_in_shared_memory = None;
+            result?;
+            copied_records_start = payload_start + payload_size;
+        }
+        offset = payload_start + payload_size;
+    }
+    // SAFETY: Guaranteed by the caller.
+    unsafe { replay_copied_records(replayer, scratch, commands, copied_records_start..size) }
 }
 
 #[derive(Default)]
@@ -220,6 +294,7 @@ impl WebGLContexts {
             stashed_errors: &mut context.stashed_errors,
             defaults,
             image_sources,
+            payload_in_shared_memory: None,
         };
         commands(&mut replayer)
     }
@@ -258,14 +333,15 @@ impl WebGLContexts {
         };
         let mut scratch = core::mem::take(&mut context.scratch);
         // SAFETY: The range lies inside the region of records of the mapping, which is readable.
-        let commands = unsafe { copy_to_scratch(&mut scratch, base.add(SHARED_DATA_REGION_OFFSET + offset), size) };
-        // NB: The records were copied, so WebContent may write over them once it learns that they were taken.
+        let commands = unsafe { base.add(SHARED_DATA_REGION_OFFSET + offset) };
+        let result = Self::replay(context, gl, host, client, canvas_id, image_sources, |replayer| {
+            // SAFETY: The context holds the mapping while the records are replayed.
+            unsafe { replay_records_in_shared_memory(replayer, &mut scratch, commands, size) }
+        });
+        // NB: The records were replayed, so WebContent may write over them once it learns that they were taken.
         // SAFETY: The mapping starts at a page, where the u64 that the sequence number is stored in is, and WebContent
         //         only reads it.
         unsafe { AtomicU64::from_ptr(base.cast::<u64>()) }.store(flush_sequence_number, Ordering::Release);
-        let result = Self::replay(context, gl, host, client, canvas_id, image_sources, |replayer| {
-            replayer.replay_commands(commands)
-        });
         context.give_back_scratch(scratch);
         result
     }
@@ -281,10 +357,9 @@ impl WebGLContexts {
         let (context, gl) = self.context_and_gl(client, canvas_id)?;
         let commands = commands.ok_or(ReplayError("WebContent sent an invalid WebGL command buffer"))?;
         let mut scratch = core::mem::take(&mut context.scratch);
-        // SAFETY: The mapping holds as many readable bytes.
-        let commands = unsafe { copy_to_scratch(&mut scratch, commands.as_mut_ptr(), commands.len()) };
         let result = Self::replay(context, gl, host, client, canvas_id, image_sources, |replayer| {
-            replayer.replay_commands(commands)
+            // SAFETY: The mapping holds as many readable bytes, and the caller holds it while the records are replayed.
+            unsafe { replay_records_in_shared_memory(replayer, &mut scratch, commands.as_mut_ptr(), commands.len()) }
         });
         context.give_back_scratch(scratch);
         result

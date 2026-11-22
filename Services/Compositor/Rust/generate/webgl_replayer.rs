@@ -280,6 +280,13 @@ fn data_pointer(argument: &Argument, bytes: &str) -> String {
     }
 }
 
+fn opaque_data_pointer(argument: &Argument, data: &str) -> String {
+    match element_type(argument) {
+        Some(element) => format!("typed_opaque_data::<{element}>({data})?"),
+        None => format!("{data}.pointer.cast()"),
+    }
+}
+
 /// Resolves the data of an argument that points at some, and answers what the GL function is passed for it.
 fn write_data_resolution(out: &mut String, function: &Function, argument: &Argument) -> Result<String, String> {
     let field = field_name(argument);
@@ -293,8 +300,8 @@ fn write_data_resolution(out: &mut String, function: &Function, argument: &Argum
         writeln!(
             out,
             "        let {field}_data = if command.has_{field} {{
-            let bytes = if command.{field}.size != 0 {{ data_span(payload, command.{field})? }} else {{ &[] }};
-            if !size_matches(bytes.len(), {factors}) {{
+            let data = if command.{field}.size != 0 {{ self.opaque_data(payload, command.{field})? }} else {{ OpaqueData::EMPTY }};
+            if !size_matches(data.size, {factors}) {{
                 return Err({mismatch});
             }}
             if command.{field}.size != 0 {{ {} }} else {{ core::ptr::null() }}
@@ -304,19 +311,19 @@ fn write_data_resolution(out: &mut String, function: &Function, argument: &Argum
             }}
             core::ptr::null()
         }};",
-            data_pointer(argument, "bytes"),
+            opaque_data_pointer(argument, "data"),
             argument.name
         )
         .unwrap();
     } else {
         writeln!(
             out,
-            "        let {field}_bytes = data_span(payload, command.{field})?;
-        if !size_matches({field}_bytes.len(), {factors}) {{
+            "        let {field}_opaque_data = self.opaque_data(payload, command.{field})?;
+        if !size_matches({field}_opaque_data.size, {factors}) {{
             return Err({mismatch});
         }}
         let {field}_data = {};",
-            data_pointer(argument, &format!("{field}_bytes"))
+            opaque_data_pointer(argument, &format!("{field}_opaque_data"))
         )
         .unwrap();
     }
@@ -643,6 +650,35 @@ pub fn write_replayer(functions: &[Function]) -> Result<String, String> {
             Category::Custom | Category::BuiltinCommand => {}
         }
     }
+    out.push_str("}\n\n");
+
+    let commands_with_only_opaque_data: Vec<String> = functions
+        .iter()
+        .filter(|function| function.category == Category::Command && has_only_opaque_data(function))
+        .map(|function| format!("CommandType::{}", function.command_name()))
+        .collect();
+    out.push_str("pub fn only_gl_reads_the_data_of(command_type: CommandType) -> bool {\n");
+    if commands_with_only_opaque_data.is_empty() {
+        out.push_str("    let _ = command_type;\n    false\n");
+    } else {
+        writeln!(
+            out,
+            "    matches!(command_type, {})",
+            commands_with_only_opaque_data.join(" | ")
+        )
+        .unwrap();
+    }
     out.push_str("}\n");
     Ok(out)
+}
+
+fn has_only_opaque_data(function: &Function) -> bool {
+    let reads_its_data = function
+        .arguments
+        .iter()
+        .any(|argument| argument.is_string || (argument.is_object && argument.is_const_pointer()));
+    let has_data_that_write_data_resolution_resolves = function.arguments.iter().any(|argument| {
+        !argument.is_string && !argument.is_offset && !argument.is_object && argument.payload.is_some()
+    });
+    has_data_that_write_data_resolution_resolves && !reads_its_data
 }
