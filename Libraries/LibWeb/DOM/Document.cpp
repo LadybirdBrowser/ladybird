@@ -8680,6 +8680,12 @@ struct CompositorAnimationUpdatePass {
     GC::RootHashTable<GC::Ref<Element>> elements_with_visibility_observation_descendants;
     Vector<Compositing::RustFFI::NodeSlotId> layout_nodes_with_stale_forced_effects_layer;
     Vector<Compositing::RustFFI::NodeSlotId> layout_nodes_with_stale_forced_background_color_frame;
+    // OPTIMIZATION: The slot indices of the stale lists above, and of the frames this pass kept, so that keeping a
+    //               frame does not scan the lists. A stale frame that this pass kept is no longer stale.
+    HashTable<u32> stale_forced_effects_layer_slots;
+    HashTable<u32> stale_forced_background_color_frame_slots;
+    HashTable<u32> kept_effects_layer_slots;
+    HashTable<u32> kept_background_color_frame_slots;
     // The target the keyframes of the compositor animation being built resolve their values against.
     Optional<AbstractElement> keyframe_target;
 
@@ -8700,9 +8706,24 @@ struct CompositorAnimationUpdatePass {
         return kind == Animations::RustFFI::FfiCompositorFrameKind::EffectsLayer ? document->m_layout_nodes_with_forced_compositor_effects_layer : document->m_layout_nodes_with_forced_compositor_background_color_frame;
     }
 
-    Vector<Compositing::RustFFI::NodeSlotId>& stale_forced_frames(Animations::RustFFI::FfiCompositorFrameKind kind)
+    HashTable<u32>& stale_forced_frame_slots(Animations::RustFFI::FfiCompositorFrameKind kind)
     {
-        return kind == Animations::RustFFI::FfiCompositorFrameKind::EffectsLayer ? layout_nodes_with_stale_forced_effects_layer : layout_nodes_with_stale_forced_background_color_frame;
+        return kind == Animations::RustFFI::FfiCompositorFrameKind::EffectsLayer ? stale_forced_effects_layer_slots : stale_forced_background_color_frame_slots;
+    }
+
+    HashTable<u32>& kept_frame_slots(Animations::RustFFI::FfiCompositorFrameKind kind)
+    {
+        return kind == Animations::RustFFI::FfiCompositorFrameKind::EffectsLayer ? kept_effects_layer_slots : kept_background_color_frame_slots;
+    }
+
+    void take_forced_frames_as_stale()
+    {
+        layout_nodes_with_stale_forced_effects_layer = move(document->m_layout_nodes_with_forced_compositor_effects_layer);
+        layout_nodes_with_stale_forced_background_color_frame = move(document->m_layout_nodes_with_forced_compositor_background_color_frame);
+        for (auto slot : layout_nodes_with_stale_forced_effects_layer)
+            stale_forced_effects_layer_slots.set(slot.index);
+        for (auto slot : layout_nodes_with_stale_forced_background_color_frame)
+            stale_forced_background_color_frame_slots.set(slot.index);
     }
 
     bool transform_subtree_is_clipped_outside(Element const& animated_target, CSSPixelRect const& root_bounds, IntersectionObserver::IntersectionObserver const* observer = nullptr, Layout::Node const* intersection_root = nullptr) const
@@ -8782,19 +8803,14 @@ struct CompositorAnimationUpdatePass {
     static void keep_frame(void* context, Compositing::RustFFI::NodeSlotId slot, Animations::RustFFI::FfiCompositorFrameKind kind)
     {
         auto& pass = of(context);
-        auto& forced = pass.forced_frames(kind);
-        if (!any_of(forced, [&](auto forced_slot) { return forced_slot.index == slot.index; }))
-            forced.append(slot);
-        pass.stale_forced_frames(kind).remove_first_matching([&](auto stale_slot) {
-            return stale_slot.index == slot.index;
-        });
+        if (pass.kept_frame_slots(kind).set(slot.index) == HashSetResult::InsertedNewEntry)
+            pass.forced_frames(kind).append(slot);
     }
 
     static bool frame_was_kept(void* context, Compositing::RustFFI::NodeSlotId slot, Animations::RustFFI::FfiCompositorFrameKind kind)
     {
-        return any_of(of(context).stale_forced_frames(kind), [&](auto stale_slot) {
-            return stale_slot.index == slot.index;
-        });
+        auto& pass = of(context);
+        return pass.stale_forced_frame_slots(kind).contains(slot.index) && !pass.kept_frame_slots(kind).contains(slot.index);
     }
 
     static void refresh_viewport_mapping(void* context)
@@ -9164,8 +9180,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     CompositorAnimationUpdatePass pass { *this, read };
     pass.viewport_mapping = Painting::viewport_mapping(*this);
     paint_state().begin_compositor_animation_update();
-    pass.layout_nodes_with_stale_forced_effects_layer = move(m_layout_nodes_with_forced_compositor_effects_layer);
-    pass.layout_nodes_with_stale_forced_background_color_frame = move(m_layout_nodes_with_forced_compositor_background_color_frame);
+    pass.take_forced_frames_as_stale();
 
     auto index_shadow_including_element_ancestors = [](Node& node, GC::RootHashTable<GC::Ref<Element>>& index) {
         for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
@@ -9233,6 +9248,8 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     }
 
     for (auto stale_slot : pass.layout_nodes_with_stale_forced_effects_layer) {
+        if (pass.kept_effects_layer_slots.contains(stale_slot.index))
+            continue;
         auto* layout_node = layout_node_arena().node_if_live(read, stale_slot);
         if (!layout_node)
             continue;
@@ -9243,6 +9260,8 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         Painting::repaint_after_style_change(*layout_node, invalidation);
     }
     for (auto stale_slot : pass.layout_nodes_with_stale_forced_background_color_frame) {
+        if (pass.kept_background_color_frame_slots.contains(stale_slot.index))
+            continue;
         auto* layout_node = layout_node_arena().node_if_live(read, stale_slot);
         if (!layout_node)
             continue;
