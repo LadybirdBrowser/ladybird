@@ -291,6 +291,8 @@ impl DataTransfer {
         }
 
         // 3. Let format be the first argument, converted to ASCII lowercase.
+        let format = format.to_ascii_lowercase();
+
         // 4. If format equals "text", change it to "text/plain". If format equals "url", change it to "text/uri-list".
         let format = normalize_format(&format).to_utf16_fly_string();
 

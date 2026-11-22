@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.setData("text/plain", "first");
+        dataTransfer.setData("Text/Plain", "second");
+        dataTransfer.setData("TEXT", "third");
+        dataTransfer.setData("Text/HTML", "<b>html</b>");
+
+        println(`types = ${JSON.stringify(dataTransfer.types)}`);
+        println(`items.length = ${dataTransfer.items.length}`);
+        println(`getData("text/plain") = ${dataTransfer.getData("text/plain")}`);
+    });
+</script>
