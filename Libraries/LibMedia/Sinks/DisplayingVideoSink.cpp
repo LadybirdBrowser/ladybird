@@ -61,7 +61,8 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
                 return;
             }
             m_latest_status = PipelineStatus::Suspended;
-            dispatch_state_if_changed(PipelineStatus::Suspended, m_input_checkpoint);
+            dispatch_latest_state_if_changed();
+            report_freshness_if_changed();
             return;
         }
         // Update the sink to dispatch a status if we're still resolving a seek or waiting for data. If we're not, avoid
@@ -161,14 +162,14 @@ void DisplayingVideoSink::begin_seek(AK::Duration timestamp, InvalidateHeldData 
     m_next_frame = nullptr;
 }
 
-void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status, PipelineCheckpoint checkpoint)
+void DisplayingVideoSink::dispatch_latest_state_if_changed()
 {
-    if (status == m_last_dispatched_status && checkpoint == m_last_dispatched_checkpoint)
+    if (m_latest_status == m_last_dispatched_status && m_input_checkpoint == m_last_dispatched_checkpoint)
         return;
-    m_last_dispatched_status = status;
-    m_last_dispatched_checkpoint = checkpoint;
+    m_last_dispatched_status = m_latest_status;
+    m_last_dispatched_checkpoint = m_input_checkpoint;
     if (m_on_state_changed)
-        m_on_state_changed(status, checkpoint);
+        m_on_state_changed(m_latest_status, m_input_checkpoint);
 }
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
@@ -301,16 +302,13 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     if (status_to_dispatch != m_last_dispatched_status || m_input_checkpoint != m_last_dispatched_checkpoint) {
         // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
         // an update is being processed.
-        Core::deferred_invoke([weak_self = make_weak_ref(), status_to_dispatch, checkpoint = m_input_checkpoint, seek_id = m_seek_id] {
+        Core::deferred_invoke([weak_self = make_weak_ref(), seek_id = m_seek_id] {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
             if (seek_id != self->m_seek_id)
                 return;
-            // A status that the sink reached since has replaced this one, and is dispatched or queued already.
-            if (status_to_dispatch != self->m_latest_status)
-                return;
-            self->dispatch_state_if_changed(status_to_dispatch, checkpoint);
+            self->dispatch_latest_state_if_changed();
         });
     }
 

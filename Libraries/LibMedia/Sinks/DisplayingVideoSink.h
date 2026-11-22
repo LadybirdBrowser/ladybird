@@ -70,7 +70,7 @@ public:
     void set_on_present_needed(Function<void()> handler) { m_on_present_needed = move(handler); }
 
 private:
-    void dispatch_state_if_changed(PipelineStatus, PipelineCheckpoint);
+    void dispatch_latest_state_if_changed();
     void report_freshness_if_changed();
     void start_input();
 
