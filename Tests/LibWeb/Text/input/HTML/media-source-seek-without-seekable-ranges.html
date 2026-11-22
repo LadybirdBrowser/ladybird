@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     // A seek while nothing is seekable sets the seeking attribute and then clears it, without firing any events or
     // moving the playback position. A later seek that succeeds queues its events on the same task source, so any
@@ -12,7 +13,7 @@
 
         for (const eventName of ["seeking", "timeupdate", "seeked"]) {
             video.addEventListener(eventName, () => {
-                println(`${eventName} event, seeking ${video.seeking}, currentTime ${video.currentTime}`);
+                println(`${eventName} event, currentTime ${video.currentTime}`);
             });
         }
 
@@ -56,7 +57,7 @@
 
             // With an unbounded duration, nothing buffered and no live seekable range, nothing is seekable.
             mediaSource.duration = Infinity;
-            println(`seekable ranges: ${video.seekable.length}`);
+            println(`seekable ranges: ${timeRangesToString(video.seekable)}`);
 
             video.currentTime = 12;
             println(`after setting currentTime: seeking ${video.seeking}`);
@@ -64,7 +65,7 @@
             println(`after the seek is skipped: currentTime ${video.currentTime}`);
 
             await append(sourceBuffer, data.subarray(clusterOffset));
-            println(`seekable ranges after appending media: ${video.seekable.length}`);
+            println(`seekable ranges after appending media: ${timeRangesToString(video.seekable)}`);
             video.currentTime = 1;
             await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
             done();
