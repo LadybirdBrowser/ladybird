@@ -33,6 +33,7 @@ private:
     SubtreeInsertionScope* m_enclosing_scope { nullptr };
     Optional<GC::Ptr<HTML::HTMLFormElement>> m_nearest_inclusive_form_ancestor_of_parent;
     Optional<GC::RootVector<GC::Ref<Element>>> m_inclusive_fieldset_ancestors_of_parent;
+    bool m_has_collected_inclusive_fieldset_ancestors_of_parent { false };
 };
 
 }
