@@ -660,6 +660,7 @@ impl CompositorCore {
             .borrow_mut()
             .did_show_frame(context_id, viewport_size, laid_out_by_page);
         self.tell_of_held_synchronized_resize_frames(held);
+        self.release_content_window_server_let_go_of();
         self.host.post_to_presentation(
             presentation,
             compositor_presentation_client::messages::DidPresentFrameInRemoteLayer {

@@ -11,6 +11,7 @@ use crate::geometry::{FloatPoint, FloatSize};
 use crate::matrix::AffineTransform;
 use crate::paint_enums::WindingRule;
 use geometry::PathGeometry;
+pub use geometry::PathVerb;
 pub use measure::PathVertex;
 
 mod arcs;
@@ -327,6 +328,20 @@ impl Path {
         }
         geometry.update_state_from_contours();
         Self::from_geometry(geometry)
+    }
+
+    /// The verbs of the contours of the path, each of which takes as many of the points as it stores.
+    pub fn verbs(&self) -> &[PathVerb] {
+        self.geometry.verbs()
+    }
+
+    pub fn points(&self) -> &[FloatPoint] {
+        self.geometry.points()
+    }
+
+    /// The weight of each conic of the contours, in order.
+    pub fn conic_weights(&self) -> &[f32] {
+        self.geometry.conic_weights()
     }
 
     /// The contours of the path, as C++ reads them, valid until the path changes or is dropped.

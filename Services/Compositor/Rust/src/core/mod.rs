@@ -879,6 +879,7 @@ impl CompositorCore {
         match self.host.timer_of_number(number) {
             Some(Timer::Context(context_id, timer)) => self.context_timer_fired(context_id, timer, now),
             Some(Timer::SynchronizedResizeHold) => self.synchronized_resize_hold_timed_out(),
+            Some(Timer::ReleaseContentWindowServerLetGoOf) => self.release_content_window_server_let_go_of(),
             None => {}
         }
         self.finish_entry(now);

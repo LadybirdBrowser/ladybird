@@ -9,10 +9,20 @@
 //! instead of having them composited into the frame. A presentation has one window server, and each view it shows a
 //! root context in has a remote layer of it.
 
+#[cfg(target_os = "macos")]
+mod core_animation;
+#[cfg(not(target_os = "macos"))]
 mod cpp_backed;
+#[cfg(target_os = "macos")]
+mod shown_sublayers;
+
+#[cfg(target_os = "macos")]
+pub use core_animation::{IOSurface, IOSurfaceRef};
 
 use crate::cpp_object::CppObject;
-use crate::raster_host::{FrameHandOff, LiveContent, RasterHost};
+use crate::raster_host::{
+    ContentLightLevelInformation, FrameHandOff, LiveContent, MasteringDisplayColorVolume, RasterHost,
+};
 use crate::surfaces::presentable_surface::{PresentableSurface, PresentableSurfaceLease};
 use libcompositing_rust::display_list::layers::WindowServerCompositing;
 use libcompositing_rust::display_list::window_server_placement::{WindowServerBackdropFilters, WindowServerPlacement};
@@ -47,10 +57,21 @@ pub trait RemoteLayer {
     fn show_frame(&self, frame: Frame) -> bool;
     /// Places the frame on display again, as when the view that it is scaled into changes size.
     fn place_frame(&self, fit_within: Option<IntSize>);
+    /// Lets go of content that the layer stopped showing once the window server can no longer be reading it, and
+    /// answers how soon to ask again, where it still holds some.
+    fn release_content_window_server_let_go_of(&self) -> Option<std::time::Duration> {
+        None
+    }
 }
 
 /// The window server of a new presentation, or none where frames reach the screen only through the presentation.
 pub fn create_for_presentation(raster: &RasterHost) -> Option<Rc<dyn WindowServer>> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = raster;
+        core_animation::CoreAnimationWindowServer::create()
+    }
+    #[cfg(not(target_os = "macos"))]
     cpp_backed::CppBackedWindowServer::create(raster)
 }
 
@@ -61,19 +82,69 @@ pub enum MediaToShow<'a> {
     Video(&'a VideoFrameForWindowServer),
 }
 
+/// How the colors of a frame of a video are coded: its coding-independent code points, and the metadata of its high
+/// dynamic range.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct VideoColorMetadata {
+    pub color_primaries: u8,
+    pub transfer_characteristics: u8,
+    pub matrix_coefficients: u8,
+    pub mastering_display_color_volume: Option<MasteringDisplayColorVolume>,
+    pub content_light_level_information: Option<ContentLightLevelInformation>,
+}
+
+// The code points of the transfer characteristics of PQ and HLG, which are of high dynamic range.
+pub const TRANSFER_CHARACTERISTICS_SMPTE_ST_2084: u8 = 16;
+pub const TRANSFER_CHARACTERISTICS_HLG: u8 = 18;
+
+impl VideoColorMetadata {
+    pub fn holds_high_dynamic_range(&self) -> bool {
+        matches!(
+            self.transfer_characteristics,
+            TRANSFER_CHARACTERISTICS_SMPTE_ST_2084 | TRANSFER_CHARACTERISTICS_HLG
+        )
+    }
+}
+
 /// A frame of a video that the window server can show, which the decoder does not decode into again for as long as it
 /// is held.
 pub struct VideoFrameForWindowServer {
     frame: CppObject,
+    /// Tells the frame apart from every other frame of every video, unlike the `Rc` that a report of live content
+    /// wraps it in anew.
+    pub id: u64,
+    surface: *mut c_void,
+    pub visible_size: IntSize,
+    pub color: VideoColorMetadata,
 }
 
 impl VideoFrameForWindowServer {
-    pub fn new(frame: CppObject) -> Self {
-        Self { frame }
+    /// # Safety
+    ///
+    /// A non-null surface must be the surface of the frame, which lives for as long as the frame does.
+    pub unsafe fn new(
+        frame: CppObject,
+        id: u64,
+        surface: *mut c_void,
+        visible_size: IntSize,
+        color: VideoColorMetadata,
+    ) -> Self {
+        Self {
+            frame,
+            id,
+            surface,
+            visible_size,
+            color,
+        }
     }
 
     pub fn as_ffi(&self) -> *mut c_void {
         self.frame.as_ptr()
+    }
+
+    /// The surface the frame is in where the window server can read it, an IOSurface on macOS, or null.
+    pub fn surface(&self) -> *mut c_void {
+        self.surface
     }
 }
 
@@ -82,8 +153,24 @@ impl std::fmt::Debug for VideoFrameForWindowServer {
         formatter
             .debug_struct("VideoFrameForWindowServer")
             .field("frame", &self.frame.as_ptr())
+            .field("surface", &self.surface)
+            .field("visible_size", &self.visible_size)
             .finish()
     }
+}
+
+/// Where a frame shows when it is scaled to fit within the target, keeping its aspect ratio, in the target's middle.
+pub fn rect_fitting_frame(frame_size: IntSize, target_size: IntSize) -> IntRect {
+    let scale =
+        (target_size.width as f32 / frame_size.width as f32).min(target_size.height as f32 / frame_size.height as f32);
+    let width = ((frame_size.width as f32 * scale).round() as i32).max(1);
+    let height = ((frame_size.height as f32 * scale).round() as i32).max(1);
+    IntRect::new(
+        target_size.width / 2 - width / 2,
+        target_size.height / 2 - height / 2,
+        width,
+        height,
+    )
 }
 
 /// Holds the sublayers that name it as their group, which the window server places, clips and fades together.

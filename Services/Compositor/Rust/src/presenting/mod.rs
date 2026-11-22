@@ -232,11 +232,11 @@ fn raster_region_around(
     Some(IntRect::new(x, y, width, height))
 }
 
-fn rect_of_size(size: IntSize) -> IntRect {
+pub(crate) fn rect_of_size(size: IntSize) -> IntRect {
     IntRect::new(0, 0, size.width, size.height)
 }
 
-fn size_of(rect: IntRect) -> IntSize {
+pub(crate) fn size_of(rect: IntRect) -> IntSize {
     IntSize {
         width: rect.width,
         height: rect.height,

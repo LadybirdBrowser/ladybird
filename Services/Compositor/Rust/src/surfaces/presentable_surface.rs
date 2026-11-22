@@ -10,6 +10,8 @@
 //! the layer that shows it, or while the window server still reads it, the surface is busy, and its content must stay
 //! as it is. Only the Compositor's main thread may use a surface.
 
+#[cfg(target_os = "macos")]
+use crate::cpp_object::{CppObject, FfiCppObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libgfx_rust::IntSize;
 use std::cell::Cell;
@@ -17,17 +19,49 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::{Rc, Weak};
 
-/// The part of a presentable surface that the window server shows, which is C++ and which the surface owns.
-pub struct WindowServerSurface {
-    surface: NonNull<c_void>,
-    may_be_read_by_window_server: unsafe extern "C" fn(*mut c_void) -> bool,
-    destroy: unsafe extern "C" fn(*mut c_void),
+/// The part of a presentable surface that the window server shows.
+pub enum WindowServerSurface {
+    /// An IOSurface, with what keeps it alive where the surface owns that.
+    #[cfg(target_os = "macos")]
+    IOSurface {
+        surface: crate::window_server::IOSurface,
+        _owner: Option<CppObject>,
+    },
+    /// A C++ object that the surface owns.
+    Cpp {
+        surface: NonNull<c_void>,
+        may_be_read_by_window_server: unsafe extern "C" fn(*mut c_void) -> bool,
+        destroy: unsafe extern "C" fn(*mut c_void),
+    },
+}
+
+impl WindowServerSurface {
+    fn may_be_read_by_window_server(&self) -> bool {
+        match self {
+            #[cfg(target_os = "macos")]
+            WindowServerSurface::IOSurface { surface, .. } => surface.is_in_use(),
+            WindowServerSurface::Cpp {
+                surface,
+                may_be_read_by_window_server,
+                ..
+            } => {
+                // SAFETY: The window server's part is live for as long as the surface.
+                unsafe { may_be_read_by_window_server(surface.as_ptr()) }
+            }
+        }
+    }
 }
 
 impl Drop for WindowServerSurface {
     fn drop(&mut self) {
-        // SAFETY: The presentable surface owns the window server's part, which nothing uses once it is gone.
-        unsafe { (self.destroy)(self.surface.as_ptr()) };
+        match self {
+            #[cfg(target_os = "macos")]
+            WindowServerSurface::IOSurface { .. } => {}
+            WindowServerSurface::Cpp { surface, destroy, .. } => {
+                // SAFETY: The presentable surface owns the window server's part, which nothing uses once it is gone.
+                unsafe { destroy(surface.as_ptr()) };
+            }
+        }
     }
 }
 
@@ -67,6 +101,24 @@ impl PresentableSurface {
         self.window_server_surface.is_some()
     }
 
+    pub fn content_is_upside_down(&self) -> bool {
+        self.content_is_upside_down
+    }
+
+    /// The IOSurface the window server shows the surface from, where it is one.
+    #[cfg(target_os = "macos")]
+    pub fn io_surface(&self) -> Option<crate::window_server::IOSurfaceRef> {
+        match &self.window_server_surface {
+            Some(WindowServerSurface::IOSurface { surface, .. }) => Some(surface.as_ptr()),
+            _ => None,
+        }
+    }
+
+    /// GPU work in flight on a surface counts as use too, so only a surface handed to the window server is checked.
+    pub fn did_hand_to_window_server(&self) {
+        self.was_handed_to_window_server.set(true);
+    }
+
     /// # Safety
     ///
     /// `surface` must be a live surface that the caller lends, or null.
@@ -98,12 +150,7 @@ impl PresentableSurface {
             && self
                 .window_server_surface
                 .as_ref()
-                .is_some_and(|window_server_surface| {
-                    // SAFETY: The window server's part is live for as long as the surface.
-                    unsafe {
-                        (window_server_surface.may_be_read_by_window_server)(window_server_surface.surface.as_ptr())
-                    }
-                })
+                .is_some_and(WindowServerSurface::may_be_read_by_window_server)
     }
 
     pub fn is_busy(&self) -> bool {
@@ -231,7 +278,7 @@ pub unsafe extern "C" fn compositor_presentable_surface_create(
 ) -> *const PresentableSurface {
     // SAFETY: The caller passes a live surface, which the presentable surface holds.
     let painting_surface = unsafe { PaintingSurface::retained_from_ffi(painting_surface) };
-    let window_server_surface = NonNull::new(window_server_surface).map(|surface| WindowServerSurface {
+    let window_server_surface = NonNull::new(window_server_surface).map(|surface| WindowServerSurface::Cpp {
         surface,
         may_be_read_by_window_server,
         destroy: destroy_window_server_surface,
@@ -240,6 +287,43 @@ pub unsafe extern "C" fn compositor_presentable_surface_create(
         painting_surface,
         content_is_upside_down,
         window_server_surface,
+        was_handed_to_window_server: Cell::new(false),
+        lease_count: Cell::new(0),
+    }))
+}
+
+/// A new surface over the painting surface, which draws into the IOSurface, whose one reference the caller owns and
+/// gives up with `compositor_presentable_surface_release()`. It takes a reference of its own to the IOSurface, and takes
+/// over `owner`, which keeps the IOSurface alive, where it is not null.
+///
+/// # Safety
+///
+/// `painting_surface` must be a live surface that draws into `io_surface`, which must be a live IOSurface. A non-null
+/// owner must be live and destroyed by its destroy function.
+#[cfg(target_os = "macos")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_presentable_surface_create_over_io_surface(
+    painting_surface: *const PaintingSurface,
+    content_is_upside_down: bool,
+    io_surface: *mut c_void,
+    owner: FfiCppObject,
+) -> *const PresentableSurface {
+    // SAFETY: The caller passes a live surface, which the presentable surface holds.
+    let painting_surface = unsafe { PaintingSurface::retained_from_ffi(painting_surface) };
+    // SAFETY: The caller passes a live IOSurface, and hands over its owner.
+    let (surface, owner) = unsafe {
+        (
+            crate::window_server::IOSurface::retain(io_surface),
+            CppObject::adopt(owner),
+        )
+    };
+    Rc::into_raw(Rc::new(PresentableSurface {
+        painting_surface,
+        content_is_upside_down,
+        window_server_surface: Some(WindowServerSurface::IOSurface {
+            surface: surface.expect("an IOSurface"),
+            _owner: owner,
+        }),
         was_handed_to_window_server: Cell::new(false),
         lease_count: Cell::new(0),
     }))
@@ -277,20 +361,19 @@ pub extern "C" fn compositor_presentable_surface_content_is_upside_down(surface:
     surface.content_is_upside_down
 }
 
-/// The window server's part of the surface, or null for a surface that draws into memory the window server cannot read.
+/// The C++ part of the surface that the window server shows, or null for a surface that draws into memory the window
+/// server cannot read, or whose part is not C++.
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_presentable_surface_window_server_surface(surface: &PresentableSurface) -> *mut c_void {
-    surface
-        .window_server_surface
-        .as_ref()
-        .map_or(std::ptr::null_mut(), |window_server_surface| {
-            window_server_surface.surface.as_ptr()
-        })
+    match &surface.window_server_surface {
+        Some(WindowServerSurface::Cpp { surface, .. }) => surface.as_ptr(),
+        _ => std::ptr::null_mut(),
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_presentable_surface_did_hand_to_window_server(surface: &PresentableSurface) {
-    surface.was_handed_to_window_server.set(true);
+    surface.did_hand_to_window_server();
 }
 
 #[unsafe(no_mangle)]

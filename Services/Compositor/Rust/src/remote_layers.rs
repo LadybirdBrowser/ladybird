@@ -242,6 +242,15 @@ impl RemoteLayers {
         layer.layer.place_frame(fit_within);
     }
 
+    /// Has every layer let go of what it stopped showing once the window server can no longer be reading it, and
+    /// answers how soon to ask again, where a layer still holds some.
+    pub fn release_content_window_server_let_go_of(&self) -> Option<std::time::Duration> {
+        self.layers
+            .values()
+            .filter_map(|layer| layer.layer.release_content_window_server_let_go_of())
+            .min()
+    }
+
     pub fn is_holding_changes(&self) -> bool {
         !self.window_servers_holding_changes.is_empty()
     }
