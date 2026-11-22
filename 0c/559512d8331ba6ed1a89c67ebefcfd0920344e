@@ -1,0 +1,13 @@
+In Ladybird, a floated table row group is a block float now, which
+table fixup wraps in an anonymous row and cell like any other non-table
+child of a table, while an absolutely positioned one stays a direct
+child of the table. All three engines blockify a float first: Blink in
+StyleAdjuster::AdjustComputedStyle(), with EquivalentBlockDisplay(),
+WebKit in Style::Adjuster::adjust(), with blockified(), and Gecko in
+StyleAdjuster::blockify_if_necessary(). Each then wraps the resulting
+block in anonymous table parts: Blink in LayoutObject::AddChild(),
+whose RequiresAnonymousTableWrappers() asks only for real table parts,
+WebKit in RenderTreeBuilder::Table::findOrCreateParentForChild(), which
+creates an anonymous section, and Gecko in nsCSSFrameConstructor::
+CreateNeededPseudoContainers(). Chrome 158, Firefox 151 and WebKit 26.5
+all render the rows of a floated tbody, thead or tr that way.
