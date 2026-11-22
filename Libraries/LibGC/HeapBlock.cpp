@@ -24,7 +24,9 @@ FFI::BlockDescriptor* const g_block_descriptors = FFI::rust_gc_block_descriptor_
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 size_t HeapBlock::cells_offset()
 {
-    static_assert(offsetof(HeapBlock, m_storage) == 112);
+    // NB: The cells start at the largest alignment that a cell may have, which is more than 16 bytes in builds for some
+    //     CPUs.
+    static_assert(offsetof(HeapBlock, m_storage) == round_up_to_power_of_two(112, max_cell_alignment));
     // NB: A block counts its cells from its size, and the Rust core from this offset, so the two have to match.
     static_assert(sizeof(HeapBlock) == offsetof(HeapBlock, m_storage));
     return offsetof(HeapBlock, m_storage);
