@@ -1,0 +1,15 @@
+Ladybird lays out the columns of a table whose direction is rtl
+from the right now: It sizes the columns in the table’s own column
+order, and places the cells, the column boxes and the collapsed
+borders from the right. Blink gets the same result by laying the
+table out in logical coordinates under the table’s writing direction,
+in TableLayoutAlgorithm::GenerateFragment(), and resolves collapsed
+borders by that direction in TableBorders. WebKit mirrors each cell’s
+inline position against the column positions in RenderTableSection::
+logicalRectForWritingModeAndDirection() when the table’s writing
+mode is inline-flipped. Gecko places cells in logical coordinates of
+the table’s writing mode too, in nsTableRowFrame::ReflowChildren().
+Chrome 158 and Firefox 151 give exactly Ladybird’s cell and column
+positions now, including percentage priority and the originating
+column of a spanning cell, and WebKit 26.5 differs only by a pixel
+in collapsed-border tables.
