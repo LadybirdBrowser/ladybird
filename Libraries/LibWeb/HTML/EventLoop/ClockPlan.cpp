@@ -135,9 +135,11 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         // samples where the compositor has scrolled to. The ticks go on past the events of the animations, which the
         // main thread sends as it gets to them.
         Vector<u32> elements;
+        // OPTIMIZATION: Hash sets keep a plan over thousands of animated elements from scanning lists for each one.
+        HashTable<u32> element_set;
         double last_end = -AK::Infinity<double>;
         Vector<Animations::RustFFI::TimelineCell const*> scroll_timelines;
-        Vector<u32> held_elements;
+        HashTable<u32> held_elements;
         auto plan = [&] {
             if (!document.is_fully_active() || document.hidden() || !document.window())
                 return false;
@@ -151,7 +153,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 auto planned = Animations::RustFFI::animations_animation_clock_plan(&animation.record());
                 if (planned.kind == Animations::RustFFI::FfiClockPlanAnimationKind::Held) {
                     if (!effect.pseudo_element_type().has_value())
-                        held_elements.append(target.style_node_id().value());
+                        held_elements.set(target.style_node_id().value());
                     return true;
                 }
                 // NB: Nor does a tick move one it cannot, as one of a scroll timeline with nothing to scroll, or one that a
@@ -171,7 +173,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 if (!scroll_timeline)
                     last_end = max(last_end, timeline_time->value + (planned.active_end.value - planned.local_time.value) / animation.playback_rate());
                 auto element = target.style_node_id().value();
-                if (!elements.contains_slow(element))
+                if (element_set.set(element) == HashSetResult::InsertedNewEntry)
                     elements.append(element);
                 return true;
             };
@@ -195,10 +197,10 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                     // The boxes of an element with an animation a tick cannot sample show what the host's frame shows
                     // of it, while the ticks sample the others on.
                     if (!effect->pseudo_element_type().has_value())
-                        held_elements.append(target->style_node_id().value());
+                        held_elements.set(target->style_node_id().value());
                 }
             }
-            elements.remove_all_matching([&](auto element) { return held_elements.contains_slow(element); });
+            elements.remove_all_matching([&](auto element) { return held_elements.contains(element); });
             return !elements.is_empty();
         };
         bool const animates = plan();
