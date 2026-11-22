@@ -9,7 +9,7 @@
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 use core::ops::ControlFlow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ak::Zone;
 use libjs_jit::artifact::{Artifact, FrameView, Layout, Patch, SiteView};
@@ -32,6 +32,8 @@ use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::PropertyLookupCacheEntryType;
+use crate::layout::realm::Realm;
+use crate::layout::shape::Shape;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 
 /// The status word of what JIT code returns, `libjs_jit::code::JitStatus`.
@@ -148,6 +150,11 @@ fn speculated_property_lookup_cache_index(bytecode: &[u8], pc: u32) -> Option<u3
 /// The most memory the array of one decoded instruction takes.
 const DECODED_ARRAY_LIMIT: usize = 1 << 30;
 
+/// JIT code that was detached from its executable and waits to be dropped (see
+/// `JitState::parking_for_detached_code()`).
+#[allow(clippy::vec_box, reason = "the code moves over from the JIT entry table in its box")]
+pub type DetachedJitCode = Vec<Box<JitCode>>;
+
 /// The function object of an inlined executable, which its materialized frames run.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Trace)]
 pub enum InlinedFunction {
@@ -183,9 +190,18 @@ pub struct JitCode {
     /// The tables of the code that the runtime reads once the code is installed, which have `layout`.
     tables: DataMemory,
     layout: Layout,
-    /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
-    /// keep their addresses for as long as the code may run.
+    /// The cells the code compares against or uses, which keep their addresses for as long as the code lives. While a
+    /// frame runs the code, the VM keeps them alive. Otherwise the code keeps a realm, a shape or an object alive only
+    /// while that realm is otherwise alive (see `realm_of_embedded_cell()`), so that the code of one realm does not
+    /// keep another realm that went away alive through the shapes of its objects. The code is dropped once one of
+    /// them dies (see `Executable::drop_jit_code_that_lost_embedded_cells()`). The inlined functions of
+    /// `snapshot_executables` are held the same way.
     embedded_cells: Vec<Gc<CellHeader>>,
+    /// Cells that belong to an ECMAScript function among the embedded cells, with that function: its environments,
+    /// which the code embeds too, and its shared data and executable if the code embeds them. The code keeps such a
+    /// cell alive only while the function is alive, as these cells may reach the function's realm, but have no realm
+    /// of their own (see `split_function_cells()`).
+    function_cells: FunctionCells,
     snapshot_executables: Vec<SnapshotExecutable>,
     /// The slots of the samples the code copies closures of, whose addresses the code holds rather than those of the
     /// samples. A collection rewrites them where they are when a sample moves.
@@ -231,9 +247,10 @@ impl JitCode {
         layout: Layout,
         embedded_cells: Vec<Gc<CellHeader>>,
         snapshot_executables: Vec<SnapshotExecutable>,
-        _defer_gc: &DeferGc<'_>,
+        defer_gc: &DeferGc<'_>,
     ) -> Self {
         let entry = entry_at(&memory, entry_offset);
+        let (embedded_cells, function_cells) = split_function_cells(embedded_cells, defer_gc);
         Self {
             exit_count: Cell::new(0),
             interpreted_frames: RefCell::new(HashMap::new()),
@@ -243,6 +260,7 @@ impl JitCode {
             tables,
             layout,
             embedded_cells,
+            function_cells,
             snapshot_executables,
             sample_slots: Vec::new(),
             id: 0,
@@ -325,6 +343,40 @@ impl JitCode {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    /// The embedded cells and the inlined functions, which the code holds only while their realms are alive (see
+    /// `JitCode::embedded_cells`), without the cells of functions.
+    fn cells_held_by_realm(&self) -> impl Iterator<Item = Gc<CellHeader>> {
+        let functions = self
+            .snapshot_executables
+            .iter()
+            .filter_map(|snapshot| snapshot.function)
+            .map(|function| match function {
+                InlinedFunction::Ecmascript(function) => function.upcast(),
+                InlinedFunction::Builtin(function) => function.upcast(),
+            });
+        self.embedded_cells.iter().copied().chain(functions)
+    }
+
+    /// Keeps the embedded cells and the inlined functions alive, for code that a frame runs.
+    fn trace_embedded_cells(&self, visitor: &mut Visitor) {
+        for cell in self.cells_held_by_realm() {
+            visitor.visit(cell);
+        }
+        for &(_, cell) in &self.function_cells {
+            visitor.visit(cell);
+        }
+    }
+
+    /// Whether a cell the code embeds or an inlined function died in the collection.
+    fn lost_embedded_cell(&self, sweep: &Sweep<'_>) -> bool {
+        self.cells_held_by_realm().any(|cell| sweep.is_dead(cell))
+            || self.function_cells.iter().any(|&(_, cell)| sweep.is_dead(cell))
+            || self
+                .snapshot_executables
+                .iter()
+                .any(|snapshot| sweep.is_dead(snapshot.executable))
     }
 
     pub fn is_invalidated(&self) -> bool {
@@ -435,18 +487,108 @@ impl JitCode {
     }
 }
 
+/// Cells that belong to ECMAScript functions, each with its function (see `JitCode::function_cells`).
+type FunctionCells = Vec<(Gc<CellHeader>, Gc<CellHeader>)>;
+
+/// Splits the cells that belong to an ECMAScript function among `embedded_cells` off them (see
+/// `JitCode::function_cells`), returning the other embedded cells and those cells, with their functions.
+fn split_function_cells(
+    mut embedded_cells: Vec<Gc<CellHeader>>,
+    _defer_gc: &DeferGc<'_>,
+) -> (Vec<Gc<CellHeader>>, FunctionCells) {
+    let embedded: HashSet<usize> = embedded_cells.iter().map(|cell| cell.as_ptr().addr()).collect();
+    let mut function_cells = Vec::new();
+    for function in embedded_cells
+        .iter()
+        .filter_map(|cell| cell.downcast::<EcmascriptFunctionObject>())
+    {
+        // NB: Code that embeds an ECMAScript function may also embed the words its frames start with (see
+        //     `FunctionFrameFields`), whose environments the code then keeps from moving like the cells it lists.
+        let environments = [
+            function.environment().map(Gc::upcast),
+            function.private_environment().map(Gc::upcast),
+        ];
+        let shared_data = function.shared_data();
+        let embedded_code = [
+            Some(shared_data.upcast::<CellHeader>()),
+            shared_data.executable().map(Gc::upcast),
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|cell| embedded.contains(&cell.as_ptr().addr()));
+        for cell in environments.into_iter().flatten().chain(embedded_code) {
+            function_cells.push((function.upcast(), cell));
+        }
+    }
+    let function_owned: HashSet<usize> = function_cells.iter().map(|&(_, cell)| cell.as_ptr().addr()).collect();
+    embedded_cells.retain(|cell| !function_owned.contains(&cell.as_ptr().addr()));
+    (embedded_cells, function_cells)
+}
+
+/// The realm of a realm, a shape or an object, which code that embeds the cell keeps alive only while the realm is
+/// alive. Other cells, such as executables, strings and environments, belong to no realm, and the code keeps them
+/// alive.
+fn realm_of_embedded_cell(cell: Gc<CellHeader>) -> Option<Gc<Realm>> {
+    if let Some(realm) = cell.downcast::<Realm>() {
+        return Some(realm);
+    }
+    if let Some(shape) = cell.downcast::<Shape>() {
+        return Some(shape.realm());
+    }
+    cell.downcast::<Object>().map(|object| object.shape().realm())
+}
+
+// SAFETY: Visits what the code keeps alive. The realms, shapes and objects it embeds and its inlined functions stay
+// where they are, and are kept alive only while their realms are. The code is dropped before any of them that died is
+// swept (see `JitCode::embedded_cells`).
 unsafe impl Trace for JitCode {
     fn trace(&self, visitor: &mut Visitor) {
-        for cell in &self.embedded_cells {
-            visitor.visit(*cell);
+        for cell in self.cells_held_by_realm() {
+            match realm_of_embedded_cell(cell) {
+                Some(realm) => visitor.visit_ephemeron_cell(realm, cell),
+                None => visitor.visit(cell),
+            }
+        }
+        for &(function, cell) in &self.function_cells {
+            visitor.visit_ephemeron_cell(function, cell);
         }
         for materialized in self.materialized_objects.borrow().iter() {
             visitor.visit(materialized.object);
         }
-        self.snapshot_executables.trace(visitor);
+        // NB: The executables of inlined calls are held like the cells of their functions.
+        for snapshot in &self.snapshot_executables {
+            match snapshot.function {
+                Some(InlinedFunction::Ecmascript(function)) => {
+                    visitor.visit_ephemeron_cell(function, snapshot.executable);
+                }
+                Some(InlinedFunction::Builtin(function)) => {
+                    visitor.visit_ephemeron_cell(function, snapshot.executable);
+                }
+                None => visitor.visit(snapshot.executable),
+            }
+        }
         for slot in &self.sample_slots {
-            // SAFETY: Nothing writes the slots, and only dropping the code, which no sweep callback does, frees them.
+            // SAFETY: Nothing writes the slots, and only dropping the code frees them, which a sweep callback defers until
+            //         the collection is over if it moves cells (see `Executable::drop_jit_code_that_lost_embedded_cells()`).
             unsafe { visitor.visit_owned_values(core::slice::from_ref(&**slot)) };
+        }
+    }
+}
+
+/// A reason to discard JIT code that says nothing about the code.
+#[derive(Clone, Copy)]
+enum UncountedDiscard {
+    /// The executable idled (see `Executable::flush_idle_jit_code()`).
+    IdleFlush,
+    /// A cell the code embeds died (see `Executable::drop_jit_code_that_lost_embedded_cells()`).
+    LostEmbeddedCell,
+}
+
+impl UncountedDiscard {
+    fn coverage_key(self) -> &'static str {
+        match self {
+            Self::IdleFlush => "flush",
+            Self::LostEmbeddedCell => "lost-embedded-cell",
         }
     }
 }
@@ -474,9 +616,9 @@ pub struct ExecutableJitState {
     /// Whether the executable is refused once its discarded code is detached, because it was refused while frames
     /// still ran that code (see `refuse_jit_compile_once_detached()`).
     refused_once_detached: Cell<bool>,
-    /// Whether the discarded code is discarded because the executable idled (see `flush_idle_jit_code()`), which does
-    /// not count as a discard.
-    discarded_while_idle: Cell<bool>,
+    /// Why the discarded code is discarded, if for a reason that says nothing about the code, which does not count as
+    /// a discard.
+    uncounted_discard: Cell<Option<UncountedDiscard>>,
     /// The loads and stores of bindings of the environments of the executable's closure (see `jit::snapshot`). The
     /// bytecode never changes, so snapshots find them once.
     pub(crate) captured_binding_accesses: OnceCell<CapturedBindingAccesses>,
@@ -592,6 +734,14 @@ impl Executable {
     pub fn trace_jit_code(&self, visitor: &mut Visitor) {
         if let Some(code) = self.jit_code(Vm::of_cell(self)) {
             code.trace(visitor);
+        }
+    }
+
+    /// Keeps the cells that the executable's attached JIT code embeds alive, for an executable that a frame runs in JIT
+    /// code (see `JitCode::embedded_cells`).
+    pub fn trace_embedded_cells_of_jit_code(&self, vm: &Vm, visitor: &mut Visitor) {
+        if let Some(code) = self.jit_code(vm) {
+            code.trace_embedded_cells(visitor);
         }
     }
 
@@ -722,7 +872,13 @@ impl Executable {
     /// but without counting a discard: it says nothing about the code. The executable has to get hot again to be
     /// compiled again.
     pub fn flush_idle_jit_code(&self, vm: &Vm) {
-        self.jit_state().discarded_while_idle.set(true);
+        self.discard_jit_code_without_counting(vm, UncountedDiscard::IdleFlush);
+    }
+
+    /// Discards the executable's JIT code like discard_jit_code(), without counting a discard. The executable has to
+    /// get hot again to be compiled again.
+    fn discard_jit_code_without_counting(&self, vm: &Vm, reason: UncountedDiscard) {
+        self.jit_state().uncounted_discard.set(Some(reason));
         self.discard_jit_code(vm);
         if self.jit_compile_state() == CompileState::Discarding {
             self.head
@@ -761,6 +917,31 @@ impl Executable {
         true
     }
 
+    /// Drops the executable's JIT code if a cell it embeds died in the collection whose sweep callback calls this. No
+    /// frame runs such code, as the VM keeps the embedded cells of code that frames run alive, so it is dropped before
+    /// the dead cell is swept and its memory reused.
+    pub fn drop_jit_code_that_lost_embedded_cells(&self, vm: &Vm, sweep: &Sweep<'_>) {
+        if !self.jit_code(vm).is_some_and(|code| code.lost_embedded_cell(sweep)) {
+            return;
+        }
+        // NB: A collection that moves cells may still rewrite the slots that the code's trace handed it (see
+        //     `JitCode::sample_slots`), so the code is only dropped once the collection is over.
+        let _deferral = sweep
+            .moves_cells()
+            .then(|| vm.jit.defer_code_drops_until_collection_is_over(vm));
+        match self.jit_compile_state() {
+            CompileState::Installed => self.discard_jit_code_without_counting(vm, UncountedDiscard::LostEmbeddedCell),
+            CompileState::Discarding => {
+                self.detach_discarded_jit_code_if_unused(vm);
+            }
+            state => unreachable!("only installed or discarded code is attached, not in state {state:?}"),
+        }
+        assert!(
+            self.jit_code(vm).is_none(),
+            "no frame runs code that lost an embedded cell"
+        );
+    }
+
     /// Makes the executable's frames run in the interpreter for good, like `tier_up::refuse_jit_compile()`, once its
     /// discarded code, which frames still run, is detached.
     pub fn refuse_jit_compile_once_detached(&self) {
@@ -772,9 +953,11 @@ impl Executable {
     fn detach_jit_code(&self, vm: &Vm) {
         let state = self.jit_state();
         let (table, slot) = self.jit_entry_table_slot(vm).expect("the code is attached");
-        table.detach_code(slot);
-        if state.discarded_while_idle.replace(false) && !state.refused_once_detached.get() {
-            vm.jit.count_coverage("flush");
+        table.detach_code(slot, vm.jit.parking_for_detached_code());
+        if let Some(reason) = state.uncounted_discard.take()
+            && !state.refused_once_detached.get()
+        {
+            vm.jit.count_coverage(reason.coverage_key());
             self.set_jit_compile_state(CompileState::None);
             self.head
                 .tier_up_budget

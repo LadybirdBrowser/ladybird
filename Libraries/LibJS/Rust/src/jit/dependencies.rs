@@ -25,7 +25,7 @@ use crate::bytecode::executable::Executable;
 use crate::gc::sweep::Sweep;
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
-use crate::layout::cell::Gc;
+use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::object::Object;
 use crate::layout::shape::WatchpointSet;
@@ -86,11 +86,30 @@ impl Dependents {
         }
     }
 
-    /// Forgets the entries of code whose executable died, and the slots of global objects that died.
-    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
-        self.code.borrow_mut().retain(|_, dependents| {
-            dependents.retain(|dependent| dependent.executable.get().is_some());
-            !dependents.is_empty()
+    /// Forgets the entries of code that is gone, the dependencies on cells that died, and the slots of global objects
+    /// that died.
+    ///
+    /// NB: Code may lose a cell it depends on while its executable lives on, as it holds shapes and objects only while
+    ///     their realms are alive (see `JitCode::embedded_cells`). Such code is dropped earlier in this callback, so
+    ///     its entries go with it, before another cell can take the cell's address.
+    pub fn remove_dead_entries(&self, vm: &Vm, sweep: &Sweep<'_>) {
+        self.code.borrow_mut().retain(|dependency, dependents| {
+            dependents.retain(|dependent| {
+                dependent
+                    .executable
+                    .get()
+                    .and_then(|executable| executable.jit_code(vm))
+                    .is_some_and(|code| code.id() == dependent.id)
+            });
+            if dependents.is_empty() {
+                return false;
+            }
+            !cell_of(dependency).is_some_and(|cell| {
+                // SAFETY: Code that is still attached embeds the cells it depends on, which stay where they are while
+                //         it lives, and a dead cell is intact until the sweep that follows this callback.
+                let cell = unsafe { Gc::from_non_null(NonNull::new_unchecked(cell.0 as *mut CellHeader)) };
+                sweep.is_dead(cell)
+            })
         });
         self.assigned_global_object_slots.borrow_mut().retain(|&object, _| {
             // SAFETY: The map only holds objects that were live when their entries were added, and a dead object is
@@ -143,9 +162,20 @@ pub fn note_global_object_slot_assignments(vm: &Vm, object: &Object, offsets: Ra
     }
 }
 
+/// The cell a dependency names, if it names one.
+fn cell_of(dependency: &Dependency) -> Option<CellId> {
+    match *dependency {
+        Dependency::WatchpointSetValid(cell) | Dependency::StableShape(cell) => Some(cell),
+        Dependency::GlobalDeclarations { environment, .. }
+        | Dependency::GlobalBindingUnassigned { environment, .. } => Some(environment),
+        Dependency::GlobalPropertyUnassigned { object, .. } => Some(object),
+        Dependency::NoHtmlDdaObjects => None,
+    }
+}
+
 /// The global declarative environment a dependency names.
 fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironment {
-    // SAFETY: Code that depends on the environment embeds it, which keeps it alive.
+    // SAFETY: Only code that is being installed asks, and its compile job keeps the cells it depends on alive.
     unsafe { &*(environment.0 as *const DeclarativeEnvironment) }
 }
 
@@ -153,7 +183,7 @@ fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironme
 pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
     match dependency {
         Dependency::WatchpointSetValid(validity) => {
-            // SAFETY: Code that depends on the cell embeds it, which keeps it alive.
+            // SAFETY: As in declarative_environment().
             unsafe { &*(validity.0 as *const WatchpointSet) }.is_valid()
         }
         Dependency::GlobalDeclarations { environment, serial } => {
@@ -163,7 +193,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
             !declarative_environment(*environment).binding_may_have_been_assigned(*index as usize)
         }
         Dependency::GlobalPropertyUnassigned { object, offset } => {
-            // SAFETY: Code that depends on the object embeds it, which keeps it alive.
+            // SAFETY: As in declarative_environment().
             !global_object_slot_may_have_been_assigned(vm, unsafe { &*(object.0 as *const Object) }, *offset)
         }
         Dependency::NoHtmlDdaObjects => !vm.jit.htmldda_objects_exist(),
@@ -173,7 +203,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
 
 /// The shape a dependency names.
 fn shape_of(shape: CellId) -> &'static Shape {
-    // SAFETY: Code that depends on the shape embeds it, which keeps it alive.
+    // SAFETY: As in declarative_environment().
     unsafe { &*(shape.0 as *const Shape) }
 }
 

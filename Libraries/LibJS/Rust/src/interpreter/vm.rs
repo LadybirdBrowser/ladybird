@@ -1257,6 +1257,7 @@ impl Vm {
     fn gather_roots(&self, visitor: &mut Visitor) {
         self.code_flushing.begin_pass(self);
         self.jit.trace(visitor);
+        self.trace_embedded_cells_of_running_jit_code(visitor);
         self.for_each_execution_context_top_to_bottom(|context| {
             context.trace(visitor);
             ControlFlow::Continue(())
@@ -1610,6 +1611,22 @@ impl Vm {
         });
     }
 
+    /// Keeps the cells that the JIT code which frames run embeds alive. Other JIT code holds them weakly (see
+    /// `JitCode::embedded_cells`).
+    fn trace_embedded_cells_of_running_jit_code(&self, visitor: &mut Visitor) {
+        // NB: Frames of recursive calls run the same code, which is traced once.
+        let mut traced_executables = HashSet::new();
+        self.for_each_live_execution_context(|frame| {
+            if frame.runs_jit_code.get()
+                && let Some(head) = frame.executable.get()
+                && traced_executables.insert(head.as_ptr().addr())
+            {
+                Executable::from_head(head).trace_embedded_cells_of_jit_code(self, visitor);
+            }
+            ControlFlow::Continue(())
+        });
+    }
+
     /// Clears the idle count of the executables that frames still run: they are not idle, even when no frame entered
     /// them for many collections (as in a long loop).
     fn clear_idle_collection_counts_of_running_executables(&self) {
@@ -1665,6 +1682,7 @@ impl Vm {
                 return false;
             }
             executable.remove_dead_cells(sweep);
+            executable.drop_jit_code_that_lost_embedded_cells(self, sweep);
             let idle_collection_count = &executable.head.idle_collection_count;
             idle_collection_count.set(idle_collection_count.get().saturating_add(1));
             true
@@ -1674,7 +1692,7 @@ impl Vm {
         self.prototype_transition_cache.remove_dead_entries(sweep);
         self.construct_shape_cache.remove_dead_entries(sweep);
         self.keyed_property_store_cache.remove_dead_entries(sweep);
-        self.jit.dependents.remove_dead_entries(sweep);
+        self.jit.dependents.remove_dead_entries(self, sweep);
     }
 
     /// Has the JIT code that idled long enough in this collection flushed once the collection is over.

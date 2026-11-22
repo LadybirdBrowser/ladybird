@@ -18,7 +18,7 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use super::code::JitCode;
+use super::code::{DetachedJitCode, JitCode};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::sweep::Sweep;
 
@@ -229,10 +229,13 @@ impl JitEntryTable {
         assert!(self.code_cell(slot).replace(Some(Box::new(code))).is_none());
     }
 
-    /// Drops the code attached to the slot.
-    pub fn detach_code(&self, slot: u32) {
+    /// Drops the code attached to the slot, or moves it to `parking`, whose owner drops it later.
+    pub fn detach_code(&self, slot: u32, parking: Option<&RefCell<DetachedJitCode>>) {
         assert_ne!(slot & JIT_ENTRY_SLOT_MASK, NO_JIT_ENTRY_SLOT);
-        drop(self.code_cell(slot).take());
+        match parking {
+            Some(parking) => parking.borrow_mut().extend(self.code_cell(slot).take()),
+            None => drop(self.code_cell(slot).take()),
+        }
     }
 }
 

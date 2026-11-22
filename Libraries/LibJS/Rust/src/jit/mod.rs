@@ -30,6 +30,7 @@ pub mod translate;
 pub use crate::jit_options as options;
 
 use core::cell::{Cell, OnceCell, RefCell};
+use core::ffi::c_void;
 use core::ptr::NonNull;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
@@ -43,6 +44,7 @@ use crate::interpreter::dispatch_tables::DispatchTable;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
+use code::DetachedJitCode;
 use code::EntryTrampoline;
 use code::SnapshotExecutable;
 use compile_queue::{CompileQueue, CompileResult};
@@ -166,6 +168,11 @@ pub struct JitState {
     /// With the "stress-install" option, the results of finished compile jobs that are not installed yet, with how
     /// many more tier-up checks they wait for.
     held_compile_results: RefCell<Vec<(u32, u64, CompileResult)>>,
+    /// The code detached while drops were deferred (see `defer_code_drops_until_collection_is_over()`), which a
+    /// post-GC task drops.
+    codes_detached_in_collection: RefCell<DetachedJitCode>,
+    /// Whether code that is detached now goes into `codes_detached_in_collection`.
+    defers_code_drops: Cell<bool>,
     /// With the "stress-invalidate" option, how many more tier-up checks happen before the next invalidation.
     stress_invalidation_countdown: Cell<u32>,
     /// With the "coverage" option, how often each coverage key was counted.
@@ -233,6 +240,8 @@ impl JitState {
             stress_random,
             stress_exit_countdown,
             held_compile_results: RefCell::default(),
+            codes_detached_in_collection: RefCell::default(),
+            defers_code_drops: Cell::new(false),
             stress_invalidation_countdown,
             coverage: RefCell::default(),
             warming_up_dispatch_table,
@@ -326,6 +335,30 @@ impl JitState {
         self.stress_invalidation_countdown
             .set(self.stress_random.between(1, self.options.stress_invalidate));
         true
+    }
+
+    /// Where code that is detached from its executable now goes to be dropped once the collection in progress is
+    /// over, while drops are deferred. Otherwise it is dropped right away.
+    pub(crate) fn parking_for_detached_code(&self) -> Option<&RefCell<DetachedJitCode>> {
+        self.defers_code_drops
+            .get()
+            .then_some(&self.codes_detached_in_collection)
+    }
+
+    /// Has the code detached until the returned guard goes away kept until the collection in progress is over, for
+    /// the sweep callback of a collection that may still rewrite slots in the code.
+    pub(crate) fn defer_code_drops_until_collection_is_over<'a>(&'a self, vm: &Vm) -> CodeDropDeferral<'a> {
+        assert!(!self.defers_code_drops.replace(true));
+        if self.codes_detached_in_collection.borrow().is_empty() {
+            // SAFETY: The VM outlives its heap, whose collections run the task.
+            unsafe {
+                vm.heap().enqueue_post_gc_task(
+                    drop_codes_detached_in_collection,
+                    core::ptr::from_ref(vm).cast_mut().cast(),
+                );
+            }
+        }
+        CodeDropDeferral(self)
     }
 
     /// With the "coverage" option, counts `key`, which is only formatted then: what compiled code contained when it was
@@ -528,4 +561,19 @@ pub fn describe_executable(executable: &Executable) -> String {
         return format!("{name} ({}:{})", entry.line, entry.column);
     }
     format!("{name} ({filename}:{}:{})", entry.line, entry.column)
+}
+
+/// Defers drops of detached code while it lives (see `JitState::defer_code_drops_until_collection_is_over()`).
+pub(crate) struct CodeDropDeferral<'a>(&'a JitState);
+
+impl Drop for CodeDropDeferral<'_> {
+    fn drop(&mut self) {
+        self.0.defers_code_drops.set(false);
+    }
+}
+
+unsafe extern "C" fn drop_codes_detached_in_collection(context: *mut c_void) {
+    // SAFETY: The task was enqueued with the VM as its context.
+    let vm = unsafe { &*context.cast::<Vm>() };
+    vm.jit.codes_detached_in_collection.borrow_mut().clear();
 }
