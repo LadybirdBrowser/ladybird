@@ -1,0 +1,12 @@
+Ladybird sizes unbreakable text tokens from their glyph ink. Blink
+calls ComputeInkMetrics() from MathTokenLayoutAlgorithm::Layout().
+For a math-variant glyph, WebKit measures the bounds in its
+RenderMathMLToken::firstLineBaseline() and layoutBlock() methods. Gecko
+reads ink in nsMathMLTokenFrame::Place() and also uses the font metrics.
+
+With STIX Two Math at 40px, the engines disagree on the height of
+a dotted x with accent set to false. Ladybird follows Chrome for
+the accent gap: both leave 7px between the letter and the dot.
+Their total heights are 32.45px in Ladybird and 31.80px in Chrome
+158.0.8127.37. The same expression is 44.32px tall in Firefox 151.0 and
+48.11px in WebKit 26.5.
