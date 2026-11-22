@@ -105,19 +105,21 @@ impl DOMTokenList {
     }
 
     pub(crate) fn add(&self, _: &mut CallContext, tokens: Vec<Utf16String>) -> WebIdlResult<()> {
-        self.add_tokens(tokens)
+        self.add_tokens(&tokens)
     }
 
     // https://dom.spec.whatwg.org/#dom-domtokenlist-add
-    fn add_tokens(&self, tokens: impl IntoIterator<Item = Utf16String>) -> WebIdlResult<()> {
+    fn add_tokens(&self, tokens: &[Utf16String]) -> WebIdlResult<()> {
         // 1. For each token of tokens:
         for token in tokens {
             // a. If token is the empty string, then throw a "SyntaxError" DOMException.
             // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-            validate_token(&token)?;
+            validate_token(token)?;
+        }
 
-            // 2. For each token of tokens: append token to this’s token set.
-            append_to_ordered_set(&mut self.token_set.borrow_mut(), Utf16View::of_string(&token));
+        // 2. For each token of tokens: append token to this’s token set.
+        for token in tokens {
+            append_to_ordered_set(&mut self.token_set.borrow_mut(), Utf16View::of_string(token));
         }
 
         // 3. Run the update steps.
@@ -126,19 +128,21 @@ impl DOMTokenList {
     }
 
     pub(crate) fn remove(&self, _: &mut CallContext, tokens: Vec<Utf16String>) -> WebIdlResult<()> {
-        self.remove_tokens(tokens)
+        self.remove_tokens(&tokens)
     }
 
     // https://dom.spec.whatwg.org/#dom-domtokenlist-remove
-    fn remove_tokens(&self, tokens: impl IntoIterator<Item = Utf16String>) -> WebIdlResult<()> {
+    fn remove_tokens(&self, tokens: &[Utf16String]) -> WebIdlResult<()> {
         // 1. For each token of tokens:
         for token in tokens {
             // a. If token is the empty string, then throw a "SyntaxError" DOMException.
             // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-            validate_token(&token)?;
+            validate_token(token)?;
+        }
 
-            // 2. For each token of tokens: remove token from this’s token set.
-            remove_from_ordered_set(&mut self.token_set.borrow_mut(), Utf16View::of_string(&token));
+        // 2. For each token of tokens: remove token from this’s token set.
+        for token in tokens {
+            remove_from_ordered_set(&mut self.token_set.borrow_mut(), Utf16View::of_string(token));
         }
 
         // 3. Run the update steps.
@@ -479,7 +483,7 @@ pub unsafe extern "C" fn web_dom_token_list_attribute_changed(list: *mut c_void,
 pub unsafe extern "C" fn web_dom_token_list_add(list: *mut c_void, token: usize) {
     // SAFETY: The caller passes a live DOMTokenList and transfers a reference to the token.
     let (list, token) = unsafe { (cell_from_abi::<DOMTokenList>(list), Utf16String::from_raw_owned(token)) };
-    list.add_tokens([token]).must();
+    list.add_tokens(&[token]).must();
 }
 
 /// # Safety
@@ -489,7 +493,7 @@ pub unsafe extern "C" fn web_dom_token_list_add(list: *mut c_void, token: usize)
 pub unsafe extern "C" fn web_dom_token_list_remove(list: *mut c_void, token: usize) {
     // SAFETY: The caller passes a live DOMTokenList and transfers a reference to the token.
     let (list, token) = unsafe { (cell_from_abi::<DOMTokenList>(list), Utf16String::from_raw_owned(token)) };
-    list.remove_tokens([token]).must();
+    list.remove_tokens(&[token]).must();
 }
 
 /// # Safety

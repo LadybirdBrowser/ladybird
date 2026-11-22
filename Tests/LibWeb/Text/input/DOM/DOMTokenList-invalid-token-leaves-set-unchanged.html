@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        try {
+            element.classList.add("a", "");
+        } catch (error) {
+            println(`add: ${error.name}`);
+        }
+        println(`contains a: ${element.classList.contains("a")}`);
+        element.classList.add("b");
+        println(`class: ${element.getAttribute("class")}`);
+
+        element.className = "a b";
+        try {
+            element.classList.remove("a", " ");
+        } catch (error) {
+            println(`remove: ${error.name}`);
+        }
+        println(`contains a: ${element.classList.contains("a")}`);
+        element.classList.add("c");
+        println(`class: ${element.getAttribute("class")}`);
+    });
+</script>
