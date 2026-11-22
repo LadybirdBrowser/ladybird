@@ -26,21 +26,21 @@ use libcompositing_rust::ipc_types::compositor_presentation_client::messages::Di
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
 };
-use libcompositing_rust::ipc_types::compositor_web_content_client::messages::DidRasterizeDisplayList;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
     ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, CreateCanvas2dContext,
     CreateWebglContext, CreateWebglContextResponse, DestroyCanvas2dContext, DestroyWebglContext,
     InvalidateKeyboardScrollState, InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState,
-    RasterizeDisplayList, ReserveCanvasIds, ReserveCanvasIdsResponse, RouteFirstWheelStepForTesting,
-    RouteFirstWheelStepForTestingResponse, ScrollStateForTesting, ScrollStateForTestingResponse,
-    TakeInputTraceForTesting, TakeInputTraceForTestingResponse, TakePendingAsyncScrollUpdates,
-    TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread, TakeWheelEventFromMainThreadResponse,
-    UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree, WebglClearDrawingBuffer,
-    WebglCommands, WebglCommandsFromSharedBuffer, WebglDrainCommandBuffer, WebglDrainCommandBufferResponse,
-    WebglPresentCanvas, WebglReadBackDrawingBuffer, WebglReadBackDrawingBufferResponse, WebglReadBufferSubData,
-    WebglReadBufferSubDataResponse, WebglReadPixels, WebglReadPixelsResponse, WebglSetCommandBuffer, WebglSyncCall,
-    WebglSyncCallResponse, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
+    RasterizeDisplayList, RasterizeDisplayListResponse, ReserveCanvasIds, ReserveCanvasIdsResponse,
+    RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse, ScrollStateForTesting,
+    ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
+    TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
+    TakeWheelEventFromMainThreadResponse, UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState,
+    UpdateVisualContextTree, WebglClearDrawingBuffer, WebglCommands, WebglCommandsFromSharedBuffer,
+    WebglDrainCommandBuffer, WebglDrainCommandBufferResponse, WebglPresentCanvas, WebglReadBackDrawingBuffer,
+    WebglReadBackDrawingBufferResponse, WebglReadBufferSubData, WebglReadBufferSubDataResponse, WebglReadPixels,
+    WebglReadPixelsResponse, WebglSetCommandBuffer, WebglSyncCall, WebglSyncCallResponse, WheelEventCanceled,
+    WheelEventLetThrough, WheelEventLetThroughResponse,
 };
 use libcompositing_rust::ipc_types::{
     Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Compositing_WebGL_WebGLVersion,
@@ -712,13 +712,13 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         Ok(())
     }
 
-    fn rasterize_display_list(&mut self, message: RasterizeDisplayList) -> Result<(), Misbehavior> {
-        let token = message.token;
-        let success = self.rasterize_staged_display_list(message)?;
-        self.core
-            .host
-            .post_to_web_content(self.client_id, DidRasterizeDisplayList { token, success });
-        Ok(())
+    fn rasterize_display_list(
+        &mut self,
+        message: RasterizeDisplayList,
+    ) -> Result<RasterizeDisplayListResponse, Misbehavior> {
+        Ok(RasterizeDisplayListResponse {
+            success: self.rasterize_staged_display_list(message)?,
+        })
     }
 
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {

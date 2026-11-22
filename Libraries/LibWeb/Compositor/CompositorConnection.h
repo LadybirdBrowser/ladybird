@@ -32,6 +32,7 @@ namespace Web::Layout::RustFFI {
 
 struct DocumentHost;
 struct FfiImageRasterization;
+enum class RasterizationOutcome : u8;
 
 }
 
@@ -133,8 +134,7 @@ private:
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
-    virtual void did_rasterize_display_list(u64 token, bool success) override;
-    bool wait_for_rasterization(u64 token);
+    bool did_rasterize(Layout::RustFFI::RasterizationOutcome);
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId>) override;

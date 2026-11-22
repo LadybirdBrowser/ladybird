@@ -18,6 +18,7 @@
 #include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
 #include <LibIPC/Attachment.h>
+#include <LibIPC/FfiConnection.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/RawMessage.h>
@@ -52,14 +53,6 @@ private:
     Mutex m_mutex;
     Transport* m_transport_waited_on { nullptr };
 };
-
-struct FfiConnection {
-    void* connection_with_one_reference;
-    bool (*send_sync_request)(void* connection, ReadonlyBytes, ReadonlySpan<RawAttachment>, u32 response_endpoint_magic, i32 response_message_id, void* response_sink, void (*take_response)(void* response_sink, FfiRawMessage));
-    void (*ref)(void* connection);
-    void (*unref)(void* connection);
-};
-static_assert(sizeof(FfiConnection) == 4 * sizeof(void*), "FfiConnection of libipc_rust is written to match this by hand");
 
 class ConnectionBase : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ConnectionBase);

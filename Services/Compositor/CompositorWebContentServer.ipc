@@ -74,10 +74,9 @@ endpoint CompositorWebContentServer
     get_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels, bool origin_clean)
 
     // A display list is rasterized into the target bitmap with the fonts and the registered image frames staged for
-    // it under a token that the next rasterize_display_list names. The compositor answers with
-    // did_rasterize_display_list().
+    // it under a token that the next rasterize_display_list names.
     stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::ImageFrameResourceId> image_frame_ids, Gfx::ShareableBitmap target_bitmap) =|
-    [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree) =|
+    [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree) => (bool success)
 
     // Only Rust sends and receives the messages of WebGL contexts. The commands of a context name the images that they
     // upload by their position among the image sources sent with them.
