@@ -1,0 +1,25 @@
+Ladybird now starts a face’s load where a rendered code point or a
+font-relative length reads it, and never on selection alone. Blink
+does the same: FontFallbackList::DeterminePrimarySimpleFontDataCore()
+calls BeginLoadIfNeeded() on the primary font’s custom font data,
+which a font-relative length asks for; so does WebKit, through
+FontCascadeFonts::primaryFont() with ExternalResourceDownloadPolicy::
+Allow. Gecko calls gfxUserFontEntry::Load() from gfxFontGroup::
+GetFirstValidFont(), which it asks for every element, so it loads a face
+that no length reads too.
+
+Run in Chrome 158, Firefox 151 and WebKit 26.5, the faces that cap,
+ex and ch lengths read load in all three: On a display:none element,
+in an animation’s keyframes, in a container query, and for a child’s
+font-size in ex, which reads its parent’s. A face selected by a textless
+element that no length reads stays unloaded in Chrome and WebKit,
+and loads in Firefox; so does the child’s own face. Ladybird now
+matches Chrome and WebKit.
+
+One imported test changes its result: The “changing ex basis” subtest
+of SVGLength-convertToSpecifiedUnits-font-change now fails. Its
+rect is set in Ahem, and the ex length in its x attribute now starts
+Ahem’s load, which test-web’s file: URLs complete synchronously inside
+convertToSpecifiedUnits(): The conversion to ex uses the fallback’s
+x-height, and the value read back uses Ahem’s. In the WPT runs of the
+other engines, Ahem is installed, so its metrics never change mid-test.
