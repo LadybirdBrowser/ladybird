@@ -81,8 +81,9 @@ Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
     case CSS::CursorPredefined::NwseResize:
         return Gfx::StandardCursor::ResizeDiagonalTLBR;
     case CSS::CursorPredefined::ZoomIn:
+        return Gfx::StandardCursor::ZoomIn;
     case CSS::CursorPredefined::ZoomOut:
-        return Gfx::StandardCursor::Zoom;
+        return Gfx::StandardCursor::ZoomOut;
     case CSS::CursorPredefined::Default:
         return Gfx::StandardCursor::Arrow;
     case CSS::CursorPredefined::ContextMenu:

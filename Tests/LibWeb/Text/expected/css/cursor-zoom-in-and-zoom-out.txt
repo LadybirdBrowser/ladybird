@@ -1,0 +1,2 @@
+cursor over #zoom-in: ZoomIn
+cursor over #zoom-out: ZoomOut
