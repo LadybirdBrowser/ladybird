@@ -111,8 +111,10 @@ def main():
                 threads = web_content_threads(process.pid)
             return threads
 
-        # Running a script makes sure the page's process is up before its threads are counted.
+        # Running a script makes sure the page's process is up before its threads are counted. The threads that render
+        # the page start once it's painted, which a screenshot does once the Compositor is up.
         run("return 1")
+        helpers["wait_for_compositor"](port, session)
         # Threads that have nothing to do with transports start lazily, the allocator's decommit worker among them, so a
         # first round of channels brings them up before the baseline is taken.
         warm_up = web_content_threads(process.pid)
