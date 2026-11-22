@@ -1,0 +1,2 @@
+document object in a shadow tree: 300x150, contentDocument true
+image object in a shadow tree: 16x16

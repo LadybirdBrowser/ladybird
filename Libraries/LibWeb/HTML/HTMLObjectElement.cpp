@@ -500,7 +500,12 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
         }
 
         // If the object element's content navigable is null, then create a new child navigable for the element.
-        if (!m_content_navigable && in_a_document_tree()) {
+        // AD-HOC: The spec only gets here for an element "in a document", a legacy term that its use here hasn't been
+        //         updated for shadow trees:
+        //         https://dom.spec.whatwg.org/#in-a-document
+        //         So an object in a shadow tree gets its navigable once it's connected, the same as one in the document
+        //         tree.
+        if (!m_content_navigable && is_connected()) {
             create_new_child_navigable();
         }
 
@@ -639,8 +644,9 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
     CSS::record_element_box_kind(*this);
     CSS::record_element_replaced_content_input(*this);
 
-    if (auto parent_element = this->parent_element())
-        parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);
+    // NB: The parent is a shadow root for an object at the top of a shadow tree, so it's not always an element.
+    if (auto parent = this->parent())
+        parent->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
