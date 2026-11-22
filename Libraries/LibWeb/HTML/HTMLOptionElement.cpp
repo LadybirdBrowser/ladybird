@@ -74,7 +74,7 @@ void HTMLOptionElement::update_label_sizer_text()
     if (!label_sizer)
         return;
 
-    auto text = label();
+    auto text = display_label();
     if (text.is_empty()) {
         if (m_label_sizer_text) {
             if (auto* row = m_label_sizer_text->parent())
@@ -211,6 +211,14 @@ static void concatenate_descendants_text_content(DOM::Node const* node, Utf16Str
         concatenate_descendants_text_content(&node, builder);
         return IterationDecision::Continue;
     });
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-label
+Utf16String HTMLOptionElement::display_label() const
+{
+    if (auto label = get_attribute_ns({}, HTML::AttributeNames::label); label.has_value() && !label->is_empty())
+        return label.release_value();
+    return text();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
