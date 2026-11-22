@@ -1,0 +1,11 @@
+Ladybird reads a font’s cap height from its OS/2 sCapHeight, falls back
+to the top of its “H” glyph, and then to its ascent. Gecko does the same
+in gfxFont::InitMetricsFromSfntTables(), and takes the maximum ascent
+in gfxFont::CalculateDerivedMetrics() where neither gives one. WebKit’s
+FreeType path, in SimpleFontData::platformInit(), reads sCapHeight and
+measures “T” otherwise. Blink reads SkFontMetrics::fCapHeight, which
+Skia’s FreeType backend takes from OS/2 (or PCLT) and sets to the ascent
+otherwise. Run in Chrome 158, Firefox 151 and WebKit 26.5, 1cap at 100px
+is 70px for PlusLigatures, whose OS/2 table gives no cap height, 75.78px
+for SerenitySans and 72.30px for Lato Bold, in all three, and Ladybird
+now gives the same values.
