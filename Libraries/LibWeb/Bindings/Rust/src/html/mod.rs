@@ -56,6 +56,8 @@ pub(crate) mod canvas_text_drawing_styles;
 #[cfg(not(test))]
 pub(crate) mod canvas_transform;
 #[cfg(not(test))]
+pub(crate) mod data_transfer;
+#[cfg(not(test))]
 pub(crate) mod dom_string_list;
 #[cfg(not(test))]
 pub(crate) mod dom_string_map;

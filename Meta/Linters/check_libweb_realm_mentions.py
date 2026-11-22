@@ -46,7 +46,7 @@ ALLOWED_REALM_MENTIONS = {
         11,
         "CSS Typed OM, parser-facing reification, style-value JS materialization, setlike/maplike glue, and wrappers of declaration blocks owned by Rust objects",
     ),
-    "Clipboard": (4, 8, "the C++ facades create the Rust objects and wrap DataTransfers in a given realm"),
+    "Clipboard": (4, 6, "the C++ facades create the Rust objects in a given realm"),
     "ContentSecurityPolicy": (
         6,
         13,
@@ -70,11 +70,12 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "FileAPI": (2, 9, "Blob glue still creates streams and buffers in selected realms"),
     "HTML": (
-        63,
+        62,
         170,
         "HTML algorithms still contain structured serialization, including canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; window postMessage glue supplies principal realms and routes remote messages; "
         "the C++ glue of the Rust structured serialization creates platform objects and SharedArrayBuffers in a given realm; "
-        "the C++ glue of the Rust Storage, StorageEvent and MessageEvent creates them in a given realm",
+        "the C++ glue of the Rust Storage, StorageEvent and MessageEvent creates them in a given realm, "
+        "and the C++ glue of the Rust DataTransfer wraps its item list in a given realm",
     ),
     "IndexedDB": (
         4,

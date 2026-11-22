@@ -79,7 +79,7 @@ InputEvent::~InputEvent() = default;
 void InputEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(static_cast<GC::Cell*>(m_data_transfer.ptr()));
+    visitor.visit(m_data_transfer);
     visitor.visit(m_target_ranges);
 }
 
