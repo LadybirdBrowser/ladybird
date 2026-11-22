@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: AhemFallback; src: url(../wpt-import/fonts/Ahem.ttf); }
+    div { font-size: 20px; white-space: pre; }
+</style>
+<div style="font-family: math, AhemFallback"><span id="math">xxxxx</span></div>
+<div style="font-family: AhemFallback"><span id="ahem">xxxxx</span></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px AhemFallback");
+        // The math generic family resolves to a font of its own, so the family after it in the list draws nothing here.
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`math draws the text, not the font after it: ${width("math") !== width("ahem")}`);
+        done();
+    });
+</script>

@@ -498,6 +498,9 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         case Keyword::Fantasy:
             generic_font = Platform::GenericFont::Fantasy;
             break;
+        case Keyword::Math:
+            generic_font = Platform::GenericFont::Math;
+            break;
         case Keyword::SansSerif:
             generic_font = Platform::GenericFont::SansSerif;
             break;

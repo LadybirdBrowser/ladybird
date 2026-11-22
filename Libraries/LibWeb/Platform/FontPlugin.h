@@ -22,6 +22,7 @@ namespace Web::Platform {
 enum class GenericFont {
     Cursive,
     Fantasy,
+    Math,
     Monospace,
     SansSerif,
     Serif,
