@@ -1,0 +1,7 @@
+Ladybird’s feComposite operator=“out” now keeps the parts of the in
+image outside of the in2 image. Blink maps it to SkBlendMode::kSrcOut in
+FEComposite (fe_composite.cc), and WebKit’s FECompositeSoftwareApplier
+draws in, then draws in2 over it with DestinationOut, which comes to the
+same. Gecko’s source wasn’t traced, but Firefox 151.0 renders the new
+reftest’s page and its reference identically, as Chrome 158.0.8127.36
+and WebKit 26.5 do (engine-compare).
