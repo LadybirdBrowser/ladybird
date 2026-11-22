@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 
 use ak::Utf16String;
 use libjs_rust::api::{EmbedderCell, Gc, GcRefCell, GcWeak, MarkedVec, PrimitiveString, Realm, Trace, Value, Vm};
+use liburl_rust::origin::Origin;
 use liburl_rust::url::ExcludeFragment;
-use liburl_rust::{RustUrl, Url};
+use liburl_rust::{BasicParseOptions, RustUrl, Url, basic_parse};
 
 use crate::bindings::conversions::UsvString;
 use crate::bindings::environment_settings_object::relevant_settings_object;
@@ -23,6 +24,7 @@ use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate, cell_into_abi};
 use crate::bindings::promise::{TaskSource, queue_a_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::domurl::url_input;
 use crate::fetch::infrastructure::fetch_controller::CppFetchController;
 use crate::fetch::infrastructure::http::requests::CppRequest;
 use crate::fetch::infrastructure::http::response_view::CppResponseView;
@@ -65,6 +67,10 @@ pub(crate) struct EventSource {
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-url
     #[gc(untraced)]
     url: OnceCell<Url>,
+
+    /// The origin of the event stream's final URL.
+    #[gc(untraced)]
+    final_url_origin: RefCell<Option<Origin>>,
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-request
     #[gc(untraced)]
@@ -193,6 +199,7 @@ impl EventSource {
             event_target: CppEventTarget::new(),
             realm,
             url: OnceCell::new(),
+            final_url_origin: RefCell::new(None),
             request: OnceCell::new(),
             reconnection_time: Cell::new(Duration::from_secs(3)),
             last_event_id: RefCell::new(String::new()),
@@ -314,6 +321,13 @@ impl EventSource {
         // 4. Otherwise, announce the connection and interpret res's body line by line.
         else {
             Self::announce_the_connection(this, vm);
+
+            let final_url = response
+                .url(false)
+                .expect("A response that is not a network error has a URL");
+            let final_url = basic_parse(url_input(final_url.as_units()), BasicParseOptions::new())
+                .expect("The URL of a response parses");
+            this.final_url_origin.replace(Some(final_url.origin()));
 
             this.pending_data.borrow_mut().clear();
             this.is_start_of_stream.set(true);
@@ -637,13 +651,16 @@ impl EventSource {
         } else {
             event_type.as_str()
         };
-        let origin = this.url.get().expect("The constructor sets the URL").origin();
+        let origin = this.final_url_origin.borrow();
+        let origin = origin
+            .as_ref()
+            .expect("Interpreting the event stream follows its response");
         let event = CppEvent::create_message_event(
             this.realm,
             r#type,
             Value::from_string(PrimitiveString::create(vm, Utf16String::from_utf8(data_buffer))),
             &[],
-            Some(&origin),
+            Some(origin),
             &last_event_id,
             None,
         );
