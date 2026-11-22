@@ -86,7 +86,7 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|
     [RustReceiver, RustSender] webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSource> image_sources) =|
     [RustReceiver, RustSender] webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()
-    [RustReceiver, RustSender] webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Compositing::WebGL::ImageSource> image_sources) =|
+    [RustReceiver, RustSender] webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, u64 size_in_bytes, Vector<Compositing::WebGL::ImageSource> image_sources) =|
     [RustReceiver, RustSender] webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) =|
     [RustReceiver, RustSender] webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) =|
     [RustReceiver, RustSender] webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)

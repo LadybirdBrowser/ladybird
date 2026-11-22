@@ -421,6 +421,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
                 self.client_id,
                 message.canvas_id,
                 commands.as_ref().map(|memory| memory as &dyn MappedMemory),
+                message.size_in_bytes,
                 &message.image_sources,
             )
             .map_err(misbehavior)

@@ -220,15 +220,20 @@ impl Transport for RemoteContext {
     }
 
     fn send_commands(&self, commands: &[u8], frames: &[Frame]) {
+        let Some(buffer) = SharedBuffer::create(commands.len()) else {
+            return;
+        };
+        // SAFETY: The buffer has room for the commands, and nothing else writes it yet.
+        unsafe { core::ptr::copy_nonoverlapping(commands.as_ptr(), buffer.as_ptr(), commands.len()) };
+        self.send_commands_written_to(&buffer, commands.len(), frames);
+    }
+
+    fn send_commands_written_to(&self, memory: &SharedBuffer, size_in_bytes: usize, frames: &[Frame]) {
         self.post_commands(frames, |canvas_id, image_sources| {
-            let Some(buffer) = SharedBuffer::create(commands.len()) else {
-                return false;
-            };
-            // SAFETY: The buffer has room for the commands, and nothing else writes it yet.
-            unsafe { core::ptr::copy_nonoverlapping(commands.as_ptr(), buffer.as_ptr(), commands.len()) };
             self.post_or_lose_compositor(WebglCommands {
                 canvas_id,
-                commands: buffer.for_message(),
+                commands: memory.for_message(),
+                size_in_bytes: size_in_bytes as u64,
                 image_sources,
             })
         });

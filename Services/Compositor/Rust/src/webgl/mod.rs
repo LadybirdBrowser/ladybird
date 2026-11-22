@@ -352,14 +352,21 @@ impl WebGLContexts {
         client: WebContentClientId,
         canvas_id: CanvasId,
         commands: Option<&dyn MappedMemory>,
+        size_in_bytes: u64,
         image_sources: &[ImageSource],
     ) -> Result<(), ReplayError> {
         let (context, gl) = self.context_and_gl(client, canvas_id)?;
         let commands = commands.ok_or(ReplayError("WebContent sent an invalid WebGL command buffer"))?;
+        let size = usize::try_from(size_in_bytes)
+            .ok()
+            .filter(|&size| size <= commands.len())
+            .ok_or(ReplayError(
+                "WebContent sent more WebGL commands than their buffer holds",
+            ))?;
         let mut scratch = core::mem::take(&mut context.scratch);
         let result = Self::replay(context, gl, host, client, canvas_id, image_sources, |replayer| {
             // SAFETY: The mapping holds as many readable bytes, and the caller holds it while the records are replayed.
-            unsafe { replay_records_in_shared_memory(replayer, &mut scratch, commands.as_mut_ptr(), commands.len()) }
+            unsafe { replay_records_in_shared_memory(replayer, &mut scratch, commands.as_mut_ptr(), size) }
         });
         context.give_back_scratch(scratch);
         result
