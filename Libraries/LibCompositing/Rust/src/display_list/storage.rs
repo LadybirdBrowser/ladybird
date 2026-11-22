@@ -15,7 +15,7 @@ use super::chunks::{
 use super::commands::{ContextRef, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType};
 use super::effect_clip_plan::EffectClipPlan;
 use super::placement::RunGroups;
-use super::summary::{DisplayListSummary, IndexedRecord, summarize, summary_of_pieces};
+use super::summary::{DisplayListSummary, summarize, summary_of_pieces};
 use super::tile_keys::{ChunkPlacedInRasterSpace, ContentHash, RecordTable};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
@@ -498,18 +498,6 @@ impl DisplayListStorage {
                     },
                 );
             }
-        }
-    }
-
-    /// Visits indexed top-level records with their run's context, their header and their payload.
-    pub fn for_each_indexed_record(
-        &self,
-        records: &[IndexedRecord],
-        mut visit: impl FnMut(ContextRef, &DisplayListCommandHeader, &[u8]),
-    ) {
-        for record in records {
-            let (header, payload) = self.record_at(record.position);
-            visit(self.run(record.run_index as usize).context, &header, payload);
         }
     }
 }
