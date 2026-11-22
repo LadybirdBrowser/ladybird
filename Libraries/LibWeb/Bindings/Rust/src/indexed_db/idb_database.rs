@@ -14,10 +14,11 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Realm, Trace, Vm};
 
-use crate::bindings::conversions::{CppInterface, DOMStringOrDOMStringSequence};
+use crate::bindings::conversions::DOMStringOrDOMStringSequence;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::dom_string_list::DOMStringList;
 use crate::indexed_db::cpp::{current_event_loop, enqueue_post_gc_task};
 use crate::indexed_db::idb_object_store::{
     IDBObjectStore, constraint_error, invalid_state_error, not_found_error, transaction_inactive_error,
@@ -305,7 +306,7 @@ impl IDBDatabase {
     }
 
     // https://w3c.github.io/IndexedDB/#dom-idbdatabase-objectstorenames
-    pub(crate) fn object_store_names(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn object_store_names(&self, cx: &mut CallContext) -> WebIdlResult<Ref<DOMStringList>> {
         // 1. Let names be a list of the names of the object stores in this's object store set.
         let names = self
             .object_store_set
@@ -315,7 +316,7 @@ impl IDBDatabase {
             .collect();
 
         // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-        Ok(create_a_sorted_name_list(cx, names))
+        Ok(create_a_sorted_name_list(cx.vm(), names))
     }
 
     // https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore

@@ -24,7 +24,6 @@ unsafe extern "C" {
     fn web_indexed_db_create_dom_exception(name: ak::Span<'_, u8>, message: usize) -> *mut c_void;
     fn web_indexed_db_dom_exception_from_value(value: u64) -> *mut c_void;
     fn web_indexed_db_wrap_dom_exception(realm: *mut c_void, exception: *mut c_void) -> *mut c_void;
-    fn web_indexed_db_create_dom_string_list(realm: *mut c_void, strings: *const usize, count: usize) -> *mut c_void;
     fn web_indexed_db_queue_a_database_task(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_indexed_db_run_in_parallel(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_indexed_db_current_event_loop() -> *mut c_void;
@@ -91,17 +90,6 @@ impl DomException {
         // SAFETY: The wrapper is a live wrapper of a DOMException.
         unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
     }
-}
-
-pub(crate) fn create_dom_string_list(cx: &CallContext, strings: &[Utf16String]) -> CppInterface {
-    let raw_strings: Vec<usize> = strings.iter().map(Utf16String::raw_identity).collect();
-    // SAFETY: The realm is live, the strings are lent for the call, and LibWeb returns a live wrapper.
-    let wrapper = unsafe {
-        web_indexed_db_create_dom_string_list(cx.realm().as_ptr().cast(), raw_strings.as_ptr(), raw_strings.len())
-    };
-    let wrapper = NonNull::new(wrapper.cast::<Object>()).expect("LibWeb returns a wrapper");
-    // SAFETY: The wrapper is a live wrapper of a DOMStringList.
-    unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
 }
 
 unsafe extern "C" fn run_function(vm: *mut c_void, cell: *mut c_void) {

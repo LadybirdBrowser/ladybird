@@ -6,28 +6,18 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/DOMStringList.h>
+#include <LibWeb/Bindings/RustInterface.h>
 
 namespace Web::HTML {
 
-class DOMStringList final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(DOMStringList, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(DOMStringList);
+class DOMStringList final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(DOMStringList, dom_string_list)
 
 public:
-    static GC::Ref<DOMStringList> create(Vector<String>);
-
-    u32 length() const;
-    Optional<Utf16String> item(u32 index) const;
-    bool contains(Utf16View string);
-
-private:
-    explicit DOMStringList(Vector<String>);
-
-    Vector<String> m_list;
+    static GC::Ref<DOMStringList> create(Vector<Utf16String>);
 };
 
 }

@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
@@ -36,7 +35,6 @@ void web_rust_indexed_db_check_pending_connection_wait(JSVM*, void* database);
 void* web_indexed_db_create_dom_exception(ReadonlyBytes name, FlatPtr message);
 void* web_indexed_db_dom_exception_from_value(JSValue);
 JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception);
-JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count);
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*));
 void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*));
 void* web_indexed_db_current_event_loop();
@@ -71,17 +69,6 @@ JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception)
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto& dom_exception = *static_cast<WebIDL::DOMException*>(exception);
     return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, GC::Ref { dom_exception }).ptr());
-}
-
-JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count)
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    Vector<String> names;
-    names.ensure_capacity(count);
-    for (size_t i = 0; i < count; ++i)
-        names.unchecked_append(Utf16String::from_raw(strings[i]).to_utf8());
-    auto list = HTML::DOMStringList::create(move(names));
-    return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, list).ptr());
 }
 
 // https://w3c.github.io/IndexedDB/#queue-a-database-task
