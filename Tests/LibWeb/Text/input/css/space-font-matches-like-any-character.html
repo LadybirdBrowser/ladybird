@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: AhemDigits; src: url(../wpt-import/fonts/Ahem.ttf); unicode-range: U+30-39; }
+    @font-face { font-family: AhemSpaces; src: url(../wpt-import/fonts/Ahem.ttf); unicode-range: U+20, U+A0; }
+    div { font-size: 20px; white-space: pre; }
+</style>
+<!-- A space between digits doesn't take the digits' font, since its unicode-range leaves the space out. -->
+<div style="font-family: AhemDigits, serif"><span id="digits">0 1</span></div>
+<div style="font-family: AhemDigits, serif"><span id="digits-nbsp">0&nbsp;1</span></div>
+<!-- A space between words from a later font takes the first font's space, since the first font covers it. -->
+<div style="font-family: AhemSpaces, serif"><span id="words">ab    cd</span></div>
+<div style="font-family: AhemSpaces, serif"><span id="words-nbsp">ab&nbsp;cd</span></div>
+<div style="font-family: AhemSpaces, serif"><span id="letters">abcd</span></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px AhemDigits", "0");
+        await document.fonts.load("20px AhemSpaces", " ");
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`digits: space is narrower than a digit: ${width("digits") - 40 < 20}`);
+        println(`digits, no-break space: narrower than a digit: ${width("digits-nbsp") - 40 < 20}`);
+        println(`words: four spaces are 80px wide: ${width("words") - width("letters") === 80}`);
+        println(`words, no-break space: 20px wide: ${width("words-nbsp") - width("letters") === 20}`);
+        done();
+    });
+</script>

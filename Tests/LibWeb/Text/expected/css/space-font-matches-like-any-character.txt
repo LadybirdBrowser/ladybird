@@ -1,0 +1,4 @@
+digits: space is narrower than a digit: true
+digits, no-break space: narrower than a digit: true
+words: four spaces are 80px wide: true
+words, no-break space: 20px wide: true

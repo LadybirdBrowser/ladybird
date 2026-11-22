@@ -2,8 +2,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] children: not-inline
       BlockContainer <div#tall> at [0,0] [0+0+0 800 0+0+0] [0+0+0 22 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 12, rect: [0,0 97.515625x22] baseline: 17
-            "Tall metrics"
+        frag 0 from TextNode start: 0, length: 4, rect: [0,0 30.109375x22] baseline: 17
+            "Tall"
+        frag 1 from TextNode start: 4, length: 1, rect: [30.109375,0 4.15625x22] baseline: 17
+            " "
+        frag 2 from TextNode start: 5, length: 7, rect: [34.265625,0 59.40625x22] baseline: 17
+            "metrics"
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
