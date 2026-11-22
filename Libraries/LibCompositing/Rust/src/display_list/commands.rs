@@ -785,7 +785,7 @@ pub struct DrawGlyphRun {
     pub translation: FloatPoint,
     pub scale: f32,
     pub color: Color,
-    pub orientation: Orientation,
+    pub orientation: GlyphRunOrientation,
     pub font_smoothing: u8,
 }
 display_list_record_fields!(DrawGlyphRun {
@@ -1200,7 +1200,7 @@ pub struct PaintTextShadow {
     pub rect: IntRect,
     pub translation: FloatPoint,
     pub scale: f32,
-    pub orientation: Orientation,
+    pub orientation: GlyphRunOrientation,
     pub font_smoothing: u8,
 }
 display_list_record_fields!(PaintTextShadow {

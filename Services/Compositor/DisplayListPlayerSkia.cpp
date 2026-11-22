@@ -297,33 +297,38 @@ void DisplayListPlayerSkia::paint_scrollbar(PresentedScrollbar const& scrollbar)
     paint_scrollbar_into_surface(surface(), scrollbar);
 }
 
-static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)
+// The turn that sets a run laid out as horizontal text, from the top-left corner of rect, along a vertical line.
+static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect, Gfx::GlyphRunOrientation orientation)
 {
+    if (orientation == Gfx::GlyphRunOrientation::VerticalCounterclockwise) {
+        // A quarter turn counterclockwise about the top-left corner, then down by the rect's height: The run starts at
+        // the bottom-left corner and runs upwards, with the tops of its glyphs facing left.
+        auto rotation = SkMatrix::Translate(0, rect.height());
+        rotation.preRotate(-90, rect.top_left().x(), rect.top_left().y());
+        return rotation;
+    }
     auto rotation = SkMatrix::Translate(rect.width(), 0);
     rotation.preRotate(90, rect.top_left().x(), rect.top_left().y());
     return rotation;
 }
 
-static void draw_glyph_run(SkCanvas& canvas, SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::Orientation orientation, SkPaint const& paint)
+static void draw_glyph_run(SkCanvas& canvas, SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::GlyphRunOrientation orientation, SkPaint const& paint)
 {
-    switch (orientation) {
-    case Gfx::Orientation::Horizontal:
+    if (orientation == Gfx::GlyphRunOrientation::Horizontal) {
         canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
-        break;
-    case Gfx::Orientation::Vertical:
-        canvas.save();
-        canvas.concat(vertical_glyph_run_rotation(rect));
-        canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
-        canvas.restore();
-        break;
+        return;
     }
+    canvas.save();
+    canvas.concat(vertical_glyph_run_rotation(rect, orientation));
+    canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
+    canvas.restore();
 }
 
-static SkRect glyph_run_bounds_including_antialiasing(SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::Orientation orientation)
+static SkRect glyph_run_bounds_including_antialiasing(SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::GlyphRunOrientation orientation)
 {
     auto bounds = blob.bounds().makeOffset(translation.x(), translation.y());
-    if (orientation == Gfx::Orientation::Vertical)
-        bounds = vertical_glyph_run_rotation(rect).mapRect(bounds);
+    if (orientation != Gfx::GlyphRunOrientation::Horizontal)
+        bounds = vertical_glyph_run_rotation(rect, orientation).mapRect(bounds);
     bounds.outset(1, 1);
     return bounds;
 }
@@ -339,7 +344,7 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
     bool uses_lcd_text = !opaque_background.isEmpty()
         && m_surfaces.size() == 1
         && command.stroke_width == 0
-        && command.orientation == Gfx::Orientation::Horizontal
+        && command.orientation == Gfx::GlyphRunOrientation::Horizontal
         && canvas.getTopProps().pixelGeometry() != kUnknown_SkPixelGeometry
         && canvas.getLocalToDeviceAs3x3().isTranslate();
     if (uses_lcd_text) {

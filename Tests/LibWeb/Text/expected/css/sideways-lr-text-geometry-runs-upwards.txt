@@ -1,0 +1,16 @@
+first character below the last: true
+first character at the bottom of the text: true
+point at the bottom hits offset: 0
+point in the first span hits: "abc" at offset 0
+left end of line: "abc" at offset 0
+right end of line: "def" at offset 3
+left end of line of images: offset 0
+right end of line of images: offset 2
+left end of line of rtl-images: offset 2
+right end of line of rtl-images: offset 0
+left end of line of horizontal-images: offset 0, caret on the left side
+right end of line of horizontal-images: offset 2, caret on the right side
+left end of line of sideways-images: offset 0, caret on the left side
+right end of line of sideways-images: offset 2, caret on the right side
+left end of line of rtl-sideways-images: offset 2, caret on the left side
+right end of line of rtl-sideways-images: offset 0, caret on the right side

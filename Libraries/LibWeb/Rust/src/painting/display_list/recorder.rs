@@ -1202,7 +1202,7 @@ impl DisplayListRecorder {
         stroke_width: f32,
         rect: IntRect,
         scale: f64,
-        orientation: Orientation,
+        orientation: GlyphRunOrientation,
         glyph_bounding_rect: IntRect,
         force_dark_role: ForceDarkRole,
     ) {
@@ -1284,7 +1284,7 @@ impl DisplayListRecorder {
         translation: FloatPoint,
         run: GlyphRunForRecording<impl IntoIterator<Item = DisplayListGlyph>>,
         glyph_run_scale: f64,
-        orientation: Orientation,
+        orientation: GlyphRunOrientation,
         force_dark_role: ForceDarkRole,
     ) {
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);

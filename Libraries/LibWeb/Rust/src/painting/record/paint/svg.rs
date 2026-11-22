@@ -724,7 +724,7 @@ fn paint_color_glyph_runs<O: Observer>(
             0.0,
             device_rect,
             f64::from(device_scale),
-            libgfx_rust::Orientation::Horizontal,
+            libgfx_rust::GlyphRunOrientation::Horizontal,
             device_rect,
             ForceDarkRole::Svg,
         );

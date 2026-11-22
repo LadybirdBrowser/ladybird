@@ -7,9 +7,10 @@
 use crate::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect};
 use libgfx_rust::{
     AffineTransform, CapStyle, Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius,
-    FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, GradientInterpolationMethod, GradientInterpolationType,
-    HueInterpolationMethod, IntPoint, IntRect, IntSize, InterpolationColorSpace, JoinStyle, LineStyle, MaskKind,
-    Orientation, PolarColorSpace, RectangularColorSpace, ScalingMode, ShouldAntiAlias, WindingRule,
+    FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, GlyphRunOrientation, GradientInterpolationMethod,
+    GradientInterpolationType, HueInterpolationMethod, IntPoint, IntRect, IntSize, InterpolationColorSpace, JoinStyle,
+    LineStyle, MaskKind, Orientation, PolarColorSpace, RectangularColorSpace, ScalingMode, ShouldAntiAlias,
+    WindingRule,
 };
 
 pub trait FfiBytes: Sized {
@@ -125,6 +126,7 @@ ffi_enum_bytes!(ScalingMode as i32);
 ffi_enum_bytes!(CompositingAndBlendingOperator as i32);
 ffi_enum_bytes!(MaskKind as i32);
 ffi_enum_bytes!(Orientation as i32);
+ffi_enum_bytes!(GlyphRunOrientation as i32);
 ffi_enum_bytes!(ShouldAntiAlias as u8);
 ffi_enum_bytes!(InterpolationColorSpace as i32);
 ffi_enum_bytes!(RectangularColorSpace as u8);

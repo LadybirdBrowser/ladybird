@@ -80,6 +80,12 @@ pub(crate) fn is_horizontal(fragment: &FragmentRecord) -> bool {
     fragment.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
 }
 
+/// Whether the inline axis of a vertical fragment runs upwards, as in sideways-lr, whose glyphs are turned a quarter
+/// turn counterclockwise: Its text starts at the bottom of the fragment, and the line-over side is on the left.
+pub(crate) fn runs_upwards(fragment: &FragmentRecord) -> bool {
+    fragment.writing_mode == crate::css::css_enums::writing_mode::SIDEWAYS_LR
+}
+
 fn primary_size(rect: CssPixelRect, horizontal: bool) -> CssPixels {
     if horizontal { rect.width } else { rect.height }
 }
@@ -330,6 +336,9 @@ fn rect_for_selection_offsets_of_fragment_at(
     if horizontal {
         rect.x += pixel_offset;
         rect.width = pixel_width;
+    } else if runs_upwards(fragment) {
+        rect.y = rect.bottom() - pixel_offset - pixel_width;
+        rect.height = pixel_width;
     } else {
         rect.y += pixel_offset;
         rect.height = pixel_width;
@@ -361,6 +370,13 @@ pub(crate) fn glyph_rect_of_fragment_at(
             rect.y + fragment.baseline + pixel(glyph.y),
             pixel(glyph.width),
             pixel(glyph.height),
+        )
+    } else if runs_upwards(fragment) {
+        CssPixelRect::new(
+            rect.x + fragment.baseline + pixel(glyph.y),
+            rect.bottom() - pixel(glyph.x + glyph.width),
+            pixel(glyph.height),
+            pixel(glyph.width),
         )
     } else {
         CssPixelRect::new(
@@ -417,6 +433,9 @@ pub(crate) fn rects_for_selection_offsets(
             if horizontal {
                 piece.x = origin.x + offset;
                 piece.width = size;
+            } else if runs_upwards(fragment) {
+                piece.y = origin.bottom() - offset - size;
+                piece.height = size;
             } else {
                 piece.y = origin.y + offset;
                 piece.height = size;
@@ -474,6 +493,8 @@ pub(crate) fn index_in_node_for_point(
     let rect = absolute_rect(layout_arena, fragment);
     let x = if is_horizontal(fragment) {
         (position.x - rect.x).to_float()
+    } else if runs_upwards(fragment) {
+        (rect.bottom() - position.y).to_float()
     } else {
         (position.y - rect.y).to_float()
     };

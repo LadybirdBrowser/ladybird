@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>Reference: sideways-lr flexbox main axis progresses in correct direction</title>
+<style>
+    .container {
+        font-size: 0
+    }
+    .item {
+        width: 20px;
+        height: 20px;
+    }
+
+    .item:nth-child(1) { background-color: lime; }
+    .item:nth-child(2) { background-color: limegreen; }
+    .item:nth-child(3) { background-color: green; }
+
+    .container.reverse .item:nth-child(1) { background-color: green; }
+    .container.reverse .item:nth-child(2) { background-color: limegreen; }
+    .container.reverse .item:nth-child(3) { background-color: lime; }
+
+    .container.row .item { display: inline-block; }
+</style>
+<div class="container reverse">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container reverse">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container row">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container row">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container row reverse">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container row reverse">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>

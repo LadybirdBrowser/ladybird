@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Reference for Sideways Inline Layout: Basic Case</title>
+<meta charset=utf-8>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+body > div {
+  /* styling */
+  border: solid silver;
+  font: 30px/1 Ahem;
+  color: blue;
+  float: left;
+
+  /* test */
+  padding: 2px 4px 6px 8px;
+  margin: 2px 4px 6px 8px;
+}
+div > div {
+  transform: rotate(180deg);
+}
+</style>
+
+<div style="writing-mode: vertical-lr"><div>ApÉx</div></div>
+
+<div style="writing-mode: vertical-rl">ApÉx</div>

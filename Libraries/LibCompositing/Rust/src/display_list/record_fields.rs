@@ -161,6 +161,7 @@ record_field_enum!(
     LineStyle,
     MaskKind,
     Orientation,
+    GlyphRunOrientation,
     ScalingMode,
     ShouldAntiAlias,
     WindingRule,

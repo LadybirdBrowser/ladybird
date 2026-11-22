@@ -569,6 +569,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("CompositingAndBlendingOperator", "Gfx::CompositingAndBlendingOperator"),
         ("ColorFilterType", "Gfx::ColorFilterType"),
         ("Orientation", "Gfx::Orientation"),
+        ("GlyphRunOrientation", "Gfx::GlyphRunOrientation"),
         ("MaskKind", "Gfx::MaskKind"),
         ("ShouldAntiAlias", "Gfx::ShouldAntiAlias"),
         ("CssPixels", "Web::CSSPixels"),

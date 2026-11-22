@@ -1030,9 +1030,9 @@ impl<'content> PhysicalPlane<'content> {
         // NB: Glyphs that run along a vertical line are turned a quarter turn clockwise, so their line-over side
         //     faces the physical right side. That is the block-start side of the frame of vertical-rl, but the
         //     block-end side of the frame of vertical-lr, where each line is laid out mirrored in the block axis.
+        //     The glyphs of sideways-lr are turned counterclockwise instead, so they face its line-over side on the
+        //     left, its block-start side, and run upwards like its inline axis.
         //     https://drafts.csswg.org/css-writing-modes-4/#line-orientation
-        // FIXME: Turn the glyphs of sideways-lr a quarter turn counterclockwise instead, so that they face its
-        //        line-over side on the left and run upwards like its inline axis.
         if !self.lines_are_mirrored {
             return block_offset;
         }

@@ -25,8 +25,8 @@ use libcompositing_rust::time::MonotonicTime;
 use libcompositing_rust::visual_context::{TransformData, TransformDataRole, VisualContextTree};
 use libgfx_rust::path::Path;
 use libgfx_rust::{
-    CapStyle, Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, IntSize,
-    JoinStyle, Orientation, ShouldAntiAlias, WindingRule, enclosing_int_rect,
+    CapStyle, Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, GlyphRunOrientation,
+    IntRect, IntSize, JoinStyle, ShouldAntiAlias, WindingRule, enclosing_int_rect,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -552,7 +552,7 @@ impl OverlayRecorder<'_> {
                 translation: FloatPoint::default(),
                 scale,
                 color,
-                orientation: Orientation::Horizontal,
+                orientation: GlyphRunOrientation::Horizontal,
                 font_smoothing: 0,
             },
             &inline_data,

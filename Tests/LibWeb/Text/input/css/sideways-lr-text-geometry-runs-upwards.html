@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<style>
+    div { writing-mode: sideways-lr; font: 20px/1 serif; height: 200px; }
+    img { width: 20px; height: 20px; }
+    .sideways img { writing-mode: sideways-lr; }
+</style>
+<div id="text">abcdef</div>
+<div id="spans"><span id="first">abc</span><span id="second">def</span></div>
+<div id="editable" contenteditable>abc<span>def</span></div>
+<div id="images" contenteditable><img><img></div>
+<div id="rtl-images" dir="rtl" contenteditable><img><img></div>
+<p id="horizontal-images" contenteditable><img><img></p>
+<p id="sideways-images" class="sideways" contenteditable><img><img></p>
+<p id="rtl-sideways-images" class="sideways" dir="rtl" contenteditable><img><img></p>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // The text of sideways-lr runs upwards from the bottom of its line, so its first character is lowest.
+        const node = text.firstChild;
+        const rect_of = (start, end) => {
+            const range = document.createRange();
+            range.setStart(node, start);
+            range.setEnd(node, end);
+            return range.getBoundingClientRect();
+        };
+        const first = rect_of(0, 1);
+        const last = rect_of(5, 6);
+        println(`first character below the last: ${first.top > last.top}`);
+        const whole = rect_of(0, 6);
+        println(`first character at the bottom of the text: ${Math.abs(first.bottom - whole.bottom) < 1}`);
+        const position = document.caretPositionFromPoint(whole.left + whole.width / 2, whole.bottom - 2);
+        println(`point at the bottom hits offset: ${position.offset}`);
+
+        // Of two spans in a line, the first one is the lower one, so a point in it hits its text.
+        const first_rect = document.getElementById("first").getBoundingClientRect();
+        const hit = document.caretPositionFromPoint(first_rect.left + first_rect.width / 2, first_rect.bottom - 2);
+        println(`point in the first span hits: "${hit.offsetNode.data}" at offset ${hit.offset}`);
+
+        // The left end of a line of sideways-lr text is its line-left side, at the bottom, where the text starts.
+        if (internals.sendTextEditingCommand) {
+            const editable = document.getElementById("editable");
+            const selection = getSelection();
+            editable.focus();
+            for (const edge of ["Left", "Right"]) {
+                selection.collapse(editable.firstChild, 1);
+                internals.sendTextEditingCommand(editable, `MoveTo${edge}EndOfLine`);
+                println(`${edge.toLowerCase()} end of line: "${selection.focusNode.data}" at offset ${selection.focusOffset}`);
+            }
+
+            // The line-left side of a box is its inline-start side when the box is ltr, and its inline-end side when
+            // it's rtl.
+            for (const container of [document.getElementById("images"), document.getElementById("rtl-images")]) {
+                container.focus();
+                for (const edge of ["Left", "Right"]) {
+                    selection.collapse(container, 1);
+                    internals.sendTextEditingCommand(container, `MoveTo${edge}EndOfLine`);
+                    println(`${edge.toLowerCase()} end of line of ${container.id}: offset ${selection.focusOffset}`);
+                }
+            }
+
+            // In a horizontal line, the caret goes on the left or right side of the boxes, whatever their own writing
+            // mode.
+            for (const id of ["horizontal-images", "sideways-images", "rtl-sideways-images"]) {
+                const container = document.getElementById(id);
+                const boxes = [...container.children].map(child => child.getBoundingClientRect());
+                const left = Math.min(...boxes.map(box => box.left));
+                const right = Math.max(...boxes.map(box => box.right));
+                container.focus();
+                for (const edge of ["Left", "Right"]) {
+                    selection.collapse(container, 1);
+                    internals.sendTextEditingCommand(container, `MoveTo${edge}EndOfLine`);
+                    const caret = internals.currentCaretRect();
+                    const at = x => Math.abs(caret.left - x) <= 1;
+                    const side = at(left) ? "left" : at(right) ? "right" : "inside";
+                    const offset = selection.focusOffset;
+                    println(`${edge.toLowerCase()} end of line of ${id}: offset ${offset}, caret on the ${side} side`);
+                }
+            }
+        }
+    });
+</script>
