@@ -28,7 +28,7 @@ void HTMLOutputElement::form_associated_element_attribute_changed(Utf16FlyString
 {
     if (name == HTML::AttributeNames::for_) {
         if (m_html_for)
-            m_html_for->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+            m_html_for->associated_attribute_changed(value);
     }
 }
 

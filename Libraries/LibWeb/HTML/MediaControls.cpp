@@ -59,8 +59,8 @@ void MediaControls::update_visibility()
 {
     auto& host = *m_host;
 
-    MUST(m_dom->container->class_list()->toggle("controls-hidden"_utf16, !host.should_expose_user_interface()));
-    MUST(m_dom->container->class_list()->toggle("picture-in-picture"_utf16, host.is_picture_in_picture_element()));
+    m_dom->container->class_list()->toggle("controls-hidden"_utf16, !host.should_expose_user_interface());
+    m_dom->container->class_list()->toggle("picture-in-picture"_utf16, host.is_picture_in_picture_element());
     update_placeholder_visibility();
 
     update_timeline();
@@ -90,11 +90,11 @@ void MediaControls::create_shadow_tree()
     m_dom = MediaControlsDOM(document, *shadow_root, options);
 
     if (is_video)
-        MUST(m_dom->container->class_list()->add("video"_utf16));
+        m_dom->container->class_list()->add("video"_utf16);
     else
-        MUST(m_dom->container->class_list()->add("audio"_utf16));
+        m_dom->container->class_list()->add("audio"_utf16);
     if (is_picture_in_picture_player())
-        MUST(m_dom->container->class_list()->add("picture-in-picture-player"_utf16));
+        m_dom->container->class_list()->add("picture-in-picture-player"_utf16);
 
     // Initialize state
     update_play_pause_icon();
@@ -592,7 +592,7 @@ void MediaControls::update_play_pause_icon()
         return m_media_element->paused();
     }();
 
-    MUST(m_dom->play_pause_icon->class_list()->toggle("playing"_utf16, !paused));
+    m_dom->play_pause_icon->class_list()->toggle("playing"_utf16, !paused);
 }
 
 static Utf16String format_percent(double value)
@@ -646,7 +646,7 @@ void MediaControls::update_timeline()
 
     while (m_buffered_ranges.size() < range_count) {
         auto element = MUST(DOM::create_element(m_host->document(), HTML::TagNames::div, Namespace::HTML));
-        MUST(element->class_list()->toggle("timeline-buffered"_utf16, true));
+        element->class_list()->toggle("timeline-buffered"_utf16, true);
         MUST(element->style()->set_property(CSS::PropertyID::Display, "block"_utf16));
         m_dom->timeline_track->insert_before(element, nullptr);
         m_buffered_ranges.empend(*element);
@@ -805,19 +805,19 @@ void MediaControls::update_volume_and_mute_indicator()
 
     if (new_volume_icon_state != m_mute_icon_state) {
         if (auto previous_class = icon_class(m_mute_icon_state); !previous_class.is_empty())
-            MUST(m_dom->mute_button->class_list()->remove(previous_class));
+            m_dom->mute_button->class_list()->remove(previous_class);
         if (auto next_class = icon_class(new_volume_icon_state); !next_class.is_empty())
-            MUST(m_dom->mute_button->class_list()->add(next_class));
+            m_dom->mute_button->class_list()->add(next_class);
         m_mute_icon_state = new_volume_icon_state;
     }
 
     if (muted != m_was_muted) {
-        MUST(m_dom->mute_button->class_list()->toggle("muted"_utf16, muted));
+        m_dom->mute_button->class_list()->toggle("muted"_utf16, muted);
         m_was_muted = muted;
     }
 
     if (has_audio != m_had_audio) {
-        MUST(m_dom->volume_area->class_list()->toggle("hidden"_utf16, !has_audio));
+        m_dom->volume_area->class_list()->toggle("hidden"_utf16, !has_audio);
         m_had_audio = has_audio;
     }
 }
@@ -830,7 +830,7 @@ void MediaControls::update_fullscreen_icon()
     VERIFY(m_host);
 
     auto is_fullscreen_element = m_host->document().fullscreen_element() == m_host;
-    MUST(m_dom->fullscreen_icon->class_list()->toggle("fullscreen"_utf16, is_fullscreen_element));
+    m_dom->fullscreen_icon->class_list()->toggle("fullscreen"_utf16, is_fullscreen_element);
 }
 
 void MediaControls::update_placeholder_visibility()
@@ -866,7 +866,7 @@ void MediaControls::show_controls()
     VERIFY(m_media_element);
     VERIFY(m_dom->control_bar);
 
-    MUST(m_dom->control_bar->class_list()->add(visible_class()));
+    m_dom->control_bar->class_list()->add(visible_class());
 
     if (!exchange(m_control_bar_is_shown, true)) {
         update_timeline();
@@ -896,7 +896,7 @@ void MediaControls::hide_controls()
     if (m_dom->placeholder_circle && should_show_placeholder())
         return;
 
-    MUST(m_dom->control_bar->class_list()->remove(visible_class()));
+    m_dom->control_bar->class_list()->remove(visible_class());
     m_hover_timer.clear();
     m_control_bar_is_shown = false;
     control_bar_visibility_did_change();

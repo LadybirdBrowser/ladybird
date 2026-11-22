@@ -57,7 +57,7 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
     if (name == HTML::AttributeNames::sandbox) {
         if (m_sandbox)
-            m_sandbox->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+            m_sandbox->associated_attribute_changed(value);
     }
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2

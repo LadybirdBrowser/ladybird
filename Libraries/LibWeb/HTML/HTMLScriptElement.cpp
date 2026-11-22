@@ -48,7 +48,7 @@ void HTMLScriptElement::attribute_changed(Utf16FlyString const& name, Optional<U
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
-        m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+        m_blocking->associated_attribute_changed(value);
 
     if (!namespace_.has_value() && name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));

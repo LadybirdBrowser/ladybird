@@ -72,7 +72,7 @@ void HTMLStyleElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
-        m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+        m_blocking->associated_attribute_changed(value);
     style_element_attribute_changed(name, value);
 }
 

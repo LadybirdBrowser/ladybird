@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        class ClassListElement extends HTMLElement {
+            static observedAttributes = ["class"];
+
+            attributeChangedCallback(name, oldValue, newValue) {
+                println(`${oldValue} -> ${newValue}: ${JSON.stringify([...this.classList])}`);
+                if (newValue === "seed appended")
+                    this.className = "reentrant reentrant";
+            }
+        }
+        customElements.define("class-list-element", ClassListElement);
+
+        const element = document.createElement("class-list-element");
+        const list = element.classList;
+        list.value = "seed seed";
+        list.add("appended");
+        println(`after add: ${list === element.classList}, ${list.length}, ${list[0]}, ${list}`);
+
+        element.removeAttribute("class");
+        println(`after removal: ${list.length}, ${list[0]}`);
+    });
+</script>
