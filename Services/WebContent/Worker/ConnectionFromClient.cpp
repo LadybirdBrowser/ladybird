@@ -98,6 +98,7 @@ void ConnectionFromClient::connect_to_compositor()
     auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::RequestCompositorConnection>();
     if (!response || !response->handle().has_value())
         return;
+    m_compositor_generation = response->compositor_generation();
     auto transport_or_error = response->take_handle()->create_transport();
     if (transport_or_error.is_error()) {
         dbgln("Failed to connect to the compositor: {}", transport_or_error.error());
@@ -109,10 +110,24 @@ void ConnectionFromClient::connect_to_compositor()
     };
 }
 
+void ConnectionFromClient::compositor_process_reconnected(u64 compositor_generation)
+{
+    if (!m_did_ask_for_compositor_connection || m_compositor_generation == compositor_generation)
+        return;
+    // NB: The connection to the Compositor that went away may not have noticed yet, and must not later tell the page
+    //     of a loss that this already did.
+    if (m_compositor_connection)
+        m_compositor_connection->on_compositor_lost = nullptr;
+    m_page_host->compositor_process_lost();
+    m_compositor_connection = nullptr;
+    m_did_ask_for_compositor_connection = false;
+    m_page_host->compositor_process_reconnected();
+}
+
 Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection()
 {
-    // NB: Few workers ever draw, so a worker connects when it first has something for the compositor. It asks once: a
-    //     compositor that goes away takes the worker's canvases along.
+    // NB: Few workers ever draw, so a worker connects when it first has something for the compositor. It asks once for
+    //     each Compositor process.
     if (!exchange(m_did_ask_for_compositor_connection, true))
         connect_to_compositor();
     if (!m_compositor_connection || !m_compositor_connection->is_open())

@@ -241,9 +241,9 @@ Messages::WebWorkerClient::RequestCompositorConnectionResponse WebWorkerClient::
     auto handle = Application::the().connect_new_compositor_canvas_client();
     if (handle.is_error()) {
         warnln("Unable to connect a worker to the compositor: {}", handle.error());
-        return Optional<IPC::TransportHandle> {};
+        return { Optional<IPC::TransportHandle> {}, 0 };
     }
-    return handle.release_value();
+    return { handle.release_value(), Application::the().compositor_generation() };
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)

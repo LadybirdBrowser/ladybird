@@ -392,6 +392,14 @@ void WorkerAgentManager::update_preferred_languages(Vector<String> const& prefer
     });
 }
 
+void WorkerAgentManager::notify_compositor_process_reconnected(u64 compositor_generation)
+{
+    for_each_client_with_inside_settings([compositor_generation](WebWorkerClient& client, auto const&) {
+        client.async_compositor_process_reconnected(compositor_generation);
+        return IterationDecision::Continue;
+    });
+}
+
 void WorkerAgentManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Owner identity {

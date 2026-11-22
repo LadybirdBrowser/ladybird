@@ -192,6 +192,11 @@ void PageHost::compositor_process_lost()
     page().notify_all_webgl_contexts_lost();
 }
 
+void PageHost::compositor_process_reconnected()
+{
+    page().notify_all_canvas_elements_of_lost_backing_storage();
+}
+
 void PageHost::did_finish_loading_worker_script(bool worker_is_secure_context)
 {
     m_client.async_did_finish_loading_worker_script(worker_is_secure_context);

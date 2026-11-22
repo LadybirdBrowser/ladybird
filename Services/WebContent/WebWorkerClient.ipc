@@ -25,7 +25,7 @@ endpoint WebWorkerClient {
     did_request_permission_snapshot(URL::Origin top_level_origin) => (Web::Permissions::PermissionSnapshot snapshot)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_image_decoder_connection() => (Optional<IPC::TransportHandle> handle)
-    request_compositor_connection() => (Optional<IPC::TransportHandle> handle)
+    request_compositor_connection() => (Optional<IPC::TransportHandle> handle, u64 compositor_generation)
     did_release_image_decoder() =|
     did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) =|
     register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) =|

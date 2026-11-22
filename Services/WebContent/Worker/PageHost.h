@@ -56,6 +56,7 @@ public:
     virtual Web::Compositor::CompositorHost* compositor_host() override { return m_compositor_host.ptr(); }
     virtual Web::Compositor::CompositorHost const* compositor_host() const override { return m_compositor_host.ptr(); }
     void compositor_process_lost();
+    void compositor_process_reconnected();
     virtual bool is_headless() const override { return false; }
     // NB: No input reaches a worker, so its queue stays empty.
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
