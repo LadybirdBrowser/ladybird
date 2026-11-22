@@ -1861,19 +1861,27 @@ impl<'pass> InlineContentPreparer<'pass> {
             // NO-BREAK SPACE. However, with the exception of U+00A0 NO-BREAK SPACE, there must be no soft wrap
             // opportunity between atomic inlines and adjacent characters belonging to the Unicode GL, WJ, or ZWJ line
             // breaking classes."
-            // NB: The line breaker allows the break before the box, and the text after it looks for the one after it.
+            // https://drafts.csswg.org/css-text-3/#valdef-white-space-nowrap
+            // "For soft wrap opportunities defined by the boundary between two characters or atomic inlines, the
+            // white-space property on the nearest common ancestor of the two characters controls breaking"
+            // NB: The opportunity before the box is decided here, and the text after it looks for the one after it.
             //     The box stands in the text before that text as U+FFFC OBJECT REPLACEMENT CHARACTER.
+            let can_break_before = self.previous_node.is_some_and(|previous_node| {
+                self.style(self.nearest_common_ancestor(previous_node, node))
+                    .text_wrap_mode()
+                    == text_wrap_mode::WRAP
+            });
             self.previous_text = Some(&OBJECT_REPLACEMENT_CHARACTER);
             self.previous_node = Some(node);
             self.previous_text_breaks_all = false;
             self.previous_text_regional_indicators = 0;
             self.code_unit_before_previous_text = None;
             self.skip_to_next_within_item();
-            return Some(PreparedItem::new(
-                ItemType::Element,
-                node,
-                PreparedItem::TAKES_LEADING_EDGES | PreparedItem::TAKES_TRAILING_EDGES,
-            ));
+            let mut flags = PreparedItem::TAKES_LEADING_EDGES | PreparedItem::TAKES_TRAILING_EDGES;
+            if can_break_before {
+                flags |= PreparedItem::CAN_BREAK_BEFORE;
+            }
+            return Some(PreparedItem::new(ItemType::Element, node, flags));
         }
     }
 }
@@ -2379,6 +2387,7 @@ impl<'context> RunItemResolver<'_, 'context> {
     fn resolve_element_item(&mut self, item_index: usize, prepared_item: &PreparedItem) -> Item {
         let node = prepared_item.node();
         let mut item = Item::new(ItemType::Element, node, item_index);
+        item.can_break_before = prepared_item.has(PreparedItem::CAN_BREAK_BEFORE);
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
@@ -2728,6 +2737,26 @@ impl InlineLevelIterator {
         edges + content
     }
 
+    /// Whether the next text or atomic inline is part of the same unbreakable run as the item before it.
+    pub(crate) fn next_line_content_continues_run(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> bool {
+        self.items()
+            .iter()
+            .find(|item| !sits_between_line_content(item))
+            .is_some_and(|next| match next.type_ {
+                ItemType::Element => !next.can_break_before,
+                // NB: White space ends the run only where it wraps.
+                ItemType::Text => {
+                    !next.can_break_before
+                        && (!(next.is_collapsible_whitespace || next.is_ascii_whitespace(context))
+                            || context.style(context.parent_node(next.node)).text_wrap_mode() != text_wrap_mode::WRAP)
+                }
+                _ => false,
+            })
+    }
+
     pub(crate) fn unbreakable_run_inline_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
@@ -2849,6 +2878,15 @@ pub(crate) fn whitespace_and_sequence_inline_size(
     whitespace: &Item,
     items: &[Item],
 ) -> Option<CssPixels> {
+    // NB: An atomic inline that a line can break before decides that break itself when the line builder comes to it, so
+    //     the white space before it stays on the line, as it would before a line break there.
+    if items
+        .iter()
+        .find(|item| !sits_between_line_content(item))
+        .is_some_and(|item| item.type_ == ItemType::Element && item.can_break_before)
+    {
+        return None;
+    }
     let (length, end) = sequence_length(context, prepared, items, false, false);
     let prefix =
         (end == SequenceEnd::SoftWrapInText).then(|| first_breakable_segment(context, prepared, &items[length], end));
@@ -2921,8 +2959,7 @@ fn starts_line_content<'item>(mut items: impl Iterator<Item = &'item Item>) -> b
     items
         .find(|item| !sits_between_line_content(item))
         .is_some_and(|item| match item.type_ {
-            ItemType::Text => item.can_break_before,
-            ItemType::Element => true,
+            ItemType::Text | ItemType::Element => item.can_break_before,
             _ => false,
         })
 }
@@ -2983,16 +3020,23 @@ fn sequence_length<'item>(
         if length > 0 && item.can_break_before {
             break;
         }
-        let style = context.style(context.style_source(item.node));
-        if style.text_wrap_mode() == text_wrap_mode::WRAP {
-            if item.type_ != ItemType::Text {
-                break;
+        match item.type_ {
+            ItemType::Text => {
+                if context.style(context.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
+                    if item.is_collapsible_whitespace || item.is_ascii_whitespace(context) {
+                        return (length, SequenceEnd::Whitespace);
+                    }
+                    if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
+                        return (length, SequenceEnd::OverflowBreakableText);
+                    }
+                }
             }
-            if item.is_collapsible_whitespace || item.is_ascii_whitespace(context) {
-                return (length, SequenceEnd::Whitespace);
-            }
-            if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
-                return (length, SequenceEnd::OverflowBreakableText);
+            // NB: Whether a line can break before an atomic inline is what its item records, as checked above.
+            ItemType::Element => {}
+            _ => {
+                if context.style(context.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
+                    break;
+                }
             }
         }
         if !(length == 0 && include_first_whole_item) && item.has_soft_wraps(prepared) {

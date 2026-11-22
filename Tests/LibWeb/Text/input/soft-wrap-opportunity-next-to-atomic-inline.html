@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../Ref/data/fonts/Ahem.ttf"); }
+    body { font: 10px/20px Ahem; }
+    .c { width: 100px; margin-bottom: 10px; }
+    .box { display: inline-block; width: 20px; height: 10px; }
+    .nowrap { white-space: nowrap; }
+    img { width: 20px; height: 10px; }
+</style>
+<div class="c" id="box-at-end-of-nowrap-text"><span class="nowrap">aa bb <span>cc</span><span class="box"></span> or</span></div>
+<div class="c" id="image-at-end-of-nobr"><nobr>aa bb cccc<img></nobr></div>
+<div class="c" id="box-after-space-in-nowrap-text"><span class="nowrap">aa bb ccc <span class="box"></span></span></div>
+<div class="c" id="nowrap-boxes-in-wrapping-text">aa <span>bbbb</span><span class="box nowrap"></span><span class="box nowrap"></span></div>
+<div class="c" id="nowrap-span-of-boxes-after-wrapping-text">aa <span>bbbb</span><span class="nowrap"><span class="box"></span><span class="box"></span></span></div>
+<div class="c" id="box-after-word-joiner">aa bbbbbbb&#x2060;<span class="box"></span></div>
+<div class="c" id="box-after-word-joiner-at-line-end">aaaaaaaaa&#x2060;<span class="box"></span></div>
+<div class="c" id="box-after-no-break-space">aa bbbbbb&nbsp;<span class="box"></span></div>
+<div class="c" id="nowrap-span-of-boxes-and-a-space">aaaaaa<span class="nowrap"><span class="box"></span> <span class="box"></span></span></div>
+<div class="c" id="nowrap-boxes-ending-together-by-negative-margin">aa <span class="nowrap"><span class="box" style="width: 80px; margin-right: -40px"></span><span class="box" style="width: 40px"></span></span></div>
+<div class="c" id="nowrap-boxes-overlapping-by-negative-margin">aaaa <span class="nowrap"><span class="box" style="margin-right: -10px"></span><span class="box"></span></span></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const c of document.querySelectorAll(".c")) {
+            const top = c.getBoundingClientRect().top;
+            const boxes = [...c.querySelectorAll(".box, img")].map(box => box.getBoundingClientRect().top - top);
+            const width = c.style.width;
+            c.style.width = "min-content";
+            const minContent = c.getBoundingClientRect().width;
+            c.style.width = width;
+            println(`${c.id}: height ${c.getBoundingClientRect().height}, boxes at ${boxes.join(", ")}, min-content ${minContent}`);
+        }
+        done();
+    });
+</script>

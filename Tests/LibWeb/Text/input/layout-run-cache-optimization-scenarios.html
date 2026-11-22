@@ -330,7 +330,9 @@
                     const maximum = sequence.max + (testCase.content === "atomicPair" ? 10 : 0);
                     let minimum = sequence.min;
                     if (testCase.wrapping === "nowrap") {
-                        if (testCase.content === "direct" || testCase.content === "inline")
+                        // NB: Boxes in a span that wraps can break apart, since the span is their nearest common
+                        //     ancestor, and only the nowrap container's own children can't.
+                        if (testCase.content === "direct")
                             minimum = sequence.max;
                         else if (testCase.content === "atomicPair")
                             minimum += 10;

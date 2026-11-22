@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	CSS Text Test: Check atomic inline+NBSP quirk does not apply if nowrap
+Pass	CSS Text Test: Check atomic inline+NBSP quirk does not apply if nowrap 1
+Pass	CSS Text Test: Check atomic inline+NBSP quirk does not apply if nowrap 2
+Pass	CSS Text Test: Check atomic inline+NBSP quirk does not apply if nowrap 3

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Check atomic inline+NBSP quirk does not apply if nowrap</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<link rel="help" href="https://crbug.com/1002442">
+<link rel="author" title="Koji Ishii" href="mailto:kojiishi@gmail.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1;
+  width: 5ch;
+}
+.inline-block {
+  display: inline-block;
+  width: 3ch;
+  height: 1em;
+}
+img {
+  width: 3ch;
+  height: 1em;
+}
+</style>
+<body>
+  <div>000<span class="inline-block"></span>&nbsp;111</div>
+  <div>000<img>&nbsp;111</div>
+  <div>000&nbsp;<span class="inline-block"></span>111</div>
+  <div>000&nbsp;<img>111</div>
+<script>
+(function () {
+  for (let e of document.getElementsByTagName('div')) {
+    test(() => {
+      let height = e.offsetHeight;
+      assert_equals(Math.round(height / 10), 1);
+    });
+  }
+})();
+</script>
+</body>

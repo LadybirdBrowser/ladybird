@@ -2032,17 +2032,11 @@ impl<'context> InlineFormattingContext<'context> {
         prepared: &prepared_inline_content::PreparedInlineContent,
     ) -> sizing_context::ContentInlineSizes {
         let containing_style = self.style(self.containing_block);
-        let container_wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
         let text_indentation =
             TextIndentation::of(containing_style, self.input.containing_block_constraints.inline_basis());
-        let mut max_content_lines = ContentSizingLines::new(
-            LinesWithoutLineBoxes::indented_by(false, text_indentation),
-            container_wraps,
-        );
-        let mut min_content_lines = ContentSizingLines::new(
-            LinesWithoutLineBoxes::indented_by(true, text_indentation),
-            container_wraps,
-        );
+        let mut max_content_lines =
+            ContentSizingLines::new(LinesWithoutLineBoxes::indented_by(false, text_indentation));
+        let mut min_content_lines = ContentSizingLines::new(LinesWithoutLineBoxes::indented_by(true, text_indentation));
         for index in 0..items.len() {
             max_content_lines.append(self, items, prepared, index);
             min_content_lines.append(self, items, prepared, index);
@@ -2878,9 +2872,22 @@ impl<'context> InlineFormattingContext<'context> {
                             placed_child.with_in_flow_box_insets(insets)
                         });
                     }
-                    if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
-                        let minimum = item.margin_start + item.border_box_inline_size() + item.margin_end;
-                        line_builder.break_if_needed(minimum);
+                    if item.can_break_before
+                        || (line_builder.current_line_is_empty()
+                            && self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP)
+                    {
+                        // NB: The box goes on the line with whatever can't be broken from it after it, such as a box in
+                        //     the same nowrap inline box. A box by itself needs only its advance, which a negative end
+                        //     margin reduces.
+                        let box_inline_size = item.margin_start + item.border_box_inline_size() + item.margin_end;
+                        let needed_inline_size = if iterator.next_line_content_continues_run(self) {
+                            iterator
+                                .unbreakable_run_inline_size(self, &item, false)
+                                .max(box_inline_size)
+                        } else {
+                            box_inline_size
+                        };
+                        line_builder.break_if_needed(needed_inline_size);
                         line_builder.note_soft_wrap_opportunity();
                     }
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
@@ -4208,8 +4215,8 @@ impl LinesWithoutLineBoxes {
         }
     }
 
-    pub(super) fn append_atomic_inline(&mut self, border_box_inline_size: CssPixels, container_wraps: bool) {
-        if container_wraps && self.breaks_before_next_fragment() {
+    pub(super) fn append_atomic_inline(&mut self, border_box_inline_size: CssPixels, can_break_before: bool) {
+        if can_break_before && self.breaks_before_next_fragment() {
             self.finish();
         }
         self.append(border_box_inline_size, false, CssPixels::default());
@@ -4324,7 +4331,6 @@ impl LinesWithoutLineBoxes {
 
 struct ContentSizingLines {
     lines: LinesWithoutLineBoxes,
-    container_wraps: bool,
     pending_start_margin: CssPixels,
     pending_start_border: CssPixels,
     pending_start_padding: CssPixels,
@@ -4332,10 +4338,9 @@ struct ContentSizingLines {
 }
 
 impl ContentSizingLines {
-    fn new(lines: LinesWithoutLineBoxes, container_wraps: bool) -> Self {
+    fn new(lines: LinesWithoutLineBoxes) -> Self {
         Self {
             lines,
-            container_wraps,
             pending_start_margin: CssPixels::default(),
             pending_start_border: CssPixels::default(),
             pending_start_padding: CssPixels::default(),
@@ -4423,7 +4428,7 @@ impl ContentSizingLines {
             }
             inline_level_iterator::ItemType::Element => {
                 self.lines
-                    .append_atomic_inline(border_box_inline_size, self.container_wraps);
+                    .append_atomic_inline(border_box_inline_size, item.can_break_before);
             }
             // An absolutely positioned box only takes a static position, which comes after the pending inline edges.
             inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
@@ -4455,7 +4460,7 @@ impl ContentSizingLines {
                 };
                 // NB: Min-content breaks at every soft wrap opportunity, so content that ends in a soft hyphen ends
                 //     its line in a hyphen wherever the content after it can start a line. And min-content breaks
-                //     before every atomic inline in a container that wraps, as append_atomic_inline() does.
+                //     before every atomic inline that a line can break before, as append_atomic_inline() does.
                 let next_content = remaining_items.iter().find(|next| {
                     !matches!(
                         next.type_,
@@ -4465,8 +4470,9 @@ impl ContentSizingLines {
                     )
                 });
                 let breaks_after_item = next_content.is_some_and(|next| match next.type_ {
-                    inline_level_iterator::ItemType::Text => next.can_break_before,
-                    inline_level_iterator::ItemType::Element => self.container_wraps,
+                    inline_level_iterator::ItemType::Text | inline_level_iterator::ItemType::Element => {
+                        next.can_break_before
+                    }
                     _ => false,
                 });
                 if style.text_wrap_mode() == text_wrap_mode::WRAP {
