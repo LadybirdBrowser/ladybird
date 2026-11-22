@@ -31,6 +31,7 @@
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
+#include <LibWeb/Fetch/Engine/WholeBodyRead.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
@@ -167,7 +168,7 @@ private:
 GC_DEFINE_ALLOCATOR(ResponseBodyForwardingReadRequest);
 
 // The view of the body of response, which takes the channel the body's bytes arrive through.
-static GC::Ptr<Infrastructure::Body> create_body_view(JS::Realm& realm, Infrastructure::Response& response, GC::Ptr<Infrastructure::FetchController> fetch_controller, GC::Ptr<GC::Function<void()>> pull_task_discard_steps = {})
+static GC::Ptr<Infrastructure::Body> create_body_view(JS::Realm& realm, Infrastructure::Response& response)
 {
     auto body = response.body();
     if (!body.has_value())
@@ -179,7 +180,7 @@ static GC::Ptr<Infrastructure::Body> create_body_view(JS::Realm& realm, Infrastr
     auto channel = body->bytes().get<NonnullRefPtr<Engine::FetchByteChannel>>();
     auto length = body->length();
     response.set_body(Infrastructure::ResponseBody { Infrastructure::ResponseBody::ReadThroughStream {}, length });
-    return create_body_from_channel(realm, fetch_controller, move(channel), pull_task_discard_steps);
+    return create_body_from_channel(realm, nullptr, move(channel));
 }
 
 class HTTPCache {
@@ -874,13 +875,13 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         if (!response) {
             pending_response = get_response->function()();
         }
-        pending_response->when_loaded(GC::create_function<void(NonnullRefPtr<Infrastructure::Response>)>(GC::Heap::the(), GC::captures(realm, fetch_params, controller, request, response, !response), [](auto& realm, NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, GC::Ref<Infrastructure::FetchController>& controller, NonnullRefPtr<Infrastructure::Request>& request, RefPtr<Infrastructure::Response>& response, bool& response_was_null, NonnullRefPtr<Infrastructure::Response> resolved_response) {
+        pending_response->when_loaded(GC::create_function<void(NonnullRefPtr<Infrastructure::Response>)>(GC::Heap::the(), GC::captures(realm, fetch_params, request, response, !response), [](auto& realm, NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, NonnullRefPtr<Infrastructure::Request>& request, RefPtr<Infrastructure::Response>& response, bool& response_was_null, NonnullRefPtr<Infrastructure::Response> resolved_response) {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
 
             // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
-            //         (the fully-read in step 22, and fetch response handover's tasks, body pipe and body read). Record
-            //         that the response has arrived (a network response was recorded as its headers came in) — so
-            //         consume_a_preloaded_resource() re-targets an in-flight preload's fetch only til then.
+            //         (fetch response handover's tasks, body pipe and body read). Record that the response has arrived
+            //         (a network response was recorded as its headers came in), so consume_a_preloaded_resource()
+            //         re-targets an in-flight preload's fetch only until then.
             fetch_params->control_block().set_response_arrived();
 
             if (response_was_null)
@@ -995,21 +996,21 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             if (!request->integrity_metadata().is_empty()) {
                 // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
                 //    error.
-                auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(fetch_params), [](auto& fetch_params, JS::Value) {
+                auto process_body_error = [fetch_params] {
                     fetch_response_handover(*fetch_params, Infrastructure::Response::network_error("Response body could not be processed"_string));
-                });
+                };
 
                 // 2. If response’s body is null, then run processBodyError and abort these steps.
                 if (!response->body().has_value()) {
-                    process_body_error->function()({});
+                    process_body_error();
                     return;
                 }
 
                 // 3. Let processBody given bytes be these steps:
-                auto process_body = GC::create_function(GC::Heap::the(), GC::captures(request, response, fetch_params, process_body_error), [](auto& request, auto& response, auto& fetch_params, auto& process_body_error, ByteBuffer bytes) {
+                auto process_body = [request, response, fetch_params, process_body_error](ByteBuffer bytes) {
                     // 1. If bytes do not match request’s integrity metadata, then run processBodyError and abort these steps.
                     if (!TRY_OR_IGNORE(SRI::do_bytes_match_metadata_list(bytes, request->integrity_metadata()))) {
-                        process_body_error->function()({});
+                        process_body_error();
                         return;
                     }
 
@@ -1018,19 +1019,20 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
                     // 3. Run fetch response handover given fetchParams and response.
                     fetch_response_handover(*fetch_params, *response);
-                });
+                };
 
                 // 4. Fully read response’s body given processBody and processBodyError.
-                // NB: Main fetch can no longer hand a response over once a task the read waits on is discarded, as the
-                //     tasks of a destroyed document are.
+                // NB: The fetch's engine reads the body, and its executor runs processBody or processBodyError as the
+                //     parallel queue that fully reading starts would.
                 NonnullRefPtr engine_record = *fetch_params->engine_record();
-                auto read_task_discard_steps = GC::create_function(GC::Heap::the(), GC::captures(engine_record), [](auto& engine_record) {
-                    engine_record->main_fetch_cannot_hand_over();
-                });
-                if (auto const* channel = response->body()->bytes().get_pointer<NonnullRefPtr<Engine::FetchByteChannel>>())
-                    engine_record->main_fetch_reads_whole_body(**channel);
-                auto body_view = create_body_view(realm, *response, controller, read_task_discard_steps);
-                body_view->fully_read(realm, process_body, process_body_error, controller->task_destination(), read_task_discard_steps);
+                auto continue_after_the_read = [engine_record, process_body, process_body_error](Engine::WholeBodyReadResult result) {
+                    engine_record->defer([process_body, process_body_error, result = move(result)]() mutable {
+                        result.visit(
+                            [&](ByteBuffer& bytes) { process_body(move(bytes)); },
+                            [&](Engine::WholeBodyReadFailure) { process_body_error(); });
+                    });
+                };
+                Engine::read_whole_body(*response->body(), move(continue_after_the_read));
             }
             // 24. Otherwise, run fetch response handover given fetchParams and response.
             else {
@@ -2980,7 +2982,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
         .body_delivery_gate = body_pump->delivery_gate(),
         .body_channel = body_pump->channel(),
     });
-    return create_body_view(realm, response, nullptr);
+    return create_body_view(realm, response);
 }
 
 static Engine::Event::NetworkActivity::RequestStarted network_request_started(LoadRequest const& load_request, Infrastructure::Request const& request)

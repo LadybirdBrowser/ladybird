@@ -7,6 +7,7 @@
 #include <AK/Atomic.h>
 #include <AK/Format.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
+#include <LibWeb/Fetch/Engine/FetchExecutor.h>
 
 namespace Web::Fetch::Engine {
 
@@ -60,7 +61,6 @@ void FetchEngineRecord::stop()
     if (m_redirect_continuation.has_value())
         abandon_redirect();
     stop_body_transport();
-    end_main_fetch_if_its_read_cannot_end();
 }
 
 void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
@@ -146,7 +146,7 @@ void FetchEngineRecord::main_fetch_hands_over(Event::ResponseDelivery delivery)
     ASSERT(is_on_owner_thread());
     if (m_main_fetch.has<MainFetchEnded>())
         return;
-    VERIFY(m_main_fetch.has<MainFetchRunning>() || m_main_fetch.has<MainFetchReadsWholeBody>());
+    VERIFY(m_main_fetch.has<MainFetchRunning>());
     m_main_fetch = MainFetchEnded {};
     m_event_sink->handle_event(move(delivery));
     end_fetch_unless_anything_is_left();
@@ -157,20 +157,14 @@ void FetchEngineRecord::main_fetch_cannot_hand_over()
     ASSERT(is_on_owner_thread());
     if (m_main_fetch.has<MainFetchEnded>())
         return;
-    RefPtr<FetchByteChannel> channel_main_fetch_reads;
-    if (auto const* reads_whole_body = m_main_fetch.get_pointer<MainFetchReadsWholeBody>())
-        channel_main_fetch_reads = reads_whole_body->channel;
     end_main_fetch();
-    if (channel_main_fetch_reads)
-        (void)channel_main_fetch_reads->cancel();
 }
 
-void FetchEngineRecord::main_fetch_reads_whole_body(FetchByteChannel& channel)
+void FetchEngineRecord::defer(Function<void()> work)
 {
     ASSERT(is_on_owner_thread());
-    VERIFY(m_main_fetch.has<MainFetchRunning>());
-    m_main_fetch = MainFetchReadsWholeBody { channel };
-    end_main_fetch_if_its_read_cannot_end();
+    if (auto* records = m_records.ptr())
+        records->defer(move(work));
 }
 
 void FetchEngineRecord::main_fetch_waits_for_preload()
@@ -201,15 +195,7 @@ void FetchEngineRecord::did_end_load()
     ASSERT(is_on_owner_thread());
     VERIFY(m_live_load_count > 0);
     --m_live_load_count;
-    end_main_fetch_if_its_read_cannot_end();
     end_fetch_unless_anything_is_left();
-}
-
-void FetchEngineRecord::end_main_fetch_if_its_read_cannot_end()
-{
-    auto const* reads_whole_body = m_main_fetch.get_pointer<MainFetchReadsWholeBody>();
-    if (reads_whole_body && !reads_whole_body->channel->can_be_read_to_its_end())
-        end_main_fetch();
 }
 
 void FetchEngineRecord::end_main_fetch()
@@ -262,6 +248,19 @@ void FetchEngineRecords::Agent::misbehaved(StringView reason)
 FetchEngineRecords::FetchEngineRecords(NonnullOwnPtr<Agent> agent)
     : m_agent(move(agent))
 {
+}
+
+void FetchEngineRecords::attach_to_executor(FetchExecutor& executor)
+{
+    VERIFY(!m_executor);
+    m_executor = &executor;
+}
+
+void FetchEngineRecords::defer(Function<void()> work)
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_executor);
+    m_executor->defer({}, move(work));
 }
 
 RefPtr<FetchEngineRecord> FetchEngineRecords::start(FetchId fetch_id, NonnullOwnPtr<EngineEventSink> event_sink, NonnullRefPtr<NetworkActivityObservers const> network_activity_observers)

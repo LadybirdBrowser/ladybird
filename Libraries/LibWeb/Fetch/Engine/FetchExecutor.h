@@ -8,6 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
+#include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
@@ -19,6 +20,8 @@
 
 namespace Web::Fetch::Engine {
 
+class FetchEngineRecords;
+
 // Commands reach the engine on its thread, in posting order, and never after shutdown.
 class WEB_API FetchExecutor : public AtomicRefCounted<FetchExecutor> {
 public:
@@ -26,7 +29,11 @@ public:
 
     void post(EngineCommand);
 
-    // Drops every command that has not started running; one that has started completes.
+    // Runs work of the engine's own on the engine's thread, after the commands posted before it, unless the executor
+    // shuts down first.
+    void defer(Badge<FetchEngineRecords>, Function<void()>);
+
+    // Drops every command and deferred work that has not started running; one that has started completes.
     void shutdown();
 
 protected:
@@ -38,13 +45,16 @@ protected:
     virtual bool post_task(Function<void()>) = 0;
 
 private:
-    void run_pending_commands();
-    void drop_pending_commands();
+    using PendingWork = Variant<EngineCommand, Function<void()>>;
+
+    void enqueue(PendingWork);
+    void run_pending_work();
+    void drop_pending_work();
 
     FetchExecutorServices m_services;
     NonnullOwnPtr<EngineCommandSink> m_engine;
-    Mutex m_pending_commands_mutex;
-    Queue<EngineCommand> m_pending_commands;
+    Mutex m_pending_work_mutex;
+    Queue<PendingWork> m_pending_work;
     Atomic<bool> m_shut_down { false };
 };
 

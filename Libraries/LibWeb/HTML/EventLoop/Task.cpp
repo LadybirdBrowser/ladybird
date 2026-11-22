@@ -105,10 +105,10 @@ NonnullRefPtr<ParallelQueue> ParallelQueue::create()
     return adopt_ref(*new (nothrow) ParallelQueue);
 }
 
-TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<void()>> algorithm, GC::Ptr<GC::Function<void()>> discard_steps)
+TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<void()>> algorithm)
 {
     auto& event_loop = HTML::current_event_loop();
-    auto task = HTML::Task::create(m_task_source.source, nullptr, algorithm, HTML::Task::Priority::Normal, discard_steps);
+    auto task = HTML::Task::create(m_task_source.source, nullptr, algorithm);
     event_loop.task_queue().add(task);
     return task->id();
 }

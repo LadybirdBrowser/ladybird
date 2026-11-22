@@ -164,7 +164,7 @@ struct WEB_API UniqueTaskSource {
 class WEB_API ParallelQueue : public RefCounted<ParallelQueue> {
 public:
     static NonnullRefPtr<ParallelQueue> create();
-    TaskID enqueue(GC::Ref<GC::Function<void()>>, GC::Ptr<GC::Function<void()>> discard_steps = {});
+    TaskID enqueue(GC::Ref<GC::Function<void()>>);
 
 private:
     UniqueTaskSource m_task_source;

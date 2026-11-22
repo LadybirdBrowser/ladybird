@@ -57,6 +57,13 @@ struct ReachedSteps : RefCounted<ReachedSteps> {
     bool marker_reached { false };
 };
 
+// The responses the fetch engine has handed over to the fetches' agent, in the order it handed them over.
+struct HandedOverResponses : RefCounted<HandedOverResponses> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    Vector<NonnullRefPtr<Web::Fetch::Infrastructure::Response const>> responses;
+};
+
 // The commands posted to an engine that applies none of them, for the test to hand on.
 struct PostedCommands : RefCounted<PostedCommands> {
     Vector<Web::Fetch::Engine::EngineCommand> commands;
@@ -73,13 +80,15 @@ inline ByteString describe_transport_control(Web::Fetch::Engine::Command::Transp
 }
 
 // Hands each event of a fetch on to the fetch's event sink, and records the ends of the fetch's bodies and of the fetch,
-// and each event that comes after the fetch's end. It is destroyed with the fetch's engine record, and records that too.
+// each event that comes after the fetch's end, and each response handed over. It is destroyed with the fetch's engine
+// record, and records that too.
 class EventRecordingSink final : public Web::Fetch::Engine::EngineEventSink {
 public:
-    EventRecordingSink(NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> event_sink, NonnullRefPtr<ReachedSteps> reached, NonnullRefPtr<ReachedSteps> records_gone, ByteString fetch)
+    EventRecordingSink(NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> event_sink, NonnullRefPtr<ReachedSteps> reached, NonnullRefPtr<ReachedSteps> records_gone, NonnullRefPtr<HandedOverResponses> handed_over, ByteString fetch)
         : m_event_sink(move(event_sink))
         , m_reached(move(reached))
         , m_records_gone(move(records_gone))
+        , m_handed_over(move(handed_over))
         , m_fetch(move(fetch))
     {
     }
@@ -97,6 +106,8 @@ public:
             m_reached->steps.append(ByteString::formatted("end of body of {}", m_fetch));
         else if (event.has<Web::Fetch::Engine::Event::FetchEnded>())
             m_reached->steps.append(ByteString::formatted("end of fetch {}", m_fetch));
+        if (auto const* delivery = event.get_pointer<Web::Fetch::Engine::Event::ResponseDelivery>())
+            m_handed_over->responses.append(delivery->response);
         m_fetch_ended |= event.has<Web::Fetch::Engine::Event::FetchEnded>();
         m_event_sink->handle_event(move(event));
     }
@@ -105,6 +116,7 @@ private:
     NonnullOwnPtr<Web::Fetch::Engine::EngineEventSink> m_event_sink;
     NonnullRefPtr<ReachedSteps> m_reached;
     NonnullRefPtr<ReachedSteps> m_records_gone;
+    NonnullRefPtr<HandedOverResponses> m_handed_over;
     ByteString m_fetch;
     bool m_fetch_ended { false };
 };
@@ -130,12 +142,15 @@ class CommandRecordingEngine final : public Web::Fetch::Engine::EngineCommandSin
 public:
     using Destination = Variant<Empty, NonnullRefPtr<PostedCommands>, NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>;
 
-    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, Destination destination = Empty {}, RefPtr<ReachedSteps> records_gone = {})
+    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, Destination destination = Empty {}, RefPtr<ReachedSteps> records_gone = {}, RefPtr<HandedOverResponses> handed_over = {})
         : m_reached(move(reached))
         , m_records_gone(records_gone ? records_gone.release_nonnull() : make_ref_counted<ReachedSteps>())
+        , m_handed_over(handed_over ? handed_over.release_nonnull() : make_ref_counted<HandedOverResponses>())
         , m_destination(move(destination))
     {
     }
+
+    virtual void attach_to_executor(Web::Fetch::Engine::FetchExecutor&) override { }
 
     virtual void handle_command(Web::Fetch::Engine::EngineCommand command) override
     {
@@ -143,7 +158,7 @@ public:
         m_reached->steps.append(describe(command));
         if (auto const* engine_executor = m_destination.get_pointer<NonnullRefPtr<Web::Fetch::Engine::FetchExecutor>>()) {
             if (auto* start = command.get_pointer<StartFetch>())
-                start->input.event_sink = make<EventRecordingSink>(move(start->input.event_sink), m_reached, m_records_gone, fetch(start->input.fetch_id));
+                start->input.event_sink = make<EventRecordingSink>(move(start->input.event_sink), m_reached, m_records_gone, m_handed_over, fetch(start->input.fetch_id));
             (*engine_executor)->post(move(command));
             return;
         }
@@ -189,6 +204,7 @@ private:
 
     NonnullRefPtr<ReachedSteps> m_reached;
     NonnullRefPtr<ReachedSteps> m_records_gone;
+    NonnullRefPtr<HandedOverResponses> m_handed_over;
     Destination m_destination;
     Vector<Web::Fetch::Engine::FetchId> m_started_fetches;
 };
@@ -213,14 +229,14 @@ struct FetchHarness {
         agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
     }
 
-    // Records each command the agent posts from now on, before the agent's fetch engine gets it, and the fetches whose
-    // engine records are gone in records_gone.
+    // Records each command the agent posts from now on, before the agent's fetch engine gets it, the fetches whose
+    // engine records are gone in records_gone, and the responses the engine hands over in handed_over.
     NonnullRefPtr<ReachedSteps> record_commands() const
     {
         auto commands = make_ref_counted<ReachedSteps>();
         auto& agent = Web::HTML::surrounding_agent();
         Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
-        auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor }, records_gone);
+        auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor }, records_gone, handed_over);
         agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
         return commands;
     }
@@ -325,6 +341,7 @@ struct FetchHarness {
     GC::Ref<Web::DOM::Document> document;
     GC::Ref<JS::Realm> realm;
     NonnullRefPtr<ReachedSteps> records_gone { make_ref_counted<ReachedSteps>() };
+    NonnullRefPtr<HandedOverResponses> handed_over { make_ref_counted<HandedOverResponses>() };
 };
 
 // What a RequestServer the test stands in for has been sent: each message, in the order it came, as

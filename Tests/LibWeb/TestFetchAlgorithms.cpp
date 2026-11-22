@@ -2602,45 +2602,36 @@ static void hold_the_tasks_of(Web::DOM::Document& document)
     document.navigable()->set_has_been_destroyed();
 }
 
-static size_t queued_task_count()
-{
-    return Web::HTML::main_thread_event_loop().task_queue().size_slow();
-}
-
-// The tasks of a destroyed document are removed without running, among them the one that main fetch's read of the body
-// waits on to check its integrity.
-TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_its_body_ends_without_a_handover)
+TEST_CASE(a_fetch_stopped_while_main_fetch_reads_its_body_hands_its_failure_over)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
     FetchHarness harness;
     auto commands = harness.record_commands();
     StandInRequestServer request_server { harness };
-    auto document = create_test_document();
 
     auto record = make_ref_counted<AlgorithmCalls>();
-    auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/destroyed-mid-read"sv);
-    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
+    auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/stopped-mid-read"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto request_id = request_server.wait_for_request("GET"sv);
-    hold_the_tasks_of(*document);
-    auto task_count = queued_task_count();
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
-    request_server.send_finished(request_id, finished_timing_info(1000));
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(task_count), [](auto& task_count) { return queued_task_count() > task_count; }));
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(controller), [](auto& controller) { return controller->response_arrived(); }));
 
-    // The destruction stops the fetch, whose request has finished, and the engine gets the stop after the fetch's end.
-    harness.with_execution_context([&] { document->destroy(); });
-    harness.run_until_step(commands, "stop 1"sv);
+    harness.with_execution_context([&] { controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    request_server.wait_for_message("stop 0"sv);
     harness.settle();
 
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1", "stop 1" }));
-    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /destroyed-mid-read" }));
+    // The stop replaced the fetch's algorithms, so the handover runs none of them.
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "stop 1", "end of fetch 1" }));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /stopped-mid-read", "stop 0" }));
+    EXPECT(was_handed_over(*controller));
     EXPECT(record->responses.is_empty());
-    EXPECT(!is_rooted(token));
+    EXPECT(!is_rooted(controller->token()));
 }
 
-// A body that is already in memory is read without a pull task, and the read's end is the task the document holds.
-TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_a_body_in_memory_ends_without_a_handover)
+// A body that is already in memory is read, and its response handed over, without a task of the document.
+TEST_CASE(a_fetch_whose_document_holds_its_tasks_reads_a_body_in_memory_and_hands_it_over)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
@@ -2651,21 +2642,23 @@ TEST_CASE(a_fetch_whose_document_is_destroyed_while_main_fetch_reads_a_body_in_m
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "data:,"sv);
     hold_the_tasks_of(*document);
-    auto task_count = queued_task_count();
-    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(task_count), [](auto& task_count) { return queued_task_count() > task_count; }));
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record), document));
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    EXPECT(was_handed_over(*controller));
 
+    // The response's tasks go with the document.
     harness.with_execution_context([&] { document->destroy(); });
     harness.run_until_step(commands, "stop 1"sv);
     harness.settle();
 
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1", "stop 1" }));
     EXPECT(record->responses.is_empty());
-    EXPECT(!is_rooted(token));
+    EXPECT(!is_rooted(controller->token()));
 }
 
-// The abort stops the request while main fetch reads the body to check its integrity, so the read never ends.
-TEST_CASE(a_fetch_aborted_while_main_fetch_reads_its_body_ends_without_a_handover)
+// The abort stops the request while main fetch reads the body to check its integrity, and main fetch hands a network
+// error over.
+TEST_CASE(a_fetch_aborted_while_main_fetch_reads_its_body_hands_over_a_network_error)
 {
     auto const body = "the start of the body"sv;
     auto const path = ByteString::formatted("{}/TestFetchAlgorithms-{:016x}", Core::StandardPaths::tempfile_directory(), get_random<u64>());
@@ -2681,36 +2674,29 @@ TEST_CASE(a_fetch_aborted_while_main_fetch_reads_its_body_ends_without_a_handove
     FetchHarness harness;
     auto commands = harness.record_commands();
     StandInRequestServer request_server { harness };
-    auto document = create_test_document();
 
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/aborted-mid-read"sv);
-    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record), document));
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto request_id = request_server.wait_for_request("GET"sv);
-
-    // Main fetch's read of the body queues a task for the start of the body, which the document holds.
-    hold_the_tasks_of(*document);
-    auto task_count = queued_task_count();
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_body_file(request_id, path, body.length());
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(task_count), [](auto& task_count) { return queued_task_count() > task_count; }));
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(controller), [](auto& controller) { return controller->response_arrived(); }));
 
     harness.with_execution_context([&] { controller->abort(*harness.realm, {}); });
     harness.run_until_step(commands, "end of fetch 1"sv);
-    harness.settle();
+    harness.run_until_responses(record, 1);
+    request_server.wait_for_message("stop 0"sv);
 
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /aborted-mid-read", "stop 0" }));
-    EXPECT(record->responses.is_empty());
+    EXPECT(record->responses[0]->is_network_error());
     EXPECT(!is_rooted(controller->token()));
-
-    // The held task goes with the document.
-    harness.with_execution_context([&] { document->destroy(); });
 }
 
-// A keepalive fetch outlives its document, and once the read of its body is gone, nothing reads the body past the
-// channel's high watermark. Main fetch cancels the read's channel, which stops the body's transport.
-TEST_CASE(a_keepalive_fetch_whose_document_is_destroyed_while_main_fetch_reads_its_body_stops_its_load)
+// A keepalive fetch outlives its document, and main fetch reads the whole of its body, past the channel's high watermark,
+// and hands the response over.
+TEST_CASE(a_keepalive_fetch_whose_document_is_destroyed_while_main_fetch_reads_its_body_reads_all_of_it)
 {
     auto const body = ByteBuffer::create_zeroed(2 * MiB).release_value();
     auto const path = ByteString::formatted("{}/TestFetchAlgorithms-{:016x}", Core::StandardPaths::tempfile_directory(), get_random<u64>());
@@ -2730,24 +2716,28 @@ TEST_CASE(a_keepalive_fetch_whose_document_is_destroyed_while_main_fetch_reads_i
 
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/keepalive-mid-read"sv);
+    // The digest of the body.
+    request->set_integrity_metadata("sha256-VkfwXsGJWJR9ModO63iPo5agXQurfBtx8RLOt+mzHu4="_utf16);
     request->set_keepalive(true);
-    auto token = harness.fetch(request, recording_responses(harness.realm->heap(), record), document)->token();
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record), document));
     auto request_id = request_server.wait_for_request("GET"sv);
-    hold_the_tasks_of(*document);
-    auto task_count = queued_task_count();
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_body_file(request_id, path, body.size());
-    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(task_count), [](auto& task_count) { return queued_task_count() > task_count; }));
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(controller), [](auto& controller) { return controller->response_arrived(); }));
 
     // The destruction leaves the keepalive fetch running.
     harness.with_execution_context([&] { document->destroy(); });
+    request_server.send_finished(request_id, finished_timing_info(1000));
     harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of fetch 1" }));
-    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /keepalive-mid-read", "stop 0" }));
-    EXPECT(record->responses.is_empty());
-    EXPECT(!is_rooted(token));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /keepalive-mid-read" }));
+    VERIFY(harness.handed_over->responses.size() == 1);
+    auto const& response = *harness.handed_over->responses[0];
+    VERIFY(!response.is_network_error());
+    EXPECT_EQ(response.body()->length(), body.size());
+    EXPECT(!is_rooted(controller->token()));
 }
 
 // A request with a transfer lease runs the callbacks for what arrives with its finish, after its load has ended.

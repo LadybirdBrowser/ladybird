@@ -117,7 +117,7 @@ GC::Ref<Body> Body::clone(JS::Realm& realm)
 }
 
 // https://fetch.spec.whatwg.org/#body-fully-read
-void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::ProcessBodyCallback process_body, Web::Fetch::Infrastructure::Body::ProcessBodyErrorCallback process_body_error, TaskDestination task_destination, GC::Ptr<GC::Function<void()>> discard_steps) const
+void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::ProcessBodyCallback process_body, Web::Fetch::Infrastructure::Body::ProcessBodyErrorCallback process_body_error, TaskDestination task_destination) const
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -126,20 +126,18 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
         task_destination = HTML::ParallelQueue::create();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
-    auto success_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body, task_destination, discard_steps), [](ProcessBodyCallback process_body, TaskDestination const& task_destination, GC::Ptr<GC::Function<void()>> discard_steps, ByteBuffer bytes) {
+    auto success_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body, task_destination), [](ProcessBodyCallback process_body, TaskDestination const& task_destination, ByteBuffer bytes) {
         queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), GC::captures(process_body, move(bytes)), [](ProcessBodyCallback process_body, ByteBuffer& bytes) {
             process_body->function()(move(bytes));
-        }),
-            discard_steps);
+        }));
     });
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given
     //    exception, with taskDestination.
-    auto error_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body_error, task_destination, discard_steps), [](ProcessBodyErrorCallback process_body_error, TaskDestination const& task_destination, GC::Ptr<GC::Function<void()>> discard_steps, JS::Value exception) {
+    auto error_steps = GC::create_function(GC::Heap::the(), GC::captures(process_body_error, task_destination), [](ProcessBodyErrorCallback process_body_error, TaskDestination const& task_destination, JS::Value exception) {
         queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), GC::captures(process_body_error, exception), [](ProcessBodyErrorCallback process_body_error, JS::Value exception) {
             process_body_error->function()(exception);
-        }),
-            discard_steps);
+        }));
     });
 
     // 4. Let reader be the result of getting a reader for body’s stream. If that threw an exception, then run errorSteps

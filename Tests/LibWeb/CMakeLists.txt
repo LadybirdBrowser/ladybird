@@ -31,6 +31,7 @@ set(TEST_SOURCES
     TestFetchResponse.cpp
     TestFetchTaskDestination.cpp
     TestFetchURL.cpp
+    TestFetchWholeBodyRead.cpp
     TestHighResolutionTime.cpp
     TestHTMLTokenizer.cpp
     TestImageData.cpp
