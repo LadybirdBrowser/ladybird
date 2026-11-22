@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Flex transferred minimum width</title>
+<link rel="author" title="dgrogan@chromium.org" href="mailto:dgrogan@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto" />
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/5663" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht" />
+<meta name="assert" content="content size suggestion of a replaced aspect-ratio item accounts for definition stretched cross size">
+
+<style>
+#reference-overlapped-red {
+  position: absolute;
+  background-color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+<div style="width:100px; height: 50px; background: green;"></div> <!-- This just completes the green square. -->
+<div style="display: flex; width: 0px; height: 50px;">
+  <!--
+    content size suggestion is 100px because the image has a stretched height of 50px. So min-content size of the image is 300x150/50 = 100.
+    specified size suggestion is 150px
+    transferred size suggestion is 100px
+
+    transferred size suggestion is ignored because there is a specified size.
+
+    So here the content-based minimum size is min(100px, 150px) = 100px
+  -->
+  <img src="support/300x150-green.png" style="width: 999px;">
+</div>
