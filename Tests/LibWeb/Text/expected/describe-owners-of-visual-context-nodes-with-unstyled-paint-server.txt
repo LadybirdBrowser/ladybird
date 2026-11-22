@@ -1,0 +1,3 @@
+after a frame, describes a tree: true
+with style pending, describes a tree: false
+after the next frame, describes a tree: true

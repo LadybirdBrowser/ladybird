@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="100" height="100">
+    <defs id="defs"><radialGradient id="gradient"><stop offset="0" stop-color="green" /></radialGradient></defs>
+    <rect width="100" height="100" fill="url(#gradient)" />
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        println(`after a frame, describes a tree: ${internals.describeOwnersOfVisualContextNodes() !== 0}`);
+
+        // A gradient with the id the rect paints with, which no style update has styled yet.
+        const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+        gradient.id = "gradient";
+        gradient.innerHTML = '<stop offset="0" stop-color="blue" />';
+        document.getElementById("defs").replaceChildren(gradient);
+        println(`with style pending, describes a tree: ${internals.describeOwnersOfVisualContextNodes() !== 0}`);
+
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        println(`after the next frame, describes a tree: ${internals.describeOwnersOfVisualContextNodes() !== 0}`);
+        done();
+    });
+</script>

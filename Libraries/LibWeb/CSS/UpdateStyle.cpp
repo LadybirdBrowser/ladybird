@@ -949,6 +949,11 @@ void Document::update_style()
     }
 }
 
+bool Document::has_style_work(Layout::BegunRead const& read) const
+{
+    return CSS::document_has_style_work(read, *this);
+}
+
 bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (blocker != Layout::RustFFI::FfiFlightBlocker::None || m_flown_style_update_inputs.has_value())

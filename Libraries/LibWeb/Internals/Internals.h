@@ -194,6 +194,7 @@ public:
     void begin_visual_context_trace();
     Utf16String take_visual_context_trace();
     void update_visual_contexts_for_testing();
+    u64 describe_owners_of_visual_context_nodes();
     Utf16String take_display_list_trace();
     void begin_input_trace();
     GC::Ref<JS::Object> take_input_trace();
