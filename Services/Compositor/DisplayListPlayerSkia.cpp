@@ -1400,7 +1400,10 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(command.interpolation_method);
     SkGradient gradient { SkGradient::Colors { { colors.data(), colors.size() }, { color_stop_positions.data(), color_stop_positions.size() }, SkTileMode::kRepeat, color_space }, interpolation };
-    auto shader = SkShaders::SweepGradient(to_skia_point(center), 0, 360, gradient, &matrix);
+    // The stops' positions run from the first stop's fraction of a turn across as many turns as the gradient's span.
+    auto start_degrees = command.first_stop_position * 360;
+    auto end_degrees = (command.first_stop_position + command.repeat_length) * 360;
+    auto shader = SkShaders::SweepGradient(to_skia_point(center), start_degrees, end_degrees, gradient, &matrix);
 
     SkPaint paint;
     paint.setDither(true);

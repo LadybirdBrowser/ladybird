@@ -1476,6 +1476,8 @@ pub struct PaintConicGradient {
     pub rect: IntRect,
     pub start_angle: f32,
     pub color_stops: DisplayListGradientColorStops,
+    pub first_stop_position: f32,
+    pub repeat_length: f32,
     pub interpolation_method: GradientInterpolationMethod,
     pub position: IntPoint,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
@@ -1484,6 +1486,8 @@ display_list_record_fields!(PaintConicGradient {
     rect,
     start_angle,
     color_stops,
+    first_stop_position,
+    repeat_length,
     interpolation_method,
     position,
     compositing_and_blending_operator

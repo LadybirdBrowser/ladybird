@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-gradient-stops-outside-range-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-60000" />
+<style>
+    body {
+        margin: 0;
+    }
+    div {
+        float: left;
+        width: 100px;
+        height: 100px;
+        margin: 0 10px 10px 0;
+    }
+</style>
+<!-- A gradient paints the part of its stops' range that's inside 0%-100%, with the colors it has there. -->
+<div style="background: linear-gradient(black -100%, rgb(200, 200, 200))"></div>
+<div style="background: linear-gradient(black, rgb(200, 200, 200) 200%)"></div>
+<div style="background: linear-gradient(90deg, black -100%, rgb(200, 200, 200) 300%)"></div>
+<div style="background: radial-gradient(circle 50px, black -100%, rgb(200, 200, 200))"></div>
+<div style="background: radial-gradient(circle 25px, black, rgb(200, 200, 200) 200%)"></div>
+<div style="background: conic-gradient(black -100%, rgb(200, 200, 200))"></div>
+<div style="background: conic-gradient(black, rgb(200, 200, 200) 200%)"></div>

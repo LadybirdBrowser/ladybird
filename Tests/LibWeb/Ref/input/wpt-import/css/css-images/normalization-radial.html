@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Radial gradient stop normalization</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-images-3/#radial-gradients">
+<meta name="assert" content="Rendering of radial-gradient with normalized color stops">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-40000">
+<link rel="match" href="../../../../expected/wpt-import/css/css-images/reference/100x100-blue.html">
+<style>
+  #gradient {
+    width: 100px;
+    height: 100px;
+    background-image: radial-gradient(green -50%, blue -50%);
+  }
+</style>
+<div id="gradient"></div>

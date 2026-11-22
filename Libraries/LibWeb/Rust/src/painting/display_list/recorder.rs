@@ -119,6 +119,10 @@ pub struct LinearGradientData {
 pub struct ConicGradientData {
     pub start_angle: f32,
     pub color_stops: ColorStops,
+    /// The fraction of a turn the stops' positions start from, and how many turns they run, as for a linear
+    /// gradient's line.
+    pub first_stop_position: f32,
+    pub repeat_length: f32,
     pub interpolation_method: GradientInterpolationMethod,
 }
 
@@ -805,6 +809,8 @@ impl DisplayListRecorder {
             rect,
             start_angle: data.start_angle,
             color_stops,
+            first_stop_position: data.first_stop_position,
+            repeat_length: data.repeat_length,
             interpolation_method: data.interpolation_method,
             position,
             compositing_and_blending_operator,
