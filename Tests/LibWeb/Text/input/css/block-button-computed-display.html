@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<button id="target">Button</button>
+<script>
+    test(() => {
+        for (const display of ["block", "flow-root", "flex", "grid"]) {
+            target.style.display = display;
+            println(getComputedStyle(target).display);
+        }
+        target.style.cssText = "display: block; border: 0; padding: 0";
+        target.innerHTML = '<span style="float: left; width: 15px; height: 43px"></span>';
+        println(target.offsetHeight);
+    });
+</script>

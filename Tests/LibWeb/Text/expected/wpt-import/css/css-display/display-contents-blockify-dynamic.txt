@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	Dynamic changes to `display` causing blockification of children are handled correctly
-Fail	Dynamic changes to `display` from `grid` to `block` should cause children to get de-blockified despite being children of `display: contents` elements
-Fail	Dynamic changes to `display` from `block` to `grid` should cause children to get blockified despite being children of `display: contents` elements
+Pass	Dynamic changes to `display` from `grid` to `block` should cause children to get de-blockified despite being children of `display: contents` elements
+Pass	Dynamic changes to `display` from `block` to `grid` should cause children to get blockified despite being children of `display: contents` elements

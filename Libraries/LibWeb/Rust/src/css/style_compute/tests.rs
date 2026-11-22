@@ -229,8 +229,8 @@ fn element_style_adjustments_follow_box_type_transformation() {
     let adjustments = compute_element_style_adjustments(&input, keyword::LEFT);
     assert!(adjustments.box_type.changed_display);
     assert!(adjustments.box_type.display.is_block_outside());
-    assert!(adjustments.element_style.changed_display);
-    assert!(adjustments.element_style.display.is_flow_root_inside());
+    assert!(!adjustments.element_style.changed_display);
+    assert_eq!(adjustments.element_style.display, FfiDisplay::block());
 }
 
 fn test_context() -> FfiLengthResolutionContext {
