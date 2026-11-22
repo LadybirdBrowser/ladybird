@@ -89,6 +89,11 @@ ALLOWED_REALM_MENTIONS = {
         "MediaMetadata and ChapterInformation build the frozen arrays their [SameObject] FrozenArray attributes return, "
         "freezing the elements too, which the generated conversion doesn't do",
     ),
+    "PictureInPicture": (
+        2,
+        5,
+        "the C++ glue of the Rust PictureInPictureEvent creates it and wraps windows in a given realm",
+    ),
     "SVG": (2, 8, "SVG length objects still store/use realms for detached/reflected JS/CSS materialization"),
     "ServiceWorker": (
         6,

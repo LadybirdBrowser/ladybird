@@ -4,30 +4,37 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/PictureInPicture/PictureInPictureEvent.h>
+#include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
 
 namespace Web::PictureInPicture {
 
-GC_DEFINE_ALLOCATOR(PictureInPictureEvent);
+extern "C" {
+// Defined in Bindings/Rust/src/picture_in_picture/picture_in_picture_event.rs.
+DOM::Event* web_rust_picture_in_picture_event_create(JSVM*, void* realm, FlatPtr event_name, bool bubbles, bool cancelable, bool composed, PictureInPictureWindow* window);
 
-GC::Ref<PictureInPictureEvent> PictureInPictureEvent::create(Utf16FlyString const& event_name, PictureInPictureEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<PictureInPictureEvent>(event_name, event_init, time_stamp);
+// Called by Bindings/Rust/src/picture_in_picture/picture_in_picture_event.rs.
+PictureInPictureWindow* web_picture_in_picture_window_from_wrapper(JS::Object*);
+JS::Object* web_picture_in_picture_window_wrap(JS::Realm*, PictureInPictureWindow*);
 }
 
-PictureInPictureEvent::PictureInPictureEvent(Utf16FlyString const& event_name, PictureInPictureEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_picture_in_picture_window(event_init.picture_in_picture_window)
+GC::Ref<DOM::Event> create_picture_in_picture_event(JS::Realm& realm, Utf16FlyString const& event_name, DOM::EventInit const& event_init, PictureInPictureWindow& window)
 {
+    return *web_rust_picture_in_picture_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, event_name.raw_identity(), event_init.bubbles, event_init.cancelable, event_init.composed, &window);
 }
 
-PictureInPictureEvent::~PictureInPictureEvent() = default;
-
-void PictureInPictureEvent::visit_edges(GC::Cell::Visitor& visitor)
+PictureInPictureWindow* web_picture_in_picture_window_from_wrapper(JS::Object* object)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_picture_in_picture_window);
+    return Bindings::impl_from<PictureInPictureWindow>(object);
+}
+
+JS::Object* web_picture_in_picture_window_wrap(JS::Realm* realm, PictureInPictureWindow* window)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *window }).ptr();
 }
 
 }
