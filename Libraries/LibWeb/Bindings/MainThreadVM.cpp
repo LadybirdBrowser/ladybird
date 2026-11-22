@@ -49,6 +49,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -881,6 +882,7 @@ void shut_down_agent()
     for (;;) {
         if (ResourceLoader::is_initialized())
             ResourceLoader::the().stop_all_requests();
+        Fetch::Engine::WholeBodyTransport::stop_all_on_this_thread();
         if (!event_queue.has_pending_events())
             break;
         event_queue.process();
@@ -896,6 +898,7 @@ void shut_down_agent()
 
     // NB: What this agent used is of no use to this process unless another worker comes along, which may be never. What
     //     this thread's allocator still holds goes back when the thread exits.
+    Fetch::Engine::WholeBodyTransport::forget_all_on_this_thread();
     ak_kmalloc_collect();
     ladybird_did_end_short_lived_thread();
 
