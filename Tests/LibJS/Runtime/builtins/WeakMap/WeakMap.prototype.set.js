@@ -46,27 +46,6 @@ test.xfail("automatic removal of garbage-collected values", () => {
     expect(getWeakMapSize(weakMap)).toBe(0);
 });
 
-test("a value does not keep its own key alive", () => {
-    // Fill the map in a function of its own, so that the JIT leaves none of the keys in this frame.
-    const weakMap = (() => {
-        const weakMap = new WeakMap();
-        const key = {};
-        weakMap.set(key, { key });
-
-        // The first key's value is the second key, whose value refers back to the first.
-        const first = {};
-        const second = {};
-        weakMap.set(first, second);
-        weakMap.set(second, { first });
-        return weakMap;
-    })();
-    expect(getWeakMapSize(weakMap)).toBe(3);
-
-    gc();
-
-    expect(getWeakMapSize(weakMap)).toBe(0);
-});
-
 test("a value stays alive while its key is reachable through another entry", () => {
     const weakMap = new WeakMap();
     const first = {};
@@ -80,4 +59,27 @@ test("a value stays alive while its key is reachable through another entry", () 
 
     expect(getWeakMapSize(weakMap)).toBe(2);
     expect(weakMap.get(weakMap.get(first)).marker).toBe(42);
+});
+
+// NB: Fill the map in a function of its own, so that no key stays in a binding or register of this frame.
+const weakMapWithCycle = (() => {
+    const weakMap = new WeakMap();
+    const key = {};
+    weakMap.set(key, { key });
+
+    // The first key's value is the second key, whose value refers back to the first.
+    const first = {};
+    const second = {};
+    weakMap.set(first, second);
+    weakMap.set(second, { first });
+    return weakMap;
+})();
+const sizeOfWeakMapWithCycle = getWeakMapSize(weakMapWithCycle);
+
+// NB: The collection before the callback does not scan the stack, which can hold old copies of the keys.
+runAfterMovingCollection(() => {
+    test("a value does not keep its own key alive", () => {
+        expect(sizeOfWeakMapWithCycle).toBe(3);
+        expect(getWeakMapSize(weakMapWithCycle)).toBe(0);
+    });
 });
