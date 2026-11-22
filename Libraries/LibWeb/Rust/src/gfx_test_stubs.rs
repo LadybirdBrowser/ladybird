@@ -137,6 +137,17 @@ extern "C" fn ladybird_gfx_glyph_run_bounding_box(
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_glyph_run_ink_bounding_box(
+    _font: *const c_void,
+    _glyphs: *const ShapedGlyph,
+    _glyph_count: usize,
+    _scale: f32,
+    _out_rect: *mut f32,
+) {
+    unreachable!("no unit test shapes text");
+}
+
+#[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 extern "C" fn ladybird_gfx_glyph_run_glyph_intercepts(
     _font: *const c_void,

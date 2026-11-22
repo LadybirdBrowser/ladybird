@@ -1,0 +1,7 @@
+mi p: ascent 0, descent 8
+mn x: ascent 32, descent 8
+space-only  : ascent 0, descent 0
+mo p: ascent 0, descent 8
+mtext xp: ascent 32, descent 8
+breakable x p: ascent 52, descent 28
+nested x: ascent 52, descent 28

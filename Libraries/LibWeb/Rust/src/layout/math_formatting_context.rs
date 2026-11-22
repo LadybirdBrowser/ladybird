@@ -93,6 +93,31 @@ impl MathLayoutKind {
     }
 }
 
+// https://w3c.github.io/mathml-core/#layout-of-mtext
+pub(super) fn size_token_line_to_ink(line: &mut line_box::LineBoxData) {
+    let mut ink = libgfx_rust::FloatRect::default();
+    for fragment in &line.fragments {
+        if let Some(run) = &fragment.glyphs {
+            let mut bounds = libgfx_rust::FloatRect::from_array(libgfx_rust::text_layout::glyph_run_ink_bounding_box(
+                &run.font,
+                &run.glyphs,
+                1.0,
+            ));
+            bounds.y += (fragment.block_offset + fragment.baseline - line.block_start - line.baseline).to_float();
+            ink = ink.united(bounds);
+        }
+    }
+    let ascent = CssPixels::nearest_value_for_f32(-ink.y);
+    let shift = ascent - line.baseline;
+    for fragment in &mut line.fragments {
+        fragment.block_offset += shift;
+    }
+    line.baseline = ascent;
+    line.block_length = ascent + CssPixels::nearest_value_for_f32(ink.bottom());
+    line.block_end = line.block_start + line.block_length;
+    line.next_line_block_offset = line.block_end;
+}
+
 /// The unit of a MathML attribute value that is a `<length-percentage>`. Mirrors the C++ `MathLengthUnit`, where 0
 /// stands for an attribute that is absent or invalid.
 pub(crate) mod math_length_unit {
