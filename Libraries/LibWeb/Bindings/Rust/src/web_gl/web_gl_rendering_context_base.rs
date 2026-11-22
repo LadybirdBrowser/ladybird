@@ -17,8 +17,8 @@ use super::constants::{
     GL_DEPTH_STENCIL, GL_DEPTH_STENCIL_ATTACHMENT, GL_DEPTH24_STENCIL8, GL_DRAW_FRAMEBUFFER, GL_ELEMENT_ARRAY_BUFFER,
     GL_FRAGMENT_SHADER, GL_FRAMEBUFFER, GL_INFO_LOG_LENGTH, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE,
     GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH, GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PIXEL_PACK_BUFFER,
-    GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER, GL_RENDERBUFFER, GL_SHADER_SOURCE_LENGTH, GL_STENCIL_ATTACHMENT,
-    GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+    GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER, GL_RENDERBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+    GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
     GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X,
     GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TRANSFORM_FEEDBACK_BUFFER, GL_UNIFORM_BUFFER,
     GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL, GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_IMAGE_HEIGHT,
@@ -926,24 +926,10 @@ impl<V: Version> RenderingContext<V> {
         _: &mut CallContext,
         shader: Ref<WebGLShader>,
     ) -> WebIdlResult<Option<Utf16String>> {
-        let Some(shader_handle) = self.handle_of(shader) else {
+        if self.handle_of(shader).is_none() {
             return Ok(None);
-        };
-
-        let mut shader_source_length = [0i32; 1];
-        self.proxy
-            .get_shaderiv(shader_handle, GL_SHADER_SOURCE_LENGTH, &mut shader_source_length);
-        let [shader_source_length] = shader_source_length;
-        if shader_source_length == 0 {
-            return Ok(Some(Utf16String::from_ascii(b"")));
         }
-
-        let mut shader_source = zeroed_gl_string_buffer(shader_source_length);
-        self.proxy
-            .get_shader_source(shader_handle, shader_source_length, &mut shader_source);
-        Ok(Some(utf16_string_from_gl_string(
-            &shader_source[..shader_source.len() - 1],
-        )))
+        Ok(Some(shader.source()))
     }
 
     pub(crate) fn get_uniform_location(
@@ -1179,6 +1165,7 @@ impl<V: Version> RenderingContext<V> {
         };
 
         self.proxy.shader_source(shader_handle, &utf8_bytes(&source));
+        shader.set_source(source);
         Ok(())
     }
 
