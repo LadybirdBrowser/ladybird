@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = document.createElement("div").style;
+        const names = new Set();
+        for (const name in style)
+            names.add(name);
+        for (const name of ["color", "marginLeft", "margin-left"])
+            println(names.has(name));
+        style.marginLeft = "3px";
+        println(style.getPropertyValue("margin-left"));
+    });
+</script>

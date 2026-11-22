@@ -117,8 +117,7 @@ impl CSSStyleProperties {
         self.declaration.set(property.property_name, value)
     }
 
-    /// Defines the accessors of the CSS properties on the interface prototype object. They are not enumerable, so that
-    /// enumerating the object only finds its indexed properties.
+    /// Defines the accessors of the CSS properties on the interface prototype object.
     pub(crate) fn define_property_accessors<Getter, Setter>(
         vm: &Vm,
         realm: Gc<Realm>,
@@ -129,7 +128,7 @@ impl CSSStyleProperties {
         Getter: Fn(&Vm, &CSSPropertyAccessor) -> ThrowCompletionOr<Value> + Copy + 'static,
         Setter: Fn(&Vm, &CSSPropertyAccessor) -> ThrowCompletionOr<Value> + Copy + 'static,
     {
-        let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE);
+        let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::ENUMERABLE);
         let define = |attribute: &str, property_name: &'static str| {
             let key = PropertyKey::from_utf8(attribute);
             let capture = || CSSPropertyAccessor { property_name };
