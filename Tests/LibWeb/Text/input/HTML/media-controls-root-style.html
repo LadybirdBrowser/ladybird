@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<section dir="rtl" style="line-height: 0; letter-spacing: 10px; text-transform: uppercase; text-align: center">
+    <audio controls></audio>
+    <video controls></video>
+</section>
+<script>
+    test(() => {
+        for (const media of document.querySelectorAll("audio, video")) {
+            const shadow = internals.getShadowRoot(media);
+            const container = shadow.querySelector(".container");
+            const controls = shadow.querySelector(".controls");
+            const rootStyle = getComputedStyle(container);
+            const timestampStyle = getComputedStyle(shadow.querySelector(".timestamp"));
+            println(media.localName);
+            println("Root display: " + rootStyle.display);
+            println("Root overflow: " + rootStyle.overflow);
+            println("Timestamp line height: " + timestampStyle.lineHeight);
+            println("Timestamp letter spacing: " + timestampStyle.letterSpacing);
+            println("Timestamp text transform: " + timestampStyle.textTransform);
+            const play = shadow.querySelector(".play-pause-button").getBoundingClientRect();
+            const mute = shadow.querySelector(".mute-button").getBoundingClientRect();
+            println("Play is left of mute: " + (play.width > 0 && mute.width > 0 && play.right <= mute.left));
+            println("Controls display: " + getComputedStyle(controls).display);
+
+            media.style.visibility = "hidden";
+            media.style.pointerEvents = "none";
+            media.style.cursor = "none";
+            println("Hidden controls: " + rootStyle.visibility);
+            println("Disabled pointer events: " + rootStyle.pointerEvents);
+            println("Hidden cursor: " + rootStyle.cursor);
+        }
+    });
+</script>

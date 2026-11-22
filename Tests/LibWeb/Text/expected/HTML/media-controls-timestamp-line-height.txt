@@ -1,0 +1,5 @@
+Unknown duration: true
+Timestamp visible before loading: true
+Timeline empty before loading: true
+Finite duration: true
+Timestamp visible after loading: true

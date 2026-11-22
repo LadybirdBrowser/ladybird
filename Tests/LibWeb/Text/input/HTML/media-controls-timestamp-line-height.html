@@ -1,0 +1,23 @@
+<!doctype html>
+<section style="line-height: 0">
+    <audio controls preload="none" src="../../../Assets/test-webm-audio.ogg"></audio>
+</section>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const audio = document.querySelector("audio");
+        const controls = internals.getShadowRoot(audio);
+        const timestamp = controls.querySelector(".timestamp");
+        const fill = controls.querySelector(".timeline-fill");
+        println(`Unknown duration: ${Number.isNaN(audio.duration)}`);
+        println(`Timestamp visible before loading: ${timestamp.getBoundingClientRect().height > 0}`);
+        println(`Timeline empty before loading: ${fill.getBoundingClientRect().width === 0}`);
+
+        const metadata = new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+        audio.preload = "metadata";
+        audio.load();
+        await metadata;
+        println(`Finite duration: ${Number.isFinite(audio.duration)}`);
+        println(`Timestamp visible after loading: ${timestamp.getBoundingClientRect().height > 0}`);
+    });
+</script>
