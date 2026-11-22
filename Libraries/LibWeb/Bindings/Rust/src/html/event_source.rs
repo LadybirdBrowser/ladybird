@@ -642,6 +642,7 @@ impl EventSource {
             &last_event_id,
             None,
         );
+        event.set_is_trusted(true);
 
         // 7. Set the data buffer and the event type buffer to the empty string.
         event_type.clear();
