@@ -1,0 +1,9 @@
+Ladybird skips indexed reads and writes when the receiver has fewer
+than two elements. The sort algorithm in Ecma-262 calls Set for each
+sorted element, including the only element in a frozen singleton.
+
+V8 checks the length in ArrayPrototypeSort, SpiderMonkey checks it
+in ArraySortPrologue, and JavaScriptCore checks it in sortImpl.
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 returned frozen
+singletons and array-like receivers after reading only their length.
+All three rejected an invalid comparator before reading the length.
