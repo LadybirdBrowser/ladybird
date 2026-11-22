@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>OPTION's label attribute in SELECT -- Empty label uses Element text</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2">
+<link rel="match" href="../../../../../../expected/wpt-import/html/rendering/widgets/the-select-element/option-label-ref.html">
+<meta name="assert" content="An option element is expected to be rendered by displaying the element's label.">
+
+<select>
+  <option label>Label Text</option>
+</select>
+<br/>
+<select size="4">
+  <option label>Label Text</option>
+</select>
