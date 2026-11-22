@@ -458,9 +458,11 @@ impl CompositorCore {
 
         // A frame without a store still waits for what was drawn into the surfaces that the window server shows above
         // the store, such as a canvas that presented.
-        let token = self
-            .raster
-            .submit_frame(context_id, prepared_frame.rendered_surface.as_ref());
+        let token = self.raster.submit_frame(
+            context_id,
+            prepared_frame.rendered_surface.as_ref(),
+            prepared_frame.awaits_gpu_work,
+        );
         let shows_in_remote_layer = presenting.store_publication() == StorePublication::ShownInRemoteLayer;
         // A frame that the window server shows nothing above needs no list, which a remote layer makes when it shows
         // the frame.
@@ -485,7 +487,8 @@ impl CompositorCore {
         // Handing the frame to the client before its GPU work finishes keeps it ahead of the window server's deadline for
         // the next refresh. A client that reads frames from CPU memory does not wait for that work, so it gets each frame
         // once it is done.
-        let hands_off_early = presenting.presents_to_client
+        let hands_off_early = prepared_frame.awaits_gpu_work
+            && presenting.presents_to_client
             && self.gpu.has_gpu
             && !presenting.presents_from_cpu_memory
             && self.frame_hand_off(context_id) == FrameHandOff::OnceGpuWorkIsScheduled;

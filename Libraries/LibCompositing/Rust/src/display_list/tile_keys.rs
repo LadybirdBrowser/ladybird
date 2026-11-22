@@ -202,7 +202,7 @@ pub struct TileKeyingOfList<'a> {
     filters_inside_composited_effects: OnceCell<FiltersOfEffects>,
     replays_every_record_into_every_tile: bool,
     tree_sorts_planes_by_depth: bool,
-    frame_state_hash: ContentHash,
+    live_content_shown_by_frame: LiveContentShownByFrame,
     innermost_composited_effect_by_effect_index: Vec<EffectNodeIndex>,
     /// Per effect, the nearest effect at or around it that the compositor composites or that is not a plain group,
     /// once the coverage of a tile asks.
@@ -238,7 +238,7 @@ impl<'a> TileKeyingOfList<'a> {
             replays_every_record_into_every_tile: layering_obstacles.every_tile_replays_every_record()
                 || stack.one_layer_list_cannot_tell_which_records_show_in_tile(),
             tree_sorts_planes_by_depth: layering_obstacles.sorts_planes_by_depth,
-            frame_state_hash: frame_state_hash_of(display_list, stack, &frame_state),
+            live_content_shown_by_frame: live_content_shown_by_frame(display_list, stack, &frame_state),
             innermost_composited_effect_by_effect_index,
             nearest_composited_or_not_plain_effect_by_effect_index: OnceCell::new(),
             nearest_composited_or_alpha_lowering_effect_by_effect_index: OnceCell::new(),
@@ -266,6 +266,10 @@ impl<'a> TileKeyingOfList<'a> {
 
     fn compositor_composites(&self, effect: EffectNodeIndex) -> bool {
         self.innermost_composited_effect_by_effect_index[effect.0 as usize] == effect
+    }
+
+    pub fn live_content_shown_by_frame(&self) -> &LiveContentShownByFrame {
+        &self.live_content_shown_by_frame
     }
 }
 
@@ -317,43 +321,62 @@ fn write_scrollbar_shown_by_frame(hasher: &mut ContentHasher, scrollbar: &Scroll
     hasher.write_f32(scrollbar.opacity);
 }
 
-// The hash of what the frame shows of the live content that the records of bands draw, which the tiles of a band that
-// holds such records read. Live content with a layer of its own is in no band, so a blinking caret or a moving thumb
-// with a layer keys no tile anew.
-fn frame_state_hash_of(
+/// What a frame shows of the live content that its list draws, hashed by where the stack has the record that draws it,
+/// so that two frames of one list and stack tell which layers show something else.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct LiveContentShownByFrame {
+    /// Of the records of bands, which the tiles of a band that holds such records read. Live content with a layer of
+    /// its own is in no band, so a blinking caret or a moving thumb with a layer keys no tile anew.
+    pub in_bands: ContentHash,
+    /// Per layer of the stack, of the record of a layer of its own.
+    pub in_layers_of_their_own: Vec<ContentHash>,
+}
+
+pub fn live_content_shown_by_frame(
     display_list: &DisplayListStorage,
     stack: &LayerStack,
     frame_state: &FrameStateReadByReplay<'_>,
-) -> ContentHash {
-    let mut positions_of_layers_of_their_own: Vec<ListPosition> = stack
+) -> LiveContentShownByFrame {
+    let mut layers_of_their_own_by_position: Vec<(ListPosition, usize)> = stack
         .layers
         .iter()
-        .filter_map(|layer| match layer.content {
-            LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span } => Some(record_span.begin),
+        .enumerate()
+        .filter_map(|(layer_index, layer)| match layer.content {
+            LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span } => {
+                Some((record_span.begin, layer_index))
+            }
             LayerContent::Painted => None,
         })
         .collect();
-    positions_of_layers_of_their_own.sort_unstable();
-    let mut hasher = ContentHasher::new();
+    layers_of_their_own_by_position.sort_unstable();
+    let mut hasher_of_bands = ContentHasher::new();
+    let mut hashers_of_layers: Vec<ContentHasher> = stack.layers.iter().map(|_| ContentHasher::new()).collect();
     let mut position_hashed_last = None;
     // A record that draws live content in records nested in it is noted once for each.
     for live_content_record in &display_list.summary().live_content_records {
         let position = live_content_record.record.position;
-        if position_hashed_last == Some(position) || positions_of_layers_of_their_own.binary_search(&position).is_ok() {
+        if position_hashed_last == Some(position) {
             continue;
         }
         position_hashed_last = Some(position);
+        let hasher = match layers_of_their_own_by_position.binary_search_by_key(&position, |(position, _)| *position) {
+            Ok(index) => &mut hashers_of_layers[layers_of_their_own_by_position[index].1],
+            Err(_) => &mut hasher_of_bands,
+        };
         let (header, _) = display_list.record_at(position);
         let record_start = position.offset as usize;
         let record_bytes = &display_list.chunk(position.chunk_index).records()
             [record_start..record_start + HEADER_SIZE + header.payload_size as usize];
         for_each_command_including_nested(record_bytes, &mut |command_type, _, payload| {
             if let Some(content) = live_content_of(command_type, payload) {
-                write_live_content_shown_by_frame(&mut hasher, frame_state, content, payload);
+                write_live_content_shown_by_frame(hasher, frame_state, content, payload);
             }
         });
     }
-    hasher.finish()
+    LiveContentShownByFrame {
+        in_bands: hasher_of_bands.finish(),
+        in_layers_of_their_own: hashers_of_layers.iter().map(ContentHasher::finish).collect(),
+    }
 }
 
 struct BackdropReadInLayer {
@@ -2143,7 +2166,7 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
         let values_of_frame = ValuesOfFrameThatTilesOfBandRead {
             frame_state_hash: bound_band
                 .replays_records_reading_frame_state_hashed_for_the_list
-                .then_some(list.frame_state_hash),
+                .then_some(list.live_content_shown_by_frame.in_bands),
             tree_copy_number: list.tree.copy.number(),
             raster_settings_hash_of_layers_of_band: raster_settings_hasher.finish(),
             frame_edge_backdrop_blurs_mirror_at: bound_band.backdrop_reads.frame_edge_blurs_mirror_at(frame),

@@ -41,8 +41,8 @@ use libcompositing_rust::display_list::reach::Reach;
 use libcompositing_rust::display_list::replay::{CompositeClipsOfRaster, ReplaySelection};
 use libcompositing_rust::display_list::storage::ListSpan;
 use libcompositing_rust::display_list::tile_keys::{
-    BandTileKeys, ContentHash, FrameStateReadByReplay, LayerRasterSettings, LiveContentVersions, TileCoverage,
-    TileKeyingOfList, TileKeyingOfRasterSpace,
+    BandTileKeys, ContentHash, FrameStateReadByReplay, LayerRasterSettings, LiveContentShownByFrame,
+    LiveContentVersions, TileCoverage, TileKeyingOfList, TileKeyingOfRasterSpace,
 };
 use libcompositing_rust::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
 use libcompositing_rust::scrolling::DisplayList;
@@ -104,6 +104,28 @@ impl LiveContentVersions for LiveContentVersionsOfFrame<'_> {
     fn nested_context_frame_generation(&self, nested_context: CompositorContextId) -> Option<u64> {
         self.nested_contexts.frame_generation_of(nested_context)
     }
+}
+
+/// What a frame shows of the live content of its list, by where `stack` has the record that draws it.
+pub(super) fn live_content_shown_by_frame(
+    env: &PresentingEnvironment<'_>,
+    frame: &FrameToPaint<'_>,
+    live_content: &LiveContent,
+    stack: &LayerStack,
+) -> LiveContentShownByFrame {
+    let scrollbars = frame.frame_inputs.scrollbars_shown_for_the_page();
+    libcompositing_rust::display_list::tile_keys::live_content_shown_by_frame(
+        frame.display_list.storage(),
+        stack,
+        &FrameStateReadByReplay {
+            scrollbars: &scrollbars,
+            time_ns: frame.frame_inputs.painted_at.nanoseconds(),
+            live_content: &LiveContentVersionsOfFrame {
+                live_content,
+                nested_contexts: env.nested_contexts,
+            },
+        },
+    )
 }
 
 /// Where a frame composites a layer: offset by the scroll offsets of its space's anchors, within its composite clip
@@ -431,6 +453,9 @@ pub struct PaintedLayers {
     pub(super) window_server_compositing: WindowServerCompositing,
     content_hash_by_composited_node: HashMap<PlacementNodeIdentity, ContentHash>,
     media_replayed_by_identity: HashMap<LayerIdentity, MediaRecordsReplayedInFrame>,
+    /// What the frame shows of the live content of its list, which tells a later frame of the list which layers it
+    /// damages by showing something else.
+    pub(super) live_content_shown: LiveContentShownByFrame,
 }
 
 impl PaintedLayers {
@@ -1323,6 +1348,7 @@ impl ContextPresenting {
                 window_server_compositing,
                 content_hash_by_composited_node: composited_effects.content_hash_by_composited_node,
                 media_replayed_by_identity,
+                live_content_shown: tile_keying_of_list.live_content_shown_by_frame().clone(),
             },
             read_reaches_of_composited_effects_in_frame: composited_effects.read_reaches_in_frame,
             shown_tiles_by_layer,
@@ -2260,6 +2286,7 @@ mod tests {
                 window_server_compositing: WindowServerCompositing::default(),
                 content_hash_by_composited_node: HashMap::new(),
                 media_replayed_by_identity: HashMap::new(),
+                live_content_shown: LiveContentShownByFrame::default(),
             },
             read_reaches_of_composited_effects_in_frame,
             frame_allows_lcd_text: false,

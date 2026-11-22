@@ -90,6 +90,9 @@ pub struct PreparedFrame {
     pub sublayers: Vec<FfiSublayer>,
     /// Whether the sublayers are all of the frame, so that the window server shows no store below them.
     pub window_server_shows_every_layer: bool,
+    /// Whether the frame shows what this process drew on the GPU for it, which it then waits for. A frame that shows
+    /// only another frame of a video does not.
+    pub awaits_gpu_work: bool,
 }
 
 pub(crate) struct FrameToPaint<'a> {
@@ -777,6 +780,31 @@ impl ContextPresenting {
             display_list,
             frame_inputs: &frame_inputs,
         };
+        if let Some(damaged_layers) =
+            self.media_layers_damaged_alone_since_painted_frame(env, &pending_frame, &frame, &live_content)
+        {
+            let sublayers = self.painted_frame.as_ref().map_or_else(Vec::new, |painted_frame| {
+                self.sublayers_shown_by_window_server(&painted_frame.layers, &live_content)
+            });
+            // The window server shows other sublayers only of a frame that is prepared in full.
+            if sublayers == self.sublayers_of_latest_frame {
+                if damaged_layers.is_empty() {
+                    return None;
+                }
+                let awaits_gpu_work = damaged_layers.holds_canvas();
+                self.remember_frame_that_damages_media_layers_alone(&live_content, damaged_layers);
+                self.frame_without_store_in_flight = true;
+                return Some(PreparedFrame {
+                    rendered_surface: None,
+                    bitmap_id: -1,
+                    damage_rect: IntRect::default(),
+                    device_pixel_ratio: self.device_pixel_ratio,
+                    sublayers,
+                    window_server_shows_every_layer: self.latest_frame_was_presented_without_store_below_sublayers,
+                    awaits_gpu_work,
+                });
+            }
+        }
         let mut frame_damage = self.frame_damage_for(env, &pending_frame, &frame, &live_content);
         let mut damage_rect = frame_damage.rect_in_raster_device_pixels;
         let window_server_shows_every_layer = frame_damage.layers.window_server_shows_every_layer();
@@ -857,6 +885,7 @@ impl ContextPresenting {
                     device_pixel_ratio: self.device_pixel_ratio,
                     sublayers,
                     window_server_shows_every_layer,
+                    awaits_gpu_work: true,
                 });
             }
             frame_damage.layers.hold_every_layer_in_frame();
@@ -902,6 +931,7 @@ impl ContextPresenting {
             device_pixel_ratio: self.device_pixel_ratio,
             sublayers,
             window_server_shows_every_layer: false,
+            awaits_gpu_work: true,
         })
     }
 

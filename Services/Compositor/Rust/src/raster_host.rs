@@ -393,8 +393,10 @@ pub struct FfiRasterHost {
     pub destroy_sublayers: unsafe extern "C" fn(*mut c_void),
 
     /// Submits the GPU work drawn into the surface, or into the surfaces the window server shows where it is null,
-    /// answering a token that `compositor_core_gpu_work_finished` hands back once it is done, on a later turn.
-    pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface) -> u64,
+    /// answering a token that `compositor_core_gpu_work_finished` hands back once it is done, on a later turn. A frame
+    /// that awaits no GPU work, as the last argument tells, submits none, and its token is handed back on the next
+    /// turn.
+    pub submit_frame: unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface, bool) -> u64,
     /// Calls `compositor_core_frame_ready_for_hand_off` with the token on a later turn, once the work is scheduled.
     pub hand_off_once_gpu_work_is_scheduled: unsafe extern "C" fn(*mut c_void, u64),
     /// Writes the window server of a new presentation, or nothing where frames reach the screen only through the
@@ -888,10 +890,15 @@ impl RasterHost {
         unsafe { (self.0.window_server_frame_hand_off)(window_server.as_ptr()) }
     }
 
-    pub fn submit_frame(&self, context_id: CompositorContextId, surface: Option<&Rc<PaintingSurface>>) -> u64 {
+    pub fn submit_frame(
+        &self,
+        context_id: CompositorContextId,
+        surface: Option<&Rc<PaintingSurface>>,
+        awaits_gpu_work: bool,
+    ) -> u64 {
         let surface = surface.map_or(std::ptr::null(), Rc::as_ptr);
         // SAFETY: The host outlives this, and the surface is live.
-        unsafe { (self.0.submit_frame)(self.host(), context_id.0, surface) }
+        unsafe { (self.0.submit_frame)(self.host(), context_id.0, surface, awaits_gpu_work) }
     }
 
     pub fn hand_off_once_gpu_work_is_scheduled(&self, token: u64) {

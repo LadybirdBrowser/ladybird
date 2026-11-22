@@ -6,16 +6,20 @@
 
 //! What a frame repaints of the frame painted before it, and of what each backing store holds.
 
-use super::layers::{LayerUpdate, PaintedLayers};
+use super::layers::{LayerUpdate, PaintedLayers, live_content_shown_by_frame};
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size};
 use crate::frame_inputs::FrameInputs;
 use crate::host::PendingFrame;
 use crate::raster_host::LiveContent;
 use libcompositing_rust::display_list::commands::CompositorContextId;
+use libcompositing_rust::display_list::layers::{LayerContent, LayerIdentity};
+use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
+use libcompositing_rust::display_list::tile_keys::LiveContentShownByFrame;
 use libcompositing_rust::scrolling::DisplayList;
 use libgfx_rust::{IntRect, IntSize};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The frame painted last: its display list and inputs, what it did with its layers, and the version of each live
 /// content it drew, which comparing lists cannot see change.
@@ -109,6 +113,51 @@ pub struct LiveContentChangesSinceLastPaint {
     pub repaints_everything: bool,
 }
 
+/// The layers a frame damages, where each holds a canvas or a video that the window server shows by itself, so that the
+/// frame has nothing to paint.
+pub struct MediaLayersDamagedAlone {
+    media_of_damaged_layers: Vec<LiveMedia>,
+    live_content_shown: LiveContentShownByFrame,
+}
+
+impl MediaLayersDamagedAlone {
+    pub fn is_empty(&self) -> bool {
+        self.media_of_damaged_layers.is_empty()
+    }
+
+    /// A canvas is drawn by the compositor, with GPU work the frame awaits. A video frame comes drawn.
+    pub fn holds_canvas(&self) -> bool {
+        self.media_of_damaged_layers
+            .iter()
+            .any(|media| matches!(media, LiveMedia::Canvas(_)))
+    }
+}
+
+fn canvas_content_generations_of(display_list: &DisplayList, live_content: &LiveContent) -> HashMap<u64, u64> {
+    let canvas_generation = |id: u64| {
+        live_content
+            .canvases
+            .get(&id)
+            .map_or(0, |canvas| canvas.content_generation)
+    };
+    display_list
+        .storage()
+        .summary()
+        .canvas_ids
+        .iter()
+        .map(|&id| (id, canvas_generation(id)))
+        .collect()
+}
+
+// The host reports the video sinks that the list draws.
+fn video_frame_ids_of(live_content: &LiveContent) -> HashMap<u64, Option<u64>> {
+    live_content
+        .video_sinks
+        .values()
+        .map(|sink| (sink.handle, sink.has_frame.then_some(sink.frame_id)))
+        .collect()
+}
+
 pub struct FrameDamage {
     pub rect_in_raster_device_pixels: IntRect,
     pub layers: LayerUpdate,
@@ -143,24 +192,9 @@ impl ContextPresenting {
     ) {
         let allows_lcd_text = layer_update.frame_allows_lcd_text;
         let layers = self.commit_layer_update(env, layer_update);
-        let canvas_generation = |id: u64| {
-            live_content
-                .canvases
-                .get(&id)
-                .map_or(0, |canvas| canvas.content_generation)
-        };
         let summary = display_list.storage().summary();
-        let canvas_content_generations = summary
-            .canvas_ids
-            .iter()
-            .map(|&id| (id, canvas_generation(id)))
-            .collect();
-        // The host reports the video sinks that the list draws.
-        let video_frame_ids = live_content
-            .video_sinks
-            .values()
-            .map(|sink| (sink.handle, sink.has_frame.then_some(sink.frame_id)))
-            .collect();
+        let canvas_content_generations = canvas_content_generations_of(display_list, live_content);
+        let video_frame_ids = video_frame_ids_of(live_content);
         let image_frame_pixel_generations = live_content.image_frames.clone();
         let nested_context_frame_generations = summary
             .composited_context_ids
@@ -181,6 +215,122 @@ impl ContextPresenting {
             image_frame_pixel_generations,
             nested_context_frame_generations,
         });
+    }
+
+    /// Tells which layers a frame damages, where each holds a canvas or a video that the window server shows by itself:
+    /// the layers of the painted frame, and what the window server shows of them, are those of such a frame too. None
+    /// for a frame that may damage anything else, which has to be prepared in full.
+    ///
+    /// Such a frame draws the list of the painted frame as that one did, for the same window server, so the two differ
+    /// at most in what they show of live content, and a layer is damaged where its record shows something else. The
+    /// window server can show now the canvases and videos it showed then and no other: one it could show and the frame
+    /// still held makes every frame be prepared in full.
+    pub(super) fn media_layers_damaged_alone_since_painted_frame(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        pending_frame: &PendingFrame,
+        frame: &FrameToPaint<'_>,
+        live_content: &LiveContent,
+    ) -> Option<MediaLayersDamagedAlone> {
+        let painted_frame = self.painted_frame.as_ref()?;
+        let painted_layers = &painted_frame.layers;
+        let display_list = frame.display_list;
+        let viewport_size = IntSize {
+            width: pending_frame.viewport_rect.width,
+            height: pending_frame.viewport_rect.height,
+        };
+        // A frame draws with the stack of its plan within the viewport the plan was made for.
+        let draws_with_stack_of_painted_frame = frame.frame_inputs.layer_plan.as_ref().is_some_and(|layer_plan| {
+            Rc::ptr_eq(&layer_plan.stack, &painted_layers.stack) && layer_plan.viewport_rect == self.raster_rect()
+        });
+        let frame_inputs = frame.frame_inputs;
+        let inputs_of_painted_frame = &painted_frame.frame_inputs;
+        let draws_list_as_painted_frame = self.presented_frame == Some(pending_frame.viewport_rect)
+            && pending_frame.forced_damage_rect.is_empty()
+            && painted_frame.viewport_size == viewport_size
+            && Rc::ptr_eq(&painted_frame.display_list, display_list)
+            && draws_with_stack_of_painted_frame
+            && Arc::ptr_eq(
+                frame_inputs.visual_context_tree.as_arc(),
+                inputs_of_painted_frame.visual_context_tree.as_arc(),
+            )
+            && frame_inputs
+                .presented_scroll_state_snapshot
+                .holds_the_offsets_of(&inputs_of_painted_frame.presented_scroll_state_snapshot)
+            && painted_frame.allows_lcd_text == self.allows_lcd_text(display_list, frame_inputs)
+            // The overlays draw the same but for that of the compositor's layers, which the frame is to have none of.
+            && frame_inputs.overlays.draws_same_as(&inputs_of_painted_frame.overlays)
+            && self.layer_overlay.overlay().is_none()
+            && painted_layers.window_server_shows_every_layer()
+                == self.latest_frame_was_presented_without_store_below_sublayers
+            && painted_layers.window_server_compositing == self.window_server_compositing(env)
+            // An image that only a filter of the tree draws is live content of no record of the list.
+            && live_content.image_frames == painted_frame.image_frame_pixel_generations;
+        if !draws_list_as_painted_frame {
+            return None;
+        }
+        let live_content_shown = live_content_shown_by_frame(env, frame, live_content, &painted_layers.stack);
+        let shown_by_painted_frame = &painted_layers.live_content_shown;
+        if live_content_shown.in_bands != shown_by_painted_frame.in_bands {
+            return None;
+        }
+        let window_server_may_show_media = self.why_window_server_shows_no_media_of_this_context(env).is_none();
+        let mut media_of_damaged_layers = Vec::new();
+        for compositing in &painted_layers.compositing_of_layers {
+            let layer_index = compositing.layer_index;
+            let layer = compositing.layer_in(&painted_layers.stack);
+            let layer_is_damaged = live_content_shown.in_layers_of_their_own[layer_index.0]
+                != shown_by_painted_frame.in_layers_of_their_own[layer_index.0];
+            let (LayerContent::Media { .. }, LayerIdentity::Media { content, .. }) = (&layer.content, layer.identity)
+            else {
+                // The compositor paints a caret or a scroll bar that has a layer of its own.
+                if layer_is_damaged {
+                    return None;
+                }
+                continue;
+            };
+            let window_server_can_show_layer = window_server_may_show_media
+                && self
+                    .why_window_server_does_not_show_media_layer(
+                        env,
+                        &painted_layers.window_server_placements_of_media,
+                        layer_index,
+                        layer,
+                        live_content,
+                    )
+                    .is_none();
+            if window_server_can_show_layer != compositing.shown_by_window_server {
+                return None;
+            }
+            if !layer_is_damaged {
+                continue;
+            }
+            // The frame holds what it replays of a canvas or a video.
+            if !compositing.shown_by_window_server {
+                return None;
+            }
+            media_of_damaged_layers.push(content);
+        }
+        Some(MediaLayersDamagedAlone {
+            media_of_damaged_layers,
+            live_content_shown,
+        })
+    }
+
+    /// Remembers what a frame shows of live content, where it damages only layers that hold media the window server
+    /// shows by itself.
+    pub(super) fn remember_frame_that_damages_media_layers_alone(
+        &mut self,
+        live_content: &LiveContent,
+        damaged_layers: MediaLayersDamagedAlone,
+    ) {
+        let Some(painted_frame) = &mut self.painted_frame else {
+            return;
+        };
+        painted_frame.canvas_content_generations =
+            canvas_content_generations_of(&painted_frame.display_list, live_content);
+        painted_frame.video_frame_ids = video_frame_ids_of(live_content);
+        painted_frame.layers.live_content_shown = damaged_layers.live_content_shown;
     }
 
     fn live_content_changes_since_last_paint(

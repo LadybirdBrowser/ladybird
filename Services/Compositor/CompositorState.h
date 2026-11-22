@@ -234,7 +234,7 @@ private:
     Optional<RemoteLayer::Content> remote_layer_content(PresentedContext&, RustFFI::MediaKind, u64 media_id);
     bool remote_layer_can_show(RemoteLayer&, Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
     Vector<RemoteSublayer>* build_sublayers(Web::CompositorContextId, ReadonlySpan<RustFFI::FfiSublayer>);
-    u64 submit_frame(Gfx::PaintingSurface*);
+    u64 submit_frame(Gfx::PaintingSurface*, bool awaits_gpu_work);
     void hand_off_once_gpu_work_is_scheduled(u64 token);
     void release_store_later(Web::CompositorContextId, i32 bitmap_id);
     void gpu_work_finished(u64 token);

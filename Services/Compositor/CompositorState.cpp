@@ -1356,7 +1356,7 @@ Vector<RemoteSublayer>* CompositorState::build_sublayers(Web::CompositorContextI
     return sublayers.leak_ptr();
 }
 
-u64 CompositorState::submit_frame(Gfx::PaintingSurface* surface)
+u64 CompositorState::submit_frame(Gfx::PaintingSurface* surface, bool awaits_gpu_work)
 {
     auto token = m_next_gpu_work_token++;
     m_gpu_work_in_flight.set(token);
@@ -1366,6 +1366,10 @@ u64 CompositorState::submit_frame(Gfx::PaintingSurface* surface)
             self->gpu_work_finished(token);
         });
     };
+    if (!awaits_gpu_work) {
+        did_finish();
+        return token;
+    }
     if (surface)
         DisplayListPlayerSkia::flush_async(*surface, move(did_finish));
     else if (m_skia_backend_context)
@@ -1579,7 +1583,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
             return state_of(host).build_sublayers(Context { context_id }, sublayers);
         },
         .destroy_sublayers = [](void* sublayers) { delete static_cast<Vector<RemoteSublayer>*>(sublayers); },
-        .submit_frame = [](void* host, u64, Gfx::PaintingSurface const* surface) { return state_of(host).submit_frame(const_cast<Gfx::PaintingSurface*>(surface)); },
+        .submit_frame = [](void* host, u64, Gfx::PaintingSurface const* surface, bool awaits_gpu_work) { return state_of(host).submit_frame(const_cast<Gfx::PaintingSurface*>(surface), awaits_gpu_work); },
         .hand_off_once_gpu_work_is_scheduled = [](void* host, u64 token) { state_of(host).hand_off_once_gpu_work_is_scheduled(token); },
         .create_window_server = [](void*, RustFFI::FfiCppObject* window_server) {
             auto created = WindowServer::try_create_for_presentation();
