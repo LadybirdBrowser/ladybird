@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const context = new AudioContext();
+    const track = context.createMediaStreamDestination().stream.getAudioTracks()[0];
+    const stream = new MediaStream();
+    stream.onaddtrack = () => println("FAIL: addtrack fired");
+    stream.onremovetrack = () => println("FAIL: removetrack fired");
+
+    stream.addTrack(track);
+    println(`tracks after addTrack: ${stream.getTracks().length}`);
+    stream.removeTrack(track);
+    println(`tracks after removeTrack: ${stream.getTracks().length}`);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    context.close();
+    done();
+});
+</script>

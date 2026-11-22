@@ -1,0 +1,2 @@
+tracks after addTrack: 1
+tracks after removeTrack: 0

@@ -114,55 +114,58 @@ GC::Ptr<MediaStreamTrack> MediaStream::get_track_by_id(Utf16String const& track_
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
 void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
 {
-    add_track(HTML::current_global_object(), track);
-}
-
-void MediaStream::add_track(JS::Object& global_object, GC::Ref<MediaStreamTrack> track)
-{
     // 1. Let track be the methods argument and stream the MediaStream object on which the method was called.
-    for (auto const& existing_track : m_tracks) {
-
-        // 2. If track is already in stream's track set, then abort these steps.
-        if (existing_track.ptr() == track.ptr())
-            return;
-    }
+    // 2. If track is already in stream's track set, then abort these steps.
+    if (m_tracks.contains_slow(track))
+        return;
 
     // 3. Add track to stream's track set.
+    // AD-HOC: The spec links this step to "add a track", which fires an addtrack event, but addtrack is not fired
+    //         when script modifies the tracks of a MediaStream.
     m_tracks.append(track);
-
-    // 4. Fire a track event named addtrack with track at stream.
-    auto event = create_media_stream_track_event(HTML::relevant_realm(global_object), HTML::EventNames::addtrack, {}, track);
-    dispatch_event(event);
 }
 
-void MediaStream::append_track(GC::Ref<MediaStreamTrack> track)
+// https://w3c.github.io/mediacapture-main/#dfn-add-a-track
+void MediaStream::add_a_track(GC::Ref<MediaStreamTrack> track)
 {
-    for (auto const& existing_track : m_tracks) {
-        if (existing_track.ptr() == track.ptr())
-            return;
-    }
+    // 1. If track is already in stream's track set, then abort these steps.
+    if (m_tracks.contains_slow(track))
+        return;
+
+    // 2. Add track to stream's track set.
     m_tracks.append(track);
+
+    // 3. Fire a track event named addtrack with track at stream.
+    auto event = create_media_stream_track_event(HTML::relevant_realm(HTML::current_global_object()), HTML::EventNames::addtrack, {}, track);
+    dispatch_event(event);
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
 void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
 {
-    remove_track(HTML::current_global_object(), track);
-}
-
-void MediaStream::remove_track(JS::Object& global_object, GC::Ref<MediaStreamTrack> track)
-{
     // 1. Let track be the methods argument and stream the MediaStream object on which the method was called.
     // 2. If track is not in stream's track set, then abort these steps.
     // 3. Remove track from stream's track set.
+    // AD-HOC: The spec links this step to "remove a track", which fires a removetrack event, but removetrack is not
+    //         fired when script modifies the tracks of a MediaStream.
+    m_tracks.remove_first_matching([&](auto const& existing_track) {
+        return existing_track.ptr() == track.ptr();
+    });
+}
+
+// https://w3c.github.io/mediacapture-main/#dfn-remove-a-track
+void MediaStream::remove_a_track(GC::Ref<MediaStreamTrack> track)
+{
+    // 1. If track is not in stream's track set, then abort these steps.
+    // 2. Remove track from stream's track set.
     auto removed = m_tracks.remove_first_matching([&](auto const& existing_track) {
         return existing_track.ptr() == track.ptr();
     });
     if (!removed)
         return;
 
-    // 4. Fire a track event named removetrack with track at stream.
-    auto event = create_media_stream_track_event(HTML::relevant_realm(global_object), HTML::EventNames::removetrack, {}, track);
+    // 3. Fire a track event named removetrack with track at stream.
+    auto event = create_media_stream_track_event(HTML::relevant_realm(HTML::current_global_object()), HTML::EventNames::removetrack, {}, track);
     dispatch_event(event);
 }
 
@@ -174,7 +177,7 @@ GC::Ref<MediaStream> MediaStream::clone() const
 
     // 3. Clone each track in this MediaStream object and add the result to streamClone's track set.
     for (auto const& track : m_tracks)
-        stream_clone->append_track(track->clone());
+        stream_clone->add_track(track->clone());
 
     // 4. Return streamClone.
     return stream_clone;

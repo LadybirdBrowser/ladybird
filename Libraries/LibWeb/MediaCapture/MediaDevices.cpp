@@ -617,7 +617,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                     // NB: The track was created to access the device.
 
                     // 11.9.6 Add track to stream's track set.
-                    stream->append_track(track);
+                    stream->add_track(track);
 
                     // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
 
