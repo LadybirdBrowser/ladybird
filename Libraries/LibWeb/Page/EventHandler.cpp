@@ -556,7 +556,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Accepted;
 
     if (!pressed_on_chrome)
-        run_mousedown_default_actions(read, *document, visual_viewport_position, button, modifiers, click_count);
+        run_mousedown_default_actions(read, *document, visual_viewport_position, screen_position, button, modifiers, click_count);
 
     return EventResult::Handled;
 }
@@ -781,15 +781,12 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     if (m_navigable->active_document() != document)
         return result_of_move(EventResult::Accepted);
 
-    if (!m_middle_button_scroll_handler && !is_handling_mouse_selection())
+    if (!is_handling_mouse_selection())
         return result_of_move(EventResult::Handled);
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
     if (!has_committed_root_box())
         return result_of_move(EventResult::Accepted);
-
-    if (m_middle_button_scroll_handler)
-        m_middle_button_scroll_handler->update_mouse_position(visual_viewport_position);
 
     // https://w3c.github.io/uievents/#event-type-mousemove
     // NB: The event has no default action, so a page that cancels it leaves a drag going.
@@ -3613,12 +3610,15 @@ static bool is_inside_button(GC::Ptr<DOM::Node const> node)
     return false;
 }
 
-void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count)
+void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned modifiers, int click_count)
 {
+    // NB: A press that ends a middle button scroll has no default actions, whichever document gets it.
     if (m_middle_button_scroll_handler) {
         stop_middle_button_scroll();
         return;
     }
+    if (m_navigable->page().press_ends_a_middle_button_scroll())
+        return;
 
     if (button == UIEvents::MouseButton::Middle) {
         if (!m_navigable->page().enable_autoscroll())
@@ -3636,8 +3636,10 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
         }
 
         if (auto* hit_layout_node = hit->layout_node(read)) {
-            if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit_layout_node))
-                m_middle_button_scroll_handler = make<MiddleButtonScrollHandler>(*container, visual_viewport_position);
+            if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit_layout_node)) {
+                m_middle_button_scroll_handler = make<MiddleButtonScrollHandler>(*container, visual_viewport_position, screen_position);
+                m_navigable->page().set_middle_button_scrolling_navigable({}, m_navigable);
+            }
         }
 
         return;
@@ -6115,6 +6117,27 @@ void EventHandler::stop_middle_button_scroll()
         return;
     m_middle_button_scroll_handler->request_indicator_repaint();
     m_middle_button_scroll_handler = nullptr;
+    if (m_navigable->page().middle_button_scrolling_navigable().ptr() == m_navigable.ptr())
+        m_navigable->page().set_middle_button_scrolling_navigable({}, nullptr);
+}
+
+void EventHandler::update_middle_button_scroll(Badge<Page>, CSSPixelPoint screen_position)
+{
+    if (m_middle_button_scroll_handler)
+        m_middle_button_scroll_handler->update_mouse_screen_position(screen_position);
+}
+
+// A press anywhere ends a middle button scroll.
+void EventHandler::end_middle_button_scroll_for_press(Badge<Page>)
+{
+    stop_middle_button_scroll();
+}
+
+// So does the release of the middle button that a scroll was dragged with.
+void EventHandler::end_middle_button_scroll_after_release_elsewhere(Badge<Page>, u32 button)
+{
+    if (button == UIEvents::MouseButton::Middle && m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved_beyond_dead_zone())
+        stop_middle_button_scroll();
 }
 
 void EventHandler::release_held_scroll_key()
