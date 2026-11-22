@@ -434,6 +434,23 @@ TEST_CASE(stopping_a_whole_body_transport_releases_its_callbacks_and_runs_its_st
     EXPECT_EQ(stop_steps_run, 1);
 }
 
+TEST_CASE(stopping_the_whole_body_transports_of_a_thread_releases_their_callbacks)
+{
+    WholeBodyHarness harness { NavigationHold::None };
+    harness.gate->grant_credit(100);
+    auto marker = adopt_ref(*new CallbackMarker);
+    auto body = MUST(ByteBuffer::create_zeroed(1000));
+    harness.transport->set_body(Core::ImmutableBytes::adopt(move(body)), [&harness, marker](Requests::ResponseData data) {
+        EXPECT_EQ(harness.gate->did_deliver(data.bytes().size()), DeliveryResult::Accepted);
+    });
+    harness.transport->when_delivered([marker] { });
+    harness.loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(marker->ref_count(), 3u);
+
+    WholeBodyTransport::stop_all_on_this_thread();
+    EXPECT_EQ(marker->ref_count(), 1u);
+}
+
 TEST_CASE(a_whole_body_transport_runs_no_stop_steps_after_delivering_the_whole_body)
 {
     WholeBodyHarness harness { NavigationHold::None };
