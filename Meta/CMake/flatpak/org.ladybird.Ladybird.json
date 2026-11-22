@@ -478,6 +478,12 @@
           "tag": "v2.3.3"
         }
       ],
+      "license-files": [
+        "COPYING",
+        "src/lib/libdwarf/COPYING",
+        "src/lib/libdwarf/LGPL.txt",
+        "src/lib/libdwarf/LIBDWARFCOPYRIGHT"
+      ],
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",

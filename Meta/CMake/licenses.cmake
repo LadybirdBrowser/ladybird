@@ -28,8 +28,21 @@ if (NOT ENABLE_NETWORK_DOWNLOADS)
     list(APPEND licenses_arguments --offline)
 endif()
 
-# Build Release publishes the source archives of the LGPL ports of a distribution build, so LICENSES.txt points to them.
-if (LADYBIRD_VCPKG_TYPE STREQUAL "distribution" AND NOT LADYBIRD_VERSION STREQUAL "")
+# flatpak-builder builds the other modules of the Flatpak, and records their license files for the app.
+set(building_flatpak OFF)
+if (DEFINED ENV{FLATPAK_ID} AND DEFINED ENV{FLATPAK_DEST})
+    set(building_flatpak ON)
+    set(flatpak_manifest "${LADYBIRD_SOURCE_DIR}/Meta/CMake/flatpak/org.ladybird.Ladybird.json")
+    list(APPEND licenses_arguments
+        --flatpak-manifest "${flatpak_manifest}"
+        --flatpak-licenses-dir "$ENV{FLATPAK_DEST}/share/licenses/$ENV{FLATPAK_ID}"
+    )
+    list(APPEND licenses_dependencies "${flatpak_manifest}")
+endif()
+
+# Build Release publishes the source archives of the LGPL libraries of a distribution build and of the Flatpak, so
+# LICENSES.txt points to them.
+if ((LADYBIRD_VCPKG_TYPE STREQUAL "distribution" OR building_flatpak) AND NOT LADYBIRD_VERSION STREQUAL "")
     list(APPEND licenses_arguments --release)
 endif()
 
