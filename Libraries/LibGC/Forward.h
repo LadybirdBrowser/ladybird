@@ -9,6 +9,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <LibGC/Export.h>
+#include <LibGC/HoldsNoCellEdges.h>
 
 // Declares at global scope that a type holds no cell edges, so that a GC::Function may capture it untraced.
 #define GC_UNTRACED_CAPTURE(...)                \
@@ -26,9 +27,6 @@
         static constexpr bool value = true;                \
         static constexpr bool callbacks_hold_roots = true; \
     }
-
-// Declares inside a type that it holds no cell edges, for a type that can't be named at global scope.
-#define GC_HOLDS_NO_CELL_EDGES using HoldsNoCellEdges = void
 
 namespace GC {
 

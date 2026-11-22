@@ -17,17 +17,20 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibCore/ImmutableBytes.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/FetchBody.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
 
 namespace Web::Fetch::Infrastructure {
+
+class FetchParams;
 
 // https://fetch.spec.whatwg.org/#concept-response
 class WEB_API Response
