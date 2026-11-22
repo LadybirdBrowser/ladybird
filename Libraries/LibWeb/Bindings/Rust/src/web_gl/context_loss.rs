@@ -13,7 +13,7 @@ use super::canvas::Canvas;
 use super::exports::create_remote_context;
 use super::state::{ContextRef, RenderingContext, WebGL1, WebGL2};
 use super::web_gl_context_event::{WebGLContextEvent, WebGLContextEventInit};
-use crate::bindings::interface::Wrapped;
+use crate::bindings::interface::{Wrapped, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{TaskSource, queue_a_task};
 use crate::dom::event::EventInit;
 
@@ -110,12 +110,14 @@ pub(crate) fn lose_contexts_of_this_thread(vm: &Vm) {
         if !state.mark_lost() {
             continue;
         }
-        queue_a_task(vm, state.realm(), TaskSource::WebGL, context, |vm, context| {
-            let state = context.state();
-            let page_wants_context_restored = !fire_webgl_context_event(vm, state.canvas(), "webglcontextlost");
-            state.set_context_restore_requested(page_wants_context_restored);
-            // NB: A Compositor that came back before the page asked for the context is not announced again.
-            restore_context_if_wanted(vm, context);
+        queue_a_task(vm, TaskSource::WebGL, context, |vm, context| {
+            with_temporary_execution_context_and_callbacks(context.state().realm(), || {
+                let state = context.state();
+                let page_wants_context_restored = !fire_webgl_context_event(vm, state.canvas(), "webglcontextlost");
+                state.set_context_restore_requested(page_wants_context_restored);
+                // NB: A Compositor that came back before the page asked for the context is not announced again.
+                restore_context_if_wanted(vm, context);
+            });
         });
     }
 }
@@ -132,8 +134,10 @@ fn restore_context_if_wanted(vm: &Vm, context: ContextRef) {
     };
     state.restore(remote_context, supported_opengl_extensions);
     state.canvas().did_create_backing_storage();
-    queue_a_task(vm, state.realm(), TaskSource::WebGL, context, |vm, context| {
-        fire_webgl_context_event(vm, context.state().canvas(), "webglcontextrestored");
+    queue_a_task(vm, TaskSource::WebGL, context, |vm, context| {
+        with_temporary_execution_context_and_callbacks(context.state().realm(), || {
+            fire_webgl_context_event(vm, context.state().canvas(), "webglcontextrestored");
+        });
     });
 }
 

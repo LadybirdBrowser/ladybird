@@ -21,7 +21,7 @@ use libjs_rust::api::{
 #[cfg(web_idl_bindings)]
 use crate::bindings::conversions::ToJs;
 use crate::bindings::conversions::{BufferSource, UsvString};
-use crate::bindings::interface::{Ref, allocate, wrap};
+use crate::bindings::interface::{Ref, allocate, with_temporary_execution_context_and_callbacks, wrap};
 use crate::bindings::promise::{
     TaskSource, WebIdlPromise, create_promise, in_parallel, queue_a_task, react_to_promise, reject_promise,
     resolve_promise,
@@ -123,55 +123,56 @@ fn asynchronously_compile_a_webassembly_module(
             *job.result.borrow_mut() = Some(result);
 
             // 2. Queue a task on taskSource, if provided, to perform the following steps:
-            queue_a_task(vm, realm, task_source, (promise, job), |vm, (promise, job)| {
+            queue_a_task(vm, task_source, (promise, job), |vm, (promise, job)| {
                 let realm = crate::bindings::promise::promise_realm(promise);
+                with_temporary_execution_context_and_callbacks(realm, || {
+                    // 1. If module is error, reject promise with a CompileError exception and return.
+                    let module = match job.result.take().expect("the module is compiled before the task runs") {
+                        Ok(module) => module,
+                        Err(exception) => {
+                            reject_promise(vm, promise, exception);
+                            return;
+                        }
+                    };
 
-                // 1. If module is error, reject promise with a CompileError exception and return.
-                let module = match job.result.take().expect("the module is compiled before the task runs") {
-                    Ok(module) => module,
-                    Err(exception) => {
-                        reject_promise(vm, promise, exception);
-                        return;
-                    }
-                };
+                    let options = job.options.take();
 
-                let options = job.options.take();
+                    // 2. Let builtinSetNames be options["builtins"].
+                    let builtin_set_names = options.builtins;
 
-                // 2. Let builtinSetNames be options["builtins"].
-                let builtin_set_names = options.builtins;
+                    // 3. Let importedStringModule be options["importedStringConstants"].
+                    let imported_string_module = options.imported_string_constants;
 
-                // 3. Let importedStringModule be options["importedStringConstants"].
-                let imported_string_module = options.imported_string_constants;
-
-                // 4. If validating builtins and imported strings for module with builtinSetNames and importedStringModule is
-                //    false, reject promise with a CompileError exception.
-                if !validate_builtins_and_imported_strings(
-                    vm,
-                    &module,
-                    &builtin_set_names,
-                    imported_string_module.as_ref(),
-                ) {
-                    let throw = throw_webassembly_error(
+                    // 4. If validating builtins and imported strings for module with builtinSetNames and importedStringModule is
+                    //    false, reject promise with a CompileError exception.
+                    if !validate_builtins_and_imported_strings(
                         vm,
-                        realm,
-                        WebAssemblyError::Compile,
-                        "Invalid builtin or imported string",
-                    );
-                    reject_promise(vm, promise, throw.value());
-                }
-                // 5. Otherwise,
-                else {
-                    // 1. Construct a WebAssembly module object from module, bytes, builtinSetNames, importedStringModule, and
-                    //    let moduleObject be the result.
-                    let bytes = job.bytes.take();
-                    let module_object = allocate(vm, |_| {
-                        Module::new(module, bytes, builtin_set_names, imported_string_module)
-                    });
+                        &module,
+                        &builtin_set_names,
+                        imported_string_module.as_ref(),
+                    ) {
+                        let throw = throw_webassembly_error(
+                            vm,
+                            realm,
+                            WebAssemblyError::Compile,
+                            "Invalid builtin or imported string",
+                        );
+                        reject_promise(vm, promise, throw.value());
+                    }
+                    // 5. Otherwise,
+                    else {
+                        // 1. Construct a WebAssembly module object from module, bytes, builtinSetNames, importedStringModule, and
+                        //    let moduleObject be the result.
+                        let bytes = job.bytes.take();
+                        let module_object = allocate(vm, |_| {
+                            Module::new(module, bytes, builtin_set_names, imported_string_module)
+                        });
 
-                    // 2. Resolve promise with moduleObject.
-                    let cx = CallContext::new(vm, realm);
-                    resolve_promise(vm, promise, Value::from_object(wrap(&cx, module_object)));
-                }
+                        // 2. Resolve promise with moduleObject.
+                        let cx = CallContext::new(vm, realm);
+                        resolve_promise(vm, promise, Value::from_object(wrap(&cx, module_object)));
+                    }
+                });
             });
         },
     );
@@ -214,30 +215,31 @@ fn asynchronously_instantiate_a_webassembly_module(
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
     queue_a_task(
         vm,
-        realm,
         TaskSource::Unspecified,
         (promise, module_object, imports),
         |vm, (promise, module_object, imports)| {
             let realm = crate::bindings::promise::promise_realm(promise);
-            let module = module_object.compiled_module().clone();
+            with_temporary_execution_context_and_callbacks(realm, || {
+                let module = module_object.compiled_module().clone();
 
-            // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
-            //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
-            let instance = match instantiate_the_core_of_a_webassembly_module(vm, &module, &imports) {
-                Ok(instance) => instance,
-                Err(throw) => {
-                    reject_promise(vm, promise, throw.value());
-                    return;
-                }
-            };
+                // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+                //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
+                let instance = match instantiate_the_core_of_a_webassembly_module(vm, &module, &imports) {
+                    Ok(instance) => instance,
+                    Err(throw) => {
+                        reject_promise(vm, promise, throw.value());
+                        return;
+                    }
+                };
 
-            // 2. Let instanceObject be a new Instance.
-            // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
-            let instance_object = allocate(vm, |_| Instance::initialize(vm, realm, instance));
+                // 2. Let instanceObject be a new Instance.
+                // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
+                let instance_object = allocate(vm, |_| Instance::initialize(vm, realm, instance));
 
-            // 4. Resolve promise with instanceObject.
-            let cx = CallContext::new(vm, realm);
-            resolve_promise(vm, promise, Value::from_object(wrap(&cx, instance_object)));
+                // 4. Resolve promise with instanceObject.
+                let cx = CallContext::new(vm, realm);
+                resolve_promise(vm, promise, Value::from_object(wrap(&cx, instance_object)));
+            });
         },
     );
 

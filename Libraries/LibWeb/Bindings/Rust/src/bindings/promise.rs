@@ -37,18 +37,9 @@ unsafe extern "C" {
         steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
     );
 
-    /// Queues a task on the task source, an HTML::Task::Source, that calls the steps with the VM and the cell while an
-    /// execution context of the realm is on the stack, as HTML::queue_a_task() queues one without a document. The
-    /// cell lives until then.
+    /// Queues a task on the task source, an HTML::Task::Source, that calls the steps with the VM and the cell, as
+    /// HTML::queue_a_task() queues one without a document. The cell lives until then.
     fn web_bindings_queue_a_task(
-        realm: *mut c_void,
-        task_source: u8,
-        cell: *mut c_void,
-        steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    );
-
-    /// Queues a task on the task source as web_bindings_queue_a_task() does, but with no execution context on the stack.
-    fn web_bindings_queue_a_task_without_execution_context(
         task_source: u8,
         cell: *mut c_void,
         steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -620,23 +611,8 @@ pub(crate) fn in_parallel<C: Trace + Copy + 'static>(vm: &Vm, realm: Gc<Realm>, 
     unsafe { web_bindings_run_in_parallel(realm.as_ptr().cast(), cell, run_pending_steps) };
 }
 
-/// Queues a task on the task source that performs the steps with the captures,
 /// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-pub(crate) fn queue_a_task<C: Trace + Copy + 'static>(
-    vm: &Vm,
-    realm: Gc<Realm>,
-    task_source: TaskSource,
-    captures: C,
-    steps: fn(&Vm, C),
-) {
-    let cell = pending_steps(vm, captures, steps);
-    // SAFETY: The realm and the cell are live.
-    unsafe { web_bindings_queue_a_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps) };
-}
-
-/// Queues a task on the task source that performs the steps with the captures, as queue_a_task() does, but with no
-/// execution context of its own on the stack, https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-pub(crate) fn queue_a_task_without_execution_context<C: Trace + Clone + 'static>(
+pub(crate) fn queue_a_task<C: Trace + Clone + 'static>(
     vm: &Vm,
     task_source: TaskSource,
     captures: C,
@@ -644,11 +620,11 @@ pub(crate) fn queue_a_task_without_execution_context<C: Trace + Clone + 'static>
 ) {
     let cell = pending_steps(vm, captures, steps);
     // SAFETY: The cell is live.
-    unsafe { web_bindings_queue_a_task_without_execution_context(task_source as u8, cell, run_pending_steps) };
+    unsafe { web_bindings_queue_a_task(task_source as u8, cell, run_pending_steps) };
 }
 
 /// Queues a global task on the task source, given the global object, that performs the steps with the captures,
-/// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. Unlike queue_a_task(), the steps run
+/// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. As with queue_a_task(), the steps run
 /// with no execution context of their own on the stack.
 pub(crate) fn queue_a_global_task<C: Trace + Clone + 'static>(
     vm: &Vm,

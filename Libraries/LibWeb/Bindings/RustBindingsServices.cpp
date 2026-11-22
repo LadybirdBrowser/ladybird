@@ -90,8 +90,7 @@ void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
 void web_bindings_queue_a_microtask(void* realm, JSObject* function);
 void web_bindings_deferred_invoke(void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
-void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
-void web_bindings_queue_a_task_without_execution_context(u8 task_source, void* cell, void (*steps)(JSVM*, void*));
+void web_bindings_queue_a_task(u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_remove_tasks(void* realm, ReadonlySpan<u64> task_ids);
 u64 web_bindings_currently_running_task(void* realm);
@@ -552,17 +551,7 @@ static_assert(to_underlying(HTML::Task::Source::WebGL) == 26);
 static_assert(to_underlying(HTML::Task::Source::Crypto) == 27);
 static_assert(to_underlying(HTML::Task::Source::Storage) == 29);
 
-void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
-{
-    GC::Ref<JS::Realm> js_realm = *static_cast<JS::Realm*>(realm);
-    // NB: The task's captures, which the collector traces, keep the cell alive until the steps run.
-    HTML::queue_a_task(static_cast<HTML::Task::Source>(task_source), nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(js_realm, GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& js_realm, auto& cell, auto& steps) {
-        HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        steps(JS::HostABI::vm_to_abi(js_realm->vm()), cell.ptr());
-    }));
-}
-
-void web_bindings_queue_a_task_without_execution_context(u8 task_source, void* cell, void (*steps)(JSVM*, void*))
+void web_bindings_queue_a_task(u8 task_source, void* cell, void (*steps)(JSVM*, void*))
 {
     // NB: The task's captures, which the collector traces, keep the cell alive until the steps run.
     HTML::queue_a_task(static_cast<HTML::Task::Source>(task_source), nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& cell, auto& steps) {

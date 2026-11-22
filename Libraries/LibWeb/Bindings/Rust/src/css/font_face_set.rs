@@ -733,8 +733,10 @@ impl FontFaceSet {
         }
 
         // 4. Queue a task to fire a font load event named loading at font face set.
-        queue_a_task(vm, self.realm, TaskSource::FontLoading, self.this(), |vm, this| {
-            this.fire_a_font_load_event(vm, "loading", &MarkedVec::new(vm));
+        queue_a_task(vm, TaskSource::FontLoading, self.this(), |vm, this| {
+            with_temporary_execution_context_and_callbacks(this.realm, || {
+                this.fire_a_font_load_event(vm, "loading", &MarkedVec::new(vm));
+            });
         });
     }
 
@@ -773,21 +775,23 @@ impl FontFaceSet {
         }
 
         // 5. Queue a task to perform the following steps synchronously:
-        queue_a_task(vm, realm, TaskSource::FontLoading, self.this(), |vm, this| {
-            // 1. Let loaded fonts be the (possibly empty) contents of font face set’s [[LoadedFonts]] slot.
-            // 2. Let failed fonts be the (possibly empty) contents of font face set’s [[FailedFonts]] slot.
-            // 3. Reset the [[LoadedFonts]] and [[FailedFonts]] slots to empty lists.
-            let loaded_fonts = take_font_faces(vm, &this.loaded_fonts);
-            let failed_fonts = take_font_faces(vm, &this.failed_fonts);
+        queue_a_task(vm, TaskSource::FontLoading, self.this(), |vm, this| {
+            with_temporary_execution_context_and_callbacks(this.realm, || {
+                // 1. Let loaded fonts be the (possibly empty) contents of font face set’s [[LoadedFonts]] slot.
+                // 2. Let failed fonts be the (possibly empty) contents of font face set’s [[FailedFonts]] slot.
+                // 3. Reset the [[LoadedFonts]] and [[FailedFonts]] slots to empty lists.
+                let loaded_fonts = take_font_faces(vm, &this.loaded_fonts);
+                let failed_fonts = take_font_faces(vm, &this.failed_fonts);
 
-            // 4. Fire a font load event named loadingdone at font face set with loaded fonts.
-            this.fire_a_font_load_event(vm, "loadingdone", &loaded_fonts);
+                // 4. Fire a font load event named loadingdone at font face set with loaded fonts.
+                this.fire_a_font_load_event(vm, "loadingdone", &loaded_fonts);
 
-            // 5. If font face set’s failed fonts is non-empty, fire a font load event named loadingerror at font face
-            //    set with failed fonts.
-            if !failed_fonts.is_empty() {
-                this.fire_a_font_load_event(vm, "loadingerror", &failed_fonts);
-            }
+                // 5. If font face set’s failed fonts is non-empty, fire a font load event named loadingerror at font face
+                //    set with failed fonts.
+                if !failed_fonts.is_empty() {
+                    this.fire_a_font_load_event(vm, "loadingerror", &failed_fonts);
+                }
+            });
         });
     }
 }
