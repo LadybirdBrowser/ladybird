@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	MessageEvent.origin is the origin of the final URL after a cross-origin redirect
