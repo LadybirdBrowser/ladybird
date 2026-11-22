@@ -18,13 +18,14 @@ use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
 use crate::bindings::environment_settings_object::relevant_settings_object;
-use crate::bindings::event_target::{CppEvent, CppEventTarget, EventListenerListChanged, GetTheParent};
+use crate::bindings::event_target::{CppEventTarget, EventListenerListChanged, GetTheParent};
 use crate::bindings::global_object::{
     relevant_global_object, window_from_global_object, worker_global_scope_from_global_object,
 };
 use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::message_event::{MessageEvent, MessageEventInit};
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::{structured_deserialize_message, structured_serialize_for_message};
 use crate::storage_api::storage_key::{StorageKey, obtain_a_storage_key_for_non_storage_purposes};
@@ -333,33 +334,31 @@ impl BroadcastChannel {
         let Ok(data) = data else {
             //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
             //    origin initialized to sourceOrigin, and then abort these steps.
-            let event = CppEvent::create_message_event(
+            let event = MessageEvent::create(
+                vm,
                 target_realm,
-                "messageerror",
-                Value::NULL,
-                &[],
-                Some(&message.source_origin),
-                "",
-                None,
+                &Utf16String::from_utf8("messageerror"),
+                MessageEventInit::new(vm),
+                Some(message.source_origin.clone()),
             );
-            event.set_is_trusted(true);
-            destination.event_target.dispatch_event(&event);
+            event.event().set_is_trusted(true);
+            destination.event_target.dispatch_event(event.event());
             return;
         };
 
         // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
         //    its origin initialized to sourceOrigin.
-        let event = CppEvent::create_message_event(
+        let mut event_init = MessageEventInit::new(vm);
+        event_init.data = data;
+        let event = MessageEvent::create(
+            vm,
             target_realm,
-            "message",
-            data,
-            &[],
-            Some(&message.source_origin),
-            "",
-            None,
+            &Utf16String::from_utf8("message"),
+            event_init,
+            Some(message.source_origin.clone()),
         );
-        event.set_is_trusted(true);
-        destination.event_target.dispatch_event(&event);
+        event.event().set_is_trusted(true);
+        destination.event_target.dispatch_event(event.event());
     }
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-close

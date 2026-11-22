@@ -13,9 +13,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_rust::api::{FunctionObject, Gc, Object, Realm, Trace, Value};
-use liburl_rust::FfiOrigin;
-use liburl_rust::origin::Origin;
+use libjs_rust::api::{FunctionObject, Gc, Realm, Trace, Value};
 
 use crate::bindings::CallContext;
 use crate::bindings::callback::CallbackInterface;
@@ -68,17 +66,6 @@ unsafe extern "C" {
         cancelable: bool,
         composed: bool,
     ) -> *mut c_void;
-    fn web_bindings_create_message_event(
-        realm: *mut c_void,
-        r#type: ak::Span<'_, u8>,
-        data: u64,
-        ports: *const *mut c_void,
-        count: usize,
-        origin: *const FfiOrigin,
-        last_event_id: ak::Span<'_, u8>,
-        source: *mut c_void,
-    ) -> *mut c_void;
-    fn web_bindings_message_event_data(event: u64) -> u64;
     fn web_bindings_set_has_pending_activity(realm: *mut c_void, event_target: *mut c_void, has_pending_activity: bool);
     fn web_bindings_set_event_owner(event: *mut c_void, interface_name: u16, owner: *mut c_void);
     fn web_bindings_event_set_is_trusted(event: *mut c_void, is_trusted: bool);
@@ -281,39 +268,6 @@ impl CppEvent {
         })
     }
 
-    /// A MessageEvent in the realm, https://html.spec.whatwg.org/multipage/comms.html#messageevent
-    pub(crate) fn create_message_event(
-        realm: Gc<Realm>,
-        r#type: &str,
-        data: Value,
-        ports: &[Gc<Object>],
-        origin: Option<&Origin>,
-        last_event_id: &str,
-        source: Option<&CppCell>,
-    ) -> Self {
-        let ports: Vec<*mut c_void> = ports.iter().map(|port| port.as_ptr().cast()).collect();
-        let create = |origin: *const FfiOrigin| {
-            // SAFETY: The realm, the data, the ports and the source are live, the type, the ports, the origin and the
-            //         last event ID are lent for the call, and LibWeb returns a live event.
-            Self(unsafe {
-                CppCell::from_raw(web_bindings_create_message_event(
-                    realm.as_ptr().cast(),
-                    ak::Span::new(r#type.as_bytes()),
-                    data.to_raw(),
-                    ports.as_ptr(),
-                    ports.len(),
-                    origin,
-                    ak::Span::new(last_event_id.as_bytes()),
-                    source.map_or(core::ptr::null_mut(), CppCell::as_ptr),
-                ))
-            })
-        };
-        match origin {
-            Some(origin) => FfiOrigin::with_origin(origin, |origin| create(origin)),
-            None => create(core::ptr::null()),
-        }
-    }
-
     pub(crate) fn set_owner<T: Interface>(&self, owner: Ref<T>) {
         // SAFETY: The event and the owner are live, and the owner keeps the event alive.
         unsafe { web_bindings_set_event_owner(self.as_ptr(), T::INTERFACE_NAME, cell_into_abi(owner)) };
@@ -370,12 +324,6 @@ impl CppEvent {
         // SAFETY: The event is live, and the type is lent for the call.
         unsafe { web_bindings_initialize_event(self.as_ptr(), r#type.raw_identity(), bubbles, cancelable) };
     }
-}
-
-/// The data attribute of a MessageEvent, which the value is a wrapper of.
-pub(crate) fn message_event_data(event: Value) -> Value {
-    // SAFETY: The event is live, and LibWeb returns its data, which is live.
-    unsafe { Value::from_raw(web_bindings_message_event_data(event.to_raw())) }
 }
 
 fn event_target_of(object: &impl Wrappable) -> *mut c_void {

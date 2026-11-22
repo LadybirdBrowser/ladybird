@@ -494,7 +494,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
         HTML::MessageEventInit event_init;
         event_init.data = data_for_event;
 
-        self.dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, self.m_url.origin()));
+        self.dispatch_event(HTML::create_message_event(realm, HTML::EventNames::message, event_init, self.m_url.origin()));
     }));
 }
 

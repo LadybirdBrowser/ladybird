@@ -17,6 +17,7 @@ use crate::bindings::conversions::to_dom_string;
 use crate::bindings::interface::{Interface, Ref, Wrappable, allocate, implementation_of};
 use crate::bindings::services::web_bindings_extract_an_origin;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::message_event::MessageEvent;
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
@@ -101,6 +102,9 @@ fn extract_an_origin(value: Value) -> Option<OriginValue> {
     }
     if is_host_instance_of(&object, URL::wrapper_class()) {
         return Some(implementation_of::<URL>(object).extract_an_origin());
+    }
+    if is_host_instance_of(&object, MessageEvent::wrapper_class()) {
+        return implementation_of::<MessageEvent>(object).extract_an_origin();
     }
 
     unsafe extern "C" fn on_origin(ctx: *mut core::ffi::c_void, ffi_origin: *const FfiOrigin) {

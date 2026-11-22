@@ -7,15 +7,11 @@
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/RustEventTarget.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/HTML/MessageEvent.h>
-#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
@@ -119,8 +115,6 @@ void web_bindings_add_event_listener_without_options(DOM::EventTarget*, Readonly
 void web_bindings_remove_event_listener_without_options(DOM::EventTarget*, ReadonlyBytes type, WebIDL::CallbackType*);
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed);
 RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed);
-DOM::Event* web_bindings_create_message_event(void* realm, ReadonlyBytes type, JSValue data, JSObject* const* ports, size_t count, URL::FFI::FfiOrigin const* origin, ReadonlyBytes last_event_id, HTML::WindowProxy* source);
-JSValue web_bindings_message_event_data(JSValue event);
 void web_bindings_set_event_owner(RustEvent*, u16 interface_name, RustInterfaceCell* owner);
 void web_bindings_event_set_is_trusted(DOM::Event*, bool is_trusted);
 bool web_bindings_dispatch_event(DOM::EventTarget*, DOM::Event*);
@@ -210,32 +204,6 @@ RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubble
     DOM::EventInit event_init { .bubbles = bubbles, .cancelable = cancelable, .composed = composed };
     auto type_string = Utf16String::from_raw(type);
     return RustEvent::create(Utf16FlyString::from_utf16(type_string.utf16_view()), event_init, HighResolutionTime::current_high_resolution_time(js_realm.global_object())).ptr();
-}
-
-DOM::Event* web_bindings_create_message_event(void* realm, ReadonlyBytes type, JSValue data, JSObject* const* ports, size_t count, URL::FFI::FfiOrigin const* origin, ReadonlyBytes last_event_id, HTML::WindowProxy* source)
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    HTML::MessageEventInit event_init;
-    event_init.data = JS::HostABI::value_from_abi(data);
-    event_init.last_event_id = Utf16String::from_utf8_without_validation(last_event_id);
-    if (source)
-        event_init.source = GC::Ref { *source };
-    for (size_t i = 0; i < count; ++i) {
-        auto* port = impl_from<HTML::MessagePort>(JS::HostABI::object_from_abi(ports[i]));
-        VERIFY(port);
-        event_init.ports.append(*port);
-    }
-    auto event_type = Utf16FlyString::from_utf8_without_validation(type);
-    if (!origin)
-        return HTML::MessageEvent::create(js_realm.global_object(), event_type, event_init).ptr();
-    return HTML::MessageEvent::create(js_realm.global_object(), event_type, event_init, URL::RustIntegration::origin_from_ffi(*origin)).ptr();
-}
-
-JSValue web_bindings_message_event_data(JSValue event)
-{
-    auto* message_event = impl_from<HTML::MessageEvent>(&JS::HostABI::value_from_abi(event).as_object());
-    VERIFY(message_event);
-    return JS::HostABI::value_to_abi(message_event->data());
 }
 
 void web_bindings_set_event_owner(RustEvent* event, u16 interface_name, RustInterfaceCell* owner)

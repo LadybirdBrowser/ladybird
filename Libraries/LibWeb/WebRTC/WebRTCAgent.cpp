@@ -198,7 +198,7 @@ void WebRTCAgent::wire_event_handlers()
             HTML::TemporaryExecutionContext context(realm);
             HTML::MessageEventInit init;
             init.data = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(text));
-            (*channel)->dispatch_event(HTML::MessageEvent::create((*channel)->relevant_global_object(), HTML::EventNames::message, init));
+            (*channel)->dispatch_event(HTML::create_message_event(realm, HTML::EventNames::message, init));
         }
     };
     m_client->on_data_channel_message_binary_event = [this](u64 channel_id, ByteBuffer bytes) {
@@ -210,7 +210,7 @@ void WebRTCAgent::wire_event_handlers()
                 init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(bytes), String {}));
             else
                 init.data = JS::ArrayBuffer::create(realm, bytes);
-            (*channel)->dispatch_event(HTML::MessageEvent::create((*channel)->relevant_global_object(), HTML::EventNames::message, init));
+            (*channel)->dispatch_event(HTML::create_message_event(realm, HTML::EventNames::message, init));
         }
     };
 }
