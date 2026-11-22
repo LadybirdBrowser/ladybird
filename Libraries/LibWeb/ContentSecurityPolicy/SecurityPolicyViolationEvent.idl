@@ -5,7 +5,7 @@ enum SecurityPolicyViolationEventDisposition {
 };
 
 // https://w3c.github.io/webappsec-csp/#securitypolicyviolationevent
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface SecurityPolicyViolationEvent : Event {
     constructor(DOMString type, optional SecurityPolicyViolationEventInit eventInitDict = {});
     readonly attribute USVString documentURI;

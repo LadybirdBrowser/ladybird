@@ -22,7 +22,6 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/JSON.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 
@@ -390,7 +389,7 @@ void Violation::report_a_violation(JS::Realm& realm)
             //    violation's sample
             event_init.sample = self.m_sample;
 
-            auto event = SecurityPolicyViolationEvent::create(HTML::EventNames::securitypolicyviolation, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
+            auto event = create_security_policy_violation_event(realm, HTML::EventNames::securitypolicyviolation, event_init);
             event->set_is_trusted(true);
             event_target->dispatch_event(event);
         }

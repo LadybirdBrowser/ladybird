@@ -47,7 +47,12 @@ ALLOWED_REALM_MENTIONS = {
         "CSS Typed OM, parser-facing reification, style-value JS materialization, setlike/maplike glue, and wrappers of declaration blocks owned by Rust objects",
     ),
     "Clipboard": (4, 8, "the C++ facades create the Rust objects and wrap DataTransfers in a given realm"),
-    "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
+    "ContentSecurityPolicy": (
+        6,
+        13,
+        "CSP violation/report objects and callbacks still materialize JS-facing values; "
+        "the C++ glue of the Rust SecurityPolicyViolationEvent creates it in a given realm",
+    ),
     "CookieStore": (2, 3, "the C++ facade creates the Rust CookieStore in a given realm"),
     "DOM": (
         11,
