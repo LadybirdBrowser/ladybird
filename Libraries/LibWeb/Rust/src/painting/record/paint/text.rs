@@ -50,6 +50,7 @@ pub(crate) struct HighlightDecorationMetrics {
     pub thickness: Option<CssPixels>,
     pub underline_offset: CssPixels,
     pub underline_position_horizontal: u8,
+    pub underline_position_vertical: u8,
     pub skip_ink: u8,
 }
 
@@ -967,8 +968,16 @@ fn paint_text_fragment<O: Observer>(
             }
         }
         let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets);
-        decoration_box.x = range_rect.x;
-        decoration_box.width = range_rect.width;
+        // NB: The span of vertical text runs down the fragment.
+        if fragment.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
+            && !fragment.glyph_run.as_ref().is_some_and(|run| run.is_upright)
+        {
+            decoration_box.x = range_rect.x;
+            decoration_box.width = range_rect.width;
+        } else {
+            decoration_box.y = range_rect.y;
+            decoration_box.height = range_rect.height;
+        }
     }
 
     recorder.recorder.set_glyph_run_text(None);

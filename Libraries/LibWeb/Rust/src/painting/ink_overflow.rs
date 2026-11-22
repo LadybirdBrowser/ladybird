@@ -469,7 +469,7 @@ fn include_text_paint_effects(
         decoration_color: None,
     };
     for set in text_decoration::decoration_sets_for_span(source, root, &span) {
-        bounds.unite(text_decoration::decoration_ink_bounds(rect, &set));
+        bounds.unite(text_decoration::decoration_ink_bounds(fragment, rect, &set));
     }
 }
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>Reference for Sideways Inline Layout: Text Decoration</title>
+<meta charset=utf-8>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+body > div {
+  /* styling */
+  border: solid gray;
+  font: 30px/1 Ahem;
+  color: silver;
+  float: left;
+  margin: 8px;
+
+  /* test */
+  text-decoration: underline;
+  text-decoration-color: orange;
+  text-decoration-thickness: 4px;
+
+  /* reference hacking */
+  width: 1em;
+  height: 5em;
+  white-space: nowrap;
+}
+.lr > div {
+  text-shadow: -4px 2px aqua;
+  transform: rotate(-90deg) translateX(-4em);
+}
+.rl > div {
+  text-shadow: 4px -2px aqua;
+  transform: rotate(90deg);
+}
+</style>
+
+<div class=lr><div>Ap Éx</div></div>
+
+<div class=rl><div>Ap Éx</div></div>

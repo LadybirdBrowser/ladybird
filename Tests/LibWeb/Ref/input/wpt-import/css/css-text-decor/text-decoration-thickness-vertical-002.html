@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Test case for text-decoration-thickness</title>
+    <meta name="assert" content="text-decoration:width; the width of the decoration line is increased">
+    <link rel="author" title="Charlie Marlow" href="mailto:cmarlow@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-width-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-thickness-vertical-green-rect-ref.html">
+    <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+    <style>
+        #box{
+            font: 20px/1 Ahem;
+            background-color: red;
+            height: 4em;
+            width: 1em;
+            overflow: hidden;
+        }
+        /*
+         * The underline is placed to the right of the text
+         * at the left edge of the #box scrollpart. Its
+         * text-decoration should grow "out" away from the
+         * text, covering up the scrollport. We will use a
+         * 1.2 em-wide decoration line to be sure the
+         * scrollport is still fully covered if there are
+         * small differences in the placement of the line.
+         */
+        #text{
+            color: transparent;
+            writing-mode: vertical-lr;
+            position: relative;
+            right: 1.1em;
+            text-decoration: green underline;
+            text-decoration-skip-ink: none;
+            text-decoration-thickness: 1.2em;
+            text-underline-position: from-font right;
+        }
+    </style>
+</head>
+<body>
+    <p>Test fails if there is any red visible</p>
+    <div id="box"><div id="text">XXXX</div></div>
+</body>
+</html>

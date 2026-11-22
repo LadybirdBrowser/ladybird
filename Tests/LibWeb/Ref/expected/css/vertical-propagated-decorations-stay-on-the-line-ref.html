@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+body { margin: 10px; display: flex; gap: 20px; }
+div { font: 20px/3 serif; height: 200px; }
+.u { text-decoration: underline 3px blue; text-decoration-skip-ink: none; }
+.o { text-decoration: overline 3px green; text-decoration-skip-ink: none; }
+.shifted { line-height: 0; color: transparent; }
+</style>
+<div style="writing-mode: vertical-rl"><span class="u">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: vertical-lr"><span class="u">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: sideways-lr"><span class="u">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: vertical-rl; text-orientation: upright"><span class="u">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: vertical-rl"><span class="o">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: vertical-lr"><span class="o">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: sideways-lr"><span class="o">ab<span class="shifted">cd</span>ef</span></div>
+<div style="writing-mode: vertical-rl; text-orientation: upright"><span class="o">ab<span class="shifted">cd</span>ef</span></div>

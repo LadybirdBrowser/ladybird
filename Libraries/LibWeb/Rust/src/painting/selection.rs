@@ -470,6 +470,7 @@ fn highlight_pseudo_style_of_record(
             }),
             underline_offset: inherited_text.text_underline_offset.used_value,
             underline_position_horizontal: inherited_text.text_underline_position.horizontal,
+            underline_position_vertical: inherited_text.text_underline_position.vertical,
             skip_ink: inherited_text.text_decoration_skip_ink,
         });
     }
