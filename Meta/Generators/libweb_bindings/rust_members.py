@@ -523,9 +523,11 @@ def rust_members(interface: Interface) -> RustMembers:
 
     if interface.stringifier is not None:
         stringifier = interface.stringifier
-        check_extended_attributes(
-            "its stringifier", stringifier.extended_attributes, SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES
-        )
+        supported_attributes = SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES
+        if stringifier.attribute is not None:
+            # The attribute setter handles [CEReactions], including for a stringifier attribute.
+            supported_attributes = supported_attributes | {"CEReactions"}
+        check_extended_attributes("its stringifier", stringifier.extended_attributes, supported_attributes)
         check_exposure("its stringifier", stringifier.extended_attributes)
         attribute_getter_method = None
         if stringifier.attribute is not None:

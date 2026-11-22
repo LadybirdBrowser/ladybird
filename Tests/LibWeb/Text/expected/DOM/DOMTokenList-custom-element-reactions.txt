@@ -1,0 +1,6 @@
+null -> seed seed: ["seed"]
+seed seed -> seed appended: ["seed","appended"]
+seed appended -> reentrant reentrant: ["reentrant"]
+after add: true, 1, reentrant, reentrant reentrant
+reentrant reentrant -> null: []
+after removal: 0, undefined

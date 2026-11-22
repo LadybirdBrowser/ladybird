@@ -177,6 +177,9 @@ namespace Web::DOM {
 extern "C" {
 
 // Called by Bindings/Rust/src/dom/element.rs.
+FlatPtr web_dom_element_local_name(Element const*);
+FlatPtr web_dom_element_get_attribute_ns(Element const*, FlatPtr namespace_, FlatPtr name);
+void web_dom_element_set_attribute_value(Element*, FlatPtr name, FlatPtr value);
 void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr));
 }
 
@@ -6396,7 +6399,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             });
         }
         if (auto* rare_data = element_rare_data(); rare_data && rare_data->class_list)
-            rare_data->class_list->associated_attribute_changed(value_or_empty);
+            rare_data->class_list->associated_attribute_changed(value);
 
         if (old_style_engine_classes.has_value())
             CSS::record_element_class_list_changed(*this, *old_style_engine_classes, m_classes);
@@ -6494,7 +6497,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             }
         }
         if (auto* rare_data = element_rare_data(); rare_data && rare_data->part_list)
-            rare_data->part_list->associated_attribute_changed(value_or_empty);
+            rare_data->part_list->associated_attribute_changed(value);
         CSS::record_element_parts_changed(*this);
     } else if (local_name == HTML::AttributeNames::exportparts) {
         CSS::Invalidation::invalidate_style_after_exportparts_attribute_change(*this);
@@ -7149,6 +7152,25 @@ bool Element::is_potentially_render_blocking()
         start = i + 1;
     }
     return false;
+}
+
+FlatPtr web_dom_element_local_name(Element const* element)
+{
+    return element->local_name().raw_identity();
+}
+
+FlatPtr web_dom_element_get_attribute_ns(Element const* element, FlatPtr namespace_, FlatPtr name)
+{
+    Optional<Utf16FlyString> namespace_name;
+    if (namespace_ != 0)
+        namespace_name = Utf16FlyString::from_raw(namespace_);
+    auto attribute = element->get_attribute_ns(namespace_name, Utf16FlyString::from_raw(name));
+    return attribute.has_value() ? attribute.release_value().into_raw() : 0;
+}
+
+void web_dom_element_set_attribute_value(Element* element, FlatPtr name, FlatPtr value)
+{
+    element->set_attribute_value(Utf16FlyString::from_raw(name), Utf16String::adopt_raw(value));
 }
 
 void web_dom_element_attribute(Element* element, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr))

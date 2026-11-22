@@ -38,7 +38,7 @@ void HTMLAnchorElement::attribute_changed(Utf16FlyString const& name, Optional<U
         href_content_attribute_changed();
     } else if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
-            m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+            m_rel_list->associated_attribute_changed(value);
     }
 }
 

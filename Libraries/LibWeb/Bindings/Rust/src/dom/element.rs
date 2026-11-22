@@ -8,7 +8,7 @@
 
 use core::ffi::c_void;
 
-use ak::Utf16String;
+use ak::{Utf16FlyString, Utf16String};
 use libjs_rust::api::{Gc, MarkedVec, Object, Trace};
 
 use crate::animations::animatable::{self, GetAnimationsOptions, UnrestrictedDoubleOrKeyframeAnimationOptions};
@@ -19,6 +19,9 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
     fn web_dom_is_valid_attribute_local_name(name: usize) -> bool;
+    fn web_dom_element_local_name(element: *mut c_void) -> usize;
+    fn web_dom_element_get_attribute_ns(element: *mut c_void, namespace: usize, name: usize) -> usize;
+    fn web_dom_element_set_attribute_value(element: *mut c_void, name: usize, value: usize);
     fn web_dom_element_attribute(
         element: *mut c_void,
         name: ak::Span<'_, u8>,
@@ -44,6 +47,28 @@ impl CppElement {
     pub(crate) unsafe fn from_raw(element: *mut c_void) -> Self {
         // SAFETY: The caller passes a live Element.
         Self(unsafe { CppCell::from_raw(element) })
+    }
+
+    pub(crate) fn local_name(&self) -> Utf16FlyString {
+        // SAFETY: The element is live and owns the returned local name.
+        unsafe { Utf16FlyString::from_raw_borrowed(web_dom_element_local_name(self.0.as_ptr())) }
+    }
+
+    pub(crate) fn get_attribute_ns(
+        &self,
+        namespace: Option<&Utf16FlyString>,
+        name: &Utf16FlyString,
+    ) -> Option<Utf16String> {
+        let namespace = namespace.map_or(0, |namespace| namespace.raw_identity());
+        // SAFETY: The element is live and the names are lent for the call.
+        let value = unsafe { web_dom_element_get_attribute_ns(self.0.as_ptr(), namespace, name.raw_identity()) };
+        // SAFETY: A nonzero result transfers a reference to the value.
+        (value != 0).then(|| unsafe { Utf16String::from_raw_owned(value) })
+    }
+
+    pub(crate) fn set_attribute_value(&self, name: &Utf16FlyString, value: Utf16String) {
+        // SAFETY: The element is live, the name is lent for the call, and the value reference is transferred.
+        unsafe { web_dom_element_set_attribute_value(self.0.as_ptr(), name.raw_identity(), value.into_raw()) };
     }
 
     /// https://dom.spec.whatwg.org/#concept-element-attributes-get-value
