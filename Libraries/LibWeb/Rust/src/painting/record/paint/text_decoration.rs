@@ -17,7 +17,9 @@ use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParam
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::Path;
-use libgfx_rust::{CapStyle, Color, FloatPoint, IntPoint, IntRect, JoinStyle, LineStyle, ShouldAntiAlias};
+use libgfx_rust::{
+    AffineTransform, CapStyle, Color, FloatPoint, FloatRect, IntPoint, IntRect, JoinStyle, LineStyle, ShouldAntiAlias,
+};
 
 fn decoration_color(style: crate::css::computed_value_views::ComputedValuesView<'_>) -> u32 {
     let text = style.inherited_text();
@@ -48,6 +50,10 @@ pub(crate) struct TextDecorationSet {
     pub text_font_pixel_size: f32,
     pub text_underline_offset: CssPixels,
     pub text_underline_position_horizontal: u8,
+    pub text_underline_position_vertical: u8,
+    /// Whether the underline goes on the line-over side of the text and the overline on its line-under side, as
+    /// text-underline-position: right asks for in vertical text.
+    pub lines_swap_sides: bool,
     pub skip_ink: u8,
 }
 
@@ -112,6 +118,19 @@ fn anchor_for_decorating_box(
         return (fragment.baseline, true);
     }
     let side = arena.committed_side_data(block);
+    // NB: The offsets below are physical and vertical, which is the block axis of horizontal text only. In a vertical
+    //     line, the decorating box's baseline is instead found from how far vertical-align moved the text off it.
+    let in_vertical_line = fragment.writing_mode != crate::css::css_enums::writing_mode::HORIZONTAL_TB
+        || fragment.glyph_run.as_ref().is_some_and(|run| run.is_upright);
+    if in_vertical_line {
+        let decorating_box_shift = side
+            .inline_box_pieces()
+            .iter()
+            .find(|piece| piece.node == decorating_node && piece.line_index == fragment.line_index)
+            .map_or(CssPixels::from_raw(0), |piece| piece.accumulated_vertical_shift);
+        let shift = fragment.accumulated_vertical_shift - decorating_box_shift;
+        return (fragment.baseline - shift, shift == CssPixels::from_raw(0));
+    }
     for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
@@ -221,12 +240,14 @@ pub(crate) fn decoration_sets_for_span(
                 Some(metrics) => {
                     set.text_underline_offset = metrics.underline_offset;
                     set.text_underline_position_horizontal = metrics.underline_position_horizontal;
+                    set.text_underline_position_vertical = metrics.underline_position_vertical;
                     set.skip_ink = metrics.skip_ink;
                 }
                 None => {
                     let inherited_text = decorating_style.inherited_text();
                     set.text_underline_offset = inherited_text.text_underline_offset.used_value;
                     set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
+                    set.text_underline_position_vertical = inherited_text.text_underline_position.vertical;
                     set.skip_ink = arena
                         .node_style_if_live(text_parent)
                         .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
@@ -520,6 +541,8 @@ struct CssDecorationLine {
     style: u8,
     color: Color,
     center_y: CssPixels,
+    /// Whether the line went to the other side of the text, so that it grows away from the text the other way.
+    swaps_sides: bool,
 }
 
 fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
@@ -534,6 +557,7 @@ fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
         let mut line_style = set.style;
         let mut line_color = Color(set.color);
         let mut text_underline_offset = set.text_underline_offset;
+        let mut swaps_sides = set.lines_swap_sides;
 
         if line == text_decoration_line::SPELLING_ERROR {
             // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-spelling-error
@@ -547,6 +571,7 @@ fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
             // When the value of the text-decoration-line property is either spelling-error or grammar-error, the UA
             // must ignore the value of text-underline-position.
             text_underline_offset = CssPixels::from_integer(2);
+            swaps_sides = false;
         } else if line == text_decoration_line::GRAMMAR_ERROR {
             // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-grammar-error
             // This value indicates the type of text decoration used by the user agent to highlight grammar mistakes.
@@ -559,7 +584,19 @@ fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
             // When the value of the text-decoration-line property is either spelling-error or grammar-error, the UA
             // must ignore the value of text-underline-position.
             text_underline_offset = CssPixels::from_integer(2);
+            swaps_sides = false;
         }
+
+        // The center of a line on the under side of the text, whose near edge is at the underline's position.
+        let under_side_center = |offset: CssPixels| {
+            let top_edge = match set.text_underline_position_horizontal {
+                text_underline_position_horizontal::UNDER => {
+                    baseline + CssPixels::nearest_value_for_f32(set.decorating_font_descent) + offset
+                }
+                _ => baseline + offset,
+            };
+            top_edge + line_thickness.div_as_fraction(two)
+        };
 
         // Compute the center Y of the decoration stroke. For underline and overline, offset by half the thickness
         // so the near edge of the stroke aligns with the intended position.
@@ -581,14 +618,25 @@ fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
                 //        offset, otherwise behaves as auto.
                 // The underline is positioned under the element’s text content. In this case the underline usually
                 // does not cross the descenders. (This is sometimes called “accounting” underline.)
-                let underline_top_edge = match set.text_underline_position_horizontal {
-                    text_underline_position_horizontal::UNDER => {
-                        baseline + CssPixels::nearest_value_for_f32(set.decorating_font_descent) + text_underline_offset
-                    }
-                    _ => baseline + text_underline_offset,
-                };
-                underline_top_edge + line_thickness.div_as_fraction(two)
+                // https://drafts.csswg.org/css-text-decor-4/#underline-right
+                // "In vertical typographic modes, the underline is aligned as for under, except it is always aligned
+                //  to the right edge of the text."
+                // NB: That's the line-over side of vertical text, at the ascent, where the offset moves the line
+                //     further out.
+                if swaps_sides {
+                    let ascent =
+                        CssPixels::nearest_value_for_f32(set.decorating_font_pixel_size - set.decorating_font_descent);
+                    let underline_bottom_edge = baseline - ascent - text_underline_offset;
+                    underline_bottom_edge - line_thickness.div_as_fraction(two)
+                } else {
+                    under_side_center(text_underline_offset)
+                }
             }
+            // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+            // 'If this causes the underline to be drawn on the "over" side of the text, then an overline also switches
+            //  sides and is drawn on the "under" side.'
+            // NB: It takes the place an underline would take on that side.
+            text_decoration_line::OVERLINE if swaps_sides => under_side_center(text_underline_offset),
             text_decoration_line::OVERLINE => baseline - glyph_height - line_thickness.div_as_fraction(two),
             text_decoration_line::LINE_THROUGH => {
                 let point_size = CssPixels::from_integer(set.decorating_font_point_size as i64);
@@ -604,24 +652,18 @@ fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
             style: line_style,
             color: line_color,
             center_y: line_center_y,
+            swaps_sides,
         });
     }
     lines
 }
 
-pub(crate) fn decoration_ink_bounds(fragment_box: CssPixelRect, set: &TextDecorationSet) -> CssPixelRect {
-    let mut bounds = CssPixelRect::default();
-    for line in css_decoration_lines(set) {
-        let reach = line.thickness * 3;
-        let rect = CssPixelRect::new(
-            fragment_box.x,
-            fragment_box.y + line.center_y,
-            fragment_box.width,
-            CssPixels::default(),
-        );
-        bounds.unite(rect.inflated(reach, reach, reach, reach));
-    }
-    bounds
+pub(crate) fn decoration_ink_bounds(
+    fragment: &crate::painting::paintable_data::FragmentRecord,
+    fragment_rect: CssPixelRect,
+    set: &TextDecorationSet,
+) -> CssPixelRect {
+    DecorationLayout::for_fragment(fragment, fragment_rect, fragment_rect, set).ink_bounds(fragment_rect)
 }
 
 pub(crate) fn decoration_line_geometry(
@@ -638,7 +680,15 @@ pub(crate) fn decoration_line_geometry(
             style: line_style,
             color: line_color,
             center_y: line_center_y,
+            swaps_sides,
         } = css_line;
+        // The side of the text the line is on, which double and wavy lines grow away from it on: An underline goes
+        // under the text, unless it swapped sides with the overline.
+        let effective_line = match (line, swaps_sides) {
+            (text_decoration_line::UNDERLINE, true) => text_decoration_line::OVERLINE,
+            (text_decoration_line::OVERLINE, true) => text_decoration_line::UNDERLINE,
+            _ => line,
+        };
         let device_line_thickness = converter.rounded_device_pixels(line_thickness);
         let top = converter
             .rounded_device_point(fragment_box.location().translated(
@@ -674,7 +724,7 @@ pub(crate) fn decoration_line_geometry(
             text_decoration_style::DOUBLE => {
                 // Two parallel lines with a 1px gap, expanding away from the text.
                 let step = device_line_thickness.max(1) + 1;
-                let (first_top, second_top) = match line {
+                let (first_top, second_top) = match effective_line {
                     text_decoration_line::UNDERLINE => (top, top + step),
                     text_decoration_line::OVERLINE => (top - step, top),
                     _ => (top - step / 2, top - step / 2 + step),
@@ -685,7 +735,7 @@ pub(crate) fn decoration_line_geometry(
                 // Wavy: the wave oscillates amplitude/2 above and below its center.
                 let amplitude = device_line_thickness * 3;
                 let mut wave_y = line_y;
-                match line {
+                match effective_line {
                     text_decoration_line::UNDERLINE => wave_y += device_line_thickness / 2 + 1,
                     text_decoration_line::OVERLINE => wave_y -= device_line_thickness / 2 + 1,
                     _ => {}
@@ -709,6 +759,242 @@ pub(crate) fn decoration_line_geometry(
     lines
 }
 
+/// Where the decorations of a fragment are laid out: as for horizontal text, or as for the glyphs of a vertical
+/// fragment, which are laid out as horizontal text and turned a quarter turn about the fragment's device rect.
+#[derive(Clone, Copy)]
+enum DecorationFrame {
+    Horizontal,
+    Clockwise(IntRect),
+    Counterclockwise(IntRect),
+}
+
+impl DecorationFrame {
+    /// The turn that takes the frame's horizontal text to where the player draws the fragment's glyphs.
+    fn transform(self) -> Option<AffineTransform> {
+        let (anchor, clockwise) = match self {
+            DecorationFrame::Horizontal => return None,
+            DecorationFrame::Clockwise(anchor) => (anchor, true),
+            DecorationFrame::Counterclockwise(anchor) => (anchor, false),
+        };
+        let (x, y) = (anchor.x as f32, anchor.y as f32);
+        let values = if clockwise {
+            // (x', y') = (right - (y - top), top + (x - left))
+            [0.0, 1.0, -1.0, 0.0, x + anchor.width as f32 + y, y - x]
+        } else {
+            // (x', y') = (left + (y - top), bottom - (x - left))
+            [0.0, -1.0, 1.0, 0.0, x - y, y + anchor.height as f32 + x]
+        };
+        Some(AffineTransform { values })
+    }
+
+    fn map_rect(self, rect: IntRect) -> IntRect {
+        let Some(transform) = self.transform() else {
+            return rect;
+        };
+        let mapped = transform.map_rect(FloatRect {
+            x: rect.x as f32,
+            y: rect.y as f32,
+            width: rect.width as f32,
+            height: rect.height as f32,
+        });
+        IntRect::new(
+            mapped.x.round() as i32,
+            mapped.y.round() as i32,
+            mapped.width.round() as i32,
+            mapped.height.round() as i32,
+        )
+    }
+
+    fn map_path(self, path: Path) -> Path {
+        match self.transform() {
+            Some(transform) => path.copy_transformed(transform.values),
+            None => path,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DecorationTurn {
+    None,
+    Clockwise,
+    Counterclockwise,
+}
+
+/// A fragment's decorations as they're laid out: along the run of its glyphs, as for horizontal text, in a frame that
+/// turns them with the glyphs.
+struct DecorationLayout {
+    turn: DecorationTurn,
+    /// The box the decorated glyphs take as horizontal text, in the frame before it's turned.
+    box_in_frame: CssPixelRect,
+    set: TextDecorationSet,
+}
+
+impl DecorationLayout {
+    fn for_fragment(
+        fragment: &crate::painting::paintable_data::FragmentRecord,
+        fragment_rect: CssPixelRect,
+        fragment_box: CssPixelRect,
+        set: &TextDecorationSet,
+    ) -> Self {
+        Self::new(
+            fragment.glyph_run.as_ref().is_some_and(|run| run.is_upright),
+            fragment.writing_mode,
+            fragment_rect,
+            fragment_box,
+            set,
+        )
+    }
+
+    fn new(
+        is_upright: bool,
+        writing_mode: u8,
+        fragment_rect: CssPixelRect,
+        fragment_box: CssPixelRect,
+        set: &TextDecorationSet,
+    ) -> Self {
+        // NB: The decorations of vertical text are laid out along the run of its glyphs, as for horizontal text, and
+        //     turned with the glyphs: a fragment of sideways text turns them like its glyphs, and a fragment of
+        //     upright glyphs turns them a quarter turn clockwise, like a run of sideways text in its line.
+        //     https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+        let turn = if is_upright {
+            DecorationTurn::Clockwise
+        } else if writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
+            DecorationTurn::None
+        } else if writing_mode == crate::css::css_enums::writing_mode::SIDEWAYS_LR {
+            DecorationTurn::Counterclockwise
+        } else {
+            DecorationTurn::Clockwise
+        };
+        let mut set = *set;
+        let mut box_in_frame = fragment_box;
+        // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+        // NB: left and right apply in vertical typographic modes only, where the glyphs of a sideways run are turned
+        //     clockwise, so the line-under side of the text is on the left.
+        let is_vertical_typographic_mode = matches!(
+            writing_mode,
+            crate::css::css_enums::writing_mode::VERTICAL_RL | crate::css::css_enums::writing_mode::VERTICAL_LR
+        ) || is_upright;
+        // NB: An underline of vertical text that's left to the user agent goes under the em box rather than at the
+        //     alphabetic baseline, so that it lines up with the underline of upright glyphs in the same line.
+        if is_vertical_typographic_mode {
+            set.lines_swap_sides =
+                set.text_underline_position_vertical == crate::css::css_enums::text_underline_position_vertical::RIGHT;
+            if set.text_underline_position_horizontal == text_underline_position_horizontal::AUTO {
+                set.text_underline_position_horizontal = text_underline_position_horizontal::UNDER;
+            }
+        }
+        if turn != DecorationTurn::None {
+            // The box the glyphs take as horizontal text: along the fragment's inline axis, which runs down its height,
+            // or up it when the glyphs are turned counterclockwise.
+            let inline_start = if turn == DecorationTurn::Counterclockwise {
+                fragment_rect.bottom() - fragment_box.bottom()
+            } else {
+                fragment_box.y - fragment_rect.y
+            };
+            box_in_frame = CssPixelRect::new(
+                fragment_rect.x + inline_start,
+                fragment_rect.y,
+                fragment_box.height,
+                fragment_rect.width,
+            );
+            if is_upright {
+                // NB: The lines of upright glyphs go where those of a sideways run would go in the same line, from the
+                //     baseline and the font of the decorating box, so that each line keeps one position all along the
+                //     line. Ink isn't skipped around upright glyphs.
+                set.skip_ink = text_decoration_skip_ink::NONE;
+            }
+        }
+        Self {
+            turn,
+            box_in_frame,
+            set,
+        }
+    }
+
+    /// Where the lines reach, in the space they're painted in: a line's thickness three times over either side of its
+    /// center, which takes in the second stroke of a double line and the swing of a wavy one.
+    fn ink_bounds(&self, fragment_rect: CssPixelRect) -> CssPixelRect {
+        // NB: A wavy line is moved a further pixel away from the text, and a turned frame is turned about the
+        //     fragment's enclosing device rect, which can reach a pixel past the fragment.
+        let slack = if self.turn == DecorationTurn::None {
+            CssPixels::from_integer(1)
+        } else {
+            CssPixels::from_integer(2)
+        };
+        let mut bounds = CssPixelRect::default();
+        for line in css_decoration_lines(&self.set) {
+            let reach = line.thickness * 3 + slack;
+            let rect = CssPixelRect::new(
+                self.box_in_frame.x,
+                self.box_in_frame.y + line.center_y,
+                self.box_in_frame.width,
+                CssPixels::default(),
+            );
+            bounds.unite(self.map_rect(fragment_rect, rect.inflated(reach, reach, reach, reach)));
+        }
+        bounds
+    }
+
+    /// The frame the lines are painted in: turned, if at all, about `anchor`, the fragment's enclosing device rect, as
+    /// the player turns the glyphs.
+    fn device_frame(&self, anchor: IntRect) -> DecorationFrame {
+        match self.turn {
+            DecorationTurn::None => DecorationFrame::Horizontal,
+            DecorationTurn::Clockwise => DecorationFrame::Clockwise(anchor),
+            DecorationTurn::Counterclockwise => DecorationFrame::Counterclockwise(anchor),
+        }
+    }
+
+    /// The box in the frame moved so that, in device pixels, each position in it is where the turn about `anchor`
+    /// takes it, plus a whole number of pixels. So rounding a line's position in the frame rounds it as its painted
+    /// position would be rounded, and a line keeps one position across fragments that start at fractions of a pixel.
+    fn box_in_device_frame(&self, fragment_rect: CssPixelRect, anchor: IntRect, scale: f64) -> CssPixelRect {
+        let (left, top) = (fragment_rect.x.to_double() * scale, fragment_rect.y.to_double() * scale);
+        let (right, bottom) = (
+            fragment_rect.right().to_double() * scale,
+            fragment_rect.bottom().to_double() * scale,
+        );
+        let (anchor_left, anchor_top) = (anchor.x as f64, anchor.y as f64);
+        let (anchor_right, anchor_bottom) = ((anchor.x + anchor.width) as f64, (anchor.y + anchor.height) as f64);
+        let (dx, dy) = match self.turn {
+            DecorationTurn::None => return self.box_in_frame,
+            DecorationTurn::Clockwise => (
+                anchor_left - anchor_top + top - left,
+                anchor_right + anchor_top - right - top,
+            ),
+            DecorationTurn::Counterclockwise => (
+                anchor_bottom + anchor_left - bottom - left,
+                anchor_top - anchor_left + left - top,
+            ),
+        };
+        let mut moved = self.box_in_frame;
+        moved.x += CssPixels::nearest_value_for(dx / scale);
+        moved.y += CssPixels::nearest_value_for(dy / scale);
+        moved
+    }
+
+    /// Takes a rect in the frame to where it's painted, as the frame's turn takes the glyphs about the fragment.
+    fn map_rect(&self, fragment_rect: CssPixelRect, rect: CssPixelRect) -> CssPixelRect {
+        match self.turn {
+            DecorationTurn::None => rect,
+            // (x', y') = (right - (y - top), top + (x - left))
+            DecorationTurn::Clockwise => CssPixelRect::new(
+                fragment_rect.right() - (rect.bottom() - fragment_rect.y),
+                fragment_rect.y + (rect.x - fragment_rect.x),
+                rect.height,
+                rect.width,
+            ),
+            // (x', y') = (left + (y - top), bottom - (x - left))
+            DecorationTurn::Counterclockwise => CssPixelRect::new(
+                fragment_rect.x + (rect.y - fragment_rect.y),
+                fragment_rect.bottom() - (rect.right() - fragment_rect.x),
+                rect.height,
+                rect.width,
+            ),
+        }
+    }
+}
+
 pub(crate) fn paint_decoration_lines<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
@@ -716,7 +1002,16 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
     fragment_box: CssPixelRect,
     set: &TextDecorationSet,
 ) {
-    for geometry in decoration_line_geometry(fragment_box, set, recorder.inputs.device_pixels_per_css_pixel) {
+    let side = recorder.source.committed_side_data(block);
+    let fragment = &side.fragments()[fragment_index as usize];
+    let fragment_rect = crate::painting::text_fragment::absolute_rect(recorder.source, fragment);
+    let layout = DecorationLayout::for_fragment(fragment, fragment_rect, fragment_box, set);
+    let anchor = recorder.converter.enclosing_device_rect(fragment_rect);
+    let frame = layout.device_frame(anchor);
+    let scale = recorder.inputs.device_pixels_per_css_pixel;
+    let fragment_box = layout.box_in_device_frame(fragment_rect, anchor, scale);
+    let set = &layout.set;
+    for geometry in decoration_line_geometry(fragment_box, set, scale) {
         let line_start_point = geometry.start;
         let line_end_point = geometry.end;
         let device_line_thickness = geometry.thickness;
@@ -741,15 +1036,14 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 set.text_font_pixel_size,
             )
         };
-
         let fill_line = |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, top: i32| {
             recorder.recorder.fill_rect(
-                IntRect {
+                frame.map_rect(IntRect {
                     x: segment.start_x,
                     y: top,
                     width: segment.end_x - segment.start_x,
                     height: thickness,
-                },
+                }),
                 line_color,
                 ForceDarkRole::Foreground,
             );
@@ -768,6 +1062,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 x: segment.end_x as f32,
                 y: center_y,
             });
+            let path = frame.map_path(path);
             recorder.recorder.stroke_path(StrokePathParams {
                 force_dark_role: ForceDarkRole::Foreground,
                 cap_style,
@@ -826,7 +1121,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                         x: segment.end_x,
                         y: wave_y,
                     };
-                    let path = build_triangle_wave_path(from, to, amplitude as f32);
+                    let path = frame.map_path(build_triangle_wave_path(from, to, amplitude as f32));
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role: ForceDarkRole::Foreground,
                         cap_style: CapStyle::Round,
@@ -840,6 +1135,143 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                         thickness: device_line_thickness as f32,
                         should_anti_alias: ShouldAntiAlias::Yes,
                     });
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod decoration_layout_tests {
+    use super::*;
+
+    fn px(value: i64) -> CssPixels {
+        CssPixels::from_integer(value)
+    }
+
+    fn error_line_set(line: u8) -> TextDecorationSet {
+        let mut set = TextDecorationSet {
+            line_count: 1,
+            thickness: px(1),
+            baseline: px(16),
+            decorating_font_pixel_size: 20.0,
+            decorating_font_descent: 4.0,
+            decorating_font_point_size: 15,
+            text_font_pixel_size: 20.0,
+            ..TextDecorationSet::default()
+        };
+        set.lines[0] = line;
+        set
+    }
+
+    fn assert_bounds_contain_painted_lines(is_upright: bool, writing_mode: u8, set: &TextDecorationSet) {
+        let fragment_rect = CssPixelRect::new(px(100), px(100), px(20), px(60));
+        let layout = DecorationLayout::new(is_upright, writing_mode, fragment_rect, fragment_rect, set);
+        let bounds = layout.ink_bounds(fragment_rect);
+        for geometry in decoration_line_geometry(layout.box_in_frame, &layout.set, 1.0) {
+            let DecorationStrokeGeometry::Wavy { center_y, amplitude } = geometry.stroke else {
+                panic!("an error line is wavy");
+            };
+            let reach = amplitude / 2 + geometry.thickness;
+            let painted = layout.map_rect(
+                fragment_rect,
+                CssPixelRect::new(
+                    px(geometry.start.x as i64),
+                    px((center_y - reach) as i64),
+                    px((geometry.end.x - geometry.start.x) as i64),
+                    px((reach * 2) as i64),
+                ),
+            );
+            assert!(
+                bounds.x <= painted.x
+                    && bounds.y <= painted.y
+                    && bounds.right() >= painted.right()
+                    && bounds.bottom() >= painted.bottom(),
+                "{painted:?} reaches past {bounds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn ink_bounds_take_in_the_error_lines_of_vertical_text() {
+        for line in [
+            text_decoration_line::SPELLING_ERROR,
+            text_decoration_line::GRAMMAR_ERROR,
+        ] {
+            let set = error_line_set(line);
+            assert_bounds_contain_painted_lines(true, crate::css::css_enums::writing_mode::VERTICAL_RL, &set);
+            assert_bounds_contain_painted_lines(false, crate::css::css_enums::writing_mode::VERTICAL_RL, &set);
+            assert_bounds_contain_painted_lines(false, crate::css::css_enums::writing_mode::SIDEWAYS_LR, &set);
+            assert_bounds_contain_painted_lines(false, crate::css::css_enums::writing_mode::HORIZONTAL_TB, &set);
+        }
+    }
+
+    #[test]
+    fn upright_and_sideways_runs_of_a_line_share_its_decoration_positions() {
+        // An upright run below a sideways one in the same vertical-rl line, with the same decorating box.
+        let sideways_rect = CssPixelRect::new(px(100), px(100), px(20), px(60));
+        let upright_rect = CssPixelRect::new(px(100), px(160), px(20), px(40));
+        for line in [
+            text_decoration_line::UNDERLINE,
+            text_decoration_line::OVERLINE,
+            text_decoration_line::LINE_THROUGH,
+        ] {
+            let mut set = error_line_set(line);
+            set.style = text_decoration_style::SOLID;
+            let across_line = |is_upright: bool, fragment_rect: CssPixelRect| {
+                let writing_mode = crate::css::css_enums::writing_mode::VERTICAL_RL;
+                let layout = DecorationLayout::new(is_upright, writing_mode, fragment_rect, fragment_rect, &set);
+                let geometry = &decoration_line_geometry(layout.box_in_frame, &layout.set, 1.0)[0];
+                let painted = layout.map_rect(
+                    fragment_rect,
+                    CssPixelRect::new(
+                        px(geometry.start.x as i64),
+                        px(geometry.top as i64),
+                        px((geometry.end.x - geometry.start.x) as i64),
+                        px(geometry.thickness as i64),
+                    ),
+                );
+                (painted.x, painted.width)
+            };
+            assert!(
+                across_line(false, sideways_rect) == across_line(true, upright_rect),
+                "line {line} moves between the runs"
+            );
+        }
+    }
+
+    #[test]
+    fn a_line_keeps_its_device_position_across_fragments_at_fractions_of_a_pixel() {
+        // Fragments of one line, the first at a whole pixel, and the others where text before them ends at a fraction
+        // of a pixel, or at a whole one as a control.
+        let mut set = error_line_set(text_decoration_line::UNDERLINE);
+        set.style = text_decoration_style::SOLID;
+        for writing_mode in [
+            crate::css::css_enums::writing_mode::VERTICAL_RL,
+            crate::css::css_enums::writing_mode::SIDEWAYS_LR,
+        ] {
+            for scale in [1.0, 2.0] {
+                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(scale);
+                let across_line = |inline_start: f64| {
+                    let fragment_rect =
+                        CssPixelRect::new(px(100), CssPixels::nearest_value_for(inline_start), px(20), px(30));
+                    let layout = DecorationLayout::new(false, writing_mode, fragment_rect, fragment_rect, &set);
+                    let anchor = converter.enclosing_device_rect(fragment_rect);
+                    let in_frame = layout.box_in_device_frame(fragment_rect, anchor, scale);
+                    let geometry = &decoration_line_geometry(in_frame, &layout.set, scale)[0];
+                    let painted = layout.device_frame(anchor).map_rect(IntRect::new(
+                        geometry.start.x,
+                        geometry.top,
+                        geometry.end.x - geometry.start.x,
+                        geometry.thickness.max(1),
+                    ));
+                    (painted.x, painted.width)
+                };
+                for inline_start in [130.0, 110.75, 112.3, 125.5] {
+                    assert!(
+                        across_line(100.0) == across_line(inline_start),
+                        "the line moves at {inline_start} in writing mode {writing_mode} at scale {scale}"
+                    );
                 }
             }
         }

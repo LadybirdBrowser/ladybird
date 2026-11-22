@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>Sideways Inline Layout: Text Decoration</title>
+<meta charset=utf-8>
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-4/#block-flow">
+<link rel="help" href="https://www.w3.org/TR/CSS2/text.html#lining-striking-props">
+<link rel="help" href="https://www.w3.org/TR/css-text-decor-3/#text-shadow-property">
+
+<link rel="match" href="../../../../expected/wpt-import/css/css-writing-modes/text-shadow-sideways-001-ref.html">
+
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+body > div {
+  /* styling */
+  border: solid gray;
+  font: 30px/1 Ahem;
+  color: silver;
+  float: left;
+  margin: 8px;
+
+  /* test */
+  text-decoration: underline;
+  text-decoration-color: orange;
+  text-decoration-thickness: 4px;
+  text-shadow: 2px 4px aqua;
+}
+.lr {
+  writing-mode: sideways-lr;
+}
+.rl {
+  writing-mode: sideways-rl;
+}
+</style>
+
+<div class=lr>Ap Éx</div>
+
+<div class=rl>Ap Éx</div>

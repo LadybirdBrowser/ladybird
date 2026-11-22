@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Test case for text-decoration-skip-ink</title>
+        <meta name="assert" content="text-decoration-skip-ink: descenders are skipped">
+        <link rel="author" title="Charlie Marlow" href="cmarlow@mozilla.com">
+        <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+        <link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property">
+        <link rel="mismatch" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-skip-ink-vertical-001-notref.html">
+        <link rel="mismatch" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-skip-ink-vertical-001-offset-notref.html">
+        <style>
+           div{
+                text-decoration: green underline;
+                text-decoration-skip-ink: auto;
+                text-underline-offset: -0.2em;
+                writing-mode: vertical-lr;
+           }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if p and g characters are skipped</p>
+        <div>ping pong</div>
+    </body>
+</html>
