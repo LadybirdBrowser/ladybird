@@ -36,7 +36,7 @@ use libcompositing_rust::scrolling::smooth_scroll_animation::SmoothScrollAnimati
 use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::scrolling::*;
 use libcompositing_rust::time::{Duration, MonotonicTime};
-use libgfx_rust::{FloatPoint, IntRect, IntSize, Orientation, enclosing_int_rect};
+use libgfx_rust::{FloatPoint, IntRect, IntSize, Orientation};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -204,8 +204,8 @@ impl Default for ScrollCapabilities {
 
 pub struct ScreenshotInputs {
     pub frame_inputs: FrameInputs,
-    /// The scrollbar fade damage that the screenshot does not present on screen.
-    pub scrollbar_fade_damage_rect: IntRect,
+    /// The scrollbar fade damage that the screenshot does not present on screen, where a fade changed.
+    pub scrollbar_fade_damage_rect: Option<IntRect>,
 }
 
 struct ActiveSmoothScrollAnimation {
@@ -613,17 +613,20 @@ impl ContextState {
         }
     }
 
-    pub fn timer_fired(&mut self, timer: ContextTimer, now: MonotonicTime) -> Option<IntRect> {
+    /// Answers whether the timer asks for a frame, as each blink of a caret does.
+    pub fn timer_fired(&mut self, timer: ContextTimer, now: MonotonicTime) -> bool {
         match timer {
             ContextTimer::ScrollStepGestureInput => self.end_scroll_step_gestures_whose_input_ran_out(now),
             ContextTimer::ScrollbarPaging => {
                 self.scrollbar_paging_timer_is_armed = false;
                 if self.scrollbar_paging.is_none() || !self.scrollbar_controller.has_captured_scrollbar() {
                     self.stop_scrollbar_paging();
-                    return None;
+                    return false;
                 }
                 // Once the thumb reaches the pointer, paging waits for the pointer to move.
-                self.page_captured_scrollbar(now)?;
+                if self.page_captured_scrollbar(now).is_none() {
+                    return false;
+                }
                 self.request_rendering_update();
                 self.request_display_ticks_if_needed(now);
                 self.host.set_timer(
@@ -635,11 +638,9 @@ impl ContextState {
             }
             ContextTimer::ScrollbarFadeOut => self.request_display_ticks_if_needed(now),
             ContextTimer::CaretBlink => {
-                let damage_rect = self.damage_rect_of_blinking_carets();
                 self.schedule_next_caret_blink(now);
-                if !damage_rect.is_empty() {
-                    return Some(damage_rect);
-                }
+                // The frame finds what the blink changes in the content hashes of what draws each caret.
+                return true;
             }
             // The core handles the timers of presenting.
             ContextTimer::BackingStoreShrink
@@ -648,7 +649,7 @@ impl ContextState {
             | ContextTimer::SpareTileEviction
             | ContextTimer::TileRasterScratchSurfaceRelease => {}
         }
-        None
+        false
     }
 
     pub fn request_rendering_update(&mut self) {
@@ -837,7 +838,7 @@ impl ContextState {
 
     fn restart_caret_blink_for(&mut self, display_list: &DisplayList, now: MonotonicTime) {
         let mut blink_cycle_start_time_ns = None;
-        display_list.for_each_caret(|_, _, caret| {
+        display_list.for_each_caret(|caret| {
             if caret.should_blink {
                 blink_cycle_start_time_ns = Some(caret.blink_cycle_start_time_ns);
             }
@@ -865,41 +866,6 @@ impl ContextState {
             ContextTimer::CaretBlink,
             Duration::from_nanoseconds(delay_ns),
         );
-    }
-
-    fn damage_rect_of_blinking_carets(&mut self) -> IntRect {
-        if self.scene.display_list().is_none() || self.scene.visual_context_tree().is_none() {
-            return Default::default();
-        }
-        let display_list = self.scene.display_list().as_ref().unwrap().clone();
-        let visual_context_tree = self.scene.visual_context_tree_for_compositing().clone();
-        let stretched_scroll_state_snapshot = self.scroll_state_snapshot_stretched_by_elastic_overscrolls();
-        let presented_scroll_state_snapshot = stretched_scroll_state_snapshot
-            .as_ref()
-            .unwrap_or(&self.scroll_state_snapshot);
-        let mut damage_rect = IntRect::default();
-        let viewport_rect = IntRect::new(0, 0, self.viewport_size.width, self.viewport_size.height);
-        display_list.for_each_caret(|context, bounding_rect, caret| {
-            if !caret.should_blink {
-                return;
-            }
-            let mut rect = visual_context_tree.transform_rect_to_viewport(
-                context.spatial,
-                bounding_rect.to_float(),
-                presented_scroll_state_snapshot,
-                IncludeVisualViewportTransform::Yes,
-            );
-            if !rect.x.is_finite() || !rect.y.is_finite() || !rect.width.is_finite() || !rect.height.is_finite() {
-                damage_rect = viewport_rect;
-                return;
-            }
-            rect = rect.intersected(viewport_rect.to_float());
-            if !rect.is_empty() {
-                damage_rect = damage_rect.united(enclosing_int_rect(rect).inflated_edges(1, 1, 1, 1));
-            }
-        });
-        damage_rect = damage_rect.intersected(viewport_rect);
-        damage_rect
     }
 
     pub fn forget_layer_plan(&mut self) {

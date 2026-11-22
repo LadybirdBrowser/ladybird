@@ -305,12 +305,16 @@ impl ContextState {
         self.pointer_position = position;
     }
 
-    // The compositor presents how scrollbars expand, outside of what damage tracking sees.
+    // A frame that shows how the scrollbars grow. The scrollbars the compositor paints itself are outside of what damage
+    // tracking sees, so the frame repaints where they are; it finds what changed of the others in their records.
     fn frame_repainting_scrollbars(&self) -> Option<PendingFrame> {
         if self.async_scrolling_viewport_rect.is_empty() {
             return None;
         }
-        Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect))
+        Some(PendingFrame {
+            viewport_rect: self.async_scrolling_viewport_rect,
+            forced_damage_rect: self.scrollbar_controller.rect_of_scrollbars_painted_by_compositor(),
+        })
     }
 
     /// The pointer left the scrollbar it was over here for a context nested in this one, or for the one around it.

@@ -12,7 +12,7 @@
 //! band bound to another list or geometry bins its tiles again, and a tile that holds what it held before gets the
 //! content hash it had before.
 
-use super::builder::{inline_clips_of, read_command};
+use super::builder::{HEADER_SIZE, inline_clips_of, read_command};
 use super::commands::{
     ClipNodeIndex, ContextRef, DisplayListCommandRun, DrawCompositedContext, EffectNodeIndex, PaintCaret,
     PaintScrollBar, SpatialNodeIndex,
@@ -22,7 +22,9 @@ use super::effect_geometry::{
     FiltersOfEffects, LARGEST_FILTER_READ_REACH_IN_DEVICE_PIXELS, backdrop_filter_read_reach,
     filter_read_reach_in_device_pixels, nearest_effects_at_or_above_where, spreading_filter_of,
 };
-use super::layers::{BandIndex, BarrierCutsOfCell, CutsOfCell, LayerIndex, LayerStack, PlacementNodeBand};
+use super::layers::{
+    BandIndex, BarrierCutsOfCell, CutsOfCell, LayerContent, LayerIndex, LayerStack, PlacementNodeBand,
+};
 use super::nested_records::for_each_command_including_nested;
 use super::placement::{
     ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, FiltersAndClipsOfList, RasterSpaceGeometry, RunGroupIndex, RunGroups,
@@ -51,9 +53,8 @@ mod coverage;
 pub(crate) use chunk_placement::ChunkRecord;
 pub use chunk_placement::{ChunkPlacedInRasterSpace, PlacedRecordRangeIndex, RecordIndexInChunk, RecordTable};
 use chunk_placement::{
-    FRAME_STATE_CARET_BLINK_PHASE, FRAME_STATE_LIVE_CONTENT, FRAME_STATE_SAMPLED_BACKGROUND_COLOR,
-    FRAME_STATE_SCROLL_BAR, FRAME_STATE_SPACES_OF_INLINE_CLIPS, PlacedRecordRange,
-    background_color_animation_effect_of,
+    FRAME_STATE_LIVE_CONTENT, FRAME_STATE_SAMPLED_BACKGROUND_COLOR, FRAME_STATE_SPACES_OF_INLINE_CLIPS,
+    PlacedRecordRange, background_color_animation_effect_of,
 };
 pub use coverage::TileCoverage;
 
@@ -237,7 +238,7 @@ impl<'a> TileKeyingOfList<'a> {
             replays_every_record_into_every_tile: layering_obstacles.every_tile_replays_every_record()
                 || stack.one_layer_list_cannot_tell_which_records_show_in_tile(),
             tree_sorts_planes_by_depth: layering_obstacles.sorts_planes_by_depth,
-            frame_state_hash: frame_state_hash_of(display_list, &frame_state),
+            frame_state_hash: frame_state_hash_of(display_list, stack, &frame_state),
             innermost_composited_effect_by_effect_index,
             nearest_composited_or_not_plain_effect_by_effect_index: OnceCell::new(),
             nearest_composited_or_alpha_lowering_effect_by_effect_index: OnceCell::new(),
@@ -268,18 +269,44 @@ impl<'a> TileKeyingOfList<'a> {
     }
 }
 
-fn version_of_live_content(live_content: &dyn LiveContentVersions, content: LiveContent) -> u64 {
+// Hashes what the frame shows of `content`, which the command of `payload` draws: the version of a canvas, video, image
+// or nested context, whether a caret shows, and where the thumb of a scroll bar is, how far it grows and how much it
+// fades.
+fn write_live_content_shown_by_frame(
+    hasher: &mut ContentHasher,
+    frame_state: &FrameStateReadByReplay<'_>,
+    content: LiveContent,
+    payload: &[u8],
+) {
+    let live_content = frame_state.live_content;
     match content {
-        LiveContent::Canvas(canvas) => live_content.canvas_content_generation(canvas),
-        LiveContent::VideoFrame(video_sink) => live_content.video_frame_id(video_sink).unwrap_or(u64::MAX),
-        LiveContent::ImageFrame(image_frame) => live_content
-            .image_frame_pixel_generation(image_frame)
-            .unwrap_or(u64::MAX),
-        LiveContent::CompositedContext(nested_context) => live_content
-            .nested_context_frame_generation(nested_context)
-            .unwrap_or(u64::MAX),
-        // What a caret or a scroll bar shows in the frame is hashed from its record.
-        LiveContent::Caret | LiveContent::ScrollBar { .. } => 0,
+        LiveContent::Canvas(canvas) => hasher.write_u64(live_content.canvas_content_generation(canvas)),
+        LiveContent::VideoFrame(video_sink) => {
+            hasher.write_u64(live_content.video_frame_id(video_sink).unwrap_or(u64::MAX));
+        }
+        LiveContent::ImageFrame(image_frame) => hasher.write_u64(
+            live_content
+                .image_frame_pixel_generation(image_frame)
+                .unwrap_or(u64::MAX),
+        ),
+        LiveContent::CompositedContext(nested_context) => hasher.write_u64(
+            live_content
+                .nested_context_frame_generation(nested_context)
+                .unwrap_or(u64::MAX),
+        ),
+        LiveContent::Caret => hasher.write_bool(caret_is_visible_at_time(
+            &read_command::<PaintCaret>(payload),
+            frame_state.time_ns,
+        )),
+        LiveContent::ScrollBar { .. } => {
+            match scrollbar_shown_by_frame(frame_state.scrollbars, &read_command::<PaintScrollBar>(payload)) {
+                Some(scrollbar) => {
+                    hasher.write_u32(1);
+                    write_scrollbar_shown_by_frame(hasher, scrollbar);
+                }
+                None => hasher.write_u32(2),
+            }
+        }
     }
 }
 
@@ -290,26 +317,41 @@ fn write_scrollbar_shown_by_frame(hasher: &mut ContentHasher, scrollbar: &Scroll
     hasher.write_f32(scrollbar.opacity);
 }
 
-fn frame_state_hash_of(display_list: &DisplayListStorage, frame_state: &FrameStateReadByReplay<'_>) -> ContentHash {
-    let summary = display_list.summary();
+// The hash of what the frame shows of the live content that the records of bands draw, which the tiles of a band that
+// holds such records read. Live content with a layer of its own is in no band, so a blinking caret or a moving thumb
+// with a layer keys no tile anew.
+fn frame_state_hash_of(
+    display_list: &DisplayListStorage,
+    stack: &LayerStack,
+    frame_state: &FrameStateReadByReplay<'_>,
+) -> ContentHash {
+    let mut positions_of_layers_of_their_own: Vec<ListPosition> = stack
+        .layers
+        .iter()
+        .filter_map(|layer| match layer.content {
+            LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span } => Some(record_span.begin),
+            LayerContent::Painted => None,
+        })
+        .collect();
+    positions_of_layers_of_their_own.sort_unstable();
     let mut hasher = ContentHasher::new();
-    for caret in &summary.carets {
-        let (_, payload) = display_list.record_at(caret.position);
-        hasher.write_bool(caret_is_visible_at_time(
-            &read_command::<PaintCaret>(payload),
-            frame_state.time_ns,
-        ));
-    }
-    for scrollbar in frame_state.scrollbars {
-        hasher.write_u32(scrollbar.scroll_node_index.0);
-        hasher.write_bool(scrollbar.vertical);
-        write_scrollbar_shown_by_frame(&mut hasher, scrollbar);
-    }
-    for live_content_record in &summary.live_content_records {
-        hasher.write_u64(version_of_live_content(
-            frame_state.live_content,
-            live_content_record.content,
-        ));
+    let mut position_hashed_last = None;
+    // A record that draws live content in records nested in it is noted once for each.
+    for live_content_record in &display_list.summary().live_content_records {
+        let position = live_content_record.record.position;
+        if position_hashed_last == Some(position) || positions_of_layers_of_their_own.binary_search(&position).is_ok() {
+            continue;
+        }
+        position_hashed_last = Some(position);
+        let (header, _) = display_list.record_at(position);
+        let record_start = position.offset as usize;
+        let record_bytes = &display_list.chunk(position.chunk_index).records()
+            [record_start..record_start + HEADER_SIZE + header.payload_size as usize];
+        for_each_command_including_nested(record_bytes, &mut |command_type, _, payload| {
+            if let Some(content) = live_content_of(command_type, payload) {
+                write_live_content_shown_by_frame(&mut hasher, frame_state, content, payload);
+            }
+        });
     }
     hasher.finish()
 }
@@ -1523,28 +1565,6 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
         let frame_state = &list.frame_state;
         let record_bytes = &chunk.records()[record.offset as usize..record.end_offset as usize];
         let (header, payload) = chunk.record_at(record.offset);
-        if record.frame_state_read_flags & FRAME_STATE_CARET_BLINK_PHASE != 0 {
-            hasher.write_bool(caret_is_visible_at_time(
-                &read_command::<PaintCaret>(payload),
-                frame_state.time_ns,
-            ));
-        }
-        if record.frame_state_read_flags & FRAME_STATE_SCROLL_BAR != 0 {
-            let command = read_command::<PaintScrollBar>(payload);
-            match scrollbar_shown_by_frame(frame_state.scrollbars, &command) {
-                Some(scrollbar) => {
-                    hasher.write_u32(1);
-                    write_scrollbar_shown_by_frame(hasher, scrollbar);
-                }
-                None => {
-                    hasher.write_u32(2);
-                    hasher.write_float_point(device_offset_for_index(
-                        &self.geometry.raster_scroll_offsets,
-                        command.scroll_node_index,
-                    ));
-                }
-            }
-        }
         if record.frame_state_read_flags & FRAME_STATE_SPACES_OF_INLINE_CLIPS != 0 {
             for clip in inline_clips_of(&header, payload).filter(|clip| clip.has_own_space) {
                 match self.geometry.world.draw_matrix_if_known(clip.space) {
@@ -1567,10 +1587,19 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
                     LiveContent::Caret => 5,
                     LiveContent::ScrollBar { .. } => 6,
                 });
-                hasher.write_u64(version_of_live_content(frame_state.live_content, content));
-                if matches!(content, LiveContent::CompositedContext(_)) {
-                    let command = read_command::<DrawCompositedContext>(payload);
-                    hasher.write_bool(tree.translations_snap_to_device_pixels(command.spatial_node_index));
+                write_live_content_shown_by_frame(hasher, frame_state, content, payload);
+                match content {
+                    LiveContent::CompositedContext(_) => {
+                        let command = read_command::<DrawCompositedContext>(payload);
+                        hasher.write_bool(tree.translations_snap_to_device_pixels(command.spatial_node_index));
+                    }
+                    // A scroll bar that the frame does not show is drawn where the scroll offset its tiles are
+                    // rastered at puts it.
+                    LiveContent::ScrollBar { scroll_node, .. } => hasher.write_float_point(device_offset_for_index(
+                        &self.geometry.raster_scroll_offsets,
+                        scroll_node,
+                    )),
+                    _ => {}
                 }
             }
             let background_color_animation_effect = background_color_animation_effect_of(command_type, payload);
@@ -2338,8 +2367,8 @@ mod tests {
     use crate::display_list::layers::{LayerIdentity, LayerStack, LayeringObstacles, SpaceToFrame, WhyListIsOneLayer};
     use crate::display_list::placement::{RasterSpaceIndex, RasterSpaces, WhatEverySpaceOfTreeShares};
     use crate::display_list::test_fixtures::{
-        GREEN, ListOfOneChunk, NO_FRAME_STATE, VIEWPORT, animation_of, canvas, chunk_of, effects, fill, frosted_glass,
-        opacity_animation_of, raster_settings_hash_by_layer, transform, transform_animation_of,
+        GREEN, ListOfOneChunk, NO_FRAME_STATE, VIEWPORT, animation_of, canvas, caret, chunk_of, effects, fill,
+        frosted_glass, opacity_animation_of, raster_settings_hash_by_layer, transform, transform_animation_of,
         tree_with_document_scroll, tree_with_root_isolation_effect,
     };
     use crate::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
@@ -2691,6 +2720,73 @@ mod tests {
                 (tiles_keyed, tiles_within(band_tile_keys, VIEWPORT))
             })
             .collect()
+    }
+
+    // A caret with a layer of its own is in no band, so its blinking keys no tile anew, even of a band that holds other
+    // live content and so reads the frame state of the list.
+    #[test]
+    fn a_caret_with_a_layer_keys_no_tile_anew_as_it_blinks() {
+        let (mut tree, root) = tree_with_root_isolation_effect(1.0);
+        let moved_by_filter = tree.append_effect_node_under(
+            root,
+            EffectNodeData::Effects(EffectsData {
+                isolation: false,
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: Some(Arc::new(
+                    libgfx_rust::filter::Filter::Offset {
+                        dx: 40.0,
+                        dy: 0.0,
+                        input: None,
+                    }
+                    .serialize(),
+                )),
+                backdrop_filter: None,
+            }),
+        );
+        let list = ListOfOneChunk::default()
+            .with(fill(VIEWPORT, GREEN), root)
+            .with(canvas(IntRect::new(100, 100, 200, 100), 1), moved_by_filter)
+            .with(caret(IntRect::new(20, 20, 2, 16)), root);
+        let display_list = DisplayListStorage::of_builder(&list.builder);
+        let stack = stack_of(&display_list, &tree);
+        let has_layer_of = |content: LiveContent| {
+            stack
+                .layers
+                .iter()
+                .any(|layer| layer.identity == LayerIdentity::Media { content, ordinal: 0 })
+        };
+        assert!(has_layer_of(LiveContent::Caret) && !has_layer_of(LiveContent::Canvas(CanvasId(1))));
+        let canvas_position = display_list.span_of_run(1).begin;
+        let band_index = BandIndex(
+            stack
+                .bands
+                .iter()
+                .position(|band| band.record_spans.iter().any(|span| span.contains(canvas_position)))
+                .expect("a band holds the canvas"),
+        );
+        let raster_space_index = stack.nodes[stack.bands[band_index.0].placement_node_index.0].raster_space_index;
+        let geometry = geometry_of_space(&tree, &stack, raster_space_index);
+        let live_content = CanvasesAtGeneration(0);
+        let mut band_tile_keys_bound_in_first_frame = None;
+        // The caret shows, hides and shows again.
+        let tiles_keyed: Vec<usize> = [0, 600_000_000, 1_200_000_000]
+            .into_iter()
+            .map(|time_ns| {
+                let frame_state = FrameStateReadByReplay {
+                    live_content: &live_content,
+                    time_ns,
+                    ..NO_FRAME_STATE
+                };
+                let list_keying = TileKeyingOfList::new(&display_list, &tree, &stack, frame_state);
+                let raster_space = TileKeyingOfRasterSpace::new(&list_keying, &geometry);
+                let band_tile_keys = band_tile_keys_bound_in_first_frame
+                    .get_or_insert_with(|| raster_space.bind_band(&stack, band_index));
+                key_band(&raster_space, band_tile_keys, &stack, band_index, VIEWPORT).tiles_keyed
+            })
+            .collect();
+        assert!(tiles_keyed[0] > 0);
+        assert_eq!(tiles_keyed[1..], [0, 0]);
     }
 
     #[test]

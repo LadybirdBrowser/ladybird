@@ -8,11 +8,11 @@ use crate::frame_inputs::{ScrollbarOfFrame, thumb_rect_kept_inside_track};
 use libcompositing_rust::scrolling::overlay_fade::OverlayFade;
 use libcompositing_rust::scrolling::{
     AccumulatedVisualContextTree, AsyncScrollNodeStableID, AsyncScrollTree, AsyncScrollbar, ClipBehavior,
-    CompositorContextId, IncludeVisualViewportTransform, OverlayScrollbarVisibility, ScrollStateSnapshot,
-    ScrollbarDraggedByCompositor, SpatialNodeIndex,
+    CompositorContextId, OverlayScrollbarVisibility, ScrollStateSnapshot, ScrollbarDraggedByCompositor,
+    SpatialNodeIndex,
 };
 use libcompositing_rust::time::{Duration, MonotonicTime};
-use libgfx_rust::{FloatPoint, FloatRect, IntRect, Orientation, enclosing_int_rect};
+use libgfx_rust::{FloatPoint, FloatRect, IntRect, Orientation};
 
 #[derive(Default)]
 pub struct ScrollbarController {
@@ -644,16 +644,13 @@ impl ScrollbarController {
         false
     }
 
-    // Returns the rect in the viewport of the scrollbars whose opacity or geometry changed.
-    pub fn advance_fades(
-        &mut self,
-        visual_context_tree: &AccumulatedVisualContextTree,
-        scroll_state_snapshot: &ScrollStateSnapshot,
-        frame_time: MonotonicTime,
-    ) -> IntRect {
+    // Advances the fades to a frame. Answers None where no scrollbar changed, and otherwise the rect in the viewport of the
+    // scrollbars the compositor paints that changed: the frame finds what changed of the others, which the display list
+    // draws, in the content hashes of their records.
+    pub fn advance_fades(&mut self, frame_time: MonotonicTime) -> Option<IntRect> {
+        let mut some_scrollbar_changed = false;
         let mut damage_rect = IntRect::default();
-        for i in 0..self.scrollbars.len() {
-            let visibility = &mut self.visibilities[i];
+        for (scrollbar, visibility) in self.scrollbars.iter().zip(&mut self.visibilities) {
             if visibility.fade_out_time.is_some_and(|time| time <= frame_time) {
                 visibility.fade_out_time = None;
                 visibility.fade.fade_to(0.0, frame_time);
@@ -664,48 +661,32 @@ impl ScrollbarController {
                 visibility.expansion.jump_to(0.0);
             }
             changed |= visibility.expansion.advance_to(frame_time);
-            if !changed {
-                continue;
-            }
-            if let Some(rect) = self.rect_in_viewport(i, visual_context_tree, scroll_state_snapshot) {
-                damage_rect = damage_rect.united(rect);
+            some_scrollbar_changed |= changed;
+            if changed && scrollbar.is_painted_by_compositor {
+                damage_rect = damage_rect.united(rect_painted_by_compositor(scrollbar));
             }
         }
-        damage_rect
+        some_scrollbar_changed.then_some(damage_rect)
     }
 
-    fn rect_in_viewport(
-        &self,
-        scrollbar_index: usize,
-        visual_context_tree: &AccumulatedVisualContextTree,
-        scroll_state_snapshot: &ScrollStateSnapshot,
-    ) -> Option<IntRect> {
-        let scrollbar = self.scrollbars.get(scrollbar_index)?;
-        let rect = scrollbar
-            .gutter_rect
-            .united(scrollbar.track_rect)
-            .united(scrollbar.expanded_gutter_rect);
-        if scrollbar.is_painted_by_compositor {
-            return Some(rect.inflated(2, 2));
-        }
-        if !visual_context_tree.context_is_valid(scrollbar.context) {
-            return None;
-        }
-        let rect_in_viewport = visual_context_tree.transform_rect_to_viewport(
-            scrollbar.context.spatial,
-            rect.to_float(),
-            scroll_state_snapshot,
-            IncludeVisualViewportTransform::Yes,
-        );
-        if !rect_in_viewport.x.is_finite()
-            || !rect_in_viewport.y.is_finite()
-            || !rect_in_viewport.width.is_finite()
-            || !rect_in_viewport.height.is_finite()
-        {
-            return None;
-        }
-        Some(enclosing_int_rect(rect_in_viewport).inflated(2, 2))
+    /// The rect in the viewport of the scrollbars the compositor paints, where they can draw as they grow.
+    pub fn rect_of_scrollbars_painted_by_compositor(&self) -> IntRect {
+        self.scrollbars
+            .iter()
+            .filter(|scrollbar| scrollbar.is_painted_by_compositor)
+            .fold(IntRect::default(), |rect, scrollbar| {
+                rect.united(rect_painted_by_compositor(scrollbar))
+            })
     }
+}
+
+// Where the compositor paints a scrollbar of its own over the viewport, with the outline around its thumb.
+fn rect_painted_by_compositor(scrollbar: &AsyncScrollbar) -> IntRect {
+    scrollbar
+        .gutter_rect
+        .united(scrollbar.track_rect)
+        .united(scrollbar.expanded_gutter_rect)
+        .inflated(2, 2)
 }
 
 fn interpolated_rect(from: IntRect, to: IntRect, progress: f32) -> FloatRect {

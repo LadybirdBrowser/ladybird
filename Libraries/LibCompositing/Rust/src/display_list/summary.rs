@@ -80,7 +80,6 @@ pub struct DisplayListSummary {
     pub vector_image_ids: Vec<u64>,
     pub canvas_ids: Vec<u64>,
     pub composited_context_ids: Vec<u64>,
-    pub carets: Vec<IndexedRecord>,
     pub live_content_records: Vec<LiveContentRecord>,
     pub destination_blending_records: Vec<IndexedRecord>,
     pub mask_declarations: Vec<MaskDeclarationRecord>,
@@ -242,13 +241,11 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
                 run_index: run_index as u32,
                 position: ListPosition::new(ChunkIndexInList(0), (run_start + offset_in_run) as u32),
             };
-            match header.command_type {
-                DisplayListCommandType::PaintCaret => summary.carets.push(indexed_record),
-                DisplayListCommandType::DeclareMaskContent => summary.mask_declarations.push(MaskDeclarationRecord {
+            if header.command_type == DisplayListCommandType::DeclareMaskContent {
+                summary.mask_declarations.push(MaskDeclarationRecord {
                     record: indexed_record,
                     mask_effect: read_command::<DeclareMaskContent>(payload).effect,
-                }),
-                _ => {}
+                });
             }
             if let Some((blend, blends_with_isolated_backdrop_color)) = command_blend(header.command_type, payload)
                 && blend != CompositingAndBlendingOperator::Normal
@@ -291,7 +288,6 @@ pub fn summary_of_pieces<'a>(
     let mut summary = DisplayListSummary::default();
     for (chunk_summary, first_run_index_of_chunk, chunk_index) in pieces {
         let shift_into_list = |record: &IndexedRecord| record.shifted_into_list(first_run_index_of_chunk, chunk_index);
-        summary.carets.extend(chunk_summary.carets.iter().map(shift_into_list));
         summary
             .live_content_records
             .extend(
