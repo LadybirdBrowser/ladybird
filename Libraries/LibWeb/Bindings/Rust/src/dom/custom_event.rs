@@ -102,7 +102,7 @@ impl CustomEvent {
     }
 }
 
-/// The Event of a new CustomEvent in the realm, for the implementation to fire.
+/// The Event of a new trusted CustomEvent in the realm, for the implementation to fire.
 ///
 /// # Safety
 ///
@@ -127,7 +127,9 @@ pub unsafe extern "C" fn web_rust_custom_event_create(
     };
     // SAFETY: The caller lends the type for the call.
     let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
-    CustomEvent::create(vm, realm, &r#type, event_init).event().as_ptr()
+    let event = CustomEvent::create(vm, realm, &r#type, event_init);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }
 
 /// The Event of a new CustomEvent in the realm whose type is the empty string, for createEvent().
