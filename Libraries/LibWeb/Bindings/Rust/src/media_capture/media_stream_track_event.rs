@@ -95,7 +95,7 @@ impl MediaStreamTrackEvent {
     }
 }
 
-/// The Event of a new MediaStreamTrackEvent in the realm, for the implementation to fire.
+/// The Event of a new trusted MediaStreamTrackEvent in the realm, for the implementation to fire.
 ///
 /// # Safety
 ///
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn web_rust_media_stream_track_event_create(
     // SAFETY: The caller lends the type for the call.
     let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
     // SAFETY: The caller passes a live MediaStreamTrack.
-    unsafe { MediaStreamTrackEvent::create(vm, realm, &r#type, &event_init, track) }
-        .event()
-        .as_ptr()
+    let event = unsafe { MediaStreamTrackEvent::create(vm, realm, &r#type, &event_init, track) };
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }

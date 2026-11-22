@@ -1,0 +1,2 @@
+enterpictureinpicture isTrusted: true
+leavepictureinpicture isTrusted: true

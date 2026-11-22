@@ -101,7 +101,7 @@ impl PictureInPictureEvent {
     }
 }
 
-/// The Event of a new PictureInPictureEvent in the realm, for the implementation to fire.
+/// The Event of a new trusted PictureInPictureEvent in the realm, for the implementation to fire.
 ///
 /// # Safety
 ///
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn web_rust_picture_in_picture_event_create(
     // SAFETY: The caller lends the type for the call.
     let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
     // SAFETY: The caller passes a live PictureInPictureWindow.
-    unsafe { PictureInPictureEvent::create(vm, realm, &r#type, &event_init, window) }
-        .event()
-        .as_ptr()
+    let event = unsafe { PictureInPictureEvent::create(vm, realm, &r#type, &event_init, window) };
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }

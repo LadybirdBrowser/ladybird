@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const entered = new Promise(resolve => video.addEventListener("enterpictureinpicture", resolve, { once: true }));
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        println(`enterpictureinpicture isTrusted: ${(await entered).isTrusted}`);
+
+        const left = new Promise(resolve => video.addEventListener("leavepictureinpicture", resolve, { once: true }));
+        await document.exitPictureInPicture();
+        println(`leavepictureinpicture isTrusted: ${(await left).isTrusted}`);
+        done();
+    });
+</script>
