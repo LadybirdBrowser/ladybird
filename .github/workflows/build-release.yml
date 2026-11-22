@@ -304,6 +304,7 @@ jobs:
     env:
       BUNDLE: ladybird-${{ inputs.version && format('{0}-', inputs.version) }}Linux-${{ matrix.arch }}.flatpak
       DEBUG_BUNDLE: ladybird-${{ inputs.version && format('{0}-', inputs.version) }}Linux-${{ matrix.arch }}-debug.flatpak
+      THIRD_PARTY_SOURCES: ladybird-${{ inputs.version }}-Flatpak-${{ matrix.arch }}-third-party-sources.tar
 
     steps:
       - name: Download the source
@@ -355,6 +356,13 @@ jobs:
           cache: false
           upload-artifact: false
 
+      # release-tools publishes the source archive of every LGPL module with the release.
+      - name: Package the source code of the LGPL libraries
+        if: ${{ inputs.version != '' }}
+        run: |
+          python3 Meta/generate-licenses.py --flatpak-manifest Meta/CMake/flatpak/org.ladybird.Ladybird.json \
+            --third-party-sources "$THIRD_PARTY_SOURCES"
+
       - name: Attest
         if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
@@ -362,6 +370,7 @@ jobs:
           subject-path: |
             ${{ env.BUNDLE }}
             ${{ env.DEBUG_BUNDLE }}
+            ${{ env.THIRD_PARTY_SOURCES }}
 
       - name: Upload
         uses: actions/upload-artifact@v7
@@ -374,5 +383,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: ${{ env.DEBUG_BUNDLE }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the source code of the LGPL libraries
+        if: ${{ inputs.version != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.THIRD_PARTY_SOURCES }}
           archive: false
           if-no-files-found: error

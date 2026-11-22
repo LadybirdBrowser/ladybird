@@ -474,6 +474,7 @@
         {
           "type": "git",
           "url": "https://github.com/davea42/libdwarf-code.git",
+          "commit": "1c267616a4c8dc46b3380f0be4296ff8767bdfbb",
           "tag": "v2.3.3"
         }
       ],
