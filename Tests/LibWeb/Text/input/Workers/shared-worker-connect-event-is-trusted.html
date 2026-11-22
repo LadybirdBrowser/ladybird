@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptURL = await server.createEcho("GET", "/shared-worker-connect-event-is-trusted.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "onconnect = event => event.ports[0].postMessage(event.isTrusted);",
+        });
+        const pageURL = await server.createEcho("GET", "/shared-worker-connect-event-is-trusted.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>
+                const worker = new SharedWorker(${JSON.stringify(scriptURL)}, ${JSON.stringify(uniqueID())});
+                worker.port.onmessage = event => parent.postMessage(event.data, "*");
+            <\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        const message = new Promise(resolve => (window.onmessage = event => resolve(event.data)));
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        println(`isTrusted: ${await message}`);
+        iframe.remove();
+    });
+</script>

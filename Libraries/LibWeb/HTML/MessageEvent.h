@@ -26,8 +26,8 @@ struct MessageEventInit {
     GC::Ptr<MessagePort> source;
 };
 
-// The Event of a new MessageEvent in the realm, whose origin is the origin if there is one, and the empty string
-// otherwise.
+// The Event of a new trusted MessageEvent in the realm, for the implementation to fire. Its origin is the origin if
+// there is one, and the empty string otherwise.
 WEB_API GC::Ref<DOM::Event> create_message_event(JS::Realm&, Utf16FlyString const& type, MessageEventInit const&, Optional<URL::Origin> const& origin = {});
 
 // The Event of a new MessageEvent in the realm whose type is the empty string, for createEvent().

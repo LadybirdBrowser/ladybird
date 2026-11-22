@@ -605,8 +605,8 @@ pub unsafe extern "C" fn web_rust_html_create_storage_event(vm: *mut c_void, rea
         .as_ptr()
 }
 
-/// The Event of a new MessageEvent in the realm, for C++ to fire. Its origin is the origin if there is one, and the
-/// empty string otherwise.
+/// The Event of a new trusted MessageEvent in the realm, for C++ to fire. Its origin is the origin if there is one,
+/// and the empty string otherwise.
 ///
 /// # Safety
 ///
@@ -643,9 +643,9 @@ pub unsafe extern "C" fn web_rust_html_create_message_event(
     let origin = (!origin.is_null()).then(|| unsafe { (*origin).to_origin() });
     // SAFETY: The caller lends the type for the call.
     let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
-    MessageEvent::create(vm, realm, &r#type, event_init, origin)
-        .event()
-        .as_ptr()
+    let event = MessageEvent::create(vm, realm, &r#type, event_init, origin);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }
 
 /// The Event of a new MessageEvent in the realm whose type is the empty string, for createEvent().
