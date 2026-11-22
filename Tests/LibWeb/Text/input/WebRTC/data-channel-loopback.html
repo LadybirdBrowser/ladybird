@@ -37,7 +37,9 @@ asyncTest(async done => {
         println(`remote label: ${remote.label}`);
         let message = new Promise(resolve => remote.onmessage = resolve);
         channel.send("hello 🐦");
-        println(`text payload: ${(await message).data}`);
+        const textEvent = await message;
+        println(`text payload: ${textEvent.data}`);
+        println(`message isTrusted: ${textEvent.isTrusted}`);
         message = new Promise(resolve => remote.onmessage = resolve);
         channel.send(new Uint8Array([0, 1, 127, 255]));
         println(`binary payload: ${Array.from(new Uint8Array((await message).data))}`);

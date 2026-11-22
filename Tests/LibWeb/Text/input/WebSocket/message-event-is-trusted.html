@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+        ws.onopen = () => ws.send("hello");
+        ws.onmessage = event => {
+            println(`isTrusted: ${event.isTrusted}`);
+            ws.close();
+            done();
+        };
+        ws.onerror = () => {
+            println("error");
+            done();
+        };
+    });
+</script>
