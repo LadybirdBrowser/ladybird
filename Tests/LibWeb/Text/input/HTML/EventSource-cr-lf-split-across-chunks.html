@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `event-source-cr-lf-split-${crypto.randomUUID()}`;
+
+        // The first chunk ends with the CR of a CRLF, and the second chunk starts with its LF.
+        const firstChunk = "data: one\n\ndata: a\r";
+        const url = await server.createEcho("GET", "/event-source-cr-lf-split", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: `${firstChunk}\ndata: b\n\n`,
+        });
+
+        const source = new EventSource(`${url}?chunks=${firstChunk.length}&chunk_unblock_tokens=${token}`);
+        await new Promise(resolve => {
+            source.onmessage = event => {
+                println(`message: ${JSON.stringify(event.data)}`);
+                if (event.data === "one")
+                    fetch(`${server.baseURL}/unblock/${token}`);
+                if (event.data.endsWith("b"))
+                    resolve();
+            };
+        });
+        source.close();
+    });
+</script>

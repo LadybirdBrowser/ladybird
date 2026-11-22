@@ -92,6 +92,8 @@ pub(crate) struct EventSource {
     #[gc(untraced)]
     pending_data: RefCell<Vec<u8>>,
     is_start_of_stream: Cell<bool>,
+    /// Whether the last byte of the body that has been interpreted is a CR, which a LF that follows it pairs with.
+    last_was_cr: Cell<bool>,
 
     /// When the delay of step 2 of reestablishing the connection ends.
     #[gc(untraced)]
@@ -154,22 +156,21 @@ pub(crate) fn forget_event_sources_of_agent() {
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-fn for_each_line(string: &str, mut callback: impl FnMut(&str)) {
+fn for_each_line(string: &str, last_was_cr: &mut bool, mut callback: impl FnMut(&str)) {
     let mut substart = 0;
-    let mut last_was_cr = false;
     for (i, ch) in string.char_indices() {
         if ch == '\n' {
-            if !last_was_cr {
+            if !*last_was_cr {
                 callback(&string[substart..i]);
             }
             substart = i + 1;
-            last_was_cr = false;
+            *last_was_cr = false;
         } else if ch == '\r' {
             callback(&string[substart..i]);
             substart = i + 1;
-            last_was_cr = true;
+            *last_was_cr = true;
         } else {
-            last_was_cr = false;
+            *last_was_cr = false;
         }
     }
     if substart < string.len() {
@@ -201,6 +202,7 @@ impl EventSource {
             ready_state: Cell::new(ReadyState::Connecting),
             pending_data: RefCell::new(Vec::new()),
             is_start_of_stream: Cell::new(true),
+            last_was_cr: Cell::new(false),
             end_of_delay: Cell::new(None),
             fetch_controller: GcRefCell::new(None),
             reconnection_timer: GcRefCell::new(None),
@@ -315,6 +317,7 @@ impl EventSource {
 
             this.pending_data.borrow_mut().clear();
             this.is_start_of_stream.set(true);
+            this.last_was_cr.set(false);
             // SAFETY: The realm, the response and this are live.
             unsafe {
                 web_html_event_source_incrementally_read_body(
@@ -529,7 +532,8 @@ impl EventSource {
         let response_string = String::from_utf8_lossy(response);
 
         // Lines must be processed, in the order they are received, as follows:
-        for_each_line(&response_string, |line| {
+        let mut last_was_cr = this.last_was_cr.get();
+        for_each_line(&response_string, &mut last_was_cr, |line| {
             // -> If the line is empty (a blank line)
             if line.is_empty() {
                 // Dispatch the event, as defined below.
@@ -556,6 +560,7 @@ impl EventSource {
                 this.process_field(line, "");
             }
         });
+        this.last_was_cr.set(last_was_cr);
     }
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#processField
