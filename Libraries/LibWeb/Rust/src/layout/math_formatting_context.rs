@@ -118,6 +118,13 @@ pub(super) fn size_token_line_to_ink(line: &mut line_box::LineBoxData) {
     line.next_line_block_offset = line.block_end;
 }
 
+// https://w3c.github.io/mathml-core/#table-or-matrix-mtable
+pub(super) fn table_baseline(style: &StyleValues<'_>, cells: used_values::RootInputCells) -> CssPixels {
+    let collapsed = cells.uses_collapsing_borders_model();
+    cells.border_box_block_size(collapsed) / 2 + MathConstants::for_style(style).axis_height()
+        - cells.border_box_top(collapsed)
+}
+
 /// The unit of a MathML attribute value that is a `<length-percentage>`. Mirrors the C++ `MathLengthUnit`, where 0
 /// stands for an attribute that is absent or invalid.
 pub(crate) mod math_length_unit {

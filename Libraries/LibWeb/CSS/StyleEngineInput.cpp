@@ -1666,7 +1666,7 @@ static u32 kind_box_type_adjustment_facts(DOM::Element const& element)
     set(is_html_element && local_name == HTML::TagNames::table, ElementStyleAdjustmentFact::IsTable);
     set(is_svg_element && local_name != "svg"sv, ElementStyleAdjustmentFact::ForcePositionStatic);
     set(is_mathml_element, ElementStyleAdjustmentFact::IsMathML);
-    set(local_name.equals_ignoring_ascii_case("mtable"sv), ElementStyleAdjustmentFact::IsMathMLMtable);
+    set(is_mathml_element && local_name == MathML::TagNames::mtable, ElementStyleAdjustmentFact::IsMathMLMtable);
     set(local_name.equals_ignoring_ascii_case("mtr"sv), ElementStyleAdjustmentFact::IsMathMLMtr);
     set(local_name.equals_ignoring_ascii_case("mtd"sv), ElementStyleAdjustmentFact::IsMathMLMtd);
     set(is_html_element && local_name.equals_ignoring_ascii_case(HTML::TagNames::th), ElementStyleAdjustmentFact::IsTh);

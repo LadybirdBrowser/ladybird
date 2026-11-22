@@ -1,0 +1,3 @@
+HTML mtable uses the first row: true
+XML mtable uses the first row: true
+Uppercase MathML MTABLE uses the first row: true
