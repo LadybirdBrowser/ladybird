@@ -664,7 +664,6 @@ set(SOURCES
     MediaSession/ChapterInformation.cpp
     MediaSession/MediaMetadata.cpp
     MediaSession/MediaSession.cpp
-    MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp
     MediaSourceExtensions/ManagedSourceBuffer.cpp
