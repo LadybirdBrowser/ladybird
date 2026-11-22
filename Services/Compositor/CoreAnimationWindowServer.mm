@@ -139,9 +139,7 @@ OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
 
 bool CoreAnimationWindowServer::shows_tiles_of_painted_layers() const
 {
-    // Lets a frame composited by the window server be told apart from one composited into a store.
-    static bool is_switched_off = getenv("LADYBIRD_WINDOW_SERVER_SHOWS_NO_TILES") != nullptr;
-    return !is_switched_off;
+    return !showing_tiles_of_painted_layers_is_switched_off();
 }
 
 bool CoreAnimationWindowServer::filters_what_is_below_layers() const

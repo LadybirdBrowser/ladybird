@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Types.h>
 #include <AK/Vector.h>
 #include <Compositor/PresentableSurface.h>
 #include <Compositor/RemoteLayer.h>
@@ -17,13 +18,32 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 
+namespace Gfx {
+
+class D3DSharedTexture;
+
+}
+
 namespace Compositor {
 
 class DirectCompositionRemoteLayer;
 
 class DirectCompositionSurface final : public WindowServerSurface {
 public:
-    virtual bool may_be_read_by_window_server() const override { return false; }
+    // Over memory that the window server cannot read, whose content is copied into a swap chain to be shown.
+    DirectCompositionSurface();
+    // Over a texture that the window server reads as it is, as the content of a visual.
+    explicit DirectCompositionSurface(NonnullRefPtr<Gfx::D3DSharedTexture>);
+    virtual ~DirectCompositionSurface() override;
+
+    virtual bool may_be_read_by_window_server() const override;
+
+private:
+    friend class DirectCompositionRemoteLayer;
+
+    struct Impl;
+
+    OwnPtr<Impl> m_impl;
 };
 
 class DirectCompositionWindowServer final : public WindowServer {
@@ -34,7 +54,8 @@ public:
 
     virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) override;
     virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) override;
-    virtual FrameHandOff frame_hand_off() const override { return FrameHandOff::OnceGpuWorkIsScheduled; }
+    virtual bool shows_tiles_of_painted_layers() const override;
+    virtual FrameHandOff frame_hand_off() const override;
     virtual void hold_changes_on_screen() override;
     virtual void release_changes_held_off_screen() override;
 

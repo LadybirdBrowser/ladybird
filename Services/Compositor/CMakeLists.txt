@@ -88,7 +88,9 @@ endif()
 
 if (WIN32 AND HAS_DIRECTX)
     target_sources(compositorservice PRIVATE DirectCompositionWindowServer.cpp)
-    target_link_libraries(compositorservice PRIVATE LibThreading dcomp)
+    # dcomp.h declares composition textures only from NTDDI_WIN10_NI on.
+    set_source_files_properties(DirectCompositionWindowServer.cpp PROPERTIES COMPILE_DEFINITIONS NTDDI_VERSION=0x0A00000C)
+    target_link_libraries(compositorservice PRIVATE LibThreading d3d11 dcomp)
 endif()
 
 if (WIN32)

@@ -16,6 +16,8 @@
 #include <LibCompositing/FrameFitting.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/D3DSharedTexture.h>
 #include <LibGfx/Direct3DContext.h>
 #include <LibGfx/Rect.h>
 #include <LibThreading/Thread.h>
@@ -34,6 +36,7 @@
 #include <gpu/ganesh/d3d/GrD3DBackendSurface.h>
 #include <gpu/ganesh/d3d/GrD3DTypes.h>
 
+#include <d3d11_3.h>
 #include <d3d12.h>
 #include <dcomp.h>
 #include <dxgi1_4.h>
@@ -298,13 +301,219 @@ void CompositionSwapChain::show_drawing()
         dbgln("Compositor: Failed to present a swap chain of a remote layer: {}", Error::from_windows_error(result));
 }
 
+static ComPtr<ID3D11Device1> create_d3d11_device_for_composition_textures()
+{
+    if (WindowServer::showing_tiles_of_painted_layers_is_switched_off())
+        return nullptr;
+    auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
+    if (!skia_backend_context || !skia_backend_context->sk_context() || skia_backend_context->sk_context()->backend() != GrBackendApi::kDirect3D)
+        return nullptr;
+
+    // The device opens the textures that the main thread's context paints, so it is created on the same adapter.
+    Array feature_levels { D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
+    ComPtr<ID3D11Device> device;
+    if (auto result = D3D11CreateDevice(skia_backend_context->direct3d_context().adapter(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+            feature_levels.data(), static_cast<UINT>(feature_levels.size()), D3D11_SDK_VERSION, &device, nullptr, nullptr);
+        FAILED(result)) {
+        dbgln("Compositor: Unable to create a Direct3D 11 device for composition textures: {}", Error::from_windows_error(result));
+        return nullptr;
+    }
+    ComPtr<ID3D11Device1> device1;
+    if (auto result = device.As(&device1); FAILED(result)) {
+        dbgln("Compositor: Unable to reach the Direct3D 11.1 interface of a device: {}", Error::from_windows_error(result));
+        return nullptr;
+    }
+
+    ComPtr<IDCompositionDesktopDevice> composition_device;
+    if (auto result = DCompositionCreateDevice3(nullptr, IID_PPV_ARGS(&composition_device)); FAILED(result)) {
+        dbgln("Compositor: Unable to create a DirectComposition device to check for composition textures: {}", Error::from_windows_error(result));
+        return nullptr;
+    }
+    ComPtr<IDCompositionDevice4> composition_device4;
+    if (auto result = composition_device.As(&composition_device4); FAILED(result)) {
+        dbgln("Compositor: This DirectComposition has no composition textures: {}", Error::from_windows_error(result));
+        return nullptr;
+    }
+    BOOL supports_composition_textures = FALSE;
+    if (auto result = composition_device4->CheckCompositionTextureSupport(device.Get(), &supports_composition_textures); FAILED(result)) {
+        dbgln("Compositor: Unable to check for composition textures: {}", Error::from_windows_error(result));
+        return nullptr;
+    }
+    if (!supports_composition_textures) {
+        dbgln("Compositor: DirectComposition shows no composition textures of this GPU");
+        return nullptr;
+    }
+    return device1;
+}
+
+// The Direct3D 11 device that opens the surfaces the window server reads as they are, shared by every window server, or
+// null where the window server cannot read surfaces so.
+static ID3D11Device1* d3d11_device_for_composition_textures()
+{
+    static ID3D11Device1* device = create_d3d11_device_for_composition_textures().Detach();
+    return device;
+}
+
+// A texture of one pixel, which a visual scales up into a fill.
+static ErrorOr<ComPtr<IDCompositionTexture>> create_composition_texture_filled_with(IDCompositionDevice4& device, Gfx::Color color)
+{
+    auto* d3d11_device = d3d11_device_for_composition_textures();
+    VERIFY(d3d11_device);
+
+    D3D11_TEXTURE2D_DESC description {};
+    description.Width = 1;
+    description.Height = 1;
+    description.MipLevels = 1;
+    description.ArraySize = 1;
+    description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    description.SampleDesc.Count = 1;
+    description.Usage = D3D11_USAGE_DEFAULT;
+    description.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    // A texture that cannot be shared is not taken as a composition texture.
+    description.MiscFlags = D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
+    auto premultiplied = [&](u8 channel) { return static_cast<u8>((channel * color.alpha() + 127) / 255); };
+    Array<u8, 4> pixel { premultiplied(color.red()), premultiplied(color.green()), premultiplied(color.blue()), color.alpha() };
+    D3D11_SUBRESOURCE_DATA initial_data {};
+    initial_data.pSysMem = pixel.data();
+    initial_data.SysMemPitch = static_cast<UINT>(pixel.size());
+    ComPtr<ID3D11Texture2D> texture;
+    if (auto result = d3d11_device->CreateTexture2D(&description, &initial_data, &texture); FAILED(result))
+        return Error::from_windows_error(result);
+    // Another device sees what this one wrote into a shared texture only once its work is flushed.
+    ComPtr<ID3D11DeviceContext> d3d11_context;
+    d3d11_device->GetImmediateContext(&d3d11_context);
+    d3d11_context->Flush();
+
+    ComPtr<IDCompositionTexture> composition_texture;
+    if (auto result = device.CreateCompositionTexture(texture.Get(), &composition_texture); FAILED(result))
+        return Error::from_windows_error(result);
+    if (!composition_texture)
+        return Error::from_string_literal("DirectComposition made no composition texture of a color");
+    if (auto result = composition_texture->SetAlphaMode(DXGI_ALPHA_MODE_PREMULTIPLIED); FAILED(result))
+        return Error::from_windows_error(result);
+    return composition_texture;
+}
+
+static constexpr size_t maximum_count_of_composition_textures_filled_with_colors = 256;
+
 struct DirectCompositionWindowServer::Impl {
     AK_ALLOC_WITH_KMALLOC;
 
+    IDCompositionTexture* composition_texture_filled_with(Gfx::Color);
+
     NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     ComPtr<IDCompositionDesktopDevice> device;
+    // Null where the window server cannot show surfaces as they are, which it then shows by copying them into swap chains.
+    ComPtr<IDCompositionDevice4> device_showing_composition_textures;
     ComPtr<IDXGIFactory2> dxgi_factory;
+    // Tells apart the window servers that the composition textures of a surface belong to, as each belongs to the device
+    // that made it.
+    u64 id { 0 };
+    HashMap<Gfx::Color, ComPtr<IDCompositionTexture>> composition_textures_filled_with_colors;
 };
+
+IDCompositionTexture* DirectCompositionWindowServer::Impl::composition_texture_filled_with(Gfx::Color color)
+{
+    if (!device_showing_composition_textures)
+        return nullptr;
+    if (auto texture = composition_textures_filled_with_colors.find(color); texture != composition_textures_filled_with_colors.end())
+        return texture->value.Get();
+    auto texture = create_composition_texture_filled_with(*device_showing_composition_textures.Get(), color);
+    if (texture.is_error()) {
+        dbgln("Compositor: Unable to create a composition texture of a color: {}", texture.error());
+        return nullptr;
+    }
+    if (composition_textures_filled_with_colors.size() >= maximum_count_of_composition_textures_filled_with_colors)
+        composition_textures_filled_with_colors.clear();
+    auto* composition_texture = texture.value().Get();
+    composition_textures_filled_with_colors.set(color, texture.release_value());
+    return composition_texture;
+}
+
+struct DirectCompositionSurface::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
+    IDCompositionTexture* composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4&, DXGI_ALPHA_MODE);
+
+    struct CompositionTexture {
+        u64 window_server_id { 0 };
+        ComPtr<IDCompositionTexture> texture;
+        DXGI_ALPHA_MODE alpha_mode { DXGI_ALPHA_MODE_UNSPECIFIED };
+    };
+
+    NonnullRefPtr<Gfx::D3DSharedTexture> shared_texture;
+    ComPtr<ID3D11Texture2D> texture_opened_on_d3d11_device;
+    // One per window server that showed the surface.
+    Vector<CompositionTexture, 1> composition_textures;
+};
+
+IDCompositionTexture* DirectCompositionSurface::Impl::composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4& device, DXGI_ALPHA_MODE alpha_mode)
+{
+    CompositionTexture* composition_texture = nullptr;
+    if (auto shown = composition_textures.find_if([&](auto const& texture) { return texture.window_server_id == window_server_id; }); !shown.is_end())
+        composition_texture = &*shown;
+    if (!composition_texture) {
+        if (!texture_opened_on_d3d11_device) {
+            auto* d3d11_device = d3d11_device_for_composition_textures();
+            VERIFY(d3d11_device);
+            if (auto result = d3d11_device->OpenSharedResource1(shared_texture->shared_handle(), IID_PPV_ARGS(&texture_opened_on_d3d11_device)); FAILED(result)) {
+                dbgln("Compositor: Unable to open a surface on the Direct3D 11 device: {}", Error::from_windows_error(result));
+                return nullptr;
+            }
+        }
+        // A composition texture made of the Direct3D 12 resource itself shows nothing, so it is made of the texture
+        // that the Direct3D 11 device opened.
+        ComPtr<IDCompositionTexture> texture;
+        if (auto result = device.CreateCompositionTexture(texture_opened_on_d3d11_device.Get(), &texture); FAILED(result)) {
+            dbgln("Compositor: Unable to create a composition texture of a surface: {}", Error::from_windows_error(result));
+            return nullptr;
+        }
+        if (!texture) {
+            dbgln("Compositor: DirectComposition made no composition texture of a surface");
+            return nullptr;
+        }
+        composition_textures.append({ window_server_id, move(texture), DXGI_ALPHA_MODE_UNSPECIFIED });
+        composition_texture = &composition_textures.last();
+    }
+    if (composition_texture->alpha_mode != alpha_mode) {
+        if (auto result = composition_texture->texture->SetAlphaMode(alpha_mode); FAILED(result))
+            dbgln("Compositor: Unable to set the alpha mode of a composition texture: {}", Error::from_windows_error(result));
+        else
+            composition_texture->alpha_mode = alpha_mode;
+    }
+    return composition_texture->texture.Get();
+}
+
+DirectCompositionSurface::DirectCompositionSurface() = default;
+
+DirectCompositionSurface::DirectCompositionSurface(NonnullRefPtr<Gfx::D3DSharedTexture> shared_texture)
+    : m_impl(adopt_own(*new Impl {
+          .shared_texture = move(shared_texture),
+          .texture_opened_on_d3d11_device = nullptr,
+          .composition_textures = {},
+      }))
+{
+}
+
+DirectCompositionSurface::~DirectCompositionSurface() = default;
+
+bool DirectCompositionSurface::may_be_read_by_window_server() const
+{
+    if (!m_impl)
+        return false;
+    // A composition texture has no fence for as long as any visual has it as its content, even a visual that is no
+    // longer in the tree. Once none does, and that is committed, it has a fence that reaches the value it gives once
+    // the window server has stopped reading it.
+    for (auto const& composition_texture : m_impl->composition_textures) {
+        UINT64 value_once_available = 0;
+        ComPtr<ID3D11Fence> available_fence;
+        if (auto result = composition_texture.texture->GetAvailableFence(&value_once_available, IID_PPV_ARGS(&available_fence)); FAILED(result) || !available_fence)
+            return true;
+        if (available_fence->GetCompletedValue() < value_once_available)
+            return true;
+    }
+    return false;
+}
 
 class DirectCompositionRemoteLayer final : public RemoteLayer {
 public:
@@ -318,6 +527,16 @@ public:
 
     void show_changes();
 
+    enum class SublayerKind : u8 {
+        // A surface, in a visual of its own inside the visuals that clip it.
+        PlacedContent,
+        Group,
+        Tile,
+        Color,
+        // A backdrop filter, which the window server does not apply here, so its visual shows nothing.
+        Backdrop,
+    };
+
 private:
     DirectCompositionRemoteLayer(DirectCompositionWindowServer& window_server, HWND window)
         : m_window_server(window_server)
@@ -326,21 +545,44 @@ private:
     }
 
     struct ShownSublayer {
-        ComPtr<IDCompositionVisual2> clip_visual;
+        SublayerKind kind { SublayerKind::PlacedContent };
+        // The visual among the children of the group the sublayer is in, or of the frame: the visual that clips placed
+        // content, or the one visual of a group, a tile, a color or a backdrop.
+        ComPtr<IDCompositionVisual2> outermost_visual;
+        // The visual that shows the content: the innermost visual of placed content, or the one visual of a tile or a
+        // color.
+        ComPtr<IDCompositionVisual2> content_visual;
+        // The clip of the outermost visual of placed content, or of a group that clips.
         ComPtr<IDCompositionRectangleClip> clip;
         ComPtr<IDCompositionVisual2> rounded_clip_visual;
         ComPtr<IDCompositionRectangleClip> rounded_clip;
-        ComPtr<IDCompositionVisual2> content_visual;
         OwnPtr<CompositionSwapChain> swap_chain;
         Optional<PresentableSurface::Lease> content;
+        bool content_visual_shows_composition_texture_of_surface { false };
+        bool outermost_visual_is_child_of_parent { false };
+        // What a group, a tile or a color was last shown with, so that a frame sets only what it changes.
+        Optional<RemoteSublayer::Group> shown_group;
+        Optional<Gfx::IntRect> shown_rect;
+        Optional<Gfx::Color> shown_color;
+        // Of a group, the sublayers in it, bottom to top.
+        Vector<u64> identities_of_sublayers;
     };
 
     DirectCompositionWindowServer::Impl& window_server_impl() const { return *m_window_server->m_impl; }
     ErrorOr<OwnPtr<CompositionSwapChain>> create_swap_chain(Gfx::IntSize, DXGI_ALPHA_MODE) const;
+    IDCompositionTexture* composition_texture_of(PresentableSurface const&, DXGI_ALPHA_MODE) const;
     void lay_out_frame();
+    void stop_showing_store();
     void stop_showing_frame();
     void show_sublayers(Vector<RemoteSublayer>&);
+    ShownSublayer* shown_sublayer_of_kind(u64 identity, SublayerKind);
     ErrorOr<void> update_shown_sublayer(ShownSublayer&, RemoteSublayer&);
+    void update_shown_group(ShownSublayer&, RemoteSublayer::Group const&);
+    void update_shown_tile(ShownSublayer&, RemoteSublayer::Tile&, Gfx::IntRect);
+    void update_shown_color(ShownSublayer&, Gfx::Color, Gfx::IntRect);
+    void remove_visuals_of_sublayers(IDCompositionVisual2& parent, Vector<u64> const& identities_of_sublayers);
+    void stop_showing_sublayer(ShownSublayer&);
+    void stop_showing_sublayers();
     void show_changes_unless_held();
 
     NonnullRefPtr<DirectCompositionWindowServer> m_window_server;
@@ -350,6 +592,8 @@ private:
     ComPtr<IDCompositionVisual2> m_frame_visual;
     OwnPtr<CompositionSwapChain> m_frame_swap_chain;
     HashMap<u64, ShownSublayer> m_shown_sublayers;
+    // The sublayers of the frame itself, bottom to top.
+    Vector<u64> m_identities_of_sublayers_of_frame;
     Gfx::IntSize m_painted_size;
     Optional<Gfx::IntSize> m_fit_within;
     Gfx::IntSize m_window_size;
@@ -385,10 +629,10 @@ OwnPtr<DirectCompositionRemoteLayer> DirectCompositionRemoteLayer::try_create(Di
 DirectCompositionRemoteLayer::~DirectCompositionRemoteLayer()
 {
     m_window_server->m_layers.remove_first_matching([this](auto* layer) { return layer == this; });
+    stop_showing_sublayers();
     if (m_target)
         m_target->SetRoot(nullptr);
     m_target = nullptr;
-    m_shown_sublayers.clear();
     m_frame_visual = nullptr;
     m_root_visual = nullptr;
     m_frame_swap_chain = nullptr;
@@ -441,6 +685,12 @@ bool DirectCompositionRemoteLayer::show_frame(Frame frame)
             return false;
         }
         m_painted_size = painted_size;
+    } else if (frame.shows_no_store) {
+        if (frame.painted_size.is_empty())
+            return true;
+        if (m_frame_swap_chain)
+            stop_showing_store();
+        m_painted_size = frame.painted_size;
     }
     if (m_painted_size.is_empty())
         return true;
@@ -451,42 +701,191 @@ bool DirectCompositionRemoteLayer::show_frame(Frame frame)
     return true;
 }
 
-void DirectCompositionRemoteLayer::stop_showing_frame()
+void DirectCompositionRemoteLayer::stop_showing_store()
 {
     m_frame_visual->SetContent(nullptr);
-    m_frame_visual->RemoveAllVisuals();
-    m_shown_sublayers.clear();
     m_frame_swap_chain = nullptr;
+}
+
+void DirectCompositionRemoteLayer::stop_showing_frame()
+{
+    stop_showing_store();
+    stop_showing_sublayers();
     m_painted_size = {};
     m_has_changes_to_show = true;
     show_changes_unless_held();
 }
 
+static DirectCompositionRemoteLayer::SublayerKind kind_of(RemoteSublayer const& sublayer)
+{
+    using Kind = DirectCompositionRemoteLayer::SublayerKind;
+    return sublayer.content.visit(
+        [](RemoteSublayer::Group const&) { return Kind::Group; },
+        [](RemoteSublayer::Tile const&) { return Kind::Tile; },
+        [](Gfx::Color const&) { return Kind::Color; },
+        [](RemoteSublayer::Backdrop const&) { return Kind::Backdrop; },
+        [](auto const&) { return Kind::PlacedContent; });
+}
+
+DirectCompositionRemoteLayer::ShownSublayer* DirectCompositionRemoteLayer::shown_sublayer_of_kind(u64 identity, SublayerKind kind)
+{
+    if (auto shown_sublayer = m_shown_sublayers.find(identity); shown_sublayer != m_shown_sublayers.end()) {
+        if (shown_sublayer->value.kind == kind)
+            return &shown_sublayer->value;
+        stop_showing_sublayer(shown_sublayer->value);
+        m_shown_sublayers.remove(shown_sublayer);
+    }
+    auto& device = *window_server_impl().device.Get();
+    ShownSublayer shown_sublayer;
+    shown_sublayer.kind = kind;
+    if (FAILED(device.CreateVisual(&shown_sublayer.outermost_visual))) {
+        dbgln("Compositor: Unable to create the visual of a sublayer");
+        return nullptr;
+    }
+    auto& outermost_visual = *shown_sublayer.outermost_visual.Get();
+    switch (kind) {
+    case SublayerKind::PlacedContent:
+        if (FAILED(device.CreateRectangleClip(&shown_sublayer.clip)) || FAILED(device.CreateVisual(&shown_sublayer.content_visual))) {
+            dbgln("Compositor: Unable to create the visuals of a sublayer");
+            return nullptr;
+        }
+        outermost_visual.SetClip(shown_sublayer.clip.Get());
+        outermost_visual.AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
+        break;
+    case SublayerKind::Tile:
+        shown_sublayer.content_visual = shown_sublayer.outermost_visual;
+        outermost_visual.SetBitmapInterpolationMode(DCOMPOSITION_BITMAP_INTERPOLATION_MODE_LINEAR);
+        outermost_visual.SetBorderMode(DCOMPOSITION_BORDER_MODE_HARD);
+        break;
+    case SublayerKind::Color:
+        shown_sublayer.content_visual = shown_sublayer.outermost_visual;
+        outermost_visual.SetBitmapInterpolationMode(DCOMPOSITION_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
+        outermost_visual.SetBorderMode(DCOMPOSITION_BORDER_MODE_HARD);
+        break;
+    case SublayerKind::Group:
+    case SublayerKind::Backdrop:
+        break;
+    }
+    m_shown_sublayers.set(identity, move(shown_sublayer));
+    return &m_shown_sublayers.find(identity)->value;
+}
+
 void DirectCompositionRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
 {
-    auto& device = *window_server_impl().device.Get();
+    struct SublayersOfParent {
+        Vector<u64> identities;
+        bool has_sublayer_whose_visual_is_child_of_no_parent { false };
+    };
     HashTable<u64> shown_identities;
-    m_frame_visual->RemoveAllVisuals();
-    IDCompositionVisual2* visual_below = nullptr;
-    for (auto& sublayer : sublayers) {
-        auto& shown_sublayer = m_shown_sublayers.ensure(sublayer.identity, [] { return ShownSublayer {}; });
-        if (!shown_sublayer.clip_visual) {
-            if (FAILED(device.CreateVisual(&shown_sublayer.clip_visual)) || FAILED(device.CreateRectangleClip(&shown_sublayer.clip))
-                || FAILED(device.CreateVisual(&shown_sublayer.content_visual))) {
-                dbgln("Compositor: Unable to create the visuals of a sublayer");
-                m_shown_sublayers.remove(sublayer.identity);
-                continue;
-            }
-            shown_sublayer.clip_visual->SetClip(shown_sublayer.clip.Get());
-            shown_sublayer.clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
-        }
-        if (auto result = update_shown_sublayer(shown_sublayer, sublayer); result.is_error())
-            dbgln("Compositor: Unable to show a sublayer: {}", result.error());
-        m_frame_visual->AddVisual(shown_sublayer.clip_visual.Get(), TRUE, visual_below);
-        visual_below = shown_sublayer.clip_visual.Get();
+    // Per sublayer, by its index, the sublayers in it where it is a group, and after those, the sublayers of the frame
+    // itself.
+    Vector<SublayersOfParent> sublayers_by_group_index;
+    sublayers_by_group_index.resize(sublayers.size() + 1);
+    auto index_of_frame = sublayers.size();
+    for (size_t index = 0; index < sublayers.size(); ++index) {
+        auto& sublayer = sublayers[index];
+        auto* shown_sublayer = shown_sublayer_of_kind(sublayer.identity, kind_of(sublayer));
+        if (!shown_sublayer)
+            continue;
+        sublayer.content.visit(
+            [&](RemoteSublayer::Group& group) { update_shown_group(*shown_sublayer, group); },
+            [&](RemoteSublayer::Tile& tile) { update_shown_tile(*shown_sublayer, tile, sublayer.content_rect); },
+            [&](Gfx::Color& color) { update_shown_color(*shown_sublayer, color, sublayer.content_rect); },
+            [&](RemoteSublayer::Backdrop&) { },
+            [&](auto&) {
+                if (auto result = update_shown_sublayer(*shown_sublayer, sublayer); result.is_error())
+                    dbgln("Compositor: Unable to show a sublayer: {}", result.error());
+            });
+        auto group_index = sublayer.group_index.value_or(index_of_frame);
+        // A group comes before the sublayers in it.
+        if (group_index != index_of_frame && (group_index >= index || !sublayers[group_index].content.has<RemoteSublayer::Group>()))
+            group_index = index_of_frame;
+        auto& sublayers_of_parent = sublayers_by_group_index[group_index];
+        sublayers_of_parent.identities.append(sublayer.identity);
+        if (!shown_sublayer->outermost_visual_is_child_of_parent)
+            sublayers_of_parent.has_sublayer_whose_visual_is_child_of_no_parent = true;
         shown_identities.set(sublayer.identity);
     }
-    m_shown_sublayers.remove_all_matching([&](u64 identity, auto&) { return !shown_identities.contains(identity); });
+
+    Vector<u64> identities_no_longer_shown;
+    for (auto& it : m_shown_sublayers) {
+        if (!shown_identities.contains(it.key))
+            identities_no_longer_shown.append(it.key);
+    }
+    for (auto identity : identities_no_longer_shown) {
+        auto shown_sublayer = m_shown_sublayers.take(identity).release_value();
+        stop_showing_sublayer(shown_sublayer);
+    }
+
+    // A visual that is a child of one parent cannot be added to another, so the children of every parent whose
+    // sublayers changed are all removed before any is added again.
+    struct ParentWithChangedSublayers {
+        IDCompositionVisual2* visual { nullptr };
+        Vector<u64>* shown_identities_of_sublayers { nullptr };
+        Vector<u64>* identities_of_sublayers { nullptr };
+    };
+    Vector<ParentWithChangedSublayers> parents_with_changed_sublayers;
+    auto remove_visuals_of_sublayers_if_changed = [&](IDCompositionVisual2& parent, Vector<u64>& shown_identities_of_sublayers, SublayersOfParent& sublayers_of_parent) {
+        if (!sublayers_of_parent.has_sublayer_whose_visual_is_child_of_no_parent && shown_identities_of_sublayers == sublayers_of_parent.identities)
+            return;
+        remove_visuals_of_sublayers(parent, shown_identities_of_sublayers);
+        parents_with_changed_sublayers.append({ &parent, &shown_identities_of_sublayers, &sublayers_of_parent.identities });
+    };
+    for (size_t index = 0; index < sublayers.size(); ++index) {
+        if (!sublayers[index].content.has<RemoteSublayer::Group>())
+            continue;
+        auto shown_group = m_shown_sublayers.find(sublayers[index].identity);
+        if (shown_group == m_shown_sublayers.end() || shown_group->value.kind != SublayerKind::Group)
+            continue;
+        remove_visuals_of_sublayers_if_changed(*shown_group->value.outermost_visual.Get(), shown_group->value.identities_of_sublayers, sublayers_by_group_index[index]);
+    }
+    remove_visuals_of_sublayers_if_changed(*m_frame_visual.Get(), m_identities_of_sublayers_of_frame, sublayers_by_group_index[index_of_frame]);
+    for (auto& parent : parents_with_changed_sublayers) {
+        IDCompositionVisual2* visual_below = nullptr;
+        for (auto identity : *parent.identities_of_sublayers) {
+            auto& shown_sublayer = m_shown_sublayers.find(identity)->value;
+            auto* visual = shown_sublayer.outermost_visual.Get();
+            if (auto result = parent.visual->AddVisual(visual, TRUE, visual_below); FAILED(result)) {
+                dbgln("Compositor: Unable to add the visual of a sublayer to its parent: {}", Error::from_windows_error(result));
+                continue;
+            }
+            shown_sublayer.outermost_visual_is_child_of_parent = true;
+            visual_below = visual;
+        }
+        *parent.shown_identities_of_sublayers = move(*parent.identities_of_sublayers);
+    }
+}
+
+void DirectCompositionRemoteLayer::remove_visuals_of_sublayers(IDCompositionVisual2& parent, Vector<u64> const& identities_of_sublayers)
+{
+    parent.RemoveAllVisuals();
+    for (auto identity : identities_of_sublayers) {
+        if (auto shown_sublayer = m_shown_sublayers.find(identity); shown_sublayer != m_shown_sublayers.end())
+            shown_sublayer->value.outermost_visual_is_child_of_parent = false;
+    }
+}
+
+// A composition texture reads as available again only once no visual has it as its content, not even one that is no
+// longer in the tree, so a sublayer takes it out of its visual before the visual goes.
+void DirectCompositionRemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
+{
+    if (shown_sublayer.content_visual_shows_composition_texture_of_surface) {
+        shown_sublayer.content_visual->SetContent(nullptr);
+        shown_sublayer.content_visual_shows_composition_texture_of_surface = false;
+    }
+    if (shown_sublayer.kind == SublayerKind::Group)
+        remove_visuals_of_sublayers(*shown_sublayer.outermost_visual.Get(), shown_sublayer.identities_of_sublayers);
+    shown_sublayer.content.clear();
+}
+
+void DirectCompositionRemoteLayer::stop_showing_sublayers()
+{
+    for (auto& it : m_shown_sublayers)
+        stop_showing_sublayer(it.value);
+    if (m_frame_visual)
+        m_frame_visual->RemoveAllVisuals();
+    m_shown_sublayers.clear();
+    m_identities_of_sublayers_of_frame.clear();
 }
 
 static D2D_MATRIX_3X2_F to_direct2d_matrix(Gfx::AffineTransform const& transform)
@@ -535,9 +934,9 @@ ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer&
             if (auto result = device.CreateRectangleClip(&shown_sublayer.rounded_clip); FAILED(result))
                 return Error::from_windows_error(result);
             shown_sublayer.rounded_clip_visual->SetClip(shown_sublayer.rounded_clip.Get());
-            shown_sublayer.clip_visual->RemoveAllVisuals();
+            shown_sublayer.outermost_visual->RemoveAllVisuals();
             shown_sublayer.rounded_clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
-            shown_sublayer.clip_visual->AddVisual(shown_sublayer.rounded_clip_visual.Get(), FALSE, nullptr);
+            shown_sublayer.outermost_visual->AddVisual(shown_sublayer.rounded_clip_visual.Get(), FALSE, nullptr);
         }
         auto& clip = *shown_sublayer.rounded_clip.Get();
         set_rectangle(clip, rounded_clip.rect);
@@ -551,9 +950,9 @@ ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer&
         clip.SetBottomLeftRadiusX(radius_if(rounded_clip.rounds_bottom_left));
         clip.SetBottomLeftRadiusY(radius_if(rounded_clip.rounds_bottom_left));
     } else if (shown_sublayer.rounded_clip_visual) {
-        shown_sublayer.clip_visual->RemoveAllVisuals();
+        shown_sublayer.outermost_visual->RemoveAllVisuals();
         shown_sublayer.rounded_clip_visual->RemoveAllVisuals();
-        shown_sublayer.clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
+        shown_sublayer.outermost_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
         shown_sublayer.rounded_clip_visual = nullptr;
         shown_sublayer.rounded_clip = nullptr;
     }
@@ -578,14 +977,144 @@ ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer&
 
     if (shown_sublayer.content.has_value() && &shown_sublayer.content->surface() == &surface)
         return {};
-    if (!shown_sublayer.swap_chain) {
-        shown_sublayer.swap_chain = TRY(create_swap_chain(surface_size, DXGI_ALPHA_MODE_PREMULTIPLIED));
-        content_visual.SetContent(shown_sublayer.swap_chain->content());
+    if (auto* composition_texture = composition_texture_of(surface, DXGI_ALPHA_MODE_PREMULTIPLIED)) {
+        shown_sublayer.swap_chain = nullptr;
+        surface.did_hand_to_window_server();
+        content_visual.SetContent(composition_texture);
+        shown_sublayer.content_visual_shows_composition_texture_of_surface = true;
+    } else {
+        if (!shown_sublayer.swap_chain) {
+            shown_sublayer.swap_chain = TRY(create_swap_chain(surface_size, DXGI_ALPHA_MODE_PREMULTIPLIED));
+            content_visual.SetContent(shown_sublayer.swap_chain->content());
+            shown_sublayer.content_visual_shows_composition_texture_of_surface = false;
+        }
+        TRY(shown_sublayer.swap_chain->draw(surface.painting_surface(), surface_size));
+        m_has_changes_to_show = true;
     }
-    TRY(shown_sublayer.swap_chain->draw(surface.painting_surface(), surface_size));
     shown_sublayer.content = move(*lease);
-    m_has_changes_to_show = true;
     return {};
+}
+
+IDCompositionTexture* DirectCompositionRemoteLayer::composition_texture_of(PresentableSurface const& surface, DXGI_ALPHA_MODE alpha_mode) const
+{
+    auto& window_server = window_server_impl();
+    if (!window_server.device_showing_composition_textures)
+        return nullptr;
+    auto const* window_server_surface = static_cast<DirectCompositionSurface const*>(surface.window_server_surface());
+    if (!window_server_surface || !window_server_surface->m_impl)
+        return nullptr;
+    return window_server_surface->m_impl->composition_texture_shown_by(window_server.id, *window_server.device_showing_composition_textures.Get(), alpha_mode);
+}
+
+static bool transforms_alike(Gfx::AffineTransform const& a, Gfx::AffineTransform const& b)
+{
+    return a.a() == b.a() && a.b() == b.b() && a.c() == b.c() && a.d() == b.d() && a.e() == b.e() && a.f() == b.f();
+}
+
+static void set_corner_radii(IDCompositionRectangleClip& clip, Gfx::CornerRadii const& corner_radii)
+{
+    auto horizontal_radius_of = [](Gfx::CornerRadius const& corner) { return corner ? static_cast<float>(corner.horizontal_radius) : 0.0f; };
+    auto vertical_radius_of = [](Gfx::CornerRadius const& corner) { return corner ? static_cast<float>(corner.vertical_radius) : 0.0f; };
+    clip.SetTopLeftRadiusX(horizontal_radius_of(corner_radii.top_left));
+    clip.SetTopLeftRadiusY(vertical_radius_of(corner_radii.top_left));
+    clip.SetTopRightRadiusX(horizontal_radius_of(corner_radii.top_right));
+    clip.SetTopRightRadiusY(vertical_radius_of(corner_radii.top_right));
+    clip.SetBottomRightRadiusX(horizontal_radius_of(corner_radii.bottom_right));
+    clip.SetBottomRightRadiusY(vertical_radius_of(corner_radii.bottom_right));
+    clip.SetBottomLeftRadiusX(horizontal_radius_of(corner_radii.bottom_left));
+    clip.SetBottomLeftRadiusY(vertical_radius_of(corner_radii.bottom_left));
+}
+
+// A group visual has the group's transform and clips to the group's rect in its own pixels, which a visual's clip is in.
+// A frame that only moves the group, as a scroll does, sets nothing else.
+void DirectCompositionRemoteLayer::update_shown_group(ShownSublayer& shown_sublayer, RemoteSublayer::Group const& group)
+{
+    auto const* shown_group = shown_sublayer.shown_group.has_value() ? &shown_sublayer.shown_group.value() : nullptr;
+    auto& group_visual = *shown_sublayer.outermost_visual.Get();
+    if (!shown_group || !transforms_alike(shown_group->to_parent, group.to_parent))
+        group_visual.SetTransform(to_direct2d_matrix(group.to_parent));
+    if (!shown_group || shown_group->clip_rect != group.clip_rect || shown_group->corner_radii != group.corner_radii) {
+        if (group.clip_rect.has_value()) {
+            if (!shown_sublayer.clip) {
+                if (auto result = window_server_impl().device->CreateRectangleClip(&shown_sublayer.clip); FAILED(result))
+                    dbgln("Compositor: Unable to create the clip of a group: {}", Error::from_windows_error(result));
+                else
+                    group_visual.SetClip(shown_sublayer.clip.Get());
+            }
+            if (shown_sublayer.clip) {
+                set_rectangle(*shown_sublayer.clip.Get(), *group.clip_rect);
+                set_corner_radii(*shown_sublayer.clip.Get(), group.corner_radii);
+            }
+        } else if (shown_sublayer.clip) {
+            group_visual.SetClip(static_cast<IDCompositionClip*>(nullptr));
+            shown_sublayer.clip = nullptr;
+        }
+    }
+    // Fading the sublayers of a group together takes a layer of their own, which only a translucent group asks for.
+    auto shown_opacity = shown_group ? shown_group->opacity : 1.0f;
+    if (!shown_group || (shown_opacity < 1) != (group.opacity < 1))
+        group_visual.SetOpacityMode(group.opacity < 1 ? DCOMPOSITION_OPACITY_MODE_LAYER : DCOMPOSITION_OPACITY_MODE_MULTIPLY);
+    if (shown_opacity != group.opacity) {
+        ComPtr<IDCompositionVisual3> group_visual3;
+        if (auto result = shown_sublayer.outermost_visual.As(&group_visual3); FAILED(result))
+            dbgln("Compositor: Unable to fade a group: {}", Error::from_windows_error(result));
+        else
+            group_visual3->SetOpacity(group.opacity);
+    }
+    shown_sublayer.shown_group = group;
+}
+
+// A visual shows its content at the content's own size from its origin, so content of another size than the rect is
+// scaled into it.
+static D2D_MATRIX_3X2_F transform_placing_content_of_size_at(Gfx::IntSize content_size, Gfx::IntRect rect)
+{
+    D2D_MATRIX_3X2_F matrix {};
+    matrix._11 = static_cast<float>(rect.width()) / static_cast<float>(content_size.width());
+    matrix._22 = static_cast<float>(rect.height()) / static_cast<float>(content_size.height());
+    matrix._31 = static_cast<float>(rect.x());
+    matrix._32 = static_cast<float>(rect.y());
+    return matrix;
+}
+
+void DirectCompositionRemoteLayer::update_shown_tile(ShownSublayer& shown_sublayer, RemoteSublayer::Tile& tile, Gfx::IntRect rect)
+{
+    auto& tile_visual = *shown_sublayer.outermost_visual.Get();
+    auto& surface = tile.surface.surface();
+    auto const* shown_lease = shown_sublayer.content.has_value() ? &shown_sublayer.content.value() : nullptr;
+    auto shown_surface_size = shown_lease ? Optional<Gfx::IntSize> { shown_lease->surface().size() } : OptionalNone {};
+    if (shown_sublayer.shown_rect != rect || shown_surface_size != surface.size()) {
+        tile_visual.SetTransform(transform_placing_content_of_size_at(surface.size(), rect));
+        shown_sublayer.shown_rect = rect;
+    }
+    auto* composition_texture = composition_texture_of(surface, tile.every_pixel_is_opaque ? DXGI_ALPHA_MODE_IGNORE : DXGI_ALPHA_MODE_PREMULTIPLIED);
+    if (shown_lease && &shown_lease->surface() == &surface)
+        return;
+    if (!composition_texture) {
+        dbgln("Compositor: The window server cannot show the surface of a tile");
+        if (shown_sublayer.content_visual_shows_composition_texture_of_surface) {
+            tile_visual.SetContent(nullptr);
+            shown_sublayer.content_visual_shows_composition_texture_of_surface = false;
+        }
+        shown_sublayer.content.clear();
+        return;
+    }
+    surface.did_hand_to_window_server();
+    tile_visual.SetContent(composition_texture);
+    shown_sublayer.content_visual_shows_composition_texture_of_surface = true;
+    shown_sublayer.content = move(tile.surface);
+}
+
+void DirectCompositionRemoteLayer::update_shown_color(ShownSublayer& shown_sublayer, Gfx::Color color, Gfx::IntRect rect)
+{
+    auto& color_visual = *shown_sublayer.outermost_visual.Get();
+    if (shown_sublayer.shown_rect != rect) {
+        color_visual.SetTransform(transform_placing_content_of_size_at({ 1, 1 }, rect));
+        shown_sublayer.shown_rect = rect;
+    }
+    if (shown_sublayer.shown_color == color)
+        return;
+    color_visual.SetContent(window_server_impl().composition_texture_filled_with(color));
+    shown_sublayer.shown_color = color;
 }
 
 void DirectCompositionRemoteLayer::place_frame(Optional<Gfx::IntSize> fit_within)
@@ -656,12 +1185,32 @@ RefPtr<DirectCompositionWindowServer> DirectCompositionWindowServer::try_create(
     }
 
     ComPtr<IDCompositionDesktopDevice> device;
-    if (auto result = DCompositionCreateDevice2(nullptr, IID_PPV_ARGS(&device)); FAILED(result)) {
-        dbgln("Compositor: Unable to create a DirectComposition device: {}", Error::from_windows_error(result));
-        return nullptr;
+    ComPtr<IDCompositionDevice4> device_showing_composition_textures;
+    if (d3d11_device_for_composition_textures()) {
+        auto result = DCompositionCreateDevice3(nullptr, IID_PPV_ARGS(&device));
+        if (SUCCEEDED(result))
+            result = device.As(&device_showing_composition_textures);
+        if (FAILED(result)) {
+            dbgln("Compositor: Unable to create a DirectComposition device that shows composition textures: {}", Error::from_windows_error(result));
+            device = nullptr;
+        }
+    }
+    if (!device) {
+        if (auto result = DCompositionCreateDevice2(nullptr, IID_PPV_ARGS(&device)); FAILED(result)) {
+            dbgln("Compositor: Unable to create a DirectComposition device: {}", Error::from_windows_error(result));
+            return nullptr;
+        }
     }
 
-    auto impl = make<Impl>(skia_backend_context.release_nonnull(), move(device), move(dxgi_factory));
+    static u64 next_window_server_id = 0;
+    auto impl = adopt_own(*new Impl {
+        .skia_backend_context = skia_backend_context.release_nonnull(),
+        .device = move(device),
+        .device_showing_composition_textures = move(device_showing_composition_textures),
+        .dxgi_factory = move(dxgi_factory),
+        .id = next_window_server_id++,
+        .composition_textures_filled_with_colors = {},
+    });
     return adopt_ref(*new DirectCompositionWindowServer(move(impl)));
 }
 
@@ -680,6 +1229,18 @@ OwnPtr<RemoteLayer> DirectCompositionWindowServer::try_create_remote_layer(u64)
     return DirectCompositionRemoteLayer::try_create(*this);
 }
 
+bool DirectCompositionWindowServer::shows_tiles_of_painted_layers() const
+{
+    return m_impl->device_showing_composition_textures.Get() != nullptr;
+}
+
+// The window server reads a composition texture in no order with the GPU work that drew into it, unlike a swap chain,
+// which this process copies surfaces into on its own queue.
+WindowServer::FrameHandOff DirectCompositionWindowServer::frame_hand_off() const
+{
+    return m_impl->device_showing_composition_textures ? FrameHandOff::OnceGpuWorkIsFinished : FrameHandOff::OnceGpuWorkIsScheduled;
+}
+
 static ErrorOr<NonnullRefPtr<PresentableSurface>> create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto painting_surface = TRY(Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context));
@@ -688,7 +1249,11 @@ static ErrorOr<NonnullRefPtr<PresentableSurface>> create_presentable_surface(Gfx
 
 ErrorOr<NonnullRefPtr<PresentableSurface>> DirectCompositionWindowServer::try_create_presentable_surface_on_gpu(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
-    return create_presentable_surface(size, skia_backend_context);
+    if (size.is_empty() || &skia_backend_context != Gfx::SkiaBackendContext::the_main_thread_context().ptr() || !d3d11_device_for_composition_textures())
+        return create_presentable_surface(size, skia_backend_context);
+    auto shared_texture = TRY(Gfx::D3DSharedTexture::create(skia_backend_context.direct3d_context(), size));
+    auto painting_surface = TRY(Gfx::PaintingSurface::create_from_d3d_texture_also_drawn_from(skia_backend_context, shared_texture));
+    return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft, make<DirectCompositionSurface>(move(shared_texture)));
 }
 
 ErrorOr<NonnullRefPtr<PresentableSurface>> DirectCompositionWindowServer::try_create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)

@@ -78,6 +78,9 @@ public:
 
 #ifdef USE_DIRECTX
     static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
+    // Over the texture as one that is drawn from as well as into, so that a snapshot of the surface shares the texture
+    // instead of copying it.
+    static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture_also_drawn_from(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
 #endif
 
     // The pixels of the bitmap are in the color space, which is sRGB unless one is given. The surface converts them
