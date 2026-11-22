@@ -1,0 +1,9 @@
+Ladybird centers the border box of an mtable on its own math axis. Blink
+supplies MathTableBaseline() from TableLayoutAlgorithm, WebKit uses
+RenderMathMLTable::firstLineBaseline(), and Gecko handles axis alignment
+in nsMathMLmtableWrapperFrame::Reflow().
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all centered a
+280px stretchy fence on a 240px eight-row matrix in the test font. All
+three also used the axis of the table font with asymmetric borders,
+padding, or margins, and with an explicit table height.
