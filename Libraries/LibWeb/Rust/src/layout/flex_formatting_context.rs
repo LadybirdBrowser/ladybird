@@ -151,14 +151,25 @@ impl<'pass> FlexItemDetails<'pass> {
 const _: () = assert!(size_of::<FlexItem>() <= 128);
 
 impl FlexItem {
-    fn new(box_: Node, alignment_facts: FlexItemAlignmentFacts, inputs: &FlexItemInputs<'_>) -> Self {
+    fn new(
+        box_: Node,
+        alignment_facts: FlexItemAlignmentFacts,
+        inputs: &FlexItemInputs<'_>,
+        main_axis_is_horizontal: bool,
+    ) -> Self {
+        // https://drafts.csswg.org/css-sizing-3/#valdef-width-min-content
+        // NB: In a box's block axis, min-content, max-content and fit-content are equivalent to its automatic size, so
+        //     such a minimum main size is an automatic minimum size where the main axis is the item's block axis.
+        let main_axis_is_block_axis = main_axis_is_horizontal != inputs.inline_axis_is_horizontal;
+        let main_min_size_is_auto = inputs.min_main_size.is_auto()
+            || (main_axis_is_block_axis && inputs.min_main_size.is_intrinsic_sizing_constraint());
         Self {
             box_,
             alignment_facts,
             cross_size_is_stretch: inputs.preferred_cross_size.is_stretch(),
             cross_size_is_calc_size: inputs.preferred_cross_size.calc_size().is_some(),
             cross_min_or_max_size_is_stretch: inputs.min_cross_size.is_stretch() || inputs.max_cross_size.is_stretch(),
-            main_min_size_is_auto: inputs.min_main_size.is_auto(),
+            main_min_size_is_auto,
             main_min_size_is_calc_size: inputs.min_main_size.calc_size().is_some(),
             max_main_size_is_none: false,
             max_cross_size_is_none: false,
@@ -1215,7 +1226,12 @@ impl<'pass> FlexFormattingContext<'pass> {
                     let (inputs, alignment_facts) = self.resolve_item_inputs(child);
                     let order = self.order_of_item(inputs.style);
                     items_have_different_orders |= *order_of_first_item.get_or_insert(order) != order;
-                    self.flex_items.push(FlexItem::new(child, alignment_facts, &inputs));
+                    self.flex_items.push(FlexItem::new(
+                        child,
+                        alignment_facts,
+                        &inputs,
+                        self.main_axis_is_horizontal(),
+                    ));
                     self.items_to_fork.take();
                     self.flex_item_details.push(FlexItemDetails::new(inputs, cells));
                     self.populate_specified_margins(self.flex_items.len() - 1);
