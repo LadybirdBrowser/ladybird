@@ -1,0 +1,22 @@
+Ladybird now recascades the inherited font size wherever the family
+changes between monospace and any other, against that family’s
+medium size. Blink rescales a size that derives from a keyword in
+FontBuilder::CheckForGenericFamilyChange(), keeping the keyword
+in its FontDescription; WebKit does the same in BuilderCustom::
+applyValueFontFamily(), through useFixedDefaultSize(); Gecko carries
+the keyword in the computed font size’s keyword_info, and recomputes
+it in recompute_keyword_font_size_if_needed(). In editing, Blink’s
+LegacyFontSizeFromCSSValue() and WebKit’s legacyFontSizeFromCSSValue()
+take the same monospace flag. Run in Chrome 158, Firefox 151 and
+WebKit 26.5, all 48 cases of the test match Chrome and WebKit; Firefox
+differs on “font-size: initial” in monospace (16px) and on a zoomed
+one. For a calc() font size, Ladybird follows Blink and WebKit: One
+made of a percentage alone carries the keyword through, as Blink’s
+StyleBuilderConverterBase::ConvertFontSize() does for a math function
+whose type is a percentage, so calc(110%) in monospace is 14.3px; any
+other is absolute, so calc(110% + 0px) and calc(1.1em) are 17.6px,
+and calc(1em + 2px) 18px. Gecko treats every calc() as absolute, and
+gives 17.6px for calc(110%). Within the recascade, Blink and WebKit
+resolve an ancestor’s ex or ch size against its parent’s family
+at the recascaded size, as Ladybird now does; Gecko resolves it
+at the size the parent has.
