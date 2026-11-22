@@ -3814,6 +3814,15 @@ bool Element::is_actually_disabled() const
     return false;
 }
 
+// A button, input, select, or textarea element, or a form-associated custom element, that's disabled. Unlike a disabled
+// fieldset, such a control stops the mouse presses aimed at it from being dispatched.
+bool Element::is_disabled_form_control() const
+{
+    if (is<HTML::HTMLOptGroupElement>(this) || is<HTML::HTMLOptionElement>(this) || is<HTML::HTMLFieldSetElement>(this))
+        return false;
+    return is_actually_disabled();
+}
+
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
 WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode scripting_mode, HTML::FragmentFastPath fast_path, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
 {

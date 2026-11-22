@@ -742,6 +742,7 @@ public:
     int scroll_height();
 
     bool is_actually_disabled() const;
+    bool is_disabled_form_control() const;
 
     WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(Utf16View where, GC::Ref<Element> element);
     WebIDL::ExceptionOr<void> insert_adjacent_text(Utf16View where, Utf16View data);

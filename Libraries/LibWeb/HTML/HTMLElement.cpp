@@ -1421,10 +1421,8 @@ void HTMLElement::set_hidden(Variant<bool, double, Utf16String, Empty> const& gi
 void HTMLElement::click()
 {
     // 1. If this element is a form control that is disabled, then return.
-    if (auto* form_control = as_if<FormAssociatedElement>(this)) {
-        if (!form_control->enabled())
-            return;
-    }
+    if (is_disabled_form_control())
+        return;
 
     // 2. If this element's click in progress flag is set, then return.
     if (m_click_in_progress)
