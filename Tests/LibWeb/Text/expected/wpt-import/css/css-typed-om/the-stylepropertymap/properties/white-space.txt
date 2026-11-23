@@ -2,14 +2,15 @@ Harness status: OK
 
 Found 144 tests
 
-144 Pass
+143 Pass
+1 Fail
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: initial
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: inherit
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: unset
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: revert
 Pass	Can set 'white-space-collapse' to var() references:  var(--A)
 Pass	Can set 'white-space-collapse' to the 'collapse' keyword: collapse
-Pass	Can set 'white-space-collapse' to the 'discard' keyword: discard
+Fail	Can set 'white-space-collapse' to the 'discard' keyword: discard
 Pass	Can set 'white-space-collapse' to the 'preserve' keyword: preserve
 Pass	Can set 'white-space-collapse' to the 'preserve-breaks' keyword: preserve-breaks
 Pass	Can set 'white-space-collapse' to the 'preserve-spaces' keyword: preserve-spaces
