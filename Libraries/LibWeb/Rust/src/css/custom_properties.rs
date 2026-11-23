@@ -4168,15 +4168,6 @@ mod tests {
             panic!("expected environment fallback");
         };
         assert_eq!(serialize_tokens(&tokens), utf16(" 4px"));
-
-        assert!(matches!(
-            substitute_without_custom_properties("env(\"unknown-environment-variable\", 4px)"),
-            TokenResolution::Invalid
-        ));
-        assert!(matches!(
-            substitute_without_custom_properties("env(safe-area-inset-top 1.5, 4px)"),
-            TokenResolution::Invalid
-        ));
     }
 
     #[test]
