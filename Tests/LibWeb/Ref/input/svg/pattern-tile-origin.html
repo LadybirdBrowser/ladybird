@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/pattern-tile-origin-ref.html" />
+<svg width="100" height="100">
+    <pattern id="user-space-tiles" x="10" y="10" width="50" height="50" patternUnits="userSpaceOnUse">
+        <rect width="25" height="25" fill="green" />
+    </pattern>
+    <rect width="100" height="100" fill="url(#user-space-tiles)" />
+</svg>
+<svg width="150" height="100">
+    <pattern id="bounding-box-tiles" width="0.5" height="0.5">
+        <rect width="25" height="25" fill="green" />
+    </pattern>
+    <rect x="50" width="100" height="100" fill="url(#bounding-box-tiles)" />
+</svg>
+<svg width="100" height="100">
+    <pattern id="bounding-box-content" x="0.25" y="0.25" width="0.5" height="0.5" patternContentUnits="objectBoundingBox">
+        <rect width="0.25" height="0.25" fill="green" />
+    </pattern>
+    <rect width="100" height="100" fill="url(#bounding-box-content)" />
+</svg>

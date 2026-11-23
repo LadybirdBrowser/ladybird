@@ -297,19 +297,9 @@ fn pattern_paint_style<O: Observer>(
             height: 1.0,
         };
     }
-    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
     let mut recorded_to_surface = AffineTransform::identity().scaled(content_scale.width, content_scale.height);
-    if !description.has_view_box {
-        let mut content_to_tile_transform = AffineTransform::identity();
-        if description.content_units_are_object_bounding_box {
-            content_to_tile_transform = AffineTransform::identity()
-                .translated(bounding_box.x * device_scale, bounding_box.y * device_scale)
-                .scaled(bounding_box.width, bounding_box.height);
-        }
-        recorded_to_surface = multiply_affine(
-            recorded_to_surface.translated(-tile_rect.x, -tile_rect.y),
-            content_to_tile_transform,
-        );
+    if !description.has_view_box && description.content_units_are_object_bounding_box {
+        recorded_to_surface = recorded_to_surface.scaled(bounding_box.width, bounding_box.height);
     }
     let tile_content_transform = affine_to_matrix(recorded_to_surface);
     let mut pattern_transform = crate::painting::display_list::commands::OptionalAffineTransform::default();
