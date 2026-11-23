@@ -1,0 +1,2 @@
+white-space-collapse inside <pre> with the longhand set to discard: preserve
+white-space-collapse inside <pre> with the shorthand set to discard: preserve
