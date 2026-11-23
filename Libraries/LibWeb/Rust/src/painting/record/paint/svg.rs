@@ -469,6 +469,37 @@ pub(crate) fn paint_text_after_children<O: Observer>(
     }
 }
 
+/// The force-dark role of the fills and strokes of the SVG box `paintable`: that of SVG content, or none where the
+/// outermost svg element of the SVG inline in the page is bigger than an icon. Its content is then more likely an
+/// illustration, a chart or a QR code than line art, and it stays as authored.
+fn svg_content_force_dark_role(source: &impl PaintRead, paintable: NodeSlotId) -> ForceDarkRole {
+    let mut root = None;
+    let mut node = Some(paintable);
+    while let Some(current) = node {
+        match source.node_kind_if_live(current) {
+            Some(NodeKind::SVGSVGBox) => root = Some(current),
+            Some(kind) if crate::painting::node_painting::is_svg(kind) => {}
+            // The outermost svg element is the root element of an SVG document, such as an SVG image's, whose content
+            // darkens whatever its size.
+            Some(NodeKind::Viewport) => return ForceDarkRole::Svg,
+            _ => break,
+        }
+        node = source.node_parent_if_live(current);
+    }
+    let Some(root) = root else {
+        return ForceDarkRole::Svg;
+    };
+    let border_box = crate::painting::paintable_geometry::absolute_border_box_rect(source, root);
+    if crate::painting::force_dark::svg_root_size_allows_darkening(
+        border_box.width.to_float(),
+        border_box.height.to_float(),
+    ) {
+        ForceDarkRole::Svg
+    } else {
+        ForceDarkRole::None
+    }
+}
+
 fn paint_path_parts<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
@@ -563,6 +594,7 @@ fn paint_path_parts<O: Observer>(
         }
         return;
     }
+    let svg_role = svg_content_force_dark_role(recorder.source, paintable);
 
     let geometry =
         crate::painting::paintable_geometry::committed_svg_geometry(recorder.source, paintable).unwrap_or_default();
@@ -596,7 +628,7 @@ fn paint_path_parts<O: Observer>(
                     }
                     if let Some(paint_style) = paint_server_style(recorder, paintable, false, &paint_context) {
                         recorder.recorder.fill_path(FillPathParams {
-                            force_dark_role: ForceDarkRole::Svg,
+                            force_dark_role: svg_role,
                             path,
                             opacity: fill_opacity,
                             paint_style_or_color: PaintStyleOrColor::PaintStyle(paint_style),
@@ -605,7 +637,7 @@ fn paint_path_parts<O: Observer>(
                         });
                     } else if let Some(fill_color) = facts.fill_color {
                         recorder.recorder.fill_path(FillPathParams {
-                            force_dark_role: ForceDarkRole::Svg,
+                            force_dark_role: svg_role,
                             path,
                             opacity: 1.0,
                             paint_style_or_color: PaintStyleOrColor::Color(
@@ -649,7 +681,7 @@ fn paint_path_parts<O: Observer>(
 
                     if let Some(paint_style) = paint_server_style(recorder, paintable, true, &paint_context) {
                         recorder.recorder.stroke_path(StrokePathParams {
-                            force_dark_role: ForceDarkRole::Svg,
+                            force_dark_role: svg_role,
                             cap_style: facts.cap_style,
                             join_style: facts.join_style,
                             miter_limit: facts.miter_limit,
@@ -663,7 +695,7 @@ fn paint_path_parts<O: Observer>(
                         });
                     } else if let Some(stroke_color) = facts.stroke_color {
                         recorder.recorder.stroke_path(StrokePathParams {
-                            force_dark_role: ForceDarkRole::Svg,
+                            force_dark_role: svg_role,
                             cap_style: facts.cap_style,
                             join_style: facts.join_style,
                             miter_limit: facts.miter_limit,
@@ -696,6 +728,7 @@ fn paint_color_glyph_runs<O: Observer>(
     use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
     use crate::painting::display_list::recorder::GlyphRunForRecording;
 
+    let svg_role = svg_content_force_dark_role(recorder.source, paintable);
     let Some(style) = recorder.source.node_style_if_live(paintable) else {
         return;
     };
@@ -726,7 +759,7 @@ fn paint_color_glyph_runs<O: Observer>(
             f64::from(device_scale),
             libgfx_rust::GlyphRunOrientation::Horizontal,
             device_rect,
-            ForceDarkRole::Svg,
+            svg_role,
         );
     }
 }

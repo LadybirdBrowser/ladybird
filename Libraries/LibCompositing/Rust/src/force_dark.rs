@@ -405,6 +405,12 @@ pub fn image_size_allows_classification(dest_width_css: f32, dest_height_css: f3
     source_size.0 <= MAX_SEPARATOR_SOURCE_LENGTH || source_size.1 <= MAX_SEPARATOR_SOURCE_LENGTH
 }
 
+/// Whether the content of an SVG root with a border box this size may be darkened: Only an icon-sized one's is, as for
+/// images. The size is in CSS pixels, so page zoom can't flip it.
+pub fn svg_root_size_allows_darkening(width_css: f32, height_css: f32) -> bool {
+    width_css <= MAX_ICON_LENGTH_CSS && height_css <= MAX_ICON_LENGTH_CSS
+}
+
 /// The role an image draw takes: the one the call site meant, or None for a photo-sized image. The gate is sized in
 /// CSS pixels so page zoom can't flip an icon into a photo.
 pub fn role_for_image(

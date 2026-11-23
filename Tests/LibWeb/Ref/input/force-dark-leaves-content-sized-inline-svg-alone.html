@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-leaves-content-sized-inline-svg-alone-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    svg { display: block; }
+</style>
+<svg width="100" height="100">
+    <rect width="100" height="100" fill="#ffffff"></rect>
+    <rect x="10" y="10" width="30" height="30" fill="#000000"></rect>
+    <rect x="60" y="10" width="30" height="30" fill="#000000"></rect>
+    <rect x="10" y="60" width="30" height="30" fill="#000000"></rect>
+    <path d="M 60 60 L 90 60 L 90 90 Z" fill="none" stroke="#000000" stroke-width="4"></path>
+</svg>
+<svg width="65" height="20"><rect width="65" height="20" fill="#000000"></rect></svg>
+<svg width="20" height="65"><rect width="20" height="65" fill="#000000"></rect></svg>
+<svg width="60" height="60" style="padding: 4px"><rect width="60" height="60" fill="#000000"></rect></svg>
+<svg width="200" height="50">
+    <svg width="40" height="40"><rect width="40" height="40" fill="#000000"></rect></svg>
+</svg>
+<script>
+    // An inline SVG wider or taller than an icon is content, like a QR code, so its fills and strokes stay as
+    // authored: Inverting its dark parts and not its light ones would leave it unreadable. A nested svg element
+    // isn't a root of its own, so its size doesn't matter; its outermost svg element's does, and
+    // that by its border box.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
