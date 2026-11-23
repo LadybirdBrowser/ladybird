@@ -1123,75 +1123,81 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             while self.ast.tag[node] == tag::PAREN {
                 node = self.ast.a[node] as usize;
             }
-            // NB: What `delete` of an optional chain is about is the end of the chain.
-            if mark == tag::MARK_DELETE && self.ast.tag[node] == tag::CHAIN {
-                node = self.ast.a[node] as usize;
-                self.ast.tag[node] = match self.ast.tag[node] {
-                    tag::MEMBER | tag::OPT_MEMBER => tag::MEMBER_DELETE,
-                    tag::INDEX | tag::OPT_INDEX => tag::INDEX_DELETE,
-                    other => other,
-                };
-                return;
-            }
-            // NB: What gets called on what comes from the end of the chain too, through the parentheses around it.
-            if mark == tag::MARK_CALLEE && self.ast.tag[node] == tag::CHAIN {
-                node = self.ast.a[node] as usize;
-                self.ast.tag[node] = match self.ast.tag[node] {
-                    tag::MEMBER | tag::OPT_MEMBER => tag::MEMBER_CALLEE,
-                    tag::INDEX | tag::OPT_INDEX => tag::INDEX_CALLEE,
-                    tag::PRIVATE_MEMBER | tag::OPT_PRIVATE_MEMBER => tag::PRIVATE_MEMBER_CALLEE,
-                    tag::SUPER_MEMBER => tag::SUPER_MEMBER_CALLEE,
-                    tag::SUPER_INDEX => tag::SUPER_INDEX_CALLEE,
-                    other => other,
-                };
-                return;
-            }
-            let offset = mark - tag::MARK_CALLEE;
-            let marked = match self.ast.tag[node] {
-                tag::IDENT => tag::IDENT_MARKED + offset,
-                tag::MEMBER if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
-                    tag::MEMBER_MARKED + offset
-                }
-                tag::INDEX if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
-                    tag::INDEX_MARKED + offset
-                }
-                tag::SUPER if mark == tag::MARK_CALLEE => tag::SUPER_CALLEE,
-                tag::SUPER_MEMBER
-                    if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF =>
-                {
-                    tag::SUPER_MEMBER_MARKED + offset
-                }
-                tag::SUPER_INDEX
-                    if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF =>
-                {
-                    tag::SUPER_INDEX_MARKED + offset
-                }
-                tag::PRIVATE_MEMBER
-                    if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF =>
-                {
-                    tag::PRIVATE_MEMBER_MARKED + offset
-                }
-                tag::OPT_MEMBER if mark == tag::MARK_CALLEE => tag::OPT_MEMBER_CALLEE,
-                tag::OPT_INDEX if mark == tag::MARK_CALLEE => tag::OPT_INDEX_CALLEE,
-                tag::OPT_PRIVATE_MEMBER if mark == tag::MARK_CALLEE => tag::PRIVATE_MEMBER_CALLEE,
-                tag::STR if mark == tag::MARK_KEY => tag::STR_KEY,
-                tag::NUM if mark == tag::MARK_KEY => tag::NUM_KEY,
-                _ => 0,
-            };
-            if marked != 0 {
-                self.ast.tag[node] = marked;
-                if mark == tag::MARK_DECLARATION {
-                    self.ast.b[node] = a;
-                } else if mark == tag::MARK_TYPEOF || (mark == tag::MARK_CALLEE && marked == tag::IDENT_CALLEE) {
-                    // NB: A name is where it is until it takes more than reading it.
-                    self.ast.b[node] = position;
-                } else if mark != tag::MARK_KEY {
-                    self.ast.pos[node] = position;
-                }
+            if self.mark_node(node, mark, a, position) {
                 return;
             }
         }
         self.ast.push(mark, self.prev_start, a, 0);
+    }
+
+    /// Marks the reference at the row `node` in place with `mark`, one of those from `MARK_CALLEE` to `MARK_KEY`, if it
+    /// is a reference that the mark is for. Returns whether it was.
+    #[inline(always)]
+    pub(crate) fn mark_node(&mut self, mut node: usize, mark: u8, a: u32, position: u32) -> bool {
+        // NB: What `delete` of an optional chain is about is the end of the chain.
+        if mark == tag::MARK_DELETE && self.ast.tag[node] == tag::CHAIN {
+            node = self.ast.a[node] as usize;
+            self.ast.tag[node] = match self.ast.tag[node] {
+                tag::MEMBER | tag::OPT_MEMBER => tag::MEMBER_DELETE,
+                tag::INDEX | tag::OPT_INDEX => tag::INDEX_DELETE,
+                other => other,
+            };
+            return true;
+        }
+        // NB: What gets called on what comes from the end of the chain too, through the parentheses around it.
+        if mark == tag::MARK_CALLEE && self.ast.tag[node] == tag::CHAIN {
+            node = self.ast.a[node] as usize;
+            self.ast.tag[node] = match self.ast.tag[node] {
+                tag::MEMBER | tag::OPT_MEMBER => tag::MEMBER_CALLEE,
+                tag::INDEX | tag::OPT_INDEX => tag::INDEX_CALLEE,
+                tag::PRIVATE_MEMBER | tag::OPT_PRIVATE_MEMBER => tag::PRIVATE_MEMBER_CALLEE,
+                tag::SUPER_MEMBER => tag::SUPER_MEMBER_CALLEE,
+                tag::SUPER_INDEX => tag::SUPER_INDEX_CALLEE,
+                other => other,
+            };
+            return true;
+        }
+        let offset = mark - tag::MARK_CALLEE;
+        let marked = match self.ast.tag[node] {
+            tag::IDENT => tag::IDENT_MARKED + offset,
+            tag::MEMBER if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
+                tag::MEMBER_MARKED + offset
+            }
+            tag::INDEX if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
+                tag::INDEX_MARKED + offset
+            }
+            tag::SUPER if mark == tag::MARK_CALLEE => tag::SUPER_CALLEE,
+            tag::SUPER_MEMBER if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
+                tag::SUPER_MEMBER_MARKED + offset
+            }
+            tag::SUPER_INDEX if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF => {
+                tag::SUPER_INDEX_MARKED + offset
+            }
+            tag::PRIVATE_MEMBER
+                if mark != tag::MARK_KEY && mark != tag::MARK_DECLARATION && mark != tag::MARK_TYPEOF =>
+            {
+                tag::PRIVATE_MEMBER_MARKED + offset
+            }
+            tag::OPT_MEMBER if mark == tag::MARK_CALLEE => tag::OPT_MEMBER_CALLEE,
+            tag::OPT_INDEX if mark == tag::MARK_CALLEE => tag::OPT_INDEX_CALLEE,
+            tag::OPT_PRIVATE_MEMBER if mark == tag::MARK_CALLEE => tag::PRIVATE_MEMBER_CALLEE,
+            tag::STR if mark == tag::MARK_KEY => tag::STR_KEY,
+            tag::NUM if mark == tag::MARK_KEY => tag::NUM_KEY,
+            _ => 0,
+        };
+        if marked != 0 {
+            self.ast.tag[node] = marked;
+            if mark == tag::MARK_DECLARATION {
+                self.ast.b[node] = a;
+            } else if mark == tag::MARK_TYPEOF || (mark == tag::MARK_CALLEE && marked == tag::IDENT_CALLEE) {
+                // NB: A name is where it is until it takes more than reading it.
+                self.ast.b[node] = position;
+            } else if mark != tag::MARK_KEY {
+                self.ast.pos[node] = position;
+            }
+            return true;
+        }
+        false
     }
 
     /// Leaves a mark at the start of a construct that does not go through the rows in order, for `end_subtree()`.
