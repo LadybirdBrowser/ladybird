@@ -56,6 +56,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
+#include <LibWeb/HTML/Parser/RustUtf16View.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PreloadEntry.h>
@@ -152,20 +153,6 @@ static Utf16String utf16_string_from_span(ReadonlySpan<char16_t> utf16, IsKnownT
     return utf16_string_from_span(utf16);
 }
 
-static Utf16String utf16_string_from_ffi(u16 const* ptr, size_t len)
-{
-    if (!ptr)
-        return {};
-    return utf16_string_from_span(ReadonlySpan<char16_t> { reinterpret_cast<char16_t const*>(ptr), len });
-}
-
-static Utf16String utf8_string_from_ffi(u8 const* ptr, size_t len)
-{
-    if (!ptr)
-        return {};
-    return utf16_string_from_span(ReadonlySpan<char> { reinterpret_cast<char const*>(ptr), len });
-}
-
 static constexpr size_t newline_then_spaces_table_size = 64;
 
 static Utf16String const& newline_then_spaces_string(size_t length)
@@ -215,11 +202,10 @@ extern "C" size_t ladybird_html_parser_document_node(void*);
 extern "C" size_t ladybird_html_parser_document_html_element(void*);
 extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtmlQuirksMode);
 extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void*);
-extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u16 const*, size_t, u16 const*, size_t);
-extern "C" size_t ladybird_html_parser_create_comment(void*, u16 const*, size_t);
-extern "C" void ladybird_html_parser_insert_latin1_text(size_t, size_t, u8 const*, size_t, bool);
-extern "C" void ladybird_html_parser_insert_utf16_text(size_t, size_t, u16 const*, size_t, bool);
-extern "C" void ladybird_html_parser_add_missing_attribute(void*, size_t, size_t, u16 const*, size_t);
+extern "C" size_t ladybird_html_parser_create_document_type(void*, RustFfiHtmlUtf16View, RustFfiHtmlUtf16View, RustFfiHtmlUtf16View);
+extern "C" size_t ladybird_html_parser_create_comment(void*, RustFfiHtmlUtf16View);
+extern "C" void ladybird_html_parser_insert_text(size_t, size_t, RustFfiHtmlUtf16View, bool);
+extern "C" void ladybird_html_parser_add_missing_attribute(void*, size_t, size_t, RustFfiHtmlUtf16View);
 extern "C" u8 ladybird_html_parser_sanitizer_action(void*, size_t);
 extern "C" size_t ladybird_html_parser_child_at_index(size_t, size_t);
 extern "C" u32 ladybird_html_parser_declarative_shadow_root_attributes(size_t);
@@ -1231,10 +1217,10 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
 
     // 4. Let localName be token's tag name.
 
-    auto attribute_value = [&](Utf16FlyString const& name) -> Optional<StringView> {
+    auto attribute_value = [&](Utf16FlyString const& name) -> Optional<Utf16View> {
         for (auto const& attribute : attributes) {
             if (attribute.local_name == name.raw_identity())
-                return StringView { reinterpret_cast<char const*>(attribute.value_ptr), attribute.value_len };
+                return utf16_view_from_ffi(attribute.value);
         }
         return {};
     };
@@ -1253,7 +1239,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     // 8. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     Optional<Utf16FlyString> is_value;
     if (auto is_attribute = attribute_value(AttributeNames::is); is_attribute.has_value())
-        is_value = Utf16FlyString::from_utf8_without_validation(*is_attribute);
+        is_value = Utf16FlyString::from_utf16(*is_attribute);
 
     // 9. If is is non-null, sanitizerConfig is non-null, and the result of checking if a sanitizer config allows an
     //    attribute given "is", null, is, localName, namespace, and sanitizerConfig is false, then set is to null.
@@ -1325,7 +1311,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
     for (auto const& attribute : attributes) {
         auto attribute_local_name = Utf16FlyString::from_raw(attribute.local_name);
         auto attribute_namespace = attribute_namespace_from_html_parser_ffi(attribute.namespace_);
-        auto value = utf8_string_from_ffi(attribute.value_ptr, attribute.value_len);
+        auto value = Utf16String::from_utf16(utf16_view_from_ffi(attribute.value));
 
         // 1. If sanitizerConfig is not null:
         if (sanitizer_config) {
@@ -1339,8 +1325,8 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         }
 
         Optional<Utf16FlyString> prefix;
-        if (attribute.prefix_len != 0)
-            prefix = Utf16FlyString::from_utf8_without_validation({ reinterpret_cast<char const*>(attribute.prefix_ptr), attribute.prefix_len });
+        if (attribute.prefix.length != 0)
+            prefix = Utf16FlyString::from_utf16(utf16_view_from_ffi(attribute.prefix));
         DOM::QualifiedName qualified_name { move(attribute_local_name), move(prefix), move(attribute_namespace) };
         // 2. Append attribute to element.
         element->append_attribute(move(qualified_name), move(value));
@@ -3090,22 +3076,20 @@ extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void* pa
     return url_matches_about_srcdoc(parser_from_html_parser_ffi(parser).document().url());
 }
 
-extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u16 const* name_ptr, size_t name_len, u16 const* public_id_ptr, size_t public_id_len, u16 const* system_id_ptr, size_t system_id_len)
+extern "C" size_t ladybird_html_parser_create_document_type(void* parser, RustFfiHtmlUtf16View name, RustFfiHtmlUtf16View public_id, RustFfiHtmlUtf16View system_id)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto document_type = DOM::DocumentType::create(html_parser.document());
-    document_type->set_name(utf16_fly_string_from_ffi(name_ptr, name_len));
-    auto public_id = utf16_string_from_ffi(public_id_ptr, public_id_len);
-    auto system_id = utf16_string_from_ffi(system_id_ptr, system_id_len);
-    document_type->set_public_id(public_id.utf16_view());
-    document_type->set_system_id(system_id.utf16_view());
+    document_type->set_name(Utf16FlyString::from_utf16(utf16_view_from_ffi(name)));
+    document_type->set_public_id(utf16_view_from_ffi(public_id));
+    document_type->set_system_id(utf16_view_from_ffi(system_id));
     return reinterpret_cast<size_t>(document_type.ptr());
 }
 
-extern "C" size_t ladybird_html_parser_create_comment(void* parser, u16 const* data_ptr, size_t data_len)
+extern "C" size_t ladybird_html_parser_create_comment(void* parser, RustFfiHtmlUtf16View data)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto comment = DOM::Comment::create(html_parser.document(), utf16_string_from_ffi(data_ptr, data_len));
+    auto comment = DOM::Comment::create(html_parser.document(), Utf16String::from_utf16(utf16_view_from_ffi(data)));
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
@@ -3132,23 +3116,21 @@ static void insert_text_for_rust_parser(size_t parent, size_t offset, ReadonlySp
     insert_node_for_parser(parent_node, *text_node, insertion_location.child_at_offset());
 }
 
-extern "C" void ladybird_html_parser_insert_latin1_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len, bool is_ascii)
+extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, RustFfiHtmlUtf16View text, bool is_ascii)
 {
-    insert_text_for_rust_parser(parent, offset, ReadonlyBytes { data_ptr, data_len }, is_ascii);
-}
-
-extern "C" void ladybird_html_parser_insert_utf16_text(size_t parent, size_t offset, u16 const* data_ptr, size_t data_len, bool is_ascii)
-{
-    insert_text_for_rust_parser(parent, offset, ReadonlySpan<char16_t> { reinterpret_cast<char16_t const*>(data_ptr), data_len }, is_ascii);
+    if (text.latin1)
+        insert_text_for_rust_parser(parent, offset, ReadonlyBytes { text.latin1, text.length }, is_ascii);
+    else
+        insert_text_for_rust_parser(parent, offset, ReadonlySpan<char16_t> { reinterpret_cast<char16_t const*>(text.utf16), text.length }, is_ascii);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody
 // NB: The steps for each attribute of an "html" or "body" start tag token in the "in body" insertion mode.
-extern "C" void ladybird_html_parser_add_missing_attribute(void* parser, size_t element, size_t local_name_raw, u16 const* value_ptr, size_t value_len)
+extern "C" void ladybird_html_parser_add_missing_attribute(void* parser, size_t element, size_t local_name_raw, RustFfiHtmlUtf16View value_view)
 {
     auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
     auto local_name = Utf16FlyString::from_raw(local_name_raw);
-    auto value = utf16_string_from_ffi(value_ptr, value_len);
+    auto value = Utf16String::from_utf16(utf16_view_from_ffi(value_view));
 
     // 1. If the parser's parser sanitizer configuration is not null and the result of checking if a sanitizer config
     //    allows an attribute given attribute's name, null, attribute's value, element's local name, element's

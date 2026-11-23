@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::code_units::CodeUnits;
 #[cfg(not(test))]
 use ak::Utf16StringUnits;
+use ak::Utf16View;
 use std::cell::RefCell;
 
 /// Source position in the input.
@@ -55,6 +57,14 @@ impl TagId {
     pub fn for_name(name: &str) -> Self {
         crate::known_names::tag_id_for_name(name.as_bytes())
     }
+
+    pub fn for_code_units(name: Utf16View<'_>) -> Self {
+        // NB: Every known tag name is ASCII, so a name with other code units in it is found to be none of them.
+        match name {
+            Utf16View::Latin1(name) => crate::known_names::tag_id_for_name(name),
+            Utf16View::Utf16(_) => Self::UNKNOWN,
+        }
+    }
 }
 
 /// A set of known tag names.
@@ -93,7 +103,7 @@ pub(crate) use tag_set;
 #[derive(Clone, Debug, Default)]
 pub struct Attribute {
     pub local_name: HtmlName,
-    pub value: String,
+    pub value: CodeUnits,
     pub name_start_offset: SourceOffset,
     pub name_end_offset: SourceOffset,
     pub value_start_offset: SourceOffset,
@@ -120,7 +130,7 @@ const MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY: usize = 4096;
 thread_local! {
     // Dropped tag tokens leave their attribute lists and value buffers here for the next tag.
     static SPARE_ATTRIBUTE_LISTS: RefCell<Vec<Vec<Attribute>>> = const { RefCell::new(Vec::new()) };
-    static SPARE_ATTRIBUTE_VALUES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    static SPARE_ATTRIBUTE_VALUES: RefCell<Vec<CodeUnits>> = const { RefCell::new(Vec::new()) };
 }
 
 /// The attributes of a tag token, backed by a spare buffer when one is available.
@@ -187,12 +197,12 @@ impl Drop for AttributeList {
                 if spare_values.len() == MAX_SPARE_ATTRIBUTE_VALUES {
                     break;
                 }
-                let capacity = attribute.value.capacity();
+                let mut value = attribute.value;
+                value.clear();
+                let capacity = value.capacity();
                 if capacity == 0 || capacity > MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY {
                     continue;
                 }
-                let mut value = attribute.value;
-                value.clear();
                 spare_values.push(value);
             }
         });
@@ -246,6 +256,21 @@ impl KnownName {
 }
 
 impl HtmlName {
+    pub fn from_code_units(name: Utf16View<'_>) -> Self {
+        #[cfg(not(test))]
+        {
+            match name.as_ascii() {
+                // SAFETY: ASCII is valid UTF-8.
+                Some(name) => Self(ak::Utf16FlyString::from_utf8(unsafe { str::from_utf8_unchecked(name) })),
+                None => Self(ak::Utf16FlyString::from_utf16(&name.to_utf16())),
+            }
+        }
+        #[cfg(test)]
+        {
+            Self(String::from_utf16_lossy(&name.to_utf16()))
+        }
+    }
+
     pub fn from_utf8(name: &str) -> Self {
         #[cfg(not(test))]
         {
@@ -407,9 +432,9 @@ impl std::fmt::Debug for HtmlName {
 /// Data specific to DOCTYPE tokens.
 #[derive(Clone, Debug, Default)]
 pub struct DoctypeData {
-    pub name: String,
-    pub public_identifier: String,
-    pub system_identifier: String,
+    pub name: CodeUnits,
+    pub public_identifier: CodeUnits,
+    pub system_identifier: CodeUnits,
     pub missing_name: bool,
     pub missing_public_identifier: bool,
     pub missing_system_identifier: bool,
@@ -444,7 +469,7 @@ pub enum TokenPayload {
         had_duplicate_attribute: bool,
         attributes: AttributeList,
     },
-    Comment(String),
+    Comment(CodeUnits),
     Doctype(Box<DoctypeData>),
 }
 
@@ -490,11 +515,11 @@ impl Token {
         }
     }
 
-    pub fn set_tag_name(&mut self, name: &str) {
+    pub fn set_tag_name(&mut self, name: Utf16View<'_>) {
         match &mut self.payload {
             TokenPayload::Tag { tag_name, tag_id, .. } => {
-                *tag_name = HtmlName::from_utf8(name);
-                *tag_id = TagId::for_name(name);
+                *tag_name = HtmlName::from_code_units(name);
+                *tag_id = TagId::for_code_units(name);
             }
             _ => panic!("set_tag_name called on non-tag token"),
         }
@@ -558,7 +583,7 @@ impl Token {
     }
 
     #[inline(always)]
-    pub fn set_comment_data(&mut self, data: String) {
+    pub fn set_comment_data(&mut self, data: CodeUnits) {
         match &mut self.payload {
             TokenPayload::Comment(s) => *s = data,
             _ => panic!("set_comment_data called on non-comment token"),
@@ -584,7 +609,7 @@ mod spare_buffer_tests {
     }
 
     fn spare_value_capacities() -> Vec<usize> {
-        SPARE_ATTRIBUTE_VALUES.with_borrow(|values| values.iter().map(String::capacity).collect())
+        SPARE_ATTRIBUTE_VALUES.with_borrow(|values| values.iter().map(CodeUnits::capacity).collect())
     }
 
     fn spare_list_capacities() -> Vec<usize> {
@@ -593,7 +618,7 @@ mod spare_buffer_tests {
 
     fn attribute_with_value_capacity(capacity: usize) -> Attribute {
         Attribute {
-            value: String::with_capacity(capacity),
+            value: CodeUnits::Latin1(Vec::with_capacity(capacity)),
             ..Default::default()
         }
     }

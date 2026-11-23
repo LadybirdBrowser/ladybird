@@ -5,9 +5,10 @@
  */
 
 use crate::RustFfiTokenizerHandle;
-use crate::input::Input;
-use crate::input::InputRun;
-use crate::input::InputSlice;
+use crate::code_units::CodeUnits;
+use crate::code_units::InputRun;
+use crate::code_units::RustFfiHtmlUtf16View;
+use crate::code_units::contains_non_whitespace;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_id;
 use crate::known_names::tag_name;
@@ -22,6 +23,7 @@ use crate::token::TokenType;
 use crate::token::tag_set;
 use crate::tokenizer::HtmlTokenizer;
 use crate::tokenizer::State;
+use ak::Utf16View;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::Deref;
@@ -92,11 +94,9 @@ pub enum RustFfiHtmlAttributeNamespace {
 #[repr(C)]
 pub struct RustFfiHtmlParserAttribute {
     pub local_name: usize,
-    pub prefix_ptr: *const u8,
-    pub prefix_len: usize,
+    pub prefix: RustFfiHtmlUtf16View,
     pub namespace_: RustFfiHtmlAttributeNamespace,
-    pub value_ptr: *const u8,
-    pub value_len: usize,
+    pub value: RustFfiHtmlUtf16View,
 }
 
 #[repr(C)]
@@ -120,34 +120,17 @@ unsafe extern "C" {
     fn ladybird_html_parser_visit_node(visitor: *mut c_void, node: usize);
     fn ladybird_html_parser_create_document_type(
         parser: *mut c_void,
-        name_ptr: *const u16,
-        name_len: usize,
-        public_id_ptr: *const u16,
-        public_id_len: usize,
-        system_id_ptr: *const u16,
-        system_id_len: usize,
+        name: RustFfiHtmlUtf16View,
+        public_id: RustFfiHtmlUtf16View,
+        system_id: RustFfiHtmlUtf16View,
     ) -> usize;
-    fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u16, data_len: usize) -> usize;
-    fn ladybird_html_parser_insert_latin1_text(
-        parent: usize,
-        offset: usize,
-        data_ptr: *const u8,
-        data_len: usize,
-        is_ascii: bool,
-    );
-    fn ladybird_html_parser_insert_utf16_text(
-        parent: usize,
-        offset: usize,
-        data_ptr: *const u16,
-        data_len: usize,
-        is_ascii: bool,
-    );
+    fn ladybird_html_parser_create_comment(parser: *mut c_void, data: RustFfiHtmlUtf16View) -> usize;
+    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, text: RustFfiHtmlUtf16View, is_ascii: bool);
     fn ladybird_html_parser_add_missing_attribute(
         parser: *mut c_void,
         element: usize,
         local_name: usize,
-        value_ptr: *const u16,
-        value_len: usize,
+        value: RustFfiHtmlUtf16View,
     );
     fn ladybird_html_parser_remove_node(node: usize);
     fn ladybird_html_parser_handle_element_popped(element: usize);
@@ -255,9 +238,9 @@ enum InsertionMode {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct OwnedAttribute {
     local_name: HtmlName,
-    prefix: Option<String>,
+    prefix: Option<CodeUnits>,
     namespace_: RustFfiHtmlAttributeNamespace,
-    value: String,
+    value: CodeUnits,
 }
 
 #[derive(Clone, Debug)]
@@ -265,7 +248,7 @@ struct StackNode {
     handle: usize,
     local_name: HtmlName,
     namespace_: RustFfiHtmlNamespace,
-    namespace_uri: Option<String>,
+    namespace_uri: Option<Vec<u16>>,
     attributes: Vec<OwnedAttribute>,
     template_content: Option<usize>,
 }
@@ -409,7 +392,7 @@ struct ParserState {
     next_line_feed_can_be_ignored: bool,
     pending_text: PendingText,
     attribute_buffers: AttributeBuffers,
-    pending_table_text: String,
+    pending_table_text: Vec<u32>,
     pending_table_text_contains_non_whitespace: bool,
     pending_script: Option<usize>,
     pending_svg_script: Option<usize>,
@@ -445,7 +428,7 @@ impl ParserState {
             next_line_feed_can_be_ignored: false,
             pending_text: PendingText::default(),
             attribute_buffers: AttributeBuffers::default(),
-            pending_table_text: String::new(),
+            pending_table_text: Vec::new(),
             pending_table_text_contains_non_whitespace: false,
             pending_script: None,
             pending_svg_script: None,
@@ -704,7 +687,7 @@ impl TreeBuilder {
                     let run = unsafe { self.tokenizer.as_mut().try_fast_data_run().unwrap() };
                     // SAFETY: See above.
                     let input = unsafe { &self.tokenizer.as_ref().input };
-                    if self.frameset_ok && input.slice(run.range.clone()).contains_non_whitespace() {
+                    if self.frameset_ok && contains_non_whitespace(input.slice(run.range.clone())) {
                         self.frameset_ok = false;
                     }
                     self.pending_text.push_input_run(run, input);
@@ -842,21 +825,16 @@ impl TreeBuilder {
             // token (or the empty string if the system identifier was missing). Then, if the Document node has neither
             // a DocumentType child nor an element child, append doctype to the Document node.
             // FIXME: Check for an existing DocumentType or element child before appending the new doctype.
-            let name = if doctype.missing_name {
-                ""
-            } else {
-                doctype.name.as_str()
-            };
-            let public_id = if doctype.missing_public_identifier {
-                ""
-            } else {
-                doctype.public_identifier.as_str()
-            };
-            let system_id = if doctype.missing_system_identifier {
-                ""
-            } else {
-                doctype.system_identifier.as_str()
-            };
+            fn present(missing: bool, string: &CodeUnits) -> Utf16View<'_> {
+                if missing {
+                    Utf16View::Latin1(&[])
+                } else {
+                    string.as_slice()
+                }
+            }
+            let name = present(doctype.missing_name, &doctype.name);
+            let public_id = present(doctype.missing_public_identifier, &doctype.public_identifier);
+            let system_id = present(doctype.missing_system_identifier, &doctype.system_identifier);
             let document_type = self.create_document_type(name, public_id, system_id);
             let document = self.document_node();
             self.append_child(document, document_type);
@@ -1656,7 +1634,7 @@ impl TreeBuilder {
             // Parse error. Change the token's tag name to "img" and reprocess it. (Don't ask.)
             self.parse_error("image start tag in in body insertion mode");
             let mut token = token;
-            token.set_tag_name("img");
+            token.set_tag_name(Utf16View::Latin1(b"img"));
             self.process_using_the_rules_for(self.insertion_mode, token);
             return;
         }
@@ -2362,9 +2340,7 @@ impl TreeBuilder {
             if !token.is_parser_whitespace() {
                 self.pending_table_text_contains_non_whitespace = true;
             }
-            if let Some(character) = char::from_u32(token.code_point) {
-                self.pending_table_text.push(character);
-            }
+            self.pending_table_text.push(token.code_point);
             return;
         }
 
@@ -2374,14 +2350,14 @@ impl TreeBuilder {
             self.parse_error("non-whitespace character token in table text insertion mode");
             let old_foster_parenting_enabled = self.foster_parenting_enabled;
             self.foster_parenting_enabled = true;
-            for character in pending_table_text.chars() {
-                self.process_using_the_rules_for(InsertionMode::InBody, Token::synthetic_character(character as u32));
+            for code_point in pending_table_text {
+                self.process_using_the_rules_for(InsertionMode::InBody, Token::synthetic_character(code_point));
                 self.flush_character_insertions();
             }
             self.foster_parenting_enabled = old_foster_parenting_enabled;
         } else {
-            for character in pending_table_text.chars() {
-                self.insert_character(character as u32);
+            for code_point in pending_table_text {
+                self.insert_character(code_point);
             }
             self.flush_character_insertions();
         }
@@ -3236,39 +3212,35 @@ impl TreeBuilder {
         if doctype.name != "html" {
             return RustFfiHtmlQuirksMode::Yes;
         }
-        let public_identifier = doctype.public_identifier.as_str();
-        let system_identifier = doctype.system_identifier.as_str();
-        if doctype
-            .public_identifier
-            .eq_ignore_ascii_case("-//W3O//DTD W3 HTML Strict 3.0//EN//")
-            || doctype
-                .public_identifier
-                .eq_ignore_ascii_case("-/W3C/DTD HTML 4.0 Transitional/EN")
-            || doctype.public_identifier.eq_ignore_ascii_case("HTML")
+        let public_identifier = doctype.public_identifier.as_slice();
+        let system_identifier = doctype.system_identifier.as_slice();
+        if public_identifier.eq_ignore_ascii_case("-//W3O//DTD W3 HTML Strict 3.0//EN//")
+            || public_identifier.eq_ignore_ascii_case("-/W3C/DTD HTML 4.0 Transitional/EN")
+            || public_identifier.eq_ignore_ascii_case("HTML")
             || system_identifier.eq_ignore_ascii_case("http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd")
         {
             return RustFfiHtmlQuirksMode::Yes;
         }
         if QUIRKS_PUBLIC_IDS
             .iter()
-            .any(|public_id| starts_with_ignore_ascii_case(public_identifier, public_id))
+            .any(|public_id| public_identifier.starts_with_ignore_ascii_case(public_id))
         {
             return RustFfiHtmlQuirksMode::Yes;
         }
         if doctype.missing_system_identifier
-            && (starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD HTML 4.01 Frameset//")
-                || starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD HTML 4.01 Transitional//"))
+            && (public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD HTML 4.01 Frameset//")
+                || public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD HTML 4.01 Transitional//"))
         {
             return RustFfiHtmlQuirksMode::Yes;
         }
-        if starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD XHTML 1.0 Frameset//")
-            || starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD XHTML 1.0 Transitional//")
+        if public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD XHTML 1.0 Frameset//")
+            || public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD XHTML 1.0 Transitional//")
         {
             return RustFfiHtmlQuirksMode::Limited;
         }
         if !doctype.missing_system_identifier
-            && (starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD HTML 4.01 Frameset//")
-                || starts_with_ignore_ascii_case(public_identifier, "-//W3C//DTD HTML 4.01 Transitional//"))
+            && (public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD HTML 4.01 Frameset//")
+                || public_identifier.starts_with_ignore_ascii_case("-//W3C//DTD HTML 4.01 Transitional//"))
         {
             return RustFfiHtmlQuirksMode::Limited;
         }
@@ -3485,7 +3457,7 @@ impl TreeBuilder {
         &mut self,
         intended_parent: usize,
         namespace_: RustFfiHtmlNamespace,
-        namespace_uri: Option<&str>,
+        namespace_uri: Option<&[u16]>,
         local_name: &HtmlName,
         attributes: &[RustFfiHtmlParserAttribute],
         had_duplicate_attribute: bool,
@@ -3499,16 +3471,13 @@ impl TreeBuilder {
             .filter(|form_element| !self.insertion_target_redirection_map.contains_key(form_element))
             .unwrap_or(0);
         let has_template_element_on_stack = self.has_template_element_on_stack_of_open_elements();
-        let namespace_uri = namespace_uri.map(|namespace_uri| namespace_uri.encode_utf16().collect::<Vec<_>>());
         unsafe {
             ladybird_html_parser_create_element(
                 self.host,
                 intended_parent,
                 namespace_,
-                namespace_uri
-                    .as_ref()
-                    .map_or(std::ptr::null(), |namespace_uri| namespace_uri.as_ptr()),
-                namespace_uri.as_ref().map_or(0, |namespace_uri| namespace_uri.len()),
+                namespace_uri.map_or(std::ptr::null(), |namespace_uri| namespace_uri.as_ptr()),
+                namespace_uri.map_or(0, |namespace_uri| namespace_uri.len()),
                 local_name.raw_identity(),
                 attributes.as_ptr(),
                 attributes.len(),
@@ -3564,26 +3533,17 @@ impl TreeBuilder {
         }
     }
 
-    fn create_document_type(&mut self, name: &str, public_id: &str, system_id: &str) -> usize {
-        let name = name.encode_utf16().collect::<Vec<_>>();
-        let public_id = public_id.encode_utf16().collect::<Vec<_>>();
-        let system_id = system_id.encode_utf16().collect::<Vec<_>>();
-        unsafe {
-            ladybird_html_parser_create_document_type(
-                self.host,
-                name.as_ptr(),
-                name.len(),
-                public_id.as_ptr(),
-                public_id.len(),
-                system_id.as_ptr(),
-                system_id.len(),
-            )
-        }
+    fn create_document_type(
+        &mut self,
+        name: Utf16View<'_>,
+        public_id: Utf16View<'_>,
+        system_id: Utf16View<'_>,
+    ) -> usize {
+        unsafe { ladybird_html_parser_create_document_type(self.host, name.into(), public_id.into(), system_id.into()) }
     }
 
-    fn create_comment(&mut self, data: &str) -> usize {
-        let data = data.encode_utf16().collect::<Vec<_>>();
-        unsafe { ladybird_html_parser_create_comment(self.host, data.as_ptr(), data.len()) }
+    fn create_comment(&mut self, data: Utf16View<'_>) -> usize {
+        unsafe { ladybird_html_parser_create_comment(self.host, data.into()) }
     }
 
     fn append_child(&mut self, parent: usize, child: usize) {
@@ -3995,7 +3955,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-comment
-    fn insert_comment(&mut self, data: &str, insertion_location: Option<AdjustedInsertionLocation>) {
+    fn insert_comment(&mut self, data: Utf16View<'_>, insertion_location: Option<AdjustedInsertionLocation>) {
         // 1. If the parser's parser sanitizer configuration is non-null and the parser's parser sanitizer configuration
         //    does not allow comments, then return.
         if self.sanitizing && !self.sanitizer_allows_comments {
@@ -4016,7 +3976,7 @@ impl TreeBuilder {
         self.insert_node_at_insertion_location(insertion_location, comment);
     }
 
-    fn append_comment_to_node(&mut self, parent: usize, data: &str) {
+    fn append_comment_to_node(&mut self, parent: usize, data: Utf16View<'_>) {
         let insertion_location = AdjustedInsertionLocation {
             parent,
             offset: APPEND_CHILD_OFFSET,
@@ -4050,7 +4010,7 @@ impl TreeBuilder {
             let input = unsafe { &self.tokenizer.as_ref().input };
             self.insert_text(insertion_location, input.slice(input_run.range), input_run.is_ascii);
         } else {
-            self.insert_text(insertion_location, InputSlice::Utf16(&code_units), false);
+            self.insert_text(insertion_location, Utf16View::Utf16(&code_units), false);
         }
         // OPTIMIZATION: Keep small text buffers for the next run without retaining large text nodes.
         if code_units.capacity() <= 4096 && self.pending_text.is_empty() {
@@ -4059,18 +4019,9 @@ impl TreeBuilder {
         }
     }
 
-    fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, text: InputSlice<'_>, is_ascii: bool) {
+    fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, text: Utf16View<'_>, is_ascii: bool) {
         let AdjustedInsertionLocation { parent, offset } = insertion_location;
-        unsafe {
-            match text {
-                InputSlice::Latin1(text) => {
-                    ladybird_html_parser_insert_latin1_text(parent, offset, text.as_ptr(), text.len(), is_ascii)
-                }
-                InputSlice::Utf16(text) => {
-                    ladybird_html_parser_insert_utf16_text(parent, offset, text.as_ptr(), text.len(), is_ascii)
-                }
-            }
-        }
+        unsafe { ladybird_html_parser_insert_text(parent, offset, text.into(), is_ascii) }
     }
 
     fn add_missing_attributes_to_element(&mut self, element: usize, token: &Token) {
@@ -4078,14 +4029,12 @@ impl TreeBuilder {
             return;
         };
         for attribute in attributes {
-            let value = attribute.value.encode_utf16().collect::<Vec<_>>();
             unsafe {
                 ladybird_html_parser_add_missing_attribute(
                     self.host,
                     element,
                     attribute.local_name.raw_identity(),
-                    value.as_ptr(),
-                    value.len(),
+                    attribute.value.as_slice().into(),
                 );
             }
         }
@@ -5110,7 +5059,7 @@ impl PendingText {
         self.input_run.is_none() && self.code_units.is_empty()
     }
 
-    fn push_code_point(&mut self, code_point: u32, input: &Input) {
+    fn push_code_point(&mut self, code_point: u32, input: &CodeUnits) {
         let Some(character) = char::from_u32(code_point) else {
             return;
         };
@@ -5118,7 +5067,7 @@ impl PendingText {
         self.code_units.extend_from_slice(character.encode_utf16(&mut [0; 2]));
     }
 
-    fn push_input_run(&mut self, run: InputRun, input: &Input) {
+    fn push_input_run(&mut self, run: InputRun, input: &CodeUnits) {
         if self.is_empty() {
             self.input_run = Some(run);
             return;
@@ -5134,7 +5083,7 @@ impl PendingText {
         input.slice(run.range).append_to(&mut self.code_units);
     }
 
-    fn copy_input_run(&mut self, input: &Input) {
+    fn copy_input_run(&mut self, input: &CodeUnits) {
         if let Some(input_run) = self.input_run.take() {
             input.slice(input_run.range).append_to(&mut self.code_units);
         }
@@ -5167,7 +5116,9 @@ fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) 
         let adjusted_name = adjusted_foreign_attribute_name(&attribute.local_name, namespace_);
         attributes.push(OwnedAttribute {
             local_name: adjusted_name.local_name,
-            prefix: adjusted_name.prefix.map(ToOwned::to_owned),
+            prefix: adjusted_name
+                .prefix
+                .map(|prefix| CodeUnits::from(prefix.as_bytes().to_vec())),
             namespace_: adjusted_name.namespace_,
             value: attribute.value.clone(),
         });
@@ -5175,20 +5126,19 @@ fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) 
     attributes
 }
 
-unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> String {
+unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> Vec<u16> {
     if ptr.is_null() || len == 0 {
-        return String::new();
+        return Vec::new();
     }
 
-    let code_units = unsafe { ak::slice_from_raw_parts(ptr, len) };
-    String::from_utf16_lossy(code_units)
+    unsafe { ak::slice_from_raw_parts(ptr, len) }.to_vec()
 }
 
 unsafe fn utf16_namespace_uri_from_ffi(
     namespace_: RustFfiHtmlNamespace,
     ptr: *const u16,
     len: usize,
-) -> Option<String> {
+) -> Option<Vec<u16>> {
     if namespace_ != RustFfiHtmlNamespace::Other || ptr.is_null() || len == 0 {
         return None;
     }
@@ -5211,10 +5161,10 @@ unsafe fn owned_context_attributes_from_ffi(
             prefix: if attribute.prefix_len == 0 {
                 None
             } else {
-                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
+                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) }.into())
             },
             namespace_: attribute.namespace_,
-            value: unsafe { utf16_string_from_ffi(attribute.value_ptr, attribute.value_len) },
+            value: unsafe { utf16_string_from_ffi(attribute.value_ptr, attribute.value_len) }.into(),
         })
         .collect()
 }
@@ -5237,14 +5187,15 @@ impl AttributeBuffers {
     // The caller keeps the source attributes alive until the synchronous host callback returns.
     fn fill_from_owned_attributes(&mut self, attributes: &[OwnedAttribute]) {
         self.attributes.extend(attributes.iter().map(|attribute| {
-            let prefix = attribute.prefix.as_deref().unwrap_or("");
+            let prefix = attribute
+                .prefix
+                .as_ref()
+                .map_or(Utf16View::Latin1(&[]), CodeUnits::as_slice);
             RustFfiHtmlParserAttribute {
                 local_name: attribute.local_name.raw_identity(),
-                prefix_ptr: prefix.as_ptr(),
-                prefix_len: prefix.len(),
+                prefix: prefix.into(),
                 namespace_: attribute.namespace_,
-                value_ptr: attribute.value.as_ptr(),
-                value_len: attribute.value.len(),
+                value: attribute.value.as_slice().into(),
             }
         }));
     }
@@ -5261,11 +5212,9 @@ impl AttributeBuffers {
             self.local_names.push(adjusted_name.local_name);
             self.attributes.push(RustFfiHtmlParserAttribute {
                 local_name: self.local_names.last().unwrap().raw_identity(),
-                prefix_ptr: prefix.as_ptr(),
-                prefix_len: prefix.len(),
+                prefix: Utf16View::Latin1(prefix.as_bytes()).into(),
                 namespace_: adjusted_name.namespace_,
-                value_ptr: attribute.value.as_ptr(),
-                value_len: attribute.value.len(),
+                value: attribute.value.as_slice().into(),
             });
         }
     }
@@ -5518,8 +5467,8 @@ fn is_html_integration_point(node: &StackNode) -> bool {
                     && attribute.local_name == "encoding"
             })
             .is_some_and(|attribute| {
-                attribute.value.eq_ignore_ascii_case("text/html")
-                    || attribute.value.eq_ignore_ascii_case("application/xhtml+xml")
+                attribute.value.as_slice().eq_ignore_ascii_case("text/html")
+                    || attribute.value.as_slice().eq_ignore_ascii_case("application/xhtml+xml")
             })
     {
         return true;
@@ -5680,12 +5629,6 @@ fn is_thoroughly_implied_end_tag(tag_name: &HtmlName) -> bool {
     ])
 }
 
-fn starts_with_ignore_ascii_case(string: &str, prefix: &str) -> bool {
-    string
-        .get(..prefix.len())
-        .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
-}
-
 // https://html.spec.whatwg.org/multipage/parsing.html#special
 fn is_special_tag(node: &StackNode) -> bool {
     match node.namespace_ {
@@ -5818,9 +5761,9 @@ trait TokenExt {
     fn is_start_tag_one_of(&self, names: &TagSet) -> bool;
     fn is_end_tag_one_of(&self, names: &TagSet) -> bool;
     fn is_parser_whitespace(&self) -> bool;
-    fn comment_data(&self) -> &str;
+    fn comment_data(&self) -> Utf16View<'_>;
     fn doctype_data(&self) -> &crate::token::DoctypeData;
-    fn attribute(&self, name: KnownName) -> Option<&str>;
+    fn attribute(&self, name: KnownName) -> Option<Utf16View<'_>>;
     fn has_attribute(&self, name: KnownName) -> bool;
 }
 
@@ -5860,11 +5803,11 @@ impl TokenExt for Token {
         matches!(self.code_point, 0x09 | 0x0a | 0x0c | 0x0d | 0x20)
     }
 
-    fn comment_data(&self) -> &str {
+    fn comment_data(&self) -> Utf16View<'_> {
         let TokenPayload::Comment(data) = &self.payload else {
-            return "";
+            return Utf16View::Latin1(&[]);
         };
-        data
+        data.as_slice()
     }
 
     fn doctype_data(&self) -> &crate::token::DoctypeData {
@@ -5874,13 +5817,13 @@ impl TokenExt for Token {
         data
     }
 
-    fn attribute(&self, name: KnownName) -> Option<&str> {
+    fn attribute(&self, name: KnownName) -> Option<Utf16View<'_>> {
         let TokenPayload::Tag { attributes, .. } = &self.payload else {
             return None;
         };
         attributes.iter().find_map(|attribute| {
             if attribute.local_name == name {
-                Some(attribute.value.as_str())
+                Some(attribute.value.as_slice())
             } else {
                 None
             }

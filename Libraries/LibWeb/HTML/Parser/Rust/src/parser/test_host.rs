@@ -12,6 +12,7 @@ use super::RustFfiHtmlParserAttribute;
 use super::RustFfiHtmlQuirksMode;
 use super::RustFfiHtmlShadowRootMode;
 use super::RustFfiHtmlSlotAssignmentMode;
+use crate::code_units::RustFfiHtmlUtf16View;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -244,53 +245,28 @@ extern "C" fn ladybird_html_parser_visit_node(_visitor: *mut c_void, _node: usiz
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_html_parser_create_document_type(
     _parser: *mut c_void,
-    _name_ptr: *const u16,
-    _name_len: usize,
-    _public_id_ptr: *const u16,
-    _public_id_len: usize,
-    _system_id_ptr: *const u16,
-    _system_id_len: usize,
+    _name: RustFfiHtmlUtf16View,
+    _public_id: RustFfiHtmlUtf16View,
+    _system_id: RustFfiHtmlUtf16View,
 ) -> usize {
     with_fake_dom(|dom| dom.create_node(FakeNodeKind::DocumentType))
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_html_parser_create_comment(
-    _parser: *mut c_void,
-    _data_ptr: *const u16,
-    _data_len: usize,
-) -> usize {
+extern "C" fn ladybird_html_parser_create_comment(_parser: *mut c_void, _data: RustFfiHtmlUtf16View) -> usize {
     with_fake_dom(|dom| dom.create_node(FakeNodeKind::Comment))
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_html_parser_insert_latin1_text(
+extern "C" fn ladybird_html_parser_insert_text(
     parent: usize,
     offset: usize,
-    data_ptr: *const u8,
-    data_len: usize,
+    text: RustFfiHtmlUtf16View,
     is_ascii: bool,
 ) {
-    let data = unsafe { ak::slice_from_raw_parts(data_ptr, data_len) };
-    assert!(!is_ascii || data.is_ascii());
-    insert_text(
-        parent,
-        offset,
-        &data.iter().copied().map(char::from).collect::<String>(),
-    );
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_html_parser_insert_utf16_text(
-    parent: usize,
-    offset: usize,
-    data_ptr: *const u16,
-    data_len: usize,
-    is_ascii: bool,
-) {
-    let data = unsafe { ak::slice_from_raw_parts(data_ptr, data_len) };
-    assert!(!is_ascii || data.iter().all(|code_unit| *code_unit < 0x80));
-    insert_text(parent, offset, &String::from_utf16(data).unwrap());
+    let text = text.to_test_string();
+    assert!(!is_ascii || text.is_ascii());
+    insert_text(parent, offset, &text);
 }
 
 fn insert_text(parent: usize, offset: usize, data: &str) {
@@ -316,8 +292,7 @@ extern "C" fn ladybird_html_parser_add_missing_attribute(
     _parser: *mut c_void,
     _element: usize,
     _local_name: usize,
-    _value_ptr: *const u16,
-    _value_len: usize,
+    _value: RustFfiHtmlUtf16View,
 ) {
 }
 
