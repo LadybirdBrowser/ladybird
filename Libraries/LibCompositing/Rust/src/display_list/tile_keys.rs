@@ -734,48 +734,6 @@ impl BandBoundToListAndGeometry {
         }
     }
 
-    fn item_replaying_record(
-        &self,
-        display_list: &DisplayListStorage,
-        chunk_index: ChunkIndexInList,
-        record_index: RecordIndexInChunk,
-    ) -> TileReplayItem {
-        let table = display_list.chunk(chunk_index).record_table();
-        let record = table.record(record_index);
-        let record_alone = TileReplayItem::RecordSpan {
-            chunk_index,
-            begin_offset: record.offset,
-            end_offset: record.end_offset,
-        };
-        let Some(held_chunk) = self.held_chunk_if_held(chunk_index) else {
-            return record_alone;
-        };
-        let run_index = record.run_index;
-        if held_chunk.held_run_indices.binary_search(&run_index).is_err() {
-            return record_alone;
-        }
-        let ranges_of_run = &held_chunk.placement.ranges_of_each_run[run_index.0 as usize];
-        if self.runs_replayed_whole.contains_key(&(chunk_index, run_index)) {
-            return TileReplayItem::PlacedRecordRange {
-                chunk_index,
-                range_index: ranges_of_run.whole_run_range_index,
-            };
-        }
-        // The binned ranges of a run are in the order of their records and apart.
-        let first_binned_range_index = ranges_of_run.first_binned_range_index;
-        let binned_ranges = &held_chunk.placement.record_ranges
-            [first_binned_range_index.0 as usize..ranges_of_run.whole_run_range_index.0 as usize];
-        let position_among_binned_ranges =
-            binned_ranges.partition_point(|range| range.end_record_index <= record_index);
-        match binned_ranges.get(position_among_binned_ranges) {
-            Some(range) if range.first_record_index <= record_index => TileReplayItem::PlacedRecordRange {
-                chunk_index,
-                range_index: PlacedRecordRangeIndex(first_binned_range_index.0 + position_among_binned_ranges as u32),
-            },
-            _ => record_alone,
-        }
-    }
-
     fn for_each_held_item(
         &self,
         held_chunk: &ChunkHeldByBand,
@@ -2062,10 +2020,15 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
                     let record_index = table
                         .record_indices_between_offsets(declaration_position.offset, declaration_position.offset + 1)
                         .start;
-                    declarations_read_frame_state_hashed_for_the_list |=
-                        table.record(record_index).reads_frame_state_hashed_for_the_list();
-                    let item =
-                        bound_band.item_replaying_record(display_list, declaration_position.chunk_index, record_index);
+                    let record = table.record(record_index);
+                    declarations_read_frame_state_hashed_for_the_list |= record.reads_frame_state_hashed_for_the_list();
+                    // A declaration replays alone, as every layer of the band that holds records inside the mask
+                    // replays it, while the records painted with it in its run go into the layer they are painted in.
+                    let item = TileReplayItem::RecordSpan {
+                        chunk_index: declaration_position.chunk_index,
+                        begin_offset: record.offset,
+                        end_offset: record.end_offset,
+                    };
                     if !declared_items_of_mask.insert(item) {
                         continue;
                     }
@@ -2443,6 +2406,73 @@ mod tests {
         let spans = band_tile_keys.record_spans_of_tiles([tile_with_masked_content]);
         assert!(spans.iter().any(|span| span.contains(declaration_position)));
         assert!(spans.windows(2).all(|pair| pair[0].end <= pair[1].begin));
+    }
+
+    // The recorder declares a mask's content in the run of the masked box's own background. A layer above a cut inside
+    // the mask replays the declaration, but the background stays in the layer below the cut, as it was painted there.
+    #[test]
+    fn a_layer_above_a_cut_inside_a_mask_replays_its_declaration_without_the_rest_of_its_run() {
+        use crate::visual_context::{MaskData, MaskLayerOrigin};
+        let (mut tree, root) = tree_with_root_isolation_effect(1.0);
+        let masked = tree.append_effect_node_under(
+            root,
+            EffectNodeData::Mask(MaskData {
+                rect: IntRect::new(0, 0, 100, 400),
+                kind: libgfx_rust::MaskKind::Alpha,
+                origin: MaskLayerOrigin::CssMaskLayers,
+                masks_backdrop: false,
+            }),
+        );
+        let faded = tree.append_effect_node_under(masked, effects(1.0, CompositingAndBlendingOperator::Normal));
+        tree.set_visual_animations(vec![opacity_animation_of(faded.effect, 0.0, 1.0)]);
+
+        let mut list = ListOfOneChunk::default();
+        let declaration_position = ListPosition::new(ChunkIndexInList(0), list.builder.byte_size() as u32);
+        let declaration = list.builder.begin_group::<DeclareMaskContent>(Vec::new());
+        list.builder
+            .append(&fill(IntRect::new(0, 0, 100, 400), GREEN), &[], masked);
+        let content = list.builder.group_content_span(&declaration);
+        list.builder.finish_group(
+            declaration,
+            &DeclareMaskContent {
+                rect: IntRect::new(0, 0, 100, 400),
+                effect: masked.effect,
+                content,
+            },
+            masked,
+        );
+        let background_position = ListPosition::new(ChunkIndexInList(0), list.builder.byte_size() as u32);
+        list = list
+            .with(fill(IntRect::new(0, 0, 100, 400), BLUE), masked)
+            .with(fill(IntRect::new(0, 110, 10, 30), GREEN), faded);
+        let box_after_cut_position = ListPosition::new(ChunkIndexInList(0), list.builder.byte_size() as u32);
+        list = list.with(fill(IntRect::new(10, 210, 80, 80), RED), masked);
+
+        let display_list = list.storage();
+        let stack = stack_of(&display_list, &tree.with_visual_animation_samples(0));
+        let band = stack
+            .bands
+            .iter()
+            .position(|band| {
+                band.record_spans
+                    .iter()
+                    .any(|span| span.contains(box_after_cut_position))
+            })
+            .unwrap();
+        let (band_tile_keys, _) = band_tile_keys_after_frames_showing(
+            (&display_list, &tree, &stack),
+            RasterSpaceIndex::VIEWPORT,
+            BandIndex(band),
+            &[VIEWPORT],
+        );
+        let spans = band_tile_keys.record_spans_of_tiles(
+            band_tile_keys
+                .tiles_within(TileCoord::new(0, 0).cell_rect())
+                .filter(|tile| tile.layer_index != stack.bands[band].layer_below_all_cuts),
+        );
+        assert!(spans.iter().any(|span| span.contains(box_after_cut_position)));
+        assert!(spans.iter().any(|span| span.contains(declaration_position)));
+        assert!(!spans.iter().any(|span| span.contains(background_position)));
     }
 
     fn stack_of(display_list: &DisplayListStorage, tree: &VisualContextTree) -> LayerStack {
