@@ -98,7 +98,7 @@ impl TextOverflowEllipsis {
         let code_point = u32::from(text[0]);
         let font = font_list.font_for_code_point(
             code_point,
-            libgfx_rust::font::emoji_presentation_for_code_point(code_point, None),
+            libgfx_rust::font::emoji_presentation_for_code_point(code_point, None, None),
         );
         let shaped = libgfx_rust::text_layout::shape_text(
             &font,
