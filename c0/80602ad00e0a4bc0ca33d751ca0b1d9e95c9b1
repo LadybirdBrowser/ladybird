@@ -1,0 +1,11 @@
+Ladybird defines the CSS property accessors as enumerable prototype
+properties. Gecko’s gen_style_properties_webidl and WebKit’s
+GenerateCSSStylePropertiesPropertyNames generate IDL attributes.
+Blink’s CSSStyleDeclaration::NamedPropertyEnumerator supplies the
+enumerated property names.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 enumerated
+color and marginLeft. Firefox and WebKit also enumerated margin-left
+and the prefixed dashed form. Chrome accepted those names for
+reads but omitted them from enumeration. Ladybird follows the CSSOM
+IDL rules for both forms.
