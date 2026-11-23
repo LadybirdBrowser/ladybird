@@ -1223,7 +1223,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
 
         matrix.preScale(tile_rect.width() / tile_size.width(), tile_rect.height() / tile_size.height());
         if (paint_style.pattern_transform.has_value())
-            matrix = matrix * to_skia_matrix(paint_style.pattern_transform.value());
+            matrix.postConcat(to_skia_matrix(paint_style.pattern_transform.value()));
 
         auto sampling = SkSamplingOptions(SkFilterMode::kLinear);
         auto shader = image->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, sampling, &matrix);
