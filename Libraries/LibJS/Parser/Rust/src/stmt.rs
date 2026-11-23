@@ -1665,9 +1665,16 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         if scope_flags & scope_flag::STATIC_BLOCK != 0 {
             self.in_arrow = false;
         }
+        // 15.7.11 Runtime Semantics: ClassStaticBlockDefinitionEvaluation ( homeObj ), https://tc39.es/ecma262/#sec-runtime-semantics-classstaticblockdefinitionevaluation
+        // NB: A static block is the body of a function of its own, so its function declarations are not those of a
+        //     block around the class.
+        let saved_block_mark = (self.block_mark, self.last_function_of_block);
+        self.block_mark = NONE;
+        self.last_function_of_block = 0;
         self.open_scope_with(scope_flags, func);
         let id = self.cur_scope;
         let node = parse(self);
+        (self.block_mark, self.last_function_of_block) = saved_block_mark;
         let scope = *self.scopes.last().expect("the scope is still there");
         let has_eval = scope.has_eval;
         self.last_pseudo_function_row = self.close_scope();
