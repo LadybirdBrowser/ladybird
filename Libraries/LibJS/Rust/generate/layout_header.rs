@@ -20,6 +20,7 @@ use crate::class_id::{ALL_CLASS_IDS, CLASS_COUNT};
 use crate::layout::cell::*;
 use crate::layout::class::*;
 use crate::layout::execution_context::*;
+use crate::layout::function_object::*;
 use crate::layout::host_class::*;
 use crate::layout::host_object::*;
 use crate::layout::object::*;
@@ -33,6 +34,7 @@ const STATIC_ASSERTIONS_PREAMBLE: &str = "\
 use crate::layout::cell::*;
 use crate::layout::class::*;
 use crate::layout::execution_context::*;
+use crate::layout::function_object::*;
 use crate::layout::host_object::*;
 use crate::layout::object::*;
 use crate::layout::primitive_string::*;
@@ -316,6 +318,17 @@ pub fn generate() -> LayoutHeader {
     w.section("Shape");
     offset!(w, "SHAPE_REALM", Shape, realm);
     offset!(w, "SHAPE_PROTOTYPE", Shape, prototype);
+
+    w.section("ECMAScript functions, whose [[ScriptOrModule]] is in their shared data");
+    w.define(
+        "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_OFFSET",
+        ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_OFFSET,
+    );
+    w.define(
+        "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_SIZE",
+        size_of_field(|fields: &EcmascriptFunctionFields| &raw const fields.shared_data),
+    );
+    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_SCRIPT_OR_MODULE", SharedFunctionInstanceData, script_or_module);
 
     w.section("Realm");
     offset!(w, "REALM_GLOBAL_OBJECT", Realm, global_object);
