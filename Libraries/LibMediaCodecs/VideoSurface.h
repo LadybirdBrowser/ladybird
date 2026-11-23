@@ -15,6 +15,7 @@
 #include <LibIPC/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Export.h>
+#include <LibMediaCodecs/Subsampling.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/IOSurface.h>
@@ -41,6 +42,7 @@ public:
     // Tells the surface apart from every other its sender has handed out, including from an earlier decoder process.
     u64 id() const { return m_id; }
     Gfx::IntSize size() const;
+    Subsampling subsampling() const;
 
     // Reads the pixels back into memory, which works only where the platform lets this process map the surface.
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> read_back_bitmap(CodingIndependentCodePoints const&) const;

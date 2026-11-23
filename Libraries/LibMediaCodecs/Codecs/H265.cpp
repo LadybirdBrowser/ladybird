@@ -263,7 +263,201 @@ Optional<H265::VideoParameterSet> H265::parse_video_parameter_set(ReadonlyBytes 
     return VideoParameterSet { .vps_video_parameter_set_id = vps_video_parameter_set_id };
 }
 
-// ITU-T H.265 (07/2024), 7.3.2.2.1: seq_parameter_set_rbsp(), through the sub-layer ordering information.
+// ITU-T H.265 (07/2024), 7.3.4: scaling_list_data()
+static void skip_scaling_list_data(RBSPBitReader& reader)
+{
+    for (u32 size_id = 0; size_id < 4; size_id++) {
+        for (u32 matrix_id = 0; matrix_id < 6; matrix_id += size_id == 3 ? 3 : 1) {
+            auto scaling_list_pred_mode_flag = reader.read_bit();
+            if (!scaling_list_pred_mode_flag) {
+                reader.read_unsigned_exp_golomb(); // scaling_list_pred_matrix_id_delta
+                continue;
+            }
+            auto coefficient_count = min(64u, 1u << (4 + (size_id << 1)));
+            if (size_id > 1)
+                reader.read_signed_exp_golomb(); // scaling_list_dc_coef_minus8
+            for (u32 index = 0; index < coefficient_count; index++)
+                reader.read_signed_exp_golomb(); // scaling_list_delta_coef
+        }
+    }
+}
+
+static constexpr u32 MAXIMUM_SHORT_TERM_REFERENCE_PICTURE_SET_COUNT = 64;
+static constexpr u32 MAXIMUM_DECODED_PICTURE_BUFFER_SIZE = 16;
+
+struct ShortTermReferencePictureSet {
+    Vector<i32, MAXIMUM_DECODED_PICTURE_BUFFER_SIZE> negative_picture_order_count_deltas;
+    Vector<i32, MAXIMUM_DECODED_PICTURE_BUFFER_SIZE> positive_picture_order_count_deltas;
+};
+
+// ITU-T H.265 (07/2024), 7.3.7: st_ref_pic_set(stRpsIdx), as it appears in a sequence parameter set.
+// Only the picture order count deltas are kept, since a later set can be predicted from them.
+static Optional<ShortTermReferencePictureSet> parse_short_term_reference_picture_set(RBSPBitReader& reader, ReadonlySpan<ShortTermReferencePictureSet> previous_sets)
+{
+    ShortTermReferencePictureSet result;
+
+    auto inter_ref_pic_set_prediction_flag = !previous_sets.is_empty() && reader.read_bit();
+    if (inter_ref_pic_set_prediction_flag) {
+        auto delta_rps_sign = reader.read_bit();
+        auto abs_delta_rps_minus1 = reader.read_unsigned_exp_golomb();
+        // ITU-T H.265 (07/2024), 7.4.8: abs_delta_rps_minus1 is in 0 to 2^15 - 1.
+        if (reader.has_overrun() || abs_delta_rps_minus1 > 0x7FFF)
+            return {};
+        // In a sequence parameter set, delta_idx_minus1 is absent and inferred to be 0, so the set predicts from the
+        // one before it.
+        auto const& reference = previous_sets.last();
+        auto delta_rps = (1 - 2 * static_cast<i32>(delta_rps_sign)) * static_cast<i32>(abs_delta_rps_minus1 + 1);
+
+        auto reference_negative_count = reference.negative_picture_order_count_deltas.size();
+        auto reference_positive_count = reference.positive_picture_order_count_deltas.size();
+        auto reference_delta_count = reference_negative_count + reference_positive_count;
+        Vector<bool, MAXIMUM_DECODED_PICTURE_BUFFER_SIZE + 1> use_delta_flags;
+        for (size_t j = 0; j <= reference_delta_count; j++) {
+            auto used_by_curr_pic_flag = reader.read_bit();
+            // When use_delta_flag[ j ] is not present, its value is inferred to be equal to 1.
+            auto use_delta_flag = used_by_curr_pic_flag || reader.read_bit();
+            use_delta_flags.append(use_delta_flag);
+        }
+
+        // ITU-T H.265 (07/2024), 7.4.8: the derivation of DeltaPocS0 and DeltaPocS1 for a predicted set.
+        auto& negative = result.negative_picture_order_count_deltas;
+        auto& positive = result.positive_picture_order_count_deltas;
+        auto append_if_room = [](auto& deltas, i32 delta) {
+            if (deltas.size() >= MAXIMUM_DECODED_PICTURE_BUFFER_SIZE)
+                return false;
+            deltas.append(delta);
+            return true;
+        };
+        for (auto j = static_cast<ssize_t>(reference_positive_count) - 1; j >= 0; j--) {
+            auto delta = reference.positive_picture_order_count_deltas[j] + delta_rps;
+            if (delta < 0 && use_delta_flags[reference_negative_count + j] && !append_if_room(negative, delta))
+                return {};
+        }
+        if (delta_rps < 0 && use_delta_flags[reference_delta_count] && !append_if_room(negative, delta_rps))
+            return {};
+        for (size_t j = 0; j < reference_negative_count; j++) {
+            auto delta = reference.negative_picture_order_count_deltas[j] + delta_rps;
+            if (delta < 0 && use_delta_flags[j] && !append_if_room(negative, delta))
+                return {};
+        }
+
+        for (auto j = static_cast<ssize_t>(reference_negative_count) - 1; j >= 0; j--) {
+            auto delta = reference.negative_picture_order_count_deltas[j] + delta_rps;
+            if (delta > 0 && use_delta_flags[j] && !append_if_room(positive, delta))
+                return {};
+        }
+        if (delta_rps > 0 && use_delta_flags[reference_delta_count] && !append_if_room(positive, delta_rps))
+            return {};
+        for (size_t j = 0; j < reference_positive_count; j++) {
+            auto delta = reference.positive_picture_order_count_deltas[j] + delta_rps;
+            if (delta > 0 && use_delta_flags[reference_negative_count + j] && !append_if_room(positive, delta))
+                return {};
+        }
+        return result;
+    }
+
+    auto num_negative_pics = reader.read_unsigned_exp_golomb();
+    auto num_positive_pics = reader.read_unsigned_exp_golomb();
+    if (reader.has_overrun() || num_negative_pics > MAXIMUM_DECODED_PICTURE_BUFFER_SIZE || num_positive_pics > MAXIMUM_DECODED_PICTURE_BUFFER_SIZE - num_negative_pics)
+        return {};
+    // ITU-T H.265 (07/2024), 7.4.8: the derivation of DeltaPocS0 and DeltaPocS1 for an explicit set.
+    i32 picture_order_count = 0;
+    for (u32 index = 0; index < num_negative_pics; index++) {
+        auto delta_poc_s0_minus1 = reader.read_unsigned_exp_golomb();
+        reader.skip_bits(1); // used_by_curr_pic_s0_flag
+        if (reader.has_overrun() || delta_poc_s0_minus1 > 0x7FFF)
+            return {};
+        picture_order_count -= static_cast<i32>(delta_poc_s0_minus1 + 1);
+        result.negative_picture_order_count_deltas.append(picture_order_count);
+    }
+    picture_order_count = 0;
+    for (u32 index = 0; index < num_positive_pics; index++) {
+        auto delta_poc_s1_minus1 = reader.read_unsigned_exp_golomb();
+        reader.skip_bits(1); // used_by_curr_pic_s1_flag
+        if (reader.has_overrun() || delta_poc_s1_minus1 > 0x7FFF)
+            return {};
+        picture_order_count += static_cast<i32>(delta_poc_s1_minus1 + 1);
+        result.positive_picture_order_count_deltas.append(picture_order_count);
+    }
+    return result;
+}
+
+// ITU-T H.265 (07/2024), 7.3.2.2.1: seq_parameter_set_rbsp(), from log2_min_luma_coding_block_size_minus3 through the
+// colour description in vui_parameters(). Returns the colour description, if the sequence parameter set states one.
+static Optional<CodingIndependentCodePoints> parse_sequence_parameter_set_colour_description(RBSPBitReader& reader, u32 log2_max_pic_order_cnt_lsb_minus4)
+{
+    reader.read_unsigned_exp_golomb(); // log2_min_luma_coding_block_size_minus3
+    reader.read_unsigned_exp_golomb(); // log2_diff_max_min_luma_coding_block_size
+    reader.read_unsigned_exp_golomb(); // log2_min_luma_transform_block_size_minus2
+    reader.read_unsigned_exp_golomb(); // log2_diff_max_min_luma_transform_block_size
+    reader.read_unsigned_exp_golomb(); // max_transform_hierarchy_depth_inter
+    reader.read_unsigned_exp_golomb(); // max_transform_hierarchy_depth_intra
+    if (reader.read_bit()) {           // scaling_list_enabled_flag
+        if (reader.read_bit())         // sps_scaling_list_data_present_flag
+            skip_scaling_list_data(reader);
+    }
+    reader.skip_bits(1);                   // amp_enabled_flag
+    reader.skip_bits(1);                   // sample_adaptive_offset_enabled_flag
+    if (reader.read_bit()) {               // pcm_enabled_flag
+        reader.skip_bits(4);               // pcm_sample_bit_depth_luma_minus1
+        reader.skip_bits(4);               // pcm_sample_bit_depth_chroma_minus1
+        reader.read_unsigned_exp_golomb(); // log2_min_pcm_luma_coding_block_size_minus3
+        reader.read_unsigned_exp_golomb(); // log2_diff_max_min_pcm_luma_coding_block_size
+        reader.skip_bits(1);               // pcm_loop_filter_disabled_flag
+    }
+
+    auto num_short_term_ref_pic_sets = reader.read_unsigned_exp_golomb();
+    if (reader.has_overrun() || num_short_term_ref_pic_sets > MAXIMUM_SHORT_TERM_REFERENCE_PICTURE_SET_COUNT)
+        return {};
+    Vector<ShortTermReferencePictureSet> short_term_reference_picture_sets;
+    for (u32 index = 0; index < num_short_term_ref_pic_sets; index++) {
+        auto set = parse_short_term_reference_picture_set(reader, short_term_reference_picture_sets);
+        if (!set.has_value())
+            return {};
+        short_term_reference_picture_sets.append(set.release_value());
+    }
+
+    if (reader.read_bit()) { // long_term_ref_pics_present_flag
+        auto num_long_term_ref_pics_sps = reader.read_unsigned_exp_golomb();
+        // ITU-T H.265 (07/2024), 7.4.3.2.1: num_long_term_ref_pics_sps is in 0 to 32.
+        if (reader.has_overrun() || num_long_term_ref_pics_sps > 32)
+            return {};
+        for (u32 index = 0; index < num_long_term_ref_pics_sps; index++) {
+            reader.skip_bits(log2_max_pic_order_cnt_lsb_minus4 + 4); // lt_ref_pic_poc_lsb_sps
+            reader.skip_bits(1);                                     // used_by_curr_pic_lt_sps_flag
+        }
+    }
+    reader.skip_bits(1);    // sps_temporal_mvp_enabled_flag
+    reader.skip_bits(1);    // strong_intra_smoothing_enabled_flag
+    if (!reader.read_bit()) // vui_parameters_present_flag
+        return {};
+
+    // ITU-T H.265 (07/2024), E.2.1: vui_parameters(), through matrix_coeffs.
+    static constexpr u8 EXTENDED_SAMPLE_ASPECT_RATIO = 255;
+    if (reader.read_bit()) { // aspect_ratio_info_present_flag
+        if (reader.read_bits<u8>(8) == EXTENDED_SAMPLE_ASPECT_RATIO) {
+            reader.skip_bits(16); // sar_width
+            reader.skip_bits(16); // sar_height
+        }
+    }
+    if (reader.read_bit())   // overscan_info_present_flag
+        reader.skip_bits(1); // overscan_appropriate_flag
+    if (!reader.read_bit())  // video_signal_type_present_flag
+        return {};
+    reader.skip_bits(3); // video_format
+    CodingIndependentCodePoints cicp;
+    cicp.set_video_full_range_flag(reader.read_bit() ? VideoFullRangeFlag::Full : VideoFullRangeFlag::Studio);
+    if (reader.read_bit()) { // colour_description_present_flag
+        cicp.set_color_primaries(static_cast<ColorPrimaries>(reader.read_bits<u8>(8)));
+        cicp.set_transfer_characteristics(static_cast<TransferCharacteristics>(reader.read_bits<u8>(8)));
+        cicp.set_matrix_coefficients(static_cast<MatrixCoefficients>(reader.read_bits<u8>(8)));
+    }
+    if (reader.has_overrun())
+        return {};
+    return cicp;
+}
+
+// ITU-T H.265 (07/2024), 7.3.2.2.1: seq_parameter_set_rbsp(), through the colour description in vui_parameters().
 Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(ReadonlyBytes nal_unit)
 {
     auto header = parse_nal_unit_header(nal_unit);
@@ -294,7 +488,7 @@ Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(Readonly
     }
     auto bit_depth_luma_minus8 = reader.read_unsigned_exp_golomb();
     reader.read_unsigned_exp_golomb(); // bit_depth_chroma_minus8
-    reader.read_unsigned_exp_golomb(); // log2_max_pic_order_cnt_lsb_minus4
+    auto log2_max_pic_order_cnt_lsb_minus4 = reader.read_unsigned_exp_golomb();
 
     // ITU-T H.265 (07/2024), 7.4.3.2.1: the counts absent below the highest sub-layer are inferred from it, so the
     // last one coded is the one that bounds the whole stream.
@@ -306,18 +500,25 @@ Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(Readonly
         reader.read_unsigned_exp_golomb(); // sps_max_latency_increase_plus1
     }
 
-    // ITU-T H.265 (07/2024), 7.4.3.2.1: sps_seq_parameter_set_id is in 0 to 15, bit_depth_luma_minus8 in 0 to 8.
-    if (reader.has_overrun() || sps_seq_parameter_set_id > 15 || bit_depth_luma_minus8 > 8)
+    // ITU-T H.265 (07/2024), 7.4.3.2.1: sps_seq_parameter_set_id is in 0 to 15, chroma_format_idc in 0 to 3,
+    // bit_depth_luma_minus8 in 0 to 8, and log2_max_pic_order_cnt_lsb_minus4 in 0 to 12.
+    if (reader.has_overrun() || sps_seq_parameter_set_id > 15 || chroma_format_idc > 3 || bit_depth_luma_minus8 > 8 || log2_max_pic_order_cnt_lsb_minus4 > 12)
         return {};
+
+    // The fields up to here are all a decoder needs to be configured, so a colour description that cannot be read is
+    // left unspecified rather than failing the whole set.
+    auto cicp = parse_sequence_parameter_set_colour_description(reader, log2_max_pic_order_cnt_lsb_minus4).value_or({});
 
     return SequenceParameterSet {
         .sps_seq_parameter_set_id = static_cast<u8>(sps_seq_parameter_set_id),
         .sps_video_parameter_set_id = sps_video_parameter_set_id,
         .sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1,
         .sps_max_num_reorder_pics = static_cast<u8>(min(sps_max_num_reorder_pics, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT))),
+        .chroma_format_idc = static_cast<u8>(chroma_format_idc),
         .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
         .pic_width_in_luma_samples = pic_width_in_luma_samples,
         .pic_height_in_luma_samples = pic_height_in_luma_samples,
+        .cicp = cicp,
     };
 }
 

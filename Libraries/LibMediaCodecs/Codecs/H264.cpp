@@ -104,10 +104,16 @@ static void skip_hrd_parameters(Codecs::RBSPBitReader& reader)
 
 static constexpr u8 MAXIMUM_REORDER_FRAME_COUNT = 16;
 
+struct VideoUsabilityInformation {
+    CodingIndependentCodePoints cicp;
+    Optional<u32> stated_max_reorder_frame_count;
+};
+
 // ITU-T H.264 (08/2024), E.1.1: vui_parameters(), through max_num_reorder_frames.
-// Returns the max_num_reorder_frames the bitstream restriction states, if it states one at all.
-static Optional<u32> parse_stated_max_reorder_frame_count(Codecs::RBSPBitReader& reader)
+static VideoUsabilityInformation parse_video_usability_information(Codecs::RBSPBitReader& reader)
 {
+    VideoUsabilityInformation information;
+
     static constexpr u8 EXTENDED_SAMPLE_ASPECT_RATIO = 255;
 
     if (reader.read_bit()) { // aspect_ratio_info_present_flag
@@ -117,15 +123,16 @@ static Optional<u32> parse_stated_max_reorder_frame_count(Codecs::RBSPBitReader&
             reader.skip_bits(16); // sar_height
         }
     }
-    if (reader.read_bit())       // overscan_info_present_flag
-        reader.skip_bits(1);     // overscan_appropriate_flag
-    if (reader.read_bit()) {     // video_signal_type_present_flag
-        reader.skip_bits(3);     // video_format
-        reader.skip_bits(1);     // video_full_range_flag
+    if (reader.read_bit())   // overscan_info_present_flag
+        reader.skip_bits(1); // overscan_appropriate_flag
+    if (reader.read_bit()) { // video_signal_type_present_flag
+        reader.skip_bits(3); // video_format
+        auto video_full_range_flag = reader.read_bit();
+        information.cicp.set_video_full_range_flag(video_full_range_flag ? VideoFullRangeFlag::Full : VideoFullRangeFlag::Studio);
         if (reader.read_bit()) { // colour_description_present_flag
-            reader.skip_bits(8); // colour_primaries
-            reader.skip_bits(8); // transfer_characteristics
-            reader.skip_bits(8); // matrix_coefficients
+            information.cicp.set_color_primaries(static_cast<ColorPrimaries>(reader.read_bits<u8>(8)));
+            information.cicp.set_transfer_characteristics(static_cast<TransferCharacteristics>(reader.read_bits<u8>(8)));
+            information.cicp.set_matrix_coefficients(static_cast<MatrixCoefficients>(reader.read_bits<u8>(8)));
         }
     }
     if (reader.read_bit()) {               // chroma_loc_info_present_flag
@@ -149,13 +156,14 @@ static Optional<u32> parse_stated_max_reorder_frame_count(Codecs::RBSPBitReader&
     reader.skip_bits(1);     // pic_struct_present_flag
 
     if (!reader.read_bit()) // bitstream_restriction_flag
-        return {};
-    reader.skip_bits(1);                      // motion_vectors_over_pic_boundaries_flag
-    reader.read_unsigned_exp_golomb();        // max_bytes_per_pic_denom
-    reader.read_unsigned_exp_golomb();        // max_bits_per_mb_denom
-    reader.read_unsigned_exp_golomb();        // log2_max_mv_length_horizontal
-    reader.read_unsigned_exp_golomb();        // log2_max_mv_length_vertical
-    return reader.read_unsigned_exp_golomb(); // max_num_reorder_frames
+        return information;
+    reader.skip_bits(1);                                                            // motion_vectors_over_pic_boundaries_flag
+    reader.read_unsigned_exp_golomb();                                              // max_bytes_per_pic_denom
+    reader.read_unsigned_exp_golomb();                                              // max_bits_per_mb_denom
+    reader.read_unsigned_exp_golomb();                                              // log2_max_mv_length_horizontal
+    reader.read_unsigned_exp_golomb();                                              // log2_max_mv_length_vertical
+    information.stated_max_reorder_frame_count = reader.read_unsigned_exp_golomb(); // max_num_reorder_frames
+    return information;
 }
 
 static u8 max_reorder_frame_count_for_level(u8 level_idc, u32 macroblocks_per_frame)
@@ -309,9 +317,10 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
         reader.read_unsigned_exp_golomb(); // frame_crop_bottom_offset
     }
 
-    Optional<u32> stated_count;
+    VideoUsabilityInformation video_usability_information;
     if (reader.read_bit()) // vui_parameters_present_flag
-        stated_count = parse_stated_max_reorder_frame_count(reader);
+        video_usability_information = parse_video_usability_information(reader);
+    auto stated_count = video_usability_information.stated_max_reorder_frame_count;
 
     // ITU-T H.264 (08/2024), 7.4.2.1.1: chroma_format_idc is in 0 to 3, bit_depth_luma_minus8 in 0 to 6.
     if (reader.has_overrun() || chroma_format_idc > 3 || bit_depth_luma_minus8 > 6)
@@ -324,6 +333,7 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
         .profile_idc = profile_idc,
         .chroma_format_idc = static_cast<u8>(chroma_format_idc),
         .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
+        .cicp = video_usability_information.cicp,
     };
     if (stated_count.has_value()) {
         parameter_set.max_num_reorder_frames = static_cast<u8>(min(*stated_count, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT)));

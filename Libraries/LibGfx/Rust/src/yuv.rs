@@ -194,13 +194,15 @@ fn biplanar_plane_length(stride: u32, row_length: usize, rows: usize) -> Option<
 /// Each plane's last row may end without padding up to its stride.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn yuv_nv12_to_rgba(
+pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
     y_plane: *const u8,
     y_stride: u32,
     uv_plane: *const u8,
     uv_stride: u32,
     width: u32,
     height: u32,
+    subsampling_x: bool,
+    subsampling_y: bool,
     dst: *mut u8,
     dst_stride: u32,
     range: YUVRange,
@@ -209,8 +211,9 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
     let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
         return false;
     };
-    let Some(uv_len) = biplanar_plane_length(uv_stride, width.div_ceil(2) as usize * 2, height.div_ceil(2) as usize)
-    else {
+    let chroma_width = if subsampling_x { width.div_ceil(2) } else { width } as usize;
+    let chroma_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
+    let Some(uv_len) = biplanar_plane_length(uv_stride, chroma_width * 2, chroma_height) else {
         return false;
     };
 
@@ -226,7 +229,14 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
     let dst_len = dst_stride as usize * height as usize;
     let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
-    yuv::yuv_nv12_to_rgba(
+    let convert = match (subsampling_x, subsampling_y) {
+        (true, true) => yuv::yuv_nv12_to_rgba,
+        (true, false) => yuv::yuv_nv16_to_rgba,
+        (false, true) => return false,
+        (false, false) => yuv::yuv_nv24_to_rgba,
+    };
+
+    convert(
         &bi_planar_image,
         dst_slice,
         dst_stride,
@@ -242,14 +252,17 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
 /// Strides are in components per row, not bytes.
 /// Each plane's last row may end without padding up to its stride.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
+/// Samples must sit in the high 10 bits of each u16.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn yuv_p010_to_rgba(
+pub unsafe extern "C" fn yuv_biplanar_u16_to_rgba(
     y_plane: *const u16,
     y_stride: u32,
     uv_plane: *const u16,
     uv_stride: u32,
     width: u32,
     height: u32,
+    subsampling_x: bool,
+    subsampling_y: bool,
     dst: *mut u8,
     dst_stride: u32,
     range: YUVRange,
@@ -258,8 +271,9 @@ pub unsafe extern "C" fn yuv_p010_to_rgba(
     let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
         return false;
     };
-    let Some(uv_len) = biplanar_plane_length(uv_stride, width.div_ceil(2) as usize * 2, height.div_ceil(2) as usize)
-    else {
+    let chroma_width = if subsampling_x { width.div_ceil(2) } else { width } as usize;
+    let chroma_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
+    let Some(uv_len) = biplanar_plane_length(uv_stride, chroma_width * 2, chroma_height) else {
         return false;
     };
 
@@ -275,7 +289,14 @@ pub unsafe extern "C" fn yuv_p010_to_rgba(
     let dst_len = dst_stride as usize * height as usize;
     let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
 
-    yuv::p010_to_rgba(
+    let convert = match (subsampling_x, subsampling_y) {
+        (true, true) => yuv::p010_to_rgba,
+        (true, false) => yuv::p210_to_rgba,
+        (false, true) => return false,
+        (false, false) => yuv::p410_to_rgba,
+    };
+
+    convert(
         &bi_planar_image,
         dst_slice,
         dst_stride,
