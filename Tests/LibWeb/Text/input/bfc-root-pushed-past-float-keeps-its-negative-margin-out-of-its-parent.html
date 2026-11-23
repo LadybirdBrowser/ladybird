@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+    body { margin: 0; }
+    .fixture { position: absolute; top: 0; left: 0; width: 200px; }
+    .before { padding: 20px 0; }
+    .float { float: left; width: 100%; height: 1px; }
+    .child { margin-top: -76px; width: 80%; }
+    .content { height: 60px; }
+    .empty { margin-top: 12px; margin-bottom: -8px; }
+</style>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const cases = [
+        { name: "flex", display: "flex" },
+        { name: "flow-root", display: "flow-root" },
+        { name: "ordinary-block", display: "block" },
+        { name: "positive-margin", display: "flow-root", margin: "20px", floatHeight: "80px" },
+        { name: "fits-beside-float", display: "flow-root", floatWidth: "20%" },
+        { name: "earlier-empty-sibling", display: "flow-root", emptySibling: true },
+    ];
+    for (const definiteHeight of [false, true]) {
+        for (const entry of cases) {
+            const fixture = document.createElement("div");
+            fixture.className = "fixture";
+            fixture.innerHTML = `
+                <div class="before"><div class="float"></div></div>
+                <section>
+                    ${entry.emptySibling ? '<div class="empty"></div>' : ""}
+                    <div class="child"><div class="content"></div></div>
+                </section>`;
+            const float = fixture.querySelector(".float");
+            float.style.width = entry.floatWidth ?? "100%";
+            float.style.height = entry.floatHeight ?? "1px";
+            const section = fixture.querySelector("section");
+            const child = fixture.querySelector(".child");
+            child.style.display = entry.display;
+            child.style.marginTop = entry.margin ?? "-76px";
+            if (definiteHeight)
+                child.style.height = "60px";
+            document.body.appendChild(fixture);
+            const sectionRect = section.getBoundingClientRect();
+            const childRect = child.getBoundingClientRect();
+            println(`${entry.name} (${definiteHeight ? "definite" : "auto"} height): `
+                + `section y=${sectionRect.y} height=${sectionRect.height}; `
+                + `child y=${childRect.y} height=${childRect.height}`);
+            fixture.remove();
+        }
+    }
+});
+</script>
