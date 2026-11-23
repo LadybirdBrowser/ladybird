@@ -35,6 +35,7 @@ use crate::parser::ParseError;
 use crate::parser::ParseOptions;
 use crate::parser::ScriptData;
 use crate::parser::TopLevelRows;
+use crate::parser::check_function_parameters;
 use crate::parser::check_syntax;
 use crate::parser::with_parsed_tree;
 use crate::utf16::Utf16View;
@@ -1024,48 +1025,21 @@ pub fn parse_dynamic_function(
     body_source: &[u16],
     kind: ast::FunctionKind,
 ) -> Result<ParsedDynamicFunction, Vec<ParseError>> {
-    // Lex the parameters on their own first, so that lexer errors such as an unterminated comment have positions in
-    // the parameter string.
-    let mut lexer = crate::lexer::Lexer::new(Utf16View::Utf16(parameters_source), 1, 0);
-    loop {
-        let token = lexer.next();
-        if token.token_type == crate::token::TokenType::Eof {
-            break;
-        }
-        if token.token_type == crate::token::TokenType::Invalid {
-            let message = token
-                .message
-                .unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
-            return Err(vec![ParseError {
-                message,
-                line: token.line_number,
-                column: token.line_column,
-            }]);
-        }
-    }
+    // 17. Let parameters be ParseText(P, parameterSym).
+    // 18. If parameters is a List of errors, throw a SyntaxError exception.
+    check_function_parameters(&ak::Utf16String::from_utf16(parameters_source), kind)?;
 
-    // Then check them as the parameters of a function of the same kind.
-    let mut parameters_check: Vec<u16> = Vec::new();
-    parameters_check.extend_from_slice(match kind {
-        ast::FunctionKind::Generator => utf16!("function* test("),
-        ast::FunctionKind::Async => utf16!("async function test("),
-        ast::FunctionKind::AsyncGenerator => utf16!("async function* test("),
-        ast::FunctionKind::Normal => utf16!("function test("),
-    });
-    parameters_check.extend_from_slice(parameters_source);
-    parameters_check.extend_from_slice(utf16!("\n) {}"));
-    check_syntax(
-        &ak::Utf16String::from_utf16(&parameters_check),
-        &ParseOptions::new(ProgramType::Script),
-    )?;
-
-    // Check the body on its own as a script with the flags of a function body of the kind.
+    // 19. Let body be ParseText(bodyParseString, bodySym).
+    // 20. If body is a List of errors, throw a SyntaxError exception.
     let mut options = ParseOptions::new(ProgramType::Script);
     options.function_body = Some(kind);
     check_syntax(&ak::Utf16String::from_utf16(body_source), &options)?;
 
-    // The function is parsed as a function expression, so it has no Program scope whose globals its identifiers
-    // could bind to.
+    // 21. NOTE: The parameters and body are parsed separately to ensure that each is valid alone. For example, new Function("/*", "*/ ) {") does not evaluate to a function.
+    // 22. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
+    // 23. Let expr be ParseText(sourceText, exprSym).
+    // 24. If expr is a List of errors, throw a SyntaxError exception.
+    // NB: As a function expression, the function has no Program scope whose globals its identifiers could bind to.
     let mut options = ParseOptions::new(ProgramType::Script);
     options.suppress_globals = true;
     Ok(ParsedDynamicFunction {

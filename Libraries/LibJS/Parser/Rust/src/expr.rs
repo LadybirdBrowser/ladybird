@@ -9,6 +9,7 @@
 
 use super::base::*;
 use super::columns::*;
+use super::stmt::ParameterList;
 use super::token::*;
 use super::unit::Unit;
 
@@ -1397,7 +1398,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         let own_flags = function_flag::ARROW | if is_async { function_flag::ASYNC } else { 0 };
         let mut state = self.begin_function(start, new_ctx, own_flags);
         self.scopes.last_mut().unwrap().flags |= scope_flag::ARROW;
-        let (list, count, length, simple, _) = self.parse_parameter_list(&mut state);
+        let ParameterList {
+            list,
+            count,
+            length,
+            simple,
+            ..
+        } = self.parse_parameter_list(&mut state);
         self.parse_arrow_body(&mut state, list, count, length, simple, params_start, no_in, start)
     }
 
