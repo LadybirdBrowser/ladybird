@@ -1063,6 +1063,7 @@ impl<V: Version> RenderingContext<V> {
             return Ok(());
         };
         self.proxy.link_program(program_handle);
+        program.note_link();
         Ok(())
     }
 

@@ -1,0 +1,6 @@
+before the relink: NO_ERROR, getUniform() 2
+uniform1f() with a location from before the relink: INVALID_OPERATION
+getUniform() with it: null, INVALID_OPERATION
+a location from after the relink: NO_ERROR, getUniform() 4
+failed link: LINK_STATUS false
+uniform1f() with a location from before the failed link: INVALID_OPERATION
