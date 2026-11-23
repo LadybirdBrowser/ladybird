@@ -1,0 +1,8 @@
+Ladybird paints a 1x1 background image as a fill of its color, and now
+unpremultiplies that color first, so the image paints with its alpha
+applied once. Chrome 158, Firefox 151 and WebKit 26.5 (engine-compare)
+all paint such an image as Ladybird now does, within two levels per
+channel of an rgba() fill with the same color: white at alpha 194, red
+at alpha 128, rgb(10, 200, 90) at alpha 60, and a fully transparent
+pixel, each over black. A search of the Blink and WebKit sources found
+no color-fill shortcut for a 1x1 background image to compare with.
