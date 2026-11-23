@@ -32,6 +32,7 @@ use crate::ast::ProgramType;
 use crate::ast::ScopeTable;
 use crate::ast::SyntaxTree;
 use crate::ast::TreeView;
+use crate::host::RegexError;
 use crate::source_text::SourceText;
 use crate::u32_from_usize;
 use crate::work_zone::with_work_zone;
@@ -40,6 +41,7 @@ use ak::ZoneVec;
 use base::Mode;
 use base::OutOfStack;
 use base::Parser;
+use base::RegexCheckError;
 use base::SOURCE_PADDING;
 use columns::Ast;
 use columns::AstColumns;
@@ -140,9 +142,12 @@ pub struct ScriptData {
 }
 
 /// Checks a regular expression literal with the regex engine of the runtime, for the parser (see `ValidateRegex`).
-fn validate_regex<'z>(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), &'z str> {
-    crate::host::validate_regex(pattern, flags).map_err(|message| {
-        core::str::from_utf8(zone.alloc_slice_copy(message.as_bytes())).expect("a copy of a string is one")
+fn validate_regex<'z>(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), RegexCheckError<'z>> {
+    crate::host::validate_regex(pattern, flags).map_err(|error| match error {
+        RegexError::Invalid(message) => RegexCheckError::Invalid(
+            core::str::from_utf8(zone.alloc_slice_copy(message.as_bytes())).expect("a copy of a string is one"),
+        ),
+        RegexError::OutOfStack => RegexCheckError::OutOfStack,
     })
 }
 

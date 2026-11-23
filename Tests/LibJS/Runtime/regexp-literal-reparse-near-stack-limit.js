@@ -13,21 +13,22 @@ test("regular expression literals reparsed near the call stack size limit", () =
 });
 
 test("regular expression literals at the deepest nesting that the stack allows", () => {
-    function parses(depth) {
-        try {
-            (0, eval)(`(/${"(".repeat(depth)}x${")".repeat(depth)}/)`);
-            return true;
-        } catch {
-            return false;
-        }
-    }
     // The search tries the depth right above the deepest one that parses, which has the least stack to spare.
-    let low = 1;
-    let high = 1 << 16;
+    // NB: How deep a literal parses depends on the frames above the eval, so each depth is tried only once.
+    let low = 0;
+    let high = 1 << 20;
+    let errorAtHigh;
     while (low + 1 < high) {
         const middle = (low + high) >> 1;
-        if (parses(middle)) low = middle;
-        else high = middle;
+        try {
+            (0, eval)(`(/${"(".repeat(middle)}x${")".repeat(middle)}/)`);
+            low = middle;
+        } catch (error) {
+            high = middle;
+            errorAtHigh = error;
+        }
     }
-    expect(parses(low)).toBeTrue();
+    expect(low).toBeGreaterThan(0);
+    expect(errorAtHigh).toBeInstanceOf(SyntaxError);
+    expect(errorAtHigh.message.includes("Maximum parser recursion depth exceeded")).toBeTrue();
 });

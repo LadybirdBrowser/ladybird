@@ -9,6 +9,8 @@
 //! source, and only code that gets compiled reads it again.
 
 use super::base::Parser;
+use super::base::RECURSION_LIMIT_MESSAGE;
+use super::base::RegexCheckError;
 use super::token::*;
 use super::unit::*;
 
@@ -916,7 +918,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         if !self.is_reparsing() {
             let pattern: &[u16] =
                 zone.alloc_slice_from_iter((start + 1..self.regex_body_end as usize).map(|i| self.at(i) as u16));
-            if let Err(message) = (self.validate_regex)(zone, pattern, flags) {
+            if let Err(error) = (self.validate_regex)(zone, pattern, flags) {
+                let message = match error {
+                    RegexCheckError::Invalid(message) => message,
+                    RegexCheckError::OutOfStack => RECURSION_LIMIT_MESSAGE,
+                };
                 self.fail(start as u32, message);
                 return;
             }
