@@ -59,6 +59,7 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/DOM/SubtreeInsertionScope.h>
+#include <LibWeb/DOM/UserSelect.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
@@ -234,22 +235,27 @@ CSS::UserSelect Node::user_select_used_value() const
         element = flat_tree_parent_element();
     }
 
-    auto const* values = element ? element->style_group<CSS::ComputedValues::MiscInteractionValues>() : nullptr;
+    return element ? used_user_select_for_element(*element) : CSS::UserSelect::None;
+}
+
+CSS::UserSelect used_user_select_for_element(Element const& element, UsedUserSelect inherited)
+{
+    auto const* values = element.style_group<CSS::ComputedValues::MiscInteractionValues>();
     if (!values)
         return CSS::UserSelect::None;
 
     // The used value is the same as the computed value, except:
     auto computed_value = static_cast<CSS::UserSelect>(values->user_select);
 
-    auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(*element);
-    if (element->is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))
+    auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(element);
+    if (element.is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))
         return CSS::UserSelect::Contain;
 
     if (computed_value != CSS::UserSelect::Auto)
         return computed_value;
 
-    if (auto parent_element = element->element_to_inherit_style_from({})) {
-        auto parent_used_value = parent_element->user_select_used_value();
+    if (auto parent_element = element.element_to_inherit_style_from({})) {
+        auto parent_used_value = parent_element == inherited.element ? inherited.value : parent_element->user_select_used_value();
         if (parent_used_value == CSS::UserSelect::All || parent_used_value == CSS::UserSelect::None)
             return parent_used_value;
     }
