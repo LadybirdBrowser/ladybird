@@ -695,6 +695,25 @@ impl TreeBuilder {
                 }
             }
 
+            // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incdata
+            // OPTIMIZATION: Text of a script, a style element and the like is inserted a run of input at a time, which
+            //               is what "insert the token's character" does for each character of it.
+            if !stop_at_insertion_point
+                && !self.next_line_feed_can_be_ignored
+                && self.insertion_mode == InsertionMode::Text
+                && self
+                    .adjusted_current_node()
+                    .is_some_and(|node| node.namespace_ == RustFfiHtmlNamespace::Html)
+            {
+                // SAFETY: See above.
+                if let Some(run) = unsafe { self.tokenizer.as_mut().try_fast_element_text_run() } {
+                    // SAFETY: See above.
+                    let input = unsafe { &self.tokenizer.as_ref().input };
+                    self.pending_text.push_input_run(run, input);
+                    continue;
+                }
+            }
+
             let cdata_allowed = self
                 .adjusted_current_node()
                 .is_some_and(|node| node.namespace_ != RustFfiHtmlNamespace::Html);

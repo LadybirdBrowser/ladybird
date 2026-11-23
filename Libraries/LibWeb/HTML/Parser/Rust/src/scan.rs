@@ -252,13 +252,24 @@ pub struct Run {
     pub is_ascii: bool,
 }
 
-/// The run of code units at the start of `code_units` that the data state emits as they are: everything up to the
-/// first U+003C (<), U+0026 (&), U+0000 NULL, U+000D CR, or surrogate that isn't half of a pair.
+/// The run of code units at the start of `code_units` that the data and RCDATA states emit as they are: everything
+/// up to the first U+003C (<), U+0026 (&), U+0000 NULL, U+000D CR, or surrogate that isn't half of a pair.
 pub fn data_run<T: CodeUnit>(code_units: &[T]) -> Run {
+    text_run(code_units, [b'<', b'&', 0, b'\r'])
+}
+
+/// The run of code units at the start of `code_units` that the RAWTEXT and script data states emit as they are:
+/// everything up to the first U+003C (<), U+0000 NULL, U+000D CR, or surrogate that isn't half of a pair.
+pub fn raw_text_run<T: CodeUnit>(code_units: &[T]) -> Run {
+    text_run(code_units, [b'<', 0, b'\r'])
+}
+
+#[inline(always)]
+fn text_run<T: CodeUnit, const N: usize>(code_units: &[T], stops: [u8; N]) -> Run {
     let mut length = 0;
     let mut seen_non_ascii = false;
     loop {
-        length += find_first(&code_units[length..], [b'<', b'&', 0, b'\r'], &mut seen_non_ascii);
+        length += find_first(&code_units[length..], stops, &mut seen_non_ascii);
         let Some(&[high, low]) = code_units.get(length..length + 2) else {
             break;
         };
@@ -375,6 +386,15 @@ mod tests {
         assert_eq!(data_run(b"a\r\nb" as &[u8]), run(1, true));
         assert_eq!(data_run(b"caf\xe9\n<" as &[u8]), run(5, false));
         assert_eq!(data_run(b"caf<\xe9" as &[u8]), run(3, true));
+    }
+
+    #[test]
+    fn raw_text_runs_go_on_past_ampersands() {
+        assert_eq!(raw_text_run(b"a && b < c" as &[u8]), run(7, true));
+        assert_eq!(raw_text_run(b"a && b\0" as &[u8]), run(6, true));
+        assert_eq!(raw_text_run(b"a\r\n" as &[u8]), run(1, true));
+        assert_eq!(raw_text_run(&code_units("a&\u{1f600}</")), run(4, false));
+        assert_eq!(raw_text_run::<u16>(&[0x61, 0x26, 0xD83D]), run(2, true));
     }
 
     #[test]
