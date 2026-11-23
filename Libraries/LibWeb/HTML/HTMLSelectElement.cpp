@@ -1169,6 +1169,8 @@ void HTMLSelectElement::update_list_box()
         if (auto* option = as_if<HTMLOptionElement>(*child)) {
             assigned.append(GC::Ref { static_cast<DOM::Element&>(*option) });
             append_option(*option);
+        } else if (auto* separator = as_if<HTMLHRElement>(*child)) {
+            assigned.append(GC::Ref { static_cast<DOM::Element&>(*separator) });
         } else if (auto* group = as_if<HTMLOptGroupElement>(*child)) {
             assigned.append(GC::Ref { static_cast<DOM::Element&>(*group) });
             group->for_each_in_subtree_of_type<HTMLOptionElement>([&](auto& option) {
