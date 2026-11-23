@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/CompressedPointer.h>
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/ExecutionContext.h>
+#include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/Shape.h>
 
 namespace JS {
 
@@ -47,8 +50,11 @@ SourceCode const* ExecutionContext::source_code() const
     return reinterpret_cast<SourceCode const*>(js_source_code_of_execution_context(execution_context_to_abi(*this)));
 }
 
-GC::Ptr<Realm> ExecutionContext::realm() const
+GC::Ptr<Realm> ExecutionContext::realm_of_function() const
 {
+    // NB: An ECMAScript function runs in the realm of its shape.
+    if (function->is_ecmascript_function_object())
+        return &function->shape().realm();
     return cell_from_abi<Realm>(js_execution_context_realm(execution_context_to_abi(*this)));
 }
 
@@ -59,9 +65,20 @@ void ExecutionContext::set_realm(GC::Ptr<Realm> realm)
     realm_without_function = realm;
 }
 
-ScriptOrModule ExecutionContext::script_or_module() const
+ScriptOrModule ExecutionContext::script_or_module_of_function() const
 {
-    return bit_cast<ScriptOrModule>(js_execution_context_script_or_module(execution_context_to_abi(*this)));
+    // NB: Only ECMAScript functions have a [[ScriptOrModule]], which their shared data holds.
+    if (!function->is_ecmascript_function_object())
+        return Empty {};
+    auto const* function_bytes = reinterpret_cast<u8 const*>(function.ptr());
+    static_assert(JS_LAYOUT_ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_SIZE == sizeof(u32));
+    u32 compressed_shared_data;
+    __builtin_memcpy(&compressed_shared_data, function_bytes + JS_LAYOUT_ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_OFFSET, sizeof(compressed_shared_data));
+    auto const* shared_data_bytes = reinterpret_cast<u8 const*>(GC::decompress_nonnull(compressed_shared_data));
+    static_assert(JS_LAYOUT_SHARED_FUNCTION_INSTANCE_DATA_SCRIPT_OR_MODULE_SIZE == sizeof(ScriptOrModule));
+    ScriptOrModule script_or_module;
+    __builtin_memcpy(&script_or_module, shared_data_bytes + JS_LAYOUT_SHARED_FUNCTION_INSTANCE_DATA_SCRIPT_OR_MODULE_OFFSET, sizeof(script_or_module));
+    return script_or_module;
 }
 
 void ExecutionContext::set_script_or_module(ScriptOrModule script_or_module)
