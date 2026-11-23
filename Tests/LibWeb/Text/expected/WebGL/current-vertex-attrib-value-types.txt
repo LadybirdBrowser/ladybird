@@ -1,0 +1,12 @@
+never set: Float32Array[0, 0, 0, 1]
+vertexAttrib4f(): Float32Array[0.25, 0.5, 0.75, 1]
+vertexAttribI4i(): Int32Array[-1, 2, -3, 4]
+vertexAttribI4ui(): Uint32Array[5, 6, 7, 4000000000]
+vertexAttrib1f() after vertexAttribI4i(): Float32Array[9, 0, 0, 1]
+vertexAttribI4iv() after vertexAttribI4ui(): Int32Array[1, 2, 3, 4]
+vertexAttribI4iv() on shared memory: Int32Array[-1, 2, -3, 4]
+vertexAttribI4uiv() on shared memory: Uint32Array[5, 6, 7, 8]
+error: 0
+vertexAttribI4i() for attribute MAX_VERTEX_ATTRIBS: error 1281
+vertexAttribI4i() for attribute 4294967295: error 1281
+attribute 0 after them: Float32Array[0.25, 0.5, 0.75, 1]

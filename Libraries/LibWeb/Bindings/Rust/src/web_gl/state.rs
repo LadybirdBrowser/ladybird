@@ -10,13 +10,15 @@
 use core::cell::{Cell, RefCell};
 use core::marker::PhantomData;
 use core::ops::Deref;
+use std::collections::HashMap;
 
 use ak::Utf16String;
 use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor};
 
 use super::canvas::{Canvas, TexImageSourceKind, texture_image_frame};
 use super::constants::{
-    GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_NO_ERROR,
+    GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_MAX_VERTEX_ATTRIBS,
+    GL_NO_ERROR,
 };
 use super::extensions::{EnabledEmptyExtension, EnabledExtension};
 use super::host::{Frame, RemoteContext};
@@ -126,6 +128,13 @@ pub(crate) enum VertexArrayBinding {
 
 pub(crate) type Binding<T> = Cell<Option<Ref<T>>>;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VertexAttribValueType {
+    Float,
+    Int,
+    UnsignedInt,
+}
+
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct ContextState {
@@ -194,6 +203,13 @@ pub(crate) struct ContextState {
     pub(crate) any_samples_passed_conservative: Binding<WebGLQuery>,
     pub(crate) transform_feedback_primitives_written: Binding<WebGLQuery>,
     pub(crate) current_vertex_array: Cell<Option<VertexArrayBinding>>,
+    /// The type of the current value of each vertex attribute that the last vertexAttrib*() call set to integers:
+    /// Every other attribute's current value is floats.
+    #[gc(untraced)]
+    pub(crate) current_vertex_attrib_value_types: RefCell<HashMap<u32, VertexAttribValueType>>,
+    /// MAX_VERTEX_ATTRIBS, once asked for: The value types are noted only for the attributes that exist.
+    #[gc(untraced)]
+    max_vertex_attribs: Cell<Option<u32>>,
 }
 
 pub(crate) struct ContextParameters {
@@ -251,6 +267,8 @@ impl ContextState {
             any_samples_passed_conservative: Cell::new(None),
             transform_feedback_primitives_written: Cell::new(None),
             current_vertex_array: Cell::new(None),
+            current_vertex_attrib_value_types: RefCell::new(HashMap::new()),
+            max_vertex_attribs: Cell::new(None),
         }
     }
 
@@ -350,6 +368,42 @@ impl ContextState {
             return false;
         }
         true
+    }
+
+    /// https://registry.khronos.org/webgl/specs/latest/2.0/#3.7.8
+    /// getVertexAttrib() returns the current value of a vertex attribute as the type of the vertexAttrib*() call that
+    /// set it last.
+    pub(crate) fn note_current_vertex_attrib_value_type(&self, index: u32, value_type: VertexAttribValueType) {
+        // NB: GL rejects a call for an attribute that doesn't exist, so it sets no value, and leaves no type to note.
+        if index >= self.max_vertex_attribs() {
+            return;
+        }
+        let mut types = self.current_vertex_attrib_value_types.borrow_mut();
+        if value_type == VertexAttribValueType::Float {
+            types.remove(&index);
+        } else {
+            types.insert(index, value_type);
+        }
+    }
+
+    fn max_vertex_attribs(&self) -> u32 {
+        if let Some(max_vertex_attribs) = self.max_vertex_attribs.get() {
+            return max_vertex_attribs;
+        }
+        let mut result = [0];
+        self.proxy
+            .get_integerv_robust_angle(GL_MAX_VERTEX_ATTRIBS, 1, &mut result);
+        let max_vertex_attribs = u32::try_from(result[0]).unwrap_or(0);
+        self.max_vertex_attribs.set(Some(max_vertex_attribs));
+        max_vertex_attribs
+    }
+
+    pub(crate) fn current_vertex_attrib_value_type(&self, index: u32) -> VertexAttribValueType {
+        self.current_vertex_attrib_value_types
+            .borrow()
+            .get(&index)
+            .copied()
+            .unwrap_or(VertexAttribValueType::Float)
     }
 
     pub(crate) fn handle_for_deletion_of<O: Interface + Inherits<WebGLObject>>(&self, object: Ref<O>) -> Option<u32> {
@@ -533,6 +587,8 @@ impl ContextState {
         self.texture_binding_3d.set(None);
         self.transform_feedback_binding.set(None);
         self.current_vertex_array.set(None);
+        self.current_vertex_attrib_value_types.borrow_mut().clear();
+        self.max_vertex_attribs.set(None);
         self.any_samples_passed.set(None);
         self.any_samples_passed_conservative.set(None);
         self.transform_feedback_primitives_written.set(None);

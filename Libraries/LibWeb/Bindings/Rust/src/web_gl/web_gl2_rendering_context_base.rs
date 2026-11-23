@@ -29,7 +29,7 @@ use super::constants::{
 };
 use super::gl_string::{utf8_bytes, utf16_string_from_gl_string};
 use super::proxy::recorder::bytes_of;
-use super::state::{Binding, RenderingContext, VertexArrayBinding, WebGL2};
+use super::state::{Binding, RenderingContext, VertexArrayBinding, VertexAttribValueType, WebGL2};
 use super::types::Float32List;
 use super::web_gl_buffer::WebGLBuffer;
 use super::web_gl_program::WebGLProgram;
@@ -911,6 +911,7 @@ impl RenderingContext<WebGL2> {
         z: i32,
         w: i32,
     ) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Int);
         self.proxy.vertex_attrib_i4i(index, x, y, z, w);
         Ok(())
     }
@@ -920,6 +921,7 @@ impl RenderingContext<WebGL2> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Int);
         self.proxy.vertex_attrib_i4iv(index, &values);
         Ok(())
     }
@@ -933,6 +935,7 @@ impl RenderingContext<WebGL2> {
         z: u32,
         w: u32,
     ) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::UnsignedInt);
         self.proxy.vertex_attrib_i4ui(index, x, y, z, w);
         Ok(())
     }
@@ -942,6 +945,7 @@ impl RenderingContext<WebGL2> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::UnsignedInt);
         self.proxy.vertex_attrib_i4uiv(index, &values);
         Ok(())
     }

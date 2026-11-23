@@ -26,7 +26,9 @@ use super::constants::{
     GL_UNPACK_SKIP_ROWS, GL_VERTEX_ATTRIB_ARRAY_POINTER, GL_VERTEX_SHADER,
 };
 use super::gl_string::{utf8_bytes, utf16_string_from_gl_string};
-use super::state::{Binding, ContextState, RenderingContext, Version, WebGLVersion, drawing_buffer_dimension};
+use super::state::{
+    Binding, ContextState, RenderingContext, Version, VertexAttribValueType, WebGLVersion, drawing_buffer_dimension,
+};
 use super::types::Float32List;
 use super::web_gl_active_info::WebGLActiveInfo;
 use super::web_gl_buffer::WebGLBuffer;
@@ -1386,16 +1388,19 @@ impl<V: Version> RenderingContext<V> {
     }
 
     pub(crate) fn vertex_attrib1f(&self, _: &mut CallContext, index: u32, x: f32) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib1f(index, x);
         Ok(())
     }
 
     pub(crate) fn vertex_attrib2f(&self, _: &mut CallContext, index: u32, x: f32, y: f32) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib2f(index, x, y);
         Ok(())
     }
 
     pub(crate) fn vertex_attrib3f(&self, _: &mut CallContext, index: u32, x: f32, y: f32, z: f32) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib3f(index, x, y, z);
         Ok(())
     }
@@ -1409,6 +1414,7 @@ impl<V: Version> RenderingContext<V> {
         z: f32,
         w: f32,
     ) -> WebIdlResult<()> {
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib4f(index, x, y, z, w);
         Ok(())
     }
@@ -1418,6 +1424,7 @@ impl<V: Version> RenderingContext<V> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib1fv(index, &values);
         Ok(())
     }
@@ -1427,6 +1434,7 @@ impl<V: Version> RenderingContext<V> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib2fv(index, &values);
         Ok(())
     }
@@ -1436,6 +1444,7 @@ impl<V: Version> RenderingContext<V> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib3fv(index, &values);
         Ok(())
     }
@@ -1445,6 +1454,7 @@ impl<V: Version> RenderingContext<V> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        self.note_current_vertex_attrib_value_type(index, VertexAttribValueType::Float);
         self.proxy.vertex_attrib4fv(index, &values);
         Ok(())
     }
