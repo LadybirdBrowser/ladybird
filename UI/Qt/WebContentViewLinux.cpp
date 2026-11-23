@@ -1215,6 +1215,17 @@ void WebContentView::fall_back_from_vulkan_window()
     });
 }
 
+void WebContentView::release_vulkan_window_surface_for_move()
+{
+    if (!m_vulkan_window || !QGuiApplication::platformName().startsWith(QStringLiteral("wayland")))
+        return;
+
+    // Qt can destroy a Wayland surface during reparenting without notifying QVulkanWindow. Destroy the native window
+    // explicitly so QVulkanWindow releases its swapchain before Qt destroys the surface.
+    set_vulkan_window_container_visible(false);
+    m_vulkan_window->destroy();
+}
+
 void WebContentView::destroy_vulkan_window()
 {
     if (m_vulkan_window)

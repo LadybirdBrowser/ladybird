@@ -418,6 +418,8 @@ void WebContentView::prepare_for_window_move()
     QCoreApplication::sendEvent(this, &window_about_to_change_event);
 
     destroy();
+#elif defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
+    release_vulkan_window_surface_for_move();
 #endif
 }
 
@@ -434,6 +436,9 @@ void WebContentView::finish_window_move()
     install_accessibility(this);
 #    endif
     show();
+#elif defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
+    if (m_vulkan_window && QGuiApplication::platformName().startsWith(QStringLiteral("wayland")))
+        schedule_vulkan_window_update();
 #endif
 }
 
