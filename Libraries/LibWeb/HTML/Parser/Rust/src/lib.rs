@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod code_units;
 pub mod entities;
-pub mod input;
 mod known_names;
 pub mod meta_charset_scanner;
 pub mod parser;
@@ -14,7 +14,7 @@ mod scan;
 pub mod token;
 pub mod tokenizer;
 
-use input::InputSlice;
+use ak::Utf16View;
 use std::ptr;
 use token::Attribute;
 use token::Position;
@@ -268,7 +268,7 @@ fn next_token_slow(
                 let (value_end_line, value_end_column) =
                     position_to_ffi(handle.tokenizer.position_at(value_end_offset));
                 handle.last_attr_names.push(local_name);
-                handle.last_attr_values.push(value.encode_utf16().collect());
+                handle.last_attr_values.push(value.to_utf16());
                 let last_idx = handle.last_attr_names.len() - 1;
                 let name = &handle.last_attr_names[last_idx];
                 let value_code_units = &handle.last_attr_values[last_idx];
@@ -290,14 +290,14 @@ fn next_token_slow(
             out.attributes_len = handle.last_attributes.len();
         }
         TokenPayload::Comment(data) => {
-            handle.last_comment = data.encode_utf16().collect();
+            handle.last_comment = data.to_utf16();
             out.comment_ptr = handle.last_comment.as_ptr();
             out.comment_len = handle.last_comment.len();
         }
         TokenPayload::Doctype(doctype) => {
-            handle.last_doctype_name = doctype.name.encode_utf16().collect();
-            handle.last_public_id = doctype.public_identifier.encode_utf16().collect();
-            handle.last_system_id = doctype.system_identifier.encode_utf16().collect();
+            handle.last_doctype_name = doctype.name.to_utf16();
+            handle.last_public_id = doctype.public_identifier.to_utf16();
+            handle.last_system_id = doctype.system_identifier.to_utf16();
             out.doctype_name_ptr = handle.last_doctype_name.as_ptr();
             out.doctype_name_len = handle.last_doctype_name.len();
             out.public_id_ptr = handle.last_public_id.as_ptr();
@@ -339,7 +339,7 @@ pub extern "C" fn rust_html_tokenizer_insert_utf16_input(
     };
     handle
         .tokenizer
-        .insert_input_at_insertion_point(InputSlice::Utf16(input.as_slice()));
+        .insert_input_at_insertion_point(Utf16View::Utf16(input.as_slice()));
 }
 
 /// Insert Latin-1 input at the current insertion point.
@@ -353,7 +353,7 @@ pub extern "C" fn rust_html_tokenizer_insert_latin1_input(
     };
     handle
         .tokenizer
-        .insert_input_at_insertion_point(InputSlice::Latin1(input.as_slice()));
+        .insert_input_at_insertion_point(Utf16View::Latin1(input.as_slice()));
 }
 
 /// Append UTF-16 input to the tokenizer input stream.
@@ -365,7 +365,7 @@ pub extern "C" fn rust_html_tokenizer_append_utf16_input(
     let Some(handle) = handle else {
         return;
     };
-    handle.tokenizer.append_input(InputSlice::Utf16(input.as_slice()));
+    handle.tokenizer.append_input(Utf16View::Utf16(input.as_slice()));
 }
 
 /// Append Latin-1 input to the tokenizer input stream.
@@ -377,7 +377,7 @@ pub extern "C" fn rust_html_tokenizer_append_latin1_input(
     let Some(handle) = handle else {
         return;
     };
-    handle.tokenizer.append_input(InputSlice::Latin1(input.as_slice()));
+    handle.tokenizer.append_input(Utf16View::Latin1(input.as_slice()));
 }
 
 /// Get the tokenizer input that has not been consumed yet.

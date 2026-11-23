@@ -16,10 +16,10 @@ use super::test_host::FakeInsertion;
 use super::test_host::FakeInsertionCall;
 use super::test_host::FakeNodeKind;
 use crate::RustFfiTokenizerHandle;
-use crate::input::InputSlice;
 use crate::make_handle;
 use crate::rust_html_tokenizer_destroy;
 use crate::tokenizer::HtmlTokenizer;
+use ak::Utf16View;
 
 const HTML_ELEMENT: FakeNodeKind = FakeNodeKind::Element(RustFfiHtmlNamespace::Html);
 
@@ -61,7 +61,7 @@ impl ScriptCreatedParser {
     fn write(&mut self, markup: &str) {
         let code_units: Vec<u16> = markup.encode_utf16().collect();
         self.tokenizer()
-            .insert_input_at_insertion_point(InputSlice::Utf16(&code_units));
+            .insert_input_at_insertion_point(Utf16View::Utf16(&code_units));
         self.run(true);
     }
 
@@ -70,9 +70,9 @@ impl ScriptCreatedParser {
         let code_units: Vec<u16> = markup.encode_utf16().collect();
         if code_units.iter().all(|code_unit| *code_unit <= 0xff) {
             let bytes: Vec<u8> = code_units.iter().map(|code_unit| *code_unit as u8).collect();
-            self.tokenizer().append_input(InputSlice::Latin1(&bytes));
+            self.tokenizer().append_input(Utf16View::Latin1(&bytes));
         } else {
-            self.tokenizer().append_input(InputSlice::Utf16(&code_units));
+            self.tokenizer().append_input(Utf16View::Utf16(&code_units));
         }
         self.close();
     }
@@ -218,7 +218,7 @@ fn text_is_inserted_as_one_node_however_the_tokenizer_emits_it() {
     let mut parser = ScriptCreatedParser::open();
     parser
         .tokenizer()
-        .append_input(InputSlice::Utf16(&[0x3C, 0x70, 0x3E, 0x61, 0xD83D, 0x62]));
+        .append_input(Utf16View::Utf16(&[0x3C, 0x70, 0x3E, 0x61, 0xD83D, 0x62]));
     parser.close();
     let paragraph = test_host::children(body_element())[0];
     assert_eq!(

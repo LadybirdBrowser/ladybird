@@ -6,10 +6,9 @@
 
 use std::collections::VecDeque;
 
+use crate::code_units::CodeUnits;
+use crate::code_units::InputRun;
 use crate::entities::NamedCharacterReferenceMatcher;
-use crate::input::Input;
-use crate::input::InputRun;
-use crate::input::InputSlice;
 use crate::scan;
 use crate::token::Attribute;
 use crate::token::DoctypeData;
@@ -19,6 +18,7 @@ use crate::token::SourceOffset;
 use crate::token::Token;
 use crate::token::TokenPayload;
 use crate::token::TokenType;
+use ak::Utf16View;
 
 /// Tokenizer states per the WHATWG HTML spec section 13.2.5.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -226,11 +226,11 @@ struct SourcePositions {
 pub struct HtmlTokenizer {
     pub state: State,
     return_state: State,
-    pub input: Input,
+    pub input: CodeUnits,
     pub current_offset: usize,
     prev_offset: usize,
     current_token: Token,
-    current_builder: String,
+    current_builder: CodeUnits,
     pub queued_tokens: VecDeque<Token>,
     temporary_buffer: Vec<u32>,
     character_reference_code: u32,
@@ -339,24 +339,9 @@ fn is_ascii_lower_alpha(c: u32) -> bool {
     matches!(c, 0x61..=0x7A)
 }
 
-/// Push a code point onto a `String` as UTF-8 without paying
-/// `char::from_u32`'s surrogate check or `String::push`'s len_utf8 branch
-/// for the common ASCII case. For `cp < 0x80` this is a single byte push
-/// to the underlying Vec; for wider code points we fall back to the
-/// normal slow path.
-#[inline(always)]
-fn push_code_point(buf: &mut String, cp: u32) {
-    if cp < 0x80 {
-        // SAFETY: ASCII is always valid UTF-8.
-        unsafe { buf.as_mut_vec().push(cp as u8) };
-    } else {
-        buf.push(char::from_u32(cp).unwrap_or('\u{FFFD}'));
-    }
-}
-
 impl HtmlTokenizer {
     /// Create a new tokenizer for the given input.
-    pub fn new(input: impl Into<Input>) -> Self {
+    pub fn new(input: impl Into<CodeUnits>) -> Self {
         HtmlTokenizer {
             state: State::Data,
             return_state: State::Data,
@@ -364,7 +349,7 @@ impl HtmlTokenizer {
             current_offset: 0,
             prev_offset: 0,
             current_token: Token::default(),
-            current_builder: String::new(),
+            current_builder: CodeUnits::new(),
             queued_tokens: VecDeque::new(),
             temporary_buffer: Vec::new(),
             character_reference_code: 0,
@@ -420,11 +405,11 @@ impl HtmlTokenizer {
             .is_some_and(|insertion_point| self.current_offset >= insertion_point)
     }
 
-    pub fn append_input(&mut self, code_units: InputSlice<'_>) {
+    pub fn append_input(&mut self, code_units: Utf16View<'_>) {
         self.input.append(code_units);
     }
 
-    pub fn insert_input_at_insertion_point(&mut self, code_units: InputSlice<'_>) {
+    pub fn insert_input_at_insertion_point(&mut self, code_units: Utf16View<'_>) {
         if let Some(ip) = self.insertion_point {
             let ip = ip.min(self.input.len());
             self.input.insert(ip, code_units);
@@ -445,14 +430,14 @@ impl HtmlTokenizer {
         }
     }
 
-    pub fn unparsed_input(&self) -> InputSlice<'_> {
+    pub fn unparsed_input(&self) -> Utf16View<'_> {
         self.input.slice_from(self.current_offset)
     }
 
     /// The input a speculative HTML parser's preload scanner hasn't been given yet, and whether the scanner can go on
     /// from where it stopped. It can't once this tokenizer has got past that point, or input was inserted before it;
     /// the input then runs from the current position, and the scanner has to start over there.
-    pub fn input_for_speculative_scan(&mut self) -> (InputSlice<'_>, bool) {
+    pub fn input_for_speculative_scan(&mut self) -> (Utf16View<'_>, bool) {
         let (start, continues) = match self.speculative_scan_end {
             Some(end) if end >= self.current_offset => (end, true),
             _ => (self.current_offset, false),
@@ -524,7 +509,7 @@ impl HtmlTokenizer {
             known_offset: 0,
             known_position: end_position,
         };
-        self.input = Input::default();
+        self.input = CodeUnits::default();
         self.current_offset = 0;
         self.prev_offset = 0;
     }
@@ -647,8 +632,8 @@ impl HtmlTokenizer {
         }
         let range = positions.known_offset..offset;
         positions.known_position = match &self.input {
-            Input::Latin1(code_units) => scan::position_after(positions.known_position, &code_units[range]),
-            Input::Utf16(code_units) => scan::position_after(positions.known_position, &code_units[range]),
+            CodeUnits::Latin1(code_units) => scan::position_after(positions.known_position, &code_units[range]),
+            CodeUnits::Utf16(code_units) => scan::position_after(positions.known_position, &code_units[range]),
         };
         positions.known_offset = offset;
         positions.known_position
@@ -695,8 +680,8 @@ impl HtmlTokenizer {
         let start_offset = self.current_offset;
         let limit = self.fast_scan_limit();
         let scan::Run { length, is_ascii } = match &self.input {
-            Input::Latin1(code_units) => scan::data_run(&code_units[start_offset..limit]),
-            Input::Utf16(code_units) => scan::data_run(&code_units[start_offset..limit]),
+            CodeUnits::Latin1(code_units) => scan::data_run(&code_units[start_offset..limit]),
+            CodeUnits::Utf16(code_units) => scan::data_run(&code_units[start_offset..limit]),
         };
         debug_assert!(length > 0);
         let end_offset = start_offset + length;
@@ -727,14 +712,14 @@ impl HtmlTokenizer {
         self.current_offset = offset;
     }
 
-    fn consume_current_builder(&mut self) -> String {
-        std::mem::take(&mut self.current_builder)
+    fn consume_current_builder(&mut self) -> CodeUnits {
+        self.current_builder.take()
     }
 
     /// Commit `current_builder` into `current_token.tag_name`.
     #[inline]
     fn commit_current_builder_as_tag_name(&mut self) {
-        self.current_token.set_tag_name(&self.current_builder);
+        self.current_token.set_tag_name(self.current_builder.as_slice());
         self.current_builder.clear();
     }
 
@@ -747,7 +732,7 @@ impl HtmlTokenizer {
                 had_duplicate_attribute: false,
                 attributes: crate::token::AttributeList::new(),
             },
-            TokenType::Comment => TokenPayload::Comment(String::new()),
+            TokenType::Comment => TokenPayload::Comment(CodeUnits::new()),
             TokenType::Doctype => TokenPayload::Doctype(Box::default()),
             _ => TokenPayload::None,
         };
@@ -857,7 +842,7 @@ impl HtmlTokenizer {
         for i in 0..self.temporary_buffer.len() {
             let code_point = self.temporary_buffer[i];
             if self.consumed_as_part_of_an_attribute() {
-                push_code_point(&mut self.current_builder, code_point);
+                self.current_builder.push_code_point(code_point);
             } else {
                 let mut token = Token::new_character(code_point);
                 token.start_offset = self.offset();
@@ -1165,12 +1150,9 @@ impl HtmlTokenizer {
                         && cp >= b'a' as u32
                         && cp <= b'z' as u32
                     {
-                        // SAFETY: pushing ASCII bytes into a String is
-                        // always valid UTF-8. We drop into a tight
-                        // inner loop that directly advances
-                        // current_offset without
-                        // going through skip(1) per character.
-                        unsafe { self.current_builder.as_mut_vec().push(cp as u8) };
+                        // The inner loop below advances current_offset
+                        // directly, one code unit of the name at a time.
+                        self.current_builder.push_ascii(cp as u8);
                         let start_offset = self.current_offset;
                         let mut off = start_offset;
                         let input_len = self.fast_scan_limit();
@@ -1179,7 +1161,7 @@ impl HtmlTokenizer {
                             if next < b'a' as u16 || next > b'z' as u16 {
                                 break;
                             }
-                            unsafe { self.current_builder.as_mut_vec().push(next as u8) };
+                            self.current_builder.push_ascii(next as u8);
                             off += 1;
                         }
                         let consumed = off - start_offset;
@@ -1206,11 +1188,11 @@ impl HtmlTokenizer {
                             return self.emit_current_token_direct();
                         }
                         Some(cp) if is_ascii_upper_alpha(cp) => {
-                            push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
+                            self.current_builder.push_code_point(to_ascii_lowercase(cp));
                             continue;
                         }
                         Some(0x00) => {
-                            self.current_builder.push('\u{FFFD}');
+                            self.current_builder.push_code_point(0xFFFD);
                             continue;
                         }
                         None => {
@@ -1218,7 +1200,7 @@ impl HtmlTokenizer {
                             return self.queued_tokens.pop_front();
                         }
                         Some(cp) => {
-                            push_code_point(&mut self.current_builder, cp);
+                            self.current_builder.push_code_point(cp);
                             continue;
                         }
                     }
@@ -1238,7 +1220,7 @@ impl HtmlTokenizer {
                         self.current_token
                             .attributes_mut()
                             .push(Attribute::with_spare_value_buffer());
-                        self.current_builder.push('=');
+                        self.current_builder.push_ascii(b'=');
                         self.state = State::AttributeName;
                         continue;
                     }
@@ -1261,7 +1243,7 @@ impl HtmlTokenizer {
                             || cp == b'-' as u32
                             || cp == b'_' as u32;
                         if is_name_char {
-                            unsafe { self.current_builder.as_mut_vec().push(cp as u8) };
+                            self.current_builder.push_ascii(cp as u8);
                             let start_offset = self.current_offset;
                             let mut off = start_offset;
                             let input_len = self.fast_scan_limit();
@@ -1274,7 +1256,7 @@ impl HtmlTokenizer {
                                 if !ok {
                                     break;
                                 }
-                                unsafe { self.current_builder.as_mut_vec().push(next as u8) };
+                                self.current_builder.push_ascii(next as u8);
                                 off += 1;
                             }
                             let consumed = off - start_offset;
@@ -1302,20 +1284,20 @@ impl HtmlTokenizer {
                             continue;
                         }
                         Some(cp) if is_ascii_upper_alpha(cp) => {
-                            push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
+                            self.current_builder.push_code_point(to_ascii_lowercase(cp));
                             continue;
                         }
                         Some(0x00) => {
-                            self.current_builder.push('\u{FFFD}');
+                            self.current_builder.push_code_point(0xFFFD);
                             continue;
                         }
                         Some(cp @ (0x22 | 0x27 | 0x3C)) => {
                             // '"', '\'', '<' - parse error
-                            push_code_point(&mut self.current_builder, cp);
+                            self.current_builder.push_code_point(cp);
                             continue;
                         }
                         Some(cp) => {
-                            push_code_point(&mut self.current_builder, cp);
+                            self.current_builder.push_code_point(cp);
                             continue;
                         }
                     }
@@ -1392,7 +1374,7 @@ impl HtmlTokenizer {
                         && cp != 0x22
                         && cp != 0x26
                     {
-                        unsafe { self.current_builder.as_mut_vec().push(cp as u8) };
+                        self.current_builder.push_ascii(cp as u8);
                         let start_offset = self.current_offset;
                         let mut off = start_offset;
                         let input_len = self.fast_scan_limit();
@@ -1401,7 +1383,7 @@ impl HtmlTokenizer {
                             if !(0x20..0x80).contains(&next) || next == 0x22 || next == 0x26 {
                                 break;
                             }
-                            unsafe { self.current_builder.as_mut_vec().push(next as u8) };
+                            self.current_builder.push_ascii(next as u8);
                             off += 1;
                         }
                         let consumed = off - start_offset;
@@ -1423,7 +1405,7 @@ impl HtmlTokenizer {
                             continue;
                         }
                         Some(0x00) => {
-                            self.current_builder.push('\u{FFFD}');
+                            self.current_builder.push_code_point(0xFFFD);
                             continue;
                         }
                         None => {
@@ -1431,7 +1413,7 @@ impl HtmlTokenizer {
                             return self.queued_tokens.pop_front();
                         }
                         Some(cp) => {
-                            push_code_point(&mut self.current_builder, cp);
+                            self.current_builder.push_code_point(cp);
                             continue;
                         }
                     }
@@ -1450,7 +1432,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     None => {
@@ -1458,7 +1440,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -1481,12 +1463,12 @@ impl HtmlTokenizer {
                         return self.emit_current_token_direct();
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(cp @ (0x22 | 0x27 | 0x3C | 0x3D | 0x60)) => {
                         // parse error, treat as anything else
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                     None => {
@@ -1494,7 +1476,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -1567,11 +1549,11 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -1608,7 +1590,7 @@ impl HtmlTokenizer {
                                 self.state = State::CDATASection;
                             } else {
                                 self.create_new_token(TokenType::Comment);
-                                self.current_builder.push_str("[CDATA[");
+                                self.current_builder.push_ascii_str("[CDATA[");
                                 self.state = State::BogusComment;
                             }
                             continue;
@@ -1667,7 +1649,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_builder.push('-');
+                        self.current_builder.push_ascii(b'-');
                         self.reconsume(State::Comment);
                         continue;
                     }
@@ -1676,7 +1658,7 @@ impl HtmlTokenizer {
                 // 13.2.5.45 Comment state
                 State::Comment => match current_input_character {
                     Some(0x3C) => {
-                        self.current_builder.push('<');
+                        self.current_builder.push_ascii(b'<');
                         self.state = State::CommentLessThanSign;
                         continue;
                     }
@@ -1685,7 +1667,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     None => {
@@ -1697,7 +1679,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -1705,12 +1687,12 @@ impl HtmlTokenizer {
                 // 13.2.5.46 Comment less-than sign state
                 State::CommentLessThanSign => match current_input_character {
                     Some(0x21) => {
-                        self.current_builder.push('!');
+                        self.current_builder.push_ascii(b'!');
                         self.state = State::CommentLessThanSignBang;
                         continue;
                     }
                     Some(0x3C) => {
-                        self.current_builder.push('<');
+                        self.current_builder.push_ascii(b'<');
                         continue;
                     }
                     _ => {
@@ -1771,7 +1753,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_builder.push('-');
+                        self.current_builder.push_ascii(b'-');
                         self.reconsume(State::Comment);
                         continue;
                     }
@@ -1792,7 +1774,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x2D) => {
-                        self.current_builder.push('-');
+                        self.current_builder.push_ascii(b'-');
                         continue;
                     }
                     None => {
@@ -1804,7 +1786,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_builder.push_str("--");
+                        self.current_builder.push_ascii_str("--");
                         self.reconsume(State::Comment);
                         continue;
                     }
@@ -1813,7 +1795,7 @@ impl HtmlTokenizer {
                 // 13.2.5.52 Comment end bang state
                 State::CommentEndBang => match current_input_character {
                     Some(0x2D) => {
-                        self.current_builder.push_str("--!");
+                        self.current_builder.push_ascii_str("--!");
                         self.state = State::CommentEndDash;
                         continue;
                     }
@@ -1835,7 +1817,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_builder.push_str("--!");
+                        self.current_builder.push_ascii_str("--!");
                         self.reconsume(State::Comment);
                         continue;
                     }
@@ -1883,7 +1865,7 @@ impl HtmlTokenizer {
                             missing_system_identifier: true,
                             ..Default::default()
                         };
-                        push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
+                        self.current_builder.push_code_point(to_ascii_lowercase(cp));
                         self.state = State::DOCTYPEName;
                         continue;
                     }
@@ -1895,7 +1877,7 @@ impl HtmlTokenizer {
                             missing_system_identifier: true,
                             ..Default::default()
                         };
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         self.state = State::DOCTYPEName;
                         continue;
                     }
@@ -1932,7 +1914,7 @@ impl HtmlTokenizer {
                             missing_system_identifier: true,
                             ..Default::default()
                         };
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         self.state = State::DOCTYPEName;
                         continue;
                     }
@@ -1963,11 +1945,11 @@ impl HtmlTokenizer {
                         return self.emit_current_token_direct();
                     }
                     Some(cp) if is_ascii_upper_alpha(cp) => {
-                        push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
+                        self.current_builder.push_code_point(to_ascii_lowercase(cp));
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     None => {
@@ -1981,7 +1963,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -2142,7 +2124,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(0x3E) => {
@@ -2170,7 +2152,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -2189,7 +2171,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(0x3E) => {
@@ -2217,7 +2199,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -2235,7 +2217,7 @@ impl HtmlTokenizer {
                     Some(0x22) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierDoubleQuoted;
@@ -2244,7 +2226,7 @@ impl HtmlTokenizer {
                     Some(0x27) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierSingleQuoted;
@@ -2278,7 +2260,7 @@ impl HtmlTokenizer {
                     Some(0x22) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierDoubleQuoted;
@@ -2287,7 +2269,7 @@ impl HtmlTokenizer {
                     Some(0x27) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierSingleQuoted;
@@ -2320,7 +2302,7 @@ impl HtmlTokenizer {
                     Some(0x22) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierDoubleQuoted;
@@ -2329,7 +2311,7 @@ impl HtmlTokenizer {
                     Some(0x27) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierSingleQuoted;
@@ -2367,7 +2349,7 @@ impl HtmlTokenizer {
                     Some(0x22) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierDoubleQuoted;
@@ -2376,7 +2358,7 @@ impl HtmlTokenizer {
                     Some(0x27) => {
                         {
                             let dd = self.current_token.doctype_data_mut();
-                            dd.system_identifier = String::new();
+                            dd.system_identifier = CodeUnits::new();
                             dd.missing_system_identifier = false;
                         }
                         self.state = State::DOCTYPESystemIdentifierSingleQuoted;
@@ -2420,7 +2402,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(0x3E) => {
@@ -2444,7 +2426,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -2461,7 +2443,7 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        self.current_builder.push('\u{FFFD}');
+                        self.current_builder.push_code_point(0xFFFD);
                         continue;
                     }
                     Some(0x3E) => {
@@ -2485,7 +2467,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(cp) => {
-                        push_code_point(&mut self.current_builder, cp);
+                        self.current_builder.push_code_point(cp);
                         continue;
                     }
                 },
@@ -2688,7 +2670,7 @@ impl HtmlTokenizer {
                 State::AmbiguousAmpersand => match current_input_character {
                     Some(cp) if is_ascii_alphanumeric(cp) => {
                         if self.consumed_as_part_of_an_attribute() {
-                            push_code_point(&mut self.current_builder, cp);
+                            self.current_builder.push_code_point(cp);
                             continue;
                         } else {
                             return self.return_character_token(cp);
@@ -3274,9 +3256,9 @@ impl HtmlTokenizer {
     }
 
     fn set_attribute_name(&mut self) {
-        let name = crate::token::HtmlName::from_utf8(&self.current_builder);
+        let name = crate::token::HtmlName::from_code_units(self.current_builder.as_slice());
         // NB: Every code point of a name is one code point of input, in as many code units.
-        let name_length: usize = self.current_builder.chars().map(char::len_utf16).sum();
+        let name_length = self.current_builder.len();
         let name_end = self.offset_before_last_code_point();
         let name_start = SourceOffset::new(name_end.get().unwrap().saturating_sub(name_length));
         self.current_builder.clear();
@@ -3336,11 +3318,11 @@ impl HtmlTokenizer {
                 self.reconsume(fallback_state);
             }
             Some(cp) if is_ascii_upper_alpha(cp) => {
-                push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
+                self.current_builder.push_code_point(to_ascii_lowercase(cp));
                 self.temporary_buffer.push(cp);
             }
             Some(cp) if is_ascii_lower_alpha(cp) => {
-                self.current_builder.push(char::from_u32(cp).unwrap());
+                self.current_builder.push_ascii(cp as u8);
                 self.temporary_buffer.push(cp);
             }
             _ => {
@@ -3378,7 +3360,7 @@ mod tests {
         assert_eq!(tokenizer.current_offset, tokenizer.input.len());
         assert_eq!(tokenizer.input.to_utf16(), code_units("<p a=\"&tw"));
 
-        tokenizer.append_input(InputSlice::Utf16(&code_units("s-checkout-success=4.1.0\">")));
+        tokenizer.append_input(Utf16View::Utf16(&code_units("s-checkout-success=4.1.0\">")));
         tokenizer.set_input_stream_closed(true);
 
         let token = tokenizer.next_token(false, false).expect("start tag token");
@@ -3404,7 +3386,7 @@ mod tests {
             tokens.push(token);
         }
         tokenizer.parser_did_run();
-        tokenizer.append_input(InputSlice::Utf16(&code_units(second)));
+        tokenizer.append_input(Utf16View::Utf16(&code_units(second)));
         tokenizer.set_input_stream_closed(true);
         while let Some(token) = tokenizer.next_token(false, false) {
             tokens.push(token);

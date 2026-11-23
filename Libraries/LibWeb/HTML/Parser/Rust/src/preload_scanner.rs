@@ -5,7 +5,7 @@
  */
 
 use crate::RustFfiTokenizerHandle;
-use crate::input::InputSlice;
+use crate::code_units::RustFfiHtmlUtf16View;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::Attribute;
@@ -16,6 +16,7 @@ use crate::token::TokenPayload;
 use crate::token::TokenType;
 use crate::tokenizer::HtmlTokenizer;
 use crate::tokenizer::State;
+use ak::Utf16View;
 use std::borrow::Cow;
 use std::ffi::c_void;
 
@@ -57,21 +58,15 @@ pub enum RustFfiPreloadScannerCorsSetting {
 #[repr(C)]
 pub struct RustFfiPreloadScannerEntry {
     pub action: RustFfiPreloadScannerAction,
-    pub url_ptr: *const u8,
-    pub url_len: usize,
+    pub url: RustFfiHtmlUtf16View,
     pub destination: RustFfiPreloadScannerDestination,
     pub cors_setting: RustFfiPreloadScannerCorsSetting,
-    pub nonce_ptr: *const u8,
-    pub nonce_len: usize,
-    pub integrity_ptr: *const u8,
-    pub integrity_len: usize,
+    pub nonce: RustFfiHtmlUtf16View,
+    pub integrity: RustFfiHtmlUtf16View,
     pub integrity_present: bool,
-    pub referrer_policy_ptr: *const u8,
-    pub referrer_policy_len: usize,
-    pub fetch_priority_ptr: *const u8,
-    pub fetch_priority_len: usize,
-    pub media_ptr: *const u8,
-    pub media_len: usize,
+    pub referrer_policy: RustFfiHtmlUtf16View,
+    pub fetch_priority: RustFfiHtmlUtf16View,
+    pub media: RustFfiHtmlUtf16View,
 }
 
 /// A preload scanner that keeps its place in the parser's input from one run to the next, so that a speculative HTML
@@ -101,7 +96,7 @@ impl RustFfiPreloadScanner {
         *self = Self::new(self.scripting_enabled);
     }
 
-    fn append_input(&mut self, code_units: InputSlice<'_>) {
+    fn append_input(&mut self, code_units: Utf16View<'_>) {
         self.tokenizer.append_input(code_units);
     }
 
@@ -210,7 +205,7 @@ pub(crate) fn scan_utf16(
     mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
 ) {
     let mut scanner = RustFfiPreloadScanner::new(scripting_enabled);
-    scanner.append_input(InputSlice::Utf16(input));
+    scanner.append_input(Utf16View::Utf16(input));
     scanner.tokenizer.set_input_stream_closed(true);
     scanner.scan(&mut callback);
 }
@@ -377,10 +372,14 @@ fn script_type_from_attributes(attributes: &[Attribute]) -> Option<ScriptType> {
     //    Otherwise, el has a non-empty language attribute; let the script block's type string be the concatenation of
     //    "text/" and the value of el's language attribute.
     // FIXME: Preserve whitespace in the type string; only the classic JavaScript MIME comparison strips it.
-    let type_string: Cow<'_, [u8]> = match (type_attribute, language_attribute) {
-        (Some(""), _) | (None, Some("")) | (None, None) => Cow::Borrowed(b"text/javascript"),
-        (Some(type_attribute), _) => Cow::Borrowed(type_attribute.as_bytes().trim_ascii()),
-        (None, Some(language)) => Cow::Owned([b"text/".as_slice(), language.as_bytes()].concat()),
+    let type_attribute = type_attribute.map(keyword_bytes);
+    let language_attribute = language_attribute.map(keyword_bytes);
+    let type_string: Cow<'_, [u8]> = match (&type_attribute, &language_attribute) {
+        (Some(type_attribute), _) if type_attribute.is_empty() => Cow::Borrowed(b"text/javascript"),
+        (None, Some(language)) if language.is_empty() => Cow::Borrowed(b"text/javascript"),
+        (None, None) => Cow::Borrowed(b"text/javascript"),
+        (Some(type_attribute), _) => Cow::Borrowed(type_attribute.trim_ascii()),
+        (None, Some(language)) => Cow::Owned([b"text/".as_slice(), language].concat()),
     };
 
     // 9. If the script block's type string is a JavaScript MIME type essence match, or el has a type attribute whose
@@ -426,19 +425,20 @@ fn process_link(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrel
     let Some(rel) = attribute_value(attributes, attribute_name!("rel")) else {
         return true;
     };
+    let rel = keyword_bytes(rel);
 
-    let (action, destination) = if rel_contains_keyword(rel.as_bytes(), b"stylesheet") {
+    let (action, destination) = if rel_contains_keyword(&rel, b"stylesheet") {
         (
             RustFfiPreloadScannerAction::Fetch,
             RustFfiPreloadScannerDestination::Style,
         )
-    } else if rel_contains_keyword(rel.as_bytes(), b"modulepreload") {
+    } else if rel_contains_keyword(&rel, b"modulepreload") {
         let Some(destination) = translate_modulepreload_destination(attribute_value(attributes, attribute_name!("as")))
         else {
             return true;
         };
         (RustFfiPreloadScannerAction::ModulePreload, destination)
-    } else if rel_contains_keyword(rel.as_bytes(), b"preload") {
+    } else if rel_contains_keyword(&rel, b"preload") {
         let Some(destination) = translate_preload_destination(attribute_value(attributes, attribute_name!("as")))
         else {
             return true;
@@ -479,47 +479,47 @@ fn process_img(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrelo
 fn emit_entry(
     callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
     action: RustFfiPreloadScannerAction,
-    url: &str,
+    url: Utf16View<'_>,
     destination: RustFfiPreloadScannerDestination,
     cors_setting: RustFfiPreloadScannerCorsSetting,
     attributes: Option<&[Attribute]>,
 ) -> bool {
-    let attribute_pointer_and_length = |name| {
-        attribute_value(attributes.unwrap_or_default(), name)
-            .map(|value| (value.as_ptr(), value.len()))
-            .unwrap_or((std::ptr::null(), 0))
-    };
-    let (nonce_ptr, nonce_len) = attribute_pointer_and_length(attribute_name!("nonce"));
-    let (integrity_ptr, integrity_len) = attribute_pointer_and_length(attribute_name!("integrity"));
-    let (referrer_policy_ptr, referrer_policy_len) = attribute_pointer_and_length(attribute_name!("referrerpolicy"));
-    let (fetch_priority_ptr, fetch_priority_len) = attribute_pointer_and_length(attribute_name!("fetchpriority"));
-    let (media_ptr, media_len) = attribute_pointer_and_length(attribute_name!("media"));
+    let attribute = |name| attribute_value(attributes.unwrap_or_default(), name);
+    let attribute_or_empty = |name| attribute(name).unwrap_or(Utf16View::Latin1(&[])).into();
     let entry = RustFfiPreloadScannerEntry {
         action,
-        url_ptr: url.as_ptr(),
-        url_len: url.len(),
+        url: url.into(),
         destination,
         cors_setting,
-        nonce_ptr,
-        nonce_len,
-        integrity_ptr,
-        integrity_len,
-        integrity_present: !integrity_ptr.is_null(),
-        referrer_policy_ptr,
-        referrer_policy_len,
-        fetch_priority_ptr,
-        fetch_priority_len,
-        media_ptr,
-        media_len,
+        nonce: attribute_or_empty(attribute_name!("nonce")),
+        integrity: attribute_or_empty(attribute_name!("integrity")),
+        integrity_present: attribute(attribute_name!("integrity")).is_some(),
+        referrer_policy: attribute_or_empty(attribute_name!("referrerpolicy")),
+        fetch_priority: attribute_or_empty(attribute_name!("fetchpriority")),
+        media: attribute_or_empty(attribute_name!("media")),
     };
     callback(&entry)
 }
 
-fn attribute_value(attributes: &[Attribute], name: KnownName) -> Option<&str> {
+fn attribute_value(attributes: &[Attribute], name: KnownName) -> Option<Utf16View<'_>> {
     attributes
         .iter()
         .find(|attribute| attribute.local_name == name)
-        .map(|attribute| attribute.value.as_str())
+        .map(|attribute| attribute.value.as_slice())
+}
+
+/// The code units of an attribute value as bytes, to look for ASCII keywords in. A code unit that doesn't fit in a
+/// byte becomes one that is in no keyword and isn't whitespace.
+fn keyword_bytes(value: Utf16View<'_>) -> Cow<'_, [u8]> {
+    match value {
+        Utf16View::Latin1(code_units) => Cow::Borrowed(code_units),
+        Utf16View::Utf16(code_units) => Cow::Owned(
+            code_units
+                .iter()
+                .map(|&code_unit| u8::try_from(code_unit).unwrap_or(0xFF))
+                .collect(),
+        ),
+    }
 }
 
 fn rel_contains_keyword(rel: &[u8], keyword: &[u8]) -> bool {
@@ -527,8 +527,8 @@ fn rel_contains_keyword(rel: &[u8], keyword: &[u8]) -> bool {
         .any(|token| token.eq_ignore_ascii_case(keyword))
 }
 
-fn translate_preload_destination(destination: Option<&str>) -> Option<RustFfiPreloadScannerDestination> {
-    Some(match destination?.as_bytes() {
+fn translate_preload_destination(destination: Option<Utf16View<'_>>) -> Option<RustFfiPreloadScannerDestination> {
+    Some(match &*keyword_bytes(destination?) {
         b"fetch" => RustFfiPreloadScannerDestination::None,
         b"font" => RustFfiPreloadScannerDestination::Font,
         b"image" => RustFfiPreloadScannerDestination::Image,
@@ -539,12 +539,12 @@ fn translate_preload_destination(destination: Option<&str>) -> Option<RustFfiPre
     })
 }
 
-fn translate_modulepreload_destination(destination: Option<&str>) -> Option<RustFfiPreloadScannerDestination> {
+fn translate_modulepreload_destination(destination: Option<Utf16View<'_>>) -> Option<RustFfiPreloadScannerDestination> {
     let Some(destination) = destination else {
         return Some(RustFfiPreloadScannerDestination::Script);
     };
 
-    let destination = destination.as_bytes();
+    let destination = &*keyword_bytes(destination);
 
     // A module preload destination is "json", "style", "text", or a script-like destination.
     if destination.eq_ignore_ascii_case(b"audioworklet") {
@@ -608,7 +608,7 @@ fn cors_setting_from_attribute(attributes: &[Attribute]) -> RustFfiPreloadScanne
         return RustFfiPreloadScannerCorsSetting::NoCors;
     };
 
-    if crossorigin.as_bytes().eq_ignore_ascii_case(b"use-credentials") {
+    if crossorigin.eq_ignore_ascii_case("use-credentials") {
         RustFfiPreloadScannerCorsSetting::UseCredentials
     } else {
         RustFfiPreloadScannerCorsSetting::Anonymous
@@ -634,10 +634,9 @@ mod tests {
     fn collect_with_scripting(input: &str, scripting_enabled: bool) -> Vec<ScannedEntry> {
         let mut entries = Vec::new();
         scan(input.as_bytes(), scripting_enabled, |entry| {
-            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
-                url: std::str::from_utf8(url).unwrap().to_string(),
+                url: entry.url.to_test_string(),
                 destination: entry.destination,
                 cors_setting: entry.cors_setting,
             });
@@ -650,10 +649,9 @@ mod tests {
         let input = input.encode_utf16().collect::<Vec<_>>();
         let mut entries = Vec::new();
         scan_utf16(&input, true, |entry| {
-            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
-                url: std::str::from_utf8(url).unwrap().to_string(),
+                url: entry.url.to_test_string(),
                 destination: entry.destination,
                 cors_setting: entry.cors_setting,
             });
@@ -902,17 +900,13 @@ mod tests {
             br#"<link rel="modulepreload" href="./module" nonce="abc" integrity="sha256-xyz" referrerpolicy="origin" fetchpriority="high" media="screen">"#,
             true,
             |entry| {
-                let string = |pointer, length| {
-                    let bytes = unsafe { ak::slice_from_raw_parts(pointer, length) };
-                    std::str::from_utf8(bytes).unwrap().to_string()
-                };
                 options = Some((
-                    string(entry.nonce_ptr, entry.nonce_len),
-                    string(entry.integrity_ptr, entry.integrity_len),
+                    entry.nonce.to_test_string(),
+                    entry.integrity.to_test_string(),
                     entry.integrity_present,
-                    string(entry.referrer_policy_ptr, entry.referrer_policy_len),
-                    string(entry.fetch_priority_ptr, entry.fetch_priority_len),
-                    string(entry.media_ptr, entry.media_len),
+                    entry.referrer_policy.to_test_string(),
+                    entry.fetch_priority.to_test_string(),
+                    entry.media.to_test_string(),
                 ));
                 true
             },
@@ -1016,8 +1010,7 @@ mod tests {
     fn scan_urls(scanner: &mut RustFfiPreloadScanner) -> Vec<String> {
         let mut urls = Vec::new();
         scanner.scan(&mut |entry| {
-            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
-            urls.push(std::str::from_utf8(url).unwrap().to_string());
+            urls.push(entry.url.to_test_string());
             true
         });
         urls
@@ -1028,15 +1021,15 @@ mod tests {
         let mut scanner = RustFfiPreloadScanner::new(true);
 
         // The input runs out inside a tag, and then inside the text of a script.
-        scanner.append_input(InputSlice::Utf16(&code_units(r#"<img src="./a.png"><img sr"#)));
+        scanner.append_input(Utf16View::Utf16(&code_units(r#"<img src="./a.png"><img sr"#)));
         assert_eq!(scan_urls(&mut scanner), vec!["./a.png"]);
 
-        scanner.append_input(InputSlice::Utf16(&code_units(
+        scanner.append_input(Utf16View::Utf16(&code_units(
             r#"c="./b.png"><script>var trap = '<img src="./tr"#,
         )));
         assert_eq!(scan_urls(&mut scanner), vec!["./b.png"]);
 
-        scanner.append_input(InputSlice::Utf16(&code_units(
+        scanner.append_input(Utf16View::Utf16(&code_units(
             r#"ap.png">';</script><img src="./c.png">"#,
         )));
         assert_eq!(scan_urls(&mut scanner), vec!["./c.png"]);
@@ -1051,21 +1044,21 @@ mod tests {
         assert_eq!(input.to_utf16(), code_units("<img src=a>"));
         assert!(!continues);
 
-        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=b>")));
+        parser_tokenizer.append_input(Utf16View::Utf16(&code_units("<img src=b>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
         assert_eq!(input.to_utf16(), code_units("<img src=b>"));
         assert!(continues);
 
         // Once the parser gets past the scanned input, the scan starts over where the parser is.
         while parser_tokenizer.next_token(false, false).is_some() {}
-        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=c>")));
+        parser_tokenizer.append_input(Utf16View::Utf16(&code_units("<img src=c>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
         assert_eq!(input.to_utf16(), code_units("<img src=c>"));
         assert!(continues);
-        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=d><img src=e>")));
+        parser_tokenizer.append_input(Utf16View::Utf16(&code_units("<img src=d><img src=e>")));
         while parser_tokenizer.next_token(false, false).is_some() {}
         parser_tokenizer.parser_did_run();
-        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=f>")));
+        parser_tokenizer.append_input(Utf16View::Utf16(&code_units("<img src=f>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
         assert_eq!(input.to_utf16(), code_units("<img src=f>"));
         assert!(!continues);
@@ -1084,7 +1077,7 @@ mod tests {
 
         // Input that document.write() inserts at the insertion point comes before the scanned input, so the scan has
         // to take it in too.
-        parser_tokenizer.insert_input_at_insertion_point(InputSlice::Utf16(&code_units("<img src=w>")));
+        parser_tokenizer.insert_input_at_insertion_point(Utf16View::Utf16(&code_units("<img src=w>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
         assert_eq!(input.to_utf16(), code_units("<img src=w><img src=a>"));
         assert!(!continues);
