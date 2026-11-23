@@ -1,0 +1,22 @@
+transition: 0.15s ease -> property all; timing ease; duration 0.15s
+transition: ease -> property all; timing ease; duration 0s
+transition: linear -> property all; timing linear; duration 0s
+transition: ease-in -> property all; timing ease-in; duration 0s
+transition: ease-out -> property all; timing ease-out; duration 0s
+transition: ease-in-out -> property all; timing ease-in-out; duration 0s
+transition: step-start -> property all; timing steps(1, start); duration 0s
+transition: step-end -> property all; timing steps(1); duration 0s
+transition: steps(2) 1s -> property all; timing steps(2); duration 1s
+transition: cubic-bezier(0.1, 0.2, 0.3, 0.4) 1s -> property all; timing cubic-bezier(0.1, 0.2, 0.3, 0.4); duration 1s
+transition: linear(0, 1) 1s -> property all; timing linear(0 0%, 1 100%); duration 1s
+transition: none -> property none; timing ease; duration 0s
+transition: all ease 1s -> property all; timing ease; duration 1s
+transition: ease ease -> property ease; timing ease; duration 0s
+transition: opacity 1s ease, ease 2s -> property opacity, all; timing ease, ease; duration 1s, 2s
+transition: 1s ease allow-discrete -> property all; timing ease; duration 1s
+transition: ease 1s 2s -> property all; timing ease; duration 1s
+animation: ease -> name none; timing ease
+animation: 1s ease-in ease-out -> name ease-out; timing ease-in
+animation: 1s linear -> name none; timing linear
+animation: 1s steps(2) step-end -> name step-end; timing steps(2)
+transitions running after a change: 1
