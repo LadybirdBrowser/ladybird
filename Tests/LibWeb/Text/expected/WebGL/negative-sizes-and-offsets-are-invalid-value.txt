@@ -1,0 +1,21 @@
+webgl bufferData() with a size of -4: INVALID_VALUE
+webgl buffer size after it: 16
+webgl bufferData() with a size of -0.5, which is 0: NO_ERROR
+webgl bufferSubData() at offset -1: INVALID_VALUE
+webgl drawElements() at offset 0: NO_ERROR
+webgl drawElements() at offset -2: INVALID_VALUE
+webgl2 bufferData() with a size of -4: INVALID_VALUE
+webgl2 buffer size after it: 16
+webgl2 bufferData() with a size of -0.5, which is 0: NO_ERROR
+webgl2 bufferSubData() at offset -1: INVALID_VALUE
+webgl2 drawElements() at offset 0: NO_ERROR
+webgl2 drawElements() at offset -2: INVALID_VALUE
+webgl2 copyBufferSubData() from offset -1: INVALID_VALUE
+webgl2 copyBufferSubData() to offset -1: INVALID_VALUE
+webgl2 copyBufferSubData() of size -4: INVALID_VALUE
+webgl2 getBufferSubData() from offset -1: INVALID_VALUE
+webgl2 bindBufferRange() at offset -256: INVALID_VALUE
+webgl2 drawRangeElements() at offset 0: NO_ERROR
+webgl2 drawElementsInstanced() at offset 0: NO_ERROR
+webgl2 drawRangeElements() at offset -2: INVALID_VALUE
+webgl2 drawElementsInstanced() at offset -2: INVALID_VALUE

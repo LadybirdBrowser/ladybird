@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A negative size or byte offset is an INVALID_VALUE error.
+    test(() => {
+        for (const kind of ["webgl", "webgl2"]) {
+            const gl = document.createElement("canvas").getContext(kind);
+            const names = {
+                [gl.NO_ERROR]: "NO_ERROR",
+                [gl.INVALID_VALUE]: "INVALID_VALUE",
+                [gl.INVALID_OPERATION]: "INVALID_OPERATION",
+            };
+            function check(label, call) {
+                gl.getError();
+                call();
+                println(`${kind} ${label}: ${names[gl.getError()]}`);
+            }
+
+            // NB: A linked program is in use, so a draw call's only error is its offset.
+            const program = gl.createProgram();
+            for (const [type, source] of [
+                [gl.VERTEX_SHADER, "attribute vec4 a; void main() { gl_Position = a; }"],
+                [gl.FRAGMENT_SHADER, "void main() { gl_FragColor = vec4(1.0); }"],
+            ]) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                gl.attachShader(program, shader);
+            }
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, 16, gl.STATIC_DRAW);
+            const indices = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2]), gl.STATIC_DRAW);
+
+            check("bufferData() with a size of -4", () => gl.bufferData(gl.ARRAY_BUFFER, -4, gl.STATIC_DRAW));
+            println(`${kind} buffer size after it: ${gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE)}`);
+            check("bufferData() with a size of -0.5, which is 0", () => gl.bufferData(gl.ARRAY_BUFFER, -0.5, gl.STATIC_DRAW));
+            gl.bufferData(gl.ARRAY_BUFFER, 16, gl.STATIC_DRAW);
+            check("bufferSubData() at offset -1", () => gl.bufferSubData(gl.ARRAY_BUFFER, -1, new Uint8Array(1)));
+            check("drawElements() at offset 0", () => gl.drawElements(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, 0));
+            check("drawElements() at offset -2", () => gl.drawElements(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, -2));
+            if (kind !== "webgl2")
+                continue;
+
+            const copy = gl.createBuffer();
+            gl.bindBuffer(gl.COPY_WRITE_BUFFER, copy);
+            gl.bufferData(gl.COPY_WRITE_BUFFER, 16, gl.STATIC_DRAW);
+            gl.bindBuffer(gl.COPY_READ_BUFFER, buffer);
+            check("copyBufferSubData() from offset -1", () => gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, -1, 0, 4));
+            check("copyBufferSubData() to offset -1", () => gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, -1, 4));
+            check("copyBufferSubData() of size -4", () => gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, 0, -4));
+            check("getBufferSubData() from offset -1", () => gl.getBufferSubData(gl.ARRAY_BUFFER, -1, new Uint8Array(1)));
+            const uniforms = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, uniforms);
+            gl.bufferData(gl.UNIFORM_BUFFER, 1024, gl.STATIC_DRAW);
+            check("bindBufferRange() at offset -256", () => gl.bindBufferRange(gl.UNIFORM_BUFFER, 0, uniforms, -256, 16));
+            check("drawRangeElements() at offset 0", () => gl.drawRangeElements(gl.TRIANGLES, 0, 2, 3, gl.UNSIGNED_SHORT, 0));
+            check("drawElementsInstanced() at offset 0", () => gl.drawElementsInstanced(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, 0, 1));
+            check("drawRangeElements() at offset -2", () => gl.drawRangeElements(gl.TRIANGLES, 0, 2, 3, gl.UNSIGNED_SHORT, -2));
+            check("drawElementsInstanced() at offset -2", () => gl.drawElementsInstanced(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, -2, 1));
+        }
+    });
+</script>

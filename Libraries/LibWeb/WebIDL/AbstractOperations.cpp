@@ -590,6 +590,18 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
 
     // 10. Set x to x modulo 2^bitLength.
     auto constexpr two_pow_bitlength = NumericLimits<MakeUnsigned<T>>::max() + 1.0;
+    if constexpr (sizeof(T) == 8) {
+        // NB: fmod() is exact, and leaves an integer of the sign of x whose magnitude is below 2^64, which a u64 holds.
+        //     But a double holds few integers near 2^64, so adding 2^64 to a negative remainder in one would round
+        //     (and -1 would become 2^64). So the wrap around to a non-negative x is done in a u64 instead.
+        auto remainder = fmod(x, two_pow_bitlength);
+        auto modulo = remainder < 0 ? 0 - static_cast<u64>(-remainder) : static_cast<u64>(remainder);
+
+        // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
+        // 12. Otherwise, return x.
+        // NB: Reinterpreting the bits of x as a signed 64-bit integer does just that.
+        return static_cast<T>(modulo);
+    }
     x = JS::modulo(x, two_pow_bitlength);
 
     // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
