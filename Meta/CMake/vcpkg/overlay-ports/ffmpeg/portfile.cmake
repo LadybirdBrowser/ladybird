@@ -22,6 +22,8 @@ vcpkg_from_github(
         0100-ladybird-symbol-version-nodes.patch
         0101-vulkan-decode-dpb-distinct-no-drm-modifiers.patch
         0102-vulkan-av1-clear-unused-ref-frame-mvs.patch
+        0103-vulkan-dont-skip-switch-layout-in-prepare-frame.patch
+        0104-vulkan-wait-for-decode-before-export-layout-transition.patch
 )
 
 if(SOURCE_PATH MATCHES " ")
