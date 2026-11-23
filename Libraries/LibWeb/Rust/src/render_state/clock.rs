@@ -38,7 +38,7 @@ use crate::css::style::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::layout::tree_update_marks::{FfiLayoutTreeUpdateMark, layout_tree_update_reuse_reason};
-use crate::layout::used_values::FfiCssPixelRect;
+use crate::layout::used_values::{FfiCssPixelPoint, FfiCssPixelRect};
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena};
 use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
@@ -204,6 +204,8 @@ pub(crate) struct Lane {
     shown: TickShownRecords,
     /// The border boxes of the plan's elements, and of those the hover restyled, in the last frame a tick presented.
     presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
+    /// The scroll positions in CSS pixels the last frame a tick presented was recorded with. For a test.
+    presented_scroll_offsets: Vec<(StyleNodeID, CssPixelPoint)>,
     /// The color each box the ticks showed samples in showed in that frame, as `0xAARRGGBB`. For a test.
     presented_colors: Vec<(StyleNodeID, u8, u32)>,
     /// How many compositor animations of the frame drive each box of `presented_border_boxes`, and the opacity its
@@ -619,6 +621,7 @@ pub struct ClockTicks {
 #[derive(Default)]
 struct PresentedBoxes {
     border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
+    scroll_offsets: Vec<(StyleNodeID, CssPixelPoint)>,
     colors: Vec<(StyleNodeID, u8, u32)>,
     compositor_animations: Vec<(StyleNodeID, u32, f32)>,
 }
@@ -867,6 +870,15 @@ impl ClockTicks {
             .border_boxes
             .iter()
             .find_map(|&(presented, rect)| (presented == element).then_some(rect))
+    }
+
+    /// The scroll position of `element` the last frame a tick presented was recorded with, in CSS pixels.
+    pub(super) fn presented_scroll_offset(&self, element: StyleNodeID) -> Option<CssPixelPoint> {
+        let presented = self.presented_boxes.lock().expect("presented boxes");
+        presented
+            .scroll_offsets
+            .iter()
+            .find_map(|&(presented, offset)| (presented == element).then_some(offset))
     }
 
     /// The properties compositor animations drove on the box of `element` in the last frame a tick presented, one bit
@@ -1235,6 +1247,7 @@ impl Lane {
             restyles_built_again: Vec::new(),
             shown: TickShownRecords::default(),
             presented_border_boxes: Vec::new(),
+            presented_scroll_offsets: Vec::new(),
             presented_colors: Vec::new(),
             presented_compositor_animations: Vec::new(),
             scroll_offsets: Vec::new(),
@@ -1667,6 +1680,17 @@ impl Lane {
                         .then(|| (element, absolute_border_box_rect(&rows, row)))
                 }),
         );
+        self.presented_scroll_offsets.clear();
+        let scroll_state = &arena.paint_state().visual_context.scroll_state;
+        self.presented_scroll_offsets
+            .extend(scroll_state.states().iter().enumerate().filter_map(|(slot, scroll)| {
+                if scroll.is_sticky {
+                    return None;
+                }
+                let element = arena.dom_node_style_node(scroll.paintable)?;
+                let offset = scroll_state.own_offset(slot);
+                Some((element, CssPixelPoint::new(-offset.x, -offset.y)))
+            }));
         self.presented_compositor_animations.clear();
         if let Some(tree) = arena.paint_state().visual_context.tree.as_deref() {
             self.presented_compositor_animations
@@ -2153,6 +2177,24 @@ pub extern "C" fn document_host_presented_opacity(host: &DocumentHost, element: 
         return false;
     };
     *opacity = presented;
+    true
+}
+
+/// Writes the scroll position of `element` the last frame a tick presented was recorded with to `offset`, in CSS
+/// pixels, and answers whether that frame had a scroll node for the element. For a test.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_presented_scroll_offset(
+    host: &DocumentHost,
+    element: u32,
+    offset: &mut FfiCssPixelPoint,
+) -> bool {
+    super::wait_for_render_side();
+    let Some(presented) =
+        StyleNodeID::from_raw(element).and_then(|element| host.clock_ticks().presented_scroll_offset(element))
+    else {
+        return false;
+    };
+    *offset = presented.into();
     true
 }
 
