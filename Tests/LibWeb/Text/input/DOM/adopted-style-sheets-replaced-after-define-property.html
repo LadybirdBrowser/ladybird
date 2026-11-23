@@ -7,7 +7,12 @@
         const second = new CSSStyleSheet();
         second.replaceSync("#target { color: red }");
         document.adoptedStyleSheets = [first, second];
-        Object.defineProperty(document.adoptedStyleSheets, 0, { writable: false });
+        try {
+            Object.defineProperty(document.adoptedStyleSheets, 0, { writable: false });
+            println("defined a non-writable index");
+        } catch (error) {
+            println(`define a non-writable index: ${error.name}`);
+        }
         println(`before replacing: ${getComputedStyle(target).color}`);
         document.adoptedStyleSheets = [];
         println(`after replacing: ${getComputedStyle(target).color}`);

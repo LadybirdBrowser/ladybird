@@ -303,8 +303,22 @@ ThrowCompletionOr<T> completion_from_abi(JSCompletion completion)
     }
 }
 
+template<typename Traits, typename Host>
+struct HostDefineOwnPropertyHookThunk {
+    static JSCompletion define_own_property(JSObject* object, JSPropertyKey property_key, JSPropertyDescriptor* abi_descriptor, JSPropertyDescriptor const* abi_precomputed_get_own_property)
+    {
+        auto descriptor = property_descriptor_from_abi(*abi_descriptor).release_value();
+        Optional<PropertyDescriptor> precomputed_get_own_property;
+        if (abi_precomputed_get_own_property)
+            precomputed_get_own_property = property_descriptor_from_abi(*abi_precomputed_get_own_property);
+        auto result = Traits::define_own_property(static_cast<Host&>(*object_from_abi(object)), property_key_from_abi(property_key), descriptor, abi_precomputed_get_own_property ? &precomputed_get_own_property : nullptr);
+        *abi_descriptor = property_descriptor_to_abi(descriptor);
+        return completion_to_abi(result);
+    }
+};
+
 template<typename Traits>
-struct HostObjectHookThunks {
+struct HostObjectHookThunks : HostDefineOwnPropertyHookThunk<Traits, HostObject> {
     static HostObject& host_object_from_abi(JSObject* object)
     {
         return static_cast<HostObject&>(*object_from_abi(object));
@@ -337,17 +351,6 @@ struct HostObjectHookThunks {
             return throw_completion_to_abi(result.error_value());
         *out = property_descriptor_to_abi(result.value());
         return normal_completion_to_abi(0);
-    }
-
-    static JSCompletion define_own_property(JSObject* object, JSPropertyKey property_key, JSPropertyDescriptor* abi_descriptor, JSPropertyDescriptor const* abi_precomputed_get_own_property)
-    {
-        auto descriptor = property_descriptor_from_abi(*abi_descriptor).release_value();
-        Optional<PropertyDescriptor> precomputed_get_own_property;
-        if (abi_precomputed_get_own_property)
-            precomputed_get_own_property = property_descriptor_from_abi(*abi_precomputed_get_own_property);
-        auto result = Traits::define_own_property(host_object_from_abi(object), property_key_from_abi(property_key), descriptor, abi_precomputed_get_own_property ? &precomputed_get_own_property : nullptr);
-        *abi_descriptor = property_descriptor_to_abi(descriptor);
-        return completion_to_abi(result);
     }
 
     static JSCompletion has_property(JSObject* object, JSPropertyKey property_key)
@@ -430,7 +433,7 @@ struct HostFunctionHookThunks {
 };
 
 template<typename Traits>
-struct HostArrayHookThunks {
+struct HostArrayHookThunks : HostDefineOwnPropertyHookThunk<Traits, HostArray> {
     static HostArray& host_array_from_abi(JSObject* array)
     {
         return static_cast<HostArray&>(*object_from_abi(array));
@@ -510,6 +513,8 @@ consteval JSHostArrayHooks make_host_array_hooks()
 {
     using Thunks = HostABI::HostArrayHookThunks<Traits>;
     JSHostArrayHooks hooks {};
+    if constexpr (requires { &Traits::define_own_property; })
+        hooks.define_own_property = &Thunks::define_own_property;
     if constexpr (requires { &Traits::set; })
         hooks.set = &Thunks::set;
     if constexpr (requires { &Traits::delete_property; })

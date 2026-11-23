@@ -37,6 +37,15 @@ void HostArray::set_host_data(GC::Ptr<GC::Cell> host_data)
     js_host_object_set_host_data(object_to_abi(*this), host_data.ptr());
 }
 
+ThrowCompletionOr<bool> HostArray::array_define_own_property(PropertyKey const& property_key, PropertyDescriptor& descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
+{
+    auto abi_descriptor = property_descriptor_to_abi(descriptor);
+    PrecomputedOwnPropertyForABI precomputed { precomputed_get_own_property };
+    auto result = js_host_array_array_define_own_property(vm_to_abi(vm()), object_to_abi(*this), property_key_to_abi(property_key), &abi_descriptor, precomputed.pointer());
+    update_property_descriptor_from_abi(descriptor, abi_descriptor);
+    return completion_from_abi<bool>(result);
+}
+
 ThrowCompletionOr<bool> HostArray::array_set(PropertyKey const& property_key, Value value, Value receiver, CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     return completion_from_abi<bool>(js_host_array_array_set(vm_to_abi(vm()), object_to_abi(*this), property_key_to_abi(property_key), value_to_abi(value), value_to_abi(receiver), set_cache_metadata_to_abi(cacheable_metadata), lookup_phase_to_abi(phase)));

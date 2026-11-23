@@ -1260,7 +1260,7 @@ type DefineOwnProperty = fn(
 /// # Safety
 ///
 /// See the module documentation. `descriptor` must point to a present descriptor.
-unsafe fn define_own_property_from_abi(
+pub(crate) unsafe fn define_own_property_from_abi(
     vm: *mut JSVM,
     object: *mut JSObject,
     key: *const JSPropertyKey,

@@ -12,8 +12,7 @@
 
 namespace JS {
 
-// An Array exotic object whose [[Set]] and [[Delete]] may come from a JSHostClass of kind JS_HOST_CLASS_ARRAY, with a
-// companion cell for any state of its own.
+// An Array exotic object with host-class hooks for its internal methods and a companion cell for its own state.
 class JS_API HostArray : public Array {
 public:
     // The prototype defaults to %Array.prototype%.
@@ -23,7 +22,8 @@ public:
     GC::Ptr<GC::Cell> host_data() const;
     void set_host_data(GC::Ptr<GC::Cell> host_data);
 
-    // The Array exotic object's own [[Set]] and [[Delete]], for hooks that add to them rather than replace them.
+    // The underlying Array operations that host-class hooks can delegate to.
+    ThrowCompletionOr<bool> array_define_own_property(PropertyKey const&, PropertyDescriptor&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     ThrowCompletionOr<bool> array_set(PropertyKey const&, Value value, Value receiver, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     ThrowCompletionOr<bool> array_delete(PropertyKey const&);
 

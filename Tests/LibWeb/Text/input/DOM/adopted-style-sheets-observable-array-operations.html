@@ -58,14 +58,11 @@
         println(`after a rejected set: ${color()}, length: ${sheets().length}`);
 
         document.adoptedStyleSheets = [red];
-        Object.defineProperty(sheets(), 1, { value: 1, writable: true, enumerable: true, configurable: true });
+        attempt("define a non-sheet", () => Reflect.defineProperty(sheets(), 1, { value: 1 }));
+        println(`after defining a non-sheet: ${color()}, length: ${sheets().length}`);
+        attempt("define a non-constructed sheet", () => Reflect.defineProperty(sheets(), 0, { value: document.styleSheets[0] }));
+        println(`style element still applies: ${getComputedStyle(target).backgroundColor}`);
         document.adoptedStyleSheets = [];
-        println(`replaced after defining a non-sheet: ${color()}, length: ${sheets().length}`);
-
-        document.adoptedStyleSheets = [];
-        Object.defineProperty(sheets(), 0, { value: document.styleSheets[0], writable: true, enumerable: true, configurable: true });
-        sheets().length = 0;
-        println(`removed a style element's sheet: ${getComputedStyle(target).backgroundColor}`);
 
         let setterCalls = 0;
         const prototype = Object.create(Array.prototype, { 0: { set() { ++setterCalls; } } });
@@ -77,17 +74,12 @@
         Object.setPrototypeOf(sheets(), Array.prototype);
 
         document.adoptedStyleSheets = [red];
-        Object.defineProperty(sheets(), 0, { configurable: false });
-        attempt("shrink past a non-configurable sheet", () => Reflect.set(sheets(), "length", 0));
-        attempt("delete a non-configurable sheet", () => Reflect.deleteProperty(sheets(), 0));
-        println(`after failed removals: ${color()}, length: ${sheets().length}`);
-
-        document.adoptedStyleSheets = [red];
-        Object.defineProperty(sheets(), "length", { writable: false });
-        attempt("shrink a non-writable length", () => Reflect.set(sheets(), "length", 0));
-        attempt("delete with a non-writable length", () => Reflect.deleteProperty(sheets(), 0));
-        println(`after failed removals: ${color()}, length: ${sheets().length}`);
-        attempt("append with a non-writable length", () => Reflect.set(sheets(), 1, green));
-        println(`after a failed append: ${color()}, length: ${sheets().length}`);
+        attempt("make an index non-configurable", () => Reflect.defineProperty(sheets(), 0, { configurable: false }));
+        attempt("make length non-writable", () => Reflect.defineProperty(sheets(), "length", { writable: false }));
+        println(`after rejected descriptors: ${color()}, length: ${sheets().length}`);
+        attempt("append after rejected descriptors", () => Reflect.set(sheets(), 1, green));
+        attempt("delete after rejected descriptors", () => Reflect.deleteProperty(sheets(), 1));
+        attempt("shrink after rejected descriptors", () => Reflect.set(sheets(), "length", 0));
+        println(`after shrinking: ${color()}, length: ${sheets().length}`);
     });
 </script>

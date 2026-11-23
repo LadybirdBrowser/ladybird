@@ -36,8 +36,8 @@ use crate::gc::foreign::ForeignCellSlot;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
-    JS_HOST_CLASS_ARRAY, JSCompletion, JSHostArrayHooks, JSHostClass, JSObject, JSPropertyKey, JSSetCacheMetadata,
-    JSVM, JSValue,
+    JS_HOST_CLASS_ARRAY, JSCompletion, JSHostArrayHooks, JSHostClass, JSObject, JSPropertyDescriptor, JSPropertyKey,
+    JSSetCacheMetadata, JSVM, JSValue,
 };
 use crate::layout::value::Value;
 use crate::runtime::array::{ARRAY_OBJECT_METHODS, Array};
@@ -45,11 +45,11 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::object::{
     CacheableSetPropertyMetadata, Object, ObjectMethods, PropertyLookupPhase, allocate_object_in,
 };
+use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 
-/// An Array exotic object whose [[Set]] and [[Delete]] may come from its host class, with a C++ GC cell for any state
-/// of its own.
+/// An Array exotic object with host-class hooks for its internal methods and a C++ GC cell for its own state.
 #[repr(C)]
 #[derive(Trace)]
 pub struct HostArray {
@@ -70,14 +70,16 @@ impl Deref for HostArray {
     }
 }
 
-/// The internal methods of the arrays of a host class table: those of an Array exotic object, with [[Set]] and
-/// [[Delete]] calling the table's hooks for them.
+/// The internal methods of an Array exotic object, with overrides from the host class table.
 fn host_array_methods(table: &'static JSHostClass) -> &'static ObjectMethods {
     let hooks = table.host_array_hooks();
-    if hooks.set.is_none() && hooks.delete_property.is_none() {
+    if hooks.define_own_property.is_none() && hooks.set.is_none() && hooks.delete_property.is_none() {
         return &ARRAY_OBJECT_METHODS;
     }
     let mut methods = ObjectMethods { ..ARRAY_OBJECT_METHODS };
+    if hooks.define_own_property.is_some() {
+        methods.internal_define_own_property = define_own_property_through_hook;
+    }
     if hooks.set.is_some() {
         methods.internal_set = set_through_hook;
     }
@@ -103,6 +105,19 @@ fn hooks_of(object: &Object) -> &'static JSHostArrayHooks {
 
 // The internal methods of a class whose table has a hook for them. The runtime holds no borrow of its state across
 // the call, and lends the hook the array and key for its duration.
+
+fn define_own_property_through_hook(
+    object: &Object,
+    _vm: &Vm,
+    key: &PropertyKey,
+    descriptor: &mut PropertyDescriptor,
+    precomputed_get_own_property: Option<&Option<PropertyDescriptor>>,
+) -> ThrowCompletionOr<bool> {
+    let hook = hooks_of(object)
+        .define_own_property
+        .expect("the class has a [[DefineOwnProperty]] hook");
+    super::host_object::call_define_own_property_hook(hook, object, key, descriptor, precomputed_get_own_property)
+}
 
 fn set_through_hook(
     object: &Object,
@@ -207,6 +222,29 @@ pub unsafe extern "C" fn js_host_array_create(
             optional_cell_from_abi::<JSObject>(prototype_or_null),
             NonNull::new(host_data_or_null),
         ))
+    }
+}
+
+/// The Array exotic object's own [[DefineOwnProperty]], for a host array that stores values after its host callback.
+/// Borrows the key and descriptor. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_host_array_array_define_own_property(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    key: *const JSPropertyKey,
+    descriptor: *mut JSPropertyDescriptor,
+    precomputed_get_own_property: *const JSPropertyDescriptor,
+) -> JSCompletion {
+    // SAFETY: The caller supplies a host array and descriptors valid for this call.
+    unsafe {
+        crate::embedding::object::define_own_property_from_abi(
+            vm,
+            object,
+            key,
+            descriptor,
+            precomputed_get_own_property,
+            ARRAY_OBJECT_METHODS.internal_define_own_property,
+        )
     }
 }
 
