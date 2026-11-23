@@ -1,0 +1,17 @@
+Ladybird now decides whether a line can break before an atomic inline
+by the white-space of the nearest common ancestor of the box and the
+content before it, for line breaking and for min-content sizing alike.
+Blink does the same: Its LineBreaker takes auto_wrap_ from the inline
+box it’s in, so an atomic inline breaks by its parent’s style, and
+LineBreaker::CanBreakAfterAtomicInline() checks that one. WebKit’s
+InlineFormattingUtils::isAtSoftWrapOpportunity() uses the style of
+nearestCommonAncestor() for a boundary next to an atomic inline, and
+Gecko’s nsLineLayout::ReflowFrame() records the break after one only
+where its span’s mNoWrap allows it.
+
+Ladybird lets a line break between a word joiner or a no-break space
+and an atomic inline after it, though css-text-3 rules that break
+out: Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all break
+there in layout. For min-content, Firefox and WebKit break there too,
+and Chrome doesn’t. Checked in Chrome 158.0.8127.37, Firefox 151.0,
+and WebKit 26.5, with Ahem.
