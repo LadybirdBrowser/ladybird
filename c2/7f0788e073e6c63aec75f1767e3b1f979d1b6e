@@ -1,0 +1,5 @@
+On a right-click where nothing focusable is under the pointer, Ladybird
+now focuses the document’s viewport, so document.activeElement becomes
+the body. Chrome 158, Firefox 151, and WebKit 26.5 do the same when run
+on plain text, a disabled input, and a disabled button, with another
+input focused first, for a left click and a right click alike.
