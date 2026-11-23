@@ -82,6 +82,7 @@ set(SOURCES
     SiteCompatibility.cpp
     StorageAreaRegistry.cpp
     StorageJar.cpp
+    SystemDescription.cpp
     SystemProbeClient.cpp
     TestSpellChecker.cpp
     TestTranslator.cpp
