@@ -374,6 +374,7 @@ fn compute_skip_ink_segments<O: Observer>(
     band_top: i32,
     band_thickness: i32,
     font_size: f32,
+    skip_ink: u8,
 ) -> Vec<DecorationSegment> {
     let side = recorder.source.committed_side_data(block);
     let fragment = &side.fragments()[fragment_index as usize];
@@ -394,7 +395,23 @@ fn compute_skip_ink_segments<O: Observer>(
     let y_top = band_top as f32 - blob_origin_y;
     let y_bottom = (band_top + band_thickness) as f32 - blob_origin_y;
 
-    let intervals = run.glyph_intercepts(scale as f32, y_top, y_bottom);
+    // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
+    // Therefore, when auto is in effect, a UA that implements ink-skipping should refrain from doing so in CJK contexts.
+    let cjk_script_runs = if skip_ink == text_decoration_skip_ink::AUTO {
+        recorder
+            .source
+            .rendered_text(fragment.layout_node)
+            .map(|rendered_text| {
+                let end = (fragment.start + fragment.length_in_code_units).min(rendered_text.text.len());
+                crate::layout::text_chunker::cjk_script_runs(&rendered_text.text[fragment.start.min(end)..end])
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let intervals = run.glyph_intercepts(scale as f32, y_top, y_bottom, |cluster_start| {
+        cjk_script_runs.get(cluster_start as usize).copied().unwrap_or(false)
+    });
     if intervals.is_empty() {
         return vec![DecorationSegment {
             start_x: span_start_x,
@@ -707,8 +724,6 @@ pub(crate) fn decoration_line_geometry(
         );
 
         // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
-        // FIXME: For text-decoration-skip-ink: auto, skip CJK ideographs and symbols from the intercept
-        //        computation, since their complex strokes would create too many gaps in the decoration line.
         // NB: Ink is only skipped for decorations anchored at this fragment's own baseline. A fragment that is
         //     vertically shifted relative to a propagated decoration must not carve gaps into the decorating
         //     box's line.
@@ -1046,6 +1061,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 top_y,
                 thickness,
                 set.text_font_pixel_size,
+                set.skip_ink,
             )
         };
         let fill_line = |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, top: i32| {

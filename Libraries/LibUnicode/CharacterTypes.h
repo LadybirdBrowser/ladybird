@@ -124,6 +124,19 @@ enum class VerticalOrientation : u8 {
 };
 VerticalOrientation vertical_orientation(u32 code_point);
 
+// Whether a code point is in one of the CJK scripts (Han, Hiragana, Katakana, Bopomofo, or Hangul), or is a character of
+// the Common or Inherited script that takes its script from the text around it.
+enum class CJKScriptClass : u8 {
+    Other,
+    CJK,
+    Neutral,
+};
+CJKScriptClass cjk_script_class(u32 code_point);
+
+// The opening bracket that a bracket pairs with, as the Bidi_Paired_Bracket property gives it: the code point itself for
+// an opening bracket, its negation for the opening bracket of a closing one, and 0 for any other code point.
+i32 paired_bracket_key(u32 code_point);
+
 struct CodePointRange {
     u32 from { 0 };
     u32 to { 0 };

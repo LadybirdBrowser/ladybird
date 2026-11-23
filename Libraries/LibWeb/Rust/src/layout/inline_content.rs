@@ -230,8 +230,21 @@ pub struct GlyphRunRecord {
 }
 
 impl GlyphRunRecord {
-    pub fn glyph_intercepts(&self, scale: f32, y_top: f32, y_bottom: f32) -> Vec<f32> {
-        libgfx_rust::text_layout::glyph_run_glyph_intercepts(&self.font, &self.glyphs, scale, y_top, y_bottom)
+    pub fn glyph_intercepts(
+        &self,
+        scale: f32,
+        y_top: f32,
+        y_bottom: f32,
+        ignores_cluster: impl Fn(u32) -> bool,
+    ) -> Vec<f32> {
+        libgfx_rust::text_layout::glyph_run_glyph_intercepts(
+            &self.font,
+            &self.glyphs,
+            scale,
+            y_top,
+            y_bottom,
+            ignores_cluster,
+        )
     }
 
     pub fn cluster_geometry(&self) -> &ClusterGeometry {
