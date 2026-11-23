@@ -1,0 +1,7 @@
+Ladybird’s Qt UI now shows a magnifier with a plus for “cursor: zoom-in”
+and one with a minus for “cursor: zoom-out”, drawn with QPainter
+since Qt has no zoom cursors. Chrome and WebKit use the system’s zoom
+cursors on macOS (Chrome’s CrCoreCursorType::kZoomIn and kZoomOut in
+ui/base/cocoa/cursor_utils.mm, WebKit’s Cursor::ZoomIn in CursorMac.mm),
+and Firefox uses NSCursor zoomInCursor and zoomOutCursor on macOS 15 and
+later, in MOZDynamicCursor.mm.
