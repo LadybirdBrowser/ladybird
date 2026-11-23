@@ -1,0 +1,15 @@
+When a 2D canvas is larger than the GPU’s largest texture, Ladybird
+presents it from a bitmap in memory, rather than over an IOSurface with
+a Metal texture. The other engines likewise draw such a canvas without
+the GPU. Blink’s BaseRenderingContext2D::CreateSharedImagePool() makes
+no GPU pool when either side is past max_texture_size. In Gecko, a size
+past mMaxTextureSize fails DrawTargetWebgl::Init(), so the canvas’s
+CanvasRenderingContext2D::EnsureTarget() then falls back from its
+TryAcceleratedTarget() to TrySharedTarget() and TryBasicTarget(). And
+WebKit’s ImageBufferIOSurfaceBackend::calculateSafeBackendSize()
+refuses a size past IOSurface::maximumSize(), so ImageBuffer::create()
+falls through to an unaccelerated ImageBufferPlatformBitmapBackend.
+
+In Chrome 158, Firefox 151, and WebKit 26.5, run on the same page, a 2D
+canvas 16385, 20000, or 40000 pixels wide keeps working, and reads back
+what was drawn at its far edge.
