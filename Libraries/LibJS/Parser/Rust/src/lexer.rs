@@ -904,11 +904,17 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             }
             seen[flag as usize] = true;
         }
-        let pattern: &[u16] =
-            zone.alloc_slice_from_iter((start + 1..self.regex_body_end as usize).map(|i| self.at(i) as u16));
-        if let Err(message) = (self.validate_regex)(zone, pattern, flags) {
-            self.fail(start as u32, message);
-            return;
+        // 13.2.7.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-primary-expression-regular-expression-literals-static-semantics-early-errors
+        // PrimaryExpression : RegularExpressionLiteral
+        // It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
+        // NB: A reparse only follows a first parse that checked every pattern.
+        if !self.is_reparsing() {
+            let pattern: &[u16] =
+                zone.alloc_slice_from_iter((start + 1..self.regex_body_end as usize).map(|i| self.at(i) as u16));
+            if let Err(message) = (self.validate_regex)(zone, pattern, flags) {
+                self.fail(start as u32, message);
+                return;
+            }
         }
         self.token(T::Regex, p);
     }
