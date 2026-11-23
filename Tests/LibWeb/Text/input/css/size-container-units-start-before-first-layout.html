@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); width: 800px; }
+    .item { aspect-ratio: 354 / 419; container-type: inline-size; }
+    h2 { font-size: 24.49cqw; line-height: 1; margin: 0; }
+</style>
+<div class="grid"><div class="item"><h2>Join the family</h2></div></div>
+<script>
+    // The units below a size container that no layout has reached yet start out against a basis of 0. Starting them
+    // out against the viewport grows the heading past the item's aspect ratio, and the item's column with it.
+    test(() => {
+        const rect = document.querySelector(".item").getBoundingClientRect();
+        println(`item: ${rect.width}x${Math.round(rect.height)}`);
+        println(`heading font-size: ${getComputedStyle(document.querySelector("h2")).fontSize}`);
+    });
+</script>
