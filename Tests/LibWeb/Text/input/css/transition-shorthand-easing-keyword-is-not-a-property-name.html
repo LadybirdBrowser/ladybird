@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<div id="animated" style="width: 10px; transition: 0.15s ease"></div>
+<script>
+    // A keyword the easing function can take goes to the easing function, not to transition-property or
+    // animation-name, whose <custom-ident> claims a keyword only where nothing else can.
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const transitions = [
+            "0.15s ease", "ease", "linear", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end",
+            "steps(2) 1s", "cubic-bezier(0.1, 0.2, 0.3, 0.4) 1s", "linear(0, 1) 1s", "none", "all ease 1s",
+            "ease ease", "opacity 1s ease, ease 2s", "1s ease allow-discrete", "ease 1s 2s",
+        ];
+        for (const value of transitions) {
+            target.style.transition = value;
+            const style = getComputedStyle(target);
+            println(`transition: ${value} -> property ${style.transitionProperty}; timing ${style.transitionTimingFunction}; duration ${style.transitionDuration}`);
+        }
+        target.style.transition = "";
+        const animations = ["ease", "1s ease-in ease-out", "1s linear", "1s steps(2) step-end"];
+        for (const value of animations) {
+            target.style.animation = value;
+            const style = getComputedStyle(target);
+            println(`animation: ${value} -> name ${style.animationName}; timing ${style.animationTimingFunction}`);
+        }
+
+        const animated = document.getElementById("animated");
+        getComputedStyle(animated).width;
+        animated.style.width = "100px";
+        println(`transitions running after a change: ${animated.getAnimations().length}`);
+        done();
+    });
+</script>
