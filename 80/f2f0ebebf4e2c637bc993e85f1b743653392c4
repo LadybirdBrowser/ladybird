@@ -1,0 +1,50 @@
+Ladybird serializes the selected rendered text. Blink’s
+DomSelection::toString updates layout and passes the visible
+range to PlainText with unselectable content excluded.
+WebKit’s DOMSelection::toString reads the frame selection.
+Gecko’s Selection::Stringify passes SkipInvisibleContent
+to its document encoder.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all omitted script,
+style, and display:none text. Chrome and Firefox inserted two newlines
+between two zero-margin paragraphs. WebKit inserted one. Chrome and
+WebKit applied text-transform and omitted image alternative text.
+Firefox included the alternative text. All three kept a space between
+words across a soft wrap.
+
+When a selection contains only a preserved line feed, Ladybird keeps
+it, as Firefox and WebKit do. Chrome and WebKit also keep the space
+before a preserved line feed between two spans when text follows it.
+
+All three engines omit a trailing separator when selecting the first
+cell or row. Blink checks ShouldEmitTabBeforeNode and WebKit checks
+shouldEmitTabBeforeNode. Gecko tracks the cells already serialized in
+nsPlainTextSerializer::DoOpenContainer with mHasWrittenCellsForRow.
+
+Ladybird excludes unselectable cells and rows from the selected text,
+but still visits descendants that allow selection. Chrome and Firefox
+omit the text of a table with user-select:none and preserve text from
+selectable descendants. WebKit includes all the cells in that table.
+
+Ladybird includes SVG text and tspans in selected text. Blink reads the
+selected DOM offsets through GetMappingUnitsForDOMRange in
+TextIteratorTextNodeHandler. WebKit reads the text renderer in
+TextIterator::handleTextNode. Gecko serializes visible text through
+Selection::Stringify and nsPlainTextSerializer::AppendText.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all included
+visible SVG text in full and partial selections. All three included a
+visible tspan inside a hidden text element. Firefox and WebKit preserved
+the spaces on both sides of a line feed when a selection covered one
+text node under white-space:pre-line. Chrome removed both spaces.
+
+Ladybird keeps a selected line feed when the nearest caret boundary
+skips an adjoining collapsible space. All three browsers kept the line
+feed when two spans split the text on either side of it. Chrome and
+WebKit also put separators around visible SVG text embedded between
+two HTML text nodes. Firefox joined the surrounding text directly.
+
+Ladybird omits separators for wholly hidden table rows and cells and
+keeps both tabs around a hidden middle cell. Chrome 158.0.8127.37 and
+WebKit 26.5 omitted wholly hidden rows. Firefox 151.0 included their
+separators. All three kept both tabs around a hidden middle cell.
