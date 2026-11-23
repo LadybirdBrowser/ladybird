@@ -1,0 +1,13 @@
+Ladybird centers the shadow contents of a native block input in
+the final height of its content box when a min/max constraint
+sets that height. WebKit’s RenderTextControlSingleLine::layout
+positions the inner editor and placeholder against the input’s
+final size. Gecko’s nsTextControlFrame::Reflow lays out the control
+as a scroll frame. Blink builds the editing viewport and inner
+editor in EditingViewPortElement::CustomStyleForLayoutObject and
+TextControlInnerEditorElement::CustomStyleForLayoutObject.
+
+In the 44px ChargeMap reduction, Firefox 151.0 and WebKit 26.5
+painted identical text pixels for height and min-height. Chrome
+158.0.8127.37 differed by one pixel vertically. All three centered
+the text in both controls.
