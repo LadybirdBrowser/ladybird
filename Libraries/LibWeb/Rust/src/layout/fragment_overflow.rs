@@ -666,7 +666,7 @@ impl LinksHeldApartFromTheirContainingBlocks {
             .push(node);
     }
 
-    fn remove(&mut self, node: NodeSlotId) {
+    pub(super) fn remove(&mut self, node: NodeSlotId) {
         if let Some(containing_block) = self.containing_block_of.remove(&node) {
             self.remove_from(containing_block, node);
         }
@@ -903,6 +903,44 @@ mod tests {
     use crate::css::computed_values::{ComputedLengthPercentageOrAuto, ComputedStyleValueHandle};
     use crate::css::css_enums::overflow;
     use crate::css::style::layout_style::LayoutScratchStyle;
+
+    #[test]
+    fn discarded_fragment_links_leave_the_containing_block_index() {
+        let mut arena = LayoutNodeArena::new();
+        let container = arena.allocate_for_test().slot;
+        let cleared = arena.allocate_for_test().slot;
+        let freed = arena.allocate_for_test().slot;
+        for child in [cleared, freed] {
+            arena.set_committed_fragment_link(child, FragmentLink::for_test(child), None);
+            arena.note_whether_link_is_held_apart_from_its_containing_block(child, container, true);
+        }
+        assert_eq!(
+            arena
+                .links_held_apart_from_their_containing_blocks
+                .held_apart_from(container),
+            &[cleared, freed]
+        );
+
+        arena.clear_committed_fragment_link(cleared);
+        assert_eq!(
+            arena
+                .links_held_apart_from_their_containing_blocks
+                .held_apart_from(container),
+            &[freed]
+        );
+
+        let main_thread = crate::stage::MainThread::for_test();
+        arena
+            .free_subtree(freed)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        assert!(arena.links_held_apart_from_their_containing_blocks.is_empty());
+
+        for row in [cleared, container] {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&main_thread);
+        }
+    }
 
     #[test]
     fn overflow_percentage_margins_use_the_containing_blocks_inline_size() {
