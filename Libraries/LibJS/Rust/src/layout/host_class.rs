@@ -108,6 +108,13 @@ pub const JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT: u32 = 1 << 9;
 pub const JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE: u32 = 1 << 10;
 pub const JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS: u32 = 1 << 11;
 
+pub type DefineOwnPropertyHook = unsafe extern "C" fn(
+    object: *mut JSObject,
+    key: JSPropertyKey,
+    descriptor: *mut JSPropertyDescriptor,
+    precomputed_get_own_property: *const JSPropertyDescriptor,
+) -> JSCompletion;
+
 #[repr(C)]
 pub struct JSHostObjectHooks {
     pub get_prototype_of: Option<unsafe extern "C" fn(object: *mut JSObject) -> JSCompletion>,
@@ -117,14 +124,7 @@ pub struct JSHostObjectHooks {
     pub get_own_property: Option<
         unsafe extern "C" fn(object: *mut JSObject, key: JSPropertyKey, out: *mut JSPropertyDescriptor) -> JSCompletion,
     >,
-    pub define_own_property: Option<
-        unsafe extern "C" fn(
-            object: *mut JSObject,
-            key: JSPropertyKey,
-            descriptor: *mut JSPropertyDescriptor,
-            precomputed_get_own_property: *const JSPropertyDescriptor,
-        ) -> JSCompletion,
-    >,
+    pub define_own_property: Option<DefineOwnPropertyHook>,
     pub has_property: Option<unsafe extern "C" fn(object: *mut JSObject, key: JSPropertyKey) -> JSCompletion>,
     pub get: Option<
         unsafe extern "C" fn(
@@ -164,6 +164,7 @@ pub struct JSHostFunctionHooks {
 
 #[repr(C)]
 pub struct JSHostArrayHooks {
+    pub define_own_property: Option<DefineOwnPropertyHook>,
     pub set: Option<
         unsafe extern "C" fn(
             object: *mut JSObject,

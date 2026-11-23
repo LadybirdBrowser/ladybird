@@ -281,6 +281,16 @@ fn define_own_property_through_hook(
     let hook = hooks_of(object)
         .define_own_property
         .expect("the class has a [[DefineOwnProperty]] hook");
+    call_define_own_property_hook(hook, object, key, descriptor, precomputed_get_own_property)
+}
+
+pub(super) fn call_define_own_property_hook(
+    hook: crate::layout::host_class::DefineOwnPropertyHook,
+    object: &Object,
+    key: &PropertyKey,
+    descriptor: &mut PropertyDescriptor,
+    precomputed_get_own_property: Option<&Option<PropertyDescriptor>>,
+) -> ThrowCompletionOr<bool> {
     let mut abi_descriptor = property_descriptor_to_abi(Some(descriptor));
     let abi_precomputed_get_own_property =
         precomputed_get_own_property.map(|precomputed| property_descriptor_to_abi(precomputed.as_ref()));

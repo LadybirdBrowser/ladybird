@@ -61,6 +61,7 @@ static HOST_OBJECT_HOOKS_THAT_ARE_ALL_ORDINARY: JSHostObjectHooks = JSHostObject
 };
 
 static HOST_ARRAY_HOOKS_THAT_ARE_ALL_ORDINARY: JSHostArrayHooks = JSHostArrayHooks {
+    define_own_property: None,
     set: None,
     delete_property: None,
 };

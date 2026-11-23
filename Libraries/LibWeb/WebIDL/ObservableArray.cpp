@@ -24,8 +24,7 @@ struct ObservableArrayHostClassTraits {
         return *observable_array;
     }
 
-    // NB: Object.defineProperty() and Object.preventExtensions() bypass these hooks, so the array can refuse a store that
-    //     the spec never refuses. This checks for that before any callback runs.
+    // Object.preventExtensions() can make the backing array refuse a store. Check before running the callbacks.
     static bool can_store(JS::HostArray& array, JS::PropertyKey const& property_key)
     {
         auto descriptor = MUST(array.internal_get_own_property(property_key));
@@ -38,6 +37,69 @@ struct ObservableArrayHostClassTraits {
     {
         auto descriptor = MUST(array.internal_get_own_property(index));
         return !descriptor.has_value() || descriptor->configurable.value_or(false);
+    }
+
+    // https://webidl.spec.whatwg.org/#js-observable-array-defineProperty
+    static JS::ThrowCompletionOr<bool> define_own_property(JS::HostArray& array, JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
+    {
+        // 1. Let handler be the this value.
+        // 2. Let descriptor be ! ToPropertyDescriptor(descriptorObj).
+        // NB: LibJS passes the host array and the converted property descriptor to this hook.
+
+        // 3. If P is "length", then:
+        if (property_key == array.vm().names.length) {
+            // 1. If IsAccessorDescriptor(descriptor) is true, then return false.
+            if (descriptor.is_accessor_descriptor())
+                return false;
+
+            // 2. If descriptor.[[Configurable]] is present and has the value true, then return false.
+            if (descriptor.configurable.value_or(false))
+                return false;
+
+            // 3. If descriptor.[[Enumerable]] is present and has the value true, then return false.
+            if (descriptor.enumerable.value_or(false))
+                return false;
+
+            // 4. If descriptor.[[Writable]] is present and has the value false, then return false.
+            if (!descriptor.writable.value_or(true))
+                return false;
+
+            // 5. If descriptor.[[Value]] is present, then return the result of setting the length given handler and descriptor.[[Value]].
+            if (descriptor.value.has_value())
+                return set_the_length(array, *descriptor.value);
+
+            // 6. Return true.
+            return true;
+        }
+
+        // 4. If P is an array index, then:
+        if (property_key.is_number()) {
+            // 1. If IsAccessorDescriptor(descriptor) is true, then return false.
+            if (descriptor.is_accessor_descriptor())
+                return false;
+
+            // 2. If descriptor.[[Configurable]] is present and has the value false, then return false.
+            if (!descriptor.configurable.value_or(true))
+                return false;
+
+            // 3. If descriptor.[[Enumerable]] is present and has the value false, then return false.
+            if (!descriptor.enumerable.value_or(true))
+                return false;
+
+            // 4. If descriptor.[[Writable]] is present and has the value false, then return false.
+            if (!descriptor.writable.value_or(true))
+                return false;
+
+            // 5. If descriptor.[[Value]] is present, then return the result of setting the indexed value given handler, P, and descriptor.[[Value]].
+            if (descriptor.value.has_value())
+                return set_the_indexed_value(array, property_key.as_number(), *descriptor.value);
+
+            // 6. Return true.
+            return true;
+        }
+
+        // 5. Return ? O.[[DefineOwnProperty]](P, descriptor).
+        return array.array_define_own_property(property_key, descriptor, precomputed_get_own_property);
     }
 
     // https://webidl.spec.whatwg.org/#js-observable-array-set
@@ -88,7 +150,8 @@ struct ObservableArrayHostClassTraits {
 
             // 5. Remove the last item from handler.[[BackingList]].
             // 6. Return true.
-            if (!TRY(array.array_set(vm.names.length, JS::Value(index), &array)))
+            JS::PropertyDescriptor descriptor { .value = JS::Value(index) };
+            if (!TRY(array.array_define_own_property(vm.names.length, descriptor)))
                 return false;
             observable_array.did_change_backing_list();
             return true;
@@ -137,7 +200,8 @@ struct ObservableArrayHostClassTraits {
             TRY(observable_array.run_delete_an_indexed_value_callback(index_to_delete));
 
             // 2. Remove the last item from handler.[[BackingList]].
-            if (!TRY(array.array_set(vm.names.length, JS::Value(index_to_delete), &array)))
+            JS::PropertyDescriptor descriptor { .value = JS::Value(index_to_delete) };
+            if (!TRY(array.array_define_own_property(vm.names.length, descriptor)))
                 return false;
 
             observable_array.did_change_backing_list();
@@ -194,7 +258,7 @@ struct ObservableArrayHostClassTraits {
             descriptor.enumerable = true;
             descriptor.configurable = true;
         }
-        if (!TRY(array.internal_define_own_property(property_key, descriptor)))
+        if (!TRY(array.array_define_own_property(property_key, descriptor)))
             return false;
         observable_array.did_change_backing_list();
         return true;
@@ -279,7 +343,6 @@ JS::ThrowCompletionOr<void> ObservableArray::run_delete_an_indexed_value_callbac
 {
     if (!m_on_delete_an_indexed_value)
         return {};
-    // NB: Object.defineProperty() can leave holes in the array. A hole holds no value to delete.
     auto deleted_value = element_value(index);
     if (!deleted_value.has_value())
         return {};

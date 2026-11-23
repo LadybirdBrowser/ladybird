@@ -206,6 +206,7 @@ typedef struct JSHostFunctionHooks {
 
 // The internal methods that kind JS_HOST_CLASS_ARRAY may replace. The rest are those of an Array exotic object.
 typedef struct JSHostArrayHooks {
+    JSCompletion (*define_own_property)(JSObject*, JSPropertyKey, JSPropertyDescriptor* descriptor, JSPropertyDescriptor const* precomputed_get_own_property);
     JSCompletion (*set)(JSObject*, JSPropertyKey, JSValue value, JSValue receiver, JSSetCacheMetadata*, uint8_t phase);
     JSCompletion (*delete_property)(JSObject*, JSPropertyKey);
 } JSHostArrayHooks;

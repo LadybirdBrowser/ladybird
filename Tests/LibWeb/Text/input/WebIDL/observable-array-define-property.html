@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const sheets = document.adoptedStyleSheets;
+        const face = new CSSStyleSheet();
+        face.replaceSync('@font-face { font-family: AdoptedFace; src: url("../wpt-import/fonts/Ahem.ttf") }');
+        const empty = new CSSStyleSheet();
+        sheets.push(empty);
+
+        async function hasFace() {
+            const loaded = await document.fonts.load("16px AdoptedFace", "x");
+            return loaded.length === 1 && document.fonts.has(loaded[0]);
+        }
+
+        Object.defineProperty(sheets, 0, { value: face });
+        println("Replacement registered the font: " + await hasFace());
+        Object.defineProperty(sheets, "length", { value: 0 });
+        println("Truncation removed the font: " + !await hasFace());
+
+        println("Append succeeded: " + Reflect.defineProperty(sheets, 0, { value: empty }));
+        println("Rejected a hole: " + !Reflect.defineProperty(sheets, 2, { value: empty }));
+        println("Rejected length growth: " + !Reflect.defineProperty(sheets, "length", { value: 3 }));
+        for (const key of [0, "length"]) {
+            const index = key === 0;
+            const bad = [{ get() {} }, { writable: false }, { enumerable: !index }, { configurable: !index }];
+            println("Rejected invalid descriptors on " + key + ": " + bad.every(d => !Reflect.defineProperty(sheets, key, d)));
+            println("Accepted empty descriptor on " + key + ": " + Reflect.defineProperty(sheets, key, {}));
+        }
+        println("Empty descriptor created no index: " + (Reflect.defineProperty(sheets, 1, {}) && !Object.hasOwn(sheets, 1)));
+        println("Appending created a writable element: " + Object.getOwnPropertyDescriptor(sheets, 0).writable);
+        for (const key of ["01", "4294967295", Symbol()]) {
+            Object.defineProperty(sheets, key, { get() { return 7; } });
+            println("Ordinary property " + String(key) + ": " + sheets[key]);
+        }
+        println("Final length: " + sheets.length);
+        done();
+    });
+</script>

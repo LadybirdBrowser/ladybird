@@ -16,15 +16,16 @@ set null over red: TypeError
 after a failed set: rgb(255, 0, 0), length: 1
 set a non-constructed sheet over red: NotAllowedError
 after a rejected set: rgb(255, 0, 0), length: 1
-replaced after defining a non-sheet: rgb(0, 0, 0), length: 0
-removed a style element's sheet: rgb(0, 0, 255)
+define a non-sheet: TypeError
+after defining a non-sheet: rgb(255, 0, 0), length: 1
+define a non-constructed sheet: NotAllowedError
+style element still applies: rgb(0, 0, 255)
 set with a setter on the prototype: rgb(255, 0, 0), own element: true, setter calls: 0
 cleared after that: rgb(0, 0, 0)
-shrink past a non-configurable sheet: false
-delete a non-configurable sheet: false
-after failed removals: rgb(255, 0, 0), length: 1
-shrink a non-writable length: false
-delete with a non-writable length: false
-after failed removals: rgb(255, 0, 0), length: 1
-append with a non-writable length: false
-after a failed append: rgb(255, 0, 0), length: 1
+make an index non-configurable: false
+make length non-writable: false
+after rejected descriptors: rgb(255, 0, 0), length: 1
+append after rejected descriptors: true
+delete after rejected descriptors: true
+shrink after rejected descriptors: true
+after shrinking: rgb(0, 0, 0), length: 0

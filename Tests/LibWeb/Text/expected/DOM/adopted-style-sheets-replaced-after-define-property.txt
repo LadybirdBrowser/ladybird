@@ -1,2 +1,3 @@
+define a non-writable index: TypeError
 before replacing: rgb(255, 0, 0)
 after replacing: rgb(0, 0, 0)

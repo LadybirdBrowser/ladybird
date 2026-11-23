@@ -1,0 +1,15 @@
+Replacement registered the font: true
+Truncation removed the font: true
+Append succeeded: true
+Rejected a hole: true
+Rejected length growth: true
+Rejected invalid descriptors on 0: true
+Accepted empty descriptor on 0: true
+Rejected invalid descriptors on length: true
+Accepted empty descriptor on length: true
+Empty descriptor created no index: true
+Appending created a writable element: true
+Ordinary property 01: 7
+Ordinary property 4294967295: 7
+Ordinary property Symbol(): 7
+Final length: 1
