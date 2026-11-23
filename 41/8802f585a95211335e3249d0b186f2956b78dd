@@ -1,0 +1,13 @@
+Ladybird measures an auto-width block button’s contents
+before it treats the button’s width as definite. Blink’s
+ShouldBlockContainerChildStretchAutoInlineSize excludes
+native buttons from ordinary block stretching. WebKit’s
+RenderBox::sizesLogicalWidthToFitContent includes auto-width
+buttons. Gecko’s nsIFrame::IsReplaced recognizes button elements, and
+ReflowInput requests shrink-wrapping for an in-flow replaced box outside
+flex and grid containers.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 sized the flex
+button in the meow.camera reduction to 29.31px, 29.33px, and 24.19px
+respectively. Removing its aspect ratio left each width unchanged. None
+stretched the button to the 400px containing block.
