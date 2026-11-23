@@ -1,0 +1,12 @@
+Ladybird lets the shadow editor and placeholder grow to fit
+the rendered line. Blink computes the editor’s line sizing in
+TextControlInnerEditorElement::CustomStyleForLayoutObject. WebKit’s
+RenderTextControlSingleLine::layout accounts for both the line
+box and its content height. Gecko’s forms.css puts white-space:pre
+on the editing root and placeholder and clips placeholder
+overflow on the inline axis.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 painted
+all 36 rows of the enlarged fallback glyph in the value and
+placeholder of a 60px input. Ladybird’s fixed one-line shadow boxes
+exposed only 20 of those rows.
