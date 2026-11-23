@@ -245,7 +245,11 @@ bool CoreAnimationRemoteLayer::can_show(WindowServerPlacement const&, Content co
         },
         [](NonnullRefPtr<Media::VideoFrame> const& frame) {
             // A frame that a decoder left in memory has no surface that the window server could read.
-            return frame->surface() != nullptr;
+            if (frame->surface() == nullptr)
+                return false;
+            // The window server converts a surface from YCbCr by the matrix it is tagged with, and no tag names the
+            // identity matrix that an RGB surface needs.
+            return frame->cicp().matrix_coefficients() != Media::MatrixCoefficients::Identity;
         });
 }
 

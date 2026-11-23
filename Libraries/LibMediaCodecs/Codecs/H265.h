@@ -78,9 +78,11 @@ public:
         u8 sps_video_parameter_set_id;
         u8 sps_max_sub_layers_minus1;
         u8 sps_max_num_reorder_pics;
+        u8 chroma_format_idc;
         u8 bit_depth_luma;
         u32 pic_width_in_luma_samples;
         u32 pic_height_in_luma_samples;
+        CodingIndependentCodePoints cicp;
     };
 
     struct PictureParameterSet {
