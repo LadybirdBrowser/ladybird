@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Every WebGL method that takes a Float32List, Int32List, or Uint32List takes a view on shared memory too.
+    test(() => {
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        const floats = new Float32Array(memory.buffer, 0, 16);
+        const ints = new Int32Array(memory.buffer, 64, 4);
+        const uints = new Uint32Array(memory.buffer, 80, 4);
+        floats.set([0.25, 0.5, 0.75, 1]);
+        ints.set([1, 2, 3, 4]);
+        uints.set([5, 6, 7, 8]);
+
+        const gl = document.createElement("canvas").getContext("webgl2");
+        function check(label, call) {
+            gl.getError();
+            try {
+                call();
+                println(`${label}: ok, error ${gl.getError()}`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const program = gl.createProgram();
+        for (const [type, source] of [
+            [gl.VERTEX_SHADER, "#version 300 es\nuniform vec4 f; uniform ivec4 i; uniform uvec4 u; uniform mat4 m; void main() { gl_Position = f * m + vec4(i) + vec4(u); }"],
+            [gl.FRAGMENT_SHADER, "#version 300 es\nprecision mediump float; out vec4 color; void main() { color = vec4(1.0); }"],
+        ]) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            gl.attachShader(program, shader);
+        }
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        check("uniform4fv()", () => gl.uniform4fv(gl.getUniformLocation(program, "f"), floats.subarray(0, 4)));
+        check("uniformMatrix4fv()", () => gl.uniformMatrix4fv(gl.getUniformLocation(program, "m"), false, floats));
+        check("uniform4iv()", () => gl.uniform4iv(gl.getUniformLocation(program, "i"), ints));
+        check("uniform4uiv()", () => gl.uniform4uiv(gl.getUniformLocation(program, "u"), uints));
+        check("vertexAttrib4fv()", () => gl.vertexAttrib4fv(0, floats.subarray(0, 4)));
+        check("vertexAttribI4iv()", () => gl.vertexAttribI4iv(1, ints));
+        check("vertexAttribI4uiv()", () => gl.vertexAttribI4uiv(2, uints));
+        check("clearBufferfv()", () => gl.clearBufferfv(gl.COLOR, 0, floats.subarray(0, 4)));
+        check("clearBufferiv()", () => gl.clearBufferiv(gl.STENCIL, 0, ints));
+    });
+</script>
