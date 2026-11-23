@@ -58,6 +58,13 @@ static constexpr size_t GC_MIN_BYTES_THRESHOLD { 32 * 1024 * 1024 };
 // takes to allocate its budget, so meeting this share takes a budget of allocation_rate * cost * (1 - u) / u.
 static constexpr double GC_TARGET_TIME_FRACTION { 0.1 };
 
+// A heap that allocates steadily is collected from the idle timer once its garbage reaches this share of its live
+// size (or GC_MIN_BYTES_THRESHOLD, whichever is more), well before the allocation threshold. Nobody waits for those
+// collections, but they are not free either, so marking for them may take at most GC_STEADY_TIME_FRACTION of the
+// running time. See idle_gc_on_timer().
+static constexpr double GC_STEADY_GROWTH_FACTOR { 0.25 };
+static constexpr double GC_STEADY_TIME_FRACTION { 0.02 };
+
 // Growth factors relative to live cell bytes. The minimum lets the heap triple between collections, which is where a
 // page that allocates slowly ends up. A lower minimum would save more memory, but marking pauses the page for as long
 // as it takes to mark everything alive, and it would do so more often while the page is busy.
@@ -294,6 +301,8 @@ StringView collection_trigger_name(CollectionTrigger trigger)
         return "allocation"sv;
     case CollectionTrigger::IdlePolicy:
         return "idle policy"sv;
+    case CollectionTrigger::SteadyBudget:
+        return "steady budget"sv;
     case CollectionTrigger::AbandonedObjectGraph:
         return "abandoned object graph"sv;
     case CollectionTrigger::Compaction:
@@ -2430,7 +2439,13 @@ void Heap::idle_gc_on_timer()
     // NB: Only a heap whose outermost event loop turns hold no cells ever runs a collection that moves them, so no other
     //     heap looks for blocks to compact.
     bool may_reduce_memory = libgc_compact() && !m_moves_everything && m_outermost_event_loop_turn_holds_no_cells;
-    switch (m_idle_collection_policy.evaluate(m_total_allocated_bytes, m_allocated_bytes_since_last_gc, m_gc_bytes_threshold)) {
+    IdleCollectionPolicy::SteadyBudget steady_budget {
+        .bytes = max(static_cast<size_t>(static_cast<double>(m_marked_cell_bytes) * GC_STEADY_GROWTH_FACTOR), GC_MIN_BYTES_THRESHOLD),
+        .ns_since_last_collection = MonotonicTime::now().nanoseconds() - m_last_collection_end_ns,
+        .min_ns_between_collections = static_cast<i64>(static_cast<double>(m_mark_duration_ns) * (1 - GC_STEADY_TIME_FRACTION) / GC_STEADY_TIME_FRACTION),
+    };
+    auto decision = m_idle_collection_policy.evaluate(m_total_allocated_bytes, m_allocated_bytes_since_last_gc, m_gc_bytes_threshold, steady_budget);
+    switch (decision) {
     case IdleCollectionPolicy::Decision::KeepWaiting:
         // NB: A heap that went quiet with little garbage still has the holes that its last sweep left, which
         //     compacting collections close.
@@ -2445,6 +2460,7 @@ void Heap::idle_gc_on_timer()
         m_idle_gc_timer->stop();
         return;
     case IdleCollectionPolicy::Decision::Collect:
+    case IdleCollectionPolicy::Decision::CollectSteadyBudget:
         // NB: Whatever the event loop has queued, like input or a task, goes first, and the next tick looks again.
         //     What has not reached the queue yet, like a message still in its socket, waits for the collection. It
         //     waits for one tick at most, so that a queue that is never empty does not hold off the collection and the
@@ -2458,7 +2474,7 @@ void Heap::idle_gc_on_timer()
         m_reducing_memory = may_reduce_memory && m_idle_collection_policy.last_tick_was_quiet();
         m_compacted_since_activity = false;
         m_allocated_bytes_since_last_gc = 0;
-        collect_garbage_from_timer(CollectionTrigger::IdlePolicy);
+        collect_garbage_from_timer(decision == IdleCollectionPolicy::Decision::Collect ? CollectionTrigger::IdlePolicy : CollectionTrigger::SteadyBudget);
         m_idle_gc_timer->stop();
         return;
     }

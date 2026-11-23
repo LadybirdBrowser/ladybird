@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/NumericLimits.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 
@@ -20,14 +21,27 @@ namespace GC {
 // to be worth marking the whole live heap. A tick that allocates next to nothing is a quiet one, which collects once
 // a few MiB of garbage are there, however large the heap and its threshold: nobody waits for a quiet heap, and what
 // the garbage holds goes back to the system long before the threshold would have come. The watchdog bounds how long
-// garbage can sit when neither trigger fires, e.g. on a heap that allocates too steadily to show a drop or too
-// slowly to clear the gates.
+// garbage can sit when neither trigger fires, e.g. on a heap that allocates too slowly to clear the gates.
+//
+// A heap that allocates steadily never shows a quiet tick and only shows a rate drop by accident, and its allocation
+// threshold can sit far above its live size. So once the garbage reaches a steady budget, we collect even though the
+// mutator is still busy, as long as enough time has passed since the last collection for marking to stay a small share
+// of the running time.
 class IdleCollectionPolicy {
 public:
     enum class Decision : u8 {
-        KeepWaiting, // No collection yet; leave the idle timer running.
-        Park,        // Nothing left to collect; stop the timer until allocation resumes.
-        Collect,     // Collect now.
+        KeepWaiting,         // No collection yet; leave the idle timer running.
+        Park,                // Nothing left to collect; stop the timer until allocation resumes.
+        Collect,             // Collect now.
+        CollectSteadyBudget, // Collect now, because the garbage reached the steady budget.
+    };
+
+    // When a heap that keeps allocating has piled up enough garbage to collect it anyway.
+    struct SteadyBudget {
+        size_t bytes { NumericLimits<size_t>::max() };
+        // How long it has been since the last collection, and how long it must be at least before this one.
+        i64 ns_since_last_collection { 0 };
+        i64 min_ns_between_collections { 0 };
     };
 
     // Begins a fresh episode. `total_allocated_bytes` is the heap's monotonic allocation counter.
@@ -40,8 +54,9 @@ public:
     }
 
     // Evaluates one idle-timer tick. `total_allocated_bytes` is the monotonic allocation counter, `garbage_bytes` is
-    // the amount allocated since the last collection, and `gc_threshold` is the allocation-driven GC threshold.
-    Decision evaluate(u64 total_allocated_bytes, size_t garbage_bytes, size_t gc_threshold)
+    // the amount allocated since the last collection, `gc_threshold` is the allocation-driven GC threshold, and
+    // `steady_budget` says when garbage is worth collecting while the heap is still allocating.
+    Decision evaluate(u64 total_allocated_bytes, size_t garbage_bytes, size_t gc_threshold, SteadyBudget steady_budget)
     {
         if (garbage_bytes == 0)
             return Decision::Park;
@@ -58,7 +73,15 @@ public:
 
         if ((rate_dropped && enough_garbage) || (m_last_tick_was_quiet && enough_garbage_for_a_quiet_heap) || watchdog_elapsed)
             return Decision::Collect;
+        if (garbage_bytes >= steady_budget.bytes && steady_budget.ns_since_last_collection >= steady_budget.min_ns_between_collections)
+            return Decision::CollectSteadyBudget;
         return Decision::KeepWaiting;
+    }
+
+    // Evaluates one idle-timer tick for a heap that never collects on a steady budget.
+    Decision evaluate(u64 total_allocated_bytes, size_t garbage_bytes, size_t gc_threshold)
+    {
+        return evaluate(total_allocated_bytes, garbage_bytes, gc_threshold, SteadyBudget {});
     }
 
     // Whether the last tick that was evaluated allocated next to nothing.
