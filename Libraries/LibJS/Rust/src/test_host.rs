@@ -14,7 +14,7 @@ use std::sync::atomic::AtomicU32;
 
 use num_bigint::BigInt;
 
-pub fn validate_regex(_pattern: &[u16], _flags: &[u16]) -> Result<(), String> {
+pub fn validate_regex(_pattern: &[u16], _flags: &[u16]) -> Result<(), crate::host::RegexError> {
     Ok(())
 }
 

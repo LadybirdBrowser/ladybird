@@ -24,9 +24,17 @@ pub fn js_number_to_utf16(value: f64) -> Utf16String {
     Utf16String::from_utf16(&implementation::number_to_utf16(value))
 }
 
+/// Why a regex pattern+flags did not pass the check of the host's regex engine.
+pub enum RegexError {
+    /// The pattern or flags are invalid, with the message of the error.
+    Invalid(String),
+    /// The stack that is left does not hold the check.
+    OutOfStack,
+}
+
 /// Check a regex pattern+flags with the host's regex engine, so that an invalid
-/// one becomes an early error. Returns the error message if it is invalid.
-pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), String> {
+/// one becomes an early error.
+pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), RegexError> {
     implementation::validate_regex(pattern, flags)
 }
 
