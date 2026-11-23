@@ -14,6 +14,7 @@
 //! which is the shape the compiler turns into vector instructions for whatever the target CPU has.
 
 use crate::token::Position;
+use ak::Utf16View;
 
 /// A code unit of the input stream, in either of the forms it is stored in.
 pub trait CodeUnit: Copy + Default + Eq + Into<u16> + From<u8> {
@@ -28,6 +29,8 @@ pub trait CodeUnit: Copy + Default + Eq + Into<u16> + From<u8> {
     /// # Safety
     /// `BLOCK_SIZE` code units must be readable at `code_units`.
     unsafe fn surrogates_in_block(code_units: *const Self) -> u32;
+
+    fn view(code_units: &[Self]) -> Utf16View<'_>;
 }
 
 impl CodeUnit for u8 {
@@ -40,6 +43,11 @@ impl CodeUnit for u8 {
     unsafe fn surrogates_in_block(_: *const u8) -> u32 {
         0
     }
+
+    #[inline(always)]
+    fn view(code_units: &[u8]) -> Utf16View<'_> {
+        Utf16View::Latin1(code_units)
+    }
 }
 
 impl CodeUnit for u16 {
@@ -51,6 +59,11 @@ impl CodeUnit for u16 {
     #[inline(always)]
     unsafe fn surrogates_in_block(code_units: *const u16) -> u32 {
         unsafe { block::surrogates(code_units) }
+    }
+
+    #[inline(always)]
+    fn view(code_units: &[u16]) -> Utf16View<'_> {
+        Utf16View::Utf16(code_units)
     }
 }
 
@@ -243,6 +256,16 @@ fn find_first<T: CodeUnit, const N: usize>(code_units: &[T], stops: [u8; N], see
     let stop = (stops | 1 << remaining).trailing_zeros();
     *seen_non_ascii |= non_ascii & ((1 << stop) - 1) != 0;
     offset + stop as usize
+}
+
+/// The bytes of `name`, which has to be ASCII, if they fit in `buffer`.
+#[inline(always)]
+pub fn ascii_name_bytes<'a, T: CodeUnit, const N: usize>(name: &[T], buffer: &'a mut [u8; N]) -> Option<&'a [u8]> {
+    let bytes = buffer.get_mut(..name.len())?;
+    for (byte, &code_unit) in bytes.iter_mut().zip(name) {
+        *byte = code_unit.into() as u8;
+    }
+    Some(bytes)
 }
 
 /// A run of code units at the start of some input.
