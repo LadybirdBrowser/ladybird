@@ -7,6 +7,7 @@
 //! Finds a document's encoding declaration before the HTML parser starts, by tokenizing the document's first bytes as
 //! the parser will: the prescan proposed in https://github.com/whatwg/html/issues/6962.
 
+use crate::input::InputSlice;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::preload_scanner::tokenizer_state_after_start_tag;
@@ -56,7 +57,7 @@ pub struct MetaCharsetScanner {
 impl MetaCharsetScanner {
     pub fn new(scripting_enabled: bool) -> Self {
         // The bytes arrive in pieces, so the end of the ones so far isn't the end of the input until the caller says so.
-        let mut tokenizer = HtmlTokenizer::new(Vec::new());
+        let mut tokenizer = HtmlTokenizer::new(Vec::<u8>::new());
         tokenizer.set_input_stream_closed(false);
         Self {
             tokenizer,
@@ -83,7 +84,7 @@ impl MetaCharsetScanner {
         }
         // Bytes before a declaration only ever matter as ASCII, which every encoding a declaration can name reads the
         // same way, so reading them as Latin-1 tokenizes them as the parser will.
-        self.tokenizer.append_latin1_input(bytes);
+        self.tokenizer.append_input(InputSlice::Latin1(bytes));
         if input_complete {
             self.tokenizer.set_input_stream_closed(true);
         }
