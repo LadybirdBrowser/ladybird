@@ -2722,21 +2722,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         contributions
     }
 
-    pub(crate) fn outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
-        &self,
-        sized: SizedBox<'_>,
-        available_block_size: AvailableSize,
-        constraints: ContainingBlockConstraints,
-    ) -> OuterInlineContributions {
-        let legend = sized.node;
-        let content_sizes = self.content_inline_sizes(sized, constraints, None).sizes;
-        OuterInlineContributions {
-            min_content_inline_size: content_sizes.min,
-            max_content_inline_size: content_sizes.max,
-            ..self.outer_inline_contributions(legend, available_block_size, constraints)
-        }
-    }
-
     pub(crate) fn block_level_table_wrapper_outer_inline_contributions(
         &self,
         sized: SizedBox<'_>,
