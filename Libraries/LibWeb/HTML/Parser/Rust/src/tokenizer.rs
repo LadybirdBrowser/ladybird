@@ -10,7 +10,6 @@ use crate::code_units::CodeUnits;
 use crate::code_units::InputRun;
 use crate::entities::NamedCharacterReferenceMatcher;
 use crate::scan;
-use crate::token::Attribute;
 use crate::token::DoctypeData;
 use crate::token::HtmlName;
 use crate::token::Position;
@@ -1290,17 +1289,13 @@ impl HtmlTokenizer {
                     }
                     Some(0x3D) => {
                         // '=' - parse error
-                        self.current_token
-                            .attributes_mut()
-                            .push(Attribute::with_spare_value_buffer());
+                        self.current_token.start_new_attribute();
                         self.current_builder.push_ascii(b'=');
                         self.state = State::AttributeName;
                         continue;
                     }
                     Some(_) => {
-                        self.current_token
-                            .attributes_mut()
-                            .push(Attribute::with_spare_value_buffer());
+                        self.current_token.start_new_attribute();
                         self.reconsume(State::AttributeName);
                         continue;
                     }
@@ -1398,9 +1393,7 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_token
-                            .attributes_mut()
-                            .push(Attribute::with_spare_value_buffer());
+                        self.current_token.start_new_attribute();
                         self.reconsume(State::AttributeName);
                         continue;
                     }

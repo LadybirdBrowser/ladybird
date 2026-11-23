@@ -114,16 +114,6 @@ pub struct Attribute {
     pub value_end_offset: SourceOffset,
 }
 
-impl Attribute {
-    /// An empty attribute, with a spare value buffer when a dropped tag token left one.
-    pub fn with_spare_value_buffer() -> Self {
-        Self {
-            value: SPARE_ATTRIBUTE_VALUES.with_borrow_mut(Vec::pop).unwrap_or_default(),
-            ..Default::default()
-        }
-    }
-}
-
 const MAX_SPARE_ATTRIBUTE_LISTS: usize = 4;
 const MAX_SPARE_ATTRIBUTE_VALUES: usize = 64;
 // Buffers grown past these sizes by an unusually large tag are freed rather than kept, so the spare
@@ -137,13 +127,25 @@ thread_local! {
     static SPARE_ATTRIBUTE_VALUES: RefCell<Vec<CodeUnits>> = const { RefCell::new(Vec::new()) };
 }
 
-/// The attributes of a tag token, backed by a spare buffer when one is available.
+/// The attributes of a tag token, backed by a spare buffer when there is one and the tag has attributes.
 #[derive(Debug)]
 pub struct AttributeList(Vec<Attribute>);
 
 impl AttributeList {
     pub fn new() -> Self {
-        Self(SPARE_ATTRIBUTE_LISTS.with_borrow_mut(Vec::pop).unwrap_or_default())
+        Self(Vec::new())
+    }
+
+    /// Adds an empty attribute, with a spare value buffer when a dropped tag token left one.
+    pub fn start_new_attribute(&mut self) {
+        // NB: Most tags have no attributes, so a list only takes a spare buffer once it has an attribute to hold.
+        if self.0.capacity() == 0 {
+            self.0 = SPARE_ATTRIBUTE_LISTS.with_borrow_mut(Vec::pop).unwrap_or_default();
+        }
+        self.0.push(Attribute {
+            value: SPARE_ATTRIBUTE_VALUES.with_borrow_mut(Vec::pop).unwrap_or_default(),
+            ..Default::default()
+        });
     }
 }
 
@@ -563,6 +565,14 @@ impl Token {
     }
 
     #[inline(always)]
+    pub fn start_new_attribute(&mut self) {
+        match &mut self.payload {
+            TokenPayload::Tag { attributes, .. } => attributes.start_new_attribute(),
+            _ => panic!("start_new_attribute called on non-tag token"),
+        }
+    }
+
+    #[inline(always)]
     pub fn attributes_mut(&mut self) -> &mut Vec<Attribute> {
         match &mut self.payload {
             TokenPayload::Tag { attributes, .. } => &mut attributes.0,
@@ -642,8 +652,13 @@ mod spare_buffer_tests {
         drop(list);
         assert_eq!(spare_value_capacities().len(), 2);
         assert_eq!(spare_list_capacities().len(), 1);
-        assert!(AttributeList::new().capacity() >= 2);
-        assert!(Attribute::with_spare_value_buffer().value.capacity() >= 16);
+        let mut list = AttributeList::new();
+        assert_eq!(list.capacity(), 0);
+        assert_eq!(spare_list_capacities().len(), 1);
+        list.start_new_attribute();
+        assert!(list.capacity() >= 2);
+        assert!(list[0].value.capacity() >= 16);
+        assert!(spare_list_capacities().is_empty());
     }
 
     #[test]
