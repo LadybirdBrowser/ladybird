@@ -85,9 +85,28 @@ pub(crate) struct ResolvedBackground<'a> {
     pub border: FfiPixelBox,
     pub layers: Vec<ResolvedBackgroundLayer<'a>>,
     pub paintable_layer_count: usize,
-    pub needs_text_clip: bool,
+    pub color_clips_to_text: bool,
     pub background_rect: CssPixelRect,
     pub color: libgfx_rust::Color,
+}
+
+// https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
+impl ResolvedBackground<'_> {
+    pub fn clips_any_part_to_text(&self) -> bool {
+        self.color_clips_to_text
+            || self
+                .layers
+                .iter()
+                .any(|layer| layer.clip == css_enums::background_box::TEXT)
+    }
+
+    pub fn clips_every_part_to_text(&self) -> bool {
+        self.color_clips_to_text
+            && self
+                .layers
+                .iter()
+                .all(|layer| layer.clip == css_enums::background_box::TEXT)
+    }
 }
 
 pub(crate) struct BackgroundPaintInputs<'a> {
@@ -757,7 +776,7 @@ fn resolve_layers<'a, O: Observer>(
         border,
         layers: resolved_layers,
         paintable_layer_count,
-        needs_text_clip: background_color_clip == css_enums::background_box::TEXT,
+        color_clips_to_text: background_color_clip == css_enums::background_box::TEXT,
         background_rect: border_rect,
         color: background_color,
     }
@@ -949,7 +968,7 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
             border: FfiPixelBox::default(),
             layers: Vec::new(),
             paintable_layer_count: 0,
-            needs_text_clip: false,
+            color_clips_to_text: false,
             background_rect: CssPixelRect::default(),
             color: libgfx_rust::Color(0),
         },

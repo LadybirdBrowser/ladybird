@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Backgrounds and Borders: background-clip color backgrounds</title>
+    <link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/reference/background-clip-text-and-blend-mode-ref.html">
+    <meta name="fuzzy" content="maxDifference=0-90;totalPixels=0-4500">
+    <link rel="help" href="https://drafts.csswg.org/css-backgrounds/#background-clip">
+    <style>
+        .box {
+            margin: 20px;
+            width: 400px;
+            border: 1px solid black;
+            padding: 20px;
+            font-size: 40pt;
+            font-weight: 900;
+            font-family: sans-serif;
+            text-align: center;
+            color: transparent;
+        }
+
+        .single-background {
+            background-clip: text;
+            background-image: url('resources/green-100.png');
+            background-color: blue;
+            background-blend-mode: lighten;
+        }
+
+        .middle-background {
+            background-clip: text, border-box;
+            background-image: url('resources/green-100.png'), url('resources/blue.png');
+            background-color: cyan;
+            background-blend-mode: difference, lighten;
+        }
+
+        .last-background {
+            background-clip: border-box, text;
+            background-image: url('resources/green-100.png'), url('resources/blue.png');
+            background-color: yellow;
+            background-blend-mode: difference, lighten;
+        }
+    </style>
+</head>
+<body>
+    <div class="box single-background">Cyan text on white</div>
+    <div class="box middle-background">Blue text on cyan</div>
+    <div class="box last-background">Red text on lime</div>
+</body>
+</html>

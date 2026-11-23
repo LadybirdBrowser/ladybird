@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-clip-text-multiple-layers-ref.html" />
+<style>
+    body {
+        margin: 0;
+        font: bold 40px/1 sans-serif;
+    }
+    .box {
+        position: relative;
+        width: 300px;
+        height: 50px;
+        margin-bottom: 10px;
+        color: transparent;
+        --gradient: linear-gradient(90deg, red, blue);
+        --yellow: linear-gradient(yellow, yellow);
+        --square: linear-gradient(rgb(0 128 0 / 60%), rgb(0 128 0 / 60%));
+    }
+    #top {
+        background-image: var(--gradient), var(--yellow);
+        background-clip: text, border-box;
+    }
+    #middle {
+        background-image: var(--square), var(--gradient), var(--yellow);
+        background-size: 60px 50px, auto, auto;
+        background-repeat: no-repeat;
+        background-clip: border-box, text, border-box;
+    }
+    #bottom {
+        background-image: var(--square), var(--gradient);
+        background-size: 60px 50px, auto;
+        background-repeat: no-repeat;
+        background-clip: border-box, text;
+    }
+    #color {
+        background-image: var(--gradient), var(--yellow);
+        background-size: auto, 150px 50px;
+        background-repeat: no-repeat;
+        background-clip: text, border-box;
+        background-color: cyan;
+    }
+</style>
+<div class="box" id="top">Text on top</div>
+<div class="box" id="middle">Text between</div>
+<div class="box" id="bottom">Text below</div>
+<div class="box" id="color">Over a color</div>
