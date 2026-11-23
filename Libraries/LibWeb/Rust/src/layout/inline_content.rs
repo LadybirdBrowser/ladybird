@@ -233,6 +233,7 @@ impl GlyphRunRecord {
     pub fn glyph_intercepts(
         &self,
         scale: f32,
+        origin_y: f32,
         y_top: f32,
         y_bottom: f32,
         ignores_cluster: impl Fn(u32) -> bool,
@@ -241,6 +242,7 @@ impl GlyphRunRecord {
             &self.font,
             &self.glyphs,
             scale,
+            origin_y,
             y_top,
             y_bottom,
             ignores_cluster,

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 13px serif;
+    }
+    u {
+        text-decoration-color: rgb(0, 0, 255);
+    }
+</style>
+<div id="rows"></div>
+<script>
+    test(() => {
+        for (const offset of [-1, 1]) {
+            rows.innerHTML = "";
+            rows.style.textUnderlineOffset = `${offset}px`;
+            for (let i = 0; i < 8; ++i) {
+                const spacer = document.createElement("div");
+                spacer.style.height = `${20 + i * 0.125}px`;
+                const row = document.createElement("div");
+                row.innerHTML = "<u>gypsy jog</u>";
+                rows.append(spacer, row);
+            }
+            const segmentsPerRow = new Map();
+            for (const line of internals.dumpDisplayList().split("\n")) {
+                const match = line.match(/FillRect.* rect=\[-?\d+,(-?\d+) \d+x\d+\] color=rgb\(0, 0, 255\)/);
+                if (match)
+                    segmentsPerRow.set(match[1], (segmentsPerRow.get(match[1]) ?? 0) + 1);
+            }
+            const counts = [...segmentsPerRow.values()];
+            println(`underline segments per row at text-underline-offset ${offset}px: ${counts.join(" ")}`);
+        }
+    });
+</script>

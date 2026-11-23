@@ -409,7 +409,7 @@ fn compute_skip_ink_segments<O: Observer>(
     } else {
         Vec::new()
     };
-    let intervals = run.glyph_intercepts(scale as f32, y_top, y_bottom, |cluster_start| {
+    let intervals = run.glyph_intercepts(scale as f32, blob_origin_y, y_top, y_bottom, |cluster_start| {
         cjk_script_runs.get(cluster_start as usize).copied().unwrap_or(false)
     });
     if intervals.is_empty() {
