@@ -50,6 +50,7 @@
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
 #include <LibWebView/NoOpNotificationBackend.h>
+#include <LibWebView/SystemDescription.h>
 #include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -1407,6 +1408,9 @@ void Application::will_create_event_loop(Main::Arguments& arguments)
     // NB: Qt names the application after its executable by default, but accessibility tools and window managers know
     //     it by this name.
     QCoreApplication::setApplicationName(QStringLiteral("Ladybird"));
+    auto qt_version = WebView::version_number_from(StringView { qVersion(), strlen(qVersion()) });
+    auto ui_toolkit = qt_version.is_empty() ? "Qt"_string : MUST(String::formatted("Qt {}", qt_version));
+    WebView::set_ui_toolkit_for_reports(move(ui_toolkit), ak_string_from_qstring(QGuiApplication::platformName()));
 #if defined(AK_OS_MACOS)
     // NB: Qt owns its converters, and deletes them along with the QApplication.
     new PNGMimeConverter;

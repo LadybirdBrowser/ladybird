@@ -22,6 +22,7 @@
 #include <LibWebView/Options.h>
 #include <LibWebView/ReportDetail.h>
 #include <LibWebView/ReportSubmission.h>
+#include <LibWebView/SystemDescription.h>
 
 namespace WebView {
 
@@ -84,6 +85,7 @@ private:
     void start_submission();
 
     Page m_page;
+    Vector<ReportedSystemDetail> m_system;
     Optional<String> m_page_dumps;
     Optional<String> m_platform_features;
     Optional<ReportSubmission::Payload> m_payload;

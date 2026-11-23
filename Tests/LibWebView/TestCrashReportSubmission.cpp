@@ -27,6 +27,18 @@ constexpr auto report_text = "Ladybird crash report, format 1\n"
                              "Process: ladybird-render\n"
                              "Version: 1.0\n"
                              "Build configuration: Release\n"
+                             "Kernel release: 6.17.0\n"
+                             "OS version: 26.04\n"
+                             "Distribution: ubuntu\n"
+                             "Install method: flatpak\n"
+                             "Flatpak runtime: org.kde.Platform 6.10\n"
+                             "Virtual machine: no\n"
+                             "Logical CPUs: 8\n"
+                             "Memory: 16 GiB\n"
+                             "Desktop: KDE\n"
+                             "Session type: wayland\n"
+                             "UI toolkit: Qt 6.10.1\n"
+                             "UI platform: wayland\n"
                              "Platform features: [{\"id\":\"gpu_painting\",\"state\":\"Enabled\"}]\n"
                              "GPU device: NVIDIA GeForce RTX 3090 (10de:2204)\n"
                              "GPU driver: NVIDIA 615.78.08\n"
@@ -136,6 +148,18 @@ TEST_CASE(crash_report_submission)
     VERIFY(manifest_field(manifest, "url"sv)->as_string() == "https://example.com/"sv);
     VERIFY(manifest_field(manifest, "signal"sv)->as_string() == "SIGSEGV"sv);
     VERIFY(manifest_field(manifest, "process"sv)->as_string() == "ladybird-render"sv);
+    VERIFY(manifest_field(manifest, "kernel_release"sv)->as_string() == "6.17.0"sv);
+    VERIFY(manifest_field(manifest, "os_version"sv)->as_string() == "26.04"sv);
+    VERIFY(manifest_field(manifest, "distribution"sv)->as_string() == "ubuntu"sv);
+    VERIFY(manifest_field(manifest, "install_method"sv)->as_string() == "flatpak"sv);
+    VERIFY(manifest_field(manifest, "flatpak_runtime"sv)->as_string() == "org.kde.Platform 6.10"sv);
+    VERIFY(manifest_field(manifest, "virtual_machine"sv)->as_string() == "no"sv);
+    VERIFY(manifest_field(manifest, "logical_cpus"sv)->as_string() == "8"sv);
+    VERIFY(manifest_field(manifest, "memory"sv)->as_string() == "16 GiB"sv);
+    VERIFY(manifest_field(manifest, "desktop"sv)->as_string() == "KDE"sv);
+    VERIFY(manifest_field(manifest, "session_type"sv)->as_string() == "wayland"sv);
+    VERIFY(manifest_field(manifest, "ui_toolkit"sv)->as_string() == "Qt 6.10.1"sv);
+    VERIFY(manifest_field(manifest, "ui_platform"sv)->as_string() == "wayland"sv);
     auto features = manifest_field(manifest, "platform_features"sv)->as_array();
     VERIFY(features.size() == 1);
     VERIFY(features.at(0).as_object().get_string("id"sv) == "gpu_painting"sv);

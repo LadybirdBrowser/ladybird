@@ -29,6 +29,11 @@ static constexpr auto report_text = "Ladybird crash report, format 1\n"
                                     "Version: 1.0\n"
                                     "Platform: macOS 26.0\n"
                                     "Architecture: arm64\n"
+                                    "Kernel release: 25.1.0\n"
+                                    "OS version: 26.1\n"
+                                    "Install method: app\n"
+                                    "UI toolkit: Qt 6.10.1\n"
+                                    "UI platform: cocoa\n"
                                     "Git commit: 9458821e43baaede478000e6e4ab472cc8b98d92\n"
                                     "Build options: BUILD_SHARED_LIBS=ON; ENABLE_FUZZERS=OFF\n"
                                     "Verification failed: value != 0\n"
@@ -91,7 +96,7 @@ TEST_CASE(opening_a_report_shows_what_crashed)
     };
     // A signal's name and number make up one field. What only helps to rebuild the crashed binary, such as its build
     // options, and what repeats another field, such as the captured signal, are left to the report's text.
-    Array<ExpectedField, 8> expected_fields { {
+    Array<ExpectedField, 13> expected_fields { {
         { "Crash date"sv, "2026-10-01 14:34:56"sv, false },
         { "Verification failed"sv, "value != 0"sv, true },
         { "Termination signal"sv, "SIGTRAP (5)"sv, false },
@@ -99,6 +104,11 @@ TEST_CASE(opening_a_report_shows_what_crashed)
         { "Platform"sv, "macOS 26.0"sv, false },
         { "Process"sv, "ladybird-render"sv, false },
         { "Architecture"sv, "arm64"sv, false },
+        { "Kernel release"sv, "25.1.0"sv, false },
+        { "OS version"sv, "26.1"sv, false },
+        { "Install method"sv, "app"sv, false },
+        { "UI toolkit"sv, "Qt 6.10.1"sv, false },
+        { "UI platform"sv, "cocoa"sv, false },
         { "Git commit"sv, "9458821e43baaede478000e6e4ab472cc8b98d92"sv, true },
     } };
     EXPECT_EQ(report.fields.size(), expected_fields.size());

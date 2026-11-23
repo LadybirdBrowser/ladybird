@@ -277,25 +277,6 @@ static CountedPeriods periods_begun_since(UnixDateTime earlier, UnixDateTime now
     return { .day = days(now) > days(earlier), .week = weeks(now) > weeks(earlier), .month = month(now) > month(earlier) };
 }
 
-static StringView install_method_name(InstallMethod install_method)
-{
-    switch (install_method) {
-    case InstallMethod::MacOSApp:
-        return "app"sv;
-    case InstallMethod::DEB:
-        return "deb"sv;
-    case InstallMethod::RPM:
-        return "rpm"sv;
-    case InstallMethod::Flatpak:
-        return "flatpak"sv;
-    case InstallMethod::AppImage:
-        return "appimage"sv;
-    case InstallMethod::Source:
-        return "source"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static void append_member(StringBuilder& builder, StringView key, StringView value)
 {
     if (!builder.is_empty())

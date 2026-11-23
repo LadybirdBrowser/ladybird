@@ -6,6 +6,7 @@
 
 #include "HeadlessTest.h"
 #include "ReportServer.h"
+#include <AK/AnyOf.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -83,6 +84,7 @@ void verify_diagnostics()
     VERIFY(diagnostics.contains("\nDevice pixel ratio: 2\n"sv));
     VERIFY(diagnostics.contains("\nZoom level: 110%\n"sv));
     VERIFY(diagnostics.contains("\nGit commit: "sv));
+    VERIFY(diagnostics.contains("\nInstall method: "sv));
 
     // The platform features are only in a report whose sender chose to include them.
     constexpr auto platform_features = "Platform features: [{\"id\":\"gpu_painting\",\"state\":\"Enabled\"}]\nPlatform facts: {}\n"sv;
@@ -109,6 +111,7 @@ void verify_diagnostics()
     VERIFY(details[0].value == "https://example.com/broken?query"sv);
     VERIFY(details[1].label == "User agent"sv);
     VERIFY(details[1].is_code);
+    VERIFY(any_of(details, [](auto const& detail) { return detail.label == "Install method"sv && !detail.value.is_empty(); }));
 }
 
 }
@@ -165,6 +168,7 @@ TEST_CASE(web_compat_report)
     VERIFY(manifest_field(manifest, "zoom_level"sv)->get_double_with_precision_loss() == 1.1);
     VERIFY(manifest_field(manifest, "platform"sv).has_value());
     VERIFY(manifest_field(manifest, "git_commit"sv).has_value());
+    VERIFY(manifest_field(manifest, "install_method"sv).has_value());
     // The platform features are only sent when chosen.
     VERIFY(!manifest_field(manifest, "platform_features"sv).has_value());
 
