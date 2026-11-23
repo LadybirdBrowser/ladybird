@@ -5,6 +5,7 @@
  */
 
 #include <UI/Qt/WaylandRegistry.h>
+#include <UI/Qt/WaylandWindow.h>
 
 #include <QGuiApplication>
 
@@ -14,10 +15,11 @@ namespace Ladybird {
 
 OwnPtr<WaylandRegistry> WaylandRegistry::create()
 {
-    auto* wayland_application = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
-    if (!wayland_application || !wayland_application->display())
+    auto* application = wayland_application();
+    auto* display = application ? application->display() : nullptr;
+    if (!display)
         return nullptr;
-    return adopt_own(*new WaylandRegistry(wayland_application->display()));
+    return adopt_own(*new WaylandRegistry(display));
 }
 
 WaylandRegistry::WaylandRegistry(wl_display* display)
