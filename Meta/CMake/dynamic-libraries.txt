@@ -1,3 +1,3 @@
 # Libraries that builds link dynamically besides those in lgpl-libraries.txt, by the names of their vcpkg ports.
-# Qt and Ladybird must share one ICU, as Ladybird hands the ICU data to it once per process.
+# Qt and Ladybird share one ICU, so its data is in one library rather than linked into every executable.
 icu
