@@ -28,6 +28,16 @@ Gfx::IntSize VideoSurface::size() const
 #endif
 }
 
+Subsampling VideoSurface::subsampling() const
+{
+#if defined(AK_OS_MACOS)
+    if (auto format = Gfx::biplanar_pixel_format(m_io_surface.pixel_format()); format.has_value())
+        return format->subsampling;
+#endif
+    // Every other surface a decoder hands out is NV12 or P010.
+    return Subsampling::yuv420();
+}
+
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VideoSurface::read_back_bitmap([[maybe_unused]] CodingIndependentCodePoints const& cicp) const
 {
 #ifdef AK_OS_MACOS

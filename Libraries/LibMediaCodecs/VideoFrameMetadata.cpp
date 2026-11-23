@@ -51,6 +51,9 @@ bool VideoFrameMetadata::is_valid() const
         return false;
     if (video_frame_exceeds_limits(size.width(), size.height()))
         return false;
+    // No frame is made with an identity matrix on subsampled planes.
+    if (color_metadata.cicp.matrix_coefficients() == MatrixCoefficients::Identity && subsampling != Subsampling::yuv444())
+        return false;
     return color_metadata.cicp.is_valid_or_unspecified();
 }
 

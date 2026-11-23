@@ -66,7 +66,7 @@ SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints cicp)
     case Media::MatrixCoefficients::SMPTE2085:
         return full_range ? kYDZDX_Full_SkYUVColorSpace : kYDZDX_Limited_SkYUVColorSpace;
     case Media::MatrixCoefficients::Identity:
-        return kIdentity_SkYUVColorSpace;
+        return cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio ? kGBR_Limited_SkYUVColorSpace : kGBR_Full_SkYUVColorSpace;
     default:
         // Default to BT.709 for unsupported matrix coefficients
         return full_range ? kRec709_Full_SkYUVColorSpace : kRec709_Limited_SkYUVColorSpace;

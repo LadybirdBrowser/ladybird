@@ -36,6 +36,9 @@ VideoFrame::VideoFrame(
     , m_color_metadata(move(color_metadata))
     , m_storage(move(storage))
 {
+    // Only a picture without chroma subsampling can hold RGB, so an identity matrix on any other is a mislabel.
+    if (m_color_metadata.cicp.matrix_coefficients() == MatrixCoefficients::Identity && m_subsampling != Subsampling::yuv444())
+        m_color_metadata.cicp.set_matrix_coefficients(MatrixCoefficients::Unspecified);
 }
 
 VideoFrame::~VideoFrame() = default;
