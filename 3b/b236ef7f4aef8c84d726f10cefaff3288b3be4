@@ -1,0 +1,10 @@
+With line-break: anywhere, Ladybird makes every grapheme cluster
+boundary a soft wrap opportunity, which also counts toward the
+min-content size. Blink switches its break iterator to LineBreakType::
+kBreakCharacter for LineBreak::kAnywhere in LineBreaker::
+SetCurrentStyleForce(), WebKit handles LineBreak::Anywhere in TextUtil
+and InlineFormattingUtils::isAtSoftWrapOpportunity(), and Gecko’s
+nsTextFrame sets its break mode for StyleLineBreak::Anywhere. On
+wpt.fyi’s stable runs of 2026-11-20 and 2026-11-21, Chrome 158 passes
+all 42 WPT line-break-anywhere tests, and Firefox 160 and Safari 27.2
+pass 40; Ladybird passes the 35 imported here.
