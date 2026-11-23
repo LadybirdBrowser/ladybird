@@ -387,6 +387,12 @@ describe("scoping in modules", () => {
         const result = expectModulePassed("./module-level-bindings-with-top-level-await.mjs");
         expect(result.counterAfterAwait).toBe(11);
     });
+
+    test("direct eval at the top level of a module with top-level await is not in a function", () => {
+        const result = expectModulePassed("./eval-with-top-level-await.mjs");
+        expect(result.errors).toEqual(["SyntaxError", "SyntaxError", "SyntaxError", "SyntaxError"]);
+        expect(result.thisValues).toEqual([undefined, undefined]);
+    });
 });
 
 describe("top-level await", () => {
