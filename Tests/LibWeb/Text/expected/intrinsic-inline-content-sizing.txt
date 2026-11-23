@@ -89,8 +89,8 @@ negative indent wider than first line in a block: 30x20, 50x20, 30x20, 30x20
 negative margin wider than first line in a block: 30x20, 50x20, 30x20, 30x20
 column spanner: 210x40, 110x80, 210x40, 120x80
 fieldset: 174x42, 64x82, 174x42, 120x62
-fieldset legend with min-width: 34x42, 34x42, 34x42, 34x42
-fieldset legend with max-width: 174x42, 64x82, 174x42, 120x62
+fieldset legend with min-width: 214x42, 214x42, 214x42, 214x42
+fieldset legend with max-width: 64x82, 64x82, 64x82, 64x82
 block button: 108x42, 58x62, 108x42, 108x42
 list item: 120x20, 70x40, 120x20, 120x20
 percentage height through anonymous block: 150x100, 100x100, 150x100, 120x100

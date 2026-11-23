@@ -1,0 +1,60 @@
+<!doctype html>
+<style>
+    fieldset { margin: 0; border: 0; padding: 0; inline-size: 200px; }
+    legend { margin: 0; border: 0; padding: 0 2px; overflow: hidden; }
+    span { display: block; inline-size: 100px; block-size: 10px; }
+</style>
+<body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function measure(name, legendStyle, fieldsetStyle = "") {
+            const fieldset = document.createElement("fieldset");
+            const legend = document.createElement("legend");
+            legend.append(document.createElement("span"));
+            fieldset.style.cssText = fieldsetStyle;
+            legend.style.cssText = legendStyle;
+            fieldset.append(legend);
+            document.body.append(fieldset);
+            const vertical = getComputedStyle(fieldset).writingMode !== "horizontal-tb";
+            const axis = vertical ? "height" : "width";
+            println(name + ": " + fieldset.getBoundingClientRect()[axis] + " / " + legend.getBoundingClientRect()[axis]);
+            fieldset.remove();
+        }
+        measure("auto", "");
+        measure("maximum", "max-width: 20px");
+        measure("minimum", "min-width: 120px");
+        measure("minimum wins", "min-width: 40px; max-width: 20px");
+        measure("percentage", "max-inline-size: 25%");
+        measure("border box", "box-sizing: border-box; max-width: 20px");
+        measure("zero", "max-width: 0; padding: 0");
+        measure("explicit width", "width: 15px; max-width: 20px");
+        measure("flex", "display: flex; max-width: 20px");
+        measure("vertical", "max-inline-size: 20px; padding: 0", "writing-mode: vertical-rl");
+        measure("intrinsic maximum", "max-width: 20px", "inline-size: max-content");
+        measure("intrinsic minimum", "min-width: 120px", "inline-size: min-content");
+
+        const fieldset = document.createElement("fieldset");
+        const legend = document.createElement("legend");
+        const child = document.createElement("span");
+        child.style.inlineSize = "50%";
+        legend.append("A long label for the outlined field", child);
+        legend.style.cssText = "padding: 0; white-space: nowrap; margin-inline: auto";
+        fieldset.append(legend);
+        document.body.append(fieldset);
+        for (const limit of ["0.01px", "40px"]) {
+            legend.style.maxInlineSize = limit;
+            const box = legend.getBoundingClientRect();
+            const start = box.left - fieldset.getBoundingClientRect().left;
+            println(limit + ": width " + Math.round(box.width) + ", offset " + Math.round(start)
+                + ", child " + Math.round(child.getBoundingClientRect().width));
+        }
+        legend.style.marginInline = "8px";
+        for (const direction of ["ltr", "rtl"]) {
+            fieldset.dir = direction;
+            const left = legend.getBoundingClientRect().left - fieldset.getBoundingClientRect().left;
+            println(direction + " fixed margins: left " + left);
+        }
+        fieldset.remove();
+    });
+</script>
