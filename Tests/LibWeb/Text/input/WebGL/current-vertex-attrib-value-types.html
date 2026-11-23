@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // getVertexAttrib(CURRENT_VERTEX_ATTRIB) returns the current value of an attribute as the type of the
+    // vertexAttrib*() call that set it last.
+    test(() => {
+        const show = value => `${value.constructor.name}[${Array.from(value).join(", ")}]`;
+        const gl = document.createElement("canvas").getContext("webgl2");
+        const current = index => show(gl.getVertexAttrib(index, gl.CURRENT_VERTEX_ATTRIB));
+
+        println(`never set: ${current(0)}`);
+        gl.vertexAttrib4f(0, 0.25, 0.5, 0.75, 1);
+        println(`vertexAttrib4f(): ${current(0)}`);
+        gl.vertexAttribI4i(1, -1, 2, -3, 4);
+        println(`vertexAttribI4i(): ${current(1)}`);
+        gl.vertexAttribI4ui(2, 5, 6, 7, 4000000000);
+        println(`vertexAttribI4ui(): ${current(2)}`);
+        gl.vertexAttrib1f(1, 9);
+        println(`vertexAttrib1f() after vertexAttribI4i(): ${current(1)}`);
+        gl.vertexAttribI4iv(2, [1, 2, 3, 4]);
+        println(`vertexAttribI4iv() after vertexAttribI4ui(): ${current(2)}`);
+
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        const ints = new Int32Array(memory.buffer, 48, 4);
+        const uints = new Uint32Array(memory.buffer, 80, 4);
+        ints.set([-1, 2, -3, 4]);
+        uints.set([5, 6, 7, 8]);
+        gl.vertexAttribI4iv(3, ints);
+        gl.vertexAttribI4uiv(4, uints);
+        println(`vertexAttribI4iv() on shared memory: ${current(3)}`);
+        println(`vertexAttribI4uiv() on shared memory: ${current(4)}`);
+        println(`error: ${gl.getError()}`);
+
+        // A call for an attribute that doesn't exist sets nothing.
+        const count = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
+        for (const index of [count, 0xffffffff]) {
+            gl.vertexAttribI4i(index, 1, 2, 3, 4);
+            println(`vertexAttribI4i() for attribute ${index === count ? "MAX_VERTEX_ATTRIBS" : index}: error ${gl.getError()}`);
+        }
+        println(`attribute 0 after them: ${current(0)}`);
+    });
+</script>

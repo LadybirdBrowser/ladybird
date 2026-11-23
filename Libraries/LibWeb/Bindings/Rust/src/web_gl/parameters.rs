@@ -66,7 +66,7 @@ use super::constants::{
     GL_VERTEX_ATTRIB_ARRAY_STRIDE, GL_VERTEX_ATTRIB_ARRAY_TYPE, GL_VIEWPORT,
 };
 use super::gl_string::utf16_string_from_gl_string;
-use super::state::{ContextState, RenderingContext, Version, VertexArrayBinding};
+use super::state::{ContextState, RenderingContext, Version, VertexArrayBinding, VertexAttribValueType};
 use super::values::{object_or_null, string_value};
 use super::web_gl_buffer::WebGLBuffer;
 use super::web_gl_program::WebGLProgram;
@@ -779,12 +779,26 @@ impl<V: Version> RenderingContext<V> {
 
     pub(crate) fn get_vertex_attrib(&self, cx: &mut CallContext, index: u32, pname: u32) -> WebIdlResult<Value> {
         match pname {
-            GL_CURRENT_VERTEX_ATTRIB => {
-                let mut result = [0.0; 4];
-                self.proxy
-                    .get_vertex_attribfv_robust_angle(index, GL_CURRENT_VERTEX_ATTRIB, 4, &mut result);
-                Ok(self.float32_array(cx, &result))
-            }
+            GL_CURRENT_VERTEX_ATTRIB => Ok(match self.current_vertex_attrib_value_type(index) {
+                VertexAttribValueType::Float => {
+                    let mut result = [0.0; 4];
+                    self.proxy
+                        .get_vertex_attribfv_robust_angle(index, GL_CURRENT_VERTEX_ATTRIB, 4, &mut result);
+                    self.float32_array(cx, &result)
+                }
+                VertexAttribValueType::Int => {
+                    let mut result = [0; 4];
+                    self.proxy
+                        .get_vertex_attrib_iiv_robust_angle(index, GL_CURRENT_VERTEX_ATTRIB, 4, &mut result);
+                    self.int32_array(cx, &result)
+                }
+                VertexAttribValueType::UnsignedInt => {
+                    let mut result = [0; 4];
+                    self.proxy
+                        .get_vertex_attrib_iuiv_robust_angle(index, GL_CURRENT_VERTEX_ATTRIB, 4, &mut result);
+                    self.uint32_array(cx, &result)
+                }
+            }),
             // FIXME: Return the buffer that was bound, or null without one, instead of a new object for the name that
             //        GL has bound.
             GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING => {

@@ -2756,6 +2756,66 @@
         ]
     },
     {
+        "name": "glGetVertexAttribIivRobustANGLE",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLuint",
+                "name": "index"
+            },
+            {
+                "type": "GLenum",
+                "name": "pname"
+            },
+            {
+                "type": "GLsizei",
+                "name": "bufSize"
+            },
+            {
+                "type": "GLsizei*",
+                "name": "length",
+                "out": true
+            },
+            {
+                "type": "GLint*",
+                "name": "params",
+                "out": true,
+                "payload": "bufSize * sizeof(GLint)"
+            }
+        ],
+        "category": "sync"
+    },
+    {
+        "name": "glGetVertexAttribIuivRobustANGLE",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLuint",
+                "name": "index"
+            },
+            {
+                "type": "GLenum",
+                "name": "pname"
+            },
+            {
+                "type": "GLsizei",
+                "name": "bufSize"
+            },
+            {
+                "type": "GLsizei*",
+                "name": "length",
+                "out": true
+            },
+            {
+                "type": "GLuint*",
+                "name": "params",
+                "out": true,
+                "payload": "bufSize * sizeof(GLuint)"
+            }
+        ],
+        "category": "sync"
+    },
+    {
         "name": "glGetVertexAttribfvRobustANGLE",
         "return": "void",
         "args": [
