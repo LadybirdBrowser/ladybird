@@ -1,0 +1,8 @@
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport
+  [L2] painted space=document inside e1
+  [L3] painted space=scroller@s2 in document inside e1 composited within [20,20 300x100] of document
+  [L4] painted space=document inside e1 above band 0 of scroller@s2 in document inside e1
+  composited e1 space=document: it holds content of several spaces, can be composited by the window server
+  no layer for vertical scroll bar: inside an effect that pushes a layer at replay
+

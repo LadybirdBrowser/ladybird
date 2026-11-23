@@ -1692,7 +1692,7 @@ impl ContextPresenting {
                     record_spans,
                     clips_left_to_composite: (!geometry.clips_left_to_composite.is_empty())
                         .then_some(&geometry.clips_left_to_composite[..]),
-                    composited_effect: stack.nodes[layer.placement_node_index.0].composited_effect,
+                    composited_effect: stack.innermost_composited_effect_at_or_around_band(layer.band_index),
                     allows_lcd_text,
                     frame_edge_backdrop_blurs_mirror_at: frame_rect_in_layer_space.map(IntRect::to_float),
                     raster_root: stack.spaces[raster_space_index.0].raster_root(),

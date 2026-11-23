@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        height: 3000px;
+        font: 20px/40px Ahem;
+    }
+
+    main {
+        position: relative;
+        z-index: 1;
+        background: navy;
+    }
+
+    section {
+        height: 500px;
+        color: white;
+    }
+
+    #fixed-blending-nav {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 40px;
+        color: orange;
+        mix-blend-mode: difference;
+    }
+</style>
+<main>
+    <section>Text of the first section</section>
+    <section>Text of the second section</section>
+    <div id="fixed-blending-nav">Nav</div>
+</main>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        println("Layers" + internals.dumpDisplayList().split("\nDisplayList:")[0].split("\nLayers")[1]);
+    });
+</script>

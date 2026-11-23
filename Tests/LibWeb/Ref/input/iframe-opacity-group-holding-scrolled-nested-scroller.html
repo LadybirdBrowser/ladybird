@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-opacity-group-holding-scrolled-nested-scroller-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-30000">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            body { margin: 0; }
+            #card { opacity: 0.5; width: 160px; padding: 10px; background: navy; }
+            #nested { height: 100px; overflow: auto; scrollbar-width: none; background: white; }
+            .stripe { height: 40px; background: orange; }
+        </style>
+        <div id="card">
+            <div id="nested">
+                <div class="stripe"></div>
+                <div style="height: 30px"></div>
+                <div class="stripe"></div>
+                <div style="height: 200px"></div>
+            </div>
+        </div>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        // The scrolled content keeps a space of its own inside the translucent group.
+        iframe.contentDocument.getElementById("nested").scrollTop = 25;
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

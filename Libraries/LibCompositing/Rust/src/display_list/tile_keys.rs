@@ -22,9 +22,7 @@ use super::effect_geometry::{
     FiltersOfEffects, LARGEST_FILTER_READ_REACH_IN_DEVICE_PIXELS, backdrop_filter_read_reach,
     filter_read_reach_in_device_pixels, nearest_effects_at_or_above_where, spreading_filter_of,
 };
-use super::layers::{
-    BandIndex, BarrierCutsOfCell, CutsOfCell, LayerContent, LayerIndex, LayerStack, PlacementNodeBand,
-};
+use super::layers::{BandIndex, BarrierCutsOfCell, CutsOfCell, LayerContent, LayerIndex, LayerStack};
 use super::nested_records::for_each_command_including_nested;
 use super::placement::{
     ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, FiltersAndClipsOfList, RasterSpaceGeometry, RunGroupIndex, RunGroups,
@@ -1783,7 +1781,7 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             return self.band_replaying_every_held_record_in_every_tile(&held_offset_ranges_by_chunk);
         }
         let held_chunks = self.held_chunks_with_their_placements(held_offset_ranges_by_chunk);
-        let backdrop_reads = self.backdrop_reads_of_held_runs(stack, band, &held_chunks);
+        let backdrop_reads = self.backdrop_reads_of_held_runs(stack, band_index, &held_chunks);
         let (runs_replayed_whole, masks_with_declared_content) =
             self.runs_replayed_whole(&held_chunks, &backdrop_reads);
         let held_runs_read_frame_state_hashed_for_the_list = held_chunks.iter().any(|held_chunk| {
@@ -1919,13 +1917,13 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     fn backdrop_reads_of_held_runs(
         &self,
         stack: &LayerStack,
-        band: &PlacementNodeBand,
+        band_index: BandIndex,
         held_chunks: &[ChunkHeldByBand],
     ) -> BackdropReadsOfBand {
         let display_list = self.list.display_list;
         let tree = self.list.tree;
-        let effect_composited_around_band = stack.nodes[band.placement_node_index.0]
-            .composited_effect
+        let effect_composited_around_band = stack
+            .innermost_composited_effect_at_or_around_band(band_index)
             .unwrap_or(EffectNodeIndex::NONE);
         let mut effect_was_visited = vec![false; tree.effect_nodes.len()];
         let mut backdrop_reads_in_paint_order = Vec::new();

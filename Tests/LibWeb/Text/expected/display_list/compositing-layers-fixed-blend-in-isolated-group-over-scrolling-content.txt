@@ -1,0 +1,7 @@
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport held by the frame: it is under a layer the frame holds
+  [L2] painted space=document inside e1 held by the frame: it is under a layer the frame holds
+  [L4] painted space=viewport inside e2 inside e1 held by the frame: it is inside an effect the compositor composites
+  composited e1 space=viewport: it holds content of several spaces, can be composited by the window server
+  composited e2 space=viewport inside e1 reads=[0,7 63x26]: it reads what its own layer does not hold, composited by the compositor: it blends with what is below it
+

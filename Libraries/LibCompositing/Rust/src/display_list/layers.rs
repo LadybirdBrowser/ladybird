@@ -647,6 +647,17 @@ fn identity_of_composited_node(
     PlacementNodeIdentity(hasher.finish())
 }
 
+// A node of a space inside a composited node is named apart from the node of the same space and clips outside it.
+fn identity_of_node_inside_composited_node(
+    composited_node_identity: PlacementNodeIdentity,
+    identity_outside_composited_nodes: PlacementNodeIdentity,
+) -> PlacementNodeIdentity {
+    let mut hasher = foldhash::fast::FixedState::with_seed(0x696e_7369_6465_636e).build_hasher();
+    hasher.write_u64(composited_node_identity.0);
+    hasher.write_u64(identity_outside_composited_nodes.0);
+    PlacementNodeIdentity(hasher.finish())
+}
+
 fn node_covers_viewport(nodes: &[PlacementNode], spaces: &[RasterSpace], node_index: PlacementNodeIndex) -> bool {
     let mut node_on_way_out = Some(node_index);
     while let Some(index) = node_on_way_out {
@@ -822,12 +833,32 @@ impl LayerStack {
         layering_obstacles: LayeringObstacles,
     ) -> Self {
         let mut nodes: Vec<PlacementNode> = Vec::with_capacity(plan.nodes.len());
+        let mut innermost_composited_node_around_by_node_index: Vec<Option<PlacementNodeIndex>> =
+            Vec::with_capacity(plan.nodes.len());
         for node in plan.nodes {
+            let innermost_composited_node_around = node.parent_index.and_then(|parent_index| {
+                if nodes[parent_index.0].composited_effect.is_some() {
+                    Some(parent_index)
+                } else {
+                    innermost_composited_node_around_by_node_index[parent_index.0]
+                }
+            });
+            innermost_composited_node_around_by_node_index.push(innermost_composited_node_around);
             let identity = match (node.composited_effect, node.parent_index) {
                 (Some(effect), Some(parent_index)) => {
                     identity_of_composited_node(nodes[parent_index.0].identity, effect)
                 }
-                _ => identity_of_node(&spaces, node.raster_space_index, &node.composite_clips),
+                _ => {
+                    let identity_outside_composited_nodes =
+                        identity_of_node(&spaces, node.raster_space_index, &node.composite_clips);
+                    match innermost_composited_node_around {
+                        Some(composited_node_index) => identity_of_node_inside_composited_node(
+                            nodes[composited_node_index.0].identity,
+                            identity_outside_composited_nodes,
+                        ),
+                        None => identity_outside_composited_nodes,
+                    }
+                }
             };
             nodes.push(PlacementNode {
                 identity,
@@ -1156,6 +1187,14 @@ impl LayerStack {
 
     pub fn layer_is_inside_composited_effects(&self, layer_index: LayerIndex) -> bool {
         self.innermost_composited_band_around_layer(layer_index).is_some()
+    }
+
+    /// The effect the compositor composites the records of the band inside: that of the innermost node at or around the
+    /// band's node that it composites inside an effect, which may be a node of another space. A replay of the band's
+    /// records leaves it out, with the effects around it and the clips it is entered within.
+    pub fn innermost_composited_effect_at_or_around_band(&self, band_index: BandIndex) -> Option<EffectNodeIndex> {
+        let composited_band = self.innermost_composited_band_at_or_around_band[band_index.0]?;
+        self.nodes[self.bands[composited_band.0].placement_node_index.0].composited_effect
     }
 
     /// The bands the layer is in, innermost first, whose nodes the compositor composites inside their effects. A plan
