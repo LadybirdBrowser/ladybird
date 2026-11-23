@@ -15,16 +15,41 @@ pub struct Position {
     pub column: u64,
 }
 
+/// Where in the tokenizer's input something starts or ends, as an offset in code units, or nowhere at all.
+///
+/// The tokenizer only works out which line and column an offset is at when it is asked to.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourceOffset(usize);
+
+impl SourceOffset {
+    pub const NONE: Self = Self(usize::MAX);
+
+    pub fn new(offset: usize) -> Self {
+        debug_assert!(offset != usize::MAX);
+        Self(offset)
+    }
+
+    pub fn get(self) -> Option<usize> {
+        (self != Self::NONE).then_some(self.0)
+    }
+}
+
+impl Default for SourceOffset {
+    fn default() -> Self {
+        Self::NONE
+    }
+}
+
 /// A single attribute on a start or end tag token.
 ///
 #[derive(Clone, Debug, Default)]
 pub struct Attribute {
     pub local_name: HtmlName,
     pub value: String,
-    pub name_start_position: Position,
-    pub name_end_position: Position,
-    pub value_start_position: Position,
-    pub value_end_position: Position,
+    pub name_start_offset: SourceOffset,
+    pub name_end_offset: SourceOffset,
+    pub value_start_offset: SourceOffset,
+    pub value_end_offset: SourceOffset,
 }
 
 impl Attribute {
@@ -380,8 +405,8 @@ pub struct Token {
     pub token_type: TokenType,
     pub code_point: u32,
     pub payload: TokenPayload,
-    pub start_position: Position,
-    pub end_position: Position,
+    pub start_offset: SourceOffset,
+    pub end_offset: SourceOffset,
 }
 
 impl Token {

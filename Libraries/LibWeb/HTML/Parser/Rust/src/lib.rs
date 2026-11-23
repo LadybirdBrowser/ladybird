@@ -10,6 +10,7 @@ mod known_names;
 pub mod meta_charset_scanner;
 pub mod parser;
 pub mod preload_scanner;
+mod scan;
 pub mod token;
 pub mod tokenizer;
 
@@ -17,6 +18,7 @@ use input::InputSlice;
 use std::ptr;
 use token::Attribute;
 use token::Position;
+use token::SourceOffset;
 use token::TokenPayload;
 use token::TokenType;
 use tokenizer::HtmlTokenizer;
@@ -124,7 +126,7 @@ impl Default for RustFfiToken {
     }
 }
 
-fn position_to_ffi(pos: &Position) -> (u64, u64) {
+fn position_to_ffi(pos: Position) -> (u64, u64) {
     (pos.line, pos.column)
 }
 
@@ -176,7 +178,9 @@ pub extern "C" fn rust_html_tokenizer_next_token(
     // Fast-path text character in the Data state. For ASCII text runs
     // this skips the whole state-machine function call plus Token
     // construction/drop. Most real HTML is dominated by such runs.
-    if !stop_at_insertion_point && let Some((cp, pos)) = handle.tokenizer.try_fast_data_char() {
+    if !stop_at_insertion_point && let Some(cp) = handle.tokenizer.try_fast_data_char() {
+        let offset = SourceOffset::new(handle.tokenizer.current_offset);
+        let pos = handle.tokenizer.position_at(offset);
         out.token_type = TokenType::Character as u8;
         out.code_point = cp;
         out.start_line = pos.line;
@@ -212,10 +216,8 @@ fn next_token_slow(
         TokenType::Character | TokenType::EndOfFile => {
             out.token_type = token.token_type as u8;
             out.code_point = token.code_point;
-            out.start_line = token.start_position.line;
-            out.start_column = token.start_position.column;
-            out.end_line = token.end_position.line;
-            out.end_column = token.end_position.column;
+            (out.start_line, out.start_column) = position_to_ffi(handle.tokenizer.position_at(token.start_offset));
+            (out.end_line, out.end_column) = position_to_ffi(handle.tokenizer.position_at(token.end_offset));
             return true;
         }
         _ => {}
@@ -224,12 +226,9 @@ fn next_token_slow(
     *out = RustFfiToken::default();
     out.token_type = token.token_type as u8;
 
-    let (sl, sc) = position_to_ffi(&token.start_position);
-    let (el, ec) = position_to_ffi(&token.end_position);
-    out.start_line = sl;
-    out.start_column = sc;
-    out.end_line = el;
-    out.end_column = ec;
+    // NB: Positions are asked for in the order they come in the input, which is the order they are cheapest to find.
+    let end_offset = token.end_offset;
+    (out.start_line, out.start_column) = position_to_ffi(handle.tokenizer.position_at(token.start_offset));
 
     // Store string data in handle so pointers stay valid.
     match token.payload {
@@ -255,11 +254,18 @@ fn next_token_slow(
                 let Attribute {
                     local_name,
                     value,
-                    name_start_position,
-                    name_end_position,
-                    value_start_position,
-                    value_end_position,
+                    name_start_offset,
+                    name_end_offset,
+                    value_start_offset,
+                    value_end_offset,
                 } = attr;
+                let (name_start_line, name_start_column) =
+                    position_to_ffi(handle.tokenizer.position_at(name_start_offset));
+                let (name_end_line, name_end_column) = position_to_ffi(handle.tokenizer.position_at(name_end_offset));
+                let (value_start_line, value_start_column) =
+                    position_to_ffi(handle.tokenizer.position_at(value_start_offset));
+                let (value_end_line, value_end_column) =
+                    position_to_ffi(handle.tokenizer.position_at(value_end_offset));
                 handle.last_attr_names.push(local_name);
                 handle.last_attr_values.push(value.encode_utf16().collect());
                 let last_idx = handle.last_attr_names.len() - 1;
@@ -269,14 +275,14 @@ fn next_token_slow(
                     name: name.raw_identity(),
                     value_ptr: value_code_units.as_ptr(),
                     value_len: value_code_units.len(),
-                    name_start_line: name_start_position.line,
-                    name_start_column: name_start_position.column,
-                    name_end_line: name_end_position.line,
-                    name_end_column: name_end_position.column,
-                    value_start_line: value_start_position.line,
-                    value_start_column: value_start_position.column,
-                    value_end_line: value_end_position.line,
-                    value_end_column: value_end_position.column,
+                    name_start_line,
+                    name_start_column,
+                    name_end_line,
+                    name_end_column,
+                    value_start_line,
+                    value_start_column,
+                    value_end_line,
+                    value_end_column,
                 });
             }
             out.attributes_ptr = handle.last_attributes.as_ptr();
@@ -304,6 +310,7 @@ fn next_token_slow(
         }
         TokenPayload::None => {}
     }
+    (out.end_line, out.end_column) = position_to_ffi(handle.tokenizer.position_at(end_offset));
 
     true
 }

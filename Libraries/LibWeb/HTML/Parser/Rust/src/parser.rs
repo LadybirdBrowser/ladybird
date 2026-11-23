@@ -644,14 +644,18 @@ impl TreeBuilder {
         // HTMLParser's Rust tokenizer handle, and the handle outlives each parser run.
         unsafe {
             let tokenizer = self.tokenizer.as_mut();
-            if !stop_at_insertion_point && let Some((code_point, position)) = tokenizer.try_fast_data_char() {
-                let mut token = Token::new_character(code_point);
-                token.start_position = position;
-                token.end_position = position;
-                return Some(token);
+            if !stop_at_insertion_point && let Some(code_point) = tokenizer.try_fast_data_char() {
+                return Some(Token::new_character(code_point));
             }
             tokenizer.next_token(stop_at_insertion_point, cdata_allowed)
         }
+    }
+
+    fn source_line_number_for_script_token(&mut self, token: &Token) -> usize {
+        // SAFETY: TreeBuilder is only constructed with a tokenizer pointer owned by the C++
+        // HTMLParser's Rust tokenizer handle, and the handle outlives each parser run.
+        let end_position = unsafe { self.tokenizer.as_mut().position_at(token.end_offset) };
+        end_position.line.saturating_add(1).min(usize::MAX as u64) as usize
     }
 
     fn switch_tokenizer_to(&mut self, state: State) {
@@ -3532,7 +3536,8 @@ impl TreeBuilder {
         if local_name == tag_name!("script")
             && (namespace_ == RustFfiHtmlNamespace::Html || namespace_ == RustFfiHtmlNamespace::Svg)
         {
-            self.set_script_source_line(element, source_line_number_for_script_token(token));
+            let source_line = self.source_line_number_for_script_token(token);
+            self.set_script_source_line(element, source_line);
         }
         self.recycle_attribute_buffers(attributes);
         // 2. Insert an element at the adjusted insertion location with element.
@@ -5298,10 +5303,6 @@ fn active_formatting_element_has_same_attributes(
                     && attribute.value == other_attribute.value
             })
         })
-}
-
-fn source_line_number_for_script_token(token: &Token) -> usize {
-    token.end_position.line.saturating_add(1).min(usize::MAX as u64) as usize
 }
 
 impl AttributeBuffers {
