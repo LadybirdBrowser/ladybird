@@ -223,6 +223,8 @@ pub struct CodeScope {
     simple_parameters: Vec<SimpleParameter>,
     /// Whether the body has a scope of its own, apart from the parameters.
     has_parameter_scope: bool,
+    /// hasParamExprs of FunctionDeclarationInstantiation: whether a parameter has a default or a computed key.
+    has_parameter_expressions: bool,
     /// Whether a name can still be in the dead zone of a parameter.
     checks_parameters: bool,
     is_in_parameters: bool,
@@ -548,6 +550,7 @@ impl Generator<'_> {
         scope.current_block = BlockId::default();
         scope.environment_binding_count = 0;
         scope.has_parameter_scope = false;
+        scope.has_parameter_expressions = false;
         scope.checks_parameters = false;
         scope.is_in_parameters = false;
         scope.has_function_in_parameters = false;
@@ -811,9 +814,19 @@ impl Generator<'_> {
     /// A `var` of the body with the name of what `parameter` is, which starts out with the value of that. Without anything
     /// that sees them apart they stay one binding.
     fn add_var_of_parameter(&mut self, parameter: BindingId, is_captured: bool) -> BindingId {
+        // 10.2.11 FunctionDeclarationInstantiation ( func, argList ), https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
         let scope = &mut self.context.scope;
         let binding = scope.binding(parameter);
-        if !is_captured && binding.location != Location::Environment {
+
+        // 29. If hasParamExprs is false, then
+        //     a. NOTE: Only a single Environment Record is needed for the parameters and top-level vars.
+        //     b. Let instantiatedVariableNames be a copy of the List paramBindings.
+        let shares_environment = binding.location == Location::Environment && !scope.has_parameter_expressions;
+
+        // NB: A var with the name of a parameter starts out with its value, so a parameter in a register that nothing
+        //     captures is one binding with its var.
+        let stays_local = !is_captured && binding.location != Location::Environment;
+        if stays_local || shares_environment {
             let binding = &mut scope.bindings[parameter.0 as usize];
             binding.in_parameters = false;
             binding.kind = Some(DeclarationKind::Var);
@@ -980,9 +993,11 @@ impl Generator<'_> {
         }
         let is_mapped = needs_arguments_object && !self.strict && is_simple;
         if !is_simple {
+            let has_expressions = shapes.iter().any(|shape| shape.has_expression);
             self.context.scope.has_parameter_scope = true;
+            self.context.scope.has_parameter_expressions = has_expressions;
             self.context.scope.checks_parameters = true;
-            if self.contains_direct_call_to_eval_in_non_strict_mode && shapes.iter().any(|shape| shape.has_expression) {
+            if self.contains_direct_call_to_eval_in_non_strict_mode && has_expressions {
                 // NB: What an `eval` in the parameters declares stays out of the environment of the parameters.
                 self.note_creates_environment();
                 self.context.scope.has_parameter_expressions_with_eval = true;
@@ -1341,8 +1356,14 @@ impl Generator<'_> {
         let captured_count = self.captured_bindings_of_body(early_start, early_end);
         let scope = &self.context.scope;
         let parameters_have_environment = scope.environment_binding_count != 0;
+
+        // 10.2.11 FunctionDeclarationInstantiation ( func, argList ), https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+        // 30. Else,
+        //     a. NOTE: A separate Environment Record is needed to ensure that closures created by expressions in the formal parameter list do not have visibility of declarations in the function body.
+        //     b. Let variableEnv be NewDeclarativeEnvironment(envRecord).
+        // NB: Only when something can tell the two environments apart.
         let needs_variable_environment = scope.has_parameter_expressions_with_eval
-            || (has_parameter_scope
+            || (scope.has_parameter_expressions
                 && captured_count != 0
                 && (scope.has_function_in_parameters || parameters_have_environment));
         if needs_variable_environment {
