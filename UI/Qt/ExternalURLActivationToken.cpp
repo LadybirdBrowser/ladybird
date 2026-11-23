@@ -95,7 +95,7 @@ void request_external_url_activation_token([[maybe_unused]] StringView desktop_i
     auto* surface = window ? wayland_surface_for_window(*window) : nullptr;
 
     if (surface) {
-        auto* wayland = application->nativeInterface<QNativeInterface::QWaylandApplication>();
+        auto* wayland = wayland_application();
 
         if (auto* activation = wayland_activation()) {
             auto* token = xdg_activation_v1_get_activation_token(activation);
