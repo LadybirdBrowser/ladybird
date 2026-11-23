@@ -1,0 +1,8 @@
+Ladybird’s click() now does nothing only on a disabled button, input,
+select, or textarea element, or a disabled form-associated custom
+element, and fires its click at anything else, an element inside a
+disabled fieldset included. Chrome 158, Firefox 151, and WebKit 26.5 do
+the same when run on a div, a span, the fieldset itself, a button in its
+first legend, and a button outside the legend; Blink’s EventDispatcher::
+DispatchSimulatedClick() returns early only for IsDisabledFormControl(),
+which is false for a fieldset’s plain content.
