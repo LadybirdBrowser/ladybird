@@ -11,10 +11,12 @@
 #include <LibPlatformFeatures/Build.h>
 #include <LibPlatformFeatures/SystemFacts.h>
 #include <SystemProbe/FFmpegDescription.h>
+#include <SystemProbe/OpenSSLDescription.h>
 #include <SystemProbe/VulkanDescription.h>
 
-// Describes the system for the Browser's feature blocklist, and exits. It takes nothing but its arguments and writes
-// nothing but its report, so that it can run with the GPU driver loaded and no sandbox.
+// Describes the system for the Browser's feature blocklist and its warnings about the system, and exits. It takes
+// nothing but its arguments and writes nothing but its report, so that it can run with the GPU driver loaded and no
+// sandbox.
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -38,6 +40,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         facts.bundled_ffmpeg = describe_bundled_ffmpeg();
         facts.system_ffmpeg = describe_system_ffmpeg();
     }
+    facts.openssl = describe_openssl();
 
     auto report = facts.to_json().serialized();
     auto output = TRY(Core::File::standard_output());

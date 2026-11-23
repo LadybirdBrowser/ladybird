@@ -1530,6 +1530,9 @@ void Application::present_window(BrowserWindow& window, WindowConfiguration cons
 
         window.activateWindow();
         window.raise();
+
+        if (m_openssl_mismatch_awaiting_window.has_value())
+            show_openssl_mismatch_card(window);
     }
 }
 
@@ -2522,6 +2525,27 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
+}
+
+// A system curl that has moved on to another OpenSSL than the one Ladybird was built against. RequestServer then leaves
+// curl's TLS configuration alone, so pages still load, but only rebuilding Ladybird brings its own checks back.
+void Application::display_openssl_mismatch(String const& curl_openssl_version, String const& linked_openssl_version)
+{
+    m_openssl_mismatch_awaiting_window = OpenSSLMismatch { curl_openssl_version, linked_openssl_version };
+    // Without a window, the next one that opens shows it. Under WebDriver, the warning that the Hub logged has to do.
+    if (auto* window = active_window_if_any())
+        show_openssl_mismatch_card(*window);
+}
+
+void Application::show_openssl_mismatch_card(BrowserWindow& window)
+{
+    auto mismatch = m_openssl_mismatch_awaiting_window.release_value();
+
+    Vector<PageCard::Button> buttons;
+    buttons.append({ "Dismiss", PageCard::ButtonRole::Primary, {} });
+    auto text = qformatted("Ladybird was built against OpenSSL {}, but your system's curl uses OpenSSL {}. Secure connections work without some of Ladybird's own checks until Ladybird is rebuilt.",
+        mismatch.linked_openssl_version, mismatch.curl_openssl_version);
+    window.show_page_card(BrowserWindow::PageCardSlot::RebuildNeeded, "This build of Ladybird is out of date", text, move(buttons));
 }
 
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)

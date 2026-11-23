@@ -192,6 +192,7 @@ public:
     enum class PageCardSlot : u8 {
         RestoreSession,
         Update,
+        RebuildNeeded,
     };
     void show_page_card(PageCardSlot, QString const& title, QString const& text, Vector<PageCard::Button>);
     void reposition_page_cards();
@@ -343,7 +344,7 @@ private:
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
-    Array<QPointer<PageCard>, 2> m_page_cards;
+    Array<QPointer<PageCard>, 3> m_page_cards;
     QPointer<WebContentView> m_page_cards_view;
     Vector<QPointer<Tab>> m_background_tabs_from_current_tab;
     DevToolsBanner* m_devtools_banner { nullptr };

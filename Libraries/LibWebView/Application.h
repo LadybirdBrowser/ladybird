@@ -341,6 +341,8 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
+    // Tells the user that Ladybird has to be rebuilt against the OpenSSL that the system's curl uses.
+    virtual void display_openssl_mismatch(PlatformFeatures::OpenSSLFacts const&) { }
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     virtual void display_update_check_result(UpdateCheckResult const&, UpdateCheckTrigger) { }
 
