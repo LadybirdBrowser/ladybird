@@ -987,11 +987,21 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
         {
             let value = binding_object.get_direct(entry.property_offset);
             if value.is_accessor() {
-                let setter = value.as_accessor().setter().map_or(Value::NULL, Value::from_object);
-                asm_try!(vm, pc, call(vm, setter, Value::from_object(binding_object), &[src]));
-                return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);
-            }
-            if entry.writes_data_property {
+                // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
+                // NB: Steps 4 to 7, for the accessor that the cache found.
+                // 4. Let setter be ownDesc.[[Set]].
+                // 5. If setter is undefined, return false.
+                // NB: The path with no cache does that.
+                if let Some(setter) = value.as_accessor().setter() {
+                    let setter = Value::from_object(setter);
+
+                    // 6. Perform ? Call(setter, Receiver, « V »).
+                    asm_try!(vm, pc, call(vm, setter, Value::from_object(binding_object), &[src]));
+
+                    // 7. Return true.
+                    return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);
+                }
+            } else if entry.writes_data_property {
                 binding_object.put_direct_from_cache(entry.property_offset, src);
                 return SlowPathControl::continue_at(pc + op::SetGlobal::LENGTH);
             }
