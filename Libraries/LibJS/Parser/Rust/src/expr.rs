@@ -778,7 +778,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                     // NB: A read of `arguments.length` or `arguments[key]` takes this back (see `note_arguments_read()`).
                     self.arguments_other_uses += u32::from(name == N_ARGUMENTS);
                     if name == N_ARGUMENTS
-                        && (!self.strict || self.in_class_of_sloppy_function)
+                        && (!self.strict || self.arguments_of_sloppy_function)
                         && !self.is_declared_in_current_function(name)
                     {
                         self.scopes.last_mut().unwrap().arguments_access = true;

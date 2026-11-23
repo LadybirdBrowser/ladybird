@@ -1036,7 +1036,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             arguments_other_uses: 0,
             reads_arguments_index: false,
             may_write_parameters: false,
-            in_class_of_sloppy_function: self.in_class_of_sloppy_function,
+            arguments_of_sloppy_function: self.arguments_of_sloppy_function,
             is_arrow: false,
             summary_ordinal: 0,
         }
@@ -1241,6 +1241,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         }
         if use_strict {
             self.strict = true;
+            self.arguments_of_sloppy_function |= is_arrow && !old_strict;
         }
         if self.duplicate_parameter != NONE && (self.strict || !simple || is_arrow || is_method) {
             self.fail(self.duplicate_parameter, "Duplicate parameter names not allowed");
@@ -1314,8 +1315,8 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         let saved_class_start = core::mem::replace(&mut self.class_start, start);
         self.next();
         let old_strict = self.strict;
-        let was_in_class_of_sloppy_function = self.in_class_of_sloppy_function;
-        self.in_class_of_sloppy_function |= !old_strict;
+        let was_arguments_of_sloppy_function = self.arguments_of_sloppy_function;
+        self.arguments_of_sloppy_function |= !old_strict;
         self.strict = true;
         let mut name = NONE;
         if self.tok == T::Name && !(self.is_contextual(N_IMPLEMENTS)) {
@@ -1359,7 +1360,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             self.scratch.push(element);
         }
         self.strict = old_strict;
-        self.in_class_of_sloppy_function = was_in_class_of_sloppy_function;
+        self.arguments_of_sloppy_function = was_arguments_of_sloppy_function;
         self.class_start = saved_class_start;
         self.expect(T::RBrace);
         self.exit_class_body();
