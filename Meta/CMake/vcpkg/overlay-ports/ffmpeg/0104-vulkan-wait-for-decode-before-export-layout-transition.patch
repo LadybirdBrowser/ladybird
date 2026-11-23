@@ -1,0 +1,15 @@
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -2548,8 +2548,10 @@ static int switch_layout(AVHWFramesContext *hwfc, FFVkExecPool *ectx,
+     cmd_buf = exec->buf;
+     ff_vk_exec_start(&p->vkctx, exec);
+ 
++    /* NONE does not block any stage, so this queue's layout transition
++     * races a decode write submitted on the video queue. */
+     err = ff_vk_exec_add_dep_frame(&p->vkctx, exec, &tmp_frame,
+-                                   VK_PIPELINE_STAGE_2_NONE,
++                                   VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                    VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+     if (err < 0)
+         return err;

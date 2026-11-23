@@ -1,0 +1,19 @@
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -2627,11 +2627,11 @@ static int prepare_frame(AVHWFramesContext *hwfc, FFVkExecPool *ectx,
+     AVVulkanFramesContext *hwfc_vk = hwfc->hwctx;
+     if (hwfc_vk->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT &&
+         (pmode != PREP_MODE_EXTERNAL_EXPORT) &&
+-        (pmode != PREP_MODE_EXTERNAL_IMPORT))
++        (pmode != PREP_MODE_EXTERNAL_IMPORT)) {
+         err = switch_layout_host(hwfc, ectx, frame, pmode);
+-
+-    if (err != AVERROR(ENOTSUP))
+-        return err;
++        if (err != AVERROR(ENOTSUP))
++            return err;
++    }
+ 
+     return switch_layout(hwfc, ectx, frame, pmode);
+ }
