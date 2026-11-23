@@ -1,0 +1,6 @@
+Ladybird now renders an object element in a shadow tree as it does
+in the document tree. Chrome 158, Firefox 151 and WebKit 26.5
+(engine-compare) all show an image object and a document object at
+the top of an open shadow root, at 100 by 50 and 300 by 150, both
+when the shadow root’s markup is set and when the object is created
+by script and appended to it.
