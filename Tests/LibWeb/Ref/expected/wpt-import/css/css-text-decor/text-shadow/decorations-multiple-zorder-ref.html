@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<style>
+div {
+    text-decoration-skip-ink: none;
+}
+</style>
+<!-- Shadows -->
+<!-- Blue underline/text -->
+<div style="position: absolute; top: 22px; left: 22px;"><span style="color: blue; text-decoration: underline">test</span></div>
+<!-- Red overline/text -->
+<!--
+There are some additional pixels appearing when two red texts are overlap. We
+use transparent color for the first one to prevent the situation and the failure
+of reftest.
+-->
+<div style="position: absolute; top: 22px; left: 22px;"><span style="color: rgba(0, 0, 0, 0);">test</span><span style="color: transparent; text-decoration: red underline;">for</span></div>
+<div style="position: absolute; top: 22px; left: 22px;"><span style="color: rgba(0, 0, 0, 0);">test</span><span style="color: red; text-decoration: overline;">for</span></div>
+<!-- Green text/underline -->
+<!--
+There are some additional pixels appearing when two red texts are overlap. We
+use transparent color for the first one to prevent the situation and the failure
+of reftest.
+-->
+<div style="position: absolute; top: 22px; left: 22px;"><span style="color: rgba(0, 0, 0, 0);">testfor</span><span style="text-decoration: green underline; color: transparent;">quirks</span></div>
+<div style="position: absolute; top: 22px; left: 22px;"><span style="color: rgba(0, 0, 0, 0);">testfor</span><span style="text-decoration: overline; color: green;">quirks</span></div>
+
+<!-- "Real" text -->
+<!-- Blue underline/text -->
+<div style="position: absolute; top: 20px; left: 20px; color: blue; text-decoration: underline;"><span style="color: rgba(0, 0, 0, 0);">testforquirks</span></div>
+<div style="position: absolute; top: 20px; left: 20px;"><span style="color: blue;">test</span></div>
+<!-- Red overline/text -->
+<div style="position: absolute; top: 20px; left: 20px; color: rgba(0, 0, 0, 0);">test<span style="text-decoration: overline; color: red;"><span style="color: rgba(0, 0, 0, 0);">forquirks</span></span></div>
+<div style="position: absolute; top: 20px; left: 20px;"><span style="color: rgba(0, 0, 0, 0);">test</span><span style="color: red;">for</span></div>
+<!-- Green underline/text -->
+<div style="position: absolute; top: 20px; left: 20px;"><span style="color: rgba(0, 0, 0, 0);">testfor</span><span style="text-decoration: underline; color: green;"><span style="color: rgba(0, 0, 0, 0);">quirks</span></span></div>
+<div style="position: absolute; top: 20px; left: 20px;"><span style="color: rgba(0, 0, 0, 0);">testfor</span><span style="color: green;">quirks</span></div>

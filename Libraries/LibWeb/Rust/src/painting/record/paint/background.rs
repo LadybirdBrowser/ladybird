@@ -1386,6 +1386,7 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, frag
                 span.fragment_index,
                 fragment_absolute_rect,
                 &set,
+                libgfx_rust::IntPoint::default(),
                 ForceDarkRole::None,
             );
         }

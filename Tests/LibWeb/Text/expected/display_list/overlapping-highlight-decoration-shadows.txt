@@ -1,0 +1,2 @@
+FillRect@s1/e0 rect=[15,17 43x2] color=rgb(20, 20, 20)
+FillRect@s1/e0 rect=[17,43 43x2] color=rgb(40, 40, 40)

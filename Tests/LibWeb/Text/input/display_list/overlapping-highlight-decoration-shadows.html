@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px monospace;
+    }
+    p {
+        color: rgb(1, 2, 3);
+    }
+    ::highlight(a) {
+        text-decoration: overline rgb(10, 10, 10);
+        text-shadow: 3px 3px 0 rgb(20, 20, 20);
+    }
+    ::highlight(b) {
+        text-decoration: underline rgb(30, 30, 30);
+        text-shadow: 5px 5px 0 rgb(40, 40, 40);
+    }
+</style>
+<p id="target">abcdef</p>
+<script>
+    test(() => {
+        const text = target.firstChild;
+        for (const name of ["a", "b"]) {
+            const range = document.createRange();
+            range.setStart(text, 1);
+            range.setEnd(text, 5);
+            CSS.highlights.set(name, new Highlight(range));
+        }
+        // Each highlight's shadow shadows the line it adds, and not the other highlight's.
+        for (const line of internals.dumpDisplayList().split("\n")) {
+            if (/FillRect.*color=rgb\((20, 20, 20|40, 40, 40)\)/.test(line))
+                println(line.replace(/^\s*L\d+ /, "").replace(/ owner=.*/, ""));
+        }
+    });
+</script>
