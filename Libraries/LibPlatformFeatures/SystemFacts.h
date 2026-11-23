@@ -63,11 +63,30 @@ struct FFmpegFacts {
     bool operator==(FFmpegFacts const&) const = default;
 };
 
+// The OpenSSL that Ladybird links, and the one that curl uses. RequestServer configures curl's SSL_CTX through its own
+// OpenSSL, which is only sound when the two are the same library: a system curl can load another one, for instance once
+// the system has moved on to a newer OpenSSL than the one Ladybird was built against.
+struct OpenSSLFacts {
+    // As major.minor.patch, which is how curl names the OpenSSL it uses.
+    String linked_version;
+    // Empty when curl uses another TLS library.
+    Optional<String> curl_version;
+
+    bool operator==(OpenSSLFacts const&) const = default;
+
+    bool curl_uses_another_openssl() const { return curl_version.has_value() && *curl_version != linked_version; }
+
+    // Picks the OpenSSL version out of curl_version_info()'s ssl_version, which names the TLS library curl uses first, as
+    // in "OpenSSL/3.5.1" or "OpenSSL/3.5.1 (GnuTLS/3.8.9)". Empty when that library is not OpenSSL.
+    static Optional<StringView> openssl_version_from_curl_ssl_version(StringView);
+};
+
 // Everything the blocklist decides from, collected by the system probe.
 struct SystemFacts {
     Optional<GpuFacts> gpu;
     Optional<FFmpegFacts> bundled_ffmpeg;
     Optional<FFmpegFacts> system_ffmpeg;
+    Optional<OpenSSLFacts> openssl;
     // Set instead of the facts when the probe crashed, hung or reported something unreadable. Never serialized.
     Optional<String> probe_failure;
 

@@ -2111,6 +2111,14 @@ void Application::system_facts_arrived(SystemFacts const& facts)
     m_system_facts = facts;
     reevaluate_platform_features();
 
+    // RequestServer leaves curl's TLS configuration alone in this case, rather than corrupt memory, but the user can only
+    // fix it by rebuilding Ladybird.
+    if (facts.openssl.has_value() && facts.openssl->curl_uses_another_openssl()) {
+        warnln("The system's curl uses OpenSSL {}, but Ladybird was built against OpenSSL {}. Rebuild Ladybird against the system's OpenSSL.",
+            *facts.openssl->curl_version, facts.openssl->linked_version);
+        display_openssl_mismatch(*facts.openssl);
+    }
+
     // A Compositor started from the cached facts is relaunched with the features the system has now.
     if (m_compositor_client && m_platform_feature_decisions->features_for(FeatureProcess::Compositor).to_byte_string() != m_compositor_launched_features) {
         dbgln("The Compositor's platform features changed, relaunching it");
