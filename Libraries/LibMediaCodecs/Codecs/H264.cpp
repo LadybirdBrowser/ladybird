@@ -259,11 +259,14 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
     if (reader.has_overrun() || seq_parameter_set_id > 31)
         return {};
 
+    // ITU-T H.264 (08/2024), 7.4.2.1.1: absent chroma_format_idc is inferred as 1 (4:2:0), and absent bit depths as 8.
+    u32 chroma_format_idc = 1;
+    u32 bit_depth_luma_minus8 = 0;
     if (profile_has_chroma_format_fields(profile_idc)) {
-        auto chroma_format_idc = reader.read_unsigned_exp_golomb();
+        chroma_format_idc = reader.read_unsigned_exp_golomb();
         if (chroma_format_idc == 3)
-            reader.skip_bits(1);           // separate_colour_plane_flag
-        reader.read_unsigned_exp_golomb(); // bit_depth_luma_minus8
+            reader.skip_bits(1); // separate_colour_plane_flag
+        bit_depth_luma_minus8 = reader.read_unsigned_exp_golomb();
         reader.read_unsigned_exp_golomb(); // bit_depth_chroma_minus8
         reader.skip_bits(1);               // qpprime_y_zero_transform_bypass_flag
         if (reader.read_bit()) {           // seq_scaling_matrix_present_flag
@@ -310,11 +313,18 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
     if (reader.read_bit()) // vui_parameters_present_flag
         stated_count = parse_stated_max_reorder_frame_count(reader);
 
-    if (reader.has_overrun())
+    // ITU-T H.264 (08/2024), 7.4.2.1.1: chroma_format_idc is in 0 to 3, bit_depth_luma_minus8 in 0 to 6.
+    if (reader.has_overrun() || chroma_format_idc > 3 || bit_depth_luma_minus8 > 6)
         return {};
     // ITU-T H.264 (08/2024), E.2.1: Infer absent max_num_reorder_frames as zero for these
     // profiles with constraint_set3_flag set, and as MaxDpbFrames otherwise.
-    SequenceParameterSet parameter_set { .seq_parameter_set_id = static_cast<u8>(seq_parameter_set_id), .max_num_reorder_frames = 0 };
+    SequenceParameterSet parameter_set {
+        .seq_parameter_set_id = static_cast<u8>(seq_parameter_set_id),
+        .max_num_reorder_frames = 0,
+        .profile_idc = profile_idc,
+        .chroma_format_idc = static_cast<u8>(chroma_format_idc),
+        .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
+    };
     if (stated_count.has_value()) {
         parameter_set.max_num_reorder_frames = static_cast<u8>(min(*stated_count, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT)));
     } else if (!(constraint_set3_flag && first_is_one_of(profile_idc, 44, 86, 100, 110, 122, 244))) {
