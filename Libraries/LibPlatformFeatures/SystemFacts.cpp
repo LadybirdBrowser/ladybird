@@ -32,6 +32,25 @@ static JsonObject ffmpeg_to_json(FFmpegFacts const& facts)
     return object;
 }
 
+Optional<StringView> OpenSSLFacts::openssl_version_from_curl_ssl_version(StringView ssl_version)
+{
+    // MultiSSL builds list every backend and parenthesize the inactive ones, in no particular order.
+    for (auto backend : ssl_version.split_view(' ')) {
+        if (backend.starts_with("OpenSSL/"sv))
+            return backend.substring_view("OpenSSL/"sv.length());
+    }
+    return {};
+}
+
+static JsonObject openssl_to_json(OpenSSLFacts const& facts)
+{
+    JsonObject object;
+    object.set("linked_version"sv, facts.linked_version);
+    if (facts.curl_version.has_value())
+        object.set("curl_version"sv, *facts.curl_version);
+    return object;
+}
+
 JsonObject SystemFacts::to_json() const
 {
     JsonObject object;
@@ -60,6 +79,8 @@ JsonObject SystemFacts::to_json() const
         object.set("bundled_ffmpeg"sv, ffmpeg_to_json(*bundled_ffmpeg));
     if (system_ffmpeg.has_value())
         object.set("system_ffmpeg"sv, ffmpeg_to_json(*system_ffmpeg));
+    if (openssl.has_value())
+        object.set("openssl"sv, openssl_to_json(*openssl));
     return object;
 }
 
@@ -116,6 +137,15 @@ static ErrorOr<FFmpegFacts> ffmpeg_from_json(JsonObject const& object)
     return facts;
 }
 
+static ErrorOr<OpenSSLFacts> openssl_from_json(JsonObject const& object)
+{
+    OpenSSLFacts facts;
+    facts.linked_version = TRY(read_string(object, "linked_version"sv));
+    if (object.has("curl_version"sv))
+        facts.curl_version = TRY(read_string(object, "curl_version"sv));
+    return facts;
+}
+
 ErrorOr<SystemFacts> SystemFacts::from_json(StringView json)
 {
     auto value = TRY(JsonValue::from_string(json));
@@ -153,6 +183,8 @@ ErrorOr<SystemFacts> SystemFacts::from_json(JsonObject const& object)
         facts.bundled_ffmpeg = TRY(ffmpeg_from_json(*TRY(read_object(object, "bundled_ffmpeg"sv))));
     if (object.has("system_ffmpeg"sv))
         facts.system_ffmpeg = TRY(ffmpeg_from_json(*TRY(read_object(object, "system_ffmpeg"sv))));
+    if (object.has("openssl"sv))
+        facts.openssl = TRY(openssl_from_json(*TRY(read_object(object, "openssl"sv))));
     return facts;
 }
 

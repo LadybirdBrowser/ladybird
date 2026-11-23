@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <AK/Enumerate.h>
 #include <AK/Format.h>
+#include <LibPlatformFeatures/SystemFacts.h>
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/CertificateExceptions.h>
@@ -100,19 +101,15 @@ static bool curl_uses_openssl()
         VERIFY(version_info);
         if (!version_info->ssl_version)
             return false;
-
-        // curl names its active TLS backend first, as in "OpenSSL/3.5.1" or "OpenSSL/3.5.1 (GnuTLS/3.8.9)".
-        auto curl_openssl_version = StringView { version_info->ssl_version, strlen(version_info->ssl_version) };
-        if (!curl_openssl_version.starts_with("OpenSSL/"sv))
+        auto curl_openssl_version = PlatformFeatures::OpenSSLFacts::openssl_version_from_curl_ssl_version({ version_info->ssl_version, strlen(version_info->ssl_version) });
+        if (!curl_openssl_version.has_value())
             return false;
-        curl_openssl_version = curl_openssl_version.substring_view("OpenSSL/"sv.length());
-        if (auto end = curl_openssl_version.find(' '); end.has_value())
-            curl_openssl_version = curl_openssl_version.substring_view(0, *end);
 
+        // The Browser tells the user about this as well, from what the system probe found.
         auto our_openssl_version = ByteString::formatted("{}.{}.{}", OPENSSL_version_major(), OPENSSL_version_minor(), OPENSSL_version_patch());
-        if (curl_openssl_version != our_openssl_version) {
+        if (*curl_openssl_version != our_openssl_version) {
             warnln("RequestServer: curl uses OpenSSL {}, but Ladybird uses OpenSSL {}. Ladybird has to be rebuilt against the OpenSSL that curl uses, until then it leaves curl's TLS configuration as it is.",
-                curl_openssl_version, our_openssl_version);
+                *curl_openssl_version, our_openssl_version);
             return false;
         }
         return true;

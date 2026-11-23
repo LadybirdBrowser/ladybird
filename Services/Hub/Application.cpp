@@ -108,6 +108,8 @@ void Application::ui_did_start()
     for (auto const& handle : m_webdriver_windows_awaiting_ui)
         WebView::Application::notify_webdriver_window_created(handle);
     m_webdriver_windows_awaiting_ui.clear();
+    if (m_openssl_mismatch_awaiting_ui.has_value())
+        display_openssl_mismatch(m_openssl_mismatch_awaiting_ui.release_value());
 }
 
 void Application::set_active_view(Optional<u64> view_id)
@@ -245,6 +247,18 @@ void Application::display_error_dialog(StringView error_message) const
         ui->async_app_display_error_dialog(MUST(String::from_utf8(error_message)));
     else
         WebView::Application::display_error_dialog(error_message);
+}
+
+void Application::display_openssl_mismatch(PlatformFeatures::OpenSSLFacts const& facts)
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui)
+        return;
+    if (!m_ui_did_start) {
+        m_openssl_mismatch_awaiting_ui = facts;
+        return;
+    }
+    ui->async_app_display_openssl_mismatch(facts.curl_version.value_or({}), facts.linked_version);
 }
 
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)

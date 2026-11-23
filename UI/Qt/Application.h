@@ -281,6 +281,8 @@ private:
     void ask_user_for_download_path(u64 request_id, ByteString const& file) const;
     void display_download_confirmation_dialog(StringView download_name, ByteString const& path) const;
     void display_error_dialog(StringView error_message) const;
+    void display_openssl_mismatch(String const& curl_openssl_version, String const& linked_openssl_version);
+    void show_openssl_mismatch_card(BrowserWindow&);
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     void display_update_check_result(WebView::UpdateCheckResult::Kind, Optional<String> const& version, WebView::InstallMethod, WebView::UpdateCheckTrigger);
 #endif
@@ -413,6 +415,13 @@ private:
     bool m_installation_replaced { false };
     bool m_profile_is_temporary { false };
     RestartCommand m_restart_command;
+
+    struct OpenSSLMismatch {
+        String curl_openssl_version;
+        String linked_openssl_version;
+    };
+    // Kept until a window shows it: on macOS, the last window can close while the system probe is still running.
+    Optional<OpenSSLMismatch> m_openssl_mismatch_awaiting_window;
 };
 
 }
