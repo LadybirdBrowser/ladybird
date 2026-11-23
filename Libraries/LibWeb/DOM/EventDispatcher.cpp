@@ -240,6 +240,11 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     return dispatch(target, event, legacy_target_override, legacy_output_did_listeners_throw);
 }
 
+static bool button_submits_or_resets_its_form(HTML::HTMLButtonElement const& button)
+{
+    return button.form() && (button.is_submit_button() || button.type_state() == HTML::HTMLButtonElement::TypeAttributeState::Reset);
+}
+
 // https://dom.spec.whatwg.org/#concept-event-dispatch
 bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool legacy_target_override, bool& legacy_output_did_listeners_throw)
 {
@@ -539,10 +544,11 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         }
     }
 
-    // INTEROP: Plain buttons inside links allow the link's default action. Check after event listeners
-    //          have run, since a click listener can give the button a submit, reset, command, or popover action.
+    // INTEROP: Buttons inside links that neither submit nor reset a form allow the link's default action. Check after
+    //          event listeners have run, since a click listener can give the button a submit, reset, command, or
+    //          popover action.
     if (auto* button = as_if<HTML::HTMLButtonElement>(activation_target.ptr()); button && event.bubbles() && button->enabled()
-        && button->type_state() == HTML::HTMLButtonElement::TypeAttributeState::Button
+        && !button_submits_or_resets_its_form(*button)
         && !button->get_the_attribute_associated_element(HTML::AttributeNames::commandfor, button->command_for_element())
         && !HTML::PopoverTargetAttributes::get_the_popover_target_element(*button)) {
         bool passed_button = false;
@@ -558,8 +564,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
             // INTEROP: An intervening form-associated submit or reset button consumes activation
             //          before it can reach the link, even when its form action is canceled.
             if (auto* ancestor_button = as_if<HTML::HTMLButtonElement>(entry.invocation_target.ptr()); ancestor_button
-                && ancestor_button->enabled() && ancestor_button->form()
-                && (ancestor_button->is_submit_button() || ancestor_button->type_state() == HTML::HTMLButtonElement::TypeAttributeState::Reset)) {
+                && ancestor_button->enabled() && button_submits_or_resets_its_form(*ancestor_button)) {
                 if (!intervening_activation_target)
                     intervening_activation_target = ancestor_button;
                 continue;
