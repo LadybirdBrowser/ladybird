@@ -1,0 +1,12 @@
+Ladybird applies the HTML element’s ASCII case folding to a named
+property lookup on its attribute map. SVG and XML retain their case.
+Blink’s NamedNodeMap::getNamedItem uses Element::getAttributeNode,
+WebKit’s NamedNodeMap::isSupportedPropertyName uses
+Element::hasAttribute, and Gecko’s nsDOMAttributeMap::NamedGetter looks
+up the qualified name on the element.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all returned
+the attribute for a mixed-case property read. Firefox and WebKit also
+recognized that spelling through the in operator and Object.hasOwn.
+Chrome recognized only the lowercase spelling for those queries. None
+included the mixed-case alias in its own property names.
