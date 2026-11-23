@@ -31,6 +31,11 @@ impl WebGLUniformLocation {
         allocate(vm, |_| Self { handle, program })
     }
 
+    /// The location, if it's a location in `program`.
+    pub(crate) fn handle_in(&self, program: Ref<WebGLProgram>) -> Option<i32> {
+        (program.as_ptr() == self.program.as_ptr()).then_some(self.handle)
+    }
+
     pub(crate) fn handle(&self, current_program: Option<Ref<WebGLProgram>>) -> Result<i32, InvalidOperation> {
         match current_program {
             Some(current_program) if current_program.as_ptr() == self.program.as_ptr() => Ok(self.handle),
