@@ -812,6 +812,15 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                                 self.unexpected();
                                 return 0;
                             }
+                            // 15.9 Async Arrow Function Definitions, https://tc39.es/ecma262/#sec-async-arrow-function-definitions
+                            // AsyncArrowBindingIdentifier[Yield] : BindingIdentifier[?Yield, +Await]
+                            // 13.1.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-identifiers-static-semantics-early-errors
+                            // BindingIdentifier[Yield, Await] : yield
+                            // It is a Syntax Error if this production has a [Yield] parameter.
+                            if param == N_YIELD && self.ctx & ctx::GENERATOR != 0 {
+                                self.fail(param_pos, "'yield' is not allowed as an identifier in this context");
+                                return 0;
+                            }
                             return self.parse_arrow_single(start, param, param_pos, true, no_in);
                         }
                     }
