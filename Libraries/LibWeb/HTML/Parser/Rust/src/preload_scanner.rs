@@ -5,6 +5,7 @@
  */
 
 use crate::RustFfiTokenizerHandle;
+use crate::input::InputSlice;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::Attribute;
@@ -85,7 +86,7 @@ pub struct RustFfiPreloadScanner {
 
 impl RustFfiPreloadScanner {
     fn new(scripting_enabled: bool) -> Self {
-        let mut tokenizer = HtmlTokenizer::new(Vec::new());
+        let mut tokenizer = HtmlTokenizer::new(Vec::<u8>::new());
         // More input can arrive, so the scanner waits at the end of what it has for the rest of a token.
         tokenizer.set_input_stream_closed(false);
         RustFfiPreloadScanner {
@@ -100,7 +101,7 @@ impl RustFfiPreloadScanner {
         *self = Self::new(self.scripting_enabled);
     }
 
-    fn append_input(&mut self, code_units: &[u16]) {
+    fn append_input(&mut self, code_units: InputSlice<'_>) {
         self.tokenizer.append_input(code_units);
     }
 
@@ -209,7 +210,7 @@ pub(crate) fn scan_utf16(
     mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
 ) {
     let mut scanner = RustFfiPreloadScanner::new(scripting_enabled);
-    scanner.append_input(input);
+    scanner.append_input(InputSlice::Utf16(input));
     scanner.tokenizer.set_input_stream_closed(true);
     scanner.scan(&mut callback);
 }
@@ -1027,13 +1028,17 @@ mod tests {
         let mut scanner = RustFfiPreloadScanner::new(true);
 
         // The input runs out inside a tag, and then inside the text of a script.
-        scanner.append_input(&code_units(r#"<img src="./a.png"><img sr"#));
+        scanner.append_input(InputSlice::Utf16(&code_units(r#"<img src="./a.png"><img sr"#)));
         assert_eq!(scan_urls(&mut scanner), vec!["./a.png"]);
 
-        scanner.append_input(&code_units(r#"c="./b.png"><script>var trap = '<img src="./tr"#));
+        scanner.append_input(InputSlice::Utf16(&code_units(
+            r#"c="./b.png"><script>var trap = '<img src="./tr"#,
+        )));
         assert_eq!(scan_urls(&mut scanner), vec!["./b.png"]);
 
-        scanner.append_input(&code_units(r#"ap.png">';</script><img src="./c.png">"#));
+        scanner.append_input(InputSlice::Utf16(&code_units(
+            r#"ap.png">';</script><img src="./c.png">"#,
+        )));
         assert_eq!(scan_urls(&mut scanner), vec!["./c.png"]);
     }
 
@@ -1043,26 +1048,26 @@ mod tests {
         parser_tokenizer.set_input_stream_closed(false);
 
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=a>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=a>"));
         assert!(!continues);
 
-        parser_tokenizer.append_input(&code_units("<img src=b>"));
+        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=b>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=b>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=b>"));
         assert!(continues);
 
         // Once the parser gets past the scanned input, the scan starts over where the parser is.
         while parser_tokenizer.next_token(false, false).is_some() {}
-        parser_tokenizer.append_input(&code_units("<img src=c>"));
+        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=c>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=c>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=c>"));
         assert!(continues);
-        parser_tokenizer.append_input(&code_units("<img src=d><img src=e>"));
+        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=d><img src=e>")));
         while parser_tokenizer.next_token(false, false).is_some() {}
         parser_tokenizer.parser_did_run();
-        parser_tokenizer.append_input(&code_units("<img src=f>"));
+        parser_tokenizer.append_input(InputSlice::Utf16(&code_units("<img src=f>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=f>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=f>"));
         assert!(!continues);
     }
 
@@ -1075,13 +1080,13 @@ mod tests {
         parser_tokenizer.update_insertion_point();
 
         let (input, _) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=a>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=a>"));
 
         // Input that document.write() inserts at the insertion point comes before the scanned input, so the scan has
         // to take it in too.
-        parser_tokenizer.insert_input_at_insertion_point(&code_units("<img src=w>"));
+        parser_tokenizer.insert_input_at_insertion_point(InputSlice::Utf16(&code_units("<img src=w>")));
         let (input, continues) = parser_tokenizer.input_for_speculative_scan();
-        assert_eq!(input, code_units("<img src=w><img src=a>"));
+        assert_eq!(input.to_utf16(), code_units("<img src=w><img src=a>"));
         assert!(!continues);
     }
 }

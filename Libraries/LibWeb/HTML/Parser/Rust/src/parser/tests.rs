@@ -16,6 +16,7 @@ use super::test_host::FakeInsertion;
 use super::test_host::FakeInsertionCall;
 use super::test_host::FakeNodeKind;
 use crate::RustFfiTokenizerHandle;
+use crate::input::InputSlice;
 use crate::make_handle;
 use crate::rust_html_tokenizer_destroy;
 use crate::tokenizer::HtmlTokenizer;
@@ -32,7 +33,7 @@ impl ScriptCreatedParser {
         test_host::reset();
         let mut parser = Self {
             parser: rust_html_parser_create(),
-            tokenizer: make_handle(HtmlTokenizer::new(Vec::new())),
+            tokenizer: make_handle(HtmlTokenizer::new(Vec::<u8>::new())),
         };
         parser.tokenizer().set_input_stream_closed(false);
         parser.tokenizer().update_insertion_point();
@@ -59,7 +60,8 @@ impl ScriptCreatedParser {
 
     fn write(&mut self, markup: &str) {
         let code_units: Vec<u16> = markup.encode_utf16().collect();
-        self.tokenizer().insert_input_at_insertion_point(&code_units);
+        self.tokenizer()
+            .insert_input_at_insertion_point(InputSlice::Utf16(&code_units));
         self.run(true);
     }
 
