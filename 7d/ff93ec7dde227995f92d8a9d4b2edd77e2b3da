@@ -1,0 +1,28 @@
+Ladybird now dispatches every mouse event at a disabled form control,
+except a trusted mousedown, mouseup, click, or dblclick, whose
+path ends below the first disabled form control on it. Chrome 158,
+Firefox 151, and WebKit 26.5 give the same events, targets, and
+paths when run on a disabled button, a span inside one, a disabled
+input, and a div in a disabled fieldset (the regression test’s
+output is identical in all three), and all three scroll the page on a
+wheel over a disabled control.
+
+Blink’s EventPath::AdjustForDisabledFormControl() and WebKit’s
+EventPath::adjustForDisabledFormControl() cut the path of those
+four trusted events at the first disabled form control. And Gecko’s
+nsGenericHTMLFormElement::IsElementDisabledForEvents() lets pointer and
+mouse moves, over/out/enter/leave, and wheel events through, and blocks
+every other trusted event at a disabled control.
+
+A press in a disabled control still runs its default actions in
+Ladybird, as in all three engines when run: A left or a right click on
+a disabled input or button moves the focus to the body, a click on a
+disabled button keeps the page’s selection, and a click activates an
+enabled link or submit button inside a disabled control (a link in a
+disabled button, or a submit button in a disabled form-associated custom
+element), but not a link around a disabled button, or around a host
+whose shadow tree puts a disabled button around its slot.
+
+The engines differ on auxclick and contextmenu at a disabled control:
+Chrome dispatches both, WebKit only contextmenu, and Firefox neither.
+Ladybird dispatches both, as Chrome does.
