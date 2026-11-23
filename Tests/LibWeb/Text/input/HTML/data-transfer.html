@@ -67,5 +67,17 @@
         println(`removed item kind: ${JSON.stringify(stringItem.kind)}`);
         println(`callback ran before yielding: ${callbackRan}`);
         println(`queued string after removal: ${await queuedData}`);
+
+        removeTestErrorHandler();
+        const reportedError = new Promise(resolve => {
+            window.addEventListener("error", event => {
+                event.preventDefault();
+                resolve(event.error.message);
+            }, { once: true });
+        });
+        dataTransferItemList.add("thrown", "text/thrown").getAsString(() => {
+            throw new Error("getAsString callback error");
+        });
+        println(`reported callback error: ${await reportedError}`);
     });
 </script>

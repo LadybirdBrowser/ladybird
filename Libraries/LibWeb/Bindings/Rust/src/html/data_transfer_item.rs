@@ -102,7 +102,9 @@ impl DataTransferItem {
             (callback, data),
             |vm, (callback, data)| {
                 let data = Value::from_string(PrimitiveString::create(vm, data));
-                let _ = callback.invoke(None, &[data]);
+                // AD-HOC: The spec gives no exception behavior, which WebIDL requires for this callback.
+                //         Report exceptions.
+                callback.invoke_and_report(&[data]);
             },
         );
         Ok(())
