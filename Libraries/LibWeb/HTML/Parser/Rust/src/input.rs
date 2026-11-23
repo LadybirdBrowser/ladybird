@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::scan;
+use std::ops::Range;
+
 /// The code units of a tokenizer's input stream.
 ///
 /// Most documents only have code units below U+0100, and are kept at one byte per code unit. The stream is widened
@@ -13,6 +16,14 @@
 pub enum Input {
     Latin1(Vec<u8>),
     Utf16(Vec<u16>),
+}
+
+/// Where a run of code units is in the input.
+#[derive(Clone, Debug)]
+pub struct InputRun {
+    pub range: Range<usize>,
+    /// Whether every code unit of the run is known to be ASCII.
+    pub is_ascii: bool,
 }
 
 /// A borrowed run of input code units.
@@ -78,6 +89,13 @@ impl Input {
         }
     }
 
+    pub fn slice(&self, range: Range<usize>) -> InputSlice<'_> {
+        match self {
+            Self::Latin1(code_units) => InputSlice::Latin1(&code_units[range]),
+            Self::Utf16(code_units) => InputSlice::Utf16(&code_units[range]),
+        }
+    }
+
     pub fn append(&mut self, code_units: InputSlice<'_>) {
         self.insert(self.len(), code_units);
     }
@@ -125,9 +143,22 @@ impl InputSlice<'_> {
     }
 
     pub fn to_utf16(&self) -> Vec<u16> {
+        let mut code_units = Vec::with_capacity(self.len());
+        self.append_to(&mut code_units);
+        code_units
+    }
+
+    pub fn contains_non_whitespace(&self) -> bool {
         match self {
-            Self::Latin1(code_units) => code_units.iter().copied().map(u16::from).collect(),
-            Self::Utf16(code_units) => code_units.to_vec(),
+            Self::Latin1(code_units) => scan::contains_non_whitespace(code_units),
+            Self::Utf16(code_units) => scan::contains_non_whitespace(code_units),
+        }
+    }
+
+    pub fn append_to(&self, output: &mut Vec<u16>) {
+        match self {
+            Self::Latin1(code_units) => output.extend(code_units.iter().copied().map(u16::from)),
+            Self::Utf16(code_units) => output.extend_from_slice(code_units),
         }
     }
 

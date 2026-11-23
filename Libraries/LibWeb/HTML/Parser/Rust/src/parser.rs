@@ -5,6 +5,9 @@
  */
 
 use crate::RustFfiTokenizerHandle;
+use crate::input::Input;
+use crate::input::InputRun;
+use crate::input::InputSlice;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::AttributeList;
@@ -121,7 +124,20 @@ unsafe extern "C" {
         system_id_len: usize,
     ) -> usize;
     fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u16, data_len: usize) -> usize;
-    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u8, data_len: usize);
+    fn ladybird_html_parser_insert_latin1_text(
+        parent: usize,
+        offset: usize,
+        data_ptr: *const u8,
+        data_len: usize,
+        is_ascii: bool,
+    );
+    fn ladybird_html_parser_insert_utf16_text(
+        parent: usize,
+        offset: usize,
+        data_ptr: *const u16,
+        data_len: usize,
+        is_ascii: bool,
+    );
     fn ladybird_html_parser_add_missing_attribute(
         parser: *mut c_void,
         element: usize,
@@ -387,7 +403,7 @@ struct ParserState {
     allow_declarative_shadow_roots: bool,
     scripting_enabled: bool,
     next_line_feed_can_be_ignored: bool,
-    pending_text: String,
+    pending_text: PendingText,
     attribute_buffers: AttributeBuffers,
     pending_table_text: String,
     pending_table_text_contains_non_whitespace: bool,
@@ -423,7 +439,7 @@ impl ParserState {
             allow_declarative_shadow_roots: false,
             scripting_enabled: true,
             next_line_feed_can_be_ignored: false,
-            pending_text: String::new(),
+            pending_text: PendingText::default(),
             attribute_buffers: AttributeBuffers::default(),
             pending_table_text: String::new(),
             pending_table_text_contains_non_whitespace: false,
@@ -681,15 +697,13 @@ impl TreeBuilder {
                     // SAFETY: See above.
                     // FIXME: Recheck the tokenizer state after reconstruction; custom element reactions can abort
                     //        the parser, invalidating the previously available Data-state run.
-                    let contains_non_whitespace = unsafe {
-                        self.tokenizer
-                            .as_mut()
-                            .try_fast_data_run(&mut self.pending_text)
-                            .unwrap()
-                    };
-                    if contains_non_whitespace {
+                    let run = unsafe { self.tokenizer.as_mut().try_fast_data_run().unwrap() };
+                    // SAFETY: See above.
+                    let input = unsafe { &self.tokenizer.as_ref().input };
+                    if self.frameset_ok && input.slice(run.range.clone()).contains_non_whitespace() {
                         self.frameset_ok = false;
                     }
+                    self.pending_text.push_input_run(run, input);
                     continue;
                 }
             }
@@ -4157,9 +4171,10 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
     fn insert_character(&mut self, code_point: u32) {
-        if let Some(character) = char::from_u32(code_point) {
-            self.pending_text.push(character);
-        }
+        // SAFETY: TreeBuilder is only constructed with a tokenizer pointer owned by the C++ HTMLParser's Rust
+        //         tokenizer handle, and the handle outlives each parser run.
+        let input = unsafe { &self.tokenizer.as_ref().input };
+        self.pending_text.push_code_point(code_point, input);
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
@@ -4169,25 +4184,37 @@ impl TreeBuilder {
         }
         // AD-HOC: Coalesce consecutive character tokens before asking the host to insert text. The host still runs the
         // same DOM insertion logic for the adjusted insertion location.
-        let mut data = std::mem::take(&mut self.pending_text);
+        let input_run = self.pending_text.input_run.take();
+        let mut code_units = std::mem::take(&mut self.pending_text.code_units);
 
         let insertion_location = self.adjusted_insertion_location_for_text();
-        self.insert_text(insertion_location, &data);
+        if let Some(input_run) = input_run {
+            // OPTIMIZATION: Text that is one run of the input is handed to the host from the input buffer itself.
+            // SAFETY: TreeBuilder is only constructed with a tokenizer pointer owned by the C++ HTMLParser's Rust
+            //         tokenizer handle, and the handle outlives each parser run.
+            let input = unsafe { &self.tokenizer.as_ref().input };
+            self.insert_text(insertion_location, input.slice(input_run.range), input_run.is_ascii);
+        } else {
+            self.insert_text(insertion_location, InputSlice::Utf16(&code_units), false);
+        }
         // OPTIMIZATION: Keep small text buffers for the next run without retaining large text nodes.
-        if data.capacity() <= 4096 && self.pending_text.is_empty() {
-            data.clear();
-            self.pending_text = data;
+        if code_units.capacity() <= 4096 && self.pending_text.is_empty() {
+            code_units.clear();
+            self.pending_text.code_units = code_units;
         }
     }
 
-    fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, data: &str) {
+    fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, text: InputSlice<'_>, is_ascii: bool) {
+        let AdjustedInsertionLocation { parent, offset } = insertion_location;
         unsafe {
-            ladybird_html_parser_insert_text(
-                insertion_location.parent,
-                insertion_location.offset,
-                data.as_ptr(),
-                data.len(),
-            )
+            match text {
+                InputSlice::Latin1(text) => {
+                    ladybird_html_parser_insert_latin1_text(parent, offset, text.as_ptr(), text.len(), is_ascii)
+                }
+                InputSlice::Utf16(text) => {
+                    ladybird_html_parser_insert_utf16_text(parent, offset, text.as_ptr(), text.len(), is_ascii)
+                }
+            }
         }
     }
 
@@ -5210,6 +5237,52 @@ impl TreeBuilder {
     fn remove_active_formatting_element(&mut self, handle: usize) {
         self.list_of_active_formatting_elements
             .retain(|entry| entry.handle != handle);
+    }
+}
+
+/// The text of the character tokens that haven't been inserted yet.
+#[derive(Default)]
+struct PendingText {
+    /// The run of tokenizer input that is all of the text, for as long as the text is exactly that. The run doesn't
+    /// outlive a parser run, so the input can't change under it.
+    input_run: Option<InputRun>,
+    /// The text, once it is anything other than a single run of input.
+    code_units: Vec<u16>,
+}
+
+impl PendingText {
+    fn is_empty(&self) -> bool {
+        self.input_run.is_none() && self.code_units.is_empty()
+    }
+
+    fn push_code_point(&mut self, code_point: u32, input: &Input) {
+        let Some(character) = char::from_u32(code_point) else {
+            return;
+        };
+        self.copy_input_run(input);
+        self.code_units.extend_from_slice(character.encode_utf16(&mut [0; 2]));
+    }
+
+    fn push_input_run(&mut self, run: InputRun, input: &Input) {
+        if self.is_empty() {
+            self.input_run = Some(run);
+            return;
+        }
+        if let Some(input_run) = &mut self.input_run
+            && input_run.range.end == run.range.start
+        {
+            input_run.range.end = run.range.end;
+            input_run.is_ascii &= run.is_ascii;
+            return;
+        }
+        self.copy_input_run(input);
+        input.slice(run.range).append_to(&mut self.code_units);
+    }
+
+    fn copy_input_run(&mut self, input: &Input) {
+        if let Some(input_run) = self.input_run.take() {
+            input.slice(input_run.range).append_to(&mut self.code_units);
+        }
     }
 }
 

@@ -120,6 +120,38 @@ static Utf16String utf16_string_from_span(ReadonlySpan<char16_t> utf16)
     return Utf16String::from_utf16(Utf16View { utf16.data(), utf16.size() });
 }
 
+enum class IsKnownToBeASCII : u8 {
+    No,
+    Yes,
+};
+
+// OPTIMIZATION: The parser knows whether text it has scanned is ASCII, which saves finding that out again here in
+//               order to store the string at one byte per code unit.
+template<typename CodeUnit>
+static Utf16String utf16_string_from_ascii_code_units(ReadonlySpan<CodeUnit> code_units)
+{
+    return Utf16String::create_uninitialized_ascii(code_units.size(), [&](Bytes buffer) {
+        for (size_t i = 0; i < code_units.size(); ++i)
+            buffer[i] = static_cast<u8>(code_units[i]);
+    });
+}
+
+static Utf16String utf16_string_from_span(ReadonlyBytes latin1, IsKnownToBeASCII is_known_to_be_ascii)
+{
+    if (latin1.is_empty())
+        return {};
+    if (is_known_to_be_ascii == IsKnownToBeASCII::Yes)
+        return utf16_string_from_ascii_code_units(latin1);
+    return Utf16String::from_utf16(Utf16View::from_latin1(latin1, false));
+}
+
+static Utf16String utf16_string_from_span(ReadonlySpan<char16_t> utf16, IsKnownToBeASCII is_known_to_be_ascii)
+{
+    if (is_known_to_be_ascii == IsKnownToBeASCII::Yes && !utf16.is_empty())
+        return utf16_string_from_ascii_code_units(utf16);
+    return utf16_string_from_span(utf16);
+}
+
 static Utf16String utf16_string_from_ffi(u16 const* ptr, size_t len)
 {
     if (!ptr)
@@ -152,13 +184,13 @@ static Utf16String const& newline_then_spaces_string(size_t length)
 
 // OPTIMIZATION: Markup indents tags with a newline followed by spaces, so many Text nodes hold such a run. Like Blink,
 //               share one string for each length of these runs instead of allocating one for every Text node.
-template<typename CharT>
-static Utf16String text_node_data_from_span(ReadonlySpan<CharT> text)
+template<typename CharT, typename... IsKnownToBeASCIIOrNothing>
+static Utf16String text_node_data_from_span(ReadonlySpan<CharT> text, IsKnownToBeASCIIOrNothing... is_known_to_be_ascii)
 {
     if (text.size() > 1 && text.size() < newline_then_spaces_table_size && text[0] == '\n'
         && all_of(text.slice(1), [](CharT ch) { return ch == ' '; }))
         return newline_then_spaces_string(text.size());
-    return utf16_string_from_span(text);
+    return utf16_string_from_span(text, is_known_to_be_ascii...);
 }
 
 static Optional<Utf16FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlAttributeNamespace);
@@ -185,7 +217,8 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtml
 extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void*);
 extern "C" size_t ladybird_html_parser_create_document_type(void*, u16 const*, size_t, u16 const*, size_t, u16 const*, size_t);
 extern "C" size_t ladybird_html_parser_create_comment(void*, u16 const*, size_t);
-extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
+extern "C" void ladybird_html_parser_insert_latin1_text(size_t, size_t, u8 const*, size_t, bool);
+extern "C" void ladybird_html_parser_insert_utf16_text(size_t, size_t, u16 const*, size_t, bool);
 extern "C" void ladybird_html_parser_add_missing_attribute(void*, size_t, size_t, u16 const*, size_t);
 extern "C" u8 ladybird_html_parser_sanitizer_action(void*, size_t);
 extern "C" size_t ladybird_html_parser_child_at_index(size_t, size_t);
@@ -3077,7 +3110,8 @@ extern "C" size_t ladybird_html_parser_create_comment(void* parser, u16 const* d
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
-extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len)
+template<typename CharT>
+static void insert_text_for_rust_parser(size_t parent, size_t offset, ReadonlySpan<CharT> text, bool is_ascii)
 {
     auto insertion_location = node_and_offset_from_html_parser_ffi(parent, offset);
     auto& parent_node = *insertion_location.node;
@@ -3087,15 +3121,25 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
     if (parent_node.is_document())
         return;
 
-    auto data = text_node_data_from_span(ReadonlySpan<char> { reinterpret_cast<char const*>(data_ptr), data_len });
+    auto data = text_node_data_from_span(text, is_ascii ? IsKnownToBeASCII::Yes : IsKnownToBeASCII::No);
     if (auto* previous_text = as_if<DOM::Text>(insertion_location.previous_child())) {
         HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { parent_node };
         (void)previous_text->append_data(data);
         return;
     }
 
-    auto text = DOM::Text::create(parent_node.document(), data);
-    insert_node_for_parser(parent_node, *text, insertion_location.child_at_offset());
+    auto text_node = DOM::Text::create(parent_node.document(), data);
+    insert_node_for_parser(parent_node, *text_node, insertion_location.child_at_offset());
+}
+
+extern "C" void ladybird_html_parser_insert_latin1_text(size_t parent, size_t offset, u8 const* data_ptr, size_t data_len, bool is_ascii)
+{
+    insert_text_for_rust_parser(parent, offset, ReadonlyBytes { data_ptr, data_len }, is_ascii);
+}
+
+extern "C" void ladybird_html_parser_insert_utf16_text(size_t parent, size_t offset, u16 const* data_ptr, size_t data_len, bool is_ascii)
+{
+    insert_text_for_rust_parser(parent, offset, ReadonlySpan<char16_t> { reinterpret_cast<char16_t const*>(data_ptr), data_len }, is_ascii);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody
