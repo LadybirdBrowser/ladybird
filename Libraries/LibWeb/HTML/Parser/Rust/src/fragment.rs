@@ -189,15 +189,6 @@ fn equals_ascii<T: CodeUnit>(code_units: &[T], ascii: &[u8]) -> bool {
             .all(|(&code_unit, &byte)| code_unit.into() == u16::from(byte))
 }
 
-/// The bytes of a name the scanner has read, which is ASCII, if it fits in `buffer`.
-fn name_bytes<'a, T: CodeUnit>(name: &[T], buffer: &'a mut [u8; 32]) -> Option<&'a [u8]> {
-    let bytes = buffer.get_mut(..name.len())?;
-    for (byte, &code_unit) in bytes.iter_mut().zip(name) {
-        *byte = code_unit.into() as u8;
-    }
-    Some(bytes)
-}
-
 fn scan<T: CodeUnit>(input: &[T], tape: &mut RustHtmlFragmentTape) -> bool {
     tape.operations.clear();
     tape.attributes.clear();
@@ -410,7 +401,7 @@ impl<'a, T: CodeUnit> Scanner<'a, T> {
 
     fn scan_supported_tag(&mut self) -> Option<TagId> {
         let name = self.scan_name();
-        let tag = tag_id_for_name(name_bytes(name, &mut [0; 32])?);
+        let tag = tag_id_for_name(scan::ascii_name_bytes(name, &mut [0; 32])?);
         (tag != TagId::UNKNOWN && SUPPORTED_TAGS.contains(tag)).then_some(tag)
     }
 
@@ -460,14 +451,18 @@ impl<'a, T: CodeUnit> Scanner<'a, T> {
 fn known_attribute_name_identity<T: CodeUnit>(name: &[T]) -> usize {
     #[cfg(not(test))]
     {
-        name_bytes(name, &mut [0; 32])
+        scan::ascii_name_bytes(name, &mut [0; 32])
             .and_then(known_attribute_name)
             .map_or(0, |name| name.raw_identity())
     }
     // NB: There are no fly strings in the standalone tests, which only tell known names from other names.
     #[cfg(test)]
     {
-        usize::from(name_bytes(name, &mut [0; 32]).and_then(known_attribute_name).is_some())
+        usize::from(
+            scan::ascii_name_bytes(name, &mut [0; 32])
+                .and_then(known_attribute_name)
+                .is_some(),
+        )
     }
 }
 

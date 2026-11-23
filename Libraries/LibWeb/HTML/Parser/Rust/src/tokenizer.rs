@@ -278,6 +278,134 @@ fn to_ascii_lowercase(c: u32) -> u32 {
     if is_ascii_upper_alpha(c) { c + 0x20 } else { c }
 }
 
+/// Reads the tag whose "<" ends right before `offset` into `token`, and returns the offset after its ">", if the tag
+/// is as plain as `HtmlTokenizer::try_scan_tag` describes and all of it is in `input`.
+fn scan_tag<T: scan::CodeUnit>(input: &[T], mut offset: usize, token: &mut Token) -> Option<usize> {
+    // NB: U+0000 NULL, which nothing here takes, stands in for the end of the input.
+    let at = |offset: usize| -> u16 { input.get(offset).map_or(0, |&code_unit| code_unit.into()) };
+    let is_tag_whitespace = |code_unit: u16| matches!(code_unit, 0x09 | 0x0A | 0x0C | 0x20);
+    let is_tag_end = |code_unit: u16| matches!(code_unit, 0x09 | 0x0A | 0x0C | 0x20 | 0x2F | 0x3E);
+
+    let is_end_tag = at(offset) == 0x2F;
+    if is_end_tag {
+        offset += 1;
+    }
+
+    let name_start = offset;
+    if !matches!(at(offset), 0x61..=0x7A) {
+        return None;
+    }
+    offset += 1;
+    while matches!(at(offset), 0x61..=0x7A | 0x30..=0x39 | 0x2D) {
+        offset += 1;
+    }
+    if !is_tag_end(at(offset)) {
+        return None;
+    }
+    let mut name_buffer = [0; 64];
+    let name = Utf16View::Latin1(scan::ascii_name_bytes(&input[name_start..offset], &mut name_buffer)?);
+    *token = Token {
+        token_type: if is_end_tag {
+            TokenType::EndTag
+        } else {
+            TokenType::StartTag
+        },
+        code_point: 0,
+        payload: TokenPayload::Tag {
+            tag_name: HtmlName::from_code_units(name),
+            tag_id: crate::token::TagId::for_code_units(name),
+            self_closing: false,
+            had_duplicate_attribute: false,
+            attributes: crate::token::AttributeList::new(),
+        },
+        start_offset: SourceOffset::new(name_start),
+        end_offset: SourceOffset::NONE,
+    };
+    let TokenPayload::Tag {
+        attributes,
+        self_closing,
+        ..
+    } = &mut token.payload
+    else {
+        unreachable!();
+    };
+
+    loop {
+        let after_whitespace = offset;
+        while is_tag_whitespace(at(offset)) {
+            offset += 1;
+        }
+        match at(offset) {
+            0x3E => return Some(offset + 1),
+            0x2F if !is_end_tag && at(offset + 1) == 0x3E => {
+                *self_closing = true;
+                return Some(offset + 2);
+            }
+            _ => {}
+        }
+        // NB: An attribute comes after whitespace, and an end tag with attributes is a parse error.
+        if is_end_tag || offset == after_whitespace {
+            return None;
+        }
+
+        let name_start = offset;
+        while matches!(at(offset), 0x61..=0x7A | 0x30..=0x39 | 0x2D | 0x2E | 0x3A | 0x5F) {
+            offset += 1;
+        }
+        if offset == name_start || !(is_tag_end(at(offset)) || at(offset) == 0x3D) {
+            return None;
+        }
+        let name = Utf16View::Latin1(scan::ascii_name_bytes(&input[name_start..offset], &mut name_buffer)?);
+        attributes.start_new_attribute();
+        let attribute = attributes.last_mut().unwrap();
+        attribute.local_name = HtmlName::from_code_units(name);
+        attribute.name_start_offset = SourceOffset::new(name_start);
+        attribute.name_end_offset = SourceOffset::new(offset);
+
+        let mut after_name = offset;
+        while is_tag_whitespace(at(after_name)) {
+            after_name += 1;
+        }
+        if at(after_name) != 0x3D {
+            // NB: The attribute has no value, and the whitespace after it is that before what comes next.
+            continue;
+        }
+        offset = after_name + 1;
+        while is_tag_whitespace(at(offset)) {
+            offset += 1;
+        }
+
+        let quote = at(offset);
+        attribute.value_start_offset = SourceOffset::new(offset);
+        if quote == 0x22 || quote == 0x27 {
+            offset += 1;
+            let length = scan::attribute_value_run(&input[offset..], quote as u8);
+            if at(offset + length) != quote {
+                return None;
+            }
+            attribute.value.push_slice(T::view(&input[offset..offset + length]));
+            offset += length + 1;
+            if !is_tag_end(at(offset)) {
+                return None;
+            }
+        } else {
+            let value_start = offset;
+            loop {
+                match at(offset) {
+                    0x09 | 0x0A | 0x0C | 0x20 | 0x3E => break,
+                    0x00 | 0x0D | 0x22 | 0x26 | 0x27 | 0x3C | 0x3D | 0x60 | 0xD800..=0xDFFF => return None,
+                    _ => offset += 1,
+                }
+            }
+            if offset == value_start {
+                return None;
+            }
+            attribute.value.push_slice(T::view(&input[value_start..offset]));
+        }
+        attribute.value_end_offset = SourceOffset::new(offset);
+    }
+}
+
 #[inline]
 fn is_whitespace(c: u32) -> bool {
     matches!(c, 0x09 | 0x0A | 0x0C | 0x20)
@@ -784,6 +912,27 @@ impl HtmlTokenizer {
         self.current_offset = offset;
     }
 
+    /// OPTIMIZATION: Most tags are written the same plain way: a lowercase name, attributes with lowercase names and
+    ///               values that hold no character references, and nothing out of place. Such a tag is read here in
+    ///               one go, right after its "<" in the data state, into the token that the tag open state and the
+    ///               states after it would have made of it one code point at a time. Any other tag is left to them,
+    ///               with nothing consumed.
+    fn try_scan_tag(&mut self) -> bool {
+        let limit = self.fast_scan_limit();
+        let offset = self.current_offset;
+        let end = match &self.input {
+            CodeUnits::Latin1(code_units) => scan_tag(&code_units[..limit], offset, &mut self.current_token),
+            CodeUnits::Utf16(code_units) => scan_tag(&code_units[..limit], offset, &mut self.current_token),
+        };
+        let Some(end) = end else {
+            self.current_token = Token::default();
+            return false;
+        };
+        self.prev_offset = end - 1;
+        self.current_offset = end;
+        true
+    }
+
     fn consume_current_builder(&mut self) -> CodeUnits {
         self.current_builder.take()
     }
@@ -1052,6 +1201,9 @@ impl HtmlTokenizer {
                         }
                         Some(0x3C) => {
                             // '<'
+                            if self.try_scan_tag() {
+                                return self.emit_current_token_direct();
+                            }
                             self.state = State::TagOpen;
                             continue;
                         }

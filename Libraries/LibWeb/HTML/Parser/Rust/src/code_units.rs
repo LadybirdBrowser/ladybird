@@ -229,6 +229,13 @@ impl CodeUnits {
             (Self::Utf16(string), Utf16View::Latin1(code_units)) => {
                 string.extend(code_units.iter().copied().map(u16::from));
             }
+            // NB: Input stored as UTF-16 is mostly code units that fit in a byte, which keeps this at a byte each
+            //     and in the buffer it already has.
+            (Self::Latin1(string), Utf16View::Utf16(code_units))
+                if code_units.iter().all(|&code_unit| code_unit <= 0xFF) =>
+            {
+                string.extend(code_units.iter().map(|&code_unit| code_unit as u8));
+            }
             (Self::Latin1(string), Utf16View::Utf16(code_units)) => {
                 let mut widened = Vec::with_capacity(string.len() + code_units.len());
                 widened.extend(string.iter().copied().map(u16::from));
