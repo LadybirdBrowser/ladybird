@@ -33,6 +33,12 @@
 #include <effects/SkGradient.h>
 #include <effects/SkImageFilters.h>
 
+// NB: GPU canvases share the compositor's Skia context.
+struct Gfx::DecodedImageFrameRasterizerData final : public Gfx::RasterizerData {
+    sk_sp<SkImage> raster_image;
+    sk_sp<SkImage> gpu_image;
+};
+
 namespace Compositor {
 
 using namespace Compositing;
@@ -55,11 +61,21 @@ Canvas2DCommandPlayer::~Canvas2DCommandPlayer() = default;
 
 sk_sp<SkImage> Canvas2DCommandPlayer::image_of_frame(Gfx::DecodedImageFrame const& frame) const
 {
-    if (auto skia_backend_context = m_surface->skia_backend_context()) {
-        if (auto image = Gfx::sk_texture_image_sharing_pixels_of_decoded_image_frame(frame, *skia_backend_context))
-            return image;
+    auto& images = frame.identity().rasterizer_data().get([] { return make<Gfx::DecodedImageFrameRasterizerData>(); });
+    auto skia_backend_context = m_surface->skia_backend_context();
+    auto& cached_image = skia_backend_context ? images.gpu_image : images.raster_image;
+    if (cached_image)
+        return cached_image;
+
+    if (skia_backend_context) {
+        if (auto texture_image = Gfx::sk_texture_image_sharing_pixels_of_decoded_image_frame(frame, *skia_backend_context)) {
+            cached_image = texture_image;
+            return texture_image;
+        }
     }
-    return Gfx::sk_image_from_decoded_image_frame(frame);
+
+    cached_image = Gfx::sk_image_adopting_bitmap(frame.bitmap_sharing_pixels(), frame.color_space());
+    return cached_image;
 }
 
 NonnullRefPtr<Gfx::PaintingSurface> Canvas2DCommandPlayer::surface() const
