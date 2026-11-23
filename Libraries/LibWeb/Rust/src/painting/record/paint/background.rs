@@ -27,6 +27,7 @@ use crate::painting::record::paint::background_resolution::{
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::record::paint::table_backgrounds;
+use crate::painting::record::paint::text_decoration;
 use crate::painting::visual_context::SpatialData;
 use libgfx_rust::{
     CompositingAndBlendingOperator, FloatRect, FloatSize, IntRect, IntSize, MaskKind, ScalingMode, WindingRule,
@@ -475,8 +476,8 @@ fn paint_background_layers<O: Observer>(
 }
 
 // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
-// Paints one part of a background stack that's clipped to the text, in a group masked by the glyphs of the text and
-// composited with the part's operator.
+// Paints one part of a background stack that's clipped to the text, in a group masked by the text and its decorations,
+// and composited with the part's operator.
 fn paint_masked_by_text<'a, O: Observer>(
     recorder: &mut PaintRecorder<'a, O>,
     paintable: NodeSlotId,
@@ -1360,6 +1361,31 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, frag
                 scale,
                 emission.orientation,
                 emission.glyph_bounding_rect,
+                ForceDarkRole::None,
+            );
+        }
+
+        // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
+        // The background is painted within (clipped to) the intersection of the border box and the geometry of the
+        // text including any decorations [...]
+        // NB: Like the glyphs, the lines mask the background with their whole coverage, whatever their color.
+        let span = crate::painting::record::paint::text::RenderSpan {
+            fragment_index: fragment_index as u32,
+            start_code_unit: 0,
+            end_code_unit: fragment.length_in_code_units,
+            text_color: 0,
+            shadow_layers: Vec::new(),
+            highlights: Vec::new(),
+            decoration_color: None,
+        };
+        for mut set in text_decoration::decoration_sets_for_span(recorder.source, owner, &span) {
+            set.color = libgfx_rust::Color::from_rgb(0, 0, 0).0;
+            text_decoration::paint_decoration_lines(
+                recorder,
+                owner,
+                span.fragment_index,
+                fragment_absolute_rect,
+                &set,
                 ForceDarkRole::None,
             );
         }

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>background-clip: text shows text decorations</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-backgrounds/background-clip/clip-text-text-decorations-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text">
+<meta name="fuzzy" content="maxDifference=0-60;totalPixels=0-2200">
+<style>
+    .test {
+        line-height: 2em;
+        font-size: 40px;
+        color: transparent;
+        background-color: green;
+        background-clip: text;
+        text-decoration-thickness: 20px;
+    }
+</style>
+<body>
+    <div class="test" style="text-decoration: underline">AAAA</div>
+    <div class="test" style="text-decoration: line-through">AAAA</div>
+    <div class="test" style="text-decoration: overline">AAAA</div>
+</body>

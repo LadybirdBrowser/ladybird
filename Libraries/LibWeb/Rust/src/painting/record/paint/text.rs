@@ -989,6 +989,7 @@ fn paint_text_fragment<O: Observer>(
             span.fragment_index,
             decoration_box,
             set,
+            ForceDarkRole::Foreground,
         );
     }
 }
