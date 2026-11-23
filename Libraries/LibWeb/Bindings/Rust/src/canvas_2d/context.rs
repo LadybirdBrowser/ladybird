@@ -715,10 +715,39 @@ impl ContextState {
         }
     }
 
+    /// Resolves referenced filters and retains their image frames in the draw's command batch.
+    pub(crate) fn record_draw(&self, state: &DrawingState, draw: impl FnOnce(&mut CanvasRecorder, &Compositing<'_>)) {
+        let Some(operations) = &state.filter_operations else {
+            self.record(|recorder| draw(recorder, &Self::compositing(state)));
+            return;
+        };
+
+        // https://html.spec.whatwg.org/multipage/canvas.html#filters
+        // If the value of the current filter is a string parseable as a <filter-value-list> with a reference to an
+        // SVG filter in the same document, and this SVG filter changes, then the changed filter is used for the next
+        // draw operation.
+        let resolved = self.canvas.resolve_filter(operations, self.size());
+        let mut compositing = Self::compositing(state);
+        compositing.filter = resolved.as_ref().and_then(|filter| filter.bytes.as_deref());
+        compositing.filter_in_bitmap_space = true;
+        if resolved.as_ref().is_some_and(|filter| !filter.origin_clean) {
+            self.set_origin_clean(false);
+        }
+        self.record(|recorder| {
+            if let Some(filter) = &resolved {
+                for frame in &filter.image_frames {
+                    recorder.add_image_frame(frame);
+                }
+            }
+            draw(recorder, &compositing);
+        });
+    }
+
     /// How a draw composites under the current drawing state.
     pub(crate) fn compositing(state: &DrawingState) -> Compositing<'_> {
         Compositing {
             filter: state.filter.as_deref(),
+            filter_in_bitmap_space: false,
             global_alpha: state.global_alpha,
             compositing_and_blending_operator: state.current_compositing_and_blending_operator,
             shadow: Self::shadow_of(state),
@@ -751,9 +780,10 @@ impl ContextState {
     /// https://html.spec.whatwg.org/multipage/canvas.html#drawing-model
     /// 7. Composite B within the clipping region over the current output bitmap using the current compositing and
     ///    blending operator.
-    /// NB: A transparent source paint changes nothing only under source-over.
+    /// NB: A transparent source paint changes nothing under source-over unless a referenced filter supplies pixels.
     fn transparent_source_paint_can_be_ignored(state: &DrawingState) -> bool {
         state.current_compositing_and_blending_operator == CompositingAndBlendingOperator::SourceOver
+            && state.filter_operations.is_none()
     }
 
     pub(crate) fn fill_internal(&self, path: &Path, winding_rule: WindingRule) {
@@ -770,9 +800,9 @@ impl ContextState {
         let path_bytes = path.serialize_to_bytes();
         {
             let state = self.drawing_state();
-            self.record(|recorder| {
+            self.record_draw(&state, |recorder, compositing| {
                 let paint = paint_of(recorder, &state.fill_style, self.context_attributes.color_space);
-                recorder.fill_path(&path_bytes, &paint, winding_rule, &Self::compositing(&state));
+                recorder.fill_path(&path_bytes, &paint, winding_rule, compositing);
             });
         }
         self.did_draw();
@@ -802,9 +832,9 @@ impl ContextState {
                 dash_array: &dash_array,
                 dash_offset: state.line_dash_offset,
             };
-            self.record(|recorder| {
+            self.record_draw(&state, |recorder, compositing| {
                 let paint = paint_of(recorder, &state.stroke_style, self.context_attributes.color_space);
-                recorder.stroke_path(&path_bytes, &paint, &stroke, &Self::compositing(&state));
+                recorder.stroke_path(&path_bytes, &paint, &stroke, compositing);
             });
         }
         self.did_draw();

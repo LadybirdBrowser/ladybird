@@ -306,14 +306,11 @@ fn validate_canvas_2d_compositing(payload: Payload, offset: usize) -> Result<(),
     payload.span_at(offset + offset_of!(Canvas2DCompositing, filter))?;
     payload.bool_at(offset + offset_of!(Canvas2DCompositing, has_filter))?;
     if payload.u8_at(offset + offset_of!(Canvas2DCompositing, has_filter)) != 0 {
-        // A canvas filter comes from CSS filter functions, which draw no images, so the player has none to give it.
-        let filter = payload.filter_span_at(offset + offset_of!(Canvas2DCompositing, filter))?;
-        let mut draws_an_image = false;
-        filter.for_each_image_frame_id(&mut |_| draws_an_image = true);
-        if draws_an_image {
-            return Err("Canvas 2D stream command has a filter that draws an image");
-        }
+        // Decoding refuses a malformed filter, or one nested too deeply. A filter may draw the images of its feImage
+        // primitives: The player takes them from the frames that came with the commands, and draws any other as nothing.
+        payload.filter_span_at(offset + offset_of!(Canvas2DCompositing, filter))?;
     }
+    payload.bool_at(offset + offset_of!(Canvas2DCompositing, filter_in_bitmap_space))?;
     // The player turns the global alpha into a byte, which only a value from 0 to 1 converts to.
     let global_alpha = payload.f32_at(offset + offset_of!(Canvas2DCompositing, global_alpha));
     if !(0.0..=1.0).contains(&global_alpha) {

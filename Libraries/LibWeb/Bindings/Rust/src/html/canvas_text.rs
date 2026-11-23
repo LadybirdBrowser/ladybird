@@ -75,6 +75,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             let state = self.drawing_state();
             if !state.fill_style.is_visible()
                 && state.current_compositing_and_blending_operator == CompositingAndBlendingOperator::SourceOver
+                && state.filter_operations.is_none()
             {
                 return Ok(());
             }
@@ -121,16 +122,9 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let transform = text_transform(&state, self.direction_is_rtl(), &first_font, x, text_width, max_width);
         let translation = transform.map_point(FloatPoint { x, y });
         let horizontal_scale = transform.a();
-        self.record(|recorder| {
+        self.record_draw(&state, |recorder, compositing| {
             let paint = paint_of(recorder, &state.fill_style, self.context_attributes.color_space);
-            recorder.draw_glyph_runs(
-                &glyph_runs,
-                &glyphs,
-                translation,
-                horizontal_scale,
-                &paint,
-                &ContextState::compositing(&state),
-            );
+            recorder.draw_glyph_runs(&glyph_runs, &glyphs, translation, horizontal_scale, &paint, compositing);
         });
         drop(state);
         self.did_draw();

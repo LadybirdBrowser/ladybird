@@ -55,6 +55,7 @@ pub enum Paint<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct Compositing<'a> {
     pub filter: Option<&'a [u8]>,
+    pub filter_in_bitmap_space: bool,
     pub global_alpha: f32,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub shadow: Option<Canvas2DShadow>,
@@ -64,6 +65,7 @@ impl Default for Compositing<'_> {
     fn default() -> Self {
         Self {
             filter: None,
+            filter_in_bitmap_space: false,
             global_alpha: 1.0,
             compositing_and_blending_operator: CompositingAndBlendingOperator::SourceOver,
             shadow: None,
@@ -188,6 +190,7 @@ impl InlineData {
                 .filter
                 .map_or_else(DisplayListDataSpan::default, |filter| self.append(filter, 1)),
             has_filter: compositing.filter.is_some(),
+            filter_in_bitmap_space: compositing.filter_in_bitmap_space,
             global_alpha: compositing.global_alpha,
             compositing_and_blending_operator: compositing.compositing_and_blending_operator,
             has_shadow: compositing.shadow.is_some(),
@@ -419,6 +422,7 @@ mod tests {
             WindingRule::EvenOdd,
             &Compositing {
                 filter: Some(&filter),
+                filter_in_bitmap_space: true,
                 global_alpha: 0.5,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Multiply,
                 shadow: None,
@@ -446,6 +450,7 @@ mod tests {
         assert_eq!(command.paint.color_stops.positions.offset % 4, 0);
         assert_eq!(command.winding_rule, WindingRule::EvenOdd);
         assert!(command.compositing.has_filter);
+        assert!(command.compositing.filter_in_bitmap_space);
         assert_eq!(span_bytes(payload, command.compositing.filter), filter);
         assert_eq!(command.compositing.global_alpha, 0.5);
         assert_eq!(
@@ -531,9 +536,10 @@ mod tests {
             dest_rect: IntRect::new(0, 0, 1, 1).to_float(),
             scaling_mode: libgfx_rust::ScalingMode::NearestNeighbor,
         };
+        // The images of an SVG filter's feImage primitives come with the draw that applies it.
         assert_eq!(
             validate(&Filter::compose(Filter::blur(2.0, 2.0, None), image).serialize()),
-            Err("Canvas 2D stream command has a filter that draws an image")
+            Ok(())
         );
     }
 

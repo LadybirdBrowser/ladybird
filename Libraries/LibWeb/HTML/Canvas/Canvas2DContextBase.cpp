@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -57,9 +58,13 @@
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/SvgPaintResources.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGFEImageElement.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
@@ -168,7 +173,8 @@ bool web_canvas_2d_canvas_directionality_is_rtl(void* canvas, bool canvas_is_off
 bool web_canvas_2d_canvas_resolve_font(void* canvas, bool canvas_is_offscreen, FlatPtr font, CanvasFontSelection, ResolvedFont* out_font);
 void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const* color, FontMetricsSource, u8 color_space, Gfx::Color* out_color, Gfx::Color* out_color_in_color_space);
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource);
-bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*));
+bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*), void (*append_reference)(void*, CSS::StyleValue const*));
+bool web_canvas_2d_canvas_resolve_filter_reference(void* canvas_host, CSS::StyleValue const* reference, void* sink, bool* origin_clean, size_t* primitives_used);
 CSS::StyleValue const* web_canvas_2d_parse_color(FlatPtr color);
 CSS::StyleValue const* web_canvas_2d_parse_length(FlatPtr length, FlatPtr* out_serialized);
 void web_canvas_2d_style_value_ref(CSS::StyleValue const*);
@@ -608,7 +614,7 @@ float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue con
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
-bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource font, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*))
+bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMetricsSource font, void* functions, void (*append_function)(void*, Compositing::RustFFI::FfiFilterFunction const*), void (*append_reference)(void*, CSS::StyleValue const*))
 {
     auto& host = host_from(canvas_host);
     auto filter_string = Utf16String::from_raw(filter);
@@ -624,8 +630,7 @@ bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMe
     auto absolutized_style_value = style_value->absolutized(computation_context_for(host, font));
     for (auto& item : absolutized_style_value->as_value_list().values()) {
         if (item->is_url()) {
-            // FIXME: Resolve the SVG filter
-            dbgln("FIXME: SVG filters are not implemented for Canvas2D");
+            append_reference(functions, item.ptr());
             continue;
         }
 
@@ -664,6 +669,57 @@ bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMe
         }
         append_function(functions, &function);
     }
+    return true;
+}
+
+bool web_canvas_2d_canvas_resolve_filter_reference(void* canvas_host, CSS::StyleValue const* reference, void* sink, bool* origin_clean, size_t* primitives_used)
+{
+    auto& host = host_from(canvas_host);
+    auto* canvas = as_if<HTMLCanvasElement>(host.canvas_event_target());
+    if (!canvas)
+        return false;
+
+    auto& document = canvas->document();
+    auto const url = reference->as_url().url();
+    Utf16String fragment;
+    if (url.url().utf16_view().starts_with('#')) {
+        fragment = SVG::decode_fragment_identifier(url.url().utf16_view().substring_view(1));
+    } else {
+        auto parsed_url = document.encoding_parse_url(url.url());
+        if (!parsed_url.has_value() || !parsed_url->fragment().has_value()
+            || !parsed_url->equals(document.url(), URL::ExcludeFragment::Yes))
+            return false;
+        fragment = SVG::decode_fragment_identifier(*parsed_url->fragment());
+    }
+    if (fragment.is_empty())
+        return false;
+
+    document.update_style();
+    auto element = document.get_element_by_id(fragment);
+    auto* filter = element ? as_if<SVG::SVGFilterElement>(*element) : nullptr;
+    if (!filter)
+        return false;
+
+    // A filter inside a display:none subtree isn't rendered, and leaves the draw unfiltered.
+    for (DOM::Element const* ancestor = filter; ancestor; ancestor = ancestor->parent_element().ptr()) {
+        auto display_none_state = ancestor->display_none_state();
+        if (!display_none_state.has_value() || display_none_state->display_is_none)
+            return false;
+    }
+
+    // NB: Every filter a list refers to counts toward one budget, as a CSS filter's one resolved filter does.
+    if (!Painting::svg_filter_fits_primitive_budget(*filter, *primitives_used))
+        return false;
+
+    for (auto const* child = filter->first_child(); child; child = child->next_sibling()) {
+        if (auto const* image = as_if<SVG::SVGFEImageElement>(*child)) {
+            // NB: An image that hasn't loaded yet draws nothing, since only the frames available now go to the compositor.
+            auto data = image->image_data();
+            if (data && data->is_cors_cross_origin())
+                *origin_clean = false;
+        }
+    }
+    filter->push_primitives(sink, host.bitmap_size_for_canvas());
     return true;
 }
 

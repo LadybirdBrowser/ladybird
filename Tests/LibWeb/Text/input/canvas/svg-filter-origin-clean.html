@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="0" height="0">
+    <filter id="image" x="0" y="0" width="100%" height="100%">
+        <feImage width="100%" height="100%" preserveAspectRatio="none"/>
+    </filter>
+</svg>
+<script>
+    const redPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    function context() {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        const ctx = canvas.getContext("2d");
+        ctx.filter = "url(#image)";
+        return ctx;
+    }
+
+    function readback(label, ctx) {
+        for (const [name, read] of [
+            ["getImageData", () => ctx.getImageData(10, 10, 1, 1)],
+            ["toDataURL", () => ctx.canvas.toDataURL()],
+        ]) {
+            try {
+                read();
+                println(label + " " + name + ": readable");
+            } catch (error) {
+                println(label + " " + name + ": " + error.name);
+            }
+        }
+    }
+
+    async function preload(url) {
+        const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        image.setAttribute("width", "1");
+        image.setAttribute("height", "1");
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.setAttribute("href", url);
+            document.querySelector("svg").appendChild(image);
+        });
+        return image;
+    }
+
+    promiseTest(async () => {
+        // This test is loaded from a file, so the HTTP image is cross-origin.
+        const crossOriginURL = await httpTestServer().createEcho("GET", "/canvas-filter-image.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body_encoding: "base64",
+            body: redPng,
+        });
+        const primitive = document.querySelector("feImage");
+        primitive.setAttribute("href", crossOriginURL);
+        const pending = context();
+        readback("Assigned only", pending);
+        pending.fillRect(0, 0, 20, 20);
+        readback("Pending image", pending);
+
+        // SVG image elements share the decoded resource with feImage and provide a load event.
+        await preload(crossOriginURL);
+        const loaded = context();
+        loaded.fillRect(0, 0, 20, 20);
+        readback("Loaded cross-origin image", loaded);
+        loaded.filter = "none";
+        loaded.clearRect(0, 0, 20, 20);
+        readback("After clearing", loaded);
+
+        const sameOriginURL = "data:image/png;base64," + redPng;
+        primitive.setAttribute("href", sameOriginURL);
+        const pendingSameOrigin = context();
+        pendingSameOrigin.fillRect(0, 0, 20, 20);
+        readback("Pending same-origin image", pendingSameOrigin);
+        await preload(sameOriginURL);
+        const clean = context();
+        clean.fillRect(0, 0, 20, 20);
+        readback("Same-origin image", clean);
+        println("Image pixel: " + clean.getImageData(10, 10, 1, 1).data.join(","));
+
+        primitive.setAttribute("href", crossOriginURL);
+        clean.fillRect(0, 0, 20, 20);
+        readback("Changed image", clean);
+
+        const invalid = context();
+        invalid.filter = "url(#image) url(#missing)";
+        invalid.fillRect(0, 0, 20, 20);
+        readback("Unresolved list", invalid);
+    });
+</script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<svg width="0" height="0" style="position:absolute">
+    <filter id="two-deep" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" result="moved"/>
+        <feColorMatrix in="moved" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"/>
+    </filter>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        document.body.appendChild(canvas);
+        const context = canvas.getContext("2d");
+        const pixel = () => context.getImageData(10, 10, 1, 1).data.join(",");
+
+        // An SVG filter nested two deep, then enough CSS functions to take the composed graph past the depth limit.
+        context.filter = "url(#two-deep) " + "opacity(1) ".repeat(1023);
+        context.fillStyle = "rgb(255, 0, 0)";
+        context.fillRect(0, 0, 20, 20);
+        println("Too deep: " + pixel());
+
+        // The canvas keeps drawing afterward.
+        context.filter = "none";
+        context.fillStyle = "rgb(0, 0, 255)";
+        context.fillRect(0, 0, 20, 20);
+        println("After: " + pixel());
+    });
+</script>

@@ -130,9 +130,13 @@ sk_sp<SkImageFilter> Canvas2DCommandPlayer::image_filter_from(Canvas2DCompositin
 {
     if (!compositing.has_filter)
         return nullptr;
-    return Gfx::to_skia_image_filter(inline_data(compositing.filter), [](u64) -> Gfx::DecodedImageFrame const& {
-        // A canvas filter comes from CSS filter functions, which draw no images.
-        VERIFY_NOT_REACHED();
+    return Gfx::to_skia_image_filter(inline_data(compositing.filter), [&](u64 id) -> Gfx::DecodedImageFrame const& {
+        if (auto const* frame = m_resolvers.image_frame(id))
+            return *frame;
+        // NB: WebContent hands over every frame a filter draws with the commands, so a frame that isn't there came from
+        //     a misbehaving WebContent, and is drawn as nothing rather than taking the compositor down.
+        static auto const transparent_frame = MUST(Gfx::DecodedImageFrame::create(*MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 }))));
+        return transparent_frame;
     });
 }
 
@@ -250,6 +254,29 @@ template<typename Callback>
 static void draw_with_compositing(SkCanvas& canvas, SkPaint& paint, Canvas2DCompositing const& compositing, Callback draw)
 {
     auto compositing_and_blending_operator = compositing.compositing_and_blending_operator;
+    auto draw_filtered = [&](SkCanvas& target, SkPaint const& source_paint) {
+        if (!compositing.filter_in_bitmap_space || !source_paint.getImageFilter()) {
+            draw(target, source_paint);
+            return;
+        }
+
+        // https://html.spec.whatwg.org/multipage/canvas.html#filters
+        // Filter coordinates are not affected by the current transformation matrix.
+        auto matrix = target.getTotalMatrix();
+        target.save();
+        target.resetMatrix();
+        SkPaint layer_paint;
+        layer_paint.setImageFilter(source_paint.refImageFilter());
+        layer_paint.setBlender(source_paint.refBlender());
+        target.saveLayer(nullptr, &layer_paint);
+        target.setMatrix(matrix);
+        auto unfiltered_paint = source_paint;
+        unfiltered_paint.setImageFilter(nullptr);
+        unfiltered_paint.setBlender(nullptr);
+        draw(target, unfiltered_paint);
+        target.restore();
+        target.restore();
+    };
 
     // 5. When shadows are drawn, render the shadow from image B, using the current shadow styles, creating image C.
     // 6. When shadows are drawn, composite C within the clipping region over the current output bitmap using the
@@ -268,7 +295,7 @@ static void draw_with_compositing(SkCanvas& canvas, SkPaint& paint, Canvas2DComp
         shadow_layer_paint.setBlender(Gfx::to_skia_blender(compositing_and_blending_operator));
         canvas.saveLayer(nullptr, &shadow_layer_paint);
         canvas.setMatrix(matrix);
-        draw(canvas, paint);
+        draw_filtered(canvas, paint);
         canvas.restore();
         canvas.restore();
     }
@@ -280,14 +307,14 @@ static void draw_with_compositing(SkCanvas& canvas, SkPaint& paint, Canvas2DComp
     //     inside the clip.
     if (!affects_pixels_not_covered_by_source(compositing_and_blending_operator)) {
         paint.setBlender(Gfx::to_skia_blender(compositing_and_blending_operator));
-        draw(canvas, paint);
+        draw_filtered(canvas, paint);
         return;
     }
 
     SkPaint layer_paint;
     layer_paint.setBlender(Gfx::to_skia_blender(compositing_and_blending_operator));
     canvas.saveLayer(nullptr, &layer_paint);
-    draw(canvas, paint);
+    draw_filtered(canvas, paint);
     canvas.restore();
 }
 

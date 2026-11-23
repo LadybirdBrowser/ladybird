@@ -55,6 +55,7 @@ pub fn css_property_names() -> impl Iterator<Item = &'static str> {
 }
 pub use css::serialize::TextSink;
 pub use css::typed_om;
+pub use painting::svg_filter::build_canvas_filter;
 pub use svg::gfx_path_from_path_data;
 
 /// The red, green, blue and alpha of a CSS <color> in ASCII that needs nothing to be resolved against, or None for any

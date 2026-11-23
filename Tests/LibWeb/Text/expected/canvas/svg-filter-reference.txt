@@ -1,0 +1,33 @@
+url(#green): 0,255,0,255
+url(#nope): 255,0,0,255
+url(#notafilter): 255,0,0,255
+url(green): 255,0,0,255
+brightness(0) url(#green): 0,255,0,255
+url(#green) brightness(0): 0,0,0,255
+url(#green) brightness(0) url(#green): 0,255,0,255
+brightness(0) url(external.svg#green): 255,0,0,255
+brightness(0) url(#identity): 0,0,0,255
+invert(1) url(#invert): 255,0,0,255
+url(#invert) url(#invert): 255,0,0,255
+url(#gr%65en): 0,255,0,255
+Same-document absolute URL: 0,255,0,255
+Quoted reference: 0,255,0,255
+Getter: url( '#green' )
+Changed before draw: 0,0,255,255
+Changed between draws: 0,255,0,255
+Removed between draws: 255,0,0,255
+Inserted after assignment: 0,255,0,255
+Hidden SVG resource: 255,0,0,255
+200 primitives: 0,255,0,255
+200 primitives, twice: 255,0,0,255
+Restored reference: 0,255,0,255
+Invalid reference assignment: 0,255,0,255
+Invalid CSS assignment: 0,0,0,255
+Cleared filter: 255,0,0,255
+OffscreenCanvas: 255,0,0,255
+Offset in bitmap coordinates: 255,0,0,255
+Offset outside result: 0,0,0,0
+Transparent input: 0,255,0,255
+Transparent text input: 0,255,0,255
+Transparent stroke input: 0,255,0,255
+drawImage: 0,255,0,255

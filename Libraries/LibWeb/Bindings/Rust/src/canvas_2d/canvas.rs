@@ -13,7 +13,8 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d_recorder::ColorSpace;
-use libcompositing_rust::filter_bytes::FfiFilterFunction;
+use libcompositing_rust::filter_bytes::{FfiFilterFunction, filter_functions_graph};
+use libgfx_rust::filter::Filter;
 use libgfx_rust::font::FontCascadeListHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{Color, IntSize};
@@ -61,6 +62,14 @@ unsafe extern "C" {
         font: FontMetricsSource,
         functions: *mut c_void,
         append_function: unsafe extern "C" fn(*mut c_void, *const FfiFilterFunction),
+        append_reference: unsafe extern "C" fn(*mut c_void, *const c_void),
+    ) -> bool;
+    fn web_canvas_2d_canvas_resolve_filter_reference(
+        canvas_host: *mut c_void,
+        reference: *const c_void,
+        sink: *mut c_void,
+        origin_clean: *mut bool,
+        primitives_used: *mut usize,
     ) -> bool;
     fn web_canvas_2d_parse_color(color: usize) -> *const c_void;
     fn web_canvas_2d_parse_length(length: usize, out_serialized: *mut usize) -> *const c_void;
@@ -174,6 +183,18 @@ pub(crate) struct ResolvedFont {
     /// The computed size of the font in pixels, unrounded, which lengths relative to it scale.
     pub(crate) font_size: f64,
     pub(crate) serialized: Utf16String,
+}
+
+/// A filter-list entry, with CSS function lengths resolved at assignment time.
+pub(crate) enum CanvasFilterOperation {
+    Function(FfiFilterFunction),
+    Reference(StyleValue),
+}
+
+pub(crate) struct ResolvedCanvasFilter {
+    pub(crate) bytes: Option<Vec<u8>>,
+    pub(crate) image_frames: Vec<ImageFrameHandle>,
+    pub(crate) origin_clean: bool,
 }
 
 /// A CSS::StyleValue of LibWeb, one reference to which the value owns.
@@ -352,12 +373,27 @@ impl Canvas {
         unsafe { web_canvas_2d_canvas_resolve_length(self.host.as_ptr(), length.0.as_ptr(), font) }
     }
 
-    /// The functions of a <filter-value-list>, with their lengths and colors resolved against the canvas, unless the
-    /// value is not one.
-    pub(crate) fn parse_filter(self, filter: &Utf16String, font: FontMetricsSource) -> Option<Vec<FfiFilterFunction>> {
+    /// The entries of a <filter-value-list>, with CSS function lengths and colors resolved against the canvas.
+    pub(crate) fn parse_filter(
+        self,
+        filter: &Utf16String,
+        font: FontMetricsSource,
+    ) -> Option<Vec<CanvasFilterOperation>> {
         unsafe extern "C" fn append_function(functions: *mut c_void, function: *const FfiFilterFunction) {
             // SAFETY: The functions are the vector below, and LibWeb lends the function for the call.
-            unsafe { (*functions.cast::<Vec<FfiFilterFunction>>()).push(*function) };
+            unsafe {
+                (*functions.cast::<Vec<CanvasFilterOperation>>()).push(CanvasFilterOperation::Function(*function));
+            };
+        }
+        unsafe extern "C" fn append_reference(functions: *mut c_void, reference: *const c_void) {
+            // SAFETY: LibWeb lends a non-null style value; retain it for the drawing state.
+            let reference = unsafe {
+                web_canvas_2d_style_value_ref(reference);
+                StyleValue::adopt(reference).expect("a filter reference is non-null")
+            };
+            unsafe {
+                (*functions.cast::<Vec<CanvasFilterOperation>>()).push(CanvasFilterOperation::Reference(reference));
+            };
         }
         let mut functions = Vec::new();
         let is_filter = unsafe {
@@ -367,9 +403,49 @@ impl Canvas {
                 font,
                 (&raw mut functions).cast(),
                 append_function,
+                append_reference,
             )
         };
         is_filter.then_some(functions)
+    }
+
+    pub(crate) fn resolve_filter(
+        self,
+        operations: &[CanvasFilterOperation],
+        size: IntSize,
+    ) -> Option<ResolvedCanvasFilter> {
+        let mut filters = Vec::with_capacity(operations.len());
+        let mut image_frames = Vec::new();
+        let mut origin_clean = true;
+        let mut primitives_used = 0usize;
+        for operation in operations {
+            match operation {
+                CanvasFilterOperation::Function(function) => filters.push(Filter::from(*function)),
+                CanvasFilterOperation::Reference(reference) => {
+                    let (filter, frames) = libweb_rust::build_canvas_filter(size, |sink| {
+                        // SAFETY: The host and reference are live, and the publisher lends its sink for this call.
+                        unsafe {
+                            web_canvas_2d_canvas_resolve_filter_reference(
+                                self.host.as_ptr(),
+                                reference.0.as_ptr(),
+                                sink,
+                                &raw mut origin_clean,
+                                &raw mut primitives_used,
+                            )
+                        }
+                    })?;
+                    filters.extend(filter);
+                    image_frames.extend(frames);
+                }
+            }
+        }
+        Some(ResolvedCanvasFilter {
+            // A reference can nest deeper than the one level a CSS function takes, so the composed graph can go past the
+            // depth the Compositor accepts. Such a graph draws with no filtering, like a list that's too long.
+            bytes: filter_functions_graph(filters).and_then(|filter| filter.serialize_within_maximum_depth()),
+            image_frames,
+            origin_clean,
+        })
     }
 }
 

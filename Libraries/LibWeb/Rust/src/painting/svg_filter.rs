@@ -12,8 +12,10 @@
 //! device pixels.
 
 use std::collections::HashMap;
+use std::ffi::c_void;
 
 use libgfx_rust::filter::{ChannelSelector, ChannelTable, Filter, TurbulenceType};
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, IntSize, InterpolationColorSpace};
 
 use crate::layout::svg_formatting_context::FfiSvgNumberPercentage;
@@ -21,6 +23,38 @@ use crate::painting::host::visual_context::{
     FfiSvgFilterPrimitiveKind, FfiSvgFilterRegion, SUBREGION_SPECIFIES_HEIGHT, SUBREGION_SPECIFIES_WIDTH,
     SUBREGION_SPECIFIES_X, SUBREGION_SPECIFIES_Y, SvgFilterPrimitiveValues,
 };
+
+/// Builds a canvas filter from primitives published synchronously through the SVG painting sink.
+/// The callback must use the sink only during the call, through the SVG filter publication functions.
+pub fn build_canvas_filter(
+    size: IntSize,
+    publish: impl FnOnce(*mut c_void) -> bool,
+) -> Option<(Option<Filter>, Vec<ImageFrameHandle>)> {
+    let mut published = crate::painting::svg_paint_resources::PublishedSvgFilter::default();
+    if !publish((&raw mut published).cast()) {
+        return None;
+    }
+    let mut builder = SvgFilterGraphBuilder::new(1.0);
+    // https://html.spec.whatwg.org/multipage/canvas.html#filters
+    // Filters are applied in the output bitmap's coordinate space.
+    builder.set_target(
+        SvgFilterTarget {
+            region: published.region,
+            object_bounding_box: FloatRect::new(0.0, 0.0, size.width as f32, size.height as f32),
+            user_space_origin: (0.0, 0.0),
+            user_space_viewport: (size.width as f32, size.height as f32),
+        },
+        0,
+    );
+    let mut frames = Vec::new();
+    for primitive in published.primitives {
+        if let Some(frame) = &primitive.image_frame {
+            frames.push(frame.clone());
+        }
+        builder.push(primitive);
+    }
+    Some((builder.finish(), frames))
+}
 
 // https://drafts.fxtf.org/filter-effects-1/#InterfaceSVGFEColorMatrixElement
 const COLOR_MATRIX_TYPE_MATRIX: u16 = 1;

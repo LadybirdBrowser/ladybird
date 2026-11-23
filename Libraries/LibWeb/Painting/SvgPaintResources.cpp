@@ -16,21 +16,26 @@
 
 namespace Web::Painting {
 
+bool svg_filter_fits_primitive_budget(SVG::SVGFilterElement const& filter_element, size_t& primitives_used)
+{
+    // INTEROP: Other engines treat a filter with more than a few hundred primitives as an error, which also keeps a
+    //          chain of thousands of primitives from overflowing the stack of the painter that applies them one by one,
+    //          and from taking seconds to apply.
+    static constexpr size_t max_primitives = 256;
+    for (auto const* child = filter_element.first_child(); child; child = child->next_sibling()) {
+        if (is<DOM::Element>(*child) && ++primitives_used > max_primitives)
+            return false;
+    }
+    return true;
+}
+
 bool push_svg_filter_reference(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink)
 {
     auto const& layout_node = as<Layout::NodeWithStyle>(*document.layout_node_arena().node_if_live(read, slot));
     auto filter_element = resolve_svg_filter_reference({ .pointer = url_value }, layout_node);
-    if (!filter_element)
+    size_t primitives_used = 0;
+    if (!filter_element || !svg_filter_fits_primitive_budget(*filter_element, primitives_used))
         return false;
-
-    // INTEROP: Other engines treat a filter with more than a few hundred primitives as an error, which also keeps a
-    //          chain of thousands of primitives from overflowing the stack of the painter that applies them one by one.
-    static constexpr size_t max_primitives_per_filter = 256;
-    size_t primitive_count = 0;
-    for (auto const* child = filter_element->first_child(); child; child = child->next_sibling()) {
-        if (is<DOM::Element>(*child) && ++primitive_count > max_primitives_per_filter)
-            return false;
-    }
 
     auto dest_size = Gfx::enclosing_int_rect(absolute_rect(layout_node).to_type<float>()).size();
     filter_element->push_primitives(sink, dest_size);

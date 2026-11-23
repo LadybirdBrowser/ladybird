@@ -12,7 +12,7 @@ use ak::Utf16String;
 use libgfx_rust::{AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, JoinStyle};
 use libjs_rust::api::{Trace, Visitor};
 
-use super::canvas::{ResolvedFont, StyleValue};
+use super::canvas::{CanvasFilterOperation, ResolvedFont, StyleValue};
 use crate::bindings::interface::Ref;
 use crate::html::canvas_gradient::CanvasGradient;
 use crate::html::canvas_pattern::CanvasPattern;
@@ -99,6 +99,8 @@ pub(crate) struct DrawingState {
     pub(crate) shadow_color: CanvasColor,
     /// The serialized filter graph of the current filter, which the states share.
     pub(crate) filter: Option<Rc<[u8]>>,
+    /// The ordered operations of a filter containing references, resolved again for every draw.
+    pub(crate) filter_operations: Option<Rc<[CanvasFilterOperation]>>,
     /// The value of the filter attribute, unless it is "none".
     pub(crate) filter_string: Option<Utf16String>,
     pub(crate) line_width: f32,
@@ -139,6 +141,7 @@ impl Default for DrawingState {
             shadow_blur: 0.0,
             shadow_color: CanvasColor::invariant(Color::TRANSPARENT),
             filter: None,
+            filter_operations: None,
             filter_string: None,
             line_width: 1.0,
             line_cap: CanvasLineCap::Butt,

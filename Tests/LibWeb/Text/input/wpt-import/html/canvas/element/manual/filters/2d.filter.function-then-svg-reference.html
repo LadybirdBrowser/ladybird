@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas 2D filter: CSS filter function chained before a url() SVG filter</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<svg width="0" height="0">
+  <!-- Ignores its input and always outputs opaque green. -->
+  <filter id="green" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="
+      0 0 0 0 0
+      0 0 0 0 1
+      0 0 0 0 0
+      0 0 0 0 1"/>
+  </filter>
+</svg>
+<script>
+function fillWithFilter(filterValue) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 50;
+  canvas.height = 50;
+  const ctx = canvas.getContext("2d");
+  ctx.filter = filterValue;
+  ctx.fillStyle = "red";
+  ctx.fillRect(0, 0, 50, 50);
+  return ctx.getImageData(25, 25, 1, 1).data;
+}
+
+test(t => {
+  assert_array_equals(fillWithFilter("url(#green)"), [0, 255, 0, 255],
+    "url() alone should render the SVG filter's output");
+}, "url() alone renders correctly");
+
+test(t => {
+  assert_array_equals(fillWithFilter("brightness(1.8) url(#green)"),
+    [0, 255, 0, 255],
+    "chaining a CSS filter function before a url() SVG filter should " +
+    "still render the SVG filter's output, not a blank canvas");
+}, "brightness() chained before url() renders correctly");
+</script>
