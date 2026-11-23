@@ -1,0 +1,8 @@
+On macOS, Ladybird now reports the Control key as key Control and
+code ControlLeft, and the Command key as key Meta and code MetaLeft,
+as checked with real key events in a macOS VM. That’s how the other
+engines map them: Chrome’s keyboard_code_conversion_mac.mm maps
+kVK_Control to DomKey::CONTROL and kVK_Command to DomKey::META, WebKit’s
+PlatformEventFactoryMac.mm maps them to “Control” and “Meta”, and
+Gecko’s TextInputHandler.mm handles kVK_Control and kVK_Command as
+the Control and Meta keys.
