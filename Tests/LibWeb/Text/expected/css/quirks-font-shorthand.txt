@@ -1,0 +1,9 @@
+BackCompat
+100 18px/1.2 Arial -> 100 18px 1.2
+italic 450 18px Arial -> 450 18px normal
+100 0 Arial -> 100 0px normal
+0 Arial -> normal 0px normal
+18 Arial -> invalid
+100 18 Arial -> invalid
+bold 18px Arial -> bold 18px normal
+font-size: 18px

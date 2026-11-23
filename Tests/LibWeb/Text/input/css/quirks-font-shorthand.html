@@ -1,0 +1,16 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.compatMode);
+        const style = document.body.style;
+        for (const font of ["100 18px/1.2 Arial", "italic 450 18px Arial", "100 0 Arial", "0 Arial",
+                            "18 Arial", "100 18 Arial", "bold 18px Arial"]) {
+            style.font = "";
+            style.font = font;
+            println(font + " -> " + (style.font ? [style.fontWeight, style.fontSize, style.lineHeight].join(" ") : "invalid"));
+        }
+        style.fontSize = "18";
+        println("font-size: " + style.fontSize);
+    });
+</script>
