@@ -199,13 +199,27 @@ struct JS_API ExecutionContext {
     SourceCode const* source_code() const;
 
     // [[Realm]]
-    GC::Ptr<Realm> realm() const;
+    GC::Ptr<Realm> realm() const
+    {
+        if (!function)
+            return realm_without_function;
+        return realm_of_function();
+    }
     void set_realm(GC::Ptr<Realm>);
 
     // [[ScriptOrModule]]
-    ScriptOrModule script_or_module() const;
+    ScriptOrModule script_or_module() const
+    {
+        if (!function)
+            return script_or_module_without_function;
+        return script_or_module_of_function();
+    }
     void set_script_or_module(ScriptOrModule);
     Utf16FlyString function_name() const;
+
+private:
+    GC::Ptr<Realm> realm_of_function() const;
+    ScriptOrModule script_or_module_of_function() const;
 };
 
 static_assert(IsTriviallyDestructible<ExecutionContext>);
