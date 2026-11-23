@@ -333,6 +333,8 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) validate_regex: ValidateRegex,
     /// How many bindings of the function being parsed have a place in its summary.
     pub(crate) summary_ordinal: u32,
+    /// Where the unit at offset 0 of the source is. A parse of a function again may have only a tail of the source,
+    /// which puts this outside of what it can read.
     pub(crate) src: *const U,
     pub len: u32,
     pub(crate) pos: u32,
