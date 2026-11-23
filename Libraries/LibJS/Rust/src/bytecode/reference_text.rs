@@ -11,6 +11,8 @@
 //! called, an assignment operator right after its target, and `new` and a prefix update right in front of theirs. Anything
 //! else has no text. The source gets read backward from there, as far as a chain of members goes.
 
+use std::cell::Cell;
+
 use crate::host::js_number_to_utf16;
 use crate::utf16::Utf16View;
 
@@ -33,6 +35,13 @@ enum Link {
 struct Reference {
     base: Base,
     links: Vec<Link>,
+}
+
+/// Where a reference that `reference_after_call_ending_at()` found starts.
+enum Start {
+    At(usize),
+    /// The reference is the result of a call, whose callee ends here.
+    AfterCallee(usize),
 }
 
 impl Reference {
@@ -150,11 +159,22 @@ fn text_of_number(units: &[u16]) -> Option<Vec<u16>> {
     Some(Utf16View::of_string(&js_number_to_utf16(value)).code_units().collect())
 }
 
+/// How many references in brackets a reference can be in and still have a text.
+const MAXIMUM_NESTING: u32 = 8;
+
 struct Scanner<'a> {
     units: &'a [u16],
+    nesting: Cell<u32>,
 }
 
-impl Scanner<'_> {
+impl<'a> Scanner<'a> {
+    fn new(units: &'a [u16]) -> Self {
+        Self {
+            units,
+            nesting: Cell::new(0),
+        }
+    }
+
     fn unit_at(&self, index: usize) -> u16 {
         self.units.get(index).copied().unwrap_or(0)
     }
@@ -310,7 +330,14 @@ impl Scanner<'_> {
 
     /// The reference that all of what is between `start` and `end` is, or something without a name if it is more than that.
     fn reference_of_range(&self, start: usize, end: usize) -> Reference {
+        // NB: The text is for an error, which may be on its way with little of the stack left.
+        let nesting = self.nesting.get();
+        if nesting == MAXIMUM_NESTING {
+            return Reference::unnamed();
+        }
+        self.nesting.set(nesting + 1);
         let (reference, first) = self.reference_ending_at(start, end);
+        self.nesting.set(nesting);
         if first == self.skip_trivia_after(start) {
             reference
         } else {
@@ -319,14 +346,26 @@ impl Scanner<'_> {
     }
 
     /// The reference that ends at `end`, and where it starts, going no further back than `first`.
-    fn reference_ending_at(&self, first: usize, mut end: usize) -> (Reference, usize) {
+    fn reference_ending_at(&self, first: usize, end: usize) -> (Reference, usize) {
+        let (reference, mut start) = self.reference_after_call_ending_at(first, end);
+        // NB: The result of a call has no text, however far the expression goes back.
+        loop {
+            match start {
+                Start::At(start) => return (reference, start),
+                Start::AfterCallee(callee_end) => (_, start) = self.reference_after_call_ending_at(first, callee_end),
+            }
+        }
+    }
+
+    /// Like `reference_ending_at()`, but stopping at a call.
+    fn reference_after_call_ending_at(&self, first: usize, mut end: usize) -> (Reference, Start) {
         let mut links = Vec::new();
         let base;
         let start;
         loop {
             end = self.skip_trivia_before(first, end);
             if end == first {
-                return (Reference::unnamed(), end);
+                return (Reference::unnamed(), Start::At(end));
             }
             let last = self.units[end - 1];
             if is_word_unit(last) {
@@ -344,7 +383,7 @@ impl Scanner<'_> {
                     break;
                 }
                 if before >= first + 2 && self.units[before - 2] == u16::from(b'?') {
-                    return (Reference::unnamed(), self.start_of_word(first, before - 2));
+                    return (Reference::unnamed(), Start::At(self.start_of_word(first, before - 2)));
                 }
                 let object_end = self.skip_trivia_before(first, before - 1);
                 let object_start = self.start_of_word(first, object_end);
@@ -365,7 +404,7 @@ impl Scanner<'_> {
             }
             if last == u16::from(b']') {
                 let Some(open) = self.opening_bracket(first, end - 1) else {
-                    return (Self::with_links(Base::Unnamed, links), end);
+                    return (Self::with_links(Base::Unnamed, links), Start::At(end));
                 };
                 let before = self.skip_trivia_before(first, open);
                 if !self.value_ends_at(first, before) {
@@ -379,22 +418,20 @@ impl Scanner<'_> {
             }
             if last == u16::from(b')') {
                 let Some(open) = self.opening_bracket(first, end - 1) else {
-                    return (Self::with_links(Base::Unnamed, links), end);
+                    return (Self::with_links(Base::Unnamed, links), Start::At(end));
                 };
                 let before = self.skip_trivia_before(first, open);
                 if self.value_ends_at(first, before) {
-                    // NB: The result of a call has no text, however far the expression goes back.
-                    let (_, callee_start) = self.reference_ending_at(first, before);
-                    return (Self::with_links(Base::Unnamed, links), callee_start);
+                    return (Self::with_links(Base::Unnamed, links), Start::AfterCallee(before));
                 }
                 let mut inner = self.reference_of_range(open + 1, end - 1);
                 links.reverse();
                 inner.links.extend(links);
-                return (inner, open);
+                return (inner, Start::At(open));
             }
             if is_quote(last) {
                 let Some(open) = self.start_of_string(first, end - 1) else {
-                    return (Self::with_links(Base::Unnamed, links), end);
+                    return (Self::with_links(Base::Unnamed, links), Start::At(end));
                 };
                 let mut text = vec![u16::from(b'\'')];
                 text.extend_from_slice(&self.units[open + 1..end - 1]);
@@ -403,9 +440,9 @@ impl Scanner<'_> {
                 base = Base::Literal(text);
                 break;
             }
-            return (Self::with_links(Base::Unnamed, links), end);
+            return (Self::with_links(Base::Unnamed, links), Start::At(end));
         }
-        (Self::with_links(base, links), start)
+        (Self::with_links(base, links), Start::At(start))
     }
 
     fn with_links(base: Base, mut links: Vec<Link>) -> Reference {
@@ -482,7 +519,7 @@ impl Scanner<'_> {
 
 /// The text of what a call or a `new` at `at` is about, if it has one.
 pub fn callee_text(units: &[u16], at: usize) -> Option<Vec<u16>> {
-    let scanner = Scanner { units };
+    let scanner = Scanner::new(units);
     let reference = if scanner.is_new_at(at) {
         scanner.reference_at(at + 3)?
     } else if scanner.unit_at(at) == u16::from(b'(') {
@@ -500,7 +537,7 @@ pub fn callee_text(units: &[u16], at: usize) -> Option<Vec<u16>> {
 
 /// The text of the base of a member access at `at`, if it has one.
 pub fn base_text(units: &[u16], at: usize) -> Option<Vec<u16>> {
-    let scanner = Scanner { units };
+    let scanner = Scanner::new(units);
     let unit = char::from_u32(u32::from(scanner.unit_at(at)))?;
     // NB: All of an optional chain is where it starts, and it has no text.
     if scanner.starts_with_at(at, "?.") {
