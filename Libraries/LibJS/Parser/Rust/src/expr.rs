@@ -1629,6 +1629,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                 }
             }
             tag::ARRAY | tag::ARRAY_SPREAD | tag::ARRAY_PATTERN => {
+                let literal_tag = self.ast.tag[node as usize];
                 self.ast.tag[node as usize] = tag::ARRAY_PATTERN;
                 let list = self.ast.a[node as usize];
                 let count = self.ast.extra[list as usize];
@@ -1653,6 +1654,21 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                             self.convert_to_assignable(argument, bind);
                         }
                         _ => self.convert_to_assignable(element, bind),
+                    }
+                }
+                if self.marks && literal_tag != tag::ARRAY_PATTERN {
+                    let mark = self.ast.b[node as usize];
+                    self.ast.tag[mark as usize] = tag::EMPTY;
+                    // NB: The mark where the array starts to be built comes right before the rest element.
+                    if literal_tag == tag::ARRAY_SPREAD {
+                        let before_rest = if count >= 2 {
+                            self.ast.extra[(list + count - 1) as usize]
+                        } else {
+                            mark
+                        };
+                        let array_start = before_rest as usize + 1;
+                        assert_eq!(self.ast.tag[array_start], tag::MARK_ARRAY_START);
+                        self.ast.tag[array_start] = tag::EMPTY;
                     }
                 }
             }
