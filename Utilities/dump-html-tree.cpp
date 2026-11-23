@@ -34,6 +34,7 @@
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 class DumpHTMLTreePageClient final : public Web::PageClient {
     GC_CELL(DumpHTMLTreePageClient, Web::PageClient);
@@ -50,6 +51,8 @@ public:
     void set_page(GC::Ref<Web::Page> page) { m_page = page; }
 
     virtual Web::PageId id() const override { return Web::PageId { 0 }; }
+    // This page never talks to a UI process, so its ids only need to be unique within it.
+    virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return m_cross_process_id_allocator.allocate(); }
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
     virtual bool is_connection_open() const override { return true; }
@@ -86,6 +89,7 @@ private:
     GC::Ptr<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Queue<Web::QueuedInputEvent> m_input_event_queue;
+    Web::HTML::CrossProcessIdAllocator m_cross_process_id_allocator { .namespace_id = NumericLimits<u64>::max() };
 };
 
 GC_DEFINE_ALLOCATOR(DumpHTMLTreePageClient);
