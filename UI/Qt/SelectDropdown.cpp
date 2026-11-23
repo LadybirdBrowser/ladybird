@@ -9,9 +9,31 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QAction>
+#include <QGuiApplication>
+#include <QKeyEvent>
+#include <QListWidget>
+#include <QScreen>
+#include <QScrollBar>
 #include <QVariant>
+#include <QWidgetAction>
 
 namespace Ladybird {
+
+class SelectOptionList final : public QListWidget {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        if (event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return) {
+            emit itemActivated(currentItem());
+            event->accept();
+            return;
+        }
+        QListWidget::keyPressEvent(event);
+    }
+};
 
 SelectDropdown::SelectDropdown(QWidget* parent)
     : QMenu("Select Dropdown", parent)
@@ -59,21 +81,65 @@ void SelectDropdown::open(QPoint const& global_position, int minimum_width, Vect
             addSeparator();
     }
 
-    // NB: exec() returns the action the user chose, or null when the menu went away without a choice — and that covers
-    //     every way a QMenu can close: Escape, a click elsewhere, the window deactivating. The aboutToHide signal can't
-    //     tell those apart from a choice; Qt emits it with the highlighted action still current, before triggered()
-    //     would fire, so a cancel with an item highlighted looks just like a choice there.
-    auto* chosen_action = exec(global_position);
+    constexpr int maximum_visible_rows = 20;
+    Optional<u32> chosen_item_id;
+    QObject selection_context;
+    auto const menu_actions = actions();
+    if (menu_actions.size() > maximum_visible_rows) {
+        auto* list = new SelectOptionList;
+        list->setFont(font());
+        list->setFrameShape(QFrame::NoFrame);
+        list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        list->setSelectionMode(QAbstractItemView::SingleSelection);
+        int row_height = 0;
+        for (auto* action : menu_actions) {
+            auto* item = new QListWidgetItem(action->text(), list);
+            item->setData(Qt::UserRole, action->data());
+            auto size = actionGeometry(action).size();
+            item->setSizeHint(size);
+            row_height = qMax(row_height, size.height());
+            if (action->isChecked()) {
+                item->setIcon(style()->standardIcon(QStyle::SP_DialogApplyButton, nullptr, list));
+                list->setCurrentItem(item);
+            }
+            if (action->isSeparator()) {
+                auto* line = new QFrame;
+                line->setFrameShape(QFrame::HLine);
+                list->setItemWidget(item, line);
+            }
+            if (!action->isEnabled() || action->isSeparator())
+                item->setFlags(Qt::NoItemFlags);
+        }
+        clear();
+        auto* screen = QGuiApplication::screenAt(global_position);
+        if (!screen)
+            screen = this->screen();
+        auto available = screen->availableGeometry();
+        int const width = qMax(minimum_width, list->sizeHintForColumn(0) + list->verticalScrollBar()->sizeHint().width());
+        auto panel_width = style()->pixelMetric(QStyle::PM_MenuPanelWidth, nullptr, this);
+        list->setFixedSize(QSize(width, maximum_visible_rows * row_height).boundedTo(available.size() - QSize(2 * panel_width, 2 * panel_width)));
+        auto* list_action = new QWidgetAction(this);
+        list_action->setDefaultWidget(list);
+        addAction(list_action);
+        auto choose = [&](QListWidgetItem* item) {
+            if (item && item->flags().testFlag(Qt::ItemIsEnabled) && item->data(Qt::UserRole).isValid()) {
+                chosen_item_id = item->data(Qt::UserRole).toUInt();
+                close();
+            }
+        };
+        connect(list, &QListWidget::itemClicked, &selection_context, choose);
+        connect(list, &QListWidget::itemActivated, &selection_context, choose);
+        list->setFocus();
+    }
+
+    // A highlighted action alone does not indicate a choice: Escape and an outside click also dismiss the menu.
+    if (auto* action = exec(global_position); action && action->data().isValid())
+        chosen_item_id = action->data().toUInt();
 
     if (exchange(m_suppress_close_report, false))
         return;
-    if (!on_closed)
-        return;
-
-    if (chosen_action)
-        on_closed(chosen_action->data().value<uint>());
-    else
-        on_closed({});
+    if (on_closed)
+        on_closed(chosen_item_id);
 }
 
 void SelectDropdown::close_without_reporting()

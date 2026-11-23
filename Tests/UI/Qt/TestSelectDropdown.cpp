@@ -9,6 +9,7 @@
 
 #include <QApplication>
 #include <QKeyEvent>
+#include <QListWidget>
 #include <QTimer>
 #include <QWidget>
 
@@ -191,6 +192,74 @@ TEST_CASE(closing_without_reporting_reports_nothing)
     // The next menu reports again as normal.
     open_and_interact(dropdown, three_options(), [&] {
         send_key(dropdown, Qt::Key_Escape);
+    });
+    EXPECT_EQ(report.calls, 1);
+    EXPECT(!report.selected_item_id.has_value());
+}
+
+TEST_CASE(long_dropdown_limits_its_height_and_keeps_the_last_option_reachable)
+{
+    QWidget web_view;
+    web_view.resize(800, 600);
+    web_view.show();
+    Ladybird::SelectDropdown dropdown(&web_view);
+    Report report;
+    record_reports(dropdown, report);
+
+    int maximum_height = 0;
+    open_and_interact(dropdown, three_options(), [&] {
+        int row_height = dropdown.actionGeometry(dropdown.actions().first()).height();
+        maximum_height = dropdown.height() + 17 * row_height;
+        dropdown.close();
+    });
+    report = {};
+    for (auto count : { 25u, 250u }) {
+        Vector<Web::HTML::SelectItem> items;
+        for (u32 id = 1; id <= count; ++id)
+            items.append(Web::HTML::SelectItemOption { .id = id, .label = Utf16String::formatted("Option {}", id) });
+
+        open_and_interact(dropdown, items, [&] {
+            EXPECT(dropdown.height() <= maximum_height);
+            auto* target = QApplication::focusWidget();
+            if (!target || !dropdown.isAncestorOf(target))
+                target = &dropdown;
+            send_key(*target, Qt::Key_End);
+            if (auto* view = dropdown.findChild<QListWidget*>())
+                EXPECT(view->viewport()->rect().contains(view->visualItemRect(view->currentItem()).center()));
+            send_key(*target, Qt::Key_Return);
+            if (dropdown.isVisible())
+                dropdown.close();
+        });
+        EXPECT(report.selected_item_id == count);
+    }
+    EXPECT_EQ(report.calls, 2);
+}
+
+TEST_CASE(canceling_a_long_dropdown_preserves_the_selected_option_and_reports_no_choice)
+{
+    QWidget web_view;
+    web_view.show();
+    Ladybird::SelectDropdown dropdown(&web_view);
+    Report report;
+    record_reports(dropdown, report);
+
+    Vector<Web::HTML::SelectItem> items;
+    for (u32 id = 0; id < 40; ++id)
+        items.append(Web::HTML::SelectItemOption { .id = id, .selected = id == 39, .label = Utf16String::formatted("Option {}", id) });
+
+    open_and_interact(dropdown, items, [&] {
+        auto* list = dropdown.findChild<QListWidget*>();
+        if (!list) {
+            FAIL("Expected a scrollable option list");
+            dropdown.close();
+            return;
+        }
+        EXPECT_EQ(list->currentRow(), 39);
+        EXPECT(list->viewport()->rect().contains(list->visualItemRect(list->currentItem()).center()));
+        send_key(*list, Qt::Key_Escape);
+        EXPECT(!dropdown.isVisible());
+        if (dropdown.isVisible())
+            dropdown.close();
     });
     EXPECT_EQ(report.calls, 1);
     EXPECT(!report.selected_item_id.has_value());
