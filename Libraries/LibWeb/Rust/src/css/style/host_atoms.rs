@@ -432,9 +432,16 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
                 declarations: Some(declarations),
                 ..
             } => note_attr_names_read_by_block(host, declarations),
+            Rule::AddUserAgentSheet { source_identity, .. } => {
+                let rules = crate::render_state::process_style().user_agent_rules();
+                host.engine_memo()
+                    .atoms
+                    .borrow_mut()
+                    .attr_names_read
+                    .include(rules.attr_names_read(*source_identity));
+            }
             Rule::RuleDeclarations { declarations: None, .. }
             | Rule::AddSheet { .. }
-            | Rule::AddUserAgentSheet { .. }
             | Rule::BeginSheetRulesReplacement(_)
             | Rule::ReplaceSelectors { .. }
             | Rule::RemoveRules(_)

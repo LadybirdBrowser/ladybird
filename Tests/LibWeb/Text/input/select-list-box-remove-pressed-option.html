@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="include.js"></script>
+<select multiple size="4"><option selected>A</option><option>B</option><option>C</option></select>
+<script>
+    test(() => {
+        const select = document.querySelector("select");
+        const option = select.options[1];
+        option.addEventListener("mousedown", () => option.remove(), { once: true });
+        const rect = option.getBoundingClientRect();
+        internals.mouseDown(rect.x + 4, rect.y + rect.height / 2, 1, 0, 0);
+        println("Pressed option removed: " + !option.isConnected);
+        println("Selected options: " + [...select.selectedOptions].map(item => item.text).join(","));
+        println("Removed option selected: " + option.selected);
+    });
+</script>

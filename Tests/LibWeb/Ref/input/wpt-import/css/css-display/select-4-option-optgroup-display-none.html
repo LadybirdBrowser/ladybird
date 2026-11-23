@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Test: display:none on OPTION and OPTGROUP</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-display-3/#valdef-display-none">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-display/select-4-option-optgroup-display-none-ref.html">
+  <style>
+
+.none { display:none; }
+.contents { display:contents; }
+.red { color: red; }
+.green { color: green; }
+
+select { -webkit-appearance: none; }
+
+:root {
+  /* Setting will-change:transform here and in the reference file fixes
+     subpixel rendering differences of rounded corners. */
+  will-change: transform;
+}
+
+  </style>
+</head>
+<body>
+
+<pre>FAIL if there is any red color</pre>
+
+<option class="none red">text</option>
+<optgroup class="none red">text</optgroup>
+
+<optgroup class="none red"><option>option</option></optgroup>
+<optgroup><option class="none red">option</option></optgroup>
+<optgroup class="contents red"><option class="none">option</option></optgroup>
+<optgroup class="contents green" label="optgroup"><option class="none red">option</option></optgroup>
+<optgroup class="none red" label="optgroup"><option class="red">option</option></optgroup>
+
+<br>
+
+<select class="red" size="4">select</select>
+<select size="4" class="red"><optgroup class="none" label="optgroup"></select>
+<select size="4" class="red"><option class="none">option</select>
+<select size="4" class="red"><optgroup><option class="none">option</select>
+<select size="4"><optgroup class="none"><option class="green">option</select>
+<select size="4" class="red"><optgroup class="none green" label="optgroup"><option>option</select>
+<select size="4" class="red"><optgroup class="none"><option class="none">option</select>
+<select size="4" class="red"><optgroup class="none green" label="optgroup"><option class="none">option</select>
+
+</body>
+</html>

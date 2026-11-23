@@ -72,6 +72,7 @@ private:
     void ask_for_a_reset();
     void update_selection_label();
     void update_label_sizer_text();
+    void update_list_box_label();
     Utf16String display_label() const;
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#update-an-option's-nearest-ancestor-select

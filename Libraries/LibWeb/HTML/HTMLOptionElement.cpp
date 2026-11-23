@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
@@ -58,6 +59,22 @@ void HTMLOptionElement::update_selection_label()
         }
     }
     update_label_sizer_text();
+}
+
+void HTMLOptionElement::update_list_box_label()
+{
+    auto text = Infra::strip_and_collapse_whitespace(display_label());
+    if (auto root = shadow_root()) {
+        auto& label_text = as<DOM::Text>(*root->first_child());
+        if (label_text.data() != text)
+            label_text.set_data(text);
+        return;
+    }
+
+    auto root = DOM::ShadowRoot::create(document(), *this, DOM::ShadowRootMode::Closed);
+    root->set_user_agent_internal(true);
+    set_shadow_root(root);
+    MUST(root->append_child(document().create_text_node(move(text))));
 }
 
 void HTMLOptionElement::update_label_sizer_text()
@@ -177,10 +194,7 @@ void HTMLOptionElement::set_selected_internal(bool selected)
         }
     }
 
-    bool const changed = m_selected != selected;
     m_selected = selected;
-    if (changed && m_cached_nearest_select_element)
-        m_cached_nearest_select_element->list_box_option_selectedness_did_change(*this);
     if (selected)
         m_selectedness_update_index = m_next_selectedness_update_index++;
 }
@@ -359,6 +373,8 @@ void HTMLOptionElement::update_nearest_select_element()
                 ++new_select->m_number_of_selected_options;
         }
         m_cached_nearest_select_element = new_select;
+        if (shadow_root() && (!new_select || !new_select->renders_as_list_box()))
+            set_shadow_root(nullptr);
         update_label_sizer_text();
         if (old_select)
             old_select->list_box_options_did_change();

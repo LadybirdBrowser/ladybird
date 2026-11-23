@@ -1,0 +1,5 @@
+Nested group option has no row: true
+A displayed nested group still has no option row: true
+Down from A: B
+Down from B: C
+Clicked B: B

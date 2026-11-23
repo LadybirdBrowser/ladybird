@@ -1,0 +1,7 @@
+ArrowDown skips hidden and disabled options: E
+ArrowUp reaches the newly visible option: C
+Range includes hidden options but skips disabled options: A,B,C,E
+Down reaches the displayed hidden option: B
+Down reaches the option in the displayed hidden group: C
+Clicked displayed option: B
+Displayed option label: Displayed option

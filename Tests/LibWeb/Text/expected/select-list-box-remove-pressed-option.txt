@@ -1,0 +1,3 @@
+Pressed option removed: true
+Selected options: A
+Removed option selected: false
