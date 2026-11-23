@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::frame_inputs::{ScrollbarOfFrame, thumb_rect_kept_inside_track};
+use libcompositing_rust::display_list::replay::{ScrollbarShownByFrame, thumb_rect_kept_inside_track};
 use libcompositing_rust::scrolling::overlay_fade::OverlayFade;
 use libcompositing_rust::scrolling::{
     AccumulatedVisualContextTree, AsyncScrollNodeStableID, AsyncScrollTree, AsyncScrollbar, ClipBehavior,
@@ -123,14 +123,6 @@ fn position_in_space_of_scrollbar(
         return None;
     }
     visual_context_tree.transform_point_for_hit_test(scrollbar.context, position, scroll_state_snapshot, clip_behavior)
-}
-
-fn scrollbar_gutter_rect(scrollbar: &AsyncScrollbar, expanded: bool) -> IntRect {
-    if expanded {
-        scrollbar.expanded_gutter_rect
-    } else {
-        scrollbar.gutter_rect
-    }
 }
 
 fn scrollbar_scroll_size(scrollbar: &AsyncScrollbar, expanded: bool) -> f64 {
@@ -351,7 +343,7 @@ impl ScrollbarController {
         let thumb_grab_position = if position_is_along_thumb {
             primary_position - thumb_rect.primary_offset_for_orientation(orientation) as f32
         } else {
-            let gutter_rect = scrollbar_gutter_rect(scrollbar, true);
+            let gutter_rect = scrollbar.expanded_gutter_rect;
             let thumb_size = thumb_rect.primary_size_for_orientation(orientation) as f32;
             let gutter_start = gutter_rect.primary_offset_for_orientation(orientation) as f32;
             let gutter_size = gutter_rect.primary_size_for_orientation(orientation) as f32;
@@ -623,7 +615,7 @@ fn interpolated_rect(from: IntRect, to: IntRect, progress: f32) -> FloatRect {
 }
 
 impl ScrollbarController {
-    pub fn scrollbars_of_frame(&self, scroll_state_snapshot: &ScrollStateSnapshot) -> Vec<ScrollbarOfFrame> {
+    pub fn scrollbars_of_frame(&self, scroll_state_snapshot: &ScrollStateSnapshot) -> Vec<ScrollbarShownByFrame> {
         let mut scrollbars_of_frame = Vec::with_capacity(self.scrollbars.len());
         for (i, scrollbar) in self.scrollbars.iter().enumerate() {
             let progress = self.expansion(i);
@@ -645,17 +637,13 @@ impl ScrollbarController {
                 expanded_thumb_rect = thin_thumb_rect;
             }
 
-            scrollbars_of_frame.push(ScrollbarOfFrame {
+            scrollbars_of_frame.push(ScrollbarShownByFrame {
                 scroll_node_index: scrollbar.scroll_node_index,
                 vertical: scrollbar.vertical,
                 gutter_rect: interpolated_rect(scrollbar.track_rect, scrollbar.expanded_gutter_rect, progress),
                 thumb_rect: interpolated_rect(thin_thumb_rect, expanded_thumb_rect, progress),
                 expansion: progress,
                 opacity: self.opacity(i),
-                thumb_color: scrollbar.thumb_color,
-                thumb_outline_color: scrollbar.thumb_outline_color,
-                track_color: scrollbar.track_color,
-                thin_and_expanded_gutter_rect: scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect),
             });
         }
         scrollbars_of_frame

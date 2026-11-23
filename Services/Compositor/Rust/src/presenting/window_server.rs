@@ -452,7 +452,7 @@ impl ContextPresenting {
         raster.clear(target, Color::TRANSPARENT);
         let save_count = raster.save(target);
         raster.translate(target, -overlays_rect.x as f32, -overlays_rect.y as f32);
-        self.paint_overlays(env, target, frame.frame_inputs, true);
+        self.paint_overlays(env, target, frame.frame_inputs);
         raster.restore_to_count(target, save_count);
         self.layers.window_server.latest_compositor_overlays_surface_and_rect = Some((presentable, overlays_rect));
         // An overlay of the layers shows what the frame did, which the next frame does not repeat.

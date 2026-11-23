@@ -29,6 +29,6 @@ L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s0 rect=[0,0 1
 L0 CompositorWheelHitTestTarget@s2/c1/e0 target_scroll_node_index=s3 rect=[0,0 80x80] owner=BlockContainer<DIV>#scroller phase=scroll-metadata
 L0 CompositorWheelHitTestTarget@s3/c2/e0 target_scroll_node_index=s3 rect=[0,0 80x300] owner=BlockContainer<DIV> phase=scroll-metadata
 L0 FillRect@s3/c2/e0 rect=[0,0 80x300] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=background
-L0 CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] expanded_thumb_rect=[67,2 11x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 max_scroll_offset=220 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
+L0 CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] expanded_thumb_rect=[67,2 11x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 max_scroll_offset=220 vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
 L1 PaintScrollBar@s2/c1/e0 scroll_node_index=s3 thumb_rect=[71,2 7x24] track_rect=[71,0 9x80] expanded_gutter_rect=[65,0 15x80] scroll_size=0.23636363636363636 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true owner=BlockContainer<DIV>#scroller phase=overlay
 

@@ -9,43 +9,8 @@
 use crate::context_scene::ReceivedLayerPlan;
 use crate::overlays::OverlayPicture;
 use libcompositing_rust::display_list::replay::ScrollbarShownByFrame;
-use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot, SpatialNodeIndex};
+use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot};
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::{Color, FloatRect, IntRect};
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct ScrollbarOfFrame {
-    pub scroll_node_index: SpatialNodeIndex,
-    pub vertical: bool,
-    pub gutter_rect: FloatRect,
-    pub thumb_rect: FloatRect,
-    pub expansion: f32,
-    pub opacity: f32,
-    pub thumb_color: Color,
-    pub thumb_outline_color: Color,
-    pub track_color: Color,
-    pub thin_and_expanded_gutter_rect: IntRect,
-}
-
-impl Default for ScrollbarOfFrame {
-    fn default() -> Self {
-        Self {
-            scroll_node_index: Default::default(),
-            vertical: false,
-            gutter_rect: Default::default(),
-            thumb_rect: Default::default(),
-            expansion: 0.0,
-            opacity: 1.0,
-            thumb_color: Default::default(),
-            thumb_outline_color: Default::default(),
-            track_color: Default::default(),
-            thin_and_expanded_gutter_rect: Default::default(),
-        }
-    }
-}
-
-pub use libcompositing_rust::display_list::replay::thumb_rect_kept_inside_track;
 
 pub struct FrameInputs {
     pub visual_context_tree: AccumulatedVisualContextTree,
@@ -54,27 +19,11 @@ pub struct FrameInputs {
     /// plan does not hold for the frame then.
     pub layer_plan: Option<ReceivedLayerPlan>,
     pub presented_scroll_state_snapshot: ScrollStateSnapshot,
-    pub scrollbars: Vec<ScrollbarOfFrame>,
+    /// The scrollbars of the page as the frame presents them, which replace the geometry the display list recorded for
+    /// them.
+    pub scrollbars: Vec<ScrollbarShownByFrame>,
     /// When the frame is painted, which is the time a blinking caret shows as of.
     pub painted_at: MonotonicTime,
     /// What the compositor draws over the page in the frame.
     pub overlays: OverlayPicture,
-}
-
-impl FrameInputs {
-    /// The scrollbars of the page that the frame presents, which replace the geometry the display list recorded for
-    /// them.
-    pub fn scrollbars_shown_for_the_page(&self) -> Vec<ScrollbarShownByFrame> {
-        self.scrollbars
-            .iter()
-            .map(|scrollbar| ScrollbarShownByFrame {
-                scroll_node_index: scrollbar.scroll_node_index,
-                vertical: scrollbar.vertical,
-                gutter_rect: scrollbar.gutter_rect,
-                thumb_rect: scrollbar.thumb_rect,
-                expansion: scrollbar.expansion,
-                opacity: scrollbar.opacity,
-            })
-            .collect()
-    }
 }

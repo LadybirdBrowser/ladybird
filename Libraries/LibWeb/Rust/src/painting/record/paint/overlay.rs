@@ -55,7 +55,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
                 .compute_scrollbar_data(paintable, direction, true)
                 .map(|expanded| expanded.gutter_rect)
                 .unwrap_or_default();
-            recorder.record_compositor_scrollbar(paintable, direction, colors);
+            recorder.record_compositor_scrollbar(paintable, direction);
             recorder.recorder.paint_scrollbar(
                 scroll_node_index,
                 converter.rounded_device_rect(scrollbar.gutter_rect),
