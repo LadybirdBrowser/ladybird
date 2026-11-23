@@ -199,16 +199,14 @@ pub(crate) fn decoration_sets_for_span(
     let fragment = &side.fragments()[span.fragment_index as usize];
     let text_parent = fragment.style_source;
 
-    let mut push_set =
+    let make_set =
         |decorating_node: crate::layout::node_data::NodeSlotId,
          lines: &[u8],
          style_code: u8,
          color: u32,
          thickness: CssPixels,
          highlight_metrics: Option<&crate::painting::record::paint::text::HighlightDecorationMetrics>| {
-            let Some(decorating_style) = arena.node_style_if_live(decorating_node) else {
-                return;
-            };
+            let decorating_style = arena.node_style_if_live(decorating_node)?;
             let mut set = TextDecorationSet {
                 style: style_code,
                 color,
@@ -223,9 +221,7 @@ pub(crate) fn decoration_sets_for_span(
             // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
             // However, for underlines and overlines the UA must use a single thickness and position on each line for the
             // decorations deriving from a single decorating box.
-            let Some(decorating_font) = first_available_font(arena, decorating_node) else {
-                return;
-            };
+            let decorating_font = first_available_font(arena, decorating_node)?;
             let text_font = if decorating_node == text_parent {
                 decorating_font.clone()
             } else {
@@ -253,7 +249,7 @@ pub(crate) fn decoration_sets_for_span(
                         .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
                 }
             }
-            sets.push(set);
+            Some(set)
         };
 
     let block_node = block;
@@ -274,14 +270,14 @@ pub(crate) fn decoration_sets_for_span(
                 });
                 let thickness = resolve_text_decoration_thickness(arena, current, current, glyph_height);
                 let text_reset = style.text_reset();
-                push_set(
+                sets.extend(make_set(
                     current,
                     lines,
                     text_reset.text_decoration_style,
                     span.decoration_color.unwrap_or_else(|| decoration_color(style)),
                     thickness,
                     None,
-                );
+                ));
             }
         }
         if crate::painting::style_queries::is_text_decoration_propagation_boundary(arena, current) {
@@ -311,14 +307,14 @@ pub(crate) fn decoration_sets_for_span(
                     });
                     let thickness = resolve_text_decoration_thickness(arena, current, block_node, glyph_height);
                     let text_reset = style.text_reset();
-                    push_set(
+                    sets.extend(make_set(
                         block_node,
                         lines,
                         text_reset.text_decoration_style,
                         span.decoration_color.unwrap_or_else(|| decoration_color(style)),
                         thickness,
                         None,
-                    );
+                    ));
                 }
             }
             if crate::painting::style_queries::is_text_decoration_propagation_boundary(arena, current) {
@@ -327,6 +323,10 @@ pub(crate) fn decoration_sets_for_span(
             propagated = arena.node_parent_if_live(current);
         }
     }
+
+    // NB: The decorations of a decorating box go over those of the boxes it's nested in, so the outermost box's are
+    //     painted first.
+    sets.reverse();
 
     // https://drafts.csswg.org/css-pseudo-4/#highlight-text
     // Any text decorations introduced by each highlight pseudo-element are stacked in the same order as their
@@ -345,14 +345,14 @@ pub(crate) fn decoration_sets_for_span(
                 .unwrap_or_else(|| glyph_height.scaled(0.1).max(CssPixels::from_integer(1))),
             None => resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height),
         };
-        push_set(
+        sets.extend(make_set(
             text_parent,
             &text_decoration.lines[..text_decoration.line_count as usize],
             text_decoration.style,
             text_decoration.color,
             thickness,
             text_decoration.metrics.as_ref(),
-        );
+        ));
     }
     sets
 }
@@ -995,12 +995,15 @@ impl DecorationLayout {
     }
 }
 
+/// Paints the lines of `set` over the part of a fragment in `fragment_box`, moved by `shift` device pixels, as a text
+/// shadow moves them.
 pub(crate) fn paint_decoration_lines<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     fragment_index: u32,
     fragment_box: CssPixelRect,
     set: &TextDecorationSet,
+    shift: IntPoint,
     force_dark_role: ForceDarkRole,
 ) {
     let side = recorder.source.committed_side_data(block);
@@ -1012,6 +1015,14 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
     let scale = recorder.inputs.device_pixels_per_css_pixel;
     let fragment_box = layout.box_in_device_frame(fragment_rect, anchor, scale);
     let set = &layout.set;
+    let shift_rect = |rect: IntRect| IntRect::new(rect.x + shift.x, rect.y + shift.y, rect.width, rect.height);
+    let shift_path = |path: Path| {
+        if shift.x == 0 && shift.y == 0 {
+            path
+        } else {
+            path.copy_transformed([1.0, 0.0, 0.0, 1.0, shift.x as f32, shift.y as f32])
+        }
+    };
     for geometry in decoration_line_geometry(fragment_box, set, scale) {
         let line_start_point = geometry.start;
         let line_end_point = geometry.end;
@@ -1039,12 +1050,12 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
         };
         let fill_line = |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, top: i32| {
             recorder.recorder.fill_rect(
-                frame.map_rect(IntRect {
+                shift_rect(frame.map_rect(IntRect {
                     x: segment.start_x,
                     y: top,
                     width: segment.end_x - segment.start_x,
                     height: thickness,
-                }),
+                })),
                 line_color,
                 force_dark_role,
             );
@@ -1063,7 +1074,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 x: segment.end_x as f32,
                 y: center_y,
             });
-            let path = frame.map_path(path);
+            let path = shift_path(frame.map_path(path));
             recorder.recorder.stroke_path(StrokePathParams {
                 force_dark_role,
                 cap_style,
@@ -1122,7 +1133,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                         x: segment.end_x,
                         y: wave_y,
                     };
-                    let path = frame.map_path(build_triangle_wave_path(from, to, amplitude as f32));
+                    let path = shift_path(frame.map_path(build_triangle_wave_path(from, to, amplitude as f32)));
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role,
                         cap_style: CapStyle::Round,

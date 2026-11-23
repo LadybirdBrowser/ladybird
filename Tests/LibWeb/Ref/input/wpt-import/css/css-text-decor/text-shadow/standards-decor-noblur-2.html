@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text-decor/text-shadow/standards-decor-noblur-2-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-160">
+<!-- Shadows are painted below text AND its decorations -->
+<style>
+#target {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: grey;
+  text-shadow: green 0px 2px, blue 0px 4px;
+  font-size: 100px;
+  text-decoration: underline;
+}
+</style>
+<div id="target">Hello</div>

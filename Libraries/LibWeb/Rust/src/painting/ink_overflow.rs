@@ -392,12 +392,17 @@ fn include_text_paint_effects(
             stroke_reach,
         ));
     }
+    // Each shadow is inflated by its reach and moved by its offset: (reach, offset x, offset y).
+    let mut shadows = Vec::new();
     for shadow in style.inherited_text().text_shadow.as_slice() {
-        let reach = CssPixels::from_raw(shadow.blur_radius) * 2;
-        bounds.unite(inflated(rect, reach).translated(
+        shadows.push((
+            CssPixels::from_raw(shadow.blur_radius) * 2,
             CssPixels::from_raw(shadow.offset_x),
             CssPixels::from_raw(shadow.offset_y),
         ));
+    }
+    for &(reach, offset_x, offset_y) in &shadows {
+        bounds.unite(inflated(rect, reach).translated(offset_x, offset_y));
     }
     let mut highlights = Vec::new();
     for styles in [
@@ -416,9 +421,13 @@ fn include_text_paint_effects(
             continue;
         };
         for shadow in &answer.shadows {
-            bounds.unite(
-                inflated(rect, shadow.layer.blur_radius * 2).translated(shadow.layer.offset_x, shadow.layer.offset_y),
+            let (reach, offset_x, offset_y) = (
+                shadow.layer.blur_radius * 2,
+                shadow.layer.offset_x,
+                shadow.layer.offset_y,
             );
+            bounds.unite(inflated(rect, reach).translated(offset_x, offset_y));
+            shadows.push((reach, offset_x, offset_y));
         }
         if answer.facts.has_text_decoration {
             highlights.push(text::HighlightOverlay {
@@ -469,7 +478,12 @@ fn include_text_paint_effects(
         decoration_color: None,
     };
     for set in text_decoration::decoration_sets_for_span(source, root, &span) {
-        bounds.unite(text_decoration::decoration_ink_bounds(fragment, rect, &set));
+        let decoration_ink = text_decoration::decoration_ink_bounds(fragment, rect, &set);
+        bounds.unite(decoration_ink);
+        // Each text shadow also shadows the decorations, so their ink moves with it.
+        for &(reach, offset_x, offset_y) in &shadows {
+            bounds.unite(inflated(decoration_ink, reach).translated(offset_x, offset_y));
+        }
     }
 }
 

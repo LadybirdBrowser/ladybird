@@ -1,0 +1,10 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text-decor/text-shadow/decorations-multiple-zorder-ref.html">
+<meta name="fuzzy" content="0-45;0-5">
+<style>
+div {
+    text-decoration-skip-ink: none;
+}
+</style>
+<div style="text-shadow: 2px 2px; color: blue; text-decoration: underline; position: absolute; top: 20px; left: 20px;">test<span style="text-decoration: overline; color: red;">for<span style="text-decoration: underline; color: green;">quirks</span></span></div>
