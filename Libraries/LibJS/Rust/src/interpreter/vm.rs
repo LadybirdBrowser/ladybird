@@ -2389,48 +2389,52 @@ impl Vm {
         self.running_realm().global_declarative_environment()
     }
 
-    // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
+    // 9.1.2.1 GetIdentifierReference ( envRecord, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
     pub fn get_identifier_reference(
         &self,
-        environment: Option<Gc<Environment>>,
+        mut environment: Option<Gc<Environment>>,
         name: Utf16FlyString,
         strict: Strict,
-        hops: usize,
+        mut hops: usize,
     ) -> ThrowCompletionOr<Reference> {
-        // 1. If env is the value null, then
-        let Some(environment) = environment else {
-            // a. Return the Reference Record { [[Base]]: unresolvable, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
-            return Ok(Reference::with_base_type(
-                BaseType::Unresolvable,
-                PropertyKey::from(name),
-                strict,
-            ));
-        };
+        // NB: The recursion of step 5 is a loop, so that a long chain of environments does not grow the stack.
+        loop {
+            // 1. If envRecord is null, then
+            let Some(current) = environment else {
+                // a. Return the Reference Record { [[Base]]: unresolvable, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
+                return Ok(Reference::with_base_type(
+                    BaseType::Unresolvable,
+                    PropertyKey::from(name),
+                    strict,
+                ));
+            };
 
-        // 2. Let exists be ? env.HasBinding(name).
-        let mut index = None;
-        let exists = environment.has_binding(self, &name, Some(&mut index))?;
+            // 2. Let exists be ? envRecord.HasBinding(name).
+            let mut index = None;
+            let exists = current.has_binding(self, &name, Some(&mut index))?;
 
-        // Note: This is an optimization for looking up the same reference.
-        let environment_coordinate = index.map(|index| EnvironmentCoordinate {
-            hops: u32::try_from(hops).expect("the hop count fits in u32"),
-            index: u32::try_from(index).expect("the binding index fits in u32"),
-        });
+            // 3. If exists is true, then
+            if exists {
+                // Note: This is an optimization for looking up the same reference.
+                let environment_coordinate = index.map(|index| EnvironmentCoordinate {
+                    hops: u32::try_from(hops).expect("the hop count fits in u32"),
+                    index: u32::try_from(index).expect("the binding index fits in u32"),
+                });
 
-        // 3. If exists is true, then
-        if exists {
-            // a. Return the Reference Record { [[Base]]: env, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
-            return Ok(Reference::with_base_environment(
-                environment,
-                name,
-                strict,
-                environment_coordinate,
-            ));
+                // a. Return the Reference Record { [[Base]]: envRecord, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
+                return Ok(Reference::with_base_environment(
+                    current,
+                    name,
+                    strict,
+                    environment_coordinate,
+                ));
+            }
+
+            // 4. Let outer be envRecord.[[OuterEnv]].
+            // 5. Return ? GetIdentifierReference(outer, name, strict).
+            environment = current.outer_environment();
+            hops += 1;
         }
-        // 4. Else,
-        // a. Let outer be env.[[OuterEnv]].
-        // b. Return ? GetIdentifierReference(outer, name, strict).
-        self.get_identifier_reference(environment.outer_environment(), name, strict, hops + 1)
     }
 
     // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
