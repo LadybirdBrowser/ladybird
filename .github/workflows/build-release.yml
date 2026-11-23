@@ -83,6 +83,7 @@ jobs:
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
             container: &noble_container '{"image":"docker.io/library/ubuntu:24.04","options":"--ulimit core=1"}'
             packages: 'DEB'
+            appimage: true
 
           - system: 'Ubuntu 24.04'
             os_name: 'Linux'
@@ -90,6 +91,7 @@ jobs:
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
             container: *noble_container
             packages: 'DEB'
+            appimage: true
 
           - system: 'Ubuntu 26.04'
             os_name: 'Linux'
@@ -171,6 +173,15 @@ jobs:
           cpack -G "${{ matrix.packages }}" -B packages \
             -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_SystemIntegration;ladybird_SystemSymbols"
 
+      # The AppImage is built on Ubuntu 24.04, the oldest system that Ladybird builds for, so that it runs on systems with
+      # the same glibc or newer.
+      - name: Package the AppImage
+        if: ${{ matrix.appimage && inputs.version != '' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: ./Meta/package-appimage.sh Build "$RELEASE_VERSION" "$ARCH" Build/packages
+
       # release-tools publishes the source archive of every LGPL port at the address that LICENSES.txt names.
       - name: Package the source code of the LGPL libraries
         if: ${{ inputs.version != '' }}
@@ -193,6 +204,7 @@ jobs:
             Build/packages/*.tar.xz
             Build/packages/*.deb
             Build/packages/*.rpm
+            Build/packages/*.AppImage
             Build/packages/*-third-party-sources.tar
 
       - name: Upload
@@ -244,6 +256,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird-debuginfo-*.rpm
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the AppImage
+        if: ${{ matrix.appimage && inputs.version != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird-*.AppImage
           archive: false
           if-no-files-found: error
 
