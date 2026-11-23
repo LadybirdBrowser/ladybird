@@ -1001,6 +1001,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
     fragment_index: u32,
     fragment_box: CssPixelRect,
     set: &TextDecorationSet,
+    force_dark_role: ForceDarkRole,
 ) {
     let side = recorder.source.committed_side_data(block);
     let fragment = &side.fragments()[fragment_index as usize];
@@ -1045,7 +1046,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                     height: thickness,
                 }),
                 line_color,
-                ForceDarkRole::Foreground,
+                force_dark_role,
             );
         };
         let stroke_line = |recorder: &mut PaintRecorder<'_, O>,
@@ -1064,7 +1065,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
             });
             let path = frame.map_path(path);
             recorder.recorder.stroke_path(StrokePathParams {
-                force_dark_role: ForceDarkRole::Foreground,
+                force_dark_role,
                 cap_style,
                 join_style: JoinStyle::Miter,
                 miter_limit: 4.0,
@@ -1123,7 +1124,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                     };
                     let path = frame.map_path(build_triangle_wave_path(from, to, amplitude as f32));
                     recorder.recorder.stroke_path(StrokePathParams {
-                        force_dark_role: ForceDarkRole::Foreground,
+                        force_dark_role,
                         cap_style: CapStyle::Round,
                         join_style: JoinStyle::Round,
                         miter_limit: 0.0,
