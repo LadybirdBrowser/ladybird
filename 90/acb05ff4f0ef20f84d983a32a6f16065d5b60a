@@ -1,0 +1,9 @@
+Ladybird now clamps the result of each filter function before the next
+one applies to it. Blink does the same: RenderSurfaceFilters::
+BuildImageFilter() makes each function a matrix filter of its own, with
+ColorFilter::MakeMatrix(), which clamps. Chrome 158, Firefox 151 and
+WebKit 26.5 (engine-compare) all give the colors Ladybird now does,
+within two levels per channel, for the issue’s two filters and for
+contrast(4) contrast(0.5), saturate(5) grayscale(1), hue-rotate(90deg)
+invert(1), saturate(8) brightness(0.5), and a chain with a drop-shadow
+between two brightness() functions.
