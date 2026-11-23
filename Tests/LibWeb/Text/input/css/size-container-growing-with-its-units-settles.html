@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); width: 800px; }
+    .item { aspect-ratio: 354 / 419; container-type: inline-size; }
+    h2 { font-size: 50cqw; }
+</style>
+<div class="grid"><div class="item"><h2>Join the family</h2></div></div>
+<script>
+    // A stretched grid item with a preferred aspect ratio has its column sized again from its row, which grows to fit
+    // content sized in units of the item. The item then grows with each style and layout pass, and the update must
+    // stop growing it rather than run out of passes.
+    test(() => {
+        const width = document.querySelector(".item").getBoundingClientRect().width;
+        println(`item width is finite: ${Number.isFinite(width) && width < 1e7}`);
+    });
+</script>
