@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A link assigns a program's uniforms their locations anew, so a location from before the program's last link is
+    // an INVALID_OPERATION error.
+    test(() => {
+        const gl = document.createElement("canvas").getContext("webgl");
+        const names = { [gl.NO_ERROR]: "NO_ERROR", [gl.INVALID_OPERATION]: "INVALID_OPERATION" };
+        const program = gl.createProgram();
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, "uniform float f; void main() { gl_Position = vec4(f); }");
+        gl.compileShader(vertexShader);
+        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragmentShader, "void main() { gl_FragColor = vec4(1.0); }");
+        gl.compileShader(fragmentShader);
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const before = gl.getUniformLocation(program, "f");
+        gl.uniform1f(before, 2);
+        println(`before the relink: ${names[gl.getError()]}, getUniform() ${gl.getUniform(program, before)}`);
+
+        gl.linkProgram(program);
+        gl.uniform1f(before, 3);
+        println(`uniform1f() with a location from before the relink: ${names[gl.getError()]}`);
+        const value = gl.getUniform(program, before);
+        println(`getUniform() with it: ${value}, ${names[gl.getError()]}`);
+
+        const after = gl.getUniformLocation(program, "f");
+        gl.uniform1f(after, 4);
+        println(`a location from after the relink: ${names[gl.getError()]}, getUniform() ${gl.getUniform(program, after)}`);
+
+        gl.detachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        println(`failed link: LINK_STATUS ${gl.getProgramParameter(program, gl.LINK_STATUS)}`);
+        gl.getError();
+        gl.uniform1f(after, 5);
+        println(`uniform1f() with a location from before the failed link: ${names[gl.getError()]}`);
+    });
+</script>
