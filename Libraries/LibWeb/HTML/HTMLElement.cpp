@@ -448,22 +448,18 @@ static void apply_white_space_processing_rules(Vector<RenderedTextItem>& items, 
         auto const& item = items[index];
         if (auto const* run = item.get_pointer<UnprocessedText>()) {
             auto mode = run->white_space_collapse;
-            auto spaces_are_collapsible = first_is_one_of(mode, CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::Discard, CSS::WhiteSpaceCollapse::PreserveBreaks);
-            auto segment_breaks_are_collapsible = first_is_one_of(mode, CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::Discard);
+            auto spaces_are_collapsible = first_is_one_of(mode, CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
+            auto segment_breaks_are_collapsible = mode == CSS::WhiteSpaceCollapse::Collapse;
             auto text = run->text.utf16_view();
             for (size_t offset = 0; offset < text.length_in_code_units(); ++offset) {
                 auto code_unit = text.code_unit_at(offset);
                 Character character { index, code_unit, Kind::Other };
                 // NB: Carriage returns are treated identically to spaces in all respects.
                 if (code_unit == ' ' || code_unit == '\t' || code_unit == '\r') {
-                    if (mode == CSS::WhiteSpaceCollapse::Discard)
-                        character.kind = Kind::Removed;
-                    else if (spaces_are_collapsible)
+                    if (spaces_are_collapsible)
                         character.kind = Kind::CollapsibleSpace;
                 } else if (code_unit == '\n') {
-                    if (mode == CSS::WhiteSpaceCollapse::Discard)
-                        character.kind = Kind::Removed;
-                    else if (segment_breaks_are_collapsible)
+                    if (segment_breaks_are_collapsible)
                         character.kind = Kind::CollapsibleSegmentBreak;
                     else if (mode == CSS::WhiteSpaceCollapse::PreserveSpaces)
                         character.code_unit = ' ';

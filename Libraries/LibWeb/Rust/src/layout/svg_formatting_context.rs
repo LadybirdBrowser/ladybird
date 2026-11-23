@@ -813,9 +813,6 @@ fn process_svg_text_white_space(sources: &[(&[u16], u8)]) -> Vec<Vec<u16>> {
         for &unit in *text {
             if is_white_space(unit) {
                 match *white_space_collapse {
-                    // https://drafts.csswg.org/css-text-4/#valdef-white-space-collapse-discard
-                    // This value directs user agents to "discard" all white space in the element.
-                    white_space_collapse::DISCARD => continue,
                     // https://drafts.csswg.org/css-text-4/#white-space-phase-1
                     // If white-space-collapse is set to collapse or preserve-breaks, white space characters are
                     // considered collapsible and are processed by performing the following steps:
