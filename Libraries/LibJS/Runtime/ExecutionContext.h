@@ -115,7 +115,8 @@ struct JS_API ExecutionContext {
 
     GC::Ptr<FunctionObject> function; // [[Function]]
     // The [[Realm]] of a context without a function. A context with a function runs in the function's realm, and
-    // this holds an old value: use realm() and set_realm().
+    // this holds an old value: use realm() and set_realm(). The lightweight frame of a native function call keeps
+    // the caller's realm here (see the Rust ExecutionContext).
     GC::Ptr<Realm> realm_without_function;
     // The [[ScriptOrModule]] of a context without a function. That of a context with a function comes from the
     // function, and this holds an old value: use script_or_module() and set_script_or_module().

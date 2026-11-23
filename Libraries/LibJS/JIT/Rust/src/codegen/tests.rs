@@ -55,6 +55,7 @@ fn offsets() -> RuntimeOffsets {
         accessor_getter: 8,
         accessor_setter: 16,
         execution_context_function: 64,
+        execution_context_realm_without_function: 72,
         execution_context_variable_environment: 96,
         execution_context_frame_id: 104,
         execution_context_yield_continuation: 112,

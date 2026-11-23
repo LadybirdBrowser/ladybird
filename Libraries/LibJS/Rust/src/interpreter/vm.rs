@@ -1069,8 +1069,10 @@ impl Vm {
         self.head.current_realm.set(realm);
     }
 
-    /// Makes `frame`, a frame entered inline for a call or left for its caller, the running execution context. Such
-    /// frames run in the current realm, as the interpreter and JIT code leave calls into another realm to the runtime.
+    /// Makes `frame`, a frame of bytecode entered inline for a call or left for its caller, the running execution
+    /// context. Such frames run in the current realm: the interpreter and JIT code leave calls of ECMAScript functions
+    /// of another realm to the runtime, and make the realm of the caller current again once a native function of
+    /// another realm returned or threw.
     pub(crate) fn set_running_frame_in_current_realm(&self, frame: *mut ExecutionContext) {
         self.head.running_execution_context.set(frame);
         debug_assert!(

@@ -1475,6 +1475,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             ),
         ]);
         constants.push((offsets.execution_context_function, 8, target.function.0));
+        // NB: The frame keeps the realm of this code, which the runtime makes
+        //     current again when it unwinds the frame of a function that
+        //     threw.
+        constants.push((offsets.execution_context_realm_without_function, 8, runtime.realm.0));
         self.emit_constant_fields(native_frame, temp, &mut constants)?;
         self.spare_fields = constants;
         if site.is_some() {
@@ -1496,6 +1500,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         }
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), native_frame);
+        // A function of another realm runs in its own realm. Its return makes
+        // the realm of this code current again.
+        let switches_realm = target.realm != runtime.realm;
+        if switches_realm {
+            self.masm.move_imm64(temp, target.realm.0);
+            self.masm.store64(&vm_field(offsets.vm_current_realm), temp);
+        }
 
         // Call the native function: it returns a ThrowCompletionOr<Value>,
         // the value or exception in the first return register and whether it
@@ -1516,6 +1527,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.store64(&vm_field(offsets.vm_interpreter_stack_top), scratch);
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), frame);
+        if switches_realm {
+            self.masm.move_imm64(scratch, runtime.realm.0);
+            self.masm.store64(&vm_field(offsets.vm_current_realm), scratch);
+        }
         if let (None, Some(dst)) = (site, dst) {
             let destination = self.slot_address(dst.raw())?;
             self.masm.store64(&destination, value_register);
