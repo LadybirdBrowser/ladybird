@@ -12,6 +12,7 @@
 //! [`UserAgentVariant`], the key of the user agent index it decides with.
 
 use super::{RuleID, RuleStore, SheetID};
+use crate::css::parser::arbitrary_substitution::AttrNamesRead;
 use crate::css::style::atoms::DocumentAtoms;
 use crate::css::style::selector_analysis::SelectorSummary;
 use crate::fork::ForkShared;
@@ -44,6 +45,7 @@ struct UserAgentSheet {
     sheet: SheetID,
     /// What a document learns of the selectors of the sheet's rules as it attaches the sheet.
     selectors: Arc<SelectorSummary>,
+    attr_names: Arc<AttrNamesRead>,
     /// The references that keep the names the sheet's rules declare interned.
     _atoms: ForkShared<DocumentAtoms>,
 }
@@ -64,11 +66,26 @@ impl UserAgentRules {
         selectors: SelectorSummary,
         atoms: ForkShared<DocumentAtoms>,
     ) -> Self {
+        let mut attr_names = AttrNamesRead::default();
+        for rule in store.all_rules_in_sheet(sheet) {
+            for value in store
+                .written_values_of(rule)
+                .iter()
+                .chain(store.custom_written_values_of(rule))
+            {
+                if let Some(unresolved) =
+                    crate::css::style::custom_property_cascade::unresolved_reading_attributes(value.data())
+                {
+                    attr_names.note(unresolved.components().as_ref());
+                }
+            }
+        }
         let mut sheets = self.sheets.clone();
         sheets.push(UserAgentSheet {
             source_identity,
             sheet,
             selectors: Arc::new(selectors),
+            attr_names: Arc::new(attr_names),
             _atoms: atoms,
         });
         Self { store, sheets }
@@ -82,6 +99,15 @@ impl UserAgentRules {
             .map(|sheet| sheet.sheet)
     }
 
+    pub(in crate::css::style) fn attr_names_read(&self, source_identity: u64) -> &AttrNamesRead {
+        &self
+            .sheets
+            .iter()
+            .find(|sheet| sheet.source_identity == source_identity)
+            .expect("the process published the sheet")
+            .attr_names
+    }
+
     /// What the selectors of the rules of `sheet` say to a document attaching it.
     pub(in crate::css::style) fn selector_summary(&self, sheet: SheetID) -> Arc<SelectorSummary> {
         let sheet = self.sheets.iter().find(|candidate| candidate.sheet == sheet);
@@ -90,7 +116,18 @@ impl UserAgentRules {
 
     /// The bytes of the table, the first time `sizer` reaches each thing it holds.
     pub(in crate::css::style) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
-        self.store.heap_size(sizer) + self.sheets.len() * size_of::<UserAgentSheet>()
+        let names = self
+            .sheets
+            .iter()
+            .map(|sheet| {
+                if sizer.first_sight(Arc::as_ptr(&sheet.attr_names)) {
+                    size_of::<AttrNamesRead>() + sheet.attr_names.heap_size()
+                } else {
+                    0
+                }
+            })
+            .sum::<usize>();
+        self.store.heap_size(sizer) + self.sheets.len() * size_of::<UserAgentSheet>() + names
     }
 
     /// The bytes of the declarations of the rules, the first time `sizer` reaches each.

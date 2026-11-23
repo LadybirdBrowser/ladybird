@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="include.js"></script>
+<select multiple size="8">
+    <option selected>A</option>
+    <optgroup label="Group"></optgroup>
+    <option>C</option>
+</select>
+<script>
+    asyncTest(async done => {
+        const select = document.querySelector("select");
+        const wrapper = document.createElement("div");
+        const nestedGroup = document.createElement("optgroup");
+        nestedGroup.append(new Option("Excluded"));
+        const wrapped = new Option("B");
+        wrapper.append(nestedGroup, wrapped);
+        select.querySelector("optgroup").append(wrapper);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        println("Nested group option has no row: " + (nestedGroup.firstElementChild.getClientRects().length === 0));
+        nestedGroup.style.display = "block";
+        println("A displayed nested group still has no option row: " + (nestedGroup.firstElementChild.getClientRects().length === 0));
+        select.focus();
+        internals.sendKey(select, "Home");
+        internals.sendKey(select, "Down");
+        println("Down from A: " + select.value);
+        internals.sendKey(select, "Down");
+        println("Down from B: " + select.value);
+
+        const rect = wrapped.getBoundingClientRect();
+        internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        println("Clicked B: " + select.value);
+        done();
+    });
+</script>

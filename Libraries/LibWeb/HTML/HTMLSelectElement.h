@@ -126,7 +126,6 @@ public:
     // https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
     bool renders_as_list_box() const;
     void list_box_options_did_change();
-    void list_box_option_selectedness_did_change(HTMLOptionElement const&);
     bool handle_list_box_key(UIEvents::KeyCode, u32 modifiers);
 
     bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
@@ -188,20 +187,12 @@ private:
 
     void create_list_box_shadow_tree(DOM::ShadowRoot&);
     void update_list_box();
-    void update_list_box_row_style(DOM::Element& row, HTMLOptionElement const&) const;
-    void update_list_box_row_styles();
-    virtual void did_receive_focus() override;
-    virtual void did_lose_focus() override;
-    bool m_list_box_is_focused { false };
     void handle_list_box_mousedown(UIEvents::MouseEvent&);
     void choose_list_box_row(size_t index, bool extend);
 
     GC::Ptr<DOM::Element> m_list_box_element;
-    struct ListBoxRow {
-        GC::Ref<DOM::Element> element;
-        GC::Ref<HTMLOptionElement> option;
-    };
-    Vector<ListBoxRow> m_list_box_rows;
+    GC::Ptr<HTMLSlotElement> m_list_box_slot;
+    Vector<GC::Ref<HTMLOptionElement>> m_list_box_options;
     Optional<size_t> m_list_box_anchor_index;
     Optional<size_t> m_list_box_focus_index;
     bool m_list_box_update_queued { false };

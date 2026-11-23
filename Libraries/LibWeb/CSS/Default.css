@@ -171,6 +171,36 @@ option, optgroup {
     display: block;
 }
 
+select:is([multiple], [size]:not([size="0"], [size="1"])) {
+    & option, & optgroup::before {
+        min-block-size: 1.2em;
+        line-height: 1.2em;
+        padding-inline: 4px;
+        user-select: none;
+    }
+    & optgroup::before {
+        display: block;
+        content: attr(label);
+        font-weight: bold;
+    }
+    & optgroup optgroup {
+        display: none !important;
+    }
+    & optgroup > option {
+        padding-inline-start: 1.25em;
+    }
+    & option:disabled {
+        color: GrayText;
+    }
+    & option:checked {
+        background-color: color-mix(in srgb, currentcolor 22%, transparent);
+    }
+    &:focus option:checked {
+        background-color: AccentColor !important;
+        color: AccentColorText !important;
+    }
+}
+
 /* Custom <input type="range"> styles */
 input[type=range] {
     display: inline-block;

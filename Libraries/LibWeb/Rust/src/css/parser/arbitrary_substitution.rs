@@ -333,6 +333,15 @@ impl AttrNamesRead {
         }
     }
 
+    pub(crate) fn include(&mut self, other: &Self) {
+        let count = self.names.len();
+        self.names.extend(other.names.iter().cloned());
+        if self.names.len() != count || (other.any_name && !self.any_name) {
+            self.generation += 1;
+        }
+        self.any_name |= other.any_name;
+    }
+
     /// The bytes the names hold on the heap.
     pub(crate) fn heap_size(&self) -> usize {
         crate::heap_size::set_bytes(&self.names)

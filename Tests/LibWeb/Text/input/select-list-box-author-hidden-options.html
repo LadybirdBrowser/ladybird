@@ -1,0 +1,44 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>.skip { display: none; }</style>
+<select id="list" size="6">
+    <option selected>A</option>
+    <option class="skip">B</option>
+    <optgroup class="skip" label="Group"><option>C</option></optgroup>
+    <option disabled>D</option>
+    <option>E</option>
+</select>
+<script>
+    promiseTest(async () => {
+        const list = document.getElementById("list");
+        list.focus();
+        internals.sendKey(list, "Down");
+        println("ArrowDown skips hidden and disabled options: " + list.value);
+        list.querySelector("optgroup").classList.remove("skip");
+        internals.sendKey(list, "Up");
+        println("ArrowUp reaches the newly visible option: " + list.value);
+
+        list.multiple = true;
+        list.querySelector("optgroup").classList.add("skip");
+        internals.sendKey(list, "Home");
+        internals.sendKey(list, "End", internals.MOD_SHIFT);
+        println("Range includes hidden options but skips disabled options: " + [...list.selectedOptions].map(option => option.label).join(","));
+        list.options[1].label = "Displayed option";
+        for (const hidden of [list.options[1], list.querySelector("optgroup")]) {
+            hidden.classList.remove("skip");
+            hidden.hidden = true;
+            hidden.style.display = "block";
+        }
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.sendKey(list, "Home");
+        internals.sendKey(list, "Down");
+        println("Down reaches the displayed hidden option: " + list.value);
+        internals.sendKey(list, "Down");
+        println("Down reaches the option in the displayed hidden group: " + list.value);
+        const option = list.options[1];
+        const rect = option.getBoundingClientRect();
+        internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        println("Clicked displayed option: " + list.value);
+        println("Displayed option label: " + internals.getShadowRoot(option)?.textContent);
+    });
+</script>

@@ -1,0 +1,8 @@
+<!doctype html>
+<link rel="mismatch" href="../expected/select-list-box-author-option-style.html">
+<style>.marked { color: blue; background: yellow; font: bold 20px monospace; }</style>
+<select multiple><option>one</option><optgroup label="group"><option>two</option></optgroup></select>
+<script>
+    document.body.offsetWidth;
+    document.querySelector("optgroup option").classList.add("marked");
+</script>

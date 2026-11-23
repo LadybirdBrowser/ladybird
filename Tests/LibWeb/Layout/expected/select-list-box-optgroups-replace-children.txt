@@ -4,14 +4,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from BlockContainer start: 0, length: 0, rect: [9,10 55.8125x64] baseline: 65
       BlockContainer <select> at [9,10] inline-block [0+1+0 55.8125 0+1+0] [0+1+1 64 1+1+0] [BFC] children: not-inline
         BlockContainer <div> at [9,10] [0+0+0 55.8125 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
-          BlockContainer <div> at [13,10] [0+0+4 47.8125 4+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [13,11 35.109375x14] baseline: 11
-                "First"
-            TextNode <#text> (not painted)
-          BlockContainer <div> at [13,26] [0+0+4 47.8125 4+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [13,27 47.8125x14] baseline: 11
-                "Second"
-            TextNode <#text> (not painted)
+          BlockContainer <optgroup> at [9,10] [0+0+0 55.8125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [13,10] [0+0+4 47.8125 4+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 5, rect: [13,11 35.109375x14] baseline: 11
+                  "First"
+              GeneratedTextNode <(anonymous)> (not painted)
+          BlockContainer <optgroup> at [9,26] [0+0+0 55.8125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [13,26] [0+0+4 47.8125 4+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 6, rect: [13,27 47.8125x14] baseline: 11
+                  "Second"
+              GeneratedTextNode <(anonymous)> (not painted)
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
