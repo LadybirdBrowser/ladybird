@@ -92,6 +92,7 @@ private:
     virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
     virtual void display_error_dialog(StringView error_message) const override;
+    virtual void display_openssl_mismatch(PlatformFeatures::OpenSSLFacts const&) override;
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     virtual void display_update_check_result(WebView::UpdateCheckResult const&, WebView::UpdateCheckTrigger) override;
 #endif
@@ -142,6 +143,8 @@ private:
     Optional<u64> m_active_view_id;
     bool m_ui_did_start { false };
     Vector<String> m_webdriver_windows_awaiting_ui;
+    // The system probe reports while the UI may still be opening its windows.
+    Optional<PlatformFeatures::OpenSSLFacts> m_openssl_mismatch_awaiting_ui;
 
     // What the Hub waits to hear from the UI.
     mutable HashMap<u64, Function<void(Utf16String)>> m_pending_clipboard_text_reads;
