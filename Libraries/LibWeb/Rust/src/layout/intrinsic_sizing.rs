@@ -308,17 +308,11 @@ fn is_anonymous_wrapper_without_in_flow_content(pass: &LayoutPass<'_>, node: Nod
         && inline_content_has_no_in_flow_content(pass, node)
 }
 
-fn rendered_legend_with_automatic_inline_size(pass: &LayoutPass<'_>, fieldset: Node) -> Option<Node> {
-    let legend = NodeFacts::new(pass, fieldset).rendered_legend();
-    (!legend.is_invalid() && StyleValues::for_node(pass, legend).width().is_auto()).then_some(legend)
-}
-
 fn measure_outer_inline_contributions_of_children_ahead(
     pass: &LayoutPass<'_>,
     node: Node,
     available_block_size: AvailableSize,
     child_constraints: ContainingBlockConstraints,
-    legend_sized_to_fit_its_content: Option<Node>,
 ) {
     let children = parallel_layout::fork_candidates(pass, pass.children(node), |child| child)
         .into_iter()
@@ -326,7 +320,6 @@ fn measure_outer_inline_contributions_of_children_ahead(
             let child_facts = NodeFacts::new(pass, child);
             child_facts.is_flow_layout_participant()
                 && !child_facts.is_table_wrapper()
-                && legend_sized_to_fit_its_content != Some(child)
                 && (block_formatting_context::box_avoids_floats_because_it_establishes_formatting_context(pass, child)
                     || !is_anonymous_wrapper_without_in_flow_content(pass, child))
         })
@@ -353,13 +346,11 @@ pub(super) fn content_sizes_of_block_container(
         let sizing = run.sizing();
         let child_constraints = sizing.constraints_for_child_context(node, &scope.root_cells(), constraints);
         let collects_column_spanners = facts.lays_out_in_columns();
-        let legend_sized_to_fit_its_content = rendered_legend_with_automatic_inline_size(&pass, node);
         measure_outer_inline_contributions_of_children_ahead(
             &run.pass,
             node,
             scope.available_block_size(),
             child_constraints,
-            legend_sized_to_fit_its_content,
         );
         let mut contributions_of_children = BlockLevelContributions::default();
         let mut largest_column_spanner_contributions = sizing_context::ContentSizes::default();
@@ -384,12 +375,6 @@ pub(super) fn content_sizes_of_block_container(
             let sized_child = sizing_context::SizedBox::unheld(child);
             let contributions = if child_facts.is_table_wrapper() {
                 sizing.block_level_table_wrapper_outer_inline_contributions(sized_child, child_constraints)
-            } else if legend_sized_to_fit_its_content == Some(child) {
-                sizing.outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
-                    sized_child,
-                    scope.available_block_size(),
-                    child_constraints,
-                )
             } else {
                 sizing.outer_inline_contributions(child, scope.available_block_size(), child_constraints)
             };

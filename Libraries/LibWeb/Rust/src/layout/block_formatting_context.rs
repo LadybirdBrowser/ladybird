@@ -1870,25 +1870,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             cells.padding_left = padding_left;
             cells.padding_right = padding_right;
         });
-        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-        // A rendered legend with a computed inline size of auto uses the
-        // fit-content size, resolved here so the legend's children are laid
-        // out against the used size rather than a provisional stretch size.
-        if style.width().is_auto() {
-            let container = self.containing_block(node);
-            if !container.is_invalid()
-                && self.facts(container).is_fieldset_box()
-                && self.facts(container).rendered_legend() == node
-            {
-                return Some(sizing.calculate_fit_content_size(
-                    sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
-                    SizingAxis::Inline,
-                    remaining_available_space,
-                    constraints,
-                ));
-            }
-        }
-
         // An auto margin that is not honoured resolves to zero and stops taking part in the remaining steps.
         fn zero_out_auto_margin(margin: &mut CssPixels, is_auto: &mut bool) {
             if *is_auto {
@@ -1898,7 +1879,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let remaining_inline_size = remaining_available_space.inline_size.to_px_or_zero();
-        let containing_block_direction = self.style(self.containing_block(node)).direction();
+        let containing_block = self.containing_block(node);
+        let containing_block_direction = self.style(containing_block).direction();
+        let is_auto_sized_legend = style.width().is_auto()
+            && self.facts(containing_block).is_fieldset_box()
+            && self.facts(containing_block).rendered_legend() == node;
         let computed_margin_left = style.margin_left();
         let computed_margin_right = style.margin_right();
         // NB: A box that establishes an orthogonal flow and has an automatic inline size is sized to its content, not
@@ -1960,7 +1945,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 } else if !*margin_left_is_auto && !*margin_right_is_auto {
                     if containing_block_direction == direction::RTL {
                         *margin_left += underflow;
-                    } else if !is_content_sized_orthogonal_flow {
+                    } else if !is_content_sized_orthogonal_flow && !is_auto_sized_legend {
                         *margin_right += underflow;
                     }
                 } else if !*margin_left_is_auto && *margin_right_is_auto {
@@ -1984,6 +1969,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             // NOTE: Replaced elements had their inline size calculated independently above.
             //       We use that inline size as the input here to ensure that margins get resolved.
             replaced_inline_size
+        } else if is_auto_sized_legend {
+            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+            // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
+            Some(sizing.calculate_fit_content_size(
+                sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
+                SizingAxis::Inline,
+                remaining_available_space,
+                constraints,
+            ))
         } else if facts.is_table_wrapper() {
             // NB: An auto-width table shrinks to fit the space next to floats. A table with a specified width does not,
             //     so clamp it against the containing block instead. That way a table which is too wide for the space

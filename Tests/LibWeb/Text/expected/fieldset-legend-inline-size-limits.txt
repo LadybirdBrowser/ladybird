@@ -1,0 +1,16 @@
+auto: 200 / 104
+maximum: 200 / 24
+minimum: 200 / 124
+minimum wins: 200 / 44
+percentage: 200 / 54
+border box: 200 / 20
+zero: 200 / 0
+explicit width: 200 / 19
+flex: 200 / 24
+vertical: 200 / 20
+intrinsic maximum: 24 / 24
+intrinsic minimum: 124 / 124
+0.01px: width 0, offset 100, child 0
+40px: width 40, offset 80, child 20
+ltr fixed margins: left 8
+rtl fixed margins: left 152
