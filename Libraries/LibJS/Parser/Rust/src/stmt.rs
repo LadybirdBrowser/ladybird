@@ -56,10 +56,6 @@ impl VarKind {
 }
 
 impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
-    pub(crate) fn parse_statement_list_item(&mut self, top_level: bool) -> u32 {
-        self.parse_statement(Context::List, top_level)
-    }
-
     fn is_let(&mut self, context: Context) -> bool {
         if !self.is_contextual(N_LET) {
             return false;
@@ -1228,38 +1224,22 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         is_arrow: bool,
         is_method: bool,
     ) -> u32 {
-        let old_strict = self.strict;
-        let mut use_strict = false;
-        if !old_strict || !simple {
-            use_strict = self.has_use_strict_directive(self.tok_end as usize);
-            if use_strict && !simple {
-                self.fail(
-                    self.tok_start,
-                    "Illegal 'use strict' directive in function with non-simple parameter list",
-                );
-            }
-        }
-        if use_strict {
-            self.strict = true;
-            self.arguments_of_sloppy_function |= is_arrow && !old_strict;
-        }
+        // 15.1.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-parameter-lists-static-semantics-early-errors
+        // UniqueFormalParameters : FormalParameters
+        // It is a Syntax Error if the BoundNames of FormalParameters contains any duplicate elements.
+        // FormalParameters : FormalParameterList
+        // It is a Syntax Error if IsSimpleParameterList of FormalParameterList is false and the BoundNames of FormalParameterList contains any duplicate elements.
+        // NB: Strict functions, arrow functions and methods have UniqueFormalParameters.
         if self.duplicate_parameter != NONE && (self.strict || !simple || is_arrow || is_method) {
             self.fail(self.duplicate_parameter, "Duplicate parameter names not allowed");
         }
-        if self.strict {
-            if let Some((name, pos)) = name {
-                self.check_strict_binding_name(name, pos);
-            }
-            if !old_strict {
-                let count = self.ast.extra[parameters as usize];
-                for i in 0..count {
-                    let parameter = self.ast.extra[(parameters + 1 + i) as usize];
-                    if self.ast.tag[parameter as usize] == tag::IDENT {
-                        let (name, pos) = (self.ast.a[parameter as usize], self.ast.pos[parameter as usize]);
-                        self.check_strict_binding_name(name, pos);
-                    }
-                }
-            }
+
+        // 15.2.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-function-definitions-static-semantics-early-errors
+        // If BindingIdentifier is present and IsStrict(BindingIdentifier) is true, it is a Syntax Error if the StringValue of BindingIdentifier is either "eval" or "arguments".
+        if self.strict
+            && let Some((name, pos)) = name
+        {
+            self.check_strict_binding_name(name, pos);
         }
         if !simple {
             self.open_function_body_scope(state);
@@ -1268,12 +1248,105 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         state.body_start = self.tok_start;
         state.first_body_row = self.ast.tag.len() as u32;
         let mark = self.scratch.len();
+        let mut prologue = Prologue::default();
         while self.tok != T::RBrace && self.tok != T::Eof {
-            let statement = self.parse_statement(Context::List, false);
+            let was_strict = self.strict;
+            let (statement, use_strict) = self.parse_statement_of_prologue(&mut prologue, false);
             self.scratch.push(statement);
+            if !use_strict {
+                continue;
+            }
+
+            // It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and IsSimpleParameterList of FormalParameters is false.
+            // NB: Arrow functions and methods have the same rule.
+            if !simple {
+                self.fail(
+                    self.ast.pos[statement as usize],
+                    "Illegal 'use strict' directive in function with non-simple parameter list",
+                );
+            }
+            if !was_strict {
+                self.arguments_of_sloppy_function |= is_arrow;
+                self.check_parameters_of_strict_function(name, parameters);
+            }
         }
         self.expect(T::RBrace);
         self.finish_list(mark)
+    }
+
+    // 15.2.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-function-definitions-static-semantics-early-errors
+    /// Checks the name and the parameters of a function that a directive makes strict.
+    fn check_parameters_of_strict_function(&mut self, name: Option<(u32, u32)>, parameters: u32) {
+        // If IsStrict(FormalParameters) is true, the Early Error rules for UniqueFormalParameters : FormalParameters are applied.
+        if self.duplicate_parameter != NONE {
+            self.fail(self.duplicate_parameter, "Duplicate parameter names not allowed");
+        }
+
+        // If BindingIdentifier is present and IsStrict(BindingIdentifier) is true, it is a Syntax Error if the StringValue of BindingIdentifier is either "eval" or "arguments".
+        if let Some((name, pos)) = name {
+            self.check_strict_binding_name(name, pos);
+        }
+
+        // 13.1.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-identifiers-static-semantics-early-errors
+        // BindingIdentifier : Identifier
+        // It is a Syntax Error if IsStrict(this production) is true and the StringValue of Identifier is either "arguments" or "eval".
+        // NB: The parameters were parsed before the directive made them strict code.
+        let count = self.ast.extra[parameters as usize];
+        for i in 0..count {
+            let parameter = self.ast.extra[(parameters + 1 + i) as usize];
+            if self.ast.tag[parameter as usize] == tag::IDENT {
+                let (name, pos) = (self.ast.a[parameter as usize], self.ast.pos[parameter as usize]);
+                self.check_strict_binding_name(name, pos);
+            }
+        }
+    }
+
+    // 11.2.1 Directive Prologues and the Use Strict Directive, https://tc39.es/ecma262/#sec-directive-prologues-and-the-use-strict-directive
+    /// Parses a statement of a list that starts with a directive prologue. Returns the statement, and whether it is a
+    /// use strict directive, which makes the code strict from there on.
+    pub(crate) fn parse_statement_of_prologue(&mut self, prologue: &mut Prologue, top_level: bool) -> (u32, bool) {
+        // A Directive Prologue is the longest sequence of ExpressionStatements occurring as the initial StatementListItems or ModuleItems of a FunctionBody, a ScriptBody, or a ModuleBody and where each ExpressionStatement in the sequence consists entirely of a StringLiteral token followed by a semicolon.
+        if prologue.has_ended || self.tok != T::Str {
+            prologue.has_ended = true;
+            return (self.parse_statement(Context::List, top_level), false);
+        }
+        let (start, has_legacy_escape) = (self.tok_start, self.tok_legacy);
+        let statement = self.parse_statement(Context::List, top_level);
+        let expression = self.ast.a[statement as usize];
+        let is_directive = statement != 0
+            && self.ast.tag[statement as usize] == tag::EXPR_STMT
+            && self.ast.tag[expression as usize] == tag::STR
+            && self.ast.pos[expression as usize] == start;
+        if !is_directive {
+            prologue.has_ended = true;
+            return (statement, false);
+        }
+        if has_legacy_escape && prologue.legacy_escape == NONE {
+            prologue.legacy_escape = start;
+        }
+
+        // A Use Strict Directive is an ExpressionStatement in a Directive Prologue whose StringLiteral is either of the exact code point sequences "use strict" or 'use strict'. A Use Strict Directive may not contain an EscapeSequence or LineContinuation.
+        let use_strict = b"use strict";
+        let content = start as usize + 1;
+        let closing_quote = self.ast.a[expression as usize] as usize - 1;
+        let is_use_strict = closing_quote - content == use_strict.len()
+            && (0..use_strict.len()).all(|i| self.at(content + i) == u32::from(use_strict[i]));
+        if is_use_strict && !self.strict {
+            self.strict = true;
+
+            // 12.9.4.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-string-literals-early-errors
+            // EscapeSequence :: LegacyOctalEscapeSequence
+            // EscapeSequence :: NonOctalDecimalEscapeSequence
+            // It is a Syntax Error if IsStrict(this production) is true.
+            // NOTE: It is possible for string literals to precede a Use Strict Directive that places the enclosing code in strict mode, and implementations must take care to enforce the above rules for such literals.
+            if prologue.legacy_escape != NONE {
+                self.fail(
+                    prologue.legacy_escape,
+                    "Octal escape sequence in string literal not allowed in strict mode",
+                );
+            }
+        }
+        (statement, is_use_strict)
     }
 
     /// A method's function, from the `(`. Returns its node, its parameter count and whether it has a rest parameter.
