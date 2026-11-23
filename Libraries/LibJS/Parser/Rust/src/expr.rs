@@ -865,7 +865,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             }
             T::KNew => self.parse_new(),
             T::KClass => self.parse_class(false),
-            T::KSuper => self.parse_super(),
+            T::KSuper => self.parse_super(for_new),
             T::KImport => self.parse_import_expression(for_new),
             _ => {
                 self.expected("primary expression");
@@ -874,14 +874,18 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         }
     }
 
-    fn parse_super(&mut self) -> u32 {
+    // 13.3 Left-Hand-Side Expressions, https://tc39.es/ecma262/#sec-left-hand-side-expressions
+    /// `super`, which what follows makes a SuperProperty or a SuperCall. `for_new` is whether `new` constructs it.
+    fn parse_super(&mut self, for_new: bool) -> u32 {
         let start = self.tok_start;
         if self.ctx & ctx::SUPER_PROPERTY == 0 {
             self.fail(start, "'super' keyword unexpected here");
             return 0;
         }
         self.next();
-        if self.tok == T::LParen && self.ctx & ctx::SUPER_CALL == 0 {
+        // MemberExpression : new MemberExpression Arguments
+        // NB: SuperProperty is a MemberExpression, but SuperCall is not.
+        if self.tok == T::LParen && (for_new || self.ctx & ctx::SUPER_CALL == 0) {
             self.fail(start, "'super' keyword unexpected here");
             return 0;
         }

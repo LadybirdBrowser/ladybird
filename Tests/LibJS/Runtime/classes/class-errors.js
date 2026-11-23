@@ -97,4 +97,16 @@ describe("syntax errors", () => {
       }
     }`).not.toEval();
     });
+
+    test("new with a super call", () => {
+        expect("class A {} class B extends A { constructor() { super(); new super(); } }").not.toEval();
+        expect("class A {} class B extends A { constructor() { new super(1, 2); super(); } }").not.toEval();
+        expect("class A {} class B extends A { constructor() { (() => new super())(); } }").not.toEval();
+        expect("class A {} class B extends A { constructor() { new super(...[]); } }").not.toEval();
+        expect("class A {} class B extends A { constructor() { new super; } }").not.toEval();
+        expect("class A {} class B extends A { constructor() { super(); new super.x(); } }").toEval();
+        expect("class A {} class B extends A { constructor() { super(); new super.x; } }").toEval();
+        expect("class A {} class B extends A { constructor() { super(); new super[0](); } }").toEval();
+        expect("class A {} class B extends A { m() { new super.x(); } }").toEval();
+    });
 });
