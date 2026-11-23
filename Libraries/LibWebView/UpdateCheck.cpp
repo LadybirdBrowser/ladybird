@@ -131,6 +131,8 @@ Optional<InstallMethod> parse_package_format(StringView contents)
         return InstallMethod::DEB;
     if (format == "RPM"sv)
         return InstallMethod::RPM;
+    if (format == "AppImage"sv)
+        return InstallMethod::AppImage;
     return {};
 }
 
@@ -238,6 +240,7 @@ static Optional<StringView> architecture_name(InstallMethod install_method, Arch
         return architecture == Architecture::AArch64 ? "arm64"sv : "amd64"sv;
     case InstallMethod::RPM:
     case InstallMethod::Flatpak:
+    case InstallMethod::AppImage:
         return architecture == Architecture::AArch64 ? "aarch64"sv : "x86_64"sv;
     case InstallMethod::Source:
         return {};
@@ -312,6 +315,12 @@ static bool release_installs_on(JsonObject const& release, SystemDescription con
         auto flatpak = repositories->get_object("flatpak"sv);
         return flatpak.has_value() && contains_string(flatpak->get_array("architectures"sv), *architecture);
     }
+    case InstallMethod::AppImage:
+        return architecture.has_value() && has_download([&](JsonObject const& download) {
+            auto name = download.get_string("name"sv);
+            return download.get_string("platform"sv) == "Linux"sv && download.get_string("architecture"sv) == *architecture
+                && name.has_value() && name->bytes_as_string_view().ends_with(".AppImage"sv);
+        });
     case InstallMethod::Source:
         return has_download([](JsonObject const& download) { return download.get_string("platform"sv) == "source"sv; });
     }
@@ -387,6 +396,8 @@ static StringView install_method_name(InstallMethod install_method)
         return "rpm"sv;
     case InstallMethod::Flatpak:
         return "flatpak"sv;
+    case InstallMethod::AppImage:
+        return "appimage"sv;
     case InstallMethod::Source:
         return "source"sv;
     }

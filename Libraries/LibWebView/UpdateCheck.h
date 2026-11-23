@@ -26,6 +26,7 @@ enum class InstallMethod : u8 {
     DEB,
     RPM,
     Flatpak,
+    AppImage,
     Source,
 };
 
