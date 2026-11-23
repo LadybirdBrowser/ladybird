@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Test case for text-decoration-skip-ink</title>
+        <meta name="assert" content="text-decoration-skip-ink: all causes skipping even for CJK">
+        <link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+        <link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property">
+        <link rel="mismatch" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-skip-ink-005-notref.html">
+        <style>
+         @font-face {
+             font-family: mplus;
+             src: url(../../fonts/mplus-1p-regular.woff) format("woff");
+         }
+         div{
+             font: 50px mplus, sans-serif;
+             color: #00008080;
+             letter-spacing: 10px;
+             /* make sure the underline clashes badly with the glyphs! */
+             text-decoration: green underline;
+             text-underline-offset: -3px;
+             text-decoration-thickness: 3px;
+             text-decoration-skip-ink: all;
+         }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the underline skips the glyphs in the text below</p>
+        <div>中文</div>
+    </body>
+</html>

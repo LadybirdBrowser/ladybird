@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="match" href="../../expected/css/text-decoration-skip-ink-auto-cjk-ref.html">
+<style>
+@font-face { font-family: mplus; src: url(../wpt-import/fonts/mplus-1p-regular.woff) format("woff"); }
+div {
+    font: 50px mplus, sans-serif;
+    color: #00008080;
+    letter-spacing: 10px;
+    text-decoration: green underline 3px;
+    text-underline-offset: -3px;
+    text-decoration-skip-ink: auto;
+}
+</style>
+<div>中文</div>
+<div>「かな」、カナ。</div>
+<div lang="zh-TW">注音ㄅㄆㄇ</div>

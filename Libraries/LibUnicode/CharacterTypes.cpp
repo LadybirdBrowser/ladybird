@@ -648,6 +648,40 @@ VerticalOrientation vertical_orientation(u32 code_point)
     }
 }
 
+// https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
+// [...] not applying ink-skipping for characters whose Unicode Script property is any of the CJK scripts Han,
+// Hiragana, Katakana, Bopomofo, or Hangul, or for characters whose Script property is Inherited or Common, and whose
+// ScriptExtensions property includes one or more of the CJK scripts.
+CJKScriptClass cjk_script_class(u32 code_point)
+{
+    static constexpr Array cjk_scripts { USCRIPT_HAN, USCRIPT_HIRAGANA, USCRIPT_KATAKANA, USCRIPT_BOPOMOFO, USCRIPT_HANGUL };
+
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    UErrorCode status = U_ZERO_ERROR;
+    auto script = uscript_getScript(icu_code_point, &status);
+    if (icu_failure(status))
+        return CJKScriptClass::Other;
+    auto is_neutral = script == USCRIPT_COMMON || script == USCRIPT_INHERITED;
+    for (auto cjk_script : cjk_scripts) {
+        if (script == cjk_script || (is_neutral && uscript_hasScript(icu_code_point, cjk_script)))
+            return CJKScriptClass::CJK;
+    }
+    return is_neutral ? CJKScriptClass::Neutral : CJKScriptClass::Other;
+}
+
+i32 paired_bracket_key(u32 code_point)
+{
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    switch (u_getIntPropertyValue(icu_code_point, UCHAR_BIDI_PAIRED_BRACKET_TYPE)) {
+    case U_BPT_OPEN:
+        return static_cast<i32>(code_point);
+    case U_BPT_CLOSE:
+        return -static_cast<i32>(u_getBidiPairedBracket(icu_code_point));
+    default:
+        return 0;
+    }
+}
+
 // 22.2.2.7.3 Canonicalize ( rer, ch ), https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
 u32 canonicalize(u32 code_point, bool unicode_mode)
 {
@@ -877,6 +911,8 @@ u8 unicode_layout_line_break_class(u32);
 u8 unicode_layout_joining_type(u32);
 bool unicode_layout_code_point_has_emoji_property(u32);
 u8 unicode_layout_vertical_orientation(u32);
+u8 unicode_layout_cjk_script_class(u32);
+i32 unicode_layout_paired_bracket_key(u32);
 }
 
 extern "C" bool unicode_property_matches(
@@ -1095,4 +1131,14 @@ extern "C" bool unicode_layout_code_point_has_emoji_property(u32 code_point)
 extern "C" u8 unicode_layout_vertical_orientation(u32 code_point)
 {
     return to_underlying(Unicode::vertical_orientation(code_point));
+}
+
+extern "C" u8 unicode_layout_cjk_script_class(u32 code_point)
+{
+    return to_underlying(Unicode::cjk_script_class(code_point));
+}
+
+extern "C" i32 unicode_layout_paired_bracket_key(u32 code_point)
+{
+    return Unicode::paired_bracket_key(code_point);
 }
