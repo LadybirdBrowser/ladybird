@@ -1,0 +1,12 @@
+flex (auto height): section y=40 height=60; child y=40 height=60
+flow-root (auto height): section y=40 height=60; child y=40 height=60
+ordinary-block (auto height): section y=-36 height=60; child y=-36 height=60
+positive-margin (auto height): section y=40 height=120; child y=100 height=60
+fits-beside-float (auto height): section y=-36 height=60; child y=-36 height=60
+earlier-empty-sibling (auto height): section y=44 height=60; child y=44 height=60
+flex (definite height): section y=40 height=60; child y=40 height=60
+flow-root (definite height): section y=40 height=60; child y=40 height=60
+ordinary-block (definite height): section y=-36 height=60; child y=-36 height=60
+positive-margin (definite height): section y=40 height=120; child y=100 height=60
+fits-beside-float (definite height): section y=-36 height=60; child y=-36 height=60
+earlier-empty-sibling (definite height): section y=44 height=60; child y=44 height=60

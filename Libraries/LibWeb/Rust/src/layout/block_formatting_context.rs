@@ -230,6 +230,8 @@ struct BlockLevelBoxLayoutPrelude {
     /// Where placing the box introduced clearance, the margins between the clearance and the box: its block-start
     /// margin, collapsed with those of its first children.
     margins_after_clearance: Option<CollapsedMargins>,
+    /// The open top margin group before the child adds its block-start margin.
+    top_margins_before_child: Option<CollapsedMargins>,
 }
 
 /// A block-level box its flow laid out and has yet to place.
@@ -2965,10 +2967,60 @@ impl<'pass> BlockFormattingContext<'pass> {
         (metrics.border_box_block_size(false), !metrics.has_definite_block_size())
     }
 
+    /// Places the box past floats, removing its margin from the parent's top margin group if it has to move down.
+    #[allow(clippy::too_many_arguments)]
+    fn place_in_flow_box_past_floats(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        block_container: BlockContainer,
+        input: &LayoutInput,
+        content_block_offset: CssPixels,
+        containing_block_rect_in_root_now: &mut CssPixelRect,
+        top_margins_before_child: &mut Option<CollapsedMargins>,
+    ) -> InFlowBoxPlacement {
+        let placement = self.compute_in_flow_box_placement(
+            sized_child,
+            block_container,
+            input,
+            content_block_offset,
+            *containing_block_rect_in_root_now,
+        );
+        if placement.content_block_offset <= content_block_offset {
+            return placement;
+        }
+        let Some(margins) = top_margins_before_child.take() else {
+            return placement;
+        };
+
+        // A box pushed down by floats stops collapsing its top margin into its parent. Keep the margins that joined
+        // the group before this child, and place the box past floats from the parent's position without its margin.
+        let node = sized_child.node;
+        let previous_adjustment = self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node);
+        {
+            let mut margin_state = self.margin_state_mut();
+            margin_state
+                .top_margin_group
+                .as_mut()
+                .expect("the child's margin joined a top margin group")
+                .margins = margins;
+            margin_state.reset();
+        }
+        containing_block_rect_in_root_now.y +=
+            self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node) - previous_adjustment;
+        self.rebuild_float_bands();
+        self.compute_in_flow_box_placement(
+            sized_child,
+            block_container,
+            input,
+            content_block_offset,
+            *containing_block_rect_in_root_now,
+        )
+    }
+
     /// Finds where `sized_child`, a block-level box of this flow, goes from `content_block_offset` on, past the floats
     /// it avoids, and the inline size it takes there, which its cells take.
     #[allow(clippy::too_many_arguments)]
-    fn place_in_flow_box_past_floats(
+    fn compute_in_flow_box_placement(
         &self,
         sized_child: ChildSizedHere<'_>,
         block_container: BlockContainer,
@@ -4289,6 +4341,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         let is_in_flow_candidate = self.run.fragmentainer.is_some() && self.is_first_or_last_in_flow_candidate(node);
         let discards_block_start_margin =
             is_in_flow_candidate && self.discard_block_start_margin_of_next_child.replace(false);
+        let top_margins_before_child = {
+            let margin_state = self.margin_state();
+            margin_state
+                .has_open_top_margin_group()
+                .then_some(margin_state.margins_since_reset)
+        };
         // A quirky block-start margin that collapses into the block start of a quirks-mode body or table cell is left
         // out, by clearance too.
         let block_start_margin_is_quirky = self.facts(node).has_quirky_block_start_margin();
@@ -4381,6 +4439,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 discards_block_start_margin,
                 introduced_clearance,
                 margins_after_clearance,
+                top_margins_before_child: top_margins_before_child.filter(|_| !introduced_clearance),
             },
         );
         Some(self.place_laid_out_block_level_box(sized_child, unplaced, in_flow_reuse, interrupted_inline_content))
@@ -4402,7 +4461,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         definite_content_block_size_of_fieldset_to_fill: Option<CssPixels>,
         inline_space_used_before_children_formatted: inline_formatting_context::SpaceUsedByFloats,
         content_block_offset_before_floats: CssPixels,
-        containing_block_rect_in_root_now: CssPixelRect,
+        mut containing_block_rect_in_root_now: CssPixelRect,
+        top_margins_before_child: &mut Option<CollapsedMargins>,
         placement: &mut InFlowBoxPlacement,
         flow_places_box: bool,
     ) -> (formatting_context::ChildLayout, Option<(CssPixels, CssPixels)>) {
@@ -4492,7 +4552,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 block_container,
                 input,
                 content_block_offset_before_floats,
-                containing_block_rect_in_root_now,
+                &mut containing_block_rect_in_root_now,
+                top_margins_before_child,
             );
             if placement_beside_all_floats == *placement {
                 break (layout, pre_run_table_border_box);
@@ -4523,6 +4584,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             discards_block_start_margin,
             introduced_clearance,
             margins_after_clearance,
+            mut top_margins_before_child,
         } = prelude;
         let node = sized_child.node;
         let available_space = input.available_space;
@@ -4555,22 +4617,23 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_offset + margin_top + self.metrics_of(sized_child).border_box_top(false);
         let containing_block_rect_in_root =
             self.containing_block_rect(block_container, containing_block_position_in_root);
-        let containing_block_rect_in_root_now = containing_block_rect_in_root.translated(
+        let mut containing_block_rect_in_root_now = containing_block_rect_in_root.translated(
             CssPixels::default(),
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node),
         );
-        let content_position_in_root_now = |content_block_offset: CssPixels| FfiCssPixelPoint {
-            x: containing_block_rect_in_root_now.x,
-            y: containing_block_rect_in_root_now.y + content_block_offset,
-        };
 
         let mut placement = self.place_in_flow_box_past_floats(
             sized_child,
             block_container,
             &input,
             content_block_offset_before_floats,
-            containing_block_rect_in_root_now,
+            &mut containing_block_rect_in_root_now,
+            &mut top_margins_before_child,
         );
+        let content_position_in_root_now = |content_block_offset: CssPixels| FfiCssPixelPoint {
+            x: containing_block_rect_in_root_now.x,
+            y: containing_block_rect_in_root_now.y + content_block_offset,
+        };
         let InFlowBoxPlacement {
             content_inline_offset,
             content_block_offset,
@@ -4679,6 +4742,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 inline_space_used_before_children_formatted,
                 content_block_offset_before_floats,
                 containing_block_rect_in_root_now,
+                &mut top_margins_before_child,
                 &mut placement,
                 pending_position.is_some(),
             );
