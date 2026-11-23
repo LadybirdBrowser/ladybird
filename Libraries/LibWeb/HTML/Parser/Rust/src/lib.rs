@@ -234,6 +234,7 @@ fn next_token_slow(
     match token.payload {
         TokenPayload::Tag {
             tag_name,
+            tag_id: _,
             self_closing,
             had_duplicate_attribute,
             attributes,

@@ -734,8 +734,7 @@ impl HtmlTokenizer {
     /// Commit `current_builder` into `current_token.tag_name`.
     #[inline]
     fn commit_current_builder_as_tag_name(&mut self) {
-        self.current_token
-            .set_tag_name(crate::token::HtmlName::from_utf8(&self.current_builder));
+        self.current_token.set_tag_name(&self.current_builder);
         self.current_builder.clear();
     }
 
@@ -743,6 +742,7 @@ impl HtmlTokenizer {
         let payload = match token_type {
             TokenType::StartTag | TokenType::EndTag => TokenPayload::Tag {
                 tag_name: Default::default(),
+                tag_id: Default::default(),
                 self_closing: false,
                 had_duplicate_attribute: false,
                 attributes: crate::token::AttributeList::new(),

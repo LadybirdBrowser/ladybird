@@ -401,7 +401,55 @@ fn emit_known_names(
         &mut std::collections::HashSet::new(),
     );
     out.push_str("}\npub(crate) use attribute_name;\n");
+    emit_tag_ids(&mut out, &[tag_names, svg_tag_names, mathml_tag_names]);
     fs::write(out_path, out).expect("Failed to write known_names_generated.rs");
+}
+
+/// Emits a small number for every known tag name, the `tag_id!` macro that gives the number of a name, and
+/// `tag_id_for_name`, which finds the number of a name the tokenizer has read.
+fn emit_tag_ids(out: &mut String, tag_name_lists: &[&[(String, String)]]) {
+    let names: std::collections::BTreeSet<&str> = tag_name_lists
+        .iter()
+        .flat_map(|names| names.iter().map(|(_, name)| name.as_str()))
+        .collect();
+    // NB: 0 is the id of every name that isn't a known one.
+    let ids: Vec<(&str, usize)> = names.iter().copied().zip(1..).collect();
+
+    out.push_str(&format!(
+        "\npub(crate) const TAG_SET_WORD_COUNT: usize = {};\n\nmacro_rules! tag_id {{\n",
+        (ids.len() + 1).div_ceil(64)
+    ));
+    for (name, id) in &ids {
+        out.push_str(&format!(
+            "    (\"{name}\") => {{ $crate::token::TagId::from_index({id}) }};\n"
+        ));
+    }
+    out.push_str("}\npub(crate) use tag_id;\n\n");
+
+    // NB: Names are told apart by their length and first byte before any of them is compared in full, which leaves
+    //     only a few to compare with.
+    let mut by_length_and_first_byte = std::collections::BTreeMap::<(usize, u8), Vec<(&str, usize)>>::new();
+    for (name, id) in &ids {
+        by_length_and_first_byte
+            .entry((name.len(), name.as_bytes()[0]))
+            .or_default()
+            .push((name, *id));
+    }
+    out.push_str("pub(crate) fn tag_id_for_name(name: &[u8]) -> crate::token::TagId {\n");
+    out.push_str(
+        "    let Some(&first_byte) = name.first() else {\n        return crate::token::TagId::UNKNOWN;\n    };\n",
+    );
+    out.push_str("    match (name.len(), first_byte) {\n");
+    for ((length, first_byte), names) in &by_length_and_first_byte {
+        out.push_str(&format!("        ({length}, {first_byte}) => match name {{\n"));
+        for (name, id) in names {
+            out.push_str(&format!(
+                "            b\"{name}\" => crate::token::TagId::from_index({id}),\n"
+            ));
+        }
+        out.push_str("            _ => crate::token::TagId::UNKNOWN,\n        },\n");
+    }
+    out.push_str("        _ => crate::token::TagId::UNKNOWN,\n    }\n}\n");
 }
 
 fn emit_known_name_externs(out: &mut String, names: &[(String, String)], prefix: &str, target_pointer_size: usize) {
