@@ -264,13 +264,36 @@ extern "C" fn ladybird_html_parser_create_comment(
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_html_parser_insert_text(
+unsafe extern "C" fn ladybird_html_parser_insert_latin1_text(
     parent: usize,
     offset: usize,
     data_ptr: *const u8,
     data_len: usize,
+    is_ascii: bool,
 ) {
-    let data = std::str::from_utf8(unsafe { ak::slice_from_raw_parts(data_ptr, data_len) }).unwrap();
+    let data = unsafe { ak::slice_from_raw_parts(data_ptr, data_len) };
+    assert!(!is_ascii || data.is_ascii());
+    insert_text(
+        parent,
+        offset,
+        &data.iter().copied().map(char::from).collect::<String>(),
+    );
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn ladybird_html_parser_insert_utf16_text(
+    parent: usize,
+    offset: usize,
+    data_ptr: *const u16,
+    data_len: usize,
+    is_ascii: bool,
+) {
+    let data = unsafe { ak::slice_from_raw_parts(data_ptr, data_len) };
+    assert!(!is_ascii || data.iter().all(|code_unit| *code_unit < 0x80));
+    insert_text(parent, offset, &String::from_utf16(data).unwrap());
+}
+
+fn insert_text(parent: usize, offset: usize, data: &str) {
     with_fake_dom(|dom| {
         dom.record_insertion(FakeInsertionCall::InsertText, parent, offset);
         if dom.node(parent).kind == FakeNodeKind::Document {

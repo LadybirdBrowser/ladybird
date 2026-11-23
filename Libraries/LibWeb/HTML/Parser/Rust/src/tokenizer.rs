@@ -8,6 +8,7 @@ use std::collections::VecDeque;
 
 use crate::entities::NamedCharacterReferenceMatcher;
 use crate::input::Input;
+use crate::input::InputRun;
 use crate::input::InputSlice;
 use crate::scan;
 use crate::token::Attribute;
@@ -682,47 +683,30 @@ impl HtmlTokenizer {
         Some(cp)
     }
 
-    /// Append a run of ordinary ASCII characters from the Data state to
-    /// `output`. The caller can process the run as character tokens without
-    /// constructing and dispatching a `Token` for each code point.
+    /// Consume the run of input at the current position that the Data state would emit unchanged, one character
+    /// token per code point, and return where in the input it is. The caller can take the text straight from the
+    /// input instead of having a `Token` constructed and dispatched for each code point.
     #[inline(always)]
-    pub fn try_fast_data_run(&mut self, output: &mut String) -> Option<bool> {
+    pub fn try_fast_data_run(&mut self) -> Option<InputRun> {
         if !self.has_fast_data_run() {
             return None;
         }
 
         let start_offset = self.current_offset;
-        let input_len = self.fast_scan_limit();
-        let mut offset = start_offset;
-        let mut contains_non_whitespace = false;
-        while offset < input_len {
-            let code_point = u32::from(self.input.code_unit_at(offset));
-            if code_point == 0x3C
-                || code_point == 0x26
-                || code_point == 0x00
-                || code_point == 0x0D
-                || code_point >= 0x80
-            {
-                break;
-            }
-            if !is_whitespace(code_point) {
-                contains_non_whitespace = true;
-            }
-            offset += 1;
-        }
-        if offset == start_offset {
-            return None;
-        }
-
-        output.reserve(offset - start_offset);
-        for offset in start_offset..offset {
-            let code_point = self.input.code_unit_at(offset);
-            // SAFETY: The scan above only accepts ASCII code points.
-            unsafe { output.as_mut_vec().push(code_point as u8) };
-        }
-        self.prev_offset = offset - 1;
-        self.current_offset = offset;
-        Some(contains_non_whitespace)
+        let limit = self.fast_scan_limit();
+        let scan::Run { length, is_ascii } = match &self.input {
+            Input::Latin1(code_units) => scan::data_run(&code_units[start_offset..limit]),
+            Input::Utf16(code_units) => scan::data_run(&code_units[start_offset..limit]),
+        };
+        debug_assert!(length > 0);
+        let end_offset = start_offset + length;
+        let ends_with_surrogate_pair = (0xDC00..=0xDFFF).contains(&self.input.code_unit_at(end_offset - 1));
+        self.prev_offset = end_offset - if ends_with_surrogate_pair { 2 } else { 1 };
+        self.current_offset = end_offset;
+        Some(InputRun {
+            range: start_offset..end_offset,
+            is_ascii,
+        })
     }
 
     #[inline(always)]
@@ -733,8 +717,10 @@ impl HtmlTokenizer {
         if self.current_offset >= self.fast_scan_limit() {
             return false;
         }
-        let code_point = u32::from(self.input.code_unit_at(self.current_offset));
-        code_point != 0x3C && code_point != 0x26 && code_point != 0x00 && code_point != 0x0D && code_point < 0x80
+        // NB: A surrogate pair can be inside a run, but a run that starts with one is left to the slow path, which
+        //     knows what to do when the surrogate turns out not to have its other half.
+        let code_unit = self.input.code_unit_at(self.current_offset);
+        !matches!(code_unit, 0x3C | 0x26 | 0x00 | 0x0D | 0xD800..=0xDFFF)
     }
 
     fn restore_to(&mut self, offset: usize) {
