@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The name of an active uniform or attribute comes back whole, up to the longest the spec allows: 256 characters
+    // in WebGL 1, and 1024 in WebGL 2.
+    test(() => {
+        for (const [kind, length, header] of [["webgl", 256, ""], ["webgl2", 1024, "#version 300 es\n"]]) {
+            const gl = document.createElement("canvas").getContext(kind);
+            const uniformName = "u" + "x".repeat(length - 1);
+            const attributeName = "a" + "y".repeat(length - 1);
+            const attribute = header ? "in" : "attribute";
+            const program = gl.createProgram();
+            for (const [type, source] of [
+                [gl.VERTEX_SHADER, `${header}uniform float ${uniformName}; ${attribute} float ${attributeName}; void main() { gl_Position = vec4(${uniformName} + ${attributeName}); }`],
+                [gl.FRAGMENT_SHADER, header ? `${header}precision mediump float; out vec4 color; void main() { color = vec4(1.0); }` : "void main() { gl_FragColor = vec4(1.0); }"],
+            ]) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                gl.attachShader(program, shader);
+            }
+            gl.linkProgram(program);
+            gl.useProgram(program);
+            const uniform = gl.getActiveUniform(program, 0);
+            const activeAttribute = gl.getActiveAttrib(program, 0);
+            println(`${kind} linked: ${gl.getProgramParameter(program, gl.LINK_STATUS)}`);
+            println(`${kind} active uniform name: ${uniform.name.length} characters, whole: ${uniform.name === uniformName}`);
+            println(`${kind} active attribute name: ${activeAttribute.name.length} characters, whole: ${activeAttribute.name === attributeName}`);
+            const location = gl.getUniformLocation(program, uniformName);
+            gl.uniform1f(location, 5);
+            println(`${kind} getUniform(): ${gl.getUniform(program, location)}, error ${gl.getError()}`);
+        }
+    });
+</script>

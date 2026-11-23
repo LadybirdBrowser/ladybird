@@ -11,19 +11,19 @@ use libjs_rust::api::{Gc, MarkedVec, Object, Trace};
 
 use super::buffer_kind::BufferKind;
 use super::buffer_source::copy_of_first_numbers;
-use super::byte_ranges::gl_sizei_of_array_length;
 use super::constants::{
-    GL_ARRAY_BUFFER, GL_COLOR_ATTACHMENT0, GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, GL_DEPTH_ATTACHMENT,
-    GL_DEPTH_STENCIL, GL_DEPTH_STENCIL_ATTACHMENT, GL_DEPTH24_STENCIL8, GL_DRAW_FRAMEBUFFER, GL_ELEMENT_ARRAY_BUFFER,
-    GL_FRAGMENT_SHADER, GL_FRAMEBUFFER, GL_INFO_LOG_LENGTH, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE,
-    GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH, GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PIXEL_PACK_BUFFER,
-    GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER, GL_RENDERBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
-    GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TRANSFORM_FEEDBACK_BUFFER, GL_UNIFORM_BUFFER,
-    GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL, GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_IMAGE_HEIGHT,
-    GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL, GL_UNPACK_ROW_LENGTH, GL_UNPACK_SKIP_IMAGES, GL_UNPACK_SKIP_PIXELS,
-    GL_UNPACK_SKIP_ROWS, GL_VERTEX_ATTRIB_ARRAY_POINTER, GL_VERTEX_SHADER,
+    GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, GL_ACTIVE_UNIFORM_MAX_LENGTH, GL_ARRAY_BUFFER, GL_COLOR_ATTACHMENT0,
+    GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, GL_DEPTH_ATTACHMENT, GL_DEPTH_STENCIL, GL_DEPTH_STENCIL_ATTACHMENT,
+    GL_DEPTH24_STENCIL8, GL_DRAW_FRAMEBUFFER, GL_ELEMENT_ARRAY_BUFFER, GL_FRAGMENT_SHADER, GL_FRAMEBUFFER,
+    GL_INFO_LOG_LENGTH, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH,
+    GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PIXEL_PACK_BUFFER, GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER,
+    GL_RENDERBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP,
+    GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+    GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+    GL_TRANSFORM_FEEDBACK_BUFFER, GL_UNIFORM_BUFFER, GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL,
+    GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_IMAGE_HEIGHT, GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL, GL_UNPACK_ROW_LENGTH,
+    GL_UNPACK_SKIP_IMAGES, GL_UNPACK_SKIP_PIXELS, GL_UNPACK_SKIP_ROWS, GL_VERTEX_ATTRIB_ARRAY_POINTER,
+    GL_VERTEX_SHADER,
 };
 use super::gl_string::{utf8_bytes, utf16_string_from_gl_string};
 use super::state::{
@@ -57,9 +57,6 @@ pub(crate) struct WebGLContextAttributes {
     pub(crate) fail_if_major_performance_caveat: bool,
     pub(crate) desynchronized: bool,
 }
-
-pub(super) const ACTIVE_INFO_NAME_BUFFER_SIZE: usize = 256;
-pub(super) const ACTIVE_INFO_NAME_BUFFER_GL_SIZE: i32 = gl_sizei_of_array_length(ACTIVE_INFO_NAME_BUFFER_SIZE);
 
 pub(crate) fn is_valid_framebuffer_binding_target(version: WebGLVersion, target: u32) -> bool {
     if target == GL_FRAMEBUFFER {
@@ -110,6 +107,18 @@ fn active_info_name(name_buffer: &[u8], length: i32) -> Utf16String {
 fn zeroed_gl_string_buffer(size_with_terminating_nul: i32) -> Vec<u8> {
     let size = usize::try_from(size_with_terminating_nul).expect("GL does not report a negative size for a string");
     vec![0; size]
+}
+
+/// A buffer that holds the name of any active attribute or uniform of the program, with its terminating NUL: as long
+/// as GL reports for `pname`, ACTIVE_ATTRIBUTE_MAX_LENGTH or ACTIVE_UNIFORM_MAX_LENGTH.
+pub(super) fn active_name_buffer(context: &ContextState, program: u32, pname: u32) -> Vec<u8> {
+    let mut size = [0];
+    context.proxy.get_programiv(program, pname, &mut size);
+    zeroed_gl_string_buffer(size[0].max(1))
+}
+
+pub(super) fn gl_size_of_buffer(buffer: &[u8]) -> i32 {
+    i32::try_from(buffer.len()).expect("a name buffer is smaller than 2^31 bytes")
 }
 
 #[expect(
@@ -787,10 +796,10 @@ impl<V: Version> RenderingContext<V> {
             return Ok(None);
         };
 
-        let mut name = [0; ACTIVE_INFO_NAME_BUFFER_SIZE];
+        let mut name = active_name_buffer(self, program_handle, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH);
         let outputs = self
             .proxy
-            .get_active_attrib(program_handle, index, ACTIVE_INFO_NAME_BUFFER_GL_SIZE, &mut name);
+            .get_active_attrib(program_handle, index, gl_size_of_buffer(&name), &mut name);
         Ok(Some(WebGLActiveInfo::create(
             cx.vm(),
             active_info_name(&name, outputs.length),
@@ -809,10 +818,10 @@ impl<V: Version> RenderingContext<V> {
             return Ok(None);
         };
 
-        let mut name = [0; ACTIVE_INFO_NAME_BUFFER_SIZE];
+        let mut name = active_name_buffer(self, program_handle, GL_ACTIVE_UNIFORM_MAX_LENGTH);
         let outputs = self
             .proxy
-            .get_active_uniform(program_handle, index, ACTIVE_INFO_NAME_BUFFER_GL_SIZE, &mut name);
+            .get_active_uniform(program_handle, index, gl_size_of_buffer(&name), &mut name);
         Ok(Some(WebGLActiveInfo::create(
             cx.vm(),
             active_info_name(&name, outputs.length),

@@ -1,0 +1,8 @@
+webgl linked: true
+webgl active uniform name: 256 characters, whole: true
+webgl active attribute name: 256 characters, whole: true
+webgl getUniform(): 5, error 0
+webgl2 linked: true
+webgl2 active uniform name: 1024 characters, whole: true
+webgl2 active attribute name: 1024 characters, whole: true
+webgl2 getUniform(): 5, error 0
