@@ -339,6 +339,15 @@ fn is_ascii_lower_alpha(c: u32) -> bool {
     matches!(c, 0x61..=0x7A)
 }
 
+/// What ends a run of text that a state emits as it is, besides U+0000 NULL, U+000D CR and lone surrogates.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum TextRunStops {
+    /// U+003C (<).
+    Markup,
+    /// U+003C (<) and U+0026 (&).
+    MarkupAndCharacterReferences,
+}
+
 impl HtmlTokenizer {
     /// Create a new tokenizer for the given input.
     pub fn new(input: impl Into<CodeUnits>) -> Self {
@@ -676,22 +685,78 @@ impl HtmlTokenizer {
         if !self.has_fast_data_run() {
             return None;
         }
+        Some(self.take_text_run(TextRunStops::MarkupAndCharacterReferences))
+    }
 
+    /// Whether `try_fast_data_run()` would return a run.
+    #[inline(always)]
+    pub fn has_fast_data_run(&self) -> bool {
+        self.state == State::Data && self.has_text_run(TextRunStops::MarkupAndCharacterReferences)
+    }
+
+    /// Like `try_fast_data_run()`, for the text of an element whose content isn't markup: what the RCDATA, RAWTEXT
+    /// and script data states would emit unchanged.
+    #[inline(always)]
+    pub fn try_fast_element_text_run(&mut self) -> Option<InputRun> {
+        let stops = self.element_text_run_stops()?;
+        if !self.has_text_run(stops) {
+            return None;
+        }
+        Some(self.take_text_run(stops))
+    }
+
+    #[inline(always)]
+    fn element_text_run_stops(&self) -> Option<TextRunStops> {
+        match self.state {
+            State::RCDATA => Some(TextRunStops::MarkupAndCharacterReferences),
+            State::RAWTEXT | State::ScriptData => Some(TextRunStops::Markup),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    fn has_text_run(&self, stops: TextRunStops) -> bool {
+        if self.aborted || !self.queued_tokens.is_empty() {
+            return false;
+        }
+        if self.current_offset >= self.fast_scan_limit() {
+            return false;
+        }
+        // NB: A surrogate pair can be inside a run, but a run that starts with one is left to the slow path, which
+        //     knows what to do when the surrogate turns out not to have its other half.
+        match self.input.code_unit_at(self.current_offset) {
+            0x3C | 0x00 | 0x0D | 0xD800..=0xDFFF => false,
+            0x26 => stops == TextRunStops::Markup,
+            _ => true,
+        }
+    }
+
+    fn take_text_run(&mut self, stops: TextRunStops) -> InputRun {
         let start_offset = self.current_offset;
         let limit = self.fast_scan_limit();
-        let scan::Run { length, is_ascii } = match &self.input {
-            CodeUnits::Latin1(code_units) => scan::data_run(&code_units[start_offset..limit]),
-            CodeUnits::Utf16(code_units) => scan::data_run(&code_units[start_offset..limit]),
+        let scan::Run { length, is_ascii } = match (&self.input, stops) {
+            (CodeUnits::Latin1(code_units), TextRunStops::MarkupAndCharacterReferences) => {
+                scan::data_run(&code_units[start_offset..limit])
+            }
+            (CodeUnits::Utf16(code_units), TextRunStops::MarkupAndCharacterReferences) => {
+                scan::data_run(&code_units[start_offset..limit])
+            }
+            (CodeUnits::Latin1(code_units), TextRunStops::Markup) => {
+                scan::raw_text_run(&code_units[start_offset..limit])
+            }
+            (CodeUnits::Utf16(code_units), TextRunStops::Markup) => {
+                scan::raw_text_run(&code_units[start_offset..limit])
+            }
         };
         debug_assert!(length > 0);
         let end_offset = start_offset + length;
         let ends_with_surrogate_pair = (0xDC00..=0xDFFF).contains(&self.input.code_unit_at(end_offset - 1));
         self.prev_offset = end_offset - if ends_with_surrogate_pair { 2 } else { 1 };
         self.current_offset = end_offset;
-        Some(InputRun {
+        InputRun {
             range: start_offset..end_offset,
             is_ascii,
-        })
+        }
     }
 
     /// Appends the code units that come next to the attribute value being read, as far as a value in quotes takes
@@ -714,20 +779,6 @@ impl HtmlTokenizer {
             .push_slice(self.input.slice(start_offset..end_offset));
         self.prev_offset = end_offset - 1;
         self.current_offset = end_offset;
-    }
-
-    #[inline(always)]
-    pub fn has_fast_data_run(&self) -> bool {
-        if self.aborted || self.state != State::Data || !self.queued_tokens.is_empty() {
-            return false;
-        }
-        if self.current_offset >= self.fast_scan_limit() {
-            return false;
-        }
-        // NB: A surrogate pair can be inside a run, but a run that starts with one is left to the slow path, which
-        //     knows what to do when the surrogate turns out not to have its other half.
-        let code_unit = self.input.code_unit_at(self.current_offset);
-        !matches!(code_unit, 0x3C | 0x26 | 0x00 | 0x0D | 0xD800..=0xDFFF)
     }
 
     fn restore_to(&mut self, offset: usize) {
