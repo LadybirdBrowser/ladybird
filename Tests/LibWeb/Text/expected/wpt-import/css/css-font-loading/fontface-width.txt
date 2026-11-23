@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	FontFace width and stretch have the same default value
+Pass	The width constructor descriptor initializes both aliases
+Pass	The width constructor descriptor takes precedence over stretch
+Pass	Setting either width alias updates the other alias
+Pass	Setting width to an invalid value throws and preserves its value

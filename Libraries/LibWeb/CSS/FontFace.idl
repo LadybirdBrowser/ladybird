@@ -1,6 +1,7 @@
 dictionary FontFaceDescriptors {
     CSSOMString style = "normal";
     CSSOMString weight = "normal";
+    CSSOMString width;
     CSSOMString stretch = "normal";
     CSSOMString unicodeRange = "U+0-10FFFF";
     CSSOMString featureSettings = "normal";
@@ -22,6 +23,7 @@ interface FontFace {
     attribute CSSOMString family;
     attribute CSSOMString style;
     attribute CSSOMString weight;
+    [ImplementedAs=stretch] attribute CSSOMString width;
     attribute CSSOMString stretch;
     attribute CSSOMString unicodeRange;
     attribute CSSOMString featureSettings;
