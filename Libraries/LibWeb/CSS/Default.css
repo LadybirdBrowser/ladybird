@@ -62,6 +62,29 @@ textarea {
     overflow-wrap: break-word;
 }
 
+input::-webkit-search-cancel-button {
+    appearance: none;
+    flex: none;
+    box-sizing: border-box;
+    inline-size: 1em;
+    block-size: 1em;
+    margin: 0 2px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: AccentColor;
+    color: AccentColorText;
+    font: inherit;
+    font-weight: bold;
+    line-height: 1;
+    text-align: center;
+}
+
+input[type="search" i]:read-only::-webkit-search-cancel-button,
+input[type="search" i]:disabled::-webkit-search-cancel-button {
+    display: none;
+}
+
 input::placeholder, textarea::placeholder {
     color: GrayText;
     line-height: initial;
