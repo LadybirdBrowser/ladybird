@@ -1923,8 +1923,6 @@ impl Generator<'_> {
         for (index, item) in items.iter().enumerate() {
             let first_temporary = self.next_temporary();
             let is_rest = tree.node_tag(item) == tag::REST;
-            // NB: A rest element started out as a spread element, whose mark means nothing here.
-            row += usize::from(tree.ast.tag[row] == tag::MARK_ARRAY_START);
             if tree.node_tag(item) == tag::HOLE {
                 let after_step = self.new_label();
                 if index != 0 {
