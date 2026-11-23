@@ -51,6 +51,7 @@ ENUMERATE_BOOL_PARAMS
 #undef __ENUMERATE_BOOL_PARAM
 
 WEB_API GC::Ref<Infrastructure::FetchController> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No, CreateResponseBodyTransferLease = CreateResponseBodyTransferLease::No);
+void append_accept_language_header_if_missing(Infrastructure::Request&, LoaderConfig const&);
 GC::Ptr<PendingResponse> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
 void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page&, Infrastructure::Request&);
 // Runs the in-parallel steps that main fetch deferred under the id.

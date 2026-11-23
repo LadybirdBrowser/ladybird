@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/accept-language", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            reflect_headers_in_body: true,
+        });
+        const headers = await (await fetch(url)).json();
+        const socket = new WebSocket(`${server.baseURL}/reflect-websocket-accept-language`);
+        const language = await new Promise((resolve, reject) => {
+            socket.onmessage = event => resolve(event.data);
+            socket.onerror = () => reject(new Error("WebSocket handshake failed"));
+        });
+        socket.close();
+
+        println(`WebSocket sent Accept-Language: ${language.length > 0}`);
+        println(`Accept-Language matches fetch(): ${language === headers["Accept-Language"][0]}`);
+    });
+</script>

@@ -45,6 +45,7 @@ Endpoints:
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
     - GET /reflect-websocket-cookie with an "Upgrade: websocket" header: As above, but first sends the
       handshake's Cookie header (or an empty string) as a text frame.
+    - GET /reflect-websocket-accept-language does the same for the handshake's Accept-Language header.
     - GET /websocket-close-without-response with an "Upgrade: websocket" header: Closes the connection without
       responding to the handshake.
     - GET /recorded-request-count/<echo path>: Responds with the number of requests the server has seen at <echo path>,
@@ -806,6 +807,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if self.path == "/reflect-websocket-cookie":
             self._send_websocket_frame(self.headers.get("Cookie", "").encode("utf-8"))
+        elif self.path == "/reflect-websocket-accept-language":
+            self._send_websocket_frame(self.headers.get("Accept-Language", "").encode("utf-8"))
 
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         if "send-binary" in query:
