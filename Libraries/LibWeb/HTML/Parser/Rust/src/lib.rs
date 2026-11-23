@@ -6,6 +6,7 @@
 
 pub mod code_units;
 pub mod entities;
+pub mod fragment;
 mod known_names;
 pub mod meta_charset_scanner;
 pub mod parser;

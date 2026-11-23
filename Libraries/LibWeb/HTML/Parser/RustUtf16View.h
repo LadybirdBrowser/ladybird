@@ -22,4 +22,12 @@ inline Utf16View utf16_view_from_ffi(RustFfiHtmlUtf16View view)
     return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
 }
 
+// A view of code units for the Rust HTML parser to read until the call they are passed to returns.
+inline RustFfiHtmlUtf16View utf16_view_to_ffi(Utf16View view)
+{
+    if (view.has_latin1_storage())
+        return { view.latin1_span().data(), nullptr, view.length_in_code_units() };
+    return { nullptr, reinterpret_cast<u16 const*>(view.utf16_span().data()), view.length_in_code_units() };
+}
+
 }

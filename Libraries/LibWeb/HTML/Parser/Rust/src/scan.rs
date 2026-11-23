@@ -264,6 +264,13 @@ pub fn raw_text_run<T: CodeUnit>(code_units: &[T]) -> Run {
     text_run(code_units, [b'<', 0, b'\r'])
 }
 
+/// The number of code units at the start of `code_units` that a quoted attribute value takes as they are, and whether
+/// they are all ASCII: everything up to the first `quote`, U+0026 (&), U+0000 NULL, U+000D CR, or surrogate that isn't
+/// half of a pair.
+pub fn quoted_attribute_value_run<T: CodeUnit>(code_units: &[T], quote: u8) -> Run {
+    text_run(code_units, [quote, b'&', 0, b'\r'])
+}
+
 #[inline(always)]
 fn text_run<T: CodeUnit, const N: usize>(code_units: &[T], stops: [u8; N]) -> Run {
     let mut length = 0;

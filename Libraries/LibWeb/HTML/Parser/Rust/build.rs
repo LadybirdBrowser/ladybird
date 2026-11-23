@@ -402,6 +402,7 @@ fn emit_known_names(
     );
     out.push_str("}\npub(crate) use attribute_name;\n");
     emit_tag_ids(&mut out, &[tag_names, svg_tag_names, mathml_tag_names]);
+    emit_known_attribute_name_lookup(&mut out, attribute_names);
     fs::write(out_path, out).expect("Failed to write known_names_generated.rs");
 }
 
@@ -450,6 +451,32 @@ fn emit_tag_ids(out: &mut String, tag_name_lists: &[&[(String, String)]]) {
         out.push_str("            _ => crate::token::TagId::UNKNOWN,\n        },\n");
     }
     out.push_str("        _ => crate::token::TagId::UNKNOWN,\n    }\n}\n");
+}
+
+/// Emits `known_attribute_name`, which finds the known attribute name that has the bytes it is given.
+fn emit_known_attribute_name_lookup(out: &mut String, attribute_names: &[(String, String)]) {
+    let names: std::collections::BTreeSet<&str> = attribute_names.iter().map(|(_, name)| name.as_str()).collect();
+    // NB: As with tag names, the length and first byte of a name leave only a few known names to compare it with.
+    let mut by_length_and_first_byte = std::collections::BTreeMap::<(usize, u8), Vec<&str>>::new();
+    for name in names {
+        by_length_and_first_byte
+            .entry((name.len(), name.as_bytes()[0]))
+            .or_default()
+            .push(name);
+    }
+    out.push_str("\npub(crate) fn known_attribute_name(name: &[u8]) -> Option<crate::token::KnownName> {\n");
+    out.push_str("    let &first_byte = name.first()?;\n");
+    out.push_str("    match (name.len(), first_byte) {\n");
+    for ((length, first_byte), names) in &by_length_and_first_byte {
+        out.push_str(&format!("        ({length}, {first_byte}) => match name {{\n"));
+        for name in names {
+            out.push_str(&format!(
+                "            b\"{name}\" => Some(attribute_name!(\"{name}\")),\n"
+            ));
+        }
+        out.push_str("            _ => None,\n        },\n");
+    }
+    out.push_str("        _ => None,\n    }\n}\n");
 }
 
 fn emit_known_name_externs(out: &mut String, names: &[(String, String)], prefix: &str, target_pointer_size: usize) {
