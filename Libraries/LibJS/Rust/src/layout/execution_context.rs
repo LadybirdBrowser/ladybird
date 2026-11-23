@@ -77,7 +77,9 @@ impl ScriptOrModuleSlot {
 pub struct ExecutionContext {
     pub function: Cell<Option<Gc<FunctionObject>>>,
     /// The [[Realm]] of a frame without a function, which native code makes. A frame with a function runs in the
-    /// function's realm, and this holds an old value: read it through `ExecutionContext::realm()`.
+    /// function's realm, and this holds an old value: read it through `ExecutionContext::realm()`. The exception is
+    /// the lightweight frame the interpreter or JIT code makes for a call of a native function, which has no
+    /// executable: it keeps the caller's realm, which its return or unwinding makes current again.
     pub realm_without_function: Cell<Option<Gc<Realm>>>,
     /// The [[ScriptOrModule]] of a frame without a function, which native code makes. A frame with a function gets
     /// it from the function, and this holds an old value: read it through `ExecutionContext::script_or_module()`.

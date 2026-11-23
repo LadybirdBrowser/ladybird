@@ -674,11 +674,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             unreachable!("calls are generic instructions");
         };
         let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
-        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
-        if let Some(native) = feedback
-            .native_call
-            .filter(|native| native.entry.is_some() && native.realm == self.runtime.realm)
-        {
+        if let Some(native) = feedback.native_call.filter(|native| native.entry.is_some()) {
             // NB: Native calls take the callee, the `this` value and the
             //     arguments as inputs like direct calls do.
             let mut inputs = ZoneVec::with_capacity_in(arguments.len() + 2, self.work);
@@ -693,6 +689,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             self.reserve_call_frame(slots_offset + 8 * u64::from(*argument_count));
             self.embed(native.function);
             self.embed(native.realm);
+            // NB: A call of a function of another realm makes this code's realm current again when it returns.
+            self.embed(self.runtime.realm);
             if let Some(inlined_frame_bytes) = without_frames {
                 self.check_callee(*callee, native.function)?;
                 let op = Op::CallNative {
@@ -787,7 +785,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let Handling::Generic(info) = handling(OpCode::Call) else {
             unreachable!("calls are generic instructions");
         };
-        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
+        // NB: Calls of ECMAScript functions of another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
         if target.function.realm != self.runtime.realm {
             return Ok(None);
         }
@@ -2208,7 +2206,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     ) -> Option<InlinableCallee<'a>> {
         let snapshot = self.snapshot;
         let callee_executable = snapshot.executables.get(index as usize)?;
-        // NB: Calls into another realm are the runtime's, which changes the current realm (see
+        // NB: Calls of ECMAScript functions of another realm are the runtime's, which changes the current realm (see
         //     `RuntimeOffsets::vm_current_realm`).
         if callee_executable.function?.realm != self.runtime.realm {
             return None;
