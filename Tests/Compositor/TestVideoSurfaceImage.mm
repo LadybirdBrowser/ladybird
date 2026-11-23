@@ -604,6 +604,21 @@ TEST_CASE(a_four_four_four_surface_and_separate_planes_of_the_same_samples_rende
     expect_surface_renders_as_its_pattern(kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange, *context);
 }
 
+TEST_CASE(a_four_two_two_surface_and_separate_planes_of_the_same_samples_render_alike)
+{
+    EXPECT(!Gfx::validate_biplanar_video_surface(create_decoder_shaped_surface(TEST_WIDTH, TEST_HEIGHT, kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange).release_value()).is_error());
+    expect_surface_reads_back_as_its_pattern(kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange);
+    expect_surface_reads_back_as_its_pattern(kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange);
+
+    auto context = gpu_context();
+    if (!context) {
+        warnln("No GPU context available, skipping");
+        return;
+    }
+    expect_surface_renders_as_its_pattern(kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange, *context);
+    expect_surface_renders_as_its_pattern(kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange, *context);
+}
+
 TEST_CASE(an_rgb_surface_renders_as_its_green_blue_and_red_planes)
 {
     auto context = gpu_context();

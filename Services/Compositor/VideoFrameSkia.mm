@@ -45,6 +45,8 @@ sk_sp<SkImage> sk_image_from_video_surface(Media::VideoSurface const& surface, M
     auto subsampling = SkYUVAInfo::Subsampling::k420;
     if (format->subsampling == Media::Subsampling::yuv444())
         subsampling = SkYUVAInfo::Subsampling::k444;
+    else if (format->subsampling == Media::Subsampling::yuv422())
+        subsampling = SkYUVAInfo::Subsampling::k422;
     else if (format->subsampling != Media::Subsampling::yuv420())
         return nullptr;
     if (cicp.matrix_coefficients() == Media::MatrixCoefficients::Identity && subsampling != SkYUVAInfo::Subsampling::k444)

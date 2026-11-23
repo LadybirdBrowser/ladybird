@@ -591,3 +591,18 @@ TEST_CASE(h265_frames_carry_their_own_dolby_vision_scene_peaks)
     EXPECT_EQ(frame_count, 6u);
     scene_peaks.expect_every_frame_checked();
 }
+
+TEST_CASE(a_four_two_two_stream_keeps_its_chroma_rows)
+{
+    auto decoding = open_decoding("./h264_422.mp4"sv, Media::CodecID::H264);
+
+    auto frame_result = decoding.next_frame();
+    if (frame_result.is_error()) {
+        EXPECT(decoding_is_unavailable(frame_result.error()));
+        return;
+    }
+    auto frame = frame_result.release_value();
+    EXPECT_NE(frame->surface(), nullptr);
+    EXPECT_EQ(frame->subsampling(), Media::Subsampling::yuv422());
+    EXPECT_EQ(frame->size(), Gfx::Size<u32>(64, 64));
+}
