@@ -198,8 +198,11 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
 
     // FIXME: Fetch request as per the remaining steps of https://websockets.spec.whatwg.org/#concept-websocket-establish
-    // AD-HOC: Until the opening handshake goes through fetch, run the blocking checks and the HSTS upgrade of main
-    //         fetch here.
+    // AD-HOC: Until the opening handshake goes through fetch, append `Accept-Language` and run the blocking checks
+    //         and the HSTS upgrade of main fetch here.
+    auto loader_config = current_loader_config();
+    Fetch::Fetching::append_accept_language_header_if_missing(*request, loader_config->config);
+
     request->set_policy_container(client.policy_container()->clone());
     request->set_client_snapshot(Fetch::Fetching::snapshot_client_context(client));
     auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(client.realm(), request);
@@ -232,10 +235,8 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     for (auto const& protocol : protocols)
         TRY(protocol_byte_strings.try_append(protocol.to_utf8().to_byte_string()));
 
-    auto additional_headers = HTTP::HeaderList::create();
-
-    auto user_agent = Fetch::Infrastructure::default_user_agent_value(current_loader_config()->config, request);
-    additional_headers->append({ "User-Agent"sv, user_agent.to_byte_string() });
+    auto user_agent = Fetch::Infrastructure::default_user_agent_value(loader_config->config, request);
+    request->header_list()->append({ "User-Agent"sv, user_agent.to_byte_string() });
 
     if (ResourceLoader::proxy_autoconfig_url().has_value()) {
         dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", url_record);
@@ -253,7 +254,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     auto& page = Bindings::principal_host_defined_page(client.realm());
     auto originating_page_id = page.has_top_level_traversable() ? page.client().id().value() : 0;
 
-    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers, originating_page_id, { .status = request->same_site_status(), .is_safe_method = true });
+    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, *request->header_list(), originating_page_id, { .status = request->same_site_status(), .is_safe_method = true });
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();
