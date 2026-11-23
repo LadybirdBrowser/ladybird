@@ -54,7 +54,8 @@ impl ContainerVerdict {
 /// One physical axis' basis for a subject's container-relative lengths, as
 /// `Length::container_relative_length_to_px_without_rounding` finds it: the content size of the
 /// nearest flat-tree ancestor that accepts size queries on that axis and has a box as of the last
-/// layout commit, and the viewport's size when there is no such container.
+/// layout commit, and the viewport's size when there is no such container. A rendered container
+/// that no layout has reached yet has a basis of 0 until one gives it a box.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ContainerUnitBasis {
     basis: f64,
@@ -302,9 +303,25 @@ impl RetainedState {
                 continue;
             }
             let snapshot = self.layout_style_snapshot(node).unwrap_or_default();
-            // A container without a box, as one under an element that is not rendered has, is not eligible: Its size
-            // queries are unknown, so the units resolve against the next eligible container out.
             if !snapshot.has_committed_box {
+                // A rendered container no layout has reached yet has no box only until the next one gives it one, and
+                // its units are evaluated again against that box. Its size is meant not to follow its content, so the
+                // units start out as small as that content can be. Starting from a larger basis can make content that
+                // still moves the container's size, as content in a grid item with a preferred aspect ratio does
+                // through its row, grow the container without ever settling.
+                let is_not_rendered = self.size_container_queries.is_awaiting_box(node)
+                    || records.record_view(node, inputs).is_some_and(|view| {
+                        view.dependency_flags & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE != 0
+                    });
+                if !is_not_rendered {
+                    return ContainerUnitBasis {
+                        basis: 0.0,
+                        container: Some(node),
+                        boxless_container: Some(node),
+                    };
+                }
+                // A container a layout left without a box, as one under an element that is not rendered has, is not
+                // eligible: Its size queries are unknown, so the units resolve against the next eligible container out.
                 boxless_container = Some(node);
                 continue;
             }
