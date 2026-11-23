@@ -43,6 +43,8 @@ ALLOWED = {
     "Libraries/LibJS/JIT/Rust/src/lib.rs:BLOCKS": "per-thread count of the allocator of JIT unit tests, in the cargo test binary that has no runtime",
     "Libraries/LibJS/JIT/Rust/src/lib.rs:COUNTING": "per-thread switch of the allocator of JIT unit tests, in the cargo test binary that has no runtime",
     "Libraries/LibRegex/Rust/src/vm.rs:INTERRUPT_FLAG": "per-thread, and only libjs_rust's copy sets it; the copy of LibURL's crate has no VM to interrupt, so it only ever sees null",
+    "Libraries/LibWeb/HTML/Parser/Rust/src/fragment.rs:SPARE_TAPE": "per-thread allocation pool; a second copy costs memory, never an answer",
+    "Libraries/LibWeb/HTML/Parser/Rust/src/fragment.rs:TAG_NAMES": "immutable table of the C++ fly strings of tag names; each copy reads the same strings",
     "Libraries/LibWeb/HTML/Parser/Rust/src/parser/test_host.rs:FAKE_DOM": "the fake DOM of tree builder unit tests, in the cargo test binary that has no C++ side",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_LISTS": "per-thread allocation pool; a second copy costs memory, never an answer",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_VALUES": "per-thread allocation pool; a second copy costs memory, never an answer",

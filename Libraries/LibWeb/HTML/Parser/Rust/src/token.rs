@@ -54,6 +54,10 @@ impl TagId {
         Self(index)
     }
 
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+
     pub fn for_name(name: &str) -> Self {
         crate::known_names::tag_id_for_name(name.as_bytes())
     }
@@ -252,6 +256,12 @@ impl KnownName {
     #[cfg(test)]
     pub const fn from_literal(name: &'static str) -> Self {
         Self::Literal(name)
+    }
+
+    /// The identity of the C++ `Utf16FlyString` that holds this name.
+    #[cfg(not(test))]
+    pub const fn raw_identity(self) -> usize {
+        self.0
     }
 }
 
