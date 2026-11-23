@@ -78,3 +78,37 @@ TEST_CASE(a_flush_forgets_the_high_dynamic_range_metadata_of_earlier_frames)
     key = MUST(frames.add(coded_frame(temporal_delimiter, 0), Media::DecodeIntent::Output));
     EXPECT(!frames.take(static_cast<i64>(key))->high_dynamic_range_metadata.content_light_level_information.has_value());
 }
+
+static NonnullRefPtr<Media::VideoFrame> first_frame_of(StringView path)
+{
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::create_demuxer(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
+    VERIFY(track.has_value());
+    MUST(demuxer->create_context_for_track(*track));
+
+    auto first_frame = MUST(demuxer->get_next_sample_for_track(*track));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_frame.codec_id(), first_frame.new_codec_configuration().value_or({})));
+    MUST(decoder->receive_coded_data(first_frame, Media::DecodeIntent::Output));
+    decoder->signal_end_of_stream();
+    return MUST(decoder->take_next_output({}));
+}
+
+TEST_CASE(a_picture_without_chroma_is_given_planes_of_neutral_chroma)
+{
+    auto frame = first_frame_of("./av1_gray_8_bit.webm"sv);
+    EXPECT_EQ(frame->bit_depth(), 8);
+    EXPECT_EQ(frame->subsampling(), Media::Subsampling::yuv420());
+    auto yuv_data = frame->yuv_data().release_value();
+    EXPECT(all_of(yuv_data.u_data(), [](u8 sample) { return sample == 128; }));
+    EXPECT(all_of(yuv_data.v_data(), [](u8 sample) { return sample == 128; }));
+    EXPECT(any_of(yuv_data.y_data(), [&](u8 sample) { return sample != yuv_data.y_data()[0]; }));
+
+    frame = first_frame_of("./av1_gray_12_bit.webm"sv);
+    EXPECT_EQ(frame->bit_depth(), 12);
+    EXPECT_EQ(frame->subsampling(), Media::Subsampling::yuv420());
+    yuv_data = frame->yuv_data().release_value();
+    EXPECT(all_of(yuv_data.u_data().reinterpret<u16 const>(), [](u16 sample) { return sample == 2048; }));
+    EXPECT(all_of(yuv_data.v_data().reinterpret<u16 const>(), [](u16 sample) { return sample == 2048; }));
+}

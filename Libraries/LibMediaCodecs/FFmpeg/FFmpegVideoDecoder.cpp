@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/CodedFrame.h>
@@ -156,16 +157,19 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         case AV_PIX_FMT_YUVJ422P:
         case AV_PIX_FMT_YUVJ444P:
         case AV_PIX_FMT_GBRP:
+        case AV_PIX_FMT_GRAY8:
             return 8;
         case AV_PIX_FMT_YUV420P10:
         case AV_PIX_FMT_YUV422P10:
         case AV_PIX_FMT_YUV444P10:
         case AV_PIX_FMT_GBRP10:
+        case AV_PIX_FMT_GRAY10:
             return 10;
         case AV_PIX_FMT_YUV420P12:
         case AV_PIX_FMT_YUV422P12:
         case AV_PIX_FMT_YUV444P12:
         case AV_PIX_FMT_GBRP12:
+        case AV_PIX_FMT_GRAY12:
             return 12;
         default:
             return {};
@@ -180,6 +184,10 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         case AV_PIX_FMT_YUV420P10:
         case AV_PIX_FMT_YUV420P12:
         case AV_PIX_FMT_YUVJ420P:
+        // A picture with no chroma is given the smallest chroma planes there are.
+        case AV_PIX_FMT_GRAY8:
+        case AV_PIX_FMT_GRAY10:
+        case AV_PIX_FMT_GRAY12:
             return Subsampling::yuv420();
         case AV_PIX_FMT_YUV422P:
         case AV_PIX_FMT_YUV422P10:
@@ -223,7 +231,20 @@ DecoderErrorOr<void> FFmpegVideoDecoder::copy_pending_frame_into(Gfx::YUVData& y
 
     auto component_size = yuv_data.bit_depth() <= 8 ? 1 : 2;
 
+    auto pixel_format = static_cast<AVPixelFormat>(m_frame->format);
+    auto has_chroma = !first_is_one_of(pixel_format, AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY10, AV_PIX_FMT_GRAY12);
+
     for (u32 plane = 0; plane < 3; plane++) {
+        if (plane > 0 && !has_chroma) {
+            // The chroma planes of a picture without chroma are filled with the level that adds no color.
+            auto neutral_chroma = 1u << (yuv_data.bit_depth() - 1);
+            if (component_size == 1)
+                buffers[plane].fill(static_cast<u8>(neutral_chroma));
+            else
+                buffers[plane].reinterpret<u16>().fill(static_cast<u16>(neutral_chroma));
+            continue;
+        }
+
         VERIFY(m_frame->linesize[plane] != 0);
         if (m_frame->linesize[plane] < 0)
             return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Reversed scanlines are not supported"sv);
