@@ -12,6 +12,9 @@ async function playAndPauseAudio() {
     await paused;
     while (internals.nowPlayingStateForTesting()?.playbackState !== "paused")
         await new Promise(resolve => setTimeout(resolve, 0));
+    // An element that is still fetching its media can fire events, so it stays alive until the fetch finishes.
+    while (audio.networkState === HTMLMediaElement.NETWORK_LOADING)
+        await new Promise(resolve => setTimeout(resolve, 0));
     println(`paused audio keeps session: ${internals.activeMediaSessionState() !== null}`);
     const weakAudio = new WeakRef(audio);
     audio = null;
