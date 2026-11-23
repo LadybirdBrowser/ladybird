@@ -40,6 +40,54 @@ impl Default for SourceOffset {
     }
 }
 
+/// A small number that stands for a known tag name, so that the tree builder can tell which of them a token has
+/// without comparing names. Every other name has the id `UNKNOWN`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TagId(u16);
+
+impl TagId {
+    pub const UNKNOWN: Self = Self(0);
+
+    pub const fn from_index(index: u16) -> Self {
+        Self(index)
+    }
+
+    pub fn for_name(name: &str) -> Self {
+        crate::known_names::tag_id_for_name(name.as_bytes())
+    }
+}
+
+/// A set of known tag names.
+pub struct TagSet([u64; crate::known_names::TAG_SET_WORD_COUNT]);
+
+impl TagSet {
+    pub const fn new(ids: &[TagId]) -> Self {
+        let mut words = [0; crate::known_names::TAG_SET_WORD_COUNT];
+        let mut i = 0;
+        while i < ids.len() {
+            let index = ids[i].0 as usize;
+            assert!(index != 0, "a tag set can only have known tag names in it");
+            words[index / 64] |= 1 << (index % 64);
+            i += 1;
+        }
+        Self(words)
+    }
+
+    #[inline(always)]
+    pub const fn contains(&self, id: TagId) -> bool {
+        let index = id.0 as usize;
+        (self.0[index / 64] >> (index % 64)) & 1 != 0
+    }
+}
+
+/// A set of the known tag names it is given, worked out when the parser is compiled.
+macro_rules! tag_set {
+    ($($name:tt),+ $(,)?) => {
+        const { &$crate::token::TagSet::new(&[$($crate::known_names::tag_id!($name)),+]) }
+    };
+}
+pub(crate) use tag_set;
+
 /// A single attribute on a start or end tag token.
 ///
 #[derive(Clone, Debug, Default)]
@@ -390,6 +438,7 @@ pub enum TokenPayload {
     None,
     Tag {
         tag_name: HtmlName,
+        tag_id: TagId,
         self_closing: bool,
         // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is tracked.
         had_duplicate_attribute: bool,
@@ -433,9 +482,20 @@ impl Token {
         }
     }
 
-    pub fn set_tag_name(&mut self, name: HtmlName) {
+    #[inline(always)]
+    pub fn tag_id(&self) -> TagId {
+        match &self.payload {
+            TokenPayload::Tag { tag_id, .. } => *tag_id,
+            _ => panic!("tag_id called on non-tag token"),
+        }
+    }
+
+    pub fn set_tag_name(&mut self, name: &str) {
         match &mut self.payload {
-            TokenPayload::Tag { tag_name, .. } => *tag_name = name,
+            TokenPayload::Tag { tag_name, tag_id, .. } => {
+                *tag_name = HtmlName::from_utf8(name);
+                *tag_id = TagId::for_name(name);
+            }
             _ => panic!("set_tag_name called on non-tag token"),
         }
     }
