@@ -231,8 +231,16 @@ pub(crate) struct FunctionState {
 }
 
 /// How the parser checks a regular expression literal with the regex engine of the runtime that embeds it, so that an
-/// invalid one becomes an early error. Gives the message of the error, written into the zone, if it is invalid.
-pub type ValidateRegex = for<'z> fn(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), &'z str>;
+/// invalid one becomes an early error.
+pub type ValidateRegex = for<'z> fn(zone: &'z Zone, pattern: &[u16], flags: &[u16]) -> Result<(), RegexCheckError<'z>>;
+
+/// Why a regular expression literal did not pass [`ValidateRegex`].
+pub enum RegexCheckError<'z> {
+    /// The literal is invalid, with the message of the error written into the zone.
+    Invalid(&'z str),
+    /// The stack that is left does not hold the check.
+    OutOfStack,
+}
 
 /// The first syntax error, at a source offset, with its message in the work zone or in the program.
 pub struct PendingError<'z> {
