@@ -319,6 +319,19 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
 }
 
 // https://fetch.spec.whatwg.org/#concept-fetch
+// NB: The WebSocket opening handshake does not go through fetch yet, so it runs this step on its own.
+void append_accept_language_header_if_missing(Infrastructure::Request& request, LoaderConfig const& loader_config)
+{
+    if (!request.header_list()->contains("Accept-Language"sv)) {
+        StringBuilder accept_language;
+        accept_language.join(","sv, loader_config.preferred_languages);
+
+        auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
+        request.header_list()->append(move(header));
+    }
+}
+
+// https://fetch.spec.whatwg.org/#concept-fetch
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue, CreateResponseBodyTransferLease create_response_body_transfer_lease)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
@@ -498,13 +511,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
     // 12. If request’s header list does not contain `Accept-Language`, then user agents should append
     //     (`Accept-Language, an appropriate header value) to request’s header list.
-    if (!request.header_list()->contains("Accept-Language"sv)) {
-        StringBuilder accept_language;
-        accept_language.join(","sv, fetch_params->loader_config().preferred_languages);
-
-        auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
-        request.header_list()->append(move(header));
-    }
+    append_accept_language_header_if_missing(request, fetch_params->loader_config());
 
     // 13. If request’s internal priority is null, then use request’s priority, initiator, destination, and
     //     render-blocking in an implementation-defined manner to set request’s internal priority to an
