@@ -508,16 +508,16 @@ impl Presentation {
     pub(crate) fn take_visual_context_tree(&mut self, visual_contexts: ClockTickVisualContexts) {
         let ClockTickVisualContexts {
             tree,
-            restructured_scroll_offsets,
+            scroll_offsets,
+            restructured,
         } = visual_contexts;
-        // A tree of another structure takes a new display list recorded against it, and the scroll offsets of its own
-        // nodes. A frame that records nothing seals no tree, and takes the render state's: the compositor's display list
-        // was cut from a tree of its structure.
-        let tree_is_restructured = restructured_scroll_offsets.is_some();
-        if let Some(scroll_offsets) = restructured_scroll_offsets {
+        // A tree of another structure takes a new display list recorded against it. And a tree a tick updated takes the
+        // scroll offsets of its own nodes, which the frame was recorded with. A frame that records nothing seals no tree,
+        // and takes the render state's: the compositor's display list was cut from a tree of its structure.
+        if let Some(scroll_offsets) = scroll_offsets {
             self.scroll_state = ScrollStateSnapshot::from_device_offsets(scroll_offsets);
         }
-        if !tree_is_restructured && let Some(epoch) = self.seal.visual_context_tree_structural_epoch {
+        if !restructured && let Some(epoch) = self.seal.visual_context_tree_structural_epoch {
             assert_eq!(
                 tree.structural_epoch, epoch,
                 "a tree of the same structure keeps its structural epoch"
@@ -539,7 +539,8 @@ impl Presentation {
         if let Some(tree) = visual_context_tree {
             self.take_visual_context_tree(ClockTickVisualContexts {
                 tree,
-                restructured_scroll_offsets: None,
+                scroll_offsets: None,
+                restructured: false,
             });
         }
         let presenter = self.presenter.clone();

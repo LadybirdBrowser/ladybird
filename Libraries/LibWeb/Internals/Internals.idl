@@ -404,6 +404,9 @@ interface Internals {
     DOMString paintedSelection();
     // The border box of the element in the last frame a clock tick presented.
     DOMRect? presentedBorderBox(Element element);
+    // The scroll position in CSS pixels the last frame a clock tick presented was recorded with, or null if the frame
+    // had no scroll node for the element.
+    DOMPointReadOnly? presentedScrollOffset(Element scroller);
     // The properties compositor animations drove on the box of the element in the last frame a clock tick presented, or
     // null where the frame showed no border box of it.
     sequence<DOMString>? presentedCompositorAnimations(Element element);

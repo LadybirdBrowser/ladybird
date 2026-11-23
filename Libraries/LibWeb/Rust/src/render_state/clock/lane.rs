@@ -617,6 +617,7 @@ impl LaneSlot {
             self.presented = true;
             *self.ticks.presented_boxes.lock().expect("presented boxes") = super::PresentedBoxes {
                 border_boxes: lane.presented_border_boxes.clone(),
+                scroll_offsets: lane.presented_scroll_offsets.clone(),
                 colors: lane.presented_colors.clone(),
                 compositor_animations: lane.presented_compositor_animations.clone(),
             };

@@ -72,6 +72,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Geolocation/Geolocation.h>
+#include <LibWeb/Geometry/DOMPointReadOnly.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
@@ -3073,6 +3074,14 @@ GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element
     if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_border_box(element.document().layout_node_arena().host(), element.style_node_id().value(), &rect))
         return nullptr;
     return Geometry::DOMRect::create(rect.x().to_double(), rect.y().to_double(), rect.width().to_double(), rect.height().to_double());
+}
+
+GC::Ptr<Geometry::DOMPointReadOnly> Internals::presented_scroll_offset(DOM::Element& scroller)
+{
+    CSSPixelPoint offset;
+    if (!scroller.style_node_id() || !Layout::RustFFI::document_host_presented_scroll_offset(scroller.document().layout_node_arena().host(), scroller.style_node_id().value(), &offset))
+        return nullptr;
+    return Geometry::DOMPointReadOnly::create(offset.x().to_double(), offset.y().to_double());
 }
 
 Optional<Vector<String>> Internals::presented_compositor_animations(DOM::Element& element)

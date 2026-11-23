@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #pane {
+        position: absolute;
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+    }
+    .spacer { height: 5000px; }
+    #marker { height: 100px; background: green; }
+    #box {
+        margin-left: 220px;
+        width: 100px;
+        height: 100px;
+        background: blue;
+        transition: height 10000ms linear;
+    }
+</style>
+<div id="pane"><div class="spacer"></div><div id="marker"></div><div class="spacer"></div></div>
+<div id="box"></div>
+<script>
+    // The pane is scrolled far beyond the window around the viewport that a frame records. A height transition beside
+    // it changes layout but not the visual context tree's structure, and the tick's frame must still be recorded with
+    // the pane where it's scrolled to.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        pane.scrollTop = 5000;
+        await twoFramesLanded();
+        const result = await whileLaneAnimates(() => {
+            box.style.height = "200px";
+            return box.getAnimations().find(animation => animation.transitionProperty === "height");
+        }, (frameTime, animation, startTime) => {
+            const tickTime = frameTime + 1000;
+            internals.injectClockTick(tickTime);
+            const presentedBy = internals.lastFramePresentedBy(document);
+            const presented = internals.presentedBorderBox(box);
+            const offset = internals.presentedScrollOffset(pane);
+            const expectedHeight = 100 + (tickTime - startTime) / 100;
+            return {
+                presentedBy,
+                heightWasSampled: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                scrollOffset: offset?.y ?? null,
+            };
+        });
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented height is the transition's at the tick: ${result.heightWasSampled}`);
+        println(`presented scroll offset: ${result.scrollOffset}`);
+        println(`the presented scroll offset matches scrollTop: ${result.scrollOffset === pane.scrollTop}`);
+        done();
+    });
+</script>

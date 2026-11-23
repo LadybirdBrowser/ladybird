@@ -324,6 +324,7 @@ public:
     Utf16String presented_selection();
     Utf16String painted_selection();
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
+    GC::Ptr<Geometry::DOMPointReadOnly> presented_scroll_offset(DOM::Element&);
     Optional<Vector<String>> presented_compositor_animations(DOM::Element&);
     Optional<double> presented_opacity(DOM::Element&);
     Optional<String> presented_color(DOM::Element&, Optional<Utf16String> const& pseudo_element);

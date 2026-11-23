@@ -78,11 +78,13 @@ pub(crate) struct RenderingPreparation {
 /// resource, a visual context tree built anew, or a compositor animation of a box the round built again.
 pub(crate) struct VisualContextsNeedHost(pub(crate) &'static str);
 
-/// The visual context tree a clock tick's frame takes to the compositor, with the scroll offsets of its nodes where its
-/// structure is not the one the compositor has.
+/// The visual context tree a clock tick's frame takes to the compositor, and the scroll offsets of its nodes where the
+/// tick updated it, which the frame was recorded with.
 pub(crate) struct ClockTickVisualContexts {
     pub(crate) tree: Arc<VisualContextTree>,
-    pub(crate) restructured_scroll_offsets: Option<Vec<FloatPoint>>,
+    pub(crate) scroll_offsets: Option<Vec<FloatPoint>>,
+    /// Whether the tree's structure is not the one the compositor has.
+    pub(crate) restructured: bool,
 }
 
 /// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, as the
@@ -133,7 +135,8 @@ pub(crate) fn prepare_for_clock_tick(
             state.published_compositor_animations = tree.visual_animations().to_vec();
             return Ok(Some(ClockTickVisualContexts {
                 tree: state.tree.clone().expect("the tree is there"),
-                restructured_scroll_offsets: None,
+                scroll_offsets: None,
+                restructured: false,
             }));
         }
         (inputs, tree.shared_visual_animations())
@@ -156,11 +159,16 @@ pub(crate) fn prepare_for_clock_tick(
         if let Some(inputs) = state.last_compositor_scroll_inputs {
             refresh_compositor_scroll_table(arena, state, inputs);
         }
+        // NB: The update rebuilds the scroll state with every offset at zero, whether or not it changed the tree's
+        //     structure, and the frame places its window around the viewport by those offsets: They're refreshed from
+        //     layout here, so a pane scrolled down keeps what it shows in the window. The host takes the same offsets.
+        let scroll_offsets = scroll_state_snapshot(&arena.paintable_rows(), state, inputs.device_pixels_per_css_pixel);
         let tree = state.tree.as_mut().expect("an incremental update keeps the tree");
         if !outcome.structural_epoch_changed {
             return Ok(Some(ClockTickVisualContexts {
                 tree: tree.clone(),
-                restructured_scroll_offsets: None,
+                scroll_offsets: Some(scroll_offsets),
+                restructured: false,
             }));
         }
         // The update dropped the animations, which name nodes of the old structure: each goes on driving the nodes of its
@@ -176,12 +184,10 @@ pub(crate) fn prepare_for_clock_tick(
             )?;
             Arc::make_mut(tree).set_visual_animations(animations);
         }
-        let tree = tree.clone();
-        // The host refreshes its own copy of the scroll state still.
-        let scroll_offsets = scroll_state_snapshot(&arena.paintable_rows(), state, inputs.device_pixels_per_css_pixel);
         Ok(Some(ClockTickVisualContexts {
-            tree,
-            restructured_scroll_offsets: Some(scroll_offsets),
+            tree: tree.clone(),
+            scroll_offsets: Some(scroll_offsets),
+            restructured: true,
         }))
     })
 }
