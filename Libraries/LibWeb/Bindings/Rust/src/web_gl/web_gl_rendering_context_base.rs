@@ -161,10 +161,10 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         shader: Ref<WebGLShader>,
     ) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(());
         };
 
@@ -202,7 +202,7 @@ impl<V: Version> RenderingContext<V> {
         index: u32,
         name: Utf16String,
     ) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
         self.proxy
@@ -412,7 +412,7 @@ impl<V: Version> RenderingContext<V> {
     }
 
     pub(crate) fn compile_shader(&self, _: &mut CallContext, shader: Ref<WebGLShader>) -> WebIdlResult<()> {
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(());
         };
         self.proxy.compile_shader(shader_handle);
@@ -611,10 +611,10 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         shader: Ref<WebGLShader>,
     ) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(());
         };
 
@@ -781,7 +781,7 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         index: u32,
     ) -> WebIdlResult<Option<Ref<WebGLActiveInfo>>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
 
@@ -803,7 +803,7 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         index: u32,
     ) -> WebIdlResult<Option<Ref<WebGLActiveInfo>>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
 
@@ -824,7 +824,7 @@ impl<V: Version> RenderingContext<V> {
         cx: &mut CallContext<'vm>,
         program: Ref<WebGLProgram>,
     ) -> WebIdlResult<Option<MarkedVec<'vm, Ref<WebGLShader>>>> {
-        if self.handle_of(program).is_none() {
+        if self.handle_of_program_or_shader(program).is_none() {
             return Ok(None);
         }
 
@@ -847,7 +847,7 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         name: Utf16String,
     ) -> WebIdlResult<i32> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(-1);
         };
         Ok(self.proxy.get_attrib_location(program_handle, &utf8_bytes(&name)))
@@ -862,7 +862,7 @@ impl<V: Version> RenderingContext<V> {
         _: &mut CallContext,
         program: Ref<WebGLProgram>,
     ) -> WebIdlResult<Option<Utf16String>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
 
@@ -904,7 +904,7 @@ impl<V: Version> RenderingContext<V> {
         _: &mut CallContext,
         shader: Ref<WebGLShader>,
     ) -> WebIdlResult<Option<Utf16String>> {
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(None);
         };
 
@@ -926,7 +926,7 @@ impl<V: Version> RenderingContext<V> {
         _: &mut CallContext,
         shader: Ref<WebGLShader>,
     ) -> WebIdlResult<Option<Utf16String>> {
-        if self.handle_of(shader).is_none() {
+        if self.handle_of_program_or_shader(shader).is_none() {
             return Ok(None);
         }
         Ok(Some(shader.source()))
@@ -938,7 +938,7 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         name: Utf16String,
     ) -> WebIdlResult<Option<Ref<WebGLUniformLocation>>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
 
@@ -1048,7 +1048,7 @@ impl<V: Version> RenderingContext<V> {
     }
 
     pub(crate) fn link_program(&self, _: &mut CallContext, program: Ref<WebGLProgram>) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
         self.proxy.link_program(program_handle);
@@ -1160,7 +1160,7 @@ impl<V: Version> RenderingContext<V> {
         shader: Ref<WebGLShader>,
         source: Utf16String,
     ) -> WebIdlResult<()> {
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(());
         };
 
@@ -1366,7 +1366,7 @@ impl<V: Version> RenderingContext<V> {
     pub(crate) fn use_program(&self, _: &mut CallContext, program: Option<Ref<WebGLProgram>>) -> WebIdlResult<()> {
         let mut program_handle = 0;
         if let Some(program) = program {
-            let Some(handle) = self.handle_of(program) else {
+            let Some(handle) = self.handle_of_program_or_shader(program) else {
                 return Ok(());
             };
             program_handle = handle;
@@ -1378,7 +1378,7 @@ impl<V: Version> RenderingContext<V> {
     }
 
     pub(crate) fn validate_program(&self, _: &mut CallContext, program: Ref<WebGLProgram>) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
         self.proxy.validate_program(program_handle);

@@ -319,6 +319,21 @@ impl ContextState {
         handle
     }
 
+    /// https://registry.khronos.org/OpenGL/specs/es/3.0/es_spec_3.0.pdf#page=58
+    /// "Commands that accept shader or program object names will generate the error INVALID_VALUE if the provided name
+    ///  is not the name of either a shader or program object"
+    /// NB: So a deleted program or shader is an INVALID_VALUE where every other deleted object is an INVALID_OPERATION.
+    pub(crate) fn handle_of_program_or_shader<O: Interface + Inherits<WebGLObject>>(
+        &self,
+        object: Ref<O>,
+    ) -> Option<u32> {
+        if object.parent().was_deleted_in(self) {
+            self.set_error(GL_INVALID_VALUE);
+            return None;
+        }
+        self.handle_of(object)
+    }
+
     pub(crate) fn handle_for_deletion_of<O: Interface + Inherits<WebGLObject>>(&self, object: Ref<O>) -> Option<u32> {
         match object.parent().handle_for_deletion(self) {
             Ok(handle) => handle,

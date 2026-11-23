@@ -1,0 +1,18 @@
+getAttribLocation(): INVALID_VALUE, returns -1
+getUniformLocation(): INVALID_VALUE, returns null
+getProgramParameter(): INVALID_VALUE, returns null
+getProgramInfoLog(): INVALID_VALUE, returns null
+getActiveAttrib(): INVALID_VALUE, returns null
+getAttachedShaders(): INVALID_VALUE, returns null
+bindAttribLocation(): INVALID_VALUE, returns undefined
+linkProgram(): INVALID_VALUE, returns undefined
+validateProgram(): INVALID_VALUE, returns undefined
+useProgram(): INVALID_VALUE, returns undefined
+isProgram(): NO_ERROR, returns false
+getShaderParameter(): INVALID_VALUE, returns null
+getShaderSource(): INVALID_VALUE, returns null
+shaderSource(): INVALID_VALUE, returns undefined
+compileShader(): INVALID_VALUE, returns undefined
+attachShader(): INVALID_VALUE, returns undefined
+bindBuffer() with a deleted buffer: INVALID_OPERATION, returns undefined
+getAttribLocation() with another context's program: INVALID_OPERATION, returns -1
