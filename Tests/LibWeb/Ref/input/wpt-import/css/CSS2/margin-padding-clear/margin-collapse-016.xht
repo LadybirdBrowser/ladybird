@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Margin collapsing - top/bottom margins adjoining collapse through</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-08-15 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#collapsing-margins" />
+		<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/margin-padding-clear/margin-collapse-002-ref.xht" />
+
+        <meta name="flags" content="ahem image" />
+        <meta name="assert" content="When top and bottom margins are adjoining margins collapse through that element." />
+        <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+        <style type="text/css">
+            div
+            {
+                font: 20px/1em Ahem;
+                width: 5em;
+            }
+            #div1
+            {
+                background: url('support/margin-collapse-2em-space.png');
+                height: 4em;
+            }
+            #div2, #div4
+            {
+                background:green;
+                height: 1em;
+            }
+            #div3
+            {
+                background: red;
+                height: 0;
+            }
+            #div2, #div3
+            {
+                margin-bottom: 2em;
+            }
+            #div3, #div4
+            {
+                margin-top: 2em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is <strong>no red</strong>.</p>
+        <div id="div1">
+            <div id="div2"></div>
+            <div id="div3"></div>
+            <div id="div4"></div>
+        </div>
+    </body>
+</html>

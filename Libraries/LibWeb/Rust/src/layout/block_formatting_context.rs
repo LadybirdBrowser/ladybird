@@ -8457,6 +8457,20 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             return (last_in_flow_child.border_box_block_end + margin_bottom).max(CssPixels::default());
         }
+        // NB: Where margins collapse through every in-flow child, and that collapsed margin can't collapse with this
+        //     box's top margin either, it's the margin of the last of those children: Unless it collapses with this
+        //     box's bottom margin as well, the box runs to its bottom edge, from the block-start content edge.
+        if !facts.children_are_inline()
+            && children.is_some_and(|children| !children.pending_margins_collapse_through_block_start)
+        {
+            let margin_bottom = self.margin_state_mut().collapsed_margin_at_block_end_of(&facts);
+            let used = self.cells_laid_out_here(sized_child);
+            if margin_bottom != CssPixels::default()
+                && (used.padding_bottom() != CssPixels::default() || used.border_bottom() != CssPixels::default())
+            {
+                return margin_bottom.max(CssPixels::default());
+            }
+        }
 
         // AD-HOC: Contenteditable elements must have a minimum block size (line-height) when empty, to remain clickable
         //         and usable for text input, even though this is not specified.

@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Margin collapsing - in-flow block-level margins with an element 'height' of 'auto' and 'min-height' of zero</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#collapsing-margins" />
+		<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/margin-padding-clear/margin-collapse-002-ref.xht" />
+
+        <meta name="flags" content="ahem image" />
+        <meta name="assert" content="An element's margins are adjoining and can collapse if the 'min-height' is zero, if it has no top or bottom borders and no top or bottom padding, if it has a 'height' of zero or 'auto', if it has no line boxes and if all of its in-flow children's margins are adjoining." />
+        <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+        <style type="text/css">
+            div
+            {
+                font: 20px/1em Ahem;
+                width: 5em;
+            }
+            #div1
+            {
+                background: url('support/margin-collapse-2em-space.png');
+                height: 4em;
+            }
+            #div3
+            {
+                background: red;
+                height: auto;
+                min-height: 0;
+            }
+            #div2, #div5
+            {
+                background: green;
+                height: 1em;
+            }
+            #div3, #div4
+            {
+                margin-bottom: 2em;
+                margin-top: 2em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is <strong>no red</strong>.</p>
+        <div id="div1">
+            <div id="div2"></div>
+            <div id="div3">
+                <div id="div4"></div>
+            </div>
+            <div id="div5"></div>
+        </div>
+    </body>
+</html>
