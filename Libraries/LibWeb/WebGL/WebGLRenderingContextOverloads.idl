@@ -7,7 +7,7 @@ typedef (ImageBitmap or
          // FIXME: VideoFrame
          ) TexImageSource;
 
-typedef (Int32Array or sequence<GLint>) Int32List;
+typedef ([AllowShared] Int32Array or sequence<GLint>) Int32List;
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {
