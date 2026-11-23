@@ -19,7 +19,7 @@ use crate::visual_context::{
     CompositorScrollNodeRecord, CompositorSnapAreaRecord, CompositorSnapContainerRecord, VISUAL_VIEWPORT_NODE_INDEX,
     VisualContextTree,
 };
-use libgfx_rust::{Color, CornerRadii, FloatPoint, FloatRect, IntRect};
+use libgfx_rust::{CornerRadii, FloatPoint, FloatRect, IntRect};
 
 pub type AsyncScrollOperationID = u64;
 
@@ -111,7 +111,6 @@ pub struct AsyncScrollbar {
     // The rects of a scrollbar the display list paints are in the space of this context.
     pub context: ContextRef,
     pub paint_order_index: u32,
-    pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
     pub track_rect: IntRect,
     pub expanded_gutter_rect: IntRect,
@@ -120,9 +119,6 @@ pub struct AsyncScrollbar {
     pub expanded_scroll_size: f64,
     pub min_scroll_offset: f32,
     pub max_scroll_offset: f32,
-    pub thumb_color: Color,
-    pub thumb_outline_color: Color,
-    pub track_color: Color,
     pub vertical: bool,
     // The page takes no pointer input on a scrollbar of the viewport, which the compositor drags by itself.
     pub scrolls_viewport: bool,
@@ -402,7 +398,6 @@ pub fn async_scrolling_state_from(
                     scroll_node_index: command.scroll_node_index,
                     context,
                     paint_order_index: next_paint_order_index,
-                    gutter_rect: command.gutter_rect,
                     thumb_rect: command.thumb_rect,
                     track_rect: command.track_rect,
                     expanded_gutter_rect: command.expanded_gutter_rect,
@@ -411,9 +406,6 @@ pub fn async_scrolling_state_from(
                     expanded_scroll_size: command.expanded_scroll_size,
                     min_scroll_offset: command.min_scroll_offset,
                     max_scroll_offset: command.max_scroll_offset,
-                    thumb_color: command.thumb_color,
-                    thumb_outline_color: command.thumb_outline_color,
-                    track_color: command.track_color,
                     vertical: command.vertical,
                     scrolls_viewport: false,
                 });

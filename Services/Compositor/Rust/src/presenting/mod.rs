@@ -989,7 +989,6 @@ impl ContextPresenting {
         if !screenshots_paint_from_layers() || !self.paint_screenshot_from_layers(env, target, &frame) {
             let save_count = env.raster.save(target);
             replay_into(env, target, &frame, ReplaySelection::default());
-            self.paint_overlays(env, target, frame_inputs, false);
             env.raster.restore_to_count(target, save_count);
         }
         env.raster.flush(target);
@@ -1097,7 +1096,7 @@ impl ContextPresenting {
                     rect_of_surface,
                     &painted_frame.layers,
                 );
-                self.paint_overlays(&snapshot_env, composited, &painted_frame.frame_inputs, true);
+                self.paint_overlays(&snapshot_env, composited, &painted_frame.frame_inputs);
             };
         // No store holds a frame the window server shows every layer of, so the frame is composited from its layers.
         if let Some(painted_frame) = painted_frame_shown_by_window_server
@@ -1147,20 +1146,18 @@ impl ContextPresenting {
             && !tree.blend_mode_or_backdrop_filter_reads_root_group()
     }
 
-    /// Paints what the compositor draws over the page: its scrollbars, and unless they are left out, the overlays of the
-    /// browser and of the layers.
+    /// Paints what the compositor draws over the page: the overlays of the browser and of the layers.
     fn paint_overlays(
         &self,
         env: &PresentingEnvironment<'_>,
         target: &Rc<PaintingSurface>,
         frame_inputs: &FrameInputs,
-        paints_ui_overlays: bool,
     ) {
         env.raster
             .paint(env.context_id, target, PaintingResources::Overlays, false, |painter| {
-                frame_inputs.overlays.paint(painter, paints_ui_overlays);
+                frame_inputs.overlays.paint(painter);
             });
-        let Some(layer_overlay_frame) = self.layer_overlay.latest_frame().filter(|_| paints_ui_overlays) else {
+        let Some(layer_overlay_frame) = self.layer_overlay.latest_frame() else {
             return;
         };
         env.raster
@@ -1230,10 +1227,9 @@ pub(crate) fn replay_with_scroll_offsets(
         PaintingResources::Page,
         selection.allows_lcd_text,
         |painter| {
-            let scrollbars = frame_inputs.scrollbars_shown_for_the_page();
             let replay_frame = ReplayFrame {
                 scroll_offsets,
-                scrollbars: &scrollbars,
+                scrollbars: &frame_inputs.scrollbars,
                 time_ns: frame_inputs.painted_at.nanoseconds(),
                 composited_contexts: env.nested_contexts,
             };
@@ -1263,10 +1259,9 @@ pub(crate) fn composite_inside_effects_of_frame(
     let display_list = frame.display_list;
     env.raster
         .paint(env.context_id, target, PaintingResources::Page, false, |painter| {
-            let scrollbars = frame_inputs.scrollbars_shown_for_the_page();
             let replay_frame = ReplayFrame {
                 scroll_offsets: frame_inputs.presented_scroll_state_snapshot.device_offsets(),
-                scrollbars: &scrollbars,
+                scrollbars: &frame_inputs.scrollbars,
                 time_ns: frame_inputs.painted_at.nanoseconds(),
                 composited_contexts: env.nested_contexts,
             };

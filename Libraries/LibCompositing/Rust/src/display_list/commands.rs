@@ -1679,7 +1679,6 @@ impl DisplayListCommand for CompositorMainThreadWheelEventRegion {
 #[repr(C)]
 pub struct CompositorScrollbar {
     pub scroll_node_index: SpatialNodeIndex,
-    pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
     pub track_rect: IntRect,
     pub expanded_gutter_rect: IntRect,
@@ -1688,14 +1687,10 @@ pub struct CompositorScrollbar {
     pub expanded_scroll_size: f64,
     pub min_scroll_offset: f32,
     pub max_scroll_offset: f32,
-    pub thumb_color: Color,
-    pub thumb_outline_color: Color,
-    pub track_color: Color,
     pub vertical: bool,
 }
 display_list_record_fields!(CompositorScrollbar {
     scroll_node_index,
-    gutter_rect,
     thumb_rect,
     track_rect,
     expanded_gutter_rect,
@@ -1704,9 +1699,6 @@ display_list_record_fields!(CompositorScrollbar {
     expanded_scroll_size,
     min_scroll_offset,
     max_scroll_offset,
-    thumb_color,
-    thumb_outline_color,
-    track_color,
     vertical
 });
 

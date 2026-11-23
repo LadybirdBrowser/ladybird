@@ -282,7 +282,7 @@ pub fn thumb_rect_kept_inside_track(mut thumb_rect: IntRect, track_rect: IntRect
 }
 
 /// A scrollbar at the geometry the frame presents it with, in the colors given.
-pub fn presented_scrollbar_with_colors(
+fn presented_scrollbar_with_colors(
     gutter_rect: FloatRect,
     thumb_rect: FloatRect,
     expansion: f32,

@@ -1113,7 +1113,6 @@ impl ContextPresenting {
                 ..compositing_of_layer(stack, layer_index, &composite_offsets, &spaces_to_frame)
             })
             .collect();
-        let scrollbars = frame.frame_inputs.scrollbars_shown_for_the_page();
         let live_content_versions = LiveContentVersionsOfFrame {
             live_content,
             nested_contexts: env.nested_contexts,
@@ -1123,7 +1122,7 @@ impl ContextPresenting {
             tree,
             stack,
             FrameStateReadByReplay {
-                scrollbars: &scrollbars,
+                scrollbars: &frame.frame_inputs.scrollbars,
                 time_ns: frame.frame_inputs.painted_at.nanoseconds(),
                 live_content: &live_content_versions,
             },
@@ -1831,8 +1830,10 @@ impl ContextPresenting {
                 replay_into(env, surface, frame, selection_painting_straight);
                 raster.restore_to_count(surface, save_count);
             }
-            self.apply_raster_transform(raster, surface);
-            self.paint_overlays(env, surface, frame.frame_inputs, paints_ui_overlays);
+            if paints_ui_overlays {
+                self.apply_raster_transform(raster, surface);
+                self.paint_overlays(env, surface, frame.frame_inputs);
+            }
         }
         raster.restore_to_count(surface, save_count);
     }

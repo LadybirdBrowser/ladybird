@@ -365,11 +365,8 @@ impl OverlayPicture {
             && picture_in_picture_controls_draw_the_same
     }
 
-    /// Paints the overlays over a frame, unless they are left out.
-    pub fn paint(&self, painter: &mut impl ReplayPainter, paints_ui_overlays: bool) {
-        if !paints_ui_overlays {
-            return;
-        }
+    /// Paints the overlays over a frame.
+    pub fn paint(&self, painter: &mut impl ReplayPainter) {
         replay_overlay_records(&self.ui_overlay_records, painter);
         if let Some(controls) = &self.picture_in_picture_controls {
             painter.push_layer(&ReplayLayer {
