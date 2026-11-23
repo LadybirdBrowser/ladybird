@@ -328,6 +328,9 @@ pub unsafe extern "C" fn libjs_jit_inlined_raw_native_exception(
         .running_execution_context()
         .expect("the native function's frame runs");
     assert_eq!(frame_of(native_frame).caller_frame.get(), root.as_ptr());
+    // NB: The native function ran in its own realm, which may be another one than that of the frames of the call
+    //     site, whose realm the runtime unwinds to.
+    vm.head.current_realm.set(frame_of(root).realm());
     translate::materialize_call_site_frames(vm, root, site, frame_pointer, Some(native_frame));
     crate::interpreter::slow_paths::calls::handle_raw_native_exception(vm, Value::from_bits(exception)).0
 }

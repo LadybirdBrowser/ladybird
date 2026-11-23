@@ -1284,6 +1284,9 @@ pub fn handle_raw_native_exception(vm: &Vm, exception: Value) -> SlowPathControl
     // dispatch. Match VM::handle_exception()'s inline-frame semantics by
     // probing the caller with a PC inside the Call instruction.
     let caller_pc = callee_frame.caller_return_pc.get();
+    // NB: The native function ran in its own realm, which may be another one than its caller's. Its frame keeps the
+    //     realm that was current when it was entered.
+    vm.head.current_realm.set(callee_frame.realm_without_function.get());
     vm.unwind_inline_frame_for_exception();
     handle_asm_exception(vm, caller_pc - 1, exception)
 }

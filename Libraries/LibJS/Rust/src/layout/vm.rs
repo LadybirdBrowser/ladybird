@@ -73,8 +73,9 @@ pub struct VmHead {
     /// `ExecutableHead::dispatch_table_index`). Indices without a table of their own have the plain one.
     pub dispatch_tables: [Cell<*const c_void>; DISPATCH_TABLE_COUNT],
     /// The current Realm Record, the [[Realm]] of the running execution context (see
-    /// `Vm::set_running_execution_context()`). A frame that the interpreter or JIT code enters for a call runs in the
-    /// realm of its caller: they leave a call into another realm to the runtime.
+    /// `Vm::set_running_execution_context()`). A frame of an ECMAScript function that the interpreter or JIT code
+    /// enters for a call runs in the realm of its caller: they leave a call of one of another realm to the runtime. The
+    /// frame of a native function they call runs in the function's realm, which they make current for the call.
     pub current_realm: Cell<Option<Gc<Realm>>>,
 }
 

@@ -435,10 +435,6 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let first = entries[0];
         let accessor = first.accessor_function?;
         let mut target = accessor.native?;
-        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
-        if target.realm != self.runtime.realm {
-            return None;
-        }
         let location = first.accessor_location(part)?;
         let same_accessor = entries.iter().all(|entry| {
             entry.holds_accessor
@@ -477,6 +473,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         self.reserve_call_frame(slots_offset + 8 * argument_count);
         self.embed(target.function);
         self.embed(target.realm);
+        // NB: A call of a function of another realm makes this code's realm current again when it returns.
+        self.embed(self.runtime.realm);
         let op = Op::CallNativeAccessor {
             pc: self.function.pc,
             part,
