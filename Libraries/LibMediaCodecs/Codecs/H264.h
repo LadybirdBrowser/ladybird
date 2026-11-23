@@ -65,6 +65,9 @@ public:
     struct SequenceParameterSet {
         u8 seq_parameter_set_id;
         u8 max_num_reorder_frames;
+        u8 profile_idc { 0 };
+        u8 chroma_format_idc { 1 };
+        u8 bit_depth_luma { 8 };
     };
 
     struct PictureParameterSet {

@@ -167,6 +167,9 @@ struct DecoderFormat {
     RetainedRef<CFMutableDictionaryRef> destination_attributes;
     CodingIndependentCodePoints cicp;
     u8 reorder_frame_count { 0 };
+    // Set where VideoToolbox has no software decoder for the format, or has one that accepts the format but then fails
+    // every frame of it.
+    bool requires_hardware_decoder { false };
 };
 
 // The parameter sets of H.264 and H.265 describe the stream's colours in their video usability information, which the
@@ -213,15 +216,15 @@ RetainedRef<CFMutableDictionaryRef> destination_attributes_for_bit_depth(u8 bit_
     return attributes;
 }
 
-bool hardware_decoding_is_required(CodecID codec_id)
+// The software H.264 decoder accepts a session for any profile, but fails every frame of a stream outside 8-bit 4:2:0 at
+// High profile or below. Nothing short of decoding a frame reveals this.
+bool software_decoder_can_decode(Codecs::H264::SequenceParameterSet const& sequence_parameter_set)
 {
-    switch (codec_id) {
-    case CodecID::H264:
-    case CodecID::H265:
-        return false;
-    default:
-        return true;
-    }
+    constexpr u8 high_profile_idc = 100;
+    constexpr u8 chroma_format_420 = 1;
+    return sequence_parameter_set.profile_idc <= high_profile_idc
+        && sequence_parameter_set.chroma_format_idc == chroma_format_420
+        && sequence_parameter_set.bit_depth_luma == 8;
 }
 
 bool is_running_in_virtual_machine()
@@ -240,7 +243,7 @@ DecoderErrorOr<VTDecompressionSessionRef> create_decompression_session(CodecID c
 {
     // A virtual machine's hardware decoding goes through paravirtualization, which leaks a connection per process.
     auto hardware_is_usable = !is_running_in_virtual_machine();
-    if (hardware_decoding_is_required(codec_id) && !hardware_is_usable)
+    if (format.requires_hardware_decoder && !hardware_is_usable)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for this format"sv);
 
     auto dimensions = CMVideoFormatDescriptionGetDimensions(format.description.ref());
@@ -250,7 +253,7 @@ DecoderErrorOr<VTDecompressionSessionRef> create_decompression_session(CodecID c
     VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(codec_id));
 
     RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
-    if (hardware_decoding_is_required(codec_id))
+    if (format.requires_hardware_decoder)
         CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
     else
         CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder, hardware_is_usable ? kCFBooleanTrue : kCFBooleanFalse);
@@ -359,11 +362,13 @@ struct H264State final : FormatState {
         Vector<u8 const*, 288> set_pointers;
         Vector<size_t, 288> set_sizes;
         u8 reorder_frame_count = 0;
+        auto requires_hardware_decoder = false;
         for (auto const& set : parameter_sets.sequence_parameter_sets()) {
             set_pointers.append(set.nal_unit.data());
             set_sizes.append(set.nal_unit.size());
             // Bound every SPS a slice could select, without parsing slice headers to track activation.
             reorder_frame_count = max(reorder_frame_count, set.parameters.max_num_reorder_frames);
+            requires_hardware_decoder |= !software_decoder_can_decode(set.parameters);
         }
         if (set_pointers.is_empty())
             return {};
@@ -382,7 +387,7 @@ struct H264State final : FormatState {
         if (CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), cicp_of_format_description(description), reorder_frame_count };
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), cicp_of_format_description(description), reorder_frame_count, requires_hardware_decoder };
     }
 };
 
@@ -556,7 +561,12 @@ struct VP9State final : FormatState {
         if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, kCMVideoCodecType_VP9, header->size.width(), header->size.height(), extensions.ref(), &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(header->bit_depth), header->color_parameters.cicp };
+        return DecoderFormat {
+            .description = RetainedRef<CMVideoFormatDescriptionRef> { description },
+            .destination_attributes = destination_attributes_for_bit_depth(header->bit_depth),
+            .cicp = header->color_parameters.cicp,
+            .requires_hardware_decoder = true,
+        };
     }
 };
 
@@ -600,7 +610,12 @@ struct AV1State final : FormatState {
         if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, kCMVideoCodecType_AV1, size.width(), size.height(), extensions.ref(), &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
+        return DecoderFormat {
+            .description = RetainedRef<CMVideoFormatDescriptionRef> { description },
+            .destination_attributes = destination_attributes_for_bit_depth(parameters.bit_depth),
+            .cicp = parameters.optional_fields.cicp,
+            .requires_hardware_decoder = true,
+        };
     }
 };
 
@@ -689,7 +704,7 @@ static Optional<DecoderCapabilities> probe_decoder_capabilities(ParsedCodec cons
         return {};
     auto* session = session_or_error.release_value();
 
-    auto uses_hardware = hardware_decoding_is_required(codec.codec_id()) || session_uses_hardware_decoder(session);
+    auto uses_hardware = format->requires_hardware_decoder || session_uses_hardware_decoder(session);
     VTDecompressionSessionInvalidate(session);
     CFRelease(session);
     return DecoderCapabilities { .smooth = true, .power_efficient = uses_hardware };
