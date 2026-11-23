@@ -661,15 +661,16 @@ impl TreeBuilder {
         }
     }
 
-    fn next_token(&mut self, stop_at_insertion_point: bool, cdata_allowed: bool) -> Option<Token> {
+    fn next_token(&mut self, token: &mut Token, stop_at_insertion_point: bool, cdata_allowed: bool) -> bool {
         // SAFETY: TreeBuilder is only constructed with a tokenizer pointer owned by the C++
         // HTMLParser's Rust tokenizer handle, and the handle outlives each parser run.
         unsafe {
             let tokenizer = self.tokenizer.as_mut();
             if !stop_at_insertion_point && let Some(code_point) = tokenizer.try_fast_data_char() {
-                return Some(Token::new_character(code_point));
+                *token = Token::new_character(code_point);
+                return true;
             }
-            tokenizer.next_token(stop_at_insertion_point, cdata_allowed)
+            tokenizer.next_token_into(token, stop_at_insertion_point, cdata_allowed)
         }
     }
 
@@ -687,6 +688,8 @@ impl TreeBuilder {
     }
 
     fn run(&mut self, stop_at_insertion_point: bool) {
+        // NB: The tokenizer puts every token here, and the rules below read it where it is.
+        let mut token = Token::default();
         loop {
             if !stop_at_insertion_point
                 && !self.next_line_feed_can_be_ignored
@@ -736,9 +739,9 @@ impl TreeBuilder {
             let cdata_allowed = self
                 .adjusted_current_node()
                 .is_some_and(|node| node.namespace_ != RustFfiHtmlNamespace::Html);
-            let Some(token) = self.next_token(stop_at_insertion_point, cdata_allowed) else {
+            if !self.next_token(&mut token, stop_at_insertion_point, cdata_allowed) {
                 break;
-            };
+            }
             if self.next_line_feed_can_be_ignored {
                 self.next_line_feed_can_be_ignored = false;
                 if token.token_type == TokenType::Character && token.code_point == '\n' as u32 {
@@ -751,9 +754,9 @@ impl TreeBuilder {
             }
             let is_eof = token.token_type == TokenType::EndOfFile;
             if self.should_process_token_using_html_rules(&token) {
-                self.process_using_the_rules_for(self.insertion_mode, token);
+                self.process_using_the_rules_for(self.insertion_mode, &mut token);
             } else {
-                self.process_using_the_rules_for_foreign_content(token);
+                self.process_using_the_rules_for_foreign_content(&mut token);
             }
             if self.pending_script.is_some() || self.pending_svg_script.is_some() || self.parser_pause_requested {
                 break;
@@ -765,7 +768,7 @@ impl TreeBuilder {
         self.flush_character_insertions();
     }
 
-    fn process_using_the_rules_for(&mut self, mode: InsertionMode, token: Token) {
+    fn process_using_the_rules_for(&mut self, mode: InsertionMode, token: &mut Token) {
         match mode {
             InsertionMode::Initial => self.handle_initial(token),
             InsertionMode::BeforeHtml => self.handle_before_html(token),
@@ -831,7 +834,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
-    fn handle_initial(&mut self, token: Token) {
+    fn handle_initial(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF),
         //    U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -880,7 +883,7 @@ impl TreeBuilder {
             // Then, if the document is not an iframe srcdoc document, and the parser cannot change the mode flag is
             // false, set the Document to quirks or limited-quirks mode where the DOCTYPE token calls for it.
             if !self.document_is_iframe_srcdoc_document() {
-                self.set_document_quirks_mode(self.which_quirks_mode(&token));
+                self.set_document_quirks_mode(self.which_quirks_mode(token));
             }
             self.insertion_mode = InsertionMode::BeforeHtml;
             return;
@@ -900,7 +903,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-html-insertion-mode
-    fn handle_before_html(&mut self, token: Token) {
+    fn handle_before_html(&mut self, token: &mut Token) {
         // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
@@ -922,7 +925,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_named(tag_id!("html")) {
             let document = self.document_node();
-            self.insert_html_element_for_document(&token, document);
+            self.insert_html_element_for_document(token, document);
             self.insertion_mode = InsertionMode::BeforeHead;
             return;
         }
@@ -954,7 +957,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
-    fn handle_before_head(&mut self, token: Token) {
+    fn handle_before_head(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF),
         //    U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -979,7 +982,7 @@ impl TreeBuilder {
         }
 
         if token.is_start_tag_named(tag_id!("head")) {
-            let head = self.insert_html_element_for(&token);
+            let head = self.insert_html_element_for(token);
             self.head_element = Some(head);
             self.insertion_mode = InsertionMode::InHead;
             return;
@@ -1001,7 +1004,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
-    fn handle_in_head(&mut self, token: Token) {
+    fn handle_in_head(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
         //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -1037,7 +1040,7 @@ impl TreeBuilder {
         // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link"
         if token.is_start_tag_one_of(tag_set!["base", "basefont", "bgsound", "link"]) {
             // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
 
             // FIXME: Acknowledge the token's self-closing flag, if it is set.
@@ -1047,7 +1050,7 @@ impl TreeBuilder {
         // -> A start tag whose tag name is "meta"
         if token.is_start_tag_named(tag_id!("meta")) {
             // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
-            let element = self.insert_html_element_for(&token);
+            let element = self.insert_html_element_for(token);
             self.pop_current_node();
 
             // FIXME: Acknowledge the token's self-closing flag, if it is set.
@@ -1076,7 +1079,7 @@ impl TreeBuilder {
         // -> A start tag whose tag name is "noscript", if scripting mode is Disabled
         if token.is_start_tag_named(tag_id!("noscript")) && !self.scripting_enabled {
             // Insert an HTML element for the token.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
 
             // Switch the insertion mode to "in head noscript".
             self.insertion_mode = InsertionMode::InHeadNoscript;
@@ -1107,7 +1110,7 @@ impl TreeBuilder {
             // 5. Insert an element at the adjusted insertion location with the newly created element.
             // 6. Push the newly created element onto the stack of open elements so that it is the new current node.
             // NB: Creation, configuration, insertion, and the stack push are performed by the insertion helper.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
 
             // 7. Switch the tokenizer to the script data state.
             self.switch_tokenizer_to(State::ScriptData);
@@ -1141,7 +1144,7 @@ impl TreeBuilder {
 
         // -> A start tag whose tag name is "template"
         if token.is_start_tag_named(tag_id!("template")) {
-            self.handle_template_start_tag(&token);
+            self.handle_template_start_tag(token);
             return;
         }
 
@@ -1171,7 +1174,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inheadnoscript
-    fn handle_in_head_noscript(&mut self, token: Token) {
+    fn handle_in_head_noscript(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in in head noscript insertion mode");
@@ -1217,7 +1220,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
-    fn handle_after_head(&mut self, token: Token) {
+    fn handle_after_head(&mut self, token: &mut Token) {
         if token.is_parser_whitespace() {
             self.insert_character(token.code_point);
             return;
@@ -1240,14 +1243,14 @@ impl TreeBuilder {
         }
 
         if token.is_start_tag_named(tag_id!("body")) {
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.frameset_ok = false;
             self.insertion_mode = InsertionMode::InBody;
             return;
         }
 
         if token.is_start_tag_named(tag_id!("frameset")) {
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InFrameset;
             return;
         }
@@ -1308,7 +1311,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody
-    fn handle_in_body(&mut self, token: Token) {
+    fn handle_in_body(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character {
             if token.code_point == 0 {
                 // Parse error. Ignore the token.
@@ -1350,7 +1353,7 @@ impl TreeBuilder {
 
             if !self.has_template_element_on_stack_of_open_elements() && !self.stack_of_open_elements.is_empty() {
                 let html = self.stack_of_open_elements[0].handle;
-                self.add_missing_attributes_to_element(html, &token);
+                self.add_missing_attributes_to_element(html, token);
             }
             return;
         }
@@ -1366,7 +1369,7 @@ impl TreeBuilder {
                 && !self.has_template_element_on_stack_of_open_elements()
             {
                 let body = self.stack_of_open_elements[1].handle;
-                self.add_missing_attributes_to_element(body, &token);
+                self.add_missing_attributes_to_element(body, token);
                 self.frameset_ok = false;
             }
             return;
@@ -1397,7 +1400,7 @@ impl TreeBuilder {
             while self.stack_of_open_elements.len() > 1 && !self.current_node_named(tag_name!("html")) {
                 self.pop_stack_node();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InFrameset;
             return;
         }
@@ -1443,7 +1446,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1451,7 +1454,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1478,7 +1481,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1506,7 +1509,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1518,7 +1521,7 @@ impl TreeBuilder {
                 self.pop_until_tag_name_has_been_popped(tag_name!("button"));
             }
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.frameset_ok = false;
             return;
         }
@@ -1535,7 +1538,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            let form = self.insert_html_element_for(&token);
+            let form = self.insert_html_element_for(token);
             if !has_template_element_on_stack {
                 self.form_element = Some(form);
             }
@@ -1619,7 +1622,7 @@ impl TreeBuilder {
                 self.parse_error("heading start tag with heading element as current node");
                 self.pop_current_node();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1643,7 +1646,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.next_line_feed_can_be_ignored = true;
             self.frameset_ok = false;
             return;
@@ -1653,7 +1656,7 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.switch_tokenizer_to(State::PLAINTEXT);
             return;
         }
@@ -1664,14 +1667,13 @@ impl TreeBuilder {
             if self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
         if token.is_start_tag_named(tag_id!("image")) {
             // Parse error. Change the token's tag name to "img" and reprocess it. (Don't ask.)
             self.parse_error("image start tag in in body insertion mode");
-            let mut token = token;
             token.set_tag_name(Utf16View::Latin1(b"img"));
             self.process_using_the_rules_for(self.insertion_mode, token);
             return;
@@ -1681,7 +1683,7 @@ impl TreeBuilder {
             if self.document_quirks_mode != RustFfiHtmlQuirksMode::Yes && self.has_in_button_scope(tag_name!("p")) {
                 self.close_a_p_element();
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.frameset_ok = false;
             self.insertion_mode = InsertionMode::InTable;
             return;
@@ -1704,7 +1706,7 @@ impl TreeBuilder {
                 return;
             }
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.frameset_ok = false;
             return;
         }
@@ -1716,7 +1718,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_named(tag_id!("svg")) {
             self.reconstruct_the_active_formatting_elements();
-            self.insert_foreign_element_for(&token, RustFfiHtmlNamespace::Svg, false);
+            self.insert_foreign_element_for(token, RustFfiHtmlNamespace::Svg, false);
             if token.is_self_closing() {
                 self.pop_current_node();
             }
@@ -1725,7 +1727,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_named(tag_id!("math")) {
             self.reconstruct_the_active_formatting_elements();
-            self.insert_foreign_element_for(&token, RustFfiHtmlNamespace::MathMl, false);
+            self.insert_foreign_element_for(token, RustFfiHtmlNamespace::MathMl, false);
             if token.is_self_closing() {
                 self.pop_current_node();
             }
@@ -1750,7 +1752,7 @@ impl TreeBuilder {
                 self.pop_current_node();
             }
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1764,7 +1766,7 @@ impl TreeBuilder {
                 self.pop_current_node();
             }
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1779,7 +1781,7 @@ impl TreeBuilder {
             }
 
             // Insert an HTML element for the token.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1794,7 +1796,7 @@ impl TreeBuilder {
             }
 
             // Insert an HTML element for the token.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -1838,7 +1840,7 @@ impl TreeBuilder {
                     self.parse_error("hr start tag with option or optgroup element in scope");
                 }
             }
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             self.frameset_ok = false;
             return;
@@ -1846,7 +1848,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_named(tag_id!("br")) {
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             self.frameset_ok = false;
             return;
@@ -1868,7 +1870,7 @@ impl TreeBuilder {
                 self.pop_until_tag_name_has_been_popped(tag_name!("select"));
             }
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             if !token
                 .attribute(attribute_name!("type"))
@@ -1892,7 +1894,7 @@ impl TreeBuilder {
         if token.is_end_tag_named(tag_id!("br")) {
             // Parse error.
             self.parse_error("br end tag in in body insertion mode");
-            self.process_using_the_rules_for(self.insertion_mode, Token::synthetic_start_tag("br"));
+            self.process_using_the_rules_for(self.insertion_mode, &mut Token::synthetic_start_tag("br"));
             return;
         }
 
@@ -1958,8 +1960,8 @@ impl TreeBuilder {
                 self.stack_of_open_elements.retain(|node| node.handle != active_element);
             }
             self.reconstruct_the_active_formatting_elements();
-            let element = self.insert_html_element_for(&token);
-            self.push_onto_the_list_of_active_formatting_elements(element, &token);
+            let element = self.insert_html_element_for(token);
+            self.push_onto_the_list_of_active_formatting_elements(element, token);
             return;
         }
 
@@ -1971,15 +1973,15 @@ impl TreeBuilder {
                 self.run_the_adoption_agency_algorithm(tag_name!("nobr"));
                 self.reconstruct_the_active_formatting_elements();
             }
-            let element = self.insert_html_element_for(&token);
-            self.push_onto_the_list_of_active_formatting_elements(element, &token);
+            let element = self.insert_html_element_for(token);
+            self.push_onto_the_list_of_active_formatting_elements(element, token);
             return;
         }
 
         if token.is_start_tag() && is_formatting_element(token.tag_name()) {
             self.reconstruct_the_active_formatting_elements();
-            let element = self.insert_html_element_for(&token);
-            self.push_onto_the_list_of_active_formatting_elements(element, &token);
+            let element = self.insert_html_element_for(token);
+            self.push_onto_the_list_of_active_formatting_elements(element, token);
             return;
         }
 
@@ -1990,7 +1992,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_one_of(tag_set!["applet", "marquee", "object"]) {
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insert_marker_at_the_end_of_the_list_of_active_formatting_elements();
             self.frameset_ok = false;
             return;
@@ -2012,14 +2014,14 @@ impl TreeBuilder {
         }
 
         if token.is_start_tag_one_of(tag_set!["param", "source", "track"]) {
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             return;
         }
 
         if token.is_start_tag() {
             self.reconstruct_the_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             if is_void_html_element(token.tag_name()) {
                 self.pop_current_node();
             }
@@ -2064,7 +2066,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inframeset
-    fn handle_in_frameset(&mut self, token: Token) {
+    fn handle_in_frameset(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
         //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -2099,7 +2101,7 @@ impl TreeBuilder {
         // -> A start tag whose tag name is "frameset"
         if token.is_start_tag_named(tag_id!("frameset")) {
             // Insert an HTML element for the token.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             return;
         }
 
@@ -2125,7 +2127,7 @@ impl TreeBuilder {
         // -> A start tag whose tag name is "frame"
         if token.is_start_tag_named(tag_id!("frame")) {
             // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
 
             // FIXME: Acknowledge the token's self-closing flag, if it is set.
@@ -2158,7 +2160,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterframeset
-    fn handle_after_frameset(&mut self, token: Token) {
+    fn handle_after_frameset(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
         //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -2217,7 +2219,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intable
-    fn handle_in_table(&mut self, token: Token) {
+    fn handle_in_table(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character
             && self.current_node_is_one_of(&[
                 tag_name!("table"),
@@ -2261,7 +2263,7 @@ impl TreeBuilder {
         {
             // Parse error.
             self.parse_error("hidden input start tag in in table insertion mode");
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             return;
         }
@@ -2275,7 +2277,7 @@ impl TreeBuilder {
             if self.form_element.is_some() || self.has_template_element_on_stack_of_open_elements() {
                 return;
             }
-            let form = self.insert_html_element_for(&token);
+            let form = self.insert_html_element_for(token);
             self.form_element = Some(form);
             self.pop_current_node();
             return;
@@ -2283,7 +2285,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_one_of(tag_set!["tbody", "tfoot", "thead"]) {
             self.clear_the_stack_back_to_a_table_context();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InTableBody;
             return;
         }
@@ -2291,14 +2293,14 @@ impl TreeBuilder {
         if token.is_start_tag_named(tag_id!("caption")) {
             self.clear_the_stack_back_to_a_table_context();
             self.insert_marker_at_the_end_of_the_list_of_active_formatting_elements();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InCaption;
             return;
         }
 
         if token.is_start_tag_named(tag_id!("colgroup")) {
             self.clear_the_stack_back_to_a_table_context();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InColumnGroup;
             return;
         }
@@ -2368,7 +2370,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intabletext
-    fn handle_in_table_text(&mut self, token: Token) {
+    fn handle_in_table_text(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character {
             if token.code_point == 0 {
                 // Parse error. Ignore the token.
@@ -2389,7 +2391,7 @@ impl TreeBuilder {
             let old_foster_parenting_enabled = self.foster_parenting_enabled;
             self.foster_parenting_enabled = true;
             for code_point in pending_table_text {
-                self.process_using_the_rules_for(InsertionMode::InBody, Token::synthetic_character(code_point));
+                self.process_using_the_rules_for(InsertionMode::InBody, &mut Token::synthetic_character(code_point));
                 self.flush_character_insertions();
             }
             self.foster_parenting_enabled = old_foster_parenting_enabled;
@@ -2405,7 +2407,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incolgroup
-    fn handle_in_column_group(&mut self, token: Token) {
+    fn handle_in_column_group(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character && token.is_parser_whitespace() {
             self.insert_character(token.code_point);
             return;
@@ -2428,7 +2430,7 @@ impl TreeBuilder {
         }
 
         if token.is_start_tag_named(tag_id!("col")) {
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.pop_current_node();
             return;
         }
@@ -2466,12 +2468,12 @@ impl TreeBuilder {
             return;
         }
 
-        self.process_using_the_rules_for(InsertionMode::InColumnGroup, Token::synthetic_end_tag("colgroup"));
+        self.process_using_the_rules_for(InsertionMode::InColumnGroup, &mut Token::synthetic_end_tag("colgroup"));
         self.process_using_the_rules_for(InsertionMode::InTable, token);
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incaption
-    fn handle_in_caption(&mut self, token: Token) {
+    fn handle_in_caption(&mut self, token: &mut Token) {
         if token.is_end_tag_named(tag_id!("caption")) {
             if !self.has_in_table_scope(tag_name!("caption")) {
                 // Parse error. Ignore the token.
@@ -2520,7 +2522,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intbody
-    fn handle_in_table_body(&mut self, token: Token) {
+    fn handle_in_table_body(&mut self, token: &mut Token) {
         if token.is_start_tag_one_of(tag_set!["caption", "col", "colgroup", "tbody", "tfoot", "thead"])
             || token.is_end_tag_named(tag_id!("table"))
         {
@@ -2541,7 +2543,7 @@ impl TreeBuilder {
 
         if token.is_start_tag_named(tag_id!("tr")) {
             self.clear_the_stack_back_to_a_table_body_context();
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InRow;
             return;
         }
@@ -2578,14 +2580,14 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intr
-    fn handle_in_row(&mut self, token: Token) {
+    fn handle_in_row(&mut self, token: &mut Token) {
         // -> A start tag whose tag name is one of: "th", "td"
         if token.is_start_tag_one_of(tag_set!["td", "th"]) {
             // Clear the stack back to a table row context. (See below.)
             self.clear_the_stack_back_to_a_table_row_context();
 
             // Insert an HTML element for the token, then switch the insertion mode to "in cell".
-            self.insert_html_element_for(&token);
+            self.insert_html_element_for(token);
             self.insertion_mode = InsertionMode::InCell;
 
             // Insert a marker at the end of the list of active formatting elements.
@@ -2628,7 +2630,7 @@ impl TreeBuilder {
             // 2. Pop the current node (which will be a tr element) from the stack of open elements.
             //    Switch the insertion mode to "in table body".
             // 3. Reprocess the token.
-            self.process_using_the_rules_for(InsertionMode::InRow, Token::synthetic_end_tag("tr"));
+            self.process_using_the_rules_for(InsertionMode::InRow, &mut Token::synthetic_end_tag("tr"));
             self.process_using_the_rules_for(InsertionMode::InTableBody, token);
             return;
         }
@@ -2652,7 +2654,7 @@ impl TreeBuilder {
             // 2. Pop the current node (which will be a tr element) from the stack of open elements.
             //    Switch the insertion mode to "in table body".
             // 3. Reprocess the token.
-            self.process_using_the_rules_for(InsertionMode::InRow, Token::synthetic_end_tag("tr"));
+            self.process_using_the_rules_for(InsertionMode::InRow, &mut Token::synthetic_end_tag("tr"));
             self.process_using_the_rules_for(InsertionMode::InTableBody, token);
             return;
         }
@@ -2670,7 +2672,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intd
-    fn handle_in_cell(&mut self, token: Token) {
+    fn handle_in_cell(&mut self, token: &mut Token) {
         // -> An end tag whose tag name is one of: "td", "th"
         if token.is_end_tag_one_of(tag_set!["td", "th"]) {
             // If the stack of open elements does not have an element in table scope that is an HTML element with the
@@ -2745,7 +2747,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incdata
-    fn handle_text(&mut self, token: Token) {
+    fn handle_text(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character {
             self.insert_character(token.code_point);
             return;
@@ -2789,7 +2791,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intemplate
-    fn handle_in_template(&mut self, token: Token) {
+    fn handle_in_template(&mut self, token: &mut Token) {
         // -> A character token
         // -> A comment token
         // -> A DOCTYPE token
@@ -2910,7 +2912,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
-    fn handle_after_body(&mut self, token: Token) {
+    fn handle_after_body(&mut self, token: &mut Token) {
         // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
         //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
@@ -2974,7 +2976,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-body-insertion-mode
-    fn handle_after_after_body(&mut self, token: Token) {
+    fn handle_after_after_body(&mut self, token: &mut Token) {
         // -> A comment token
         if token.token_type == TokenType::Comment {
             // Insert a comment as the last child of the Document object.
@@ -3012,7 +3014,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-frameset-insertion-mode
-    fn handle_after_after_frameset(&mut self, token: Token) {
+    fn handle_after_after_frameset(&mut self, token: &mut Token) {
         // -> A comment token
         if token.token_type == TokenType::Comment {
             // Insert a comment as the last child of the Document object.
@@ -3056,7 +3058,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
-    fn process_using_the_rules_for_foreign_content(&mut self, token: Token) {
+    fn process_using_the_rules_for_foreign_content(&mut self, token: &mut Token) {
         if token.token_type == TokenType::Character {
             // -> A character token that is U+0000 NULL
             if token.code_point == 0 {
@@ -3101,7 +3103,7 @@ impl TreeBuilder {
         //    "table", "tt", "u", "ul", "var"
         // -> A start tag whose tag name is "font", if the token has any attributes named "color", "face", or "size"
         // -> An end tag whose tag name is "br", "p"
-        if is_foreign_content_breakout_token(&token) {
+        if is_foreign_content_breakout_token(token) {
             // Parse error.
             self.parse_error("HTML breakout token in foreign content");
 
@@ -3141,7 +3143,7 @@ impl TreeBuilder {
 
             // Insert a foreign element for the token, with the adjusted current node's namespace.
             // NB: The insertion helper applies the tag-name and attribute adjustments described above.
-            let element = self.insert_foreign_element_for(&token, namespace_, false);
+            let element = self.insert_foreign_element_for(token, namespace_, false);
 
             // If the token has its self-closing flag set, then run the appropriate steps from the following list:
             if token.is_self_closing() {
@@ -3218,9 +3220,9 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#generic-rcdata-element-parsing-algorithm
-    fn parse_generic_rcdata_element(&mut self, token: Token) {
+    fn parse_generic_rcdata_element(&mut self, token: &mut Token) {
         // 1. Insert an HTML element for the token.
-        self.insert_html_element_for(&token);
+        self.insert_html_element_for(token);
         // 2. Switch the tokenizer to the RCDATA state.
         self.switch_tokenizer_to(State::RCDATA);
         // 3. Set the original insertion mode to the current insertion mode.
@@ -3230,9 +3232,9 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#generic-raw-text-element-parsing-algorithm
-    fn parse_generic_raw_text_element(&mut self, token: Token) {
+    fn parse_generic_raw_text_element(&mut self, token: &mut Token) {
         // 1. Insert an HTML element for the token.
-        self.insert_html_element_for(&token);
+        self.insert_html_element_for(token);
         // 2. Switch the tokenizer to the RAWTEXT state.
         self.switch_tokenizer_to(State::RAWTEXT);
         // 3. Set the original insertion mode to the current insertion mode.

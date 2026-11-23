@@ -1015,32 +1015,44 @@ impl HtmlTokenizer {
         self.queued_tokens.push_back(token);
     }
 
-    /// Fast-path version of `emit_current_token(); self.queued_tokens.pop_front()`.
+    /// Moves the token at the front of the queue to `out`, if there is one.
+    #[inline]
+    fn take_queued_token(&mut self, out: &mut Token) -> bool {
+        match self.queued_tokens.pop_front() {
+            Some(token) => {
+                *out = token;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Fast-path version of `emit_current_token(); self.take_queued_token(out)`.
     /// When the queue is empty we skip the push/pop round trip entirely,
     /// which removes two VecDeque ops and a Token move per emitted token
     /// for the overwhelmingly common single-emit case.
     #[inline]
-    fn emit_current_token_direct(&mut self) -> Option<Token> {
+    fn emit_current_token_direct(&mut self, out: &mut Token) -> bool {
         self.will_emit(0);
         let token = std::mem::take(&mut self.current_token);
         if self.queued_tokens.is_empty() {
-            Some(token)
-        } else {
-            self.queued_tokens.push_back(token);
-            self.queued_tokens.pop_front()
+            *out = token;
+            return true;
         }
+        self.queued_tokens.push_back(token);
+        self.take_queued_token(out)
     }
 
     #[inline(always)]
-    fn return_character_token(&mut self, code_point: u32) -> Option<Token> {
+    fn return_character_token(&mut self, out: &mut Token, code_point: u32) -> bool {
         let mut token = Token::new_character(code_point);
         token.start_offset = self.offset();
         if self.queued_tokens.is_empty() {
-            Some(token)
-        } else {
-            self.queued_tokens.push_back(token);
-            self.queued_tokens.pop_front()
+            *out = token;
+            return true;
         }
+        self.queued_tokens.push_back(token);
+        self.take_queued_token(out)
     }
 
     fn emit_eof(&mut self) {
@@ -1169,22 +1181,29 @@ impl HtmlTokenizer {
 
     /// Get the next token from the tokenizer.
     pub fn next_token(&mut self, stop_at_insertion_point: bool, cdata_allowed: bool) -> Option<Token> {
+        let mut token = Token::default();
+        self.next_token_into(&mut token, stop_at_insertion_point, cdata_allowed)
+            .then_some(token)
+    }
+
+    /// Puts the next token in `out`, and returns whether there was one. What `out` held before is dropped only then.
+    pub fn next_token_into(&mut self, out: &mut Token, stop_at_insertion_point: bool, cdata_allowed: bool) -> bool {
         self.stop_at_insertion_point = stop_at_insertion_point;
         self.cdata_allowed = cdata_allowed;
 
         // Return queued tokens first.
-        if let Some(token) = self.queued_tokens.pop_front() {
-            return Some(token);
+        if self.take_queued_token(out) {
+            return true;
         }
 
         if self.aborted {
-            return None;
+            return false;
         }
 
         loop {
             // Check insertion point before consuming.
             if self.should_pause_before_next_input_character() {
-                return None;
+                return false;
             }
 
             let current_input_character = self.next_code_point();
@@ -1202,21 +1221,21 @@ impl HtmlTokenizer {
                         Some(0x3C) => {
                             // '<'
                             if self.try_scan_tag() {
-                                return self.emit_current_token_direct();
+                                return self.emit_current_token_direct(out);
                             }
                             self.state = State::TagOpen;
                             continue;
                         }
                         Some(0x00) => {
                             // NULL - parse error
-                            return self.return_character_token(0x00);
+                            return self.return_character_token(out, 0x00);
                         }
                         None => {
                             self.emit_eof();
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         Some(cp) => {
-                            return self.return_character_token(cp);
+                            return self.return_character_token(out, cp);
                         }
                     }
                 }
@@ -1233,14 +1252,14 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -1251,14 +1270,14 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -1269,28 +1288,28 @@ impl HtmlTokenizer {
                         continue;
                     }
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
                 // 13.2.5.5 PLAINTEXT state
                 State::PLAINTEXT => match current_input_character {
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -1322,7 +1341,7 @@ impl HtmlTokenizer {
                         // parse error
                         self.queued_tokens.push_back(self.make_character_token(0x3C));
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // parse error
@@ -1349,7 +1368,7 @@ impl HtmlTokenizer {
                         self.queued_tokens.push_back(self.make_character_token(0x3C));
                         self.queued_tokens.push_back(self.make_character_token(0x2F));
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // parse error
@@ -1409,7 +1428,7 @@ impl HtmlTokenizer {
                         Some(0x3E) => {
                             self.commit_current_builder_as_tag_name();
                             self.state = State::Data;
-                            return self.emit_current_token_direct();
+                            return self.emit_current_token_direct(out);
                         }
                         Some(cp) if is_ascii_upper_alpha(cp) => {
                             self.current_builder.push_code_point(to_ascii_lowercase(cp));
@@ -1421,7 +1440,7 @@ impl HtmlTokenizer {
                         }
                         None => {
                             self.emit_eof();
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         Some(cp) => {
                             self.current_builder.push_code_point(cp);
@@ -1538,11 +1557,11 @@ impl HtmlTokenizer {
                     }
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         self.current_token.start_new_attribute();
@@ -1572,7 +1591,7 @@ impl HtmlTokenizer {
                         Some(0x3E) => {
                             // parse error
                             self.state = State::Data;
-                            return self.emit_current_token_direct();
+                            return self.emit_current_token_direct(out);
                         }
                         _ => {
                             self.reconsume(State::AttributeValueUnquoted);
@@ -1599,7 +1618,7 @@ impl HtmlTokenizer {
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -1626,7 +1645,7 @@ impl HtmlTokenizer {
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -1650,7 +1669,7 @@ impl HtmlTokenizer {
                     Some(0x3E) => {
                         self.set_attribute_value();
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(0x00) => {
                         self.current_builder.push_code_point(0xFFFD);
@@ -1663,7 +1682,7 @@ impl HtmlTokenizer {
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -1688,11 +1707,11 @@ impl HtmlTokenizer {
                         }
                         Some(0x3E) => {
                             self.state = State::Data;
-                            return self.emit_current_token_direct();
+                            return self.emit_current_token_direct(out);
                         }
                         None => {
                             self.emit_eof();
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         Some(_) => {
                             // parse error
@@ -1707,11 +1726,11 @@ impl HtmlTokenizer {
                     Some(0x3E) => {
                         self.current_token.set_self_closing(true);
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // parse error
@@ -1728,7 +1747,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -1736,7 +1755,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(0x00) => {
                         self.current_builder.push_code_point(0xFFFD);
@@ -1763,7 +1782,7 @@ impl HtmlTokenizer {
                             self.state = State::CommentStart;
                             continue;
                         }
-                        None => return None,
+                        None => return false,
                         _ => {}
                     }
                     match self.consume_next_if_match("DOCTYPE") {
@@ -1771,7 +1790,7 @@ impl HtmlTokenizer {
                             self.state = State::DOCTYPE;
                             continue;
                         }
-                        None => return None,
+                        None => return false,
                         _ => {}
                     }
                     match self.consume_next_if_match_exact("[CDATA[") {
@@ -1785,7 +1804,7 @@ impl HtmlTokenizer {
                             }
                             continue;
                         }
-                        None => return None,
+                        None => return false,
                         _ => {}
                     }
                     // parse error
@@ -1807,7 +1826,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     _ => {
                         self.reconsume(State::Comment);
@@ -1828,7 +1847,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -1836,7 +1855,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         self.current_builder.push_ascii(b'-');
@@ -1866,7 +1885,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -1940,7 +1959,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         self.current_builder.push_ascii(b'-');
@@ -1957,7 +1976,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(0x21) => {
                         self.state = State::CommentEndBang;
@@ -1973,7 +1992,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         self.current_builder.push_ascii_str("--");
@@ -1996,7 +2015,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2004,7 +2023,7 @@ impl HtmlTokenizer {
                             self.current_token.set_comment_data(data);
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         self.current_builder.push_ascii_str("--!");
@@ -2033,7 +2052,7 @@ impl HtmlTokenizer {
                             ..Default::default()
                         };
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // parse error
@@ -2082,7 +2101,7 @@ impl HtmlTokenizer {
                             ..Default::default()
                         };
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         self.create_new_token(TokenType::Doctype);
@@ -2094,7 +2113,7 @@ impl HtmlTokenizer {
                             ..Default::default()
                         };
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.create_new_token(TokenType::Doctype);
@@ -2132,7 +2151,7 @@ impl HtmlTokenizer {
                             }
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(cp) if is_ascii_upper_alpha(cp) => {
                         self.current_builder.push_code_point(to_ascii_lowercase(cp));
@@ -2150,7 +2169,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -2165,7 +2184,7 @@ impl HtmlTokenizer {
                     }
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2173,7 +2192,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // Reconsume and try PUBLIC/SYSTEM
@@ -2185,7 +2204,7 @@ impl HtmlTokenizer {
                                 self.state = State::AfterDOCTYPEPublicKeyword;
                                 continue;
                             }
-                            None => return None,
+                            None => return false,
                             _ => {}
                         }
                         match self.consume_next_if_match("SYSTEM") {
@@ -2193,7 +2212,7 @@ impl HtmlTokenizer {
                                 self.state = State::AfterDOCTYPESystemKeyword;
                                 continue;
                             }
-                            None => return None,
+                            None => return false,
                             _ => {}
                         }
                         // Re-consume the character we put back
@@ -2235,7 +2254,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2243,7 +2262,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2280,7 +2299,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2288,7 +2307,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2327,7 +2346,7 @@ impl HtmlTokenizer {
                             }
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2339,7 +2358,7 @@ impl HtmlTokenizer {
                             }
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -2374,7 +2393,7 @@ impl HtmlTokenizer {
                             }
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2386,7 +2405,7 @@ impl HtmlTokenizer {
                             }
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -2402,7 +2421,7 @@ impl HtmlTokenizer {
                     }
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(0x22) => {
                         {
@@ -2428,7 +2447,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2445,7 +2464,7 @@ impl HtmlTokenizer {
                     Some(cp) if is_whitespace(cp) => continue,
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(0x22) => {
                         {
@@ -2471,7 +2490,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2513,7 +2532,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2521,7 +2540,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2560,7 +2579,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2568,7 +2587,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         {
@@ -2603,7 +2622,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         let sys_id = self.consume_current_builder();
@@ -2613,7 +2632,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -2644,7 +2663,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         let sys_id = self.consume_current_builder();
@@ -2654,7 +2673,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
@@ -2667,7 +2686,7 @@ impl HtmlTokenizer {
                     Some(cp) if is_whitespace(cp) => continue,
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     None => {
                         {
@@ -2675,7 +2694,7 @@ impl HtmlTokenizer {
                             dd.force_quirks = true;
                         }
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => {
                         // parse error - do NOT set force_quirks
@@ -2688,12 +2707,12 @@ impl HtmlTokenizer {
                 State::BogusDOCTYPE => match current_input_character {
                     Some(0x3E) => {
                         self.state = State::Data;
-                        return self.emit_current_token_direct();
+                        return self.emit_current_token_direct(out);
                     }
                     Some(0x00) => continue,
                     None => {
                         self.emit_current_token_followed_by_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(_) => continue,
                 },
@@ -2706,10 +2725,10 @@ impl HtmlTokenizer {
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -2729,7 +2748,7 @@ impl HtmlTokenizer {
                 // 13.2.5.71 CDATA section end state
                 State::CDATASectionEnd => match current_input_character {
                     Some(0x5D) => {
-                        return self.return_character_token(0x5D);
+                        return self.return_character_token(out, 0x5D);
                     }
                     Some(0x3E) => {
                         self.state = State::Data;
@@ -2764,7 +2783,7 @@ impl HtmlTokenizer {
                             self.flush_codepoints_consumed_as_character_reference();
                             self.reconsume_in_return_state(current_input_character);
                             if !self.queued_tokens.is_empty() {
-                                return self.queued_tokens.pop_front();
+                                return self.take_queued_token(out);
                             }
                             continue;
                         }
@@ -2785,7 +2804,7 @@ impl HtmlTokenizer {
                             self.restore_to(self.prev_offset);
                         } else if self.can_run_out_at(self.current_offset) {
                             // At insertion point with no more chars -- pause.
-                            return None;
+                            return false;
                         }
                         // Fall through to resolution.
                     } else {
@@ -2803,7 +2822,7 @@ impl HtmlTokenizer {
                             self.advance(1);
                         }
                         if !self.input_stream_closed && self.current_offset >= limit {
-                            return None;
+                            return false;
                         }
                     }
 
@@ -2827,7 +2846,7 @@ impl HtmlTokenizer {
                             self.flush_codepoints_consumed_as_character_reference();
                             self.state = self.return_state;
                             if !self.queued_tokens.is_empty() {
-                                return self.queued_tokens.pop_front();
+                                return self.take_queued_token(out);
                             }
                             continue;
                         }
@@ -2844,7 +2863,7 @@ impl HtmlTokenizer {
                         self.flush_codepoints_consumed_as_character_reference();
                         self.state = self.return_state;
                         if !self.queued_tokens.is_empty() {
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         continue;
                     } else {
@@ -2863,21 +2882,21 @@ impl HtmlTokenizer {
                             self.current_builder.push_code_point(cp);
                             continue;
                         } else {
-                            return self.return_character_token(cp);
+                            return self.return_character_token(out, cp);
                         }
                     }
                     Some(0x3B) => {
                         // parse error
                         self.reconsume_in_return_state(current_input_character);
                         if !self.queued_tokens.is_empty() {
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         continue;
                     }
                     _ => {
                         self.reconsume_in_return_state(current_input_character);
                         if !self.queued_tokens.is_empty() {
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         continue;
                     }
@@ -2914,7 +2933,7 @@ impl HtmlTokenizer {
                         self.flush_codepoints_consumed_as_character_reference();
                         self.reconsume_in_return_state(current_input_character);
                         if !self.queued_tokens.is_empty() {
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         continue;
                     }
@@ -2933,7 +2952,7 @@ impl HtmlTokenizer {
                         self.flush_codepoints_consumed_as_character_reference();
                         self.reconsume_in_return_state(current_input_character);
                         if !self.queued_tokens.is_empty() {
-                            return self.queued_tokens.pop_front();
+                            return self.take_queued_token(out);
                         }
                         continue;
                     }
@@ -3021,7 +3040,7 @@ impl HtmlTokenizer {
                     self.flush_codepoints_consumed_as_character_reference();
                     self.state = self.return_state;
                     if !self.queued_tokens.is_empty() {
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     continue;
                 }
@@ -3059,7 +3078,7 @@ impl HtmlTokenizer {
                 State::RCDATAEndTagName => {
                     self.handle_rawtext_end_tag_name(current_input_character, State::RCDATA);
                     if !self.queued_tokens.is_empty() {
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     continue;
                 }
@@ -3097,7 +3116,7 @@ impl HtmlTokenizer {
                 State::RAWTEXTEndTagName => {
                     self.handle_rawtext_end_tag_name(current_input_character, State::RAWTEXT);
                     if !self.queued_tokens.is_empty() {
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     continue;
                 }
@@ -3113,7 +3132,7 @@ impl HtmlTokenizer {
                         self.queued_tokens.push_back(self.make_character_token(0x3C));
                         self.queued_tokens.push_back(self.make_character_token(0x21));
                         self.state = State::ScriptDataEscapeStart;
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     _ => {
                         self.queued_tokens.push_back(self.make_character_token(0x3C));
@@ -3141,7 +3160,7 @@ impl HtmlTokenizer {
                 State::ScriptDataEndTagName => {
                     self.handle_rawtext_end_tag_name(current_input_character, State::ScriptData);
                     if !self.queued_tokens.is_empty() {
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     continue;
                 }
@@ -3150,7 +3169,7 @@ impl HtmlTokenizer {
                 State::ScriptDataEscapeStart => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataEscapeStartDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     _ => {
                         self.reconsume(State::ScriptData);
@@ -3162,7 +3181,7 @@ impl HtmlTokenizer {
                 State::ScriptDataEscapeStartDash => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataEscapedDashDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     _ => {
                         self.reconsume(State::ScriptData);
@@ -3174,21 +3193,21 @@ impl HtmlTokenizer {
                 State::ScriptDataEscaped => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataEscapedDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataEscapedLessThanSign;
                         continue;
                     }
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -3196,7 +3215,7 @@ impl HtmlTokenizer {
                 State::ScriptDataEscapedDash => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataEscapedDashDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataEscapedLessThanSign;
@@ -3204,22 +3223,22 @@ impl HtmlTokenizer {
                     }
                     Some(0x00) => {
                         self.state = State::ScriptDataEscaped;
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.state = State::ScriptDataEscaped;
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
                 // Script data escaped dash dash state
                 State::ScriptDataEscapedDashDash => match current_input_character {
                     Some(0x2D) => {
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataEscapedLessThanSign;
@@ -3227,19 +3246,19 @@ impl HtmlTokenizer {
                     }
                     Some(0x3E) => {
                         self.state = State::ScriptData;
-                        return self.return_character_token(0x3E);
+                        return self.return_character_token(out, 0x3E);
                     }
                     Some(0x00) => {
                         self.state = State::ScriptDataEscaped;
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.state = State::ScriptDataEscaped;
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -3282,7 +3301,7 @@ impl HtmlTokenizer {
                 State::ScriptDataEscapedEndTagName => {
                     self.handle_rawtext_end_tag_name(current_input_character, State::ScriptDataEscaped);
                     if !self.queued_tokens.is_empty() {
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     continue;
                 }
@@ -3295,15 +3314,15 @@ impl HtmlTokenizer {
                         } else {
                             self.state = State::ScriptDataEscaped;
                         }
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     Some(cp) if is_ascii_upper_alpha(cp) => {
                         self.temporary_buffer.push(to_ascii_lowercase(cp));
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     Some(cp) if is_ascii_lower_alpha(cp) => {
                         self.temporary_buffer.push(cp);
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     _ => {
                         self.reconsume(State::ScriptDataEscaped);
@@ -3315,21 +3334,21 @@ impl HtmlTokenizer {
                 State::ScriptDataDoubleEscaped => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataDoubleEscapedDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataDoubleEscapedLessThanSign;
-                        return self.return_character_token(0x3C);
+                        return self.return_character_token(out, 0x3C);
                     }
                     Some(0x00) => {
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -3337,50 +3356,50 @@ impl HtmlTokenizer {
                 State::ScriptDataDoubleEscapedDash => match current_input_character {
                     Some(0x2D) => {
                         self.state = State::ScriptDataDoubleEscapedDashDash;
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataDoubleEscapedLessThanSign;
-                        return self.return_character_token(0x3C);
+                        return self.return_character_token(out, 0x3C);
                     }
                     Some(0x00) => {
                         self.state = State::ScriptDataDoubleEscaped;
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.state = State::ScriptDataDoubleEscaped;
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
                 // Script data double escaped dash dash state
                 State::ScriptDataDoubleEscapedDashDash => match current_input_character {
                     Some(0x2D) => {
-                        return self.return_character_token(0x2D);
+                        return self.return_character_token(out, 0x2D);
                     }
                     Some(0x3C) => {
                         self.state = State::ScriptDataDoubleEscapedLessThanSign;
-                        return self.return_character_token(0x3C);
+                        return self.return_character_token(out, 0x3C);
                     }
                     Some(0x3E) => {
                         self.state = State::ScriptData;
-                        return self.return_character_token(0x3E);
+                        return self.return_character_token(out, 0x3E);
                     }
                     Some(0x00) => {
                         self.state = State::ScriptDataDoubleEscaped;
-                        return self.return_character_token(0xFFFD);
+                        return self.return_character_token(out, 0xFFFD);
                     }
                     None => {
                         self.emit_eof();
-                        return self.queued_tokens.pop_front();
+                        return self.take_queued_token(out);
                     }
                     Some(cp) => {
                         self.state = State::ScriptDataDoubleEscaped;
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                 },
 
@@ -3389,7 +3408,7 @@ impl HtmlTokenizer {
                     Some(0x2F) => {
                         self.temporary_buffer.clear();
                         self.state = State::ScriptDataDoubleEscapeEnd;
-                        return self.return_character_token(0x2F);
+                        return self.return_character_token(out, 0x2F);
                     }
                     _ => {
                         self.reconsume(State::ScriptDataDoubleEscaped);
@@ -3405,15 +3424,15 @@ impl HtmlTokenizer {
                         } else {
                             self.state = State::ScriptDataDoubleEscaped;
                         }
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     Some(cp) if is_ascii_upper_alpha(cp) => {
                         self.temporary_buffer.push(to_ascii_lowercase(cp));
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     Some(cp) if is_ascii_lower_alpha(cp) => {
                         self.temporary_buffer.push(cp);
-                        return self.return_character_token(cp);
+                        return self.return_character_token(out, cp);
                     }
                     _ => {
                         self.reconsume(State::ScriptDataDoubleEscaped);
