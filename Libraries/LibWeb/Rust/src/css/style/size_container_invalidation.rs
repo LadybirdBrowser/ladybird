@@ -48,6 +48,11 @@ impl SizeContainerQueryFacts {
         self.queried_containers.contains(&node)
     }
 
+    /// Whether a layout left `node` without the box a style computation asked it about.
+    pub(super) fn is_awaiting_box(&self, node: StyleNodeID) -> bool {
+        self.awaiting_box.contains(&node)
+    }
+
     /// Font-relative size queries can change even when the container's box keeps the same dimensions.
     pub(super) fn note_held_record_change(&mut self, node: StyleNodeID, previous: Arc<Record>, current: &Record) {
         if !self.is_queried_container(node) {
@@ -207,9 +212,10 @@ impl StyleEngine {
     }
 
     /// A layout gave the containers that had no box when they were asked about one; their
-    /// dependents are computed again against it. A container the layout left without a box has
-    /// nothing new to answer, so its dependents wait for the commit that gives it one; computing
-    /// them again against no box would only ask for this evaluation again, after every layout.
+    /// dependents are computed again against it. A container the layout left without a box is
+    /// computed against once more, as no longer eligible, and its dependents then wait for the
+    /// commit that gives it one; computing them again after every layout would only ask for this
+    /// evaluation again.
     pub fn evaluate_size_containers_needing_evaluation_after_layout(&mut self) {
         let mut containers = std::mem::take(&mut self.retained.size_container_queries.needing_evaluation_after_layout);
         containers.retain(|&container| {
@@ -217,10 +223,9 @@ impl StyleEngine {
                 .retained
                 .layout_style_snapshot(container)
                 .is_some_and(|row| row.has_committed_box);
-            if !has_box {
-                self.retained.size_container_queries.awaiting_box.insert(container);
-            }
-            has_box
+            // The units below a container the layout left without a box started out against no box at all. They are
+            // computed again once, now resolving past it, and then wait for a commit that gives it a box.
+            has_box || self.retained.size_container_queries.awaiting_box.insert(container)
         });
         let availability_changed = std::mem::take(&mut self.retained.size_container_queries.availability_changed);
         containers.extend(availability_changed.iter().copied());

@@ -1,0 +1,2 @@
+item: 200x237
+heading font-size: 48.98px
