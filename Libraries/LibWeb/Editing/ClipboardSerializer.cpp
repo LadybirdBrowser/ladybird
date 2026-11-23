@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/DOM/UserSelect.h>
 #include <LibWeb/Editing/ClipboardSerializer.h>
 #include <LibWeb/Editing/InterchangeWhitespace.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
@@ -263,7 +264,7 @@ private:
         m_builder.append(units.substring_view(run_start));
     }
 
-    void collect(Layout::BegunRead const& read, DOM::Node const& node, bool node_is_fully_contained, SelectedTableParts& table)
+    void collect(Layout::BegunRead const& read, DOM::Node const& node, bool node_is_fully_contained, SelectedTableParts& table, DOM::UsedUserSelect inherited = {})
     {
         auto const* layout_node = node.layout_node(read);
         SelectedTableParts nested_table;
@@ -310,7 +311,12 @@ private:
             request_line_breaks(block_line_breaks);
 
         if (auto const* text = as_if<DOM::Text>(node)) {
-            if (!layout_node || layout_node->user_select_used_value() == CSS::UserSelect::None)
+            if (!layout_node)
+                return;
+            bool can_use_parent_value = inherited.element && text->flat_tree_parent_element() == inherited.element.ptr()
+                && layout_node->has_style_or_parent_with_style() && !layout_node->is_generated_for_pseudo_element() && layout_node->dom_node() == text;
+            auto used_value = can_use_parent_value ? inherited.value : layout_node->user_select_used_value();
+            if (used_value == CSS::UserSelect::None)
                 return;
             if (m_destination == TextDestination::Selection) {
                 append_selected_text(as<Layout::TextNode>(*layout_node), *text);
@@ -340,8 +346,12 @@ private:
             if (m_destination == TextDestination::Clipboard && node_is_fully_contained && layout_node && layout_node->user_select_used_value() != CSS::UserSelect::None)
                 append(image->alt());
         } else {
+            if (m_destination == TextDestination::Selection && node.has_children()) {
+                if (auto const* element = as_if<DOM::Element>(node))
+                    inherited = { element, DOM::used_user_select_for_element(*element, inherited) };
+            }
             for_each_child_intersecting_range(node, node_is_fully_contained, [&](DOM::Node const& child, bool child_is_fully_contained) {
-                collect(read, child, child_is_fully_contained, starts_table ? nested_table : table);
+                collect(read, child, child_is_fully_contained, starts_table ? nested_table : table, inherited);
             });
         }
 
