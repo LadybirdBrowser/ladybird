@@ -40,6 +40,8 @@ public:
     void set_on_set_an_indexed_value_callback(GC::Ref<GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>> callback);
     void set_on_delete_an_indexed_value_callback(GC::Ref<GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>> callback);
 
+    void set_on_backing_list_changed(GC::Ref<GC::Function<void()>> callback) { m_on_backing_list_changed = callback; }
+
     GC::Ref<JS::Object> array_object() const { return m_array_object; }
 
     u32 length() const;
@@ -71,6 +73,8 @@ private:
     JS::ThrowCompletionOr<void> run_set_an_indexed_value_callback(u32 index, JS::Value& value);
     JS::ThrowCompletionOr<void> run_delete_an_indexed_value_callback(u32 index);
 
+    void did_change_backing_list();
+
     using ConvertToIDLValueCallbackHeapFunction = GC::Function<ConvertToIDLValueCallbackFunction::FunctionType>;
     using SetAnIndexedValueCallbackHeapFunction = GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>;
     using DeleteAnIndexedValueCallbackHeapFunction = GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>;
@@ -80,6 +84,7 @@ private:
     GC::Ptr<ConvertToIDLValueCallbackHeapFunction> m_convert_to_idl_value;
     GC::Ptr<SetAnIndexedValueCallbackHeapFunction> m_on_set_an_indexed_value;
     GC::Ptr<DeleteAnIndexedValueCallbackHeapFunction> m_on_delete_an_indexed_value;
+    GC::Ptr<GC::Function<void()>> m_on_backing_list_changed;
 };
 
 }

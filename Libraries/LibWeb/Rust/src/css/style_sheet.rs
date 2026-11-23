@@ -656,6 +656,53 @@ fn cascade_layer_order<'a>(sheets: impl IntoIterator<Item = &'a NativeStyleSheet
     result
 }
 
+/// Visit font-face rules in document order and report each rule's normal cascade layer precedence.
+///
+/// # Safety
+/// The array and its sheets must be live for this call. The callback must not mutate the sheets.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_sheets_visit_font_face_rules(
+    sheets: *const *const NativeStyleSheet,
+    count: usize,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, u64, usize),
+) {
+    if count == 0 {
+        return;
+    }
+    let sheets = unsafe { ak::slice_from_raw_parts(sheets, count) };
+    let active_sheets = || {
+        sheets
+            .iter()
+            .map(|&sheet| unsafe { &*sheet })
+            .filter(|sheet| sheet.media.matches())
+    };
+    let mut ranks = None;
+    for sheet in active_sheets() {
+        sheet.visit_effective_rule_data(FfiRuleTraversalOrder::Preorder, &[], &mut |rule, prefix, _| {
+            if rule.rule_type() != NativeRuleType::FontFace {
+                return;
+            }
+            let rank = if prefix.is_empty() {
+                usize::MAX
+            } else {
+                let ranks = ranks.get_or_insert_with(|| {
+                    cascade_layer_order(active_sheets())
+                        .into_iter()
+                        .enumerate()
+                        .map(|(rank, name)| (name, rank))
+                        .collect::<HashMap<_, _>>()
+                });
+                let Some(&rank) = ranks.get(prefix) else {
+                    return;
+                };
+                rank
+            };
+            unsafe { visit(context, rule.identity(), rank) };
+        });
+    }
+}
+
 /// Publish the layer order of the host's ordered, active author sheets.
 ///
 /// # Safety

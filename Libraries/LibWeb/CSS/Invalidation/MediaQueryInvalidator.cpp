@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -81,6 +82,8 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
 
     for (auto* style_scope : scopes_with_changed_layer_order)
         style_scope->publish_cascade_layer_order();
+    if (scopes_with_changed_layer_order.contains(&document.style_scope()))
+        document.fonts()->synchronize_css_connected_font_order();
 }
 
 }

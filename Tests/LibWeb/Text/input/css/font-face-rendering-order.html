@@ -1,0 +1,76 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Exact; src: url(../wpt-import/fonts/mplus-1p-regular.woff); }
+    @font-face { font-family: Exact; src: url(../wpt-import/fonts/Ahem.ttf); }
+    @font-face { font-family: Unused; src: url(missing-overridden-font.woff); }
+    @font-face { font-family: Unused; src: url(../wpt-import/fonts/Ahem.ttf); }
+    @font-face { font-family: Nearest; font-weight: 500; src: url(missing-overridden-font.woff); }
+    @font-face { font-family: Nearest; font-weight: 500; src: url(../wpt-import/fonts/Ahem.ttf); }
+    @font-face { font-family: Subset; src: url(../wpt-import/fonts/Ahem.ttf); }
+    @font-face { font-family: Subset; src: url(missing-outside-range.woff); unicode-range: U+005A; }
+    @font-face { font-family: Fallback; src: url(../wpt-import/fonts/Ahem.ttf); }
+    @font-face { font-family: Fallback; src: url(missing-preferred-font.woff); }
+    span { display: inline-block; font-size: 20px; font-synthesis: none; }
+</style>
+<span style="font-family: Exact">iiii</span>
+<span style="font-family: Unused">iiii</span>
+<span style="font-family: Nearest; font-weight: 600">iiii</span>
+<span style="font-family: Subset">iiii</span>
+<span style="font-family: Fallback">iiii</span>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (let i = 0; i < 2; ++i) {
+            document.body.offsetWidth;
+            await document.fonts.ready;
+            await new Promise(requestAnimationFrame);
+        }
+        for (const span of document.querySelectorAll("span")) {
+            const family = span.style.fontFamily;
+            const faces = [...document.fonts].filter(face => face.family === family);
+            println(family + ": " + span.offsetWidth + "px, " + faces.map(face => face.status).join(", "));
+        }
+        const firstFace = [...document.fonts].find(face => face.family === "Exact");
+        const exact = document.querySelector("span");
+        firstFace.weight = "500";
+        firstFace.weight = "normal";
+        await document.fonts.load("20px Exact", "iiii");
+        println("editing an earlier descriptor preserves its order: " + (exact.offsetWidth === 80));
+
+        const orderSheet = document.createElement("style");
+        orderSheet.textContent = "@layer second, first;";
+        const rules = document.createElement("style");
+        rules.textContent = `
+            @layer first { @font-face { font-family: Layered; src: url(../wpt-import/fonts/Ahem.ttf); } }
+            @layer second { @font-face { font-family: Layered; src: url(../wpt-import/fonts/mplus-1p-regular.woff); } }
+        `;
+        document.head.append(orderSheet, rules);
+        const layered = document.createElement("span");
+        layered.style.fontFamily = "Layered";
+        layered.textContent = "iiii";
+        document.body.append(layered);
+        await document.fonts.load("20px Layered", "iiii");
+        println("layer order statement wins: " + (layered.offsetWidth === 80));
+        orderSheet.sheet.disabled = true;
+        println("disabling the layer order statement changes the winner: " + (layered.offsetWidth < 80));
+        orderSheet.sheet.disabled = false;
+        println("enabling the layer order statement restores the winner: " + (layered.offsetWidth === 80));
+        orderSheet.remove();
+        println("removing the layer order statement changes the winner: " + (layered.offsetWidth < 80));
+
+        const adoptedOrder = new CSSStyleSheet();
+        adoptedOrder.replaceSync("@layer b, a;");
+        const adoptedRules = new CSSStyleSheet();
+        adoptedRules.replaceSync(`
+            @layer a { @font-face { font-family: Adopted; src: url(../wpt-import/fonts/Ahem.ttf); } }
+            @layer b { @font-face { font-family: Adopted; src: url(../wpt-import/fonts/mplus-1p-regular.woff); } }
+        `);
+        document.adoptedStyleSheets = [adoptedOrder, adoptedRules];
+        layered.style.fontFamily = "Adopted";
+        await document.fonts.load("20px Adopted", "iiii");
+        println("adopted sheets use the declared layer order: " + (layered.offsetWidth === 80));
+        document.adoptedStyleSheets[0] = new CSSStyleSheet();
+        await document.fonts.load("20px Adopted", "iiii");
+        println("removing an adopted layer order changes the winner: " + (layered.offsetWidth < 80));
+    });
+</script>

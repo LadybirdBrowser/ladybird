@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetState.h>
@@ -109,6 +110,12 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
         return {};
     }));
 
+    // The indexed callbacks run before the backing list changes. Font matching needs the resulting sheet order.
+    if (document_or_shadow_root.is_document()) {
+        adopted_style_sheets->set_on_backing_list_changed(GC::create_function(realm.heap(), GC::captures(document_or_shadow_root.document()), [](Document& document) {
+            document.fonts()->synchronize_css_connected_font_order();
+        }));
+    }
     return adopted_style_sheets;
 }
 

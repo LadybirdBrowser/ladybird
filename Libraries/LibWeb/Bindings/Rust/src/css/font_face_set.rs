@@ -56,7 +56,7 @@ unsafe extern "C" {
     fn web_css_font_face_set_for_each_font_face_rule(
         set: *mut c_void,
         context: *mut c_void,
-        callback: unsafe extern "C" fn(*mut c_void, u64),
+        callback: unsafe extern "C" fn(*mut c_void, u64, usize),
     ) -> bool;
     fn web_css_font_face_set_synchronize_font_computer(set: *mut c_void, font_faces: *const *mut c_void, count: usize);
 }
@@ -363,13 +363,16 @@ impl FontFaceSet {
     // document order. As @font-face rules are added or removed, the corresponding objects must be added or removed and
     // maintain this ordering. Any manually-added FontFace objects must be ordered after the CSS-connected ones.
     pub(crate) fn synchronize_css_connected_font_order(&self, vm: &Vm) {
-        unsafe extern "C" fn append_identity(context: *mut c_void, identity: u64) {
+        unsafe extern "C" fn append_identity(context: *mut c_void, identity: u64, layer_rank: usize) {
             // SAFETY: The context is the list below, which outlives the call.
-            unsafe { &mut *context.cast::<Vec<u64>>() }.push(identity);
+            unsafe { &mut *context.cast::<Vec<(u64, usize)>>() }.push((identity, layer_rank));
         }
 
         let font_faces = self.entries(vm);
         let font_faces = font_faces.values();
+        if font_faces.len() < 2 {
+            return;
+        }
         let mut connected_font_faces = HashMap::new();
         for (index, font_face) in font_faces.iter().enumerate() {
             if let Some(identity) = font_face.css_rule_identity() {
@@ -378,7 +381,7 @@ impl FontFaceSet {
         }
 
         // Every sheet added or removed asks again. Without a face from a rule the walk over their rules finds nothing.
-        let mut rule_identities = Vec::new();
+        let mut rule_identities: Vec<(u64, usize)> = Vec::new();
         if !connected_font_faces.is_empty() {
             // SAFETY: The set is live, and the list outlives the call.
             let has_window = unsafe {
@@ -395,11 +398,16 @@ impl FontFaceSet {
 
         let ordered_font_faces = MarkedVec::with_capacity(vm, font_faces.len());
         let mut seen = HashSet::new();
-        for identity in rule_identities {
+        let mut layer_ranks = HashMap::new();
+        for (identity, rank) in rule_identities {
             if let Some(index) = connected_font_faces.get(&identity)
                 && seen.insert(font_faces[*index].as_ptr())
             {
-                ordered_font_faces.push(font_faces[*index].clone());
+                let face = &font_faces[*index];
+                if rank != usize::MAX {
+                    layer_ranks.insert(face.as_ptr(), rank);
+                }
+                ordered_font_faces.push(face.clone());
             }
         }
         for font_face in font_faces.iter() {
@@ -419,24 +427,26 @@ impl FontFaceSet {
                 .iter()
                 .zip(font_faces.iter())
                 .any(|(ordered, entry)| !ordered.is(entry));
-        if !order_changed {
-            return;
+        if order_changed {
+            *self.font_faces.borrow_mut(vm) = ordered_font_faces.to_vec();
+            let cx = CallContext::new(vm, self.realm);
+            self.set_entries.for_each_live(vm, |set| {
+                set.set_clear(vm);
+                let cx = context_of_set(&cx, set);
+                for font_face in ordered_font_faces.values().iter() {
+                    set.set_add(vm, font_face.wrapper(&cx));
+                }
+            });
         }
-
-        *self.font_faces.borrow_mut(vm) = ordered_font_faces.to_vec();
-        let cx = CallContext::new(vm, self.realm);
-        self.set_entries.for_each_live(vm, |set| {
-            set.set_clear(vm);
-            let cx = context_of_set(&cx, set);
-            for font_face in ordered_font_faces.values().iter() {
-                set.set_add(vm, font_face.wrapper(&cx));
-            }
-        });
-        let cells: Vec<*mut c_void> = ordered_font_faces
+        let mut cells: Vec<*mut c_void> = ordered_font_faces
             .values()
             .iter()
             .map(CppFontFaceState::as_ptr)
             .collect();
+        // Layer precedence affects rendering. FontFaceSet iteration keeps its document order.
+        if !layer_ranks.is_empty() {
+            cells.sort_by_key(|cell| layer_ranks.get(cell).copied().unwrap_or(usize::MAX));
+        }
         // SAFETY: The set and the FontFaces are live, and the list outlives the call.
         unsafe { web_css_font_face_set_synchronize_font_computer(self.as_abi(), cells.as_ptr(), cells.len()) };
     }

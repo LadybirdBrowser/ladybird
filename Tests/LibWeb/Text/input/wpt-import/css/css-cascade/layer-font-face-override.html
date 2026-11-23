@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<title>Resolving @keyframe name conflicts with cascade layers</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#layering">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target {
+  font-size: 20px;
+  width: min-content;
+}
+</style>
+
+<div id="target">Test</div>
+
+<script>
+// In all tests, width of #target should be 80px.
+
+const testCases = [
+  {
+    title: '@font-face unlayered overrides layered',
+    style: `
+      #target {
+        font-family: custom-font;
+      }
+
+      @font-face {
+        font-family: custom-font;
+        src: url('/fonts/Ahem.ttf');
+      }
+
+      @layer {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/noto/noto-sans-v8-latin-regular.woff') format('woff');
+        }
+      }
+    `
+  },
+
+  {
+    title: '@font-face override between layers',
+    style: `
+      @layer base, override;
+
+      #target {
+        font-family: custom-font;
+      }
+
+      @layer override {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/Ahem.ttf');
+        }
+      }
+
+      @layer base {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/noto/noto-sans-v8-latin-regular.woff') format('woff');
+        }
+      }
+    `
+  },
+
+  {
+    title: '@font-face override update with appended sheet 1',
+    style: `
+      @layer base, override;
+
+      #target {
+        font-family: custom-font;
+      }
+
+      @layer override {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/Ahem.ttf');
+        }
+      }
+    `,
+    append: `
+      @layer base {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/noto/noto-sans-v8-latin-regular.woff') format('woff');
+        }
+      }
+    `
+  },
+
+  {
+    title: '@font-face override update with appended sheet 2',
+    style: `
+      @layer base, override;
+
+      #target {
+        font-family: custom-font;
+      }
+
+      @layer base {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/noto/noto-sans-v8-latin-regular.woff') format('woff');
+        }
+      }
+    `,
+    append: `
+      @layer override {
+        @font-face {
+          font-family: custom-font;
+          src: url('/fonts/Ahem.ttf');
+        }
+      }
+    `
+  },
+];
+
+for (let testCase of testCases) {
+  promise_test(async () => {
+    var documentStyle = document.createElement('style');
+    documentStyle.appendChild(document.createTextNode(testCase['style']));
+    document.head.appendChild(documentStyle);
+
+    var appendedStyle;
+    if (testCase['append']) {
+      document.body.offsetLeft;  // Force style update
+      appendedStyle = document.createElement('style');
+      appendedStyle.appendChild(document.createTextNode(testCase['append']));
+      document.head.appendChild(appendedStyle);
+    }
+
+    await document.fonts.load('20px/1 custom-font');
+    assert_equals(getComputedStyle(target).width, '80px');
+
+    if (appendedStyle)
+      appendedStyle.remove();
+    documentStyle.remove();
+  }, testCase['title']);
+}
+</script>

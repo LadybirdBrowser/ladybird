@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SharedCompiledStyleSheet.h>
@@ -450,6 +451,7 @@ void StyleSheetState::set_disabled(bool disabled)
         }
     } else if (document && has_document_owner()) {
         document->font_computer().unload_fonts_from_sheet(*this);
+        document->fonts()->synchronize_css_connected_font_order();
     }
     forget_font_feature_values();
 

@@ -180,6 +180,8 @@ void StyleScope::remove_sheet(StyleSheetState& sheet, StyleEngineUpdate style_en
     sheet.remove_owning_document_or_shadow_root(node());
     bool did_remove = m_style_sheets.remove_first_matching([&](auto& entry) { return entry.ptr() == &sheet; });
     VERIFY(did_remove);
+    if (m_node->is_document())
+        document().fonts()->synchronize_css_connected_font_order();
     if (style_engine_update == StyleEngineUpdate::Record)
         record_stylesheet_detached(sheet, node());
 
