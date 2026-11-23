@@ -5,14 +5,17 @@
  */
 
 #include <LibCore/Environment.h>
+#include <LibCore/File.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/SystemDescription.h>
 
 using WebView::InstallMethod;
 
 static constexpr Array environment_variables { "XDG_CURRENT_DESKTOP"sv, "XDG_SESSION_TYPE"sv, "container"sv, "DISPLAY"sv, "WAYLAND_DISPLAY"sv };
 
-// Puts back what a test changes of the environment and the UI toolkit.
+// Puts back what a test changes of the environment, the resource root and the UI toolkit.
 struct RestoreSystem {
     RestoreSystem()
     {
@@ -28,10 +31,12 @@ struct RestoreSystem {
             else
                 MUST(Core::Environment::unset(environment_variables[i]));
         }
+        WebView::s_ladybird_resource_root = resource_root;
         WebView::set_ui_toolkit_for_reports({}, {});
     }
 
     Vector<Optional<ByteString>> saved;
+    ByteString resource_root { WebView::s_ladybird_resource_root };
 };
 
 static Optional<String> reported_value(StringView name)
@@ -88,6 +93,16 @@ runtime=runtime/org.freedesktop.Platform/x86_64/25.08
     EXPECT(!WebView::flatpak_runtime_from("[Instance]\nruntime=runtime/org.kde.Platform/x86_64/6.10\n"sv).has_value());
     EXPECT(!WebView::flatpak_runtime_from("[Application]\nruntime=org.kde.Platform\n"sv).has_value());
     EXPECT(!WebView::flatpak_runtime_from(""sv).has_value());
+}
+
+TEST_CASE(a_package_target_names_the_release_that_built_it)
+{
+    EXPECT_EQ(WebView::package_target_from("ID=ubuntu\nVERSION_ID=\"24.04\"\n"sv), "ubuntu 24.04"sv);
+    EXPECT_EQ(WebView::package_target_from("ID=fedora\nVERSION_ID=44\n"sv), "fedora 44"sv);
+    EXPECT_EQ(WebView::package_target_from("ID=ubuntu\nVERSION_ID=24.04-lab17\n"sv), "ubuntu"sv);
+    EXPECT_EQ(WebView::package_target_from("ID=arch\n"sv), "arch"sv);
+    EXPECT(!WebView::package_target_from("VERSION_ID=24.04\n"sv).has_value());
+    EXPECT(!WebView::package_target_from(""sv).has_value());
 }
 
 TEST_CASE(a_version_is_only_reported_as_a_number)
@@ -179,6 +194,28 @@ TEST_CASE(a_report_names_the_desktop_session_and_ui_toolkit)
     // Containers that leave no file of their own behind name themselves in the environment.
     MUST(Core::Environment::set("container"sv, "systemd-nspawn"sv, Core::Environment::Overwrite::Yes));
     EXPECT_EQ(reported_value("Container"sv), "systemd-nspawn"sv);
+#endif
+}
+
+TEST_CASE(only_a_package_reports_its_target)
+{
+    RestoreSystem restore;
+    Test::TemporaryDirectory directory { "TestSystemDescription"sv };
+    auto write = [&](StringView name, StringView contents) {
+        auto file = MUST(Core::File::open(directory.path().append(name).string(), Core::File::OpenMode::Write));
+        MUST(file->write_until_depleted(contents.bytes()));
+    };
+    WebView::s_ladybird_resource_root = directory.path().string();
+
+    write("package-target"sv, "ID=ubuntu\nVERSION_ID=\"24.04\"\n"sv);
+    EXPECT(!reported_value("Package target"sv).has_value());
+
+    write("package-format"sv, "DEB\n"sv);
+#if defined(AK_OS_MACOS)
+    EXPECT(!reported_value("Package target"sv).has_value());
+#else
+    EXPECT_EQ(reported_value("Install method"sv), "deb"sv);
+    EXPECT_EQ(reported_value("Package target"sv), "ubuntu 24.04"sv);
 #endif
 }
 

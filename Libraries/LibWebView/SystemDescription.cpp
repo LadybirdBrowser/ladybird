@@ -105,6 +105,17 @@ Optional<String> flatpak_runtime_from(StringView flatpak_info)
     return {};
 }
 
+Optional<String> package_target_from(StringView package_target)
+{
+    auto release = parse_os_release(package_target);
+    if (!release.id.has_value())
+        return {};
+    auto version = release.version_id.has_value() ? version_number_from(*release.version_id) : StringView {};
+    if (version.is_empty())
+        return release.id;
+    return MUST(String::formatted("{} {}", *release.id, version));
+}
+
 // Rounded to whole gibibytes, the way machines are sold.
 String describe_memory_size(u64 bytes)
 {
@@ -226,6 +237,18 @@ static Optional<String> current_flatpak_runtime()
     if (contents.is_error())
         return {};
     return flatpak_runtime_from(contents.value());
+}
+
+static Optional<String> current_package_target()
+{
+    auto path = LexicalPath::join(s_ladybird_resource_root, "package-target"sv).string();
+    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    if (file.is_error())
+        return {};
+    auto contents = file.value()->read_until_eof();
+    if (contents.is_error())
+        return {};
+    return package_target_from(contents.value());
 }
 
 // Whatever produced a value, a report only carries it if it is short and in a plain alphabet.
@@ -432,6 +455,8 @@ Vector<ReportedSystemDetail> describe_system_for_report()
     add("OS version"sv, version_number_from(view(system.macos_version.has_value() ? system.macos_version : os_release.version_id)));
     add("Distribution"sv, view(os_release.id));
     add("Install method"sv, install_method_name(system.install_method));
+    if (first_is_one_of(system.install_method, InstallMethod::DEB, InstallMethod::RPM))
+        add("Package target"sv, view(current_package_target()));
     // A Flatpak is a container of its own, which its runtime describes.
     if (system.install_method == InstallMethod::Flatpak)
         add("Flatpak runtime"sv, view(current_flatpak_runtime()));
