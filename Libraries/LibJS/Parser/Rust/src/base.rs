@@ -37,6 +37,22 @@ pub const USE_IN_WITH: u32 = 1 << 31;
 /// How many zero code units the lexer needs after the source.
 pub const SOURCE_PADDING: usize = 64;
 
+/// How far the directive prologue of a statement list has got.
+pub(crate) struct Prologue {
+    pub has_ended: bool,
+    /// Where the first directive with a legacy escape is, or `NONE`.
+    pub legacy_escape: u32,
+}
+
+impl Default for Prologue {
+    fn default() -> Self {
+        Self {
+            has_ended: false,
+            legacy_escape: NONE,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Only keep the tree of top-level code and of functions that are likely called right away.
@@ -668,14 +684,12 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
 
     pub fn parse_program(&mut self) -> u32 {
         self.open_scope_with(scope_flag::TOP, 0);
-        if !self.strict {
-            self.strict = self.has_use_strict_directive(self.pos as usize);
-        }
         self.lex();
         self.first_token_start = self.tok_start;
         let mark = self.scratch.len();
+        let mut prologue = Prologue::default();
         while self.tok != T::Eof {
-            let statement = self.parse_statement_list_item(true);
+            let (statement, _) = self.parse_statement_of_prologue(&mut prologue, true);
             self.scratch.push(statement);
         }
         let list = self.finish_list(mark);
