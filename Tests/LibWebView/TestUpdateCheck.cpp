@@ -18,7 +18,8 @@ static constexpr auto RELEASES = R"~~~({
       "version": "2026.47.0",
       "published": "2026-11-20T12:00:00Z",
       "downloads": [
-        { "platform": "source", "name": "ladybird-2026.47.0-source.tar.xz" }
+        { "platform": "source", "name": "ladybird-2026.47.0-source.tar.xz" },
+        { "platform": "Linux", "architecture": "x86_64", "name": "ladybird-2026.47.0-Linux-x86_64.tar.xz" }
       ],
       "repositories": {
         "apt": {
@@ -33,7 +34,8 @@ static constexpr auto RELEASES = R"~~~({
       "published": "2026-11-10T12:00:00Z",
       "downloads": [
         { "platform": "source", "name": "ladybird-2026.46.10-source.tar.xz" },
-        { "platform": "macOS", "architecture": "arm64", "name": "ladybird-2026.46.10-macOS-arm64.dmg", "minimum_macos_version": "15.0" }
+        { "platform": "macOS", "architecture": "arm64", "name": "ladybird-2026.46.10-macOS-arm64.dmg", "minimum_macos_version": "15.0" },
+        { "platform": "Linux", "architecture": "x86_64", "name": "ladybird-2026.46.10-Linux-x86_64.AppImage" }
       ],
       "repositories": {
         "apt": {
@@ -52,7 +54,8 @@ static constexpr auto RELEASES = R"~~~({
     {
       "version": "2026.46.9",
       "downloads": [
-        { "platform": "macOS", "architecture": "arm64", "name": "ladybird-2026.46.9-macOS-arm64.dmg", "minimum_macos_version": "14.4" }
+        { "platform": "macOS", "architecture": "arm64", "name": "ladybird-2026.46.9-macOS-arm64.dmg", "minimum_macos_version": "14.4" },
+        { "platform": "Linux", "architecture": "aarch64", "name": "ladybird-2026.46.9-Linux-aarch64.AppImage" }
       ],
       "repositories": {
         "apt": {
@@ -145,6 +148,7 @@ TEST_CASE(a_package_names_its_format)
 {
     EXPECT(WebView::parse_package_format("DEB\n"sv) == InstallMethod::DEB);
     EXPECT(WebView::parse_package_format("RPM"sv) == InstallMethod::RPM);
+    EXPECT(WebView::parse_package_format("AppImage\n"sv) == InstallMethod::AppImage);
     EXPECT(!WebView::parse_package_format("Flatpak\n"sv).has_value());
     EXPECT(!WebView::parse_package_format(""sv).has_value());
 }
@@ -167,6 +171,13 @@ TEST_CASE(flatpaks_and_builds_from_source_ignore_the_distribution)
     EXPECT_EQ(newest_for(linux_system(InstallMethod::Flatpak, Architecture::X86_64)), "2026.46.10"sv);
     EXPECT_EQ(newest_for(linux_system(InstallMethod::Flatpak, Architecture::AArch64)), "2026.46.9"sv);
     EXPECT_EQ(newest_for(linux_system(InstallMethod::Source, Architecture::Other)), "2026.47.0"sv);
+}
+
+TEST_CASE(an_appimage_takes_the_newest_appimage_of_its_architecture)
+{
+    EXPECT_EQ(newest_for(linux_system(InstallMethod::AppImage, Architecture::X86_64)), "2026.46.10"sv);
+    EXPECT_EQ(newest_for(linux_system(InstallMethod::AppImage, Architecture::AArch64)), "2026.46.9"sv);
+    EXPECT(!newest_for(linux_system(InstallMethod::AppImage, Architecture::Other)).has_value());
 }
 
 TEST_CASE(a_release_counts_once_it_was_published_before_the_given_time)
