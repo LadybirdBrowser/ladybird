@@ -1,0 +1,11 @@
+Ladybird uses a nonempty option label for display and otherwise
+shows the option text. Blink’s HTMLOptionElement::DisplayLabel,
+WebKit’s HTMLOptionElement::displayLabel, and Gecko’s
+HTMLOptionElement::GetRenderedLabel make this distinction.
+An empty label attribute still reflects as an empty string
+through the IDL getter.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 gave equal
+widths to otherwise identical selects with absent and empty
+labels. Changing an option label from a nonempty string to an empty
+one also restored its text.
