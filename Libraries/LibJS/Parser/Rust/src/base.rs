@@ -2557,8 +2557,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         }
     }
 
-    /// Every recursive path of the parser goes through this, and through leave() on the way back. The limit on the
-    /// depth also protects what walks the tree later, which recursion here reaches as deep as it reached here.
+    /// Every recursive path of the parser goes through this, and through leave() on the way back.
     #[inline(always)]
     pub(crate) fn enter(&mut self) -> bool {
         let marker = 0u8;

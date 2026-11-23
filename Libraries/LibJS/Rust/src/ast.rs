@@ -3028,10 +3028,13 @@ impl<'a> Statement<'a> {
         // https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations
         // LabelledItem : FunctionDeclaration
         // 1. Return « |FunctionDeclaration| ».
-        match self.kind() {
-            StatementKind::FunctionDeclaration(function) => Some(function),
-            StatementKind::Labelled(data) => data.item.function_declaration_for_labelled_item(),
-            _ => None,
+        let mut statement = *self;
+        loop {
+            match statement.kind() {
+                StatementKind::FunctionDeclaration(function) => return Some(function),
+                StatementKind::Labelled(data) => statement = data.item,
+                _ => return None,
+            }
         }
     }
 }
