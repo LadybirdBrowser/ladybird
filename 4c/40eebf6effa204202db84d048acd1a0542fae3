@@ -1,0 +1,11 @@
+Ladybird now treats a flex item’s min-content, max-content or fit-
+content minimum main size as auto where the main axis is the item’s
+block axis. Gecko does the same, in IsAutoOrEnumOnBSize(), while WebKit
+resolves such a keyword to the content height, in FlexFormattingUtils::
+useContentBasedMinimumSize(), and Blink to the min-content height.
+Chrome 158, Firefox 151 and WebKit 26.5 (engine-compare) all pass
+flex-minimum-height-flex-items-023, with the image at 100 by 50. With a
+height of 30px and “min-height: fit-content” over 70px of content in a
+zero-height column container, Firefox and WebKit give 30px, as Ladybird
+now does, and Chrome gives 70px. And a “min-width: min-content” in a row
+container keeps its 80px content size in all four engines.
