@@ -155,14 +155,17 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         case AV_PIX_FMT_YUVJ420P:
         case AV_PIX_FMT_YUVJ422P:
         case AV_PIX_FMT_YUVJ444P:
+        case AV_PIX_FMT_GBRP:
             return 8;
         case AV_PIX_FMT_YUV420P10:
         case AV_PIX_FMT_YUV422P10:
         case AV_PIX_FMT_YUV444P10:
+        case AV_PIX_FMT_GBRP10:
             return 10;
         case AV_PIX_FMT_YUV420P12:
         case AV_PIX_FMT_YUV422P12:
         case AV_PIX_FMT_YUV444P12:
+        case AV_PIX_FMT_GBRP12:
             return 12;
         default:
             return {};

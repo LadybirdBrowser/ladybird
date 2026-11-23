@@ -386,6 +386,27 @@ TEST_CASE(received_frames_must_be_ones_a_decoder_could_produce)
     auto too_wide = make_metadata();
     too_wide.size = { static_cast<int>(Media::MAX_VIDEO_FRAME_DIMENSION) + 1, 1 };
     EXPECT(!too_wide.is_valid());
+
+    auto subsampled_rgb = make_metadata();
+    subsampled_rgb.color_metadata.cicp.set_matrix_coefficients(Media::MatrixCoefficients::Identity);
+    EXPECT(receive(subsampled_rgb).is_error());
+    subsampled_rgb.subsampling = Media::Subsampling::yuv444();
+    EXPECT(!receive(subsampled_rgb).is_error());
+}
+
+// Only a picture without chroma subsampling can hold RGB.
+TEST_CASE(frames_keep_an_identity_matrix_only_without_subsampling)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(MUST(Media::frame_plane_layout(RESOLVED_FRAME_SIZE, 8, Media::Subsampling::yuv444())).total_byte_count).release_value();
+    Media::ColorMetadata color_metadata;
+    color_metadata.cicp.set_matrix_coefficients(Media::MatrixCoefficients::Identity);
+    auto make_frame = [&](Media::Subsampling subsampling) {
+        return make_ref_counted<Media::VideoFrame>(AK::Duration::zero(), AK::Duration::zero(), RESOLVED_FRAME_SIZE.to_type<u32>(), 8, subsampling, color_metadata, slot.storage);
+    };
+    EXPECT_EQ(make_frame(Media::Subsampling::yuv444())->cicp().matrix_coefficients(), Media::MatrixCoefficients::Identity);
+    EXPECT_EQ(make_frame(Media::Subsampling::yuv420())->cicp().matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
+    EXPECT_EQ(make_frame(Media::Subsampling::yuv422())->cicp().matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
 }
 
 TEST_CASE(metadata_that_could_not_have_been_decoded_is_refused_over_ipc)

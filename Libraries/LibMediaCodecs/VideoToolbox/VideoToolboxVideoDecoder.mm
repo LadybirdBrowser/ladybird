@@ -7,6 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGfx/VideoSurfaceImage.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
@@ -193,18 +194,46 @@ CodingIndependentCodePoints cicp_of_format_description(CMVideoFormatDescriptionR
     };
 }
 
+// H.264 and H.265 number their chroma formats alike.
+Subsampling subsampling_of_chroma_format(u8 chroma_format_idc)
+{
+    switch (chroma_format_idc) {
+    case 2:
+        return Subsampling::yuv422();
+    case 3:
+        return Subsampling::yuv444();
+    default:
+        return Subsampling::yuv420();
+    }
+}
+
+// A format description cannot express an identity matrix, so the colour description of the sequence parameter set is
+// taken over it.
+CodingIndependentCodePoints cicp_of_parameter_sets(CMVideoFormatDescriptionRef description, CodingIndependentCodePoints const& sequence_cicp)
+{
+    auto cicp = cicp_of_format_description(description);
+    cicp.adopt_specified_values(sequence_cicp);
+    return cicp;
+}
+
 // Left to choose for itself, a decoder hands back layouts that pack samples across element boundaries, which nothing
 // downstream can sample or read. Asking for the documented biplanar formats keeps the output to one sample per
 // component, in whichever range the stream is in.
-RetainedRef<CFMutableDictionaryRef> destination_attributes_for_bit_depth(u8 bit_depth)
+// An RGB picture comes back with green, blue and red in place of luma and chroma. The decoder converts between ranges
+// as if they were luma and chroma, so they are only asked for in the range the stream is in.
+RetainedRef<CFMutableDictionaryRef> destination_attributes(u8 bit_depth, Subsampling subsampling, CodingIndependentCodePoints const& cicp)
 {
-    Array<OSType, 2> pixel_formats { kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange };
-    if (bit_depth > 8)
-        pixel_formats = { kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange };
+    auto formats = Gfx::biplanar_pixel_formats_holding(bit_depth, subsampling);
+    if (formats.is_empty()) {
+        formats = Gfx::biplanar_pixel_formats_holding(bit_depth, Subsampling::yuv420());
+    } else if (cicp.matrix_coefficients() == MatrixCoefficients::Identity && subsampling == Subsampling::yuv444()) {
+        auto range = cicp.video_full_range_flag() == VideoFullRangeFlag::Studio ? VideoFullRangeFlag::Studio : VideoFullRangeFlag::Full;
+        formats.remove_all_matching([&](auto const& format) { return format.range != range; });
+    }
 
-    RetainedRef<CFMutableArrayRef> pixel_format_numbers { CFArrayCreateMutable(kCFAllocatorDefault, pixel_formats.size(), &kCFTypeArrayCallBacks) };
-    for (auto pixel_format : pixel_formats) {
-        RetainedRef<CFNumberRef> number { CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &pixel_format) };
+    RetainedRef<CFMutableArrayRef> pixel_format_numbers { CFArrayCreateMutable(kCFAllocatorDefault, formats.size(), &kCFTypeArrayCallBacks) };
+    for (auto const& format : formats) {
+        RetainedRef<CFNumberRef> number { CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &format.pixel_format) };
         CFArrayAppendValue(pixel_format_numbers.ref(), number.ref());
     }
 
@@ -362,13 +391,22 @@ struct H264State final : FormatState {
         Vector<u8 const*, 288> set_pointers;
         Vector<size_t, 288> set_sizes;
         u8 reorder_frame_count = 0;
+        u8 bit_depth = 8;
+        // Only one sequence parameter set can describe the layout that frames are asked for in, so the first one does.
+        Optional<Subsampling> subsampling;
+        CodingIndependentCodePoints sequence_cicp;
         auto requires_hardware_decoder = false;
         for (auto const& set : parameter_sets.sequence_parameter_sets()) {
             set_pointers.append(set.nal_unit.data());
             set_sizes.append(set.nal_unit.size());
             // Bound every SPS a slice could select, without parsing slice headers to track activation.
             reorder_frame_count = max(reorder_frame_count, set.parameters.max_num_reorder_frames);
+            bit_depth = max(bit_depth, set.parameters.bit_depth_luma);
             requires_hardware_decoder |= !software_decoder_can_decode(set.parameters);
+            if (!subsampling.has_value()) {
+                subsampling = subsampling_of_chroma_format(set.parameters.chroma_format_idc);
+                sequence_cicp = set.parameters.cicp;
+            }
         }
         if (set_pointers.is_empty())
             return {};
@@ -387,7 +425,8 @@ struct H264State final : FormatState {
         if (CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), cicp_of_format_description(description), reorder_frame_count, requires_hardware_decoder };
+        auto cicp = cicp_of_parameter_sets(description, sequence_cicp);
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes(bit_depth, subsampling.value(), cicp), cicp, reorder_frame_count, requires_hardware_decoder };
     }
 };
 
@@ -482,6 +521,9 @@ struct H265State final : FormatState {
         // and takes them in this order.
         u8 reorder_frame_count = 0;
         u8 bit_depth = 8;
+        // Only one sequence parameter set can describe the layout that frames are asked for in, so the first one does.
+        Optional<Subsampling> subsampling;
+        CodingIndependentCodePoints sequence_cicp;
         for (auto const& set : parameter_sets.video_parameter_sets()) {
             auto is_referenced = false;
             for (auto const& sequence_set : parameter_sets.sequence_parameter_sets())
@@ -500,6 +542,10 @@ struct H265State final : FormatState {
             // Bound every sequence set a slice could select, without parsing slice headers to track activation.
             reorder_frame_count = max(reorder_frame_count, set.parameters.sps_max_num_reorder_pics);
             bit_depth = max(bit_depth, set.parameters.bit_depth_luma);
+            if (!subsampling.has_value()) {
+                subsampling = subsampling_of_chroma_format(set.parameters.chroma_format_idc);
+                sequence_cicp = set.parameters.cicp;
+            }
         }
         if (set_pointers.size() == video_count)
             return {};
@@ -519,7 +565,8 @@ struct H265State final : FormatState {
         if (CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, nullptr, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), cicp_of_format_description(description), reorder_frame_count };
+        auto cicp = cicp_of_parameter_sets(description, sequence_cicp);
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes(bit_depth, subsampling.value(), cicp), cicp, reorder_frame_count };
     }
 };
 
@@ -563,7 +610,7 @@ struct VP9State final : FormatState {
 
         return DecoderFormat {
             .description = RetainedRef<CMVideoFormatDescriptionRef> { description },
-            .destination_attributes = destination_attributes_for_bit_depth(header->bit_depth),
+            .destination_attributes = destination_attributes(header->bit_depth, Subsampling::yuv420(), header->color_parameters.cicp),
             .cicp = header->color_parameters.cicp,
             .requires_hardware_decoder = true,
         };
@@ -612,7 +659,7 @@ struct AV1State final : FormatState {
 
         return DecoderFormat {
             .description = RetainedRef<CMVideoFormatDescriptionRef> { description },
-            .destination_attributes = destination_attributes_for_bit_depth(parameters.bit_depth),
+            .destination_attributes = destination_attributes(parameters.bit_depth, Subsampling::yuv420(), parameters.optional_fields.cicp),
             .cicp = parameters.optional_fields.cicp,
             .requires_hardware_decoder = true,
         };
@@ -867,8 +914,9 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(ColorMetadata
     if (surface_or_error.is_error())
         return;
 
-    auto pixel_format = CVPixelBufferGetPixelFormatType(pixel_buffer);
-    auto is_ten_bit = pixel_format == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange || pixel_format == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange;
+    auto pixel_format = Gfx::biplanar_pixel_format(CVPixelBufferGetPixelFormatType(pixel_buffer));
+    if (!pixel_format.has_value())
+        return;
 
     if (m_decode_failure.has_value())
         return;
@@ -883,8 +931,8 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(ColorMetadata
         .timestamp = timestamp,
         .duration = duration,
         .size = { static_cast<int>(CVPixelBufferGetWidth(pixel_buffer)), static_cast<int>(CVPixelBufferGetHeight(pixel_buffer)) },
-        .bit_depth = static_cast<u8>(is_ten_bit ? 10 : 8),
-        .subsampling = Subsampling::yuv420(),
+        .bit_depth = pixel_format->bit_depth,
+        .subsampling = pixel_format->subsampling,
         .color_metadata = color_metadata,
     };
     insert_output_in_presentation_order_while_locked(move(output));

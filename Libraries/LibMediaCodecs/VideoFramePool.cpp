@@ -254,7 +254,7 @@ ErrorOr<NonnullRefPtr<VideoFrame>> create_received_video_frame(VideoFrameMetadat
 
     if (auto surface = storage->surface()) {
         auto surface_size = surface->size();
-        if (metadata.subsampling != Subsampling::yuv420() || metadata.size.width() > surface_size.width() || metadata.size.height() > surface_size.height())
+        if (metadata.subsampling != surface->subsampling() || metadata.size.width() > surface_size.width() || metadata.size.height() > surface_size.height())
             return Error::from_string_literal("Video frame metadata does not match its surface");
     } else {
         TRY(yuv_data_in_buffer(storage->pixel_buffer(), metadata.size, metadata.bit_depth, metadata.subsampling, metadata.color_metadata.cicp));
