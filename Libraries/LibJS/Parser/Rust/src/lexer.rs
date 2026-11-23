@@ -89,6 +89,11 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     pub(crate) fn lex(&mut self) {
+        // NB: A parse that has failed lexes no further into the source, whose end may have no padding.
+        if self.err.is_some() {
+            self.tok = T::Eof;
+            return;
+        }
         let mut p = self.pos as usize;
         let mut newline = false;
         let c = loop {
@@ -922,6 +927,9 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// Whether the directive prologue at `start` contains "use strict". This looks ahead in the source so that the
     /// rest of the prologue is parsed knowing it.
     pub(crate) fn has_use_strict_directive(&mut self, start: usize) -> bool {
+        if self.err.is_some() {
+            return false;
+        }
         let mut p = start;
         loop {
             p = self.skip_trivia_raw(p).0;

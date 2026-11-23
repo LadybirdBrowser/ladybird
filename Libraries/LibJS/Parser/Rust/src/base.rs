@@ -37,9 +37,6 @@ pub const USE_IN_WITH: u32 = 1 << 31;
 /// How many zero code units the lexer needs after the source.
 pub const SOURCE_PADDING: usize = 64;
 
-/// What the lexer finds past the end of a source without padding once a parse has given up on it.
-static NO_MORE_SOURCE: [u16; 64] = [0; 64];
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Only keep the tree of top-level code and of functions that are likely called right away.
@@ -946,10 +943,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     pub(crate) fn fail(&mut self, pos: u32, message: &'a str) {
         if self.err.is_none() {
             self.err = Some(PendingError { pos, message });
-        }
-        if self.is_reparsing() {
-            // The end of the source may have no padding, and the lexer is about to read it.
-            self.src = NO_MORE_SOURCE.as_ptr().cast::<U>().wrapping_sub(self.len as usize);
         }
         self.tok = T::Eof;
         self.tok_start = self.len;
