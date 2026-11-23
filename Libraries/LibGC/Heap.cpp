@@ -1212,6 +1212,9 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
 
     m_last_collection_end_ns = MonotonicTime::now().nanoseconds();
     m_total_allocated_bytes_at_last_collection = m_total_allocated_bytes;
+    // NB: Whatever started this collection, what was allocated before it is no longer garbage that the idle timer or
+    //     the allocation threshold should count.
+    m_allocated_bytes_since_last_gc = 0;
 
     if (m_stats) {
         m_stats->pause_duration_ns = m_last_collection_end_ns - mark_start_ns;
