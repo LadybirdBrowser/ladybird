@@ -1,0 +1,9 @@
+Ladybird now splits a right-to-left run for an overflow break at a
+grapheme boundary from its logical start, so the part on each line
+is a consecutive logical stretch drawn from the line’s right end.
+WebKit’s TextUtil::breakWord() splits by logical text ranges whatever
+the direction, and Blink and Gecko break such words too. Checked in
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5: All three break
+Hebrew and Arabic words under overflow-wrap: break-word and anywhere
+and word-break: break-word, with each line in logical order and
+starting at its right end.
