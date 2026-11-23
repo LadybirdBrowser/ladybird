@@ -1,0 +1,10 @@
+Ladybird now removes a line’s trailing collapsible spaces before
+aligning it, whichever direction the line is and whatever ends
+it. Gecko’s nsBlockFrame::PlaceLine() calls nsLineLayout::
+TrimTrailingWhiteSpace() before nsLineLayout::TextAlignLine(),
+Blink’s LineBreaker::RemoveTrailingCollapsibleSpace() runs before
+InlineLayoutAlgorithm::ApplyTextAlign(), and WebKit’s line builder
+calls Line::handleTrailingTrimmableContent() before the line is aligned.
+Checked in Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5: All
+three put the line before the br at the right edge, and center it on the
+same axis as the lines around it.
