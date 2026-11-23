@@ -1,0 +1,22 @@
+diff --git a/source/data/Makefile.in b/source/data/Makefile.in
+index a362715..cb3d6cf 100644
+--- a/source/data/Makefile.in
++++ b/source/data/Makefile.in
+@@ -233,12 +233,16 @@ build-local: $(SO_VERSION_DATA) $(ICUDATA_ALL_OUTPUT_FILES) $(PKGDATA_LIST)
+ else
+ build-local: $(SO_VERSION_DATA) $(PKGDATA_LIST)
+ 	echo timestamp > $@
++# Ladybird: leave out the charset converters and StringPrep profiles.
++LADYBIRD_UNUSED_DATA_ITEMS = (\.cnv|^cnvalias\.icu|\.spp)[[:space:]]*$$
+ $(PKGDATA_LIST): $(SRCLISTDEPS) $(ICUDATA_SOURCE_ARCHIVE)
+ ifneq ($(ICUDATA_SOURCE_IS_NATIVE_TARGET),YES)
+ 	$(MKINSTALLDIRS) $(OUTTMPDIR) $(BUILDDIR)
+ 	@echo "Unpacking $(ICUDATA_SOURCE_ARCHIVE) and generating $@ (list of data files)"
+ 	@-$(RMV) $@
+-	$(INVOKE) $(TOOLBINDIR)/icupkg -d $(BUILDDIR) --list -x \* $(ICUDATA_SOURCE_ARCHIVE) -o $@
++	$(INVOKE) $(TOOLBINDIR)/icupkg -d $(BUILDDIR) --list -x \* $(ICUDATA_SOURCE_ARCHIVE) -o $@.all
++	grep -q -E '$(LADYBIRD_UNUSED_DATA_ITEMS)' $@.all
++	grep -v -E '$(LADYBIRD_UNUSED_DATA_ITEMS)' $@.all > $@
+ else
+ 	@echo "$@" > $@
+ endif
