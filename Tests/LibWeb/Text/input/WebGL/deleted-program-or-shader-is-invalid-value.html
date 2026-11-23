@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Passing a deleted program or shader is an INVALID_VALUE error, where passing any other deleted object, or a
+    // program or shader of another context, is an INVALID_OPERATION error.
+    test(() => {
+        const gl = document.createElement("canvas").getContext("webgl");
+        const names = {
+            [gl.NO_ERROR]: "NO_ERROR",
+            [gl.INVALID_VALUE]: "INVALID_VALUE",
+            [gl.INVALID_OPERATION]: "INVALID_OPERATION",
+        };
+        function compiledShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+        function linkedProgram() {
+            const program = gl.createProgram();
+            gl.attachShader(program, compiledShader(gl.VERTEX_SHADER, "attribute vec4 a; uniform vec4 u; void main() { gl_Position = a + u; }"));
+            gl.attachShader(program, compiledShader(gl.FRAGMENT_SHADER, "void main() { gl_FragColor = vec4(1.0); }"));
+            gl.linkProgram(program);
+            return program;
+        }
+        function check(label, call) {
+            gl.getError();
+            const result = call();
+            println(`${label}: ${names[gl.getError()]}, returns ${result === undefined ? "undefined" : JSON.stringify(result)}`);
+        }
+
+        const program = linkedProgram();
+        gl.deleteProgram(program);
+        check("getAttribLocation()", () => gl.getAttribLocation(program, "a"));
+        check("getUniformLocation()", () => gl.getUniformLocation(program, "u"));
+        check("getProgramParameter()", () => gl.getProgramParameter(program, gl.LINK_STATUS));
+        check("getProgramInfoLog()", () => gl.getProgramInfoLog(program));
+        check("getActiveAttrib()", () => gl.getActiveAttrib(program, 0));
+        check("getAttachedShaders()", () => gl.getAttachedShaders(program));
+        check("bindAttribLocation()", () => gl.bindAttribLocation(program, 0, "a"));
+        check("linkProgram()", () => gl.linkProgram(program));
+        check("validateProgram()", () => gl.validateProgram(program));
+        check("useProgram()", () => gl.useProgram(program));
+        check("isProgram()", () => gl.isProgram(program));
+
+        const shader = compiledShader(gl.VERTEX_SHADER, "void main() {}");
+        gl.deleteShader(shader);
+        check("getShaderParameter()", () => gl.getShaderParameter(shader, gl.COMPILE_STATUS));
+        check("getShaderSource()", () => gl.getShaderSource(shader));
+        check("shaderSource()", () => gl.shaderSource(shader, "void main() {}"));
+        check("compileShader()", () => gl.compileShader(shader));
+        check("attachShader()", () => gl.attachShader(gl.createProgram(), shader));
+
+        const buffer = gl.createBuffer();
+        gl.deleteBuffer(buffer);
+        check("bindBuffer() with a deleted buffer", () => gl.bindBuffer(gl.ARRAY_BUFFER, buffer));
+
+        const otherContext = document.createElement("canvas").getContext("webgl");
+        check("getAttribLocation() with another context's program", () => gl.getAttribLocation(otherContext.createProgram(), "a"));
+    });
+</script>

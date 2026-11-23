@@ -576,7 +576,7 @@ impl<V: Version> RenderingContext<V> {
         program: Ref<WebGLProgram>,
         pname: u32,
     ) -> WebIdlResult<Value> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(Value::NULL);
         };
 
@@ -633,7 +633,7 @@ impl<V: Version> RenderingContext<V> {
         shader: Ref<WebGLShader>,
         pname: u32,
     ) -> WebIdlResult<Value> {
-        let Some(shader_handle) = self.handle_of(shader) else {
+        let Some(shader_handle) = self.handle_of_program_or_shader(shader) else {
             return Ok(Value::NULL);
         };
 

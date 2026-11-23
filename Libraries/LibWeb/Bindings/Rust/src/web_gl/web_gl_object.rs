@@ -66,6 +66,13 @@ impl WebGLObject {
         }
     }
 
+    /// Whether this object belongs to `context`, and was deleted there rather than lost with an earlier context.
+    pub(crate) fn was_deleted_in(&self, context: &ContextState) -> bool {
+        self.validate_context(context).is_ok()
+            && self.invalidated.get()
+            && self.context_generation == context.context_generation()
+    }
+
     pub(crate) fn invalidated_for_context(&self, context: &ContextState) -> bool {
         self.invalidated.get() || self.context_generation != context.context_generation()
     }

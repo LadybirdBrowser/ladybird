@@ -1398,7 +1398,7 @@ impl RenderingContext<WebGL2> {
         varyings: Vec<Utf16String>,
         buffer_mode: u32,
     ) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
         let varyings: Vec<Vec<u8>> = varyings.iter().map(utf8_bytes).collect();
@@ -1471,7 +1471,7 @@ impl RenderingContext<WebGL2> {
         program: Ref<WebGLProgram>,
         uniform_names: Vec<Utf16String>,
     ) -> WebIdlResult<Option<Vec<u32>>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
         let uniform_names: Vec<Vec<u8>> = uniform_names.iter().map(utf8_bytes).collect();
@@ -1489,7 +1489,7 @@ impl RenderingContext<WebGL2> {
         uniform_indices: Vec<u32>,
         pname: u32,
     ) -> WebIdlResult<Value> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(Value::NULL);
         };
         let Ok(uniform_count) = i32::try_from(uniform_indices.len()) else {
@@ -1532,7 +1532,7 @@ impl RenderingContext<WebGL2> {
         program: Ref<WebGLProgram>,
         uniform_block_name: Utf16String,
     ) -> WebIdlResult<u32> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(GL_INVALID_INDEX);
         };
         Ok(self
@@ -1547,7 +1547,7 @@ impl RenderingContext<WebGL2> {
         uniform_block_index: u32,
         pname: u32,
     ) -> WebIdlResult<Value> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(Value::NULL);
         };
         match pname {
@@ -1610,7 +1610,7 @@ impl RenderingContext<WebGL2> {
         program: Ref<WebGLProgram>,
         uniform_block_index: u32,
     ) -> WebIdlResult<Option<Utf16String>> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(None);
         };
         let mut uniform_block_name_length = [0];
@@ -1645,7 +1645,7 @@ impl RenderingContext<WebGL2> {
         uniform_block_index: u32,
         uniform_block_binding: u32,
     ) -> WebIdlResult<()> {
-        let Some(program_handle) = self.handle_of(program) else {
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
             return Ok(());
         };
         self.proxy
