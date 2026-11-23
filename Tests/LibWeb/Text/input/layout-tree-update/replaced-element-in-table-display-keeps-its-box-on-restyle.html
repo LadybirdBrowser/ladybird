@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .row { overflow: hidden; width: 300px; margin-bottom: 10px; }
+    .float { float: left; width: 10px; height: 10px; }
+    .cell { display: table-cell; }
+</style>
+<!-- A replaced element in a table display is laid out as inline, before a restyle of the whole document and after it. -->
+<div class="row"><div class="float"></div><input class="cell" style="width: 100px; height: 20px"></div>
+<div class="row"><div class="float"></div><img class="cell" width="40" height="20" src="../../../Assets/120.png"></div>
+<div class="row"><div class="float"></div><img style="display: table-row" width="40" height="20" src="../../../Assets/120.png"></div>
+<div class="row"><div class="float"></div><img style="display: table" width="40" height="20" src="../../../Assets/120.png"></div>
+<div class="row"><div class="float"></div><canvas class="cell" width="40" height="20"></canvas></div>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const sizes = () => [...document.querySelectorAll(".row")].map(row => {
+            const rect = row.lastElementChild.getBoundingClientRect();
+            return `${row.lastElementChild.localName} ${rect.width}x${rect.height}`;
+        });
+        const before = sizes();
+        document.documentElement.style.setProperty("--anything", "1");
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const after = sizes();
+        before.forEach((size, index) => println(`${size} -> ${after[index].split(" ")[1]}`));
+        done();
+    });
+</script>

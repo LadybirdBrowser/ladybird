@@ -4061,27 +4061,17 @@ impl LayoutNodeArena {
         self.update_layout_style(host_calls, node, LayoutStyle::reset_table_properties);
     }
 
-    pub(crate) fn make_display_contents_pseudo_element_box_inline(
-        &mut self,
-        host_calls: HostCalls<'_>,
-        node: NodeSlotId,
-    ) {
-        self.update_layout_style(host_calls, node, |style, _| {
-            style.set_display(crate::layout::FfiDisplay::outside_and_inside(
-                crate::css::css_enums::display_outside::INLINE,
-                crate::css::css_enums::display_inside::FLOW,
-                false,
-            ));
-        });
-    }
-
-    fn is_display_contents_pseudo_element_box_holding_its_published_display(&self, node: NodeSlotId) -> bool {
+    /// Gives `node` the display its box uses for the display it publishes, as building the box did: A replaced element
+    /// in a table display is inline, e.g., and a `display: contents` pseudo-element is an inline box.
+    fn rewrite_used_display(&mut self, host_calls: HostCalls<'_>, node: NodeSlotId) {
+        let Some(display) = self.style_view(node).map(|payloads| payloads.display()) else {
+            return;
+        };
         let data = self.data(node);
-        data.kind.get() == NodeKind::InlineNode
-            && super::node_facts::has_flag(data, NodeFlag::IsPseudoElementPrincipalBox)
-            && self
-                .style_view(node)
-                .is_some_and(|payloads| payloads.display().is_contents())
+        let used_display = super::tree_builder::used_display_of_box(data.kind.get(), data.flags.get(), display);
+        if used_display != display {
+            self.update_layout_style(host_calls, node, |style, _| style.set_display(used_display));
+        }
     }
 
     pub(crate) fn reinherit_anonymous_descendants(&mut self, host_calls: HostCalls<'_>, node: NodeSlotId) {
@@ -4094,9 +4084,7 @@ impl LayoutNodeArena {
             return;
         }
         self.reinherit_first_letter_box(host_calls, node);
-        if self.is_display_contents_pseudo_element_box_holding_its_published_display(node) {
-            self.make_display_contents_pseudo_element_box_inline(host_calls, node);
-        }
+        self.rewrite_used_display(host_calls, node);
         let parent = self.data(node).parent.get();
         let parent_is_table_wrapper_of_this_table_box = !parent.is_invalid()
             && self.data(parent).kind.get() == NodeKind::TableWrapper
