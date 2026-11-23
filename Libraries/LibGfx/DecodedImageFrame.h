@@ -17,6 +17,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/RasterizerData.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 
@@ -25,6 +26,8 @@
 #endif
 
 namespace Gfx {
+
+struct DecodedImageFrameRasterizerData;
 
 class DecodedImageFrame final {
 public:
@@ -43,8 +46,11 @@ public:
 
         u64 id() const { return m_id; }
 
+        auto const& rasterizer_data() const { return m_rasterizer_data; }
+
     private:
         u64 m_id { 0 };
+        RasterizerDataSlot<DecodedImageFrameRasterizerData> m_rasterizer_data;
     };
 
     using IdentityDestructionObserver = void (*)(SharedIdentity const&);

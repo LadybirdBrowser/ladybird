@@ -15,7 +15,7 @@
 
 namespace Gfx {
 
-// What a rasterizer keeps with a typeface or a font, for as long as the typeface or the font lives.
+// What a rasterizer keeps with a font, typeface, or decoded image frame for its lifetime.
 class RasterizerData {
     AK_ALLOC_WITH_KMALLOC;
 

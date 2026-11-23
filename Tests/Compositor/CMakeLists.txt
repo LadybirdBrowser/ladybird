@@ -2,6 +2,7 @@ ladybird_test_suite(Compositor)
 
 set(TEST_SOURCES
     TestBitmapExport.cpp
+    TestCanvas2DCommandPlayer.cpp
     TestCanvasSurfaceRegistry.cpp
     TestVideoFrameHolds.cpp
     TestVSyncScheduler.cpp

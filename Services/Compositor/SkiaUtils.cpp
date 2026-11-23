@@ -535,13 +535,13 @@ sk_sp<SkImage> sk_texture_image_sharing_pixels_of_decoded_image_frame([[maybe_un
 #endif
 }
 
-sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace const& color_space)
+sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap const> bitmap, ColorSpace const& color_space)
 {
     auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->format(), bitmap->alpha_type()), to_skia_color_space(color_space));
     auto row_bytes = bitmap->pitch();
     auto byte_count = bitmap->size_in_bytes();
     auto* pixels = bitmap->scanline_u8(0);
-    auto data = SkData::MakeWithProc(pixels, byte_count, [](void const*, void* context) { static_cast<Bitmap*>(context)->unref(); }, &bitmap.leak_ref());
+    auto data = SkData::MakeWithProc(pixels, byte_count, [](void const*, void* context) { static_cast<Bitmap const*>(context)->unref(); }, const_cast<Bitmap*>(&bitmap.leak_ref()));
     return SkImages::RasterFromData(info, move(data), row_bytes);
 }
 
