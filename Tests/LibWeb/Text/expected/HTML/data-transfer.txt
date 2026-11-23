@@ -14,3 +14,4 @@ surviving file item keeps its identity: true
 removed item kind: ""
 callback ran before yielding: false
 queued string after removal: well hello friends
+reported callback error: getAsString callback error
