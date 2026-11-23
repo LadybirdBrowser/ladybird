@@ -9,10 +9,12 @@ use std::collections::VecDeque;
 use crate::entities::NamedCharacterReferenceMatcher;
 use crate::input::Input;
 use crate::input::InputSlice;
+use crate::scan;
 use crate::token::Attribute;
 use crate::token::DoctypeData;
 use crate::token::HtmlName;
 use crate::token::Position;
+use crate::token::SourceOffset;
 use crate::token::Token;
 use crate::token::TokenPayload;
 use crate::token::TokenType;
@@ -205,6 +207,18 @@ impl State {
     }
 }
 
+/// The lines and columns of offsets into the input, which are only worked out when something asks for them.
+#[derive(Default)]
+struct SourcePositions {
+    /// The position of the start of the input buffer, which stops being the start of the input once consumed input
+    /// is discarded.
+    start: Position,
+    /// The last offset a position was worked out for, and that position. Offsets are mostly asked about in
+    /// increasing order, so the next one is usually found by going on from here.
+    known_offset: usize,
+    known_position: Position,
+}
+
 /// The HTML tokenizer state machine.
 ///
 /// Implements the WHATWG HTML tokenizer specification (section 13.2.5).
@@ -220,13 +234,7 @@ pub struct HtmlTokenizer {
     temporary_buffer: Vec<u32>,
     character_reference_code: u32,
     last_emitted_start_tag_name: Option<HtmlName>,
-    source_positions: Vec<Position>,
-    // Mirror of the most recent entry in source_positions, kept in sync
-    // with it on the slow path and updated directly on the fast
-    // character-emission path so we don't have to push into the Vec per
-    // character in Data-state text runs.
-    current_line: u64,
-    current_column: u64,
+    source_positions: SourcePositions,
     has_emitted_eof: bool,
     aborted: bool,
     insertion_point: Option<usize>,
@@ -360,9 +368,7 @@ impl HtmlTokenizer {
             temporary_buffer: Vec::new(),
             character_reference_code: 0,
             last_emitted_start_tag_name: None,
-            source_positions: vec![Position { line: 0, column: 0 }],
-            current_line: 0,
-            current_column: 0,
+            source_positions: SourcePositions::default(),
             has_emitted_eof: false,
             aborted: false,
             insertion_point: None,
@@ -423,6 +429,11 @@ impl HtmlTokenizer {
             self.input.insert(ip, code_units);
             self.insertion_point = Some(ip + code_units.len());
             self.forget_speculative_scan_end_before(ip);
+            // NB: A line feed inserted right after a carriage return becomes part of its line end.
+            if ip <= self.source_positions.known_offset {
+                self.source_positions.known_offset = 0;
+                self.source_positions.known_position = self.source_positions.start;
+            }
             for old_insertion_point in &mut self.old_insertion_points {
                 if let Some(old_ip) = old_insertion_point
                     && ip <= *old_ip
@@ -465,15 +476,35 @@ impl HtmlTokenizer {
             return false;
         }
 
+        // Tokens say where they are with offsets into the input.
+        if !self.queued_tokens.is_empty() {
+            return false;
+        }
+
+        // A token that isn't finished has such offsets too, and the states that lead up to one work out where it
+        // starts from where they are, so the input stays until the tokenizer is back between tokens.
+        let is_between_tokens = matches!(
+            self.state,
+            State::Data
+                | State::RCDATA
+                | State::RAWTEXT
+                | State::ScriptData
+                | State::PLAINTEXT
+                | State::ScriptDataEscaped
+                | State::ScriptDataDoubleEscaped
+                | State::CDATASection
+        );
+        if !is_between_tokens {
+            return false;
+        }
+
         if self.insertion_point.is_some_and(|insertion_point| insertion_point != 0)
             || !self.old_insertion_points.is_empty()
         {
             return false;
         }
 
-        // Named character references can pause at the end of an open input stream with matcher state that still needs
-        // to backtrack through consumed input once more bytes arrive.
-        self.state != State::NamedCharacterReference
+        true
     }
 
     pub fn parser_did_run(&mut self) {
@@ -486,14 +517,15 @@ impl HtmlTokenizer {
             .speculative_scan_end
             .filter(|end| *end == self.input.len())
             .map(|_| 0);
+        let end_position = self.position_at(SourceOffset::new(self.input.len()));
+        self.source_positions = SourcePositions {
+            start: end_position,
+            known_offset: 0,
+            known_position: end_position,
+        };
         self.input = Input::default();
         self.current_offset = 0;
         self.prev_offset = 0;
-        let last_position = *self.source_positions.last().unwrap_or(&Position::default());
-        self.source_positions.clear();
-        self.source_positions.push(last_position);
-        self.current_line = last_position.line;
-        self.current_column = last_position.column;
     }
 
     pub fn insert_eof(&mut self) {
@@ -546,61 +578,18 @@ impl HtmlTokenizer {
     }
 
     #[inline(always)]
-    fn advance(&mut self, code_unit_count: usize, code_point: u32) {
-        if !self.source_positions.is_empty() {
-            let last = *self.source_positions.last().unwrap();
-            self.source_positions.push(last);
-        }
-        let (mut line, mut column) = if let Some(pos) = self.source_positions.last() {
-            (pos.line, pos.column)
-        } else {
-            (self.current_line, self.current_column)
-        };
+    fn advance(&mut self, code_unit_count: usize) {
         self.prev_offset = self.current_offset;
-        if code_point == 0x0A {
-            line += 1;
-            column = 0;
-        } else {
-            column += 1;
-        }
         self.current_offset += code_unit_count;
-        self.current_line = line;
-        self.current_column = column;
-        if let Some(pos) = self.source_positions.last_mut() {
-            pos.line = line;
-            pos.column = column;
-        }
     }
 
     #[inline(always)]
     fn skip_ascii(&mut self, count: usize) {
-        if !self.source_positions.is_empty() {
-            let last = *self.source_positions.last().unwrap();
-            self.source_positions.push(last);
-        }
-        let (mut line, mut column) = if let Some(pos) = self.source_positions.last() {
-            (pos.line, pos.column)
-        } else {
-            (self.current_line, self.current_column)
-        };
-        for _ in 0..count {
-            self.prev_offset = self.current_offset;
-            let code_point = self.input.code_unit_at(self.current_offset);
-            debug_assert!(code_point < 0x80);
-            if code_point == 0x0A {
-                line += 1;
-                column = 0;
-            } else {
-                column += 1;
-            }
-            self.current_offset += 1;
-        }
-        self.current_line = line;
-        self.current_column = column;
-        if let Some(pos) = self.source_positions.last_mut() {
-            pos.line = line;
-            pos.column = column;
-        }
+        debug_assert!(
+            (self.current_offset..self.current_offset + count).all(|offset| self.input.code_unit_at(offset) < 0x80)
+        );
+        self.current_offset += count;
+        self.prev_offset = self.current_offset - 1;
     }
 
     #[inline(always)]
@@ -611,35 +600,67 @@ impl HtmlTokenizer {
         }
         let (cp, code_unit_count) = self.code_point_at(self.current_offset)?;
         if cp != 0x0D {
-            self.advance(code_unit_count, cp);
+            self.advance(code_unit_count);
             return Some(cp);
         }
         // Slow path: CR normalization
         let next = self.peek_code_point(1).unwrap_or(0);
         if next == 0x0A {
-            self.advance(2, 0x0A);
+            self.advance(2);
         } else {
-            self.advance(1, 0x0A);
+            self.advance(1);
         }
         Some(0x0A)
     }
 
+    /// Where the code point that was consumed last starts.
     #[inline(always)]
-    fn nth_last_position(&self, n: usize) -> Position {
-        if n + 1 > self.source_positions.len() {
-            return Position { line: 0, column: 0 };
+    fn offset_before_last_code_point(&self) -> SourceOffset {
+        let offset = self.current_offset;
+        if offset < 2 {
+            return SourceOffset::new(0);
         }
-        self.source_positions[self.source_positions.len() - 1 - n]
+        let last = self.input.code_unit_at(offset - 1);
+        let second_to_last = self.input.code_unit_at(offset - 2);
+        // NB: A CR and the LF after it are consumed as one line feed, and a surrogate pair is one code point.
+        let is_one_code_point = (second_to_last == 0x0D && last == 0x0A)
+            || (is_high_surrogate(second_to_last) && (0xDC00..=0xDFFF).contains(&last));
+        SourceOffset::new(offset - if is_one_code_point { 2 } else { 1 })
+    }
+
+    #[inline(always)]
+    fn offset(&self) -> SourceOffset {
+        SourceOffset::new(self.current_offset)
+    }
+
+    /// The line and column of an offset into the input, which must not be in the middle of a code point.
+    pub fn position_at(&mut self, offset: SourceOffset) -> Position {
+        let Some(offset) = offset.get() else {
+            return Position::default();
+        };
+        let offset = offset.min(self.input.len());
+        let positions = &mut self.source_positions;
+        if offset < positions.known_offset {
+            positions.known_offset = 0;
+            positions.known_position = positions.start;
+        }
+        let range = positions.known_offset..offset;
+        positions.known_position = match &self.input {
+            Input::Latin1(code_units) => scan::position_after(positions.known_position, &code_units[range]),
+            Input::Utf16(code_units) => scan::position_after(positions.known_position, &code_units[range]),
+        };
+        positions.known_offset = offset;
+        positions.known_position
     }
 
     /// Fast-path character emission from the Data state: if the tokenizer
     /// is positioned at a plain-text code point (not `<`, `&`, NUL, CR,
     /// or any non-ASCII character) and the queue is empty, advance one
-    /// code point and return the character's position, skipping the
+    /// code point and return it, skipping the
     /// full `next_token` state-machine dispatch and Token construction.
     /// Returns None if the slow path is required.
     #[inline(always)]
-    pub fn try_fast_data_char(&mut self) -> Option<(u32, Position)> {
+    pub fn try_fast_data_char(&mut self) -> Option<u32> {
         if self.aborted {
             return None;
         }
@@ -650,27 +671,15 @@ impl HtmlTokenizer {
             return None;
         }
         if self.current_offset >= self.input.len() {
-            self.sync_source_positions();
             return None;
         }
         let cp = u32::from(self.input.code_unit_at(self.current_offset));
         if cp == 0x3C || cp == 0x26 || cp == 0x00 || cp == 0x0D || cp >= 0x80 {
-            self.sync_source_positions();
             return None;
         }
-        if cp == 0x0A {
-            self.current_line += 1;
-            self.current_column = 0;
-        } else {
-            self.current_column += 1;
-        }
-        let pos = Position {
-            line: self.current_line,
-            column: self.current_column,
-        };
         self.prev_offset = self.current_offset;
         self.current_offset += 1;
-        Some((cp, pos))
+        Some(cp)
     }
 
     /// Append a run of ordinary ASCII characters from the Data state to
@@ -702,7 +711,6 @@ impl HtmlTokenizer {
             offset += 1;
         }
         if offset == start_offset {
-            self.sync_source_positions();
             return None;
         }
 
@@ -711,12 +719,6 @@ impl HtmlTokenizer {
             let code_point = self.input.code_unit_at(offset);
             // SAFETY: The scan above only accepts ASCII code points.
             unsafe { output.as_mut_vec().push(code_point as u8) };
-            if code_point == 0x0A {
-                self.current_line += 1;
-                self.current_column = 0;
-            } else {
-                self.current_column += 1;
-            }
         }
         self.prev_offset = offset - 1;
         self.current_offset = offset;
@@ -735,33 +737,8 @@ impl HtmlTokenizer {
         code_point != 0x3C && code_point != 0x26 && code_point != 0x00 && code_point != 0x0D && code_point < 0x80
     }
 
-    /// Resynchronise `source_positions` with the scalar current_line /
-    /// current_column after a run of fast-path character emissions.
-    #[inline(always)]
-    fn sync_source_positions(&mut self) {
-        self.source_positions.clear();
-        self.source_positions.push(Position {
-            line: self.current_line,
-            column: self.current_column,
-        });
-    }
-
     fn restore_to(&mut self, offset: usize) {
-        if offset == self.prev_offset && self.current_offset > offset {
-            if self.source_positions.len() > 1 {
-                self.source_positions.pop();
-            }
-            self.current_offset = offset;
-        }
-        while self.current_offset > offset && self.source_positions.len() > 1 {
-            self.source_positions.pop();
-            self.current_offset -= 1;
-        }
         self.current_offset = offset;
-        if let Some(pos) = self.source_positions.last() {
-            self.current_line = pos.line;
-            self.current_column = pos.column;
-        }
     }
 
     fn consume_current_builder(&mut self) -> String {
@@ -788,16 +765,16 @@ impl HtmlTokenizer {
             TokenType::Doctype => TokenPayload::Doctype(Box::default()),
             _ => TokenPayload::None,
         };
-        let pos = match token_type {
-            TokenType::StartTag | TokenType::EndTag => self.nth_last_position(1),
-            _ => self.nth_last_position(0),
+        let start_offset = match token_type {
+            TokenType::StartTag | TokenType::EndTag => self.offset_before_last_code_point(),
+            _ => self.offset(),
         };
         self.current_token = Token {
             token_type,
             code_point: 0,
             payload,
-            start_position: pos,
-            end_position: Position::default(),
+            start_offset,
+            end_offset: SourceOffset::NONE,
         };
     }
 
@@ -820,7 +797,7 @@ impl HtmlTokenizer {
 
     fn will_emit(&mut self, token_idx: usize) {
         // token_idx: 0 = current_token, 1+ = queued_tokens index
-        // For simplicity, we handle position setting here.
+        // For simplicity, we handle setting the end offset here.
         if token_idx == 0 {
             if self.current_token.token_type == TokenType::StartTag
                 || self.current_token.token_type == TokenType::EndTag
@@ -832,7 +809,11 @@ impl HtmlTokenizer {
             }
             let is_start_or_end_tag = self.current_token.token_type == TokenType::StartTag
                 || self.current_token.token_type == TokenType::EndTag;
-            self.current_token.end_position = self.nth_last_position(if is_start_or_end_tag { 1 } else { 0 });
+            self.current_token.end_offset = if is_start_or_end_tag {
+                self.offset_before_last_code_point()
+            } else {
+                self.offset()
+            };
         }
     }
 
@@ -861,7 +842,7 @@ impl HtmlTokenizer {
     #[inline(always)]
     fn return_character_token(&mut self, code_point: u32) -> Option<Token> {
         let mut token = Token::new_character(code_point);
-        token.start_position = self.nth_last_position(0);
+        token.start_offset = self.offset();
         if self.queued_tokens.is_empty() {
             Some(token)
         } else {
@@ -893,7 +874,7 @@ impl HtmlTokenizer {
                 push_code_point(&mut self.current_builder, code_point);
             } else {
                 let mut token = Token::new_character(code_point);
-                token.start_position = self.nth_last_position(0);
+                token.start_offset = self.offset();
                 self.queued_tokens.push_back(token);
             }
         }
@@ -1000,12 +981,6 @@ impl HtmlTokenizer {
         self.cdata_allowed = cdata_allowed;
 
         // Return queued tokens first.
-        {
-            let last = *self.source_positions.last().unwrap_or(&Position::default());
-            self.source_positions.clear();
-            self.source_positions.push(last);
-        }
-
         if let Some(token) = self.queued_tokens.pop_front() {
             return Some(token);
         }
@@ -1143,7 +1118,8 @@ impl HtmlTokenizer {
                         // FIXME: Set the temporary buffer to the empty string. Switch to the processing instruction open state.
                         // NB: Until processing instructions are supported, retain the bogus-comment fallback.
                         self.create_new_token(TokenType::Comment);
-                        self.current_token.start_position = self.nth_last_position(2);
+                        // NB: The comment starts at the "<" of the "<?" that was just consumed.
+                        self.current_token.start_offset = SourceOffset::new(self.current_offset - 2);
                         self.reconsume(State::BogusComment);
                         continue;
                     }
@@ -1206,7 +1182,7 @@ impl HtmlTokenizer {
                         // SAFETY: pushing ASCII bytes into a String is
                         // always valid UTF-8. We drop into a tight
                         // inner loop that directly advances
-                        // current_offset and current_column without
+                        // current_offset without
                         // going through skip(1) per character.
                         unsafe { self.current_builder.as_mut_vec().push(cp as u8) };
                         let start_offset = self.current_offset;
@@ -1222,27 +1198,19 @@ impl HtmlTokenizer {
                         }
                         let consumed = off - start_offset;
                         if consumed > 0 {
-                            self.current_column += consumed as u64;
                             self.prev_offset = off - 1;
                             self.current_offset = off;
-                            if let Some(pos) = self.source_positions.last_mut() {
-                                pos.line = self.current_line;
-                                pos.column = self.current_column;
-                            }
                         }
-                        self.current_token.end_position = self.nth_last_position(0);
                         continue;
                     }
                     match current_input_character {
                         Some(cp) if is_whitespace(cp) => {
                             self.commit_current_builder_as_tag_name();
-                            self.current_token.end_position = self.nth_last_position(1);
                             self.state = State::BeforeAttributeName;
                             continue;
                         }
                         Some(0x2F) => {
                             self.commit_current_builder_as_tag_name();
-                            self.current_token.end_position = self.nth_last_position(0);
                             self.state = State::SelfClosingStartTag;
                             continue;
                         }
@@ -1253,12 +1221,10 @@ impl HtmlTokenizer {
                         }
                         Some(cp) if is_ascii_upper_alpha(cp) => {
                             push_code_point(&mut self.current_builder, to_ascii_lowercase(cp));
-                            self.current_token.end_position = self.nth_last_position(0);
                             continue;
                         }
                         Some(0x00) => {
                             self.current_builder.push('\u{FFFD}');
-                            self.current_token.end_position = self.nth_last_position(0);
                             continue;
                         }
                         None => {
@@ -1267,7 +1233,6 @@ impl HtmlTokenizer {
                         }
                         Some(cp) => {
                             push_code_point(&mut self.current_builder, cp);
-                            self.current_token.end_position = self.nth_last_position(0);
                             continue;
                         }
                     }
@@ -1328,13 +1293,8 @@ impl HtmlTokenizer {
                             }
                             let consumed = off - start_offset;
                             if consumed > 0 {
-                                self.current_column += consumed as u64;
                                 self.prev_offset = off - 1;
                                 self.current_offset = off;
-                                if let Some(pos) = self.source_positions.last_mut() {
-                                    pos.line = self.current_line;
-                                    pos.column = self.current_column;
-                                }
                             }
                             continue;
                         }
@@ -1407,9 +1367,9 @@ impl HtmlTokenizer {
 
                 // 13.2.5.35 Before attribute value state
                 State::BeforeAttributeValue => {
-                    let pos = self.nth_last_position(1);
+                    let value_start = self.offset_before_last_code_point();
                     if let Some(attr) = self.current_token.attributes_mut().last_mut() {
-                        attr.value_start_position = pos;
+                        attr.value_start_offset = value_start;
                     }
                     match current_input_character {
                         Some(cp) if is_whitespace(cp) => {
@@ -1460,13 +1420,8 @@ impl HtmlTokenizer {
                         }
                         let consumed = off - start_offset;
                         if consumed > 0 {
-                            self.current_column += consumed as u64;
                             self.prev_offset = off - 1;
                             self.current_offset = off;
-                            if let Some(pos) = self.source_positions.last_mut() {
-                                pos.line = self.current_line;
-                                pos.column = self.current_column;
-                            }
                         }
                         continue;
                     }
@@ -1560,9 +1515,9 @@ impl HtmlTokenizer {
 
                 // 13.2.5.39 After attribute value (quoted) state
                 State::AfterAttributeValueQuoted => {
-                    let pos = self.nth_last_position(1);
+                    let value_end = self.offset_before_last_code_point();
                     if let Some(attr) = self.current_token.attributes_mut().last_mut() {
-                        attr.value_end_position = pos;
+                        attr.value_end_offset = value_end;
                     }
                     match current_input_character {
                         Some(cp) if is_whitespace(cp) => {
@@ -1645,7 +1600,8 @@ impl HtmlTokenizer {
                     match self.consume_next_if_match_exact("--") {
                         Some(true) => {
                             self.create_new_token(TokenType::Comment);
-                            self.current_token.start_position = self.nth_last_position(3);
+                            // NB: The comment starts at the "<" of the "<!--" that was just consumed.
+                            self.current_token.start_offset = SourceOffset::new(self.current_offset - 4);
                             self.state = State::CommentStart;
                             continue;
                         }
@@ -2686,7 +2642,7 @@ impl HtmlTokenizer {
                                 break;
                             }
                             self.temporary_buffer.push(cp);
-                            self.advance(1, cp);
+                            self.advance(1);
                         }
                         if !self.input_stream_closed && self.current_offset >= limit {
                             return None;
@@ -3333,26 +3289,24 @@ impl HtmlTokenizer {
 
     fn set_attribute_name(&mut self) {
         let name = crate::token::HtmlName::from_utf8(&self.current_builder);
-        let name_length = self.current_builder.chars().count() as u64;
-        let name_end = self.nth_last_position(1);
-        let name_start = Position {
-            line: name_end.line,
-            column: name_end.column.saturating_sub(name_length),
-        };
+        // NB: Every code point of a name is one code point of input, in as many code units.
+        let name_length: usize = self.current_builder.chars().map(char::len_utf16).sum();
+        let name_end = self.offset_before_last_code_point();
+        let name_start = SourceOffset::new(name_end.get().unwrap().saturating_sub(name_length));
         self.current_builder.clear();
         if let Some(attr) = self.current_token.attributes_mut().last_mut() {
             attr.local_name = name;
-            attr.name_start_position = name_start;
-            attr.name_end_position = name_end;
+            attr.name_start_offset = name_start;
+            attr.name_end_offset = name_end;
         }
     }
 
     fn set_attribute_value(&mut self) {
-        let value_end = self.nth_last_position(1);
+        let value_end = self.offset_before_last_code_point();
         if let Some(attr) = self.current_token.attributes_mut().last_mut() {
             // The builder continues with the attribute's spare buffer, so neither side grows again.
             std::mem::swap(&mut attr.value, &mut self.current_builder);
-            attr.value_end_position = value_end;
+            attr.value_end_offset = value_end;
         }
         self.current_builder.clear();
     }
@@ -3449,5 +3403,55 @@ mod tests {
         };
         assert_eq!(attributes.len(), 1);
         assert_eq!(attributes[0].value, "&tws-checkout-success=4.1.0");
+    }
+
+    fn line_and_column(tokenizer: &mut HtmlTokenizer, offset: SourceOffset) -> (u64, u64) {
+        let position = tokenizer.position_at(offset);
+        (position.line, position.column)
+    }
+
+    /// The tokens of the tokenizer's input and then `second`, where the parser has run out of input in between.
+    fn tokens_of_two_chunks(tokenizer: &mut HtmlTokenizer, second: &str) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        tokenizer.set_input_stream_closed(false);
+        while let Some(token) = tokenizer.next_token(false, false) {
+            tokens.push(token);
+        }
+        tokenizer.parser_did_run();
+        tokenizer.append_input(InputSlice::Utf16(&code_units(second)));
+        tokenizer.set_input_stream_closed(true);
+        while let Some(token) = tokenizer.next_token(false, false) {
+            tokens.push(token);
+        }
+        tokens
+    }
+
+    #[test]
+    fn parser_keeps_input_that_an_unfinished_tag_points_into() {
+        let mut tokenizer = HtmlTokenizer::new(code_units("\n\n<div class=\"a\" "));
+        let tokens = tokens_of_two_chunks(&mut tokenizer, "id=x>");
+        let tag = tokens
+            .iter()
+            .find(|token| token.token_type == TokenType::StartTag)
+            .expect("start tag token");
+        assert_eq!(line_and_column(&mut tokenizer, tag.start_offset), (2, 1));
+        let TokenPayload::Tag { attributes, .. } = &tag.payload else {
+            panic!("expected tag token");
+        };
+        let name_start = attributes[0].name_start_offset;
+        assert_eq!(line_and_column(&mut tokenizer, name_start), (2, 5));
+    }
+
+    #[test]
+    fn parser_keeps_input_that_leads_up_to_a_comment() {
+        for (first, second) in [("\n<!", "-- x -->"), ("\n<", "? x >")] {
+            let mut tokenizer = HtmlTokenizer::new(code_units(first));
+            let tokens = tokens_of_two_chunks(&mut tokenizer, second);
+            let comment = tokens
+                .iter()
+                .find(|token| token.token_type == TokenType::Comment)
+                .expect("comment token");
+            assert_eq!(line_and_column(&mut tokenizer, comment.start_offset), (1, 0));
+        }
     }
 }
