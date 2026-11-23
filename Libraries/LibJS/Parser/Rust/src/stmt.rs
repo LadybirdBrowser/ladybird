@@ -1718,6 +1718,10 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     /// of the class, so that nothing else ever reads the row but the compilation of the function.
     fn class_function_row(&mut self, key: u32, start: u32, flags: u32, name: u32, reserved_row: u32) -> u32 {
         if self.is_reparsing() {
+            // NB: A parse that has failed may not have come across what the first parse made the row for.
+            if self.err.is_some() {
+                return NONE;
+            }
             return self
                 .first_pass_row_at(key)
                 .expect("the first parse made a row for the code of a class");
