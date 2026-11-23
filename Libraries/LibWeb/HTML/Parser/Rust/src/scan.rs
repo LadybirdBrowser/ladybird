@@ -6,70 +6,243 @@
 
 //! Scans over runs of input code units.
 //!
-//! The loops here look at a fixed-size chunk of code units at a time and have no early exits inside a chunk, which
-//! is the shape the compiler turns into vector instructions for whatever the target CPU has.
+//! A scan for the end of a run looks at a block of 16 code units at a time: it asks of all of them at once which ones
+//! end the run, and gets a bit for each. Most runs in markup are over within a block or two, so a scan has nothing to
+//! set up and its first block is as cheap as any other.
+//!
+//! The scans that only count look at a fixed-size chunk of code units at a time with no early exits inside a chunk,
+//! which is the shape the compiler turns into vector instructions for whatever the target CPU has.
 
 use crate::token::Position;
 
 /// A code unit of the input stream, in either of the forms it is stored in.
-pub trait CodeUnit: Copy + Eq + Into<u16> + From<u8> {
-    /// Whether this is half of a surrogate pair. One-byte code units never are.
-    fn is_surrogate(self) -> bool;
+pub trait CodeUnit: Copy + Default + Eq + Into<u16> + From<u8> {
+    /// Loads a block of code units as bytes, with every code unit above U+00FE as 0xFF.
+    ///
+    /// # Safety
+    /// `BLOCK_SIZE` code units must be readable at `code_units`.
+    unsafe fn load_block(code_units: *const Self) -> block::Block;
+
+    /// One bit for each code unit of a block: whether it is a surrogate.
+    ///
+    /// # Safety
+    /// `BLOCK_SIZE` code units must be readable at `code_units`.
+    unsafe fn surrogates_in_block(code_units: *const Self) -> u32;
 }
 
 impl CodeUnit for u8 {
     #[inline(always)]
-    fn is_surrogate(self) -> bool {
-        false
+    unsafe fn load_block(code_units: *const u8) -> block::Block {
+        unsafe { block::load_narrow(code_units) }
+    }
+
+    #[inline(always)]
+    unsafe fn surrogates_in_block(_: *const u8) -> u32 {
+        0
     }
 }
 
 impl CodeUnit for u16 {
     #[inline(always)]
-    fn is_surrogate(self) -> bool {
-        self & 0xF800 == 0xD800
+    unsafe fn load_block(code_units: *const u16) -> block::Block {
+        unsafe { block::load_wide(code_units) }
+    }
+
+    #[inline(always)]
+    unsafe fn surrogates_in_block(code_units: *const u16) -> u32 {
+        unsafe { block::surrogates(code_units) }
+    }
+}
+
+use block::BLOCK_SIZE;
+
+#[cfg(target_arch = "x86_64")]
+mod block {
+    use core::arch::x86_64::*;
+
+    pub(super) const BLOCK_SIZE: usize = 16;
+    pub type Block = __m128i;
+
+    #[inline(always)]
+    pub unsafe fn load_narrow(code_units: *const u8) -> Block {
+        unsafe { _mm_loadu_si128(code_units.cast()) }
+    }
+
+    #[inline(always)]
+    pub unsafe fn load_wide(code_units: *const u16) -> Block {
+        unsafe {
+            // NB: x - saturating_sub(x, 0xFF) is min(x, 0xFF), with nothing that every x86-64 CPU doesn't have.
+            let limit = _mm_set1_epi16(0xFF);
+            let low = _mm_loadu_si128(code_units.cast());
+            let high = _mm_loadu_si128(code_units.add(8).cast());
+            let low = _mm_sub_epi16(low, _mm_subs_epu16(low, limit));
+            let high = _mm_sub_epi16(high, _mm_subs_epu16(high, limit));
+            _mm_packus_epi16(low, high)
+        }
+    }
+
+    #[inline(always)]
+    pub unsafe fn surrogates(code_units: *const u16) -> u32 {
+        unsafe {
+            let top_bits = _mm_set1_epi16(0xF800u16 as i16);
+            let surrogate = _mm_set1_epi16(0xD800u16 as i16);
+            let low = _mm_loadu_si128(code_units.cast());
+            let high = _mm_loadu_si128(code_units.add(8).cast());
+            let low = _mm_cmpeq_epi16(_mm_and_si128(low, top_bits), surrogate);
+            let high = _mm_cmpeq_epi16(_mm_and_si128(high, top_bits), surrogate);
+            _mm_movemask_epi8(_mm_packs_epi16(low, high)) as u32
+        }
+    }
+
+    /// One bit for each code unit of a block: whether it is `byte`.
+    #[inline(always)]
+    pub fn equal_to(block: Block, byte: u8) -> u32 {
+        unsafe { _mm_movemask_epi8(_mm_cmpeq_epi8(block, _mm_set1_epi8(byte as i8))) as u32 }
+    }
+
+    /// One bit for each code unit of a block: whether it is above U+007F.
+    #[inline(always)]
+    pub fn non_ascii(block: Block) -> u32 {
+        unsafe { _mm_movemask_epi8(block) as u32 }
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+mod block {
+    use core::arch::aarch64::*;
+
+    pub(super) const BLOCK_SIZE: usize = 16;
+    pub type Block = uint8x16_t;
+
+    #[inline(always)]
+    pub unsafe fn load_narrow(code_units: *const u8) -> Block {
+        unsafe { vld1q_u8(code_units) }
+    }
+
+    #[inline(always)]
+    pub unsafe fn load_wide(code_units: *const u16) -> Block {
+        unsafe {
+            vcombine_u8(
+                vqmovn_u16(vld1q_u16(code_units)),
+                vqmovn_u16(vld1q_u16(code_units.add(8))),
+            )
+        }
+    }
+
+    /// One bit per byte, from a vector whose bytes are all ones or all zeros.
+    #[inline(always)]
+    fn bits_of(bytes: Block) -> u32 {
+        const BITS: [u8; 16] = [1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128];
+        unsafe {
+            let masked = vandq_u8(bytes, vld1q_u8(BITS.as_ptr()));
+            vaddv_u8(vget_low_u8(masked)) as u32 | (vaddv_u8(vget_high_u8(masked)) as u32) << 8
+        }
+    }
+
+    #[inline(always)]
+    pub unsafe fn surrogates(code_units: *const u16) -> u32 {
+        unsafe {
+            let top_bits = vdupq_n_u16(0xF800);
+            let surrogate = vdupq_n_u16(0xD800);
+            let low = vceqq_u16(vandq_u16(vld1q_u16(code_units), top_bits), surrogate);
+            let high = vceqq_u16(vandq_u16(vld1q_u16(code_units.add(8)), top_bits), surrogate);
+            bits_of(vcombine_u8(vmovn_u16(low), vmovn_u16(high)))
+        }
+    }
+
+    /// One bit for each code unit of a block: whether it is `byte`.
+    #[inline(always)]
+    pub fn equal_to(block: Block, byte: u8) -> u32 {
+        unsafe { bits_of(vceqq_u8(block, vdupq_n_u8(byte))) }
+    }
+
+    /// One bit for each code unit of a block: whether it is above U+007F.
+    #[inline(always)]
+    pub fn non_ascii(block: Block) -> u32 {
+        unsafe { bits_of(vcgeq_u8(block, vdupq_n_u8(0x80))) }
+    }
+}
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+mod block {
+    pub(super) const BLOCK_SIZE: usize = 16;
+    pub type Block = [u8; BLOCK_SIZE];
+
+    #[inline(always)]
+    pub unsafe fn load_narrow(code_units: *const u8) -> Block {
+        unsafe { core::ptr::read_unaligned(code_units.cast()) }
+    }
+
+    #[inline(always)]
+    pub unsafe fn load_wide(code_units: *const u16) -> Block {
+        core::array::from_fn(|i| unsafe { core::ptr::read_unaligned(code_units.add(i)) }.min(0xFF) as u8)
+    }
+
+    #[inline(always)]
+    pub unsafe fn surrogates(code_units: *const u16) -> u32 {
+        (0..BLOCK_SIZE).fold(0, |bits, i| {
+            let code_unit = unsafe { core::ptr::read_unaligned(code_units.add(i)) };
+            bits | u32::from(code_unit & 0xF800 == 0xD800) << i
+        })
+    }
+
+    #[inline(always)]
+    fn bits_of(block: Block, test: impl Fn(u8) -> bool) -> u32 {
+        block
+            .iter()
+            .enumerate()
+            .fold(0, |bits, (i, &byte)| bits | u32::from(test(byte)) << i)
+    }
+
+    /// One bit for each code unit of a block: whether it is `byte`.
+    #[inline(always)]
+    pub fn equal_to(block: Block, byte: u8) -> u32 {
+        bits_of(block, |code_unit| code_unit == byte)
+    }
+
+    /// One bit for each code unit of a block: whether it is above U+007F.
+    #[inline(always)]
+    pub fn non_ascii(block: Block) -> u32 {
+        bits_of(block, |code_unit| code_unit >= 0x80)
     }
 }
 
 const CHUNK_SIZE: usize = 32;
 
-// Most runs of text in markup are short, and are over before a chunk would be.
-const SHORT_RUN_LENGTH: usize = 16;
-
-/// The offset of the first code unit that `stops` accepts, or the length of `code_units` if there is none. The bits of
-/// the code units before it are added to `seen_bits`.
+/// The offset of the first code unit that is one of `stops` or a surrogate, or the length of `code_units` if there is
+/// none. `seen_non_ascii` is set if a code unit before it is above U+007F.
 #[inline(always)]
-fn find_first<T: CodeUnit>(code_units: &[T], stops: impl Fn(T) -> bool, seen_bits: &mut u16) -> usize {
-    let scan_one_by_one = |range: std::ops::Range<usize>, seen_bits: &mut u16| {
-        for offset in range {
-            let code_unit = code_units[offset];
-            if stops(code_unit) {
-                return Some(offset);
-            }
-            *seen_bits |= code_unit.into();
-        }
-        None
+fn find_first<T: CodeUnit, const N: usize>(code_units: &[T], stops: [u8; N], seen_non_ascii: &mut bool) -> usize {
+    // One bit for each code unit of the block at `block`: whether it ends the scan, and whether it isn't ASCII.
+    let scan_block = |block: *const T| {
+        // SAFETY: Both callers pass a pointer to `BLOCK_SIZE` code units.
+        let (bytes, surrogates) = unsafe { (T::load_block(block), T::surrogates_in_block(block)) };
+        let stops = stops
+            .iter()
+            .fold(surrogates, |bits, &stop| bits | block::equal_to(bytes, stop));
+        (stops, block::non_ascii(bytes))
     };
 
-    let mut offset = code_units.len().min(SHORT_RUN_LENGTH);
-    if let Some(stop) = scan_one_by_one(0..offset, seen_bits) {
-        return stop;
-    }
-    let (chunks, _) = code_units[offset..].as_chunks::<CHUNK_SIZE>();
-    for chunk in chunks {
-        let mut any_stops = false;
-        let mut bits = 0;
-        for &code_unit in chunk {
-            any_stops |= stops(code_unit);
-            bits |= code_unit.into();
+    let mut offset = 0;
+    while offset + BLOCK_SIZE <= code_units.len() {
+        let (stops, non_ascii) = scan_block(code_units[offset..].as_ptr());
+        if stops != 0 {
+            let stop = stops.trailing_zeros();
+            *seen_non_ascii |= non_ascii & ((1 << stop) - 1) != 0;
+            return offset + stop as usize;
         }
-        if any_stops {
-            break;
-        }
-        *seen_bits |= bits;
-        offset += CHUNK_SIZE;
+        *seen_non_ascii |= non_ascii != 0;
+        offset += BLOCK_SIZE;
     }
-    scan_one_by_one(offset..code_units.len(), seen_bits).unwrap_or(code_units.len())
+
+    // NB: What is left is less than a block, and is looked at as the start of one that ends the scan after it.
+    let remaining = code_units.len() - offset;
+    let mut last_block = [T::default(); BLOCK_SIZE];
+    last_block[..remaining].copy_from_slice(&code_units[offset..]);
+    let (stops, non_ascii) = scan_block(last_block.as_ptr());
+    let stop = (stops | 1 << remaining).trailing_zeros();
+    *seen_non_ascii |= non_ascii & ((1 << stop) - 1) != 0;
+    offset + stop as usize
 }
 
 /// A run of code units at the start of some input.
@@ -82,30 +255,29 @@ pub struct Run {
 /// The run of code units at the start of `code_units` that the data state emits as they are: everything up to the
 /// first U+003C (<), U+0026 (&), U+0000 NULL, U+000D CR, or surrogate that isn't half of a pair.
 pub fn data_run<T: CodeUnit>(code_units: &[T]) -> Run {
-    let stops = |code_unit: T| {
-        code_unit == T::from(b'<')
-            || code_unit == T::from(b'&')
-            || code_unit == T::from(0)
-            || code_unit == T::from(b'\r')
-            || code_unit.is_surrogate()
-    };
     let mut length = 0;
-    let mut seen_bits = 0;
+    let mut seen_non_ascii = false;
     loop {
-        length += find_first(&code_units[length..], stops, &mut seen_bits);
+        length += find_first(&code_units[length..], [b'<', b'&', 0, b'\r'], &mut seen_non_ascii);
         let Some(&[high, low]) = code_units.get(length..length + 2) else {
             break;
         };
         if !is_surrogate_pair(high.into(), low.into()) {
             break;
         }
-        seen_bits |= high.into();
+        seen_non_ascii = true;
         length += 2;
     }
     Run {
         length,
-        is_ascii: seen_bits < 0x80,
+        is_ascii: !seen_non_ascii,
     }
+}
+
+/// The number of code units at the start of `code_units` that a quoted attribute value takes as they are: everything
+/// up to the first `quote`, U+0026 (&), U+0000 NULL, U+000D CR, or surrogate.
+pub fn attribute_value_run<T: CodeUnit>(code_units: &[T], quote: u8) -> usize {
+    find_first(code_units, [quote, b'&', 0, b'\r'], &mut false)
 }
 
 /// Whether any code unit is something other than the ASCII whitespace the tree builder ignores for "frameset-ok".
@@ -207,9 +379,9 @@ mod tests {
 
     #[test]
     fn data_runs_find_stops_and_non_ascii_at_every_offset() {
-        // Long enough to put a stop in the short run the scan starts with, in the chunks after it, in the remainder
-        // after those, and on the seams.
-        let length = SHORT_RUN_LENGTH + CHUNK_SIZE * 3;
+        // Long enough to put a stop in every place of a block, in the part that is less than a block, and on the
+        // seams.
+        let length = BLOCK_SIZE * 5 + 7;
         for offset in 0..length {
             let mut input = vec![b'x'; length];
             input[offset] = b'<';
@@ -232,6 +404,23 @@ mod tests {
         assert_eq!(data_run::<u16>(&[0x61, 0xD83D, 0x62]), run(1, true));
         assert_eq!(data_run::<u16>(&[0x61, 0xDE00, 0xD83D]), run(1, true));
         assert_eq!(data_run::<u16>(&[0x61, 0xD83D, 0xDE00]), run(3, false));
+    }
+
+    #[test]
+    fn attribute_value_runs_stop_at_the_quote_and_characters_the_tokenizer_changes() {
+        assert_eq!(attribute_value_run(b"a b<c>'d\" e" as &[u8], b'"'), 8);
+        assert_eq!(attribute_value_run(b"a b<c>'d\" e" as &[u8], b'\''), 6);
+        assert_eq!(attribute_value_run(b"caf\xe9&amp;" as &[u8], b'"'), 4);
+        assert_eq!(attribute_value_run(b"a\0" as &[u8], b'"'), 1);
+        assert_eq!(attribute_value_run(b"a\r\n" as &[u8], b'"'), 1);
+        assert_eq!(attribute_value_run(&code_units("a\u{2014}b\u{1f600}\""), b'"'), 3);
+        let length = BLOCK_SIZE * 5 + 7;
+        for offset in 0..length {
+            let mut input = vec![b'x'; length];
+            input[offset] = b'"';
+            assert_eq!(attribute_value_run(&input, b'"'), offset);
+            assert_eq!(attribute_value_run(&input, b'\''), length);
+        }
     }
 
     #[test]

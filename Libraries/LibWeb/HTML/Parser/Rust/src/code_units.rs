@@ -221,6 +221,23 @@ impl CodeUnits {
         self.append(Utf16View::Latin1(string.as_bytes()));
     }
 
+    /// Appends code units as they are. Unlike `append()`, a string that is empty keeps its buffer.
+    pub fn push_slice(&mut self, code_units: Utf16View<'_>) {
+        match (&mut *self, code_units) {
+            (Self::Latin1(string), Utf16View::Latin1(code_units)) => string.extend_from_slice(code_units),
+            (Self::Utf16(string), Utf16View::Utf16(code_units)) => string.extend_from_slice(code_units),
+            (Self::Utf16(string), Utf16View::Latin1(code_units)) => {
+                string.extend(code_units.iter().copied().map(u16::from));
+            }
+            (Self::Latin1(string), Utf16View::Utf16(code_units)) => {
+                let mut widened = Vec::with_capacity(string.len() + code_units.len());
+                widened.extend(string.iter().copied().map(u16::from));
+                widened.extend_from_slice(code_units);
+                *self = Self::Utf16(widened);
+            }
+        }
+    }
+
     /// Appends a code point. A surrogate is replaced with U+FFFD REPLACEMENT CHARACTER.
     #[inline(always)]
     pub fn push_code_point(&mut self, code_point: u32) {
@@ -313,11 +330,15 @@ mod tests {
         string.push_code_point(0x1f600);
         string.push_code_point(0xd83d);
         string.push_ascii_str("ok");
+        string.push_slice(Utf16View::Latin1(b"\xe9"));
+        string.push_slice(Utf16View::Utf16(&code_units("\u{2014}")));
         assert!(matches!(string, CodeUnits::Utf16(_)));
-        assert_eq!(string, "a\u{e9}\u{2014}\u{1f600}\u{fffd}ok");
+        assert_eq!(string, "a\u{e9}\u{2014}\u{1f600}\u{fffd}ok\u{e9}\u{2014}");
         string.clear();
-        string.push_ascii(b'a');
+        string.push_slice(Utf16View::Latin1(b"a"));
         assert!(matches!(string, CodeUnits::Latin1(_)));
+        string.push_slice(Utf16View::Utf16(&code_units("\u{2014}")));
+        assert_eq!(string, "a\u{2014}");
     }
 
     #[test]

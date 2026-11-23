@@ -694,6 +694,28 @@ impl HtmlTokenizer {
         })
     }
 
+    /// Appends the code units that come next to the attribute value being read, as far as a value in quotes takes
+    /// them as they are. This is what the attribute value states do with them one at a time.
+    fn append_attribute_value_run(&mut self, quote: u8) {
+        let start_offset = self.current_offset;
+        let limit = self.fast_scan_limit();
+        if start_offset >= limit {
+            return;
+        }
+        let length = match &self.input {
+            CodeUnits::Latin1(code_units) => scan::attribute_value_run(&code_units[start_offset..limit], quote),
+            CodeUnits::Utf16(code_units) => scan::attribute_value_run(&code_units[start_offset..limit], quote),
+        };
+        if length == 0 {
+            return;
+        }
+        let end_offset = start_offset + length;
+        self.current_builder
+            .push_slice(self.input.slice(start_offset..end_offset));
+        self.prev_offset = end_offset - 1;
+        self.current_offset = end_offset;
+    }
+
     #[inline(always)]
     pub fn has_fast_data_run(&self) -> bool {
         if self.aborted || self.state != State::Data || !self.queued_tokens.is_empty() {
@@ -1364,60 +1386,31 @@ impl HtmlTokenizer {
                 }
 
                 // 13.2.5.36 Attribute value (double-quoted) state
-                State::AttributeValueDoubleQuoted => {
-                    // Fast-path run: bulk-append printable ASCII until we
-                    // hit `"`, `&`, NUL, CR or non-ASCII. The inner loop
-                    // advances a local offset directly and only updates
-                    // tokenizer/position state once at the end.
-                    if let Some(cp) = current_input_character
-                        && (0x20..0x80).contains(&cp)
-                        && cp != 0x22
-                        && cp != 0x26
-                    {
-                        self.current_builder.push_ascii(cp as u8);
-                        let start_offset = self.current_offset;
-                        let mut off = start_offset;
-                        let input_len = self.fast_scan_limit();
-                        while off < input_len {
-                            let next = self.input.code_unit_at(off);
-                            if !(0x20..0x80).contains(&next) || next == 0x22 || next == 0x26 {
-                                break;
-                            }
-                            self.current_builder.push_ascii(next as u8);
-                            off += 1;
-                        }
-                        let consumed = off - start_offset;
-                        if consumed > 0 {
-                            self.prev_offset = off - 1;
-                            self.current_offset = off;
-                        }
+                State::AttributeValueDoubleQuoted => match current_input_character {
+                    Some(0x22) => {
+                        self.set_attribute_value();
+                        self.state = State::AfterAttributeValueQuoted;
                         continue;
                     }
-                    match current_input_character {
-                        Some(0x22) => {
-                            self.set_attribute_value();
-                            self.state = State::AfterAttributeValueQuoted;
-                            continue;
-                        }
-                        Some(0x26) => {
-                            self.return_state = State::AttributeValueDoubleQuoted;
-                            self.state = State::CharacterReference;
-                            continue;
-                        }
-                        Some(0x00) => {
-                            self.current_builder.push_code_point(0xFFFD);
-                            continue;
-                        }
-                        None => {
-                            self.emit_eof();
-                            return self.queued_tokens.pop_front();
-                        }
-                        Some(cp) => {
-                            self.current_builder.push_code_point(cp);
-                            continue;
-                        }
+                    Some(0x26) => {
+                        self.return_state = State::AttributeValueDoubleQuoted;
+                        self.state = State::CharacterReference;
+                        continue;
                     }
-                }
+                    Some(0x00) => {
+                        self.current_builder.push_code_point(0xFFFD);
+                        continue;
+                    }
+                    None => {
+                        self.emit_eof();
+                        return self.queued_tokens.pop_front();
+                    }
+                    Some(cp) => {
+                        self.current_builder.push_code_point(cp);
+                        self.append_attribute_value_run(b'"');
+                        continue;
+                    }
+                },
 
                 // 13.2.5.37 Attribute value (single-quoted) state
                 State::AttributeValueSingleQuoted => match current_input_character {
@@ -1441,6 +1434,7 @@ impl HtmlTokenizer {
                     }
                     Some(cp) => {
                         self.current_builder.push_code_point(cp);
+                        self.append_attribute_value_run(b'\'');
                         continue;
                     }
                 },
