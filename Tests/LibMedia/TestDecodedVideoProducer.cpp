@@ -43,15 +43,21 @@ public:
         {
             MutexLocker locker { m_mutex };
             if (m_samples_served >= m_samples_before_blocking) {
-                m_read_is_blocked = true;
-                m_state_changed.broadcast();
-                if (m_read_blocked_change_handler)
-                    m_read_blocked_change_handler(Media::ReadBlocked::Yes);
-                while (m_blocks_reads && !m_reads_are_aborted && !m_blocked_samples_are_permanently_unavailable)
-                    m_state_changed.wait();
-                m_read_is_blocked = false;
-                if (m_read_blocked_change_handler)
-                    m_read_blocked_change_handler(Media::ReadBlocked::No);
+                auto read_must_wait = [&] {
+                    return m_blocks_reads && !m_reads_are_aborted && !m_blocked_samples_are_permanently_unavailable;
+                };
+                // Like the real demuxers, a read that was aborted before it started never reports that it blocked.
+                if (read_must_wait()) {
+                    m_read_is_blocked = true;
+                    m_state_changed.broadcast();
+                    if (m_read_blocked_change_handler)
+                        m_read_blocked_change_handler(Media::ReadBlocked::Yes);
+                    while (read_must_wait())
+                        m_state_changed.wait();
+                    m_read_is_blocked = false;
+                    if (m_read_blocked_change_handler)
+                        m_read_blocked_change_handler(Media::ReadBlocked::No);
+                }
                 if (m_reads_are_aborted)
                     return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
                 if (m_blocked_samples_are_permanently_unavailable)
