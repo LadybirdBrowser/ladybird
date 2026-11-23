@@ -166,7 +166,7 @@ select:is([multiple], [size]:not([size="0"], [size="1"])) {
     & optgroup > option {
         padding-inline-start: 1.25em;
     }
-    & option:disabled {
+    & option:disabled, & optgroup:disabled {
         color: GrayText;
     }
     & option:checked {
