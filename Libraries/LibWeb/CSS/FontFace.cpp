@@ -396,8 +396,19 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_css_connected(JS::Realm& real
 void FontFaceState::reparse_connected_css_font_face_rule_descriptors()
 {
     auto descriptors = connected_descriptors();
-    for (auto const& attribute : font_face_attributes)
-        apply_descriptor(attribute.descriptor, *descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(attribute.descriptor)));
+    for (auto const& attribute : font_face_attributes) {
+        auto id = attribute.descriptor;
+        if (auto specified = descriptors.descriptor(DescriptorNameAndID::from_id(id))) {
+            apply_descriptor(id, *specified);
+            continue;
+        }
+        apply_descriptor(id, *descriptor_initial_value(AtRuleID::FontFace, id));
+
+        // AD-HOC: Font matching uses the descriptor's initial value, but FontFace exposes its dictionary default.
+        // https://github.com/w3c/csswg-drafts/issues/11561
+        if (first_is_one_of(id, DescriptorID::FontStyle, DescriptorID::FontWeight, DescriptorID::FontWidth))
+            m_descriptor_texts[attribute_index(id)] = "normal"_utf16;
+    }
 }
 
 // A face belongs to the agent that made it, so an agent only finds its own.

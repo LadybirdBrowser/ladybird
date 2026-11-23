@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	CSS-connected FontFace objects should be present
+Pass	ascentOverride should be set correctly
+Pass	descentOverride should be set correctly
+Pass	display should be set correctly
+Pass	featureSettings should be set correctly
+Pass	stretch should be set correctly
+Pass	font-width should initialize the width and stretch attributes
+Pass	style should be set correctly
+Pass	variationSettings should be set correctly
+Pass	weight should be set correctly
+Pass	lineGapOverride should be set correctly
+Pass	unicodeRange should be set correctly

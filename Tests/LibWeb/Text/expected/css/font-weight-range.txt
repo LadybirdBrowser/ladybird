@@ -1,4 +1,4 @@
-No weight defined: auto
+No weight defined: normal
 Two numbers: 100 200
 Two numbers reversed: 200 100
 Two keywords: bold normal
@@ -8,8 +8,8 @@ Number and keyword reversed: 700 normal
 Number and keyword again: bold 300
 Number and keyword again reversed: 300 bold
 Two numbers filling the range: 1 1000
-Invalid too many: auto
-Invalid relative lighter: auto
-Invalid relative bolder: auto
-Invalid relative: auto
-Invalid out of range: auto
+Invalid too many: normal
+Invalid relative lighter: normal
+Invalid relative bolder: normal
+Invalid relative: normal
+Invalid out of range: normal

@@ -3,7 +3,7 @@ replacement: 400 / U+42
 excluded characters use fallback: true
 same source preserves identity: true
 removed unicode-range: U+0-10FFFF / 80
-renamed: Renamed / auto / 80
+renamed: Renamed / normal / 80
 rename preserves identity: true
 changed source replaces identity: true / false
 changed source width: 80
