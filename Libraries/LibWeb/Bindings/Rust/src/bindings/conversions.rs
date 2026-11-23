@@ -430,13 +430,14 @@ pub(crate) fn to_unsigned_long_clamping(vm: &Vm, value: Value) -> ThrowCompletio
     Ok(to_integer_clamping(vm, value, 0.0, f64::from(u32::MAX))? as u32)
 }
 
-/// The number that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of
-/// 64, as WebIDL::convert_to_int() of the C++ bindings computes it.
-///
-/// FIXME: The C++ bindings do the arithmetic in doubles, which cannot represent most integers near 2^64, so a
-///        negative number does not wrap around to the integer the spec asks for: -1 becomes 2^64. The Rust bindings
-///        do the same, so that an interface behaves the same in either language, until both are corrected together.
-fn to_number_modulo_two_to_the_64(vm: &Vm, value: Value) -> ThrowCompletionOr<f64> {
+/// The integer that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of
+/// 64.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the remainder is an integer whose magnitude is below 2^64"
+)]
+fn to_integer_modulo_two_to_the_64(vm: &Vm, value: Value) -> ThrowCompletionOr<u64> {
     const TWO_TO_THE_64: f64 = 18_446_744_073_709_551_616.0;
 
     // 4. Let x be ? ToNumber(V).
@@ -445,53 +446,41 @@ fn to_number_modulo_two_to_the_64(vm: &Vm, value: Value) -> ThrowCompletionOr<f6
 
     // 8. If x is NaN, +0, +∞, or −∞, then return +0.
     if x.is_nan() || x == 0.0 || x.is_infinite() {
-        return Ok(0.0);
+        return Ok(0);
     }
 
     // 9. Set x to IntegerPart(x).
     let x = x.trunc();
 
     // 10. Set x to x modulo 2^bitLength.
+    // NB: The remainder of % is exact, an integer of the sign of x whose magnitude is below 2^64, which a u64 holds. But
+    //     an f64 holds few integers near 2^64, so adding 2^64 to a negative remainder in one would round (and -1 would
+    //     become 2^64). So the wrap around to a non-negative x is done in a u64 instead.
     let remainder = x % TWO_TO_THE_64;
     Ok(if remainder < 0.0 {
-        remainder + TWO_TO_THE_64
+        0u64.wrapping_sub((-remainder) as u64)
     } else {
-        remainder
+        remainder as u64
     })
 }
 
 /// A JS value converted to a long long, https://webidl.spec.whatwg.org/#js-long-long
 pub(crate) fn to_long_long(vm: &Vm, value: Value) -> ThrowCompletionOr<i64> {
-    const TWO_TO_THE_63: f64 = 9_223_372_036_854_775_808.0;
-    const TWO_TO_THE_64: f64 = 18_446_744_073_709_551_616.0;
-
     // 1. Let x be ? ConvertToInt(V, 64, "signed").
-    let x = to_number_modulo_two_to_the_64(vm, value)?;
+    let x = to_integer_modulo_two_to_the_64(vm, value)?;
 
     // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
-    // NB: The C++ bindings compare with the largest long long, which is 2^63 as a double, and with greater than.
-    let x = if x > TWO_TO_THE_63 { x - TWO_TO_THE_64 } else { x };
-
     // 2. Return the IDL long long value that represents the same numeric value as x.
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "x is an integer of at most 2^63, which saturates"
-    )]
+    // NB: Reinterpreting the bits of x as an i64 does just that.
+    #[allow(clippy::cast_possible_wrap, reason = "the wrap is step 11")]
     Ok(x as i64)
 }
 
 /// A JS value converted to an unsigned long long, https://webidl.spec.whatwg.org/#js-unsigned-long-long
 pub(crate) fn to_unsigned_long_long(vm: &Vm, value: Value) -> ThrowCompletionOr<u64> {
     // 1. Let x be ? ConvertToInt(V, 64, "unsigned").
-    let x = to_number_modulo_two_to_the_64(vm, value)?;
-
     // 2. Return the IDL unsigned long long value that represents the same numeric value as x.
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "x is an integer from 0 to 2^64, which saturates"
-    )]
-    Ok(x as u64)
+    to_integer_modulo_two_to_the_64(vm, value)
 }
 
 /// A JS value converted to a float, https://webidl.spec.whatwg.org/#js-float
