@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    input { width: 200px; height: 32px; padding: 0; border: 0; font-size: 16px }
+    input::-webkit-search-cancel-button { width: 16px; height: 16px; margin: 0 }
+    .hide::-webkit-search-cancel-button { display: none }
+</style>
+<form><input id="field" type="search" value="sample"><button type="button" id="other">Next</button></form>
+<script>
+    test(() => {
+        const events = [];
+        for (const name of ["beforeinput", "input", "change"])
+            field.addEventListener(name, event => events.push(event.type + "/" + event.constructor.name));
+        function clickClear(label) {
+            field.focus();
+            const box = field.getBoundingClientRect();
+            internals.click(field.dir === "rtl" ? box.left + 8 : box.right - 8, box.top + box.height / 2);
+            const focused = document.activeElement === field;
+            const immediate = events.join(",");
+            other.focus();
+            println([label, field.value, focused, immediate || "none", events.join(",") || "none"].join(" | "));
+            events.length = 0;
+        }
+        field.addEventListener("click", event => event.preventDefault(), { once: true });
+        clickClear("canceled");
+        clickClear("initial");
+        clickClear("empty");
+        field.form.reset();
+        field.dir = "rtl";
+        clickClear("reset RTL");
+        field.value = "value";
+        field.readOnly = true;
+        clickClear("read-only");
+        field.readOnly = false;
+        field.disabled = true;
+        clickClear("disabled");
+        field.disabled = false;
+        field.className = "hide";
+        clickClear("hidden by author");
+        field.className = "";
+        field.type = "text";
+        clickClear("text");
+        field.type = "search";
+        clickClear("back to search");
+    });
+</script>

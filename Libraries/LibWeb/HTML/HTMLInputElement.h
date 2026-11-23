@@ -107,6 +107,7 @@ public:
     void set_user_validity(bool);
 
     void commit_pending_changes();
+    void clear_search_value(Badge<HTMLButtonElement>);
     bool has_uncommitted_changes() { return m_has_uncommitted_changes; }
 
     void ensure_user_agent_shadow_tree(Badge<Internals::Internals>) { create_shadow_tree_if_needed(); }
@@ -418,8 +419,9 @@ private:
     static ValueAttributeMode value_attribute_mode_for_type_state(TypeAttributeState);
     ValueAttributeMode value_attribute_mode() const;
 
-    void update_placeholder_visibility();
+    void update_text_input_decorations();
     GC::Ptr<DOM::Element> m_placeholder_element;
+    GC::Ptr<DOM::Element> m_search_clear_button;
     GC::Ptr<DOM::Text> m_placeholder_text_node;
 
     void update_button_input_shadow_tree();

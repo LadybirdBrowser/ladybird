@@ -1,0 +1,9 @@
+canceled | sample | true | none | none
+initial |  | true | input/Event | input/Event,change/Event
+empty |  | true | none | none
+reset RTL |  | true | input/Event | input/Event,change/Event
+read-only | value | true | none | none
+disabled | value | false | none | none
+hidden by author | value | true | none | none
+text | value | true | none | none
+back to search |  | true | input/Event | input/Event,change/Event
