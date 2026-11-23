@@ -1,0 +1,10 @@
+Ladybird shapes text-overflow’s three periods in whichever font of
+the block has a period for them, and keeps the ellipsis character only
+where the block’s first available font has it. That’s what Gecko’s
+gfxFontGroup::MakeEllipsisTextRun() and Blink’s LineTruncator::
+SetupEllipsis() do: Both choose U+2026 only if the first font has it,
+and shape the result with font fallback. WebKit draws U+2026 from a
+fallback font instead. Checked in Chrome 158.0.8127.37, Firefox 151.0,
+and WebKit 26.5, with Ahem limited to the space and capital letters
+by unicode-range: Chrome and Firefox draw three periods from the next
+font, and WebKit an ellipsis.
