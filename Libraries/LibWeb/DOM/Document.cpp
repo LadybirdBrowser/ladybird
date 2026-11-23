@@ -2392,6 +2392,7 @@ void Document::begin_style_stabilization_epoch()
     m_style_stabilization_has_style_reactions = false;
     m_animated_custom_property_changes_in_stabilization_epoch.clear();
     m_animated_custom_property_moves_in_stabilization_epoch = 0;
+    m_size_container_moves_in_stabilization_epoch.clear();
     HTML::note_rendering_trace_event("style stabilization epoch"sv);
     ++m_transition_generation;
 }
@@ -2426,6 +2427,23 @@ u64 Document::note_animated_custom_properties_moved_in_stabilization_epoch(CSS::
 {
     ++m_animated_custom_property_moves_in_stabilization_epoch;
     return ++m_animated_custom_property_changes_in_stabilization_epoch.ensure(style_node);
+}
+
+bool Document::note_size_container_moved_in_stabilization_epoch(CSS::StyleNodeID style_node)
+{
+    if (!is_in_style_stabilization_epoch())
+        return true;
+
+    // Inline-size containment keeps a container's content out of its intrinsic inline size, but the content can still
+    // move its inline size through its block size: a grid item with a preferred aspect ratio stretched in its row has
+    // its column sized from the row again, and the row grows to fit the content. Content sized in container-relative
+    // units then grows with the container, and the container with it, without ever settling. Such a container's
+    // dependents keep the style they computed against its box from the moves before.
+    constexpr u64 MOVES_OF_A_SIZE_CONTAINER_IN_AN_EPOCH = 8;
+    auto moves = ++m_size_container_moves_in_stabilization_epoch.ensure(style_node);
+    if (moves == MOVES_OF_A_SIZE_CONTAINER_IN_AN_EPOCH + 1)
+        HTML::note_rendering_trace_event("size container move guard"sv);
+    return moves <= MOVES_OF_A_SIZE_CONTAINER_IN_AN_EPOCH;
 }
 
 bool Document::is_at_style_stabilization_bound(Layout::BegunRead const& read) const
