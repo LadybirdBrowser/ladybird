@@ -316,6 +316,8 @@ impl SourceTextModule {
         vm: &Vm,
         top_level_await_executable: Gc<Executable>,
     ) -> Gc<SharedFunctionInstanceData> {
+        // NB: As an arrow function, the wrapper has no this binding, so GetThisEnvironment finds the module Environment
+        //     Record, as it does for the code that AsyncBlockStart evaluates in moduleContext.
         let tla_shared_data = SharedFunctionInstanceData::create_without_compile_input(
             vm,
             FunctionKind::Async,
@@ -323,7 +325,7 @@ impl SourceTextModule {
             0,
             0,
             true,
-            false,
+            true,
             true,
             Vec::new(),
         );
