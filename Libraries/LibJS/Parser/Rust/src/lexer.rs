@@ -60,20 +60,20 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     #[inline(always)]
     pub fn at(&self, index: usize) -> u32 {
         // SAFETY: The lexer never goes further than one block into the padding.
-        unsafe { (*self.src.add(index)).code() }
+        unsafe { (*self.src.wrapping_add(index)).code() }
     }
 
     /// The source text from `start` up to `end`.
     pub(crate) fn source_view(&self, start: usize, end: usize) -> &[U] {
         debug_assert!(start <= end && end <= self.len as usize);
         // SAFETY: The range is within the source.
-        unsafe { ak::slice_from_raw_parts(self.src.add(start), end - start) }
+        unsafe { ak::slice_from_raw_parts(self.src.wrapping_add(start), end - start) }
     }
 
     #[inline(always)]
     fn block(&self, index: usize) -> Block {
         // SAFETY: As for at().
-        unsafe { U::load(self.src.add(index)) }
+        unsafe { U::load(self.src.wrapping_add(index)) }
     }
 
     #[inline(always)]
