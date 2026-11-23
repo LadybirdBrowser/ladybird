@@ -1,0 +1,21 @@
+Ladybird now paints a non-repeating linear gradient whose stops are
+outside 0%-100% by running its gradient line from its first stop to its
+last, does the same with a conic gradient’s sweep, and collapses a
+radial gradient’s negative stops to 0 with an edge color interpolated in
+its interpolation space, scaling its ending shape for stops past 1.
+Blink does the same in CSSGradientValue::AddStops(): It moves the
+endpoints of a linear gradient and the angles of a conic one by
+AdjustedGradientDomainForOffsetRange(), and for a radial one runs
+ClampNegativeOffsets() and then AdjustGradientRadiiForOffsetRange().
+WebKit’s normalizeStopsAndEndpointsOutsideRange() (StyleGradient.cpp)
+rescales a linear gradient’s stops and endpoints, and for radial and
+conic gradients collapses negative stops to 0 with a color from
+interpolateColors() in the gradient’s interpolation method. Gecko’s
+nsCSSGradientRenderer adjusts a linear gradient’s line and runs
+ClampColorStops(), and moves a radial gradient’s negative stops to 0
+with the interpolated color. Against Chrome 158 (engine-compare),
+Ladybird now matches within one level per channel in the issue’s cases,
+an angled gradient, a hard stop, oklab, oklch and hsl interpolation
+(longer hue included), conic gradients with stops past both ends, and a
+repeating gradient. Firefox 151 agrees, except in the oklab and hsl
+cases, where its own colors differ from Chrome’s.
