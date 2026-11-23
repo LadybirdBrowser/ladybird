@@ -685,6 +685,15 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         self.close_scope();
         let list = self.finish_list(mark);
         self.note_use(N_ASYNC);
+
+        // 13.3.6.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-function-calls-runtime-semantics-evaluation
+        // CallExpression : CoverCallExpressionAndAsyncArrowHead
+        // 4. Let ref be ? Evaluation of memberExpr.
+        // 9. Return ? EvaluateCall(func, ref, args, tailCall).
+        // NB: Marks async as the callee, so that EvaluateCall gets the this value from ref.
+        if self.marks {
+            self.mark_node(base as usize, tag::MARK_CALLEE, 0, params_start);
+        }
         let call_tag = if self.marks && in_array {
             tag::CALL_ARRAY
         } else {

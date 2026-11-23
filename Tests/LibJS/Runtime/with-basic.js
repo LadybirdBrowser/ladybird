@@ -161,3 +161,29 @@ test("with statement updates empty abrupt completions to undefined", () => {
     expect(eval("8; do { 9; with ({}) { 10; continue; } 11; } while (false);")).toBe(10);
     expect(eval("12; do { 13; with ({}) { continue; } 14; } while (false);")).toBeUndefined();
 });
+
+test("a call of a function named async gets the object of the with statement as this value", () => {
+    const object = {
+        async() {
+            return this === object;
+        },
+        other() {
+            return this === object;
+        },
+    };
+    with (object) {
+        const result = async();
+        expect(result).toBeTrue();
+        expect([async(), other(), async(...[]), async(1, 2)]).toEqual([true, true, true, true]);
+        expect((() => async())()).toBeTrue();
+        expect(eval("async()")).toBeTrue();
+    }
+
+    function async() {
+        "use strict";
+        return this;
+    }
+    expect(async()).toBeUndefined();
+    const arrow = async () => 1;
+    expect(arrow()).toBeInstanceOf(Promise);
+});
