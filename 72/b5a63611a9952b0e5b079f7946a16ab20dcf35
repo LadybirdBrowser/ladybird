@@ -1,0 +1,10 @@
+Ladybird now skips computing a flex item’s automatic minimum size only
+where its specified size suggestion is at most its flex base size:
+That’s the condition under which Blink’s FlexLayoutAlgorithm::
+ConstructAndAppendFlexItems() skips it too. Gecko decides it per item
+from the min-size alone, in FlexItem::IsMinSizeAutoResolutionNeeded(),
+and WebKit computes it whenever min-size is auto. In Chrome 158, Firefox
+151 and WebKit 26.5 (engine-compare), the reduction’s items get the
+sizes Ladybird now gives them: 100px where the flex-basis is 0px or 50px
+and the width is 100px, their 300px content where the width is 400px,
+and a height of 100px in a column container.
