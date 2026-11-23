@@ -73,3 +73,58 @@ test("a var from eval next to a let of the function, in calls with different nam
     expect(f("var a = 1; a")).toBe(1);
     expect(f("var b = 2; b")).toBe(2);
 });
+
+test("a var from eval finds a parameter of a list without expressions", () => {
+    function withoutBodyVar({ a }) {
+        return eval("var a; a");
+    }
+    function withBodyVar({ a }) {
+        var x;
+        return eval("var a; a");
+    }
+    function withClosure([a]) {
+        var read = () => a;
+        eval("var a;");
+        return [read(), a];
+    }
+    function withRest(...a) {
+        let x;
+        return [eval("var a; delete a"), typeof a];
+    }
+    expect(withoutBodyVar({ a: 5 })).toBe(5);
+    expect(withBodyVar({ a: 5 })).toBe(5);
+    expect(withClosure([5])).toEqual([5, 5]);
+    expect(withRest(5)).toEqual([false, "object"]);
+});
+
+test("a var of the body named like a parameter of a list without expressions", () => {
+    function sameBinding({ a }) {
+        var a;
+        return [eval("typeof a"), (() => a)()];
+    }
+    function assigned({ a }) {
+        var a = 2;
+        return [eval("a"), (() => a)()];
+    }
+    function withArguments({ a }) {
+        var arguments;
+        return eval("typeof arguments");
+    }
+    function calledTwice({ a }, source) {
+        var x;
+        return eval(source);
+    }
+    expect(sameBinding({ a: 1 })).toEqual(["number", 1]);
+    expect(assigned({ a: 1 })).toEqual([2, 2]);
+    expect(withArguments({})).toBe("object");
+    expect(calledTwice({ a: 1 }, "var p, q; a")).toBe(1);
+    expect(calledTwice({ a: 1 }, "var r; a")).toBe(1);
+});
+
+test("a var of the body named like a parameter that a default captures stays apart from it", () => {
+    function f(a, b = () => a) {
+        var a = 2;
+        return [a, b()];
+    }
+    expect(f(1)).toEqual([2, 1]);
+});
