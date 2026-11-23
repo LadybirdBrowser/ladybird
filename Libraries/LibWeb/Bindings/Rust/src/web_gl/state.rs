@@ -334,6 +334,24 @@ impl ContextState {
         self.handle_of(object)
     }
 
+    /// https://registry.khronos.org/webgl/specs/latest/2.0/#3.7.8
+    /// The checks that vertexAttribPointer() and vertexAttribIPointer() each make of their offset.
+    pub(crate) fn validate_vertex_attrib_offset(&self, offset: i64) -> bool {
+        // "If offset is negative, an INVALID_VALUE error will be generated."
+        if offset < 0 {
+            self.set_error(GL_INVALID_VALUE);
+            return false;
+        }
+
+        // "If no WebGLBuffer is bound to the ARRAY_BUFFER target and offset is non-zero, an INVALID_OPERATION error will
+        //  be generated."
+        if self.array_buffer_binding.get().is_none() && offset != 0 {
+            self.set_error(GL_INVALID_OPERATION);
+            return false;
+        }
+        true
+    }
+
     pub(crate) fn handle_for_deletion_of<O: Interface + Inherits<WebGLObject>>(&self, object: Ref<O>) -> Option<u32> {
         match object.parent().handle_for_deletion(self) {
             Ok(handle) => handle,
