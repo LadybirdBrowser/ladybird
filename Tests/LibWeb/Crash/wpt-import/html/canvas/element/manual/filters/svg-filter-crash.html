@@ -1,0 +1,14 @@
+<!doctype html>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    filter.setAttribute('id', 'id_0')
+    svg.appendChild(filter)
+    document.documentElement.appendChild(svg)
+    const canvas = document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas')
+    const context = canvas.getContext('2d')
+    context.filter = 'url(#id_0) url(#id_0) sepia() url(#id_0)'
+    svg.setAttribute('style', 'display: inline-block;')
+  })
+</script>

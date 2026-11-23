@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<svg width="0" height="0">
+    <filter id="flood" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feFlood flood-color="rgb(0,255,0)"/>
+    </filter>
+</svg>
 <script>
     function gradients(ctx) {
         return [
@@ -39,5 +44,7 @@
         draw("fill", () => {}, fill);
         draw("fill with copy", ctx => { ctx.globalCompositeOperation = "copy"; }, fill);
         draw("stroke with copy", ctx => { ctx.globalCompositeOperation = "copy"; }, stroke);
+        draw("fill with an unresolved filter", ctx => { ctx.filter = "url(#missing)"; }, fill);
+        draw("fill with a flood filter", ctx => { ctx.filter = "url(#flood)"; }, fill);
     });
 </script>

@@ -271,13 +271,13 @@ impl ContextState {
             if let Some((source_canvas_id, source_is_2d)) = kind.canvas_id(source) {
                 if self.recorder_is_ready() {
                     let state = self.drawing_state();
-                    self.record(|recorder| {
+                    self.record_draw(&state, |recorder, compositing| {
                         recorder.draw_canvas(
                             CanvasId(source_canvas_id),
                             destination_rect,
                             source_rect,
                             scaling_mode,
-                            &Self::compositing(&state),
+                            compositing,
                         );
                     });
                     drop(state);
@@ -297,7 +297,7 @@ impl ContextState {
             };
             if self.recorder_is_ready() {
                 let state = self.drawing_state();
-                self.record(|recorder| {
+                self.record_draw(&state, |recorder, compositing| {
                     recorder.draw_video_frame(
                         &captured_frame.hold,
                         captured_frame.sink_handle,
@@ -305,7 +305,7 @@ impl ContextState {
                         destination_rect,
                         source_rect,
                         scaling_mode,
-                        &Self::compositing(&state),
+                        compositing,
                     );
                 });
                 drop(state);
@@ -326,14 +326,8 @@ impl ContextState {
         //       only afterwards.
         if self.recorder_is_ready() {
             let state = self.drawing_state();
-            self.record(|recorder| {
-                recorder.draw_image_frame(
-                    &frame,
-                    destination_rect,
-                    source_rect,
-                    scaling_mode,
-                    &Self::compositing(&state),
-                );
+            self.record_draw(&state, |recorder, compositing| {
+                recorder.draw_image_frame(&frame, destination_rect, source_rect, scaling_mode, compositing);
             });
             drop(state);
             self.did_draw();

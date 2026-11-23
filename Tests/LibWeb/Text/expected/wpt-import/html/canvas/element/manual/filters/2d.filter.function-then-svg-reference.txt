@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	url() alone renders correctly
+Pass	brightness() chained before url() renders correctly

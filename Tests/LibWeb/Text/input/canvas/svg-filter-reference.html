@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="0" height="0">
+    <filter id="green" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feFlood flood-color="rgb(0,255,0)"/>
+        <feComposite in2="SourceAlpha" operator="in"/>
+    </filter>
+    <filter id="flood" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feFlood flood-color="rgb(0,255,0)"/>
+    </filter>
+    <filter id="offset" x="0" y="0" width="100%" height="100%">
+        <feOffset dx="4"/>
+    </filter>
+    <filter id="identity" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feOffset dx="0"/>
+    </filter>
+    <filter id="invert" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>
+    </filter>
+    <rect id="notafilter"/>
+</svg>
+<script>
+    function context() {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "red";
+        return ctx;
+    }
+
+    function pixel(label, ctx, x = 10, y = 10) {
+        println(label + ": " + ctx.getImageData(x, y, 1, 1).data.join(","));
+    }
+
+    function draw(label, value, beforeDraw = () => {}) {
+        const ctx = context();
+        ctx.filter = value;
+        beforeDraw(ctx);
+        ctx.fillRect(0, 0, 20, 20);
+        pixel(label, ctx);
+        return ctx;
+    }
+
+    test(() => {
+        for (const value of [
+            "url(#green)",
+            "url(#nope)",
+            "url(#notafilter)",
+            "url(green)",
+            "brightness(0) url(#green)",
+            "url(#green) brightness(0)",
+            "url(#green) brightness(0) url(#green)",
+            "brightness(0) url(external.svg#green)",
+            "brightness(0) url(#identity)",
+            "invert(1) url(#invert)",
+            "url(#invert) url(#invert)",
+            "url(#gr%65en)",
+        ]) {
+            draw(value, value);
+        }
+        const absolute = new URL(document.URL);
+        absolute.hash = "green";
+        draw("Same-document absolute URL", 'url("' + absolute.href + '")');
+        const getter = draw("Quoted reference", "url( '#green' )");
+        println("Getter: " + getter.filter);
+
+        const changing = document.getElementById("green").cloneNode(true);
+        changing.id = "changing";
+        document.querySelector("svg").appendChild(changing);
+        const ctx = draw("Changed before draw", "url(#changing)", () => {
+            changing.firstElementChild.setAttribute("flood-color", "rgb(0,0,255)");
+        });
+        changing.firstElementChild.setAttribute("flood-color", "rgb(0,255,0)");
+        ctx.fillRect(0, 0, 20, 20);
+        pixel("Changed between draws", ctx);
+        changing.remove();
+        ctx.fillRect(0, 0, 20, 20);
+        pixel("Removed between draws", ctx);
+
+        draw("Inserted after assignment", "url(#later)", () => {
+            const later = document.getElementById("green").cloneNode(true);
+            later.id = "later";
+            document.querySelector("svg").appendChild(later);
+        });
+        document.querySelector("svg").style.display = "none";
+        draw("Hidden SVG resource", "url(#green)");
+        document.querySelector("svg").style.display = "";
+
+        // Every filter a list refers to counts toward one budget of primitives.
+        const budget = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+        budget.id = "budget";
+        budget.setAttribute("x", "0");
+        budget.setAttribute("y", "0");
+        budget.setAttribute("width", "100%");
+        budget.setAttribute("height", "100%");
+        for (let i = 0; i < 199; ++i)
+            budget.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "feOffset"));
+        budget.appendChild(document.getElementById("flood").firstElementChild.cloneNode(true));
+        document.querySelector("svg").appendChild(budget);
+        draw("200 primitives", "url(#budget)");
+        draw("200 primitives, twice", "url(#budget) url(#budget)");
+
+        draw("Restored reference", "url(#green)", ctx => {
+            ctx.save();
+            ctx.filter = "none";
+            ctx.restore();
+        });
+        draw("Invalid reference assignment", "url(#green)", ctx => { ctx.filter = "inherit"; });
+        draw("Invalid CSS assignment", "brightness(0)", ctx => { ctx.filter = ""; });
+        draw("Cleared filter", "url(#green)", ctx => { ctx.filter = "none"; });
+
+        const offscreen = new OffscreenCanvas(20, 20).getContext("2d");
+        offscreen.filter = "url(#green)";
+        offscreen.fillStyle = "red";
+        offscreen.fillRect(0, 0, 20, 20);
+        pixel("OffscreenCanvas", offscreen);
+
+        const transformed = context();
+        transformed.filter = "url(#offset)";
+        transformed.scale(2, 2);
+        transformed.fillRect(0, 0, 2, 5);
+        pixel("Offset in bitmap coordinates", transformed, 5, 5);
+        pixel("Offset outside result", transformed, 9, 5);
+
+        draw("Transparent input", "url(#flood)", ctx => { ctx.fillStyle = "transparent"; });
+        const text = context();
+        text.filter = "url(#flood)";
+        text.fillStyle = "transparent";
+        text.fillText("x", 0, 15);
+        pixel("Transparent text input", text);
+
+        const stroke = context();
+        stroke.filter = "url(#flood)";
+        stroke.strokeStyle = "transparent";
+        stroke.strokeRect(2, 2, 16, 16);
+        pixel("Transparent stroke input", stroke);
+
+        const source = context();
+        source.fillRect(0, 0, 20, 20);
+        const destination = context();
+        destination.filter = "url(#green)";
+        destination.drawImage(source.canvas, 0, 0);
+        pixel("drawImage", destination);
+    });
+</script>

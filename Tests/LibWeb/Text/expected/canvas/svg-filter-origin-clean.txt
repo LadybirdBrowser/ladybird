@@ -1,0 +1,17 @@
+Assigned only getImageData: readable
+Assigned only toDataURL: readable
+Pending image getImageData: readable
+Pending image toDataURL: readable
+Loaded cross-origin image getImageData: SecurityError
+Loaded cross-origin image toDataURL: SecurityError
+After clearing getImageData: SecurityError
+After clearing toDataURL: SecurityError
+Pending same-origin image getImageData: readable
+Pending same-origin image toDataURL: readable
+Same-origin image getImageData: readable
+Same-origin image toDataURL: readable
+Image pixel: 255,0,0,255
+Changed image getImageData: SecurityError
+Changed image toDataURL: SecurityError
+Unresolved list getImageData: readable
+Unresolved list toDataURL: readable

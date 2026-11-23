@@ -12,6 +12,9 @@
 
 namespace Web::Painting {
 
+// Adds a filter's primitives to those used so far by the filters applied together, unless that makes more than they
+// may have between them, and so fails to apply.
+bool svg_filter_fits_primitive_budget(SVG::SVGFilterElement const&, size_t& primitives_used);
 bool push_svg_filter_reference(Layout::BegunRead const&, DOM::Document&, Compositing::RustFFI::NodeSlotId, void const* url_value, void* sink);
 void push_svg_paint_server_description(Layout::BegunRead const&, DOM::Document&, Compositing::RustFFI::NodeSlotId, bool is_stroke, void* sink);
 
