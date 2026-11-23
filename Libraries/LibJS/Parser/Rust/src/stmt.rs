@@ -26,6 +26,16 @@ pub(crate) enum Context {
     Single,
 }
 
+/// The parameters of a function.
+pub(crate) struct ParameterList {
+    pub list: u32,
+    pub count: u32,
+    /// ExpectedArgumentCount of the list.
+    pub length: u32,
+    pub simple: bool,
+    pub has_rest: bool,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum VarKind {
     Var,
@@ -1131,15 +1141,39 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
     }
 
     /// The parameter list, from the `(`.
-    pub(crate) fn parse_parameter_list(&mut self, state: &mut FunctionState) -> (u32, u32, u32, bool, bool) {
+    pub(crate) fn parse_parameter_list(&mut self, state: &mut FunctionState) -> ParameterList {
         let params_start = self.tok_start;
         self.expect(T::LParen);
+        let parameters = self.parse_parameters_until(T::RParen, params_start, state);
+        self.expect(T::RParen);
+        parameters
+    }
+
+    /// Parses the whole source as the parameter list of a function of the given kind.
+    pub fn parse_parameters_of_dynamic_function(&mut self, is_generator: bool, is_async: bool) {
+        self.open_scope_with(scope_flag::TOP, 0);
+        self.lex();
+        let new_ctx = Self::function_ctx(is_generator, is_async);
+        let flags = Self::function_flags(is_generator, is_async);
+        let mut state = self.begin_function(0, new_ctx, flags);
+        let parameters = self.parse_parameters_until(T::Eof, 0, &mut state);
+
+        // 15.1.1 Static Semantics: Early Errors, https://tc39.es/ecma262/#sec-parameter-lists-static-semantics-early-errors
+        // FormalParameters : FormalParameterList
+        // It is a Syntax Error if IsSimpleParameterList of FormalParameterList is false and the BoundNames of FormalParameterList contains any duplicate elements.
+        if !parameters.simple && self.duplicate_parameter != NONE {
+            self.fail(self.duplicate_parameter, "Duplicate parameter names not allowed");
+        }
+    }
+
+    /// Parses parameters up to `close`.
+    fn parse_parameters_until(&mut self, close: T, params_start: u32, state: &mut FunctionState) -> ParameterList {
         let mark = self.scratch.len();
         let mut simple = true;
         let mut has_rest = false;
         let mut length = 0;
         let mut counting = true;
-        while self.tok != T::RParen && self.tok != T::Eof {
+        while self.tok != close && self.tok != T::Eof {
             let item_start = self.tok_start;
             let item = if self.tok == T::Ellipsis {
                 self.next();
@@ -1147,7 +1181,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                 has_rest = true;
                 simple = false;
                 counting = false;
-                if self.tok != T::RParen {
+                if self.tok != close {
                     self.fail(self.tok_start, "Rest parameter must be last");
                 }
                 self.ast.push(tag::REST, item_start, target, 0)
@@ -1162,11 +1196,10 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
                 item
             };
             self.scratch.push(item);
-            if self.tok != T::RParen {
-                self.expect_comma_or(T::RParen);
+            if self.tok != close {
+                self.expect_comma_or(close);
             }
         }
-        self.expect(T::RParen);
         let count = (self.scratch.len() - mark) as u32;
         let list = self.finish_list(mark);
         if self.yield_pos != 0 || self.await_pos != 0 {
@@ -1175,7 +1208,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         if simple {
             state.flags |= function_flag::SIMPLE_PARAMETERS;
         }
-        (list, count, length, simple, has_rest)
+        ParameterList {
+            list,
+            count,
+            length,
+            simple,
+            has_rest,
+        }
     }
 
     pub(crate) fn parse_function_tail(
@@ -1201,7 +1240,13 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             let node = self.skip_function(moved_state, row);
             return (node, 0, false);
         }
-        let (list, count, length, simple, has_rest) = self.parse_parameter_list(state);
+        let ParameterList {
+            list,
+            count,
+            length,
+            simple,
+            has_rest,
+        } = self.parse_parameter_list(state);
         if self.tok != T::LBrace {
             self.unexpected();
         }
