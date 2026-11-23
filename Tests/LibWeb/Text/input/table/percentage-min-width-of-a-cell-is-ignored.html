@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+body { margin: 0; font: 10px/10px Ahem; }
+.box { width: 600px; }
+table { table-layout: auto; border-spacing: 0; margin-bottom: 10px; }
+td { padding: 0; }
+.collapse { border-collapse: collapse; }
+</style>
+<!-- A percentage min-width on a table cell or column is ignored, while a length one still counts. -->
+<div class="box">
+<table id="one-cell"><tr><td style="min-width: 100%">XXXX</td></tr></table>
+<table id="with-max-width"><tr><td style="min-width: 100%; max-width: 125px">XXXX</td></tr></table>
+<table id="three-cells"><tr><td>XXX</td><td style="min-width: 100%">XXXX</td><td>XXXXX</td></tr></table>
+<table id="collapsed-borders" class="collapse"><tr><td>XXX</td><td style="min-width: 100%">XXXX</td><td>XXXXX</td></tr></table>
+<table id="full-width" style="width: 100%"><tr><td>XXX</td><td style="min-width: 100%">XXXX</td><td>XXXXX</td></tr></table>
+<table id="half-percent"><tr><td>XXX</td><td style="min-width: 50%">XXXX</td><td>XXXXX</td></tr></table>
+<table id="column"><col><col style="min-width: 100%"><col><tr><td>XXX</td><td>XXXX</td><td>XXXXX</td></tr></table>
+<table id="length-min-width"><tr><td>XXX</td><td style="min-width: 100px">XXXX</td><td>XXXXX</td></tr></table>
+<table id="percentage-width"><tr><td>XXX</td><td style="width: 50%">XXXX</td><td>XXXXX</td></tr></table>
+</div>
+<script>
+asyncTest(done => document.fonts.ready.then(() => {
+  for (const t of document.querySelectorAll("table"))
+    println(`${t.id}: cells ${[...t.querySelectorAll("td")].map(c => c.getBoundingClientRect().width).join(" ")}, table ${t.getBoundingClientRect().width}`);
+  done();
+}));
+</script>

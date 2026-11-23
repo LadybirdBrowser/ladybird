@@ -1,0 +1,9 @@
+one-cell: cells 40, table 40
+with-max-width: cells 40, table 40
+three-cells: cells 30 40 50, table 120
+collapsed-borders: cells 30 40 50, table 120
+full-width: cells 150 200 250, table 600
+half-percent: cells 30 40 50, table 120
+column: cells 30 40 50, table 120
+length-min-width: cells 30 100 50, table 180
+percentage-width: cells 30 80 50, table 160

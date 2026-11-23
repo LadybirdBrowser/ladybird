@@ -1937,7 +1937,15 @@ impl<'pass> TableFormattingContext<'pass> {
             let inline_offsets = cell_box.border_box_left(collapsed) + cell_box.border_box_right(collapsed);
             let width = style.width();
             let max_width = style.max_width();
-            let mut min_inline = style.min_width().to_px(inline_basis);
+            // https://www.w3.org/TR/css-tables-3/#percentage-contribution
+            // "Please note that 'min-width' is not included in this computation. As a result, a percentage 'min-width'
+            // is ignored."
+            let min_width = style.min_width();
+            let mut min_inline = if min_width.is_length() {
+                min_width.to_px(inline_basis)
+            } else {
+                CssPixels::default()
+            };
             let mut inline_size = if width.is_length() {
                 width.to_px(inline_basis)
             } else {
