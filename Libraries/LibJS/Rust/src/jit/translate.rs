@@ -938,7 +938,13 @@ pub(super) fn materialize_call_site_frames(
         callee_ref.caller_frame.set(innermost.as_ptr());
         callee_ref.caller_return_pc.set(linkage.return_pc);
         callee_ref.caller_dst_raw.set(linkage.dst);
-        vm.set_running_frame_in_current_realm(running);
+        // NB: A native callee may be of another realm, and the runtime unwinds its frame next. The current realm
+        //     stays that of the call site's frames.
+        if callee_ref.executable.get().is_some() {
+            vm.set_running_frame_in_current_realm(running);
+        } else {
+            vm.head.running_execution_context.set(running);
+        }
         stack.top.set(top);
     }
     innermost

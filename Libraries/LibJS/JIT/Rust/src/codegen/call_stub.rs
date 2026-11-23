@@ -409,12 +409,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.move64(temp, callee_value);
         self.branch_on_tag(Condition::NotEqual, temp, value::OBJECT_TAG, scratch, slow);
         self.emit_unbox_cell(function_register, temp);
-        // A callee of another realm is called by the runtime, which changes
-        // the current realm.
-        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
-        self.emit_load_compressed_cell(temp, &Address::new(temp, layout.shape_realm as i32));
-        self.masm
-            .branch64_memory(Condition::NotEqual, &vm_field(offsets.vm_current_realm), temp, slow);
         self.masm
             .load16(temp, &Address::new(function_register, offsets.object_flags as i32));
 
@@ -439,8 +433,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         }
 
         // An ECMAScript function the interpreter's call fast path calls in an
-        // inline frame.
+        // inline frame. One of another realm is called by the runtime, which
+        // changes the current realm.
         self.masm.bind(ecmascript_function);
+        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(temp, &Address::new(temp, layout.shape_realm as i32));
+        self.masm
+            .branch64_memory(Condition::NotEqual, &vm_field(offsets.vm_current_realm), temp, slow);
         // NB: The executable is decoded once it is known not to be null,
         //     which it stays: the runtime compiles the function again if a
         //     collection in it flushed the executable.
@@ -1043,6 +1042,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         let vm_field = |offset: u32| Address::new(vm, offset as i32);
         let frame_field = |offset: u32| Address::new(frame, offset as i32);
         let field = |offset: u32| Address::new(native_frame, offset as i32);
+        let field_of = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
         self.emit_native_stack_check(slow);
 
@@ -1093,6 +1093,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.emit_stub_copy_arguments(other, count, registers[0], temp);
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), native_frame);
+        // The function runs in its own realm, which may be another one. The
+        // frame keeps the caller's realm, which the return makes current
+        // again, as does the runtime when it unwinds the frame of a function
+        // that threw.
+        self.masm.load64(temp, &vm_field(offsets.vm_current_realm));
+        self.masm
+            .store64(&field(offsets.execution_context_realm_without_function), temp);
+        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(temp, &Address::new(temp, layout.shape_realm as i32));
+        self.masm.store64(&vm_field(offsets.vm_current_realm), temp);
 
         // Call the native function: it returns a ThrowCompletionOr<Value>,
         // the value or exception in the first return register and whether it
@@ -1123,6 +1133,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.branch_test32(Condition::NonZero, variant, 0xFF, threw);
         // Pop the frame, which is the running one, like the interpreter does.
         self.masm.load64(temp, &vm_field(offsets.vm_running_execution_context));
+        self.masm.load64(
+            scratch,
+            &field_of(temp, offsets.execution_context_realm_without_function),
+        );
+        self.masm.store64(&vm_field(offsets.vm_current_realm), scratch);
         self.masm.store64(&vm_field(offsets.vm_interpreter_stack_top), temp);
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), frame);

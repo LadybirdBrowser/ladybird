@@ -5,3 +5,9 @@ errors thrown in the frame: 50
 sloppy this of a frame function is the frame: 50
 objects the Object functions make: 100
 getters of both realms: frame HTML BODY parent
+native functions of the frame: 600
+errors thrown by native functions of the frame: 200
+errors thrown by native functions of the frame in a callee: 200
+errors thrown by getters of the frame: 200
+setters of the frame: 200
+errors thrown by setters of the frame: 200

@@ -1323,7 +1323,8 @@ inline fn coerce_this() {
 }
 
 # NB: Sloppy functions that use their this value start with this. Null and undefined become the global this value of
-#     the current realm, which is the function's, as a call into another realm goes through the runtime.
+#     the current realm, which is the function's, as a call of an ECMAScript function of another realm goes through
+#     the runtime.
 handler EnterCoercingThis() {
     let this_value = exec_ctx.this_value_register;
     if this_value is not Value<Object> {
@@ -3348,11 +3349,6 @@ handler GetById(
             goto invoke_accessor_slow();
         }
 
-        # NB: A getter of another realm is the runtime's, which changes the
-        #     current realm.
-        let getter_realm = function.shape.realm;
-        let getter_realm_vm = current_vm();
-        guard getter_realm == getter_realm_vm.current_realm else invoke_accessor_slow;
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_table_vm = current_vm();
@@ -3404,6 +3400,9 @@ handler GetById(
         native_frame.caller_dst_raw = destination_offset;
         let native_running_vm = current_vm();
         native_running_vm.running_execution_context = native_frame;
+        # The getter runs in its own realm, as in call_raw_native_function().
+        native_frame.realm_without_function = native_running_vm.current_realm;
+        native_running_vm.current_realm = function.shape.realm;
         exec_ctx = native_frame;
         values = exec_ctx.slots;
         let native_function = native_function_entry.function;
@@ -3436,6 +3435,7 @@ handler GetById(
         assert(caller_frame != 0);
         let return_vm = current_vm();
         return_vm.running_execution_context = caller_frame;
+        return_vm.current_realm = exec_ctx.realm_without_function;
         return_vm.interpreter_stack_top = alias(exec_ctx);
         exec_ctx = caller_frame;
         values = exec_ctx.slots;
@@ -4204,6 +4204,11 @@ inline fn call_raw_native_function(
     }
     let native_running_vm = current_vm();
     native_running_vm.running_execution_context = native_frame;
+    # The function runs in its own realm, which may be another one. The
+    # frame keeps the caller's realm, which the return makes current again,
+    # as does the runtime when it unwinds the frame of a function that threw.
+    native_frame.realm_without_function = native_running_vm.current_realm;
+    native_running_vm.current_realm = function.shape.realm;
     exec_ctx = native_frame;
     values = exec_ctx.slots;
     let native_function_entry = &native_running_vm.native_function_table[native_function_index & NATIVE_FUNCTION_TABLE_INDEX_MASK];
@@ -4242,6 +4247,7 @@ inline fn call_raw_native_function(
     assert(caller_frame != 0);
     let return_vm = current_vm();
     return_vm.running_execution_context = caller_frame;
+    return_vm.current_realm = exec_ctx.realm_without_function;
     return_vm.interpreter_stack_top = alias(exec_ctx);
     exec_ctx = caller_frame;
     values = exec_ctx.slots;
@@ -4332,8 +4338,9 @@ handler Call(
     let metadata = shared_data.asm_call_metadata;
     guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
     guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
-    # NB: A call into another realm is the runtime's, which changes the
-    #     current realm. A site's call cache is never linked to such a callee.
+    # NB: A call of an ECMAScript function of another realm is the runtime's,
+    #     which changes the current realm. A site's call cache is never linked
+    #     to such a callee.
     let callee_realm = function.shape.realm;
     let realm_vm = current_vm();
     guard callee_realm == realm_vm.current_realm else slow;
@@ -4361,9 +4368,6 @@ handler Call(
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_target: u64 = (alias(native_function_index) << CALL_CACHE_TARGET_INDEX_SHIFT) | CALL_CACHE_TARGET_NATIVE_FUNCTION;
-        let native_realm = function.shape.realm;
-        let native_realm_vm = current_vm();
-        guard native_realm == native_realm_vm.current_realm else slow;
         link_call_cache(call_feedback, callee, native_target, call_site_flags);
         let argument_operand_indices = &arguments;
         call_raw_native_function(function, native_function_index, call_feedback, dst, this_value, argument_count, argument_operand_indices) else slow;

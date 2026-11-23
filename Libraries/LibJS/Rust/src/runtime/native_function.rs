@@ -131,6 +131,11 @@ impl NativeFunction {
     }
 
     fn from_function_object(base: FunctionObject, name: Option<Utf16FlyString>, realm: Gc<Realm>) -> NativeFunction {
+        // NB: The fast paths of calls make the realm of the function's shape current.
+        debug_assert!(
+            base.shape().realm() == realm,
+            "a native function's shape is of its realm"
+        );
         base.inline_named_capacity.set(FUNCTION_LENGTH_AND_NAME_SLOTS as u8);
         NativeFunction {
             base,

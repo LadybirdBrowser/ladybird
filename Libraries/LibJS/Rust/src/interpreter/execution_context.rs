@@ -317,8 +317,12 @@ unsafe impl Trace for ExecutionContext {
         if self.function.get().is_none() || (self.frame_initialized.get() && self.keeps_private_environment()) {
             self.private_environment_in_frame.trace(visitor);
         }
-        if self.function.get().is_none() {
+        // NB: A frame with a function holds an old value there too, apart from the lightweight frame of a native
+        //     function call, which has no executable and keeps the caller's realm.
+        if self.function.get().is_none() || self.executable.get().is_none() {
             self.realm_without_function.trace(visitor);
+        }
+        if self.function.get().is_none() {
             match self.script_or_module_without_function.get() {
                 ScriptOrModule::Empty => {}
                 ScriptOrModule::Script(script) => script.trace(visitor),
