@@ -243,13 +243,32 @@ struct OwnedAttribute {
     value: CodeUnits,
 }
 
+/// The attributes a tag token had, kept for as long as an element made of it can be made again. Every copy shares
+/// them, and a tag without attributes keeps nothing.
+#[derive(Clone, Debug, Default)]
+struct OwnedAttributes(Option<std::rc::Rc<[OwnedAttribute]>>);
+
+impl From<Vec<OwnedAttribute>> for OwnedAttributes {
+    fn from(attributes: Vec<OwnedAttribute>) -> Self {
+        Self((!attributes.is_empty()).then(|| attributes.into()))
+    }
+}
+
+impl std::ops::Deref for OwnedAttributes {
+    type Target = [OwnedAttribute];
+
+    fn deref(&self) -> &[OwnedAttribute] {
+        self.0.as_deref().unwrap_or_default()
+    }
+}
+
 #[derive(Clone, Debug)]
 struct StackNode {
     handle: usize,
     local_name: HtmlName,
     namespace_: RustFfiHtmlNamespace,
     namespace_uri: Option<Vec<u16>>,
-    attributes: Vec<OwnedAttribute>,
+    attributes: OwnedAttributes,
     template_content: Option<usize>,
 }
 
@@ -313,7 +332,7 @@ struct FragmentParsingContext {
 struct ActiveFormattingElement {
     handle: usize,
     local_name: HtmlName,
-    attributes: Vec<OwnedAttribute>,
+    attributes: OwnedAttributes,
     is_marker: bool,
 }
 
@@ -458,7 +477,7 @@ impl ParserState {
             local_name: HtmlName::from_utf8("html"),
             namespace_: RustFfiHtmlNamespace::Html,
             namespace_uri: None,
-            attributes: Vec::new(),
+            attributes: OwnedAttributes::default(),
             template_content: None,
         });
         if fragment_context.form_element != 0 {
@@ -916,7 +935,7 @@ impl TreeBuilder {
                     local_name: HtmlName::from_utf8("html"),
                     namespace_: RustFfiHtmlNamespace::Html,
                     namespace_uri: None,
-                    attributes: Vec::new(),
+                    attributes: OwnedAttributes::default(),
                     template_content: None,
                 });
             } else {
@@ -1244,7 +1263,7 @@ impl TreeBuilder {
                     local_name: HtmlName::from_utf8("head"),
                     namespace_: RustFfiHtmlNamespace::Html,
                     namespace_uri: None,
-                    attributes: Vec::new(),
+                    attributes: OwnedAttributes::default(),
                     template_content: None,
                 });
                 self.process_using_the_rules_for(InsertionMode::InHead, token);
@@ -3344,7 +3363,7 @@ impl TreeBuilder {
             local_name: local_name.clone(),
             namespace_: RustFfiHtmlNamespace::Html,
             namespace_uri: None,
-            attributes: Vec::new(),
+            attributes: OwnedAttributes::default(),
             template_content: None,
         });
         element
@@ -3376,7 +3395,7 @@ impl TreeBuilder {
             if namespace_ == RustFfiHtmlNamespace::MathMl && local_name == tag_name!("annotation-xml") {
                 owned_attributes_from_token(token, namespace_)
             } else {
-                Vec::new()
+                OwnedAttributes::default()
             };
         let namespace_uri = if namespace_ == RustFfiHtmlNamespace::Other {
             self.adjusted_current_node()
@@ -4517,7 +4536,7 @@ impl TreeBuilder {
         self.list_of_active_formatting_elements.push(ActiveFormattingElement {
             handle: 0,
             local_name: HtmlName::default(),
-            attributes: Vec::new(),
+            attributes: OwnedAttributes::default(),
             is_marker: true,
         });
     }
@@ -5121,13 +5140,13 @@ struct AdjustedAttributeName {
     namespace_: RustFfiHtmlAttributeNamespace,
 }
 
-fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) -> Vec<OwnedAttribute> {
+fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) -> OwnedAttributes {
     let TokenPayload::Tag {
         attributes: token_attributes,
         ..
     } = &token.payload
     else {
-        return Vec::new();
+        return OwnedAttributes::default();
     };
 
     let mut attributes = Vec::with_capacity(token_attributes.len());
@@ -5142,7 +5161,7 @@ fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) 
             value: attribute.value.clone(),
         });
     }
-    attributes
+    attributes.into()
 }
 
 unsafe fn utf16_string_from_ffi(ptr: *const u16, len: usize) -> Vec<u16> {
@@ -5942,7 +5961,7 @@ pub unsafe extern "C" fn rust_html_parser_begin_fragment(
             local_name: context_local_name,
             namespace_: context_namespace,
             namespace_uri: context_namespace_uri,
-            attributes: context_attributes,
+            attributes: context_attributes.into(),
             template_content: None,
         },
         document_quirks_mode,
