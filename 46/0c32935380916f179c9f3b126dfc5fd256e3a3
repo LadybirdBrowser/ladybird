@@ -1,0 +1,10 @@
+Ladybird now hides an atomic inline that text-overflow has no room for
+as a whole, places the ellipsis right after the content before it, and
+keeps the first content on a line, clipped. Blink’s LineTruncator::
+HideChild() hides atomic inlines the same way, and Gecko’s TextOverflow
+treats them as units through IsAtomicElement(). Checked in Chrome
+158.0.8127.37, Firefox 151.0, and WebKit 26.5: Chrome draws the test and
+its reference identically, and so does Firefox, but for antialiasing.
+WebKit differs on one case only, a hidden box with a start margin:
+It puts the ellipsis after that margin, where Chrome, Firefox, and
+Ladybird put it after the text.
