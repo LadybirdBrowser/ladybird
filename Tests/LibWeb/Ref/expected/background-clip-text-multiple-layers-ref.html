@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: bold 40px/1 sans-serif;
+    }
+    .box {
+        position: relative;
+        width: 300px;
+        height: 50px;
+        margin-bottom: 10px;
+    }
+    .text {
+        height: 100%;
+        color: transparent;
+        background-image: linear-gradient(90deg, red, blue);
+        background-clip: text;
+    }
+    .square {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 60px;
+        height: 50px;
+        background-image: linear-gradient(rgb(0 128 0 / 60%), rgb(0 128 0 / 60%));
+    }
+    .yellow {
+        background-color: yellow;
+    }
+    #color {
+        background-image: linear-gradient(yellow, yellow);
+        background-size: 150px 50px;
+        background-repeat: no-repeat;
+        background-color: cyan;
+    }
+</style>
+<div class="box yellow"><div class="text">Text on top</div></div>
+<div class="box yellow"><div class="text">Text between</div><div class="square"></div></div>
+<div class="box"><div class="text">Text below</div><div class="square"></div></div>
+<div class="box" id="color"><div class="text">Over a color</div></div>
