@@ -56,7 +56,7 @@ void web_css_font_face_did_join_set(void* font_face, void* set);
 void web_css_font_face_did_leave_set(void* font_face, void* set);
 void web_css_font_face_set_record_loading_fonts(void* set, size_t count);
 void web_css_font_face_set_update_layout(void* set, bool skip_if_running);
-bool web_css_font_face_set_for_each_font_face_rule(void* set, void* context, void (*callback)(void*, u64));
+bool web_css_font_face_set_for_each_font_face_rule(void* set, void* context, void (*callback)(void*, u64, size_t));
 void web_css_font_face_set_synchronize_font_computer(void* set, void* const* font_faces, size_t count);
 }
 
@@ -239,18 +239,16 @@ void web_css_font_face_set_update_layout(void* set, bool skip_if_running)
         document.update_layout(DOM::UpdateLayoutReason::FontFaceSetReady);
 }
 
-bool web_css_font_face_set_for_each_font_face_rule(void* set, void* context, void (*callback)(void*, u64))
+bool web_css_font_face_set_for_each_font_face_rule(void* set, void* context, void (*callback)(void*, u64, size_t))
 {
     auto* window = HTML::window_from_global_object(set_from_abi(set).relevant_settings_object().global_object());
     if (!window)
         return false;
-    Function<void(StyleSheetState&)> for_each_rule = [&](StyleSheetState& sheet) {
-        sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
-            if (rule.type() == RustRule::Type::FontFace)
-                callback(context, rule.identity());
-        });
-    };
-    window->associated_document().for_each_active_css_style_sheet(for_each_rule);
+    Vector<Parser::ValueParserFFI::NativeStyleSheet const*> sheets;
+    window->associated_document().for_each_active_css_style_sheet([&](StyleSheetState& sheet) {
+        sheets.append(sheet.native_sheet().handle());
+    });
+    Parser::ValueParserFFI::rust_style_sheets_visit_font_face_rules(sheets.data(), sheets.size(), context, callback);
     return true;
 }
 

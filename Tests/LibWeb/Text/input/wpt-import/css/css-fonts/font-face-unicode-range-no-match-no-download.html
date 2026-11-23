@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts: unicode-range not matching should not trigger font download</title>
+<link rel="author" title="Vitor Roriz" href="https://github.com/vitorroriz">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#descdef-font-face-unicode-range">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-style-matching">
+<meta name="assert" content="A font whose unicode-range does not match any character in the document must not be downloaded (spec: 'User agents must not download or use the font for codepoints outside this set.')">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@font-face {
+    font-family: "TestFont";
+    /* Query string makes the URL unique for PerformanceResourceTiming lookup. */
+    src: url("../../fonts/Ahem.ttf?unicode-range-no-match");
+    unicode-range: U+FFFF;
+}
+</style>
+<span style="font-family: TestFont">No characters here are in the unicode-range.</span>
+<script>
+promise_test(function() {
+    return document.fonts.ready.then(function() {
+        var absoluteURL = new URL("../../fonts/Ahem.ttf?unicode-range-no-match", location.href).href;
+        var entries = performance.getEntriesByName(absoluteURL);
+        assert_equals(entries.length, 0, "Font should not be downloaded when unicode-range does not match any document character");
+    });
+}, "Font with non-matching unicode-range must not be downloaded");
+</script>

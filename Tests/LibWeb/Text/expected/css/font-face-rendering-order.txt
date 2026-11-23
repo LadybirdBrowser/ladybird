@@ -1,0 +1,12 @@
+Exact: 80px, unloaded, loaded
+Unused: 80px, unloaded, loaded
+Nearest: 80px, unloaded, loaded
+Subset: 80px, loaded, unloaded
+Fallback: 80px, loaded, error
+editing an earlier descriptor preserves its order: true
+layer order statement wins: true
+disabling the layer order statement changes the winner: true
+enabling the layer order statement restores the winner: true
+removing the layer order statement changes the winner: true
+adopted sheets use the declared layer order: true
+removing an adopted layer order changes the winner: true

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	@font-face unlayered overrides layered
+Pass	@font-face override between layers
+Pass	@font-face override update with appended sheet 1
+Pass	@font-face override update with appended sheet 2

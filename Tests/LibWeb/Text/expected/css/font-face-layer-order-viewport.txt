@@ -1,0 +1,3 @@
+700px viewport: 80px text
+500px viewport: 23px text
+700px viewport: 80px text

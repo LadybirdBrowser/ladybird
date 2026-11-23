@@ -88,7 +88,10 @@ struct ObservableArrayHostClassTraits {
 
             // 5. Remove the last item from handler.[[BackingList]].
             // 6. Return true.
-            return array.array_set(vm.names.length, JS::Value(index), &array);
+            if (!TRY(array.array_set(vm.names.length, JS::Value(index), &array)))
+                return false;
+            observable_array.did_change_backing_list();
+            return true;
         }
 
         // 4. Return ? O.[[Delete]](P).
@@ -136,6 +139,8 @@ struct ObservableArrayHostClassTraits {
             // 2. Remove the last item from handler.[[BackingList]].
             if (!TRY(array.array_set(vm.names.length, JS::Value(index_to_delete), &array)))
                 return false;
+
+            observable_array.did_change_backing_list();
 
             // 3. Set indexToDelete to indexToDelete − 1.
         }
@@ -189,7 +194,10 @@ struct ObservableArrayHostClassTraits {
             descriptor.enumerable = true;
             descriptor.configurable = true;
         }
-        return array.internal_define_own_property(property_key, descriptor);
+        if (!TRY(array.internal_define_own_property(property_key, descriptor)))
+            return false;
+        observable_array.did_change_backing_list();
+        return true;
     }
 };
 
@@ -218,6 +226,7 @@ void ObservableArray::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_convert_to_idl_value);
     visitor.visit(m_on_set_an_indexed_value);
     visitor.visit(m_on_delete_an_indexed_value);
+    visitor.visit(m_on_backing_list_changed);
 }
 
 void ObservableArray::set_convert_to_idl_value_callback(GC::Ref<GC::Function<ConvertToIDLValueCallbackFunction::FunctionType>> callback)
@@ -278,12 +287,19 @@ JS::ThrowCompletionOr<void> ObservableArray::run_delete_an_indexed_value_callbac
     return {};
 }
 
+void ObservableArray::did_change_backing_list()
+{
+    if (m_on_backing_list_changed)
+        m_on_backing_list_changed->function()();
+}
+
 JS::ThrowCompletionOr<void> ObservableArray::append(JS::Value value)
 {
     TRY(run_convert_to_idl_value_callback(value));
     TRY(run_set_an_indexed_value_callback(length(), value));
     // Unlike CreateDataProperty, this also appends to an array that script has made non-extensible or frozen.
     m_array_object->indexed_append(value);
+    did_change_backing_list();
     return {};
 }
 
@@ -296,6 +312,7 @@ void ObservableArray::clear()
         if (auto deleted_value = element_value(0); deleted_value.has_value() && m_on_delete_an_indexed_value)
             MUST(m_on_delete_an_indexed_value->function()(*deleted_value, 0));
         m_array_object->indexed_take_first();
+        did_change_backing_list();
     }
 }
 

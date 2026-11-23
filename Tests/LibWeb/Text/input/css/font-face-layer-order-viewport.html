@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe width="700" height="90" srcdoc='<!doctype html>
+<style>
+    @media (min-width: 600px) { @layer b, a; }
+    @layer a { @font-face { font-family: Ordered; src: url(../wpt-import/fonts/Ahem.ttf); } }
+    @layer b { @font-face { font-family: Ordered; src: url(../wpt-import/fonts/mplus-1p-regular.woff); } }
+    span { display: inline-block; font: 20px Ordered; }
+</style>
+<span>iiii</span>'></iframe>
+<script>
+    promiseTest(async () => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const frame = document.querySelector("iframe");
+        const doc = frame.contentDocument;
+        const sample = doc.querySelector("span");
+        sample.offsetWidth;
+        await Promise.all([...doc.fonts].map(face => face.load()));
+        for (const width of [700, 500, 700]) {
+            frame.width = width;
+            const child = frame.contentWindow;
+            await new Promise(resolve => child.requestAnimationFrame(() => child.requestAnimationFrame(resolve)));
+            println(child.innerWidth + "px viewport: " + sample.offsetWidth + "px text");
+        }
+    });
+</script>
