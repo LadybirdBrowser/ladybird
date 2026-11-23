@@ -541,6 +541,24 @@ pub(crate) type TopLevelRows<'z> = Result<(AstColumns<'z>, u32), OutOfStack>;
 enum ParsePurpose {
     Compile,
     CheckSyntax,
+    /// A check of the syntax of the code as the parameters of a function of this kind.
+    CheckFunctionParameters(crate::ast::FunctionKind),
+}
+
+/// The errors of a parse of `units` that failed with `error`.
+fn parse_errors<U: Unit>(
+    zone: &Zone,
+    units: &[U],
+    options: &ParseOptions,
+    error: base::PendingError<'_>,
+) -> Vec<ParseError> {
+    let lines = LineTable::new(zone, units, options.initial_line_number);
+    let position = lines.position(error.pos.min(u32_from_usize(units.len())));
+    vec![ParseError {
+        message: error.message.to_owned(),
+        line: position.line,
+        column: position.column,
+    }]
 }
 
 /// Parses `units`, the code units of `source`, from a copy of them in `zone` that is followed by the padding the lexer
@@ -576,15 +594,21 @@ fn parse_code_units<'z, U: Unit + Default, R>(
     parser.strict |= options.starts_in_strict_mode;
     parser.initiated_by_eval = options.initiated_by_eval;
     parser.add_context(options.program_context().context);
-    let root = parser.parse_program();
+    let root = match purpose {
+        ParsePurpose::Compile | ParsePurpose::CheckSyntax => parser.parse_program(),
+        ParsePurpose::CheckFunctionParameters(kind) => {
+            use crate::ast::FunctionKind;
+            let is_generator = matches!(kind, FunctionKind::Generator | FunctionKind::AsyncGenerator);
+            let is_async = matches!(kind, FunctionKind::Async | FunctionKind::AsyncGenerator);
+            parser.parse_parameters_of_dynamic_function(is_generator, is_async);
+            return match parser.err.take() {
+                Some(error) => Err(parse_errors(zone, units, options, error)),
+                None => Ok(None),
+            };
+        }
+    };
     if let Some(error) = parser.err.take() {
-        let lines = LineTable::new(zone, units, options.initial_line_number);
-        let position = lines.position(error.pos.min(u32_from_usize(units.len())));
-        return Err(vec![ParseError {
-            message: error.message.to_owned(),
-            line: position.line,
-            column: position.column,
-        }]);
+        return Err(parse_errors(zone, units, options, error));
     }
     if purpose == ParsePurpose::CheckSyntax {
         return Ok(None);
@@ -703,4 +727,13 @@ pub fn with_parsed_tree<R>(
 /// Parses `source` for its syntax errors alone.
 pub fn check_syntax(source: &ak::Utf16String, options: &ParseOptions) -> Result<(), Vec<ParseError>> {
     parse_source(source, options, ParsePurpose::CheckSyntax, |_, _| ()).map(|_| ())
+}
+
+/// Parses `source` as the parameters of a function of the kind, for their syntax errors alone.
+pub fn check_function_parameters(
+    source: &ak::Utf16String,
+    kind: crate::ast::FunctionKind,
+) -> Result<(), Vec<ParseError>> {
+    let options = ParseOptions::new(ProgramType::Script);
+    parse_source(source, &options, ParsePurpose::CheckFunctionParameters(kind), |_, _| ()).map(|_| ())
 }

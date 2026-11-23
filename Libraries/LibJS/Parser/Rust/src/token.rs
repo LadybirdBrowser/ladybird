@@ -49,6 +49,7 @@ impl T {
     /// How error messages spell a token that the grammar wants.
     pub fn spelling(self) -> &'static str {
         match self {
+            T::Eof => "end of input",
             T::LBrace => "'{'",
             T::RBrace => "'}'",
             T::LParen => "'('",
