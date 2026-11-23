@@ -1,0 +1,13 @@
+padding: 90
+padding-both-margins: 90
+border: 32
+two-children: 90
+mixed-signs: 80
+negative: 60
+nested: 90
+padding-bottom-only: 30
+padding-top-only: 30
+border-bottom-only: 1
+after-a-box: 100
+flow-root: 90
+flow-root-no-padding: 30

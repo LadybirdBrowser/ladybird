@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .t { margin-bottom: 20px; width: 300px; }
+</style>
+<!-- The margin that collapses through a box's only children counts toward its height where it can collapse with
+     neither its top nor its bottom margin. -->
+<div class="t" id="padding" style="padding: 30px 0"><div style="margin-top: 30px"></div></div>
+<div class="t" id="padding-both-margins" style="padding: 30px 0"><div style="margin: 30px 0"></div></div>
+<div class="t" id="border" style="border: 1px solid; border-width: 1px 0"><div style="margin-top: 30px"></div></div>
+<div class="t" id="two-children" style="padding: 30px 0"><div style="margin-top: 30px"></div><div style="margin-bottom: 20px"></div></div>
+<div class="t" id="mixed-signs" style="padding: 30px 0"><div style="margin-top: 30px"></div><div style="margin-top: -10px"></div></div>
+<div class="t" id="negative" style="padding: 30px 0"><div style="margin-top: -30px"></div></div>
+<div class="t" id="nested" style="padding: 30px 0"><div><div style="margin-top: 30px"></div></div></div>
+<!-- Where it can collapse with the box's top or bottom margin, it doesn't. -->
+<div class="t" id="padding-bottom-only" style="padding-bottom: 30px"><div style="margin-top: 30px"></div></div>
+<div class="t" id="padding-top-only" style="padding-top: 30px"><div style="margin-top: 30px"></div></div>
+<div class="t" id="border-bottom-only" style="border-bottom: 1px solid"><div style="margin-top: 30px"></div></div>
+<!-- A box before the empty one, and a flow root, count it as before. -->
+<div class="t" id="after-a-box" style="padding: 30px 0"><div style="height: 10px"></div><div style="margin-top: 30px"></div></div>
+<div class="t" id="flow-root" style="display: flow-root; padding: 30px 0"><div style="margin-top: 30px"></div></div>
+<div class="t" id="flow-root-no-padding" style="display: flow-root"><div style="margin-top: 30px"></div></div>
+<script>
+    test(() => {
+        for (const box of document.querySelectorAll(".t"))
+            println(`${box.id}: ${box.getBoundingClientRect().height}`);
+    });
+</script>
