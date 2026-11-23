@@ -1692,7 +1692,6 @@ pub struct CompositorScrollbar {
     pub thumb_outline_color: Color,
     pub track_color: Color,
     pub vertical: bool,
-    pub is_painted_by_compositor: bool,
 }
 display_list_record_fields!(CompositorScrollbar {
     scroll_node_index,
@@ -1708,8 +1707,7 @@ display_list_record_fields!(CompositorScrollbar {
     thumb_color,
     thumb_outline_color,
     track_color,
-    vertical,
-    is_painted_by_compositor
+    vertical
 });
 
 impl DisplayListCommand for CompositorScrollbar {

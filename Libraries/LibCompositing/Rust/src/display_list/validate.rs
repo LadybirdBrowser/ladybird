@@ -533,10 +533,7 @@ fn validate_command_fields(
             nested.add(offset_of!(PaintVectorImage, records))?;
             p.bool_at(offset_of!(PaintVectorImage, requires_direct_replay))?;
         }
-        T::CompositorScrollbar => {
-            p.bool_at(offset_of!(CompositorScrollbar, vertical))?;
-            p.bool_at(offset_of!(CompositorScrollbar, is_painted_by_compositor))?;
-        }
+        T::CompositorScrollbar => p.bool_at(offset_of!(CompositorScrollbar, vertical))?,
         T::PaintScrollBar => p.bool_at(offset_of!(PaintScrollBar, vertical))?,
         T::Canvas2DFillPath => {
             p.span_at(offset_of!(Canvas2DFillPath, path_data))?;

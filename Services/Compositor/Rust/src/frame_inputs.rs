@@ -18,7 +18,6 @@ use libgfx_rust::{Color, FloatRect, IntRect};
 pub struct ScrollbarOfFrame {
     pub scroll_node_index: SpatialNodeIndex,
     pub vertical: bool,
-    pub is_painted_by_compositor: bool,
     pub gutter_rect: FloatRect,
     pub thumb_rect: FloatRect,
     pub expansion: f32,
@@ -34,7 +33,6 @@ impl Default for ScrollbarOfFrame {
         Self {
             scroll_node_index: Default::default(),
             vertical: false,
-            is_painted_by_compositor: false,
             gutter_rect: Default::default(),
             thumb_rect: Default::default(),
             expansion: 0.0,
@@ -69,7 +67,6 @@ impl FrameInputs {
     pub fn scrollbars_shown_for_the_page(&self) -> Vec<ScrollbarShownByFrame> {
         self.scrollbars
             .iter()
-            .filter(|scrollbar| !scrollbar.is_painted_by_compositor)
             .map(|scrollbar| ScrollbarShownByFrame {
                 scroll_node_index: scrollbar.scroll_node_index,
                 vertical: scrollbar.vertical,
@@ -79,27 +76,5 @@ impl FrameInputs {
                 opacity: scrollbar.opacity,
             })
             .collect()
-    }
-
-    fn scroll_offset_changed_since(&self, last_frame_inputs: &FrameInputs, index: SpatialNodeIndex) -> bool {
-        last_frame_inputs
-            .presented_scroll_state_snapshot
-            .device_offset_for_index(index)
-            != self.presented_scroll_state_snapshot.device_offset_for_index(index)
-    }
-
-    pub fn gutters_of_compositor_painted_scrollbars_that_scrolled_since(
-        &self,
-        last_frame_inputs: &FrameInputs,
-    ) -> IntRect {
-        self.scrollbars
-            .iter()
-            .filter(|scrollbar| {
-                scrollbar.is_painted_by_compositor
-                    && self.scroll_offset_changed_since(last_frame_inputs, scrollbar.scroll_node_index)
-            })
-            .fold(IntRect::default(), |damage, scrollbar| {
-                damage.united(scrollbar.thin_and_expanded_gutter_rect)
-            })
     }
 }

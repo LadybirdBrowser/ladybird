@@ -289,13 +289,7 @@ impl ContextPresenting {
         );
         let live_media_changed = changes.canvas_or_video_changed;
 
-        let scrolled_compositor_scrollbars = self.painted_frame.as_ref().map_or(IntRect::default(), |painted_frame| {
-            frame
-                .frame_inputs
-                .gutters_of_compositor_painted_scrollbars_that_scrolled_since(&painted_frame.frame_inputs)
-        });
-        let forced_damage_rect =
-            self.raster_rect_of(forced_damage_rect.united(scrolled_compositor_scrollbars.intersected(viewport_rect)));
+        let forced_damage_rect = self.raster_rect_of(forced_damage_rect);
         let damage_of_layers_moved_by_animated_transforms =
             self.damage_of_layers_moved_by_animated_transforms(&layer_update, raster_rect);
         let repaints_everything = invalidates_every_tile

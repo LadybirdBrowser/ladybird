@@ -1291,14 +1291,14 @@ impl CompositorCore {
         presenting
             .borrow_mut()
             .paint_screenshot(&environment, target, &display_list, &screenshot_inputs.frame_inputs);
-        if let Some(forced_damage_rect) = screenshot_inputs.scrollbar_fade_damage_rect {
+        if screenshot_inputs.scrollbar_fades_changed {
             let viewport_rect = presenting.borrow().viewport_rect_of_current_frame();
             if let Some(viewport_rect) = viewport_rect {
                 self.schedule_present_frame(
                     context_id,
                     PendingFrame {
                         viewport_rect,
-                        forced_damage_rect,
+                        forced_damage_rect: Default::default(),
                     },
                     now,
                 );
