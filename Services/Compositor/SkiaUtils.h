@@ -166,6 +166,6 @@ sk_sp<SkImage> sk_texture_image_sharing_pixels_of_decoded_image_frame(DecodedIma
 
 // Hands the source bitmap's pixel storage to the returned SkImage without copying: the image
 // holds a reference to the bitmap and drops it on destruction.
-sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace const& color_space);
+sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap const> bitmap, ColorSpace const& color_space);
 
 }
