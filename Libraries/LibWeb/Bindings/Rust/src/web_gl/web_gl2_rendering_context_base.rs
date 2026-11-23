@@ -955,6 +955,9 @@ impl RenderingContext<WebGL2> {
         stride: i32,
         offset: i64,
     ) -> WebIdlResult<()> {
+        if !self.validate_vertex_attrib_offset(offset) {
+            return Ok(());
+        }
         self.proxy.vertex_attrib_i_pointer(index, size, r#type, stride, offset);
         Ok(())
     }

@@ -1459,10 +1459,7 @@ impl<V: Version> RenderingContext<V> {
         stride: i32,
         offset: i64,
     ) -> WebIdlResult<()> {
-        // If no WebGLBuffer is bound to the ARRAY_BUFFER target and offset is non-zero, an INVALID_OPERATION error will
-        // be generated.
-        if self.array_buffer_binding.get().is_none() && offset != 0 {
-            self.set_error(GL_INVALID_OPERATION);
+        if !self.validate_vertex_attrib_offset(offset) {
             return Ok(());
         }
 

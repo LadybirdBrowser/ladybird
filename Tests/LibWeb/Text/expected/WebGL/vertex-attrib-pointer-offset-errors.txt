@@ -1,0 +1,12 @@
+webgl no buffer bound, vertexAttribPointer() at offset -4: INVALID_VALUE
+webgl no buffer bound, vertexAttribPointer() at offset 4: INVALID_OPERATION
+webgl a buffer bound, vertexAttribPointer() at offset -4: INVALID_VALUE
+webgl a buffer bound, vertexAttribPointer() at offset 4: NO_ERROR
+webgl2 no buffer bound, vertexAttribPointer() at offset -4: INVALID_VALUE
+webgl2 no buffer bound, vertexAttribIPointer() at offset -4: INVALID_VALUE
+webgl2 no buffer bound, vertexAttribPointer() at offset 4: INVALID_OPERATION
+webgl2 no buffer bound, vertexAttribIPointer() at offset 4: INVALID_OPERATION
+webgl2 a buffer bound, vertexAttribPointer() at offset -4: INVALID_VALUE
+webgl2 a buffer bound, vertexAttribIPointer() at offset -4: INVALID_VALUE
+webgl2 a buffer bound, vertexAttribPointer() at offset 4: NO_ERROR
+webgl2 a buffer bound, vertexAttribIPointer() at offset 4: NO_ERROR

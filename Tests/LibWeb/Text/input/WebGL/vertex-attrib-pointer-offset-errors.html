@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A negative vertex attribute offset is an INVALID_VALUE error, and a non-zero one with no buffer bound to
+    // ARRAY_BUFFER is an INVALID_OPERATION error.
+    test(() => {
+        for (const kind of ["webgl", "webgl2"]) {
+            const gl = document.createElement("canvas").getContext(kind);
+            const names = {
+                [gl.NO_ERROR]: "NO_ERROR",
+                [gl.INVALID_VALUE]: "INVALID_VALUE",
+                [gl.INVALID_OPERATION]: "INVALID_OPERATION",
+            };
+            function check(label, call) {
+                gl.getError();
+                call();
+                println(`${kind} ${label}: ${names[gl.getError()]}`);
+            }
+            function checkBoth(bound) {
+                for (const offset of [-4, 4]) {
+                    check(`${bound}, vertexAttribPointer() at offset ${offset}`, () => gl.vertexAttribPointer(0, 1, gl.FLOAT, false, 0, offset));
+                    if (kind === "webgl2")
+                        check(`${bound}, vertexAttribIPointer() at offset ${offset}`, () => gl.vertexAttribIPointer(0, 1, gl.INT, 0, offset));
+                }
+            }
+
+            checkBoth("no buffer bound");
+            gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+            checkBoth("a buffer bound");
+        }
+    });
+</script>
