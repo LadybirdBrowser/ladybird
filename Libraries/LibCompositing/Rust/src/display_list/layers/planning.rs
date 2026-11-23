@@ -71,6 +71,7 @@ pub enum WhyAnimationHasNoLayer {
     ItsFilterSpreadsWhatItFilters,
     ItHoldsAnEffectThatReadsWhatIsBelowIt,
     ItHoldsRecordsThatBlendWithWhatIsBelowThem,
+    ALaterEffectReadsItAsBackdrop,
     SortedByDepthInA3DSortingContext,
     NothingBoundsWhereItMoves,
     ItCanShowOverAnEarlierCanvasOrVideo,
@@ -90,6 +91,7 @@ impl std::fmt::Display for WhyAnimationHasNoLayer {
             WhyAnimationHasNoLayer::ItHoldsRecordsThatBlendWithWhatIsBelowThem => {
                 "it holds records that blend with what is below them"
             }
+            WhyAnimationHasNoLayer::ALaterEffectReadsItAsBackdrop => "a later effect reads it as backdrop",
             WhyAnimationHasNoLayer::SortedByDepthInA3DSortingContext => "sorted by depth in a 3D sorting context",
             WhyAnimationHasNoLayer::NothingBoundsWhereItMoves => "nothing bounds where it moves",
             WhyAnimationHasNoLayer::ItCanShowOverAnEarlierCanvasOrVideo => {
@@ -162,6 +164,14 @@ impl std::fmt::Display for WhyEffectIsComposited {
             }
         })
     }
+}
+
+// A backdrop reader that a composited effect painted before it, within its group, would get composited.
+struct BackdropReaderAnAnimationMayCut {
+    reader: EffectNodeIndex,
+    backdrop_root: EffectNodeIndex,
+    first_run_index: usize,
+    read_tiles: Reach<IntRect>,
 }
 
 /// A plan of the layers of a list: the stack the compositor composites frames from, and where the parts of the list
@@ -1117,6 +1127,11 @@ impl<'a> ListBeingPlaced<'a> {
             }
         }
 
+        let later_backdrop_readers_once_worked_out = std::cell::OnceCell::new();
+        let later_backdrop_readers = || {
+            later_backdrop_readers_once_worked_out
+                .get_or_init(|| self.backdrop_readers_an_animation_may_cut(runs, placed_media))
+        };
         let what_effects_hold_once_worked_out = std::cell::OnceCell::new();
         let what_effects_hold = || {
             what_effects_hold_once_worked_out.get_or_init(|| {
@@ -1189,6 +1204,15 @@ impl<'a> ListBeingPlaced<'a> {
                 if animated_nodes_with_layers_count == MAXIMUM_ANIMATED_NODES_WITH_LAYERS {
                     return Some(WhyAnimationHasNoLayer::MoreAnimationsThanLayersFor);
                 }
+                // NB: This scans the backdrop readers, so it comes once the animation could still get a layer.
+                if self.later_effect_reads_as_backdrop(
+                    runs,
+                    effect,
+                    later_backdrop_readers(),
+                    &why_composited_regardless_of_layer_content.composited_effects,
+                ) {
+                    return Some(WhyAnimationHasNoLayer::ALaterEffectReadsItAsBackdrop);
+                }
                 None
             })();
             if let Some(why_no_layer) = why_no_layer {
@@ -1205,6 +1229,183 @@ impl<'a> ListBeingPlaced<'a> {
             );
         }
         why_composited_regardless_of_layer_content
+    }
+
+    /// Where the effect reads the backdrop it filters or blends with, and whether its backdrop filter reads nothing
+    /// past the edge it mirrors.
+    fn backdrop_read_reach(
+        &self,
+        runs: &RunGroupsPlaced,
+        effect: EffectNodeIndex,
+        backdrop_reader: BackdropReader,
+    ) -> (Reach<IntRect>, bool) {
+        let tree = self.tree;
+        let run_group = &runs.groups[self.run_group_of_effect(effect).0];
+        let geometry = &self.geometries[run_group.raster_space_index.0];
+        let reach_of_reading_effect = self.reach_of_effect(runs, effect);
+        match backdrop_reader.effect_with_backdrop_filter {
+            Some(effect_with_backdrop_filter) => {
+                let effect_node = &tree.effect_nodes[effect_with_backdrop_filter.0 as usize];
+                let EffectNodeData::Effects(effects) = &effect_node.data else {
+                    unreachable!("a backdrop filter belongs to an effects node");
+                };
+                let backdrop_filter = effects
+                    .backdrop_filter
+                    .as_ref()
+                    .expect("a reader with a backdrop filter has one");
+                // Where a transform the compositor animates moves or scales the backdrop filter within the
+                // space, a sample can read anywhere.
+                let backdrop_read_reach = if self
+                    .tables
+                    .animation_samples_move_spatial_within_space(effect_node.spatial, run_group.raster_space_index)
+                {
+                    Reach::Anywhere
+                } else if run_group.moves_within_space {
+                    filter_read_reach_in_device_pixels(
+                        &backdrop_filter.filter,
+                        &geometry.raster.world.draw_matrix(effect_node.spatial),
+                    )
+                    .map_or(Reach::Anywhere, |read_reach_in_device_pixels| {
+                        Reach::Within(run_group.reach.inflated_edges(
+                            read_reach_in_device_pixels,
+                            read_reach_in_device_pixels,
+                            read_reach_in_device_pixels,
+                            read_reach_in_device_pixels,
+                        ))
+                    })
+                } else {
+                    backdrop_filter_read_reach(tree, &geometry.raster, effect_with_backdrop_filter)
+                };
+                (
+                    backdrop_read_reach,
+                    backdrop_filter_reads_nothing_past_mirrored_edge(&backdrop_filter.filter),
+                )
+            }
+            None => (Reach::Within(reach_of_reading_effect), true),
+        }
+    }
+
+    /// The effect whose group the effect reads the backdrop within, or None where it reads the root group.
+    fn backdrop_root_of_reader(&self, effect: EffectNodeIndex) -> Option<EffectNodeIndex> {
+        let tree = self.tree;
+        let reading_effect_node = &tree.effect_nodes[effect.0 as usize];
+        if reading_effect_node.parent.is_none() {
+            return None;
+        }
+        tree.nearest_layer_at_or_above(reading_effect_node.parent)
+            .filter(|root| tree.root_isolation_effect != Some(*root))
+    }
+
+    // The backdrop readers that a layer of an animation could get composited: those that read within a group of their
+    // own, and that nothing but a composited effect painted before them would get composited, with the tiles they read.
+    fn backdrop_readers_an_animation_may_cut(
+        &self,
+        runs: &RunGroupsPlaced,
+        placed_media: &[PlacedMedia],
+    ) -> Vec<BackdropReaderAnAnimationMayCut> {
+        let list = self.list;
+        let mut readers = Vec::new();
+        for &reader in &self.effects_in_paint_order_with_outer_before_inner {
+            let Some(backdrop_reader) = self.backdrop_reader_by_effect_index[reader.0 as usize] else {
+                continue;
+            };
+            let Some(backdrop_root) = self.backdrop_root_of_reader(reader) else {
+                continue;
+            };
+            let (backdrop_read_reach, reads_nothing_past_mirrored_edge) =
+                self.backdrop_read_reach(runs, reader, backdrop_reader);
+            if !reads_nothing_past_mirrored_edge {
+                continue;
+            }
+            let read_tiles = match backdrop_read_reach {
+                Reach::Within(rect) => Reach::Within(CellRange::touched_by(rect).rect()),
+                backdrop_read_reach => backdrop_read_reach,
+            };
+            let first_run_index = self.first_run_index_by_effect_index[reader.0 as usize];
+            let read_tiles_cut_by_earlier_media = placed_media.iter().any(|media| {
+                let effect_of_media = list.run(media.run_index.0 as usize).context.effect;
+                (media.run_index.0 as usize) < first_run_index
+                    && self
+                        .nesting_of_live_effects
+                        .is_or_is_inside(effect_of_media, backdrop_root)
+                    && read_tiles.meets(Reach::Within(media.reach))
+            });
+            if read_tiles_cut_by_earlier_media {
+                continue;
+            }
+            readers.push(BackdropReaderAnAnimationMayCut {
+                reader,
+                backdrop_root,
+                first_run_index,
+                read_tiles,
+            });
+        }
+        readers
+    }
+
+    // Whether a composited effect cuts the tiles the reader reads, so that the reader reads what its own layer does not
+    // hold, as `note_backdrop_readers` works out.
+    fn composited_effect_cuts_read_tiles_of(
+        &self,
+        runs: &RunGroupsPlaced,
+        composited: EffectNodeIndex,
+        candidate: &BackdropReaderAnAnimationMayCut,
+    ) -> bool {
+        if composited == candidate.reader
+            || self.first_run_index_by_effect_index[composited.0 as usize] >= candidate.first_run_index
+            || !self
+                .nesting_of_live_effects
+                .is_strictly_inside(composited, candidate.backdrop_root)
+            || self
+                .nesting_of_live_effects
+                .is_strictly_inside(candidate.reader, composited)
+        {
+            return false;
+        }
+        let mut reach = self.reach_of_effect(runs, composited);
+        if let Some(backdrop_reader) = self.backdrop_reader_by_effect_index[composited.0 as usize]
+            && let Reach::Within(rect) = self.backdrop_read_reach(runs, composited, backdrop_reader).0
+        {
+            reach = reach.united(rect);
+        }
+        candidate.read_tiles.meets(Reach::Within(reach))
+    }
+
+    // A layer of an animation of the effect composites the effect and every effect around it that pushes a layer. A
+    // backdrop reader painted after the effect, and outside it, that reads where one of those reaches within its own
+    // group would then be composited for reading what its own layer does not hold, and so would every effect around it,
+    // as `note_backdrop_readers` works out. A reader composited already, or that an effect composited already cuts, is
+    // composited anyway.
+    fn later_effect_reads_as_backdrop(
+        &self,
+        runs: &RunGroupsPlaced,
+        effect: EffectNodeIndex,
+        later_backdrop_readers: &[BackdropReaderAnAnimationMayCut],
+        composited_effects: &[EffectNodeIndex],
+    ) -> bool {
+        let tree = self.tree;
+        let first_run_index = self.first_run_index_by_effect_index[effect.0 as usize];
+        later_backdrop_readers.iter().any(|candidate| {
+            if candidate.first_run_index <= first_run_index
+                || self.nesting_of_live_effects.is_or_is_inside(candidate.reader, effect)
+                || composited_effects.contains(&candidate.reader)
+                || composited_effects
+                    .iter()
+                    .any(|&composited| self.composited_effect_cuts_read_tiles_of(runs, composited, candidate))
+            {
+                return false;
+            }
+            let mut composited = effect;
+            while !composited.is_none() && tree.root_isolation_effect != Some(composited) {
+                if (composited == effect || tree.effect_pushes_layer_at_replay(composited))
+                    && self.composited_effect_cuts_read_tiles_of(runs, composited, candidate)
+                {
+                    return true;
+                }
+                composited = tree.effect_nodes[composited.0 as usize].parent;
+            }
+            false
+        })
     }
 
     // What each backdrop reader reads, in paint order, and whether it reads the root group. An effect that reads what
@@ -1224,58 +1425,11 @@ impl<'a> ListBeingPlaced<'a> {
             let Some(backdrop_reader) = self.backdrop_reader_by_effect_index[effect.0 as usize] else {
                 continue;
             };
-            let run_group = &runs.groups[self.run_group_of_effect(effect).0];
-            let geometry = &self.geometries[run_group.raster_space_index.0];
-            let reach_of_reading_effect = self.reach_of_effect(runs, effect);
             let (backdrop_read_reach, reads_nothing_past_mirrored_edge) =
-                match backdrop_reader.effect_with_backdrop_filter {
-                    Some(effect_with_backdrop_filter) => {
-                        let effect_node = &tree.effect_nodes[effect_with_backdrop_filter.0 as usize];
-                        let EffectNodeData::Effects(effects) = &effect_node.data else {
-                            unreachable!("a backdrop filter belongs to an effects node");
-                        };
-                        let backdrop_filter = effects
-                            .backdrop_filter
-                            .as_ref()
-                            .expect("a reader with a backdrop filter has one");
-                        // Where a transform the compositor animates moves or scales the backdrop filter within the
-                        // space, a sample can read anywhere.
-                        let backdrop_read_reach = if self.tables.animation_samples_move_spatial_within_space(
-                            effect_node.spatial,
-                            run_group.raster_space_index,
-                        ) {
-                            Reach::Anywhere
-                        } else if run_group.moves_within_space {
-                            filter_read_reach_in_device_pixels(
-                                &backdrop_filter.filter,
-                                &geometry.raster.world.draw_matrix(effect_node.spatial),
-                            )
-                            .map_or(Reach::Anywhere, |read_reach_in_device_pixels| {
-                                Reach::Within(run_group.reach.inflated_edges(
-                                    read_reach_in_device_pixels,
-                                    read_reach_in_device_pixels,
-                                    read_reach_in_device_pixels,
-                                    read_reach_in_device_pixels,
-                                ))
-                            })
-                        } else {
-                            backdrop_filter_read_reach(tree, &geometry.raster, effect_with_backdrop_filter)
-                        };
-                        (
-                            backdrop_read_reach,
-                            backdrop_filter_reads_nothing_past_mirrored_edge(&backdrop_filter.filter),
-                        )
-                    }
-                    None => (Reach::Within(reach_of_reading_effect), true),
-                };
+                self.backdrop_read_reach(runs, effect, backdrop_reader);
             backdrop_read_reach_by_effect_index[effect.0 as usize] = backdrop_read_reach;
             let reading_effect_node = &tree.effect_nodes[effect.0 as usize];
-            let backdrop_root = if reading_effect_node.parent.is_none() {
-                None
-            } else {
-                tree.nearest_layer_at_or_above(reading_effect_node.parent)
-                    .filter(|root| tree.root_isolation_effect != Some(*root))
-            };
+            let backdrop_root = self.backdrop_root_of_reader(effect);
             let why_composited = if !reads_nothing_past_mirrored_edge {
                 Some(WhyEffectIsComposited::ItsBackdropFilterReadsPastTheEdgeOfTheFrame)
             } else if let Some(backdrop_root) = backdrop_root {
@@ -3305,6 +3459,133 @@ mod tests {
                 .iter()
                 .all(|placed| placed.why_composited_regardless_of_layer_content.is_some())
         );
+    }
+
+    // An element whose opacity is animated in a group, under a later element of the group that blends with what is
+    // below it over `blending_element_rect`.
+    fn group_with_animated_element_under_blending_element(
+        blending_element_rect: IntRect,
+    ) -> (VisualContextTree, ListOfOneChunk, ContextRef) {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let group = tree.append_effect_node_under(viewport, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let element = tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let blending_element =
+            tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Overlay));
+        tree.set_visual_animations(vec![played_once_after_a_delay(opacity_animation_of(
+            element.effect,
+            1.0,
+            0.0,
+        ))]);
+        let list = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
+            .with(fill(ELEMENT, GREEN), element)
+            .with(fill(blending_element_rect, GREEN), blending_element);
+        (tree, list, element)
+    }
+
+    #[test]
+    fn an_animation_a_later_effect_reads_as_backdrop_has_no_layer() {
+        let (tree, list, element) = group_with_animated_element_under_blending_element(IntRect::new(0, 0, 200, 200));
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.stack.composited_effects.is_empty());
+        assert_eq!(
+            planned.placement.animations_without_layers,
+            [(
+                AnimatedNode::Effect(element.effect),
+                WhyAnimationHasNoLayer::ALaterEffectReadsItAsBackdrop
+            )]
+        );
+
+        // Where the blending element reads nothing where the animated element reaches, the animation keeps its layer.
+        let (tree, list, element) = group_with_animated_element_under_blending_element(IntRect::new(0, 2000, 200, 200));
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.placement.animations_without_layers.is_empty());
+        assert!(
+            whys_of_composited_effects(&planned)
+                .contains(&(element.effect, WhyEffectIsComposited::TheCompositorAnimatesIt))
+        );
+    }
+
+    #[test]
+    fn an_animation_in_a_wrapper_a_later_effect_reads_as_backdrop_has_no_layer() {
+        // The blending element reads nothing where the animated element reaches, but it reads where the wrapper around
+        // it reaches, which a layer of the animation would composite.
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let group = tree.append_effect_node_under(viewport, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let wrapper = tree.append_effect_node_under(group, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let element = tree.append_effect_node_under(wrapper, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let blending_element =
+            tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Overlay));
+        tree.set_visual_animations(vec![played_once_after_a_delay(opacity_animation_of(
+            element.effect,
+            1.0,
+            0.0,
+        ))]);
+        let list = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
+            .with(fill(IntRect::new(0, 0, 800, 300), GREEN), wrapper)
+            .with(fill(ELEMENT, GREEN), element)
+            .with(fill(IntRect::new(600, 0, 150, 150), GREEN), blending_element);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.stack.composited_effects.is_empty());
+        assert_eq!(
+            planned.placement.animations_without_layers,
+            [(
+                AnimatedNode::Effect(element.effect),
+                WhyAnimationHasNoLayer::ALaterEffectReadsItAsBackdrop
+            )]
+        );
+    }
+
+    #[test]
+    fn an_animation_in_a_wrapper_that_pushes_no_layer_keeps_its_layer() {
+        // The wrapper replays straight into its group, so a layer of the animation composites only the animated element,
+        // which the blending element reads nothing of.
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let group = tree.append_effect_node_under(viewport, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let wrapper = tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let element = tree.append_effect_node_under(wrapper, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let blending_element =
+            tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Overlay));
+        tree.set_visual_animations(vec![played_once_after_a_delay(opacity_animation_of(
+            element.effect,
+            1.0,
+            0.0,
+        ))]);
+        let list = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
+            .with(fill(IntRect::new(0, 0, 800, 300), GREEN), wrapper)
+            .with(fill(ELEMENT, GREEN), element)
+            .with(fill(IntRect::new(600, 0, 150, 150), GREEN), blending_element);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.placement.animations_without_layers.is_empty());
+        assert!(
+            whys_of_composited_effects(&planned)
+                .contains(&(element.effect, WhyEffectIsComposited::TheCompositorAnimatesIt))
+        );
+    }
+
+    #[test]
+    fn an_animation_under_a_blending_element_composited_for_its_canvas_keeps_its_layer() {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let group = tree.append_effect_node_under(viewport, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let element = tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let blending_element =
+            tree.append_effect_node_under(group, effects(1.0, CompositingAndBlendingOperator::Overlay));
+        tree.set_visual_animations(vec![played_once_after_a_delay(opacity_animation_of(
+            element.effect,
+            1.0,
+            0.0,
+        ))]);
+        let list = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
+            .with(fill(ELEMENT, GREEN), element)
+            .with(canvas(IntRect::new(0, 0, 200, 200), 1), blending_element);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.placement.animations_without_layers.is_empty());
+        let whys = whys_of_composited_effects(&planned);
+        assert!(whys.contains(&(element.effect, WhyEffectIsComposited::TheCompositorAnimatesIt)));
+        assert!(whys.iter().any(|&(effect, _)| effect == blending_element.effect));
     }
 
     #[test]
