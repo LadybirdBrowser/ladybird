@@ -807,7 +807,7 @@ void ConnectionFromUI::crash_compositor_process()
 void ConnectionFromUI::launch_devtools_client()
 {
     if (auto result = Application::the().launch_devtools_client(); result.is_error())
-        dbgln("Unable to launch DevTools client: {}", result.error());
+        WebView::Application::the().display_error_dialog(MUST(String::formatted("Unable to launch the DevTools client: {}", result.error())));
 }
 
 void ConnectionFromUI::reset_private_browsing_session()
