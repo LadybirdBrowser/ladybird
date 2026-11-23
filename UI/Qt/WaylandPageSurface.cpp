@@ -45,13 +45,17 @@ static u32 opaque_drm_format(u32 drm_format)
 OwnPtr<WaylandPageSurface> WaylandPageSurface::create()
 {
     static Optional<Globals> const globals = []() -> Optional<Globals> {
-        auto* wayland_application = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+        auto* application = wayland_application();
+        auto* compositor = application ? application->compositor() : nullptr;
+        if (!compositor)
+            return {};
+
         auto registry = WaylandRegistry::create();
-        if (!registry || !wayland_application->compositor())
+        if (!registry)
             return {};
 
         Globals globals {
-            .compositor = wayland_application->compositor(),
+            .compositor = compositor,
             .subcompositor = registry->bind<wl_subcompositor>(wl_subcompositor_interface, 1),
             .viewporter = registry->bind<wp_viewporter>(wp_viewporter_interface, 1),
             .dmabuf = registry->bind<zwp_linux_dmabuf_v1>(zwp_linux_dmabuf_v1_interface, 3),
