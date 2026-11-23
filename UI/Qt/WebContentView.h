@@ -456,6 +456,7 @@ private:
     friend struct VulkanWindowRenderer;
 
     void create_vulkan_window();
+    void release_vulkan_window_surface_for_move();
     void destroy_vulkan_window();
     void update_vulkan_window_mask();
     void update_vulkan_alpha_blending_support();
