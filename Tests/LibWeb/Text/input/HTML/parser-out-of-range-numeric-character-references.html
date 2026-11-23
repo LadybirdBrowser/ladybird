@@ -1,0 +1,9 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.createElement("div");
+        container.innerHTML = "&#65; &#4294967361; &#x41; &#x100000041;";
+        println(container.textContent);
+    });
+</script>

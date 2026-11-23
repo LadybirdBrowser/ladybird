@@ -2962,18 +2962,24 @@ impl HtmlTokenizer {
                 // Hexadecimal character reference state
                 State::HexadecimalCharacterReference => match current_input_character {
                     Some(cp) if is_ascii_digit(cp) => {
-                        self.character_reference_code =
-                            self.character_reference_code.wrapping_mul(16).wrapping_add(cp - 0x30);
+                        self.character_reference_code = self
+                            .character_reference_code
+                            .saturating_mul(16)
+                            .saturating_add(cp - 0x30);
                         continue;
                     }
                     Some(cp @ 0x41..=0x46) => {
-                        self.character_reference_code =
-                            self.character_reference_code.wrapping_mul(16).wrapping_add(cp - 0x37);
+                        self.character_reference_code = self
+                            .character_reference_code
+                            .saturating_mul(16)
+                            .saturating_add(cp - 0x37);
                         continue;
                     }
                     Some(cp @ 0x61..=0x66) => {
-                        self.character_reference_code =
-                            self.character_reference_code.wrapping_mul(16).wrapping_add(cp - 0x57);
+                        self.character_reference_code = self
+                            .character_reference_code
+                            .saturating_mul(16)
+                            .saturating_add(cp - 0x57);
                         continue;
                     }
                     Some(0x3B) => {
@@ -2991,8 +2997,10 @@ impl HtmlTokenizer {
                 // Decimal character reference state
                 State::DecimalCharacterReference => match current_input_character {
                     Some(cp) if is_ascii_digit(cp) => {
-                        self.character_reference_code =
-                            self.character_reference_code.wrapping_mul(10).wrapping_add(cp - 0x30);
+                        self.character_reference_code = self
+                            .character_reference_code
+                            .saturating_mul(10)
+                            .saturating_add(cp - 0x30);
                         continue;
                     }
                     Some(0x3B) => {
