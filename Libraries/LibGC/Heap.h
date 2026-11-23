@@ -41,6 +41,7 @@ enum class CollectionTrigger : u8 {
     Explicit,
     Allocation,
     IdlePolicy,
+    SteadyBudget,
     AbandonedObjectGraph,
     Compaction,
     DeferralEnded,
