@@ -1,0 +1,11 @@
+Ladybird exposes block as the computed display of a block button. Its
+button layout already establishes a block formatting context. Blink’s
+HTMLButtonElement::CreateLayoutObject chooses a LayoutBlockFlow for an
+ordinary block button. Gecko’s nsCSSFrameConstructor::FindHTMLButtonData
+selects the button’s frame, and WebKit’s RenderTheme::adjustStyle
+retains block for this case.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 returned block
+for an explicitly block button and retained flex and grid for those
+displays. For a text input with an explicit inline display, Chrome and
+WebKit returned inline-block, as Ladybird does. Firefox returned inline.
