@@ -1830,6 +1830,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.default_scroll_shift_anchors.get_mut(index as usize) {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
+        self.links_held_apart_from_their_containing_blocks.remove(id);
         self.paintable_rows.reset_committed_fragment_link_slot(index);
         self.text_slots.reset(index as usize);
         self.text_nodes_enrolled_for_content_sync.remove(&id);
@@ -5666,6 +5667,7 @@ impl LayoutNodeArena {
         // Cached runs may reuse the committed paintable subtree without replaying its fragments.
         // Once that subtree is cleared, a later layout must rebuild it instead.
         self.memo_invalidations.note_run_cache_entries_dropped(id.slot_index());
+        self.links_held_apart_from_their_containing_blocks.remove(id);
         drop(self.take_committed_fragment_link(id));
     }
 
