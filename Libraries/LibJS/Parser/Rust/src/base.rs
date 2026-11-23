@@ -212,7 +212,7 @@ pub(crate) struct FunctionState {
     pub arguments_other_uses: u32,
     pub reads_arguments_index: bool,
     pub may_write_parameters: bool,
-    pub in_class_of_sloppy_function: bool,
+    pub arguments_of_sloppy_function: bool,
     pub is_arrow: bool,
     pub summary_ordinal: u32,
 }
@@ -409,9 +409,9 @@ pub struct Parser<'a, 'k, U: Unit> {
     pub(crate) reads_arguments_index: bool,
     /// Whether something in the function may write a binding of the name of one of its parameters.
     pub(crate) may_write_parameters: bool,
-    /// Whether the code being parsed is in a class in a function that is not strict. The code of a class is strict, but
-    /// `arguments` in its heritage and computed keys is the arguments object of that function.
-    pub(crate) in_class_of_sloppy_function: bool,
+    /// Whether the code being parsed is strict, but `arguments` in it may be that of a function around it that is not.
+    /// That is so in the heritage and computed keys of a class, and in an arrow function with its own "use strict".
+    pub(crate) arguments_of_sloppy_function: bool,
     /// Whether the closest function, counting static blocks, is an arrow function.
     pub(crate) in_arrow: bool,
 
@@ -649,7 +649,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             arguments_other_uses: 0,
             reads_arguments_index: false,
             may_write_parameters: false,
-            in_class_of_sloppy_function: false,
+            arguments_of_sloppy_function: false,
             in_arrow: false,
 
             private_declared: ZoneVec::new_in(zone),
@@ -1993,7 +1993,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             arguments_other_uses: self.arguments_other_uses,
             reads_arguments_index: self.reads_arguments_index,
             may_write_parameters: self.may_write_parameters,
-            in_class_of_sloppy_function: self.in_class_of_sloppy_function,
+            arguments_of_sloppy_function: self.arguments_of_sloppy_function,
             is_arrow: self.in_arrow,
             summary_ordinal: self.summary_ordinal,
         };
@@ -2005,7 +2005,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         self.reads_arguments_index = false;
         self.may_write_parameters = false;
         self.in_arrow = flags & function_flag::ARROW != 0;
-        self.in_class_of_sloppy_function &= self.in_arrow;
+        self.arguments_of_sloppy_function &= self.in_arrow;
         self.ctx = new_ctx;
         self.labels_base = self.labels.len() as u32;
         self.yield_pos = 0;
@@ -2229,7 +2229,7 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         self.arguments_other_uses = state.arguments_other_uses + u32::from(arrow_might_need_arguments);
         self.reads_arguments_index = state.reads_arguments_index;
         self.may_write_parameters = state.may_write_parameters;
-        self.in_class_of_sloppy_function = state.in_class_of_sloppy_function;
+        self.arguments_of_sloppy_function = state.arguments_of_sloppy_function;
         self.in_arrow = state.is_arrow;
 
         if retained {

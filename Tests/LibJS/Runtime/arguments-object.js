@@ -433,3 +433,40 @@ test("mapped arguments object in the strict code of a class", () => {
     expect(arrowInKey("key")).toEqual(["constructor", "key"]);
     expect(withEnvironment("key")).toEqual(["constructor", "key"]);
 });
+
+test("mapped arguments used only in an arrow function with a use strict directive", () => {
+    function read(a) {
+        return (() => {
+            "use strict";
+            return arguments[0];
+        })();
+    }
+    expect(read(1)).toBe(1);
+
+    function write(a) {
+        (() => {
+            "use strict";
+            arguments[0] = 9;
+        })();
+        return a;
+    }
+    expect(write(1)).toBe(9);
+
+    function writeParameter(a) {
+        a = 5;
+        return (() => {
+            "use strict";
+            return (() => [...arguments])();
+        })();
+    }
+    expect(writeParameter(1, 2)).toEqual([5, 2]);
+
+    function* generator(a) {
+        yield (() => {
+            "use strict";
+            return delete arguments[0];
+        })();
+        yield a;
+    }
+    expect([...generator(1)]).toEqual([true, 1]);
+});
