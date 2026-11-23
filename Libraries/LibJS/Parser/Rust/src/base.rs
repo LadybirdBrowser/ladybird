@@ -367,8 +367,6 @@ pub struct Parser<'a, 'k, U: Unit> {
     /// Where the expression in the parentheses opened last starts. A function there is likely to be called, but not one
     /// that starts after the `(` of a list of arguments, which an arrow function usually is.
     pub(crate) parenthesized_expression_start: u32,
-    /// Whether this is the left side of `for await`, where `async of` is no arrow function.
-    pub(crate) for_await_head: bool,
 
     /// The state of each name, by its id. A parse of a function again has the states of its reparse context, which
     /// are all clean when it starts and ends.
@@ -627,7 +625,6 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
             duplicate_parameter: NONE,
             last_arrow: 0,
             parenthesized_expression_start: NONE,
-            for_await_head: false,
             names,
             uses: ZoneVec::with_capacity_in(estimated_uses, zone),
             decls: ZoneVec::with_capacity_in(estimated_uses / 16, zone),

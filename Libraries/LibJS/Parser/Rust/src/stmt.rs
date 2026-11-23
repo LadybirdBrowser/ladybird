@@ -793,13 +793,14 @@ impl<'a: 'k, 'k, U: Unit> Parser<'a, 'k, U> {
         let init_start = self.tok_start;
         let saved_cover_error = self.cover_error;
         self.cover_error = NONE;
-        self.for_await_head = await_at != NONE;
         let init = if await_at != NONE {
+            // 14.7.5 The for-in, for-of, and for-await-of Statements, https://tc39.es/ecma262/#sec-for-in-and-for-of-statements
+            // ForInOfStatement : for await ( [lookahead ≠ let] LeftHandSideExpression of AssignmentExpression ) Statement
+            // NB: `async of` at the start of a LeftHandSideExpression is the name `async`.
             self.parse_left_hand_side(false)
         } else {
             self.parse_expression(true, true)
         };
-        self.for_await_head = false;
         let is_of = self.is_contextual(N_OF);
         if self.tok == T::KIn || is_of {
             if await_at != NONE && !is_of {
