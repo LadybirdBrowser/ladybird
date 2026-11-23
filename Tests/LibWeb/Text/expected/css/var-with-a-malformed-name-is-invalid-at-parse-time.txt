@@ -1,0 +1,19 @@
+#a: 200px
+#b: 200px
+#c: 100px
+var(--prop 20px) -> "200px"; supports false
+var(prop) -> "200px"; supports false
+var(1px) -> "200px"; supports false
+var(var(--n)) -> "200px"; supports false
+var(--a --b) -> "200px"; supports false
+var(-x) -> "200px"; supports false
+var(--) -> "200px"; supports false
+calc(var(--w) + var(--gap 0px)) -> "200px"; supports false
+var(--w, 0px) var(--x 1px) -> "200px"; supports false
+env(safe-area-inset-top 0px) -> "200px"; supports false
+env(1px) -> "200px"; supports false
+var(--w, 0px) -> "var(--w, 0px)"; supports true
+var(--w,) -> "var(--w,)"; supports true
+var( --w ) -> "var( --w )"; supports true
+var(--w ,0px) -> "var(--w ,0px)"; supports true
+env(safe-area-inset-top, 0px) -> "env(safe-area-inset-top, 0px)"; supports true

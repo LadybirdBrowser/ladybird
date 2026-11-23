@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { --w: 100px; }
+    .t { max-width: 200px; }
+    #a { max-width: var(--w 0px); }
+    #b { max-width: calc(var(--w) + var(--gap 0px)); }
+    #c { max-width: var(--w, 0px); }
+</style>
+<div class="t" id="a"></div>
+<div class="t" id="b"></div>
+<div class="t" id="c"></div>
+<div id="target"></div>
+<script>
+    // A var() whose name isn't a custom property name, or an env() whose name isn't an identifier, makes the
+    // declaration invalid at parse time, so an earlier declaration of the property still applies.
+    test(() => {
+        for (const id of ["a", "b", "c"])
+            println(`#${id}: ${getComputedStyle(document.getElementById(id)).maxWidth}`);
+        const target = document.getElementById("target");
+        const values = [
+            "var(--prop 20px)", "var(prop)", "var(1px)", "var(var(--n))", "var(--a --b)", "var(-x)", "var(--)",
+            "calc(var(--w) + var(--gap 0px))", "var(--w, 0px) var(--x 1px)", "env(safe-area-inset-top 0px)", "env(1px)",
+            "var(--w, 0px)", "var(--w,)", "var( --w )", "var(--w ,0px)", "env(safe-area-inset-top, 0px)",
+        ];
+        for (const value of values) {
+            target.style.maxWidth = "200px";
+            target.style.maxWidth = value;
+            println(`${value} -> ${JSON.stringify(target.style.maxWidth)}; supports ${CSS.supports("max-width", value)}`);
+        }
+    });
+</script>

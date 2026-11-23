@@ -192,6 +192,48 @@ fn parse_dashed_function_argument(values: &[ComponentValue], position: &mut usiz
 
 // This mirrors parse_according_to_argument_grammar() in
 // CSS/Parser/ArbitrarySubstitutionFunctions.cpp.
+/// The argument of a `var()` or `env()` before its first comma, without the whitespace around it.
+fn first_argument(values: &[ComponentValue]) -> &[ComponentValue] {
+    let comma = values.iter().position(ComponentValue::is_comma).unwrap_or(values.len());
+    crate::css::parser::component_value::trim_whitespace(&values[..comma])
+}
+
+// https://drafts.csswg.org/css-variables-1/#using-variables
+// var() = var( <custom-property-name> , <declaration-value>? )
+// AD-HOC: The argument grammar of var() takes any <declaration-value> as the name, which only the replacement algorithm
+//         checks, at computed-value time. A name that isn't a <custom-property-name> makes the declaration invalid at
+//         parse time instead, so that a var() with a typo in it doesn't override an earlier declaration.
+// FIXME: Remove this check, and the one for env() below, once checking the name only at substitution time, as the
+//        argument grammar does, is web-compatible.
+fn names_a_custom_property(values: &[ComponentValue]) -> bool {
+    let name = first_argument(values);
+    name.len() == 1
+        && name[0]
+            .ident()
+            .is_some_and(|ident| ident.len() > 2 && ident[0] == b'-' as u16 && ident[1] == b'-' as u16)
+}
+
+// https://drafts.csswg.org/css-env-1/#env-function
+// env() = env( <custom-ident> <integer [0,inf]>*, <declaration-value>? )
+// AD-HOC: As for var(), a name that doesn't match this grammar makes the declaration invalid at parse time.
+fn names_an_environment_variable(values: &[ComponentValue]) -> bool {
+    let mut parts = first_argument(values).iter().filter(|value| !value.is_whitespace());
+    let Some(name) = parts.next().and_then(ComponentValue::ident) else {
+        return false;
+    };
+    crate::css::parser::value_parser::is_valid_custom_ident(name, &[])
+        && parts.all(|value| {
+            matches!(
+                value.kind,
+                ComponentKind::Token(ParserTokenKind::Number {
+                    value,
+                    number_type: crate::css::css_tokenizer::CssNumberType::Integer
+                        | crate::css::css_tokenizer::CssNumberType::IntegerWithExplicitSign,
+                }) if value >= 0.0
+            )
+        })
+}
+
 pub(crate) fn arguments_are_valid(function: ArbitrarySubstitutionFunction, values: &[ComponentValue]) -> bool {
     let mut position = 0;
     match function {
@@ -200,11 +242,19 @@ pub(crate) fn arguments_are_valid(function: ArbitrarySubstitutionFunction, value
                 && position == values.len()
                 && crate::css::custom_properties::literal_attr_arguments_are_valid(values)
         }
-        ArbitrarySubstitutionFunction::Env
-        | ArbitrarySubstitutionFunction::Inherit
-        | ArbitrarySubstitutionFunction::Var => {
+        ArbitrarySubstitutionFunction::Env => {
             parse_declaration_value_then_optional_declaration_value(values, &mut position, EndToken::Comma)
                 && position == values.len()
+                && names_an_environment_variable(values)
+        }
+        ArbitrarySubstitutionFunction::Inherit => {
+            parse_declaration_value_then_optional_declaration_value(values, &mut position, EndToken::Comma)
+                && position == values.len()
+        }
+        ArbitrarySubstitutionFunction::Var => {
+            parse_declaration_value_then_optional_declaration_value(values, &mut position, EndToken::Comma)
+                && position == values.len()
+                && names_a_custom_property(values)
         }
         ArbitrarySubstitutionFunction::DashedFunction => {
             discard_whitespace(values, &mut position);
@@ -462,6 +512,8 @@ mod tests {
         for source in [
             "var(--name)",
             "var(--name,)",
+            "var( --name ,fallback)",
+            "env(name 0 1, fallback)",
             "attr(data-name type(<string>), fallback)",
             "env(safe-area-inset-top, 0px)",
             "inherit(color, red)",
@@ -474,6 +526,15 @@ mod tests {
         for source in [
             "var()",
             "var(,--fallback)",
+            "var(--name 0px)",
+            "var(name)",
+            "var(--)",
+            "var(var(--name))",
+            "env(name 0px)",
+            "env(name -1)",
+            "env(name 1.5, fallback)",
+            "env(\"name\", fallback)",
+            "env(1px)",
             "attr(data-name ! invalid)",
             "env(name, fallback ! invalid)",
             "inherit(value; fallback)",
