@@ -204,8 +204,8 @@ impl Default for ScrollCapabilities {
 
 pub struct ScreenshotInputs {
     pub frame_inputs: FrameInputs,
-    /// The scrollbar fade damage that the screenshot does not present on screen, where a fade changed.
-    pub scrollbar_fade_damage_rect: Option<IntRect>,
+    /// Whether a scrollbar fade changed for the screenshot, which a frame then presents on screen.
+    pub scrollbar_fades_changed: bool,
 }
 
 struct ActiveSmoothScrollAnimation {

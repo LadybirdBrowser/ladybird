@@ -124,9 +124,8 @@ pub struct AsyncScrollbar {
     pub thumb_outline_color: Color,
     pub track_color: Color,
     pub vertical: bool,
-    // The compositor paints the viewport's scrollbars itself. The display list paints every other scrollbar thin, which
-    // the compositor presents growing as it is hovered, as it does its own.
-    pub is_painted_by_compositor: bool,
+    // The page takes no pointer input on a scrollbar of the viewport, which the compositor drags by itself.
+    pub scrolls_viewport: bool,
 }
 
 // A scroll node that is a snap container, with the geometry snap positions are selected from.
@@ -416,7 +415,7 @@ pub fn async_scrolling_state_from(
                     thumb_outline_color: command.thumb_outline_color,
                     track_color: command.track_color,
                     vertical: command.vertical,
-                    is_painted_by_compositor: command.is_painted_by_compositor,
+                    scrolls_viewport: false,
                 });
                 next_paint_order_index = next_paint_order_index.wrapping_add(1);
             }
@@ -427,6 +426,7 @@ pub fn async_scrolling_state_from(
         for scroll_node in &async_scrolling_state.scroll_nodes {
             if scroll_node.scroll_node_index == scrollbar.scroll_node_index {
                 scrollbar.scroller_stable_node_id = Some(scroll_node.stable_node_id);
+                scrollbar.scrolls_viewport = scroll_node.is_viewport;
                 break;
             }
         }

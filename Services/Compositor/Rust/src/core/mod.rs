@@ -1015,12 +1015,11 @@ impl CompositorCore {
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
-            let damage_rect = context.borrow_mut().advance_scrollbar_fades(frame_time);
-            if let Some(damage_rect) = damage_rect {
+            if context.borrow_mut().advance_scrollbar_fades(frame_time) {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: None,
-                    forced_damage_rect: damage_rect,
+                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }

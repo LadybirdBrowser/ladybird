@@ -305,15 +305,14 @@ impl ContextState {
         self.pointer_position = position;
     }
 
-    // A frame that shows how the scrollbars grow. The scrollbars the compositor paints itself are outside of what damage
-    // tracking sees, so the frame repaints where they are; it finds what changed of the others in their records.
+    // A frame that shows how the scrollbars grow, which it finds in the content hashes of their records.
     fn frame_repainting_scrollbars(&self) -> Option<PendingFrame> {
         if self.async_scrolling_viewport_rect.is_empty() {
             return None;
         }
         Some(PendingFrame {
             viewport_rect: self.async_scrolling_viewport_rect,
-            forced_damage_rect: self.scrollbar_controller.rect_of_scrollbars_painted_by_compositor(),
+            forced_damage_rect: Default::default(),
         })
     }
 
@@ -326,14 +325,7 @@ impl ContextState {
     }
 
     fn scrollbar_under_pointer(&mut self, position: FloatPoint) -> Option<usize> {
-        if let Some(index) = self.scrollbar_controller.hit_test_scrollbar_painted_by_compositor(
-            &self.async_scroll_tree,
-            &self.scroll_state_snapshot,
-            position,
-        ) {
-            return Some(index);
-        }
-        self.scrollbar_controller.hit_test_scrollbar_painted_by_display_list(
+        self.scrollbar_controller.hit_test_scrollbar(
             &self.async_scroll_tree,
             self.scene.visual_context_tree_for_compositing(),
             &self.scroll_state_snapshot,
@@ -341,28 +333,15 @@ impl ContextState {
         )
     }
 
-    // The compositor paints its own scrollbars over everything, so a nested context only takes the pointer where none of
-    // them is under it, and where no scrollbar the display list paints comes after the nested context's content in paint
-    // order. A press passes by a scrollbar that has faded out, as it does here.
-    fn nested_context_taking_mouse_event_at(
-        &mut self,
-        event_type: MouseEventType,
-        position: FloatPoint,
-    ) -> Option<NestedContextHit> {
+    // A nested context only takes the pointer where no scrollbar comes after the nested context's content in paint order.
+    // The scrollbars of the viewport come after all else. A scrollbar that has faded out takes no pointer.
+    fn nested_context_taking_mouse_event_at(&mut self, position: FloatPoint) -> Option<NestedContextHit> {
         if !self.has_async_scrolling_state {
             return None;
         }
         let tree = self.scene.visual_context_tree_for_compositing();
         let hit = self.async_scroll_tree.nested_context_at(tree, position)?;
-        if let Some(index) = self.scrollbar_controller.hit_test_scrollbar_painted_by_compositor(
-            &self.async_scroll_tree,
-            &self.scroll_state_snapshot,
-            position,
-        ) && (event_type != MouseEventType::MouseDown || self.scrollbar_controller.is_shown(index))
-        {
-            return None;
-        }
-        if let Some(index) = self.scrollbar_controller.hit_test_scrollbar_painted_by_display_list(
+        if let Some(index) = self.scrollbar_controller.hit_test_scrollbar(
             &self.async_scroll_tree,
             tree,
             &self.scroll_state_snapshot,
@@ -420,7 +399,7 @@ impl ContextState {
                 if event.button != MouseButton::Primary {
                     return ContextUpdateResult::declined(InputRoutingDecision::NotPrimaryButton);
                 }
-                if let Some(hit) = self.nested_context_taking_mouse_event_at(event.r#type, position) {
+                if let Some(hit) = self.nested_context_taking_mouse_event_at(position) {
                     return hand_to_nested_context(self, hit);
                 }
                 let Some(drag) = self.scrollbar_controller.begin_drag(
@@ -441,7 +420,7 @@ impl ContextState {
                 result.routed_scroller = scroller_of_scrollbar(&self.scrollbar_controller, drag.scrollbar_index);
                 result.scrollbar_dragged_by_compositor = self
                     .scrollbar_controller
-                    .captured_scrollbar_painted_by_display_list(self.context_id);
+                    .captured_scrollbar_the_page_takes(self.context_id);
                 result.frame_to_present = self.frame_repainting_scrollbars();
                 // A press beside the thumb pages toward the pointer or jumps there, as the platform says, and a modifier swaps
                 // the two.
@@ -485,7 +464,7 @@ impl ContextState {
                 if self.scrollbar_controller.has_captured_scrollbar() {
                     let scrollbar_dragged_by_compositor = self
                         .scrollbar_controller
-                        .captured_scrollbar_painted_by_display_list(self.context_id);
+                        .captured_scrollbar_the_page_takes(self.context_id);
                     let drag = self.scrollbar_controller.captured_drag(
                         self.scene.visual_context_tree_for_compositing(),
                         &self.scroll_state_snapshot,
@@ -518,7 +497,7 @@ impl ContextState {
                         ..Default::default()
                     };
                 }
-                if let Some(hit) = self.nested_context_taking_mouse_event_at(event.r#type, position) {
+                if let Some(hit) = self.nested_context_taking_mouse_event_at(position) {
                     return hand_to_nested_context(self, hit);
                 }
                 let hovered_scrollbar_index = self.scrollbar_under_pointer(position);
@@ -533,19 +512,20 @@ impl ContextState {
                         ..Default::default()
                     };
                 };
-                // The page sees the pointer move over a scrollbar the display list paints, as it is part of the page's content.
+                // The page sees the pointer move over a scrollbar of an element, as it is part of the element, but not over a
+                // scrollbar of the viewport.
                 let Some(scrollbar) = self.scrollbar_controller.scrollbars().get(index) else {
                     return ContextUpdateResult::default();
                 };
-                let is_painted_by_compositor = scrollbar.is_painted_by_compositor;
+                let scrolls_viewport = scrollbar.scrolls_viewport;
                 ContextUpdateResult {
-                    accepted: is_painted_by_compositor,
+                    accepted: scrolls_viewport,
                     frame_to_present,
                     should_request_rendering_update: false,
-                    routing_decision: Some(if is_painted_by_compositor {
-                        InputRoutingDecision::HoveringScrollbarPaintedByCompositor
+                    routing_decision: Some(if scrolls_viewport {
+                        InputRoutingDecision::HoveringViewportScrollbar
                     } else {
-                        InputRoutingDecision::HoveringScrollbarPaintedByDisplayList
+                        InputRoutingDecision::HoveringElementScrollbar
                     }),
                     routed_scroller: scroller_of_scrollbar(&self.scrollbar_controller, index),
                     ..Default::default()
@@ -558,7 +538,7 @@ impl ContextState {
                 let box_of_dragged_scrollbar = self.box_of_captured_scrollbar();
                 let scrollbar_dragged_by_compositor = self
                     .scrollbar_controller
-                    .captured_scrollbar_painted_by_display_list(self.context_id);
+                    .captured_scrollbar_the_page_takes(self.context_id);
                 let drag = self.scrollbar_controller.release_captured_drag(
                     self.scene.visual_context_tree_for_compositing(),
                     &self.scroll_state_snapshot,
@@ -604,7 +584,7 @@ impl ContextState {
                     should_request_rendering_update: false,
                     scrollbar_dragged_by_compositor: self
                         .scrollbar_controller
-                        .captured_scrollbar_painted_by_display_list(self.context_id),
+                        .captured_scrollbar_the_page_takes(self.context_id),
                     routing_decision: Some(if had_capture {
                         InputRoutingDecision::LeftDuringScrollbarDrag
                     } else {

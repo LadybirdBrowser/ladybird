@@ -30,7 +30,8 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
     let chrome_geometry = ChromeGeometry::for_recording(recorder.source, recorder.inputs);
     let style = recorder.source.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
-        !is_viewport && style.misc_interaction().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
+        style.misc_interaction().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
+            && (!is_viewport || recorder.inputs.uncaptured.paint_viewport_scrollbars)
     });
 
     if paints_scrollbars {
@@ -54,7 +55,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
                 .compute_scrollbar_data(paintable, direction, true)
                 .map(|expanded| expanded.gutter_rect)
                 .unwrap_or_default();
-            recorder.record_compositor_scrollbar_painted_by_display_list(paintable, direction, colors);
+            recorder.record_compositor_scrollbar(paintable, direction, colors);
             recorder.recorder.paint_scrollbar(
                 scroll_node_index,
                 converter.rounded_device_rect(scrollbar.gutter_rect),

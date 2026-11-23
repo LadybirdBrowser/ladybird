@@ -37,8 +37,8 @@ namespace Web {
     X(NestedContextUnavailable, "nested-context-unavailable")                                      \
     X(NotOverAScrollbar, "not-over-a-scrollbar")                                                   \
     X(NotPrimaryButton, "not-primary-button")                                                      \
-    X(HoveringScrollbarPaintedByCompositor, "hovering-scrollbar-painted-by-compositor")            \
-    X(HoveringScrollbarPaintedByDisplayList, "hovering-scrollbar-painted-by-display-list")         \
+    X(HoveringViewportScrollbar, "hovering-viewport-scrollbar")                                    \
+    X(HoveringElementScrollbar, "hovering-element-scrollbar")                                      \
     X(BeganScrollbarDrag, "began-scrollbar-drag")                                                  \
     X(ContinuedScrollbarDrag, "continued-scrollbar-drag")                                          \
     X(EndedScrollbarDrag, "ended-scrollbar-drag")                                                  \

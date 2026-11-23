@@ -1098,7 +1098,9 @@ impl ContextState {
 mod tests {
     use super::*;
     use crate::host::{FfiCompositorCoreHost, FfiOverlayLabel};
-    use libcompositing_rust::display_list::commands::{CompositorContextId, UniqueNodeId};
+    use libcompositing_rust::display_list::commands::{
+        ClipNodeIndex, CompositorContextId, ContextRef, EffectNodeIndex, UniqueNodeId,
+    };
     use libcompositing_rust::display_list::storage::DisplayListStorage;
     use libcompositing_rust::node_slot_id::NodeSlotId;
     use libcompositing_rust::visual_context::{
@@ -1319,6 +1321,85 @@ mod tests {
             assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 240.0 });
             assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
             assert!(test.context.smooth_scroll_animations.is_empty());
+        }
+    }
+
+    // The compositor drags a scrollbar of the viewport by itself, and the page sees neither the pointer moving over it
+    // nor a press on it. A scrollbar of an element is part of the element, so the page sees both.
+    #[test]
+    fn the_page_sees_the_pointer_on_a_scrollbar_of_an_element_only() {
+        for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {
+            let mut test = WheelTest::new(kind);
+            let scrolls_viewport = kind == AsyncScrollNodeKind::Viewport;
+            test.context.scrollbar_controller = ScrollbarController::new(true);
+            test.context.scrollbar_controller.set_scrollbars(&[AsyncScrollbar {
+                scroller_stable_node_id: Some(AsyncScrollNodeStableID {
+                    node_id: UniqueNodeId(1),
+                    kind,
+                    pseudo_element_type: 0,
+                }),
+                scroll_node_index: test.node_index,
+                context: ContextRef {
+                    spatial: VISUAL_VIEWPORT_NODE_INDEX,
+                    clip: ClipNodeIndex::NONE,
+                    effect: EffectNodeIndex::NONE,
+                },
+                thumb_rect: IntRect::new(90, 0, 10, 25),
+                track_rect: IntRect::new(90, 0, 10, 100),
+                expanded_gutter_rect: IntRect::new(86, 0, 14, 100),
+                expanded_thumb_rect: IntRect::new(88, 0, 12, 25),
+                scroll_size: 0.075,
+                expanded_scroll_size: 0.075,
+                max_scroll_offset: 1000.0,
+                vertical: true,
+                scrolls_viewport,
+                ..Default::default()
+            }]);
+            test.context.rebuild_wheel_hit_test_targets();
+            let position = FloatPoint { x: 95.0, y: 10.0 };
+            let mouse_event = |r#type, button| MouseEvent {
+                r#type,
+                position: DevicePixelPoint { x: 95, y: 10 },
+                screen_position: DevicePixelPoint { x: 95, y: 10 },
+                button,
+                buttons: button,
+                modifiers: KeyModifier::Mod_None,
+                wheel_delta_x: 0.0,
+                wheel_delta_y: 0.0,
+                wheel_tick_120ths_x: 0.0,
+                wheel_tick_120ths_y: 0.0,
+                wheel_delta_precision: WheelDeltaPrecision::Discrete,
+                scroll_gesture_phase: ScrollGesturePhase::None,
+                click_count: 1,
+                async_scroll_performed_default_action: false,
+                id: 1,
+                scrollbar_dragged_by_compositor: None,
+                pointer_data: PointerInputData { properties: None },
+                wheel_gesture_mark: None,
+            };
+            let now = MonotonicTime::from_nanoseconds(1_000_000_000);
+            let hovered = test.context.handle_mouse_event_from_containing_context(
+                &mouse_event(MouseEventType::MouseMove, MouseButton::None),
+                position,
+                now,
+            );
+            assert_eq!(
+                hovered.routing_decision,
+                Some(if scrolls_viewport {
+                    InputRoutingDecision::HoveringViewportScrollbar
+                } else {
+                    InputRoutingDecision::HoveringElementScrollbar
+                })
+            );
+            assert_eq!(hovered.accepted, scrolls_viewport);
+
+            let pressed = test.context.handle_mouse_event_from_containing_context(
+                &mouse_event(MouseEventType::MouseDown, MouseButton::Primary),
+                position,
+                now,
+            );
+            assert_eq!(pressed.routing_decision, Some(InputRoutingDecision::BeganScrollbarDrag));
+            assert_eq!(pressed.scrollbar_dragged_by_compositor.is_some(), !scrolls_viewport);
         }
     }
 }

@@ -30,7 +30,8 @@ use crate::display_list::effect_geometry::{
 };
 use crate::display_list::placement::{
     ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, CompositeClip, FiltersAndClipsOfList, RasterSpace, RasterSpaceAnchorKind,
-    RasterSpaceIndex, RunGroupIndex, RunGroups, enclosing_int_rect_within_extent_limit, is_finite_rect,
+    RasterSpaceIndex, RunGroupIndex, RunGroups, compositor_scroll_record_of, enclosing_int_rect_within_extent_limit,
+    is_finite_rect,
 };
 use crate::display_list::reach::Reach;
 use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan, RunIndexInChunk, RunIndexInList};
@@ -949,14 +950,19 @@ impl<'a> ListBeingPlaced<'a> {
             }
         }
         // Past the most layers that live content of its kind gets, canvases and videos keep theirs before nested
-        // contexts, and carets before scroll bars.
-        let gives_way_to_others_of_its_kind = |media: &PlacedMedia| {
-            matches!(
-                media.content,
-                LiveContent::CompositedContext(_) | LiveContent::ScrollBar { .. }
-            )
+        // contexts, carets before scroll bars, and the scroll bars of the viewport before those of other scrollers.
+        let order_among_others_of_its_kind = |media: &PlacedMedia| match media.content {
+            LiveContent::CompositedContext(_) => 1,
+            LiveContent::ScrollBar { scroll_node, .. } => {
+                if compositor_scroll_record_of(tree, scroll_node).is_some_and(|record| record.is_viewport) {
+                    1
+                } else {
+                    2
+                }
+            }
+            _ => 0,
         };
-        placed_media.sort_by_key(gives_way_to_others_of_its_kind);
+        placed_media.sort_by_key(order_among_others_of_its_kind);
         let mut layer_count_by_kind = [0usize; 2];
         placed_media.retain(|media| {
             let layer_count = &mut layer_count_by_kind[usize::from(media.content.is_drawn_by_its_record())];
@@ -3186,6 +3192,61 @@ mod tests {
         assert_eq!(
             placed_count(|content| matches!(content, LiveContent::ScrollBar { .. })),
             MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD - 1
+        );
+        assert_eq!(
+            planned.placement.media_without_layers,
+            [(
+                LiveContent::ScrollBar {
+                    scroll_node: scroller.spatial,
+                    vertical: true
+                },
+                WhyMediaHasNoLayer::MoreMediaThanLayersFor
+            )]
+        );
+    }
+
+    // A scroll bar of the viewport is drawn over the document in the space of the viewport, and does not scroll with
+    // the document.
+    #[test]
+    fn a_scroll_bar_of_the_viewport_gets_a_layer_of_its_own() {
+        let (tree, viewport, document) = tree_with_document_scroll();
+        let planned = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(scroll_bar(document.spatial, IntRect::new(790, 0, 10, 600)), viewport)
+            .planned(&tree, &[]);
+        assert!(planned.placement.media_without_layers.is_empty());
+        assert_eq!(
+            kinds_of_layers_from_base_up_that_may_hold_content(&planned.stack),
+            ["base document band 0", "vertical scroll bar #0 viewport"]
+        );
+    }
+
+    // The scroll bars of the viewport are recorded after all else, and past the most carets and scroll bars that get
+    // layers, they keep theirs before the scroll bars of other scrollers.
+    #[test]
+    fn the_scroll_bars_of_the_viewport_keep_their_layers_before_those_of_other_scrollers() {
+        let (tree, viewport, contexts) = tree_with_document_scroller(&[IntRect::new(100, 100, 300, 200)]);
+        let (document, scroller) = (contexts[0], contexts[1]);
+        let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document);
+        for index in 0..MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD as i32 {
+            list = list.with(
+                scroll_bar(scroller.spatial, IntRect::new(10 + index * 12, 100, 10, 200)),
+                document,
+            );
+        }
+        let planned = list
+            .with(scroll_bar(document.spatial, IntRect::new(790, 0, 10, 600)), viewport)
+            .planned(&tree, &[]);
+        let scroll_bar_of_viewport = LiveContent::ScrollBar {
+            scroll_node: document.spatial,
+            vertical: true,
+        };
+        assert!(
+            planned
+                .placement
+                .placed_media
+                .iter()
+                .any(|media| media.content == scroll_bar_of_viewport)
         );
         assert_eq!(
             planned.placement.media_without_layers,
