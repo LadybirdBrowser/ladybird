@@ -2106,6 +2106,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !self.has_children(node) {
             return CssPixels::default();
         }
+        // NB: Both sizes can have saturated, and every measurement below lays the content out against them.
+        let other_axis_size = clamp_to_max_dimension_value(other_axis_size);
+        let transferred_size = clamp_to_max_dimension_value(transferred_size);
         if axis == SizingAxis::Inline {
             return self
                 .measure_intrinsic_inline_size(
