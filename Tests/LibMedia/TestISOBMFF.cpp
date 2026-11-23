@@ -1675,6 +1675,17 @@ TEST_CASE(rejects_a_configuration_box_past_the_codec_configuration_limit)
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
 }
 
+TEST_CASE(reads_empty_metadata_strings_without_consuming_input)
+{
+    ByteBuffer bytes;
+    bytes.append('a');
+    auto streamer = streamer_for(bytes);
+    EXPECT(MUST(streamer.read_null_terminated_string(0)).is_empty());
+    EXPECT_EQ(streamer.position(), 0u);
+    EXPECT_EQ(MUST(streamer.read_null_terminated_string(1)), "a"sv);
+    EXPECT(MUST(streamer.read_null_terminated_string(0)).is_empty());
+}
+
 TEST_CASE(rejects_null_terminated_strings_past_the_metadata_string_limit)
 {
     ByteBuffer bytes;

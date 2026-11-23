@@ -29,6 +29,8 @@ DecoderErrorOr<double> Streamer::read_fixed_point_16_16()
 
 DecoderErrorOr<String> Streamer::read_null_terminated_string(size_t maximum_size)
 {
+    if (maximum_size == 0)
+        return String {};
     if (maximum_size > MAX_METADATA_STRING_SIZE)
         return DecoderError::corrupted("String is too large"sv);
     auto bytes = TRY(read_bytes(maximum_size));
