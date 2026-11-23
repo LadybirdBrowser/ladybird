@@ -1,0 +1,1596 @@
+Harness status: OK
+
+Found 1590 tests
+
+1584 Pass
+6 Fail
+Pass	background-position: 1
+Pass	border-spacing: 1
+Pass	border-top-width: 1
+Pass	border-right-width: 1
+Pass	border-bottom-width: 1
+Pass	border-left-width: 1
+Pass	border-width: 1
+Pass	bottom: 1
+Pass	clip: 1
+Pass	font-size: 1
+Pass	height: 1
+Pass	left: 1
+Pass	letter-spacing: 1
+Pass	margin-right: 1
+Pass	margin-left: 1
+Pass	margin-top: 1
+Pass	margin-bottom: 1
+Pass	margin: 1
+Pass	max-height: 1
+Pass	max-width: 1
+Pass	min-height: 1
+Pass	min-width: 1
+Pass	padding-top: 1
+Pass	padding-right: 1
+Pass	padding-bottom: 1
+Pass	padding-left: 1
+Pass	padding: 1
+Pass	right: 1
+Pass	text-indent: 1
+Pass	top: 1
+Pass	vertical-align: 1
+Pass	width: 1
+Pass	word-spacing: 1
+Pass	background-position: +1
+Pass	border-spacing: +1
+Pass	border-top-width: +1
+Pass	border-right-width: +1
+Pass	border-bottom-width: +1
+Pass	border-left-width: +1
+Pass	border-width: +1
+Pass	bottom: +1
+Pass	clip: +1
+Pass	font-size: +1
+Pass	height: +1
+Pass	left: +1
+Pass	letter-spacing: +1
+Pass	margin-right: +1
+Pass	margin-left: +1
+Pass	margin-top: +1
+Pass	margin-bottom: +1
+Pass	margin: +1
+Pass	max-height: +1
+Pass	max-width: +1
+Pass	min-height: +1
+Pass	min-width: +1
+Pass	padding-top: +1
+Pass	padding-right: +1
+Pass	padding-bottom: +1
+Pass	padding-left: +1
+Pass	padding: +1
+Pass	right: +1
+Pass	text-indent: +1
+Pass	top: +1
+Pass	vertical-align: +1
+Pass	width: +1
+Pass	word-spacing: +1
+Pass	background-position: -1
+Pass	border-spacing: -1
+Pass	border-top-width: -1
+Pass	border-right-width: -1
+Pass	border-bottom-width: -1
+Pass	border-left-width: -1
+Pass	border-width: -1
+Pass	bottom: -1
+Pass	clip: -1
+Pass	font-size: -1
+Pass	height: -1
+Pass	left: -1
+Pass	letter-spacing: -1
+Pass	margin-right: -1
+Pass	margin-left: -1
+Pass	margin-top: -1
+Pass	margin-bottom: -1
+Pass	margin: -1
+Pass	max-height: -1
+Pass	max-width: -1
+Pass	min-height: -1
+Pass	min-width: -1
+Pass	padding-top: -1
+Pass	padding-right: -1
+Pass	padding-bottom: -1
+Pass	padding-left: -1
+Pass	padding: -1
+Pass	right: -1
+Pass	text-indent: -1
+Pass	top: -1
+Pass	vertical-align: -1
+Pass	width: -1
+Pass	word-spacing: -1
+Pass	background-position: 1.5
+Pass	border-spacing: 1.5
+Pass	border-top-width: 1.5
+Pass	border-right-width: 1.5
+Pass	border-bottom-width: 1.5
+Pass	border-left-width: 1.5
+Pass	border-width: 1.5
+Pass	bottom: 1.5
+Pass	clip: 1.5
+Pass	font-size: 1.5
+Pass	height: 1.5
+Pass	left: 1.5
+Pass	letter-spacing: 1.5
+Pass	margin-right: 1.5
+Pass	margin-left: 1.5
+Pass	margin-top: 1.5
+Pass	margin-bottom: 1.5
+Pass	margin: 1.5
+Pass	max-height: 1.5
+Pass	max-width: 1.5
+Pass	min-height: 1.5
+Pass	min-width: 1.5
+Pass	padding-top: 1.5
+Pass	padding-right: 1.5
+Pass	padding-bottom: 1.5
+Pass	padding-left: 1.5
+Pass	padding: 1.5
+Pass	right: 1.5
+Pass	text-indent: 1.5
+Pass	top: 1.5
+Pass	vertical-align: 1.5
+Pass	width: 1.5
+Pass	word-spacing: 1.5
+Pass	background-position: +1.5
+Pass	border-spacing: +1.5
+Pass	border-top-width: +1.5
+Pass	border-right-width: +1.5
+Pass	border-bottom-width: +1.5
+Pass	border-left-width: +1.5
+Pass	border-width: +1.5
+Pass	bottom: +1.5
+Pass	clip: +1.5
+Pass	font-size: +1.5
+Pass	height: +1.5
+Pass	left: +1.5
+Pass	letter-spacing: +1.5
+Pass	margin-right: +1.5
+Pass	margin-left: +1.5
+Pass	margin-top: +1.5
+Pass	margin-bottom: +1.5
+Pass	margin: +1.5
+Pass	max-height: +1.5
+Pass	max-width: +1.5
+Pass	min-height: +1.5
+Pass	min-width: +1.5
+Pass	padding-top: +1.5
+Pass	padding-right: +1.5
+Pass	padding-bottom: +1.5
+Pass	padding-left: +1.5
+Pass	padding: +1.5
+Pass	right: +1.5
+Pass	text-indent: +1.5
+Pass	top: +1.5
+Pass	vertical-align: +1.5
+Pass	width: +1.5
+Pass	word-spacing: +1.5
+Pass	background-position: -1.5
+Pass	border-spacing: -1.5
+Pass	border-top-width: -1.5
+Pass	border-right-width: -1.5
+Pass	border-bottom-width: -1.5
+Pass	border-left-width: -1.5
+Pass	border-width: -1.5
+Pass	bottom: -1.5
+Pass	clip: -1.5
+Pass	font-size: -1.5
+Pass	height: -1.5
+Pass	left: -1.5
+Pass	letter-spacing: -1.5
+Pass	margin-right: -1.5
+Pass	margin-left: -1.5
+Pass	margin-top: -1.5
+Pass	margin-bottom: -1.5
+Pass	margin: -1.5
+Pass	max-height: -1.5
+Pass	max-width: -1.5
+Pass	min-height: -1.5
+Pass	min-width: -1.5
+Pass	padding-top: -1.5
+Pass	padding-right: -1.5
+Pass	padding-bottom: -1.5
+Pass	padding-left: -1.5
+Pass	padding: -1.5
+Pass	right: -1.5
+Pass	text-indent: -1.5
+Pass	top: -1.5
+Pass	vertical-align: -1.5
+Pass	width: -1.5
+Pass	word-spacing: -1.5
+Pass	background-position: \31 
+Pass	border-spacing: \31 
+Pass	border-top-width: \31 
+Pass	border-right-width: \31 
+Pass	border-bottom-width: \31 
+Pass	border-left-width: \31 
+Pass	border-width: \31 
+Pass	bottom: \31 
+Pass	clip: \31 
+Pass	font-size: \31 
+Pass	height: \31 
+Pass	left: \31 
+Pass	letter-spacing: \31 
+Pass	margin-right: \31 
+Pass	margin-left: \31 
+Pass	margin-top: \31 
+Pass	margin-bottom: \31 
+Pass	margin: \31 
+Pass	max-height: \31 
+Pass	max-width: \31 
+Pass	min-height: \31 
+Pass	min-width: \31 
+Pass	padding-top: \31 
+Pass	padding-right: \31 
+Pass	padding-bottom: \31 
+Pass	padding-left: \31 
+Pass	padding: \31 
+Pass	right: \31 
+Pass	text-indent: \31 
+Pass	top: \31 
+Pass	vertical-align: \31 
+Pass	width: \31 
+Pass	word-spacing: \31 
+Pass	background-position: +\31 
+Pass	border-spacing: +\31 
+Pass	border-top-width: +\31 
+Pass	border-right-width: +\31 
+Pass	border-bottom-width: +\31 
+Pass	border-left-width: +\31 
+Pass	border-width: +\31 
+Pass	bottom: +\31 
+Pass	clip: +\31 
+Pass	font-size: +\31 
+Pass	height: +\31 
+Pass	left: +\31 
+Pass	letter-spacing: +\31 
+Pass	margin-right: +\31 
+Pass	margin-left: +\31 
+Pass	margin-top: +\31 
+Pass	margin-bottom: +\31 
+Pass	margin: +\31 
+Pass	max-height: +\31 
+Pass	max-width: +\31 
+Pass	min-height: +\31 
+Pass	min-width: +\31 
+Pass	padding-top: +\31 
+Pass	padding-right: +\31 
+Pass	padding-bottom: +\31 
+Pass	padding-left: +\31 
+Pass	padding: +\31 
+Pass	right: +\31 
+Pass	text-indent: +\31 
+Pass	top: +\31 
+Pass	vertical-align: +\31 
+Pass	width: +\31 
+Pass	word-spacing: +\31 
+Pass	background-position: -\31 
+Pass	border-spacing: -\31 
+Pass	border-top-width: -\31 
+Pass	border-right-width: -\31 
+Pass	border-bottom-width: -\31 
+Pass	border-left-width: -\31 
+Pass	border-width: -\31 
+Pass	bottom: -\31 
+Pass	clip: -\31 
+Pass	font-size: -\31 
+Pass	height: -\31 
+Pass	left: -\31 
+Pass	letter-spacing: -\31 
+Pass	margin-right: -\31 
+Pass	margin-left: -\31 
+Pass	margin-top: -\31 
+Pass	margin-bottom: -\31 
+Pass	margin: -\31 
+Pass	max-height: -\31 
+Pass	max-width: -\31 
+Pass	min-height: -\31 
+Pass	min-width: -\31 
+Pass	padding-top: -\31 
+Pass	padding-right: -\31 
+Pass	padding-bottom: -\31 
+Pass	padding-left: -\31 
+Pass	padding: -\31 
+Pass	right: -\31 
+Pass	text-indent: -\31 
+Pass	top: -\31 
+Pass	vertical-align: -\31 
+Pass	width: -\31 
+Pass	word-spacing: -\31 
+Pass	background-position: \31 .5
+Pass	border-spacing: \31 .5
+Pass	border-top-width: \31 .5
+Pass	border-right-width: \31 .5
+Pass	border-bottom-width: \31 .5
+Pass	border-left-width: \31 .5
+Pass	border-width: \31 .5
+Pass	bottom: \31 .5
+Pass	clip: \31 .5
+Pass	font-size: \31 .5
+Pass	height: \31 .5
+Pass	left: \31 .5
+Pass	letter-spacing: \31 .5
+Pass	margin-right: \31 .5
+Pass	margin-left: \31 .5
+Pass	margin-top: \31 .5
+Pass	margin-bottom: \31 .5
+Pass	margin: \31 .5
+Pass	max-height: \31 .5
+Pass	max-width: \31 .5
+Pass	min-height: \31 .5
+Pass	min-width: \31 .5
+Pass	padding-top: \31 .5
+Pass	padding-right: \31 .5
+Pass	padding-bottom: \31 .5
+Pass	padding-left: \31 .5
+Pass	padding: \31 .5
+Pass	right: \31 .5
+Pass	text-indent: \31 .5
+Pass	top: \31 .5
+Pass	vertical-align: \31 .5
+Pass	width: \31 .5
+Pass	word-spacing: \31 .5
+Pass	background-position: +\31 .5
+Pass	border-spacing: +\31 .5
+Pass	border-top-width: +\31 .5
+Pass	border-right-width: +\31 .5
+Pass	border-bottom-width: +\31 .5
+Pass	border-left-width: +\31 .5
+Pass	border-width: +\31 .5
+Pass	bottom: +\31 .5
+Pass	clip: +\31 .5
+Pass	font-size: +\31 .5
+Pass	height: +\31 .5
+Pass	left: +\31 .5
+Pass	letter-spacing: +\31 .5
+Pass	margin-right: +\31 .5
+Pass	margin-left: +\31 .5
+Pass	margin-top: +\31 .5
+Pass	margin-bottom: +\31 .5
+Pass	margin: +\31 .5
+Pass	max-height: +\31 .5
+Pass	max-width: +\31 .5
+Pass	min-height: +\31 .5
+Pass	min-width: +\31 .5
+Pass	padding-top: +\31 .5
+Pass	padding-right: +\31 .5
+Pass	padding-bottom: +\31 .5
+Pass	padding-left: +\31 .5
+Pass	padding: +\31 .5
+Pass	right: +\31 .5
+Pass	text-indent: +\31 .5
+Pass	top: +\31 .5
+Pass	vertical-align: +\31 .5
+Pass	width: +\31 .5
+Pass	word-spacing: +\31 .5
+Pass	background-position: -\31 .5
+Pass	border-spacing: -\31 .5
+Pass	border-top-width: -\31 .5
+Pass	border-right-width: -\31 .5
+Pass	border-bottom-width: -\31 .5
+Pass	border-left-width: -\31 .5
+Pass	border-width: -\31 .5
+Pass	bottom: -\31 .5
+Pass	clip: -\31 .5
+Pass	font-size: -\31 .5
+Pass	height: -\31 .5
+Pass	left: -\31 .5
+Pass	letter-spacing: -\31 .5
+Pass	margin-right: -\31 .5
+Pass	margin-left: -\31 .5
+Pass	margin-top: -\31 .5
+Pass	margin-bottom: -\31 .5
+Pass	margin: -\31 .5
+Pass	max-height: -\31 .5
+Pass	max-width: -\31 .5
+Pass	min-height: -\31 .5
+Pass	min-width: -\31 .5
+Pass	padding-top: -\31 .5
+Pass	padding-right: -\31 .5
+Pass	padding-bottom: -\31 .5
+Pass	padding-left: -\31 .5
+Pass	padding: -\31 .5
+Pass	right: -\31 .5
+Pass	text-indent: -\31 .5
+Pass	top: -\31 .5
+Pass	vertical-align: -\31 .5
+Pass	width: -\31 .5
+Pass	word-spacing: -\31 .5
+Pass	background-position: 1\31 
+Pass	border-spacing: 1\31 
+Pass	border-top-width: 1\31 
+Pass	border-right-width: 1\31 
+Pass	border-bottom-width: 1\31 
+Pass	border-left-width: 1\31 
+Pass	border-width: 1\31 
+Pass	bottom: 1\31 
+Pass	clip: 1\31 
+Pass	font-size: 1\31 
+Pass	height: 1\31 
+Pass	left: 1\31 
+Pass	letter-spacing: 1\31 
+Pass	margin-right: 1\31 
+Pass	margin-left: 1\31 
+Pass	margin-top: 1\31 
+Pass	margin-bottom: 1\31 
+Pass	margin: 1\31 
+Pass	max-height: 1\31 
+Pass	max-width: 1\31 
+Pass	min-height: 1\31 
+Pass	min-width: 1\31 
+Pass	padding-top: 1\31 
+Pass	padding-right: 1\31 
+Pass	padding-bottom: 1\31 
+Pass	padding-left: 1\31 
+Pass	padding: 1\31 
+Pass	right: 1\31 
+Pass	text-indent: 1\31 
+Pass	top: 1\31 
+Pass	vertical-align: 1\31 
+Pass	width: 1\31 
+Pass	word-spacing: 1\31 
+Pass	background-position: +1\31 
+Pass	border-spacing: +1\31 
+Pass	border-top-width: +1\31 
+Pass	border-right-width: +1\31 
+Pass	border-bottom-width: +1\31 
+Pass	border-left-width: +1\31 
+Pass	border-width: +1\31 
+Pass	bottom: +1\31 
+Pass	clip: +1\31 
+Pass	font-size: +1\31 
+Pass	height: +1\31 
+Pass	left: +1\31 
+Pass	letter-spacing: +1\31 
+Pass	margin-right: +1\31 
+Pass	margin-left: +1\31 
+Pass	margin-top: +1\31 
+Pass	margin-bottom: +1\31 
+Pass	margin: +1\31 
+Pass	max-height: +1\31 
+Pass	max-width: +1\31 
+Pass	min-height: +1\31 
+Pass	min-width: +1\31 
+Pass	padding-top: +1\31 
+Pass	padding-right: +1\31 
+Pass	padding-bottom: +1\31 
+Pass	padding-left: +1\31 
+Pass	padding: +1\31 
+Pass	right: +1\31 
+Pass	text-indent: +1\31 
+Pass	top: +1\31 
+Pass	vertical-align: +1\31 
+Pass	width: +1\31 
+Pass	word-spacing: +1\31 
+Pass	background-position: -1\31 
+Pass	border-spacing: -1\31 
+Pass	border-top-width: -1\31 
+Pass	border-right-width: -1\31 
+Pass	border-bottom-width: -1\31 
+Pass	border-left-width: -1\31 
+Pass	border-width: -1\31 
+Pass	bottom: -1\31 
+Pass	clip: -1\31 
+Pass	font-size: -1\31 
+Pass	height: -1\31 
+Pass	left: -1\31 
+Pass	letter-spacing: -1\31 
+Pass	margin-right: -1\31 
+Pass	margin-left: -1\31 
+Pass	margin-top: -1\31 
+Pass	margin-bottom: -1\31 
+Pass	margin: -1\31 
+Pass	max-height: -1\31 
+Pass	max-width: -1\31 
+Pass	min-height: -1\31 
+Pass	min-width: -1\31 
+Pass	padding-top: -1\31 
+Pass	padding-right: -1\31 
+Pass	padding-bottom: -1\31 
+Pass	padding-left: -1\31 
+Pass	padding: -1\31 
+Pass	right: -1\31 
+Pass	text-indent: -1\31 
+Pass	top: -1\31 
+Pass	vertical-align: -1\31 
+Pass	width: -1\31 
+Pass	word-spacing: -1\31 
+Pass	background-position: 1\31 .5
+Pass	border-spacing: 1\31 .5
+Pass	border-top-width: 1\31 .5
+Pass	border-right-width: 1\31 .5
+Pass	border-bottom-width: 1\31 .5
+Pass	border-left-width: 1\31 .5
+Pass	border-width: 1\31 .5
+Pass	bottom: 1\31 .5
+Pass	clip: 1\31 .5
+Pass	font-size: 1\31 .5
+Pass	height: 1\31 .5
+Pass	left: 1\31 .5
+Pass	letter-spacing: 1\31 .5
+Pass	margin-right: 1\31 .5
+Pass	margin-left: 1\31 .5
+Pass	margin-top: 1\31 .5
+Pass	margin-bottom: 1\31 .5
+Pass	margin: 1\31 .5
+Pass	max-height: 1\31 .5
+Pass	max-width: 1\31 .5
+Pass	min-height: 1\31 .5
+Pass	min-width: 1\31 .5
+Pass	padding-top: 1\31 .5
+Pass	padding-right: 1\31 .5
+Pass	padding-bottom: 1\31 .5
+Pass	padding-left: 1\31 .5
+Pass	padding: 1\31 .5
+Pass	right: 1\31 .5
+Pass	text-indent: 1\31 .5
+Pass	top: 1\31 .5
+Pass	vertical-align: 1\31 .5
+Pass	width: 1\31 .5
+Pass	word-spacing: 1\31 .5
+Pass	background-position: +1\31 .5
+Pass	border-spacing: +1\31 .5
+Pass	border-top-width: +1\31 .5
+Pass	border-right-width: +1\31 .5
+Pass	border-bottom-width: +1\31 .5
+Pass	border-left-width: +1\31 .5
+Pass	border-width: +1\31 .5
+Pass	bottom: +1\31 .5
+Pass	clip: +1\31 .5
+Pass	font-size: +1\31 .5
+Pass	height: +1\31 .5
+Pass	left: +1\31 .5
+Pass	letter-spacing: +1\31 .5
+Pass	margin-right: +1\31 .5
+Pass	margin-left: +1\31 .5
+Pass	margin-top: +1\31 .5
+Pass	margin-bottom: +1\31 .5
+Pass	margin: +1\31 .5
+Pass	max-height: +1\31 .5
+Pass	max-width: +1\31 .5
+Pass	min-height: +1\31 .5
+Pass	min-width: +1\31 .5
+Pass	padding-top: +1\31 .5
+Pass	padding-right: +1\31 .5
+Pass	padding-bottom: +1\31 .5
+Pass	padding-left: +1\31 .5
+Pass	padding: +1\31 .5
+Pass	right: +1\31 .5
+Pass	text-indent: +1\31 .5
+Pass	top: +1\31 .5
+Pass	vertical-align: +1\31 .5
+Pass	width: +1\31 .5
+Pass	word-spacing: +1\31 .5
+Pass	background-position: -1\31 .5
+Pass	border-spacing: -1\31 .5
+Pass	border-top-width: -1\31 .5
+Pass	border-right-width: -1\31 .5
+Pass	border-bottom-width: -1\31 .5
+Pass	border-left-width: -1\31 .5
+Pass	border-width: -1\31 .5
+Pass	bottom: -1\31 .5
+Pass	clip: -1\31 .5
+Pass	font-size: -1\31 .5
+Pass	height: -1\31 .5
+Pass	left: -1\31 .5
+Pass	letter-spacing: -1\31 .5
+Pass	margin-right: -1\31 .5
+Pass	margin-left: -1\31 .5
+Pass	margin-top: -1\31 .5
+Pass	margin-bottom: -1\31 .5
+Pass	margin: -1\31 .5
+Pass	max-height: -1\31 .5
+Pass	max-width: -1\31 .5
+Pass	min-height: -1\31 .5
+Pass	min-width: -1\31 .5
+Pass	padding-top: -1\31 .5
+Pass	padding-right: -1\31 .5
+Pass	padding-bottom: -1\31 .5
+Pass	padding-left: -1\31 .5
+Pass	padding: -1\31 .5
+Pass	right: -1\31 .5
+Pass	text-indent: -1\31 .5
+Pass	top: -1\31 .5
+Pass	vertical-align: -1\31 .5
+Pass	width: -1\31 .5
+Pass	word-spacing: -1\31 .5
+Pass	background-position: a
+Pass	border-spacing: a
+Pass	border-top-width: a
+Pass	border-right-width: a
+Pass	border-bottom-width: a
+Pass	border-left-width: a
+Pass	border-width: a
+Pass	bottom: a
+Pass	clip: a
+Pass	font-size: a
+Pass	height: a
+Pass	left: a
+Pass	letter-spacing: a
+Pass	margin-right: a
+Pass	margin-left: a
+Pass	margin-top: a
+Pass	margin-bottom: a
+Pass	margin: a
+Pass	max-height: a
+Pass	max-width: a
+Pass	min-height: a
+Pass	min-width: a
+Pass	padding-top: a
+Pass	padding-right: a
+Pass	padding-bottom: a
+Pass	padding-left: a
+Pass	padding: a
+Pass	right: a
+Pass	text-indent: a
+Pass	top: a
+Pass	vertical-align: a
+Pass	width: a
+Pass	word-spacing: a
+Pass	background-position: A
+Pass	border-spacing: A
+Pass	border-top-width: A
+Pass	border-right-width: A
+Pass	border-bottom-width: A
+Pass	border-left-width: A
+Pass	border-width: A
+Pass	bottom: A
+Pass	clip: A
+Pass	font-size: A
+Pass	height: A
+Pass	left: A
+Pass	letter-spacing: A
+Pass	margin-right: A
+Pass	margin-left: A
+Pass	margin-top: A
+Pass	margin-bottom: A
+Pass	margin: A
+Pass	max-height: A
+Pass	max-width: A
+Pass	min-height: A
+Pass	min-width: A
+Pass	padding-top: A
+Pass	padding-right: A
+Pass	padding-bottom: A
+Pass	padding-left: A
+Pass	padding: A
+Pass	right: A
+Pass	text-indent: A
+Pass	top: A
+Pass	vertical-align: A
+Pass	width: A
+Pass	word-spacing: A
+Pass	background-position: 1a
+Pass	border-spacing: 1a
+Pass	border-top-width: 1a
+Pass	border-right-width: 1a
+Pass	border-bottom-width: 1a
+Pass	border-left-width: 1a
+Pass	border-width: 1a
+Pass	bottom: 1a
+Pass	clip: 1a
+Pass	font-size: 1a
+Pass	height: 1a
+Pass	left: 1a
+Pass	letter-spacing: 1a
+Pass	margin-right: 1a
+Pass	margin-left: 1a
+Pass	margin-top: 1a
+Pass	margin-bottom: 1a
+Pass	margin: 1a
+Pass	max-height: 1a
+Pass	max-width: 1a
+Pass	min-height: 1a
+Pass	min-width: 1a
+Pass	padding-top: 1a
+Pass	padding-right: 1a
+Pass	padding-bottom: 1a
+Pass	padding-left: 1a
+Pass	padding: 1a
+Pass	right: 1a
+Pass	text-indent: 1a
+Pass	top: 1a
+Pass	vertical-align: 1a
+Pass	width: 1a
+Pass	word-spacing: 1a
+Pass	background-position: +1a
+Pass	border-spacing: +1a
+Pass	border-top-width: +1a
+Pass	border-right-width: +1a
+Pass	border-bottom-width: +1a
+Pass	border-left-width: +1a
+Pass	border-width: +1a
+Pass	bottom: +1a
+Pass	clip: +1a
+Pass	font-size: +1a
+Pass	height: +1a
+Pass	left: +1a
+Pass	letter-spacing: +1a
+Pass	margin-right: +1a
+Pass	margin-left: +1a
+Pass	margin-top: +1a
+Pass	margin-bottom: +1a
+Pass	margin: +1a
+Pass	max-height: +1a
+Pass	max-width: +1a
+Pass	min-height: +1a
+Pass	min-width: +1a
+Pass	padding-top: +1a
+Pass	padding-right: +1a
+Pass	padding-bottom: +1a
+Pass	padding-left: +1a
+Pass	padding: +1a
+Pass	right: +1a
+Pass	text-indent: +1a
+Pass	top: +1a
+Pass	vertical-align: +1a
+Pass	width: +1a
+Pass	word-spacing: +1a
+Pass	background-position: -1a
+Pass	border-spacing: -1a
+Pass	border-top-width: -1a
+Pass	border-right-width: -1a
+Pass	border-bottom-width: -1a
+Pass	border-left-width: -1a
+Pass	border-width: -1a
+Pass	bottom: -1a
+Pass	clip: -1a
+Pass	font-size: -1a
+Pass	height: -1a
+Pass	left: -1a
+Pass	letter-spacing: -1a
+Pass	margin-right: -1a
+Pass	margin-left: -1a
+Pass	margin-top: -1a
+Pass	margin-bottom: -1a
+Pass	margin: -1a
+Pass	max-height: -1a
+Pass	max-width: -1a
+Pass	min-height: -1a
+Pass	min-width: -1a
+Pass	padding-top: -1a
+Pass	padding-right: -1a
+Pass	padding-bottom: -1a
+Pass	padding-left: -1a
+Pass	padding: -1a
+Pass	right: -1a
+Pass	text-indent: -1a
+Pass	top: -1a
+Pass	vertical-align: -1a
+Pass	width: -1a
+Pass	word-spacing: -1a
+Pass	background-position: +1A
+Pass	border-spacing: +1A
+Pass	border-top-width: +1A
+Pass	border-right-width: +1A
+Pass	border-bottom-width: +1A
+Pass	border-left-width: +1A
+Pass	border-width: +1A
+Pass	bottom: +1A
+Pass	clip: +1A
+Pass	font-size: +1A
+Pass	height: +1A
+Pass	left: +1A
+Pass	letter-spacing: +1A
+Pass	margin-right: +1A
+Pass	margin-left: +1A
+Pass	margin-top: +1A
+Pass	margin-bottom: +1A
+Pass	margin: +1A
+Pass	max-height: +1A
+Pass	max-width: +1A
+Pass	min-height: +1A
+Pass	min-width: +1A
+Pass	padding-top: +1A
+Pass	padding-right: +1A
+Pass	padding-bottom: +1A
+Pass	padding-left: +1A
+Pass	padding: +1A
+Pass	right: +1A
+Pass	text-indent: +1A
+Pass	top: +1A
+Pass	vertical-align: +1A
+Pass	width: +1A
+Pass	word-spacing: +1A
+Pass	background-position: -1A
+Pass	border-spacing: -1A
+Pass	border-top-width: -1A
+Pass	border-right-width: -1A
+Pass	border-bottom-width: -1A
+Pass	border-left-width: -1A
+Pass	border-width: -1A
+Pass	bottom: -1A
+Pass	clip: -1A
+Pass	font-size: -1A
+Pass	height: -1A
+Pass	left: -1A
+Pass	letter-spacing: -1A
+Pass	margin-right: -1A
+Pass	margin-left: -1A
+Pass	margin-top: -1A
+Pass	margin-bottom: -1A
+Pass	margin: -1A
+Pass	max-height: -1A
+Pass	max-width: -1A
+Pass	min-height: -1A
+Pass	min-width: -1A
+Pass	padding-top: -1A
+Pass	padding-right: -1A
+Pass	padding-bottom: -1A
+Pass	padding-left: -1A
+Pass	padding: -1A
+Pass	right: -1A
+Pass	text-indent: -1A
+Pass	top: -1A
+Pass	vertical-align: -1A
+Pass	width: -1A
+Pass	word-spacing: -1A
+Pass	background-position: +a
+Pass	border-spacing: +a
+Pass	border-top-width: +a
+Pass	border-right-width: +a
+Pass	border-bottom-width: +a
+Pass	border-left-width: +a
+Pass	border-width: +a
+Pass	bottom: +a
+Pass	clip: +a
+Pass	font-size: +a
+Pass	height: +a
+Pass	left: +a
+Pass	letter-spacing: +a
+Pass	margin-right: +a
+Pass	margin-left: +a
+Pass	margin-top: +a
+Pass	margin-bottom: +a
+Pass	margin: +a
+Pass	max-height: +a
+Pass	max-width: +a
+Pass	min-height: +a
+Pass	min-width: +a
+Pass	padding-top: +a
+Pass	padding-right: +a
+Pass	padding-bottom: +a
+Pass	padding-left: +a
+Pass	padding: +a
+Pass	right: +a
+Pass	text-indent: +a
+Pass	top: +a
+Pass	vertical-align: +a
+Pass	width: +a
+Pass	word-spacing: +a
+Pass	background-position: -a
+Pass	border-spacing: -a
+Pass	border-top-width: -a
+Pass	border-right-width: -a
+Pass	border-bottom-width: -a
+Pass	border-left-width: -a
+Pass	border-width: -a
+Pass	bottom: -a
+Pass	clip: -a
+Pass	font-size: -a
+Pass	height: -a
+Pass	left: -a
+Pass	letter-spacing: -a
+Pass	margin-right: -a
+Pass	margin-left: -a
+Pass	margin-top: -a
+Pass	margin-bottom: -a
+Pass	margin: -a
+Pass	max-height: -a
+Pass	max-width: -a
+Pass	min-height: -a
+Pass	min-width: -a
+Pass	padding-top: -a
+Pass	padding-right: -a
+Pass	padding-bottom: -a
+Pass	padding-left: -a
+Pass	padding: -a
+Pass	right: -a
+Pass	text-indent: -a
+Pass	top: -a
+Pass	vertical-align: -a
+Pass	width: -a
+Pass	word-spacing: -a
+Pass	background-position: +A
+Pass	border-spacing: +A
+Pass	border-top-width: +A
+Pass	border-right-width: +A
+Pass	border-bottom-width: +A
+Pass	border-left-width: +A
+Pass	border-width: +A
+Pass	bottom: +A
+Pass	clip: +A
+Pass	font-size: +A
+Pass	height: +A
+Pass	left: +A
+Pass	letter-spacing: +A
+Pass	margin-right: +A
+Pass	margin-left: +A
+Pass	margin-top: +A
+Pass	margin-bottom: +A
+Pass	margin: +A
+Pass	max-height: +A
+Pass	max-width: +A
+Pass	min-height: +A
+Pass	min-width: +A
+Pass	padding-top: +A
+Pass	padding-right: +A
+Pass	padding-bottom: +A
+Pass	padding-left: +A
+Pass	padding: +A
+Pass	right: +A
+Pass	text-indent: +A
+Pass	top: +A
+Pass	vertical-align: +A
+Pass	width: +A
+Pass	word-spacing: +A
+Pass	background-position: -A
+Pass	border-spacing: -A
+Pass	border-top-width: -A
+Pass	border-right-width: -A
+Pass	border-bottom-width: -A
+Pass	border-left-width: -A
+Pass	border-width: -A
+Pass	bottom: -A
+Pass	clip: -A
+Pass	font-size: -A
+Pass	height: -A
+Pass	left: -A
+Pass	letter-spacing: -A
+Pass	margin-right: -A
+Pass	margin-left: -A
+Pass	margin-top: -A
+Pass	margin-bottom: -A
+Pass	margin: -A
+Pass	max-height: -A
+Pass	max-width: -A
+Pass	min-height: -A
+Pass	min-width: -A
+Pass	padding-top: -A
+Pass	padding-right: -A
+Pass	padding-bottom: -A
+Pass	padding-left: -A
+Pass	padding: -A
+Pass	right: -A
+Pass	text-indent: -A
+Pass	top: -A
+Pass	vertical-align: -A
+Pass	width: -A
+Pass	word-spacing: -A
+Pass	background-position: @a
+Pass	border-spacing: @a
+Pass	border-top-width: @a
+Pass	border-right-width: @a
+Pass	border-bottom-width: @a
+Pass	border-left-width: @a
+Pass	border-width: @a
+Pass	bottom: @a
+Pass	clip: @a
+Pass	font-size: @a
+Pass	height: @a
+Pass	left: @a
+Pass	letter-spacing: @a
+Pass	margin-right: @a
+Pass	margin-left: @a
+Pass	margin-top: @a
+Pass	margin-bottom: @a
+Pass	margin: @a
+Pass	max-height: @a
+Pass	max-width: @a
+Pass	min-height: @a
+Pass	min-width: @a
+Pass	padding-top: @a
+Pass	padding-right: @a
+Pass	padding-bottom: @a
+Pass	padding-left: @a
+Pass	padding: @a
+Pass	right: @a
+Pass	text-indent: @a
+Pass	top: @a
+Pass	vertical-align: @a
+Pass	width: @a
+Pass	word-spacing: @a
+Pass	background-position: @1
+Pass	border-spacing: @1
+Pass	border-top-width: @1
+Pass	border-right-width: @1
+Pass	border-bottom-width: @1
+Pass	border-left-width: @1
+Pass	border-width: @1
+Pass	bottom: @1
+Pass	clip: @1
+Pass	font-size: @1
+Pass	height: @1
+Pass	left: @1
+Pass	letter-spacing: @1
+Pass	margin-right: @1
+Pass	margin-left: @1
+Pass	margin-top: @1
+Pass	margin-bottom: @1
+Pass	margin: @1
+Pass	max-height: @1
+Pass	max-width: @1
+Pass	min-height: @1
+Pass	min-width: @1
+Pass	padding-top: @1
+Pass	padding-right: @1
+Pass	padding-bottom: @1
+Pass	padding-left: @1
+Pass	padding: @1
+Pass	right: @1
+Pass	text-indent: @1
+Pass	top: @1
+Pass	vertical-align: @1
+Pass	width: @1
+Pass	word-spacing: @1
+Pass	background-position: @1a
+Pass	border-spacing: @1a
+Pass	border-top-width: @1a
+Pass	border-right-width: @1a
+Pass	border-bottom-width: @1a
+Pass	border-left-width: @1a
+Pass	border-width: @1a
+Pass	bottom: @1a
+Pass	clip: @1a
+Pass	font-size: @1a
+Pass	height: @1a
+Pass	left: @1a
+Pass	letter-spacing: @1a
+Pass	margin-right: @1a
+Pass	margin-left: @1a
+Pass	margin-top: @1a
+Pass	margin-bottom: @1a
+Pass	margin: @1a
+Pass	max-height: @1a
+Pass	max-width: @1a
+Pass	min-height: @1a
+Pass	min-width: @1a
+Pass	padding-top: @1a
+Pass	padding-right: @1a
+Pass	padding-bottom: @1a
+Pass	padding-left: @1a
+Pass	padding: @1a
+Pass	right: @1a
+Pass	text-indent: @1a
+Pass	top: @1a
+Pass	vertical-align: @1a
+Pass	width: @1a
+Pass	word-spacing: @1a
+Pass	background-position: "a"
+Pass	border-spacing: "a"
+Pass	border-top-width: "a"
+Pass	border-right-width: "a"
+Pass	border-bottom-width: "a"
+Pass	border-left-width: "a"
+Pass	border-width: "a"
+Pass	bottom: "a"
+Pass	clip: "a"
+Pass	font-size: "a"
+Pass	height: "a"
+Pass	left: "a"
+Pass	letter-spacing: "a"
+Pass	margin-right: "a"
+Pass	margin-left: "a"
+Pass	margin-top: "a"
+Pass	margin-bottom: "a"
+Pass	margin: "a"
+Pass	max-height: "a"
+Pass	max-width: "a"
+Pass	min-height: "a"
+Pass	min-width: "a"
+Pass	padding-top: "a"
+Pass	padding-right: "a"
+Pass	padding-bottom: "a"
+Pass	padding-left: "a"
+Pass	padding: "a"
+Pass	right: "a"
+Pass	text-indent: "a"
+Pass	top: "a"
+Pass	vertical-align: "a"
+Pass	width: "a"
+Pass	word-spacing: "a"
+Pass	background-position: "1"
+Pass	border-spacing: "1"
+Pass	border-top-width: "1"
+Pass	border-right-width: "1"
+Pass	border-bottom-width: "1"
+Pass	border-left-width: "1"
+Pass	border-width: "1"
+Pass	bottom: "1"
+Pass	clip: "1"
+Pass	font-size: "1"
+Pass	height: "1"
+Pass	left: "1"
+Pass	letter-spacing: "1"
+Pass	margin-right: "1"
+Pass	margin-left: "1"
+Pass	margin-top: "1"
+Pass	margin-bottom: "1"
+Pass	margin: "1"
+Pass	max-height: "1"
+Pass	max-width: "1"
+Pass	min-height: "1"
+Pass	min-width: "1"
+Pass	padding-top: "1"
+Pass	padding-right: "1"
+Pass	padding-bottom: "1"
+Pass	padding-left: "1"
+Pass	padding: "1"
+Pass	right: "1"
+Pass	text-indent: "1"
+Pass	top: "1"
+Pass	vertical-align: "1"
+Pass	width: "1"
+Pass	word-spacing: "1"
+Pass	background-position: "1a"
+Pass	border-spacing: "1a"
+Pass	border-top-width: "1a"
+Pass	border-right-width: "1a"
+Pass	border-bottom-width: "1a"
+Pass	border-left-width: "1a"
+Pass	border-width: "1a"
+Pass	bottom: "1a"
+Pass	clip: "1a"
+Pass	font-size: "1a"
+Pass	height: "1a"
+Pass	left: "1a"
+Pass	letter-spacing: "1a"
+Pass	margin-right: "1a"
+Pass	margin-left: "1a"
+Pass	margin-top: "1a"
+Pass	margin-bottom: "1a"
+Pass	margin: "1a"
+Pass	max-height: "1a"
+Pass	max-width: "1a"
+Pass	min-height: "1a"
+Pass	min-width: "1a"
+Pass	padding-top: "1a"
+Pass	padding-right: "1a"
+Pass	padding-bottom: "1a"
+Pass	padding-left: "1a"
+Pass	padding: "1a"
+Pass	right: "1a"
+Pass	text-indent: "1a"
+Pass	top: "1a"
+Pass	vertical-align: "1a"
+Pass	width: "1a"
+Pass	word-spacing: "1a"
+Pass	background-position: url(1)
+Pass	border-spacing: url(1)
+Pass	border-top-width: url(1)
+Pass	border-right-width: url(1)
+Pass	border-bottom-width: url(1)
+Pass	border-left-width: url(1)
+Pass	border-width: url(1)
+Pass	bottom: url(1)
+Pass	clip: url(1)
+Pass	font-size: url(1)
+Pass	height: url(1)
+Pass	left: url(1)
+Pass	letter-spacing: url(1)
+Pass	margin-right: url(1)
+Pass	margin-left: url(1)
+Pass	margin-top: url(1)
+Pass	margin-bottom: url(1)
+Pass	margin: url(1)
+Pass	max-height: url(1)
+Pass	max-width: url(1)
+Pass	min-height: url(1)
+Pass	min-width: url(1)
+Pass	padding-top: url(1)
+Pass	padding-right: url(1)
+Pass	padding-bottom: url(1)
+Pass	padding-left: url(1)
+Pass	padding: url(1)
+Pass	right: url(1)
+Pass	text-indent: url(1)
+Pass	top: url(1)
+Pass	vertical-align: url(1)
+Pass	width: url(1)
+Pass	word-spacing: url(1)
+Pass	background-position: url('1')
+Pass	border-spacing: url('1')
+Pass	border-top-width: url('1')
+Pass	border-right-width: url('1')
+Pass	border-bottom-width: url('1')
+Pass	border-left-width: url('1')
+Pass	border-width: url('1')
+Pass	bottom: url('1')
+Pass	clip: url('1')
+Pass	font-size: url('1')
+Pass	height: url('1')
+Pass	left: url('1')
+Pass	letter-spacing: url('1')
+Pass	margin-right: url('1')
+Pass	margin-left: url('1')
+Pass	margin-top: url('1')
+Pass	margin-bottom: url('1')
+Pass	margin: url('1')
+Pass	max-height: url('1')
+Pass	max-width: url('1')
+Pass	min-height: url('1')
+Pass	min-width: url('1')
+Pass	padding-top: url('1')
+Pass	padding-right: url('1')
+Pass	padding-bottom: url('1')
+Pass	padding-left: url('1')
+Pass	padding: url('1')
+Pass	right: url('1')
+Pass	text-indent: url('1')
+Pass	top: url('1')
+Pass	vertical-align: url('1')
+Pass	width: url('1')
+Pass	word-spacing: url('1')
+Pass	background-position: #1
+Pass	border-spacing: #1
+Pass	border-top-width: #1
+Pass	border-right-width: #1
+Pass	border-bottom-width: #1
+Pass	border-left-width: #1
+Pass	border-width: #1
+Pass	bottom: #1
+Pass	clip: #1
+Pass	font-size: #1
+Pass	height: #1
+Pass	left: #1
+Pass	letter-spacing: #1
+Pass	margin-right: #1
+Pass	margin-left: #1
+Pass	margin-top: #1
+Pass	margin-bottom: #1
+Pass	margin: #1
+Pass	max-height: #1
+Pass	max-width: #1
+Pass	min-height: #1
+Pass	min-width: #1
+Pass	padding-top: #1
+Pass	padding-right: #1
+Pass	padding-bottom: #1
+Pass	padding-left: #1
+Pass	padding: #1
+Pass	right: #1
+Pass	text-indent: #1
+Pass	top: #1
+Pass	vertical-align: #1
+Pass	width: #1
+Pass	word-spacing: #1
+Pass	background-position: #01
+Pass	border-spacing: #01
+Pass	border-top-width: #01
+Pass	border-right-width: #01
+Pass	border-bottom-width: #01
+Pass	border-left-width: #01
+Pass	border-width: #01
+Pass	bottom: #01
+Pass	clip: #01
+Pass	font-size: #01
+Pass	height: #01
+Pass	left: #01
+Pass	letter-spacing: #01
+Pass	margin-right: #01
+Pass	margin-left: #01
+Pass	margin-top: #01
+Pass	margin-bottom: #01
+Pass	margin: #01
+Pass	max-height: #01
+Pass	max-width: #01
+Pass	min-height: #01
+Pass	min-width: #01
+Pass	padding-top: #01
+Pass	padding-right: #01
+Pass	padding-bottom: #01
+Pass	padding-left: #01
+Pass	padding: #01
+Pass	right: #01
+Pass	text-indent: #01
+Pass	top: #01
+Pass	vertical-align: #01
+Pass	width: #01
+Pass	word-spacing: #01
+Pass	background-position: #001
+Pass	border-spacing: #001
+Pass	border-top-width: #001
+Pass	border-right-width: #001
+Pass	border-bottom-width: #001
+Pass	border-left-width: #001
+Pass	border-width: #001
+Pass	bottom: #001
+Pass	clip: #001
+Pass	font-size: #001
+Pass	height: #001
+Pass	left: #001
+Pass	letter-spacing: #001
+Pass	margin-right: #001
+Pass	margin-left: #001
+Pass	margin-top: #001
+Pass	margin-bottom: #001
+Pass	margin: #001
+Pass	max-height: #001
+Pass	max-width: #001
+Pass	min-height: #001
+Pass	min-width: #001
+Pass	padding-top: #001
+Pass	padding-right: #001
+Pass	padding-bottom: #001
+Pass	padding-left: #001
+Pass	padding: #001
+Pass	right: #001
+Pass	text-indent: #001
+Pass	top: #001
+Pass	vertical-align: #001
+Pass	width: #001
+Pass	word-spacing: #001
+Pass	background-position: #0001
+Pass	border-spacing: #0001
+Pass	border-top-width: #0001
+Pass	border-right-width: #0001
+Pass	border-bottom-width: #0001
+Pass	border-left-width: #0001
+Pass	border-width: #0001
+Pass	bottom: #0001
+Pass	clip: #0001
+Pass	font-size: #0001
+Pass	height: #0001
+Pass	left: #0001
+Pass	letter-spacing: #0001
+Pass	margin-right: #0001
+Pass	margin-left: #0001
+Pass	margin-top: #0001
+Pass	margin-bottom: #0001
+Pass	margin: #0001
+Pass	max-height: #0001
+Pass	max-width: #0001
+Pass	min-height: #0001
+Pass	min-width: #0001
+Pass	padding-top: #0001
+Pass	padding-right: #0001
+Pass	padding-bottom: #0001
+Pass	padding-left: #0001
+Pass	padding: #0001
+Pass	right: #0001
+Pass	text-indent: #0001
+Pass	top: #0001
+Pass	vertical-align: #0001
+Pass	width: #0001
+Pass	word-spacing: #0001
+Pass	background-position: #00001
+Pass	border-spacing: #00001
+Pass	border-top-width: #00001
+Pass	border-right-width: #00001
+Pass	border-bottom-width: #00001
+Pass	border-left-width: #00001
+Pass	border-width: #00001
+Pass	bottom: #00001
+Pass	clip: #00001
+Pass	font-size: #00001
+Pass	height: #00001
+Pass	left: #00001
+Pass	letter-spacing: #00001
+Pass	margin-right: #00001
+Pass	margin-left: #00001
+Pass	margin-top: #00001
+Pass	margin-bottom: #00001
+Pass	margin: #00001
+Pass	max-height: #00001
+Pass	max-width: #00001
+Pass	min-height: #00001
+Pass	min-width: #00001
+Pass	padding-top: #00001
+Pass	padding-right: #00001
+Pass	padding-bottom: #00001
+Pass	padding-left: #00001
+Pass	padding: #00001
+Pass	right: #00001
+Pass	text-indent: #00001
+Pass	top: #00001
+Pass	vertical-align: #00001
+Pass	width: #00001
+Pass	word-spacing: #00001
+Pass	background-position: #000001
+Pass	border-spacing: #000001
+Pass	border-top-width: #000001
+Pass	border-right-width: #000001
+Pass	border-bottom-width: #000001
+Pass	border-left-width: #000001
+Pass	border-width: #000001
+Pass	bottom: #000001
+Pass	clip: #000001
+Pass	font-size: #000001
+Pass	height: #000001
+Pass	left: #000001
+Pass	letter-spacing: #000001
+Pass	margin-right: #000001
+Pass	margin-left: #000001
+Pass	margin-top: #000001
+Pass	margin-bottom: #000001
+Pass	margin: #000001
+Pass	max-height: #000001
+Pass	max-width: #000001
+Pass	min-height: #000001
+Pass	min-width: #000001
+Pass	padding-top: #000001
+Pass	padding-right: #000001
+Pass	padding-bottom: #000001
+Pass	padding-left: #000001
+Pass	padding: #000001
+Pass	right: #000001
+Pass	text-indent: #000001
+Pass	top: #000001
+Pass	vertical-align: #000001
+Pass	width: #000001
+Pass	word-spacing: #000001
+Pass	background-position: +/**/1
+Pass	border-spacing: +/**/1
+Pass	border-top-width: +/**/1
+Pass	border-right-width: +/**/1
+Pass	border-bottom-width: +/**/1
+Pass	border-left-width: +/**/1
+Pass	border-width: +/**/1
+Pass	bottom: +/**/1
+Pass	clip: +/**/1
+Pass	font-size: +/**/1
+Pass	height: +/**/1
+Pass	left: +/**/1
+Pass	letter-spacing: +/**/1
+Pass	margin-right: +/**/1
+Pass	margin-left: +/**/1
+Pass	margin-top: +/**/1
+Pass	margin-bottom: +/**/1
+Pass	margin: +/**/1
+Pass	max-height: +/**/1
+Pass	max-width: +/**/1
+Pass	min-height: +/**/1
+Pass	min-width: +/**/1
+Pass	padding-top: +/**/1
+Pass	padding-right: +/**/1
+Pass	padding-bottom: +/**/1
+Pass	padding-left: +/**/1
+Pass	padding: +/**/1
+Pass	right: +/**/1
+Pass	text-indent: +/**/1
+Pass	top: +/**/1
+Pass	vertical-align: +/**/1
+Pass	width: +/**/1
+Pass	word-spacing: +/**/1
+Pass	background-position: -/**/1
+Pass	border-spacing: -/**/1
+Pass	border-top-width: -/**/1
+Pass	border-right-width: -/**/1
+Pass	border-bottom-width: -/**/1
+Pass	border-left-width: -/**/1
+Pass	border-width: -/**/1
+Pass	bottom: -/**/1
+Pass	clip: -/**/1
+Pass	font-size: -/**/1
+Pass	height: -/**/1
+Pass	left: -/**/1
+Pass	letter-spacing: -/**/1
+Pass	margin-right: -/**/1
+Pass	margin-left: -/**/1
+Pass	margin-top: -/**/1
+Pass	margin-bottom: -/**/1
+Pass	margin: -/**/1
+Pass	max-height: -/**/1
+Pass	max-width: -/**/1
+Pass	min-height: -/**/1
+Pass	min-width: -/**/1
+Pass	padding-top: -/**/1
+Pass	padding-right: -/**/1
+Pass	padding-bottom: -/**/1
+Pass	padding-left: -/**/1
+Pass	padding: -/**/1
+Pass	right: -/**/1
+Pass	text-indent: -/**/1
+Pass	top: -/**/1
+Pass	vertical-align: -/**/1
+Pass	width: -/**/1
+Pass	word-spacing: -/**/1
+Pass	background-position: calc(1)
+Pass	border-spacing: calc(1)
+Pass	border-top-width: calc(1)
+Pass	border-right-width: calc(1)
+Pass	border-bottom-width: calc(1)
+Pass	border-left-width: calc(1)
+Pass	border-width: calc(1)
+Pass	bottom: calc(1)
+Pass	clip: calc(1)
+Pass	font-size: calc(1)
+Pass	height: calc(1)
+Pass	left: calc(1)
+Pass	letter-spacing: calc(1)
+Pass	margin-right: calc(1)
+Pass	margin-left: calc(1)
+Pass	margin-top: calc(1)
+Pass	margin-bottom: calc(1)
+Pass	margin: calc(1)
+Pass	max-height: calc(1)
+Pass	max-width: calc(1)
+Pass	min-height: calc(1)
+Pass	min-width: calc(1)
+Pass	padding-top: calc(1)
+Pass	padding-right: calc(1)
+Pass	padding-bottom: calc(1)
+Pass	padding-left: calc(1)
+Pass	padding: calc(1)
+Pass	right: calc(1)
+Pass	text-indent: calc(1)
+Pass	top: calc(1)
+Pass	vertical-align: calc(1)
+Pass	width: calc(1)
+Pass	word-spacing: calc(1)
+Pass	background-position: calc(2 * 2px)
+Pass	border-spacing: calc(2 * 2px)
+Pass	border-top-width: calc(2 * 2px)
+Pass	border-right-width: calc(2 * 2px)
+Pass	border-bottom-width: calc(2 * 2px)
+Pass	border-left-width: calc(2 * 2px)
+Pass	border-width: calc(2 * 2px)
+Pass	bottom: calc(2 * 2px)
+Pass	clip: calc(2 * 2px)
+Pass	font-size: calc(2 * 2px)
+Pass	height: calc(2 * 2px)
+Pass	left: calc(2 * 2px)
+Pass	letter-spacing: calc(2 * 2px)
+Pass	margin-right: calc(2 * 2px)
+Pass	margin-left: calc(2 * 2px)
+Pass	margin-top: calc(2 * 2px)
+Pass	margin-bottom: calc(2 * 2px)
+Pass	margin: calc(2 * 2px)
+Pass	max-height: calc(2 * 2px)
+Pass	max-width: calc(2 * 2px)
+Pass	min-height: calc(2 * 2px)
+Pass	min-width: calc(2 * 2px)
+Pass	padding-top: calc(2 * 2px)
+Pass	padding-right: calc(2 * 2px)
+Pass	padding-bottom: calc(2 * 2px)
+Pass	padding-left: calc(2 * 2px)
+Pass	padding: calc(2 * 2px)
+Pass	right: calc(2 * 2px)
+Pass	text-indent: calc(2 * 2px)
+Pass	top: calc(2 * 2px)
+Pass	vertical-align: calc(2 * 2px)
+Pass	width: calc(2 * 2px)
+Pass	word-spacing: calc(2 * 2px)
+Pass	background-position: 1px 2
+Pass	border-spacing: 1px 2
+Pass	border-width: 1px 2
+Pass	margin: 1px 2
+Pass	padding: 1px 2
+Pass	background-position: 1 2px
+Pass	border-spacing: 1 2px
+Pass	border-width: 1 2px
+Pass	margin: 1 2px
+Pass	padding: 1 2px
+Pass	background-position: 1px calc(2)
+Pass	border-spacing: 1px calc(2)
+Pass	border-width: 1px calc(2)
+Pass	margin: 1px calc(2)
+Pass	padding: 1px calc(2)
+Pass	background-position: calc(1) 2px
+Pass	border-spacing: calc(1) 2px
+Pass	border-width: calc(1) 2px
+Pass	margin: calc(1) 2px
+Pass	padding: calc(1) 2px
+Pass	background-position: 1 +2
+Pass	border-spacing: 1 +2
+Pass	border-width: 1 +2
+Pass	margin: 1 +2
+Pass	padding: 1 +2
+Pass	background-position: 1 -2
+Pass	border-spacing: 1 -2
+Pass	border-width: 1 -2
+Pass	margin: 1 -2
+Pass	padding: 1 -2
+Fail	Excluded property background:1 1
+Fail	Excluded property border-top:red solid 1
+Fail	Excluded property border-right:red solid 1
+Fail	Excluded property border-bottom:red solid 1
+Fail	Excluded property border-left:red solid 1
+Fail	Excluded property border:red solid 1
+Pass	Excluded property font:normal normal normal 40 sans-serif
+Pass	Excluded property outline:red solid 1
+Pass	Excluded property outline-width:1

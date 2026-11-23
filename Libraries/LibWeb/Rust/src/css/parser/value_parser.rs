@@ -5251,6 +5251,12 @@ fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
     let mut font_variant = None;
     let mut font_weight = None;
     let mut font_width = None;
+    // https://quirks.spec.whatwg.org/#the-unitless-length-quirk
+    // The font-size longhand accepts quirky lengths, but the font shorthand does not.
+    let size_context = ParseContext {
+        in_quirks_mode: false,
+        ..*context
+    };
     let mut normal_count = 0;
     let mut index = 0;
     while index < components.len() {
@@ -5284,7 +5290,7 @@ fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             index += 1;
             continue;
         }
-        if let Some(font_size) = parse_component_for_property(context, property_id::FONT_SIZE, component) {
+        if let Some(font_size) = parse_component_for_property(&size_context, property_id::FONT_SIZE, component) {
             index += 1;
             let line_height = if components.get(index).is_some_and(|value| value.is_delim(b'/')) {
                 index += 1;
