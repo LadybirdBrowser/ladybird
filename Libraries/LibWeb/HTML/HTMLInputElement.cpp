@@ -136,6 +136,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
         visitor.visit(field.element);
     visitor.visit(m_image_button_alt_text_node);
     visitor.visit(m_placeholder_element);
+    visitor.visit(m_search_clear_button);
     visitor.visit(m_placeholder_text_node);
     visitor.visit(m_up_button_element);
     visitor.visit(m_down_button_element);
@@ -767,7 +768,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16View value)
         m_value = value_sanitization_algorithm(value);
     }
 
-    update_placeholder_visibility();
+    update_text_input_decorations();
     return {};
 }
 
@@ -806,7 +807,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
 
             if (m_text_node) {
                 m_text_node->set_data(m_value);
-                update_placeholder_visibility();
+                update_text_input_decorations();
             }
 
             // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.
@@ -846,6 +847,15 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
     }
 
     return {};
+}
+
+void HTMLInputElement::clear_search_value(Badge<HTMLButtonElement>)
+{
+    if (type_state() != TypeAttributeState::Search || !is_mutable() || m_value.is_empty())
+        return;
+    MUST(set_value({}));
+    m_has_uncommitted_changes = true;
+    dispatch_event(create_event_for_element(*this, EventNames::input, { .bubbles = true, .composed = true }));
 }
 
 void HTMLInputElement::commit_pending_changes()
@@ -929,7 +939,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
     return *style;
 }
 
-static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
+static GC::Ref<CSS::CSSStyleProperties> hidden_text_input_decoration_style()
 {
     static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
@@ -939,18 +949,25 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
     return *style;
 }
 
-void HTMLInputElement::update_placeholder_visibility()
+void HTMLInputElement::update_text_input_decorations()
 {
     // Whether the placeholder shows is decided by the control's value, which no attribute carries,
     // so `:placeholder-shown` moves with it and the style engine has to be told.
     CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
+
+    if (m_search_clear_button) {
+        if (m_value.is_empty())
+            set_own_inline_style(*m_search_clear_button, hidden_text_input_decoration_style());
+        else
+            m_search_clear_button->set_inline_style(nullptr);
+    }
 
     if (!m_placeholder_element)
         return;
     if (this->placeholder_value().has_value())
         set_own_inline_style(*m_placeholder_element, placeholder_style_when_visible());
     else
-        set_own_inline_style(*m_placeholder_element, placeholder_style_when_hidden());
+        set_own_inline_style(*m_placeholder_element, hidden_text_input_decoration_style());
 }
 
 Utf16String HTMLInputElement::button_label() const
@@ -983,13 +1000,13 @@ void HTMLInputElement::update_button_input_shadow_tree()
 {
     if (m_text_node) {
         m_text_node->set_data(button_label());
-        update_placeholder_visibility();
+        update_text_input_decorations();
     }
 }
 
 void HTMLInputElement::update_text_input_shadow_tree()
 {
-    update_placeholder_visibility();
+    update_text_input_decorations();
     update_date_time_fields();
 
     if (m_type == TypeAttributeState::Number && m_up_button_element && m_down_button_element) {
@@ -1314,6 +1331,14 @@ void HTMLInputElement::create_text_input_shadow_tree()
     m_placeholder_text_node = DOM::Text::create(document(), placeholder());
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
+    if (type_state() == TypeAttributeState::Search) {
+        m_search_clear_button = MUST(DOM::create_element(document(), TagNames::button, Namespace::HTML));
+        m_search_clear_button->set_attribute_value(AttributeNames::type, "button"_utf16);
+        m_search_clear_button->set_attribute_value(ARIA::AttributeNames::aria_label, "Clear search"_utf16);
+        MUST(m_search_clear_button->set_text_content(u"\N{MULTIPLICATION SIGN}"_utf16));
+        MUST(element->append_child(*m_search_clear_button));
+        m_search_clear_button->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::WebkitSearchCancelButton);
+    }
     if (type_state() == TypeAttributeState::Number) {
         // NB: The buttons start out with the style they have when shown, so that the style application that follows
         //     only rewrites their declarations when appearance hides them.
@@ -1875,7 +1900,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
     } else if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node) {
             m_placeholder_text_node->set_data(placeholder());
-            update_placeholder_visibility();
+            update_text_input_decorations();
         }
     } else if (name == HTML::AttributeNames::src) {
         handle_src_attribute(value.has_value() ? value->utf16_view() : u""sv).release_value_but_fixme_should_propagate_errors();
@@ -1963,6 +1988,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
+    m_search_clear_button = nullptr;
     // NB: Which box the element gets depends on its state.
     set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementTypeAttribute);
     // Only the Image Button state maps align, border, width, height, hspace and vspace to hints,
@@ -2504,7 +2530,7 @@ void HTMLInputElement::reset_algorithm()
 
     if (m_text_node) {
         m_text_node->set_data(m_value);
-        update_placeholder_visibility();
+        update_text_input_decorations();
     }
 
     // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.
@@ -2543,7 +2569,7 @@ void HTMLInputElement::clear_algorithm()
 
     if (m_text_node) {
         m_text_node->set_data(m_value);
-        update_placeholder_visibility();
+        update_text_input_decorations();
     }
 
     // NB: The relevant value is read from the text node — so, this has to come after the text node is updated.

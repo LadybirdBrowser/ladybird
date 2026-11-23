@@ -39,6 +39,10 @@
   "-webkit-progress-value": {
     "alias-for": "slider-fill"
   },
+  "-webkit-search-cancel-button": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-clear-icon",
+    "implementation": "element-reference"
+  },
   "-webkit-slider-runnable-track": {
     "alias-for": "slider-track"
   },
