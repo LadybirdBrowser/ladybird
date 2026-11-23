@@ -4,17 +4,18 @@
 <style>
     body { margin: 0; background: #808080; }
 </style>
-<svg width="200" height="100">
+<svg width="64" height="32">
     <defs>
         <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stop-color="#000000"></stop>
             <stop offset="1" stop-color="#303030"></stop>
         </linearGradient>
     </defs>
-    <path d="M 10 10 L 190 10 L 190 90 L 10 90 Z" fill="url(#g)" stroke="url(#g)" stroke-width="8"></path>
+    <path d="M 4 4 L 60 4 L 60 28 L 4 28 Z" fill="url(#g)" stroke="url(#g)" stroke-width="4"></path>
 </svg>
 <script>
     // A gradient-painted path resolves stop by stop, like a gradient-painted rectangle: dark stops read as line art and must lighten.
+    // The SVG is icon-sized, since the content of a bigger one stays as authored.
     if (window.internals)
         internals.setForceDarkEnabled(true);
     requestAnimationFrame(() => {
