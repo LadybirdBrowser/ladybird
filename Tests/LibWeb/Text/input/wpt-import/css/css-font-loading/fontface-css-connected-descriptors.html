@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<head>
+    <link rel="author" href="simon.wuelker@arcor.de">
+    <link rel="help" href="https://drafts.csswg.org/css-font-loading/#font-face-css-connection">
+    <title>A FontFace backed by a @font-face rule should have its descriptors initialized accordingly</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <style id="baz">
+    @font-face {
+        font-family: "Lato";
+        src: url("../../fonts/Lato-Medium.ttf");
+        font-style: normal;
+        ascent-override: 50%;
+        descent-override: 30%;
+        font-display: fallback;
+        font-feature-settings: "smcp" off;
+        font-stretch: ultra-expanded;
+        font-style: oblique 40deg;
+        font-variation-settings: "wght" 500;
+        font-weight: bold;
+        line-gap-override: 10%;
+        unicode-range: U+4??;
+    }
+    @font-face {
+        font-family: "Lato Width";
+        src: url("../../fonts/Lato-Medium.ttf");
+        font-width: ultra-expanded;
+    }
+    #target {
+        font-family: "Lato";
+    }
+    #width-target {
+        font-family: "Lato Width";
+    }
+    </style>
+    <div id="target">I am a div that uses the Lato font, requiring it to be loaded before document.fonts.ready resolves</div>
+    <div id="width-target">I use the font-width descriptor</div>
+    <script>
+      setup({explicit_done:true});
+
+      document.fonts.ready.then(() => {
+        const fontFaces = [...document.fonts];
+        const latoFace = fontFaces.find(face => face.family === "Lato");
+        const widthFace = fontFaces.find(face => face.family === "Lato Width");
+
+        test(() => {
+          assert_not_equals(latoFace, undefined);
+          assert_not_equals(widthFace, undefined);
+        }, "CSS-connected FontFace objects should be present");
+
+        test(() => {
+          assert_equals(latoFace.ascentOverride, "50%");
+        }, "ascentOverride should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.descentOverride, "30%");
+        }, "descentOverride should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.display, "fallback");
+        }, "display should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.featureSettings, "\"smcp\" 0");
+        }, "featureSettings should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.stretch, "ultra-expanded");
+        }, "stretch should be set correctly");
+
+        test(() => {
+          assert_equals(widthFace.width, "ultra-expanded");
+          assert_equals(widthFace.stretch, "ultra-expanded");
+        }, "font-width should initialize the width and stretch attributes");
+
+        test(() => {
+          assert_equals(latoFace.style, "oblique 40deg");
+        }, "style should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.variationSettings, "\"wght\" 500");
+        }, "variationSettings should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.weight, "bold");
+        }, "weight should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.lineGapOverride, "10%");
+        }, "lineGapOverride should be set correctly");
+
+        test(() => {
+          assert_equals(latoFace.unicodeRange, "U+400-4FF");
+        }, "unicodeRange should be set correctly");
+        done();
+      })
+    </script>
+</body>

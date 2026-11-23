@@ -4,7 +4,8 @@ auto
 Ahem
 normal
 normal
-auto
-auto
+normal
+normal
 U+0-10FFFF
-auto
+normal
+auto auto auto
