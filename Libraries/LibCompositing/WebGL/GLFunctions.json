@@ -2542,6 +2542,99 @@
         "category": "sync"
     },
     {
+        "name": "glGetUniformfvRobustANGLE",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLuint",
+                "name": "program",
+                "object": true
+            },
+            {
+                "type": "GLint",
+                "name": "location"
+            },
+            {
+                "type": "GLsizei",
+                "name": "bufSize"
+            },
+            {
+                "type": "GLsizei*",
+                "name": "length",
+                "out": true
+            },
+            {
+                "type": "GLfloat*",
+                "name": "params",
+                "out": true,
+                "payload": "bufSize"
+            }
+        ],
+        "category": "sync"
+    },
+    {
+        "name": "glGetUniformivRobustANGLE",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLuint",
+                "name": "program",
+                "object": true
+            },
+            {
+                "type": "GLint",
+                "name": "location"
+            },
+            {
+                "type": "GLsizei",
+                "name": "bufSize"
+            },
+            {
+                "type": "GLsizei*",
+                "name": "length",
+                "out": true
+            },
+            {
+                "type": "GLint*",
+                "name": "params",
+                "out": true,
+                "payload": "bufSize"
+            }
+        ],
+        "category": "sync"
+    },
+    {
+        "name": "glGetUniformuivRobustANGLE",
+        "return": "void",
+        "args": [
+            {
+                "type": "GLuint",
+                "name": "program",
+                "object": true
+            },
+            {
+                "type": "GLint",
+                "name": "location"
+            },
+            {
+                "type": "GLsizei",
+                "name": "bufSize"
+            },
+            {
+                "type": "GLsizei*",
+                "name": "length",
+                "out": true
+            },
+            {
+                "type": "GLuint*",
+                "name": "params",
+                "out": true,
+                "payload": "bufSize"
+            }
+        ],
+        "category": "sync"
+    },
+    {
         "name": "glGetUniformBlockIndex",
         "return": "GLuint",
         "args": [

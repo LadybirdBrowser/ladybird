@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // getUniform() returns the value of a uniform as its type dictates.
+    test(() => {
+        function show(value) {
+            if (value === null || typeof value !== "object")
+                return String(value);
+            return `${value.constructor.name}[${Array.from(value).join(", ")}]`;
+        }
+        function linkedProgram(gl, vertexSource, fragmentSource) {
+            const program = gl.createProgram();
+            for (const [type, source] of [[gl.VERTEX_SHADER, vertexSource], [gl.FRAGMENT_SHADER, fragmentSource]]) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                gl.attachShader(program, shader);
+            }
+            gl.linkProgram(program);
+            gl.useProgram(program);
+            return program;
+        }
+
+        const gl = document.createElement("canvas").getContext("webgl");
+        const program = linkedProgram(gl, `
+            uniform float f; uniform vec2 f2; uniform vec3 f3; uniform vec4 f4;
+            uniform int i; uniform ivec2 i2; uniform ivec3 i3; uniform ivec4 i4;
+            uniform bool b; uniform bvec2 b2; uniform bvec3 b3; uniform bvec4 b4;
+            uniform mat2 m2; uniform mat3 m3; uniform mat4 m4; uniform float a[3];
+            void main() {
+                float bs = float(b) + float(b2.x) + float(b3.y) + float(b4.z);
+                gl_Position = vec4(f + f2.x + f3.y + f4.z + float(i + i2.x + i3.y + i4.z) + bs + a[0] + a[2])
+                    + vec4(m2[0], m2[1]) + vec4(m3[0], 1.0) + m4[1];
+            }`, `
+            precision mediump float; uniform sampler2D s;
+            void main() { gl_FragColor = texture2D(s, vec2(0.5)); }`);
+        const at = name => gl.getUniformLocation(program, name);
+        gl.uniform1f(at("f"), 0.5);
+        gl.uniform2f(at("f2"), 1, 2);
+        gl.uniform3f(at("f3"), 1, 2, 3);
+        gl.uniform4f(at("f4"), 1, 2, 3, 4);
+        gl.uniform1i(at("i"), -1);
+        gl.uniform2i(at("i2"), 1, 2);
+        gl.uniform3i(at("i3"), 1, 2, 3);
+        gl.uniform4i(at("i4"), 1, 2, 3, 4);
+        gl.uniform1i(at("b"), 1);
+        gl.uniform2i(at("b2"), 1, 0);
+        gl.uniform3i(at("b3"), 0, 1, 0);
+        gl.uniform4i(at("b4"), 1, 1, 0, 1);
+        gl.uniformMatrix2fv(at("m2"), false, [1, 2, 3, 4]);
+        gl.uniformMatrix3fv(at("m3"), false, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        gl.uniformMatrix4fv(at("m4"), false, [...Array(16).keys()]);
+        gl.uniform1fv(at("a"), [7, 8, 9]);
+        gl.uniform1i(at("s"), 2);
+        for (const name of ["f", "f2", "f3", "f4", "i", "i2", "i3", "i4", "b", "b2", "b3", "b4", "m2", "m3", "m4", "a", "a[0]", "a[1]", "a[2]", "s"])
+            println(`webgl ${name}: ${show(gl.getUniform(program, at(name)))}`);
+        println(`webgl error: ${gl.getError()}`);
+
+        const other = linkedProgram(gl, "uniform float f; void main() { gl_Position = vec4(f); }", "void main() { gl_FragColor = vec4(1.0); }");
+        gl.getError();
+        println(`webgl location of another program: ${show(gl.getUniform(other, at("f")))}, error ${gl.getError()}`);
+
+        const gl2 = document.createElement("canvas").getContext("webgl2");
+        const program2 = linkedProgram(gl2, `#version 300 es
+            uniform uint u; uniform uvec2 u2; uniform uvec3 u3; uniform uvec4 u4;
+            uniform mat2x3 m23; uniform mat3x2 m32; uniform mat4x3 m43;
+            void main() { gl_Position = vec4(float(u + u2.x + u3.y + u4.z)) + vec4(m23[0], 1.0) + vec4(m32[0], m32[1]) + vec4(m43[0], 1.0); }`, `#version 300 es
+            precision mediump float; uniform highp isampler2D s; uniform mediump sampler3D t; out vec4 color;
+            void main() { color = vec4(texture(s, vec2(0.5))) + texture(t, vec3(0.5)); }`);
+        const at2 = name => gl2.getUniformLocation(program2, name);
+        gl2.uniform1ui(at2("u"), 4000000000);
+        gl2.uniform2ui(at2("u2"), 1, 2);
+        gl2.uniform3ui(at2("u3"), 1, 2, 3);
+        gl2.uniform4ui(at2("u4"), 1, 2, 3, 4);
+        gl2.uniformMatrix2x3fv(at2("m23"), false, [1, 2, 3, 4, 5, 6]);
+        gl2.uniformMatrix3x2fv(at2("m32"), false, [1, 2, 3, 4, 5, 6]);
+        gl2.uniformMatrix4x3fv(at2("m43"), false, [...Array(12).keys()]);
+        gl2.uniform1i(at2("s"), 3);
+        gl2.uniform1i(at2("t"), 4);
+        for (const name of ["u", "u2", "u3", "u4", "m23", "m32", "m43", "s", "t"])
+            println(`webgl2 ${name}: ${show(gl2.getUniform(program2, at2(name)))}`);
+        println(`webgl2 error: ${gl2.getError()}`);
+
+        // Values that come from views on shared memory, at byte offsets past its start, read back the same.
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        const floats = new Float32Array(memory.buffer, 16, 4);
+        const ints = new Int32Array(memory.buffer, 48, 4);
+        const uints = new Uint32Array(memory.buffer, 80, 4);
+        floats.set([0.25, 0.5, 0.75, 1]);
+        ints.set([-1, 2, -3, 4]);
+        uints.set([5, 6, 7, 8]);
+        const program3 = linkedProgram(gl2, `#version 300 es
+            uniform vec4 f; uniform ivec4 i; uniform uvec4 u;
+            void main() { gl_Position = f + vec4(i) + vec4(u); }`, `#version 300 es
+            precision mediump float; out vec4 color; void main() { color = vec4(1.0); }`);
+        const at3 = name => gl2.getUniformLocation(program3, name);
+        gl2.uniform4fv(at3("f"), floats);
+        gl2.uniform4iv(at3("i"), ints);
+        gl2.uniform4uiv(at3("u"), uints);
+        for (const name of ["f", "i", "u"])
+            println(`shared ${name}: ${show(gl2.getUniform(program3, at3(name)))}`);
+        println(`shared error: ${gl2.getError()}`);
+    });
+</script>

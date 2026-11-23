@@ -56,8 +56,8 @@ pub(crate) struct WebGLContextAttributes {
     pub(crate) desynchronized: bool,
 }
 
-const ACTIVE_INFO_NAME_BUFFER_SIZE: usize = 256;
-const ACTIVE_INFO_NAME_BUFFER_GL_SIZE: i32 = gl_sizei_of_array_length(ACTIVE_INFO_NAME_BUFFER_SIZE);
+pub(super) const ACTIVE_INFO_NAME_BUFFER_SIZE: usize = 256;
+pub(super) const ACTIVE_INFO_NAME_BUFFER_GL_SIZE: i32 = gl_sizei_of_array_length(ACTIVE_INFO_NAME_BUFFER_SIZE);
 
 pub(crate) fn is_valid_framebuffer_binding_target(version: WebGLVersion, target: u32) -> bool {
     if target == GL_FRAMEBUFFER {

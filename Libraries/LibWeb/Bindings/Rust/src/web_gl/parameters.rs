@@ -12,23 +12,26 @@ use super::constants::{
     GL_ACTIVE_ATTRIBUTES, GL_ACTIVE_TEXTURE, GL_ACTIVE_UNIFORM_BLOCKS, GL_ACTIVE_UNIFORMS, GL_ALIASED_LINE_WIDTH_RANGE,
     GL_ALIASED_POINT_SIZE_RANGE, GL_ALPHA_BITS, GL_ARRAY_BUFFER_BINDING, GL_ATTACHED_SHADERS, GL_BLEND, GL_BLEND_COLOR,
     GL_BLEND_DST_ALPHA, GL_BLEND_DST_RGB, GL_BLEND_EQUATION_ALPHA, GL_BLEND_EQUATION_RGB, GL_BLEND_SRC_ALPHA,
-    GL_BLEND_SRC_RGB, GL_BLUE_BITS, GL_BUFFER_SIZE, GL_BUFFER_USAGE, GL_COLOR_CLEAR_VALUE, GL_COLOR_WRITEMASK,
-    GL_COMPILE_STATUS, GL_COMPRESSED_TEXTURE_FORMATS, GL_COPY_READ_BUFFER_BINDING, GL_COPY_WRITE_BUFFER_BINDING,
-    GL_CULL_FACE, GL_CULL_FACE_MODE, GL_CURRENT_PROGRAM, GL_CURRENT_VERTEX_ATTRIB, GL_DELETE_STATUS, GL_DEPTH_BITS,
-    GL_DEPTH_CLEAR_VALUE, GL_DEPTH_FUNC, GL_DEPTH_RANGE, GL_DEPTH_TEST, GL_DEPTH_WRITEMASK, GL_DITHER,
-    GL_ELEMENT_ARRAY_BUFFER_BINDING, GL_FRAGMENT_SHADER_DERIVATIVE_HINT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME,
-    GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE,
-    GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, GL_FRAMEBUFFER_BINDING, GL_FRONT_FACE, GL_GENERATE_MIPMAP_HINT,
-    GL_GREEN_BITS, GL_IMPLEMENTATION_COLOR_READ_FORMAT, GL_IMPLEMENTATION_COLOR_READ_TYPE, GL_INVALID_ENUM,
-    GL_INVALID_OPERATION, GL_LINE_WIDTH, GL_LINK_STATUS, GL_MAX_3D_TEXTURE_SIZE, GL_MAX_ARRAY_TEXTURE_LAYERS,
-    GL_MAX_CLIENT_WAIT_TIMEOUT_WEBGL, GL_MAX_COLOR_ATTACHMENTS, GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS,
-    GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GL_MAX_COMBINED_UNIFORM_BLOCKS, GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS,
-    GL_MAX_CUBE_MAP_TEXTURE_SIZE, GL_MAX_DRAW_BUFFERS, GL_MAX_ELEMENT_INDEX, GL_MAX_ELEMENTS_INDICES,
-    GL_MAX_ELEMENTS_VERTICES, GL_MAX_FRAGMENT_INPUT_COMPONENTS, GL_MAX_FRAGMENT_UNIFORM_BLOCKS,
-    GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, GL_MAX_FRAGMENT_UNIFORM_VECTORS, GL_MAX_PROGRAM_TEXEL_OFFSET,
-    GL_MAX_RENDERBUFFER_SIZE, GL_MAX_SAMPLES, GL_MAX_SERVER_WAIT_TIMEOUT, GL_MAX_TEXTURE_IMAGE_UNITS,
-    GL_MAX_TEXTURE_LOD_BIAS, GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, GL_MAX_TEXTURE_SIZE,
-    GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS, GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS,
+    GL_BLEND_SRC_RGB, GL_BLUE_BITS, GL_BOOL, GL_BOOL_VEC2, GL_BOOL_VEC3, GL_BOOL_VEC4, GL_BUFFER_SIZE, GL_BUFFER_USAGE,
+    GL_COLOR_CLEAR_VALUE, GL_COLOR_WRITEMASK, GL_COMPILE_STATUS, GL_COMPRESSED_TEXTURE_FORMATS,
+    GL_COPY_READ_BUFFER_BINDING, GL_COPY_WRITE_BUFFER_BINDING, GL_CULL_FACE, GL_CULL_FACE_MODE, GL_CURRENT_PROGRAM,
+    GL_CURRENT_VERTEX_ATTRIB, GL_DELETE_STATUS, GL_DEPTH_BITS, GL_DEPTH_CLEAR_VALUE, GL_DEPTH_FUNC, GL_DEPTH_RANGE,
+    GL_DEPTH_TEST, GL_DEPTH_WRITEMASK, GL_DITHER, GL_ELEMENT_ARRAY_BUFFER_BINDING, GL_FLOAT, GL_FLOAT_MAT2,
+    GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4, GL_FLOAT_MAT3, GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4, GL_FLOAT_MAT4x2,
+    GL_FLOAT_MAT4x3, GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FRAGMENT_SHADER_DERIVATIVE_HINT,
+    GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE,
+    GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, GL_FRAMEBUFFER_BINDING,
+    GL_FRONT_FACE, GL_GENERATE_MIPMAP_HINT, GL_GREEN_BITS, GL_IMPLEMENTATION_COLOR_READ_FORMAT,
+    GL_IMPLEMENTATION_COLOR_READ_TYPE, GL_INT, GL_INT_SAMPLER_2D, GL_INT_SAMPLER_2D_ARRAY, GL_INT_SAMPLER_3D,
+    GL_INT_SAMPLER_CUBE, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_LINE_WIDTH,
+    GL_LINK_STATUS, GL_MAX_3D_TEXTURE_SIZE, GL_MAX_ARRAY_TEXTURE_LAYERS, GL_MAX_CLIENT_WAIT_TIMEOUT_WEBGL,
+    GL_MAX_COLOR_ATTACHMENTS, GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+    GL_MAX_COMBINED_UNIFORM_BLOCKS, GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS, GL_MAX_CUBE_MAP_TEXTURE_SIZE,
+    GL_MAX_DRAW_BUFFERS, GL_MAX_ELEMENT_INDEX, GL_MAX_ELEMENTS_INDICES, GL_MAX_ELEMENTS_VERTICES,
+    GL_MAX_FRAGMENT_INPUT_COMPONENTS, GL_MAX_FRAGMENT_UNIFORM_BLOCKS, GL_MAX_FRAGMENT_UNIFORM_COMPONENTS,
+    GL_MAX_FRAGMENT_UNIFORM_VECTORS, GL_MAX_PROGRAM_TEXEL_OFFSET, GL_MAX_RENDERBUFFER_SIZE, GL_MAX_SAMPLES,
+    GL_MAX_SERVER_WAIT_TIMEOUT, GL_MAX_TEXTURE_IMAGE_UNITS, GL_MAX_TEXTURE_LOD_BIAS, GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT,
+    GL_MAX_TEXTURE_SIZE, GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS, GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS,
     GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS, GL_MAX_UNIFORM_BLOCK_SIZE, GL_MAX_UNIFORM_BUFFER_BINDINGS,
     GL_MAX_VARYING_COMPONENTS, GL_MAX_VARYING_VECTORS, GL_MAX_VERTEX_ATTRIBS, GL_MAX_VERTEX_OUTPUT_COMPONENTS,
     GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, GL_MAX_VERTEX_UNIFORM_BLOCKS, GL_MAX_VERTEX_UNIFORM_COMPONENTS,
@@ -39,32 +42,38 @@ use super::constants::{
     GL_RENDERBUFFER_BLUE_SIZE, GL_RENDERBUFFER_DEPTH_SIZE, GL_RENDERBUFFER_GREEN_SIZE, GL_RENDERBUFFER_HEIGHT,
     GL_RENDERBUFFER_INTERNAL_FORMAT, GL_RENDERBUFFER_RED_SIZE, GL_RENDERBUFFER_SAMPLES, GL_RENDERBUFFER_STENCIL_SIZE,
     GL_RENDERBUFFER_WIDTH, GL_RENDERER, GL_SAMPLE_ALPHA_TO_COVERAGE, GL_SAMPLE_BUFFERS, GL_SAMPLE_COVERAGE,
-    GL_SAMPLE_COVERAGE_INVERT, GL_SAMPLE_COVERAGE_VALUE, GL_SAMPLER_BINDING, GL_SAMPLES, GL_SCISSOR_BOX,
-    GL_SCISSOR_TEST, GL_SHADER_TYPE, GL_SHADING_LANGUAGE_VERSION, GL_STENCIL_BACK_FAIL, GL_STENCIL_BACK_FUNC,
-    GL_STENCIL_BACK_PASS_DEPTH_FAIL, GL_STENCIL_BACK_PASS_DEPTH_PASS, GL_STENCIL_BACK_REF, GL_STENCIL_BACK_VALUE_MASK,
-    GL_STENCIL_BACK_WRITEMASK, GL_STENCIL_BITS, GL_STENCIL_CLEAR_VALUE, GL_STENCIL_FAIL, GL_STENCIL_FUNC,
-    GL_STENCIL_PASS_DEPTH_FAIL, GL_STENCIL_PASS_DEPTH_PASS, GL_STENCIL_REF, GL_STENCIL_TEST, GL_STENCIL_VALUE_MASK,
-    GL_STENCIL_WRITEMASK, GL_SUBPIXEL_BITS, GL_TEXTURE, GL_TEXTURE_BASE_LEVEL, GL_TEXTURE_BINDING_2D,
-    GL_TEXTURE_BINDING_2D_ARRAY, GL_TEXTURE_BINDING_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_TEXTURE_COMPARE_MODE,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_IMMUTABLE_FORMAT,
-    GL_TEXTURE_IMMUTABLE_LEVELS, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_MAX_ANISOTROPY_EXT, GL_TEXTURE_MAX_LEVEL,
-    GL_TEXTURE_MAX_LOD, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MIN_LOD, GL_TEXTURE_WRAP_R, GL_TEXTURE_WRAP_S,
-    GL_TEXTURE_WRAP_T, GL_TRANSFORM_FEEDBACK_ACTIVE, GL_TRANSFORM_FEEDBACK_BINDING,
+    GL_SAMPLE_COVERAGE_INVERT, GL_SAMPLE_COVERAGE_VALUE, GL_SAMPLER_2D, GL_SAMPLER_2D_ARRAY,
+    GL_SAMPLER_2D_ARRAY_SHADOW, GL_SAMPLER_2D_SHADOW, GL_SAMPLER_3D, GL_SAMPLER_BINDING, GL_SAMPLER_CUBE,
+    GL_SAMPLER_CUBE_SHADOW, GL_SAMPLES, GL_SCISSOR_BOX, GL_SCISSOR_TEST, GL_SHADER_TYPE, GL_SHADING_LANGUAGE_VERSION,
+    GL_STENCIL_BACK_FAIL, GL_STENCIL_BACK_FUNC, GL_STENCIL_BACK_PASS_DEPTH_FAIL, GL_STENCIL_BACK_PASS_DEPTH_PASS,
+    GL_STENCIL_BACK_REF, GL_STENCIL_BACK_VALUE_MASK, GL_STENCIL_BACK_WRITEMASK, GL_STENCIL_BITS,
+    GL_STENCIL_CLEAR_VALUE, GL_STENCIL_FAIL, GL_STENCIL_FUNC, GL_STENCIL_PASS_DEPTH_FAIL, GL_STENCIL_PASS_DEPTH_PASS,
+    GL_STENCIL_REF, GL_STENCIL_TEST, GL_STENCIL_VALUE_MASK, GL_STENCIL_WRITEMASK, GL_SUBPIXEL_BITS, GL_TEXTURE,
+    GL_TEXTURE_BASE_LEVEL, GL_TEXTURE_BINDING_2D, GL_TEXTURE_BINDING_2D_ARRAY, GL_TEXTURE_BINDING_CUBE_MAP,
+    GL_TEXTURE_COMPARE_FUNC, GL_TEXTURE_COMPARE_MODE, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+    GL_TEXTURE_IMMUTABLE_FORMAT, GL_TEXTURE_IMMUTABLE_LEVELS, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+    GL_TEXTURE_MAX_LEVEL, GL_TEXTURE_MAX_LOD, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MIN_LOD, GL_TEXTURE_WRAP_R,
+    GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TRANSFORM_FEEDBACK_ACTIVE, GL_TRANSFORM_FEEDBACK_BINDING,
     GL_TRANSFORM_FEEDBACK_BUFFER_BINDING, GL_TRANSFORM_FEEDBACK_BUFFER_MODE, GL_TRANSFORM_FEEDBACK_PAUSED,
     GL_TRANSFORM_FEEDBACK_VARYINGS, GL_TRUE, GL_UNIFORM_BUFFER_BINDING, GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,
     GL_UNMASKED_RENDERER_WEBGL, GL_UNMASKED_VENDOR_WEBGL, GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL,
     GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_IMAGE_HEIGHT, GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL, GL_UNPACK_ROW_LENGTH,
-    GL_UNPACK_SKIP_IMAGES, GL_UNPACK_SKIP_PIXELS, GL_UNPACK_SKIP_ROWS, GL_VALIDATE_STATUS, GL_VENDOR, GL_VERSION,
-    GL_VERTEX_ARRAY_BINDING, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, GL_VERTEX_ATTRIB_ARRAY_DIVISOR,
-    GL_VERTEX_ATTRIB_ARRAY_ENABLED, GL_VERTEX_ATTRIB_ARRAY_INTEGER, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED,
-    GL_VERTEX_ATTRIB_ARRAY_SIZE, GL_VERTEX_ATTRIB_ARRAY_STRIDE, GL_VERTEX_ATTRIB_ARRAY_TYPE, GL_VIEWPORT,
+    GL_UNPACK_SKIP_IMAGES, GL_UNPACK_SKIP_PIXELS, GL_UNPACK_SKIP_ROWS, GL_UNSIGNED_INT, GL_UNSIGNED_INT_SAMPLER_2D,
+    GL_UNSIGNED_INT_SAMPLER_2D_ARRAY, GL_UNSIGNED_INT_SAMPLER_3D, GL_UNSIGNED_INT_SAMPLER_CUBE, GL_UNSIGNED_INT_VEC2,
+    GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4, GL_VALIDATE_STATUS, GL_VENDOR, GL_VERSION, GL_VERTEX_ARRAY_BINDING,
+    GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, GL_VERTEX_ATTRIB_ARRAY_ENABLED,
+    GL_VERTEX_ATTRIB_ARRAY_INTEGER, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, GL_VERTEX_ATTRIB_ARRAY_SIZE,
+    GL_VERTEX_ATTRIB_ARRAY_STRIDE, GL_VERTEX_ATTRIB_ARRAY_TYPE, GL_VIEWPORT,
 };
 use super::gl_string::utf16_string_from_gl_string;
 use super::state::{ContextState, RenderingContext, Version, VertexArrayBinding};
 use super::values::{object_or_null, string_value};
 use super::web_gl_buffer::WebGLBuffer;
 use super::web_gl_program::WebGLProgram;
-use super::web_gl_rendering_context_base::{is_valid_framebuffer_attachment, is_valid_framebuffer_binding_target};
+use super::web_gl_rendering_context_base::{
+    ACTIVE_INFO_NAME_BUFFER_GL_SIZE, ACTIVE_INFO_NAME_BUFFER_SIZE, is_valid_framebuffer_attachment,
+    is_valid_framebuffer_binding_target,
+};
 use super::web_gl_sampler::WebGLSampler;
 use super::web_gl_shader::WebGLShader;
 use super::web_gl_uniform_location::WebGLUniformLocation;
@@ -689,14 +698,83 @@ impl<V: Version> RenderingContext<V> {
         Ok(null_with_invalid_enum_error(self))
     }
 
+    /// https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.10
+    /// "Return the uniform value at the passed location in the passed program. The type returned is dictated by the
+    ///  uniform type."
     pub(crate) fn get_uniform(
         &self,
-        _: &mut CallContext,
-        _: Ref<WebGLProgram>,
-        _: Ref<WebGLUniformLocation>,
+        cx: &mut CallContext,
+        program: Ref<WebGLProgram>,
+        location: Ref<WebGLUniformLocation>,
     ) -> WebIdlResult<Value> {
-        // FIXME: Implement this.
-        Ok(Value::from_i32(0))
+        let Some(program_handle) = self.handle_of_program_or_shader(program) else {
+            return Ok(Value::NULL);
+        };
+        let Some(location) = location.handle_in(program) else {
+            self.set_error(GL_INVALID_OPERATION);
+            return Ok(Value::NULL);
+        };
+        let mut link_status = [0];
+        self.proxy
+            .get_programiv(program_handle, GL_LINK_STATUS, &mut link_status);
+        if !is_gl_true(link_status[0]) {
+            self.set_error(GL_INVALID_OPERATION);
+            return Ok(Value::NULL);
+        }
+        let Some(uniform_type) = type_of_uniform_at(self, program_handle, location) else {
+            self.set_error(GL_INVALID_OPERATION);
+            return Ok(Value::NULL);
+        };
+        let Some((kind, count)) = components_of_uniform_type(uniform_type) else {
+            self.set_error(GL_INVALID_OPERATION);
+            return Ok(Value::NULL);
+        };
+
+        // NB: GL takes the size of the buffer for a uniform's value in bytes, and a matrix has at most 16 numbers.
+        let gl_byte_size = i32::try_from(count * 4).expect("a uniform has at most 16 numbers");
+        Ok(match kind {
+            UniformComponents::Float => {
+                let mut numbers = [0.0f32; 16];
+                self.proxy
+                    .get_uniformfv_robust_angle(program_handle, location, gl_byte_size, &mut numbers[..count]);
+                if count == 1 {
+                    Value::from_f64(f64::from(numbers[0]))
+                } else {
+                    self.float32_array(cx, &numbers[..count])
+                }
+            }
+            UniformComponents::Int => {
+                let mut numbers = [0i32; 4];
+                self.proxy
+                    .get_uniformiv_robust_angle(program_handle, location, gl_byte_size, &mut numbers[..count]);
+                if count == 1 {
+                    Value::from_i32(numbers[0])
+                } else {
+                    self.int32_array(cx, &numbers[..count])
+                }
+            }
+            UniformComponents::UnsignedInt => {
+                let mut numbers = [0u32; 4];
+                self.proxy
+                    .get_uniformuiv_robust_angle(program_handle, location, gl_byte_size, &mut numbers[..count]);
+                if count == 1 {
+                    Value::from_f64(f64::from(numbers[0]))
+                } else {
+                    self.uint32_array(cx, &numbers[..count])
+                }
+            }
+            UniformComponents::Bool => {
+                let mut numbers = [0i32; 4];
+                self.proxy
+                    .get_uniformiv_robust_angle(program_handle, location, gl_byte_size, &mut numbers[..count]);
+                if count == 1 {
+                    Value::from_bool(numbers[0] != 0)
+                } else {
+                    let booleans: Vec<bool> = numbers[..count].iter().map(|&number| number != 0).collect();
+                    self.boolean_array(cx, &booleans)
+                }
+            }
+        })
     }
 
     pub(crate) fn get_vertex_attrib(&self, cx: &mut CallContext, index: u32, pname: u32) -> WebIdlResult<Value> {
@@ -737,4 +815,91 @@ impl<V: Version> RenderingContext<V> {
             _ => Ok(null_with_invalid_enum_error(self)),
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum UniformComponents {
+    Float,
+    Int,
+    UnsignedInt,
+    Bool,
+}
+
+/// What a uniform of the type holds, and how many: A sampler holds the int of its texture unit.
+#[allow(
+    non_upper_case_globals,
+    reason = "the matrix constants keep the names the spec gives them"
+)]
+fn components_of_uniform_type(uniform_type: u32) -> Option<(UniformComponents, usize)> {
+    use UniformComponents::{Bool, Float, Int, UnsignedInt};
+    Some(match uniform_type {
+        GL_FLOAT => (Float, 1),
+        GL_FLOAT_VEC2 => (Float, 2),
+        GL_FLOAT_VEC3 => (Float, 3),
+        GL_FLOAT_VEC4 => (Float, 4),
+        GL_FLOAT_MAT2 => (Float, 4),
+        GL_FLOAT_MAT3 => (Float, 9),
+        GL_FLOAT_MAT4 => (Float, 16),
+        GL_FLOAT_MAT2x3 | GL_FLOAT_MAT3x2 => (Float, 6),
+        GL_FLOAT_MAT2x4 | GL_FLOAT_MAT4x2 => (Float, 8),
+        GL_FLOAT_MAT3x4 | GL_FLOAT_MAT4x3 => (Float, 12),
+        GL_INT => (Int, 1),
+        GL_INT_VEC2 => (Int, 2),
+        GL_INT_VEC3 => (Int, 3),
+        GL_INT_VEC4 => (Int, 4),
+        GL_UNSIGNED_INT => (UnsignedInt, 1),
+        GL_UNSIGNED_INT_VEC2 => (UnsignedInt, 2),
+        GL_UNSIGNED_INT_VEC3 => (UnsignedInt, 3),
+        GL_UNSIGNED_INT_VEC4 => (UnsignedInt, 4),
+        GL_BOOL => (Bool, 1),
+        GL_BOOL_VEC2 => (Bool, 2),
+        GL_BOOL_VEC3 => (Bool, 3),
+        GL_BOOL_VEC4 => (Bool, 4),
+        GL_SAMPLER_2D
+        | GL_SAMPLER_CUBE
+        | GL_SAMPLER_3D
+        | GL_SAMPLER_2D_SHADOW
+        | GL_SAMPLER_2D_ARRAY
+        | GL_SAMPLER_2D_ARRAY_SHADOW
+        | GL_SAMPLER_CUBE_SHADOW
+        | GL_INT_SAMPLER_2D
+        | GL_INT_SAMPLER_3D
+        | GL_INT_SAMPLER_CUBE
+        | GL_INT_SAMPLER_2D_ARRAY
+        | GL_UNSIGNED_INT_SAMPLER_2D
+        | GL_UNSIGNED_INT_SAMPLER_3D
+        | GL_UNSIGNED_INT_SAMPLER_CUBE
+        | GL_UNSIGNED_INT_SAMPLER_2D_ARRAY => (Int, 1),
+        _ => return None,
+    })
+}
+
+/// The type of the active uniform that has `location` in the program, or of the element of an array uniform that has
+/// it. A location names no uniform itself, so this asks for the location of each element of each active uniform.
+fn type_of_uniform_at(context: &ContextState, program: u32, location: i32) -> Option<u32> {
+    let mut active_uniforms = [0];
+    context
+        .proxy
+        .get_programiv(program, GL_ACTIVE_UNIFORMS, &mut active_uniforms);
+    for index in 0..u32::try_from(active_uniforms[0]).unwrap_or(0) {
+        let mut name = [0; ACTIVE_INFO_NAME_BUFFER_SIZE];
+        let outputs = context
+            .proxy
+            .get_active_uniform(program, index, ACTIVE_INFO_NAME_BUFFER_GL_SIZE, &mut name);
+        let length = usize::try_from(outputs.length).unwrap_or(0).min(name.len());
+        let name = &name[..length];
+        // NB: An array uniform's name ends in "[0]", and each of its elements has a location of its own.
+        let base_name = name.strip_suffix(b"[0]").unwrap_or(name);
+        for element in 0..outputs.size.max(1) {
+            let element_name = if element == 0 {
+                name.to_vec()
+            } else {
+                [base_name, format!("[{element}]").as_bytes()].concat()
+            };
+            if context.proxy.get_uniform_location(program, &element_name) == location {
+                return Some(outputs.r#type);
+            }
+        }
+    }
+    None
 }

@@ -1,0 +1,36 @@
+webgl f: 0.5
+webgl f2: Float32Array[1, 2]
+webgl f3: Float32Array[1, 2, 3]
+webgl f4: Float32Array[1, 2, 3, 4]
+webgl i: -1
+webgl i2: Int32Array[1, 2]
+webgl i3: Int32Array[1, 2, 3]
+webgl i4: Int32Array[1, 2, 3, 4]
+webgl b: true
+webgl b2: Array[true, false]
+webgl b3: Array[false, true, false]
+webgl b4: Array[true, true, false, true]
+webgl m2: Float32Array[1, 2, 3, 4]
+webgl m3: Float32Array[1, 2, 3, 4, 5, 6, 7, 8, 9]
+webgl m4: Float32Array[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+webgl a: 7
+webgl a[0]: 7
+webgl a[1]: 8
+webgl a[2]: 9
+webgl s: 2
+webgl error: 0
+webgl location of another program: null, error 1282
+webgl2 u: 4000000000
+webgl2 u2: Uint32Array[1, 2]
+webgl2 u3: Uint32Array[1, 2, 3]
+webgl2 u4: Uint32Array[1, 2, 3, 4]
+webgl2 m23: Float32Array[1, 2, 3, 4, 5, 6]
+webgl2 m32: Float32Array[1, 2, 3, 4, 5, 6]
+webgl2 m43: Float32Array[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+webgl2 s: 3
+webgl2 t: 4
+webgl2 error: 0
+shared f: Float32Array[0.25, 0.5, 0.75, 1]
+shared i: Int32Array[-1, 2, -3, 4]
+shared u: Uint32Array[5, 6, 7, 8]
+shared error: 0
