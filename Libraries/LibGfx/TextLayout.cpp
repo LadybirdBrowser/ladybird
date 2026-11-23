@@ -357,7 +357,7 @@ hb_draw_funcs_t* ink_extent_draw_funcs()
 
 }
 
-Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale, float y_top, float y_bottom)
+Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale, float origin_y, float y_top, float y_bottom)
 {
     if (!(scale > 0) || !__builtin_isfinite(scale))
         return {};
@@ -377,11 +377,14 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGl
         if (!glyph.should_paint)
             continue;
         auto origin_x = static_cast<double>(glyph.position.x()) * scale;
-        auto origin_y = (static_cast<double>(glyph.position.y()) + font_ascent) * scale;
+        // The rasterizer draws each glyph of horizontal text from a baseline it puts on a whole device pixel, so the
+        // glyph's ink is where that baseline puts it. origin_y is where the run's origin falls in device pixels.
+        auto baseline_y = static_cast<double>(origin_y) + (static_cast<double>(glyph.position.y()) + font_ascent) * scale;
+        auto glyph_origin_y = AK::floor(baseline_y + 0.5) - origin_y;
 
         // Move the band into glyph-local coordinates, with the origin at the glyph's baseline origin.
-        auto band_top = y_top - origin_y;
-        auto band_bottom = y_bottom - origin_y;
+        auto band_top = y_top - glyph_origin_y;
+        auto band_bottom = y_bottom - glyph_origin_y;
 
         // Skip glyphs whose bounding box doesn't reach the band before decoding their outline.
         hb_glyph_extents_t extents;
@@ -756,7 +759,7 @@ void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI:
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
-void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
+void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float, float, float, void*, void (*)(void*, float));
 }
 
 extern "C" void ladybird_gfx_shape_text_uncached(
@@ -854,6 +857,7 @@ extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
     Gfx::FFI::ShapedGlyph const* glyphs,
     size_t glyph_count,
     float scale,
+    float origin_y,
     float y_top,
     float y_bottom,
     void* sink,
@@ -866,6 +870,7 @@ extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
         *static_cast<Gfx::Font const*>(font),
         { reinterpret_cast<Gfx::ShapedGlyph const*>(glyphs), glyph_count },
         scale,
+        origin_y,
         y_top,
         y_bottom);
     for (auto value : intercepts)

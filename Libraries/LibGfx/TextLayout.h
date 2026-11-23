@@ -36,7 +36,7 @@ struct ShapedGlyph {
 
 // Pairs of [start, end] device-pixel x values, relative to the run's baseline origin, where glyph ink intersects
 // the horizontal band [y_top, y_bottom]. One pair per painted glyph that has ink inside the band, in run order.
-[[nodiscard]] Vector<float> glyph_run_glyph_intercepts(Font const&, ReadonlySpan<ShapedGlyph>, float scale, float y_top, float y_bottom);
+[[nodiscard]] Vector<float> glyph_run_glyph_intercepts(Font const&, ReadonlySpan<ShapedGlyph>, float scale, float origin_y, float y_top, float y_bottom);
 
 float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 

@@ -187,6 +187,7 @@ unsafe extern "C" {
         glyphs: *const ShapedGlyph,
         glyph_count: usize,
         scale: f32,
+        origin_y: f32,
         y_top: f32,
         y_bottom: f32,
         sink: *mut c_void,
@@ -238,12 +239,14 @@ pub fn glyph_run_ink_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale
 }
 
 /// Where the ink of the glyphs crosses the band from `y_top` to `y_bottom`, as pairs of left and right edges, leaving out
-/// the glyphs of the clusters that `ignores_cluster` picks out by the code unit offset they start at.
+/// the glyphs of the clusters that `ignores_cluster` picks out by the code unit offset they start at. The band is in
+/// device pixels from the run's origin, which falls at `origin_y`.
 #[must_use]
 pub fn glyph_run_glyph_intercepts(
     font: &FontHandle,
     glyphs: &GlyphBuffer,
     scale: f32,
+    origin_y: f32,
     y_top: f32,
     y_bottom: f32,
     ignores_cluster: impl Fn(u32) -> bool,
@@ -266,6 +269,7 @@ pub fn glyph_run_glyph_intercepts(
             glyphs.as_ptr(),
             glyphs.len(),
             scale,
+            origin_y,
             y_top,
             y_bottom,
             (&raw mut intercepts).cast(),
