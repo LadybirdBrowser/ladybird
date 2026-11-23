@@ -590,6 +590,7 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         return Ok(None);
     }
     let lines = LineTable::new(zone, units, options.initial_line_number);
+    let stack_limit = parser.stack_limit;
     let index = core::mem::replace(&mut parser.index, FunctionIndexBuilder::with_capacity(zone, 0)).finish();
     let top_level_rows = parser
         .parse_top_level_rows(
@@ -643,8 +644,20 @@ fn parse_code_units<'z, U: Unit + Default, R>(
         &resolve::ResolveOptions {
             initiated_by_eval: options.initiated_by_eval,
             suppress_globals: options.suppress_globals,
+            stack_limit,
         },
     );
+    let resolved = match resolved {
+        Ok(resolved) => resolved,
+        Err(too_deep) => {
+            let position = script.positions.lines.position(too_deep.position);
+            return Err(vec![ParseError {
+                message: base::RECURSION_LIMIT_MESSAGE.to_owned(),
+                line: position.line,
+                column: position.column,
+            }]);
+        }
+    };
     let tree = SyntaxTree {
         script,
         source: source.clone(),

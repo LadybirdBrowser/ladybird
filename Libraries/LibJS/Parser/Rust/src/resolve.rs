@@ -436,6 +436,14 @@ impl ScriptView<'_> {
 pub struct ResolveOptions {
     pub initiated_by_eval: bool,
     pub suppress_globals: bool,
+    /// The lowest address that the stack may reach on the way through the tree.
+    pub stack_limit: usize,
+}
+
+/// The tree nests more deeply than the stack that is left can follow, at `position` in the source.
+#[derive(Clone, Copy, Debug)]
+pub struct TooDeep {
+    pub position: u32,
 }
 
 /// The scope table that a resolver fills in.
@@ -483,10 +491,13 @@ struct Resolver<'t, 'z> {
     is_module: bool,
     initiated_by_eval: bool,
     suppress_globals: bool,
+    stack_limit: usize,
+    /// Where the stack ran out, after which nothing of the tree gets walked.
+    too_deep: Option<TooDeep>,
 }
 
 impl<'t, 'z> Resolver<'t, 'z> {
-    fn new(zone: &'z Zone, tree: &'t TreeView<'t>, script: ScriptView<'t>) -> Self {
+    fn new(zone: &'z Zone, tree: &'t TreeView<'t>, script: ScriptView<'t>, options: &ResolveOptions) -> Self {
         // NB: Each function that the tree does not hold leaves a reference behind for each name that it captures and
         //     one more, see `note_free_names_of_function()`. This counts those of every function in the script, which
         //     is enough for nearly all trees.
@@ -515,8 +526,10 @@ impl<'t, 'z> Resolver<'t, 'z> {
             chain_links: ZoneVec::new_in(zone),
             loop_depth: 0,
             is_module: script.is_module,
-            initiated_by_eval: false,
-            suppress_globals: false,
+            initiated_by_eval: options.initiated_by_eval,
+            suppress_globals: options.suppress_globals,
+            stack_limit: options.stack_limit,
+            too_deep: None,
             tree,
             script,
         }
@@ -555,12 +568,13 @@ pub fn resolve_program<'z>(
     tree: &TreeView<'_>,
     script: &ScriptView<'_>,
     options: &ResolveOptions,
-) -> Resolved<'z> {
-    let mut resolver = Resolver::new(zone, tree, *script);
-    resolver.initiated_by_eval = options.initiated_by_eval;
-    resolver.suppress_globals = options.suppress_globals;
+) -> Result<Resolved<'z>, TooDeep> {
+    let mut resolver = Resolver::new(zone, tree, *script, options);
     resolver.program(tree.root);
-    resolver.finish()
+    match resolver.too_deep {
+        Some(too_deep) => Err(too_deep),
+        None => Ok(resolver.finish()),
+    }
 }
 
 impl<'t, 'z> Resolver<'t, 'z> {
@@ -1007,11 +1021,13 @@ impl<'t, 'z> Resolver<'t, 'z> {
     }
 
     /// The name of the function that a statement declares, labelled or not.
-    fn declared_function_name(&self, statement: u32) -> Option<Name> {
-        match self.tag(statement) {
-            tag::FUNCTION_DECL => Some(Name(self.b(statement))),
-            tag::LABELED => self.declared_function_name(self.b(statement)),
-            _ => None,
+    fn declared_function_name(&self, mut statement: u32) -> Option<Name> {
+        loop {
+            match self.tag(statement) {
+                tag::FUNCTION_DECL => return Some(Name(self.b(statement))),
+                tag::LABELED => statement = self.b(statement),
+                _ => return None,
+            }
         }
     }
 
@@ -1058,6 +1074,19 @@ impl<'t, 'z> Resolver<'t, 'z> {
 
     // === Programs ===
 
+    /// Whether the stack has no room for what nests in `node`, noting where it first ran out. The parser nests less
+    /// deeply for each level than a walk of its tree does, so a tree that it could build may be too deep here.
+    #[inline(always)]
+    fn out_of_stack(&mut self, node: u32) -> bool {
+        let marker = 0u8;
+        if (&raw const marker as usize) < self.stack_limit && self.too_deep.is_none() {
+            self.too_deep = Some(TooDeep {
+                position: self.pos(node),
+            });
+        }
+        self.too_deep.is_some()
+    }
+
     fn program(&mut self, root: u32) {
         self.push_frame(FrameKind::Program, self.b(root));
         let list = self.list(self.a(root));
@@ -1083,6 +1112,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
     }
 
     fn statement(&mut self, node: u32) {
+        if self.out_of_stack(node) {
+            return;
+        }
         let (a, b) = (self.a(node), self.b(node));
         match self.tag(node) {
             tag::EMPTY | tag::DEBUGGER | tag::BREAK | tag::CONTINUE | tag::IMPORT => {}
@@ -1406,7 +1438,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
                 });
             } else {
                 self.pattern(target, PatternMode::Binding, &mut bound);
-                has_parameter_expressions |= self.tree.pattern_contains_expression(target);
+                if self.too_deep.is_none() {
+                    has_parameter_expressions |= self.tree.pattern_contains_expression(target);
+                }
             }
             if default != 0 {
                 self.expression(default);
@@ -1511,6 +1545,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
     /// Makes room for the names that an assignment target refers to as an expression, which come before the names
     /// that only it as a pattern refers to.
     fn note_names_in_expression(&mut self, node: u32) {
+        if self.out_of_stack(node) {
+            return;
+        }
         let start = self.chain_links.len();
         let mut first = node;
         while Self::continues_chain_in_target(self.tag(first)) {
@@ -1609,6 +1646,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
     }
 
     fn pattern(&mut self, node: u32, mode: PatternMode, bound: &mut ZoneVec<'_, BoundName>) {
+        if self.out_of_stack(node) {
+            return;
+        }
         let is_array = self.tag(node) == tag::ARRAY_PATTERN;
         for &item in self.list(self.a(node)) {
             self.pattern_entry(item, is_array, mode, bound);
@@ -1681,6 +1721,9 @@ impl<'t, 'z> Resolver<'t, 'z> {
     /// Walks an expression. The parser makes chains like `a + b + c`, `a.b.c` and `a()()` in a loop, which puts no limit
     /// on their length, so that they get a loop here as well. What is left is as deep as the recursion of the parser was.
     fn expression(&mut self, node: u32) {
+        if self.out_of_stack(node) {
+            return;
+        }
         let start = self.chain_links.len();
         let mut first = node;
         while self.continues_chain(first) {
