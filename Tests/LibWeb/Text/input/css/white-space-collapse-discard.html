@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    #longhand {
+        white-space-collapse: discard;
+    }
+
+    #shorthand {
+        white-space: discard;
+    }
+</style>
+<pre><span id="longhand"></span><span id="shorthand"></span></pre>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["longhand", "shorthand"]) {
+            const value = getComputedStyle(document.getElementById(id)).whiteSpaceCollapse;
+            println(`white-space-collapse inside <pre> with the ${id} set to discard: ${value}`);
+        }
+    });
+</script>
