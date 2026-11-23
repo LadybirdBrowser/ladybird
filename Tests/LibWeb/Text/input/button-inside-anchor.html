@@ -77,5 +77,19 @@ promiseTest(async () => {
             container.remove();
         }
     }
+
+    for (const type of [null, "submit", "reset"]) {
+        const container = document.createElement("div");
+        container.innerHTML = '<a href="javascript:window.linkActivated()"><button>Commit</button></a>';
+        const button = container.querySelector("button");
+        if (type)
+            button.type = type;
+        document.body.append(container);
+        const activated = new Promise(resolve => window.linkActivated = resolve);
+        button.click();
+        await activated;
+        println(`Link activated by a button without a form owner: type=${type ?? "missing"}`);
+        container.remove();
+    }
 });
 </script>
