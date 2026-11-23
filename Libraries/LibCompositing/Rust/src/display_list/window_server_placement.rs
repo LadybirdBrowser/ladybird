@@ -389,7 +389,6 @@ pub enum WhyWindowServerCannotCompositeEffect {
     BackdropFilterFunctionWithoutWindowServerEquivalent,
     BackdropDrawnByMasks,
     BackdropReadInsideAnotherEffect,
-    BoxWithBackdropFilterHasOpacity,
     BoxWithBackdropFilterIsNotUniformlyScaled,
     Clipped(WhyWindowServerCannotShowMedia),
 }
@@ -409,9 +408,6 @@ impl std::fmt::Display for WhyWindowServerCannotCompositeEffect {
             WhyWindowServerCannotCompositeEffect::BackdropDrawnByMasks => "its backdrop is drawn by masks",
             WhyWindowServerCannotCompositeEffect::BackdropReadInsideAnotherEffect => {
                 "its backdrop is read inside another effect"
-            }
-            WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterHasOpacity => {
-                "its box has a backdrop filter and an opacity"
             }
             WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterIsNotUniformlyScaled => {
                 "its box has a backdrop filter under a transform that is not a uniform scale"
@@ -610,11 +606,6 @@ fn window_server_backdrop_of_effect(
     }
     if !backdrop_holds_what_is_drawn_outside_every_layer(tree, effect) {
         return Err(WhyWindowServerCannotCompositeEffect::BackdropReadInsideAnotherEffect);
-    }
-    // The box's layer composites the filtered backdrop along with its content at the box's opacity, where the window
-    // server filters what is below a group only once the group is composited.
-    if effects.opacity != 1.0 {
-        return Err(WhyWindowServerCannotCompositeEffect::BoxWithBackdropFilterHasOpacity);
     }
     let Some(matrix) = world.draw_matrix_if_known(node.spatial) else {
         return Err(WhyWindowServerCannotCompositeEffect::Clipped(
