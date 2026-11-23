@@ -96,6 +96,10 @@ pub(super) struct PlacementTables {
     deepest_space_and_backdrop_filter_read_rect_by_effect: Vec<Option<(RasterSpaceIndex, IntRect)>>,
     animated_space_holding_every_run_of_effect: Vec<Option<RasterSpaceIndex>>,
     refused_animated_spaces: RefCell<Vec<bool>>,
+    /// Per effect node, whether the compositor composites it around content it keeps in several spaces, so that it
+    /// neither keeps its content out of spaces deeper than its own nor moves that content within a space. Empty where
+    /// no effect is.
+    effect_is_composited_around_content_of_several_spaces_by_effect_index: Vec<bool>,
     cached_composite_clips_of_contexts:
         RefCell<HashMap<(ContextRef, RasterSpaceIndex), CompositeClipsOfContextInSpace>>,
 }
@@ -197,8 +201,23 @@ impl PlacementTables {
             deepest_space_and_backdrop_filter_read_rect_by_effect,
             animated_space_holding_every_run_of_effect: Vec::new(),
             refused_animated_spaces: RefCell::new(vec![false; spaces_len]),
+            effect_is_composited_around_content_of_several_spaces_by_effect_index: Vec::new(),
             cached_composite_clips_of_contexts: RefCell::new(HashMap::new()),
         }
+    }
+
+    /// Notes the effects the compositor composites around content it keeps in several spaces. Where content goes then
+    /// changes, so this forgets what was worked out of it.
+    pub fn note_effects_composited_around_content_of_several_spaces(&mut self, marks_by_effect_index: Vec<bool>) {
+        self.effect_is_composited_around_content_of_several_spaces_by_effect_index = marks_by_effect_index;
+        self.cached_composite_clips_of_contexts.borrow_mut().clear();
+    }
+
+    fn effect_is_composited_around_content_of_several_spaces(&self, effect: EffectNodeIndex) -> bool {
+        self.effect_is_composited_around_content_of_several_spaces_by_effect_index
+            .get(effect.0 as usize)
+            .copied()
+            .unwrap_or(false)
     }
 
     /// Notes, per effect node, the space whose anchor the compositor animates that holds every run of the list under
@@ -325,6 +344,10 @@ impl PlacementTables {
         let mut effect = context.effect;
         while !effect.is_none() {
             let node = &tree.effect_nodes[effect.0 as usize];
+            if self.effect_is_composited_around_content_of_several_spaces(effect) {
+                effect = node.parent;
+                continue;
+            }
             match self.placement_constraint_of_effects[effect.0 as usize] {
                 EffectPlacementConstraint::ConstrainsNothing => {}
                 constraint => {
@@ -445,7 +468,10 @@ impl PlacementTables {
         let mut effect = context.effect;
         while !effect.is_none() {
             let node = &tree.effect_nodes[effect.0 as usize];
-            if tree.root_isolation_effect != Some(effect) && moves_within_space(node.spatial) {
+            if tree.root_isolation_effect != Some(effect)
+                && !self.effect_is_composited_around_content_of_several_spaces(effect)
+                && moves_within_space(node.spatial)
+            {
                 return true;
             }
             effect = node.parent;

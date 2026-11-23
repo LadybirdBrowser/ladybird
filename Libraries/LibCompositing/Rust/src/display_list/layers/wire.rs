@@ -625,16 +625,18 @@ fn check_nodes(
         if node.parent_index.is_some_and(|parent_index| parent_index.0 >= index) {
             return Err("a node is not after the node it is in");
         }
-        // A node that is not composited is in the node of the space its space is in, and a composited node is in a node
-        // of its own space. So nodes nest no deeper than spaces, plus composited effects, which nest as the tree nests
-        // them.
+        // A node that is not composited is in the node of the space its space is in, or in a composited node of its own
+        // space, composited within clips the composited node is not. A composited node is in a node of its own space.
+        // So nodes nest no deeper than twice the spaces, plus composited effects, which nest as the tree nests them.
         let parent = node.parent_index.map(|parent_index| &nodes[parent_index.0]);
         let is_in_node_a_plan_puts_it_in = match (node.composited_effect, parent) {
             (None, None) => node.raster_space_index == RasterSpaceIndex::VIEWPORT,
             (None, Some(parent)) => {
-                node.raster_space_index != RasterSpaceIndex::VIEWPORT
-                    && parent.composited_effect.is_none()
-                    && parent.raster_space_index == spaces[node.raster_space_index.0].parent_index
+                (node.raster_space_index != RasterSpaceIndex::VIEWPORT
+                    && parent.raster_space_index == spaces[node.raster_space_index.0].parent_index)
+                    || (parent.composited_effect.is_some()
+                        && parent.raster_space_index == node.raster_space_index
+                        && parent.composite_clips != node.composite_clips)
             }
             (Some(_), Some(parent)) => parent.raster_space_index == node.raster_space_index,
             (Some(_), None) => return Err("a composited node is in no other node"),

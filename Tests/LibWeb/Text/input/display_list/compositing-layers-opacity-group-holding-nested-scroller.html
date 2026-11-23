@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+
+    #translucent-card {
+        opacity: 0.5;
+        width: 300px;
+        padding: 20px;
+        background: navy;
+    }
+
+    #nested-scroller {
+        height: 100px;
+        overflow: auto;
+        background: white;
+    }
+
+    #nested-scroller div {
+        height: 400px;
+        background: linear-gradient(orange, purple);
+    }
+</style>
+<div id="translucent-card">
+    <div id="nested-scroller"><div></div></div>
+</div>
+<script>
+    test(() => {
+        println("Layers" + internals.dumpDisplayList().split("\nDisplayList:")[0].split("\nLayers")[1]);
+    });
+</script>

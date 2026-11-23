@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe srcdoc="<!DOCTYPE html>
+    <style>
+        body { margin: 0; }
+        #card { opacity: 0.5; width: 160px; padding: 10px; background: navy; }
+        #nested { height: 100px; overflow: clip; background: white; }
+        .stripe { height: 40px; background: orange; }
+    </style>
+    <div id='card'>
+        <div id='nested'>
+            <div style='position: relative; top: -25px'>
+                <div class='stripe'></div>
+                <div style='height: 30px'></div>
+                <div class='stripe'></div>
+            </div>
+        </div>
+    </div>"></iframe>

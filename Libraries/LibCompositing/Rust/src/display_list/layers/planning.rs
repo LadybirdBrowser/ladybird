@@ -40,6 +40,7 @@ use crate::display_list::tiles::{CellRange, reaches_too_many_cells_to_follow_one
 use crate::visual_context::queries::{BackdropReader, NestingOfLiveEffects, backdrop_reader_by_reading_effect_index};
 use crate::visual_context::{EffectNodeData, VisualContextTree};
 use libgfx_rust::{FloatPoint, FloatRect, IntRect};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -144,6 +145,7 @@ pub enum WhyEffectIsComposited {
     ItHoldsMedia(LiveContent),
     TheCompositorAnimatesIt,
     ItAppliesOverATransformTheCompositorAnimates,
+    ItHoldsContentOfSeveralSpaces,
 }
 
 impl std::fmt::Display for WhyEffectIsComposited {
@@ -163,6 +165,7 @@ impl std::fmt::Display for WhyEffectIsComposited {
             WhyEffectIsComposited::ItAppliesOverATransformTheCompositorAnimates => {
                 "it applies over a transform the compositor animates"
             }
+            WhyEffectIsComposited::ItHoldsContentOfSeveralSpaces => "it holds content of several spaces",
         })
     }
 }
@@ -247,6 +250,9 @@ pub struct PlacedRunGroup {
     pub paints_within_root_group: bool,
     /// In the space's raster coordinates.
     pub reach_read_by_records_blending_with_root_group: Reach<IntRect>,
+    /// The innermost effect around the group that holds content of several spaces, inside whose node the node of the
+    /// group goes.
+    pub inside_effect_holding_content_of_several_spaces: Option<EffectNodeIndex>,
 }
 
 /// The index of a placed effect in `ListPlacement::placed_effects`.
@@ -291,6 +297,10 @@ pub struct PlacedEffect {
     /// None for an effect placed only as it reads the content of the root group, which the bands it can read are only
     /// known of as the stack is cut into them.
     pub why_composited_regardless_of_layer_content: Option<WhyEffectIsComposited>,
+    /// For an effect that holds content of several spaces, the space of its node: the lowest space holding all of that
+    /// content, whose raster coordinates `reach` is in. Each run group of its content goes into a node of its own
+    /// space inside that node, rather than all of them into one space where most of them would move.
+    pub space_of_node_holding_content_of_several_spaces: Option<RasterSpaceIndex>,
 }
 
 /// Live content that is a layer of its own, alone in its run.
@@ -501,6 +511,16 @@ struct ListBeingPlaced<'a> {
     backdrop_reader_by_effect_index: Vec<Option<BackdropReader>>,
     first_run_index_by_effect_index: Vec<usize>,
     effects_in_paint_order_with_outer_before_inner: Vec<EffectNodeIndex>,
+    runs_reaching_outside: RunsReachingOutsideTheirContext,
+    /// Empty where no effect holds content of several spaces.
+    effect_holds_content_of_several_spaces_by_effect_index: Vec<bool>,
+}
+
+// Where the node of an effect that holds content of several spaces is, as `PlacedEffect` tells it.
+#[derive(Clone, Copy)]
+struct NodeOfEffectHoldingContentOfSeveralSpaces {
+    space: RasterSpaceIndex,
+    reach: IntRect,
 }
 
 // What placing the run groups of a list works out, which the phases after it read.
@@ -510,6 +530,8 @@ struct RunGroupsPlaced {
     run_moves_within_space_by_run_index: Vec<bool>,
     swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
     reach_by_effect_index_once_worked_out: std::cell::OnceCell<Vec<IntRect>>,
+    /// Empty where no effect holds content of several spaces.
+    node_by_effect_holding_content_of_several_spaces: Vec<Option<NodeOfEffectHoldingContentOfSeveralSpaces>>,
 }
 
 impl<'a> ListBeingPlaced<'a> {
@@ -574,7 +596,7 @@ impl<'a> ListBeingPlaced<'a> {
             effects_in_paint_order_with_outer_before_inner
                 .extend(newly_reached_effects_inner_to_outer.into_iter().rev());
         }
-        Self {
+        let mut placing = Self {
             tree,
             list,
             run_groups: list.run_groups(tree),
@@ -588,7 +610,123 @@ impl<'a> ListBeingPlaced<'a> {
             backdrop_reader_by_effect_index: backdrop_reader_by_reading_effect_index(tree),
             first_run_index_by_effect_index,
             effects_in_paint_order_with_outer_before_inner,
+            runs_reaching_outside: RunsReachingOutsideTheirContext::new(list),
+            effect_holds_content_of_several_spaces_by_effect_index: Vec::new(),
+        };
+        placing.note_effects_holding_content_of_several_spaces();
+        placing
+    }
+
+    fn effect_holds_content_of_several_spaces(&self, effect: EffectNodeIndex) -> bool {
+        self.effect_holds_content_of_several_spaces_by_effect_index
+            .get(effect.0 as usize)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    // A group effect placed whole is rastered in the lowest space holding all of its content, where content of the
+    // spaces inside that one moves as they scroll or stick, and is rastered anew for every frame they move in. So an
+    // effect whose content is in several spaces is composited around nodes of those spaces instead, where the
+    // compositor can composite it, which a group effect around it must be too. That leaves out an effect that reads
+    // what is below it or that content inside it reads, as what each reads is told in the space of its run group.
+    fn note_effects_holding_content_of_several_spaces(&mut self) {
+        let (tree, list) = (self.tree, self.list);
+        let holds_runs_of_kind = |marks_run: &dyn Fn(usize) -> bool| {
+            let mut marks = [effects_of_marked_runs(list, tree, marks_run)];
+            mark_effects_around_marked_effects(tree, &mut marks);
+            let [marked_by_effect_index] = marks;
+            marked_by_effect_index
+        };
+        let mut runs_holding_records_blending_with_what_is_below_them = vec![false; list.run_count()];
+        for record in &list.summary().destination_blending_records {
+            runs_holding_records_blending_with_what_is_below_them[record.run_index as usize] = true;
         }
+        let holds_records_blending_with_what_is_below_them =
+            holds_runs_of_kind(&|run_index| runs_holding_records_blending_with_what_is_below_them[run_index]);
+        let holds_runs_sorted_by_depth =
+            holds_runs_of_kind(&|run_index| self.run_groups.run_is_sorted_by_depth(run_index));
+        let groups_runs = |effect: EffectNodeIndex| {
+            tree.effect_nodes[effect.0 as usize].data.pushes_layer() && tree.root_isolation_effect != Some(effect)
+        };
+        let mut may_hold_content_of_several_spaces = vec![false; tree.effect_nodes.len()];
+        tree.visit_effect_nodes_parents_first(|index| {
+            let effect = EffectNodeIndex(index as u32);
+            let node = &tree.effect_nodes[index];
+            let EffectNodeData::Effects(effects) = &node.data else {
+                return;
+            };
+            let every_group_effect_around_may = node.parent.is_none()
+                || !groups_runs(node.parent)
+                || may_hold_content_of_several_spaces[node.parent.0 as usize];
+            may_hold_content_of_several_spaces[index] = every_group_effect_around_may
+                && groups_runs(effect)
+                && effects.blend_mode == libgfx_rust::CompositingAndBlendingOperator::Normal
+                && effects.backdrop_filter.is_none()
+                && self.backdrop_reader_by_effect_index[index].is_none()
+                && !filter_may_spread_at_some_sample(tree, effect)
+                && self
+                    .why_compositor_cannot_composite_effect_or_effects_around(effect)
+                    .is_none()
+                && !holds_records_blending_with_what_is_below_them[index]
+                && !holds_runs_sorted_by_depth[index];
+        });
+        if !may_hold_content_of_several_spaces.contains(&true) {
+            return;
+        }
+
+        // Where an effect is composited around its content, the content can go into spaces deeper than the effect's.
+        self.tables
+            .note_effects_composited_around_content_of_several_spaces(may_hold_content_of_several_spaces.clone());
+        #[derive(Clone, Copy, PartialEq)]
+        enum SpacesOfRuns {
+            NoRun,
+            All(RasterSpaceIndex),
+            Several,
+        }
+        let spaces = self.tables.spaces();
+        let mut spaces_of_runs_by_effect_index = vec![SpacesOfRuns::NoRun; tree.effect_nodes.len()];
+        let mut holds_run_of_animated_space = vec![false; tree.effect_nodes.len()];
+        for run_index in 0..list.run_count() {
+            let run = list.run(run_index);
+            let mut effect = run.context.effect;
+            let space_of_run = self
+                .runs_reaching_outside
+                .deepest_space_of_run(tree, &self.tables, run_index, run);
+            let run_is_in_animated_space = is_animated_space(&spaces[space_of_run.0]);
+            while !effect.is_none() {
+                let spaces_of_runs = &mut spaces_of_runs_by_effect_index[effect.0 as usize];
+                *spaces_of_runs = match *spaces_of_runs {
+                    SpacesOfRuns::NoRun => SpacesOfRuns::All(space_of_run),
+                    SpacesOfRuns::All(space) if space == space_of_run => SpacesOfRuns::All(space),
+                    _ => SpacesOfRuns::Several,
+                };
+                holds_run_of_animated_space[effect.0 as usize] |= run_is_in_animated_space;
+                effect = tree.effect_nodes[effect.0 as usize].parent;
+            }
+        }
+        let mut holds_content_of_several_spaces = vec![false; tree.effect_nodes.len()];
+        tree.visit_effect_nodes_parents_first(|index| {
+            let parent = tree.effect_nodes[index].parent;
+            let every_group_effect_around_does =
+                parent.is_none() || !groups_runs(parent) || holds_content_of_several_spaces[parent.0 as usize];
+            holds_content_of_several_spaces[index] = every_group_effect_around_does
+                && may_hold_content_of_several_spaces[index]
+                && spaces_of_runs_by_effect_index[index] == SpacesOfRuns::Several
+                && !holds_run_of_animated_space[index];
+        });
+        if !holds_content_of_several_spaces.contains(&true) {
+            self.tables
+                .note_effects_composited_around_content_of_several_spaces(Vec::new());
+            return;
+        }
+        self.tables
+            .note_effects_composited_around_content_of_several_spaces(holds_content_of_several_spaces.clone());
+        self.run_groups = Arc::new(RunGroups::new_leaving_runs_of_effects_ungrouped(
+            tree,
+            list.runs(),
+            &holds_content_of_several_spaces,
+        ));
+        self.effect_holds_content_of_several_spaces_by_effect_index = holds_content_of_several_spaces;
     }
 
     // The walk up from an effect stops at the root isolation effect, which holds no reason.
@@ -625,7 +763,28 @@ impl<'a> ListBeingPlaced<'a> {
         runs.groups[self.run_groups.group_of_run(run_index).0].raster_space_index
     }
 
+    fn node_of_effect_holding_content_of_several_spaces(
+        runs: &RunGroupsPlaced,
+        effect: EffectNodeIndex,
+    ) -> Option<NodeOfEffectHoldingContentOfSeveralSpaces> {
+        runs.node_by_effect_holding_content_of_several_spaces
+            .get(effect.0 as usize)
+            .copied()
+            .flatten()
+    }
+
+    // The space whose raster coordinates `reach_of_effect` is in.
+    fn space_of_effect(&self, runs: &RunGroupsPlaced, effect: EffectNodeIndex) -> RasterSpaceIndex {
+        match Self::node_of_effect_holding_content_of_several_spaces(runs, effect) {
+            Some(node) => node.space,
+            None => runs.groups[self.run_group_of_effect(effect).0].raster_space_index,
+        }
+    }
+
     fn reach_of_effect(&self, runs: &RunGroupsPlaced, effect: EffectNodeIndex) -> IntRect {
+        if let Some(node) = Self::node_of_effect_holding_content_of_several_spaces(runs, effect) {
+            return node.reach;
+        }
         let (tree, list) = (self.tree, self.list);
         runs.reach_by_effect_index_once_worked_out.get_or_init(|| {
             let mut reach_by_effect_index = vec![IntRect::default(); tree.effect_nodes.len()];
@@ -646,7 +805,9 @@ impl<'a> ListBeingPlaced<'a> {
     fn place_run_groups(&self) -> (RunGroupsPlaced, Vec<(AnimatedNode, WhyAnimationHasNoLayer)>) {
         let (tree, list, tables, run_groups) = (self.tree, self.list, &self.tables, &*self.run_groups);
         let spaces = tables.spaces();
-        let runs_reaching_outside = RunsReachingOutsideTheirContext::new(list);
+        let runs_reaching_outside = &self.runs_reaching_outside;
+        let innermost_effect_holding_content_of_several_spaces_at_or_around_by_effect_index =
+            self.innermost_effect_holding_content_of_several_spaces_at_or_around_by_effect_index();
         let mut run_blends_with_root_group_by_run_index = vec![false; list.run_count()];
         for record in &list.summary().destination_blending_records {
             let effect = list.run(record.run_index as usize).context.effect;
@@ -777,6 +938,12 @@ impl<'a> ListBeingPlaced<'a> {
                             .is_or_is_inside(list.run(run_index as usize).context.effect, root_isolation_effect)
                     }),
                 };
+                let effect_of_first_run = list.run(first_run_index as usize).context.effect;
+                let inside_effect_holding_content_of_several_spaces =
+                    innermost_effect_holding_content_of_several_spaces_at_or_around_by_effect_index
+                        .get(effect_of_first_run.0 as usize)
+                        .copied()
+                        .filter(|effect| !effect.is_none());
                 PlacedRunGroup {
                     raster_space_index,
                     composite_clips,
@@ -784,17 +951,103 @@ impl<'a> ListBeingPlaced<'a> {
                     moves_within_space,
                     paints_within_root_group,
                     reach_read_by_records_blending_with_root_group,
+                    inside_effect_holding_content_of_several_spaces,
                 }
             });
         }
+        let node_by_effect_holding_content_of_several_spaces = self
+            .place_nodes_of_effects_holding_content_of_several_spaces(&placed_run_groups, &reach_of_run_by_run_index);
         let runs = RunGroupsPlaced {
             groups: placed_run_groups,
             reach_of_run_by_run_index,
             run_moves_within_space_by_run_index,
             swept_reach_in_parent_space_by_space_index,
             reach_by_effect_index_once_worked_out: std::cell::OnceCell::new(),
+            node_by_effect_holding_content_of_several_spaces,
         };
         (runs, animations_without_layers)
+    }
+
+    // Per effect node, the innermost effect at or around it that holds content of several spaces, or none. Empty where
+    // no effect holds content of several spaces.
+    fn innermost_effect_holding_content_of_several_spaces_at_or_around_by_effect_index(&self) -> Vec<EffectNodeIndex> {
+        let tree = self.tree;
+        if self.effect_holds_content_of_several_spaces_by_effect_index.is_empty() {
+            return Vec::new();
+        }
+        let mut innermost_by_effect_index = vec![EffectNodeIndex::NONE; tree.effect_nodes.len()];
+        tree.visit_effect_nodes_parents_first(|index| {
+            let parent = tree.effect_nodes[index].parent;
+            innermost_by_effect_index[index] = if self.effect_holds_content_of_several_spaces_by_effect_index[index] {
+                EffectNodeIndex(index as u32)
+            } else if parent.is_none() {
+                EffectNodeIndex::NONE
+            } else {
+                innermost_by_effect_index[parent.0 as usize]
+            };
+        });
+        innermost_by_effect_index
+    }
+
+    // The node of each effect that holds content of several spaces is in the lowest space that holds the run groups of
+    // its content, and reaches where that content can show in that space, wherever the spaces inside it take it.
+    fn place_nodes_of_effects_holding_content_of_several_spaces(
+        &self,
+        placed_run_groups: &[PlacedRunGroup],
+        reach_of_run_by_run_index: &[IntRect],
+    ) -> Vec<Option<NodeOfEffectHoldingContentOfSeveralSpaces>> {
+        let (tree, list, tables) = (self.tree, self.list, &self.tables);
+        if self.effect_holds_content_of_several_spaces_by_effect_index.is_empty() {
+            return Vec::new();
+        }
+        let space_of_run =
+            |run_index: usize| placed_run_groups[self.run_groups.group_of_run(run_index).0].raster_space_index;
+        let mut space_by_effect_index: Vec<Option<RasterSpaceIndex>> = vec![None; tree.effect_nodes.len()];
+        for run_index in 0..list.run_count() {
+            let mut effect = list.run(run_index).context.effect;
+            while !effect.is_none() {
+                if self.effect_holds_content_of_several_spaces(effect) {
+                    let space = &mut space_by_effect_index[effect.0 as usize];
+                    *space = Some(match *space {
+                        None => space_of_run(run_index),
+                        Some(space) => lowest_common_ancestor_space(tables.spaces(), space, space_of_run(run_index)),
+                    });
+                }
+                effect = tree.effect_nodes[effect.0 as usize].parent;
+            }
+        }
+        let mut reach_by_effect_index = vec![IntRect::default(); tree.effect_nodes.len()];
+        for (run_index, &reach_of_run) in reach_of_run_by_run_index.iter().enumerate() {
+            let run = list.run(run_index);
+            if run.ink_bounds.is_empty() {
+                continue;
+            }
+            let mut effect = run.context.effect;
+            while !effect.is_none() {
+                if let Some(space_of_node) = space_by_effect_index[effect.0 as usize] {
+                    let reach_in_space_of_node = if space_of_run(run_index) == space_of_node {
+                        reach_of_run
+                    } else {
+                        let geometry = &self.geometries[space_of_node.0];
+                        let drawn_within = (!tables.context_moves_within_space(tree, run.context, space_of_node))
+                            .then(|| run.ink_bounds.to_float());
+                        geometry.part_of_extent_reached_by(geometry.reach_of_content(
+                            &self.filters_and_clips,
+                            drawn_within,
+                            run.context,
+                        ))
+                    };
+                    let reach = &mut reach_by_effect_index[effect.0 as usize];
+                    *reach = reach.united(reach_in_space_of_node);
+                }
+                effect = tree.effect_nodes[effect.0 as usize].parent;
+            }
+        }
+        space_by_effect_index
+            .into_iter()
+            .zip(reach_by_effect_index)
+            .map(|(space, reach)| space.map(|space| NodeOfEffectHoldingContentOfSeveralSpaces { space, reach }))
+            .collect()
     }
 
     /// Where content of `space`, whose anchor the compositor animates, can show in the raster coordinates of the space
@@ -1076,6 +1329,13 @@ impl<'a> ListBeingPlaced<'a> {
             why_by_effect_index: vec![None; tree.effect_nodes.len()],
             composited_effects: Vec::new(),
         };
+        // Every group effect around one of these holds content of several spaces too, and comes before it.
+        for &effect in &self.effects_in_paint_order_with_outer_before_inner {
+            if self.effect_holds_content_of_several_spaces(effect) {
+                why_composited_regardless_of_layer_content
+                    .set(effect, WhyEffectIsComposited::ItHoldsContentOfSeveralSpaces);
+            }
+        }
         for media in placed_media {
             why_composited_regardless_of_layer_content.mark_effects_around_as_composited(
                 tree,
@@ -1202,7 +1462,7 @@ impl<'a> ListBeingPlaced<'a> {
                 }
                 if canvas_or_video_painted_before_can_show_under(
                     first_run_index,
-                    self.space_of_run(runs, first_run_index),
+                    self.space_of_effect(runs, effect),
                     self.reach_of_effect(runs, effect),
                 ) {
                     return Some(WhyAnimationHasNoLayer::ItCanShowOverAnEarlierCanvasOrVideo);
@@ -1318,6 +1578,9 @@ impl<'a> ListBeingPlaced<'a> {
             let Some(backdrop_root) = self.backdrop_root_of_reader(reader) else {
                 continue;
             };
+            if self.effect_holds_content_of_several_spaces(backdrop_root) {
+                continue;
+            }
             let (backdrop_read_reach, reads_nothing_past_mirrored_edge) =
                 self.backdrop_read_reach(runs, reader, backdrop_reader);
             if !reads_nothing_past_mirrored_edge {
@@ -1438,6 +1701,9 @@ impl<'a> ListBeingPlaced<'a> {
             let backdrop_root = self.backdrop_root_of_reader(effect);
             let why_composited = if !reads_nothing_past_mirrored_edge {
                 Some(WhyEffectIsComposited::ItsBackdropFilterReadsPastTheEdgeOfTheFrame)
+            } else if backdrop_root.is_some_and(|root| self.effect_holds_content_of_several_spaces(root)) {
+                // Its backdrop is in nodes of several spaces.
+                Some(WhyEffectIsComposited::ItReadsWhatItsOwnLayerDoesNotHold)
             } else if let Some(backdrop_root) = backdrop_root {
                 let backdrop_read_tiles = match backdrop_read_reach {
                     Reach::Within(rect) => Reach::Within(CellRange::touched_by(rect).rect()),
@@ -1535,6 +1801,8 @@ impl<'a> ListBeingPlaced<'a> {
                 reach: self.reach_of_effect(runs, effect),
                 backdrop_read_reach: backdrop_read_reach_by_effect_index[effect.0 as usize],
                 why_composited_regardless_of_layer_content,
+                space_of_node_holding_content_of_several_spaces:
+                    Self::node_of_effect_holding_content_of_several_spaces(runs, effect).map(|node| node.space),
             });
         }
         (placed_effects, innermost_placed_effect_at_or_around_by_effect_index)
@@ -1578,10 +1846,17 @@ impl<'a> ListBeingPlaced<'a> {
             }
             let run_span = list.span_of_run(run_index);
             let run_draws_nothing = list.run(run_index).ink_bounds.is_empty();
+            // The reach of an effect holding content of several spaces is in the space of its node.
             let reach_of_run_in_stretch = match innermost_placed_effect {
                 _ if run_draws_nothing => IntRect::default(),
-                Some(placed_effect_index) => placed_effects[placed_effect_index.0].reach,
-                None => runs.reach_of_run_by_run_index[run_index],
+                Some(placed_effect_index)
+                    if placed_effects[placed_effect_index.0]
+                        .space_of_node_holding_content_of_several_spaces
+                        .is_none() =>
+                {
+                    placed_effects[placed_effect_index.0].reach
+                }
+                _ => runs.reach_of_run_by_run_index[run_index],
             };
             match record_stretches.last_mut() {
                 Some(last)
@@ -1678,6 +1953,7 @@ struct StackBeingBuilt<'a> {
     /// Per placed effect, once decided, the node the compositor composites it in, if it composites it.
     composited_node_once_decided_by_placed_effect: Vec<Option<Option<PlacementNodeIndex>>>,
     composited_effects_around_node_by_node_index: Vec<usize>,
+    innermost_composited_node_around_by_node_index: Vec<Option<PlacementNodeIndex>>,
 }
 
 impl StackBeingBuilt<'_> {
@@ -1688,6 +1964,15 @@ impl StackBeingBuilt<'_> {
         });
         self.composited_effects_around_node_by_node_index
             .push(composited_effects_around_parent + usize::from(node.composited_effect.is_some()));
+        let innermost_composited_node_around = parent_index.and_then(|parent_index| {
+            if self.nodes[parent_index.0].composited_effect.is_some() {
+                Some(parent_index)
+            } else {
+                self.innermost_composited_node_around_by_node_index[parent_index.0]
+            }
+        });
+        self.innermost_composited_node_around_by_node_index
+            .push(innermost_composited_node_around);
         self.nodes.push(node);
         self.children_of_node.push(Vec::new());
         let node_index = PlacementNodeIndex(self.nodes.len() - 1);
@@ -1697,20 +1982,40 @@ impl StackBeingBuilt<'_> {
         node_index
     }
 
-    fn find_or_add_node(
+    // The node of the space composited within the clips inside the composited node `container`, or outside every
+    // composited node where there is none, with the nodes of the spaces between them. The space of a container holds
+    // the space of each node inside it.
+    fn find_or_add_node_inside(
         &mut self,
+        container: Option<PlacementNodeIndex>,
         raster_space_index: RasterSpaceIndex,
         composite_clips: &[CompositeClip],
     ) -> PlacementNodeIndex {
-        if let Some(existing_node_index) = self.nodes.iter().position(|node| {
+        let space_of_container = container.map(|container| self.nodes[container.0].raster_space_index);
+        if let Some(container) = container
+            && space_of_container == Some(raster_space_index)
+            && self.nodes[container.0].composite_clips == composite_clips
+        {
+            return container;
+        }
+        if let Some(existing_node_index) = (0..self.nodes.len()).find(|&index| {
+            let node = &self.nodes[index];
             node.raster_space_index == raster_space_index
                 && node.composite_clips == composite_clips
                 && node.composited_effect.is_none()
+                && self.innermost_composited_node_around_by_node_index[index] == container
         }) {
             return PlacementNodeIndex(existing_node_index);
         }
         let spaces = self.spaces;
-        let (parent_index, reach_in_parent_node) = if raster_space_index == RasterSpaceIndex::VIEWPORT {
+        let (parent_index, reach_in_parent_node) = if space_of_container == Some(raster_space_index) {
+            // Composited within clips the container is not.
+            (container, Reach::Anywhere)
+        } else if raster_space_index == RasterSpaceIndex::VIEWPORT {
+            debug_assert!(
+                container.is_none(),
+                "the space of a container holds the spaces of the nodes inside it"
+            );
             (None, Reach::Anywhere)
         } else {
             let parent_space = spaces[raster_space_index.0].parent_index;
@@ -1724,7 +2029,7 @@ impl StackBeingBuilt<'_> {
                 .copied()
                 .collect();
             (
-                Some(self.find_or_add_node(parent_space, &composite_clips_of_parent_node)),
+                Some(self.find_or_add_node_inside(container, parent_space, &composite_clips_of_parent_node)),
                 reach_in_parent_node,
             )
         };
@@ -1752,6 +2057,36 @@ impl StackBeingBuilt<'_> {
             reach_in_parent_node,
         };
         self.add_node(composited_node)
+    }
+
+    // The composited node of a placed effect that holds content of several spaces, in the node of its space inside the
+    // node of the one around it, if there is one. Each is added before the stack is cut into bands.
+    fn node_of_effect_holding_content_of_several_spaces(
+        &mut self,
+        placed_effect_index: PlacedEffectIndex,
+    ) -> Result<PlacementNodeIndex, WhyListIsOneLayer> {
+        if let Some(Some(node_index)) = self.composited_node_once_decided_by_placed_effect[placed_effect_index.0] {
+            return Ok(node_index);
+        }
+        let placed_effect = self.placement.placed_effects[placed_effect_index.0];
+        let space = placed_effect
+            .space_of_node_holding_content_of_several_spaces
+            .expect("the effect holds content of several spaces");
+        // Every placed effect around it holds content of several spaces too.
+        let container = match placed_effect.placed_effect_around_index {
+            Some(placed_effect_around_index) => {
+                Some(self.node_of_effect_holding_content_of_several_spaces(placed_effect_around_index)?)
+            }
+            None => None,
+        };
+        let parent_index = self.find_or_add_node_inside(container, space, &[]);
+        if self.composited_effects_around_node_by_node_index[parent_index.0] >= MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS {
+            return Err(WhyListIsOneLayer::CompositedEffectsNestTooDeep);
+        }
+        let draw_and_read_reach = self.draw_and_read_reach_of_placed_effect(placed_effect_index);
+        let node_index = self.add_composited_node_inside(parent_index, placed_effect.effect, draw_and_read_reach);
+        self.composited_node_once_decided_by_placed_effect[placed_effect_index.0] = Some(Some(node_index));
+        Ok(node_index)
     }
 
     fn placed_effects_around_stretch_outermost_first(&self, stretch: &PlacedRecordStretch) -> Vec<PlacedEffectIndex> {
@@ -1795,6 +2130,10 @@ impl StackBeingBuilt<'_> {
         for node_index in (0..self.nodes.len()).rev() {
             let node = &mut self.nodes[node_index];
             if node.composited_effect.is_some() {
+                if let Some(parent_index) = node.parent_index {
+                    content_reach_by_node_index[parent_index.0] =
+                        content_reach_by_node_index[parent_index.0].united(node.reach_in_parent_node);
+                }
                 continue;
             }
             if let Some(Some(swept_reach)) = swept_reach_in_parent_space_by_space_index.get(node.raster_space_index.0) {
@@ -1953,6 +2292,12 @@ impl StackBeingBuilt<'_> {
     ) -> Result<PlacementNodeIndex, WhyListIsOneLayer> {
         let mut node_index = self.node_of_run_group[stretch.run_group_index.0];
         for placed_effect_index in self.placed_effects_around_stretch_outermost_first(stretch) {
+            if self.placement.placed_effects[placed_effect_index.0]
+                .space_of_node_holding_content_of_several_spaces
+                .is_some()
+            {
+                continue;
+            }
             let composited_node_index = match self.composited_node_once_decided_by_placed_effect[placed_effect_index.0]
             {
                 Some(composited_node_index) => composited_node_index,
@@ -2222,13 +2567,32 @@ fn assemble_plan(
         bands_being_built: Vec::new(),
         composited_node_once_decided_by_placed_effect: vec![None; placement.placed_effects.len()],
         composited_effects_around_node_by_node_index: Vec::new(),
+        innermost_composited_node_around_by_node_index: Vec::new(),
     };
-    stack_being_built.find_or_add_node(RasterSpaceIndex::VIEWPORT, &[]);
-    stack_being_built.node_of_run_group = placement
-        .run_groups
-        .iter()
-        .map(|run_group| stack_being_built.find_or_add_node(run_group.raster_space_index, &run_group.composite_clips))
-        .collect();
+    stack_being_built.find_or_add_node_inside(None, RasterSpaceIndex::VIEWPORT, &[]);
+    let placed_effect_index_by_effect_holding_content_of_several_spaces: HashMap<EffectNodeIndex, PlacedEffectIndex> =
+        placement
+            .placed_effects
+            .iter()
+            .enumerate()
+            .filter(|(_, placed_effect)| placed_effect.space_of_node_holding_content_of_several_spaces.is_some())
+            .map(|(index, placed_effect)| (placed_effect.effect, PlacedEffectIndex(index)))
+            .collect();
+    let mut node_of_run_group = Vec::with_capacity(placement.run_groups.len());
+    for run_group in &placement.run_groups {
+        let container = match run_group.inside_effect_holding_content_of_several_spaces {
+            Some(effect) => Some(stack_being_built.node_of_effect_holding_content_of_several_spaces(
+                placed_effect_index_by_effect_holding_content_of_several_spaces[&effect],
+            )?),
+            None => None,
+        };
+        node_of_run_group.push(stack_being_built.find_or_add_node_inside(
+            container,
+            run_group.raster_space_index,
+            &run_group.composite_clips,
+        ));
+    }
+    stack_being_built.node_of_run_group = node_of_run_group;
     stack_being_built.limit_reach_of_moving_space_nodes_to_content_swept_over_how_they_move(
         &swept_reach_in_parent_space_by_space_index,
     );
