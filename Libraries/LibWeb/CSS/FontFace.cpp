@@ -267,7 +267,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
     try_set_descriptor(DescriptorID::FontFamily, family);
     try_set_descriptor(DescriptorID::FontStyle, descriptors.style);
     try_set_descriptor(DescriptorID::FontWeight, descriptors.weight);
-    try_set_descriptor(DescriptorID::FontWidth, descriptors.stretch);
+    try_set_descriptor(DescriptorID::FontWidth, descriptors.width.value_or(descriptors.stretch));
     try_set_descriptor(DescriptorID::UnicodeRange, descriptors.unicode_range);
     try_set_descriptor(DescriptorID::FontFeatureSettings, descriptors.feature_settings);
     try_set_descriptor(DescriptorID::FontVariationSettings, descriptors.variation_settings);

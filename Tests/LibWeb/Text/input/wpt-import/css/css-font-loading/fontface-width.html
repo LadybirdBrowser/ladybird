@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Font Loading: FontFace width and stretch aliases</title>
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#fontface-interface">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-width-prop">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+const source = "url(/fonts/Ahem.ttf)";
+
+test(() => {
+  const face = new FontFace("width-default", source);
+  assert_equals(face.width, "normal");
+  assert_equals(face.stretch, "normal");
+}, "FontFace width and stretch have the same default value");
+
+test(() => {
+  const face = new FontFace("width-constructor", source, {width: "expanded"});
+  assert_equals(face.width, "expanded");
+  assert_equals(face.stretch, "expanded");
+}, "The width constructor descriptor initializes both aliases");
+
+test(() => {
+  const face = new FontFace("width-precedence", source, {
+    stretch: "condensed",
+    width: "expanded",
+  });
+  assert_equals(face.width, "expanded");
+  assert_equals(face.stretch, "expanded");
+}, "The width constructor descriptor takes precedence over stretch");
+
+test(() => {
+  const face = new FontFace("width-setter", source);
+  face.width = "condensed";
+  assert_equals(face.width, "condensed");
+  assert_equals(face.stretch, "condensed");
+
+  face.stretch = "125%";
+  assert_equals(face.width, "125%");
+  assert_equals(face.stretch, "125%");
+}, "Setting either width alias updates the other alias");
+
+test(() => {
+  const face = new FontFace("width-invalid", source, {width: "expanded"});
+  assert_throws_dom("SyntaxError", () => { face.width = "invalid"; });
+  assert_equals(face.width, "expanded");
+  assert_equals(face.stretch, "expanded");
+}, "Setting width to an invalid value throws and preserves its value");
+</script>
