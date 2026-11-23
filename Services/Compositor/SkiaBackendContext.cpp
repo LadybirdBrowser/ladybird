@@ -193,6 +193,15 @@ size_t SkiaBackendContext::resource_cache_bytes() const
     return bytes;
 }
 
+bool SkiaBackendContext::can_hold_texture_of_size(IntSize size) const
+{
+    auto* context = sk_context();
+    if (!context)
+        return false;
+    auto max_texture_size = context->maxTextureSize();
+    return size.width() <= max_texture_size && size.height() <= max_texture_size;
+}
+
 void SkiaBackendContext::initialize_gpu_backend(Optional<GpuDeviceIdentity> const& preferred_device)
 {
     VERIFY(!main_thread_context());

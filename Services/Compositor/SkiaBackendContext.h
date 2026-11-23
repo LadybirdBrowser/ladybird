@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/GpuDeviceIdentity.h>
+#include <LibGfx/Size.h>
 
 #ifdef USE_DIRECTX
 #    include <LibGfx/Direct3DContext.h>
@@ -66,6 +67,9 @@ public:
     void flush_and_submit_async(Function<void()>&&);
     void check_async_work_completion();
     size_t resource_cache_bytes() const;
+    // Whether a texture of this size fits within the largest the GPU allows. On macOS, asking Metal for a larger
+    // texture over an IOSurface aborts the process, rather than failing.
+    bool can_hold_texture_of_size(IntSize) const;
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;

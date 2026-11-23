@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/WindowServer.h>
 #include <stdlib.h>
 
@@ -26,8 +27,12 @@ RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 #endif
 }
 
-ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_sublayers([[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] Gfx::SkiaBackendContext& skia_backend_context)
+ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_sublayers(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
+    // NB: A surface larger than the GPU's largest texture can't be a sublayer of its own, so it's drawn into the frame
+    //     from memory instead.
+    if (!skia_backend_context.can_hold_texture_of_size(size))
+        return nullptr;
 #ifdef AK_OS_MACOS
     return RefPtr<PresentableSurface> { TRY(CoreAnimationWindowServer::try_create_presentable_surface_over_new_iosurface(size, skia_backend_context)) };
 #elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
