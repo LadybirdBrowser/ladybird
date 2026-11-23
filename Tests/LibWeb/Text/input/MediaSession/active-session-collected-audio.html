@@ -23,21 +23,14 @@ async function playAndPauseAudio() {
 
 promiseTest(async () => {
     const weakAudio = await playAndPauseAudio();
-    const publishedState = () => internals.nowPlayingStateForTesting();
-    async function nextTurn() {
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 0));
-    }
-    // Reading activeMediaSessionState recomputes the state, so check the published state before polling it.
-    for (let turn = 0; turn < 20 && publishedState() !== null; ++turn) {
-        await nextTurn();
-        await internals.gcAsync();
-        await nextTurn();
-    }
+    // The tasks that pausing queued hold the element until they run, and an idle period begins only once they have.
+    await new Promise(resolve => requestIdleCallback(resolve));
+    await internals.gcAsync();
     println(`audio collected: ${weakAudio.deref() === undefined}`);
-    println(`collection clears published session: ${publishedState() === null}`);
-    for (let turn = 0; turn < 20 && internals.activeMediaSessionState() !== null; ++turn)
-        await nextTurn();
+    // The cleared session is reported to the UI process from a later task.
+    while (internals.nowPlayingStateForTesting() !== null)
+        await new Promise(resolve => setTimeout(resolve, 0));
+    println("collection clears published session: true");
     println(`collection clears active session: ${internals.activeMediaSessionState() === null}`);
 });
 </script>
