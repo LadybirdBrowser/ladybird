@@ -53,6 +53,16 @@ impl TypeBitMap for Nsec3 {
     }
 }
 
+// The last record in a chain wraps around to the first one, so it covers both the names after its owner and the
+// names before the first owner. Neither endpoint is covered: those names exist.
+fn is_within_interval(after_owner: bool, before_next: bool, wraps: bool) -> bool {
+    if wraps {
+        after_owner || before_next
+    } else {
+        after_owner && before_next
+    }
+}
+
 struct NsecRecord<'a> {
     owner: &'a DomainName,
     nsec: &'a Nsec,
@@ -74,9 +84,11 @@ impl NsecRecord<'_> {
         }
         let after_owner = self.owner.canonical_cmp(name) == Ordering::Less;
         let before_next = name.canonical_cmp(&self.nsec.next_domain_name) == Ordering::Less;
-        // The last NSEC in the zone points back at the apex, which sorts before its owner.
-        let is_last = self.nsec.next_domain_name.canonical_cmp(self.owner) != Ordering::Greater;
-        after_owner && (before_next || is_last)
+        // RFC 4034, 4.1.1. The Next Domain Field.
+        // The value of the Next Domain Name field in the last NSEC record in the zone is the name of the zone apex
+        // (the owner name of the zone's SOA RR).
+        let wraps = self.nsec.next_domain_name.canonical_cmp(self.owner) != Ordering::Greater;
+        is_within_interval(after_owner, before_next, wraps)
     }
 }
 
@@ -100,8 +112,11 @@ impl Nsec3Record<'_> {
         };
         let after_owner = self.owner_hash < hash;
         let before_next = hash < self.nsec3.next_hashed_owner_name;
-        let is_last = self.nsec3.next_hashed_owner_name <= self.owner_hash;
-        after_owner && (before_next || is_last)
+        // RFC 5155, 3.1.7. Next Hashed Owner Name.
+        // The value of the Next Hashed Owner Name field in the last NSEC3 RR in the zone is the same as the hashed
+        // owner name of the first NSEC3 RR in the zone in hash order.
+        let wraps = self.nsec3.next_hashed_owner_name <= self.owner_hash;
+        is_within_interval(after_owner, before_next, wraps)
     }
 }
 
