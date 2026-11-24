@@ -187,11 +187,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         // 6. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
         //    submitter attribute initialized to submitterButton, the bubbles attribute initialized to true, and the
         //    cancelable attribute initialized to true.
-        SubmitEventInit event_init {};
-        event_init.submitter = submitter_button;
-        event_init.bubbles = true;
-        event_init.cancelable = true;
-        auto submit_event = SubmitEvent::create(EventNames::submit, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
+        auto submit_event = create_submit_event(relevant_realm(*this), EventNames::submit, { .bubbles = true, .cancelable = true }, submitter_button);
         bool should_continue = dispatch_event(*submit_event);
 
         // 7. Set form's firing submission events to false.
