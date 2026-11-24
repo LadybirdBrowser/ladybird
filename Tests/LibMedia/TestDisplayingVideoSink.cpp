@@ -294,6 +294,35 @@ TEST_CASE(frames_passed_while_waiting_on_a_late_frame_are_counted_as_dropped)
     EXPECT(sink->take_frame_counts().is_zero());
 }
 
+TEST_CASE(frame_past_its_duration_is_presented_until_the_next_frame_is_due)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(true);
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // With reordered frames, a container can give a frame a duration of a single tick, although the frame after it
+    // isn't due for another 40ms.
+    clock->seek(AK::Duration::from_milliseconds(1060));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1040), AK::Duration::from_milliseconds(1)));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1080), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1040));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 1u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
 TEST_CASE(frames_passed_by_an_update_landing_on_time_are_counted_as_presented)
 {
     never_destroyed_event_loop();
