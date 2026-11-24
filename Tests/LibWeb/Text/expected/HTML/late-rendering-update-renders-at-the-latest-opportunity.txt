@@ -1,0 +1,3 @@
+an update renders at its opportunity where none follow it: true
+an update renders at the latest opportunity on the cadence of its own before it begins: true
+an update whose opportunities come at any time renders as it begins: true

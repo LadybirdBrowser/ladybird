@@ -6,7 +6,7 @@
         await animationFrame();
         internals.setManualRenderingOpportunities(true);
         try {
-            const start = performance.now();
+            const start = performance.now() + 1;
             async function frameAt(offset) {
                 await new Promise(resolve => setTimeout(resolve, Math.max(0, start + offset - performance.now()) + 1));
                 const painted = animationFrame();

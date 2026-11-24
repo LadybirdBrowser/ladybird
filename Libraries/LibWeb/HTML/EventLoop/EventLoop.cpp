@@ -452,10 +452,7 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
     // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
-    // INTEROP: Compositor-provided display timestamps match the shared monotonic clock. Clamp delayed or out-of-order
-    //          IPC delivery so rendering timestamps remain monotonic and never describe a future frame.
-    auto now = HighResolutionTime::unsafe_shared_current_time();
-    m_last_render_opportunity_time = max(m_last_render_opportunity_time, min(frame_time, now));
+    advance_last_render_opportunity_time(frame_time);
 
     // AD-HOC: A nested event loop can deliver a timer while a rendering update is running. Keep the request pending
     //         so the PageClient can schedule it for the next opportunity instead of queueing a second rendering task.
@@ -496,6 +493,14 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     queue_a_task(Task::Source::Rendering, this, nullptr, *m_rendering_task_function);
     ++m_rendering_scheduler_counters.opportunities_that_queued_a_task;
     return true;
+}
+
+void EventLoop::advance_last_render_opportunity_time(HighResolutionTime::DOMHighResTimeStamp frame_time)
+{
+    // INTEROP: Compositor-provided display timestamps match the shared monotonic clock. Clamp delayed or out-of-order
+    //          opportunities so rendering timestamps remain monotonic and never describe a future frame.
+    auto now = HighResolutionTime::unsafe_shared_current_time();
+    m_last_render_opportunity_time = max(m_last_render_opportunity_time, min(frame_time, now));
 }
 
 static InputRoutingDecision input_routing_decision_for_finished_input_event(EventResult result)

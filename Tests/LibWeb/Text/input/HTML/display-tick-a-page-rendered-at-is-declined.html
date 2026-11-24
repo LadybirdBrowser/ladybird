@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    function sharedNow() {
+        return performance.timeOrigin + performance.now();
+    }
+
+    function injectDisplayTick(target, sharedTime, cadence) {
+        target.internals.injectRenderingOpportunity(sharedTime - target.performance.timeOrigin, cadence, true);
+    }
+
+    function onCadence(time, tick, cadence) {
+        const steps = (time - tick) / cadence;
+        return steps > -0.05 && Math.abs(steps - Math.round(steps)) < 0.05;
+    }
+
+    function nextFrame(target) {
+        const frame = { rendered: false };
+        frame.time = new Promise(resolve => target.requestAnimationFrame(timestamp => {
+            frame.rendered = true;
+            resolve(target.performance.timeOrigin + timestamp);
+        }));
+        return frame;
+    }
+
+    asyncTest(async done => {
+        const popup = window.open("about:blank", "_blank");
+        internals.setManualRenderingOpportunities(true);
+        popup.internals.setManualRenderingOpportunities(true);
+        await nextTask();
+
+        const cadence = 10;
+        const lateFrame = nextFrame(window);
+        const granted = sharedNow();
+        injectDisplayTick(window, granted, cadence);
+        // The rendering task for the display tick waits behind this task.
+        while (sharedNow() < granted + 25) { }
+        const renderedTick = await lateFrame.time;
+        await nextTask();
+
+        const openerFrame = nextFrame(window);
+        const popupFrame = nextFrame(popup);
+        injectDisplayTick(window, renderedTick, cadence);
+        injectDisplayTick(popup, renderedTick, cadence);
+        const popupTime = await popupFrame.time;
+        await nextTask();
+        const openerDeclined = !openerFrame.rendered;
+
+        // A display tick arrives no earlier than its time.
+        while (sharedNow() < renderedTick + cadence) { }
+        injectDisplayTick(window, renderedTick + cadence, cadence);
+        const openerTime = await openerFrame.time;
+
+        popup.internals.setManualRenderingOpportunities(false);
+        internals.setManualRenderingOpportunities(false);
+        popup.close();
+
+        println(`another page renders on the cadence of a display tick a page rendered at: ${onCadence(popupTime, renderedTick, cadence)}`);
+        println(`the page declines that display tick: ${openerDeclined}`);
+        println(`the page renders at a display tick after it: ${openerTime > renderedTick && onCadence(openerTime, renderedTick, cadence)}`);
+        done();
+    });
+</script>
