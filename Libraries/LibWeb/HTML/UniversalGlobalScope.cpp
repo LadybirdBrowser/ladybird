@@ -97,18 +97,7 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
             // 2. Let notHandled be the result of firing an event named unhandledrejection at global, using PromiseRejectionEvent, with the cancelable attribute initialized to true,
             //    the promise attribute initialized to p, and the reason attribute initialized to the value of p's [[PromiseResult]] internal slot.
-            PromiseRejectionEventInit event_init {
-                {
-                    .bubbles = false,
-                    .cancelable = true,
-                    .composed = false,
-                },
-                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of EventInit above.
-                /* .promise = */ *promise,
-                /* .reason = */ promise->result(),
-            };
-
-            auto promise_rejection_event = PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::unhandledrejection, event_init);
+            auto promise_rejection_event = create_promise_rejection_event(realm, HTML::EventNames::unhandledrejection, { .cancelable = true }, *promise, promise->result());
 
             bool not_handled = global.dispatch_event(*promise_rejection_event);
 

@@ -356,12 +356,7 @@ void initialize_agent(HTML::AgentType type)
                 auto& global_object = settings_object.global_object();
                 auto& realm = settings_object.realm();
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), GC::captures(global, promise, realm), [](auto& global, auto& promise, auto& realm) {
-                    HTML::PromiseRejectionEventInit event_init {
-                        {}, // Initialize the inherited EventInit
-                        /* .promise = */ promise,
-                        /* .reason = */ promise.result(),
-                    };
-                    auto promise_rejection_event = HTML::PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::rejectionhandled, event_init);
+                    auto promise_rejection_event = HTML::create_promise_rejection_event(realm, HTML::EventNames::rejectionhandled, {}, promise, promise.result());
                     global.dispatch_event(promise_rejection_event);
                 }));
                 break;
