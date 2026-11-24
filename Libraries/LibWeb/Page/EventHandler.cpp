@@ -1010,7 +1010,7 @@ static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable
 static GC::Ptr<HTML::LocalNavigable> local_navigable_with_compositor_context(Page& page, Web::CompositorContextId context_id)
 {
     for (auto& navigable : HTML::all_local_navigables()) {
-        if (&navigable->page() == &page && navigable->has_compositor_context() && navigable->compositor_context().id() == context_id)
+        if (&navigable.page() == &page && navigable.has_compositor_context() && navigable.compositor_context().id() == context_id)
             return navigable;
     }
     return {};

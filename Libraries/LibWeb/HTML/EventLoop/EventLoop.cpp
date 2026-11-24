@@ -467,12 +467,12 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
     bool has_eligible_navigable = false;
     for (auto& navigable : all_local_navigables()) {
-        if (!navigable->is_local_root())
+        if (!navigable.is_local_root())
             continue;
-        if (!navigable->has_a_rendering_opportunity())
+        if (!navigable.has_a_rendering_opportunity())
             continue;
 
-        auto document = navigable->active_document();
+        auto document = navigable.active_document();
         if (!document)
             continue;
         if (document->is_decoded_svg())
@@ -661,13 +661,13 @@ void EventLoop::process_input_events() const
     // Every page hosting a document takes the input events queued for it, once.
     GC::RootVector<GC::Ref<Page>> pages;
     for (auto& navigable : all_local_navigables()) {
-        if (!navigable->is_local_root() || navigable->has_been_destroyed())
+        if (!navigable.is_local_root() || navigable.has_been_destroyed())
             continue;
-        auto document = navigable->active_document();
+        auto document = navigable.active_document();
         if (!document || document->is_decoded_svg())
             continue;
-        if (!pages.contains_slow(GC::Ref { navigable->page() }))
-            pages.append(navigable->page());
+        if (!pages.contains_slow(GC::Ref { navigable.page() }))
+            pages.append(navigable.page());
     }
 
     for (auto const& page : pages)
@@ -678,10 +678,10 @@ static GC::RootVector<GC::Ref<Page>> pages_of_local_roots()
 {
     GC::RootVector<GC::Ref<Page>> pages;
     for (auto& navigable : all_local_navigables()) {
-        if (!navigable->is_local_root())
+        if (!navigable.is_local_root())
             continue;
-        if (!pages.contains_slow(GC::Ref { navigable->page() }))
-            pages.append(navigable->page());
+        if (!pages.contains_slow(GC::Ref { navigable.page() }))
+            pages.append(navigable.page());
     }
     return pages;
 }
@@ -874,7 +874,7 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
     bool tick_presented = false;
     Vector<GC::Root<DOM::Document>> documents_with_lanes;
     for (auto& navigable : all_local_navigables()) {
-        auto document = navigable->active_document();
+        auto document = navigable.active_document();
         if (!document)
             continue;
         auto* arena = document->layout_node_arena_if_created();
@@ -886,8 +886,8 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
             continue;
         // A same-process iframe's lanes hear of the pointer from the lanes of its local root's document.
         u64 outer_input_event = 0;
-        if (!navigable->is_local_root()) {
-            auto root_document = navigable->local_root()->active_document();
+        if (!navigable.is_local_root()) {
+            auto root_document = navigable.local_root()->active_document();
             if (auto* root_arena = root_document ? root_document->layout_node_arena_if_created() : nullptr)
                 outer_input_event = Layout::RustFFI::document_host_newest_pointer_input_event(root_arena->host());
         }
@@ -896,8 +896,8 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
             : Layout::RustFFI::document_host_take_in_what_clock_lanes_did(arena->host(), outer_input_event);
         if (lane_presented) {
             tick_presented = true;
-            navigable->set_needs_to_record_display_list();
-            navigable->set_needs_repaint();
+            navigable.set_needs_to_record_display_list();
+            navigable.set_needs_repaint();
         }
         documents_with_lanes.append(*document);
     }
@@ -922,7 +922,7 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
     };
     Vector<HoverEventsOwed> hover_events_owed;
     for (auto& navigable : all_local_navigables()) {
-        auto document = navigable->active_document();
+        auto document = navigable.active_document();
         auto* arena = document ? document->layout_node_arena_if_created() : nullptr;
         bool has_pointer = false;
         float pointer_x = 0;

@@ -2686,9 +2686,9 @@ void PageClient::set_has_devtools_client(bool has_devtools_client)
     update_keeps_long_stack_traces();
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (&navigable->page() != &page())
+        if (&navigable.page() != &page())
             continue;
-        auto active_document = navigable->active_document();
+        auto active_document = navigable.active_document();
         if (!active_document)
             continue;
         if (has_devtools_client)
@@ -2732,9 +2732,9 @@ void PageClient::buffer_console_output(WebView::ConsoleOutput console_output)
 void PageClient::for_each_devtools_console_client(Function<void(DevToolsConsoleClient&)> const& callback)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (&navigable->page() != &page())
+        if (&navigable.page() != &page())
             continue;
-        auto active_document = navigable->active_document();
+        auto active_document = navigable.active_document();
         if (!active_document)
             continue;
         if (auto* console_client = as_if<DevToolsConsoleClient>(active_document->console_client().ptr()))

@@ -783,7 +783,7 @@ bool Document::browsing_context_group_has_multiple_contexts() const
 
     size_t matching_navigable_count = 0;
     for (auto& candidate : HTML::all_local_navigables()) {
-        if (candidate->browsing_context_group_id() == group_id && ++matching_navigable_count > 1)
+        if (candidate.browsing_context_group_id() == group_id && ++matching_navigable_count > 1)
             return true;
     }
     return false;
