@@ -1,0 +1,12 @@
+Ladybird exposes normal for the weight, style, and stretch of a CSS-
+connected FontFace when the rule omits those descriptors. Font matching
+uses the CSS initial values.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all returned normal
+for omitted descriptors. Blink uses FontFace::weight(), style(), and
+stretch(), Gecko uses FontFaceImpl::GetDesc(), and WebKit uses
+FontFace::weight(), style(), and width().
+
+For an explicitly declared auto, Chrome returned auto for all three
+attributes. Firefox and WebKit returned normal. Ladybird preserves the
+value the rule specifies.
