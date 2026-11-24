@@ -26,6 +26,7 @@ pub enum RecordData {
     Soa(Soa),
     Mx(Mx),
     Ptr(DomainName),
+    Dname(DomainName),
     Srv(Srv),
     Dnskey(Dnskey),
     Cdnskey(Dnskey),
@@ -79,6 +80,13 @@ impl RecordData {
                 // | PTRDNAME | a <domain-name> which points to some location in the domain name space.
                 Self::Ptr(DomainName::parse(reader, ctx)?)
             }
+            ResourceType::DNAME => {
+                // RFC 6672, 2.1. Format.
+                // Its RDATA is comprised of a single field, <target>, which contains a fully qualified domain name
+                // that MUST be sent in uncompressed form [RFC1035] [RFC3597].
+                // A compressed one is still read.
+                Self::Dname(DomainName::parse(reader, ctx)?)
+            }
             ResourceType::SRV => Self::Srv(Srv::parse(reader, ctx)?),
             ResourceType::DNSKEY => Self::Dnskey(Dnskey::parse(reader)?),
             ResourceType::CDNSKEY => Self::Cdnskey(Dnskey::parse(reader)?),
@@ -100,7 +108,10 @@ impl RecordData {
             Self::A(address) => out.extend_from_slice(&address.octets()),
             Self::Aaaa(address) => out.extend_from_slice(&address.octets()),
             Self::Txt(txt) => txt.write_wire(out)?,
-            Self::Cname(name) | Self::Ns(name) | Self::Ptr(name) => name.write_wire(out)?,
+            // RFC 6672, 2.5. Compression of the DNAME Record.
+            // The DNAME RDATA target name MUST NOT be sent out in compressed form
+            // No name is compressed when written.
+            Self::Cname(name) | Self::Ns(name) | Self::Ptr(name) | Self::Dname(name) => name.write_wire(out)?,
             Self::Soa(soa) => soa.write_wire(out)?,
             Self::Mx(mx) => mx.write_wire(out)?,
             Self::Srv(srv) => srv.write_wire(out)?,
@@ -130,7 +141,7 @@ impl RecordData {
         // section of RRSIG resource records are converted to lowercase.
         let mut data = self.clone();
         match &mut data {
-            Self::Ns(name) | Self::Cname(name) | Self::Ptr(name) => *name = name.canonicalized(),
+            Self::Ns(name) | Self::Cname(name) | Self::Ptr(name) | Self::Dname(name) => *name = name.canonicalized(),
             Self::Soa(soa) => {
                 soa.mname = soa.mname.canonicalized();
                 soa.rname = soa.rname.canonicalized();
@@ -150,7 +161,7 @@ impl fmt::Display for RecordData {
             Self::A(address) => write!(f, "{address}"),
             Self::Aaaa(address) => write!(f, "{address}"),
             Self::Txt(txt) => write!(f, "{txt}"),
-            Self::Cname(name) | Self::Ns(name) | Self::Ptr(name) => write!(f, "{name}"),
+            Self::Cname(name) | Self::Ns(name) | Self::Ptr(name) | Self::Dname(name) => write!(f, "{name}"),
             Self::Soa(soa) => write!(f, "{soa}"),
             Self::Mx(mx) => write!(f, "{mx}"),
             Self::Srv(srv) => write!(f, "{srv}"),

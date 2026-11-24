@@ -1113,6 +1113,34 @@ fn ttl_is_capped_by_the_rrsig_that_validates() {
 }
 
 #[test]
+fn dname_target_is_canonicalized_for_verification() {
+    let (mut server, mut validator) = setup(false, |server| {
+        server.zones[1].add(
+            &name("old.example"),
+            ResourceType::DNAME,
+            RecordData::Dname(name("Target.Example")),
+            300,
+        );
+    });
+
+    // RFC 4034, 6.2: the signature covers the target in lowercase.
+    let mut lookup = Lookup::start(&mut server, "old.example", ResourceType::DNAME);
+    let zone = &server.zones[1];
+    let owner = name("old.example");
+    let mut canonical = zone.rrset(&owner, ResourceType::DNAME);
+    for record in &mut canonical {
+        record.data = RecordData::Dname(name("target.example"));
+    }
+    lookup.response.answers = zone.rrset(&owner, ResourceType::DNAME);
+    lookup.response.answers.push(zone.sign(&canonical, &owner));
+
+    let result = lookup.finish(&mut server, &mut validator, NOW).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+    assert_eq!(result.records.len(), 1);
+    assert_eq!(result.records[0].data, RecordData::Dname(name("Target.Example")));
+}
+
+#[test]
 fn answer_for_another_name_is_bogus() {
     let (mut server, mut validator) = setup(false, |_| {});
 
