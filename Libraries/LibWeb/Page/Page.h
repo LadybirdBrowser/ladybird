@@ -840,12 +840,12 @@ public:
     // A frame request on behalf of one document, for a client whose page shows many documents.
     virtual void request_frame_for(DOM::Document const&) { request_frame(); }
     virtual double rendering_frame_interval_in_milliseconds() const { return 1000.0 / 60.0; }
-    virtual void rendering_opportunity([[maybe_unused]] i64 frame_time_nanoseconds, [[maybe_unused]] double frame_interval_milliseconds) { }
+    virtual void rendering_opportunity([[maybe_unused]] i64 frame_time_nanoseconds, [[maybe_unused]] double frame_interval_milliseconds, [[maybe_unused]] double display_interval_milliseconds, [[maybe_unused]] Compositing::RenderingOpportunityFrameTime frame_time_kind) { }
     virtual void will_begin_rendering_update() { }
     virtual bool has_rendering_opportunity() const { return true; }
     virtual void did_finish_rendering_update() { }
     virtual void set_manual_rendering_opportunities([[maybe_unused]] bool enabled) { }
-    virtual void inject_rendering_opportunity([[maybe_unused]] double frame_time) { }
+    virtual void inject_rendering_opportunity([[maybe_unused]] double frame_time, [[maybe_unused]] Optional<double> cadence, [[maybe_unused]] bool is_display_tick) { }
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_set_text_fragment_indication_visibility(bool) { }

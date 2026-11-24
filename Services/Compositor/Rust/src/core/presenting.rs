@@ -17,7 +17,9 @@ use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{CompositedContexts, NoCompositedContexts, ResolvedCompositedContext};
 use libcompositing_rust::ipc_types::{
-    Compositing_ContextVisibility as ContextVisibility, compositor_presentation_client, compositor_web_content_client,
+    Compositing_ContextVisibility as ContextVisibility,
+    Compositing_RenderingOpportunityFrameTime as RenderingOpportunityFrameTime, compositor_presentation_client,
+    compositor_web_content_client,
 };
 use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::time::MonotonicTime;
@@ -1070,6 +1072,8 @@ impl CompositorCore {
         context_id: CompositorContextId,
         frame_time: MonotonicTime,
         frame_interval: f64,
+        display_refresh_rate: f64,
+        frame_time_kind: RenderingOpportunityFrameTime,
     ) {
         let web_content_client_id = context.borrow().web_content_client_id();
         self.host.post_to_web_content(
@@ -1078,6 +1082,8 @@ impl CompositorCore {
                 context_id,
                 frame_time_nanoseconds: frame_time.nanoseconds(),
                 frame_interval_milliseconds: frame_interval,
+                display_interval_milliseconds: 1000.0 / display_refresh_rate,
+                frame_time_kind,
             },
         );
     }
@@ -1117,7 +1123,14 @@ impl CompositorCore {
                 })
             };
             if let Some(frame_interval) = delivery {
-                self.post_rendering_opportunity(context, context_id, frame_time, frame_interval);
+                self.post_rendering_opportunity(
+                    context,
+                    context_id,
+                    frame_time,
+                    frame_interval,
+                    display_refresh_rate,
+                    RenderingOpportunityFrameTime::DisplayTick,
+                );
                 return;
             }
         }
@@ -1143,7 +1156,14 @@ impl CompositorCore {
             presenting.rendering_opportunity_request.did_deliver(now);
             frame_interval
         };
-        self.post_rendering_opportunity(context, context_id, now, frame_interval);
+        self.post_rendering_opportunity(
+            context,
+            context_id,
+            now,
+            frame_interval,
+            display_refresh_rate,
+            RenderingOpportunityFrameTime::BetweenDisplayTicks,
+        );
     }
 
     pub(super) fn vsync_inner(&self, display_id: Option<u64>, frame_time: MonotonicTime, now: MonotonicTime) {
@@ -1193,7 +1213,14 @@ impl CompositorCore {
                 }
             };
             if let Some(frame_interval) = rendering_opportunity {
-                self.post_rendering_opportunity(context, context_id, frame_time, frame_interval);
+                self.post_rendering_opportunity(
+                    context,
+                    context_id,
+                    frame_time,
+                    frame_interval,
+                    display_refresh_rate,
+                    RenderingOpportunityFrameTime::DisplayTick,
+                );
             }
 
             let present_is_scheduled_on_tick_display = {

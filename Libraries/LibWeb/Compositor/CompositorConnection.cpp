@@ -762,14 +762,14 @@ void CompositorConnection::request_rendering_update()
     }
 }
 
-void CompositorConnection::rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+void CompositorConnection::rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds, double display_interval_milliseconds, Compositing::RenderingOpportunityFrameTime frame_time_kind)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (!navigable->is_local_root() || !navigable->has_compositor_context())
             continue;
         if (navigable->compositor_context().id() != context_id)
             continue;
-        navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds);
+        navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds, display_interval_milliseconds, frame_time_kind);
         return;
     }
 }

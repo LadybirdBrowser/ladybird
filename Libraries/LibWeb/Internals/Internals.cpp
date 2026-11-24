@@ -3139,10 +3139,10 @@ void Internals::set_manual_rendering_opportunities(bool enabled)
     page().client().set_manual_rendering_opportunities(enabled);
 }
 
-void Internals::inject_rendering_opportunity(double frame_time_ms)
+void Internals::inject_rendering_opportunity(double frame_time_ms, Optional<double> cadence_ms, bool display_tick)
 {
     auto frame_time = window().associated_document().relevant_settings_object().time_origin() + frame_time_ms;
-    page().client().inject_rendering_opportunity(frame_time);
+    page().client().inject_rendering_opportunity(frame_time, cadence_ms, display_tick);
 }
 
 Utf16String Internals::frame_scheduler_state() const

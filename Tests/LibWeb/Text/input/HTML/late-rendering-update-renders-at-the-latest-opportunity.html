@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderAfterLongTask(cadence) {
+        await nextTask();
+        const frame = new Promise(resolve => requestAnimationFrame(rendered => resolve({ rendered, callbackTime: performance.now() })));
+        const granted = performance.now();
+        internals.injectRenderingOpportunity(granted, cadence);
+        // The rendering task for the opportunity waits behind this task.
+        while (performance.now() < granted + 25) { }
+        const taskEnd = performance.now();
+        return { granted, taskEnd, ...(await frame) };
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+
+        const withoutCadence = await renderAfterLongTask(undefined);
+        const onCadence = await renderAfterLongTask(10);
+        const anyTime = await renderAfterLongTask(0);
+        internals.setManualRenderingOpportunities(false);
+
+        const cadenceSteps = (onCadence.rendered - onCadence.granted) / 10;
+        println(`an update renders at its opportunity where none follow it: ${Math.abs(withoutCadence.rendered - withoutCadence.granted) < 0.5}`);
+        println(`an update renders at the latest opportunity on the cadence of its own before it begins: ${onCadence.rendered >= onCadence.taskEnd - 10.5 && onCadence.rendered <= onCadence.callbackTime + 0.5 && Math.abs(cadenceSteps - Math.round(cadenceSteps)) < 0.05}`);
+        println(`an update whose opportunities come at any time renders as it begins: ${anyTime.rendered >= anyTime.taskEnd - 0.5 && anyTime.rendered <= anyTime.callbackTime + 0.5}`);
+        done();
+    });
+</script>
