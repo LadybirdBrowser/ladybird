@@ -24,6 +24,8 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootHashMap.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -297,12 +299,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Vector<ImportName> modules_to_link_in;
     Vector<StringView> args_if_wasi;
     Vector<StringView> wasi_preopened_mappings;
-    HashMap<ImportName, Wasm::Runtime::Extern> js_exports;
 
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm();
     IGNORE_USE_IN_ESCAPING_LAMBDA Wasm::Runtime::Store store { vm->heap() };
+    GC::RootHashMap<ImportName, Wasm::Runtime::Extern> js_exports;
     // NB: The entities the utility allocates live until it exits.
     Vector<GC::Root<GC::ForeignCell>> roots;
     auto keep = [&](Entity entity) {
@@ -629,9 +631,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // Each linked module's exports resolve the imports of the ones after it, and of the main module, of its module name
     // and the export's name and kind.
-    HashMap<ImportName, Wasm::Runtime::Extern> linked_exports;
-    auto resolve_imports = [&](Wasm::Runtime::Module const& module_to_link) -> Optional<Vector<Wasm::Runtime::Extern>> {
-        Vector<Wasm::Runtime::Extern> imports;
+    GC::RootHashMap<ImportName, Wasm::Runtime::Extern> linked_exports;
+    auto resolve_imports = [&](Wasm::Runtime::Module const& module_to_link) -> Optional<GC::RootVector<Wasm::Runtime::Extern>> {
+        GC::RootVector<Wasm::Runtime::Extern> imports;
         bool missing = false;
         for (size_t index = 0; index < module_to_link.import_count(); ++index) {
             auto import = module_to_link.import(index);
@@ -723,7 +725,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto instance = instantiate(*linked_module, name);
         if (!instance.has_value())
             return 1;
-        for (auto& entry : store.instance_exports(*instance))
+        GC::RootVector<Wasm::Runtime::InstanceExport> exports(store.instance_exports(*instance));
+        for (auto& entry : exports)
             linked_exports.set({ module_name, entry.name }, entry.value);
     }
 
