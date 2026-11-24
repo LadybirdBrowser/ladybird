@@ -73,6 +73,7 @@ struct Harness {
     writes: Vec<(ConnectionId, Vec<u8>)>,
     closes: Vec<ConnectionId>,
     system: Vec<(SystemRequestId, String, AddressFamily)>,
+    cancelled: Vec<SystemRequestId>,
 }
 
 impl Harness {
@@ -98,6 +99,7 @@ impl Harness {
             writes: Vec::new(),
             closes: Vec::new(),
             system: Vec::new(),
+            cancelled: Vec::new(),
         };
         harness.drain();
         harness
@@ -136,6 +138,7 @@ impl Harness {
                 Action::Write { connection, bytes } => self.writes.push((connection, bytes)),
                 Action::Close { connection } => self.closes.push(connection),
                 Action::SystemResolve { request, name, family } => self.system.push((request, name, family)),
+                Action::CancelSystemResolve { request } => self.cancelled.push(request),
                 Action::LookupDone { lookup, result } => {
                     assert!(
                         self.done.insert(lookup, result).is_none(),
@@ -1385,4 +1388,28 @@ fn late_udp_answers_do_not_count_once_a_question_moved_to_tcp() {
 
     harness.receive(tcp, &frame(&respond(unframe(&tcp_query), |_| {})));
     assert!(harness.result(lookup).is_ok());
+}
+
+#[test]
+fn system_resolver_family_that_never_answers_is_given_up_on() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    // The A side's answer gets lost. The AAAA side finds nothing, which starts no grace window.
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![]));
+    assert_eq!(
+        harness.resolver.next_deadline(),
+        Some(harness.now + SYSTEM_RESOLVER_TIMEOUT)
+    );
+
+    harness.advance(SYSTEM_RESOLVER_TIMEOUT);
+    assert_eq!(harness.error(lookup), "Could not resolve to IPv4 or IPv6 address");
+    assert_eq!(harness.resolver.next_deadline(), None);
+
+    assert!(harness.resolver.system_requests.is_empty());
+    assert!(harness.cancelled.contains(&a));
+
+    // That the A side never answered says nothing about whether there are IPv4 addresses.
+    harness.lookup("example.com");
+    assert_eq!(harness.system.len(), 2);
 }
