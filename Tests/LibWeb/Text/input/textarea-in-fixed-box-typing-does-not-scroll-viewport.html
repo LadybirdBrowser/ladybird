@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <style>
 body {
+    width: 5000px;
     height: 5000px;
     margin: 0;
 }
@@ -9,21 +10,53 @@ body {
     top: 20px;
     left: 20px;
 }
+#anchor {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 10px;
+    height: 10px;
+    anchor-name: --anchor;
+}
+#anchored-reply {
+    position: fixed;
+    position-anchor: --anchor;
+    top: 20px;
+    left: anchor(right);
+    display: none;
+}
 </style>
 <div id="reply"><textarea></textarea></div>
+<div id="anchor"></div>
+<div id="anchored-reply"><textarea></textarea></div>
 <script src="include.js"></script>
 <script>
-asyncTest(done => {
+function nextFrame() {
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+asyncTest(async done => {
     window.scrollTo(0, 3000);
-    const textarea = document.querySelector("textarea");
+    const textarea = document.querySelector("#reply textarea");
     textarea.focus({ preventScroll: true });
     println(`before typing: ${window.scrollY}`);
     internals.sendText(textarea, "x");
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            println(`after typing: ${window.scrollY}`);
-            done();
-        });
-    });
+    await nextFrame();
+    println(`after typing: ${window.scrollY}`);
+
+    // This box moves with the horizontal scroll, as it follows its anchor, but not with the vertical scroll.
+    document.querySelector("#reply").style.display = "none";
+    document.querySelector("#anchored-reply").style.display = "block";
+    window.scrollTo(1000, 3000);
+    await nextFrame();
+    const anchoredTextarea = document.querySelector("#anchored-reply textarea");
+    anchoredTextarea.focus({ preventScroll: true });
+    println(`anchored box before typing: ${window.scrollX} ${window.scrollY}`);
+    const scrollXBeforeTyping = window.scrollX;
+    internals.sendText(anchoredTextarea, "x");
+    await nextFrame();
+    println(`anchored box scrolled horizontally: ${window.scrollX < scrollXBeforeTyping}`);
+    println(`anchored box vertical scroll after typing: ${window.scrollY}`);
+    done();
 });
 </script>
