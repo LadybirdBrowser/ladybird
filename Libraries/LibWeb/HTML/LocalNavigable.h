@@ -146,6 +146,7 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const override;
     virtual SandboxingFlagSet active_document_sandboxing_flag_set() const override;
     virtual bool active_document_is_fully_active() const override;
+    virtual bool active_window_has_sticky_activation() const override;
     virtual bool active_document_is_completely_loaded() const override;
     virtual bool active_document_is(DOM::Document const&) const override;
     virtual Vector<GC::Root<Navigable>> active_document_inclusive_descendant_navigables() override;

@@ -201,6 +201,7 @@ public:
     // The navigable's replicated state: what its host reports, and what the UI process knows of it.
     Optional<Web::HTML::ReplicatedNavigableState> replicated_state() const;
     void send_replicated_state() const;
+    void give_sticky_activation_to_window_of(CanonicalDocument const&) const;
     Optional<Web::HTML::HostedNavigableState> const& hosted_state() const { return m_hosted_state; }
     void set_hosted_state(Web::HTML::HostedNavigableState);
     void did_lose_active_document();
