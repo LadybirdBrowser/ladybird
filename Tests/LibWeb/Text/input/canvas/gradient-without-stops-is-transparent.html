@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function gradients(ctx) {
+        return [
+            ["linear", ctx.createLinearGradient(0, 0, 20, 0)],
+            ["radial", ctx.createRadialGradient(10, 10, 0, 10, 10, 10)],
+            ["conic", ctx.createConicGradient(0, 10, 10)],
+        ];
+    }
+
+    function draw(label, setup, paint) {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        const ctx = canvas.getContext("2d");
+        for (const [name, gradient] of gradients(ctx)) {
+            ctx.reset();
+            ctx.fillStyle = "red";
+            ctx.fillRect(0, 0, 20, 20);
+            setup(ctx);
+            paint(ctx, gradient);
+            println(label + " (" + name + "): " + ctx.getImageData(10, 10, 1, 1).data.join(","));
+        }
+    }
+
+    test(() => {
+        const fill = (ctx, gradient) => {
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 20, 20);
+        };
+        const stroke = (ctx, gradient) => {
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 20;
+            ctx.beginPath();
+            ctx.moveTo(0, 10);
+            ctx.lineTo(20, 10);
+            ctx.stroke();
+        };
+        draw("fill", () => {}, fill);
+        draw("fill with copy", ctx => { ctx.globalCompositeOperation = "copy"; }, fill);
+        draw("stroke with copy", ctx => { ctx.globalCompositeOperation = "copy"; }, stroke);
+    });
+</script>

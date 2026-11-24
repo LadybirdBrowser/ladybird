@@ -1,0 +1,9 @@
+fill (linear): 255,0,0,255
+fill (radial): 255,0,0,255
+fill (conic): 255,0,0,255
+fill with copy (linear): 0,0,0,0
+fill with copy (radial): 0,0,0,0
+fill with copy (conic): 0,0,0,0
+stroke with copy (linear): 0,0,0,0
+stroke with copy (radial): 0,0,0,0
+stroke with copy (conic): 0,0,0,0
