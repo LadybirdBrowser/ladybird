@@ -290,7 +290,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(P
 
     Application::transport_bootstrap_server().register_child_transport(process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
 
-    auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
+    auto transport = TRY(IPC::Transport::create(move(port_a_recv), move(port_b_send)));
 #elif defined(AK_OS_WINDOWS)
     // A Windows pipe cannot carry a handle, so the helper also gets a line to the Browser's handle broker.
     auto channel = TRY(Core::System::duplex_pipe());

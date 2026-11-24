@@ -22,7 +22,7 @@ ErrorOr<NonnullRefPtr<WebDriverBrowserConnection>> WebDriverBrowserConnection::c
 {
 #if defined(AK_OS_MACOS)
     auto transport_ports = TRY(IPC::bootstrap_transport_from_mach_server(webdriver_endpoint));
-    auto transport = make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right));
+    auto transport = TRY(IPC::Transport::create(move(transport_ports.receive_right), move(transport_ports.send_right)));
 #else
     auto socket = TRY(Core::LocalSocket::connect(webdriver_endpoint));
     auto transport = TRY(IPC::Transport::from_socket(move(socket)));

@@ -18,6 +18,7 @@
 #include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::TransportHandle const& handle)
@@ -57,6 +58,25 @@ static size_t read_until_eof(IPC::TransportMachPort& transport, u8 expected_byte
         });
     }
     return received;
+}
+
+TEST_CASE(a_transport_without_a_free_file_descriptor_is_not_made)
+{
+    auto receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto send_right = MUST(receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+    // A transport needs a pipe, which can't be made with every file descriptor taken.
+    rlimit original_limit {};
+    VERIFY(getrlimit(RLIMIT_NOFILE, &original_limit) == 0);
+    auto lowest_free_descriptor = MUST(Core::System::open("/dev/null"sv, O_RDONLY));
+    MUST(Core::System::close(lowest_free_descriptor));
+    auto exhausted_limit = original_limit;
+    exhausted_limit.rlim_cur = static_cast<rlim_t>(lowest_free_descriptor);
+    VERIFY(setrlimit(RLIMIT_NOFILE, &exhausted_limit) == 0);
+    auto transport = IPC::TransportMachPort::create(move(receive_right), move(send_right));
+    VERIFY(setrlimit(RLIMIT_NOFILE, &original_limit) == 0);
+
+    EXPECT(transport.is_error());
 }
 
 TEST_CASE(receive_barrier_publishes_preceding_messages)
@@ -482,7 +502,7 @@ static TransportWithRawSender make_transport_with_raw_sender()
     auto send_right = MUST(receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
     auto peer_receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
     auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
-    auto transport = make<IPC::TransportMachPort>(move(receive_right), move(send_right_to_peer));
+    auto transport = MUST(IPC::TransportMachPort::create(move(receive_right), move(send_right_to_peer)));
     return { move(transport), move(send_right), move(peer_receive_right) };
 }
 
@@ -941,7 +961,7 @@ TEST_CASE(transports_that_send_to_the_same_port_both_get_their_backlogs_through)
     auto make_transport_sending_to_peer = [&] {
         auto receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
         auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
-        return make<IPC::TransportMachPort>(move(receive_right), move(send_right_to_peer));
+        return MUST(IPC::TransportMachPort::create(move(receive_right), move(send_right_to_peer)));
     };
     auto first = make_transport_sending_to_peer();
     auto second = make_transport_sending_to_peer();

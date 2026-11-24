@@ -854,7 +854,12 @@ void Application::create_mach_port_server([[maybe_unused]] ByteString const& pro
                 m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
                     if (!m_on_browser_process_transport)
                         return;
-                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
+                    auto browser_process_transport = IPC::Transport::create(move(transport.receive_right), move(transport.send_right));
+                    if (browser_process_transport.is_error()) {
+                        warnln("Unable to accept a Browser process's transport: {}", browser_process_transport.error());
+                        return;
+                    }
+                    m_on_browser_process_transport(browser_process_transport.release_value());
                 });
             });
     };
