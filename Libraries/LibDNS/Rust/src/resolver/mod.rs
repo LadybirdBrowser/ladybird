@@ -1033,8 +1033,10 @@ impl Resolver {
             }
         }
 
+        // What the resolution found first may be older than what another one has cached since, so it only fills in
+        // what the cache does not know.
         if let Some(cache_key) = state.cache_key {
-            self.cache.insert(cache_key, state.entry, now);
+            self.cache.fill_in(cache_key, state.entry, now);
         }
         if let Some(result) = result {
             self.settle_system_waiters(waiters, result, now);
