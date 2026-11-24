@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+body { margin: 0; }
+table { table-layout: fixed; width: 340px; border-spacing: 0; }
+td { padding: 0; height: 10px; }
+</style>
+<!-- In fixed mode, column percentages that add up to more than 100% are scaled down in proportion to fill the table. -->
+<table id="two-at-100"><tr><td style="width: 100%"></td><td style="width: 100%"></td></tr></table>
+<table id="two-at-60"><tr><td style="width: 60%"></td><td style="width: 60%"></td></tr></table>
+<table id="padding-ignored"><tr><td style="width: 100%; padding: 0 16px"></td><td style="width: 100%; padding: 0 16px"></td></tr></table>
+<table id="three-uneven"><tr><td style="width: 100%"></td><td style="width: 50%"></td><td style="width: 50%"></td></tr></table>
+<table id="with-auto-column"><tr><td style="width: 80%"></td><td style="width: 80%"></td><td></td></tr></table>
+<table id="with-length-column"><tr><td style="width: 100px"></td><td style="width: 80%"></td><td style="width: 80%"></td></tr></table>
+<table id="col-elements"><col style="width: 70%"><col style="width: 70%"><tr><td></td><td></td></tr></table>
+<table id="exactly-100"><tr><td style="width: 30%"></td><td style="width: 70%"></td></tr></table>
+<table id="auto-layout" style="table-layout: auto"><tr><td style="width: 60%"></td><td style="width: 60%"></td></tr></table>
+<script>
+test(() => {
+  for (const t of document.querySelectorAll("table"))
+    println(`${t.id}: ${[...t.rows[0].cells].map(c => Math.round(c.getBoundingClientRect().width)).join(" + ")}`);
+});
+</script>
