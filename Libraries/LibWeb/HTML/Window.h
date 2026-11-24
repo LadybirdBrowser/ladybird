@@ -289,7 +289,8 @@ public:
     static void run_activation_notification_steps(DOM::Document&);
     void consume_user_activation();
 
-    void set_last_history_action_activation_timestamp(HighResolutionTime::DOMHighResTimeStamp timestamp) { m_last_history_action_activation_timestamp = timestamp; }
+    void set_has_history_action_activation(bool value) { m_has_history_action_activation = value; }
+    void set_has_sticky_activation(bool value) { m_has_sticky_activation = value; }
 
     void consume_history_action_user_activation();
 
@@ -388,8 +389,11 @@ private:
     // https://html.spec.whatwg.org/multipage/interaction.html#user-activation-data-model
     HighResolutionTime::DOMHighResTimeStamp m_last_activation_timestamp { AK::Infinity<double> };
 
-    // https://html.spec.whatwg.org/multipage/interaction.html#last-history-action-activation-timestamp
-    HighResolutionTime::DOMHighResTimeStamp m_last_history_action_activation_timestamp { AK::Infinity<double> };
+    // https://html.spec.whatwg.org/multipage/interaction.html#has-history-action-activation
+    bool m_has_history_action_activation { false };
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#has-sticky-activation
+    bool m_has_sticky_activation { false };
 
     Vector<Clipboard::SystemClipboardItem> const* m_system_clipboard_data_being_pasted { nullptr };
 

@@ -1,0 +1,4 @@
+cancel cancelable: true
+Has transient activation after window.open(): false
+Has sticky activation after window.open(): true
+cancel cancelable: false
