@@ -210,6 +210,7 @@ struct PendingValidation {
 struct PendingSystemResolution {
     // Tells this resolution apart from a later one for the same name and types, which answers to it do not concern.
     id: u64,
+    queried_types: Vec<ResourceType>,
     // Where the result goes in the cache, if it goes there at all.
     cache_key: Option<String>,
     entry: CacheEntry,
@@ -679,15 +680,18 @@ impl Resolver {
         let mut entry = CacheEntry::new(pending.domain_name.clone());
         let mut status = SecurityStatus::Secure;
         for (index, rtype) in pending.desired_types.iter().enumerate() {
-            entry.will_add_record_of_type(*rtype);
             let validation = pending.validations[index].take().expect("validation");
             match validation.status {
                 dnssec::SecurityStatus::Bogus => return Err(Error::new("DNSSEC validation failed")),
                 dnssec::SecurityStatus::Insecure => status = SecurityStatus::Insecure,
                 dnssec::SecurityStatus::Secure => {}
             }
+            let ttl_limit = alias_ttl(&validation.records);
             for record in validation.records {
                 entry.add_record(record, now);
+            }
+            if let Some(response) = &pending.responses[index] {
+                add_negative_answer(&mut entry, *rtype, response, ttl_limit, now);
             }
         }
         entry.finished_request();
@@ -708,15 +712,16 @@ impl Resolver {
                 rtype: *rtype,
                 class: pending.class,
             };
-            entry.will_add_record_of_type(*rtype);
-
             let rcode = response.header.options.response_code();
             if rcode != ResponseCode::NO_ERROR && rcode != ResponseCode::NAME_ERROR {
                 return Err(Error::new("DNS server returned an error"));
             }
-            for record in response.answers_to(&question) {
+            let answers = response.answers_to(&question);
+            let ttl_limit = alias_ttl(&answers);
+            for record in answers {
                 entry.add_record(record, now);
             }
+            add_negative_answer(&mut entry, *rtype, &response, ttl_limit, now);
         }
         entry.finished_request();
         let result = entry.snapshot();
@@ -785,10 +790,7 @@ impl Resolver {
             self.system_resolutions.remove(&key);
         }
 
-        let mut entry = CacheEntry::new(DomainName::from_string(name));
-        for rtype in &queried_types {
-            entry.will_add_record_of_type(*rtype);
-        }
+        let entry = CacheEntry::new(DomainName::from_string(name));
         let id = self.next_system_request_id;
         self.next_system_request_id += 1;
         self.system_resolutions.insert(
@@ -796,6 +798,7 @@ impl Resolver {
             PendingSystemResolution {
                 id,
                 cache_key: caches_result.then(|| name.to_owned()),
+                queried_types,
                 entry,
                 waiters: vec![waiter],
                 a_done: false,
@@ -856,6 +859,14 @@ impl Resolver {
         }
 
         if state.a_done && state.aaaa_done {
+            // The system resolver says nothing about how long there are no addresses of a family, so that holds as
+            // long as addresses it finds would.
+            let negative_expiration = now + Duration::from_secs(u64::from(SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS));
+            for rtype in &state.queried_types {
+                if !state.entry.has_record_of_type(*rtype) {
+                    state.entry.add_negative_answer(*rtype, negative_expiration);
+                }
+            }
             state.entry.finished_request();
             let mut state = self.system_resolutions.remove(&key).expect("system resolution");
             let waiters = std::mem::take(&mut state.waiters);
@@ -1344,4 +1355,39 @@ fn literal_result(data: RecordData, rtype: ResourceType) -> Arc<LookupResult> {
         records: vec![synthetic_record(rtype, data, 0)],
         security_status: None,
     })
+}
+
+// RFC 2308, 5 - Caching Negative Answers
+// When the authoritative server creates this record its TTL is taken from the minimum of the SOA.MINIMUM field and
+// SOA's TTL.
+// Negative responses without SOA records SHOULD NOT be cached as there is no way to prevent the negative responses
+// looping forever between a pair of servers even with a short TTL.
+// `ttl_limit` is how long what led to the negative answer is valid, such as the aliases that led to it.
+fn add_negative_answer(
+    entry: &mut CacheEntry,
+    rtype: ResourceType,
+    response: &Message,
+    ttl_limit: Option<u32>,
+    now: Instant,
+) {
+    if rtype == ResourceType::ANY || entry.has_record_of_type(rtype) {
+        return;
+    }
+    let soa_ttl = response.authorities.iter().find_map(|record| match &record.data {
+        RecordData::Soa(soa) => Some(record.ttl.min(soa.minimum)),
+        _ => None,
+    });
+    if let Some(ttl) = soa_ttl {
+        let ttl = ttl_limit.map_or(ttl, |limit| ttl.min(limit));
+        entry.add_negative_answer(rtype, now + Duration::from_secs(u64::from(ttl)));
+    }
+}
+
+// How long the aliases among the records stay valid, if there are any.
+fn alias_ttl(records: &[ResourceRecord]) -> Option<u32> {
+    records
+        .iter()
+        .filter(|record| record.rtype == ResourceType::CNAME)
+        .map(|record| record.ttl)
+        .min()
 }

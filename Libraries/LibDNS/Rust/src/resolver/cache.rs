@@ -5,7 +5,7 @@
  */
 
 use crate::message::{DomainName, RecordData, ResourceRecord, ResourceType};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -55,7 +55,8 @@ pub(crate) struct CacheEntry {
     request_done: bool,
     security_status: Option<SecurityStatus>,
     records: Vec<RecordWithExpiration>,
-    queried_types: HashSet<ResourceType>,
+    // Types the lookup found no records of, and until when that negative answer holds.
+    negative_answers: HashMap<ResourceType, Instant>,
 }
 
 impl CacheEntry {
@@ -66,7 +67,7 @@ impl CacheEntry {
             request_done: false,
             security_status: None,
             records: Vec::new(),
-            queried_types: HashSet::new(),
+            negative_answers: HashMap::new(),
         }
     }
 
@@ -76,8 +77,14 @@ impl CacheEntry {
         self.records.push(RecordWithExpiration { record, expiration });
     }
 
-    pub(crate) fn will_add_record_of_type(&mut self, rtype: ResourceType) {
-        self.queried_types.insert(rtype);
+    /// The lookup found no records of this type, which holds until `expiration`.
+    pub(crate) fn add_negative_answer(&mut self, rtype: ResourceType, expiration: Instant) {
+        self.valid = true;
+        self.negative_answers.insert(rtype, expiration);
+    }
+
+    pub(crate) fn has_record_of_type(&self, rtype: ResourceType) -> bool {
+        self.records.iter().any(|record| record.record.rtype == rtype)
     }
 
     pub(crate) fn finished_request(&mut self) {
@@ -92,39 +99,22 @@ impl CacheEntry {
         !self.records.is_empty()
     }
 
-    fn has_record_of_type(&self, rtype: ResourceType) -> bool {
-        self.records.iter().any(|record| record.record.rtype == rtype)
-    }
-
-    // Whether a completed lookup asked for this type, so having no records of it is a (negative) answer too.
+    // Whether there are records of the type, or the lookup found there are none.
     fn answers_type(&self, rtype: ResourceType) -> bool {
-        self.has_record_of_type(rtype) || (self.request_done && self.queried_types.contains(&rtype))
+        self.has_record_of_type(rtype) || (self.request_done && self.negative_answers.contains_key(&rtype))
     }
 
     pub(crate) fn expire(&mut self, now: Instant) {
         if !self.valid {
             return;
         }
-        let mut expired_types = HashSet::new();
-        self.records.retain(|record| {
-            // RFC 1035, 3.2.1. Format
-            // Zero values are interpreted to mean that the RR can only be used for the transaction in progress, and
-            // should not be cached.
-            if record.expiration <= now {
-                expired_types.insert(record.record.rtype);
-                return false;
-            }
-            true
-        });
+        // RFC 1035, 3.2.1. Format
+        // Zero values are interpreted to mean that the RR can only be used for the transaction in progress, and
+        // should not be cached.
+        self.records.retain(|record| record.expiration > now);
+        self.negative_answers.retain(|_, expiration| *expiration > now);
 
-        // Forget the type when its last record expires, so expiry is not treated as a negative answer.
-        for rtype in expired_types {
-            if !self.has_record_of_type(rtype) {
-                self.queried_types.remove(&rtype);
-            }
-        }
-
-        if self.records.is_empty() && self.request_done {
+        if self.records.is_empty() && self.negative_answers.is_empty() && self.request_done {
             self.valid = false;
         }
     }
