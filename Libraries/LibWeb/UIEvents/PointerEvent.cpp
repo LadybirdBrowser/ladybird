@@ -106,12 +106,10 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     }
     event_options.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
     event_options.buttons = buttons;
-    auto event = PointerEvent::create(event_name, move(event_options), page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
-    event->set_bubbles(true);
-    event->set_cancelable(true);
-    event->set_composed(true);
-    return event;
+    event_options.bubbles = true;
+    event_options.cancelable = true;
+    event_options.composed = true;
+    return create_trusted(event_name, move(event_options), page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
 PointerEvent::PointerEvent(FlyString const& type, PointerEventOptions&& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
@@ -159,7 +157,36 @@ GC::Ref<PointerEvent> PointerEvent::create(Utf16FlyString const& type, PointerEv
     return GC::Heap::the().allocate<PointerEvent>(type, move(options), page_x, page_y, offset_x, offset_y, time_stamp);
 }
 
+GC::Ref<PointerEvent> PointerEvent::create_trusted(Utf16FlyString const& type, PointerEventOptions&& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    // https://w3c.github.io/pointerevents/#coalesced-events
+    // For trusted pointermove and pointerrawupdate events, the list is a sequence of all PointerEvents that were
+    // coalesced into this event. [...] As a result, the coalesced events lists for these events always contain at
+    // least one event. For all other trusted event types, it is an empty list.
+    // NB: We do not coalesce platform events, so the only coalesced event is a copy of the dispatched event itself.
+    if (type == EventNames::pointermove || type == EventNames::pointerrawupdate) {
+        PointerEventOptions coalesced_options = options;
+        coalesced_options.bubbles = false;
+        coalesced_options.cancelable = false;
+        coalesced_options.coalesced_events.clear();
+        coalesced_options.predicted_events.clear();
+        auto coalesced_event = create(type, move(coalesced_options), page_x, page_y, offset_x, offset_y, time_stamp);
+        coalesced_event->set_is_trusted(true);
+        options.coalesced_events.append(coalesced_event);
+    }
+
+    auto event = create(type, move(options), page_x, page_y, offset_x, offset_y, time_stamp);
+    event->set_is_trusted(true);
+    return event;
+}
+
 PointerEvent::~PointerEvent() = default;
+
+void PointerEvent::set_target_of_coalesced_events(GC::Ptr<DOM::EventTarget> target)
+{
+    for (auto& coalesced_event : m_coalesced_events)
+        coalesced_event->set_target(target.ptr());
+}
 
 void PointerEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
