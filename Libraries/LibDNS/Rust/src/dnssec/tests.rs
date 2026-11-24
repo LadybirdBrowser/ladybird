@@ -1058,6 +1058,38 @@ fn nsec3_iterations_count_only_for_usable_records() {
 }
 
 #[test]
+fn nsec3_iterations_do_not_excuse_a_bad_answer_signature() {
+    let (mut server, mut validator) = setup(true, |_| {});
+
+    // A signed NSEC3 with 101 iterations next to an answer with a broken signature.
+    let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::A);
+    for record in &mut lookup.response.answers {
+        if let RecordData::Rrsig(rrsig) = &mut record.data {
+            rrsig.signature[0] ^= 0x01;
+        }
+    }
+    let zone = &server.zones[1];
+    let owner = zone
+        .apex
+        .with_label_prepended(base32hex_encode(&nsec3_hash(&name("unrelated.example"))));
+    let nsec3 = Nsec3 {
+        hash_algorithm: Nsec3HashAlgorithm::SHA1,
+        flags: 0,
+        iterations: 101,
+        salt: Vec::new(),
+        next_hashed_owner_name: vec![0xff; 20],
+        types: vec![ResourceType::A],
+    };
+    let extra = vec![record(&owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3), 300)];
+    zone.append_signed(&mut lookup.response.authorities, extra, &owner, None);
+
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW),
+        Err("RRset signature did not validate")
+    );
+}
+
+#[test]
 fn no_data_without_proof_is_bogus() {
     for use_nsec3 in [false, true] {
         let (mut server, mut validator) = setup(use_nsec3, |_| {});
