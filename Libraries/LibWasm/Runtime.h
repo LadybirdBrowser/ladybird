@@ -16,6 +16,7 @@
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibGC/Cell.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
@@ -127,6 +128,8 @@ using Entity = GC::ForeignCell*;
 struct Extern {
     ExternKind kind { ExternKind::Function };
     GC::RawPtr<GC::ForeignCell> entity;
+
+    void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(entity.ptr()); }
 };
 
 struct Limits {
@@ -163,6 +166,8 @@ struct Import {
 struct InstanceExport {
     StringView name;
     Extern value;
+
+    void visit_edges(GC::Cell::Visitor& visitor) { value.visit_edges(visitor); }
 };
 
 // Values that may be references to cells, which the garbage collector keeps alive while the vector lives.
