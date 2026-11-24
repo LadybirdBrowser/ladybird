@@ -12,6 +12,7 @@
 #    include <AK/Error.h>
 #    include <AK/Mutex.h>
 #    include <AK/NonnullOwnPtr.h>
+#    include <AK/Optional.h>
 #    include <AK/Vector.h>
 #    include <LibGfx/GpuDeviceIdentity.h>
 #    include <LibGfx/LinuxDmaBufHandle.h>
@@ -34,6 +35,11 @@ public:
         VkQueueFlags flags { 0 };
     };
 
+    struct DecodeQueueFamily {
+        u32 index { 0 };
+        VkVideoCodecOperationFlagsKHR codec_operations { 0 };
+    };
+
     // Decoding happens on the GPU that will display the frames, so it is named by the process that displays them. The
     // device is created before the process starts any other threads, and is never destroyed.
     static ErrorOr<void> create_for_process(Gfx::GpuDeviceIdentity const&);
@@ -43,6 +49,8 @@ public:
     static ErrorOr<void> check_can_decode_video(VkPhysicalDevice);
     // Whether the device takes decoding parameters with each frame, through VK_KHR_video_maintenance2.
     static bool supports_video_maintenance2(VkPhysicalDevice);
+    // The family a device created on this GPU decodes on, and the codecs it decodes.
+    static Optional<DecodeQueueFamily> decode_queue_family_of(VkPhysicalDevice);
 
     ~VulkanVideoDevice();
 
@@ -56,6 +64,7 @@ public:
     VkPhysicalDeviceFeatures2 const& enabled_features() const { return m_features; }
     bool has_enabled_extension(StringView) const;
     bool has_sampler_ycbcr_conversion() const { return m_vulkan11_features.samplerYcbcrConversion; }
+    bool decodes_codec_operation(VkVideoCodecOperationFlagBitsKHR operation) const { return (m_decode_codec_operations & operation) != 0; }
 
     // A queue takes one submission at a time, and every FFmpeg in the process submits to this device's queues. Each
     // family has one queue.
@@ -85,6 +94,7 @@ private:
     VkDevice m_logical_device { VK_NULL_HANDLE };
     Vector<QueueFamily> m_queue_families;
     u32 m_compute_queue_family { 0 };
+    VkVideoCodecOperationFlagsKHR m_decode_codec_operations { 0 };
     // One for each of the decode, compute and transfer families, which may coincide.
     Array<Mutex, 3> m_queue_mutexes;
     Vector<char const*> m_enabled_extensions;

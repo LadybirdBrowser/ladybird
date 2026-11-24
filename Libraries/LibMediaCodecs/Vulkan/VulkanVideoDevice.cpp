@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/BuiltinWrappers.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/ImportedYCbCrVulkanImage.h>
@@ -74,6 +75,37 @@ Optional<u32> first_queue_family_with(ReadonlySpan<VkQueueFamilyProperties> fami
 
 }
 
+Optional<VulkanVideoDevice::DecodeQueueFamily> VulkanVideoDevice::decode_queue_family_of(VkPhysicalDevice physical_device)
+{
+    u32 count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties2(physical_device, &count, nullptr);
+    Vector<VkQueueFamilyVideoPropertiesKHR> video_properties;
+    video_properties.resize(count);
+    Vector<VkQueueFamilyProperties2> properties;
+    properties.resize(count);
+    for (u32 index = 0; index < count; index++) {
+        video_properties[index].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_VIDEO_PROPERTIES_KHR;
+        properties[index].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+        properties[index].pNext = &video_properties[index];
+    }
+    vkGetPhysicalDeviceQueueFamilyProperties2(physical_device, &count, properties.data());
+
+    // Only one decode family is created, so it is the one that decodes the most codecs. A family may encode as well.
+    constexpr VkVideoCodecOperationFlagsKHR decode_operations = VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR
+        | VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_VP9_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR;
+    Optional<DecodeQueueFamily> chosen_family;
+    for (u32 index = 0; index < count; index++) {
+        auto const& family = properties[index].queueFamilyProperties;
+        if ((family.queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR) == 0 || family.queueCount == 0)
+            continue;
+        auto codec_operations = video_properties[index].videoCodecOperations & decode_operations;
+        if (chosen_family.has_value() && popcount(codec_operations) <= popcount(chosen_family->codec_operations))
+            continue;
+        chosen_family = DecodeQueueFamily { index, codec_operations };
+    }
+    return chosen_family;
+}
+
 bool VulkanVideoDevice::supports_video_maintenance2(VkPhysicalDevice physical_device)
 {
     if (!contains_extension(device_extensions_of(physical_device), VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME ""sv))
@@ -114,8 +146,10 @@ ErrorOr<void> VulkanVideoDevice::check_can_decode_video(VkPhysicalDevice physica
         return Error::from_string_literal("The Vulkan device lacks timeline semaphores or synchronization2");
 
     // FFmpeg needs a family for compute and one for transfers alongside the decoding one.
+    if (!decode_queue_family_of(physical_device).has_value())
+        return Error::from_string_literal("The Vulkan device lacks a decode, compute or transfer queue");
     auto queue_families = queue_families_of(physical_device);
-    for (auto flags : { VK_QUEUE_VIDEO_DECODE_BIT_KHR, VK_QUEUE_COMPUTE_BIT, VK_QUEUE_TRANSFER_BIT }) {
+    for (auto flags : { VK_QUEUE_COMPUTE_BIT, VK_QUEUE_TRANSFER_BIT }) {
         if (!first_queue_family_with(queue_families, flags).has_value())
             return Error::from_string_literal("The Vulkan device lacks a decode, compute or transfer queue");
     }
@@ -224,15 +258,16 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     }
 
     auto queue_families = queue_families_of(device->m_physical_device);
-    auto decode_family = first_queue_family_with(queue_families, VK_QUEUE_VIDEO_DECODE_BIT_KHR);
+    auto decode_family = decode_queue_family_of(device->m_physical_device);
     auto compute_family = first_queue_family_with(queue_families, VK_QUEUE_COMPUTE_BIT);
     auto transfer_family = first_queue_family_with(queue_families, VK_QUEUE_TRANSFER_BIT);
     VERIFY(decode_family.has_value() && compute_family.has_value() && transfer_family.has_value());
+    device->m_decode_codec_operations = decode_family->codec_operations;
     device->m_compute_queue_family = *compute_family;
 
     Vector<VkDeviceQueueCreateInfo> queue_infos;
     float const queue_priority = 1.0f;
-    for (auto family : { *decode_family, *compute_family, *transfer_family }) {
+    for (auto family : { decode_family->index, *compute_family, *transfer_family }) {
         if (any_of(device->m_queue_families, [&](auto const& existing) { return existing.index == family; }))
             continue;
         device->m_queue_families.append({ family, queue_families[family].queueFlags });

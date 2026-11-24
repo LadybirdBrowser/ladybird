@@ -367,6 +367,8 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoderImplementation::capabiliti
     profile_info.lumaBitDepth = *component_bit_depth;
     profile_info.chromaBitDepth = *component_bit_depth;
 
+    if (!device->decodes_codec_operation(profile_info.videoCodecOperation))
+        return {};
     VkVideoCapabilitiesKHR video_capabilities {};
     video_capabilities.sType = VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR;
     video_capabilities.pNext = &decode_capabilities;
