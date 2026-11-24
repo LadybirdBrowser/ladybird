@@ -353,13 +353,18 @@ fn closed_tls_connection_is_replaced_and_questions_are_asked_again() {
 }
 
 #[test]
-fn malformed_stream_frame_drops_the_connection() {
+fn malformed_stream_message_leaves_the_next_one_alone() {
     let mut harness = Harness::tls("9.9.9.9");
-    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
     let connection = harness.connects[0].connection;
     harness.connected(connection);
-    harness.receive(connection, &frame(&[1, 2, 3]));
-    assert_eq!(harness.closes, vec![connection]);
+    let (_, query) = harness.take_writes().remove(0);
+
+    let mut bytes = frame(&[1, 2, 3]);
+    bytes.extend(frame(&respond(unframe(&query), |_| {})));
+    harness.receive(connection, &bytes);
+    assert!(harness.closes.is_empty());
+    assert!(harness.result(lookup).is_ok());
 }
 
 #[test]
