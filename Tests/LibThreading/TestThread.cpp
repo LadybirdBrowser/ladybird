@@ -5,10 +5,15 @@
  */
 
 #include <AK/Platform.h>
+#include <AK/StackInfo.h>
 #include <AK/Time.h>
 #include <LibCore/System.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
+
+#if defined(AK_OS_LINUX)
+#    include <sys/resource.h>
+#endif
 
 #if defined(AK_OS_MACOS)
 #    include <sys/qos.h>
@@ -98,5 +103,25 @@ TEST_CASE(threads_start_with_the_requested_qos_class)
     utility_thread->start();
     TRY_OR_FAIL(utility_thread->join());
     EXPECT_EQ(utility_thread_qos_class.load(), static_cast<int>(QOS_CLASS_UTILITY));
+}
+#endif
+
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+TEST_CASE(threads_get_as_much_stack_as_glibc_gives_them)
+{
+    // glibc gives a thread as much stack as the main thread's size limit, and musl gets 8 MiB from LibThreading.
+    rlimit limit {};
+    VERIFY(getrlimit(RLIMIT_STACK, &limit) == 0);
+    if (limit.rlim_cur == RLIM_INFINITY || limit.rlim_cur < 8 * MiB)
+        return;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> stack_size = 0;
+    auto thread = Threading::Thread::construct("StackSizeTest"sv, [&stack_size]() {
+        stack_size = StackInfo().size();
+        return 0;
+    });
+    thread->start();
+    TRY_OR_FAIL(thread->join());
+    EXPECT(stack_size >= 8 * MiB - 64 * KiB);
 }
 #endif
