@@ -1,0 +1,17 @@
+Ladybird matches the parts of a “transition” value against
+transition-property last, so a keyword the easing function can take
+goes to it, as section 4.2 of CSS Values 4 says for a <custom-ident>.
+Chrome 158, Firefox 151 and WebKit 26.5 agree with Ladybird on all 22
+lines of the test: every easing keyword on its own, steps(),
+cubic-bezier() and linear() functions, none, all, “ease ease”, a
+comma-separated list, allow-discrete, two times, the “ease-in
+ease-out” animation from CSS Values 4’s own example, and that
+“transition: 0.15s ease” starts a transition when the width changes.
+All three also serialize “transition: ease 1s” as “1s”, as Ladybird now
+does, where it gave “ease 1s” before.
+
+All three parse the shorthand in that order. Blink and WebKit each
+match it against a transitionShorthandForParsing() that lists
+transition-property after the duration, timing function, delay and
+behavior, and Gecko’s parse_one_transition() tries the property only
+after those.
