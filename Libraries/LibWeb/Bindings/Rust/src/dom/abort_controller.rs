@@ -68,17 +68,13 @@ pub extern "C" fn web_rust_abort_controller_signal(controller: &InterfaceCell) -
 }
 
 /// Aborts the controller with the reason in the realm.
-///
-/// # Safety
-///
-/// `vm`, `realm`, `controller`, and `reason` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_controller_abort(
+pub extern "C" fn web_rust_abort_controller_abort(
     vm: &Vm,
     realm: Gc<Realm>,
     controller: &InterfaceCell,
-    reason: u64,
+    reason: Value,
 ) {
     let controller = controller.object::<AbortController>();
-    controller.signal_abort(&CallContext::new(vm, realm), Some(unsafe { Value::from_raw(reason) }));
+    controller.signal_abort(&CallContext::new(vm, realm), Some(reason));
 }

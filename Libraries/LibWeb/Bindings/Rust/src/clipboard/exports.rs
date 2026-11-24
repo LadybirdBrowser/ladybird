@@ -9,10 +9,11 @@
 
 use core::ffi::c_void;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{Gc, Realm, Vm};
 
 use crate::bindings::interface::{InterfaceCell, cell_into_abi};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::clipboard::clipboard::Clipboard;
 use crate::clipboard::clipboard_event::ClipboardEvent;
 use crate::dom::event::EventInit;
@@ -24,24 +25,17 @@ pub extern "C" fn web_rust_clipboard_create_clipboard(vm: &Vm, realm: Gc<Realm>)
 }
 
 /// The Event of a new ClipboardEvent in the realm.
-///
-/// # Safety
-///
-/// The pointers must be the live VM and a live realm, `event_name` a live Utf16FlyString, and `clipboard_data` null or
-/// a live DataTransfer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_clipboard_create_clipboard_event(
+pub extern "C" fn web_rust_clipboard_create_clipboard_event(
     vm: &Vm,
     realm: Gc<Realm>,
-    event_name: usize,
+    event_name: LentUtf16FlyString<'_>,
     bubbles: bool,
     cancelable: bool,
     composed: bool,
     clipboard_data: Option<&InterfaceCell>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    // SAFETY: The caller lends a live fly string for the call.
-    let event_name: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(event_name) }.into();
+    let event_name: Utf16String = event_name.to_utf16_fly_string().into();
     let event_init = EventInit {
         bubbles,
         cancelable,

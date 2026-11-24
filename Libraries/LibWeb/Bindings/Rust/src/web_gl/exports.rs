@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{Gc, Realm, Vm};
+use libjs_rust::api::{Gc, Realm, Value, Vm};
 
 use super::canvas::Canvas;
 use super::context_loss::{
@@ -260,22 +260,16 @@ pub extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: &Vm) {
 
 /// Converts the options of getContext() to the dictionary, and answers true with the exception that the conversion
 /// threw.
-///
-/// # Safety
-///
-/// `vm` must be the live VM and `value` a live value.
 #[cfg(web_idl_bindings)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_attributes_from_value(
+pub extern "C" fn web_webgl_context_attributes_from_value(
     vm: &Vm,
-    value: u64,
+    value: Value,
     out_context_attributes: &mut ContextAttributes,
     out_exception: &mut u64,
 ) -> bool {
     use crate::bindings::conversions::FromJs;
 
-    // SAFETY: The caller passes the live VM and a live value.
-    let value = unsafe { libjs_rust::api::Value::from_raw(value) };
     match WebGLContextAttributes::from_js(vm, value) {
         Ok(context_attributes) => {
             *out_context_attributes = context_attributes.into();

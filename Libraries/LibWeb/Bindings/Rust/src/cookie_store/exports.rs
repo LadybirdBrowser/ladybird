@@ -28,12 +28,8 @@ pub extern "C" fn web_rust_cookie_store_create_cookie_store(vm: &Vm, realm: Gc<R
 }
 
 /// https://cookiestore.spec.whatwg.org/#process-cookie-changes
-///
-/// # Safety
-///
-/// The pointers must be the live VM and the live cell of a CookieStore object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_cookie_store_process_cookie_changes(
+pub extern "C" fn web_rust_cookie_store_process_cookie_changes(
     vm: &Vm,
     cookie_store: &InterfaceCell,
     changes: ak::Span<'_, CookieAbi<'_>>,

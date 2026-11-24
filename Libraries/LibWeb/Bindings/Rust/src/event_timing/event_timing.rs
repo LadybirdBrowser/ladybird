@@ -657,33 +657,22 @@ pub extern "C" fn web_rust_event_timing_initialize_event_timing(
 }
 
 /// https://w3c.github.io/event-timing/#finalize-event-timing
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `timing_entry` the live cell of a PerformanceEventTiming, `relevant_global` a live Window,
-/// `event` a live Event, `target_node` null or a live Node, and `target_selector` a raw
-/// AK::Utf16String that C++ hands over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_finalize_event_timing(
+pub extern "C" fn web_rust_event_timing_finalize_event_timing(
     vm: &Vm,
     timing_entry: &InterfaceCell,
     event: &LentCppCell<cpp_class::Event>,
     relevant_global: &LentCppCell<cpp_class::Window>,
     target_node: Option<&LentCppCell<cpp_class::Node>>,
-    target_selector: usize,
+    target_selector: Utf16String,
     processing_end: f64,
 ) {
-    // SAFETY: The caller passes the live VM, a live entry, a live Event, a live Window and null or a live Node, and hands
-    //         over the selector.
-    let (timing_entry, event, relevant_global, target_node, target_selector) = unsafe {
-        (
-            timing_entry.object::<PerformanceEventTiming>(),
-            CppEvent::from_lent(event),
-            CppWindow::from_lent(relevant_global),
-            target_node.map(CppCell::from_lent),
-            Utf16String::from_raw_owned(target_selector),
-        )
-    };
+    let (timing_entry, event, relevant_global, target_node) = (
+        timing_entry.object::<PerformanceEventTiming>(),
+        CppEvent::from_lent(event),
+        CppWindow::from_lent(relevant_global),
+        target_node.map(CppCell::from_lent),
+    );
     finalize_event_timing(
         vm,
         timing_entry,

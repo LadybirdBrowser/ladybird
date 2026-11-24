@@ -29,6 +29,7 @@ pub(crate) mod generated;
 pub(crate) mod global_object;
 pub(crate) mod interface;
 pub(crate) mod iterable;
+pub(crate) mod lent_string;
 pub(crate) mod maplike;
 pub(crate) mod new_global_object;
 pub(crate) mod promise;

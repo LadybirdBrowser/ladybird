@@ -470,13 +470,9 @@ pub extern "C" fn web_css_import_rule_import(rule: &InterfaceCell) -> *mut c_voi
     rule.import_cell()
 }
 
-/// # Safety
-///
-/// `rule` must be the live cell of a CSSStyleRule, and `text` a string that the caller hands over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_rule_set_selector_text(rule: &InterfaceCell, text: usize) {
-    // SAFETY: The caller passes a live cell of a CSSStyleRule, and hands over the string.
-    let (rule, text): (Ref<CSSStyleRule>, _) = unsafe { (rule.object(), Utf16String::from_raw_owned(text)) };
+pub extern "C" fn web_css_style_rule_set_selector_text(rule: &InterfaceCell, text: Utf16String) {
+    let rule = rule.object::<CSSStyleRule>();
     rule.replace_selectors(&text);
 }
 
@@ -618,11 +614,8 @@ pub extern "C" fn web_visual_viewport_map_point_from_layout_viewport(
         .into()
 }
 
-/// # Safety
-///
-/// `viewport` must be a live VisualViewport.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_visual_viewport_map_rect_from_layout_viewport(
+pub extern "C" fn web_visual_viewport_map_rect_from_layout_viewport(
     viewport: &InterfaceCell,
     rect: FfiCssPixelRect,
 ) -> FfiCssPixelRect {

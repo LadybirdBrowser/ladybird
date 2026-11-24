@@ -47,14 +47,8 @@ impl TrustedScript {
 }
 
 /// A new TrustedScript with the data, a raw AK::Utf16String that C++ hands over.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `data` a raw string that C++ hands over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_create_trusted_script(vm: &Vm, data: usize) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and hands over the string.
-    let data = unsafe { Utf16String::from_raw_owned(data) };
+pub extern "C" fn web_rust_trusted_types_create_trusted_script(vm: &Vm, data: Utf16String) -> *mut c_void {
     cell_into_abi(TrustedScript::create(vm, data))
 }
 

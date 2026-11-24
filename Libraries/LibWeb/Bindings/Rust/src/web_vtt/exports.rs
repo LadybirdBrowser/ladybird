@@ -9,22 +9,22 @@
 
 use core::ffi::c_void;
 
-use ak::Utf16String;
 use libjs_rust::api::Vm;
 
 use crate::bindings::interface::cell_into_abi;
+use crate::bindings::lent_string::LentUtf16String;
 use crate::web_vtt::parser::parse_webvtt_file;
 use crate::web_vtt::vtt_cue::VTTCue;
 
 /// https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `text` a string that the caller lends for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_vtt_cue_create(vm: &Vm, start_time: f64, end_time: f64, text: usize) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and lends the string.
-    let text = unsafe { Utf16String::from_raw_borrowed(text) };
+pub extern "C" fn web_vtt_cue_create(
+    vm: &Vm,
+    start_time: f64,
+    end_time: f64,
+    text: LentUtf16String<'_>,
+) -> *mut c_void {
+    let text = text.to_utf16_string();
     let Ok(cue) = VTTCue::create(vm, start_time, end_time, text) else {
         unreachable!("C++ creates cues whose end time is neither negative infinity nor NaN");
     };

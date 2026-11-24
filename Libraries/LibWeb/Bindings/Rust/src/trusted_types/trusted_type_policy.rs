@@ -879,18 +879,16 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
     input_kind: u8,
     input_cell: *mut c_void,
     input_string: usize,
-    sink: usize,
-    sink_group: usize,
+    sink: Utf16String,
+    sink_group: Utf16String,
     string: *mut usize,
     exception: *mut u64,
 ) -> u8 {
     // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (global, input, sink, sink_group) = unsafe {
+    let (global, input) = unsafe {
         (
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-            Utf16String::from_raw_owned(sink),
-            Utf16String::from_raw_owned(sink_group),
         )
     };
     let result = get_trusted_type_compliant_string(
@@ -909,18 +907,14 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
 ///
 /// # Safety
 ///
-/// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `attribute_ns` a live raw string if
-/// `has_attribute_ns`, `element_namespace` one if `has_element_namespace`, and the names raw strings that C++ hands
-/// over.
+/// As web_rust_trusted_types_get_trusted_type_compliant_string().
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
     vm: &Vm,
-    attribute_name: usize,
-    has_attribute_ns: bool,
-    attribute_ns: usize,
-    element_local_name: usize,
-    has_element_namespace: bool,
-    element_namespace: usize,
+    attribute_name: Utf16String,
+    attribute_ns: Option<Utf16String>,
+    element_local_name: Utf16String,
+    element_namespace: Option<Utf16String>,
     global: *mut c_void,
     input_kind: u8,
     input_cell: *mut c_void,
@@ -929,14 +923,10 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
     exception: *mut u64,
 ) -> u8 {
     // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (global, input, attribute_name, attribute_ns, element_local_name, element_namespace) = unsafe {
+    let (global, input) = unsafe {
         (
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-            Utf16String::from_raw_owned(attribute_name),
-            has_attribute_ns.then(|| Utf16String::from_raw_owned(attribute_ns)),
-            Utf16String::from_raw_owned(element_local_name),
-            has_element_namespace.then(|| Utf16String::from_raw_owned(element_namespace)),
         )
     };
     let result = get_trusted_types_compliant_attribute_value(
@@ -965,16 +955,15 @@ pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_pol
     input_kind: u8,
     input_cell: *mut c_void,
     input_string: usize,
-    sink: usize,
+    sink: Utf16String,
     result: *mut *mut c_void,
     exception: *mut u64,
 ) -> bool {
     // SAFETY: The caller passes the live VM, a live global object, a live input and a live string.
-    let (global, input, sink) = unsafe {
+    let (global, input) = unsafe {
         (
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-            Utf16String::from_raw_owned(sink),
         )
     };
     let converted =
@@ -1030,19 +1019,14 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parse
     global: *mut c_void,
     input: &ParserOptionsInputAbi,
     throw_if_missing: bool,
-    sink: usize,
+    sink: Utf16String,
     options_from_author: bool,
     options: &mut *mut c_void,
     message: &mut usize,
     exception: &mut u64,
 ) -> CompliantParserOptionsResultAbi {
-    // SAFETY: The caller passes the live VM, a live global object and a sink string it hands over.
-    let (global, sink) = unsafe {
-        (
-            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
-            Utf16String::from_raw_owned(sink),
-        )
-    };
+    let global =
+        unsafe { Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")) };
     let sanitizer = match input.sanitizer_kind {
         SanitizerInputKind::None => None,
         // SAFETY: C++ lends the sanitizer input of the kind for the call.

@@ -157,18 +157,13 @@ pub unsafe extern "C" fn web_rust_readable_stream_desired_size(stream: &Interfac
 }
 
 /// https://streams.spec.whatwg.org/#readablestream-enqueue
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live ReadableStream, and `chunk` a live value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_enqueue(
+pub extern "C" fn web_rust_readable_stream_enqueue(
     vm: &Vm,
     stream: &InterfaceCell,
-    chunk: u64,
+    chunk: Value,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM, a live ReadableStream and a live value.
-    let (stream, chunk) = unsafe { (stream.object::<ReadableStream>(), Value::from_raw(chunk)) };
+    let stream = stream.object::<ReadableStream>();
     let result = ReadableStream::enqueue(stream, vm, chunk);
     completion(&stream.context(vm), result)
 }
@@ -226,26 +221,16 @@ pub extern "C" fn web_rust_readable_stream_close(vm: &Vm, stream: &InterfaceCell
 }
 
 /// https://streams.spec.whatwg.org/#readablestream-error
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live ReadableStream, and `error` a live value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_error(vm: &Vm, stream: &InterfaceCell, error: u64) {
-    // SAFETY: The caller passes the VM, a live ReadableStream and a live value.
-    let (stream, error) = unsafe { (stream.object::<ReadableStream>(), Value::from_raw(error)) };
+pub extern "C" fn web_rust_readable_stream_error(vm: &Vm, stream: &InterfaceCell, error: Value) {
+    let stream = stream.object::<ReadableStream>();
     ReadableStream::error(stream, vm, error);
 }
 
 /// ! ReadableStreamCancel(stream, reason), https://streams.spec.whatwg.org/#readable-stream-cancel
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live ReadableStream, and `reason` a live value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_cancel(vm: &Vm, stream: &InterfaceCell, reason: u64) -> *mut c_void {
-    // SAFETY: The caller passes the VM, a live ReadableStream and a live value.
-    let (stream, reason) = unsafe { (stream.object::<ReadableStream>(), Value::from_raw(reason)) };
+pub extern "C" fn web_rust_readable_stream_cancel(vm: &Vm, stream: &InterfaceCell, reason: Value) -> *mut c_void {
+    let stream = stream.object::<ReadableStream>();
     promise_into_abi(readable_stream_cancel(&stream.context(vm), stream, reason))
 }
 
@@ -350,18 +335,13 @@ pub extern "C" fn web_rust_readable_stream_default_reader_read(vm: &Vm, reader: 
 }
 
 /// The steps of the reader's cancel(), https://streams.spec.whatwg.org/#generic-reader-cancel
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live ReadableStreamDefaultReader, and `reason` a live value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_default_reader_cancel(
+pub extern "C" fn web_rust_readable_stream_default_reader_cancel(
     vm: &Vm,
     reader: &InterfaceCell,
-    reason: u64,
+    reason: Value,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the VM, a live reader and a live value.
-    let (reader, reason) = unsafe { (reader.object::<ReadableStreamDefaultReader>(), Value::from_raw(reason)) };
+    let reader = reader.object::<ReadableStreamDefaultReader>();
     promise_into_abi(ReadableStreamGenericReader::cancel(
         vm,
         default_reader(reader),
@@ -448,18 +428,13 @@ pub unsafe extern "C" fn web_rust_transform_stream_set_up(
 
 /// TransformStreamDefaultControllerEnqueue(stream.[[controller]], chunk), as enqueuing the chunk into the stream does,
 /// https://streams.spec.whatwg.org/#transformstream-enqueue
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live TransformStream, and `chunk` a live value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_transform_stream_enqueue(
+pub extern "C" fn web_rust_transform_stream_enqueue(
     vm: &Vm,
     stream: &InterfaceCell,
-    chunk: u64,
+    chunk: Value,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM, a live TransformStream and a live value.
-    let (stream, chunk) = unsafe { (stream.object::<TransformStream>(), Value::from_raw(chunk)) };
+    let stream = stream.object::<TransformStream>();
     let cx = CallContext::new(vm, stream.backpressure_change_promise_realm());
     let controller = stream
         .controller()

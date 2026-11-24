@@ -193,12 +193,8 @@ pub extern "C" fn web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(conte
 }
 
 /// Draws the ImageBitmap at the point as drawImage() does, and returns whether that threw nothing.
-///
-/// # Safety
-///
-/// `image_bitmap` must be a live cell of an ImageBitmap.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_canvas_2d_context_draw_image_bitmap(
+pub extern "C" fn web_canvas_2d_context_draw_image_bitmap(
     context: &ContextCell,
     image_bitmap: &InterfaceCell,
     x: f32,

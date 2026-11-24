@@ -40,9 +40,9 @@ pub(crate) fn any_blob_from_abi(cell: &InterfaceCell) -> AnyBlob {
 ///
 /// `vm` must be the live VM, `bytes` bytes that C++ hands over, and `type` a raw string that C++ owns a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_blob_create(vm: &Vm, bytes: ForeignBytesAbi, r#type: usize) -> *mut c_void {
+pub unsafe extern "C" fn web_blob_create(vm: &Vm, bytes: ForeignBytesAbi, r#type: Utf16String) -> *mut c_void {
     // SAFETY: The caller hands over the bytes and the string.
-    let blob = unsafe { Blob::with_foreign_bytes(bytes, Utf16String::from_raw_owned(r#type)) };
+    let blob = unsafe { Blob::with_foreign_bytes(bytes, r#type) };
     cell_into_abi(allocate(vm, |_| blob))
 }
 
@@ -80,30 +80,21 @@ pub extern "C" fn web_blob_type(cell: &InterfaceCell) -> usize {
 }
 
 /// The result of slice blob given the Blob or File, start, end and contentType, which are null unless `has_start`,
-/// `has_end` and `has_content_type`. contentType is a raw AK::Utf16String that C++ hands over,
-/// https://w3c.github.io/FileAPI/#slice-blob
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `cell` the live cell of a Blob or a File, and `content_type` a raw string that C++ owns a
-/// reference to if `has_content_type`.
+/// `has_end` and C++ passes a contentType, https://w3c.github.io/FileAPI/#slice-blob
 #[unsafe(no_mangle)]
 #[allow(
     clippy::too_many_arguments,
     reason = "the arguments are the parameters of slice blob, which can each be null"
 )]
-pub unsafe extern "C" fn web_blob_slice(
+pub extern "C" fn web_blob_slice(
     vm: &Vm,
     cell: &InterfaceCell,
     has_start: bool,
     start: i64,
     has_end: bool,
     end: i64,
-    has_content_type: bool,
-    content_type: usize,
+    content_type: Option<Utf16String>,
 ) -> *mut c_void {
-    // SAFETY: The caller hands over the string if it has one.
-    let content_type = has_content_type.then(|| unsafe { Utf16String::from_raw_owned(content_type) });
     let blob = blob_from_abi(cell);
     let sliced_blob = blob.slice_blob(
         has_start.then_some(start),
@@ -121,26 +112,15 @@ pub extern "C" fn web_blob_is_file(cell: &InterfaceCell) -> bool {
 
 /// A new File, as the File constructor creates it given one part of the bytes, the file name and the options with the
 /// type, which are raw AK::Utf16Strings that C++ hands over, and the last modified date if `has_last_modified`.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `file_name` and `type` raw strings that C++ owns a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_file_create(
+pub extern "C" fn web_file_create(
     vm: &Vm,
     bytes: ak::Span<'_, u8>,
-    file_name: usize,
-    r#type: usize,
+    file_name: Utf16String,
+    r#type: Utf16String,
     has_last_modified: bool,
     last_modified: i64,
 ) -> *mut c_void {
-    // SAFETY: The caller hands over the strings.
-    let (file_name, r#type) = unsafe {
-        (
-            Utf16String::from_raw_owned(file_name),
-            Utf16String::from_raw_owned(r#type),
-        )
-    };
     let options = FilePropertyBag {
         parent: BlobPropertyBag {
             endings: EndingType::Transparent,

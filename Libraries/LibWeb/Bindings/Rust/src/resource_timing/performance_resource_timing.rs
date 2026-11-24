@@ -9,12 +9,13 @@
 
 use core::ffi::c_void;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{Gc, MarkedVec, Realm, Trace, Vm};
 
 use crate::bindings::conversions::ByteString;
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::fetch::infrastructure::fetch_timing_info::CppFetchTimingInfo;
 use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, PerformanceEntry};
@@ -502,25 +503,25 @@ pub unsafe extern "C" fn web_rust_resource_timing_mark_resource_timing(
     vm: &Vm,
     realm: Gc<Realm>,
     timing_info: *mut c_void,
-    requested_url: usize,
-    initiator_type: usize,
+    requested_url: Utf16String,
+    initiator_type: LentUtf16FlyString<'_>,
     cache_mode: u8,
     body_info: ResponseBodyInfoAbi,
     response_status: u16,
-    delivery_type: usize,
+    delivery_type: LentUtf16FlyString<'_>,
 ) {
     // SAFETY: The caller hands over a reference to the timing info and the strings, and lends the fly strings.
     unsafe {
         mark_resource_timing(
             vm,
             CppFetchTimingInfo::adopt(timing_info),
-            Utf16String::from_raw_owned(requested_url),
-            Utf16FlyString::from_raw_borrowed(initiator_type).into(),
+            requested_url,
+            initiator_type.to_utf16_fly_string().into(),
             realm,
             CacheState::from_abi(cache_mode),
             body_info.into_body_info(),
             response_status,
-            Utf16FlyString::from_raw_borrowed(delivery_type).into(),
+            delivery_type.to_utf16_fly_string().into(),
         );
     }
 }

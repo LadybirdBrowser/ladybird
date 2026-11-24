@@ -41,7 +41,7 @@ extern "C" {
 // Defined in Bindings/Rust/src/trusted_types/trusted_type_policy.rs.
 CompliantParserOptionsResult web_rust_trusted_types_get_trusted_type_compliant_parser_options(JSVM*, JSObject* global, ParserOptionsInput const*, bool throw_if_missing, FlatPtr sink, bool options_from_author, TrustedHTMLParserOptions** options, FlatPtr* message, JSValue* exception);
 u8 web_rust_trusted_types_get_trusted_type_compliant_string(JSVM*, u8 expected_type, JSObject* global, u8 input_kind, void* input_cell, FlatPtr input_string, FlatPtr sink, FlatPtr sink_group, FlatPtr* string, JSValue* exception);
-u8 web_rust_trusted_types_get_trusted_types_compliant_attribute_value(JSVM*, FlatPtr attribute_name, bool has_attribute_ns, FlatPtr attribute_ns, FlatPtr element_local_name, bool has_element_namespace, FlatPtr element_namespace, JSObject* global, u8 input_kind, void* input_cell, FlatPtr input_string, FlatPtr* string, JSValue* exception);
+u8 web_rust_trusted_types_get_trusted_types_compliant_attribute_value(JSVM*, FlatPtr attribute_name, FlatPtr attribute_ns, FlatPtr element_local_name, FlatPtr element_namespace, JSObject* global, u8 input_kind, void* input_cell, FlatPtr input_string, FlatPtr* string, JSValue* exception);
 bool web_rust_trusted_types_process_value_with_a_default_policy(JSVM*, u8 trusted_type_name, JSObject* global, u8 input_kind, void* input_cell, FlatPtr input_string, FlatPtr sink, void** result, JSValue* exception);
 }
 
@@ -239,10 +239,8 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Utf
     auto result = web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
         JS::HostABI::vm_to_abi(global.vm()),
         attribute_name.to_utf16_string().into_raw(),
-        attribute_ns.has_value(),
         attribute_ns.has_value() ? attribute_ns->to_utf16_string().into_raw() : 0,
         element.local_name().to_utf16_string().into_raw(),
-        element.namespace_uri().has_value(),
         element.namespace_uri().has_value() ? element.namespace_uri()->to_utf16_string().into_raw() : 0,
         JS::HostABI::object_to_abi(&global),
         input_abi.kind,

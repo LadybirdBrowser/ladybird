@@ -19,6 +19,7 @@ use libjs_rust::api::{
     ThrowCompletionOr, Value, Vm, completion_into_abi, get_function_realm, object_from_abi, vm_from_abi,
 };
 
+use crate::bindings::lent_string::LentUtf16String;
 use crate::bindings::realm_data::realm_data;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -231,22 +232,13 @@ fn native_error(vm: &Vm, new_target: Gc<Object>, error: WebAssemblyError) -> Thr
 
 /// A CompileError with the message in the realm, for C++ code that throws one: the CSP check of
 /// HostEnsureCanCompileWasmBytes.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, and the message, a borrowed AK::Utf16String.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_web_assembly_create_compile_error(
+pub extern "C" fn web_rust_web_assembly_create_compile_error(
     vm: &Vm,
     realm: Gc<Realm>,
-    message: usize,
+    message: LentUtf16String<'_>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the VM and a live realm.
-    // SAFETY: The caller lends the message for the call, which this takes a reference of its own to.
-    let message = unsafe {
-        ak::reference_utf16_string(message);
-        Utf16String::from_raw_owned(message)
-    };
+    let message = message.to_utf16_string();
     let (prototype, _) = prototype_and_constructor(vm, realm, WebAssemblyError::Compile);
     let error = Error::create_with_prototype(vm, realm, prototype);
     error.set_message(vm, message);
