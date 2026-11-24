@@ -310,7 +310,7 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
     realm: Gc<Realm>,
     data_holder: *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm, and hands over the data holder.
+    // SAFETY: The caller hands over the data holder.
     let mut payload = unsafe { TransferPayload::from_cpp(data_holder) };
     let mut cx = CallContext::new(vm, realm);
     let mut data_holder = TransferDataReader::new(&mut payload, realm);
@@ -355,7 +355,7 @@ pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     serialized_message: ak::Span<'_, u8>,
     shared_store_lifeline: c_int,
 ) {
-    // SAFETY: The caller passes the live VM, lends the origins and the descriptor, and hands over the name.
+    // SAFETY: The caller lends the origins.
     let (storage_key, source_origin) = unsafe {
         (
             StorageKey {

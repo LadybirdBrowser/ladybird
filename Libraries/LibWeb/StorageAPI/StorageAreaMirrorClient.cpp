@@ -15,7 +15,7 @@ extern "C" {
 
 // Defined in Bindings/Rust/src/storage_api/exports.rs.
 void web_rust_storage_api_set_storage_area_mirror_client(StorageAreaMirrorClient*);
-void web_rust_storage_api_storage_area_did_change(JSVM*, u64 id, bool has_key, FlatPtr key, bool has_old_value, FlatPtr old_value, bool has_new_value, FlatPtr new_value, ReadonlyBytes url);
+void web_rust_storage_api_storage_area_did_change(JSVM*, u64 id, FlatPtr key, FlatPtr old_value, FlatPtr new_value, ReadonlyBytes url);
 void web_rust_storage_api_storage_area_did_acknowledge_write(u64 id);
 void web_rust_storage_api_storage_area_did_refuse_write(JSVM*, u64 id, FlatPtr const* keys, FlatPtr const* values, size_t count);
 void web_rust_storage_api_storage_area_did_reset(JSVM*, u64 id, FlatPtr const* keys, FlatPtr const* values, size_t count);
@@ -57,7 +57,7 @@ static JSVM* vm()
 
 void storage_area_did_change(StorageAreaId id, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url)
 {
-    web_rust_storage_api_storage_area_did_change(vm(), id.value(), key.has_value(), raw_or_zero(key), old_value.has_value(), raw_or_zero(old_value), new_value.has_value(), raw_or_zero(new_value), url.bytes());
+    web_rust_storage_api_storage_area_did_change(vm(), id.value(), raw_or_zero(key), raw_or_zero(old_value), raw_or_zero(new_value), url.bytes());
 }
 
 void storage_area_did_acknowledge_write(StorageAreaId id)

@@ -155,13 +155,8 @@ fn generate_random_uuid() -> Utf16String {
     Utf16String::from_ascii(&uuid)
 }
 
-/// # Safety
-///
-/// The VM must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_create(vm: *const c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
+pub extern "C" fn web_rust_crypto_create(vm: &Vm) -> *mut c_void {
     cell_into_abi(allocate(vm, |_| Crypto {
         subtle: allocate(vm, |_| SubtleCrypto),
     }))

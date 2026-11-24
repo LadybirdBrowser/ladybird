@@ -58,7 +58,7 @@ pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_connected(
     window: &LentCppCell<cpp_class::Window>,
     description: *const GamepadDescriptionAbi<'_>,
 ) {
-    // SAFETY: The caller passes the live VM, a live Window and a lent description.
+    // SAFETY: The caller lends the description.
     let (window, description) = unsafe { (CppWindow::from_lent(window), &*description) };
     handle_gamepad_connected(vm, &window, GamepadDescription::from_abi(description));
 }
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_updated(
     window: &LentCppCell<cpp_class::Window>,
     state: *const GamepadStateAbi<'_>,
 ) {
-    // SAFETY: The caller passes the live VM, a live Window and a lent state.
+    // SAFETY: The caller lends the state.
     let (window, state) = unsafe { (CppWindow::from_lent(window), &*state) };
     handle_gamepad_updated(vm, &window, GamepadState::from_abi(state));
 }

@@ -89,12 +89,7 @@ impl SpeechSynthesis {
     }
 }
 
-/// # Safety
-///
-/// The VM must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_speech_synthesis_create(vm: *const c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
+pub extern "C" fn web_rust_speech_synthesis_create(vm: &Vm) -> *mut c_void {
     cell_into_abi(SpeechSynthesis::create(vm))
 }

@@ -137,7 +137,7 @@ pub unsafe extern "C" fn web_font_face_set_add_css_connected_font(
     set: &InterfaceCell,
     font_face: *mut c_void,
 ) {
-    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    // SAFETY: The caller passes a live FontFaceState.
     let (set, font_face) = unsafe { (set.object::<FontFaceSet>(), CppFontFaceState::from_raw(font_face)) };
     set.add_css_connected_font(vm, font_face);
 }
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn web_font_face_set_remove_css_connected_font(
     set: &InterfaceCell,
     font_face: *mut c_void,
 ) {
-    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    // SAFETY: The caller passes a live FontFaceState.
     let (set, font_face) = unsafe { (set.object::<FontFaceSet>(), CppFontFaceState::from_raw(font_face)) };
     set.remove_css_connected_font(vm, &font_face);
 }
@@ -177,7 +177,7 @@ pub extern "C" fn web_font_face_set_set_is_pending_on_the_environment(
 /// `vm` must be the live VM, `set` a live FontFaceSet, and `font_face` a live FontFaceState.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_font_face_set_font_started_loading(vm: &Vm, set: &InterfaceCell, font_face: *mut c_void) {
-    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    // SAFETY: The caller passes a live FontFaceState.
     let (set, font_face) = unsafe { (set.object::<FontFaceSet>(), CppFontFaceState::from_raw(font_face)) };
     set.font_started_loading(vm, font_face);
 }
@@ -192,7 +192,7 @@ pub unsafe extern "C" fn web_font_face_set_font_finished_loading(
     font_face: *mut c_void,
     succeeded: bool,
 ) {
-    // SAFETY: The caller passes the live VM, a live FontFaceSet and a live FontFaceState.
+    // SAFETY: The caller passes a live FontFaceState.
     let (set, font_face) = unsafe { (set.object::<FontFaceSet>(), CppFontFaceState::from_raw(font_face)) };
     set.font_finished_loading(vm, font_face, succeeded);
 }
@@ -315,16 +315,6 @@ pub(crate) fn rule_from_abi(cell: &InterfaceCell) -> AnyCSSRule {
     unreachable!("nothing creates an object of an interface that only others inherit from")
 }
 
-/// The cell that C++ passes, which it passes as null for nothing.
-///
-/// # Safety
-///
-/// `cell` must be a live cell, or null.
-unsafe fn optional_cpp_cell(cell: *mut c_void) -> Option<CppCell> {
-    // SAFETY: The caller passes a live cell.
-    (!cell.is_null()).then(|| unsafe { CppCell::from_raw(cell) })
-}
-
 /// The native rule of the rule, which the rule keeps alive.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_css_rule_native(rule: &InterfaceCell) -> *const NativeRule {
@@ -373,10 +363,15 @@ pub extern "C" fn web_css_rule_child_rules(vm: &Vm, rule: &InterfaceCell) -> *mu
 pub unsafe extern "C" fn web_css_rule_list_create(
     vm: &Vm,
     rules: *const NativeRuleList,
-    document: *mut c_void,
+    document: Option<&LentCppCell<cpp_class::Document>>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM, a live list and a live cell, or null.
-    let (rules, document) = unsafe { (NativeRuleList::retained_from_raw(rules), optional_cpp_cell(document)) };
+    // SAFETY: The caller passes a live list.
+    let (rules, document) = unsafe {
+        (
+            NativeRuleList::retained_from_raw(rules),
+            document.map(CppCell::from_lent),
+        )
+    };
     cell_into_abi(allocate(vm, |defer_gc| CSSRuleList::new(defer_gc, rules, document)))
 }
 
@@ -405,29 +400,24 @@ pub extern "C" fn web_css_rule_list_existing_rule(list: &InterfaceCell, identity
     list.existing_object(identity).map_or(null_mut(), AnyCSSRule::cell)
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, `list` the live cell of a CSSRuleList, and `sheet` that of a CSSStyleSheet, or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_rule_list_set_parent_style_sheet(vm: &Vm, list: &InterfaceCell, sheet: *mut c_void) {
-    // SAFETY: The caller passes the live VM and live cells, and keeps them alive for the call.
-    let (list, sheet) = unsafe { (list.implementation::<CSSRuleList>(), optional_cpp_cell(sheet)) };
+pub extern "C" fn web_css_rule_list_set_parent_style_sheet(
+    vm: &Vm,
+    list: &InterfaceCell,
+    sheet: Option<&LentCppCell<cpp_class::CSSStyleSheet>>,
+) {
+    let (list, sheet) = (list.implementation::<CSSRuleList>(), sheet.map(CppCell::from_lent));
     list.set_parent_style_sheet(vm, sheet);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, `list` the live cell of a CSSRuleList, `rules` a live list, and `document` the live cell
-/// of a Document, or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_rule_list_set_rules(
+pub extern "C" fn web_css_rule_list_set_rules(
     vm: &Vm,
     list: &InterfaceCell,
     rules: &NativeRuleList,
-    document: *mut c_void,
+    document: Option<&LentCppCell<cpp_class::Document>>,
 ) {
-    // SAFETY: The caller passes the live VM and live cells, and keeps them alive for the call.
-    let (list, document) = unsafe { (list.implementation::<CSSRuleList>(), optional_cpp_cell(document)) };
+    let (list, document) = (list.implementation::<CSSRuleList>(), document.map(CppCell::from_lent));
     list.set_rules(vm, rules, document);
 }
 
@@ -448,14 +438,14 @@ pub unsafe extern "C" fn web_css_import_rule_create(
     vm: &Vm,
     rule: *const NativeRule,
     import: &LentCppCell<cpp_class::StyleSheetImportCell>,
-    sheet: *mut c_void,
+    sheet: Option<&LentCppCell<cpp_class::CSSStyleSheet>>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM, a live rule and live cells, or null for the sheet.
+    // SAFETY: The caller passes a live rule.
     let (rule, import, sheet) = unsafe {
         (
             NativeRule::retained_from_raw(rule),
             CppCell::from_lent(import),
-            optional_cpp_cell(sheet),
+            sheet.map(CppCell::from_lent),
         )
     };
     let object = CSSImportRule::finish(CSSImportRule::create_for_import(vm, rule, import), vm);

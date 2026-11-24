@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{Gc, Realm, Value, Vm};
+use libjs_rust::api::{Gc, Realm, Vm};
 
 use super::canvas::Canvas;
 use super::context_loss::{
@@ -264,7 +264,7 @@ pub extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: &Vm) {
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_attributes_from_value(
     vm: &Vm,
-    value: Value,
+    value: libjs_rust::api::Value,
     out_context_attributes: &mut ContextAttributes,
     out_exception: &mut u64,
 ) -> bool {

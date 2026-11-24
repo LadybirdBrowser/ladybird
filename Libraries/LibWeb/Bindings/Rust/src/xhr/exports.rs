@@ -205,27 +205,19 @@ pub extern "C" fn web_rust_xhr_process_body_error(vm: &Vm, xhr: &InterfaceCell) 
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, `xhr` the live cell of an XMLHttpRequest, `sync_send` the live flags of its send(), and
-/// `response` a live ResponseView.
+/// `sync_send` must be the live flags of the send() of the XMLHttpRequest.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_xhr_process_response_consume_body(
-    vm: &Vm,
+    _vm: &Vm,
     xhr: &InterfaceCell,
     sync_send: *mut c_void,
     response: &LentCppCell<cpp_class::ResponseView>,
     kind: u8,
     bytes: ak::Span<'_, u8>,
 ) {
-    // SAFETY: The caller passes the live VM, the live cell of an XMLHttpRequest, the live flags of its send() and a
-    //         live ResponseView.
-    let (_, xhr, sync_send, response) = unsafe {
-        (
-            vm,
-            xhr.object::<XMLHttpRequest>(),
-            sync_send_from_abi(sync_send),
-            CppResponseView::from_lent(response),
-        )
-    };
+    let (xhr, response) = (xhr.object::<XMLHttpRequest>(), CppResponseView::from_lent(response));
+    // SAFETY: The caller passes the live flags of its send().
+    let sync_send = unsafe { sync_send_from_abi(sync_send) };
     let null_or_failure_or_bytes = match kind {
         0 => NullOrFailureOrBytes::Null,
         1 => NullOrFailureOrBytes::Failure,
