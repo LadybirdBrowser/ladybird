@@ -122,6 +122,7 @@ impl Fetches {
 }
 
 const MAX_CACHED_ENTRIES: usize = 1024;
+const EXCESSIVE_NSEC3_ITERATIONS: &str = "NSEC3 iteration count is too high";
 const MAX_CNAME_CHAIN_LENGTH: usize = 16;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -575,10 +576,13 @@ impl Validator {
         // RFC 4035, 5.3.4. Authenticating a Wildcard Expanded RRset Positive Response.
         // it must take additional steps to verify the non-existence of an exact match or closer wildcard match
         // for the query.
-        if let Some(wildcard_label_count) = verified.wildcard_label_count
-            && !proofs.proves_next_closer_absent(current, wildcard_label_count)
-        {
-            return Ok(Accepted::Bogus("Wildcard expansion is not proven"));
+        if let Some(wildcard_label_count) = verified.wildcard_label_count {
+            if has_excessive_nsec3_iterations(proofs.rrsets) {
+                return Ok(Accepted::Insecure(EXCESSIVE_NSEC3_ITERATIONS));
+            }
+            if !proofs.proves_next_closer_absent(current, wildcard_label_count) {
+                return Ok(Accepted::Bogus("Wildcard expansion is not proven"));
+            }
         }
         Ok(Accepted::Records(verified.rrset.records))
     }
@@ -652,15 +656,8 @@ impl Validator {
                 }
             }
 
+            // The NSEC3 iteration limit only applies where a denial proof is needed, which an exact answer is not.
             let denial_records = verify_denial_records(&authority, &chain.zone, &chain.keys, now)?;
-            if has_excessive_nsec3_iterations(&denial_records) {
-                return Ok(insecure(
-                    result.records,
-                    &current,
-                    chain_ttl,
-                    "NSEC3 iteration count is too high",
-                ));
-            }
             let proofs = DenialProofs {
                 rrsets: &denial_records,
             };
@@ -695,6 +692,14 @@ impl Validator {
                 continue;
             }
 
+            if has_excessive_nsec3_iterations(&denial_records) {
+                return Ok(insecure(
+                    result.records,
+                    &current,
+                    chain_ttl,
+                    EXCESSIVE_NSEC3_ITERATIONS,
+                ));
+            }
             if response.header.options.response_code() == ResponseCode::NAME_ERROR {
                 if proofs.proves_name_error(&current) {
                     return Ok(result);
