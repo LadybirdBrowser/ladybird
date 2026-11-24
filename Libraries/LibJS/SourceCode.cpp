@@ -26,6 +26,11 @@ NonnullRefPtr<SourceCode const> SourceCode::create(Utf16String filename, Utf16St
     return adopt_source_code_from_abi(js_source_code_create(owned_utf16_string_to_abi(move(filename)), owned_utf16_string_to_abi(move(code))));
 }
 
+NonnullRefPtr<SourceCode const> SourceCode::create_sharing_code(Utf16String filename, SourceCode const& other)
+{
+    return adopt_source_code_from_abi(js_source_code_create_sharing_code(owned_utf16_string_to_abi(move(filename)), source_code_to_abi(other)));
+}
+
 Utf16String const& SourceCode::filename() const
 {
     return string_in_place_from_abi(js_source_code_filename_address(source_code_to_abi(*this)));
@@ -83,6 +88,16 @@ WeakSourceCode::~WeakSourceCode()
 bool WeakSourceCode::is_alive() const
 {
     return m_weak && js_weak_source_code_is_alive(weak_source_code_to_abi(m_weak));
+}
+
+RefPtr<SourceCode const> WeakSourceCode::strong_ref() const
+{
+    if (!m_weak)
+        return nullptr;
+    auto const* source_code = js_weak_source_code_upgrade(weak_source_code_to_abi(m_weak));
+    if (!source_code)
+        return nullptr;
+    return adopt_source_code_from_abi(source_code);
 }
 
 }

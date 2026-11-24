@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -17,6 +18,16 @@
 #include <LibWeb/Export.h>
 
 namespace Web::HTML {
+
+// What tells the source text of an entry apart from other text, without keeping the text.
+struct WEB_API CompiledScriptFingerprint {
+    static CompiledScriptFingerprint of(Utf16String const& source_text);
+
+    Array<u8, 32> sha256_digest {};
+    size_t length_in_code_units { 0 };
+
+    bool operator==(CompiledScriptFingerprint const&) const = default;
+};
 
 // What a compiled script is stored under. The filename, base URL and muted errors of a script belong to one load of it
 // and are not part of its compiled code.
@@ -32,6 +43,7 @@ struct CompiledScriptCacheKey {
 // The compiled scripts of this agent, which a script that loads again links into its own realm instead of being
 // parsed and compiled again. Entries are found after a fetch completed, by the decoded source text the fetch came up
 // with, so they answer nothing that the checks of a fetch decide, and can not stand in for different source text.
+// Entries hold a SHA-256 digest of the text and not the text itself, so that the text goes once LibJS parks it.
 //
 // The size limit is for the programs that only the cache keeps alive. A program that a live document runs stays in
 // memory with or without its entry, so it counts for nothing until no document runs it anymore, and an entry that the
@@ -40,15 +52,16 @@ class WEB_API CompiledScriptCache {
 public:
     struct Hit {
         JS::CompiledProgram program;
-        Utf16String source_text;
+        // A live source code that the program was linked into, whose code a new load shares, if there is one.
+        RefPtr<JS::SourceCode const> source_code_to_share;
     };
 
     static CompiledScriptCache& the();
 
-    Optional<Hit> find(CompiledScriptCacheKey const&, Utf16String const& source_text);
+    Optional<Hit> find(CompiledScriptCacheKey const&, CompiledScriptFingerprint const&);
 
     // From here on, the program keeps the functions that get compiled for it. Replaces what the key held before.
-    void store(CompiledScriptCacheKey, Utf16String source_text, JS::CompiledProgram const&);
+    void store(CompiledScriptCacheKey, CompiledScriptFingerprint const&, JS::CompiledProgram const&);
 
     // The program of the key is linked into a record of the source code, which keeps the entry from counting against
     // the limit for as long as anything holds the source code.
@@ -60,7 +73,7 @@ public:
 
 private:
     struct Entry {
-        Utf16String source_text;
+        CompiledScriptFingerprint fingerprint;
         JS::CompiledProgram program;
         u64 touch_serial { 0 };
         // The source code of the records that the program was linked into.

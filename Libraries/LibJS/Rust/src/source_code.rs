@@ -28,6 +28,14 @@ impl SourceCode {
         })
     }
 
+    /// Source code under `filename` that shares the code of `other`, parked or not.
+    pub fn create_sharing_code(filename: Utf16String, other: &SourceCode) -> Rc<SourceCode> {
+        Rc::new(Self {
+            filename,
+            code: Arc::clone(&other.code),
+        })
+    }
+
     pub fn filename(&self) -> &Utf16String {
         &self.filename
     }
