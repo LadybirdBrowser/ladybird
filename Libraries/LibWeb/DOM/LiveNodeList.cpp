@@ -47,9 +47,7 @@ GC::Cell const& LiveNodeList::owner_cell(Badge<GC::Heap>) const
 
 void LiveNodeList::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_cached_nodes.remove_all_matching([&](GC::RawPtr<Node> const& node) {
-        return !heap().is_live_cell(node.ptr()) || !node->is_marked();
-    });
+    m_cached_nodes.remove_dead_cells(heap());
 }
 
 void LiveNodeList::update_cache_if_needed() const
@@ -101,8 +99,8 @@ Node* LiveNodeList::first_matching(Function<bool(Node const&)> const& filter) co
 {
     update_cache_if_needed();
     for (auto& node : m_cached_nodes) {
-        if (filter(*node))
-            return node.ptr();
+        if (filter(node))
+            return &node;
     }
     return nullptr;
 }
@@ -121,7 +119,7 @@ Node const* LiveNodeList::item(u32 index) const
     update_cache_if_needed();
     if (index >= m_cached_nodes.size())
         return nullptr;
-    return m_cached_nodes[index].ptr();
+    return &m_cached_nodes[index];
 }
 
 }
