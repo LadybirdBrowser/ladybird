@@ -1,0 +1,14 @@
+Ladybird validates property descriptors for an observable array index
+or its length. Defining an adopted style sheet runs the callbacks that
+register its fonts. A descriptor without a value leaves the list alone.
+
+Blink uses ObservableArrayExoticObjectHandler::TrapDefineProperty.
+Gecko uses ObservableArrayProxyHandler::defineProperty, and WebKit
+uses JSObservableArray::defineOwnProperty. Chrome 158.0.8127.37,
+Firefox 151.0 and WebKit 26.5 all registered the replacement font.
+
+Firefox and WebKit rejected definitions past the end and accepted empty
+descriptors. Chrome reported success for a hole or length growth, and
+threw for an empty descriptor on an index or length. Ladybird follows
+Web IDL in these cases. WebKit retained the font after defining the
+length as zero.
