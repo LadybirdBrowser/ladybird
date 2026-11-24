@@ -15,6 +15,10 @@ use crate::message::{DomainName, Nsec, Nsec3, Nsec3HashAlgorithm, RecordData, Re
 // iterations larger than 0.
 pub(super) const MAX_NSEC3_ITERATIONS: u16 = 100;
 
+// A SHA-1 hash is 160 bits: 20 octets, or 32 characters of Base32hex.
+const SHA1_HASH_LENGTH: usize = 20;
+const SHA1_HASH_BASE32HEX_LENGTH: usize = 32;
+
 // RFC 4648, 7. Base 32 Encoding with Extended Hex Alphabet.
 fn base32hex_decode(input: &[u8]) -> Option<Vec<u8>> {
     let mut output = Vec::with_capacity(input.len() * 5 / 8);
@@ -158,10 +162,13 @@ fn nsec3_records_with_any_iterations(rrsets: &[VerifiedRRSet]) -> impl Iterator<
                 if !record.name.parent().eq_ignore_case(&verified.zone) {
                     return None;
                 }
-                let owner_hash = base32hex_decode(first_label)?;
-                if owner_hash.len() != nsec3.next_hashed_owner_name.len() {
+                // Both ends of the span have to be SHA-1 hashes, or comparing them to one means nothing.
+                if first_label.len() != SHA1_HASH_BASE32HEX_LENGTH
+                    || nsec3.next_hashed_owner_name.len() != SHA1_HASH_LENGTH
+                {
                     return None;
                 }
+                let owner_hash = base32hex_decode(first_label)?;
                 Some(Nsec3Record {
                     owner_hash,
                     nsec3,
