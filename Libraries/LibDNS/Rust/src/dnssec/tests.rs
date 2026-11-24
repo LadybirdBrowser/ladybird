@@ -791,6 +791,75 @@ fn cname_chain_validates() {
 }
 
 #[test]
+fn cname_chain_caps_ttls() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, |server| {
+            let zone = &mut server.zones[1];
+            zone.add(
+                &name("first.example"),
+                ResourceType::CNAME,
+                RecordData::Cname(name("second.example")),
+                100,
+            );
+            zone.add(
+                &name("second.example"),
+                ResourceType::CNAME,
+                RecordData::Cname(name("www.example")),
+                250,
+            );
+        });
+
+        let result = validated_lookup(&mut server, &mut validator, "first.example", ResourceType::A).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        let ttls: Vec<_> = result
+            .records
+            .iter()
+            .map(|record| (record.name.to_string(), record.rtype, record.ttl))
+            .collect();
+        assert_eq!(
+            ttls,
+            [
+                ("first.example.".to_string(), ResourceType::CNAME, 100),
+                ("second.example.".to_string(), ResourceType::CNAME, 100),
+                ("www.example.".to_string(), ResourceType::A, 100),
+            ]
+        );
+    }
+}
+
+#[test]
+fn cname_to_an_unsigned_zone_keeps_its_validated_ttl() {
+    // The signatures in "example" expire in 50 seconds.
+    let (mut server, mut validator) = setup(false, |server| {
+        let zone = &mut server.zones[1];
+        zone.signing_time = NOW - 3550;
+        zone.add_cname("first.example", "host.unsigned.example");
+    });
+
+    // The rest of the chain, as a recursive resolver would include it.
+    let mut lookup = Lookup::start(&mut server, "first.example", ResourceType::A);
+    lookup
+        .response
+        .answers
+        .extend(server.zones[2].rrset(&name("host.unsigned.example"), ResourceType::A));
+
+    let result = lookup.finish(&mut server, &mut validator, NOW).unwrap();
+    assert_eq!(result.status, SecurityStatus::Insecure);
+    let ttls: Vec<_> = result
+        .records
+        .iter()
+        .map(|record| (record.name.to_string(), record.rtype, record.ttl))
+        .collect();
+    assert_eq!(
+        ttls,
+        [
+            ("first.example.".to_string(), ResourceType::CNAME, 50),
+            ("host.unsigned.example.".to_string(), ResourceType::A, 50),
+        ]
+    );
+}
+
+#[test]
 fn wildcard_answer_validates_with_proof() {
     for use_nsec3 in [false, true] {
         let (mut server, mut validator) = setup(use_nsec3, |_| {});
