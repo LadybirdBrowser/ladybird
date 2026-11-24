@@ -294,6 +294,8 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
     for (auto const& entry : m_additional_pointers)
         visitor.visit(entry.value->state.touch);
     m_drag_and_drop_event_handler->visit_edges(visitor);
+    if (m_captured_chrome_widget)
+        m_captured_chrome_widget->visit_edges(visitor);
     if (m_auto_scroll_handler)
         m_auto_scroll_handler->visit_edges(visitor);
     if (m_middle_button_scroll_handler)

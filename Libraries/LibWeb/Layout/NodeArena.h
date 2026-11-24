@@ -41,6 +41,7 @@ public:
 
     DOM::Document* document() const { return m_document.ptr(); }
     void set_document(Badge<DOM::Document>, DOM::Document* document) { m_document = document; }
+    void visit_edges(GC::Cell::Visitor&) const;
 
     // The arena reports to each DOM node whether it has a layout node, and whether that layout node has a committed
     // box, as it changes them. Only the arena writes those bits onto the node.
