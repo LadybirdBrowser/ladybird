@@ -155,6 +155,7 @@ if (NOT WIN32)
         TestAutocomplete.cpp
         TestBeforeUnload.cpp
         TestBrowserHistoryTraversal.cpp
+        TestChildFrameReports.cpp
         TestCompositorStartup.cpp
         TestCrashOverlay.cpp
         TestCrashReportSubmission.cpp
