@@ -83,6 +83,22 @@ impl CacheEntry {
         self.negative_answers.insert(rtype, expiration);
     }
 
+    fn answered_types(&self) -> Vec<ResourceType> {
+        let mut types: Vec<ResourceType> = self.records.iter().map(|record| record.record.rtype).collect();
+        types.extend(self.negative_answers.keys().copied());
+        types.sort_by_key(|rtype| rtype.0);
+        types.dedup();
+        types
+    }
+
+    fn take_type(&mut self, rtype: ResourceType) -> (Vec<RecordWithExpiration>, Option<Instant>) {
+        let (taken, kept) = std::mem::take(&mut self.records)
+            .into_iter()
+            .partition(|record| record.record.rtype == rtype);
+        self.records = kept;
+        (taken, self.negative_answers.remove(&rtype))
+    }
+
     pub(crate) fn has_record_of_type(&self, rtype: ResourceType) -> bool {
         self.records.iter().any(|record| record.record.rtype == rtype)
     }
@@ -191,6 +207,29 @@ impl Cache {
     pub(crate) fn insert(&mut self, name: String, entry: CacheEntry, now: Instant) {
         self.make_room(now);
         self.entries.insert(name, entry);
+    }
+
+    /// Adds what the entry knows about types the cached entry for the name has no fresh answer for, leaving the rest
+    /// of it as it is.
+    pub(crate) fn fill_in(&mut self, name: String, mut entry: CacheEntry, now: Instant) {
+        let Some(existing) = self.entries.get_mut(&name) else {
+            return self.insert(name, entry, now);
+        };
+        existing.expire(now);
+        if existing.can_be_removed() {
+            return self.insert(name, entry, now);
+        }
+        for rtype in entry.answered_types() {
+            if existing.answers_type(rtype) {
+                continue;
+            }
+            let (records, negative_answer) = entry.take_type(rtype);
+            existing.records.extend(records);
+            if let Some(expiration) = negative_answer {
+                existing.add_negative_answer(rtype, expiration);
+            }
+            existing.valid = true;
+        }
     }
 
     pub(crate) fn len(&self) -> usize {
