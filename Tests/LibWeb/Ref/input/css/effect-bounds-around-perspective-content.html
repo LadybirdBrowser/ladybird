@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/effect-bounds-around-perspective-content-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-8;totalPixels=0-1000" />
+<style>
+    body {
+        margin: 0;
+    }
+
+    .group {
+        opacity: 0.999;
+    }
+
+    .stage {
+        position: relative;
+        width: 400px;
+        height: 300px;
+        perspective: 300px;
+    }
+
+    .tilted {
+        position: absolute;
+        left: 100px;
+        top: 50px;
+        width: 200px;
+        height: 200px;
+        opacity: 0.999;
+        transform: rotateX(50deg) rotate(30deg);
+    }
+
+    svg {
+        display: block;
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<div class="group">
+    <div class="stage">
+        <div class="tilted">
+            <svg viewBox="0 0 20 20">
+                <rect width="20" height="20" fill="green" opacity="0.999" />
+                <circle cx="3" cy="3" r="3" fill="blue" opacity="0.999" />
+                <circle cx="17" cy="17" r="3" fill="blue" opacity="0.999" />
+                <circle cx="17" cy="3" r="3" fill="blue" opacity="0.999" />
+                <circle cx="3" cy="17" r="3" fill="blue" opacity="0.999" />
+            </svg>
+        </div>
+    </div>
+</div>

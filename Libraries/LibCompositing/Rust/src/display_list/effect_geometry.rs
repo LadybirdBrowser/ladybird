@@ -25,8 +25,8 @@ use libgfx_rust::filter::Filter;
 use libgfx_rust::{FloatMatrix4x4, FloatRect, IntRect};
 use std::collections::HashMap;
 
-/// Where content lies in an effect's space. It reaches anywhere through a filter that paints everywhere or through a
-/// space that does not map onto the effect's as a two-dimensional transform.
+/// Where content lies in an effect's space. It reaches anywhere through a filter that paints everywhere, or from a space
+/// where it lies partly behind the eye or does not project back onto the effect's plane in front of the eye.
 pub type Extent = Reach<FloatRect>;
 
 pub(crate) const LARGEST_FILTER_READ_REACH_IN_DEVICE_PIXELS: f32 = 2048.0;
@@ -102,7 +102,7 @@ fn extent_mapped_between_spaces(
 ) -> Extent {
     match extent {
         Extent::Within(rect) => world
-            .map_rect_between_spaces(rect, from, to)
+            .bounds_of_rect_mapped_between_spaces(rect, from, to)
             .map_or(Extent::Anywhere, Extent::Within),
         extent => extent,
     }
@@ -468,11 +468,12 @@ pub fn compute_effect_geometry<'a>(
 mod tests {
     use super::*;
     use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
+    use crate::visual_context::world_transforms::bounds_of_projected_rect_if_corners_in_front_of_eye;
     use crate::visual_context::{EffectsData, SpatialData, TransformData, TransformDataRole};
     use libgfx_rust::filter::Filter;
     use libgfx_rust::{
-        Color, ColorFilterType, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect, rotation_matrix,
-        scale_matrix, translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect,
+        perspective_matrix, rotation_matrix, scale_matrix, translation_matrix,
     };
     use std::sync::Arc;
 
@@ -659,7 +660,7 @@ mod tests {
     }
 
     #[test]
-    fn unbounded_filters_and_three_dimensional_spaces_reach_anywhere() {
+    fn filters_that_paint_everywhere_reach_anywhere() {
         let mut tree = identity_tree();
         let outer = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
         let flood = effect(
@@ -671,21 +672,78 @@ mod tests {
             outer,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
+        let unused = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let runs = [run(VISUAL_VIEWPORT_NODE_INDEX, flood, IntRect::new(0, 0, 10, 10))];
+        let geometry = geometry_of(&tree, &runs);
+        assert_eq!(geometry[flood.0 as usize].content, within(0.0, 0.0, 10.0, 10.0));
+        assert_eq!(geometry[flood.0 as usize].output, Extent::Anywhere);
+        assert_eq!(geometry[outer.0 as usize].output, Extent::Anywhere);
+        assert_eq!(geometry[unused.0 as usize].output, Extent::Nothing);
+    }
+
+    fn assert_approximately_within(extent: Extent, expected: FloatRect) {
+        let Extent::Within(rect) = extent else {
+            panic!("{extent:?} is not within {expected:?}");
+        };
+        let edges = |rect: FloatRect| [rect.x, rect.y, rect.right(), rect.bottom()];
+        for (edge, expected_edge) in edges(rect).into_iter().zip(edges(expected)) {
+            assert!((edge - expected_edge).abs() < 0.001, "{rect:?} is not {expected:?}");
+        }
+    }
+
+    #[test]
+    fn content_drawn_in_a_three_dimensional_space_is_bounded_where_it_projects() {
+        let mut tree = identity_tree();
         let tilted = tree.append_spatial(
             SpatialData::Transform(transform(rotation_matrix([0.0, 1.0, 0.0], 0.5))),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let flat = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        let unused = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        let runs = [
-            run(VISUAL_VIEWPORT_NODE_INDEX, flood, IntRect::new(0, 0, 10, 10)),
-            run(tilted, flat, IntRect::new(0, 0, 10, 10)),
-        ];
+        let runs = [run(tilted, flat, IntRect::new(0, 0, 10, 10))];
+        assert_approximately_within(
+            geometry_of(&tree, &runs)[flat.0 as usize].content,
+            FloatRect::new(0.0, 0.0, 10.0 * 0.5f32.cos(), 10.0),
+        );
+    }
+
+    #[test]
+    fn content_drawn_on_a_plane_in_perspective_is_bounded_on_the_plane_and_where_the_plane_projects() {
+        let mut tree = identity_tree();
+        let plane_to_root = perspective_matrix(100.0).multiplied(rotation_matrix([1.0, 0.0, 0.0], 1.0));
+        let plane = tree.append_spatial(
+            SpatialData::Transform(transform(plane_to_root)),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let moved_on_plane = tree.append_spatial(
+            SpatialData::Transform(transform(translation_matrix(5.0, 0.0, 0.0))),
+            plane,
+        );
+        let flat = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let on_plane = effect(&mut tree, None, flat, plane);
+        let runs = [run(moved_on_plane, on_plane, IntRect::new(0, 0, 10, 10))];
         let geometry = geometry_of(&tree, &runs);
-        assert_eq!(geometry[flood.0 as usize].content, within(0.0, 0.0, 10.0, 10.0));
-        assert_eq!(geometry[flood.0 as usize].output, Extent::Anywhere);
-        assert_eq!(geometry[outer.0 as usize].output, Extent::Anywhere);
-        assert_eq!(geometry[flat.0 as usize].content, Extent::Anywhere);
-        assert_eq!(geometry[unused.0 as usize].output, Extent::Nothing);
+        assert_approximately_within(
+            geometry[on_plane.0 as usize].content,
+            FloatRect::new(5.0, 0.0, 10.0, 10.0),
+        );
+        assert_approximately_within(
+            geometry[flat.0 as usize].content,
+            bounds_of_projected_rect_if_corners_in_front_of_eye(plane_to_root, FloatRect::new(5.0, 0.0, 10.0, 10.0))
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn content_partly_behind_the_eye_reaches_anywhere() {
+        let mut tree = identity_tree();
+        let plane = tree.append_spatial(
+            SpatialData::Transform(transform(
+                perspective_matrix(100.0).multiplied(rotation_matrix([1.0, 0.0, 0.0], 1.4)),
+            )),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let flat = effect(&mut tree, None, EffectNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let runs = [run(plane, flat, IntRect::new(0, -1000, 10, 2000))];
+        assert_eq!(geometry_of(&tree, &runs)[flat.0 as usize].content, Extent::Anywhere);
     }
 }
