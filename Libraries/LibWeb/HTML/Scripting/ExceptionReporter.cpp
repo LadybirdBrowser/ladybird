@@ -146,15 +146,7 @@ void report_an_exception(JS::Object& global, JS::Value exception, Optional<Error
         // 2. If global implements EventTarget, then set notHandled to the result of firing an event named
         //    error at global, using ErrorEvent, with the cancelable attribute initialized to true, and
         //    additional attributes initialized according to errorInfo.
-        ErrorEventInit event_init = {};
-        event_init.cancelable = true;
-        event_init.message = error_info.message;
-        event_init.filename = error_info.filename;
-        event_init.lineno = error_info.lineno;
-        event_init.colno = error_info.colno;
-        event_init.error = error_info.error;
-
-        not_handled = window_or_worker->this_impl().dispatch_event(ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(global)));
+        not_handled = window_or_worker->this_impl().dispatch_event(create_error_event(realm, EventNames::error, { .cancelable = true }, error_info));
 
         // 3. Set global's in error reporting mode to false.
         window_or_worker->set_in_error_reporting_mode(false);

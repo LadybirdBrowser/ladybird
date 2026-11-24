@@ -188,15 +188,15 @@ JS::Completion invoke_event_handler(WebIDL::CallbackType& callback, DOM::Event& 
     // FIXME: This rewraps the this value from DOM::EventTarget::activate_event_handler().
     //        If that is observable, we must reuse the original callback this value instead.
     if (special_error_event_handling) {
-        auto& error_event = as<HTML::ErrorEvent>(event);
+        auto error_information = HTML::error_event_information(event).release_value();
         auto& vm = callback.callback->vm();
-        auto wrapped_message = JS::PrimitiveString::create(vm, error_event.message());
-        auto wrapped_filename = JS::PrimitiveString::create(vm, error_event.filename());
-        auto wrapped_lineno = JS::Value(error_event.lineno());
-        auto wrapped_colno = JS::Value(error_event.colno());
+        auto wrapped_message = JS::PrimitiveString::create(vm, move(error_information.message));
+        auto wrapped_filename = JS::PrimitiveString::create(vm, move(error_information.filename));
+        auto wrapped_lineno = JS::Value(error_information.lineno);
+        auto wrapped_colno = JS::Value(error_information.colno);
 
-        auto this_value = current_target_wrapper(callback.associated_realm(), error_event);
-        return WebIDL::invoke_callback(callback, this_value.ptr(), { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_event.error() } });
+        auto this_value = current_target_wrapper(callback.associated_realm(), event);
+        return WebIDL::invoke_callback(callback, this_value.ptr(), { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_information.error } });
     }
 
     auto& callback_realm = callback.associated_realm();
@@ -993,7 +993,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16Fl
 
     // 5. Let special error event handling be true if event is an ErrorEvent object, event's type is error, and event's currentTarget implements the WindowOrWorkerGlobalScope mixin.
     //    Otherwise, let special error event handling be false.
-    bool special_error_event_handling = is<HTML::ErrorEvent>(event) && event.type() == HTML::EventNames::error && is<HTML::WindowOrWorkerGlobalScopeMixin>(event.current_target().ptr());
+    bool special_error_event_handling = HTML::is_error_event(event) && event.type() == HTML::EventNames::error && is<HTML::WindowOrWorkerGlobalScopeMixin>(event.current_target().ptr());
 
     // 6. Process the Event object event as follows:
     JS::Completion return_value_or_error;

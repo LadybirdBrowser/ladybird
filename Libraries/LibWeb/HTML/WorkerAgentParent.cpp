@@ -45,17 +45,11 @@ static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>& worker_agent_
     return map;
 }
 
-static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_worker, ErrorEvent& error)
+static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_worker, DOM::Event& error, ErrorInformation error_info)
 {
     auto& realm = relevant_realm(window_or_worker);
     auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { error });
-    ErrorInformation error_info {
-        .message = error.message(),
-        .filename = error.filename(),
-        .error = wrapped_error,
-        .lineno = error.lineno(),
-        .colno = error.colno(),
-    };
+    error_info.error = wrapped_error;
     report_an_exception(relevant_global_object(window_or_worker), wrapped_error, move(error_info), OmitError::Yes);
 }
 
@@ -255,21 +249,21 @@ void WorkerAgentParent::dispatch_worker_exception(Utf16String message, Utf16Stri
 
         // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
         //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
-        ErrorEventInit event_init {};
-        event_init.cancelable = true;
-        event_init.message = message;
-        event_init.filename = filename;
-        event_init.lineno = lineno;
-        event_init.colno = colno;
-        event_init.error = JS::js_null();
-        auto error = ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
+        ErrorInformation error_info {
+            .message = message,
+            .filename = filename,
+            .error = JS::js_null(),
+            .lineno = lineno,
+            .colno = colno,
+        };
+        auto error = create_error_event(realm, EventNames::error, { .cancelable = true }, error_info);
         bool not_handled = self.m_worker_event_target->dispatch_event(error);
 
         // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
         if (not_handled) {
             auto* window_or_worker = window_or_worker_global_scope_from_global_object(self.m_outside_settings->global_object());
             VERIFY(window_or_worker);
-            report_worker_exception(*window_or_worker, error);
+            report_worker_exception(*window_or_worker, error, move(error_info));
         }
     }));
 }

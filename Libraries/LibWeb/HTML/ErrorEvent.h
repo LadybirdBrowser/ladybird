@@ -6,53 +6,22 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/HTML/ErrorInformation.h>
 
 namespace Web::HTML {
 
-using ErrorEventInit = Bindings::ErrorEventInit;
+// The Event of a new trusted ErrorEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_error_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, ErrorInformation const&);
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
-class ErrorEvent final : public DOM::Event {
-    WEB_WRAPPABLE(ErrorEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(ErrorEvent);
+bool is_error_event(DOM::Event const&);
 
-public:
-    [[nodiscard]] static GC::Ref<ErrorEvent> create(Utf16FlyString const& event_name, ErrorEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
-
-    virtual ~ErrorEvent() override;
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-message
-    Utf16String const& message() const { return m_message; }
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-filename
-    Utf16String const& filename() const { return m_filename; }
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-lineno
-    u32 lineno() const { return m_lineno; }
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-colno
-    u32 colno() const { return m_colno; }
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-error
-    JS::Value const& error() const { return m_error; }
-
-private:
-    ErrorEvent(Utf16FlyString const& event_name, ErrorEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    Utf16String m_message;
-    Utf16String m_filename;
-    u32 m_lineno { 0 };
-    u32 m_colno { 0 };
-    JS::Value m_error;
-};
+// The attributes of the event as error information, if it is an ErrorEvent.
+Optional<ErrorInformation> error_event_information(DOM::Event const&);
 
 }
