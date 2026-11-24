@@ -238,14 +238,14 @@ impl StyleJobAnswer {
     }
 
     /// The record the host holds for `record`, one the rows name.
-    pub(crate) fn record(&self, record: u64) -> Option<*const std::ffi::c_void> {
+    pub(crate) fn record(&self, record: u64) -> Option<*const crate::css::style::pipeline::Record> {
         let NamedRecords { records, cursor } = &self.records;
         let near = cursor.get();
         let index = (near..records.len().min(near + 4))
             .find(|&index| records[index].0 == record)
             .or_else(|| records.binary_search_by_key(&record, |&(record, _)| record).ok())?;
         cursor.set(index);
-        Some(std::sync::Arc::as_ptr(&records[index].1).cast())
+        Some(std::sync::Arc::as_ptr(&records[index].1))
     }
 
     /// Takes what the main thread does to take the transaction's style installation.

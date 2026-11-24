@@ -164,12 +164,10 @@ pub extern "C" fn rust_rule_view_import_media(view: &NativeRuleView<'_>) -> *mut
     Box::into_raw(Box::new(media))
 }
 
-/// Materialize a facade's import rule, including one first exposed after detachment.
-///
-/// # Safety
-/// Identity must identify this import, and media must be its loading state.
+/// Materialize a facade's import rule, including one first exposed after detachment. `identity` must identify this
+/// import, and `media` must be its loading state.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_materialize_import(
+pub extern "C" fn rust_rule_materialize_import(
     identity: u64,
     data: crate::css::ffi_support::ArcRef<'_, ImportRuleData>,
     media: &MediaList,

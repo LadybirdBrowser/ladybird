@@ -3246,15 +3246,14 @@ pub const COMPUTED_FONT_FAMILY_STRING: u8 = 2;
 /// Copies the entries of a computed font-family value without constructing C++ StyleValues.
 ///
 /// # Safety
-/// `value` must point at live font-family StyleValueData. When `output` is non-null, it must
-/// point at space for at least `capacity` entries.
+/// When `output` is non-null, it must point at space for at least `capacity` entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_copy_computed_font_families(
-    value: *const c_void,
+    value: &StyleValueData,
     output: *mut FfiComputedFontFamilyEntry,
     capacity: usize,
 ) -> usize {
-    let StyleValueData::ValueList { values, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
+    let StyleValueData::ValueList { values, .. } = value else {
         unreachable!("computed font-family must be a value list");
     };
     if output.is_null() {
@@ -4417,8 +4416,8 @@ pub(crate) unsafe fn release_style_value(value: *const StyleValueData) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) {
-    unsafe { release_style_value(value) };
+pub extern "C" fn rust_style_value_release(value: OwnedStyleValue) {
+    drop(value);
 }
 
 /// Whether two shared style values hold the same value.
@@ -4588,8 +4587,8 @@ mod substitution_clone_tests {
         assert_ne!(original.as_slice()[0].pointer(), cloned_values.as_slice()[0].pointer());
 
         unsafe {
-            rust_style_value_release(shorthand);
-            rust_style_value_release(cloned_shorthand);
+            drop(StyleValueArc::from_raw(shorthand));
+            drop(StyleValueArc::from_raw(cloned_shorthand));
         }
     }
 }

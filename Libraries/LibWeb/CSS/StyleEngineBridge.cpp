@@ -208,7 +208,7 @@ StyleRecordID StyleEngine::install_host_style_record(Layout::BegunRead const& re
     return StyleRecordID { StyleEngineFFI::style_engine_install_host_style_record(host(), &read, payloads.data(), payloads.size(), inherited.bits, inherited.effective_zoom_bits, reset, custom_property_environment, counter_style_environment_identity, source_record, custom_property_store) };
 }
 
-void const* StyleEngine::host_record(Layout::BegunRead const& read, StyleRecordID style_record) const
+StyleEngineFFI::Record const* StyleEngine::host_record(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
     return StyleEngineFFI::style_engine_host_record(host(), &read, style_record.value());
 }

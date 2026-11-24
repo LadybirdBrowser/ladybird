@@ -47,7 +47,7 @@ public:
 
     static NonnullRefPtr<ComputedStyleWorkingSet> create_over_record(StyleRecordRef);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
-    static NonnullRefPtr<ComputedStyleWorkingSet> create_for_animation_update(void const* record, ComputedValuesFFI::AnimatedOverlay const*);
+    static NonnullRefPtr<ComputedStyleWorkingSet> create_for_animation_update(StyleEngineFFI::Record const* record, ComputedValuesFFI::AnimatedOverlay const*);
     ~ComputedStyleWorkingSet();
 
     void set_depends_on_viewport_metrics();
@@ -98,7 +98,7 @@ public:
     FontOpticalSizing font_optical_sizing() const;
 
     // The style record whose longhands this working set reads.
-    void const* record() const { return m_record.get(); }
+    StyleEngineFFI::Record const* record() const { return m_record.get(); }
 
 private:
     explicit ComputedStyleWorkingSet(StyleRecordRef);

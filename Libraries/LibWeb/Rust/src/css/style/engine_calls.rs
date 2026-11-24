@@ -901,7 +901,7 @@ pub(crate) struct EngineMemo {
     /// live, and no other record ever takes its identity, as each identity carries the generation of its slot.
     /// The records the host holds for the records it asked for or a transaction carried, by record, which the engine
     /// holds while it holds the record.
-    pub(crate) views: Memo<*const c_void>,
+    pub(crate) views: Memo<*const crate::css::style::pipeline::Record>,
     /// The custom-property environments the engine holds for elements.
     pub(crate) held: std::cell::RefCell<HeldEnvironments>,
     /// The element style inputs the engine defers.
@@ -1229,7 +1229,10 @@ impl DeferredInputs {
 
 /// The record the host holds for `style_record` the host has without asking: one it asked for before, or one the style
 /// transaction it drains carried. A published record never changes while it is live.
-pub(crate) fn known_host_record(host: &DocumentHost, style_record: u64) -> Option<*const c_void> {
+pub(crate) fn known_host_record(
+    host: &DocumentHost,
+    style_record: u64,
+) -> Option<*const crate::css::style::pipeline::Record> {
     let memo = &host.engine_memo().views;
     if let Some(style) = memo.get(style_record) {
         return Some(style);
@@ -1244,7 +1247,11 @@ pub(crate) fn known_host_record(host: &DocumentHost, style_record: u64) -> Optio
 /// before it lets go of the baselines. The host knows it without asking: it follows every baseline it records in the
 /// engine.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u32) -> *const c_void {
+pub extern "C" fn style_engine_transition_baseline(
+    host: &DocumentHost,
+    node: u32,
+    pseudo_kind: u32,
+) -> *const crate::css::style::pipeline::Record {
     let pseudo_kind = pseudo_kind as u8;
     StyleNodeID::from_raw(node)
         .and_then(|node| {
@@ -1254,7 +1261,7 @@ pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u3
                 .get(node, pseudo_kind)
                 .map(std::sync::Arc::as_ptr)
         })
-        .map_or(std::ptr::null(), |record| record.cast())
+        .unwrap_or(std::ptr::null())
 }
 
 /// Whether the engine has a style update pending, which the host knows without asking where it wrote nothing
@@ -1533,33 +1540,25 @@ pub extern "C" fn style_engine_trim_scratch(host: &DocumentHost, read: &crate::r
 
 /// A record of the allocations reports have counted, for [`style_engine_memory_beyond`].
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_memory_sizer_create() -> *mut c_void {
-    Box::into_raw(Box::<crate::heap_size::HeapSizer>::default()).cast()
+pub extern "C" fn style_engine_memory_sizer_create() -> *mut crate::heap_size::HeapSizer {
+    Box::into_raw(Box::default())
 }
 
-/// # Safety
-///
-/// `sizer` must come from [`style_engine_memory_sizer_create`], and is not used again.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_memory_sizer_destroy(sizer: *mut c_void) {
-    // SAFETY: Guaranteed by the caller.
-    drop(unsafe { Box::from_raw(sizer.cast::<crate::heap_size::HeapSizer>()) });
+pub extern "C" fn style_engine_memory_sizer_destroy(
+    sizer: crate::css::ffi_support::OwnedBox<crate::heap_size::HeapSizer>,
+) {
+    drop(sizer);
 }
 
 /// What the document's style engine holds on the heap that the reports `sizer` has been through have not counted.
-///
-/// # Safety
-///
-/// `sizer` must come from [`style_engine_memory_sizer_create`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_memory_beyond(
+pub extern "C" fn style_engine_memory_beyond(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    sizer: *mut c_void,
+    sizer: &mut crate::heap_size::HeapSizer,
 ) -> u64 {
     use super::memory_report::{MemoryOwner, MemoryReport};
-    // SAFETY: Guaranteed by the caller.
-    let sizer = unsafe { &mut *sizer.cast::<crate::heap_size::HeapSizer>() };
     let report = MemoryReport::past(std::mem::take(sizer));
     let mut report = with_engine_and_arena(read, host, |engine, arena| engine.memory_report_into(report, arena));
     host.engine_memo().projection.borrow().report_memory(&mut report);

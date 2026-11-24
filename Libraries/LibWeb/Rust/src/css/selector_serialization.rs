@@ -302,16 +302,15 @@ fn serialize_selector(sink: &mut TextSink, selector: Selector<'_>, context: &Nam
 }
 
 /// # Safety
-/// `selector` and all prefix views must remain valid for the duration of this call.
+/// All prefix views must remain valid for the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_serialize(
-    selector: *const RustSelector,
+    selector: &RustSelector,
     has_default_namespace: bool,
     prefixes_mapping_to_default: *const FfiStringView,
     prefix_count: usize,
 ) -> usize {
     unsafe {
-        assert!(!selector.is_null());
         let prefix_views = if prefix_count == 0 {
             &[]
         } else {
@@ -334,7 +333,7 @@ pub unsafe extern "C" fn rust_selector_serialize(
             prefixes_mapping_to_default: &prefixes,
         };
         let mut sink = TextSink::new();
-        serialize_selector(&mut sink, (*selector).compiled(), &context);
+        serialize_selector(&mut sink, selector.compiled(), &context);
         crate::css::serialize::sink_into_raw(sink)
     }
 }

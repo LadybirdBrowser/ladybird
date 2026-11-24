@@ -9,7 +9,7 @@
 
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::declaration_block::{DeclarationBlock, SharedDeclarationBlock};
-use crate::css::ffi_support::{FfiUtf16View, ascii_lowercase};
+use crate::css::ffi_support::{FfiUtf16View, OwnedBox, ascii_lowercase};
 use crate::css::style_value::RetainedString;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hasher};
@@ -129,12 +129,9 @@ pub extern "C" fn rust_inline_style_blocks_create() -> *mut InlineStyleBlocks {
     Box::into_raw(Box::new(InlineStyleBlocks::new()))
 }
 
-/// # Safety
-/// `blocks` must come from `rust_inline_style_blocks_create` and not be used again.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_inline_style_blocks_destroy(blocks: *mut InlineStyleBlocks) {
-    assert!(!blocks.is_null());
-    drop(unsafe { Box::from_raw(blocks) });
+pub extern "C" fn rust_inline_style_blocks_destroy(blocks: OwnedBox<InlineStyleBlocks>) {
+    drop(blocks);
 }
 
 /// A new declaration block holding the block of `text`, or null when no element wrote it.

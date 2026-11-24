@@ -697,22 +697,17 @@ pub(super) fn finalize_animated_box_type(
 /// Applies the box type transformation and element adjustments to the animated composition `animated_overlay` holds
 /// over the longhands of `record`, whose display before the box type transformation the host settled as
 /// `display_before_box_type_transformation`.
-///
-/// # Safety
-/// `record` must be a style record the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_finalize_animated_box_type(
+pub extern "C" fn rust_finalize_animated_box_type(
     box_type: FfiBoxTypeTransformationInput,
-    record: *const c_void,
+    record: &crate::css::style::pipeline::Record,
     display_before_box_type_transformation: u32,
     animated_overlay: &mut AnimatedOverlay,
     input_line_height_metrics: Option<&FfiInputLineHeightMetrics>,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let longhands = unsafe { crate::css::style::ViewLonghands::of_raw_record(record) };
     finalize_animated_box_type(
         box_type,
-        longhands,
+        crate::css::style::ViewLonghands::of_record(record),
         display_before_box_type_transformation,
         animated_overlay,
         input_line_height_metrics,

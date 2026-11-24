@@ -128,7 +128,7 @@ impl SharedLonghands {
 }
 
 impl<'a> ViewLonghands<'a> {
-    pub(super) fn of_record(record: &'a super::pipeline::Record) -> Self {
+    pub(crate) fn of_record(record: &'a super::pipeline::Record) -> Self {
         Self(record)
     }
 

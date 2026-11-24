@@ -5,6 +5,8 @@
  */
 
 use super::*;
+use crate::css::ffi_support::{ArcRef, OwnedArc};
+use crate::css::style::pipeline::Record;
 
 /// The record the host holds for a base or live animation-overlay record, which the engine holds while it holds the
 /// identity, or null for an identity it does not hold. The host counts a reference to it to hold it longer.
@@ -13,7 +15,7 @@ pub extern "C" fn style_engine_host_record(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
-) -> *const c_void {
+) -> *const Record {
     if let Some(record) = crate::css::style::engine_calls::known_host_record(host, style_record) {
         return record;
     }
@@ -25,11 +27,11 @@ pub extern "C" fn style_engine_host_record(
 }
 
 /// The record `engine` holds for the host for `style_record`, or null.
-pub(in crate::css::style) fn host_record(engine: &StyleEngine, style_record: u64) -> *const c_void {
+pub(in crate::css::style) fn host_record(engine: &StyleEngine, style_record: u64) -> *const Record {
     engine
         .computed_group_sets
         .host_record(style_record)
-        .map_or(std::ptr::null(), |record| std::sync::Arc::as_ptr(record).cast())
+        .map_or(std::ptr::null(), std::sync::Arc::as_ptr)
 }
 
 /// The groups beneath the animation overlay of the record `view` views, which are its own groups
@@ -55,12 +57,8 @@ pub unsafe extern "C" fn style_engine_view_display_is_none_ignoring_animations(v
         return false;
     };
     // SAFETY: Guaranteed by the caller.
-    let display_none_is_animated = unsafe {
-        view.longhand_table_record
-            .cast::<crate::css::style::pipeline::Record>()
-            .as_ref()
-    }
-    .is_some_and(|record| record.rare().reads.display_none_is_animated);
+    let display_none_is_animated = unsafe { view.longhand_table_record.as_ref() }
+        .is_some_and(|record| record.rare().reads.display_none_is_animated);
     crate::css::computed_value_views::ComputedValuesView::of(groups)
         .display()
         .is_none()
@@ -68,29 +66,21 @@ pub unsafe extern "C" fn style_engine_view_display_is_none_ignoring_animations(v
 }
 
 /// The view of `record`, a record the host holds, which reads nothing but the record.
-///
-/// # Safety
-/// `record` must be a record the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_record_view(record: *const c_void) -> FfiStyleRecordView {
-    // SAFETY: Guaranteed by the caller.
-    FfiStyleRecordView::of_record(unsafe { &*record.cast::<crate::css::style::pipeline::Record>() })
+pub extern "C" fn style_engine_record_view(record: &Record) -> FfiStyleRecordView {
+    FfiStyleRecordView::of_record(record)
 }
 
 /// The identity the engine names `record`, a record the host holds, by: that of the slot holding
 /// it, or of the sample it is, or zero for a record no slot holds any longer.
-///
-/// # Safety
-/// As for [`style_engine_record_view`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_record_identity(record: *const c_void) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    host_record_identity(unsafe { &*record.cast::<crate::css::style::pipeline::Record>() })
+pub extern "C" fn style_engine_record_identity(record: &Record) -> u64 {
+    host_record_identity(record)
 }
 
 /// The identity the engine names `record`, a record the host holds, by, as
 /// [`style_engine_record_identity`] answers it.
-pub(in crate::css::style) fn host_record_identity(record: &crate::css::style::pipeline::Record) -> u64 {
+pub(in crate::css::style) fn host_record_identity(record: &Record) -> u64 {
     match record.sample_of_animations() {
         Some(sample) => sample.identity.raw(),
         None => record.installed_record().map_or(0, |installed| {
@@ -101,13 +91,8 @@ pub(in crate::css::style) fn host_record_identity(record: &crate::css::style::pi
 
 /// The identity of the custom-property environment `record`, a record the host holds, was
 /// resolved in: that of the store it holds, or of the store of the record a sample samples over.
-///
-/// # Safety
-/// As for [`style_engine_record_view`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_record_custom_property_environment(record: *const c_void) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    let record = unsafe { &*record.cast::<crate::css::style::pipeline::Record>() };
+pub extern "C" fn style_engine_record_custom_property_environment(record: &Record) -> u64 {
     record
         .sample_of_animations()
         .map_or(record, |sample| &sample.base)
@@ -115,14 +100,9 @@ pub unsafe extern "C" fn style_engine_record_custom_property_environment(record:
 }
 
 /// Takes one more reference to `record`, a style record a view named.
-///
-/// # Safety
-/// `record` must be the `longhand_table_record` of a view of a record the host holds live, or one
-/// the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_record_retain(record: *const c_void) {
-    // SAFETY: Guaranteed by the caller: the record lives in an Arc.
-    unsafe { std::sync::Arc::increment_strong_count(record.cast::<crate::css::style::pipeline::Record>()) };
+pub extern "C" fn style_engine_record_retain(record: ArcRef<'_, Record>) {
+    let _ = std::sync::Arc::into_raw(record.to_arc());
 }
 
 /// A reference of the engine's own to `record`, a record the host holds, or none for null.
@@ -141,13 +121,9 @@ pub(crate) unsafe fn retain_host_record(
 }
 
 /// Lets go of a reference taken with `style_engine_record_retain`.
-///
-/// # Safety
-/// `record` must be a record the caller took a reference to with `style_engine_record_retain`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_record_release(record: *const c_void) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { std::sync::Arc::decrement_strong_count(record.cast::<crate::css::style::pipeline::Record>()) };
+pub extern "C" fn style_engine_record_release(record: OwnedArc<Record>) {
+    drop(record);
 }
 
 /// Whether the `transition-*` values of the record `view` views give any longhand a matching
@@ -297,7 +273,7 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
     hints: *const c_void,
     hint_count: usize,
     inline_block: *const c_void,
-) -> *const c_void {
+) -> *const Record {
     // SAFETY: Guaranteed by the caller.
     let record = with_engine(read, host, |engine| {
         use crate::css::declaration_block::{DeclarationBlock, FfiDeclaredProperty, declaration_from_view};
@@ -347,27 +323,23 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
             engine.declared_only_record(subject, declared)
         })
     });
-    record.map_or(std::ptr::null(), |record| std::sync::Arc::into_raw(record).cast())
+    record.map_or(std::ptr::null(), std::sync::Arc::into_raw)
 }
 
 /// The store of an environment the engine resolved, with one strong reference transferred to the
 /// caller, and the environment it was resolved over; null for an environment C++ published.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `parent` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
+pub extern "C" fn style_engine_borrow_engine_custom_property_environment(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     identity: u64,
-    parent: *mut u64,
+    parent: &mut u64,
 ) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
     with_engine(read, host, |engine| {
         let Some((store, parent_identity)) = engine.custom_property_environments.engine_environment(identity) else {
             return std::ptr::null();
         };
-        unsafe { *parent = parent_identity };
+        *parent = parent_identity;
         std::sync::Arc::into_raw(std::sync::Arc::clone(store)).cast()
     })
 }

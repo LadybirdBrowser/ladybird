@@ -39,7 +39,7 @@ pub struct StyleSwap {
     style_node: u32,
     slot: PseudoSlot,
     highlight_name: u32,
-    record: *const std::ffi::c_void,
+    record: *const Record,
 }
 
 // SAFETY: The pointer only borrows the immutable record the swap installs, which the render side holds until the host
@@ -63,8 +63,7 @@ impl StyleSwap {
                     .computed_group_sets
                     .host_record(raw)
                     .expect("an installed record is held for the host"),
-            )
-            .cast(),
+            ),
         };
         Self {
             style_node: node.raw(),
@@ -76,7 +75,7 @@ impl StyleSwap {
 
     fn style_record(&self) -> u64 {
         // SAFETY: The render side holds the record while the swap lives.
-        unsafe { self.record.cast::<Record>().as_ref() }.map_or(0, bridge::host_record_identity)
+        unsafe { self.record.as_ref() }.map_or(0, bridge::host_record_identity)
     }
 }
 
@@ -134,7 +133,7 @@ impl StyleInstallation {
                 match swap.slot {
                     // SAFETY: The render side holds the record while the swap lives.
                     PseudoSlot::ELEMENT => {
-                        state.set_held_style_record(node, unsafe { bridge::retain_host_record(swap.record) });
+                        state.set_held_style_record(node, unsafe { bridge::retain_host_record(swap.record.cast()) });
                     }
                     PseudoSlot(kind) => {
                         let target = super::PseudoElementTarget {

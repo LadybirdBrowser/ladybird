@@ -116,6 +116,7 @@ unsafe extern "C" {
         element: *mut HostElement,
     );
     fn web_css_style_reaction_element(application: *mut HostStyleReactionApplication, node: u32) -> FfiReactionElement;
+    #[expect(improper_ctypes, reason = "C++ holds the record a swap installs opaque, by pointer")]
     fn web_css_install_styles(
         application: *mut HostStyleReactionApplication,
         swaps: *const StyleSwap,

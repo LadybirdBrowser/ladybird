@@ -321,9 +321,9 @@ inline BoxSizing box_sizing_from_reset_bits(ComputedValuesFFI::ResetBits bits) {
 class StyleRecordRef {
 public:
     StyleRecordRef() = default;
-    explicit StyleRecordRef(void const* record);
+    explicit StyleRecordRef(StyleEngineFFI::Record const* record);
     // Takes over the reference to `record` the caller holds.
-    static StyleRecordRef adopt(void const* record)
+    static StyleRecordRef adopt(StyleEngineFFI::Record const* record)
     {
         StyleRecordRef adopted;
         adopted.m_record = record;
@@ -353,10 +353,10 @@ public:
         return *this;
     }
 
-    void const* get() const { return m_record; }
+    StyleEngineFFI::Record const* get() const { return m_record; }
 
 private:
-    void const* m_record { nullptr };
+    StyleEngineFFI::Record const* m_record { nullptr };
 };
 
 class WEB_API ComputedValues final : public RefCounted<ComputedValues> {

@@ -26,7 +26,7 @@ use crate::css::calc::CanonicalNumericType;
 use crate::css::cascaded_properties::parse_substituted_value;
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_tokenizer::{CssNumberType, ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
-use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
+use crate::css::ffi_support::{ArcRef, FfiUtf16View, OwnedArc};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{
     arbitrary_substitution_function, arguments_are_valid, collect_arbitrary_substitution_function_presence,
@@ -4699,43 +4699,28 @@ pub extern "C" fn rust_custom_property_store_destroy(store: OwnedArc<CustomPrope
 }
 
 /// Takes another reference to `store`, which the host holds as an environment.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_retain(store: *const c_void) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { Arc::increment_strong_count(store.cast::<CustomPropertyStore>()) };
+pub extern "C" fn rust_custom_property_store_retain(store: ArcRef<'_, CustomPropertyStore>) {
+    let _ = Arc::into_raw(store.to_arc());
 }
 
 /// How many references to `store` there are.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_reference_count(store: *const c_void) -> usize {
-    // SAFETY: Guaranteed by the caller: the store lives in an Arc another reference keeps.
-    let store = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
-    Arc::strong_count(&store)
+pub extern "C" fn rust_custom_property_store_reference_count(store: ArcRef<'_, CustomPropertyStore>) -> usize {
+    // NB: The reference this takes is not one of those it counts.
+    Arc::strong_count(&store.to_arc()) - 1
 }
 
 /// How many stores `store` lies over, as its chain counts them.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_ancestor_count(store: *const c_void) -> u8 {
-    unsafe { &*store.cast::<CustomPropertyStore>() }.ancestor_count
+pub extern "C" fn rust_custom_property_store_ancestor_count(store: &CustomPropertyStore) -> u8 {
+    store.ancestor_count
 }
 
 /// The store `store` lies over in its chain, or, for the values an element's animations sample,
 /// the store of the environment they lie over; borrowed, or null.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_chain_parent(store: *const c_void) -> *const c_void {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
+pub extern "C" fn rust_custom_property_store_chain_parent(store: &CustomPropertyStore) -> *const c_void {
     store
         .animation_overlay_base
         .as_ref()
@@ -4745,16 +4730,12 @@ pub unsafe extern "C" fn rust_custom_property_store_chain_parent(store: *const c
 
 /// The value `name_raw` takes in `store`, or in a store it lies over, borrowed, with whether it
 /// is important in `important`; null where none of them holds a value of it.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_get(
-    store: *const c_void,
+pub extern "C" fn rust_custom_property_store_get(
+    store: &CustomPropertyStore,
     name_raw: usize,
     important: &mut bool,
 ) -> *const c_void {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
     match store.get(name_raw) {
         Some(entry) => {
             *important = entry.important;
@@ -4771,12 +4752,12 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
 /// As for [`rust_custom_property_store_for_each_own_entry`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_for_each_entry(
-    store: *const c_void,
+    store: &CustomPropertyStore,
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, usize, bool, *const c_void),
 ) {
     let mut seen = crate::fast_hash::FastSet::default();
-    let mut current = Some(unsafe { &*store.cast::<CustomPropertyStore>() });
+    let mut current = Some(store);
     while let Some(store) = current {
         for (name_raw, entry) in store.own_values.iter() {
             if seen.insert(name_raw) {
@@ -4794,12 +4775,11 @@ pub unsafe extern "C" fn rust_custom_property_store_for_each_entry(
 /// As for [`rust_custom_property_store_for_each_own_entry`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_for_each_own_value(
-    store: *const c_void,
+    store: &CustomPropertyStore,
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, usize, bool, *const c_void),
 ) {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
-    unsafe { rust_custom_property_store_for_each_own_entry(std::ptr::from_ref(store).cast(), context, callback) };
+    unsafe { rust_custom_property_store_for_each_own_entry(store, context, callback) };
     for (name_raw, entry) in store.own_values.iter() {
         if entry.declared.is_none() {
             unsafe { callback(context, name_raw, entry.important, entry.value.pointer().cast()) };
@@ -4808,30 +4788,21 @@ pub unsafe extern "C" fn rust_custom_property_store_for_each_own_value(
 }
 
 /// How many custom properties `store` declares itself.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_declared_count(store: *const c_void) -> usize {
-    unsafe { &*store.cast::<CustomPropertyStore>() }.declared_count()
+pub extern "C" fn rust_custom_property_store_declared_count(store: &CustomPropertyStore) -> usize {
+    store.declared_count()
 }
 
 /// How many custom properties `store` holds a value of itself.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_own_count(store: *const c_void) -> usize {
-    unsafe { &*store.cast::<CustomPropertyStore>() }.own_values.len()
+pub extern "C" fn rust_custom_property_store_own_count(store: &CustomPropertyStore) -> usize {
+    store.own_values.len()
 }
 
 /// Whether neither `store` nor any store it lies over holds a value.
-///
-/// # Safety
-/// `store` must be a live store pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_is_empty(store: *const c_void) -> bool {
-    let mut current = Some(unsafe { &*store.cast::<CustomPropertyStore>() });
+pub extern "C" fn rust_custom_property_store_is_empty(store: &CustomPropertyStore) -> bool {
+    let mut current = Some(store);
     while let Some(store) = current {
         if !store.own_values.is_empty() {
             return false;
@@ -4842,17 +4813,12 @@ pub unsafe extern "C" fn rust_custom_property_store_is_empty(store: *const c_voi
 }
 
 /// Whether `store` declares `name_raw` itself with a value equal to `data`.
-///
-/// # Safety
-/// `store` must be a live store pointer and `data` a live style value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_declares_value(
-    store: *const c_void,
+pub extern "C" fn rust_custom_property_store_declares_value(
+    store: &CustomPropertyStore,
     name_raw: usize,
-    data: *const c_void,
+    data: &StyleValueData,
 ) -> bool {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
-    let data = unsafe { &*data.cast::<StyleValueData>() };
     store
         .own_values
         .get(&name_raw)
@@ -4863,15 +4829,13 @@ pub unsafe extern "C" fn rust_custom_property_store_declares_value(
 /// the fly string it is named by and a borrowed value.
 ///
 /// # Safety
-/// `store` must be a live store pointer, and `callback` must not retain the value past the call
-/// without retaining it.
+/// `callback` must not retain the value past the call without retaining it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_for_each_own_entry(
-    store: *const c_void,
+    store: &CustomPropertyStore,
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, usize, bool, *const c_void),
 ) {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
     for name_raw in store.declared_names() {
         let entry = &store.own_values[&name_raw];
         unsafe {

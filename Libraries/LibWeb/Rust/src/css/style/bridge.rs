@@ -150,7 +150,7 @@ pub struct FfiEngineComputedRecord {
     pub style_record: u64,
     /// The record the host holds for `style_record`, which the engine holds until the element's
     /// styles are next read or settled, or null where the demand answered none.
-    pub host_record: *const c_void,
+    pub host_record: *const super::pipeline::Record,
 }
 
 impl Default for FfiEngineComputedRecord {
@@ -486,7 +486,7 @@ pub struct FfiStyleRecordView {
     pub groups: *const c_void,
     /// The style record that makes a table for each reader asking for one, which holds the
     /// payloads beneath the animation overlay where the view carries one.
-    pub longhand_table_record: *const c_void,
+    pub longhand_table_record: *const super::pipeline::Record,
     /// The record's animation overlay, which only the record of an element animating carries.
     pub animated_overlay: *const c_void,
     pub dependency_flags: u8,
@@ -503,14 +503,14 @@ impl FfiStyleRecordView {
         match record.sample_of_animations() {
             Some(sample) => Self {
                 groups: std::ptr::from_ref(&record.payloads).cast(),
-                longhand_table_record: std::sync::Arc::as_ptr(&sample.base).cast(),
+                longhand_table_record: std::sync::Arc::as_ptr(&sample.base),
                 animated_overlay: std::sync::Arc::as_ptr(&sample.animated_overlay).cast(),
                 dependency_flags: sample.dependency_flags,
                 present: true,
             },
             None => Self {
                 groups: std::ptr::from_ref(&record.payloads).cast(),
-                longhand_table_record: std::ptr::from_ref(record).cast(),
+                longhand_table_record: std::ptr::from_ref(record),
                 animated_overlay: std::ptr::null(),
                 dependency_flags: record.view_dependency_flags(),
                 present: true,
@@ -526,8 +526,7 @@ impl FfiStyleRecordView {
     /// The view must name a record that stays live for as long as the borrow.
     pub(crate) unsafe fn longhands(&self) -> Option<super::ViewLonghands<'_>> {
         // SAFETY: Guaranteed by the caller.
-        unsafe { self.longhand_table_record.cast::<super::pipeline::Record>().as_ref() }
-            .map(super::ViewLonghands::of_record)
+        unsafe { self.longhand_table_record.as_ref() }.map(super::ViewLonghands::of_record)
     }
 
     /// The record's animation overlay, if it carries one.
@@ -548,7 +547,7 @@ impl FfiStyleRecordView {
     /// As for [`Self::longhands`].
     pub(crate) unsafe fn base_groups(&self) -> Option<&crate::css::computed_values::StyleGroups> {
         // SAFETY: Guaranteed by the caller.
-        match unsafe { self.longhand_table_record.cast::<super::pipeline::Record>().as_ref() } {
+        match unsafe { self.longhand_table_record.as_ref() } {
             Some(record) => Some(&record.payloads),
             // SAFETY: Guaranteed by the caller.
             None => unsafe { self.groups().as_ref() },
@@ -1581,9 +1580,9 @@ pub(crate) fn document_style_record(
     flags: crate::css::computed_longhand_table::LonghandTableFlags,
     dependency_flags: u8,
     defaults: &crate::css::computed_values::DefaultGroups,
-) -> *const c_void {
+) -> *const super::pipeline::Record {
     let record = super::pipeline::Record::from_values(values, flags, dependency_flags, defaults);
-    std::sync::Arc::into_raw(std::sync::Arc::new(record)).cast()
+    std::sync::Arc::into_raw(std::sync::Arc::new(record))
 }
 
 /// Builds every style group of the document's own style from the longhands of `record`, which

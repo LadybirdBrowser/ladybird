@@ -398,12 +398,7 @@ pub extern "C" fn rust_selector_destroy(selector: OwnedBox<RustSelector>) {
 }
 
 /// Returns the selector's specificity in the packed representation used by the DevTools protocol.
-///
-/// # Safety
-/// `selector` must point to a live selector handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector) -> u32 {
-    assert!(!selector.is_null());
-    // SAFETY: The caller guarantees that the selector handle remains valid for this call.
-    unsafe { &(*selector).selector }.view().specificity().packed()
+pub extern "C" fn rust_selector_specificity(selector: &RustSelector) -> u32 {
+    selector.selector.view().specificity().packed()
 }

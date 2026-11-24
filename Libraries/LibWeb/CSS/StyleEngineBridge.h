@@ -204,7 +204,7 @@ public:
     // The record the engine holds for the host for a record identity, or null for one it does not hold. The engine
     // holds it while it holds the identity, which a base record or an assigned or pinned animation-overlay generation
     // keeps; an InstalledStyle holds it longer.
-    [[nodiscard]] void const* host_record(Layout::BegunRead const& read, StyleRecordID style_record) const;
+    [[nodiscard]] StyleEngineFFI::Record const* host_record(Layout::BegunRead const& read, StyleRecordID style_record) const;
     // A sheet the host numbers itself, which the engine adds as it applies the host's writes.
     [[nodiscard]] SheetID add_sheet(StyleEngineFFI::FfiCascadeOrigin origin);
     // Ends a replacement of the sheet's rules that style_engine_begin_sheet_rules_replacement() began.

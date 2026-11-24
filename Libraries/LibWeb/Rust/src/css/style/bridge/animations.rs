@@ -41,23 +41,22 @@ pub(crate) fn publish_style_rule_selectors(
 /// record's own overlay. The host reads it from the record it installed, as the engine would.
 ///
 /// # Safety
-/// `installed` must view a record the host holds live, and `animated_overlay` must be null or live, for this call.
+/// `installed` must view a record the host holds live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_animation_overlay_changed(
     installed: &FfiStyleRecordView,
-    animated_overlay: *const c_void,
+    animated_overlay: Option<&AnimatedOverlay>,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let (longhands, old_overlay, new_overlay) = unsafe {
+    let (longhands, old_overlay) = unsafe {
         (
             installed
                 .longhands()
                 .expect("the record of an element carries its longhands"),
             installed.animated_overlay(),
-            animated_overlay.cast::<AnimatedOverlay>().as_ref(),
         )
     };
-    crate::css::style::style_invalidation::animation_overlay_changed(longhands, old_overlay, new_overlay)
+    crate::css::style::style_invalidation::animation_overlay_changed(longhands, old_overlay, animated_overlay)
 }
 
 /// What the host hands over to have an element's sampled animation overlay composed over the record it installed and
@@ -95,7 +94,7 @@ pub struct FfiAnimationOverlayPublication {
     pub publication: FfiStyleRecordDelta,
     /// The record the host holds for the record the target holds now, with a reference the host takes over: a later
     /// publication of the same call can retire the record.
-    pub record: *const c_void,
+    pub record: *const crate::css::style::pipeline::Record,
     /// Whether the overlay named a value the groups could not be told from, or nothing at all.
     pub rebuilt_every_group: bool,
 }
@@ -293,9 +292,7 @@ pub(in crate::css::style) unsafe fn publish_sampled_animation_overlay(
         record: engine
             .computed_group_sets
             .host_record(publication.new_style_record)
-            .map_or(std::ptr::null(), |record| {
-                std::sync::Arc::into_raw(record.clone()).cast()
-            }),
+            .map_or(std::ptr::null(), |record| std::sync::Arc::into_raw(record.clone())),
         rebuilt_every_group: rebuilt.every_group,
     })
 }

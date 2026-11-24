@@ -2903,6 +2903,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             "\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlock; struct NativeRule; struct NativeStyleSheet; }",
         );
 
+    // An element's style record and the sizer of a memory report are opaque to C++, which holds each by pointer, and so
+    // is an element's animation overlay, which crosses as the computed values header declares it.
+    style_engine_config.export.rename.insert(
+        "AnimatedOverlay".to_string(),
+        "Web::CSS::ComputedValuesFFI::AnimatedOverlay".to_string(),
+    );
+    style_engine_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str(
+            "\nnamespace Web::CSS::StyleEngineFFI { struct Record; struct HeapSizer; }\nnamespace Web::CSS::ComputedValuesFFI { struct AnimatedOverlay; }",
+        );
+
     // The effects whose descriptions and samples cross here are named by their identities.
     declare_animation_effect_id_of_animations_header(&mut style_engine_config);
     generate_ffi_header(
@@ -3010,6 +3023,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(name.to_string(), "void".to_string());
         computed_values_config.export.exclude.push(name.to_string());
     }
+    // The style record a computed value is read from is the style engine header's.
+    computed_values_config
+        .export
+        .rename
+        .insert("Record".to_string(), "Web::CSS::StyleEngineFFI::Record".to_string());
+    computed_values_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::StyleEngineFFI { struct Record; }");
     computed_values_config.export.rename.insert(
         "DeclarationBlockHeader".to_string(),
         "Web::CSS::Parser::ValueParserFFI::DeclarationBlockHeader".to_string(),
