@@ -109,6 +109,7 @@ pub enum FfiActionKind {
     Write,
     Close,
     SystemResolve,
+    CancelSystemResolve,
     LookupSucceeded,
     LookupFailed,
 }
@@ -126,7 +127,7 @@ pub struct FfiAction {
     pub server_name: FfiBytes,
     /// Write.
     pub bytes: FfiBytes,
-    /// SystemResolve.
+    /// SystemResolve, CancelSystemResolve.
     pub request: u64,
     pub name: FfiBytes,
     pub ipv6: bool,
@@ -266,6 +267,15 @@ pub unsafe extern "C" fn dns_resolver_set_loopback_domains(
             .map(|domain| unsafe { domain.to_string_lossy() })
             .collect();
         resolver.resolver.set_loopback_domains(domains);
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn dns_resolver_set_system_resolver_timeout(resolver: &mut DnsResolver, timeout_ms: u64) {
+    abort_on_panic(|| {
+        resolver
+            .resolver
+            .set_system_resolver_timeout(Duration::from_millis(timeout_ms));
     });
 }
 
@@ -446,6 +456,10 @@ pub unsafe extern "C" fn dns_resolver_take_action(resolver: &mut DnsResolver, ac
                 action.request = *request;
                 action.name = FfiBytes::of(name.as_bytes());
                 action.ipv6 = *family == AddressFamily::V6;
+            }
+            Action::CancelSystemResolve { request } => {
+                action.kind = FfiActionKind::CancelSystemResolve;
+                action.request = *request;
             }
             Action::LookupDone { lookup, result } => {
                 action.lookup = *lookup;
