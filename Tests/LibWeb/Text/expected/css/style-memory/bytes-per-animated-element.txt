@@ -27,7 +27,7 @@ animation: 500 elements
   cppInstalledStyles: within 8
   cppHintProperties: within 0
   animationObjects: within 0
-  animationRecords: within 880
+  animationRecords: within 896
 transition: 500 elements
   initial: within 0
   ruleStore: within 0
@@ -57,4 +57,4 @@ transition: 500 elements
   cppInstalledStyles: within 8
   cppHintProperties: within 0
   animationObjects: within 0
-  animationRecords: within 1066
+  animationRecords: within 1082

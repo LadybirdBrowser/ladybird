@@ -210,7 +210,7 @@ impl AnimationRecord {
         // NB: A compositor animation runs from an anchor on the monotonic clock, at the playback rate, through one
         //     iteration or an infinite number of them.
         let timing = state.effect;
-        let rate = playback.playback_rate;
+        let rate = playback.effective_playback_rate();
         let runs_forward = rate > 0.0 && rate.is_finite();
         let runs_on_a_monotonic_clock = state.play_state == AnimationPlayState::Running
             && !playback.pending()
@@ -236,13 +236,18 @@ impl AnimationRecord {
             state.compositor_anchor_local_time = local_time.value;
             if !state.is_initial_pending_css_transition {
                 state.compositor_anchor = FfiCompositorAnchorKind::LastAnimationFrame;
-            } else if let Some(origin_relative_time) = timeline.and_then(|timeline| {
-                // OPTIMIZATION: A new CSS transition is play-pending until the next animation update. Start its
-                //               compositor animation at the style change event time without resolving its pending task.
-                timeline.convert_a_timeline_time_to_an_origin_relative_time(Some(TimeValue::milliseconds(
-                    self.css_transition_style_change_event_time(),
-                )))
-            }) {
+            } else if let Some(origin_relative_time) =
+                timeline
+                    .zip(self.css_transition_initial_ready_time())
+                    .and_then(|(timeline, ready_time)| {
+                        // OPTIMIZATION: A new CSS transition is play-pending until the next animation update. Start its
+                        //               compositor animation at the time its play becomes ready without resolving its
+                        //               pending task.
+                        timeline.convert_a_timeline_time_to_an_origin_relative_time(Some(TimeValue::milliseconds(
+                            ready_time,
+                        )))
+                    })
+            {
                 state.compositor_anchor = FfiCompositorAnchorKind::OriginRelativeTime;
                 state.compositor_anchor_origin_relative_time = origin_relative_time;
             }

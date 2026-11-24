@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .target {
+        width: 0px;
+        height: 10px;
+        transition: width 60s linear;
+    }
+
+    #delayed {
+        width: 20px;
+        height: 20px;
+        opacity: 1;
+        transition: opacity 60s linear;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div class="target" id="rendered"></div>
+<div class="target" id="read"></div>
+<div id="delayed"></div>
+<div class="target" id="replayed"></div>
+<div class="target" id="scrolled"></div>
+<div id="spacer"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderFrameAfter(milliseconds) {
+        await new Promise(resolve => setTimeout(resolve, milliseconds));
+        const frameTime = new Promise(resolve => requestAnimationFrame(() => resolve(document.timeline.currentTime)));
+        internals.injectRenderingOpportunity(performance.now());
+        const time = await frameTime;
+        await nextTask();
+        return time;
+    }
+
+    asyncTest(async done => {
+        // An observer of its visibility keeps the compositor from running a transition of its opacity.
+        new IntersectionObserver(() => {}, { trackVisibility: true, delay: 100 }).observe(delayed);
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await renderFrameAfter(0);
+
+        let renderedChangeTime;
+        requestAnimationFrame(() => {
+            renderedChangeTime = document.timeline.currentTime;
+            rendered.style.width = "100px";
+            getComputedStyle(rendered).width;
+        });
+        await renderFrameAfter(0);
+        // A style change between frames comes at the time of the frame before it.
+        const readChangeTime = await renderFrameAfter(50);
+
+        read.style.width = "100px";
+        delayed.style.opacity = "0";
+        replayed.style.width = "100px";
+        getComputedStyle(read).width;
+        delayed.getAnimations()[0].effect.updateTiming({ delay: 200 });
+        const replayedTransition = replayed.getAnimations()[0];
+        replayedTransition.cancel();
+        await renderFrameAfter(50);
+        replayedTransition.play();
+        const replayFrameTime = await renderFrameAfter(50);
+
+        // A scroll event handler runs before the rendering update moves the timeline.
+        const scrolledChangeTime = replayFrameTime;
+        window.addEventListener("scroll", () => {
+            scrolled.style.width = "100px";
+            getComputedStyle(scrolled).width;
+        }, { once: true });
+        window.scrollTo(0, 10);
+        const scrollFrameTime = await renderFrameAfter(50);
+
+        println(`a transition a rendering update starts begins at its style change event: ${Math.abs(rendered.getAnimations()[0].startTime - renderedChangeTime) < 1}`);
+        println(`a transition a style read starts begins at its style change event: ${Math.abs(read.getAnimations()[0].startTime - readChangeTime) < 1}`);
+        println(`a delay script sets before it is ready does not move it: ${Math.abs(delayed.getAnimations()[0].startTime - readChangeTime) < 1}`);
+        println(`a transition script cancels and plays again begins at the frame after: ${Math.abs(replayedTransition.startTime - replayFrameTime) < 1}`);
+        println(`a transition a scroll event handler starts begins at its style change event: ${scrollFrameTime - scrolledChangeTime > 10 && Math.abs(scrolled.getAnimations()[0].startTime - scrolledChangeTime) < 1}`);
+
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

@@ -94,16 +94,26 @@ impl AnimationRecord {
             .expect("the hover runs animations of keyframe effects")
             .borrow();
         let mut playback = *self.playback();
-        // NB: The compositor runs a transition whose play is still pending from the time of the style change event
-        //     that started it, on the document timeline.
+        // NB: The compositor runs a transition whose play is still pending as the pending play task would start it, from
+        //     the time the play becomes ready at on the document timeline.
         if matches!(self.kind(), AnimationKind::CssTransition(_))
             && playback.pending()
             && playback.start_time.get().is_none()
             && effect.has_flag(EffectFlag::CompositorDriven)
             && clock.source == TimelineClockSource::Document
+            && let Some(ready_time) = self.css_transition_initial_ready_time()
         {
-            playback.start_time = Some(TimeValue::milliseconds(self.css_transition_style_change_event_time())).into();
-            playback.hold_time = None.into();
+            let ready_time = TimeValue::milliseconds(ready_time);
+            let playback_rate = playback.effective_playback_rate();
+            playback.playback_rate = playback_rate;
+            playback.pending_playback_rate = None.into();
+            match playback.hold_time.get() {
+                Some(hold_time) if playback_rate != 0.0 => {
+                    playback.start_time = Some(ready_time - hold_time / playback_rate).into();
+                    playback.hold_time = None.into();
+                }
+                _ => playback.start_time = Some(ready_time).into(),
+            }
         }
         EffectTimingSnapshot {
             effect: effect.timing(),

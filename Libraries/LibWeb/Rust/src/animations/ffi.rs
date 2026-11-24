@@ -1653,6 +1653,8 @@ pub struct TransitionStart {
     pub owner: FfiOwningElement,
     pub pseudo_element_serialization: usize,
     pub transition: TransitionDescription,
+    /// The time the play that starts the transition becomes ready at.
+    pub initial_ready_time: f64,
     pub delay: f64,
     pub duration: f64,
     pub timing_function: *const c_void,
@@ -1704,6 +1706,7 @@ unsafe fn start_a_provisional_transition(
             property_id: description.property_id,
             previous_phase: TransitionPhase::Idle,
             provisional: true,
+            initial_ready_time: Some(start.initial_ready_time),
             adopted_from_lane: false,
             effect_started_with: None,
         }
@@ -1963,6 +1966,7 @@ pub unsafe extern "C" fn animations_document_animations_run_transition_step(
             let start = TransitionStart {
                 owner: step.owner,
                 pseudo_element_serialization: step.pseudo_element_serialization,
+                initial_ready_time: t,
                 transition: TransitionDescription {
                     generation: step.generation,
                     start_time: t + action.delay,
@@ -2297,6 +2301,7 @@ pub unsafe extern "C" fn animations_element_animations_adopt_lane_transitions(
                 has_pseudo_element: false,
             },
             pseudo_element_serialization: 0,
+            initial_ready_time: lane_transition.start_time,
             transition: TransitionDescription {
                 generation,
                 start_time: lane_transition.start_time + lane_transition.delay,

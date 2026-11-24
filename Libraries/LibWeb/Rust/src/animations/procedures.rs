@@ -10,9 +10,7 @@
 //! A procedure changes the records it runs on and records what it asks the host to do as `HostEffects`, in the order
 //! its steps ask for them, which the host performs once it has returned.
 
-use super::animation::{
-    AnimationCell, AnimationHandle, AnimationKind, AnimationRecord, CssAnimationFlag, TransitionPhase,
-};
+use super::animation::{AnimationCell, AnimationHandle, AnimationKind, AnimationRecord, CssAnimationFlag};
 use super::composite_order::{TreeOrder, composite_order};
 use super::effect::{EffectFlag, EffectHandle};
 use super::host_effects::{HostEffectKind, HostEffects, PlaybackEventType};
@@ -186,6 +184,10 @@ impl Procedures<'_> {
 
     fn set_has_pending_play_task(&self, value: bool) {
         self.update_playback(|playback| playback.has_pending_play_task = value);
+        // The play that started a CSS transition ends with its pending play task, whether the task runs or not.
+        if !value {
+            self.end_initial_transition_play();
+        }
     }
 
     fn set_has_pending_pause_task(&self, value: bool) {
@@ -952,6 +954,15 @@ impl Procedures<'_> {
             self.set_start_time(None);
         }
 
+        // NB: Playing a CSS transition again before its pending play task ran keeps the time the play that started it
+        //     becomes ready at.
+        let initial_transition_ready_time = {
+            let animation = self.animation.borrow();
+            matches!(animation.kind(), AnimationKind::CssTransition(_))
+                .then(|| animation.css_transition().initial_ready_time)
+                .flatten()
+        };
+
         // 9. If animation has a pending play task or a pending pause task,
         if self.pending() {
             // 1. Cancel that task.
@@ -996,6 +1007,9 @@ impl Procedures<'_> {
         //     microtask such that it runs at the next microtask checkpoint, but it must not perform the task
         //     synchronously.
         self.set_has_pending_play_task(true);
+        if initial_transition_ready_time.is_some() {
+            self.animation.borrow_mut().css_transition_mut().initial_ready_time = initial_transition_ready_time;
+        }
 
         // 13. Run the procedure to update an animation’s finished state for animation with the did seek flag set to
         //     false, and the synchronously notify flag set to false.
@@ -1211,24 +1225,28 @@ impl Procedures<'_> {
         if !self.playback().has_pending_play_task || !self.is_ready() {
             return;
         }
+        let initial_transition_ready_time = self.take_initial_transition_ready_time();
         self.set_has_pending_play_task(false);
-        self.run_pending_play_task();
+        self.run_pending_play_task(initial_transition_ready_time);
     }
 
-    /// The time a new CSS transition became ready at, if it runs on the compositor from the time of its style change
-    /// event.
-    fn compositor_transition_ready_time(&self) -> Option<TimeValue> {
-        let animation = self.animation.borrow();
-        let AnimationKind::CssTransition(transition) = animation.kind() else {
-            return None;
-        };
-        let may_run_on_the_compositor = animation.effect()?.borrow().may_run_on_the_compositor();
-        if !may_run_on_the_compositor || transition.previous_phase != TransitionPhase::Idle {
+    fn end_initial_transition_play(&self) {
+        let mut animation = self.animation.borrow_mut();
+        if matches!(animation.kind(), AnimationKind::CssTransition(_)) {
+            animation.css_transition_mut().initial_ready_time = None;
+        }
+    }
+
+    fn take_initial_transition_ready_time(&mut self) -> Option<TimeValue> {
+        let mut animation = self.animation.borrow_mut();
+        if !matches!(animation.kind(), AnimationKind::CssTransition(_)) {
             return None;
         }
-        Some(TimeValue::milliseconds(
-            animation.css_transition_style_change_event_time(),
-        ))
+        animation
+            .css_transition_mut()
+            .initial_ready_time
+            .take()
+            .map(TimeValue::milliseconds)
     }
 
     /// Whether the animation is a CSS transition a compositor animation runs.
@@ -1241,7 +1259,7 @@ impl Procedures<'_> {
     }
 
     /// Step 12 of https://www.w3.org/TR/web-animations-1/#playing-an-animation-section
-    fn run_pending_play_task(&mut self) {
+    fn run_pending_play_task(&mut self, initial_transition_ready_time: Option<TimeValue>) {
         // 1. Assert that at least one of animation’s start time or hold time is resolved.
         assert!(self.start_time().is_some() || self.hold_time().is_some());
 
@@ -1249,12 +1267,10 @@ impl Procedures<'_> {
         //    became ready.
         // FIXME: We can get a more accurate time here if we record the actual instant we became ready rather than
         //        waiting to try and run this task
-        // AD-HOC: A new CSS transition of properties the compositor may run stays pending past the rendering update of
-        //         its style change event, which already rendered it, on the compositor or here. It became ready at the
-        //         time of its style change event, from which the compositor runs it, so that a style change a frame
-        //         later starts the next transition from the value on the screen rather than from this transition's
-        //         start value.
-        let ready_time = self.compositor_transition_ready_time().unwrap_or_else(|| {
+        // AD-HOC: The initial pending play task of a CSS transition uses the time of its style change event, so that a
+        //         later style change starts the next transition from the value on the screen rather than from this
+        //         transition's start value.
+        let ready_time = initial_transition_ready_time.unwrap_or_else(|| {
             self.timeline_time()
                 .expect("an animation is ready only on an active timeline")
         });
@@ -1611,6 +1627,10 @@ impl Procedures<'_> {
         }
         self.animation.borrow_mut().replace_timeline(new_timeline);
         let new_timeline = self.timeline;
+        // NB: The initial ready time of a CSS transition is a time of its old timeline.
+        if old_timeline.is_some() {
+            self.end_initial_transition_play();
+        }
 
         // AD-HOC: The normalization of the specified timing of the associated effect depends on the associated
         //         timeline. This must be done before setting the current time below to ensure consistent units.
