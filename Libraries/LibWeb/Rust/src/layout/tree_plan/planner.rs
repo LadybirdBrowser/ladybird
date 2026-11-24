@@ -2027,8 +2027,7 @@ impl<'a> Planner<'a> {
             & (box_fact::INLINE_OUTSIDE
                 | box_fact::FLOATING
                 | box_fact::ABSOLUTELY_POSITIONED
-                | box_fact::TABLE_NON_ROOT
-                | box_fact::TABLE_NON_ROOT_BEFORE_BLOCKIFICATION)
+                | box_fact::TABLE_NON_ROOT)
             == 0
             && !node_facts::kind_is_svg_content(principal_box.kind)
     }
