@@ -53,7 +53,7 @@ class WeakCreatingCell final : public GC::Cell {
 
 public:
     // Not visited, so that the foreign cell dies whether or not we do.
-    GC::RawPtr<LinkedCell> foreign_cell;
+    void* foreign_cell { nullptr };
 
 private:
     WeakCreatingCell() = default;
@@ -61,7 +61,7 @@ private:
     virtual void finalize() override
     {
         Base::finalize();
-        s_weak_to_dead_foreign_cell_was_null_while_finalizing = !GC::Weak<LinkedCell> { foreign_cell.ptr() };
+        s_weak_to_dead_foreign_cell_was_null_while_finalizing = !GC::Weak<LinkedCell> { static_cast<LinkedCell*>(foreign_cell) };
     }
 };
 

@@ -172,7 +172,6 @@ void rooted_or_not_holding_gc_pointers(State& state)
     GC::RootHashMap<int, TracedState> traced_state_map;
     GC::RootHashMap<int, GC::Ref<GC::Cell>> root_map;
     GC::RootHashTable<GC::Ptr<GC::Cell>> root_table;
-    Vector<GC::RawPtr<GC::Cell>> raw_ptrs;
     Vector<GC::Weak<GC::Cell>> weak_refs;
     Vector<NonnullOwnPtr<Entry>> owned_entries;
     Vector<EntryWithoutGCPointers> entries_without_gc_pointers;

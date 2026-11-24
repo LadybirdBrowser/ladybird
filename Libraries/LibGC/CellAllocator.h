@@ -117,7 +117,7 @@ public:
     // - The cells from the cursor up to the end are cell_size apart. There
     //   are none when the cursor is at the end.
     struct LocalFreeCells {
-        RawPtr<Cell> free_list;
+        Ptr<Cell> free_list;
         FlatPtr cursor { 0 };
         FlatPtr end { 0 };
         FlatPtr cell_size { 0 };
