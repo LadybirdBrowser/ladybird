@@ -1130,6 +1130,12 @@ void HubConnection::view_request_file_picker(u64 view_id, Web::HTML::FileFilter 
         view->on_request_file_picker(move(accepted_file_types), move(allow_multiple_files));
 }
 
+void HubConnection::view_show_validation_message(u64 view_id, Gfx::IntPoint position, Utf16String message)
+{
+    if (auto* view = RemoteView::find(view_id); view && view->on_show_validation_message)
+        view->on_show_validation_message(position, message);
+}
+
 void HubConnection::view_request_select_dropdown(u64 view_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_request_select_dropdown)

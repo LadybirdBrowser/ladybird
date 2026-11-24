@@ -43,6 +43,7 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -553,6 +554,9 @@ Utf16String FormAssociatedElement::validation_message() const
         return rare_data->custom_validity_error_message;
     }
 
+    if (suffering_from_being_missing())
+        return "Complete this required field."_utf16;
+
     // FIXME: Return more specific localized messages
     return "Invalid form"_utf16;
 }
@@ -589,21 +593,44 @@ bool FormAssociatedElement::report_validity_steps()
         // 2. If report is true, then report the problems with the constraints of this element to the user. When reporting the problem with the constraints to the user,
         //    the user agent may run the focusing steps for element, and may change the scrolling position of the document, or perform some other action that brings
         //    element to the user's attention. User agents may report more than one constraint violation, if element suffers from multiple problems at once.
-        // FIXME: Does this align with other browsers?
-        if (report && element.check_visibility({})) {
-            run_focusing_steps(&element);
-            DOM::Element::ScrollIntoViewOptions scroll_options;
-            scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
-            scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
-            scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
-            element.scroll_into_view(scroll_options, nullptr);
-        }
+        if (report)
+            show_validation_message();
 
         // 3. Return false.
         return false;
     }
 
     // 2. Return true.
+    return true;
+}
+
+bool FormAssociatedElement::show_validation_message()
+{
+    auto& element = form_associated_element_to_html_element();
+    auto validation_anchor = face_rare_data().validation_anchor.ptr();
+    auto& anchor = validation_anchor ? *validation_anchor : element;
+    if (!anchor.check_visibility({}))
+        return false;
+    run_focusing_steps(&anchor);
+    // A focus handler can hide the anchor. Keep the focus decision, and omit the prompt for the hidden field.
+    if (!anchor.check_visibility({}))
+        return true;
+    DOM::Element::ScrollIntoViewOptions options;
+    options.block = DOM::Element::ScrollLogicalPosition::Nearest;
+    options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
+    options.behavior = DOM::Element::ScrollBehavior::Instant;
+    anchor.scroll_into_view(options, nullptr);
+
+    auto& document = anchor.document();
+    auto navigable = document.navigable();
+    if (!navigable || !document.is_fully_active() || !anchor.is_connected())
+        return false;
+    auto message = element.is_form_associated_custom_element() ? face_validation_message() : validation_message();
+    if (message.is_empty())
+        return false;
+    auto rect = anchor.get_bounding_client_rect();
+    auto position = navigable->to_page_position(CSSPixelPoint { rect.left(), rect.bottom() });
+    document.page().client().page_did_show_validation_message(navigable->local_root()->id(), position, move(message));
     return true;
 }
 

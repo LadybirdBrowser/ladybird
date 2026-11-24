@@ -371,6 +371,11 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
         select_dropdown_closed(selected_item_id);
     };
 
+    on_show_validation_message = [this](Gfx::IntPoint position, Utf16String const& message) {
+        if (isVisible() && this->window()->isActiveWindow())
+            show_tooltip(map_point_to_global_position(position), qstring_from_utf16_string(message), *this);
+    };
+
     on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
         // NB: The view has a native window of its own, which Qt refuses as the transient parent of a popup. The
         //     dropdown opens from the top-level window instead, which can change when the tab moves to another one.

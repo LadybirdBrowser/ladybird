@@ -119,6 +119,8 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
     bool report_validity();
 
+    bool show_validation_message();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
     bool check_validity();
 

@@ -2265,6 +2265,11 @@ void PageClient::page_did_request_file_picker(Web::HTML::FileFilter const& accep
     client().async_did_request_file_picker(m_id, accepted_file_types, allow_multiple_files);
 }
 
+void PageClient::page_did_show_validation_message(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint position, Utf16String message)
+{
+    client().async_did_show_validation_message(m_id, local_root_id, page().css_to_device_point(position).to_type<int>(), move(message));
+}
+
 void PageClient::page_did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     client().async_did_request_select_dropdown(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), minimum_width * device_pixels_per_css_pixel(), items);

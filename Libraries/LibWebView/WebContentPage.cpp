@@ -3497,6 +3497,12 @@ void WebContentPage::did_complete_close_preflight(u64 request_id, bool approved)
         view().did_complete_close_preflight({}, request_id, approved);
 }
 
+void WebContentPage::did_show_validation_message(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint position, Utf16String message)
+{
+    if (auto target = view_position(local_root_id, position); target.has_value() && target->view.on_show_validation_message)
+        target->view.on_show_validation_message(target->view.to_widget_position(target->position), move(message));
+}
+
 void WebContentPage::did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (auto target = view_position(local_root_id, content_position); target.has_value())

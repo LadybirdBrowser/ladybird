@@ -226,6 +226,7 @@ private:
     virtual void view_cancel_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) override;
     virtual void view_tab_indicator_change(u64 view_id, WebView::TabIndicator indicator, bool visible) override;
     virtual void view_request_file_picker(u64 view_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
+    virtual void view_show_validation_message(u64 view_id, Gfx::IntPoint position, Utf16String message) override;
     virtual void view_request_select_dropdown(u64 view_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void view_picture_in_picture_control_activated(u64 view_id, Compositing::PictureInPictureControl control) override;
     virtual void view_find_in_page(u64 view_id, size_t current_match_index, Optional<size_t> total_match_count) override;

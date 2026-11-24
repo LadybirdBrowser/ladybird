@@ -412,6 +412,7 @@ public:
     decltype(Hub::View::on_tab_indicator_change) on_tab_indicator_change;
     Function<void(Hub::ViewState const& previous_state)> on_state_change;
     decltype(Hub::View::on_request_file_picker) on_request_file_picker;
+    decltype(Hub::View::on_show_validation_message) on_show_validation_message;
     decltype(Hub::View::on_request_select_dropdown) on_request_select_dropdown;
     decltype(Hub::View::on_finish_handling_key_event) on_finish_handling_key_event;
     decltype(Hub::View::on_finish_handling_mouse_event) on_finish_handling_mouse_event;

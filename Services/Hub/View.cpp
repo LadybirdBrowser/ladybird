@@ -572,6 +572,11 @@ void View::forward_callbacks_to_ui(bool is_tab)
         }
     };
 
+    on_show_validation_message = [this](auto position, auto const& message) {
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_show_validation_message(view_id(), position, message);
+    };
+
     on_request_select_dropdown = [this](auto const&... arguments) {
         if (auto* ui = ConnectionFromUI::the()) {
             push_state_to_ui();

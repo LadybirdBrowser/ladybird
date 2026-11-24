@@ -403,6 +403,7 @@ private:
     Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::CrossProcessId current_navigable_id, Utf16String name, bool no_opener, Optional<URL::URL> current_document_base_url);
     void did_close_browsing_context();
     virtual void did_complete_close_preflight(u64 request_id, bool approved) override;
+    virtual void did_show_validation_message(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint position, Utf16String message) override;
     virtual void did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_request_primary_paste() override;
     virtual void did_update_primary_selection(String text) override;
