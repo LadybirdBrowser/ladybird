@@ -94,8 +94,8 @@ void WebEngineCustomJobCallbackData::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(incumbent_settings);
-    if (active_script_context)
-        active_script_context->visit_edges(visitor);
+    visitor.visit(active_script_realm);
+    active_script_or_module.visit_edges(visitor);
 }
 
 // The VM of the window agent. A process that hosts only workers has none.
@@ -385,7 +385,13 @@ void initialize_agent(HTML::AgentType type)
         auto& incumbent_settings = callback_host_defined.incumbent_settings;
 
         // 2. Let script execution context be callback.[[HostDefined]].[[ActiveScriptContext]].
-        auto* script_execution_context = callback_host_defined.active_script_context.ptr();
+        OwnPtr<JS::ExecutionContext> script_execution_context;
+        if (callback_host_defined.active_script_realm) {
+            script_execution_context = JS::ExecutionContext::create(0, ReadonlySpan<JS::Value> {}, 0);
+            script_execution_context->function = nullptr;
+            script_execution_context->set_realm(callback_host_defined.active_script_realm);
+            script_execution_context->set_script_or_module(callback_host_defined.active_script_or_module);
+        }
 
         // 3. Prepare to run a callback with incumbent settings.
         HTML::prepare_to_run_callback(incumbent_settings);
@@ -400,7 +406,7 @@ void initialize_agent(HTML::AgentType type)
 
         // 6. If script execution context is not null, then pop script execution context from the JavaScript execution context stack.
         if (script_execution_context) {
-            VERIFY(&vm.running_execution_context() == script_execution_context);
+            VERIFY(&vm.running_execution_context() == script_execution_context.ptr());
             vm.pop_execution_context();
         }
 
@@ -526,20 +532,20 @@ void initialize_agent(HTML::AgentType type)
         auto* script = active_script();
 
         // 3. Let script execution context be null.
-        OwnPtr<JS::ExecutionContext> script_execution_context;
+        // NB: We keep the Realm and ScriptOrModule fields of the execution context, which host_call_job_callback makes.
+        GC::Ptr<JS::Realm> script_realm;
+        JS::ScriptOrModule script_or_module;
 
         // 4. If active script is not null, set script execution context to a new JavaScript execution context, with its Function field set to null,
         //    its Realm field set to active script's settings object's realm, and its ScriptOrModule set to active script's record.
         if (script) {
-            script_execution_context = JS::ExecutionContext::create(0, ReadonlySpan<JS::Value> {}, 0);
-            script_execution_context->function = nullptr;
-            script_execution_context->set_realm(&script->settings_object().realm());
+            script_realm = &script->settings_object().realm();
             if (is<HTML::ClassicScript>(script)) {
-                script_execution_context->set_script_or_module(GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record()));
+                script_or_module = GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record());
             } else if (is<HTML::ModuleScript>(script)) {
-                script_execution_context->set_script_or_module(as<HTML::ModuleScript>(script)->record().visit(
+                script_or_module = as<HTML::ModuleScript>(script)->record().visit(
                     [](Empty) -> JS::ScriptOrModule { return {}; },
-                    [](auto& module) -> JS::ScriptOrModule { return GC::Ref<JS::Module> { module }; }));
+                    [](auto& module) -> JS::ScriptOrModule { return GC::Ref<JS::Module> { module }; });
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -547,7 +553,7 @@ void initialize_agent(HTML::AgentType type)
 
         // 5. Return the JobCallback Record { [[Callback]]: callable, [[HostDefined]]: { [[IncumbentSettings]]: incumbent settings, [[ActiveScriptContext]]: script execution context } }.
         auto& vm = JS::VM::the();
-        auto host_defined = vm.heap().allocate<WebEngineCustomJobCallbackData>(incumbent_settings, move(script_execution_context));
+        auto host_defined = vm.heap().allocate<WebEngineCustomJobCallbackData>(incumbent_settings, script_realm, script_or_module);
         return JS::JobCallback::create(vm, callable, host_defined);
     };
 
