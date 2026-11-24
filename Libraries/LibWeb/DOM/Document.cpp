@@ -1105,6 +1105,10 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_potentially_named_elements);
     m_anchor_name_map.visit_edges(visitor);
     visitor.visit(m_query_selector_result_cache);
+    if (m_layout_node_arena)
+        m_layout_node_arena->visit_edges(visitor);
+    if (m_paint_state)
+        m_paint_state->visit_edges(visitor);
     if (m_spelling_markers)
         m_spelling_markers->visit_edges(visitor);
     if (m_spell_check_controller)

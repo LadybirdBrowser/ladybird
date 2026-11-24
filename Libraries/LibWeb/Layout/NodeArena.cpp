@@ -34,6 +34,11 @@ Node* NodeArena::node_if_live(Layout::BegunRead const& read, Compositing::RustFF
     return static_cast<Node*>(RustFFI::render_state_node_shell_if_live(host(), &read, slot));
 }
 
+void NodeArena::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(m_document);
+}
+
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
 {
     RustFFI::render_state_set_box_presence_host(host(), this, [](void* context, u32 style_node, u8 bits) {
