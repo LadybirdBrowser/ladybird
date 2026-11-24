@@ -179,6 +179,7 @@ if (NOT WIN32)
         TestRendererViolationReports.cpp
         TestRequestServerClientSessions.cpp
         TestRequestServerDiskCaches.cpp
+        TestRequestServerRelaunchFailure.cpp
         TestShadowTreeTooltipsAndLinks.cpp
         TestSharedWorkerHost.cpp
         TestSpareWebContentProcess.cpp
