@@ -35,6 +35,7 @@ void NamedTimelines::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_document);
     for (auto& declaring_element : m_declaring_elements)
         visitor.visit(declaring_element.element);
+    visitor.visit(m_declaring_element_indices);
     for (auto& [key, timeline] : m_timelines)
         visitor.visit(key.element);
 }
@@ -118,7 +119,7 @@ void NamedTimelines::refresh_declarations()
         });
         declaring_element.scopes_all_names = scope == CSS::ComputedValuesFFI::FfiTimelineScope::All;
 
-        m_declaring_element_indices.set(element, m_declaring_elements.size());
+        m_declaring_element_indices.set(*element, m_declaring_elements.size());
         m_declaring_elements.append(move(declaring_element));
     });
 
@@ -132,7 +133,7 @@ void NamedTimelines::refresh_declarations()
 
 NamedTimelines::DeclaringElement const* NamedTimelines::declaring_element(DOM::Element const& element) const
 {
-    auto index = m_declaring_element_indices.get(&element);
+    auto index = m_declaring_element_indices.get(element);
     if (!index.has_value())
         return nullptr;
     return &m_declaring_elements[*index];
