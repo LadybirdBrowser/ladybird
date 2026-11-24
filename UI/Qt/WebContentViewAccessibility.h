@@ -18,6 +18,9 @@ class WebContentView;
 // Attaches LadybirdAccessibilityElement objects to the QWidget's underlying NSView — bypassing Qt's Cocoa accessibility
 // bridge entirely.
 void install_accessibility(WebContentView* view);
+// Invalidates every element that the view's overlay vended, before the view and its accessibility tree go away: an
+// assistive technology can hold an element longer than either.
+void uninstall_accessibility(WebContentView* view);
 // announce_load: a page's first tree announces the load and has AppKit look the focus up again; the trees DOM mutations
 // bring do neither. report_focus: the first tree an assistive technology that arrived mid-page gets has AppKit look the
 // focus up again. Both only while the view holds the keyboard focus in the key window.
