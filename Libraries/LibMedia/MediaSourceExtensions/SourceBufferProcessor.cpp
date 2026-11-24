@@ -538,7 +538,20 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //    frame's duration in seconds.
         auto frame_duration = frame.duration();
 
-        // FIXME: 3. If mode equals "sequence" and group start timestamp is set, then run the following steps:
+        // 3. If mode equals "sequence" and [[group start timestamp]] is set, then run the following steps:
+        if (m_mode == AppendMode::Sequence && m_group_start_timestamp.has_value()) {
+            // 1. Set timestampOffset equal to [[group start timestamp]] minus presentation timestamp.
+            m_timestamp_offset = m_group_start_timestamp.value() - presentation_timestamp;
+
+            // 2. Set [[group end timestamp]] equal to [[group start timestamp]].
+            m_group_end_timestamp = m_group_start_timestamp.value();
+
+            // 3. Set the need random access point flag on all track buffers to true.
+            set_need_random_access_point_flag_on_all_track_buffers(true);
+
+            // 4. Unset [[group start timestamp]].
+            m_group_start_timestamp.clear();
+        }
 
         // 4. If timestampOffset is not 0, then run the following steps:
         if (!m_timestamp_offset.is_zero()) {
