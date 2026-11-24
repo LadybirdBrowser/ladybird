@@ -189,6 +189,72 @@ fn biplanar_plane_length(stride: u32, row_length: usize, rows: usize) -> Option<
         .checked_add(row_length)
 }
 
+/// Converts a bi-planar image whose planes' last rows may end without padding up to their strides. The converter walks
+/// its planes a whole stride at a time, or two luma strides at a time where chroma is subsampled vertically, and leaves
+/// out any group of rows that doesn't fill its strides. So every group but the last converts in place, and the last one
+/// converts from a copy with its rows packed together.
+#[allow(clippy::too_many_arguments)]
+fn convert_biplanar<T: Copy + std::fmt::Debug>(
+    y_plane: &[T],
+    y_stride: u32,
+    uv_plane: &[T],
+    uv_stride: u32,
+    width: u32,
+    height: u32,
+    chroma_row_length: usize,
+    subsampling_y: bool,
+    dst: &mut [u8],
+    dst_stride: u32,
+    convert: impl Fn(&YuvBiPlanarImage<T>, &mut [u8], u32) -> bool,
+) -> bool {
+    if height == 0 {
+        return false;
+    }
+    let rows_per_chroma_row = if subsampling_y { 2 } else { 1 };
+    let last_group_rows = (height - 1) % rows_per_chroma_row + 1;
+    let leading_rows = height - last_group_rows;
+    let leading_chroma_rows = (leading_rows / rows_per_chroma_row) as usize;
+
+    if leading_rows > 0 {
+        let leading = YuvBiPlanarImage {
+            y_plane: &y_plane[..y_stride as usize * leading_rows as usize],
+            y_stride,
+            uv_plane: &uv_plane[..uv_stride as usize * leading_chroma_rows],
+            uv_stride,
+            width,
+            height: leading_rows,
+        };
+        if !convert(
+            &leading,
+            &mut dst[..dst_stride as usize * leading_rows as usize],
+            dst_stride,
+        ) {
+            return false;
+        }
+    }
+
+    let row_length = width as usize;
+    let mut last_y_rows = Vec::with_capacity(row_length * last_group_rows as usize);
+    for row in leading_rows..height {
+        let start = y_stride as usize * row as usize;
+        last_y_rows.extend_from_slice(&y_plane[start..start + row_length]);
+    }
+    let chroma_start = uv_stride as usize * leading_chroma_rows;
+    let last = YuvBiPlanarImage {
+        y_plane: &last_y_rows,
+        y_stride: width,
+        uv_plane: &uv_plane[chroma_start..chroma_start + chroma_row_length],
+        uv_stride: chroma_row_length as u32,
+        width,
+        height: last_group_rows,
+    };
+    convert(
+        &last,
+        &mut dst[dst_stride as usize * leading_rows as usize..],
+        dst_stride,
+    )
+}
+
 /// # Safety
 /// All plane pointers must be valid for the specified dimensions and strides.
 /// Each plane's last row may end without padding up to its stride.
@@ -217,14 +283,8 @@ pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
         return false;
     };
 
-    let bi_planar_image = YuvBiPlanarImage {
-        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
-        y_stride,
-        uv_plane: unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) },
-        uv_stride,
-        width,
-        height,
-    };
+    let y_plane = unsafe { ak::slice_from_raw_parts(y_plane, y_len) };
+    let uv_plane = unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) };
 
     let dst_len = dst_stride as usize * height as usize;
     let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
@@ -235,16 +295,22 @@ pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
         (false, true) => return false,
         (false, false) => yuv::yuv_nv24_to_rgba,
     };
+    let range: YuvRange = range.into();
+    let matrix: YuvStandardMatrix = matrix.into();
 
-    convert(
-        &bi_planar_image,
+    convert_biplanar(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        width,
+        height,
+        chroma_width * 2,
+        subsampling_y,
         dst_slice,
         dst_stride,
-        range.into(),
-        matrix.into(),
-        YuvConversionMode::default(),
+        |image, dst, dst_stride| convert(image, dst, dst_stride, range, matrix, YuvConversionMode::default()).is_ok(),
     )
-    .is_ok()
 }
 
 /// # Safety
@@ -277,14 +343,8 @@ pub unsafe extern "C" fn yuv_biplanar_u16_to_rgba(
         return false;
     };
 
-    let bi_planar_image = YuvBiPlanarImage {
-        y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
-        y_stride,
-        uv_plane: unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) },
-        uv_stride,
-        width,
-        height,
-    };
+    let y_plane = unsafe { ak::slice_from_raw_parts(y_plane, y_len) };
+    let uv_plane = unsafe { ak::slice_from_raw_parts(uv_plane, uv_len) };
 
     let dst_len = dst_stride as usize * height as usize;
     let dst_slice = unsafe { ak::slice_from_raw_parts_mut(dst, dst_len) };
@@ -295,14 +355,20 @@ pub unsafe extern "C" fn yuv_biplanar_u16_to_rgba(
         (false, true) => return false,
         (false, false) => yuv::p410_to_rgba,
     };
+    let range: YuvRange = range.into();
+    let matrix: YuvStandardMatrix = matrix.into();
 
-    convert(
-        &bi_planar_image,
+    convert_biplanar(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        width,
+        height,
+        chroma_width * 2,
+        subsampling_y,
         dst_slice,
         dst_stride,
-        range.into(),
-        matrix.into(),
-        YuvConversionMode::default(),
+        |image, dst, dst_stride| convert(image, dst, dst_stride, range, matrix, YuvConversionMode::default()).is_ok(),
     )
-    .is_ok()
 }
