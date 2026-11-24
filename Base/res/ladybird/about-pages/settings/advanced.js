@@ -106,6 +106,10 @@ function loadConfigVariables(settings) {
         if (variable.name === "ui.toolbar.show_feedback_button") {
             return;
         }
+        // This one has its own switch on the Appearance tab.
+        if (variable.name === "ui.window.use_client_side_decorations") {
+            return;
+        }
 
         const previous = CONFIG_VARIABLES.get(variable.name);
         if (previous && JSON.stringify(previous.value) === JSON.stringify(variable.value)) {
