@@ -1,0 +1,2 @@
+box opacity halfway through the new transition: 0.25
+new transition starts from: 0.5

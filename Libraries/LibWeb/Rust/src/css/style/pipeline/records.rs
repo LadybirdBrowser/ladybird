@@ -987,6 +987,20 @@ impl Record {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn of_test_sample(
+        base: &Arc<Record>,
+        animated_overlay: crate::css::animated_overlay::AnimatedOverlay,
+    ) -> Self {
+        Self::sample(
+            base,
+            &base.payloads,
+            Arc::new(animated_overlay),
+            0,
+            computed::FinalStyleRecordID::NONE,
+        )
+    }
+
     /// The record of a style holding `value_of(property)` for each longhand, as a test makes one.
     #[cfg(test)]
     pub(crate) fn of_test_values(value_of: impl Fn(u16) -> RetainedStyleValueData) -> Self {
