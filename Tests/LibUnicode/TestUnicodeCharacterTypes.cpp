@@ -9,8 +9,18 @@
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/CharacterTypes.h>
+
+TEST_CASE(forced_line_breaks_use_line_break_class)
+{
+    EXPECT_EQ(Unicode::find_forced_line_break("a\x1c!"_utf16, false), 3u);
+    EXPECT_EQ(Unicode::find_forced_line_break("\U0001F600\u2028b"_utf16, false), 2u);
+    EXPECT_EQ(Unicode::find_forced_line_break("a\n\u0085b"_utf16, false), 2u);
+    EXPECT_EQ(Unicode::find_forced_line_break("a\n\u0085b"_utf16, true), 1u);
+    EXPECT_EQ(Unicode::find_forced_line_break("a\u2029b"_utf16, false), 1u);
+}
 
 TEST_CASE(general_category)
 {
