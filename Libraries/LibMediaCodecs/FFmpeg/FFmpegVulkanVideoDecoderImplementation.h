@@ -65,6 +65,14 @@ public:
     virtual void flush() override;
 
 private:
+    // A decoder is created before its stream's format is known, and finds out whether its frames export once FFmpeg
+    // negotiates it.
+    enum class ChecksExportableFormat : u8 {
+        No,
+        Yes,
+    };
+    static Optional<DecoderCapabilities> capabilities(FFmpegFunctions const&, ParsedCodec const&, ChecksExportableFormat);
+
     struct DecodingFrame {
         // None marks the end of the stream, after the last frame.
         AVFrame* frame { nullptr };

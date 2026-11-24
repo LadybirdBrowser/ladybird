@@ -254,6 +254,7 @@ private:
 static_assert(IsTriviallyCopyable<ParsedCodec>);
 
 MEDIACODECS_API Optional<ParsedCodec> parse_codec_parameters_string(StringView);
+MEDIACODECS_API Optional<ParsedCodec> parse_configuration_record(CodecID, ReadonlyBytes);
 
 MEDIACODECS_API ParsedCodec parsed_codec_for_coded_frame(CodedFrame const&, ParsedCodec const& container_codec);
 
