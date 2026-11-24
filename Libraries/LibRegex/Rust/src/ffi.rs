@@ -28,8 +28,8 @@ pub struct RustRegexFlags {
 }
 
 fn compile_pattern(
-    pattern: Vec<char>,
     flags: RustRegexFlags,
+    compile: impl FnOnce(Flags) -> Result<Regex, String>,
     error_out: *mut *const u8,
     error_len_out: *mut usize,
 ) -> *mut RustRegex {
@@ -44,11 +44,10 @@ fn compile_pattern(
         has_indices: flags.has_indices,
     };
 
-    match Regex::compile_chars(pattern, flags) {
+    match compile(flags) {
         Ok(regex) => Box::into_raw(Box::new(RustRegex(regex))),
-        Err(e) => {
+        Err(msg) => {
             if !error_out.is_null() && !error_len_out.is_null() {
-                let msg = e.to_string();
                 let leaked = msg.into_boxed_str();
                 unsafe {
                     *error_len_out = leaked.len();
@@ -80,11 +79,12 @@ pub unsafe extern "C" fn rust_regex_compile(
     }
 
     let code_units = unsafe { ak::slice_from_raw_parts(pattern, pattern_len) };
-    let pattern = char::decode_utf16(code_units.iter().copied())
-        .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER))
-        .collect();
-
-    compile_pattern(pattern, flags, error_out, error_len_out)
+    compile_pattern(
+        flags,
+        |flags| Regex::compile_utf16(code_units, flags, |error| error.to_string()),
+        error_out,
+        error_len_out,
+    )
 }
 
 /// Compile a regex pattern of Latin-1 code units. Returns an opaque handle, or null on error.
@@ -107,9 +107,12 @@ pub unsafe extern "C" fn rust_regex_compile_latin1(
     }
 
     let bytes = unsafe { ak::slice_from_raw_parts(pattern, pattern_len) };
-    let pattern = bytes.iter().map(|byte| *byte as char).collect();
-
-    compile_pattern(pattern, flags, error_out, error_len_out)
+    compile_pattern(
+        flags,
+        |flags| Regex::compile_latin1(bytes, flags, |error| error.to_string()),
+        error_out,
+        error_len_out,
+    )
 }
 
 /// Free an error string returned by `rust_regex_compile`.

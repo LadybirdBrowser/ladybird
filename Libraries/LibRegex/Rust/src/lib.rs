@@ -21,3 +21,4 @@ pub mod parser;
 pub mod regex;
 mod stack;
 pub mod vm;
+mod work_zone;

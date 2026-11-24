@@ -81,15 +81,12 @@ impl EcmaScriptRegex {
             has_indices: flags.has_indices,
         };
 
-        // Converted as rust_regex_compile_latin1 and rust_regex_compile convert the pattern they are passed.
-        let pattern_characters = match pattern {
-            Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => bytes.iter().map(|&byte| char::from(byte)).collect(),
-            Utf16View::Utf16(code_units) => char::decode_utf16(code_units.iter().copied())
-                .map(|character| character.unwrap_or(char::REPLACEMENT_CHARACTER))
-                .collect(),
-        };
-
-        let regex = Regex::compile_chars(pattern_characters, rust_flags).map_err(|error| error.to_string())?;
+        let regex = match pattern {
+            Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => {
+                Regex::compile_latin1(bytes, rust_flags, |error| error.to_string())
+            }
+            Utf16View::Utf16(code_units) => Regex::compile_utf16(code_units, rust_flags, |error| error.to_string()),
+        }?;
 
         let named_groups = regex
             .named_groups()

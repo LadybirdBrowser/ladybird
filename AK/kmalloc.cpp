@@ -211,15 +211,31 @@ extern "C" void ladybird_did_end_short_lived_thread()
 
 #endif
 
-static Atomic<void (*)(), AK::MemoryOrder::memory_order_relaxed> s_idle_thread_memory_release { nullptr };
+// NB: Each library that links a Rust crate with a per-thread pool has a copy of that pool, and each copy adds its own
+//     release function.
+static Atomic<void (*)(), AK::MemoryOrder::memory_order_relaxed> s_idle_thread_memory_releases[8] {};
 
-extern "C" void ladybird_set_idle_thread_memory_release(void (*release)())
+extern "C" void ladybird_add_idle_thread_memory_release(void (*release)())
 {
-    s_idle_thread_memory_release.store(release);
+    for (auto& slot : s_idle_thread_memory_releases) {
+        void (*expected)() = nullptr;
+        if (slot.compare_exchange_strong(expected, release) || expected == release)
+            return;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void ak_release_idle_thread_memory()
 {
-    if (auto* release = s_idle_thread_memory_release.load())
+    for (auto& slot : s_idle_thread_memory_releases) {
+        auto* release = slot.load();
+        if (!release)
+            return;
         release();
+    }
+}
+
+extern "C" void ladybird_release_idle_thread_memory()
+{
+    ak_release_idle_thread_memory();
 }

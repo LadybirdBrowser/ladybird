@@ -33,7 +33,7 @@ pub fn resolve_property(name: &str, value: Option<&str>) -> Option<ResolvedPrope
 ///
 /// Spec entry point: `CompilePattern`.
 /// <https://tc39.es/ecma262/#sec-compilepattern>
-pub fn compile(pattern: &Pattern) -> Result<Program, Error> {
+pub fn compile<'z>(pattern: &Pattern<'z>) -> Result<Program, Error<'z>> {
     let mut compiler = Compiler::new(pattern);
     compiler.compile_pattern(pattern);
     if compiler.ran_out_of_stack.get() {
@@ -43,7 +43,7 @@ pub fn compile(pattern: &Pattern) -> Result<Program, Error> {
         .named_groups
         .iter()
         .map(|ng| NamedGroupEntry {
-            name: ng.name.clone(),
+            name: ng.name.to_string(),
             index: ng.index,
         })
         .collect();
@@ -353,10 +353,10 @@ impl Compiler {
             ClassSetOperand::UnicodeProperty(up) => {
                 if self.program.unicode_sets
                     && !up.negated
-                    && libunicode_rust::character_types::is_string_property(&up.name)
+                    && libunicode_rust::character_types::is_string_property(up.name)
                 {
                     let mut lengths = Self::singleton_length_set();
-                    for string in Self::get_string_property_strings(&up.name) {
+                    for string in Self::get_string_property_strings(up.name) {
                         lengths.insert(string.len());
                     }
                     return lengths;
@@ -462,8 +462,8 @@ impl Compiler {
         if self.is_out_of_stack() {
             return;
         }
-        for alt in &disj.alternatives {
-            for term in &alt.terms {
+        for alt in disj.alternatives {
+            for term in alt.terms {
                 self.collect_captures(&term.atom, out);
             }
         }
@@ -553,7 +553,7 @@ impl Compiler {
             self.compile_term(&term);
             return;
         }
-        self.emit_split_chain(&disj.alternatives, |s, alt| s.compile_alternative(alt));
+        self.emit_split_chain(disj.alternatives, |s, alt| s.compile_alternative(alt));
     }
 
     /// Lower `Alternative` in the current direction.
@@ -564,7 +564,7 @@ impl Compiler {
                 self.compile_term(term);
             }
         } else {
-            for term in &alt.terms {
+            for term in alt.terms {
                 self.compile_term(term);
             }
         }
@@ -607,13 +607,13 @@ impl Compiler {
             Atom::UnicodeProperty(up) => {
                 // String properties (e.g. Basic_Emoji) can match multi-character
                 // sequences and cannot use simple matching.
-                if self.program.unicode_sets && libunicode_rust::character_types::is_string_property(&up.name) {
+                if self.program.unicode_sets && libunicode_rust::character_types::is_string_property(up.name) {
                     return None;
                 }
                 Some(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
                     negated: up.negated,
-                    name: up.name.clone(),
-                    value: up.value.clone(),
+                    name: up.name.to_string(),
+                    value: up.value.map(str::to_string),
                     resolved: None, // Will be populated after compilation.
                 })))
             }
@@ -625,14 +625,14 @@ impl Compiler {
     /// term. This preserves semantics for single-term simple-match
     /// alternatives while avoiding exponential backtracking in quantified
     /// contexts such as `^(a|a?)+$`.
-    fn try_merge_optional_alternatives(&self, disj: &Disjunction) -> Option<Term> {
-        let [first, second] = disj.alternatives.as_slice() else {
+    fn try_merge_optional_alternatives<'z>(&self, disj: &Disjunction<'z>) -> Option<Term<'z>> {
+        let [first, second] = disj.alternatives else {
             return None;
         };
-        let [first_term] = first.terms.as_slice() else {
+        let [first_term] = first.terms else {
             return None;
         };
-        let [second_term] = second.terms.as_slice() else {
+        let [second_term] = second.terms else {
             return None;
         };
 
@@ -645,7 +645,7 @@ impl Compiler {
         let optional = Quantifier::zero_or_one(true);
         match (&first_term.quantifier, &second_term.quantifier) {
             (None, Some(q)) | (Some(q), None) if *q == optional => Some(Term {
-                atom: first_term.atom.clone(),
+                atom: first_term.atom,
                 quantifier: Some(optional),
             }),
             _ => None,
@@ -917,12 +917,12 @@ impl Compiler {
             Atom::UnicodeProperty(up) => {
                 if self.program.unicode_sets
                     && !up.negated
-                    && libunicode_rust::character_types::is_string_property(&up.name)
+                    && libunicode_rust::character_types::is_string_property(up.name)
                 {
-                    self.emit_string_property_match(&up.name, up.value.as_deref());
+                    self.emit_string_property_match(up.name, up.value);
                     return;
                 }
-                self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
+                self.emit_unicode_property(up.negated, up.name, up.value);
             }
 
             Atom::Group(g) => {
@@ -969,7 +969,7 @@ impl Compiler {
                     self.emit(Instruction::Backref(*n));
                 }
                 Backreference::Named(name) => {
-                    self.emit(Instruction::BackrefNamed(name.clone()));
+                    self.emit(Instruction::BackrefNamed(name.to_string()));
                 }
             },
 
@@ -1050,7 +1050,7 @@ impl Compiler {
                 let mut has_builtin = false;
 
                 let split_surrogates = !self.program.unicode && !self.program.unicode_sets;
-                for r in ranges {
+                for r in *ranges {
                     match r {
                         CharacterClassRange::Single(cp) => {
                             if split_surrogates && *cp > 0xFFFF {
@@ -1147,7 +1147,7 @@ impl Compiler {
                 self.emit(Instruction::BuiltinClass(*bc));
             }
             CharacterClassRange::UnicodeProperty(up) => {
-                self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
+                self.emit_unicode_property(up.negated, up.name, up.value);
             }
         }
     }
@@ -1167,20 +1167,20 @@ impl Compiler {
             }),
             ClassSetOperand::BuiltinClass(bc) => Some(SimpleMatch::BuiltinClass(*bc)),
             ClassSetOperand::UnicodeProperty(up) => {
-                if libunicode_rust::character_types::is_string_property(&up.name) {
+                if libunicode_rust::character_types::is_string_property(up.name) {
                     return None;
                 }
                 Some(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
                     negated: up.negated,
-                    name: up.name.clone(),
-                    value: up.value.clone(),
+                    name: up.name.to_string(),
+                    value: up.value.map(str::to_string),
                     resolved: None,
                 })))
             }
             ClassSetOperand::NestedClass(cc) => match &cc.body {
                 CharacterClassBody::Ranges(ranges_vec) => {
                     let mut ranges = Vec::new();
-                    for r in ranges_vec {
+                    for r in *ranges_vec {
                         match r {
                             CharacterClassRange::Single(cp) => {
                                 ranges.push(CharRange { start: *cp, end: *cp });
@@ -1309,13 +1309,13 @@ impl Compiler {
                     matchers.push(SimpleMatch::BuiltinClass(*bc));
                 }
                 CharacterClassRange::UnicodeProperty(up) => {
-                    if libunicode_rust::character_types::is_string_property(&up.name) {
+                    if libunicode_rust::character_types::is_string_property(up.name) {
                         return None;
                     }
                     matchers.push(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
                         negated: up.negated,
-                        name: up.name.clone(),
-                        value: up.value.clone(),
+                        name: up.name.to_string(),
+                        value: up.value.map(str::to_string),
                         resolved: None,
                     })));
                 }
@@ -1373,7 +1373,7 @@ impl Compiler {
         };
 
         let mut ranges = Vec::new();
-        for operand in operands {
+        for operand in *operands {
             match operand {
                 ClassSetOperand::Char(c) => {
                     ranges.push(CharRange { start: *c, end: *c });
@@ -1383,7 +1383,7 @@ impl Compiler {
                 }
                 ClassSetOperand::NestedClass(cc) => match &cc.body {
                     CharacterClassBody::Ranges(class_ranges) => {
-                        for r in class_ranges {
+                        for r in *class_ranges {
                             match r {
                                 CharacterClassRange::Single(cp) => {
                                     ranges.push(CharRange { start: *cp, end: *cp });
@@ -1617,12 +1617,12 @@ impl Compiler {
             ClassSetOperand::UnicodeProperty(up) => {
                 if self.program.unicode_sets
                     && !up.negated
-                    && libunicode_rust::character_types::is_string_property(&up.name)
+                    && libunicode_rust::character_types::is_string_property(up.name)
                 {
                     if length == 1 {
-                        self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
+                        self.emit_unicode_property(up.negated, up.name, up.value);
                     } else {
-                        let strings = Self::get_string_property_strings_of_length(&up.name, length);
+                        let strings = Self::get_string_property_strings_of_length(up.name, length);
                         if strings.is_empty() {
                             self.emit(Instruction::Fail);
                             return;
@@ -1635,7 +1635,7 @@ impl Compiler {
                     self.emit(Instruction::Fail);
                     return;
                 }
-                self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
+                self.emit_unicode_property(up.negated, up.name, up.value);
             }
             ClassSetOperand::StringLiteral(chars) => {
                 if chars.len() != length {
