@@ -73,19 +73,27 @@ void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, R
     async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
 }
 
+// RequestServer gives up on a system lookup once it has waited this long for the answer, the same deadline that its
+// DNS::Resolver sets for a system resolution.
+static constexpr auto SYSTEM_LOOKUP_DEADLINE = AK::Duration::from_seconds(15);
+
 void RequestControlClient::resolve_host_with_system_resolver(u64 resolution_id, ByteString host, bool ipv6)
 {
     // getaddrinfo() blocks, for as long as the lookup takes, so it runs on a worker, and the answer goes back to
     // RequestServer from this thread.
-    Threading::ThreadPool::the().submit([weak_this = make_weak_ptr<RequestControlClient>(), resolution_id, host = move(host), ipv6, event_loop = Core::EventLoop::current_weak()] mutable {
-        auto family = ipv6 ? Core::Socket::AddressFamily::IPv6Only : Core::Socket::AddressFamily::IPv4Only;
-        auto addresses_or_error = Core::Socket::resolve_host(host, Core::Socket::SocketType::Stream, family);
-
+    auto queued_at = MonotonicTime::now();
+    Threading::ThreadPool::for_name_resolution().submit([weak_this = make_weak_ptr<RequestControlClient>(), resolution_id, host = move(host), ipv6, queued_at, event_loop = Core::EventLoop::current_weak()] mutable {
+        // A lookup that waited in the queue past the deadline has no one left to answer, so it isn't made, and
+        // RequestServer gets a failure for it, which it drops.
         Optional<Vector<ByteString>> addresses;
-        if (!addresses_or_error.is_error()) {
-            addresses = Vector<ByteString> {};
-            for (auto const& address : addresses_or_error.value())
-                address.visit([&](auto const& address) { addresses->append(ByteString::formatted("{}", address)); });
+        if (MonotonicTime::now() - queued_at < SYSTEM_LOOKUP_DEADLINE) {
+            auto family = ipv6 ? Core::Socket::AddressFamily::IPv6Only : Core::Socket::AddressFamily::IPv4Only;
+            auto addresses_or_error = Core::Socket::resolve_host(host, Core::Socket::SocketType::Stream, family);
+            if (!addresses_or_error.is_error()) {
+                addresses = Vector<ByteString> {};
+                for (auto const& address : addresses_or_error.value())
+                    address.visit([&](auto const& address) { addresses->append(ByteString::formatted("{}", address)); });
+            }
         }
 
         auto origin_event_loop = event_loop->take();

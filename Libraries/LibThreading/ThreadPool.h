@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
+#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibThreading/Thread.h>
@@ -21,11 +22,14 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static ThreadPool& the();
+    static ThreadPool& for_name_resolution();
+
+    size_t worker_count() const { return m_threads.size(); }
 
     void submit(Function<void()>);
 
 private:
-    ThreadPool();
+    ThreadPool(size_t worker_count, StringView name);
 
     intptr_t worker_thread_func();
 
