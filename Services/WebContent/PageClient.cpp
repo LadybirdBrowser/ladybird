@@ -853,16 +853,19 @@ void PageClient::frame_timer_fired()
             }
             page_client->m_compositor_rendering_opportunity_outstanding = false;
             page_client->m_compositor_watchdog_deadline = 0;
-            page_client->grant_rendering_opportunity(Web::HighResolutionTime::unsafe_shared_current_time(), Web::HTML::EventLoop::RenderingOpportunitySource::Watchdog);
+            page_client->grant_rendering_opportunity(Web::HighResolutionTime::unsafe_shared_current_time(), Web::HTML::EventLoop::RenderingOpportunitySource::Watchdog, {}, false);
         }));
         return;
     }
 
-    if (purpose == FrameTimerPurpose::LocalFallback && m_rendering_update_requested)
-        grant_rendering_opportunity(now, Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer);
+    if (purpose == FrameTimerPurpose::LocalFallback && m_rendering_update_requested) {
+        auto frames_come_at_any_time = is_headless() && Web::HTML::Window::in_test_mode() && !m_frame_rate_capped;
+        auto cadence = frames_come_at_any_time ? 0.0 : 1000.0 / m_maximum_frames_per_second;
+        grant_rendering_opportunity(now, Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer, cadence, false);
+    }
 }
 
-void PageClient::rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+void PageClient::rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds, double display_interval_milliseconds, Compositing::RenderingOpportunityFrameTime frame_time_kind)
 {
     if (!m_compositor_rendering_opportunity_outstanding)
         return;
@@ -873,15 +876,37 @@ void PageClient::rendering_opportunity(i64 frame_time_nanoseconds, double frame_
     m_frame_timer_purpose = FrameTimerPurpose::Inactive;
     if (isfinite(frame_interval_milliseconds) && frame_interval_milliseconds > 0)
         m_last_rendering_opportunity_frame_interval = frame_interval_milliseconds;
-    grant_rendering_opportunity(static_cast<double>(frame_time_nanoseconds) / 1'000'000.0, Web::HTML::EventLoop::RenderingOpportunitySource::Compositor);
+    auto frame_time = static_cast<double>(frame_time_nanoseconds) / 1'000'000.0;
+    Optional<double> cadence;
+    auto is_display_tick = false;
+    switch (frame_time_kind) {
+    case Compositing::RenderingOpportunityFrameTime::DisplayTick:
+        if (rendered_display_tick_already(frame_time, display_interval_milliseconds)) {
+            request_rendering_opportunity_if_needed();
+            return;
+        }
+        cadence = m_last_rendering_opportunity_frame_interval;
+        is_display_tick = true;
+        break;
+    case Compositing::RenderingOpportunityFrameTime::BetweenDisplayTicks:
+        break;
+    }
+    grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Compositor, cadence, is_display_tick);
 }
 
-void PageClient::grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource source)
+bool PageClient::rendered_display_tick_already(double frame_time, double display_interval) const
+{
+    return m_last_rendered_display_tick.has_value() && frame_time < *m_last_rendered_display_tick + display_interval / 2;
+}
+
+void PageClient::grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource source, Optional<double> cadence, bool is_display_tick)
 {
     m_rendering_update_requested = false;
     m_rendering_opportunity_granted = true;
     m_granted_rendering_opportunity_time = frame_time;
     m_granted_rendering_opportunity_source = source;
+    m_granted_rendering_opportunity_cadence = cadence;
+    m_granted_rendering_opportunity_is_display_tick = is_display_tick;
 
     if (!Web::HTML::main_thread_event_loop().running_rendering_task())
         deliver_granted_rendering_opportunity();
@@ -894,15 +919,35 @@ void PageClient::deliver_granted_rendering_opportunity()
     if (!Web::HTML::main_thread_event_loop().rendering_opportunity(*m_granted_rendering_opportunity_time, m_granted_rendering_opportunity_source)) {
         m_rendering_opportunity_granted = false;
         m_granted_rendering_opportunity_time.clear();
+        m_granted_rendering_opportunity_cadence.clear();
         m_rendering_update_requested = true;
     }
 }
 
 void PageClient::will_begin_rendering_update()
 {
+    // AD-HOC: WebContent learns of one opportunity at a time, so a queued update renders at the latest opportunity on
+    //         the cadence of the granted one.
+    if (m_rendering_opportunity_granted) {
+        auto rendered_opportunity = *m_granted_rendering_opportunity_time;
+        if (m_granted_rendering_opportunity_cadence.has_value()) {
+            auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+            auto cadence = *m_granted_rendering_opportunity_cadence;
+            auto latest_opportunity = cadence > 0 ? rendered_opportunity + floor((now - rendered_opportunity) / cadence) * cadence : now;
+            if (latest_opportunity > rendered_opportunity) {
+                rendered_opportunity = latest_opportunity;
+                Web::HTML::main_thread_event_loop().advance_last_render_opportunity_time(latest_opportunity);
+            }
+        }
+        if (m_granted_rendering_opportunity_is_display_tick)
+            m_last_rendered_display_tick = rendered_opportunity;
+        else
+            m_last_rendered_display_tick.clear();
+    }
     m_rendering_opportunity_for_current_update = m_rendering_opportunity_granted;
     m_rendering_opportunity_granted = false;
     m_granted_rendering_opportunity_time.clear();
+    m_granted_rendering_opportunity_cadence.clear();
 }
 
 bool PageClient::has_rendering_opportunity() const
@@ -934,22 +979,26 @@ void PageClient::set_manual_rendering_opportunities(bool enabled)
             m_rendering_update_requested = true;
         m_rendering_opportunity_granted = false;
         m_granted_rendering_opportunity_time.clear();
+        m_granted_rendering_opportunity_cadence.clear();
         return;
     }
 
     request_rendering_opportunity_if_needed();
 }
 
-void PageClient::inject_rendering_opportunity(double frame_time)
+void PageClient::inject_rendering_opportunity(double frame_time, Optional<double> cadence, bool is_display_tick)
 {
     VERIFY(m_manual_rendering_opportunities);
     if (!m_rendering_update_requested || m_rendering_opportunity_granted)
         return;
 
+    if (is_display_tick && cadence.has_value() && rendered_display_tick_already(frame_time, *cadence))
+        return;
+
     if (hosted_documents_are_hidden())
         return;
 
-    grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Manual);
+    grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Manual, cadence, is_display_tick);
 }
 
 void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)

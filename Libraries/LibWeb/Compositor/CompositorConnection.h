@@ -131,7 +131,7 @@ private:
     virtual void key_event(u64 page_id, Web::KeyEvent) override;
     virtual void pinch_event(u64 page_id, Web::PinchEvent) override;
     virtual void request_rendering_update() override;
-    virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
+    virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds, double display_interval_milliseconds, Compositing::RenderingOpportunityFrameTime frame_time_kind) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
     bool did_rasterize(Layout::RustFFI::RasterizationOutcome);

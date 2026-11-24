@@ -40,6 +40,11 @@ enum class ContextVisibility : u8 {
     Hidden,
 };
 
+enum class RenderingOpportunityFrameTime : u8 {
+    DisplayTick,
+    BetweenDisplayTicks,
+};
+
 enum class RemoteLayerHostKind : u8 {
     None,
     CoreAnimationContext,
