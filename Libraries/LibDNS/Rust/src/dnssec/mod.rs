@@ -73,7 +73,14 @@ pub enum Step {
 #[derive(Clone, Debug, Default)]
 pub struct Fetches {
     // Keyed by canonicalized names, like the validator's caches.
-    responses: HashMap<(DomainName, ResourceType), Message>,
+    responses: HashMap<(DomainName, ResourceType), FetchedResponse>,
+}
+
+#[derive(Clone, Debug)]
+struct FetchedResponse {
+    message: Message,
+    /// Seconds since the epoch, or `None` to count from the time validation runs.
+    received_at: Option<u32>,
 }
 
 impl Fetches {
@@ -81,14 +88,28 @@ impl Fetches {
         Self::default()
     }
 
-    /// Records the response to a question asked for by `Step::NeedFetch`.
+    /// Records the response to a question asked for by `Step::NeedFetch`, as if it had come in when validation runs.
     pub fn insert(&mut self, question: &Question, response: Message) {
-        self.responses
-            .insert((question.name.canonicalized(), question.rtype), response);
+        self.insert_response(question, response, None);
+    }
+
+    /// Records the response to a question asked for by `Step::NeedFetch`, which came in at `received_at` (seconds
+    /// since the epoch). The lifetimes of what is cached from it count from then.
+    pub fn insert_received_at(&mut self, question: &Question, response: Message, received_at: u32) {
+        self.insert_response(question, response, Some(received_at));
+    }
+
+    fn insert_response(&mut self, question: &Question, message: Message, received_at: Option<u32>) {
+        self.responses.insert(
+            (question.name.canonicalized(), question.rtype),
+            FetchedResponse { message, received_at },
+        );
     }
 
     pub fn get(&self, name: &DomainName, rtype: ResourceType) -> Option<&Message> {
-        self.responses.get(&(name.canonicalized(), rtype))
+        self.responses
+            .get(&(name.canonicalized(), rtype))
+            .map(|fetched| &fetched.message)
     }
 
     pub fn len(&self) -> usize {
@@ -181,18 +202,33 @@ fn is_positive_or_name_error(message: &Message) -> bool {
     rcode == ResponseCode::NO_ERROR || rcode == ResponseCode::NAME_ERROR
 }
 
-fn fetched<'a>(fetches: &'a Fetches, name: &DomainName, rtype: ResourceType) -> Result<&'a Message, Failure> {
-    fetches.get(name, rtype).ok_or_else(|| {
-        Failure::Fetch(Question {
-            name: name.clone(),
-            rtype,
-            class: Class::IN,
+// The fetched response, and when it came in.
+fn fetched<'a>(
+    fetches: &'a Fetches,
+    name: &DomainName,
+    rtype: ResourceType,
+    now: u32,
+) -> Result<(&'a Message, u32), Failure> {
+    fetches
+        .responses
+        .get(&(name.canonicalized(), rtype))
+        .map(|fetched| {
+            (
+                &fetched.message,
+                fetched.received_at.map_or(now, |received_at| received_at.min(now)),
+            )
         })
-    })
+        .ok_or_else(|| {
+            Failure::Fetch(Question {
+                name: name.clone(),
+                rtype,
+                class: Class::IN,
+            })
+        })
 }
 
-fn expiry(now: u32, ttl: u32) -> u64 {
-    u64::from(now) + u64::from(ttl)
+fn expiry(received_at: u32, ttl: u32) -> u64 {
+    u64::from(received_at) + u64::from(ttl)
 }
 
 #[derive(Clone, Debug)]
@@ -285,7 +321,7 @@ impl Validator {
             return Ok(None);
         }
 
-        let response = fetched(fetches, zone, ResourceType::DNSKEY)?;
+        let (response, received_at) = fetched(fetches, zone, ResourceType::DNSKEY, now)?;
         if !is_positive_or_name_error(response) {
             return Err(Failure::Error("DNSKEY query failed"));
         }
@@ -337,7 +373,7 @@ impl Validator {
                 ZoneKeys {
                     keys: keys.clone(),
                     ds_set: canonical_ds,
-                    expires: expiry(now, verified.ttl),
+                    expires: expiry(received_at, verified.ttl),
                 },
             );
             return Ok(Some(keys));
@@ -369,7 +405,7 @@ impl Validator {
             Ok(delegation)
         };
 
-        let response = fetched(fetches, name, ResourceType::DS)?;
+        let (response, received_at) = fetched(fetches, name, ResourceType::DS, now)?;
         if !is_positive_or_name_error(response) {
             return Err(Failure::Error("DS query failed"));
         }
@@ -386,7 +422,7 @@ impl Validator {
                 return remember(Delegation {
                     kind: DelegationKind::NotACut,
                     ds: Vec::new(),
-                    expires: expiry(now, verified.ttl),
+                    expires: expiry(received_at, verified.ttl),
                 });
             }
             if rrset.rtype != ResourceType::DS {
@@ -407,7 +443,7 @@ impl Validator {
             return remember(Delegation {
                 kind: DelegationKind::Secure,
                 ds,
-                expires: expiry(now, verified.ttl),
+                expires: expiry(received_at, verified.ttl),
             });
         }
 
@@ -420,11 +456,11 @@ impl Validator {
             expires,
         };
         if has_excessive_nsec3_iterations(&verified) {
-            return remember(insecure_or_not_a_cut(DelegationKind::Insecure, expiry(now, 60)));
+            return remember(insecure_or_not_a_cut(DelegationKind::Insecure, expiry(received_at, 60)));
         }
 
         let ttl = verified.iter().map(|rrset| rrset.ttl).min().unwrap_or(0);
-        let expires = expiry(now, ttl);
+        let expires = expiry(received_at, ttl);
 
         let proofs = DenialProofs { rrsets: &verified };
         if proofs.proves_insecure_delegation(name) {
