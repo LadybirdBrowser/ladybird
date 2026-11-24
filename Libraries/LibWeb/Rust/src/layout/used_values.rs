@@ -122,7 +122,12 @@ impl LineDataState {
 pub(crate) struct CommittedSvgFacts {
     pub(crate) viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
+    /// The object bounding box of the element that a mask, clip path or pattern box was laid out for, in that
+    /// element's user space.
+    pub(crate) object_bounding_box_of_resource_target: Option<libgfx_rust::FloatRect>,
+    /// The masking area of a mask box, in the user space of the element it masks. An empty area disables rendering of
+    /// that element.
+    pub(crate) mask_area_in_target_user_space: Option<libgfx_rust::FloatRect>,
     pub(crate) resource_content_units_are_object_bounding_box: bool,
     /// The `pathLength` of a geometry element, where its element has one.
     pub(crate) author_path_length: Option<f32>,
