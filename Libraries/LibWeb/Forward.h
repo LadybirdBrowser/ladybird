@@ -679,7 +679,6 @@ class EventLoop;
 class External;
 class FormAssociatedElement;
 class FormAssociatedTextControlElement;
-class FormDataEvent;
 class History;
 class HistoryExecutor;
 class HTMLAllCollection;

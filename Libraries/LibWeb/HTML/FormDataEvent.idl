@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#the-formdataevent-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface FormDataEvent : Event {
     constructor(DOMString type, FormDataEventInit eventInitDict);
 

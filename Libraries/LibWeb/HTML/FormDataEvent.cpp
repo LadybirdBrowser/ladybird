@@ -4,35 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/FormDataEvent.h>
+#include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(FormDataEvent);
-
-GC::Ref<FormDataEvent> FormDataEvent::create(FlyString const& event_name, FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<FormDataEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/html/form_data_event.rs.
+DOM::Event* web_rust_form_data_event_create(JSVM*, void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed, XHR::FormData* form_data);
 }
 
-GC::Ref<FormDataEvent> FormDataEvent::create(Utf16FlyString const& event_name, FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> create_form_data_event(JS::Realm& realm, Utf16FlyString const& type, DOM::EventInit const& event_init, XHR::FormData& form_data)
 {
-    return GC::Heap::the().allocate<FormDataEvent>(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp);
-}
-
-FormDataEvent::FormDataEvent(FlyString const& event_name, FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_form_data(event_init.form_data)
-{
-}
-
-FormDataEvent::~FormDataEvent() = default;
-
-void FormDataEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_form_data);
+    return *web_rust_form_data_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), event_init.bubbles, event_init.cancelable, event_init.composed, &form_data);
 }
 
 }
