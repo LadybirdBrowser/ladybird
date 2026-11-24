@@ -5,6 +5,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 
@@ -22,7 +23,7 @@ FetchControllerRegistry::FetchControllerRegistry()
 FetchControllerToken FetchControllerRegistry::add(Badge<FetchController>, FetchController& controller)
 {
     FetchControllerToken token { m_id, s_next_serial.fetch_add(1) };
-    m_controllers.set(token.m_serial, &controller);
+    m_controllers.set(token.m_serial, controller);
     return token;
 }
 
@@ -35,15 +36,20 @@ void FetchControllerRegistry::remove(Badge<FetchController>, FetchControllerToke
 GC::Ptr<FetchController> FetchControllerRegistry::find(FetchControllerToken token) const
 {
     VERIFY(token.m_registry_id == m_id);
-    return m_controllers.get(token.m_serial).value_or(nullptr);
+    auto controller = m_controllers.get(token.m_serial);
+    if (!controller.has_value())
+        return nullptr;
+    return controller->ptr();
 }
 
 Vector<GC::Root<FetchController>> FetchControllerRegistry::controllers() const
 {
     Vector<GC::Root<FetchController>> controllers;
     controllers.ensure_capacity(m_controllers.size());
-    for (auto const& entry : m_controllers)
-        controllers.unchecked_append(GC::make_root(*entry.value));
+    for (auto const& entry : m_controllers) {
+        if (auto controller = entry.value.ptr())
+            controllers.unchecked_append(GC::make_root(*controller));
+    }
     return controllers;
 }
 
