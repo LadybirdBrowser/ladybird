@@ -20,7 +20,9 @@ use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{Extent, FiltersOfEffects, changed_extent_through_filters};
 use crate::display_list::reach::Reach;
 use crate::visual_context::queries::TreeCullingScratch;
-use crate::visual_context::world_transforms::translation_on_whole_device_pixels;
+use crate::visual_context::world_transforms::{
+    bounds_of_projected_rect_if_corners_in_front_of_eye, translation_on_whole_device_pixels,
+};
 use crate::visual_context::{
     ClipNodeData, CompositorScrollNodeRecord, EffectNodeData, RasterRoot, SpatialData, StickyData, VisualContextTree,
     WorldTransforms,
@@ -813,31 +815,6 @@ impl RasterSpaces {
             })
             .clone()
     }
-}
-
-fn bounds_of_projected_rect_if_corners_in_front_of_eye(matrix: FloatMatrix4x4, rect: FloatRect) -> Option<FloatRect> {
-    const SMALLEST_W_IN_FRONT_OF_EYE: f32 = 0.00001;
-    let corners = [
-        (rect.x, rect.y),
-        (rect.right(), rect.y),
-        (rect.x, rect.bottom()),
-        (rect.right(), rect.bottom()),
-    ]
-    .map(|(x, y)| matrix.map_vector4([x, y, 0.0, 1.0]));
-    if corners.iter().any(|corner| corner[3] <= SMALLEST_W_IN_FRONT_OF_EYE) {
-        return None;
-    }
-    let xs = corners.map(|corner| corner[0] / corner[3]);
-    let ys = corners.map(|corner| corner[1] / corner[3]);
-    let (left, right) = (
-        xs.into_iter().fold(f32::INFINITY, f32::min),
-        xs.into_iter().fold(f32::NEG_INFINITY, f32::max),
-    );
-    let (top, bottom) = (
-        ys.into_iter().fold(f32::INFINITY, f32::min),
-        ys.into_iter().fold(f32::NEG_INFINITY, f32::max),
-    );
-    Some(FloatRect::new(left, top, right - left, bottom - top))
 }
 
 pub(crate) fn is_finite_rect(rect: FloatRect) -> bool {

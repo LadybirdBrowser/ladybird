@@ -996,7 +996,11 @@ impl<Painter: ReplayPainter + ?Sized> ReplayDriver<'_, Painter> {
         };
         let effect_space_to_root = self.world.draw_matrix(effect_space);
         if !effect_space_to_root.is_2d_affine() {
-            return None;
+            let content_in_root = self.world.bounds_in_root_of_rect_drawn_in(effect_space, content)?;
+            let margin = 2.0 * LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS;
+            return self
+                .world
+                .bounds_in_space_of_root_rect(effect_space, content_in_root.inflated(margin, margin));
         }
         let root_to_layer = effect_space_to_root.extract_2d_affine().inverse()?;
         let margin_x = LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS * (root_to_layer.a().abs() + root_to_layer.c().abs());
@@ -1787,7 +1791,8 @@ mod tests {
     };
     use ak::math;
     use libgfx_rust::{
-        CompositingAndBlendingOperator, CornerRadii, FloatRect, MaskKind, scale_matrix, translation_matrix,
+        CompositingAndBlendingOperator, CornerRadii, FloatRect, MaskKind, perspective_matrix, scale_matrix,
+        translation_matrix,
     };
 
     #[test]
@@ -2797,15 +2802,50 @@ mod tests {
         );
     }
 
+    fn assert_layer_bounds_are_approximately(layer_content_bounds: &[Option<FloatRect>], expected: &[FloatRect]) {
+        assert_eq!(layer_content_bounds.len(), expected.len(), "{layer_content_bounds:?}");
+        let edges = |rect: FloatRect| [rect.x, rect.y, rect.right(), rect.bottom()];
+        for (bounds, expected) in layer_content_bounds.iter().zip(expected) {
+            let bounds = bounds.unwrap_or_else(|| panic!("a layer has no bounds, not {expected:?}"));
+            for (edge, expected_edge) in edges(bounds).into_iter().zip(edges(*expected)) {
+                assert!((edge - expected_edge).abs() < 0.001, "{bounds:?} is not {expected:?}");
+            }
+        }
+    }
+
     #[test]
-    fn a_layer_whose_content_can_land_anywhere_has_no_bounds() {
+    fn a_layer_over_or_in_a_tilted_space_is_bounded_where_its_content_projects() {
         let mut tree = identity_tree();
-        let tilted = tree.append_spatial(transform(rotate_y(30.0), None), VISUAL_VIEWPORT_NODE_INDEX);
+        let tilted = tree.append_spatial(transform(rotate_y(60.0), None), VISUAL_VIEWPORT_NODE_INDEX);
         let flat_layer = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
         let tilted_layer = tree.append_effect(effects(0.5), EffectNodeIndex::NONE, tilted, ClipNodeIndex::NONE);
         let runs = [
             run(tilted, effect_context(flat_layer), IntRect::new(0, 0, 10, 10)),
             run(tilted, effect_context(tilted_layer), IntRect::new(0, 0, 10, 10)),
+        ];
+        let mut painter = RecordingPainter::new();
+        replay(&tree, &runs, &mut painter);
+        assert_layer_bounds_are_approximately(
+            &painter.layer_content_bounds,
+            &[
+                inflated_by_margin(FloatRect::new(0.0, 0.0, 5.0, 10.0), 2.0),
+                FloatRect::new(-4.0, -2.0, 18.0, 14.0),
+            ],
+        );
+    }
+
+    #[test]
+    fn a_layer_whose_content_lies_partly_behind_the_eye_has_no_bounds() {
+        let mut tree = identity_tree();
+        let tilted = tree.append_spatial(
+            transform(perspective_matrix(100.0).multiplied(rotate_y(60.0)), None),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let flat_layer = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        let tilted_layer = tree.append_effect(effects(0.5), EffectNodeIndex::NONE, tilted, ClipNodeIndex::NONE);
+        let runs = [
+            run(tilted, effect_context(flat_layer), IntRect::new(-1000, 0, 2000, 10)),
+            run(tilted, effect_context(tilted_layer), IntRect::new(-1000, 0, 2000, 10)),
         ];
         let mut painter = RecordingPainter::new();
         replay(&tree, &runs, &mut painter);
