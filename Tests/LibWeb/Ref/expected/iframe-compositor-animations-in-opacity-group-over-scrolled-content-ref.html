@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            body { margin: 0; height: 1000px; background: white; }
+            main { opacity: 0.5; height: 600px; background: navy; }
+            .stripe { position: absolute; left: 0; width: 200px; height: 30px; background: lime; }
+            #fixed { position: absolute; left: 20px; top: 125px; width: 100px; height: 20px; background: orange; }
+            #slide { position: absolute; left: 10px; top: 200px; width: 50px; height: 30px; background: red; transform: translateX(40px); }
+            #turn { position: absolute; left: 130px; top: 205px; width: 40px; height: 20px; background: yellow; transform: rotate(90deg); }
+        </style>
+        <main>
+            <div class="stripe" style="top: 120px"></div>
+            <div class="stripe" style="top: 160px"></div>
+            <div id="slide"></div>
+            <div id="turn"></div>
+            <div id="fixed"></div>
+        </main>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        iframe.contentWindow.scrollTo(0, 115);
+        await frame();
+        await frame();
+        document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

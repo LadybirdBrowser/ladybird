@@ -678,15 +678,22 @@ impl<'a> ListBeingPlaced<'a> {
             Several,
         }
         let spaces = self.tables.spaces();
+        // A space whose anchor the compositor animates may yet hold nothing, as when nothing bounds where its content
+        // moves, and its content then goes into the space around it.
+        let nearest_space_at_or_around_whose_anchor_compositor_does_not_animate = |mut space: RasterSpaceIndex| {
+            while is_animated_space(&spaces[space.0]) {
+                space = spaces[space.0].parent_index;
+            }
+            space
+        };
         let mut spaces_of_runs_by_effect_index = vec![SpacesOfRuns::NoRun; tree.effect_nodes.len()];
-        let mut holds_run_of_animated_space = vec![false; tree.effect_nodes.len()];
         for run_index in 0..list.run_count() {
             let run = list.run(run_index);
             let mut effect = run.context.effect;
-            let space_of_run = self
-                .runs_reaching_outside
-                .deepest_space_of_run(tree, &self.tables, run_index, run);
-            let run_is_in_animated_space = is_animated_space(&spaces[space_of_run.0]);
+            let space_of_run = nearest_space_at_or_around_whose_anchor_compositor_does_not_animate(
+                self.runs_reaching_outside
+                    .deepest_space_of_run(tree, &self.tables, run_index, run),
+            );
             while !effect.is_none() {
                 let spaces_of_runs = &mut spaces_of_runs_by_effect_index[effect.0 as usize];
                 *spaces_of_runs = match *spaces_of_runs {
@@ -694,7 +701,6 @@ impl<'a> ListBeingPlaced<'a> {
                     SpacesOfRuns::All(space) if space == space_of_run => SpacesOfRuns::All(space),
                     _ => SpacesOfRuns::Several,
                 };
-                holds_run_of_animated_space[effect.0 as usize] |= run_is_in_animated_space;
                 effect = tree.effect_nodes[effect.0 as usize].parent;
             }
         }
@@ -705,8 +711,7 @@ impl<'a> ListBeingPlaced<'a> {
                 parent.is_none() || !groups_runs(parent) || holds_content_of_several_spaces[parent.0 as usize];
             holds_content_of_several_spaces[index] = every_group_effect_around_does
                 && may_hold_content_of_several_spaces[index]
-                && spaces_of_runs_by_effect_index[index] == SpacesOfRuns::Several
-                && !holds_run_of_animated_space[index];
+                && spaces_of_runs_by_effect_index[index] == SpacesOfRuns::Several;
         });
         if !holds_content_of_several_spaces.contains(&true) {
             self.tables
@@ -3089,6 +3094,48 @@ mod tests {
         assert_eq!(
             stack.swept_reach_in_parent_space_by_space_index[1],
             Some(IntRect::new(34, 34, 72, 72))
+        );
+    }
+
+    // A page inside an isolated wrapper, with a fixed box and a spinner in it.
+    #[test]
+    fn a_group_holding_content_of_several_spaces_keeps_them_around_a_spinner_inside_it() {
+        let (mut tree, viewport, document) = tree_with_document_scroll();
+        let wrapper = tree.append_effect_node_under(document, effects(0.99, CompositingAndBlendingOperator::Normal));
+        let fixed_box = ContextRef {
+            effect: wrapper.effect,
+            ..viewport
+        };
+        let spinner = transformed_context(&mut tree, wrapper, FloatRect::new(300.0, 300.0, 40.0, 40.0));
+        tree.set_visual_animations(vec![spinning(spinner.spatial)]);
+        let list = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), wrapper)
+            .with(fill(IntRect::new(300, 300, 40, 40), GREEN), spinner)
+            .with(fill(IntRect::new(0, 0, 800, 50), GREEN), fixed_box);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.placement.animations_without_layers.is_empty());
+        assert!(
+            whys_of_composited_effects(&planned)
+                .contains(&(wrapper.effect, WhyEffectIsComposited::ItHoldsContentOfSeveralSpaces))
+        );
+        let lines: Vec<String> = planned
+            .layer_lines(
+                &WindowServerPresentationOfMedia::default(),
+                &NodeNamesFromIndices,
+                |_| None,
+            )
+            .into_iter()
+            .map(|(_, line)| line)
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                "[L0] base space=viewport",
+                "[L2] painted space=document inside e1",
+                "[L3] painted space=animated@s2 in document inside e1",
+                "[L5] painted space=viewport inside e1 above band 0 of document inside e1",
+                "composited e1 space=viewport: it holds content of several spaces"
+            ]
         );
     }
 
