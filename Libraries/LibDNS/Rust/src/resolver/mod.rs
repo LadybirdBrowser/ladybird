@@ -752,7 +752,11 @@ impl Resolver {
                 dnssec::SecurityStatus::Insecure => status = SecurityStatus::Insecure,
                 dnssec::SecurityStatus::Secure => {}
             }
-            let ttl_limit = alias_ttl(&validation.records);
+            // A negative answer holds no longer than the aliases leading to it, nor than its authenticated proof.
+            let ttl_limit = [alias_ttl(&validation.records), validation.denial_ttl]
+                .into_iter()
+                .flatten()
+                .min();
             for record in validation.records {
                 entry.add_record(record, received_at);
             }
