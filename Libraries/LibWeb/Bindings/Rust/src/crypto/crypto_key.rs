@@ -7,7 +7,6 @@
  */
 
 use core::cell::{Cell, RefCell};
-use core::ffi::c_void;
 
 use ak::Utf16String;
 use libcrypto_rust::{HandleTag, KeyHandle, OkpCurve};
@@ -17,7 +16,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::conversions::create_uint8_array;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, create_dictionary_object};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, create_dictionary_object};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -643,14 +642,9 @@ impl InternalAlgorithmData {
 
 /// Gives a key with an RsaHashedKeyAlgorithm the RsaKeyAlgorithm without its hash, which no operation creates, so
 /// that tests can serialize one.
-///
-/// # Safety
-///
-/// The key must be a live CryptoKey cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_key_remove_algorithm_hash_for_testing(key: *mut c_void) {
-    // SAFETY: LibWeb supplies a live CryptoKey cell.
-    let key = unsafe { cell_from_abi::<CryptoKey>(key) };
+pub extern "C" fn web_rust_crypto_key_remove_algorithm_hash_for_testing(key: &InterfaceCell) {
+    let key = key.object::<CryptoKey>();
     let algorithm = match &*key.internal_algorithm() {
         InternalAlgorithmData::RsaHashed {
             name,

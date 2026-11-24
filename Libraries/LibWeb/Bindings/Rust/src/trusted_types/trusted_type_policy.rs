@@ -873,7 +873,7 @@ unsafe fn trusted_type_or_string_from_abi(kind: u8, cell: *mut c_void, string: u
 /// `string` and `exception` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_string(
-    vm: *mut c_void,
+    vm: &Vm,
     expected_type: u8,
     global: *mut c_void,
     input_kind: u8,
@@ -885,9 +885,8 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
     exception: *mut u64,
 ) -> u8 {
     // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (vm, global, input, sink, sink_group) = unsafe {
+    let (global, input, sink, sink_group) = unsafe {
         (
-            &*vm.cast::<Vm>(),
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
             Utf16String::from_raw_owned(sink),
@@ -915,7 +914,7 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
 /// over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
-    vm: *mut c_void,
+    vm: &Vm,
     attribute_name: usize,
     has_attribute_ns: bool,
     attribute_ns: usize,
@@ -930,9 +929,8 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
     exception: *mut u64,
 ) -> u8 {
     // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (vm, global, input, attribute_name, attribute_ns, element_local_name, element_namespace) = unsafe {
+    let (global, input, attribute_name, attribute_ns, element_local_name, element_namespace) = unsafe {
         (
-            &*vm.cast::<Vm>(),
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
             Utf16String::from_raw_owned(attribute_name),
@@ -961,7 +959,7 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
 /// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `result` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_policy(
-    vm: *mut c_void,
+    vm: &Vm,
     trusted_type_name: u8,
     global: *mut c_void,
     input_kind: u8,
@@ -972,9 +970,8 @@ pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_pol
     exception: *mut u64,
 ) -> bool {
     // SAFETY: The caller passes the live VM, a live global object, a live input and a live string.
-    let (vm, global, input, sink) = unsafe {
+    let (global, input, sink) = unsafe {
         (
-            &*vm.cast::<Vm>(),
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
             Utf16String::from_raw_owned(sink),
@@ -1029,7 +1026,7 @@ pub(crate) enum CompliantParserOptionsResultAbi {
 /// `sink` a raw string that C++ hands over, and `options`, `message` and `exception` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parser_options(
-    vm: *mut c_void,
+    vm: &Vm,
     global: *mut c_void,
     input: &ParserOptionsInputAbi,
     throw_if_missing: bool,
@@ -1040,9 +1037,8 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parse
     exception: &mut u64,
 ) -> CompliantParserOptionsResultAbi {
     // SAFETY: The caller passes the live VM, a live global object and a sink string it hands over.
-    let (vm, global, sink) = unsafe {
+    let (global, sink) = unsafe {
         (
-            &*vm.cast::<Vm>(),
             Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
             Utf16String::from_raw_owned(sink),
         )

@@ -16,11 +16,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, Trace, Value, Vm};
 
 use crate::bindings::callback::CallbackFunction;
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject, relevant_settings_object};
 use crate::bindings::global_object::CppWindow;
 use crate::bindings::interface::{
-    Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context, wrap,
+    InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context, wrap,
 };
 use crate::bindings::promise::{TaskSource, deferred_invoke, queue_a_task};
 use crate::bindings::{CallContext, WebIdlResult};
@@ -1032,14 +1032,12 @@ impl VisibilityWait {
 }
 
 /// A new Geolocation of the window.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `window` a live Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_geolocation_create_geolocation(vm: *mut c_void, window: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live Window.
-    let (vm, window) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window)) };
+pub extern "C" fn web_rust_geolocation_create_geolocation(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
+) -> *mut c_void {
+    let window = CppWindow::from_lent(window);
     cell_into_abi(allocate(vm, |_| Geolocation {
         window,
         watch_ids: RefCell::new(HashSet::new()),
@@ -1059,35 +1057,27 @@ pub unsafe extern "C" fn web_rust_geolocation_create_geolocation(vm: *mut c_void
 /// `vm` must be the live VM, `request` the live cell that the request was made with, and `result` lent for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_geolocation_receive_position(
-    vm: *mut c_void,
+    vm: &Vm,
     request: *mut c_void,
     result: &GeolocationPositionResultAbi,
 ) {
     // SAFETY: The caller passes the live VM and the live cell of a request.
-    let (vm, request) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            POSITION_REQUEST_CLASS
-                .downcast(NonNull::new(request).expect("LibWeb passes the request"))
-                .expect("LibWeb passes a GeolocationPositionRequest"),
-        )
+    let request = unsafe {
+        POSITION_REQUEST_CLASS
+            .downcast(NonNull::new(request).expect("LibWeb passes the request"))
+            .expect("LibWeb passes a GeolocationPositionRequest")
     };
     PositionRequest::receive_position(request, vm, result);
 }
 
 /// The page's emulated position data changed, which a watch observes.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `geolocation` the live cell of a Geolocation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_geolocation_emulated_position_data_changed(
-    vm: *mut c_void,
-    geolocation: *mut c_void,
+pub extern "C" fn web_rust_geolocation_emulated_position_data_changed(
+    vm: &Vm,
+    geolocation: &InterfaceCell,
     watch_id: u32,
 ) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, geolocation) = unsafe { (&*vm.cast::<Vm>(), cell_from_abi::<Geolocation>(geolocation)) };
+    let geolocation = geolocation.object::<Geolocation>();
     Geolocation::emulated_position_data_changed(geolocation, vm, watch_id);
 }
 
@@ -1098,18 +1088,15 @@ pub unsafe extern "C" fn web_rust_geolocation_emulated_position_data_changed(
 /// `vm` must be the live VM, and `wait` the live cell that the observer was made with.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_geolocation_document_visibility_changed(
-    vm: *mut c_void,
+    vm: &Vm,
     wait: *mut c_void,
     is_visible: bool,
 ) {
     // SAFETY: The caller passes the live VM and the live cell of a wait.
-    let (vm, wait) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            VISIBILITY_WAIT_CLASS
-                .downcast(NonNull::new(wait).expect("LibWeb passes the wait"))
-                .expect("LibWeb passes a GeolocationVisibilityWait"),
-        )
+    let wait = unsafe {
+        VISIBILITY_WAIT_CLASS
+            .downcast(NonNull::new(wait).expect("LibWeb passes the wait"))
+            .expect("LibWeb passes a GeolocationVisibilityWait")
     };
     VisibilityWait::document_visibility_changed(wait, vm, is_visible);
 }

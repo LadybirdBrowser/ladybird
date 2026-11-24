@@ -71,7 +71,7 @@ use crate::bindings::conversions::{CppInterface, ToJs};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::interface::with_temporary_execution_context_and_callbacks;
-use crate::bindings::interface::{Inherits, Ref, Wrappable, Wrapped, cell_if_abi, cell_into_abi};
+use crate::bindings::interface::{Inherits, InterfaceCell, Ref, Wrappable, Wrapped, cell_into_abi};
 use crate::bindings::promise::{WebIdlPromise, pending_steps, run_pending_steps};
 use crate::bindings::promise::{create_promise, exception_value, promise_realm, reject_promise, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -735,14 +735,14 @@ impl AnyBaseAudioContext {
         }
     }
 
-    pub(crate) unsafe fn from_abi(cell: *mut c_void) -> Self {
-        if let Some(context) = unsafe { cell_if_abi::<BaseAudioContext>(cell) } {
+    pub(crate) fn from_abi(cell: &InterfaceCell) -> Self {
+        if let Some(context) = cell.object_if::<BaseAudioContext>() {
             return Self::BaseAudioContext(context);
         }
-        if let Some(context) = unsafe { cell_if_abi::<AudioContext>(cell) } {
+        if let Some(context) = cell.object_if::<AudioContext>() {
             return Self::AudioContext(context);
         }
-        if let Some(context) = unsafe { cell_if_abi::<OfflineAudioContext>(cell) } {
+        if let Some(context) = cell.object_if::<OfflineAudioContext>() {
             return Self::OfflineAudioContext(context);
         }
         unreachable!("C++ holds a context cell")
@@ -750,25 +750,25 @@ impl AnyBaseAudioContext {
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_context_sample_rate(cell: *mut c_void) -> f32 {
-    unsafe { AnyBaseAudioContext::from_abi(cell) }.sample_rate_value()
+pub(crate) extern "C" fn web_rust_audio_context_sample_rate(cell: &InterfaceCell) -> f32 {
+    AnyBaseAudioContext::from_abi(cell).sample_rate_value()
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_context_global(cell: *mut c_void) -> *mut c_void {
-    unsafe { AnyBaseAudioContext::from_abi(cell) }.global_object.as_ptr()
+pub(crate) extern "C" fn web_rust_audio_context_global(cell: &InterfaceCell) -> *mut c_void {
+    AnyBaseAudioContext::from_abi(cell).global_object.as_ptr()
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_context_global_wrapper(cell: *mut c_void) -> *mut c_void {
-    unsafe { AnyBaseAudioContext::from_abi(cell) }.global().as_ptr().cast()
+pub(crate) extern "C" fn web_rust_audio_context_global_wrapper(cell: &InterfaceCell) -> *mut c_void {
+    AnyBaseAudioContext::from_abi(cell).global().as_ptr().cast()
 }
 
 // Called when the associated document is destroyed or otherwise stops being fully active, so rendering resources
 // can be released.
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_context_document_inactive(cell: *mut c_void) {
-    match unsafe { AnyBaseAudioContext::from_abi(cell) } {
+pub(crate) extern "C" fn web_rust_audio_context_document_inactive(cell: &InterfaceCell) {
+    match AnyBaseAudioContext::from_abi(cell) {
         AnyBaseAudioContext::AudioContext(context) => context.document_became_inactive(),
         AnyBaseAudioContext::OfflineAudioContext(context) => context.document_became_inactive(),
         AnyBaseAudioContext::BaseAudioContext(_) => {}

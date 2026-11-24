@@ -16,7 +16,7 @@ use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libjs_rust::api::{Gc, JSVM, MarkedVec, Object, RawNativeFunctionResult, Value, Vm, vm_from_abi};
+use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Realm, Value, Vm};
 use liburl_rust::FfiOrigin;
 
 use super::broadcast_channel::{BROADCAST_CHANNEL_MESSAGE_CLASS, BroadcastChannel, BroadcastChannelMessage};
@@ -33,10 +33,10 @@ use super::window::{PostedMessage, queue_posted_message, window_post_message_ste
 use super::window_or_worker_global_scope::structured_clone;
 use crate::bindings::CallContext;
 use crate::bindings::conversions::UsvString;
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEventTarget;
-use crate::bindings::interface::{Interface, Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments, wrap};
+use crate::bindings::interface::{InterfaceCell, allocate, cell_from_abi, cell_into_abi, wrap};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::canvas_2d::canvas::Canvas;
 use crate::dom::event::EventInit;
@@ -49,18 +49,6 @@ use crate::html::structured_serialize::transfer_record::TransferRecord;
 use crate::storage_api::storage_area_mirror::StorageEndpointType;
 use crate::storage_api::storage_bottle::{obtain_a_local_storage_bottle_map, obtain_a_session_storage_bottle_map};
 use crate::storage_api::storage_key::StorageKey;
-
-/// The implementation of the object whose cell C++ lends, for as long as C++ keeps the cell alive.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of an object of the interface, and it must outlive `'a`.
-unsafe fn object_from_abi<'a, T: Interface>(cell: *mut c_void) -> &'a T {
-    // SAFETY: The caller passes a live cell of the interface.
-    let object: Ref<T> = unsafe { cell_from_abi(cell) };
-    // SAFETY: The caller keeps the cell alive for 'a.
-    unsafe { &*object.as_ptr() }
-}
 
 /// # Safety
 ///
@@ -76,20 +64,14 @@ unsafe fn objects_from_abi(vm: &Vm, objects: *const *mut c_void, count: usize) -
 
 /// Creates an ImageData of the size, with transparent black pixels and the sRGB color space, in the realm, and stores
 /// its cell, or throws what initializing an ImageData throws.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `realm` a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
+pub extern "C" fn web_image_data_create(
+    vm: &Vm,
+    realm: Gc<Realm>,
     width: u32,
     height: u32,
     out_image_data: &mut *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let mut cx = CallContext::new(vm, realm);
     let result = ImageData::create(&mut cx, width, height, None, None).map(|image_data| {
         *out_image_data = cell_into_abi(image_data);
@@ -98,53 +80,32 @@ pub unsafe extern "C" fn web_image_data_create(
     RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
 }
 
-/// # Safety
-///
-/// `image_data` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_width(image_data: *mut c_void) -> u32 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageData>(image_data) }.size().0
+pub extern "C" fn web_image_data_width(image_data: &InterfaceCell) -> u32 {
+    image_data.object::<ImageData>().size().0
 }
 
-/// # Safety
-///
-/// `image_data` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_height(image_data: *mut c_void) -> u32 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageData>(image_data) }.size().1
+pub extern "C" fn web_image_data_height(image_data: &InterfaceCell) -> u32 {
+    image_data.object::<ImageData>().size().1
 }
 
-/// # Safety
-///
-/// `image_data` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_is_detached(image_data: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageData>(image_data) }.is_detached()
+pub extern "C" fn web_image_data_is_detached(image_data: &InterfaceCell) -> bool {
+    image_data.object::<ImageData>().is_detached()
 }
 
 /// The colorSpace of the ImageData, as the underlying value of a Web::Bindings::PredefinedColorSpace.
-///
-/// # Safety
-///
-/// `image_data` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_color_space(image_data: *mut c_void) -> u8 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageData>(image_data) }.predefined_color_space() as u8
+pub extern "C" fn web_image_data_color_space(image_data: &InterfaceCell) -> u8 {
+    image_data.object::<ImageData>().predefined_color_space() as u8
 }
 
 /// The first byte of the pixels of the ImageData, or null if its buffer is detached or its data has no room for them.
-///
-/// # Safety
-///
-/// `image_data` must be a live cell. The pixels are valid until script runs.
+/// The pixels are valid until script runs.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_data_pixels(image_data: *mut c_void) -> *mut u8 {
-    // SAFETY: The caller passes a live cell.
-    let image_data = unsafe { object_from_abi::<ImageData>(image_data) };
+pub extern "C" fn web_image_data_pixels(image_data: &InterfaceCell) -> *mut u8 {
+    let image_data = image_data.object::<ImageData>();
     image_data.pixels().map_or(core::ptr::null_mut(), NonNull::as_ptr)
 }
 
@@ -161,125 +122,69 @@ pub unsafe extern "C" fn web_image_bitmap_create(vm: &Vm, frame: *const c_void) 
     cell_into_abi(ImageBitmap::create(vm, frame))
 }
 
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_width(image_bitmap: *mut c_void) -> u32 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.width_of_bitmap()
+pub extern "C" fn web_image_bitmap_width(image_bitmap: &InterfaceCell) -> u32 {
+    image_bitmap.object::<ImageBitmap>().width_of_bitmap()
 }
 
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_height(image_bitmap: *mut c_void) -> u32 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.height_of_bitmap()
+pub extern "C" fn web_image_bitmap_height(image_bitmap: &InterfaceCell) -> u32 {
+    image_bitmap.object::<ImageBitmap>().height_of_bitmap()
 }
 
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_is_detached(image_bitmap: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.is_detached()
+pub extern "C" fn web_image_bitmap_is_detached(image_bitmap: &InterfaceCell) -> bool {
+    image_bitmap.object::<ImageBitmap>().is_detached()
 }
 
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_close(image_bitmap: *mut c_void) {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.close_bitmap();
+pub extern "C" fn web_image_bitmap_close(image_bitmap: &InterfaceCell) {
+    image_bitmap.object::<ImageBitmap>().close_bitmap();
 }
 
 /// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
-///
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_origin_clean(image_bitmap: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.origin_clean()
+pub extern "C" fn web_image_bitmap_origin_clean(image_bitmap: &InterfaceCell) -> bool {
+    image_bitmap.object::<ImageBitmap>().origin_clean()
 }
 
-/// # Safety
-///
-/// `image_bitmap` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_set_origin_clean(image_bitmap: *mut c_void, origin_clean: bool) {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.set_origin_clean(origin_clean);
+pub extern "C" fn web_image_bitmap_set_origin_clean(image_bitmap: &InterfaceCell, origin_clean: bool) {
+    image_bitmap.object::<ImageBitmap>().set_origin_clean(origin_clean);
 }
 
-/// The Gfx::DecodedImageFrame of the bitmap data of the ImageBitmap, or null if it has none.
-///
-/// # Safety
-///
-/// `image_bitmap` must be a live cell. The frame is valid until the bitmap data is unset, by close() or a transfer.
+/// The Gfx::DecodedImageFrame of the bitmap data of the ImageBitmap, or null if it has none. The frame is valid until
+/// the bitmap data is unset, by close() or a transfer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_frame(image_bitmap: *mut c_void) -> *const c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.raw_frame()
+pub extern "C" fn web_image_bitmap_frame(image_bitmap: &InterfaceCell) -> *const c_void {
+    image_bitmap.object::<ImageBitmap>().raw_frame()
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `realm` a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_create(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_message_port_create(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     cell_into_abi(MessagePort::create(vm, realm))
 }
 
 /// Entangles the two ports, https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `port` and `remote_port` live cells of MessagePorts.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_entangle(vm: *mut c_void, port: *mut c_void, remote_port: *mut c_void) {
-    // SAFETY: The caller passes the live VM and live cells of MessagePorts.
-    let (vm, port, remote_port) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            cell_from_abi::<MessagePort>(port),
-            cell_from_abi::<MessagePort>(remote_port),
-        )
-    };
+pub extern "C" fn web_rust_message_port_entangle(vm: &Vm, port: &InterfaceCell, remote_port: &InterfaceCell) {
+    let (port, remote_port) = (port.object::<MessagePort>(), remote_port.object::<MessagePort>());
     MessagePort::entangle(vm, port, remote_port);
 }
 
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_entangled_port(port: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    let port = unsafe { cell_from_abi::<MessagePort>(port) };
+pub extern "C" fn web_rust_message_port_entangled_port(port: &InterfaceCell) -> *mut c_void {
+    let port = port.object::<MessagePort>();
     port.entangled_port().map_or(core::ptr::null_mut(), cell_into_abi)
 }
 
 /// Sets the port's message event target, https://html.spec.whatwg.org/multipage/web-messaging.html#message-event-target
-///
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort, and `event_target` a live EventTarget.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_set_message_event_target(port: *mut c_void, event_target: *mut c_void) {
-    // SAFETY: The caller passes a live cell of a MessagePort and a live EventTarget.
-    let (port, event_target) = unsafe {
-        (
-            cell_from_abi::<MessagePort>(port),
-            CppEventTarget::from_raw(event_target),
-        )
-    };
+pub extern "C" fn web_rust_message_port_set_message_event_target(
+    port: &InterfaceCell,
+    event_target: &LentCppCell<cpp_class::EventTarget>,
+) {
+    let (port, event_target) = (port.object::<MessagePort>(), CppEventTarget::from_lent(event_target));
     port.set_message_event_target(event_target);
 }
 
@@ -291,18 +196,16 @@ pub unsafe extern "C" fn web_rust_message_port_set_message_event_target(port: *m
 /// and the transfer list `count` live objects.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_message_port_post_message(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    port: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
+    port: &InterfaceCell,
     message: u64,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let mut cx = CallContext::new(vm, realm);
     // SAFETY: The caller passes a live cell of a MessagePort and a live value.
-    let (port, message) = unsafe { (cell_from_abi::<MessagePort>(port), Value::from_raw(message)) };
+    let (port, message) = unsafe { (port.object::<MessagePort>(), Value::from_raw(message)) };
     // SAFETY: The caller passes `count` live objects.
     let transfer_list = unsafe { objects_from_abi(vm, transfer, count) };
     let result = MessagePort::post_message(&port, &mut cx, message, transfer_list);
@@ -313,72 +216,46 @@ pub unsafe extern "C" fn web_rust_message_port_post_message(
     )
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `port` a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_enable(vm: *mut c_void, port: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell of a MessagePort.
-    let (vm, port) = unsafe { (&*vm.cast::<Vm>(), cell_from_abi::<MessagePort>(port)) };
+pub extern "C" fn web_rust_message_port_enable(vm: &Vm, port: &InterfaceCell) {
+    let port = port.object::<MessagePort>();
     MessagePort::enable(port, vm);
 }
 
 /// The close() method steps of the port, https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-close
-///
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_close(port: *mut c_void) {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    unsafe { cell_from_abi::<MessagePort>(port) }.close_steps();
+pub extern "C" fn web_rust_message_port_close(port: &InterfaceCell) {
+    port.object::<MessagePort>().close_steps();
 }
 
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_discard_pending_messages(port: *mut c_void) {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    unsafe { cell_from_abi::<MessagePort>(port) }.discard_pending_messages();
+pub extern "C" fn web_rust_message_port_discard_pending_messages(port: &InterfaceCell) {
+    port.object::<MessagePort>().discard_pending_messages();
 }
 
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_pending_outgoing_message_count(port: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    unsafe { cell_from_abi::<MessagePort>(port) }.pending_outgoing_message_count()
+pub extern "C" fn web_rust_message_port_pending_outgoing_message_count(port: &InterfaceCell) -> usize {
+    port.object::<MessagePort>().pending_outgoing_message_count()
 }
 
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_fail_next_transfer_for_testing(port: *mut c_void) {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    unsafe { cell_from_abi::<MessagePort>(port) }.fail_next_transfer_for_testing();
+pub extern "C" fn web_rust_message_port_fail_next_transfer_for_testing(port: &InterfaceCell) {
+    port.object::<MessagePort>().fail_next_transfer_for_testing();
 }
 
 /// The transfer steps of the MessagePort of a new channel to a worker, which C++ runs outside
 /// StructuredSerializeWithTransfer, into a data holder that holds no type, whose carrier it hands over. The data holder
 /// goes through the browser process, and the token in `out_parked_end_token` is for settling what became of it.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `realm` a live realm, and `port` a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    port: *mut c_void,
+pub extern "C" fn web_rust_message_port_transfer_steps(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    port: &InterfaceCell,
     may_leave_process: bool,
     out_data_holder: &mut *mut c_void,
     out_parked_end_token: &mut u64,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM, a live realm and a live cell of a MessagePort.
-    let ((vm, realm), port) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<MessagePort>(port)) };
+    let port = port.object::<MessagePort>();
     let mut cx = CallContext::new(vm, realm);
     let data_holder = TransferDataHolder::new();
     let result = MessagePort::transfer_steps(&port, &mut cx, &mut TransferDataWriter::new(&data_holder, realm, None));
@@ -407,24 +284,18 @@ pub extern "C" fn web_rust_message_port_give_up_on_parked_end(token: u64) {
 /// `port` must be a live cell of a MessagePort, and `out_kind` must be valid for a write.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_message_port_entanglement_kind(
-    port: *mut c_void,
+    port: &InterfaceCell,
     out_kind: *mut ak::Span<'static, u8>,
 ) {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    let kind = unsafe { cell_from_abi::<MessagePort>(port) }.entanglement_kind();
+    let kind = port.object::<MessagePort>().entanglement_kind();
     // SAFETY: The caller passes a pointer that is valid for a write.
     unsafe { out_kind.write(ak::Span::new(kind.as_bytes())) };
 }
 
 /// Whether the transport of the port closed, for tests.
-///
-/// # Safety
-///
-/// `port` must be a live cell of a MessagePort.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_transport_is_closed_for_testing(port: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell of a MessagePort.
-    unsafe { cell_from_abi::<MessagePort>(port) }.transport_is_closed_for_testing()
+pub extern "C" fn web_rust_message_port_transport_is_closed_for_testing(port: &InterfaceCell) -> bool {
+    port.object::<MessagePort>().transport_is_closed_for_testing()
 }
 
 /// The transfer-receiving steps of a MessagePort that C++ runs outside StructuredDeserializeWithTransfer, which return
@@ -435,12 +306,12 @@ pub unsafe extern "C" fn web_rust_message_port_transport_is_closed_for_testing(p
 /// `vm` must be the live VM, `realm` a live realm, and `data_holder` an HTML::TransferDataEncoder that C++ hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     data_holder: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the live VM and a live realm, and hands over the data holder.
-    let ((vm, realm), mut payload) = unsafe { (realm_arguments(vm, realm), TransferPayload::from_cpp(data_holder)) };
+    let mut payload = unsafe { TransferPayload::from_cpp(data_holder) };
     let mut cx = CallContext::new(vm, realm);
     let mut data_holder = TransferDataReader::new(&mut payload, realm);
     let result = MessagePort::transfer_receiving_steps(&mut cx, &mut data_holder);
@@ -451,25 +322,14 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
     )
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `realm` a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_message_port_disentangle_ports_of_realm(vm: *mut c_void, realm: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_message_port_disentangle_ports_of_realm(vm: &Vm, realm: Gc<Realm>) {
     MessagePort::disentangle_ports_of_realm(vm, realm);
 }
 
 /// Releases what the thread's agent keeps outside its heap, for an agent that goes away.
-///
-/// # Safety
-///
-/// `vm` must be the live VM of the thread, whose heap has to stay alive through the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_shut_down_agent(vm: *mut c_void) {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
+pub extern "C" fn web_rust_shut_down_agent(vm: &Vm) {
     MessagePort::shut_down_ports_of_agent(vm);
     crate::html::broadcast_channel::forget_broadcast_channels_of_agent();
     crate::html::event_source::forget_event_sources_of_agent();
@@ -488,7 +348,7 @@ pub unsafe extern "C" fn web_rust_shut_down_agent(vm: *mut c_void) {
 /// `shared_store_lifeline` a descriptor that is open for the call, or negative.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
-    vm: *mut c_void,
+    vm: &Vm,
     storage_key_origin: *const FfiOrigin,
     channel_name: usize,
     source_origin: *const FfiOrigin,
@@ -496,9 +356,8 @@ pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     shared_store_lifeline: c_int,
 ) {
     // SAFETY: The caller passes the live VM, lends the origins and the descriptor, and hands over the name.
-    let (vm, storage_key, channel_name, source_origin) = unsafe {
+    let (storage_key, channel_name, source_origin) = unsafe {
         (
-            &*vm.cast::<Vm>(),
             StorageKey {
                 origin: (*storage_key_origin).to_origin(),
             },
@@ -521,18 +380,8 @@ pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
 /// A new Storage object of the type, 0 for "local" and 1 for "session", for the Window of the realm, whose map is a new
 /// storage proxy map over the bottle for the realm's settings object: steps 2 to 4 of the localStorage and
 /// sessionStorage getters. Null when obtaining the bottle map fails.
-///
-/// # Safety
-///
-/// The pointers must be the live VM and the live realm of a Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_html_create_storage(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    storage_type: u8,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_html_create_storage(vm: &Vm, realm: Gc<Realm>, storage_type: u8) -> *mut c_void {
     let storage_type = StorageType::from_abi(storage_type);
     let environment = relevant_settings_object(realm.global_object());
     let map = match storage_type {
@@ -546,14 +395,9 @@ pub unsafe extern "C" fn web_rust_html_create_storage(
 
 /// Loads the map of the Storage object now rather than on first access, so changes other processes make start
 /// arriving.
-///
-/// # Safety
-///
-/// `storage` must be the live cell of a Storage object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_html_storage_connect(storage: *mut c_void) {
-    // SAFETY: The caller passes a live Storage object.
-    unsafe { object_from_abi::<Storage>(storage) }.map().connect();
+pub extern "C" fn web_rust_html_storage_connect(storage: &InterfaceCell) {
+    storage.implementation::<Storage>().map().connect();
 }
 
 /// Calls `on_item` with each key of the map of the Storage object and its value, raw AK::Utf16Strings that Rust lends
@@ -564,12 +408,11 @@ pub unsafe extern "C" fn web_rust_html_storage_connect(storage: *mut c_void) {
 /// `storage` must be the live cell of a Storage object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_html_storage_for_each_item(
-    storage: *mut c_void,
+    storage: &InterfaceCell,
     ctx: *mut c_void,
     on_item: unsafe extern "C" fn(*mut c_void, usize, usize),
 ) {
-    // SAFETY: The caller passes a live Storage object.
-    let map = unsafe { object_from_abi::<Storage>(storage) }.map();
+    let map = storage.implementation::<Storage>().map();
     for key in map.keys() {
         if let Some(value) = map.get(&key) {
             // SAFETY: The strings outlive the call.
@@ -580,14 +423,8 @@ pub unsafe extern "C" fn web_rust_html_storage_for_each_item(
 
 /// The Event of a new StorageEvent in the realm whose type is the empty string and whose attributes are their
 /// defaults, for createEvent().
-///
-/// # Safety
-///
-/// The pointers must be the live VM and a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_html_create_storage_event(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_html_create_storage_event(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     let event_init = StorageEventInit {
         parent: EventInit {
             bubbles: false,
@@ -615,17 +452,15 @@ pub unsafe extern "C" fn web_rust_html_create_storage_event(vm: *mut c_void, rea
 #[allow(clippy::too_many_arguments, reason = "C++ passes each member of the dictionary")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_html_create_message_event(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     r#type: usize,
     data: u64,
     ports: *const *mut c_void,
     count: usize,
-    source: *mut c_void,
+    source: Option<&InterfaceCell>,
     origin: *const FfiOrigin,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let mut event_init = MessageEventInit::new(vm);
     // SAFETY: The caller passes live data.
     event_init.data = unsafe { Value::from_raw(data) };
@@ -634,10 +469,8 @@ pub unsafe extern "C" fn web_rust_html_create_message_event(
         // SAFETY: Each port is a live MessagePort.
         event_init.ports.push(unsafe { cell_from_abi::<MessagePort>(port) });
     }
-    if !source.is_null() {
-        // SAFETY: A source that is not null is a live MessagePort.
-        let source = unsafe { cell_from_abi::<MessagePort>(source) };
-        event_init.source = Some(MessageEventSource::MessagePort(source));
+    if let Some(source) = source {
+        event_init.source = Some(MessageEventSource::MessagePort(source.object::<MessagePort>()));
     }
     // SAFETY: An origin that is not null is lent for the call.
     let origin = (!origin.is_null()).then(|| unsafe { (*origin).to_origin() });
@@ -649,17 +482,8 @@ pub unsafe extern "C" fn web_rust_html_create_message_event(
 }
 
 /// The Event of a new MessageEvent in the realm whose type is the empty string, for createEvent().
-///
-/// # Safety
-///
-/// The VM and the realm must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_html_create_message_event_for_create_event(
-    vm: *mut c_void,
-    realm: *mut c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_html_create_message_event_for_create_event(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     MessageEvent::create_for_create_event(vm, realm).event().as_ptr()
 }
 
@@ -669,22 +493,20 @@ pub unsafe extern "C" fn web_rust_html_create_message_event_for_create_event(
 /// is false and a RemoteNavigable otherwise. The target origin string is handed over, and the transfer list is lent.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_window_post_message(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    target: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
+    target: &LentCppCell<cpp_class::Cell>,
     remote: bool,
     message: u64,
     target_origin: usize,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let cx = CallContext::new(vm, realm);
     // SAFETY: The caller lends the live target, message and transferred objects, and hands over the string.
     let (target, message, target_origin, transfer) = unsafe {
         (
-            CppCell::from_raw(target),
+            CppCell::from_lent(target),
             Value::from_raw(message),
             Utf16String::from_raw_owned(target_origin),
             objects_from_abi(vm, transfer, count),
@@ -699,8 +521,8 @@ pub unsafe extern "C" fn web_window_post_message(
 /// The VM, the Window and the source, if any, must be live, and the record and the origins are lent for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_window_queue_posted_message(
-    vm: *mut c_void,
-    target_window: *mut c_void,
+    vm: &Vm,
+    target_window: &LentCppCell<cpp_class::Window>,
     record: *mut c_void,
     target_origin: *const FfiOrigin,
     origin: *const FfiOrigin,
@@ -708,9 +530,8 @@ pub unsafe extern "C" fn web_window_queue_posted_message(
 ) {
     // SAFETY: The caller passes the live VM, and lends the Window, the source, the record and the origins.
     unsafe {
-        let vm = &*vm.cast::<Vm>();
         let posted_message = PostedMessage {
-            target_window: CppCell::from_raw(target_window),
+            target_window: CppCell::from_lent(target_window),
             serialize_with_transfer_result: TransferRecord::from_cpp(vm, SerializedTransferRecord::from_raw(record)),
             target_origin: target_origin.as_ref().map(|origin| origin.to_origin()),
             origin: (*origin).to_origin(),
@@ -725,14 +546,12 @@ pub unsafe extern "C" fn web_window_queue_posted_message(
 /// The VM and the realm must be live, and `transfer` must point to `count` live objects.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_clone(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     value: u64,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let cx = CallContext::new(vm, realm);
     // SAFETY: The caller passes a live value and `count` live objects.
     let (value, transfer) = unsafe { (Value::from_raw(value), objects_from_abi(vm, transfer, count)) };
@@ -765,234 +584,136 @@ pub unsafe extern "C" fn web_image_bitmap_rendering_context_create(
 
 /// The Gfx::DecodedImageFrame of the output bitmap of the context, which stays valid until the output bitmap changes,
 /// or null for none.
-///
-/// # Safety
-///
-/// `context` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_rendering_context_frame(context: *mut c_void) -> *const c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.raw_frame()
+pub extern "C" fn web_image_bitmap_rendering_context_frame(context: &InterfaceCell) -> *const c_void {
+    context.object::<ImageBitmapRenderingContext>().raw_frame()
 }
 
-/// # Safety
-///
-/// `context` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_rendering_context_is_blank(context: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.is_blank()
+pub extern "C" fn web_image_bitmap_rendering_context_is_blank(context: &InterfaceCell) -> bool {
+    context.object::<ImageBitmapRenderingContext>().is_blank()
 }
 
-/// # Safety
-///
-/// `context` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_rendering_context_origin_clean(context: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.origin_clean()
+pub extern "C" fn web_image_bitmap_rendering_context_origin_clean(context: &InterfaceCell) -> bool {
+    context.object::<ImageBitmapRenderingContext>().origin_clean()
 }
 
-/// # Safety
-///
-/// `context` must be a live cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_image_bitmap_rendering_context_alpha(context: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.alpha()
+pub extern "C" fn web_image_bitmap_rendering_context_alpha(context: &InterfaceCell) -> bool {
+    context.object::<ImageBitmapRenderingContext>().alpha()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_event_target(cue: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.event_target().as_ptr()
+pub extern "C" fn web_text_track_cue_event_target(cue: &InterfaceCell) -> *mut c_void {
+    AnyTextTrackCue::from_abi(cue).event_target().as_ptr()
 }
 
 /// The cell of the TextTrack whose list of cues the cue is in, or null.
-///
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_track(cue: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live cell.
-    let cue = unsafe { AnyTextTrackCue::from_abi(cue) };
+pub extern "C" fn web_text_track_cue_track(cue: &InterfaceCell) -> *mut c_void {
+    let cue = AnyTextTrackCue::from_abi(cue);
     cue.track_cell().map_or(core::ptr::null_mut(), |track| track.as_ptr())
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue, and `track` a live TextTrack or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_set_track(cue: *mut c_void, track: *mut c_void) {
-    // SAFETY: The caller passes a live cell.
-    let cue = unsafe { AnyTextTrackCue::from_abi(cue) };
-    // SAFETY: The caller passes a live TextTrack, or null.
-    let track = (!track.is_null()).then(|| unsafe { CppCell::from_raw(track) });
-    cue.set_track_cell(track);
+pub extern "C" fn web_text_track_cue_set_track(cue: &InterfaceCell, track: Option<&LentCppCell<cpp_class::TextTrack>>) {
+    let cue = AnyTextTrackCue::from_abi(cue);
+    cue.set_track_cell(track.map(CppCell::from_lent));
 }
 
 /// The identifier of the cue, whose reference the caller adopts.
-///
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_id(cue: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.identifier().into_raw()
+pub extern "C" fn web_text_track_cue_id(cue: &InterfaceCell) -> usize {
+    AnyTextTrackCue::from_abi(cue).identifier().into_raw()
 }
 
 /// # Safety
 ///
 /// `cue` must be the live cell of a TextTrackCue, and `id` a string that the caller lends for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_set_id(cue: *mut c_void, id: usize) {
+pub unsafe extern "C" fn web_text_track_cue_set_id(cue: &InterfaceCell, id: usize) {
     // SAFETY: The caller passes a live cell and lends the string.
     let (cue, id) = unsafe { (AnyTextTrackCue::from_abi(cue), Utf16String::from_raw_borrowed(id)) };
     cue.set_identifier(id);
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_start_time(cue: *mut c_void) -> f64 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.start_time_value()
+pub extern "C" fn web_text_track_cue_start_time(cue: &InterfaceCell) -> f64 {
+    AnyTextTrackCue::from_abi(cue).start_time_value()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_end_time(cue: *mut c_void) -> f64 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.end_time_value()
+pub extern "C" fn web_text_track_cue_end_time(cue: &InterfaceCell) -> f64 {
+    AnyTextTrackCue::from_abi(cue).end_time_value()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_pause_on_exit(cue: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.pause_on_exit_flag()
+pub extern "C" fn web_text_track_cue_pause_on_exit(cue: &InterfaceCell) -> bool {
+    AnyTextTrackCue::from_abi(cue).pause_on_exit_flag()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_is_active(cue: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.is_active()
+pub extern "C" fn web_text_track_cue_is_active(cue: &InterfaceCell) -> bool {
+    AnyTextTrackCue::from_abi(cue).is_active()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_set_active(cue: *mut c_void, active: bool) {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.set_active(active);
+pub extern "C" fn web_text_track_cue_set_active(cue: &InterfaceCell, active: bool) {
+    AnyTextTrackCue::from_abi(cue).set_active(active);
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_order_added(cue: *mut c_void) -> u64 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.order_added()
+pub extern "C" fn web_text_track_cue_order_added(cue: &InterfaceCell) -> u64 {
+    AnyTextTrackCue::from_abi(cue).order_added()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_set_order_added(cue: *mut c_void, order_added: u64) {
-    // SAFETY: The caller passes a live cell.
-    unsafe { AnyTextTrackCue::from_abi(cue) }.set_order_added(order_added);
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM, and `event_source` the live cell of an EventSource.
-unsafe fn event_source_arguments<'vm>(vm: *mut JSVM, event_source: *mut c_void) -> (&'vm Vm, Ref<EventSource>) {
-    // SAFETY: The caller passes the live VM and the live cell of an EventSource.
-    unsafe { (vm_from_abi(vm), cell_from_abi(event_source)) }
+pub extern "C" fn web_text_track_cue_set_order_added(cue: &InterfaceCell, order_added: u64) {
+    AnyTextTrackCue::from_abi(cue).set_order_added(order_added);
 }
 
 /// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and `response` a live ResponseView.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_source_process_response(
-    vm: *mut JSVM,
-    event_source: *mut c_void,
-    response: *mut c_void,
+pub extern "C" fn web_rust_event_source_process_response(
+    vm: &Vm,
+    event_source: &InterfaceCell,
+    response: &LentCppCell<cpp_class::ResponseView>,
 ) {
-    // SAFETY: The caller passes the live VM, the live cell of an EventSource and a live ResponseView.
-    let ((vm, event_source), response) = unsafe {
-        (
-            event_source_arguments(vm, event_source),
-            CppResponseView::from_raw(response),
-        )
-    };
+    let (event_source, response) = (
+        event_source.object::<EventSource>(),
+        CppResponseView::from_lent(response),
+    );
     EventSource::process_response(event_source, vm, response);
 }
 
 /// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and `response` a live ResponseView.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_source_process_response_end_of_body(
-    vm: *mut JSVM,
-    event_source: *mut c_void,
-    response: *mut c_void,
+pub extern "C" fn web_rust_event_source_process_response_end_of_body(
+    vm: &Vm,
+    event_source: &InterfaceCell,
+    response: &LentCppCell<cpp_class::ResponseView>,
 ) {
-    // SAFETY: The caller passes the live VM, the live cell of an EventSource and a live ResponseView.
-    let ((vm, event_source), response) = unsafe {
-        (
-            event_source_arguments(vm, event_source),
-            CppResponseView::from_raw(response),
-        )
-    };
+    let (event_source, response) = (
+        event_source.object::<EventSource>(),
+        CppResponseView::from_lent(response),
+    );
     EventSource::process_event_source_end_of_body(event_source, vm, response);
 }
 
 /// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and the bytes lent for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_source_process_body_chunk(
-    vm: *mut JSVM,
-    event_source: *mut c_void,
+pub extern "C" fn web_rust_event_source_process_body_chunk(
+    vm: &Vm,
+    event_source: &InterfaceCell,
     bytes: ak::Span<'_, u8>,
 ) {
-    // SAFETY: The caller passes the live VM and the live cell of an EventSource.
-    let (vm, event_source) = unsafe { event_source_arguments(vm, event_source) };
+    let event_source = event_source.object::<EventSource>();
     EventSource::process_body_chunk(event_source, vm, bytes.as_slice());
 }
 
 /// https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-forcibly-close
-///
-/// # Safety
-///
-/// `vm` must be the live VM and `realm` a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_source_forcibly_close_all(vm: *mut c_void, realm: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_event_source_forcibly_close_all(vm: &Vm, realm: Gc<Realm>) {
     EventSource::forcibly_close_all(vm, realm);
 }

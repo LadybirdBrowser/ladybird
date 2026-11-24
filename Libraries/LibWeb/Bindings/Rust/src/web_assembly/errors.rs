@@ -237,12 +237,11 @@ fn native_error(vm: &Vm, new_target: Gc<Object>, error: WebAssemblyError) -> Thr
 /// The pointers must be the VM, a live realm, and the message, a borrowed AK::Utf16String.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_web_assembly_create_compile_error(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     message: usize,
 ) -> *mut c_void {
     // SAFETY: The caller passes the VM and a live realm.
-    let (vm, realm) = unsafe { crate::bindings::interface::realm_arguments(vm, realm) };
     // SAFETY: The caller lends the message for the call, which this takes a reference of its own to.
     let message = unsafe {
         ak::reference_utf16_string(message);

@@ -11,6 +11,7 @@ use core::ffi::c_void;
 
 use libjs_rust::api::Vm;
 
+use crate::bindings::cpp_cell::{LentCppCell, cpp_class};
 use crate::bindings::global_object::CppWindow;
 use crate::gamepad::gamepad::{GamepadDescription, GamepadDescriptionAbi, GamepadState, GamepadStateAbi};
 use crate::gamepad::navigator_gamepad::{
@@ -24,20 +25,16 @@ use crate::gamepad::navigator_gamepad::{
 /// The pointers must be the live VM and live Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_gamepad_get_gamepads(
-    vm: *mut c_void,
-    navigator_window: *mut c_void,
-    current_window: *mut c_void,
+    vm: &Vm,
+    navigator_window: &LentCppCell<cpp_class::Window>,
+    current_window: &LentCppCell<cpp_class::Window>,
     ctx: *mut c_void,
     on_gamepad: unsafe extern "C" fn(*mut c_void, *mut c_void),
 ) -> bool {
-    // SAFETY: The caller passes the live VM and live Windows.
-    let (vm, navigator_window, current_window) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            CppWindow::from_raw(navigator_window),
-            CppWindow::from_raw(current_window),
-        )
-    };
+    let (navigator_window, current_window) = (
+        CppWindow::from_lent(navigator_window),
+        CppWindow::from_lent(current_window),
+    );
     let Ok(gamepads) = get_gamepads(vm, &navigator_window, &current_window) else {
         return false;
     };
@@ -57,12 +54,12 @@ pub unsafe extern "C" fn web_rust_gamepad_get_gamepads(
 /// The pointers must be the live VM, a live Window and a description that the caller lends for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_connected(
-    vm: *mut c_void,
-    window: *mut c_void,
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
     description: *const GamepadDescriptionAbi<'_>,
 ) {
     // SAFETY: The caller passes the live VM, a live Window and a lent description.
-    let (vm, window, description) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window), &*description) };
+    let (window, description) = unsafe { (CppWindow::from_lent(window), &*description) };
     handle_gamepad_connected(vm, &window, GamepadDescription::from_abi(description));
 }
 
@@ -73,27 +70,22 @@ pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_connected(
 /// The pointers must be the live VM, a live Window and a state that the caller lends for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_updated(
-    vm: *mut c_void,
-    window: *mut c_void,
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
     state: *const GamepadStateAbi<'_>,
 ) {
     // SAFETY: The caller passes the live VM, a live Window and a lent state.
-    let (vm, window, state) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window), &*state) };
+    let (window, state) = unsafe { (CppWindow::from_lent(window), &*state) };
     handle_gamepad_updated(vm, &window, GamepadState::from_abi(state));
 }
 
 /// https://w3c.github.io/gamepad/#event-gamepaddisconnected
-///
-/// # Safety
-///
-/// The pointers must be the live VM and a live Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_gamepad_handle_gamepad_disconnected(
-    vm: *mut c_void,
-    window: *mut c_void,
+pub extern "C" fn web_rust_gamepad_handle_gamepad_disconnected(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
     handle: u32,
 ) {
-    // SAFETY: The caller passes the live VM and a live Window.
-    let (vm, window) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window)) };
+    let window = CppWindow::from_lent(window);
     handle_gamepad_disconnected(vm, &window, handle);
 }

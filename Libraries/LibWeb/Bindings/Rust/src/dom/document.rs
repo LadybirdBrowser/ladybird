@@ -20,7 +20,7 @@ use crate::animations::animation_timeline::{AnyAnimationTimeline, timeline_objec
 use crate::animations::document_or_shadow_root;
 use crate::animations::document_timeline::DocumentTimeline;
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::{CppCell, WeakCppCell};
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, WeakCppCell, cpp_class};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::navigable::CppNavigable;
@@ -101,6 +101,10 @@ pub(crate) struct DocumentUnloadTimingInfo {
 }
 
 impl CppDocument {
+    pub(crate) fn from_lent(document: &LentCppCell<cpp_class::Document>) -> Self {
+        Self(CppCell::from_lent(document))
+    }
+
     /// # Safety
     ///
     /// `document` must be a live Document.

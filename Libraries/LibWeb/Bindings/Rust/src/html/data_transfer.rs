@@ -17,7 +17,7 @@ use libjs_rust::api::{Gc, GcRefCell, Must, Object, Realm, Trace, Utf16View, Valu
 use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
 use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file::File;
@@ -482,17 +482,16 @@ pub unsafe extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: NonNull<c
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_disassociate(transfer: *mut c_void) {
-    // SAFETY: LibWeb passes a live DataTransfer.
-    let transfer = unsafe { cell_from_abi::<DataTransfer>(transfer) };
+pub extern "C" fn web_rust_data_transfer_disassociate(transfer: &InterfaceCell) {
+    let transfer = transfer.object::<DataTransfer>();
     transfer.store.borrow_mut().take();
     transfer.update_types();
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_drop_effect(transfer: *mut c_void) -> usize {
-    // SAFETY: LibWeb passes a live DataTransfer.
-    unsafe { cell_from_abi::<DataTransfer>(transfer) }
+pub extern "C" fn web_rust_data_transfer_drop_effect(transfer: &InterfaceCell) -> usize {
+    transfer
+        .object::<DataTransfer>()
         .drop_effect
         .borrow()
         .clone()
@@ -500,9 +499,9 @@ pub unsafe extern "C" fn web_rust_data_transfer_drop_effect(transfer: *mut c_voi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_effect_allowed(transfer: *mut c_void) -> usize {
-    // SAFETY: LibWeb passes a live DataTransfer.
-    unsafe { cell_from_abi::<DataTransfer>(transfer) }
+pub extern "C" fn web_rust_data_transfer_effect_allowed(transfer: &InterfaceCell) -> usize {
+    transfer
+        .object::<DataTransfer>()
         .effect_allowed
         .borrow()
         .clone()
@@ -510,17 +509,21 @@ pub unsafe extern "C" fn web_rust_data_transfer_effect_allowed(transfer: *mut c_
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_set_drop_effect(transfer: *mut c_void, effect: usize) {
+pub unsafe extern "C" fn web_rust_data_transfer_set_drop_effect(transfer: &InterfaceCell, effect: usize) {
     // SAFETY: LibWeb passes a live DataTransfer and lends a fly string.
     unsafe {
-        cell_from_abi::<DataTransfer>(transfer).set_drop_effect_value(Utf16FlyString::from_raw_borrowed(effect));
+        transfer
+            .object::<DataTransfer>()
+            .set_drop_effect_value(Utf16FlyString::from_raw_borrowed(effect));
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(transfer: *mut c_void, effect: usize) {
+pub unsafe extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(transfer: &InterfaceCell, effect: usize) {
     // SAFETY: LibWeb passes a live DataTransfer and lends a fly string.
     unsafe {
-        cell_from_abi::<DataTransfer>(transfer).set_effect_allowed_internal(Utf16FlyString::from_raw_borrowed(effect));
+        transfer
+            .object::<DataTransfer>()
+            .set_effect_allowed_internal(Utf16FlyString::from_raw_borrowed(effect));
     }
 }

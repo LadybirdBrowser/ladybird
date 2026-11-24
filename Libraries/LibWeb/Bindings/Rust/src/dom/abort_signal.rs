@@ -13,10 +13,10 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, MarkedVec, NativeFunction, Realm, Throw, Trace, Value, Vm, call};
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::global_object::window_or_worker_global_scope_from_global_object;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
 use crate::bindings::promise::{TaskSource, exception_value, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
@@ -24,20 +24,33 @@ unsafe extern "C" {
     fn web_dom_run_abort_algorithm(algorithm: *mut c_void);
 }
 
+/// An abort algorithm of LibWeb's C++ code, a GC::Function<void()>.
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct CppAbortAlgorithm(CppCell);
+
+impl CppAbortAlgorithm {
+    fn from_lent(algorithm: &LentCppCell<cpp_class::AbortAlgorithm>) -> Self {
+        Self(CppCell::from_lent(algorithm))
+    }
+
+    fn run(&self) {
+        // SAFETY: The algorithm is a live GC::Function<void()>.
+        unsafe { web_dom_run_abort_algorithm(self.0.as_ptr()) };
+    }
+}
+
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) enum AbortAlgorithm {
-    Cpp(CppCell),
+    Cpp(CppAbortAlgorithm),
     Rust(Gc<NativeFunction>),
 }
 
 impl AbortAlgorithm {
     fn run(&self, vm: &Vm) {
         match self {
-            Self::Cpp(algorithm) => {
-                // SAFETY: The algorithm is a live GC::Function<void()>.
-                unsafe { web_dom_run_abort_algorithm(algorithm.as_ptr()) };
-            }
+            Self::Cpp(algorithm) => algorithm.run(),
             Self::Rust(algorithm) => {
                 // NB: The algorithm cannot fail, but it can run into the abort of the script that it calls.
                 let result = call(vm, Value::from_object(*algorithm), Value::UNDEFINED, &[]);
@@ -337,52 +350,33 @@ impl AbortSignal {
 }
 
 /// Creates an AbortSignal.
-///
-/// # Safety
-///
-/// `vm` must be the live VM.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_create(vm: &Vm) -> *mut c_void {
+pub extern "C" fn web_rust_abort_signal_create(vm: &Vm) -> *mut c_void {
     cell_into_abi(AbortSignal::create(vm))
 }
 
 /// Returns whether the signal is aborted.
-///
-/// # Safety
-///
-/// `signal` must be a live AbortSignal cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_aborted(signal: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live AbortSignal.
-    unsafe { cell_from_abi::<AbortSignal>(signal) }.aborted()
+pub extern "C" fn web_rust_abort_signal_aborted(signal: &InterfaceCell) -> bool {
+    signal.object::<AbortSignal>().aborted()
 }
 
 /// Returns the signal’s abort reason.
-///
-/// # Safety
-///
-/// `signal` must be a live AbortSignal cell.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_reason(signal: *mut c_void) -> u64 {
-    // SAFETY: The caller passes a live AbortSignal.
-    unsafe { cell_from_abi::<AbortSignal>(signal) }.reason().to_raw()
+pub extern "C" fn web_rust_abort_signal_reason(signal: &InterfaceCell) -> u64 {
+    signal.object::<AbortSignal>().reason().to_raw()
 }
 
 /// Adds a C++ abort algorithm and returns its identifier if the signal accepts it.
-///
-/// # Safety
-///
-/// `vm`, `signal`, and `algorithm` must be live, and `algorithm` a GC::Function<void()>.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_add_abort_algorithm(
+pub extern "C" fn web_rust_abort_signal_add_abort_algorithm(
     vm: &Vm,
-    signal: *mut c_void,
-    algorithm: *mut c_void,
+    signal: &InterfaceCell,
+    algorithm: &LentCppCell<cpp_class::AbortAlgorithm>,
     id: &mut u64,
 ) -> bool {
-    // SAFETY: The caller passes live cells of the declared types.
-    let signal = unsafe { cell_from_abi::<AbortSignal>(signal) };
-    let algorithm = AbortAlgorithm::Cpp(unsafe { CppCell::from_raw(algorithm) });
+    let signal = signal.object::<AbortSignal>();
+    let algorithm = AbortAlgorithm::Cpp(CppAbortAlgorithm::from_lent(algorithm));
     let Some(algorithm_id) = signal.add_abort_algorithm(vm, algorithm) else {
         return false;
     };
@@ -391,14 +385,9 @@ pub unsafe extern "C" fn web_rust_abort_signal_add_abort_algorithm(
 }
 
 /// Removes the abort algorithm with the identifier.
-///
-/// # Safety
-///
-/// `vm` and `signal` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_remove_abort_algorithm(vm: &Vm, signal: *mut c_void, id: u64) {
-    // SAFETY: The caller passes a live AbortSignal.
-    unsafe { cell_from_abi::<AbortSignal>(signal) }.remove_abort_algorithm(vm, id);
+pub extern "C" fn web_rust_abort_signal_remove_abort_algorithm(vm: &Vm, signal: &InterfaceCell, id: u64) {
+    signal.object::<AbortSignal>().remove_abort_algorithm(vm, id);
 }
 
 /// Signals abort with the reason in the realm.
@@ -408,14 +397,12 @@ pub unsafe extern "C" fn web_rust_abort_signal_remove_abort_algorithm(vm: &Vm, s
 /// `vm`, `signal`, `reason`, and `realm` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_abort_signal_signal_abort(
-    vm: *mut c_void,
-    signal: *mut c_void,
+    vm: &Vm,
+    signal: &InterfaceCell,
     reason: u64,
-    realm: *mut c_void,
+    realm: Gc<Realm>,
 ) {
-    // SAFETY: The caller passes the live VM, realm, signal, and reason.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let signal = unsafe { cell_from_abi::<AbortSignal>(signal) };
+    let signal = signal.object::<AbortSignal>();
     signal.signal_abort(vm, Some(unsafe { Value::from_raw(reason) }), realm);
 }
 

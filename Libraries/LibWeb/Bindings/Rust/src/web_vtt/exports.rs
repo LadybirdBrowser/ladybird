@@ -22,14 +22,9 @@ use crate::web_vtt::vtt_cue::VTTCue;
 ///
 /// `vm` must be the live VM, and `text` a string that the caller lends for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_vtt_cue_create(
-    vm: *mut c_void,
-    start_time: f64,
-    end_time: f64,
-    text: usize,
-) -> *mut c_void {
+pub unsafe extern "C" fn web_vtt_cue_create(vm: &Vm, start_time: f64, end_time: f64, text: usize) -> *mut c_void {
     // SAFETY: The caller passes the live VM and lends the string.
-    let (vm, text) = unsafe { (&*vm.cast::<Vm>(), Utf16String::from_raw_borrowed(text)) };
+    let text = unsafe { Utf16String::from_raw_borrowed(text) };
     let Ok(cue) = VTTCue::create(vm, start_time, end_time, text) else {
         unreachable!("C++ creates cues whose end time is neither negative infinity nor NaN");
     };

@@ -462,27 +462,77 @@ pub(crate) fn cell_into_abi<T: Interface>(object: Ref<T>) -> *mut c_void {
     object.as_ptr().cast()
 }
 
+/// The cell of an object of an interface implemented in Rust, which LibWeb's C++ code holds as a pointer to a class that
+/// derives from Web::Bindings::RustInterfaceCell, and lends the exports of the crate for as long as they run. The
+/// exports take a `&InterfaceCell` where C++ passes such a cell, as they take a `&Vm` where it passes the VM, so a
+/// reference to one is always a live cell of an embedder class.
+#[repr(C)]
+pub(crate) struct InterfaceCell {
+    // NB: The cell is mutable behind a shared reference, and bigger than Rust sees, so a reference to one must not tell
+    //     the compiler that the memory behind it is read only or unaliased.
+    _opaque: core::cell::UnsafeCell<[u8; 0]>,
+    _not_send_sync_or_unpin: core::marker::PhantomData<(*const (), core::marker::PhantomPinned)>,
+}
+
+impl InterfaceCell {
+    /// The cell behind the pointer that C++ passes.
+    ///
+    /// # Safety
+    ///
+    /// `cell` must be a live cell of an object of an interface implemented in Rust, which stays live for `'a`.
+    pub(crate) unsafe fn from_raw<'a>(cell: *mut c_void) -> &'a Self {
+        let cell = NonNull::new(cell.cast::<Self>()).expect("C++ passes the cell of an object");
+        // SAFETY: The caller passes a live cell.
+        unsafe { cell.as_ref() }
+    }
+
+    /// The object of the interface whose cell this is.
+    pub(crate) fn object<T: Interface>(&self) -> Ref<T> {
+        self.object_if()
+            .expect("C++ passes the cell of an object of the interface")
+    }
+
+    /// The object of the interface whose cell this is, if the cell is that of an object of exactly the interface: C++
+    /// names an object of an interface that others inherit from by that interface, whichever it is.
+    pub(crate) fn object_if<T: Interface>(&self) -> Option<Ref<T>> {
+        // SAFETY: An InterfaceCell is a live cell of an embedder class.
+        unsafe { T::CELL_CLASS.downcast(NonNull::from(self).cast()) }
+    }
+
+    /// The implementation of the object whose cell this is, for as long as the cell is lent.
+    pub(crate) fn implementation<T: Interface>(&self) -> &T {
+        self.implementation_if()
+            .expect("C++ passes the cell of an object of the interface")
+    }
+
+    /// The implementation of the object whose cell this is, if it is an object of exactly the interface, as
+    /// object_if() finds it.
+    pub(crate) fn implementation_if<T: Interface>(&self) -> Option<&T> {
+        let object = self.object_if::<T>()?;
+        // SAFETY: The cell is live for as long as the reference to it.
+        Some(unsafe { &*object.as_ptr() })
+    }
+}
+
 /// The object of the interface whose cell LibWeb's C++ code holds.
 ///
 /// # Safety
 ///
 /// `cell` must be a live cell of an object of an interface implemented in Rust.
 pub(crate) unsafe fn cell_from_abi<T: Interface>(cell: *mut c_void) -> Ref<T> {
-    let cell = NonNull::new(cell).expect("C++ passes the cell of an object");
     // SAFETY: The caller passes a live cell of an embedder class.
-    unsafe { T::CELL_CLASS.downcast(cell) }.expect("C++ passes the cell of an object of the interface")
+    unsafe { InterfaceCell::from_raw(cell) }.object()
 }
 
 /// The object of the interface whose cell LibWeb's C++ code holds, if the cell is that of an object of exactly the
-/// interface: C++ names an object of an interface that others inherit from by that interface, whichever it is.
+/// interface, as InterfaceCell::object_if() finds it.
 ///
 /// # Safety
 ///
 /// `cell` must be a live cell of an object of an interface implemented in Rust.
 pub(crate) unsafe fn cell_if_abi<T: Interface>(cell: *mut c_void) -> Option<Ref<T>> {
-    let cell = NonNull::new(cell).expect("C++ passes the cell of an object");
     // SAFETY: The caller passes a live cell of an embedder class.
-    unsafe { T::CELL_CLASS.downcast(cell) }
+    unsafe { InterfaceCell::from_raw(cell) }.object_if()
 }
 
 /// Whether the global object of the realm is a Window, which the members that only a Window has, [Exposed=Window] on

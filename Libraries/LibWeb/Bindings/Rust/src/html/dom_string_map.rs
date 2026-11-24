@@ -13,6 +13,7 @@ use core::ffi::c_void;
 use ak::{Utf16FlyString, Utf16String};
 use libjs_rust::api::{Trace, Utf16StringBuilder, Utf16View, Vm};
 
+use crate::bindings::cpp_cell::{LentCppCell, cpp_class};
 use crate::bindings::interface::{Wrappable, allocate, cell_into_abi};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::dom::element::{CppElement, is_valid_attribute_local_name};
@@ -275,12 +276,8 @@ fn data_attribute_name_matches_property_name(attribute_name: Utf16View<'_>, prop
     property_name_index == property_name.length_in_code_units()
 }
 
-/// # Safety
-///
-/// The caller passes the live VM and a live Element.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_string_map_create(vm: &Vm, element: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live Element.
-    let associated_element = unsafe { CppElement::from_raw(element) };
+pub extern "C" fn web_dom_string_map_create(vm: &Vm, element: &LentCppCell<cpp_class::Element>) -> *mut c_void {
+    let associated_element = CppElement::from_lent(element);
     cell_into_abi(allocate(vm, |_| DOMStringMap { associated_element }))
 }

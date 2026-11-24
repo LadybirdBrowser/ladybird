@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use libjs_rust::api::Vm;
+use libjs_rust::api::{Gc, Realm, Vm};
 
 use super::canvas::Canvas;
 use super::context_loss::{
@@ -25,7 +25,7 @@ use super::state::{
 };
 use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
-use crate::bindings::interface::{Interface, allocate, cell_into_abi, realm_arguments};
+use crate::bindings::interface::{Interface, allocate, cell_into_abi};
 
 /// Mirrors `Web::WebGL::ContextAttributes`.
 #[derive(Clone, Copy)]
@@ -88,7 +88,7 @@ impl From<WebGLContextAttributes> for ContextAttributes {
 #[repr(C)]
 pub struct ContextCreationArguments {
     is_webgl2: bool,
-    realm: *mut c_void,
+    realm: Gc<Realm>,
     canvas: *mut c_void,
     canvas_host: *mut c_void,
     canvas_is_offscreen: bool,
@@ -144,12 +144,8 @@ fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -
 ///
 /// The pointers are the live VM and what [`ContextCreationArguments`] describes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_context_create(
-    vm: *mut c_void,
-    arguments: &ContextCreationArguments,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, arguments.realm) };
+pub unsafe extern "C" fn web_webgl_context_create(vm: &Vm, arguments: &ContextCreationArguments) -> *mut c_void {
+    let realm = arguments.realm;
 
     let canvas = Canvas {
         cell: NonNull::new(arguments.canvas).expect("C++ passes the canvas"),
@@ -252,22 +248,14 @@ pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
     frame.map_or(core::ptr::null_mut(), |frame| frame.hand_over_copy())
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM of the thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_lose_contexts_of_this_thread(vm: *mut c_void) {
-    // SAFETY: The caller passes the live VM.
-    lose_contexts_of_this_thread(unsafe { &*vm.cast::<Vm>() });
+pub extern "C" fn web_webgl_lose_contexts_of_this_thread(vm: &Vm) {
+    lose_contexts_of_this_thread(vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM of the thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: *mut c_void) {
-    // SAFETY: The caller passes the live VM.
-    restore_contexts_of_this_thread(unsafe { &*vm.cast::<Vm>() });
+pub extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: &Vm) {
+    restore_contexts_of_this_thread(vm);
 }
 
 /// Converts the options of getContext() to the dictionary, and answers true with the exception that the conversion
@@ -279,7 +267,7 @@ pub unsafe extern "C" fn web_webgl_restore_contexts_of_this_thread(vm: *mut c_vo
 #[cfg(web_idl_bindings)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_attributes_from_value(
-    vm: *mut c_void,
+    vm: &Vm,
     value: u64,
     out_context_attributes: &mut ContextAttributes,
     out_exception: &mut u64,
@@ -287,12 +275,7 @@ pub unsafe extern "C" fn web_webgl_context_attributes_from_value(
     use crate::bindings::conversions::FromJs;
 
     // SAFETY: The caller passes the live VM and a live value.
-    let (vm, value) = unsafe {
-        (
-            &*vm.cast::<libjs_rust::api::Vm>(),
-            libjs_rust::api::Value::from_raw(value),
-        )
-    };
+    let value = unsafe { libjs_rust::api::Value::from_raw(value) };
     match WebGLContextAttributes::from_js(vm, value) {
         Ok(context_attributes) => {
             *out_context_attributes = context_attributes.into();

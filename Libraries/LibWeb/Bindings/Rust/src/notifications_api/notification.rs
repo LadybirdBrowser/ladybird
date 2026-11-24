@@ -26,7 +26,7 @@ use crate::bindings::environment_settings_object::{
 use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::global_object::{CppWindow, is_service_worker_global_scope, window_from_global_object};
 use crate::bindings::interface::{
-    Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context_and_callbacks,
+    InterfaceCell, Ref, Wrappable, allocate, cell_into_abi, with_temporary_execution_context_and_callbacks,
 };
 use crate::bindings::promise::{TaskSource, WebIdlPromise, create_promise, queue_a_global_task, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -1032,113 +1032,63 @@ impl Notification {
     }
 }
 
-/// # Safety
-///
-/// `notification` must be the live cell of a Notification.
-unsafe fn notification_from_abi(notification: *mut c_void) -> Ref<Notification> {
-    // SAFETY: The caller passes the live cell of a Notification.
-    unsafe { cell_from_abi(notification) }
+#[unsafe(no_mangle)]
+pub extern "C" fn web_rust_notifications_api_id_for_testing(notification: &InterfaceCell) -> u64 {
+    notification.object::<Notification>().id.get()
 }
 
-/// # Safety
-///
-/// `notification` must be the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_id_for_testing(notification: *mut c_void) -> u64 {
-    // SAFETY: The caller passes a live cell.
-    unsafe { notification_from_abi(notification) }.id.get()
-}
-
-/// # Safety
-///
-/// `notification` must be the live cell of a Notification.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_document(notification: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { notification_from_abi(notification) }.document_ptr()
+pub extern "C" fn web_rust_notifications_api_document(notification: &InterfaceCell) -> *mut c_void {
+    notification.object::<Notification>().document_ptr()
 }
 
 /// Whether the notification still waits for its icon.
-///
-/// # Safety
-///
-/// `notification` must be the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_is_pending(notification: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { notification_from_abi(notification) }.state.get() == State::Pending
+pub extern "C" fn web_rust_notifications_api_is_pending(notification: &InterfaceCell) -> bool {
+    notification.object::<Notification>().state.get() == State::Pending
 }
 
-/// # Safety
-///
-/// `notification` must be the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_icon_bytes_arrived(notification: *mut c_void) {
-    // SAFETY: The caller passes a live cell.
-    let notification = unsafe { notification_from_abi(notification) };
+pub extern "C" fn web_rust_notifications_api_icon_bytes_arrived(notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     if let Some(fetch_timeout) = &*notification.fetch_timeout.borrow() {
         fetch_timeout.stop();
     }
 }
 
 /// The icon resource is set, or there is none.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_icon_fetched(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_icon_fetched(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     Notification::fetch_steps_done(notification, vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_abandon(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_abandon(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     notification.abandon(vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_did_show(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_did_show(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     Notification::did_show(notification, vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_did_fail_to_show(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_did_fail_to_show(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     Notification::did_fail_to_show(notification, vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_did_click(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_did_click(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     Notification::did_click(notification, vm);
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `notification` the live cell of a Notification.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_notifications_api_did_close(vm: *mut c_void, notification: *mut c_void) {
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, notification) = unsafe { (&*vm.cast::<Vm>(), notification_from_abi(notification)) };
+pub extern "C" fn web_rust_notifications_api_did_close(vm: &Vm, notification: &InterfaceCell) {
+    let notification = notification.object::<Notification>();
     Notification::did_close(notification, vm);
 }

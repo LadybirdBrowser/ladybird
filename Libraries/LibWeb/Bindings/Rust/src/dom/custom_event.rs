@@ -15,7 +15,7 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_rust::api::{Gc, GcRefCell, Realm, Trace, Value, Vm};
 
 use crate::bindings::event_target::CppEvent;
-use crate::bindings::interface::{Ref, Wrappable, allocate, realm_arguments};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -109,13 +109,11 @@ impl CustomEvent {
 /// The VM, the realm and the detail must be live. The type is lent for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_custom_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     r#type: usize,
     detail: u64,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let event_init = CustomEventInit {
         parent: EventInit {
             bubbles: false,
@@ -133,17 +131,8 @@ pub unsafe extern "C" fn web_rust_custom_event_create(
 }
 
 /// The Event of a new CustomEvent in the realm whose type is the empty string, for createEvent().
-///
-/// # Safety
-///
-/// The VM and the realm must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_custom_event_create_for_create_event(
-    vm: *mut c_void,
-    realm: *mut c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_custom_event_create_for_create_event(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     let event_init = CustomEventInit {
         parent: EventInit {
             bubbles: false,

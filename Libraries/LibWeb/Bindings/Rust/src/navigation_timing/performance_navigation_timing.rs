@@ -11,7 +11,8 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
-use crate::bindings::interface::{Inherits, Wrappable, allocate, realm_arguments};
+use crate::bindings::cpp_cell::{LentCppCell, cpp_class};
+use crate::bindings::interface::{Inherits, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::document::CppDocument;
 use crate::fetch::infrastructure::fetch_timing_info::CppFetchTimingInfo;
@@ -241,9 +242,9 @@ fn create_the_navigation_timing_entry(
 /// type of `body_info` raw AK::Utf16Strings that LibWeb hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_navigation_timing_create_the_navigation_timing_entry(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    document: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
+    document: &LentCppCell<cpp_class::Document>,
     document_url: usize,
     timing_info: *mut c_void,
     redirect_count: u16,
@@ -252,14 +253,12 @@ pub unsafe extern "C" fn web_rust_navigation_timing_create_the_navigation_timing
     body_info: ResponseBodyInfoAbi,
     response_status: u16,
 ) {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     // SAFETY: The caller passes a live Document, hands over the timing info and the strings.
     unsafe {
         create_the_navigation_timing_entry(
             vm,
             realm,
-            CppDocument::from_raw(document),
+            CppDocument::from_lent(document),
             Utf16String::from_raw_owned(document_url),
             CppFetchTimingInfo::adopt(timing_info),
             redirect_count,

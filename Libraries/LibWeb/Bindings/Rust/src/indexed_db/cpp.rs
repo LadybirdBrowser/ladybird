@@ -136,14 +136,9 @@ pub(crate) fn enqueue_post_gc_task(database: crate::indexed_db::internal::databa
 ///
 /// The pointers must be the live VM and the live cell of a database.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_indexed_db_check_pending_connection_wait(vm: *mut c_void, database: *mut c_void) {
+pub unsafe extern "C" fn web_rust_indexed_db_check_pending_connection_wait(vm: &Vm, database: *mut c_void) {
     // SAFETY: The caller passes the live VM and a live database.
-    let (vm, database) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            Gc::from_non_null(NonNull::new_unchecked(database.cast::<EmbedderCell<Database>>())),
-        )
-    };
+    let database = unsafe { Gc::from_non_null(NonNull::new_unchecked(database.cast::<EmbedderCell<Database>>())) };
     database.check_pending_connection_wait(vm);
 }
 

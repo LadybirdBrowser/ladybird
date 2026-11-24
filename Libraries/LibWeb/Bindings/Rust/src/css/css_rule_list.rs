@@ -17,7 +17,7 @@ use libweb_rust::NativeRuleList;
 use super::css_rule::AnyCSSRule;
 use super::exports::rule_from_abi;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Ref, Wrappable, allocate};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
@@ -108,7 +108,7 @@ impl CSSRuleList {
             AnyCSSRule::create(vm, self.rules.cssom_rule_at(index), self.document.borrow().as_ref())
         } else {
             // SAFETY: LibWeb returns the live cell of the CSSImportRule of the rule.
-            unsafe { rule_from_abi(import) }
+            unsafe { rule_from_abi(InterfaceCell::from_raw(import)) }
         };
         self.objects.borrow_mut(vm).0.insert(identity, object);
         let owner = *self.owner_rule.borrow();

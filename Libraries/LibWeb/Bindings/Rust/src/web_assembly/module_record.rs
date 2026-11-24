@@ -24,7 +24,7 @@ use libwasm_engine::module::ImportDescription;
 use libwasm_engine::runtime::ExternValue;
 use libwasm_engine::types::{GlobalType, ValType};
 
-use crate::bindings::interface::{Ref, allocate, realm_arguments};
+use crate::bindings::interface::{Ref, allocate};
 use crate::web_assembly::errors::{WebAssemblyError, throw_webassembly_error};
 use crate::web_assembly::exported_function::{create_host_function, exported_function_address};
 use crate::web_assembly::global::Global;
@@ -217,8 +217,8 @@ fn parse_a_webassembly_module(
 /// or null, and a writable module pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_web_assembly_parse_a_webassembly_module(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     bytes: *const u8,
     length: usize,
     filename: *const u8,
@@ -227,11 +227,8 @@ pub unsafe extern "C" fn web_rust_web_assembly_parse_a_webassembly_module(
     module_record: *mut *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM, a live realm, and the bytes.
-    let (vm, realm, bytes, filename) = unsafe {
-        let (vm, realm) = realm_arguments(vm, realm);
+    let (bytes, filename) = unsafe {
         (
-            vm,
-            realm,
             ak::slice_from_raw_parts(bytes, length),
             String::from_utf8_lossy(ak::slice_from_raw_parts(filename, filename_length)).into_owned(),
         )

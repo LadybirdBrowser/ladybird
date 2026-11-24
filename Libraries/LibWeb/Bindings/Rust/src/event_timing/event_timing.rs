@@ -10,10 +10,10 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, Trace, Vm};
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::event_target::CppEvent;
 use crate::bindings::global_object::CppWindow;
-use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, Ref, cell_into_abi};
 use crate::event_timing::event_counts::EventCounts;
 use crate::event_timing::performance_event_timing::PerformanceEventTiming;
 use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
@@ -634,41 +634,25 @@ fn dispatch_pending_event_timing_entries(vm: &Vm, window: &CppWindow) {
 }
 
 /// https://w3c.github.io/event-timing/#compute-interactionid
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `window` a live Window, and `event` a live Event.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_compute_interaction_id(
-    vm: *mut c_void,
-    window: *mut c_void,
-    event: *mut c_void,
+pub extern "C" fn web_rust_event_timing_compute_interaction_id(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
+    event: &LentCppCell<cpp_class::Event>,
 ) -> u64 {
-    // SAFETY: The caller passes the live VM, a live Window and a live Event.
-    let (vm, window, event) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            CppWindow::from_raw(window),
-            CppEvent::from_raw(event),
-        )
-    };
+    let (window, event) = (CppWindow::from_lent(window), CppEvent::from_lent(event));
     compute_interaction_id(vm, &event, &window)
 }
 
 /// https://w3c.github.io/event-timing/#initialize-event-timing
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `event` a live Event.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_initialize_event_timing(
-    vm: *mut c_void,
-    event: *mut c_void,
+pub extern "C" fn web_rust_event_timing_initialize_event_timing(
+    vm: &Vm,
+    event: &LentCppCell<cpp_class::Event>,
     processing_start: f64,
     interaction_id: u64,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live Event.
-    let (vm, event) = unsafe { (&*vm.cast::<Vm>(), CppEvent::from_raw(event)) };
+    let event = CppEvent::from_lent(event);
     cell_into_abi(initialize_event_timing(vm, &event, processing_start, interaction_id))
 }
 
@@ -681,23 +665,22 @@ pub unsafe extern "C" fn web_rust_event_timing_initialize_event_timing(
 /// AK::Utf16String that C++ hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_event_timing_finalize_event_timing(
-    vm: *mut c_void,
-    timing_entry: *mut c_void,
-    event: *mut c_void,
-    relevant_global: *mut c_void,
-    target_node: *mut c_void,
+    vm: &Vm,
+    timing_entry: &InterfaceCell,
+    event: &LentCppCell<cpp_class::Event>,
+    relevant_global: &LentCppCell<cpp_class::Window>,
+    target_node: Option<&LentCppCell<cpp_class::Node>>,
     target_selector: usize,
     processing_end: f64,
 ) {
     // SAFETY: The caller passes the live VM, a live entry, a live Event, a live Window and null or a live Node, and hands
     //         over the selector.
-    let (vm, timing_entry, event, relevant_global, target_node, target_selector) = unsafe {
+    let (timing_entry, event, relevant_global, target_node, target_selector) = unsafe {
         (
-            &*vm.cast::<Vm>(),
-            cell_from_abi::<PerformanceEventTiming>(timing_entry),
-            CppEvent::from_raw(event),
-            CppWindow::from_raw(relevant_global),
-            (!target_node.is_null()).then(|| CppCell::from_raw(target_node)),
+            timing_entry.object::<PerformanceEventTiming>(),
+            CppEvent::from_lent(event),
+            CppWindow::from_lent(relevant_global),
+            target_node.map(CppCell::from_lent),
             Utf16String::from_raw_owned(target_selector),
         )
     };
@@ -712,45 +695,31 @@ pub unsafe extern "C" fn web_rust_event_timing_finalize_event_timing(
     );
 }
 
-/// # Safety
-///
-/// `vm` must be the live VM, and `window` a live Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_has_pending_event_timing_entries(
-    vm: *mut c_void,
-    window: *mut c_void,
+pub extern "C" fn web_rust_event_timing_has_pending_event_timing_entries(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
 ) -> bool {
-    // SAFETY: The caller passes the live VM and a live Window.
-    let (vm, window) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window)) };
+    let window = CppWindow::from_lent(window);
     has_pending_event_timing_entries(vm, &window)
 }
 
 /// https://w3c.github.io/event-timing/#dispatch-pending-event-timing-entries
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `window` a live Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_dispatch_pending_event_timing_entries(
-    vm: *mut c_void,
-    window: *mut c_void,
+pub extern "C" fn web_rust_event_timing_dispatch_pending_event_timing_entries(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
 ) {
-    // SAFETY: The caller passes the live VM and a live Window.
-    let (vm, window) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window)) };
+    let window = CppWindow::from_lent(window);
     dispatch_pending_event_timing_entries(vm, &window);
 }
 
 /// https://w3c.github.io/event-timing/#sec-modifications-HTML
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `window` a live Window.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_event_timing_has_dispatched_input_event(
-    vm: *mut c_void,
-    window: *mut c_void,
+pub extern "C" fn web_rust_event_timing_has_dispatched_input_event(
+    vm: &Vm,
+    window: &LentCppCell<cpp_class::Window>,
 ) -> bool {
-    // SAFETY: The caller passes the live VM and a live Window.
-    let (vm, window) = unsafe { (&*vm.cast::<Vm>(), CppWindow::from_raw(window)) };
+    let window = CppWindow::from_lent(window);
     window.event_timing_state(vm).has_dispatched_input_event()
 }

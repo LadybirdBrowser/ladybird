@@ -1087,9 +1087,7 @@ pub unsafe extern "C" fn web_animation_object_memory_size(animation: *const c_vo
 ///
 /// `vm` must be the live VM, and `effect` an effect the host performs.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_perform_object_effect(vm: *mut c_void, effect: &HostEffect) {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
+pub unsafe extern "C" fn web_animation_perform_object_effect(vm: &Vm, effect: &HostEffect) {
     // SAFETY: The effect names an animation the host holds a reference to.
     let animation = unsafe { AnimationRecordRef::retained_from_host(effect.animation.as_ptr().cast()) };
     // NB: Only an animation with an object has promises script can observe, and hears its playback events.
@@ -1214,16 +1212,13 @@ pub struct PendingAnimationEventHost {
 /// dispatching an event may reach again.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_animation_dispatch_pending_animation_events(
-    vm: *mut c_void,
+    vm: &Vm,
     document: NonNull<c_void>,
     animations: NonNull<c_void>,
     tree_order: unsafe extern "C" fn(first: *mut c_void, second: *mut c_void) -> i32,
     host: &PendingAnimationEventHost,
 ) {
     use libweb_rust::web_animations::{PendingAnimationEventKind, take_pending_animation_events_to_dispatch};
-
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
     // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
     // 5. Clear doc’s pending animation event queue.
     // 6. Perform a stable sort of the animation events in events to dispatch as follows:

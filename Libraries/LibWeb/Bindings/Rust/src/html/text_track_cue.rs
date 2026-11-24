@@ -18,7 +18,7 @@ use libjs_rust::api::{GcRefCell, Trace};
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
-use crate::bindings::interface::{Inherits, Ref, Wrappable, cell_from_abi, cell_if_abi};
+use crate::bindings::interface::{Inherits, InterfaceCell, Ref, Wrappable};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::css::css_rule::wrap_cpp_cell;
 use crate::web_vtt::vtt_cue::VTTCue;
@@ -238,15 +238,10 @@ impl Deref for AnyTextTrackCue {
 }
 
 impl AnyTextTrackCue {
-    /// # Safety
-    ///
-    /// `cell` must be the live cell of an object of TextTrackCue or of an interface that inherits from it.
-    pub(crate) unsafe fn from_abi(cell: *mut c_void) -> Self {
-        // SAFETY: The caller passes a live cell.
-        if let Some(cue) = unsafe { cell_if_abi::<VTTCue>(cell) } {
+    pub(crate) fn from_abi(cell: &InterfaceCell) -> Self {
+        if let Some(cue) = cell.object_if::<VTTCue>() {
             return Self::VTTCue(cue);
         }
-        // SAFETY: The caller passes the live cell of a TextTrackCue, which is no VTTCue.
-        Self::TextTrackCue(unsafe { cell_from_abi::<TextTrackCue>(cell) })
+        Self::TextTrackCue(cell.object::<TextTrackCue>())
     }
 }

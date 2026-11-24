@@ -9,20 +9,17 @@
 
 use core::ffi::c_void;
 
-use crate::bindings::interface::{cell_from_abi, cell_into_abi, realm_arguments};
+use ak::{Utf16FlyString, Utf16String};
+use libjs_rust::api::{Gc, Realm, Vm};
+
+use crate::bindings::interface::{InterfaceCell, cell_into_abi};
 use crate::clipboard::clipboard::Clipboard;
 use crate::clipboard::clipboard_event::ClipboardEvent;
 use crate::dom::event::EventInit;
 use crate::html::data_transfer::DataTransfer;
-use ak::{Utf16FlyString, Utf16String};
 
-/// # Safety
-///
-/// The pointers must be the live VM and a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_clipboard_create_clipboard(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_clipboard_create_clipboard(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     cell_into_abi(Clipboard::create(vm, realm))
 }
 
@@ -34,16 +31,15 @@ pub unsafe extern "C" fn web_rust_clipboard_create_clipboard(vm: *mut c_void, re
 /// a live DataTransfer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_clipboard_create_clipboard_event(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     event_name: usize,
     bubbles: bool,
     cancelable: bool,
     composed: bool,
-    clipboard_data: *mut c_void,
+    clipboard_data: Option<&InterfaceCell>,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     // SAFETY: The caller lends a live fly string for the call.
     let event_name: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(event_name) }.into();
     let event_init = EventInit {
@@ -51,12 +47,7 @@ pub unsafe extern "C" fn web_rust_clipboard_create_clipboard_event(
         cancelable,
         composed,
     };
-    let clipboard_data = if clipboard_data.is_null() {
-        None
-    } else {
-        // SAFETY: The caller passes a live DataTransfer.
-        Some(unsafe { cell_from_abi::<DataTransfer>(clipboard_data) })
-    };
+    let clipboard_data = clipboard_data.map(InterfaceCell::object::<DataTransfer>);
     ClipboardEvent::create(vm, realm, &event_name, &event_init, clipboard_data)
         .event()
         .as_ptr()

@@ -8,7 +8,7 @@ use core::ffi::c_void;
 
 use libjs_rust::api::{Gc, Object, Realm, Trace};
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 
 unsafe extern "C" {
     fn web_fetch_controller_create(global_object: *mut c_void) -> *mut c_void;
@@ -33,6 +33,10 @@ impl CppFetchController {
     pub(crate) fn create(global_object: Gc<Object>) -> Self {
         // SAFETY: The global object is live, and LibWeb returns a new, live fetch controller.
         Self(unsafe { CppCell::from_raw(web_fetch_controller_create(global_object.as_ptr().cast())) })
+    }
+
+    pub(crate) fn from_lent(controller: &LentCppCell<cpp_class::FetchController>) -> Self {
+        Self(CppCell::from_lent(controller))
     }
 
     /// # Safety

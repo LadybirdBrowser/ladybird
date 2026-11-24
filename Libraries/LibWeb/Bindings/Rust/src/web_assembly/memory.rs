@@ -500,18 +500,13 @@ fn grow_memory_of_buffer(vm: &Vm, buffer: Gc<ArrayBuffer>, new_length: usize) ->
 /// The pointers must be the VM, a live ArrayBuffer, and a writable bool.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_web_assembly_host_resize_array_buffer(
-    vm: *mut c_void,
+    vm: &Vm,
     buffer: *mut c_void,
     new_length: usize,
     handled: *mut bool,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM and a live buffer.
-    let (vm, buffer) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            Gc::from_non_null(NonNull::new_unchecked(buffer.cast())),
-        )
-    };
+    let buffer = unsafe { Gc::from_non_null(NonNull::new_unchecked(buffer.cast())) };
     // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     //     4. Return handled.
     // 2. Otherwise, return unhandled.
@@ -531,18 +526,13 @@ pub unsafe extern "C" fn web_rust_web_assembly_host_resize_array_buffer(
 /// The pointers must be the VM, a live SharedArrayBuffer, and a writable bool.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
-    vm: *mut c_void,
+    vm: &Vm,
     buffer: *mut c_void,
     new_length: usize,
     handled: *mut bool,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM and a live buffer.
-    let (vm, buffer) = unsafe {
-        (
-            &*vm.cast::<Vm>(),
-            Gc::from_non_null(NonNull::new_unchecked(buffer.cast::<ArrayBuffer>())),
-        )
-    };
+    let buffer = unsafe { Gc::from_non_null(NonNull::new_unchecked(buffer.cast::<ArrayBuffer>())) };
     // AD-HOC: If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     let current_byte_length = buffer.byte_length();
     let result = grow_memory_of_buffer(vm, buffer, new_length).and_then(|was_handled| {
