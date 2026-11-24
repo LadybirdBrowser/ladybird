@@ -149,6 +149,12 @@ Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, 
     auto set_shader_with_color_stops = [&](auto make_shader) {
         auto stop_colors = inline_objects<Gfx::Color>(inline_data(style.color_stops.colors));
         auto positions = inline_objects<float>(inline_data(style.color_stops.positions));
+        // https://html.spec.whatwg.org/multipage/canvas.html#gradients
+        // When there are no stops, the gradient is transparent black.
+        if (stop_colors.is_empty()) {
+            paint.setColor(SK_ColorTRANSPARENT);
+            return;
+        }
         Vector<SkColor4f> colors;
         colors.ensure_capacity(stop_colors.size());
         for (auto const& color : stop_colors)
