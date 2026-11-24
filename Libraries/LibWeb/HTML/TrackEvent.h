@@ -7,38 +7,17 @@
 
 #pragma once
 
-#include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
-#include <LibGC/Root.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/TrackEvent.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using NullableTrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>, Empty>;
+using TrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>>;
 
-using TrackEventInit = Bindings::TrackEventInit;
-
-class TrackEvent : public DOM::Event {
-    WEB_WRAPPABLE(TrackEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(TrackEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<TrackEvent> create(FlyString const& event_name, TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<TrackEvent> create(Utf16FlyString const& event_name, TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
-    NullableTrackType track() const;
-
-private:
-    TrackEvent(FlyString const& event_name, TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(Visitor&) override;
-
-    NullableTrackType m_track;
-};
+// The Event of a new TrackEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_track_event(JS::Realm&, Utf16FlyString const& type, TrackType const& track);
 
 }

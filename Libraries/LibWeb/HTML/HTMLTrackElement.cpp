@@ -143,9 +143,7 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
         m_track->unset_active_flag_of_cues();
         media_element->text_track_cue_or_text_track_removed();
         media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_track }), [](auto& track, HTMLMediaElement& media_element) {
-            Bindings::TrackEventInit event_init {};
-            event_init.track = track;
-            media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::removetrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
+            media_element.text_tracks()->dispatch_event(create_track_event(HTML::relevant_realm(media_element), HTML::EventNames::removetrack, track));
         }));
     }
 
@@ -158,9 +156,7 @@ void HTMLTrackElement::parent_changed(GC::Ptr<Node> old_parent)
         m_track->set_media_element(media_element);
         media_element->add_newly_introduced_cues(m_track->text_track_list_of_cues());
         media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *m_track }), [](auto& track, HTMLMediaElement& media_element) {
-            Bindings::TrackEventInit event_init {};
-            event_init.track = track;
-            media_element.text_tracks()->dispatch_event(TrackEvent::create(HTML::EventNames::addtrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(media_element))));
+            media_element.text_tracks()->dispatch_event(create_track_event(HTML::relevant_realm(media_element), HTML::EventNames::addtrack, track));
         }));
     }
 }
