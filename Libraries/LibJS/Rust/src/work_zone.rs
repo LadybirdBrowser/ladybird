@@ -32,7 +32,7 @@ thread_local! {
 /// Runs `job` with the zone of the thread for its work data. Nothing that `job` returns can refer to the zone.
 pub(crate) fn with_work_zone<R>(job: impl for<'zone> FnOnce(&'zone Zone) -> R) -> R {
     let mut zone = SPARE_ZONE.take().unwrap_or_else(|| {
-        ak::set_idle_thread_memory_release(release_idle_memory);
+        ak::add_idle_thread_memory_release(release_idle_memory);
         Zone::new(LIMIT, c"JS parse work")
     });
     let mut size = 0;
@@ -50,7 +50,7 @@ pub(crate) fn with_work_zone<R>(job: impl for<'zone> FnOnce(&'zone Zone) -> R) -
 }
 
 /// Gives the memory of the zone of this thread back to the system. A thread pool calls this on a thread that goes idle
-/// (see `ak::set_idle_thread_memory_release()`).
-pub(crate) extern "C" fn release_idle_memory() {
+/// (see `ak::add_idle_thread_memory_release()`).
+extern "C" fn release_idle_memory() {
     drop(SPARE_ZONE.take());
 }

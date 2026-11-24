@@ -965,13 +965,13 @@ test("string properties allowed as set operation operands in negated /v mode cla
 test("deeply nested patterns throw instead of overflowing the stack", () => {
     const message = "RegExp compile error: pattern is nested too deeply";
     expect(() => {
-        RegExp("(".repeat(100_000) + ")".repeat(100_000));
+        RegExp("(".repeat(1_000_000) + ")".repeat(1_000_000));
     }).toThrowWithMessage(SyntaxError, message);
     expect(() => {
-        RegExp("(?:".repeat(100_000) + ")".repeat(100_000));
+        RegExp("(?:".repeat(1_000_000) + ")".repeat(1_000_000));
     }).toThrowWithMessage(SyntaxError, message);
     expect(() => {
-        RegExp("[".repeat(100_000) + "]".repeat(100_000), "v");
+        RegExp("[".repeat(1_000_000) + "]".repeat(1_000_000), "v");
     }).toThrowWithMessage(SyntaxError, message);
 });
 
@@ -986,7 +986,7 @@ test("the most deeply nested pattern that compiles also runs", () => {
     ]) {
         let deepest;
         let low = 1;
-        let high = 100_000;
+        let high = 1_000_000;
         while (low + 1 < high) {
             const middle = Math.floor((low + high) / 2);
             try {

@@ -121,7 +121,8 @@ unsafe extern "C" {
     ) -> u8;
     fn ladybird_encode_base64_to_utf16(data: *const u8, length: usize, url: bool, omit_padding: bool) -> usize;
     fn ladybird_release_unused_allocator_memory();
-    fn ladybird_set_idle_thread_memory_release(release: extern "C" fn());
+    fn ladybird_add_idle_thread_memory_release(release: extern "C" fn());
+    fn ladybird_release_idle_thread_memory();
     fn ladybird_convert_to_decimal_exponential_form(
         value: f64,
         sign: *mut bool,
@@ -534,11 +535,18 @@ pub fn release_unused_allocator_memory() {
     unsafe { ladybird_release_unused_allocator_memory() }
 }
 
-/// Sets the function that a thread pool calls on a thread that goes idle. It gives back the memory that the calling
-/// thread keeps outside the allocator for its next jobs, and does nothing on a thread that keeps none.
-pub fn set_idle_thread_memory_release(release: extern "C" fn()) {
-    // SAFETY: Any thread may set the function, which stays valid for as long as the process runs.
-    unsafe { ladybird_set_idle_thread_memory_release(release) }
+/// Adds a function that a thread pool calls on a thread that goes idle (see `release_idle_thread_memory()`). It gives
+/// back the memory that the calling thread keeps outside the allocator for its next jobs, and does nothing on a thread
+/// that keeps none. Adding a function a second time does nothing.
+pub fn add_idle_thread_memory_release(release: extern "C" fn()) {
+    // SAFETY: Any thread may add a function, which stays valid for as long as the process runs.
+    unsafe { ladybird_add_idle_thread_memory_release(release) }
+}
+
+/// Calls all the functions added with `add_idle_thread_memory_release()` on the calling thread.
+pub fn release_idle_thread_memory() {
+    // SAFETY: Takes no arguments, and any thread may call it.
+    unsafe { ladybird_release_idle_thread_memory() }
 }
 
 /// Maps in, in one go, the pages of the room `vector` has past its elements for `additional` more, for writes about to

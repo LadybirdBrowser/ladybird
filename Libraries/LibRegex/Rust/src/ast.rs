@@ -10,6 +10,9 @@
 //! ECMAScript regex pattern, preserving all information needed for
 //! compilation, optimization, and error reporting.
 //!
+//! The tree lives in a zone (see `ak::Zone`): its lists are slices of the zone and its names are strings of the zone,
+//! so the tree has the lifetime `'z` of the zone and is plain data that is copied by value.
+//!
 //! Spec:
 //! - <https://tc39.es/ecma262/#sec-patterns>
 //! - <https://tc39.es/ecma262/#sec-pattern-semantics>
@@ -19,14 +22,14 @@
 /// Spec model: the `Pattern` grammar goal and the RegExp Record built from it.
 /// - <https://tc39.es/ecma262/#sec-patterns>
 /// - <https://tc39.es/ecma262/#sec-regexp-records>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Pattern {
-    pub disjunction: Disjunction,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pattern<'z> {
+    pub disjunction: Disjunction<'z>,
     pub flags: Flags,
     /// Total number of capture groups (not counting group 0).
     pub capture_count: u32,
     /// Named capture groups, in order of appearance.
-    pub named_groups: Vec<NamedGroup>,
+    pub named_groups: &'z [NamedGroup<'z>],
 }
 
 /// A named capture group declaration.
@@ -34,9 +37,9 @@ pub struct Pattern {
 /// Spec model: a named `GroupSpecifier` that later participates in named
 /// backreference resolution.
 /// <https://tc39.es/ecma262/#sec-patterns>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NamedGroup {
-    pub name: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NamedGroup<'z> {
+    pub name: &'z str,
     pub index: u32,
 }
 
@@ -63,9 +66,9 @@ pub struct Flags {
 ///
 /// Spec model: `Disjunction`.
 /// <https://tc39.es/ecma262/#sec-compilesubpattern>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Disjunction {
-    pub alternatives: Vec<Alternative>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Disjunction<'z> {
+    pub alternatives: &'z [Alternative<'z>],
 }
 
 /// An alternative is a sequence of terms matched left-to-right.
@@ -74,18 +77,18 @@ pub struct Disjunction {
 ///
 /// Spec model: `Alternative`.
 /// <https://tc39.es/ecma262/#sec-compilesubpattern>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Alternative {
-    pub terms: Vec<Term>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Alternative<'z> {
+    pub terms: &'z [Term<'z>],
 }
 
 /// A single term in an alternative: an atom optionally followed by a quantifier.
 ///
 /// Spec model: `Term`.
 /// <https://tc39.es/ecma262/#sec-compilesubpattern>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Term {
-    pub atom: Atom,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Term<'z> {
+    pub atom: Atom<'z>,
     pub quantifier: Option<Quantifier>,
 }
 
@@ -93,7 +96,7 @@ pub struct Term {
 ///
 /// Spec model: the quantifier record produced by `CompileQuantifier`.
 /// <https://tc39.es/ecma262/#sec-compilequantifier>
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Quantifier {
     pub min: u32,
     pub max: Option<u32>,
@@ -132,8 +135,8 @@ impl Quantifier {
 /// represented as dedicated AST variants for easier downstream handling.
 /// - <https://tc39.es/ecma262/#sec-compileatom>
 /// - <https://tc39.es/ecma262/#sec-compileassertion>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Atom {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Atom<'z> {
     /// A literal character (as a u32 code point, to support WTF-16 lone surrogates).
     /// `/a/` → `Literal(0x61)`
     Literal(u32),
@@ -142,41 +145,41 @@ pub enum Atom {
     Dot,
 
     /// A character class like `[a-z]` or `[^0-9]`.
-    CharacterClass(CharacterClass),
+    CharacterClass(CharacterClass<'z>),
 
     /// A built-in character class escape: `\d`, `\D`, `\w`, `\W`, `\s`, `\S`.
     BuiltinCharacterClass(BuiltinCharacterClass),
 
     /// A Unicode property escape: `\p{Letter}`, `\P{Script=Greek}`.
-    UnicodeProperty(UnicodeProperty),
+    UnicodeProperty(UnicodeProperty<'z>),
 
     /// A capturing group: `(expr)` or `(?<name>expr)`.
-    Group(Group),
+    Group(Group<'z>),
 
     /// A non-capturing group: `(?:expr)`.
-    NonCapturingGroup(NonCapturingGroup),
+    NonCapturingGroup(NonCapturingGroup<'z>),
 
     /// A lookaround assertion: `(?=expr)`, `(?!expr)`, `(?<=expr)`, `(?<!expr)`.
-    Lookaround(Lookaround),
+    Lookaround(Lookaround<'z>),
 
     /// A backreference: `\1`, `\k<name>`.
-    Backreference(Backreference),
+    Backreference(Backreference<'z>),
 
     /// An assertion that matches a position, not a character.
     Assertion(AssertionKind),
 
     /// A modifier group that changes flags for its contents: `(?i:expr)`.
-    ModifierGroup(ModifierGroup),
+    ModifierGroup(ModifierGroup<'z>),
 }
 
 /// A character class: `[abc]`, `[a-z]`, `[^0-9]`.
 ///
 /// Spec model: `CharacterClass`.
 /// <https://tc39.es/ecma262/#sec-compilecharacterclass>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CharacterClass {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CharacterClass<'z> {
     pub negated: bool,
-    pub body: CharacterClassBody,
+    pub body: CharacterClassBody<'z>,
 }
 
 /// The body of a character class, which differs between `/u`|`/v` mode and
@@ -186,21 +189,21 @@ pub struct CharacterClass {
 /// `ClassSetExpression`.
 /// - <https://tc39.es/ecma262/#sec-patterns>
 /// - <https://tc39.es/ecma262/#sec-compilecharacterclass>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CharacterClassBody {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CharacterClassBody<'z> {
     /// Legacy or `/u` mode: a flat list of ranges/chars.
-    Ranges(Vec<CharacterClassRange>),
+    Ranges(&'z [CharacterClassRange<'z>]),
 
     /// `/v` (unicode sets) mode: supports set operations.
-    UnicodeSet(ClassSetExpression),
+    UnicodeSet(ClassSetExpression<'z>),
 }
 
 /// A single element in a `[...]` character class (legacy and `/u` mode).
 ///
 /// Spec model: the pieces consumed by `CompileToCharSet`.
 /// <https://tc39.es/ecma262/#sec-compiletocharset>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CharacterClassRange {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CharacterClassRange<'z> {
     /// A single character (as u32 code point, to support WTF-16 lone surrogates).
     Single(u32),
 
@@ -211,23 +214,23 @@ pub enum CharacterClassRange {
     BuiltinClass(BuiltinCharacterClass),
 
     /// A Unicode property escape inside `[...]`: `[\p{Letter}]`.
-    UnicodeProperty(UnicodeProperty),
+    UnicodeProperty(UnicodeProperty<'z>),
 }
 
 /// Set operations for `/v` (unicode sets) mode character classes.
 ///
 /// Spec model: `ClassSetExpression`.
 /// <https://tc39.es/ecma262/#sec-compilecharacterclass>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ClassSetExpression {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassSetExpression<'z> {
     /// A union of class set operands (the default when just listing items).
-    Union(Vec<ClassSetOperand>),
+    Union(&'z [ClassSetOperand<'z>]),
 
     /// Intersection: `[a-z&&[aeiou]]`.
-    Intersection(Vec<ClassSetOperand>),
+    Intersection(&'z [ClassSetOperand<'z>]),
 
     /// Subtraction: `[a-z--[aeiou]]`.
-    Subtraction(Vec<ClassSetOperand>),
+    Subtraction(&'z [ClassSetOperand<'z>]),
 }
 
 /// An operand in a unicode sets class expression.
@@ -235,8 +238,8 @@ pub enum ClassSetExpression {
 /// Spec model: `ClassSetOperand` and `ClassStringDisjunction`.
 /// - <https://tc39.es/ecma262/#sec-patterns>
 /// - <https://tc39.es/ecma262/#sec-compileclasssetstring>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ClassSetOperand {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassSetOperand<'z> {
     /// A single character.
     Char(u32),
 
@@ -244,16 +247,16 @@ pub enum ClassSetOperand {
     Range(u32, u32),
 
     /// A nested character class: `[a-z]` inside another class.
-    NestedClass(CharacterClass),
+    NestedClass(CharacterClass<'z>),
 
     /// A builtin class escape: `\d`, `\w`, etc.
     BuiltinClass(BuiltinCharacterClass),
 
     /// A Unicode property: `\p{Letter}`.
-    UnicodeProperty(UnicodeProperty),
+    UnicodeProperty(UnicodeProperty<'z>),
 
     /// A string literal in a class (v-flag): `\q{abc}`.
-    StringLiteral(Vec<char>),
+    StringLiteral(&'z [char]),
 }
 
 /// Built-in character class escapes.
@@ -297,36 +300,36 @@ impl BuiltinCharacterClass {
 /// - <https://tc39.es/ecma262/#sec-compiletocharset>
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchproperty-p>
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchpropertyvalue-p-v>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnicodeProperty {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnicodeProperty<'z> {
     /// Whether this is `\P{...}` (negated) or `\p{...}`.
     pub negated: bool,
     /// The property name, e.g. `"Letter"`, `"Script"`.
-    pub name: String,
+    pub name: &'z str,
     /// The property value, if present, e.g. `"Greek"` in `\p{Script=Greek}`.
-    pub value: Option<String>,
+    pub value: Option<&'z str>,
 }
 
 /// A capturing group: `(expr)` or `(?<name>expr)`.
 ///
 /// Spec model: a capturing `Atom` with an optional `GroupSpecifier`.
 /// <https://tc39.es/ecma262/#sec-compileatom>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Group {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Group<'z> {
     /// 1-based capture index.
     pub index: u32,
     /// Optional group name for `(?<name>...)`.
-    pub name: Option<String>,
-    pub body: Disjunction,
+    pub name: Option<&'z str>,
+    pub body: Disjunction<'z>,
 }
 
 /// A non-capturing group: `(?:expr)`.
 ///
 /// Spec model: the `(?: Disjunction )` branch of `Atom`.
 /// <https://tc39.es/ecma262/#sec-compileatom>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonCapturingGroup {
-    pub body: Disjunction,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NonCapturingGroup<'z> {
+    pub body: Disjunction<'z>,
 }
 
 /// A lookaround assertion.
@@ -334,10 +337,10 @@ pub struct NonCapturingGroup {
 /// Spec model: lookahead and lookbehind forms handled by
 /// `Runtime Semantics: CompileAssertion`.
 /// <https://tc39.es/ecma262/#sec-compileassertion>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Lookaround {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Lookaround<'z> {
     pub kind: LookaroundKind,
-    pub body: Disjunction,
+    pub body: Disjunction<'z>,
 }
 
 /// Spec model: the four lookaround assertion forms.
@@ -359,12 +362,12 @@ pub enum LookaroundKind {
 /// Spec model: decimal and named backreference atoms.
 /// - <https://tc39.es/ecma262/#sec-compileatom>
 /// - <https://tc39.es/ecma262/#sec-backreference-matcher>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Backreference {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backreference<'z> {
     /// `\1`, `\2`, etc. — numeric backreference.
     Index(u32),
     /// `\k<name>` — named backreference.
-    Named(String),
+    Named(&'z str),
 }
 
 /// A zero-width assertion.
@@ -389,11 +392,11 @@ pub enum AssertionKind {
 /// Spec model: modifier-scoped `Atom` forms that call `UpdateModifiers`.
 /// - <https://tc39.es/ecma262/#sec-compileatom>
 /// - <https://tc39.es/ecma262/#sec-updatemodifiers>
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ModifierGroup {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ModifierGroup<'z> {
     pub add_flags: ModifierFlags,
     pub remove_flags: ModifierFlags,
-    pub body: Disjunction,
+    pub body: Disjunction<'z>,
 }
 
 /// Flags that can be toggled in a modifier group.

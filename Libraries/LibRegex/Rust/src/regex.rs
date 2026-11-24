@@ -19,6 +19,8 @@ use crate::bytecode::append_code_point_wtf16;
 use crate::compiler;
 use crate::parser;
 use crate::vm;
+use crate::work_zone::with_work_zone;
+use ak::Zone;
 use std::cell::RefCell;
 use std::collections::HashSet;
 
@@ -40,18 +42,44 @@ pub struct Regex {
 }
 
 impl Regex {
-    /// Compile a regex pattern with the given flags.
-    pub fn compile(pattern: &str, flags: Flags) -> Result<Self, parser::Error> {
-        let parsed = parser::parse(pattern, flags)?;
-        Self::compile_parsed(parsed, flags)
+    /// Compile a regex pattern with the given flags. If it does not compile, the result is what `error` makes of the
+    /// parser error, which lives only for the call of `error`.
+    pub fn compile<E>(pattern: &str, flags: Flags, error: impl FnOnce(parser::Error<'_>) -> E) -> Result<Self, E> {
+        with_work_zone(|zone| {
+            let source = zone.alloc_slice_from_iter(pattern.chars());
+            Self::compile_in_zone(zone, source, flags).map_err(error)
+        })
     }
 
-    pub fn compile_chars(pattern: Vec<char>, flags: Flags) -> Result<Self, parser::Error> {
-        let parsed = parser::parse_chars(pattern, flags)?;
-        Self::compile_parsed(parsed, flags)
+    /// Compile a regex pattern of UTF-16 code units, in which a lone surrogate is U+FFFD (see `compile()`).
+    pub fn compile_utf16<E>(
+        pattern: &[u16],
+        flags: Flags,
+        error: impl FnOnce(parser::Error<'_>) -> E,
+    ) -> Result<Self, E> {
+        with_work_zone(|zone| {
+            let source = zone.alloc_slice_from_iter(
+                char::decode_utf16(pattern.iter().copied())
+                    .map(|character| character.unwrap_or(char::REPLACEMENT_CHARACTER)),
+            );
+            Self::compile_in_zone(zone, source, flags).map_err(error)
+        })
     }
 
-    fn compile_parsed(parsed: Pattern, flags: Flags) -> Result<Self, parser::Error> {
+    /// Compile a regex pattern of Latin-1 code units (see `compile()`).
+    pub fn compile_latin1<E>(
+        pattern: &[u8],
+        flags: Flags,
+        error: impl FnOnce(parser::Error<'_>) -> E,
+    ) -> Result<Self, E> {
+        with_work_zone(|zone| {
+            let source = zone.alloc_slice_from_iter(pattern.iter().map(|byte| char::from(*byte)));
+            Self::compile_in_zone(zone, source, flags).map_err(error)
+        })
+    }
+
+    fn compile_in_zone<'z>(zone: &'z Zone, source: &'z [char], flags: Flags) -> Result<Self, parser::Error<'z>> {
+        let parsed = parser::parse(zone, source, flags)?;
         let mut program = compiler::compile(&parsed)?;
         Self::resolve_properties(&mut program);
         let required_literal_hint = extract_required_literal_hint(&parsed, flags);
@@ -647,7 +675,7 @@ struct RequiredLiteralAnalysis {
     guaranteed_runs: Vec<Vec<u16>>,
 }
 
-fn extract_required_literal_hint(pattern: &Pattern, flags: Flags) -> Option<vm::RequiredLiteralHint> {
+fn extract_required_literal_hint(pattern: &Pattern<'_>, flags: Flags) -> Option<vm::RequiredLiteralHint> {
     let analysis = analyze_required_literal_disjunction(&pattern.disjunction, flags);
     let literal = analysis.guaranteed_runs.into_iter().max_by_key(|run| run.len())?;
     if literal.is_empty() {
@@ -669,7 +697,7 @@ fn extract_required_literal_hint(pattern: &Pattern, flags: Flags) -> Option<vm::
     })
 }
 
-fn analyze_required_literal_disjunction(disjunction: &Disjunction, flags: Flags) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_disjunction(disjunction: &Disjunction<'_>, flags: Flags) -> RequiredLiteralAnalysis {
     if crate::stack::is_exhausted() {
         return RequiredLiteralAnalysis {
             exact_literal: None,
@@ -712,12 +740,12 @@ fn analyze_required_literal_disjunction(disjunction: &Disjunction, flags: Flags)
     }
 }
 
-fn analyze_required_literal_alternative(alternative: &Alternative, flags: Flags) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_alternative(alternative: &Alternative<'_>, flags: Flags) -> RequiredLiteralAnalysis {
     let mut exact_literal = Some(Vec::new());
     let mut current_run = Vec::new();
     let mut guaranteed_runs = Vec::new();
 
-    for term in &alternative.terms {
+    for term in alternative.terms {
         let term_analysis = analyze_required_literal_term(term, flags);
         if let Some(literal) = term_analysis.exact_literal.as_deref() {
             if let Some(exact) = exact_literal.as_mut() {
@@ -750,7 +778,7 @@ fn analyze_required_literal_alternative(alternative: &Alternative, flags: Flags)
     }
 }
 
-fn analyze_required_literal_term(term: &Term, flags: Flags) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_term(term: &Term<'_>, flags: Flags) -> RequiredLiteralAnalysis {
     let atom_analysis = analyze_required_literal_atom(&term.atom, flags);
     let Some(quantifier) = &term.quantifier else {
         return atom_analysis;
@@ -785,7 +813,7 @@ fn analyze_required_literal_term(term: &Term, flags: Flags) -> RequiredLiteralAn
     }
 }
 
-fn analyze_required_literal_atom(atom: &Atom, flags: Flags) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_atom(atom: &Atom<'_>, flags: Flags) -> RequiredLiteralAnalysis {
     match atom {
         Atom::Literal(cp) => literal_required_literal_analysis(*cp, flags),
         Atom::Group(group) => analyze_required_literal_disjunction(&group.body, flags),
@@ -928,7 +956,7 @@ fn contains_literal_subslice(haystack: &[u16], needle: &[u16]) -> bool {
     haystack.windows(needle.len()).any(|window| window == needle)
 }
 
-fn extract_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
+fn extract_literal_u16(pattern: &Pattern<'_>, flags: Flags) -> Option<Vec<u16>> {
     if flags.ignore_case && (flags.unicode || flags.unicode_sets) {
         return None;
     }
@@ -938,7 +966,7 @@ fn extract_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
 
     let alternative = &pattern.disjunction.alternatives[0];
     let mut literal = Vec::new();
-    for term in &alternative.terms {
+    for term in alternative.terms {
         if term.quantifier.is_some() {
             return None;
         }
@@ -954,12 +982,12 @@ fn extract_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
     Some(literal)
 }
 
-fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<Vec<u16>>> {
+fn extract_literal_alternatives_u16(pattern: &Pattern<'_>, flags: Flags) -> Option<Vec<Vec<u16>>> {
     if flags.ignore_case && (flags.unicode || flags.unicode_sets) {
         return None;
     }
 
-    let alternatives = &pattern.disjunction.alternatives;
+    let alternatives = pattern.disjunction.alternatives;
     if alternatives.len() < 2 || pattern.capture_count > 0 {
         return None;
     }
@@ -967,7 +995,7 @@ fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<V
     let mut literal_alternatives = Vec::with_capacity(alternatives.len());
     for alternative in alternatives {
         let mut literal = Vec::new();
-        for term in &alternative.terms {
+        for term in alternative.terms {
             if term.quantifier.is_some() {
                 return None;
             }
@@ -991,7 +1019,7 @@ fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<V
     Some(literal_alternatives)
 }
 
-fn extract_word_boundary_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
+fn extract_word_boundary_literal_u16(pattern: &Pattern<'_>, flags: Flags) -> Option<Vec<u16>> {
     if flags.unicode || flags.unicode_sets || pattern.capture_count > 0 {
         return None;
     }
@@ -999,7 +1027,7 @@ fn extract_word_boundary_literal_u16(pattern: &Pattern, flags: Flags) -> Option<
         return None;
     }
 
-    let terms = &pattern.disjunction.alternatives[0].terms;
+    let terms = pattern.disjunction.alternatives[0].terms;
     if terms.len() < 3 {
         return None;
     }

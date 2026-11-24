@@ -39,12 +39,7 @@ pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), RegexError> 
         sticky: has_flag(b'y'),
         has_indices: has_flag(b'd'),
     };
-    // Converted the way LibRegex's rust_regex_compile converts a UTF-16 pattern, although ParsePattern only produces
-    // ASCII.
-    let pattern_characters = char::decode_utf16(parsed_pattern.iter().copied())
-        .map(|character| character.unwrap_or(char::REPLACEMENT_CHARACTER))
-        .collect();
-    Regex::compile_chars(pattern_characters, compile_flags).map_err(|error| match error {
+    Regex::compile_utf16(&parsed_pattern, compile_flags, |error| match error {
         ParseError::TooDeeplyNested => RegexError::OutOfStack,
         error => RegexError::Invalid(format!("RegExp compile error: {error}")),
     })?;

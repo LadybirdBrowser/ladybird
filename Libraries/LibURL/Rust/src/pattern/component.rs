@@ -103,8 +103,9 @@ impl Component {
 
         // 6. Let regular expression be RegExpCreate(regular expression string, flags). If this throws an exception, catch
         //    it, and throw a TypeError.
-        let regex = Regex::compile(&regular_expression_string, flags)
-            .map_err(|error| ErrorInfo::new(format!("RegExp compile error: {error}")))?;
+        let regex = Regex::compile(&regular_expression_string, flags, |error| {
+            ErrorInfo::new(format!("RegExp compile error: {error}"))
+        })?;
 
         // 7. Let pattern string be the result of running generate a pattern string given part list and options.
         let pattern_string = generate_a_pattern_string(&part_list, options);
