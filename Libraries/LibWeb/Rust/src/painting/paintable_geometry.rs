@@ -219,12 +219,24 @@ pub(crate) fn committed_svg_additional_element_transform(
     })
 }
 
-pub(crate) fn committed_svg_mask_area_facts(
+/// The masking area a mask box committed, in the user space of the element it masks.
+pub(crate) fn committed_svg_mask_area_in_target_user_space(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
-) -> Option<svg_formatting_context::SvgMaskAreaFacts> {
+) -> Option<libgfx_rust::FloatRect> {
     arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg()?.facts.mask_area_facts)
+        link.and_then(|link| link.fragment.svg()?.facts.mask_area_in_target_user_space)
+    })
+}
+
+/// The object bounding box of the element that a mask, clip path or pattern box was laid out for, as the box committed
+/// it, in that element's user space.
+pub(crate) fn committed_object_bounding_box_of_svg_resource_target(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> Option<libgfx_rust::FloatRect> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg()?.facts.object_bounding_box_of_resource_target)
     })
 }
 

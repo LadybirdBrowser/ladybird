@@ -25,20 +25,16 @@ pub(crate) fn first_child_paintable_of_kind(
     arena.paintable_row_is_populated(node).then_some(node)
 }
 
-/// The object bounding box of `target` in its user space, as layout committed it. A foreign object's box comes from a
-/// run of its own and carries no SVG geometry, so its border box stands in.
-pub(crate) fn target_user_space_object_bounding_box(arena: &impl PaintRead, target: NodeSlotId) -> CssPixelRect {
-    paintable_geometry::committed_svg_geometry(arena, target).map_or_else(
-        || paintable_geometry::absolute_border_box_rect(arena, target),
-        |geometry| css_pixel_rect_of(geometry.object_bounding_box),
-    )
-}
-
+/// The transform from objectBoundingBox content units of `resource_box`, a mask, clip path or pattern box, to the user
+/// space of the element it was laid out for.
 pub(crate) fn object_bounding_box_content_units_transform(
     arena: &impl PaintRead,
-    target: NodeSlotId,
+    resource_box: NodeSlotId,
 ) -> AffineTransform {
-    let bounding_box = target_user_space_object_bounding_box(arena, target);
+    let bounding_box = css_pixel_rect_of(
+        paintable_geometry::committed_object_bounding_box_of_svg_resource_target(arena, resource_box)
+            .unwrap_or_default(),
+    );
     AffineTransform {
         values: [
             bounding_box.width.to_float(),
@@ -51,10 +47,8 @@ pub(crate) fn object_bounding_box_content_units_transform(
     }
 }
 
-/// The masking area of the mask that `target` references, in the target's user space. Percentages
-/// in a userSpaceOnUse masking area resolve against the SVG viewport. An empty area conveys that
-/// a negative value or a value of zero disables rendering of the element; a mask layer with an
-/// empty area clips the target away entirely.
+/// The masking area of the mask that `target` references, in the target's user space, as layout resolved it. A mask
+/// layer with an empty area clips the target away entirely.
 pub(crate) fn mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<CssPixelRect> {
     if !arena
         .node_kind_if_live(target)
@@ -63,38 +57,7 @@ pub(crate) fn mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
         return None;
     }
     let mask_box = first_child_paintable_of_kind(arena, target, NodeKind::SVGMaskBox)?;
-    let facts = paintable_geometry::committed_svg_mask_area_facts(arena, mask_box)?;
-    let viewport = paintable_geometry::committed_svg_geometry(arena, mask_box)
-        .map(|geometry| geometry.viewport_user_rect)
-        .unwrap_or_default();
-    let target_bounding_box = target_user_space_object_bounding_box(arena, target);
-    let masking_area = if facts.units_are_object_bounding_box {
-        let target_x = target_bounding_box.x.to_float();
-        let target_y = target_bounding_box.y.to_float();
-        let target_width = target_bounding_box.width.to_float();
-        let target_height = target_bounding_box.height.to_float();
-        FloatRect::new(
-            target_x + (facts.x.value * target_width),
-            target_y + (facts.y.value * target_height),
-            facts.width.value * target_width,
-            facts.height.value * target_height,
-        )
-    } else {
-        let user_space_masking_area = FloatRect::new(
-            facts.x.resolve_relative_to(viewport.width),
-            facts.y.resolve_relative_to(viewport.height),
-            facts.width.resolve_relative_to(viewport.width),
-            facts.height.resolve_relative_to(viewport.height),
-        );
-        if user_space_masking_area.is_empty() {
-            return Some(CssPixelRect::default());
-        }
-        user_space_masking_area
-    };
-    if masking_area.is_empty() {
-        return Some(CssPixelRect::default());
-    }
-    Some(css_pixel_rect_of(masking_area))
+    paintable_geometry::committed_svg_mask_area_in_target_user_space(arena, mask_box).map(css_pixel_rect_of)
 }
 
 fn committed_local_transform(arena: &impl PaintRead, slot: NodeSlotId) -> AffineTransform {
@@ -201,7 +164,7 @@ pub(crate) fn clip_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
     let mut clip_path_transform = committed_local_transform(arena, clip_box);
     if paintable_geometry::committed_svg_resource_content_units_are_object_bounding_box(arena, clip_box) {
         clip_path_transform = multiply_affine(
-            object_bounding_box_content_units_transform(arena, target),
+            object_bounding_box_content_units_transform(arena, clip_box),
             clip_path_transform,
         );
     }

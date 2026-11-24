@@ -349,15 +349,6 @@ pub const SVG_GEOMETRY_KIND_LINE: u8 = 5;
 pub const SVG_GEOMETRY_KIND_POLYLINE: u8 = 6;
 pub const SVG_GEOMETRY_KIND_POLYGON: u8 = 7;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct SvgMaskAreaFacts {
-    pub units_are_object_bounding_box: bool,
-    pub x: FfiSvgNumberPercentage,
-    pub y: FfiSvgNumberPercentage,
-    pub width: FfiSvgNumberPercentage,
-    pub height: FfiSvgNumberPercentage,
-}
-
 impl FfiSvgNumberPercentage {
     pub(crate) fn resolve_relative_to(self, length: f32) -> f32 {
         if self.is_percentage {
@@ -2939,22 +2930,63 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn commit_svg_element_facts(&self, node: Node, facts: SvgElementFacts, attributes: FfiSvgAttributeFacts) {
-        let mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {
-            units_are_object_bounding_box: attributes.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX,
-            x: attributes.mask_x,
-            y: attributes.mask_y,
-            width: attributes.mask_width,
-            height: attributes.mask_height,
-        });
         self.update_svg_payload_of(node, |svg| {
             let svg = &mut svg.facts;
             svg.additional_element_transform =
                 (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
-            svg.mask_area_facts = mask_area_facts;
             svg.resource_content_units_are_object_bounding_box =
                 attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
             svg.author_path_length = attributes.has_path_length.then_some(attributes.path_length);
         });
+    }
+
+    /// Commits what painting reads of how `resource` applies to the element it is laid out for, whose object bounding
+    /// box is `target_bounding_box`.
+    fn commit_resource_facts_for_target(
+        &self,
+        resource: Node,
+        attributes: &FfiSvgAttributeFacts,
+        target_bounding_box: FloatRect,
+    ) {
+        let mask_area = (self.node_kind(resource) == NodeKind::SVGMaskBox)
+            .then(|| self.mask_area_in_target_user_space(attributes, target_bounding_box));
+        self.update_svg_payload_of(resource, |svg| {
+            svg.facts.object_bounding_box_of_resource_target = Some(target_bounding_box);
+            svg.facts.mask_area_in_target_user_space = mask_area;
+        });
+    }
+
+    /// The masking area of a mask, in the user space of the element it masks, whose object bounding box is
+    /// `target_bounding_box`. Percentages in a userSpaceOnUse masking area resolve against the SVG viewport. A negative
+    /// value or a value of zero disables rendering of the element, which an empty area tells.
+    fn mask_area_in_target_user_space(
+        &self,
+        attributes: &FfiSvgAttributeFacts,
+        target_bounding_box: FloatRect,
+    ) -> FloatRect {
+        let masking_area = if attributes.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
+            let target_bounding_box = css_pixel_rect_of(target_bounding_box);
+            let target_width = target_bounding_box.width.to_float();
+            let target_height = target_bounding_box.height.to_float();
+            FloatRect::new(
+                target_bounding_box.x.to_float() + (attributes.mask_x.value * target_width),
+                target_bounding_box.y.to_float() + (attributes.mask_y.value * target_height),
+                attributes.mask_width.value * target_width,
+                attributes.mask_height.value * target_height,
+            )
+        } else {
+            let viewport = self.viewport_user_rect;
+            FloatRect::new(
+                attributes.mask_x.resolve_relative_to(viewport.width),
+                attributes.mask_y.resolve_relative_to(viewport.height),
+                attributes.mask_width.resolve_relative_to(viewport.width),
+                attributes.mask_height.resolve_relative_to(viewport.height),
+            )
+        };
+        if masking_area.is_empty() {
+            return FloatRect::default();
+        }
+        masking_area
     }
 
     /// The geometry of `node`, whose fill covers `object_bounding_box` and whose box is `stroke_bounding_box`, in this
@@ -3321,8 +3353,14 @@ impl<'pass> SvgFormattingContext<'pass> {
             return geometry;
         }
         let facts = self.svg_facts(graphics_box);
-        self.commit_svg_element_facts(graphics_box, facts, self.svg_attributes(graphics_box));
+        let attributes = self.svg_attributes(graphics_box);
+        self.commit_svg_element_facts(graphics_box, facts, attributes);
         let kind = self.node_kind(graphics_box);
+        // NB: A mask box laid out as a group is the mask of the resource box it is a child of, whose object bounding
+        //     box is the viewport that box gives its content.
+        if kind == NodeKind::SVGMaskBox {
+            self.commit_resource_facts_for_target(graphics_box, &attributes, self.viewport_user_rect);
+        }
 
         // https://svgwg.org/svg2-draft/struct.html#GroupsOverview
         // container element
@@ -3580,6 +3618,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
         let resource_cells = self.cells_of_svg_box(resource);
         self.commit_svg_element_facts(resource, facts, attributes);
+        self.commit_resource_facts_for_target(resource, &attributes, target_bounding_box);
 
         let (width, height) = if kind == NodeKind::SVGPatternBox && attributes.has_active_view_box {
             if attributes.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {

@@ -183,10 +183,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         crate::painting::svg_masking::first_child_paintable_of_kind(self.source, paintable, kind)
     }
 
-    fn object_bounding_box_content_units_transform(&self, target: NodeSlotId) -> AffineTransform {
-        crate::painting::svg_masking::object_bounding_box_content_units_transform(self.source, target)
-    }
-
     fn record_referenced_svg_mask_or_clip_content(
         &mut self,
         target: NodeSlotId,
@@ -208,7 +204,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 resource_box,
             );
         let mut content_units_transform_in_recorded_space = if content_units_object_bbox {
-            self.object_bounding_box_content_units_transform(target)
+            crate::painting::svg_masking::object_bounding_box_content_units_transform(self.source, resource_box)
         } else {
             AffineTransform::identity()
         };
