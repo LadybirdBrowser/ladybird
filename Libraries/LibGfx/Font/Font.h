@@ -17,8 +17,8 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
-#include <LibGfx/Font/RasterizerData.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/RasterizerData.h>
 #include <LibGfx/ShapeFeature.h>
 
 struct hb_font_t;

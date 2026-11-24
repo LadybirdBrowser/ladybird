@@ -19,8 +19,8 @@
 #include <LibCore/MappedFile.h>
 #include <LibGfx/Font/FaceDescription.h>
 #include <LibGfx/Font/FontVariationSettings.h>
-#include <LibGfx/Font/RasterizerData.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/RasterizerData.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibIPC/Forward.h>
 
