@@ -55,6 +55,7 @@ public:
     ReadonlySpan<char const*> enabled_extensions() const { return m_enabled_extensions; }
     VkPhysicalDeviceFeatures2 const& enabled_features() const { return m_features; }
     bool has_enabled_extension(StringView) const;
+    bool has_sampler_ycbcr_conversion() const { return m_vulkan11_features.samplerYcbcrConversion; }
 
     // A queue takes one submission at a time, and every FFmpeg in the process submits to this device's queues. Each
     // family has one queue.

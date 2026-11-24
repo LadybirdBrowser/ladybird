@@ -16,11 +16,7 @@
 #include <LibMediaCodecs/Forward.h>
 #include <LibMediaCodecs/TrackType.h>
 
-extern "C" {
-#include <libavcodec/avcodec.h>
-}
-
-namespace Media::FFmpeg {
+namespace FFMPEG_ABI_NAMESPACE {
 
 constexpr AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
 {
@@ -203,8 +199,10 @@ constexpr StringView av_error_code_to_string(int error)
         return "Server returned 403 Forbidden (access denied)"sv;
     case AVERROR_HTTP_NOT_FOUND:
         return "Server returned 404 Not Found"sv;
+#ifdef AVERROR_HTTP_TOO_MANY_REQUESTS
     case AVERROR_HTTP_TOO_MANY_REQUESTS:
         return "Server returned 429 Too Many Requests"sv;
+#endif
     case AVERROR_HTTP_OTHER_4XX:
         return "Server returned 4XX Client Error, but not one of 40{0,1,3,4}"sv;
     case AVERROR_HTTP_SERVER_ERROR:

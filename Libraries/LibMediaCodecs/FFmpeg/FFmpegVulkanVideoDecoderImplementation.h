@@ -1,0 +1,170 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#ifdef USE_VULKAN_DMABUF_IMAGES
+
+#    include <AK/ConditionVariable.h>
+#    include <AK/FixedArray.h>
+#    include <AK/HashMap.h>
+#    include <AK/Mutex.h>
+#    include <AK/Queue.h>
+#    include <LibMediaCodecs/CodecID.h>
+#    include <LibMediaCodecs/CodecParameters.h>
+#    include <LibMediaCodecs/DecoderCapabilities.h>
+#    include <LibMediaCodecs/Export.h>
+#    include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
+#    include <LibMediaCodecs/FFmpeg/VideoFramesAwaitingOutput.h>
+#    include <LibMediaCodecs/VideoDecoder.h>
+#    include <LibMediaCodecs/VideoFramePool.h>
+#    include <LibMediaCodecs/VideoSurface.h>
+#    include <LibMediaCodecs/Vulkan/VulkanExportableImagePool.h>
+#    include <LibMediaCodecs/Vulkan/VulkanVideoDevice.h>
+#    include <LibThreading/Forward.h>
+
+namespace FFMPEG_ABI_NAMESPACE {
+
+// Decodes through FFmpeg's Vulkan hardware acceleration into images that export as dma-bufs. The device decodes
+// asynchronously, so a thread of the decoder's own waits for each frame to finish, readies it for another device to
+// sample, and hands it out.
+class FFmpegVulkanVideoDecoderImplementation final : public VideoDecoder {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    // Whether decoded images are exported themselves, rather than copied into images that export.
+    enum class ExportsDirectly : u8 {
+        No,
+        Yes,
+    };
+
+    static Optional<DecoderCapabilities> capabilities(FFmpegFunctions const&, ParsedCodec const&);
+    static DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoderImplementation>> try_create(FFmpegFunctions const&, ExportsDirectly, CodecID, ReadonlyBytes codec_initialization_data);
+    virtual ~FFmpegVulkanVideoDecoderImplementation() override;
+
+    virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_budget->set_storage_freed_callback(move(callback)); }
+    virtual void set_decode_completed_callback(Function<void(DecodeCompletion)> callback) override
+    {
+        MutexLocker locker { m_mutex };
+        m_decode_completed_callback = move(callback);
+    }
+    virtual bool has_any_decode_in_progress() const override
+    {
+        MutexLocker locker { m_mutex };
+        if (!m_decoding_frames.is_empty() || m_frame_is_completing)
+            return true;
+        return !m_outputs.is_empty() || m_decode_failure.has_value();
+    }
+
+    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
+    virtual void signal_end_of_stream() override;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration> target = {}) override;
+    virtual void flush() override;
+
+private:
+    struct DecodingFrame {
+        // None marks the end of the stream, after the last frame.
+        AVFrame* frame { nullptr };
+        VideoFramesAwaitingOutput::Frame timing;
+        // The codec context that decoded the frame can be replaced before the frame goes out.
+        CodingIndependentCodePoints cicp;
+        u64 generation { 0 };
+        // Later decodes that reference the frame advance its semaphore further, so the value its own decode signals
+        // is taken as soon as FFmpeg hands the frame out.
+        VkSemaphore semaphore { VK_NULL_HANDLE };
+        u64 decoded_semaphore_value { 0 };
+    };
+
+    struct DecodedOutput {
+        NonnullRefPtr<VideoSurface> surface;
+        // Holds the decoded image out of FFmpeg's pool until the frame it goes out in is released.
+        NonnullRefPtr<VideoSurfaceContents> contents;
+        VideoFramesAwaitingOutput::Frame timing;
+        Gfx::Size<u32> size;
+        u8 bit_depth { 0 };
+        CodingIndependentCodePoints cicp;
+    };
+
+    enum class EndOfStreamIsFinal : u8 {
+        Yes,
+        No,
+    };
+
+    FFmpegVulkanVideoDecoderImplementation(FFmpegFunctions const&, ExportsDirectly, VulkanVideoDevice&, CodecID, AVBufferRef* device_context, FixedArray<u8> codec_configuration, AVPacket*, AVFrame*);
+
+    DecoderErrorOr<AVCodecContext*> create_codec_context();
+    DecoderErrorOr<void> replace_codec_context();
+    static AVPixelFormat negotiate_pixel_format(AVCodecContext*, AVPixelFormat const*);
+    static int get_buffer(AVCodecContext*, AVFrame*, int flags);
+    DecoderErrorOr<void> create_frames_context();
+
+    DecoderErrorOr<void> decode_coded_frame(CodedFrame const&, u64 key);
+    DecoderErrorOr<void> receive_decoded_frames(EndOfStreamIsFinal = EndOfStreamIsFinal::Yes);
+    void enqueue_decoding_frame(DecodingFrame);
+    void free_decoding_frames(Vector<DecodingFrame>&);
+
+    void complete_frames_until_exit();
+    DecoderErrorOr<DecodedOutput> complete_frame(DecodingFrame&);
+    DecoderErrorOr<void> prepare_to_copy_frames_from(AVFrame const&);
+    DecoderErrorOr<NonnullRefPtr<VulkanExportableImagePool::Image>> copy_into_exportable_image(AVFrame const&);
+    DecoderErrorOr<NonnullRefPtr<VideoSurface>> surface_for_frame(AVFrame const&);
+
+    FFmpegFunctions const& m_functions;
+    ExportsDirectly m_exports_directly;
+    VulkanVideoDevice& m_device;
+    CodecID m_codec_id;
+    // The process keeps the device context alive.
+    AVBufferRef* m_device_context { nullptr };
+    AVCodecContext* m_codec_context { nullptr };
+    AVPacket* m_packet { nullptr };
+    AVFrame* m_received_frame { nullptr };
+    NonnullRefPtr<VideoSurfaceBudget> m_surface_budget { make_ref_counted<VideoSurfaceBudget>() };
+
+    // Only the caller's thread uses these.
+    VideoFramesAwaitingOutput m_frames_awaiting_output;
+    Optional<DecoderError> m_pixel_format_error;
+    // Replacing the codec context starts it from the latest configuration the stream has carried.
+    FixedArray<u8> m_codec_configuration;
+    // A second negotiation would start a Vulkan session that uses the old one's pictures after FFmpeg frees parts of
+    // them, so a context that would negotiate again is replaced instead.
+    bool m_codec_context_has_negotiated { false };
+    bool m_codec_context_must_be_replaced { false };
+    // A refused negotiation drops the codec context's own reference to its frames, so this one keeps them alive until
+    // the context's pictures are freed.
+    AVBufferRef* m_codec_frames_context { nullptr };
+    bool m_received_end_of_stream { false };
+    Vector<u64> m_drm_format_modifiers;
+    VkImageDrmFormatModifierListCreateInfoEXT m_drm_format_modifier_list {};
+
+    mutable Mutex m_mutex;
+    ConditionVariable m_condition { m_mutex };
+    Queue<DecodingFrame> m_decoding_frames;
+    bool m_frame_is_completing { false };
+    Vector<DecodedOutput> m_outputs;
+    Optional<DecoderError> m_decode_failure;
+    bool m_completed_end_of_stream { false };
+    bool m_caller_is_waiting_for_output { false };
+    bool m_completion_thread_should_exit { false };
+    u64 m_generation { 0 };
+    Function<void(DecodeCompletion)> m_decode_completed_callback;
+    RefPtr<Threading::Thread> m_completion_thread;
+
+    // Only the completion thread uses these. A frames context recycles its images, so each one's surface is kept and
+    // recognized when it comes back. The context is referenced so that a new one can't take its address.
+    AVBufferRef* m_frames_context_of_surfaces { nullptr };
+    HashMap<u64, NonnullRefPtr<VideoSurface>> m_surfaces_by_image;
+
+    // Only the completion thread uses these. Frames decoded into images that do not export are copied into ones that
+    // do, which match the decoded images' format and size.
+    RefPtr<VulkanExportableImagePool> m_exportable_images;
+    VkCommandPool m_copy_command_pool { VK_NULL_HANDLE };
+    VkCommandBuffer m_copy_command_buffer { VK_NULL_HANDLE };
+    bool m_copy_stalled { false };
+};
+
+}
+
+#endif

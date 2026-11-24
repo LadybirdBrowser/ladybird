@@ -180,9 +180,12 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     VkPhysicalDeviceVulkan12Features supported_vulkan12 {};
     supported_vulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     supported_vulkan12.pNext = &supported_vulkan13;
+    VkPhysicalDeviceVulkan11Features supported_vulkan11 {};
+    supported_vulkan11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    supported_vulkan11.pNext = &supported_vulkan12;
     VkPhysicalDeviceFeatures2 supported_features {};
     supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supported_features.pNext = &supported_vulkan12;
+    supported_features.pNext = &supported_vulkan11;
     vkGetPhysicalDeviceFeatures2(device->m_physical_device, &supported_features);
 
     device->m_vulkan13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -191,6 +194,7 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     device->m_vulkan12_features.timelineSemaphore = VK_TRUE;
     device->m_vulkan12_features.pNext = &device->m_vulkan13_features;
     device->m_vulkan11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    device->m_vulkan11_features.samplerYcbcrConversion = supported_vulkan11.samplerYcbcrConversion;
     device->m_vulkan11_features.pNext = &device->m_vulkan12_features;
     device->m_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     device->m_features.pNext = &device->m_vulkan11_features;

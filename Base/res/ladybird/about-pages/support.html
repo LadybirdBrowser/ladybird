@@ -451,7 +451,7 @@
                 return [
                     ["libavcodec", libraryVersion(ffmpeg.avcodec_version)],
                     ["libavutil", libraryVersion(ffmpeg.avutil_version)],
-                    ["Matches the bundled struct layouts", yesNo(ffmpeg.shares_bundled_struct_layouts)],
+                    ["Has a Vulkan decoder built for its version", yesNo(ffmpeg.has_vulkan_decoder_for_its_version)],
                 ];
             }
 

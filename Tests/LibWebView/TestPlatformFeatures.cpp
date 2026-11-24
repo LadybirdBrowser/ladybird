@@ -20,7 +20,7 @@ using WebView::FeatureStatus;
 using WebView::PlatformFeatureDecisions;
 using WebView::SystemFacts;
 
-static constexpr FFmpegFacts ffmpeg_9_0 { .avcodec_version = FFmpegFacts::version(63, 1, 102), .avutil_version = FFmpegFacts::version(61, 1, 102), .shares_bundled_struct_layouts = true };
+static constexpr FFmpegFacts ffmpeg_9_0 { .avcodec_version = FFmpegFacts::version(63, 1, 102), .avutil_version = FFmpegFacts::version(61, 1, 102), .has_vulkan_decoder_for_its_version = true };
 
 // As NVIDIA's driver reports them: references are decoded into the output, and no modifier tiles a DPB.
 static SystemFacts facts_with_a_coinciding_dpb()
@@ -214,10 +214,10 @@ TEST_CASE(each_ffmpeg_needs_a_codec_the_gpu_decodes)
     EXPECT(decisions.is_enabled(Feature::VulkanVideoBundledFFmpeg));
 }
 
-TEST_CASE(system_ffmpeg_needs_matching_struct_layouts)
+TEST_CASE(system_ffmpeg_needs_a_vulkan_decoder_built_for_its_version)
 {
     auto facts = facts_with_a_coinciding_dpb();
-    facts.system_ffmpeg->shares_bundled_struct_layouts = false;
+    facts.system_ffmpeg->has_vulkan_decoder_for_its_version = false;
     auto decisions = evaluate(facts);
     EXPECT_EQ(decisions.status_of(Feature::VulkanVideoSystemFFmpeg).state, FeatureStatus::State::Unsupported);
     EXPECT(decisions.is_enabled(Feature::VulkanVideoBundledFFmpeg));
