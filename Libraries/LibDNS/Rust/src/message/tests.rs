@@ -1156,3 +1156,16 @@ fn txt_with_several_strings() {
     // A string running past RDLENGTH.
     assert!(Message::from_wire(&single_answer(ResourceType::TXT, &[3, b'a', b'b', b'c', 4, b'd'], 6)).is_err());
 }
+
+#[test]
+fn ttl_with_the_high_bit_set_is_zero() {
+    for (ttl, expected) in [(0x8000_0000u32, 0), (0xffff_ffff, 0), (0x7fff_ffff, 0x7fff_ffff)] {
+        let mut message = header(0, 1, 0, 0);
+        message.push(0);
+        message.extend_from_slice(&ResourceType::A.0.to_be_bytes());
+        message.extend_from_slice(&[0, 1]);
+        message.extend_from_slice(&ttl.to_be_bytes());
+        message.extend_from_slice(&[0, 4, 192, 0, 2, 1]);
+        assert_eq!(Message::from_wire(&message).unwrap().answers[0].ttl, expected);
+    }
+}
