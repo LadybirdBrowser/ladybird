@@ -8,7 +8,10 @@
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/EventLoop.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakHashMap.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -23,21 +26,22 @@ namespace Web {
 
 struct PagePendingStats {
     RenderingPendingCounts last_counts {};
-    HashTable<GC::RawPtr<DOM::Document const>> documents;
+    GC::WeakHashSet<DOM::Document const> documents;
     bool logged { false };
 };
 
 struct PendingOperation {
     GC::Weak<DOM::Document const> document;
     RenderingPendingReason reason;
-    GC::RawPtr<Streams::ReadableStream const> stream {};
+    GC::Weak<Streams::ReadableStream const> stream;
 };
 
 struct PendingStats {
-    HashMap<GC::RawPtr<Page const>, PagePendingStats> pages;
-    HashMap<GC::RawPtr<GC::Cell const>, PendingOperation> operations;
-    HashMap<GC::RawPtr<Streams::ReadableStream const>, HashTable<GC::RawPtr<GC::Cell const>>> streams;
-    HashTable<GC::RawPtr<Page const>> dirty_pages;
+    GC::WeakHashMap<Page const, PagePendingStats> pages;
+    // By the address of each operation's token, which the token's finalizer can still name.
+    HashMap<FlatPtr, PendingOperation> operations;
+    GC::WeakHashMap<Streams::ReadableStream const, HashTable<FlatPtr>> streams;
+    GC::WeakHashSet<Page const> dirty_pages;
     bool flush_queued { false };
     size_t task_depth { 0 };
 };
@@ -54,7 +58,7 @@ static PendingStats& pending_stats()
 static void pending_changed(Page const& page)
 {
     auto& stats = pending_stats();
-    stats.dirty_pages.set(&page);
+    stats.dirty_pages.set(page);
     if (stats.flush_queued)
         return;
     stats.flush_queued = true;
@@ -68,13 +72,14 @@ static void pending_changed(Page const& page)
 
 static void remove_pending_document(DOM::Document const& document, RenderingStats& stats)
 {
-    auto page = exchange(stats.pending_page, nullptr);
+    auto page = stats.pending_page.ptr();
+    stats.pending_page = GC::Weak<Page const> {};
     if (!page || !s_pending_stats)
         return;
-    auto it = s_pending_stats->pages.find(page);
-    if (it == s_pending_stats->pages.end())
+    auto page_stats = s_pending_stats->pages.get(*page);
+    if (!page_stats.has_value())
         return;
-    it->value.documents.remove(&document);
+    page_stats->documents.remove(document);
     pending_changed(*page);
 }
 
@@ -92,7 +97,7 @@ void Detail::set_rendering_pending(DOM::Document const& document, RenderingPendi
     auto& previous = stats.pending[to_underlying(reason)];
     if (previous == count)
         return;
-    if (auto page = stats.pending_page)
+    if (auto page = stats.pending_page.ptr())
         pending_changed(*page);
     previous = count;
 }
@@ -108,9 +113,9 @@ void Detail::rendering_pending_document_changed(DOM::Document const& document)
     if (!navigable || document.has_been_destroyed() || !navigable->active_document_is(document))
         return;
     auto& page = document.page();
-    auto& page_stats = pages.ensure(&page);
-    stats.pending_page = &page;
-    page_stats.documents.set(&document);
+    auto& page_stats = pages.ensure(page);
+    stats.pending_page = page;
+    page_stats.documents.set(document);
     stats.displayed = navigable->is_local_root() || (navigable->container() && navigable->container()->stats_displayed());
     pending_changed(page);
     Detail::set_rendering_pending(document, RenderingPendingReason::NeedsRenderingUpdate, 1);
@@ -139,13 +144,18 @@ void Detail::forget_rendering_pending(Page const& page)
 {
     if (!s_pending_stats)
         return;
-    auto it = s_pending_stats->pages.find(&page);
-    if (it == s_pending_stats->pages.end())
+    auto page_stats = s_pending_stats->pages.get(page);
+    if (!page_stats.has_value())
         return;
-    for (auto document : it->value.documents)
-        document->rendering_stats()->pending_page = nullptr;
-    s_pending_stats->dirty_pages.remove(&page);
-    s_pending_stats->pages.remove(it);
+    for (auto& document : page_stats->documents)
+        document.rendering_stats()->pending_page = GC::Weak<Page const> {};
+    s_pending_stats->dirty_pages.remove(page);
+    s_pending_stats->pages.remove(page);
+}
+
+static FlatPtr operation_key(GC::Cell const* token)
+{
+    return reinterpret_cast<FlatPtr>(token);
 }
 
 void Detail::begin_rendering_pending_operation(GC::Cell const* token, DOM::Document const& document, RenderingPendingReason reason)
@@ -153,40 +163,45 @@ void Detail::begin_rendering_pending_operation(GC::Cell const* token, DOM::Docum
     if (!Core::StatsLog::the() || document.is_decoded_svg())
         return;
     auto& operations = pending_stats().operations;
-    VERIFY(!operations.contains(token));
-    operations.set(token, PendingOperation { document, reason });
+    VERIFY(!operations.contains(operation_key(token)));
+    operations.set(operation_key(token), PendingOperation { document, reason, {} });
     Detail::set_rendering_pending(document, reason, document.ensure_rendering_stats().pending[to_underlying(reason)] + 1);
+}
+
+static void end_pending_operation(FlatPtr key)
+{
+    if (!s_pending_stats)
+        return;
+    auto pending_operation = s_pending_stats->operations.take(key);
+    if (!pending_operation.has_value())
+        return;
+    auto& operation = *pending_operation;
+    if (auto stream = operation.stream.ptr()) {
+        if (auto tokens = s_pending_stats->streams.get(*stream); tokens.has_value()) {
+            tokens->remove(key);
+            if (tokens->is_empty())
+                s_pending_stats->streams.remove(*stream);
+        }
+    }
+    if (!operation.document)
+        return;
+    auto& document = *operation.document;
+    auto& count = document.ensure_rendering_stats().pending[to_underlying(operation.reason)];
+    VERIFY(count);
+    Detail::set_rendering_pending(document, operation.reason, count - 1);
 }
 
 void Detail::end_rendering_pending_operation(GC::Cell const* token)
 {
-    if (!s_pending_stats)
-        return;
-    auto operation = s_pending_stats->operations.take(token);
-    if (!operation.has_value())
-        return;
-    if (operation->stream) {
-        auto it = s_pending_stats->streams.find(operation->stream);
-        if (it != s_pending_stats->streams.end()) {
-            it->value.remove(token);
-            if (it->value.is_empty())
-                s_pending_stats->streams.remove(it);
-        }
-    }
-    if (!operation->document)
-        return;
-    auto& document = *operation->document;
-    auto& count = document.ensure_rendering_stats().pending[to_underlying(operation->reason)];
-    VERIFY(count);
-    Detail::set_rendering_pending(document, operation->reason, count - 1);
+    end_pending_operation(operation_key(token));
 }
 
 void Detail::track_rendering_pending_stream(GC::Cell const* token, Streams::ReadableStream& stream)
 {
     if (!s_pending_stats)
         return;
-    auto it = s_pending_stats->operations.find(token);
-    if (it == s_pending_stats->operations.end())
+    auto operation = s_pending_stats->operations.get(operation_key(token));
+    if (!operation.has_value())
         return;
     // Closing a source with unread queued bytes need not close its identity transform. Observe the source's
     // close request, before fetch installs that transform, so an unread response cannot keep the page pending.
@@ -194,20 +209,22 @@ void Detail::track_rendering_pending_stream(GC::Cell const* token, Streams::Read
         end_rendering_pending_operation(token);
         return;
     }
-    VERIFY(!it->value.stream);
-    it->value.stream = &stream;
-    s_pending_stats->streams.ensure(&stream).set(token);
+    VERIFY(!operation->stream);
+    operation->stream = stream;
+    s_pending_stats->streams.ensure(stream).set(operation_key(token));
 }
 
 void Detail::complete_rendering_pending_stream(Streams::ReadableStream const& stream)
 {
     if (!s_pending_stats)
         return;
-    Optional<HashTable<GC::RawPtr<GC::Cell const>>> tokens = s_pending_stats->streams.take(&stream);
-    if (!tokens.has_value())
+    auto stream_tokens = s_pending_stats->streams.get(stream);
+    if (!stream_tokens.has_value())
         return;
-    for (auto token : *tokens)
-        end_rendering_pending_operation(token.ptr());
+    auto tokens = move(*stream_tokens);
+    s_pending_stats->streams.remove(stream);
+    for (auto token : tokens)
+        end_pending_operation(token);
 }
 
 void Detail::did_update_rendering(DOM::Document& document)
@@ -228,20 +245,23 @@ void Detail::flush_rendering_pending()
     auto* log = Core::StatsLog::the();
     if (!log || !s_pending_stats || s_pending_stats->task_depth)
         return;
-    HashTable<GC::RawPtr<Page const>> dirty_pages = move(s_pending_stats->dirty_pages);
+    GC::RootVector<GC::Ref<Page const>> dirty_pages;
+    for (auto& page : s_pending_stats->dirty_pages)
+        dirty_pages.append(page);
+    s_pending_stats->dirty_pages.clear();
     for (auto page : dirty_pages) {
-        auto it = s_pending_stats->pages.find(page);
-        if (it == s_pending_stats->pages.end() || !page->has_top_level_traversable())
+        auto page_stats = s_pending_stats->pages.get(page);
+        if (!page_stats.has_value() || !page->has_top_level_traversable())
             continue;
-        auto& stats = it->value;
+        auto& stats = *page_stats;
         RenderingPendingCounts counts {};
-        for (auto document : stats.documents) {
-            auto const& document_stats = *document->rendering_stats();
-            auto navigable = document->navigable();
+        for (auto& document : stats.documents) {
+            auto const& document_stats = *document.rendering_stats();
+            auto navigable = document.navigable();
             auto local_root = navigable->local_root();
             if (local_root->parent() && !local_root->stats_ancestors_displayed())
                 continue;
-            if (!document_stats.displayed || document->visibility_state() != HTML::VisibilityState::Visible
+            if (!document_stats.displayed || document.visibility_state() != HTML::VisibilityState::Visible
                 || navigable->has_inclusive_ancestor_with_visibility_hidden())
                 continue;
             if (auto intersection = navigable->viewport_intersection(); intersection.has_value() && intersection->is_empty())
