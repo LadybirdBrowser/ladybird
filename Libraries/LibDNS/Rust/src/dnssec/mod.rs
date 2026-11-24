@@ -543,11 +543,6 @@ impl Validator {
             return Err(Failure::Error("DNS query failed"));
         }
 
-        let insecure = |reason| ValidationResult {
-            status: SecurityStatus::Insecure,
-            records: response.answers_to(question),
-            reason,
-        };
         let bogus = |reason| ValidationResult {
             status: SecurityStatus::Bogus,
             records: Vec::new(),
@@ -563,10 +558,32 @@ impl Validator {
             reason: "",
         };
         let mut current = question.name.clone();
+        // Anything an alias leads to is valid for no longer than the alias.
+        let mut chain_ttl = u32::MAX;
+        let capped_to = |mut records: Vec<ResourceRecord>, chain_ttl: u32| {
+            for record in &mut records {
+                record.ttl = record.ttl.min(chain_ttl);
+            }
+            records
+        };
+        // The records validated so far, followed by the rest of the answer from `current` on, which could not be.
+        let insecure = |verified: Vec<ResourceRecord>, current: &DomainName, chain_ttl: u32, reason| {
+            let rest = response.answers_to(&Question {
+                name: current.clone(),
+                ..question.clone()
+            });
+            let mut records = verified;
+            records.extend(capped_to(rest, chain_ttl));
+            ValidationResult {
+                status: SecurityStatus::Insecure,
+                records,
+                reason,
+            }
+        };
         for _ in 0..=MAX_CNAME_CHAIN_LENGTH {
             let chain = self.chain_for(&current, fetches, now)?;
             match chain.status {
-                SecurityStatus::Insecure => return Ok(insecure(chain.reason)),
+                SecurityStatus::Insecure => return Ok(insecure(result.records, &current, chain_ttl, chain.reason)),
                 SecurityStatus::Bogus => return Ok(bogus(chain.reason)),
                 SecurityStatus::Secure => {}
             }
@@ -586,7 +603,12 @@ impl Validator {
 
             let denial_records = verify_denial_records(&authority, &chain.zone, &chain.keys, now)?;
             if has_excessive_nsec3_iterations(&denial_records) {
-                return Ok(insecure("NSEC3 iteration count is too high"));
+                return Ok(insecure(
+                    result.records,
+                    &current,
+                    chain_ttl,
+                    "NSEC3 iteration count is too high",
+                ));
             }
             let proofs = DenialProofs {
                 rrsets: &denial_records,
@@ -595,10 +617,10 @@ impl Validator {
             if let Some(answer) = answer {
                 return Ok(match self.accept(answer, &current, &chain, &proofs, fetches, now)? {
                     Accepted::Records(records) => {
-                        result.records.extend(records);
+                        result.records.extend(capped_to(records, chain_ttl));
                         result
                     }
-                    Accepted::Insecure(reason) => insecure(reason),
+                    Accepted::Insecure(reason) => insecure(result.records, &current, chain_ttl, reason),
                     Accepted::Bogus(reason) => bogus(reason),
                 });
             }
@@ -607,8 +629,12 @@ impl Validator {
                 && question.rtype != ResourceType::CNAME
             {
                 match self.accept(cname, &current, &chain, &proofs, fetches, now)? {
-                    Accepted::Records(records) => result.records.extend(records),
-                    Accepted::Insecure(reason) => return Ok(insecure(reason)),
+                    Accepted::Records(records) => {
+                        let records = capped_to(records, chain_ttl);
+                        chain_ttl = records.iter().map(|record| record.ttl).fold(chain_ttl, u32::min);
+                        result.records.extend(records);
+                    }
+                    Accepted::Insecure(reason) => return Ok(insecure(result.records, &current, chain_ttl, reason)),
                     Accepted::Bogus(reason) => return Ok(bogus(reason)),
                 }
                 let Some(RecordData::Cname(target)) = cname.records.first().map(|record| &record.data) else {
