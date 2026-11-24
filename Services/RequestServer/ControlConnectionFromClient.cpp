@@ -270,19 +270,28 @@ void ControlConnectionFromClient::remove_cache_entries_accessed_before(UnixDateT
         m_disk_cache->remove_entries_accessed_before(before);
 }
 
-void ControlConnectionFromClient::resolve_host_with_system_resolver(ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved)
+DNS::Resolver::CancelRemoteSystemResolution ControlConnectionFromClient::resolve_host_with_system_resolver(ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved)
 {
     VERIFY(family != Core::Socket::AddressFamily::Unspecified);
 
     auto resolution_id = m_next_system_resolution_id++;
     m_pending_system_resolutions.set(resolution_id, move(on_resolved));
     async_resolve_host_with_system_resolver(resolution_id, host, family == Core::Socket::AddressFamily::IPv6Only);
+
+    return [weak_this = make_weak_ptr<ControlConnectionFromClient>(), resolution_id] {
+        auto self = weak_this.strong_ref();
+        if (self && self->m_pending_system_resolutions.remove(resolution_id))
+            self->m_cancelled_system_resolutions.set(resolution_id);
+    };
 }
 
 void ControlConnectionFromClient::resolved_host_with_system_resolver(u64 resolution_id, Optional<Vector<ByteString>> addresses)
 {
     auto on_resolved = m_pending_system_resolutions.take(resolution_id);
     if (!on_resolved.has_value()) {
+        // The answer to a lookup the resolver gave up on still comes, and is dropped.
+        if (m_cancelled_system_resolutions.remove(resolution_id))
+            return;
         did_misbehave("Unexpected system resolver answer");
         return;
     }
