@@ -11,6 +11,8 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootHashMap.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
@@ -172,7 +174,7 @@ public:
     {
         auto& vm = realm.vm();
         auto const& spectest = spec_test_namespace();
-        Vector<Wasm::Runtime::Extern> imports;
+        GC::RootVector<Wasm::Runtime::Extern> imports;
         for (size_t index = 0; index < module->import_count(); ++index) {
             auto import = module->import(index);
             ImportName name { import.module, import.name };
@@ -299,7 +301,7 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     if (module.is_error())
         return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(module.error()));
 
-    HashMap<ImportName, Wasm::Runtime::Extern> imports;
+    GC::RootHashMap<ImportName, Wasm::Runtime::Extern> imports;
     auto import_value = vm.argument(1);
     if (auto import_object = import_value.template as_if<JS::Object>()) {
         for (auto property_key_value : TRY(import_object->ordinary_own_property_keys())) {
@@ -311,7 +313,8 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
             if (!module_object)
                 continue;
             auto module_name = property_key.as_string().to_utf16_string().to_byte_string();
-            for (auto& entry : WebAssemblyModule::store().instance_exports(module_object->instance()))
+            GC::RootVector<Wasm::Runtime::InstanceExport> exports(WebAssemblyModule::store().instance_exports(module_object->instance()));
+            for (auto& entry : exports)
                 imports.set({ module_name, entry.name }, entry.value);
         }
     }
