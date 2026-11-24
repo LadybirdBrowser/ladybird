@@ -477,25 +477,20 @@ fn raw_table(raws: Vec<(StyleAtomID, usize)>) -> Box<[(StyleAtomID, usize)]> {
 /// Compile a selector list for the DOM query APIs, in a document whose HTML elements are in `html_namespace`, which
 /// is zero for a document that is not an HTML document.
 ///
-///
 /// # Safety
-/// `selectors` must point to `count` live selectors.
+///
+/// `html_namespace` must be zero or the raw identity of a live AK::Utf16FlyString.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_dom_selector_program_create(
-    selectors: *const *const RustSelector,
-    count: usize,
+    selectors: ak::Span<'_, &RustSelector>,
     html_namespace: usize,
 ) -> *mut DomSelectorProgram {
-    let selectors = match count {
-        0 => &[][..],
-        _ => unsafe { ak::slice_from_raw_parts(selectors, count) },
-    };
     // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
     // NB: A selector query matches elements, never pseudo-elements, `::slotted()` and `::part()` among them.
     let selectors: Vec<crate::css::selector::SelectorRef> = selectors
+        .as_slice()
         .iter()
-        // SAFETY: The selectors are live.
-        .map(|&selector| unsafe { (*selector).selector.clone() })
+        .map(|selector| selector.selector.clone())
         .filter(|selector| {
             let selector = selector.view();
             !selector.compounds().any(|compound| {
@@ -527,7 +522,7 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
         [selector] => FfiDomIdLookup::of(selector.view(), raw_of),
         _ => FfiDomIdLookup::NONE,
     };
-    // SAFETY: The namespace is a live interned string of the document.
+    // SAFETY: The caller passes zero or the raw identity of a live fly string.
     let html_namespace = (html_namespace != 0).then(|| unsafe {
         crate::css::style::AtomLease::acquire_raw(crate::css::style::process_atoms(), html_namespace)
     });

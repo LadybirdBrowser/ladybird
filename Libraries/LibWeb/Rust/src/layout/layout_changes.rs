@@ -614,31 +614,17 @@ pub extern "C" fn render_state_set_element_scroll_offset(host: &DocumentHost, el
 
 /// Publishes the writing suggestion showing after the caret: `remainder` is what it would add at `offset` in the text
 /// node `text`. A zero `text` publishes that none shows.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread, and `remainder` must point at `length` readable code
-/// units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_writing_suggestion(
+pub extern "C" fn render_state_set_writing_suggestion(
     host: &DocumentHost,
     text: u32,
     offset: usize,
-    remainder: *const u16,
-    length: usize,
+    remainder: ak::Span<'_, u16>,
 ) {
-    let suggestion = StyleNodeID::from_raw(text).map(|text| {
-        let remainder: &[u16] = if length == 0 {
-            &[]
-        } else {
-            // SAFETY: Guaranteed by the caller.
-            unsafe { ak::slice_from_raw_parts(remainder, length) }
-        };
-        super::layout_node_arena::PublishedWritingSuggestion {
-            text,
-            offset,
-            remainder: remainder.to_vec(),
-        }
+    let suggestion = StyleNodeID::from_raw(text).map(|text| super::layout_node_arena::PublishedWritingSuggestion {
+        text,
+        offset,
+        remainder: remainder.as_slice().to_vec(),
     });
     queue(host, LayoutChange::SetWritingSuggestion(suggestion));
 }

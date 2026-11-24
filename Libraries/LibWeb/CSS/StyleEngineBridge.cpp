@@ -866,7 +866,7 @@ bool StyleEngine::matched_rules(Layout::BegunRead const& read, StyleNodeID node,
     auto raw_node = node.value();
     matches.resize(64);
     auto match = [&] {
-        return StyleEngineFFI::style_engine_matched_rules(host(), &read, &raw_node, 1, matches.data(), matches.size(), true);
+        return StyleEngineFFI::style_engine_matched_rules(host(), &read, { &raw_node, 1 }, matches.span(), true);
     };
     auto count = match();
     if (count > matches.size()) {

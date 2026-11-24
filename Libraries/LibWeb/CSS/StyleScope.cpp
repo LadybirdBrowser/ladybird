@@ -751,11 +751,11 @@ StyleScope::CounterStyleLookupChain StyleScope::counter_style_lookup_chain(Layou
     return chain;
 }
 
-bool StyleScope::list_style_type_depends_on_counter_value(void const* list_style_type) const
+bool StyleScope::list_style_type_depends_on_counter_value(StyleValueFFI::StyleValueData const* list_style_type) const
 {
     Layout::ForcedReadScope read { document() };
     auto scopes = counter_style_lookup_chain(read);
-    return Parser::ValueParserFFI::rust_list_style_type_depends_on_counter_value(list_style_type, scopes.data(), scopes.size());
+    return Parser::ValueParserFFI::rust_list_style_type_depends_on_counter_value(list_style_type, scopes.span());
 }
 
 // Settles every scope a counter style name used in this scope may be looked up in, and publishes what each registers

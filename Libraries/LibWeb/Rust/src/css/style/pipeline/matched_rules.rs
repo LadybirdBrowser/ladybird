@@ -158,27 +158,21 @@ impl StyleEngine {
 ///
 /// Returns the number written, or a count larger than `capacity` when nothing was written because
 /// the buffer was too small.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, `nodes` must point at
-/// `node_count` readable identities, and `out` at `capacity` writable `FfiMatchedRule` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_matched_rules(
+pub extern "C" fn style_engine_matched_rules(
     host: &DocumentHost,
     read: &BegunRead,
-    nodes: *const u32,
-    node_count: usize,
-    out: *mut FfiMatchedRule,
-    capacity: usize,
+    nodes: ak::Span<'_, u32>,
+    out: ak::SpanMut<'_, FfiMatchedRule>,
     include_user_agent: bool,
 ) -> usize {
-    // SAFETY: Guaranteed by the caller.
-    let nodes = unsafe { super::super::bridge::borrow(nodes, node_count) };
-    let rules = with_engine(read, host, |engine| engine.matched_rules(nodes, include_user_agent));
-    if rules.len() > capacity {
+    let rules = with_engine(read, host, |engine| {
+        engine.matched_rules(nodes.as_slice(), include_user_agent)
+    });
+    let out = out.into_slice();
+    if rules.len() > out.len() {
         return rules.len();
     }
-    // SAFETY: Guaranteed by the caller.
-    unsafe { std::ptr::copy_nonoverlapping(rules.as_ptr(), out, rules.len()) };
+    out[..rules.len()].copy_from_slice(&rules);
     rules.len()
 }

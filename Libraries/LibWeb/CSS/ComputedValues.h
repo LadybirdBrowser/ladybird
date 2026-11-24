@@ -482,11 +482,11 @@ public:
     Color background_color() const { return m_noninherited.background->background_color_value(color()); }
     RefPtr<StyleValue const> background_color_style_value() const;
 
-    void const* list_style_type_data() const { return m_inherited.list_table->list_style_type.pointer; }
+    StyleValueFFI::StyleValueData const* list_style_type_data() const { return static_cast<StyleValueFFI::StyleValueData const*>(m_inherited.list_table->list_style_type.pointer); }
     RefPtr<AbstractImageStyleValue const> list_style_image() const { return m_inherited.list_table->list_style_image_value(); }
     // Whether this style reads its tree scope's counter-style registry, which a pseudo-element's does for any named
     // counter style.
-    bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(static_cast<StyleValueFFI::StyleValueData const*>(m_noninherited.content_data->content.pointer), static_cast<StyleValueFFI::StyleValueData const*>(list_style_type_data()), is_pseudo); }
+    bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(static_cast<StyleValueFFI::StyleValueData const*>(m_noninherited.content_data->content.pointer), list_style_type_data(), is_pseudo); }
 
     Color flood_color() const { return resolve_style_color(m_noninherited.svg_reset->flood_color, color()); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
