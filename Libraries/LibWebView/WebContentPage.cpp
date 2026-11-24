@@ -996,6 +996,10 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
 
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
     auto group = container_document->browsing_context().top_level_browsing_context().group();
+    // NB: A browsing context group switch takes the previous top-level browsing context out of its group as it commits,
+    //     so a frame reported afterwards in one of its documents comes too late, like one whose parent is gone.
+    if (!group)
+        return;
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(container_document.ptr(), hosted_state.container, *group, document_id, move(environment_id), move(origin)).document;
