@@ -100,7 +100,7 @@ unsafe extern "C" fn memory_fill(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[memory, destination, value, count, ..] = arguments(context);
         let memory = &*(memory as *const MemoryData);
-        if !in_range(destination, count, memory.size) {
+        if !in_range(destination, count, memory.size()) {
             return u64::from(TRAP_MEMORY_OUT_OF_BOUNDS);
         }
         if count == 0 {
@@ -117,7 +117,7 @@ unsafe extern "C" fn memory_copy(context: *mut ExecutionContext) -> u64 {
         let &[destination_memory, source_memory, destination, source, count, _] = arguments(context);
         let destination_memory = &*(destination_memory as *const MemoryData);
         let source_memory = &*(source_memory as *const MemoryData);
-        if !in_range(destination, count, destination_memory.size) || !in_range(source, count, source_memory.size) {
+        if !in_range(destination, count, destination_memory.size()) || !in_range(source, count, source_memory.size()) {
             return u64::from(TRAP_MEMORY_OUT_OF_BOUNDS);
         }
         if count == 0 {
@@ -138,7 +138,7 @@ unsafe extern "C" fn memory_init(context: *mut ExecutionContext) -> u64 {
         let &[memory, segment, destination, source, count, _] = arguments(context);
         let memory = &*(memory as *const MemoryData);
         let segment = &*(segment as *const Segment);
-        if !in_range(source, count, segment.length) || !in_range(destination, count, memory.size) {
+        if !in_range(source, count, segment.length) || !in_range(destination, count, memory.size()) {
             return u64::from(TRAP_MEMORY_OUT_OF_BOUNDS);
         }
         if count == 0 {

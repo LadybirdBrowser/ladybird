@@ -7,6 +7,7 @@
 //! The runtime services the interpreter calls for what needs the runtime: growing memories and tables, and calling
 //! host functions. Each takes the execution context, whose `arguments` hold the operands.
 
+use super::memory::SharedMemory;
 use super::{FunctionAddress, FunctionInstance, FunctionKind, MemoryAddress, Store, TableAddress, Trap};
 use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
@@ -39,8 +40,13 @@ unsafe fn memory_grow(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let data = (*context).arguments[0] as *const MemoryData;
         let delta = (*context).arguments[1];
+        if (*data).shared != 0 {
+            // NB: Nothing is told that the memory grew: an agent finds the size where it finds the bytes, and the
+            //     embedder gives each of them a buffer of the new size once it is asked for one.
+            return SharedMemory::from_data(data).grow(delta).unwrap_or(u64::MAX);
+        }
         let store = store_of(context);
-        // The data is at the memory's handle.
+        // The data of a memory that is not shared is at the memory's handle, see MemoryInstance::data().
         let memory = MemoryAddress::from_ptr(data.cast());
         let Some(previous) = store.memory_mut(memory).grow(delta) else {
             return u64::MAX;
