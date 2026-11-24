@@ -7,9 +7,9 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibCore/EventLoop.h>
-#include <LibTLS/TLSv12.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ControlConnectionFromClient.h>
+#include <RequestServer/DNSStreamCurl.h>
 #include <RequestServer/Resolver.h>
 
 namespace RequestServer {
@@ -78,9 +78,7 @@ static void use_remote_system_resolver(DNS::Resolver& resolver)
 // System resolver to resolve the resolvers themselves.
 static DNS::Resolver& system_resolver()
 {
-    static NeverDestroyed<DNS::Resolver> resolver { [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-        return OptionalNone {};
-    } };
+    static NeverDestroyed<DNS::Resolver> resolver;
     return *resolver;
 }
 
@@ -174,60 +172,44 @@ void Resolver::resolve_system_names_remotely()
     }
 }
 
+static Optional<DNS::Resolver::Server> configured_server()
+{
+    auto const& dns_info = DNSInfo::the();
+    if (!dns_info.server_hostname.has_value())
+        return {};
+    return DNS::Resolver::Server {
+        .host = *dns_info.server_hostname,
+        .port = dns_info.port,
+        .transport = dns_info.use_dns_over_tls ? DNS::Resolver::ServerTransport::TLS : DNS::Resolver::ServerTransport::UDP,
+    };
+}
+
 void Resolver::reset_connections()
 {
     for (auto* weak_resolver : { &g_default_resolver, &g_private_resolver }) {
-        if (auto resolver = weak_resolver->strong_ref())
+        if (auto resolver = weak_resolver->strong_ref()) {
+            resolver->dns.set_server(configured_server());
             resolver->dns.reset_connection();
+        }
     }
 }
 
 NonnullRefPtr<Resolver> Resolver::create()
 {
-    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-        auto& dns_info = DNSInfo::the();
-
-        if (!dns_info.server_address.has_value()) {
-            if (!dns_info.server_hostname.has_value())
-                return OptionalNone {};
-
-            auto resolved = TRY(system_resolver().lookup(*dns_info.server_hostname)->await());
-            if (!resolved->has_cached_addresses())
-                return Error::from_string_literal("Failed to resolve DNS server hostname");
-
-            auto address = resolved->cached_addresses().first().visit([&](auto& addr) -> Core::SocketAddress { return { addr, dns_info.port }; });
-            dns_info.server_address = address;
-        }
-
-        if (dns_info.use_dns_over_tls) {
-            TLS::Options options;
-
-            if (!g_default_certificate_path.is_empty())
-                options.root_certificates_path = g_default_certificate_path;
-
-            return DNS::Resolver::SocketResult {
-                MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*dns_info.server_address, *dns_info.server_hostname, move(options)))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-
-        return DNS::Resolver::SocketResult {
-            MaybeOwned<Core::Socket>(TRY(Core::UDPSocket::connect(*dns_info.server_address))),
-            DNS::Resolver::ConnectionMode::UDP,
-            [address = *dns_info.server_address] -> ErrorOr<NonnullOwnPtr<Core::Socket>> {
-                return TRY(Core::TCPSocket::connect(address));
-            },
+    auto resolver = adopt_ref(*new Resolver);
+    resolver->dns.set_stream_connector([](Core::SocketAddress const& address, ByteString const& server_name, DNS::StreamSecurity security) {
+        // DNS over TLS trusts exactly what HTTPS does.
+        DNSStreamTLSOptions options {
+            .root_certificates_path = default_certificate_path(),
+            .ssl_context_function = reinterpret_cast<void*>(&configure_ssl_context),
         };
-    }));
+        return connect_dns_stream(address, server_name, security, options);
+    });
+    resolver->dns.set_server(configured_server());
     resolver->dns.set_loopback_domains(DNSInfo::the().loopback_domains);
     if (s_resolves_system_names_remotely)
         use_remote_system_resolver(resolver->dns);
     return resolver;
-}
-
-Resolver::Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket)
-    : dns(move(create_socket))
-{
 }
 
 }
