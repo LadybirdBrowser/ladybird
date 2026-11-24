@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+body { font: 14px/20px sans-serif; margin: 0; }
+.wrap { display: inline-block; width: 300px; vertical-align: top; }
+.cell { display: table-cell; }
+</style>
+<!-- A table that fixup generates around a cell is inline-level only when the cell's parent is an inline box (display: inline), so inside an inline-block it's a block-level table that fits the inline-block. -->
+<div class="wrap" id="inline-block"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div>
+<div class="wrap" id="inline-flow-root" style="display: inline flow-root"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div>
+<div class="wrap" id="after-inline-content"><span>x</span><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div>
+<div class="wrap" id="explicit-inline-table"><div style="display: inline-table"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div></div>
+<div class="wrap" id="explicit-table"><div style="display: table"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div></div>
+<div class="wrap" id="block" style="display: block"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div>
+<div class="wrap" id="inline-flex" style="display: inline-flex"><div class="cell">Some text that is long enough to need several lines in a 300px wide box.</div></div>
+<div style="width: 300px"><span id="span-in-narrow-block">x <span class="cell">Some text that is long enough to need several lines in a 300px wide box.</span> y</span></div>
+<script>
+test(() => {
+  for (const id of ["inline-block", "inline-flow-root", "after-inline-content", "explicit-inline-table", "explicit-table", "block", "inline-flex", "span-in-narrow-block"]) {
+    const t = document.getElementById(id).querySelector(".cell").getBoundingClientRect();
+    println(`${id}: cell width ${Math.round(t.width)}, height ${Math.round(t.height)}`);
+  }
+});
+</script>
