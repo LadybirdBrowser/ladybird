@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/JsonObject.h>
+#include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Export.h>
@@ -17,7 +18,7 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-input-state
-struct InputState {
+struct InputState : public RefCounted<InputState> {
     InputState();
     ~InputState();
 
