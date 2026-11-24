@@ -382,6 +382,11 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
 
 WebContentView::~WebContentView()
 {
+#if defined(Q_OS_MACOS)
+    // An assistive technology can still hold elements of this view's accessibility tree, which goes away with it.
+    uninstall_accessibility(this);
+#endif
+
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     destroy_iosurface_layer();
 #elif defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
