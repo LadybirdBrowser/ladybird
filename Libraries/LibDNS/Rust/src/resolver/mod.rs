@@ -1422,12 +1422,26 @@ impl Resolver {
         let Some(key) = self.in_flight_by_id.get(&message.header.id).cloned() else {
             return;
         };
-        let arrived_over_udp = self
-            .find_link(connection)
-            .is_some_and(|index| self.links[index].kind == ConnectKind::Udp);
+        let Some(link_index) = self.find_link(connection) else {
+            return;
+        };
+        let (arrived_on, arrived_over_udp) = (
+            self.links[link_index].role,
+            self.links[link_index].kind == ConnectKind::Udp,
+        );
         let Some(query) = self.in_flight.get_mut(&key) else {
             return;
         };
+
+        // Once a question is asked again over TCP, only the answer there counts, and not a late one over UDP.
+        let asked_on = if query.over_tcp_fallback {
+            LinkRole::TcpFallback
+        } else {
+            LinkRole::Primary
+        };
+        if arrived_on != asked_on {
+            return;
+        }
 
         // The response has to echo our question; anything else is not an answer to it.
         let Some(question) = message.questions.first() else {
@@ -1446,9 +1460,6 @@ impl Resolver {
         if message.header.options.is_truncated() {
             if !arrived_over_udp {
                 return self.settle_query(&key, Err(Error::new("DNS response was truncated")), now);
-            }
-            if query.over_tcp_fallback {
-                return;
             }
             query.over_tcp_fallback = true;
             query.attempts = 0;
