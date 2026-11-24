@@ -1465,3 +1465,25 @@ fn resolutions_finishing_within_their_grace_window_keep_newer_cached_addresses()
         vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)), IpAddr::V6(Ipv6Addr::LOCALHOST)]
     );
 }
+
+#[test]
+fn validated_negative_answers_last_no_longer_than_their_proof() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.expire_example_signatures_in(2);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    let lookup = harness.lookup_with("www.example", &[ResourceType::AAAA], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+    serve_signed_zones(&mut harness, &mut server);
+    let result = harness.result(lookup).as_ref().unwrap();
+    assert_eq!(result.security_status, Some(SecurityStatus::Secure));
+    assert!(result.records.is_empty());
+
+    harness.lookup_with("www.example", &[ResourceType::AAAA], VALIDATE);
+    assert!(harness.writes.is_empty());
+
+    // The SOA allows longer, but the proof's signatures run out.
+    harness.now += Duration::from_secs(2);
+    harness.lookup_with("www.example", &[ResourceType::AAAA], VALIDATE);
+    assert!(!harness.writes.is_empty());
+}

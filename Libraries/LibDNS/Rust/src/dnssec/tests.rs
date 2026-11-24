@@ -634,6 +634,11 @@ impl Server {
         self.zones[0].ds()
     }
 
+    /// Makes the signatures of "example" expire in `seconds` from `NOW`. Call it before `start()`.
+    pub(crate) fn expire_example_signatures_in(&mut self, seconds: u32) {
+        self.zones[1].signing_time = NOW + seconds - 3600;
+    }
+
     fn anchor(&self, validator: &mut Validator) {
         validator.set_trust_anchors(vec![self.zones[0].ds()]);
     }
@@ -928,6 +933,26 @@ fn name_error_is_proven() {
         let result = validated_lookup(&mut server, &mut validator, "missing.example", ResourceType::A).unwrap();
         assert_eq!(result.status, SecurityStatus::Secure);
         assert!(result.records.is_empty());
+    }
+}
+
+#[test]
+fn negative_answers_carry_the_lifetime_of_their_proof() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, |_| {});
+        let result = validated_lookup(&mut server, &mut validator, "missing.example", ResourceType::A).unwrap();
+        assert_eq!(result.denial_ttl, Some(300));
+        let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+        assert_eq!(result.denial_ttl, None);
+
+        // The signatures in "example" expire in a second.
+        let (mut server, mut validator) = setup(use_nsec3, |server| server.zones[1].signing_time = NOW - 3599);
+        let result = validated_lookup(&mut server, &mut validator, "missing.example", ResourceType::A).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert_eq!(result.denial_ttl, Some(1));
+        let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::AAAA).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert_eq!(result.denial_ttl, Some(1));
     }
 }
 
