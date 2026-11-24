@@ -6,11 +6,34 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibWeb/HTML/Scripting/CompiledScriptCache.h>
 
 namespace Web::HTML {
 
 static constexpr size_t compiled_script_cache_size_limit = 16 * MiB;
+
+CompiledScriptFingerprint CompiledScriptFingerprint::of(Utf16String const& source_text)
+{
+    // NB: The storage width is part of what is hashed, so the same text in another width only misses the cache.
+    auto view = source_text.utf16_view();
+    u8 is_wide = view.has_latin1_storage() ? 0 : 1;
+    Crypto::Hash::Hasher hasher { Crypto::Hash::HashKind::SHA256 };
+    hasher.update(ReadonlyBytes { &is_wide, sizeof(is_wide) });
+    if (is_wide) {
+        auto units = view.utf16_span();
+        hasher.update(ReadonlyBytes { reinterpret_cast<u8 const*>(units.data()), units.size() * sizeof(char16_t) });
+    } else {
+        hasher.update(view.latin1_span());
+    }
+    auto digest = hasher.finish();
+
+    CompiledScriptFingerprint fingerprint;
+    VERIFY(digest.size == fingerprint.sha256_digest.size());
+    digest.bytes().copy_to(fingerprint.sha256_digest);
+    fingerprint.length_in_code_units = source_text.length_in_code_units();
+    return fingerprint;
+}
 
 CompiledScriptCache& CompiledScriptCache::the()
 {
@@ -18,21 +41,28 @@ CompiledScriptCache& CompiledScriptCache::the()
     return *cache;
 }
 
-Optional<CompiledScriptCache::Hit> CompiledScriptCache::find(CompiledScriptCacheKey const& key, Utf16String const& source_text)
+Optional<CompiledScriptCache::Hit> CompiledScriptCache::find(CompiledScriptCacheKey const& key, CompiledScriptFingerprint const& fingerprint)
 {
     auto entry = m_entries.get(key);
-    if (!entry.has_value() || entry->source_text != source_text)
+    if (!entry.has_value() || entry->fingerprint != fingerprint)
         return {};
 
     entry->touch_serial = ++m_next_touch_serial;
-    Hit hit { entry->program.clone(), entry->source_text };
+    Hit hit { entry->program.clone(), nullptr };
+    // NB: Loads of one script share one text, which LibJS parks for all of them at once.
+    for (auto const& linked : entry->linked_source_codes) {
+        if (auto source_code = linked.strong_ref()) {
+            hit.source_code_to_share = move(source_code);
+            break;
+        }
+    }
 
     // NB: Entries grow as their functions compile, which no store sees.
     evict_until_within_limit(key);
     return hit;
 }
 
-void CompiledScriptCache::store(CompiledScriptCacheKey key, Utf16String source_text, JS::CompiledProgram const& program)
+void CompiledScriptCache::store(CompiledScriptCacheKey key, CompiledScriptFingerprint const& fingerprint, JS::CompiledProgram const& program)
 {
     if (auto entry = m_entries.take(key); entry.has_value())
         release(*entry);
@@ -40,7 +70,7 @@ void CompiledScriptCache::store(CompiledScriptCacheKey key, Utf16String source_t
     // NB: However large the program is, it costs nothing while a document runs it, which the one that stores it is about
     //     to, and goes once none does.
     program.set_retains_compiled_functions(true);
-    m_entries.set(key, Entry { move(source_text), program.clone(), ++m_next_touch_serial, {} });
+    m_entries.set(key, Entry { fingerprint, program.clone(), ++m_next_touch_serial, {} });
     evict_until_within_limit(key);
 }
 
