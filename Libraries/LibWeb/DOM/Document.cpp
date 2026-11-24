@@ -3955,7 +3955,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     } else if (interface.equals_ignoring_ascii_case("focusevent"sv)) {
         event = UIEvents::FocusEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("hashchangeevent"sv)) {
-        event = HTML::HashChangeEvent::create(FlyString {}, {}, time_stamp);
+        event = HTML::create_hash_change_event(realm);
     } else if (interface.equals_ignoring_ascii_case("htmlevents"sv)) {
         event = Event::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
@@ -8309,12 +8309,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    using HashChangeEvent, with the oldURL attribute initialized to the serialization of oldURL and the newURL attribute
             //    initialized to the serialization of entry's URL.
             if (old_url.fragment() != entry->url().fragment()) {
-                auto hashchange_event = HTML::HashChangeEvent::create(
-                    "hashchange"_fly_string,
-                    old_url.serialize(),
-                    entry->url().serialize(),
-                    HighResolutionTime::current_high_resolution_time(relevant_global_object));
-                hashchange_event->set_is_trusted(true);
+                auto hashchange_event = HTML::create_hash_change_event(HTML::relevant_realm(*this), HTML::EventNames::hashchange, old_url.serialize(), entry->url().serialize());
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(hashchange_event, window), [](auto& hashchange_event, auto& window) {
                     window.dispatch_event(hashchange_event);
                 }));

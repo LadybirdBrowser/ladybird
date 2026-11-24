@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#hashchangeevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface HashChangeEvent : Event {
     constructor(DOMString type, optional HashChangeEventInit eventInitDict = {});
 

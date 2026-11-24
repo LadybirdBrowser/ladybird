@@ -72,6 +72,8 @@ pub(crate) mod exports;
 #[cfg(not(test))]
 pub(crate) mod global_event_handlers;
 #[cfg(not(test))]
+pub(crate) mod hash_change_event;
+#[cfg(not(test))]
 pub(crate) mod html_form_element;
 #[cfg(not(test))]
 pub(crate) mod image_bitmap;

@@ -4,47 +4,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <AK/Utf16String.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HashChangeEvent);
-
-[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<HashChangeEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/html/hash_change_event.rs.
+DOM::Event* web_rust_hash_change_event_create(JSVM*, void* realm, FlatPtr type, FlatPtr old_url, FlatPtr new_url);
+DOM::Event* web_rust_hash_change_event_create_for_create_event(JSVM*, void* realm);
 }
 
-GC::Ref<HashChangeEvent> HashChangeEvent::create(Utf16String const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> create_hash_change_event(JS::Realm& realm, Utf16FlyString const& type, String const& old_url, String const& new_url)
 {
-    return GC::Heap::the().allocate<HashChangeEvent>(Utf16FlyString::from_utf16(event_name.utf16_view()), event_init, time_stamp);
+    auto old_url_string = Utf16String::from_utf8(old_url);
+    auto new_url_string = Utf16String::from_utf8(new_url);
+    return *web_rust_hash_change_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), old_url_string.raw_identity(), new_url_string.raw_identity());
 }
 
-GC::Ref<HashChangeEvent> HashChangeEvent::create(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> create_hash_change_event(JS::Realm& realm)
 {
-    return GC::Heap::the().allocate<HashChangeEvent>(event_name, move(old_url), move(new_url), time_stamp);
-}
-
-HashChangeEvent::HashChangeEvent(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_old_url(event_init.old_url)
-    , m_new_url(event_init.new_url)
-{
-}
-
-HashChangeEvent::HashChangeEvent(Utf16FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_old_url(event_init.old_url)
-    , m_new_url(event_init.new_url)
-{
-}
-
-HashChangeEvent::HashChangeEvent(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, time_stamp)
-    , m_old_url(Utf16String::from_utf8(old_url))
-    , m_new_url(Utf16String::from_utf8(new_url))
-{
+    return *web_rust_hash_change_event_create_for_create_event(JS::HostABI::vm_to_abi(realm.vm()), &realm);
 }
 
 }
