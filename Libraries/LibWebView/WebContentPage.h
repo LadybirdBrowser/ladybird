@@ -147,6 +147,7 @@ public:
     // The user activation the UI process gives a page when it delivers input the user produced. Unlike the activation
     // a renderer reports, a compromised renderer cannot claim it.
     void give_user_activation();
+    void give_sticky_activation_to_window_of(Web::HTML::CrossProcessId document_id);
     void notify_about_user_activation(Web::HTML::CrossProcessId document_id);
     bool has_transient_user_activation() const;
     // Consumes the activation of every page of the tab, as consuming a window's activation does for the windows of its

@@ -1495,6 +1495,14 @@ bool LocalNavigable::active_document_is_fully_active() const
     return m_active_document && m_active_document->is_fully_active();
 }
 
+bool LocalNavigable::active_window_has_sticky_activation() const
+{
+    if (!m_active_document)
+        return false;
+    auto window = m_active_document->window();
+    return window && window->has_sticky_activation();
+}
+
 bool LocalNavigable::active_document_is_completely_loaded() const
 {
     return m_active_document && m_active_document->is_completely_loaded();
@@ -1565,6 +1573,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .active_document_origin = m_active_document->origin(),
         .active_document_sandboxing_flag_set = m_active_document->active_sandboxing_flag_set(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
+        .active_window_has_sticky_activation = active_window_has_sticky_activation(),
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),

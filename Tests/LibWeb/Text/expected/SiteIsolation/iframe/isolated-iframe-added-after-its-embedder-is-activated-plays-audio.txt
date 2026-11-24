@@ -1,0 +1,4 @@
+Embedder has been active after the click: true
+Allowed iframe added after the click: play() playing, unmuting playing
+WebContent#0
+  iframe#0: remote WebContent#1
