@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/webkit-gradient-ref.html" />
+<style>
+     div {
+          display: inline-block;
+          width: 100px;
+          height: 100px;
+          border: 1px solid black;
+     }
+     .horizontal {
+          background: -webkit-gradient(linear, left top, right top, from(#ff5252), to(#ffd54f));
+     }
+     .unsorted-stops {
+          background: -webkit-gradient(linear, 0 0, 0 100%, color-stop(0.75, blue), from(red), color-stop(50%, lime));
+     }
+     .calc-stops {
+          background: -webkit-gradient(linear, left top, left bottom, from(red), color-stop(calc(0.25 + 0.25 * sign(1em - 1px)), lime), color-stop(calc(50% + 25% * sign(1em - 1px)), blue));
+     }
+     .radial {
+          background: -webkit-gradient(radial, 50 50, 40, 50 50, 0, from(red), to(blue));
+     }
+     .no-stops {
+          background: -webkit-gradient(linear, left top, right bottom);
+     }
+     .single-stop {
+          background: -webkit-gradient(linear, left top, left bottom, color-stop(0.3, green));
+     }
+     .mixed-units {
+          background: -webkit-gradient(linear, 0 0, 100% 0, from(red), to(blue));
+     }
+     .radial-inner-radius {
+          background: -webkit-gradient(radial, 50 50, 20, 50 50, 40, from(red), to(blue));
+     }
+     .identical-points {
+          background: -webkit-gradient(linear, left top, 0 0, color-stop(1, green), from(red));
+     }
+     .constant-calc-stop {
+          background: -webkit-gradient(linear, left top, left bottom, color-stop(calc(75%), red), color-stop(25%, blue));
+     }
+     .equal-offsets {
+          background: -webkit-gradient(linear, left top, left bottom, color-stop(29%, red), color-stop(0.29, blue));
+     }
+     .text {
+          font-size: 40px;
+          font-weight: bold;
+          background: -webkit-gradient(linear, left top, right top, from(#ff5252), to(#ffd54f));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+     }
+</style>
+<div class="horizontal"></div>
+<div class="unsorted-stops"></div>
+<div class="calc-stops"></div>
+<div class="radial"></div>
+<div class="no-stops"></div>
+<div class="single-stop"></div>
+<div class="mixed-units"></div>
+<div class="radial-inner-radius"></div>
+<div class="identical-points"></div>
+<div class="constant-calc-stop"></div>
+<div class="equal-offsets"></div>
+<p><span class="text">Kovalenko</span></p>

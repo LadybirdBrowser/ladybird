@@ -6,6 +6,16 @@
 
 //! CSS image and gradient parsing, mirroring ValueParsing.cpp and GradientParsing.cpp.
 
+use std::cmp::Ordering;
+use std::sync::Arc;
+
+use crate::css::calc::{
+    CalcNode, CalcNumericValue, FfiNumericType, length_percentage_calculated_style_value,
+    resolve_calculated_number_without_context, resolve_calculated_percentage_without_context,
+    simplify_parsed_calculation,
+};
+use crate::css::math_functions::math_function_from_name;
+use crate::css::style_compute::px_length_unit;
 use crate::css::style_value::{
     ConicGradientPayload, ImagePayload, ImageSetPayload, LightDarkPayload, LinearGradientPayload,
     RadialGradientPayload, RadialSizePayload, StyleValueBox, UrlPayload,
@@ -14,9 +24,13 @@ use crate::css::style_value_arc::StyleValueArc;
 
 use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::ParserTokenKind;
-use crate::css::parser::color_parser::{color_syntax, parse_color_interpolation_method, parse_color_value};
+use crate::css::parser::color_parser::{
+    color_syntax, make_legacy_color, parse_color_interpolation_method, parse_color_value,
+};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
-use crate::css::parser::positions_shapes_parser::{center_position, parse_position_from_stream, parse_radial_size};
+use crate::css::parser::positions_shapes_parser::{
+    center_position, edge, parse_position_from_stream, parse_radial_size, position,
+};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
@@ -26,9 +40,11 @@ use crate::css::style_value::{
 
 use super::value_parser::{
     NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, parse_angle_from_stream,
-    parse_angle_percentage_from_stream, parse_length_percentage_from_stream, parse_resolution_from_stream,
-    parse_url_value,
+    parse_angle_percentage_from_stream, parse_calculated_numeric_value_with_ranges,
+    parse_length_percentage_from_stream, parse_number_from_stream, parse_percentage_value,
+    parse_resolution_from_stream, parse_url_value,
 };
+use crate::css::value_codes::{COLOR_SYNTAX_LEGACY, VALUE_TYPE_LENGTH, VALUE_TYPE_PERCENTAGE};
 
 fn retained(value: StyleValueData) -> RetainedStyleValueData {
     RetainedStyleValueData::from_owned(value)
@@ -769,12 +785,487 @@ fn parse_radial_gradient(
     )))
 }
 
+fn consume_comma(tokens: &mut TokenStream<'_>) -> Option<()> {
+    tokens.discard_whitespace();
+    if !tokens.next_token().is_comma() {
+        return None;
+    }
+    tokens.discard_a_token();
+    Some(())
+}
+
+fn resolve_number(value: &StyleValueData) -> Option<f64> {
+    match value {
+        StyleValueData::Number { value } => Some(*value),
+        calculated @ StyleValueData::Calculated(_) => resolve_calculated_number_without_context(calculated),
+        _ => None,
+    }
+}
+
+fn resolve_percentage(value: &StyleValueData) -> Option<f64> {
+    match value {
+        StyleValueData::Percentage { value } => Some(*value),
+        calculated @ StyleValueData::Calculated(_) => resolve_calculated_percentage_without_context(calculated),
+        _ => None,
+    }
+}
+
+fn parse_percentage_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_PERCENTAGE,
+            None,
+            NumericRange::INFINITE,
+            name,
+            values,
+        )
+    } else {
+        parse_percentage_value(value, NumericRange::INFINITE)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
+/// One coordinate of a -webkit-gradient() point. Keywords become percentages, and numbers are pixels.
+#[derive(Clone, Copy)]
+enum WebKitGradientCoordinate {
+    Number(f64),
+    Percentage(f64),
+}
+
+impl WebKitGradientCoordinate {
+    fn partial_cmp(self, other: Self) -> Option<Ordering> {
+        // NB: A pixel offset and a percentage of the gradient box can only be ordered when their signs differ or
+        //     when one of them is zero.
+        fn compare_number_to_percentage(number: f64, percentage: f64) -> Option<Ordering> {
+            if number == 0.0 && percentage == 0.0 {
+                Some(Ordering::Equal)
+            } else if number <= 0.0 && percentage >= 0.0 {
+                Some(Ordering::Less)
+            } else if number >= 0.0 && percentage <= 0.0 {
+                Some(Ordering::Greater)
+            } else {
+                None
+            }
+        }
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) | (Self::Percentage(a), Self::Percentage(b)) => a.partial_cmp(&b),
+            (Self::Number(a), Self::Percentage(b)) => compare_number_to_percentage(a, b),
+            (Self::Percentage(a), Self::Number(b)) => compare_number_to_percentage(b, a).map(Ordering::reverse),
+        }
+    }
+
+    fn to_position_offset(self) -> StyleValueData {
+        match self {
+            Self::Number(value) => StyleValueData::Length {
+                value,
+                unit: px_length_unit(),
+            },
+            Self::Percentage(value) => StyleValueData::Percentage { value },
+        }
+    }
+}
+
+// FIXME: Other engines accept a calc() coordinate that cannot be resolved at parse time, and resolve it later.
+fn parse_webkit_gradient_coordinate(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    start_keyword: &[u8],
+    end_keyword: &[u8],
+) -> Option<WebKitGradientCoordinate> {
+    tokens.discard_whitespace();
+    if let Some(identifier) = tokens.next_token().ident() {
+        let value = if equals_ascii_case_insensitive(identifier, start_keyword) {
+            0.0
+        } else if equals_ascii_case_insensitive(identifier, b"center") {
+            50.0
+        } else if equals_ascii_case_insensitive(identifier, end_keyword) {
+            100.0
+        } else {
+            return None;
+        };
+        tokens.discard_a_token();
+        return Some(WebKitGradientCoordinate::Percentage(value));
+    }
+    let mut number_tokens = tokens.clone();
+    if let Some(number) = parse_number_from_stream(context, property, &mut number_tokens, NumericRange::INFINITE) {
+        *tokens = number_tokens;
+        return Some(WebKitGradientCoordinate::Number(resolve_number(&number)?));
+    }
+    let percentage = resolve_percentage(&parse_percentage_from_stream(context, property, tokens)?)?;
+    Some(WebKitGradientCoordinate::Percentage(percentage))
+}
+
+struct WebKitGradientPoint {
+    x: WebKitGradientCoordinate,
+    y: WebKitGradientCoordinate,
+}
+
+impl WebKitGradientPoint {
+    fn is_identical_to(&self, other: &Self) -> bool {
+        self.x.partial_cmp(other.x) == Some(Ordering::Equal) && self.y.partial_cmp(other.y) == Some(Ordering::Equal)
+    }
+
+    fn to_position(&self) -> StyleValueData {
+        position(
+            edge(None, Some(self.x.to_position_offset())),
+            edge(None, Some(self.y.to_position_offset())),
+        )
+    }
+}
+
+fn parse_webkit_gradient_point(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<WebKitGradientPoint> {
+    let x = parse_webkit_gradient_coordinate(context, property, tokens, b"left", b"right")?;
+    let y = parse_webkit_gradient_coordinate(context, property, tokens, b"top", b"bottom")?;
+    Some(WebKitGradientPoint { x, y })
+}
+
+fn parse_webkit_gradient_radius(context: &ParseContext, property: u16, tokens: &mut TokenStream<'_>) -> Option<f64> {
+    let radius = resolve_number(&parse_number_from_stream(
+        context,
+        property,
+        tokens,
+        NumericRange::NON_NEGATIVE,
+    )?)?;
+    (radius >= 0.0).then_some(radius)
+}
+
+// NB: A modern gradient line spans the whole gradient box, so this keeps only the direction from the first point to
+//     the second point.
+fn side_or_corner_from_points(first: &WebKitGradientPoint, second: &WebKitGradientPoint) -> u8 {
+    let horizontal = first.x.partial_cmp(second.x).unwrap_or(Ordering::Equal);
+    let vertical = first.y.partial_cmp(second.y).unwrap_or(Ordering::Equal);
+    match (horizontal, vertical) {
+        (Ordering::Less, Ordering::Less) => 7,
+        (Ordering::Less, Ordering::Equal) => 3,
+        (Ordering::Less, Ordering::Greater) => 5,
+        (Ordering::Equal, Ordering::Greater) => 0,
+        (Ordering::Equal, _) => 1,
+        (Ordering::Greater, Ordering::Less) => 6,
+        (Ordering::Greater, Ordering::Equal) => 2,
+        (Ordering::Greater, Ordering::Greater) => 4,
+    }
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+fn shared_calc_node(node: CalcNode) -> Arc<CalcNode> {
+    Arc::new(node)
+}
+
+fn hundred_percent_calc_node() -> Arc<CalcNode> {
+    shared_calc_node(CalcNode::Numeric(CalcNumericValue::Percentage(100.0)))
+}
+
+/// Maps -webkit-gradient() color stop offsets onto the gradient line of the modern gradient.
+#[derive(Clone, Copy)]
+struct WebKitGradientStopMapping {
+    start: f64,
+    scale: f64,
+}
+
+impl WebKitGradientStopMapping {
+    const IDENTITY: Self = Self { start: 0.0, scale: 1.0 };
+}
+
+/// The offset of a -webkit-gradient() color stop along the gradient line.
+#[derive(Clone)]
+enum WebKitGradientStopOffset {
+    /// A fraction of the gradient line.
+    Fraction(f64),
+    /// A calculation in percentages of the gradient line.
+    Calculation(Arc<CalcNode>),
+}
+
+impl WebKitGradientStopOffset {
+    /// Maps the offset to `start + offset * scale`, where `start` is a percentage of the gradient line.
+    fn mapped(self, mapping: WebKitGradientStopMapping) -> Self {
+        let WebKitGradientStopMapping { start, scale } = mapping;
+        if start == 0.0 && scale == 1.0 {
+            return self;
+        }
+        match self {
+            Self::Fraction(value) => Self::Fraction(start / 100.0 + value * scale),
+            Self::Calculation(node) => Self::Calculation(shared_calc_node(CalcNode::Sum(vec![
+                shared_calc_node(CalcNode::Numeric(CalcNumericValue::Percentage(start))),
+                shared_calc_node(CalcNode::Product(vec![
+                    node,
+                    shared_calc_node(CalcNode::Numeric(CalcNumericValue::Number {
+                        value: scale,
+                        number_type: 0,
+                    })),
+                ])),
+            ]))),
+        }
+    }
+
+    fn to_style_value(&self) -> Option<StyleValueData> {
+        match self {
+            Self::Fraction(value) => Some(StyleValueData::Percentage { value: value * 100.0 }),
+            Self::Calculation(node) => {
+                let (_, numeric_type) = simplify_parsed_calculation(node.clone(), Some(VALUE_TYPE_LENGTH))?;
+                Some(length_percentage_calculated_style_value(
+                    node.clone(),
+                    FfiNumericType::from_calc(Some(numeric_type)),
+                ))
+            }
+        }
+    }
+}
+
+// <number> | <percentage>, where a number is a fraction of the gradient line.
+fn parse_webkit_gradient_stop_offset(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<WebKitGradientStopOffset> {
+    let mut number_tokens = tokens.clone();
+    if let Some(number) = parse_number_from_stream(context, property, &mut number_tokens, NumericRange::INFINITE) {
+        *tokens = number_tokens;
+        if let Some(value) = resolve_number(&number) {
+            return Some(WebKitGradientStopOffset::Fraction(value));
+        }
+        let StyleValueData::Calculated(calculated) = &number else {
+            return None;
+        };
+        return Some(WebKitGradientStopOffset::Calculation(shared_calc_node(
+            CalcNode::Product(vec![
+                calculated.rust_calculation.node_arc(),
+                hundred_percent_calc_node(),
+            ]),
+        )));
+    }
+    let percentage = parse_percentage_from_stream(context, property, tokens)?;
+    if let Some(value) = resolve_percentage(&percentage) {
+        return Some(WebKitGradientStopOffset::Fraction(value / 100.0));
+    }
+    let StyleValueData::Calculated(calculated) = &percentage else {
+        return None;
+    };
+    Some(WebKitGradientStopOffset::Calculation(
+        calculated.rust_calculation.node_arc(),
+    ))
+}
+
+// [ , [ from( <color> ) | to( <color> ) | color-stop( <number> | <percentage> , <color> ) ] ]*
+fn parse_webkit_gradient_stops(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    mapping: WebKitGradientStopMapping,
+) -> Option<RetainedColorStopList> {
+    let mut stops = Vec::new();
+    loop {
+        tokens.discard_whitespace();
+        if !tokens.has_next_token() {
+            break;
+        }
+        consume_comma(tokens)?;
+        tokens.discard_whitespace();
+        let (name, arguments) = tokens.consume_a_token().function()?;
+        let mut stop_tokens = TokenStream::new(arguments);
+        let offset = if equals_ascii_case_insensitive(name, b"from") {
+            WebKitGradientStopOffset::Fraction(0.0)
+        } else if equals_ascii_case_insensitive(name, b"to") {
+            WebKitGradientStopOffset::Fraction(1.0)
+        } else if equals_ascii_case_insensitive(name, b"color-stop") {
+            let offset = parse_webkit_gradient_stop_offset(context, property, &mut stop_tokens)?;
+            consume_comma(&mut stop_tokens)?;
+            offset
+        } else {
+            return None;
+        };
+        // INTEROP: Other engines reject currentcolor as a -webkit-gradient() stop color.
+        stop_tokens.discard_whitespace();
+        if stop_tokens
+            .next_token()
+            .ident()
+            .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"currentcolor"))
+        {
+            return None;
+        }
+        let color = parse_color_value(context, property, &mut stop_tokens, false)?;
+        stop_tokens.discard_whitespace();
+        if stop_tokens.has_next_token() {
+            return None;
+        }
+        stops.push((offset, color));
+    }
+
+    // NB: Without stops, the gradient is transparent. A single stop fills the whole gradient with its color.
+    match stops.len() {
+        0 => {
+            let transparent: Vec<u16> = "transparent".encode_utf16().collect();
+            for offset in [0.0, 1.0] {
+                stops.push((
+                    WebKitGradientStopOffset::Fraction(offset),
+                    make_legacy_color([0, 0, 0, 0], Some(&transparent)),
+                ));
+            }
+        }
+        1 => stops.push(stops[0].clone()),
+        _ => {
+            // NB: Stops may come in any order. Only offsets known at parse time can be sorted. The offsets are
+            //     fractions, so that 0.29 and 29% compare equal and keep their authored order.
+            if stops
+                .iter()
+                .all(|(offset, _)| matches!(offset, WebKitGradientStopOffset::Fraction(_)))
+            {
+                stops.sort_by(|(a, _), (b, _)| match (a, b) {
+                    (WebKitGradientStopOffset::Fraction(a), WebKitGradientStopOffset::Fraction(b)) => {
+                        a.partial_cmp(b).unwrap_or(Ordering::Equal)
+                    }
+                    _ => Ordering::Equal,
+                });
+            }
+        }
+    }
+
+    // NB: A negative scale reverses the stops. Reverse their order too, so that they still run along the gradient
+    //     line, including stops that could not be sorted above.
+    if mapping.scale < 0.0 {
+        stops.reverse();
+    }
+
+    let stops = stops
+        .into_iter()
+        .map(|(offset, color)| {
+            Some(RetainedColorStop::from_retained_values(
+                RetainedStyleValueData::none(),
+                retained(color),
+                retained(offset.mapped(mapping).to_style_value()?),
+                RetainedStyleValueData::none(),
+            ))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(RetainedColorStopList::from_vec(stops))
+}
+
+// INTEROP: -webkit-gradient() is the original WebKit gradient syntax. No specification defines it, but all engines
+//          still parse it. It maps onto a modern linear or radial gradient in the sRGB color space.
+// https://webkit.org/blog/175/introducing-css-gradients/
+// -webkit-gradient( linear, <point>, <point> [, <stop>]* )
+// -webkit-gradient( radial, <point>, <radius>, <point>, <radius> [, <stop>]* )
+fn parse_webkit_gradient(
+    context: &ParseContext,
+    property: u16,
+    arguments: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let mut tokens = TokenStream::new(arguments);
+    tokens.discard_whitespace();
+    let kind = tokens.consume_a_token().ident()?;
+    consume_comma(&mut tokens)?;
+    if equals_ascii_case_insensitive(kind, b"linear") {
+        let first = parse_webkit_gradient_point(context, property, &mut tokens)?;
+        consume_comma(&mut tokens)?;
+        let second = parse_webkit_gradient_point(context, property, &mut tokens)?;
+        // NB: A gradient line of zero length paints the color of its last stop everywhere. Placing every stop at the
+        //     start of the gradient line does the same.
+        let mapping = if first.is_identical_to(&second) {
+            WebKitGradientStopMapping { start: 0.0, scale: 0.0 }
+        } else {
+            WebKitGradientStopMapping::IDENTITY
+        };
+        let color_stop_list = parse_webkit_gradient_stops(context, property, &mut tokens, mapping)?;
+        return Some(StyleValueData::LinearGradient(StyleValueBox::new(
+            LinearGradientPayload {
+                has_direction_value: false,
+                direction_value: RetainedStyleValueData::none(),
+                side_or_corner: side_or_corner_from_points(&first, &second),
+                color_stop_list,
+                gradient_type: 0,
+                repeating: false,
+                color_interpolation_method: RetainedStyleValueData::none(),
+                color_syntax: COLOR_SYNTAX_LEGACY,
+            },
+        )));
+    }
+    if !equals_ascii_case_insensitive(kind, b"radial") {
+        return None;
+    }
+    let first_point = parse_webkit_gradient_point(context, property, &mut tokens)?;
+    consume_comma(&mut tokens)?;
+    let first_radius = parse_webkit_gradient_radius(context, property, &mut tokens)?;
+    consume_comma(&mut tokens)?;
+    let second_point = parse_webkit_gradient_point(context, property, &mut tokens)?;
+    consume_comma(&mut tokens)?;
+    let second_radius = parse_webkit_gradient_radius(context, property, &mut tokens)?;
+
+    // NB: A modern radial gradient has a single center, so this keeps the larger circle. The stops run from the
+    //     smaller radius to the larger radius, so they are reversed when the larger circle is the first one.
+    let (point, radius, smaller_radius, reverse_stops) = if second_radius >= first_radius {
+        (second_point, second_radius, first_radius, false)
+    } else {
+        (first_point, first_radius, second_radius, true)
+    };
+    let smaller_radius_percentage = if radius > 0.0 {
+        smaller_radius / radius * 100.0
+    } else {
+        0.0
+    };
+    let span = 1.0 - smaller_radius_percentage / 100.0;
+    let mapping = if reverse_stops {
+        WebKitGradientStopMapping {
+            start: 100.0,
+            scale: -span,
+        }
+    } else {
+        WebKitGradientStopMapping {
+            start: smaller_radius_percentage,
+            scale: span,
+        }
+    };
+    let color_stop_list = parse_webkit_gradient_stops(context, property, &mut tokens, mapping)?;
+    Some(StyleValueData::RadialGradient(StyleValueBox::new(
+        RadialGradientPayload {
+            ending_shape: 0,
+            webkit: false,
+            has_explicit_position: false,
+            webkit_size_keyword: 0,
+            size: retained(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
+                component_count: 1,
+                is_extent_0: false,
+                extent_0: 0,
+                value_0: retained(StyleValueData::Length {
+                    value: radius,
+                    unit: px_length_unit(),
+                }),
+                is_extent_1: false,
+                extent_1: 0,
+                value_1: RetainedStyleValueData::none(),
+            }))),
+            position: retained(point.to_position()),
+            color_stop_list,
+            repeating: false,
+            color_interpolation_method: RetainedStyleValueData::none(),
+            color_syntax: COLOR_SYNTAX_LEGACY,
+        },
+    )))
+}
+
 fn parse_gradient(
     context: &ParseContext,
     property: u16,
     name: &[u16],
     arguments: &[ComponentValue],
 ) -> Option<StyleValueData> {
+    if equals_ascii_case_insensitive(name, b"-webkit-gradient") {
+        return parse_webkit_gradient(context, property, arguments);
+    }
     parse_linear_gradient(context, property, name, arguments)
         .or_else(|| parse_conic_gradient(context, property, name, arguments))
         .or_else(|| parse_radial_gradient(context, property, name, arguments))
@@ -856,6 +1347,7 @@ pub(crate) fn is_image_function_name(name: &[u16]) -> bool {
         "repeating-linear-gradient",
         "-webkit-linear-gradient",
         "-webkit-repeating-linear-gradient",
+        "-webkit-gradient",
         "conic-gradient",
         "repeating-conic-gradient",
         "radial-gradient",
@@ -980,6 +1472,9 @@ mod tests {
             "repeating-linear-gradient(to left top in oklab, #000 10% 20%, 30%, #fff)",
             "-webkit-linear-gradient(left, #000, #fff)",
             "-webkit-repeating-linear-gradient(45deg, #000, #fff)",
+            "-webkit-gradient(linear, left top, right top, from(#000), to(#fff))",
+            "-webkit-gradient(linear, 0 0, 0 100%, color-stop(0.5, #000), color-stop(calc(0.5 + 0.1 * sign(1em - 1px)), #fff))",
+            "-webkit-gradient(linear, center top, center bottom)",
         ] {
             let ParseOutcome::Parsed(value) = parse(property_id::BACKGROUND_IMAGE, source) else {
                 panic!("gradient should parse: {source}");
@@ -1001,6 +1496,7 @@ mod tests {
             "repeating-conic-gradient(#000 0deg 20deg, 30deg, #fff)",
             "radial-gradient(circle closest-side at 20% 30% in oklab, #000, #fff)",
             "repeating-radial-gradient(ellipse 10px 20px, #000 10%, #fff 20%)",
+            "-webkit-gradient(radial, 50 50, 0, 50% 50%, 10, from(#000), to(#fff))",
         ] {
             assert!(
                 matches!(parse(property_id::MASK_IMAGE, source), ParseOutcome::Parsed(_)),
@@ -1017,6 +1513,12 @@ mod tests {
             "conic-gradient(from 10px, #000, #fff)",
             "radial-gradient(circle 10px 20px, #000, #fff)",
             "radial-gradient(ellipse 10px, #000, #fff)",
+            "-webkit-gradient(conic, left top, right top, from(#000))",
+            "-webkit-gradient(linear, top left, right top, from(#000))",
+            "-webkit-gradient(linear, left top, right top from(#000))",
+            "-webkit-gradient(linear, left top, right top, color-stop(10px, #000))",
+            "-webkit-gradient(radial, 0 0, -1, 0 0, 10, from(#000))",
+            "-webkit-gradient(linear, left top, right top, from(currentcolor))",
         ] {
             assert!(matches!(
                 parse(property_id::BORDER_IMAGE_SOURCE, source),

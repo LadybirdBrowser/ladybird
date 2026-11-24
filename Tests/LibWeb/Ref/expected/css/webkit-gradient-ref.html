@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<style>
+     div {
+          display: inline-block;
+          width: 100px;
+          height: 100px;
+          border: 1px solid black;
+     }
+     .horizontal {
+          background: linear-gradient(to right, #ff5252, #ffd54f);
+     }
+     .unsorted-stops {
+          background: linear-gradient(red 0%, lime 50%, blue 75%);
+     }
+     .calc-stops {
+          background: linear-gradient(red 0%, lime 50%, blue 75%);
+     }
+     .radial {
+          background: radial-gradient(circle 40px at 50px 50px, blue 0%, red 100%);
+     }
+     .single-stop {
+          background: green;
+     }
+     .mixed-units {
+          background: linear-gradient(to right, red, blue);
+     }
+     .radial-inner-radius {
+          background: radial-gradient(circle 40px at 50px 50px, red 50%, blue 100%);
+     }
+     .identical-points {
+          background: green;
+     }
+     .constant-calc-stop {
+          background: linear-gradient(blue 25%, red 75%);
+     }
+     .equal-offsets {
+          background: linear-gradient(red 29%, blue 29%);
+     }
+     .text {
+          font-size: 40px;
+          font-weight: bold;
+          background: linear-gradient(to right, #ff5252, #ffd54f);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+     }
+</style>
+<div class="horizontal"></div>
+<div class="unsorted-stops"></div>
+<div class="calc-stops"></div>
+<div class="radial"></div>
+<div class="no-stops"></div>
+<div class="single-stop"></div>
+<div class="mixed-units"></div>
+<div class="radial-inner-radius"></div>
+<div class="identical-points"></div>
+<div class="constant-calc-stop"></div>
+<div class="equal-offsets"></div>
+<p><span class="text">Kovalenko</span></p>
