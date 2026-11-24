@@ -4934,8 +4934,7 @@ GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState&
     options.bubbles = true;
     options.cancelable = true;
     options.composed = true;
-    auto event = UIEvents::PointerEvent::create(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
-    event->set_is_trusted(true);
+    auto event = UIEvents::PointerEvent::create_trusted(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
     pointer.last_event = PointerEventSnapshot {
         .position = { coordinates, screen_position },
         .properties = pointer.properties,

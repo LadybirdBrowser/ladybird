@@ -34,6 +34,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
 
 namespace Web::DOM {
@@ -171,6 +172,12 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
     // 1. Set event’s target to the shadow-adjusted target of the last struct in event’s path,
     // that is either struct or preceding struct, whose shadow-adjusted target is non-null.
     event.set_target(last_valid_shadow_adjusted_target.value().shadow_adjusted_target.ptr());
+
+    // AD-HOC: Coalesced events have the same target as the trusted pointer event they were coalesced into.
+    if (event.is_trusted()) {
+        if (auto* pointer_event = as_if<UIEvents::PointerEvent>(event))
+            pointer_event->set_target_of_coalesced_events(event.target());
+    }
 
     // 2. Set event’s relatedTarget to struct’s relatedTarget.
     event.set_related_target(struct_.related_target.ptr());
@@ -596,6 +603,13 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
         // 3. Set event’s touch target list to the empty list.
         event.clear_touch_target_list();
+    }
+
+    // AD-HOC: The coalesced events of a trusted pointer event keep its final target, also when script dispatches the
+    //         event again.
+    if (event.is_trusted()) {
+        if (auto* pointer_event = as_if<UIEvents::PointerEvent>(event))
+            pointer_event->set_target_of_coalesced_events(event.target());
     }
 
     // 12. If activationTarget is non-null, then:
