@@ -278,7 +278,7 @@ void Node::register_html_collection_with_valid_cache(HTMLCollection& collection)
     auto& collections = ensure_rare_data().html_collections_with_valid_caches;
     if (!collections)
         collections = make<HTMLCollectionCacheRegistration::List>();
-    collections->append(collection.m_cache_registration);
+    collections->append(collection);
 }
 
 void Node::invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements affects_elements)
@@ -292,7 +292,7 @@ void Node::invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadat
 
         GC::RootVector<GC::Ref<HTMLCollection>> collections;
         for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
-            collections.append(registration.collection());
+            collections.append(static_cast<HTMLCollection&>(registration));
         for (auto& collection : collections)
             collection->invalidate_cache_for_tree_mutation(*this);
     }
@@ -307,7 +307,7 @@ void Node::invalidate_html_collection_caches_in_ancestors_for_attribute_change(H
 
         GC::RootVector<GC::Ref<HTMLCollection>> collections;
         for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
-            collections.append(registration.collection());
+            collections.append(static_cast<HTMLCollection&>(registration));
         for (auto& collection : collections)
             collection->invalidate_cache_for_attribute_change(element, invalidation_types);
     }
