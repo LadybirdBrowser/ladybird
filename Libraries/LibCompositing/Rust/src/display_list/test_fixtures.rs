@@ -8,9 +8,9 @@
 
 use crate::display_list::builder::DisplayListBuilder;
 use crate::display_list::commands::{
-    CanvasId, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommand, DrawCanvas, EffectNodeIndex,
-    FillRect, ImageFrameResourceId, PaintCaret, PaintScrollBar, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
-    VideoSinkHandle,
+    CanvasId, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommand, DrawCanvas, DrawCompositedContext,
+    EffectNodeIndex, FillRect, ImageFrameResourceId, PaintCaret, PaintScrollBar, SpatialNodeIndex,
+    VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
 };
 use crate::display_list::layers::LayerStack;
 use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
@@ -195,6 +195,16 @@ pub fn canvas(rect: IntRect, id: u64) -> DrawCanvas {
         dst_rect: rect,
         canvas_id: CanvasId(id),
         scaling_mode: ScalingMode::NearestNeighbor,
+    }
+}
+
+pub fn nested_context(rect: IntRect, id: u64, context: ContextRef) -> DrawCompositedContext {
+    DrawCompositedContext {
+        dst_rect: rect.to_float(),
+        child_context_id: CompositorContextId(id),
+        scaling_mode: ScalingMode::NearestNeighbor,
+        spatial_node_index: context.spatial,
+        snap_origin_if_untransformed: false,
     }
 }
 

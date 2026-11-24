@@ -10,9 +10,9 @@
 
 use super::{
     BandOfPlan, BarrierOfPlan, COORDINATE_LIMIT_IN_DEVICE_PIXELS, CutOfPlan, LayerContent, LayerIdentity, LayerStack,
-    LayeredPlan, LayeringObstacles, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex, StackLayer,
+    LayeredPlan, LayeringObstacles, MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD,
+    MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex, StackLayer,
     WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, anchors_of_layer_plans,
-    maximum_layer_count_of_live_content_like,
 };
 use crate::display_list::commands::{
     CanvasId, CompositorContextId, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VideoSinkHandle,
@@ -28,7 +28,7 @@ use crate::visual_context::VisualContextTree;
 use crate::visual_context::queries::NestingOfLiveEffects;
 use libgfx_rust::IntRect;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // Caps on a received stack, which bound what decoding allocates. The values per space, and the composite clips of a node,
 // which are one per space, are capped at the most spaces a plan makes. A plan holds nodes, bands, cuts and spans as many
@@ -39,6 +39,10 @@ const MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
 const MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
 const MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND: usize = 256;
 const MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND: usize = 1 << 20;
+/// The most canvases, videos and nested contexts that get layers where giving each one a layer cuts a band more times
+/// than the compositor decodes: the cuts a band leaves after the most carets and scroll bars that get layers.
+pub(super) const CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR: usize =
+    MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND - MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD;
 // The most note lines a plan holds, and the most bytes a line holds. A plan holds only the first lines, each cut to that
 // length, so that no plan exceeds the caps.
 const MAXIMUM_NOTE_LINE_COUNT_OF_PLAN: usize = 1 << 10;
@@ -721,6 +725,7 @@ fn check_bands(plan: &LayeredPlan, list: &DisplayListStorage) -> Result<(), &'st
     const NOT_ENTERED_ONCE: &str = "the walk of the bands does not enter each band of the stack once";
     let mut bands_left_to_enter = 1usize;
     let mut media_of_layers: Vec<(ListPosition, LiveContent, u32)> = Vec::new();
+    let mut layer_count_of_live_content_drawn_by_its_record = 0usize;
     for (index, band) in plan.bands.iter().enumerate() {
         bands_left_to_enter = bands_left_to_enter.checked_sub(1).ok_or(NOT_ENTERED_ONCE)?;
         if band.placement_node_index.0 >= plan.nodes.len() {
@@ -748,12 +753,13 @@ fn check_bands(plan: &LayeredPlan, list: &DisplayListStorage) -> Result<(), &'st
                     if !span_is_run_drawing_content(list, record_span, content) {
                         return Err("live content is not a run of the list that draws it");
                     }
-                    let layer_count_of_its_kind = media_of_layers
-                        .iter()
-                        .filter(|(_, earlier, _)| earlier.is_drawn_by_its_record() == content.is_drawn_by_its_record())
-                        .count();
-                    if layer_count_of_its_kind == maximum_layer_count_of_live_content_like(content) {
-                        return Err("the stack holds more layers of a kind of live content than a plan makes");
+                    if content.is_drawn_by_its_record() {
+                        if layer_count_of_live_content_drawn_by_its_record
+                            == MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD
+                        {
+                            return Err("the stack holds more layers of carets and scroll bars than a plan makes");
+                        }
+                        layer_count_of_live_content_drawn_by_its_record += 1;
                     }
                     media_of_layers.push((record_span.begin, content, ordinal));
                 }
@@ -772,14 +778,13 @@ fn check_bands(plan: &LayeredPlan, list: &DisplayListStorage) -> Result<(), &'st
 // their ordinals.
 fn check_ordinals_of_media(mut media_of_layers: Vec<(ListPosition, LiveContent, u32)>) -> Result<(), &'static str> {
     media_of_layers.sort_unstable_by_key(|(position, _, _)| *position);
-    for (index, (_, content, ordinal)) in media_of_layers.iter().enumerate() {
-        let count_of_same_content_painted_before = media_of_layers[..index]
-            .iter()
-            .filter(|(_, earlier_content, _)| earlier_content == content)
-            .count();
-        if *ordinal as usize != count_of_same_content_painted_before {
+    let mut drawings_painted_before_by_content: HashMap<LiveContent, u32> = HashMap::new();
+    for (_, content, ordinal) in media_of_layers {
+        let drawings_painted_before = drawings_painted_before_by_content.entry(content).or_insert(0);
+        if ordinal != *drawings_painted_before {
             return Err("live content is not numbered by the drawings of it painted before it");
         }
+        *drawings_painted_before += 1;
     }
     Ok(())
 }
@@ -933,8 +938,8 @@ mod tests {
     use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
     use crate::display_list::layers::{
         BandIndex, CutsOfCell, LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerIndex,
-        MAXIMUM_MEDIA_LAYER_COUNT, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand,
-        WhatWindowServerShowsOfFrame, WhyFrameHoldsLayer, WindowServerCompositing, WindowServerPresentationOfMedia,
+        MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand, WhatWindowServerShowsOfFrame,
+        WhyFrameHoldsLayer, WindowServerCompositing, WindowServerPresentationOfMedia,
     };
     use crate::display_list::placement::{RasterSpace, RasterSpaceGeometry, WhatEverySpaceOfTreeShares};
     use crate::display_list::test_fixtures::{
@@ -1205,6 +1210,23 @@ mod tests {
                     canvas(IntRect::new(10 + index * 80, 100, 60, 60), index as u64 + 1),
                     viewport,
                 );
+        }
+        Page {
+            tree,
+            list: list.storage(),
+        }
+    }
+
+    // One scroller with one scroll bar more than get layers, painted last.
+    fn page_with_one_scroll_bar_past_the_most_that_get_layers() -> Page {
+        let (tree, _, contexts) = tree_with_document_scroller(&[IntRect::new(100, 100, 300, 200)]);
+        let (document, scroller) = (contexts[0], contexts[1]);
+        let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document);
+        for index in 0..=MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD as i32 {
+            list = list.with(
+                scroll_bar(scroller.spatial, IntRect::new(10 + index * 12, 100, 10, 200)),
+                document,
+            );
         }
         Page {
             tree,
@@ -1485,7 +1507,7 @@ mod tests {
         assert!(crowded.spaces.len() + nested_scrollers_without_spaces > MAXIMUM_RASTER_SPACE_COUNT);
         let nine_canvases = stack_of(page_with_nine_canvases());
         assert_eq!(nine_canvases.bands.len(), 1);
-        assert_eq!(media_layer_count(&nine_canvases), MAXIMUM_MEDIA_LAYER_COUNT);
+        assert_eq!(media_layer_count(&nine_canvases), 9);
         let siblings = stack_of(page_with_two_fading_siblings());
         let parents_of_composited_nodes: Vec<Option<PlacementNodeIndex>> = siblings
             .composited_effects
@@ -1695,9 +1717,10 @@ mod tests {
             lines_of(page_with_spinner_holding_the_root_group()),
             ["composited e0 space=animated@s1 in viewport: it applies over a transform the compositor animates"]
         );
+        assert!(lines_of(page_with_nine_canvases()).is_empty());
         assert_eq!(
-            lines_of(page_with_nine_canvases()),
-            ["no layer for canvas: past the most media that get layers"]
+            lines_of(page_with_one_scroll_bar_past_the_most_that_get_layers()),
+            ["no layer for vertical scroll bar: past the most media that get layers"]
         );
         assert_eq!(
             lines_of(page_with_two_fading_siblings()),
@@ -1869,12 +1892,13 @@ mod tests {
             .expect("the node has a band")
     }
 
-    // Gives the last canvas of the page with nine canvases a layer as a plan gives a canvas one, past the most a plan
-    // gives.
-    fn give_last_of_nine_canvases_a_layer(plan: &mut LayeredPlan) {
+    // Gives the last record of the band of the first live content with a layer a layer as a plan gives one to that
+    // content, numbered after the drawings of it that the band already gives layers.
+    fn give_last_record_of_band_of_first_media_a_layer(plan: &mut LayeredPlan) {
         let (band_index, cut_index) = first_media_cut(plan);
         let BarrierOfPlan::Media {
-            record_span: span_of_first_canvas,
+            content,
+            record_span: span_of_first_media,
             reach,
             ..
         } = plan.bands[band_index].cuts[cut_index].barrier
@@ -1882,21 +1906,26 @@ mod tests {
             unreachable!()
         };
         let band = &mut plan.bands[band_index];
-        let span_holding_last_canvas = band.record_spans.last_mut().expect("the band holds the last canvas");
-        let canvas_size = span_of_first_canvas.end.offset - span_of_first_canvas.begin.offset;
-        let span_of_last_canvas = ListSpan {
+        let drawings_of_content_with_layers = band
+            .cuts
+            .iter()
+            .filter(|cut| matches!(cut.barrier, BarrierOfPlan::Media { content: drawn, .. } if drawn == content))
+            .count() as u32;
+        let span_holding_last_record = band.record_spans.last_mut().expect("the band holds records");
+        let record_size = span_of_first_media.end.offset - span_of_first_media.begin.offset;
+        let span_of_last_record = ListSpan {
             begin: ListPosition::new(
-                span_holding_last_canvas.end.chunk_index,
-                span_holding_last_canvas.end.offset - canvas_size,
+                span_holding_last_record.end.chunk_index,
+                span_holding_last_record.end.offset - record_size,
             ),
-            end: span_holding_last_canvas.end,
+            end: span_holding_last_record.end,
         };
-        span_holding_last_canvas.end = span_of_last_canvas.begin;
+        span_holding_last_record.end = span_of_last_record.begin;
         band.cuts.push(CutOfPlan {
             barrier: BarrierOfPlan::Media {
-                content: LiveContent::Canvas(CanvasId(9)),
-                ordinal: 0,
-                record_span: span_of_last_canvas,
+                content,
+                ordinal: drawings_of_content_with_layers,
+                record_span: span_of_last_record,
                 reach,
                 cuts_band: true,
             },
@@ -2132,8 +2161,8 @@ mod tests {
             }),
             (
                 "more media layers than a plan makes",
-                page_with_nine_canvases,
-                give_last_of_nine_canvases_a_layer,
+                page_with_one_scroll_bar_past_the_most_that_get_layers,
+                give_last_record_of_band_of_first_media_a_layer,
             ),
             (
                 "two nodes composited inside one effect",
