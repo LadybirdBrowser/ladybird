@@ -113,7 +113,7 @@ JS::Realm* web_bindings_window_realm(HTML::Window*);
 u64 web_bindings_window_page_id(HTML::Window*);
 bool web_bindings_window_has_transient_activation(HTML::Window*);
 void web_bindings_window_consume_user_activation(HTML::Window*);
-void web_bindings_window_set_last_activation_timestamp_to_now(HTML::Window*);
+void web_bindings_window_give_transient_activation(HTML::Window*);
 bool web_bindings_is_service_worker_global_scope(JSObject* global_object);
 DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
 HTML::LocalNavigable* web_bindings_document_navigable(DOM::Document*);
@@ -255,9 +255,10 @@ void web_bindings_window_consume_user_activation(HTML::Window* window)
     window->consume_user_activation();
 }
 
-void web_bindings_window_set_last_activation_timestamp_to_now(HTML::Window* window)
+void web_bindings_window_give_transient_activation(HTML::Window* window)
 {
     window->set_last_activation_timestamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_realm(*window).global_object()));
+    window->set_has_sticky_activation(true);
 }
 
 bool web_bindings_is_service_worker_global_scope(JSObject* global_object)
