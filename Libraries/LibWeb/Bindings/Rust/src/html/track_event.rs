@@ -88,7 +88,7 @@ impl TrackEvent {
     }
 }
 
-/// The Event of a new TrackEvent in the realm, for the implementation to fire. The track is a VideoTrack, an
+/// The Event of a new trusted TrackEvent in the realm, for the implementation to fire. The track is a VideoTrack, an
 /// AudioTrack or a TextTrack.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_rust_track_event_create(
@@ -104,7 +104,7 @@ pub extern "C" fn web_rust_track_event_create(
     };
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let track = CppCell::from_lent(track);
-    TrackEvent::create(vm, realm, &r#type, &event_init, Some(track))
-        .event()
-        .as_ptr()
+    let event = TrackEvent::create(vm, realm, &r#type, &event_init, Some(track));
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }

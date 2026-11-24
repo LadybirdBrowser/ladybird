@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        const nextEvent = (target, type) => new Promise(resolve => target.addEventListener(type, resolve, { once: true }));
+
+        let added = nextEvent(video.textTracks, "addtrack");
+        video.addTextTrack("subtitles");
+        println(`addTextTrack() addtrack isTrusted: ${(await added).isTrusted}`);
+
+        const track = document.createElement("track");
+        added = nextEvent(video.textTracks, "addtrack");
+        video.appendChild(track);
+        println(`<track> insertion addtrack isTrusted: ${(await added).isTrusted}`);
+
+        const removed = nextEvent(video.textTracks, "removetrack");
+        track.remove();
+        println(`<track> removal removetrack isTrusted: ${(await removed).isTrusted}`);
+
+        added = nextEvent(video.videoTracks, "addtrack");
+        video.src = "../../../Assets/test-webm.webm";
+        println(`VideoTrackList addtrack isTrusted: ${(await added).isTrusted}`);
+        done();
+    });
+</script>
