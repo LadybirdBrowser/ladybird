@@ -232,7 +232,13 @@ impl ResourceRecord {
         }
 
         let class = Class(reader.u16()?);
-        let ttl = reader.u32()?;
+        // RFC 2181, 8. Time to Live (TTL)
+        // Implementations should treat TTL values received with the most significant bit set as if the entire value
+        // received was zero.
+        let ttl = match reader.u32()? {
+            ttl if ttl & 0x8000_0000 != 0 => 0,
+            ttl => ttl,
+        };
         let rd_length = reader.u16()?;
         let mut rdata = reader.sub(usize::from(rd_length))?;
         let data = RecordData::parse(rtype, &mut rdata, ctx)?;
