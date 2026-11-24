@@ -217,25 +217,16 @@ pub fn is_valid_ecma262_property(name: &str, value: Option<&str>) -> bool {
     unsafe { unicode_is_valid_ecma262_property(name.as_ptr(), name.len(), value_ptr, value_len) }
 }
 
-pub fn get_string_property_data(name: &str) -> Vec<u32> {
-    // SAFETY: Passing a null output buffer with zero capacity is the API's
-    // documented query mode, and `name` remains valid during the call.
-    let needed = unsafe { unicode_get_string_property_data(name.as_ptr(), name.len(), std::ptr::null_mut(), 0) };
-    if needed == 0 {
-        return Vec::new();
-    }
+/// The multi-code-point strings of the string property `name`, packed as [count, len1, cp1..., len2, cp2..., ...],
+/// or nothing if `name` is not a string property. Writes them to `out` if they fit, and returns how many values they
+/// are.
+pub fn get_string_property_data(name: &str, out: &mut [u32]) -> usize {
+    let capacity = out.len().min(u32::MAX as usize) as u32;
 
-    let mut buffer = vec![0u32; needed as usize];
-
-    // SAFETY: `buffer` has room for `needed` elements and the C++ helper
-    // writes at most that many u32 values.
-    let written = unsafe { unicode_get_string_property_data(name.as_ptr(), name.len(), buffer.as_mut_ptr(), needed) };
-    if written == 0 || written > needed {
-        return Vec::new();
-    }
-
-    buffer.truncate(written as usize);
-    buffer
+    // SAFETY: `name` remains valid for the duration of this call, `out` is
+    // writable for `capacity` elements, and the C++ helper writes at most that
+    // many (none if they do not all fit).
+    unsafe { unicode_get_string_property_data(name.as_ptr(), name.len(), out.as_mut_ptr(), capacity) as usize }
 }
 
 #[inline(always)]
