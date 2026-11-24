@@ -20,11 +20,12 @@ use super::constants::{
 use super::state::{RenderingContext, WebGL1};
 use super::types::Float32List;
 use super::web_gl_uniform_location::WebGLUniformLocation;
-use crate::bindings::conversions::{ArrayBufferView, BufferSource, CppInterface};
+use crate::bindings::conversions::{ArrayBufferView, CppInterface};
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::image_bitmap::ImageBitmap;
 use crate::html::image_data::ImageData;
+use crate::webidl::buffers::AllowSharedBufferSource;
 
 /// https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.8
 // FIXME: VideoFrame
@@ -62,7 +63,7 @@ impl RenderingContext<WebGL1> {
         &self,
         _: &mut CallContext,
         target: u32,
-        data: Option<BufferSource>,
+        data: Option<AllowSharedBufferSource>,
         usage: u32,
     ) -> WebIdlResult<()> {
         // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.5
@@ -71,7 +72,7 @@ impl RenderingContext<WebGL1> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
-        let Ok(bytes) = source_bytes(data, 0, 0) else {
+        let Ok(bytes) = source_bytes(data.into(), 0, 0) else {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
@@ -90,9 +91,9 @@ impl RenderingContext<WebGL1> {
         _: &mut CallContext,
         target: u32,
         offset: i64,
-        data: BufferSource,
+        data: AllowSharedBufferSource,
     ) -> WebIdlResult<()> {
-        let Ok(bytes) = source_bytes(data, 0, 0) else {
+        let Ok(bytes) = source_bytes(data.into(), 0, 0) else {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };

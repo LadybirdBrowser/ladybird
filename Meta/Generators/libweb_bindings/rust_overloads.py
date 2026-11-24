@@ -172,12 +172,16 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
             "value.is_object() && value.as_object().is_platform_object()",
             implemented_interface,
         ),
-        # NB: resolve_overload() takes a SharedArrayBuffer for an ArrayBuffer here, which the conversion of the
-        #     argument then rejects.
+        # NB: resolve_overload() takes a SharedArrayBuffer for an ArrayBuffer here, and an ArrayBuffer for a
+        #     SharedArrayBuffer, which the conversion of the argument then rejects.
         OverloadResolutionStep(
-            "The argument is an ArrayBuffer, and an overload takes that type or object there.",
+            "The argument is an ArrayBuffer or a SharedArrayBuffer, and an overload takes one of them or object there.",
             "value.is_object() && value.as_object().downcast::<ArrayBuffer>().is_some()",
-            with_members(lambda idl_type: is_named("ArrayBuffer")(idl_type) or is_object(idl_type)),
+            with_members(
+                lambda idl_type: (
+                    is_named("ArrayBuffer")(idl_type) or is_named("SharedArrayBuffer")(idl_type) or is_object(idl_type)
+                )
+            ),
         ),
         OverloadResolutionStep(
             "The argument is a DataView, and an overload takes that type or object there.",
@@ -263,7 +267,8 @@ def check_type_at_distinguishing_index(idl_type: IDLType, context: GenerationCon
                 or cpp_interface(member_type, context) is not None
                 or rust_interface(member_type, context) is not None
                 or member_type.name in STRING_TYPES | INTEGER_TYPES | FLOATING_POINT_TYPES | TYPED_ARRAY_NAMES
-                or member_type.name in ("boolean", "bigint", "any", "object", "ArrayBuffer", "DataView")
+                or member_type.name
+                in ("boolean", "bigint", "any", "object", "ArrayBuffer", "SharedArrayBuffer", "DataView")
             )
         )
         if not handled:

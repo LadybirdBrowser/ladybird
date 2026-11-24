@@ -15,9 +15,10 @@ use super::state::{RenderingContext, WebGL2};
 use super::types::Float32List;
 use super::web_gl_rendering_context_overloads::{Int32List, TexImageSource};
 use super::web_gl_uniform_location::WebGLUniformLocation;
-use crate::bindings::conversions::{ArrayBufferView, BufferSource};
+use crate::bindings::conversions::ArrayBufferView;
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::webidl::buffers::AllowSharedBufferSource;
 
 #[expect(
     clippy::too_many_arguments,
@@ -39,7 +40,7 @@ impl RenderingContext<WebGL2> {
         &self,
         _: &mut CallContext,
         target: u32,
-        src_data: Option<BufferSource>,
+        src_data: Option<AllowSharedBufferSource>,
         usage: u32,
     ) -> WebIdlResult<()> {
         // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.5
@@ -48,7 +49,7 @@ impl RenderingContext<WebGL2> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
-        let Ok(bytes) = source_bytes(src_data, 0, 0) else {
+        let Ok(bytes) = source_bytes(src_data.into(), 0, 0) else {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
@@ -90,9 +91,9 @@ impl RenderingContext<WebGL2> {
         _: &mut CallContext,
         target: u32,
         dst_byte_offset: i64,
-        src_data: BufferSource,
+        src_data: AllowSharedBufferSource,
     ) -> WebIdlResult<()> {
-        let Ok(bytes) = source_bytes(src_data, 0, 0) else {
+        let Ok(bytes) = source_bytes(src_data.into(), 0, 0) else {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
