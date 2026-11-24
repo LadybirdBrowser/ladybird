@@ -388,41 +388,55 @@ impl Message {
     }
 
     /// The answer records that respond to the question: RRs owned by the queried name, and RRs reached through a
-    /// chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
+    /// chain of CNAMEs starting there, wherever in the section they are. Anything an alias leads to, including the
+    /// next alias, is valid for no longer than the alias.
     pub fn answers_to(&self, question: &Question) -> Vec<ResourceRecord> {
-        let mut owners = vec![question.name.clone()];
-        let mut chain_ttl = u32::MAX;
-
+        // Each owner along the chain, with how long what it owns may live.
+        let mut owners = vec![(question.name.clone(), u32::MAX)];
         let mut accepted = Vec::new();
-        for record in &self.answers {
-            if record.class != question.class {
-                continue;
-            }
-            if !owners.iter().any(|owner| owner.eq_ignore_case(&record.name)) {
-                continue;
-            }
 
-            let rtype = match &record.data {
-                RecordData::Rrsig(rrsig) if record.rtype == ResourceType::RRSIG => rrsig.type_covered,
-                _ => record.rtype,
-            };
-
-            if rtype == ResourceType::CNAME && question.rtype != ResourceType::CNAME {
-                if let (ResourceType::CNAME, RecordData::Cname(target)) = (record.rtype, &record.data) {
-                    chain_ttl = chain_ttl.min(record.ttl);
-                    owners.push(target.clone());
+        let mut next = 0;
+        while let Some((owner, ttl_limit)) = owners.get(next).cloned() {
+            next += 1;
+            // RFC 2181, 5.2. TTLs of RRs in an RRSet
+            // Should an authoritative source send such a malformed RRSet, the client should treat the RRs for all
+            // purposes as if all TTLs in the RRSet had been set to the value of the lowest TTL in the RRSet.
+            let alias_ttl = self
+                .answers
+                .iter()
+                .filter(|record| {
+                    record.rtype == ResourceType::CNAME
+                        && record.class == question.class
+                        && owner.eq_ignore_case(&record.name)
+                })
+                .map(|record| record.ttl)
+                .min()
+                .unwrap_or(u32::MAX);
+            for record in &self.answers {
+                if record.class != question.class || !owner.eq_ignore_case(&record.name) {
+                    continue;
                 }
-                accepted.push(record.clone());
-                continue;
-            }
 
-            if rtype != question.rtype && question.rtype != ResourceType::ANY {
-                continue;
-            }
+                let rtype = match &record.data {
+                    RecordData::Rrsig(rrsig) if record.rtype == ResourceType::RRSIG => rrsig.type_covered,
+                    _ => record.rtype,
+                };
+                let is_alias = rtype == ResourceType::CNAME && question.rtype != ResourceType::CNAME;
+                if !is_alias && rtype != question.rtype && question.rtype != ResourceType::ANY {
+                    continue;
+                }
 
-            let mut copy = record.clone();
-            copy.ttl = copy.ttl.min(chain_ttl);
-            accepted.push(copy);
+                if is_alias
+                    && let (ResourceType::CNAME, RecordData::Cname(target)) = (record.rtype, &record.data)
+                    && !owners.iter().any(|(owner, _)| owner.eq_ignore_case(target))
+                {
+                    owners.push((target.clone(), ttl_limit.min(alias_ttl)));
+                }
+
+                let mut copy = record.clone();
+                copy.ttl = copy.ttl.min(ttl_limit);
+                accepted.push(copy);
+            }
         }
         accepted
     }

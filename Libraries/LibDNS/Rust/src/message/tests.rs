@@ -1139,6 +1139,74 @@ fn answers_to_follows_cname_chains() {
     assert_eq!(message.answers_to(&any).len(), 5);
 }
 
+fn alias(owner: &str, target: &str, ttl: u32) -> ResourceRecord {
+    let mut record = record(owner, ResourceType::CNAME, RecordData::Cname(name(target)));
+    record.ttl = ttl;
+    record
+}
+
+#[test]
+fn answers_to_follows_cname_chains_in_any_order() {
+    let question = Question {
+        name: name("a.example"),
+        rtype: ResourceType::A,
+        class: Class::IN,
+    };
+    let target = record("c.example", ResourceType::A, RecordData::A(Ipv4Addr::LOCALHOST));
+    let message = Message {
+        answers: vec![
+            target,
+            alias("b.example", "c.example", 300),
+            alias("a.example", "b.example", 5),
+        ],
+        ..Message::default()
+    };
+    let answers = message.answers_to(&question);
+    assert_eq!(answers.len(), 3);
+    // The alias at the queried name keeps its TTL; what it leads to lives no longer than it.
+    assert_eq!(answers[0].name, name("a.example"));
+    assert_eq!(answers[0].ttl, 5);
+    assert_eq!(answers[1].name, name("b.example"));
+    assert_eq!(answers[1].ttl, 5);
+    assert_eq!(answers[2].data, RecordData::A(Ipv4Addr::LOCALHOST));
+    assert_eq!(answers[2].ttl, 5);
+}
+
+#[test]
+fn answers_to_limits_targets_by_the_shortest_ttl_of_an_alias_rrset() {
+    let question = Question {
+        name: name("a.example"),
+        rtype: ResourceType::A,
+        class: Class::IN,
+    };
+    let mut target = record("b.example", ResourceType::A, RecordData::A(Ipv4Addr::LOCALHOST));
+    target.ttl = 600;
+    let message = Message {
+        answers: vec![
+            alias("a.example", "b.example", 300),
+            alias("a.example", "b.example", 5),
+            target,
+        ],
+        ..Message::default()
+    };
+    let answers = message.answers_to(&question);
+    assert_eq!(answers.last().unwrap().ttl, 5);
+}
+
+#[test]
+fn answers_to_stops_at_a_cname_loop() {
+    let question = Question {
+        name: name("a.example"),
+        rtype: ResourceType::A,
+        class: Class::IN,
+    };
+    let message = Message {
+        answers: vec![alias("a.example", "b.example", 60), alias("b.example", "a.example", 60)],
+        ..Message::default()
+    };
+    assert_eq!(message.answers_to(&question).len(), 2);
+}
+
 #[test]
 fn txt_with_several_strings() {
     let rdata = [3, b'a', b'b', b'c', 0, 2, b'd', b'e'];
