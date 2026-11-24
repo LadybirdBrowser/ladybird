@@ -53,9 +53,6 @@ option(LADYBIRD_BASELINE_CPU_TARGET "Use a common CPU baseline for portable bina
 set(LADYBIRD_VERSION "" CACHE STRING "Version of a release, such as 2026.46.0")
 set(LADYBIRD_BROWSER_VERSION "${PROJECT_VERSION}")
 if (NOT LADYBIRD_VERSION STREQUAL "")
-    if (NOT LADYBIRD_VERSION MATCHES "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
-        message(FATAL_ERROR "LADYBIRD_VERSION must be three integers, such as 2026.46.0: ${LADYBIRD_VERSION}")
-    endif()
     set(LADYBIRD_BROWSER_VERSION "${LADYBIRD_VERSION}")
 endif()
 
