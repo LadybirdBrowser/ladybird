@@ -99,6 +99,72 @@ static bool type_has_visit_edges_method(clang::CXXRecordDecl const* record)
     return false;
 }
 
+// The definition of the record a type names, or for a dependent specialization, of the template it specializes.
+static clang::CXXRecordDecl const* record_named_by_type(clang::QualType type)
+{
+    if (auto const* record = type->getAsCXXRecordDecl())
+        return record->getDefinition();
+    if (auto const* specialization = type->getAs<clang::TemplateSpecializationType>()) {
+        if (auto const* class_template = llvm::dyn_cast_or_null<clang::ClassTemplateDecl>(specialization->getTemplateName().getAsTemplateDecl()))
+            return class_template->getTemplatedDecl()->getDefinition();
+    }
+    return nullptr;
+}
+
+static bool record_inherits_from_weak_container(clang::CXXRecordDecl const& record)
+{
+    for (auto const& base : record.bases()) {
+        auto const* base_record = record_named_by_type(base.getType());
+        if (!base_record)
+            continue;
+        if (base_record->getQualifiedNameAsString() == "GC::WeakContainer" || record_inherits_from_weak_container(*base_record))
+            return true;
+    }
+    return false;
+}
+
+static bool type_names_weak_vector(clang::QualType type)
+{
+    if (auto const* specialization = type->getAs<clang::TemplateSpecializationType>()) {
+        auto const* template_decl = specialization->getTemplateName().getAsTemplateDecl();
+        return template_decl && template_decl->getQualifiedNameAsString() == "GC::WeakVector";
+    }
+    auto const* specialization = llvm::dyn_cast_or_null<clang::ClassTemplateSpecializationDecl>(type->getAsCXXRecordDecl());
+    return specialization && specialization->getSpecializedTemplate()->getQualifiedNameAsString() == "GC::WeakVector";
+}
+
+// Whether a value of the type holds a GC::WeakVector, itself or in an array element, template argument, base or field
+// of a type it holds.
+static bool type_holds_weak_vector(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    while (auto const* array = type->getAsArrayTypeUnsafe())
+        type = array->getElementType();
+
+    if (type_names_weak_vector(type))
+        return true;
+
+    auto const* record = record_named_by_type(type);
+    if (!record || record_inherits_from_cell(*record) || !visited.insert(record).second)
+        return false;
+
+    if (auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record)) {
+        for (auto const& argument : specialization->getTemplateArgs().asArray()) {
+            if (argument.getKind() == clang::TemplateArgument::Type && type_holds_weak_vector(argument.getAsType(), visited))
+                return true;
+        }
+    }
+
+    for (auto const& base : record->bases()) {
+        if (type_holds_weak_vector(base.getType(), visited))
+            return true;
+    }
+    for (auto const* field : record->fields()) {
+        if (type_holds_weak_vector(field->getType(), visited))
+            return true;
+    }
+    return false;
+}
+
 enum class ContainsGCPtrResult {
     No,
     Yes,
@@ -209,6 +275,10 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
 
         // Raw pointers don't need visiting
         if (template_name == "GC::RawPtr" || template_name == "GC::RawRef")
+            return ContainsGCPtrResult::No;
+
+        // A weak vector's owner prunes it of dead cells instead of visiting it
+        if (template_name == "GC::WeakVector")
             return ContainsGCPtrResult::No;
 
         // Root types handle their own visiting
@@ -440,6 +510,23 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         auto contains_result = type_contains_gc_ptr(field->getType());
         if (contains_result == ContainsGCPtrResult::YesRequiresVisitEdges) {
             substruct_fields_that_need_visiting.push_back(field);
+        }
+    }
+
+    if (record_is_cell && !record_inherits_from_weak_container(*record)) {
+        auto member_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+            "Member %0 holds a GC::WeakVector, but %1 is not a GC::WeakContainer that removes its dead cells");
+        auto base_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+            "Base %0 holds a GC::WeakVector, but %1 is not a GC::WeakContainer that removes its dead cells");
+        for (auto const& base : record->bases()) {
+            std::set<clang::CXXRecordDecl const*> visited;
+            if (type_holds_weak_vector(base.getType(), visited))
+                diag_engine.Report(base.getBeginLoc(), base_diag_id) << base.getType() << record;
+        }
+        for (auto const* field : record->fields()) {
+            std::set<clang::CXXRecordDecl const*> visited;
+            if (type_holds_weak_vector(field->getType(), visited))
+                diag_engine.Report(field->getLocation(), member_diag_id) << field << record;
         }
     }
 
@@ -1115,6 +1202,7 @@ static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& 
         "GC::Weak",
         "GC::WeakHashMap",
         "GC::WeakHashSet",
+        "GC::WeakVector",
     };
     return template_names.contains(template_name);
 }
