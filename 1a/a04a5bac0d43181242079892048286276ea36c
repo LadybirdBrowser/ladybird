@@ -1,0 +1,23 @@
+Ladybird leaves the fills and strokes of an inline SVG as authored
+under force dark when its outermost svg element’s border box is wider
+or taller than 64 CSS pixels, and darkens them as SVG content when it
+fits within 64x64. Blink does the same, in SVGRootPainter::
+PaintReplaced(): ImageClassifierHelper::GetSVGDocumentType() takes an
+SVG root wider or taller than kMaxImageLength (64), after undoing the
+layout zoom, as kPhoto, and a GraphicsContext::ScopedAutoDarkModeState
+then pauses dark mode for its content, behind the runtime feature
+AutoDarkModeSVGSizeThreshold (status stable). Run in Chrome
+158.0.8127.37 with WebContentsForceDark, an inline SVG with a black
+rect inverted at 60 and 64px and stayed black at 100, 120, 140, 160 and
+300px, and at 65x20 and 20x65. A 60px SVG with 4px of padding (a 68px
+border box) stayed black, and so did a 40px svg element nested in a
+200x50 one. The 160px QR code on discord.com rendered as authored.
+
+Ladybird differs from Blink in two cases, both left for later. Going
+by its source (not run), Blink’s pause also reaches HTML content in a
+foreignObject of a large SVG root, which Ladybird still darkens. And
+Blink applies the rule to the root of an SVG document too: Chrome left
+a 135x40 SVG badge image and a 200x50 SVG wordmark image as authored,
+where Ladybird darkens the content of SVG images, and of an SVG document
+opened on its own, whatever their size. Gecko and WebKit have no
+force-dark mode.
