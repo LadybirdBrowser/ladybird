@@ -370,6 +370,11 @@ impl Resolver {
         }
         self.cache.clear();
         self.validator.clear_caches();
+        // What the system resolver is still looking up answers the lookups waiting on it, but it is from before the
+        // reset, so it stays out of the cache.
+        for state in self.system_resolutions.values_mut() {
+            state.cache_key = None;
+        }
     }
 
     pub fn cached_entry_count(&self) -> usize {
