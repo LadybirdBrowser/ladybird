@@ -428,6 +428,26 @@ test("alternatives that start with literal characters", () => {
     expect(/(?:[a-c]x|[a-c]y)/.exec("by")[0]).toBe("by");
 });
 
+test("runs of literal characters", () => {
+    expect(/&(?:zwnj;|zwj;|zscr;)/.exec("a&zwj;b")[0]).toBe("&zwj;");
+    expect(/&(?:zwnj;|zwj;|zscr;)/.exec("a&zw;b")).toBeNull();
+    expect(/:(?:smile-cat|smile):/i.exec(":SMILE-Cat:")[0]).toBe(":SMILE-Cat:");
+    expect(/abc$/.exec("xxabc")[0]).toBe("abc");
+    expect(/x.*abc/.exec("xabc_abc_ab")[0]).toBe("xabc_abc");
+    expect(/a(?i:bc-d)e/.exec("aBC-De")[0]).toBe("aBC-De");
+    expect(/a(?i:bc-d)e/.exec("aBC-DE")).toBeNull();
+    expect(/a(?-i:bc)d/i.exec("ABcD")).toBeNull();
+    expect(/a(?-i:bc)d/i.exec("AbcD")[0]).toBe("AbcD");
+    expect(/(?<=ab)cd/.exec("abcd")[0]).toBe("cd");
+    expect(/(?<!ab)cd/.exec("abcd")).toBeNull();
+    expect(/\u{1F600}ab/u.exec("x\u{1F600}ab")[0]).toBe("\u{1F600}ab");
+    expect(/a\uD83Db/u.exec("a\uD83D\uDE00b")).toBeNull();
+    expect(/a\uD83Db/u.exec("a\uD83Db")[0]).toBe("a\uD83Db");
+    expect(/a\uD83D\uDE00b/.exec("a\u{1F600}b")[0]).toBe("a\u{1F600}b");
+    expect(/\u017Fx/i.exec("Sx")).toBeNull();
+    expect(/\u017Fx/iu.exec("Sx")[0]).toBe("Sx");
+});
+
 test("modifiers end with their group after backtracking into it", () => {
     expect(/(?i:[^\s"]+)x/.exec('x"yX')).toBeNull();
     expect(/(?i:[^\s"]+)x/.exec("xyX")).toBeNull();
