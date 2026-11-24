@@ -392,7 +392,8 @@ ErrorOr<bool> IncrementalDocumentParser::change_encoding(StringView new_encoding
         builder.append(TRY(decoder->decode({}, TextCodec::Flush::Yes)));
     auto redecoded_source = builder.to_string();
 
-    auto current_source = m_processed_implied_eof ? m_document->source().utf16_view() : m_source.view();
+    auto document_source = m_processed_implied_eof ? m_document->source() : Utf16String {};
+    auto current_source = m_processed_implied_eof ? document_source.utf16_view() : m_source.view();
     if (!redecoded_source.starts_with(current_source)
         || (m_processed_implied_eof && redecoded_source.length_in_code_units() != current_source.length_in_code_units())) {
         // FIXME: A mismatch requires restarting the navigation with the new encoding, as described by step 6 of the
