@@ -58,6 +58,10 @@ pub struct ValidationResult {
     /// The records answering the question, following CNAMEs. Authenticated when the status is Secure.
     pub records: Vec<ResourceRecord>,
     pub reason: &'static str,
+    /// For a Name Error or No Data answer proven by NSEC or NSEC3 records, how many more seconds the proof holds: the
+    /// lowest TTL among the authenticated NSEC and NSEC3 RRsets of the response, each already capped by the expiration
+    /// of its signature. A negative answer must not be cached for longer. `None` when no such proof was used.
+    pub denial_ttl: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -614,6 +618,7 @@ impl Validator {
             status: SecurityStatus::Bogus,
             records: Vec::new(),
             reason,
+            denial_ttl: None,
         };
 
         let answers = group_rrsets(&response.answers);
@@ -623,6 +628,7 @@ impl Validator {
             status: SecurityStatus::Secure,
             records: Vec::new(),
             reason: "",
+            denial_ttl: None,
         };
         let mut current = question.name.clone();
         // Anything an alias leads to is valid for no longer than the alias.
@@ -645,6 +651,7 @@ impl Validator {
                 status: SecurityStatus::Insecure,
                 records,
                 reason,
+                denial_ttl: None,
             }
         };
         for _ in 0..=MAX_CNAME_CHAIN_LENGTH {
@@ -712,18 +719,20 @@ impl Validator {
                     EXCESSIVE_NSEC3_ITERATIONS,
                 ));
             }
-            if response.header.options.response_code() == ResponseCode::NAME_ERROR {
-                return Ok(match proofs.proves_name_error(&current) {
-                    Some(Denial::Proven) => result,
-                    Some(Denial::OptOut) => insecure(result.records, &current, chain_ttl, OPT_OUT),
-                    None => bogus("Name error is not proven"),
-                });
-            }
-            return Ok(match proofs.proves_no_data(&current, question.rtype) {
-                Some(Denial::Proven) => result,
-                Some(Denial::OptOut) => insecure(result.records, &current, chain_ttl, OPT_OUT),
-                None => bogus("Absence of the requested type is not proven"),
-            });
+            let denial = if response.header.options.response_code() == ResponseCode::NAME_ERROR {
+                proofs.proves_name_error(&current).ok_or("Name error is not proven")
+            } else {
+                proofs
+                    .proves_no_data(&current, question.rtype)
+                    .ok_or("Absence of the requested type is not proven")
+            };
+            let mut negative = match denial {
+                Ok(Denial::Proven) => result,
+                Ok(Denial::OptOut) => insecure(result.records, &current, chain_ttl, OPT_OUT),
+                Err(reason) => return Ok(bogus(reason)),
+            };
+            negative.denial_ttl = proofs.ttl();
+            return Ok(negative);
         }
 
         Ok(bogus("CNAME chain is too long"))

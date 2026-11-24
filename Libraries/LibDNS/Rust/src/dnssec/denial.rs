@@ -298,6 +298,11 @@ pub(super) struct DenialProofs<'a> {
 }
 
 impl DenialProofs<'_> {
+    /// How long every record the proofs could rest on stays valid.
+    pub fn ttl(&self) -> Option<u32> {
+        self.rrsets.iter().map(|rrset| rrset.ttl).min()
+    }
+
     pub fn proves_name_error(&self, name: &DomainName) -> Option<Denial> {
         // A name that owns an NSEC record, or is an empty non-terminal, exists.
         if nsec_records(self.rrsets).any(|record| record.matches(name))
