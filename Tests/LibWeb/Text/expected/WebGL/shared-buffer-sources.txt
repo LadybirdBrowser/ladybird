@@ -1,0 +1,24 @@
+webgl:
+bufferData with a buffer: 65536
+bufferData with a view: 16
+bufferSubData with a buffer: undefined
+bufferSubData with a view: undefined
+vertices of a view: undefined
+uniform2fv: undefined
+uniform2iv: undefined
+uniformMatrix2fv: undefined
+pixel: 51, 102, 102, 255
+error: 0
+webgl2:
+bufferData with a buffer: 65536
+bufferData with a view: 16
+bufferSubData with a buffer: undefined
+bufferSubData with a view: undefined
+contents: true
+vertices of a view: undefined
+uniform2fv: undefined
+uniform2iv: undefined
+uniformMatrix2fv: undefined
+uniform2uiv: undefined
+pixel: 51, 102, 155, 255
+error: 0

@@ -7,14 +7,13 @@ typedef (ImageBitmap or
          // FIXME: VideoFrame
          ) TexImageSource;
 
-typedef (Int32Array or sequence<GLint>) Int32List;
+typedef ([AllowShared] Int32Array or sequence<GLint>) Int32List;
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {
     [ImplementedAs=buffer_data_with_size] undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
-    // FIXME: BufferSource is really a AllowSharedBufferSource
-    [ImplementedAs=buffer_data] undefined bufferData(GLenum target, BufferSource? data, GLenum usage);
-    undefined bufferSubData(GLenum target, GLintptr offset, BufferSource data);
+    [ImplementedAs=buffer_data] undefined bufferData(GLenum target, AllowSharedBufferSource? data, GLenum usage);
+    undefined bufferSubData(GLenum target, GLintptr offset, AllowSharedBufferSource data);
 
     undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView data);
     undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView data);

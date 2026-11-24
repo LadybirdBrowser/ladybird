@@ -1,4 +1,4 @@
-typedef (Uint32Array or sequence<GLuint>) Uint32List;
+typedef ([AllowShared] Uint32Array or sequence<GLuint>) Uint32List;
 
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 interface mixin WebGL2RenderingContextBase {
