@@ -1,0 +1,11 @@
+Ladybird accepts a numeric weight before the size in the font shorthand
+in both document modes. Only the font-size longhand accepts a nonzero
+unitless size in quirks mode.
+
+The Gecko font shorthand uses FontSize::parse(). Blink parses the size
+with css_parsing_utils::ConsumeFontSize() in ConsumeFont(). WebKit does
+so in PropertyParserCustom::consumeFontShorthand().
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 accepted numeric
+weights of 100 and 450, zero sizes, and an optional line height. All
+rejected a nonzero unitless shorthand size in both modes.
