@@ -11,7 +11,7 @@
 #include <AK/TypeCasts.h>
 #include <Compositor/FontSkia.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/RasterizerData.h>
+#include <LibGfx/RasterizerData.h>
 
 #include <core/SkData.h>
 #include <core/SkFont.h>
