@@ -14,6 +14,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
@@ -56,7 +57,7 @@ public:
 
 private:
     u64 m_id { 0 };
-    HashMap<u64, GC::RawPtr<FetchController>> m_controllers;
+    HashMap<u64, GC::Weak<FetchController>> m_controllers;
     HashMap<Engine::FetchId, GC::Root<DeferredMainFetchSteps>> m_deferred_main_fetch_steps;
 
     struct RootedFetch {
