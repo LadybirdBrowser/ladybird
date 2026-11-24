@@ -4056,6 +4056,63 @@ impl<'pass> BlockFormattingContext<'pass> {
         layout
     }
 
+    /// Gives `node`, a child of a table cell with a length height, the percentage basis that row measurement uses:
+    /// none for most boxes, so a percentage height acts as auto, the cell's specified height for a replaced box, and
+    /// zero for a scrollable box. It's kept out of line, so its locals stay out of the recursive block-layout frames.
+    #[inline(never)]
+    pub(super) fn adjust_table_cell_child_input(
+        &self,
+        node: Node,
+        containing_block: &BlockContainer,
+        input: &mut LayoutInput,
+    ) {
+        let facts = self.facts(node);
+        if !facts.is_box() || facts.document_in_quirks_mode() || facts.is_absolutely_positioned() {
+            return;
+        }
+        let mut cell = containing_block.node;
+        while !cell.is_invalid() && self.facts(cell).is_anonymous() && !self.facts(cell).is_table_cell() {
+            cell = self.containing_block(cell);
+        }
+        if cell.is_invalid() || !self.facts(cell).is_table_cell() {
+            return;
+        }
+        let metrics = if cell == containing_block.node {
+            &containing_block.cells
+        } else if cell == self.run.box_ {
+            &self.root_cells
+        } else {
+            return;
+        };
+        let cell_style = self.style(cell);
+        if !cell_style.height().is_length() {
+            return;
+        }
+        let basis = if facts.is_replaced_box() {
+            // https://drafts.csswg.org/css-tables-3/#row-layout
+            // AD-HOC: Row layout gives a replaced descendant with a percentage height an automatic height while the
+            //         row is measured. For web compatibility, it resolves against the cell's specified height instead,
+            //         before the rows are sized and after.
+            let mut basis = cell_style.height().to_px(CssPixels::default());
+            if cell_style.box_sizing() == box_sizing::BORDER_BOX {
+                let collapsed = metrics.uses_collapsing_borders_model;
+                basis -= metrics.border_box_top(collapsed) + metrics.border_box_bottom(collapsed);
+            }
+            basis.max(CssPixels::default())
+        } else if !metrics.has_definite_block_size
+            && self.style(node).height().contains_percentage()
+            && matches!(self.style(node).overflow_y(), overflow::AUTO | overflow::SCROLL)
+        {
+            // A scrollable percentage-height child contributes zero while its cell's row is measured.
+            // https://drafts.csswg.org/css-tables-3/#row-layout
+            CssPixels::default()
+        } else {
+            return;
+        };
+        input.containing_block_constraints.percentage_basis_block_size = Some(basis);
+        input.available_space.block_size = AvailableSize::definite(basis);
+    }
+
     fn child_layout_input(
         &self,
         containing_block: BlockContainer,
@@ -4151,10 +4208,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         node: Node,
         block_container: BlockContainer,
-        input: LayoutInput,
+        mut input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         interrupted_inline_content: Option<InterruptedInlineContent>,
     ) -> Option<LaidOutBlockLevelBox> {
+        self.adjust_table_cell_child_input(node, &block_container, &mut input);
         let facts = self.facts(node);
         let containing_line_box_fragment = interrupted_inline_content.and_then(|interrupted| interrupted.line);
 
@@ -6066,6 +6124,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         child_input: &LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> Option<ChildJobAhead> {
+        let mut adjusted_input = child_input.clone();
+        self.adjust_table_cell_child_input(child, &block_container, &mut adjusted_input);
+        let child_input = &adjusted_input;
         let pass = &self.run.pass;
         let facts = self.facts(child);
         if facts.is_box()
@@ -7987,10 +8048,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         sized_float: ChildSizedHere<'_>,
         block_container: BlockContainer,
-        input: LayoutInput,
+        mut input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> FloatLaidOutAheadOfItsPosition {
         let node = sized_float.node;
+        self.adjust_table_cell_child_input(node, &block_container, &mut input);
         let float_input =
             self.size_float_for_its_run(sized_float, block_container, &input, containing_block_position_in_root);
         let layout = self.layout_inside(run, sized_float, block_container, float_input, false);

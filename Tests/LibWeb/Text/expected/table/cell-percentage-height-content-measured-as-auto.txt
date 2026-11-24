@@ -1,0 +1,12 @@
+zero-cell: table 100, child 100
+short-cell: table 100, child 100
+tall-cell-empty-child: table 200, child 200
+half-height: table 100, child 50
+overflow-auto: table 0, child 0
+overflow-hidden: table 100, child 100
+zero-cell-image: table 0, child 0
+short-cell-image: table 50, child 50
+min-height: table 100, child 100
+max-height: table 100, child 100
+nested-table: table 100, child 100
+taller-sibling: table 200, child 200

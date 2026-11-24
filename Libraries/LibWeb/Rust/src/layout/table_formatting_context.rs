@@ -3063,9 +3063,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 sum + self.columns[cell.column_index + index].used_inline_size
             });
             let mut cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, cell_padding_basis);
-            // NB: A percentage block size of the cell counts as 0px until the rows are sized (see
-            //     initialize_row_content_sizes), so it gives the contents no basis yet.
-            if style.height().contains_percentage() {
+            // The row measures the cell's contents without a definite percentage block-size basis. The specified
+            // cell height still contributes to the row minimum, and stretch_cells_to_their_rows resolves the contents
+            // against the final height. Quirks mode keeps its percentage-height calculation.
+            // https://drafts.csswg.org/css-tables-3/#row-layout
+            if !self.node_facts(cell.box_).document_in_quirks_mode() || style.height().contains_percentage() {
                 cell_box.has_definite_block_size = false;
             }
             // A cell whose columns all have 'visibility: collapse' is removed from the display along with them, as in
@@ -3658,6 +3660,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// cell out again at its stretched size with its contents moved, for those boxes to be laid out against it.
     fn stretch_cells_to_their_rows(&mut self, run: &FormattingContextRun<'pass>) {
         let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let mut relaid_out_any_cell = false;
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             if self.cell_layouts[cell_index].contents_depend_on_percentage_block_size
@@ -3680,7 +3683,28 @@ impl<'pass> TableFormattingContext<'pass> {
                         ..RootSizingDirectives::default()
                     },
                 );
+                self.cells[cell_index].baseline = self.cell_baseline(cell_index);
+                relaid_out_any_cell = true;
             }
+        }
+        // The contents laid out again can put a cell's baseline elsewhere, so the rows take their baselines from the
+        // cells as they are now, before any cell is aligned on one.
+        if relaid_out_any_cell {
+            for row in &mut self.rows {
+                row.baseline = None;
+                row.max_cell_descent = CssPixels::default();
+                row.smallest_cell_block_end_offset = None;
+            }
+            for cell_index in 0..self.cells.len() {
+                let cell = self.cells[cell_index];
+                if !self.rows[cell.row_index].is_collapsed {
+                    let style = self.style(cell.box_);
+                    self.note_cell_in_row_baseline(cell_index, &style);
+                }
+            }
+        }
+        for cell_index in 0..self.cells.len() {
+            let cell = self.cells[cell_index];
             let laid_out = self.cell_layouts[cell_index].box_cells;
             let free_space = self.compute_row_content_block_size(cell) - laid_out.border_box_block_size(collapsed);
             let contents_block_offset = self.cell_contents_block_offset(cell_index, free_space);

@@ -1825,7 +1825,10 @@ impl<'context> InlineFormattingContext<'context> {
     /// Starts holding `node`, an atomic inline-level box, which a run of its own lays out in the formatting context it
     /// establishes. Returns the cells the box starts out with.
     pub(crate) fn hold_atomic_inline(&self, node: Node) -> used_values::RootInputCells {
-        used_values::cells_before_sizing(&self.pass, node, self.input.containing_block_constraints)
+        let mut input = self.input.clone();
+        self.parent
+            .adjust_table_cell_child_input(node, &self.block_container, &mut input);
+        used_values::cells_before_sizing(&self.pass, node, input.containing_block_constraints)
     }
 
     pub(crate) fn parent_node(&self, node: Node) -> Node {
@@ -1996,11 +1999,13 @@ impl<'context> InlineFormattingContext<'context> {
         available_space: AvailableSpace,
         cells: used_values::RootInputCells,
     ) -> (DerivedBaselines, used_values::RootInputCells) {
-        let input = LayoutInput::new(
+        let mut input = LayoutInput::new(
             available_space,
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
+        self.parent
+            .adjust_table_cell_child_input(node, &self.block_container, &mut input);
         let laid_out = formatting_context::layout_inside_child_with_input_cells(
             self.run,
             Some(self.parent),
