@@ -234,6 +234,16 @@ fn nsec_closest_encloser(rrsets: &[VerifiedRRSet], name: &DomainName) -> Option<
         .map(|shared| name.suffix(shared))
 }
 
+// RFC 8198, Appendix B. Procedure for Determining ENT vs. NXDOMAIN with NSEC.
+// If the next domain name is a subdomain of the given name, you have an ENT.  Otherwise, you have an NXDOMAIN.
+fn nsec_proves_empty_non_terminal(rrsets: &[VerifiedRRSet], name: &DomainName) -> bool {
+    nsec_records(rrsets).any(|record| {
+        record.covers(name)
+            && name.is_ancestor_or_equal_of(&record.nsec.next_domain_name)
+            && !name.eq_ignore_case(&record.nsec.next_domain_name)
+    })
+}
+
 pub(super) fn has_excessive_nsec3_iterations(rrsets: &[VerifiedRRSet]) -> bool {
     rrsets
         .iter()
@@ -248,6 +258,13 @@ pub(super) struct DenialProofs<'a> {
 
 impl DenialProofs<'_> {
     pub fn proves_name_error(&self, name: &DomainName) -> bool {
+        // A name that owns an NSEC record, or is an empty non-terminal, exists.
+        if nsec_records(self.rrsets).any(|record| record.matches(name))
+            || nsec_proves_empty_non_terminal(self.rrsets, name)
+        {
+            return false;
+        }
+
         // RFC 4035, 5.4. Authenticated Denial of Existence.
         // To prove the non-existence of an RRset, the resolver must be able to verify both that the queried RRset does
         // not exist and that no relevant wildcard RRset exists.
@@ -282,8 +299,11 @@ impl DenialProofs<'_> {
             return false;
         }
         let next_closer = name.suffix(closest_encloser_label_count + 1);
-        nsec_records(self.rrsets).any(|record| record.covers(&next_closer))
-            || nsec3_records(self.rrsets).any(|record| record.covers(&next_closer))
+        // An NSEC can span an empty non-terminal, which exists all the same.
+        let nsec_proves_absent = !nsec_records(self.rrsets).any(|record| record.matches(&next_closer))
+            && !nsec_proves_empty_non_terminal(self.rrsets, &next_closer)
+            && nsec_records(self.rrsets).any(|record| record.covers(&next_closer));
+        nsec_proves_absent || nsec3_records(self.rrsets).any(|record| record.covers(&next_closer))
     }
 
     pub fn proves_no_data(&self, name: &DomainName, rtype: ResourceType) -> bool {
@@ -304,6 +324,11 @@ impl DenialProofs<'_> {
         };
 
         if nsec_records(self.rrsets).any(|record| record.matches(name) && bitmap_denies(record.nsec)) {
+            return true;
+        }
+
+        // An empty non-terminal owns no RRsets at all.
+        if nsec_proves_empty_non_terminal(self.rrsets, name) {
             return true;
         }
 
