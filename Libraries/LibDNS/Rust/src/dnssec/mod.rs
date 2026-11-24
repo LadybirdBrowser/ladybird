@@ -176,6 +176,13 @@ struct Delegation {
     expires: u64,
 }
 
+#[derive(Clone, Debug)]
+struct CachedDelegation {
+    /// The zone whose keys authenticated the decision. It only holds while that is still the parent zone.
+    parent_zone: DomainName,
+    delegation: Delegation,
+}
+
 enum Accepted {
     Records(Vec<ResourceRecord>),
     Insecure(&'static str),
@@ -236,7 +243,7 @@ pub struct Validator {
     trust_anchors: Vec<Ds>,
     // Keyed by canonicalized names, which keep the labels apart: a label can hold a dot.
     zone_keys: HashMap<DomainName, ZoneKeys>,
-    delegations: HashMap<DomainName, Delegation>,
+    delegations: HashMap<DomainName, CachedDelegation>,
 }
 
 impl Default for Validator {
@@ -391,8 +398,8 @@ impl Validator {
     ) -> Result<Delegation, Failure> {
         let cache_key = name.canonicalized();
         if let Some(cached) = self.delegations.get(&cache_key) {
-            if cached.expires > u64::from(now) {
-                return Ok(cached.clone());
+            if cached.delegation.expires > u64::from(now) && cached.parent_zone.eq_ignore_case(&parent.zone) {
+                return Ok(cached.delegation.clone());
             }
             self.delegations.remove(&cache_key);
         }
@@ -401,7 +408,13 @@ impl Validator {
             if self.delegations.len() >= MAX_CACHED_ENTRIES {
                 self.delegations.clear();
             }
-            self.delegations.insert(cache_key.clone(), delegation.clone());
+            self.delegations.insert(
+                cache_key.clone(),
+                CachedDelegation {
+                    parent_zone: parent.zone.clone(),
+                    delegation: delegation.clone(),
+                },
+            );
             Ok(delegation)
         };
 
