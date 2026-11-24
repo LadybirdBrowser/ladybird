@@ -14,6 +14,7 @@ struct VideoDecodeQuery {
     Vector<VkExtensionProperties> extensions;
     PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR get_capabilities { nullptr };
     PFN_vkGetPhysicalDeviceVideoFormatPropertiesKHR get_formats { nullptr };
+    VkVideoCodecOperationFlagsKHR decode_codec_operations { 0 };
 };
 
 // Asks about the codec's 8-bit 4:2:0 profile, which every stream the decoders take in that codec can be decoded under.
@@ -22,6 +23,8 @@ static PlatformFeatures::VideoDecodeFacts describe_video_decoding(VideoDecodeQue
     PlatformFeatures::VideoDecodeFacts facts;
     auto has_extension = any_of(query.extensions, [&](auto const& properties) { return StringView { properties.extensionName, strlen(properties.extensionName) } == extension; });
     if (!has_extension || query.get_capabilities == nullptr || query.get_formats == nullptr)
+        return facts;
+    if ((query.decode_codec_operations & operation) == 0)
         return facts;
 
     VkVideoProfileInfoKHR profile {};
@@ -77,6 +80,8 @@ void describe_video_decoding_through_vulkan(PlatformFeatures::GpuFacts& gpu, VkI
 
     VideoDecodeQuery query;
     query.physical_device = physical_device;
+    if (auto family = Media::VulkanVideoDevice::decode_queue_family_of(physical_device); family.has_value())
+        query.decode_codec_operations = family->codec_operations;
     u32 extension_count = 0;
     vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr);
     query.extensions.resize(extension_count);
