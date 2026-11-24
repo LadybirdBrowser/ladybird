@@ -8,7 +8,7 @@
 
 #include <AK/Array.h>
 #include <LibCore/StatsLog.h>
-#include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -32,7 +32,7 @@ struct RenderingStats {
     AK_ALLOC_WITH_KMALLOC;
 
     RenderingPendingCounts pending {};
-    GC::RawPtr<Page const> pending_page {};
+    GC::Weak<Page const> pending_page;
     bool displayed { true };
 };
 
