@@ -2785,9 +2785,12 @@ void SeccompPolicy::allow_gpu_device_operations()
     };
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 2 * types.size() + 3));
     append(SECCOMP_LOAD_ARGUMENT(1));
-    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, _IOC_TYPEMASK << _IOC_TYPESHIFT));
+    // _IO() puts its type in a request's type field and leaves every other field clear, so _IO(0xff, 0) masks the type
+    // field. The kernel's own names for the field, _IOC_TYPEMASK and _IOC_TYPESHIFT, come in through glibc's
+    // <sys/ioctl.h> but not musl's.
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, static_cast<u32>(_IO(0xff, 0))));
     for (auto type : types) {
-        append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<u32>(type) << _IOC_TYPESHIFT, 0, 1));
+        append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<u32>(_IO(static_cast<u8>(type), 0)), 0, 1));
         append(SECCOMP_ALLOW);
     }
     append(SECCOMP_LOAD_SYSCALL_NR);
