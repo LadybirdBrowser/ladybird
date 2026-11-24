@@ -8,11 +8,8 @@
 
 #include <AK/IntrusiveList.h>
 #include <AK/Types.h>
-#include <LibGC/Ptr.h>
 
 namespace Web::DOM {
-
-class HTMLCollection;
 
 class HTMLCollectionCacheRegistration {
 public:
@@ -33,18 +30,8 @@ public:
         return 1u << to_underlying(type);
     }
 
-    explicit HTMLCollectionCacheRegistration(HTMLCollection& collection)
-        : m_collection(collection)
-    {
-    }
-
-    HTMLCollection& collection() { return m_collection; }
-
-    IntrusiveListNode<HTMLCollectionCacheRegistration> list_node;
+    mutable IntrusiveListNode<HTMLCollectionCacheRegistration> list_node;
     using List = IntrusiveList<&HTMLCollectionCacheRegistration::list_node>;
-
-private:
-    GC::RawRef<HTMLCollection> m_collection;
 };
 
 }
