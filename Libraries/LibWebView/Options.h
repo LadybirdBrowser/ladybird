@@ -113,8 +113,6 @@ struct BrowserOptions {
     DisableSandbox disable_sandbox { DisableSandbox::No };
     ForceVideoDecoderServer force_video_decoder_server { ForceVideoDecoderServer::No };
     Vector<ByteString> content_blocker_list_paths {};
-    // In test mode, opening a file under this directory grants access to the whole directory.
-    Optional<ByteString> local_file_root_for_tests {};
     // How much memory a WebContent process may use before it is ended. Zero means that there is no limit, and no value
     // means the default limit for this machine.
     Optional<u64> web_content_memory_limit_in_bytes {};

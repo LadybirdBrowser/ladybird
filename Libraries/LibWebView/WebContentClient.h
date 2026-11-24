@@ -63,7 +63,6 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/LocalFileRoot.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/WebContentPage.h>
@@ -142,13 +141,10 @@ public:
     // Connects a client to the ImageDecoder of this process, for its main thread or for a worker on a thread of it.
     Optional<IPC::TransportHandle> connect_new_image_decoder_client(Optional<u64>& client_generation);
 
-    // The roots of the local file content the process has hosted, under which it may read local files. Site isolation
-    // gives such content processes of their own, one per root, which host nothing else.
-    Vector<LocalFileRoot> const& local_file_roots() const { return m_local_file_roots; }
-    ErrorOr<void> add_local_file_root(LocalFileRoot);
-    // A page's navigation reads a local file only under the roots of the process it came from, and grants none.
-    LocalFileAccess local_file_access() const;
-    static LocalFileAccess local_file_access_of_process_hosting(Web::HTML::EnvironmentId const&);
+    // A process that has hosted local file content may read local files. Site isolation gives such content processes
+    // of its own, which host nothing else.
+    bool has_hosted_local_file_content() const { return m_has_hosted_local_file_content; }
+    void set_has_hosted_local_file_content() { m_has_hosted_local_file_content = true; }
     // The WebUI whose documents the process has hosted, whose channel the process may have. Site isolation gives such
     // documents processes of their own, which host nothing else.
     Optional<String> const& hosted_web_ui() const { return m_hosted_web_ui; }
@@ -285,7 +281,7 @@ private:
     Optional<Utf16String> m_site_of_hosted_documents;
     Optional<u64> m_image_decoder_client_generation;
     bool m_has_hosted_documents_of_several_sites { false };
-    Vector<LocalFileRoot> m_local_file_roots;
+    bool m_has_hosted_local_file_content { false };
     Optional<String> m_hosted_web_ui;
     Optional<URL::Origin> m_origin_of_hosted_tabs;
     bool m_hosted_tabs_are_origin_keyed { false };

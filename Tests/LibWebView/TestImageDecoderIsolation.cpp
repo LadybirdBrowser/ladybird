@@ -9,7 +9,6 @@
 #include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
 #include <AK/Utf16String.h>
-#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
@@ -172,12 +171,8 @@ TEST_CASE(pdf_viewer_does_not_make_a_renderer_leave_the_image_decoder_of_its_sit
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
     auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
 
-    // The profile is beneath the environment's directory on Linux, so a page there would be granted only itself.
-    auto content_directory = LexicalPath::join(environment.directory(), "content"sv).string();
-    MUST(Core::Directory::create(content_directory, Core::Directory::CreateDirectories::Yes));
-
     auto write_file = [&](StringView name, StringView contents) {
-        auto path = LexicalPath::join(content_directory, name).string();
+        auto path = LexicalPath::join(environment.directory(), name).string();
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Write));
         MUST(file->write_until_depleted(contents.bytes()));
         file->close();

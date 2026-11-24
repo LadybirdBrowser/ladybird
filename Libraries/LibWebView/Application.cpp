@@ -821,14 +821,6 @@ ErrorOr<void> Application::create_profile([[maybe_unused]] Optional<StringView> 
     m_profile = TRY(Profile::create(profile_selection, profile_roots));
 #endif
 
-    auto const& paths = m_profile->paths();
-    auto root_for_tests = m_web_content_options.is_test_mode == IsTestMode::Yes ? m_browser_options.local_file_root_for_tests : Optional<ByteString> {};
-    m_local_file_grant_policy = LocalFileGrantPolicy {
-        Core::StandardPaths::home_directory(),
-        { paths.config, paths.data, paths.cache, paths.runtime, paths.identity, m_instance_data_directory },
-        move(root_for_tests),
-    };
-
     return {};
 }
 

@@ -12,7 +12,6 @@
 #include <LibCore/File.h>
 #include <LibCore/Socket.h>
 #include <LibCore/TCPServer.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
@@ -614,9 +613,9 @@ TEST_CASE(made_up_file_url_does_not_reach_a_navigation)
 }
 
 // The process running a navigation's population steps can host web content, so it does not read the local file that a
-// file: URL names. The UI process reads the file of a navigation it admitted, the user's choice or one under the roots
-// the navigation came with, for the process creating the document. It reads no other file, and ignores any body the
-// process reports.
+// file: URL names. The UI process reads the file of a navigation it admitted, or of an entry whose document state held
+// local file content, for the process creating the document. It reads no other file, and ignores any body the process
+// reports.
 TEST_CASE(ui_process_reads_the_local_file_of_a_navigation)
 {
     TestFixture fixture;
@@ -631,8 +630,8 @@ TEST_CASE(ui_process_reads_the_local_file_of_a_navigation)
     auto local_file_url = write_file("local.html"sv, "<p>The local file.</p>"sv);
     auto other_local_file_url = write_file("other.html"sv, "<p>Another local file.</p>"sv);
 
-    auto acquire = [&](WebView::LocalFileAccess local_file_access, Function<void(Web::HTML::NavigationParamsDescriptor&)> report) {
-        auto loader = WebView::NavigationLoader::create(population_request_for(*view, local_file_url, Utf16String::from_utf8(generate_random_uuid())), move(local_file_access));
+    auto acquire = [&](WebView::NavigationLoader::MayReadLocalFile may_read_local_file, Function<void(Web::HTML::NavigationParamsDescriptor&)> report) {
+        auto loader = WebView::NavigationLoader::create(population_request_for(*view, local_file_url, Utf16String::from_utf8(generate_random_uuid())), may_read_local_file);
         auto result = result_with_response_body_of(0, 0);
         auto& navigation_params = result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>();
         navigation_params.response.url_list = { local_file_url };
@@ -648,24 +647,17 @@ TEST_CASE(ui_process_reads_the_local_file_of_a_navigation)
         return loader->take_result().navigation_params;
     };
 
-    auto navigation_params = acquire(WebView::UserSelectedLocalFile {}, [](auto&) { });
+    auto navigation_params = acquire(WebView::NavigationLoader::MayReadLocalFile::Yes, [](auto&) { });
     VERIFY(navigation_params.has<Web::HTML::NavigationParamsDescriptor>());
     auto const& response = navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response;
     EXPECT_EQ(StringView { response.body.get<ByteBuffer>() }, "<p>The local file.</p>"sv);
     EXPECT_EQ(HTTP::HeaderList::create(response.headers)->get("Content-Type"sv).value_or({}), "text/html"sv);
 
-    // A navigation under a root that covers the file reads it too.
-    auto directory = MUST(FileSystem::real_path(fixture.directory()));
-    Vector<WebView::LocalFileRoot> covering_roots { { directory, WebView::LocalFileRoot::Scope::Directory } };
-    EXPECT(acquire(covering_roots, [](auto&) { }).has<Web::HTML::NavigationParamsDescriptor>());
-
-    // A navigation with no local file access gets an error document, as does one under roots that don't cover the file.
-    EXPECT(acquire({}, [](auto&) { }).has<Web::HTML::NavigationParamsNullOrError>());
-    Vector<WebView::LocalFileRoot> other_roots { { LexicalPath::join(directory, "other.html"sv).string(), WebView::LocalFileRoot::Scope::File } };
-    EXPECT(acquire(other_roots, [](auto&) { }).has<Web::HTML::NavigationParamsNullOrError>());
+    // An entry whose document state held no local file content gets an error document.
+    EXPECT(acquire(WebView::NavigationLoader::MayReadLocalFile::No, [](auto&) { }).has<Web::HTML::NavigationParamsNullOrError>());
 
     // So does a navigation whose response the process reports for another local file.
-    EXPECT(acquire(WebView::UserSelectedLocalFile {}, [&](auto& navigation_params) {
+    EXPECT(acquire(WebView::NavigationLoader::MayReadLocalFile::Yes, [&](auto& navigation_params) {
         navigation_params.response.url_list = { other_local_file_url };
     }).has<Web::HTML::NavigationParamsNullOrError>());
     EXPECT(view->page().client().is_open());
