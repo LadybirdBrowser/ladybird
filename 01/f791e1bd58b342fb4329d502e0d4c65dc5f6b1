@@ -1,0 +1,16 @@
+Ladybird ignores a percentage min-width on a table cell, as a note in
+css-tables-3 says, and still takes a length one into the cell’s outer
+min-content width. Chrome 158 and WebKit 26.5 agree on all 9 cases in
+the test (one cell, with a max-width, three cells, collapsed borders, a
+width:100% table, a 50% min-width, a column’s percentage min-width, a
+length min-width, and a percentage width), as Ladybird now does.
+Firefox 151 differs: It takes a percentage min-width as the cell’s
+percentage, so in a table of auto width the cell takes the rest of the
+container.
+
+Blink reads a cell’s min-width in InlineSizesFromStyle() only where it
+IsFixed(), for CreateCellInlineConstraint(). WebKit’s AutoTableLayout::
+recalcColumn() takes the cell’s own minLogicalWidthForColumnSizing() for
+its column. And Gecko’s BasicTableLayoutStrategy raises a cell’s
+percentage to a percentage min-isize where it ConvertsToPercentage(),
+which is where Firefox differs.
