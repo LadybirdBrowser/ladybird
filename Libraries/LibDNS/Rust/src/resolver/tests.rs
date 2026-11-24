@@ -1413,3 +1413,55 @@ fn system_resolver_family_that_never_answers_is_given_up_on() {
     harness.lookup("example.com");
     assert_eq!(harness.system.len(), 2);
 }
+
+#[test]
+fn late_system_resolver_answers_do_not_replace_newer_cached_addresses() {
+    let mut harness = Harness::new(None);
+    let both = harness.lookup("example.com");
+    let (a, stalled_aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1))]));
+    harness.advance(IPV6_RESOLUTION_DELAY);
+    assert!(harness.result(both).is_ok());
+
+    // A later IPv4-only lookup finds a newer address.
+    harness.now += Duration::from_secs(10);
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (a, _) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2))]));
+
+    // The first lookup's IPv6 side finishes now: its addresses join the cache, its older IPv4 one does not.
+    harness.system_resolved(stalled_aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    let cached = harness.lookup("example.com");
+    assert!(harness.system.is_empty());
+    let mut addresses = harness.addresses(cached);
+    addresses.sort();
+    assert_eq!(
+        addresses,
+        vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)), IpAddr::V6(Ipv6Addr::LOCALHOST)]
+    );
+}
+
+#[test]
+fn resolutions_finishing_within_their_grace_window_keep_newer_cached_addresses() {
+    let mut harness = Harness::new(None);
+    harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1))]));
+
+    harness.now += Duration::from_millis(20);
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (newer_a, _) = system_requests(&mut harness);
+    harness.system_resolved(newer_a, Ok(vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2))]));
+
+    // The first resolution's IPv6 side finishes before its grace window ends.
+    harness.now += Duration::from_millis(20);
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    let cached = harness.lookup("example.com");
+    assert!(harness.system.is_empty());
+    let mut addresses = harness.addresses(cached);
+    addresses.sort();
+    assert_eq!(
+        addresses,
+        vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)), IpAddr::V6(Ipv6Addr::LOCALHOST)]
+    );
+}
