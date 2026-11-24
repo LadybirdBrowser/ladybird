@@ -45,7 +45,7 @@ if (WIN32)
 endif()
 
 if (USE_VULKAN_DMABUF_IMAGES)
-    list(APPEND SOURCES FFmpeg/FFmpegVulkanVideoDecoder.cpp Vulkan/VulkanVideoDevice.cpp)
+    list(APPEND SOURCES FFmpeg/FFmpegVulkanVideoDecoder.cpp Vulkan/VulkanExportableImagePool.cpp Vulkan/VulkanVideoDevice.cpp)
 endif()
 
 set(GENERATED_SOURCES

@@ -22,6 +22,7 @@
 #    include <LibMediaCodecs/VideoDecoder.h>
 #    include <LibMediaCodecs/VideoFramePool.h>
 #    include <LibMediaCodecs/VideoSurface.h>
+#    include <LibMediaCodecs/Vulkan/VulkanExportableImagePool.h>
 #    include <LibMediaCodecs/Vulkan/VulkanVideoDevice.h>
 #    include <LibThreading/Forward.h>
 
@@ -102,7 +103,7 @@ private:
     void complete_frames_until_exit();
     DecoderErrorOr<DecodedOutput> complete_frame(DecodingFrame&);
     DecoderErrorOr<void> prepare_to_copy_frames_from(AVFrame const&);
-    DecoderErrorOr<AVFrame*> copy_into_exportable_frame(AVFrame const&, VkSemaphore decoded_semaphore, u64 decoded_semaphore_value);
+    DecoderErrorOr<NonnullRefPtr<VulkanExportableImagePool::Image>> copy_into_exportable_image(AVFrame const&);
     DecoderErrorOr<NonnullRefPtr<VideoSurface>> surface_for_frame(AVFrame const&);
 
     FFmpegFunctions const& m_functions;
@@ -149,12 +150,9 @@ private:
     AVBufferRef* m_frames_context_of_surfaces { nullptr };
     HashMap<u64, NonnullRefPtr<VideoSurface>> m_surfaces_by_image;
 
-    // Only the completion thread uses these. The decoded frames' context is kept because the exportable frames'
-    // context creates its images with its video profile list.
-    AVBufferRef* m_frames_context_copied_from { nullptr };
-    AVBufferRef* m_exportable_frames_context { nullptr };
-    Vector<u64> m_exportable_drm_format_modifiers;
-    VkImageDrmFormatModifierListCreateInfoEXT m_exportable_drm_format_modifier_list {};
+    // Only the completion thread uses these. Frames decoded into images that do not export are copied into ones that
+    // do, which match the decoded images' format and size.
+    RefPtr<VulkanExportableImagePool> m_exportable_images;
     VkCommandPool m_copy_command_pool { VK_NULL_HANDLE };
     VkCommandBuffer m_copy_command_buffer { VK_NULL_HANDLE };
     bool m_copy_stalled { false };
