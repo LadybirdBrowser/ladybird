@@ -189,7 +189,8 @@ struct PendingLookup {
     class: Class,
     desired_types: Vec<ResourceType>,
     validate: bool,
-    responses: Vec<Option<Message>>,
+    // Each with when it arrived, which is when the lifetimes of its records start.
+    responses: Vec<Option<(Message, Instant)>>,
     validations: Vec<Option<ValidationResult>>,
 }
 
@@ -590,7 +591,7 @@ impl Resolver {
             Ok(message) => message,
             Err(error) => return self.settle_pending_lookup(key, Err(error), now),
         };
-        pending.responses[index] = Some(message);
+        pending.responses[index] = Some((message, now));
         if pending.responses.iter().any(Option::is_none) {
             return;
         }
@@ -606,7 +607,7 @@ impl Resolver {
                     rtype: *rtype,
                     class: pending.class,
                 };
-                let response = pending.responses[index].clone().expect("response");
+                let (response, _) = pending.responses[index].clone().expect("response");
                 self.validations.insert(
                     id,
                     PendingValidation {
@@ -699,6 +700,9 @@ impl Resolver {
         let mut status = SecurityStatus::Secure;
         for (index, rtype) in pending.desired_types.iter().enumerate() {
             let validation = pending.validations[index].take().expect("validation");
+            // NB: Validation leaves no record more time than its TTL from when the response arrived. Signatures that
+            //     expire sooner shorten that further, from the time of validation, which this counts from too.
+            let received_at = pending.responses[index].as_ref().expect("response").1;
             match validation.status {
                 dnssec::SecurityStatus::Bogus => return Err(Error::new("DNSSEC validation failed")),
                 dnssec::SecurityStatus::Insecure => status = SecurityStatus::Insecure,
@@ -706,14 +710,15 @@ impl Resolver {
             }
             let ttl_limit = alias_ttl(&validation.records);
             for record in validation.records {
-                entry.add_record(record, now);
+                entry.add_record(record, received_at);
             }
-            if let Some(response) = &pending.responses[index] {
-                add_negative_answer(&mut entry, *rtype, response, ttl_limit, now);
+            if let Some((response, _)) = &pending.responses[index] {
+                add_negative_answer(&mut entry, *rtype, response, ttl_limit, received_at);
             }
         }
         entry.finished_request();
         entry.set_security_status(status);
+        // NB: The lookup gets every record it fetched, even one that has expired since, as the cache does not.
         let result = entry.snapshot();
         let name = pending.name.clone();
         self.cache.insert(name, entry, now);
@@ -724,7 +729,7 @@ impl Resolver {
         let pending = self.pending_lookups.get_mut(key).expect("pending lookup");
         let mut entry = CacheEntry::new(pending.domain_name.clone());
         for (index, rtype) in pending.desired_types.iter().enumerate() {
-            let response = pending.responses[index].take().expect("response");
+            let (response, received_at) = pending.responses[index].take().expect("response");
             let question = Question {
                 name: pending.domain_name.clone(),
                 rtype: *rtype,
@@ -737,11 +742,12 @@ impl Resolver {
             let answers = response.answers_to(&question);
             let ttl_limit = alias_ttl(&answers);
             for record in answers {
-                entry.add_record(record, now);
+                entry.add_record(record, received_at);
             }
-            add_negative_answer(&mut entry, *rtype, &response, ttl_limit, now);
+            add_negative_answer(&mut entry, *rtype, &response, ttl_limit, received_at);
         }
         entry.finished_request();
+        // NB: The lookup gets every record it fetched, even one that has expired since, as the cache does not.
         let result = entry.snapshot();
         let name = pending.name.clone();
         self.cache.insert(name, entry, now);

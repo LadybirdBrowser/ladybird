@@ -1128,3 +1128,75 @@ fn system_resolver_answers_from_before_a_reset_stay_out_of_the_cache() {
     assert!(!harness.done.contains_key(&after));
     assert_eq!(harness.connects.len(), 1);
 }
+
+#[test]
+fn record_lifetimes_start_when_their_answer_arrives() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    let writes = harness.take_writes();
+    let ttl_10 = |response: &mut Message| {
+        for answer in &mut response.answers {
+            answer.ttl = 10;
+        }
+    };
+
+    let (connection, a_query) = &writes[0];
+    harness.receive(*connection, &respond(a_query, ttl_10));
+    harness.now += Duration::from_secs(8);
+    let (connection, aaaa_query) = &writes[1];
+    harness.receive(*connection, &respond(aaaa_query, ttl_10));
+    assert_eq!(harness.addresses(lookup).len(), 2);
+
+    // The A record has 2 seconds left, not 10.
+    harness.now += Duration::from_secs(2);
+    harness.lookup("example.com");
+    assert_eq!(harness.take_writes().len(), 2);
+}
+
+#[test]
+fn zero_ttl_answers_reach_the_lookup_that_fetched_them_alongside_later_ones() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    let writes = harness.take_writes();
+    let zero_ttl = |response: &mut Message| {
+        for answer in &mut response.answers {
+            answer.ttl = 0;
+        }
+    };
+    let (connection, a_query) = &writes[0];
+    harness.receive(*connection, &respond(a_query, zero_ttl));
+    harness.now += Duration::from_millis(5);
+    let (connection, aaaa_query) = &writes[1];
+    harness.receive(*connection, &respond(aaaa_query, |_| {}));
+    assert_eq!(harness.addresses(lookup).len(), 2);
+
+    // The cache only has the AAAA record to offer.
+    harness.lookup("example.com");
+    assert_eq!(harness.take_writes().len(), 2);
+}
+
+#[test]
+fn validated_record_lifetimes_start_when_the_answer_arrived() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    let lookup = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+
+    // The answer comes in at once, and what validating it takes comes in much later.
+    let (connection, query) = harness.take_writes().remove(0);
+    let query = Message::from_wire(&query).unwrap();
+    let mut response = server.answer(&query.questions[0]);
+    response.header.id = query.header.id;
+    harness.receive(connection, &response.to_wire().unwrap());
+    harness.now += Duration::from_secs(250);
+    serve_signed_zones(&mut harness, &mut server);
+    assert!(harness.result(lookup).is_ok());
+
+    // The A record's 300 seconds count from when it arrived.
+    harness.now += Duration::from_secs(51);
+    harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    assert!(!harness.writes.is_empty());
+}
