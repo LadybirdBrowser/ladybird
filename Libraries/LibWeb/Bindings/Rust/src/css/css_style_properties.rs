@@ -16,7 +16,7 @@ use libjs_rust::api::{
 use libweb_rust::css_property_names;
 
 use super::css_style_declaration::CSSStyleDeclaration;
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::interface::{Inherits, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
@@ -152,15 +152,9 @@ impl CSSStyleProperties {
 }
 
 /// A new object that owns the declaration block, which LibWeb created.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `declaration` the live cell of a Web::CSS::CSSStyleProperties.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_properties_create(vm: *mut c_void, declaration: *mut c_void) {
-    assert!(!vm.is_null(), "C++ passes the VM");
-    // SAFETY: The caller passes the live VM and a live cell.
-    let (vm, declaration) = unsafe { (&*vm.cast::<Vm>(), CppCell::from_raw(declaration)) };
+pub extern "C" fn web_css_style_properties_create(vm: &Vm, declaration: &LentCppCell<cpp_class::CSSStyleProperties>) {
+    let declaration = CppCell::from_lent(declaration);
     let object = allocate(vm, |_| CSSStyleProperties {
         declaration: CSSStyleDeclaration::new(declaration),
     });

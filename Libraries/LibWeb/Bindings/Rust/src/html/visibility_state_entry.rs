@@ -56,11 +56,11 @@ impl VisibilityStateEntry {
 /// `vm` must be the live VM, and `visibility_state` a raw AK::Utf16String that C++ hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_html_create_visibility_state_entry(
-    vm: *mut c_void,
+    vm: &Vm,
     visibility_state: usize,
     timestamp: f64,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and hands over the string.
-    let (vm, visibility_state) = unsafe { (&*vm.cast::<Vm>(), Utf16String::from_raw_owned(visibility_state)) };
+    let visibility_state = unsafe { Utf16String::from_raw_owned(visibility_state) };
     cell_into_abi(VisibilityStateEntry::create(vm, visibility_state, timestamp))
 }

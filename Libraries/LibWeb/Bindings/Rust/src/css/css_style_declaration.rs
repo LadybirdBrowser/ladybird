@@ -15,7 +15,7 @@ use libjs_rust::api::Trace;
 use super::css_rule::AnyCSSRule;
 use super::exports::rule_from_abi;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Interface, Ref, Wrappable, cell_into_abi};
+use crate::bindings::interface::{Interface, InterfaceCell, Ref, Wrappable, cell_into_abi};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
@@ -216,6 +216,6 @@ impl CSSStyleDeclaration {
             return Ok(None);
         }
         // SAFETY: LibWeb returns the live cell of a rule.
-        Ok(Some(unsafe { rule_from_abi(rule) }))
+        Ok(Some(unsafe { rule_from_abi(InterfaceCell::from_raw(rule)) }))
     }
 }

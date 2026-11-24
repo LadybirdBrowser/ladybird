@@ -14,7 +14,7 @@ use libjs_rust::api::{Gc, MarkedVec, Object, Trace};
 use crate::animations::animatable::{self, GetAnimationsOptions, UnrestrictedDoubleOrKeyframeAnimationOptions};
 use crate::animations::animation::AnyAnimation;
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
@@ -59,6 +59,10 @@ unsafe extern "C" fn on_attribute(callback: *mut c_void, name: usize, value: usi
 pub(crate) struct CppElement(CppCell);
 
 impl CppElement {
+    pub(crate) fn from_lent(element: &LentCppCell<cpp_class::Element>) -> Self {
+        Self(CppCell::from_lent(element))
+    }
+
     /// # Safety
     ///
     /// `element` must be a live Element.

@@ -8,13 +8,12 @@
 //! PerformanceEntry, https://w3c.github.io/performance-timeline/#the-performanceentry-interface
 
 use core::cell::Cell;
-use core::ffi::c_void;
 
 use ak::Utf16String;
 use libjs_rust::api::{MarkedVec, ThrowCompletionOr, Trace, Value};
 
 use crate::bindings::conversions::ToJs;
-use crate::bindings::interface::{Inherits, Ref, Wrappable, cell_from_abi, cell_if_abi, wrap};
+use crate::bindings::interface::{Inherits, InterfaceCell, Ref, Wrappable, wrap};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::event_timing::performance_event_timing::PerformanceEventTiming;
 use crate::html::visibility_state_entry::VisibilityStateEntry;
@@ -131,35 +130,29 @@ impl ToJs for AnyPerformanceEntry {
 }
 
 impl AnyPerformanceEntry {
-    /// # Safety
-    ///
-    /// `cell` must be the live cell of an object of an interface that inherits from PerformanceEntry.
-    pub(crate) unsafe fn from_abi(cell: *mut c_void) -> Self {
-        // SAFETY: The caller passes a live cell.
-        unsafe {
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::LargestContentfulPaint(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformanceEventTiming(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformanceMark(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformanceMeasure(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformanceNavigationTiming(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformancePaintTiming(object);
-            }
-            if let Some(object) = cell_if_abi(cell) {
-                return Self::PerformanceResourceTiming(object);
-            }
-            Self::VisibilityStateEntry(cell_from_abi(cell))
+    pub(crate) fn from_abi(cell: &InterfaceCell) -> Self {
+        if let Some(object) = cell.object_if() {
+            return Self::LargestContentfulPaint(object);
         }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformanceEventTiming(object);
+        }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformanceMark(object);
+        }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformanceMeasure(object);
+        }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformanceNavigationTiming(object);
+        }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformancePaintTiming(object);
+        }
+        if let Some(object) = cell.object_if() {
+            return Self::PerformanceResourceTiming(object);
+        }
+        Self::VisibilityStateEntry(cell.object())
     }
 
     pub(crate) fn entry(&self) -> &PerformanceEntry {

@@ -6,11 +6,9 @@
 
 //! TrustedHTMLParserOptions, https://w3c.github.io/trusted-types/dist/spec/#trusted-html-parser-options
 
-use core::ffi::c_void;
-
 use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate};
 use crate::html::sanitizer_configuration::SanitizerConfiguration;
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trusted-html-parser-options
@@ -56,12 +54,7 @@ impl TrustedHTMLParserOptions {
 }
 
 /// The runScripts of the TrustedHTMLParserOptions.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of a TrustedHTMLParserOptions.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_trusted_html_parser_options_run_scripts(cell: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell.
-    unsafe { cell_from_abi::<TrustedHTMLParserOptions>(cell) }.run_scripts()
+pub extern "C" fn web_rust_trusted_types_trusted_html_parser_options_run_scripts(cell: &InterfaceCell) -> bool {
+    cell.object::<TrustedHTMLParserOptions>().run_scripts()
 }

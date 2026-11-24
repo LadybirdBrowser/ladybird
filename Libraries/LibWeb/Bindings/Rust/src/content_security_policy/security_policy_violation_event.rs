@@ -15,7 +15,7 @@ use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
 use crate::bindings::conversions::UsvString;
 use crate::bindings::event_target::CppEvent;
-use crate::bindings::interface::{Ref, Wrappable, allocate, realm_arguments};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -197,13 +197,11 @@ impl SecurityPolicyViolationEvent {
 /// The VM and the realm must be live. The type and the strings of the dictionary are lent for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_security_policy_violation_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     r#type: usize,
     event_init: &FfiSecurityPolicyViolationEventInit,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     // SAFETY: The caller lends each string for the call.
     let string = |raw| unsafe { Utf16String::from_raw_borrowed(raw) };
     let usv_string = |raw| UsvString::from_utf16_string(&string(raw));

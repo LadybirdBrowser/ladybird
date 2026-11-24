@@ -14,7 +14,7 @@ use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, Realm, Trace, Utf16View, Value, Vm, utf16_formatted};
 
 use crate::bindings::global_object::relevant_global_object;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, implementation_if_wrapper};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_into_abi, implementation_if_wrapper};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::global_event_handlers::is_event_handler_content_attribute;
 use crate::trusted_types::require_trusted_types_for_directive::should_trusted_type_policy_creation_be_blocked_by_content_security_policy;
@@ -374,31 +374,18 @@ pub(crate) fn get_trusted_type_data_for_attribute(
 }
 
 /// A new TrustedTypePolicyFactory for the global object of the realm.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, and `realm` the live realm of a Window or a WorkerGlobalScope.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_create_trusted_type_policy_factory(
-    vm: *mut c_void,
-    realm: *mut c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { crate::bindings::interface::realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_trusted_types_create_trusted_type_policy_factory(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     cell_into_abi(TrustedTypePolicyFactory::create(vm, realm))
 }
 
 /// The factory's default policy, or null.
-///
-/// # Safety
-///
-/// `factory` must be the live cell of a TrustedTypePolicyFactory.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_trusted_type_policy_factory_default_policy(
-    factory: *mut c_void,
+pub extern "C" fn web_rust_trusted_types_trusted_type_policy_factory_default_policy(
+    factory: &InterfaceCell,
 ) -> *mut c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { cell_from_abi::<TrustedTypePolicyFactory>(factory) }
+    factory
+        .object::<TrustedTypePolicyFactory>()
         .default_policy_value()
         .map_or(core::ptr::null_mut(), cell_into_abi)
 }

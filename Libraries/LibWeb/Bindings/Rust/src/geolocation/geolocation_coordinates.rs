@@ -102,10 +102,8 @@ impl GeolocationCoordinates {
 /// `vm` must be the live VM, and `data` the data that the call lends.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_geolocation_create_geolocation_coordinates(
-    vm: *mut c_void,
+    vm: &Vm,
     data: &CoordinatesData,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
     cell_into_abi(GeolocationCoordinates::create(vm, data))
 }

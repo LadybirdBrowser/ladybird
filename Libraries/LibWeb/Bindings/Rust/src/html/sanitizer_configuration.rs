@@ -1726,7 +1726,6 @@ impl ConfigInputAbi<'_> {
 pub(crate) unsafe fn input_from_abi(kind: SanitizerInputKind, input: *const c_void) -> SanitizerInput {
     match kind {
         SanitizerInputKind::DefaultPreset => SanitizerInput::SanitizerPresets(SanitizerPresets::Default),
-        // SAFETY: C++ passes a live view whose buffers and strings outlive this conversion.
         SanitizerInputKind::Config => {
             SanitizerInput::SanitizerConfig(unsafe { (&*input.cast::<ConfigInputAbi<'_>>()).config() })
         }

@@ -15,7 +15,7 @@ use libjs_rust::api::{Gc, Object, Realm, Trace, Vm};
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::CppEvent;
-use crate::bindings::interface::{Ref, Wrappable, allocate, realm_arguments};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -108,16 +108,14 @@ impl PictureInPictureEvent {
 /// The VM, the realm and the window must be live. The type is lent for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_picture_in_picture_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     r#type: usize,
     bubbles: bool,
     cancelable: bool,
     composed: bool,
     window: *mut c_void,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let event_init = EventInit {
         bubbles,
         cancelable,

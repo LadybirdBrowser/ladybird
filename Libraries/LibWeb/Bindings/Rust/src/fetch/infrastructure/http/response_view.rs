@@ -10,7 +10,7 @@ use ak::Utf16String;
 use libjs_rust::api::Trace;
 use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 
 unsafe extern "C" {
     fn web_fetch_response_is_network_error(response: *mut c_void) -> bool;
@@ -66,12 +66,8 @@ unsafe fn string_if_not_null(string: usize) -> Option<Utf16String> {
 pub(crate) struct CppResponseView(CppCell);
 
 impl CppResponseView {
-    /// # Safety
-    ///
-    /// `response` must be a live ResponseView.
-    pub(crate) unsafe fn from_raw(response: *mut c_void) -> Self {
-        // SAFETY: The caller passes a live ResponseView.
-        Self(unsafe { CppCell::from_raw(response) })
+    pub(crate) fn from_lent(response: &LentCppCell<cpp_class::ResponseView>) -> Self {
+        Self(CppCell::from_lent(response))
     }
 
     pub(crate) fn as_ptr(&self) -> *mut c_void {

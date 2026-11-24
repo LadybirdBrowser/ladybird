@@ -58,7 +58,6 @@ impl InternalAnimationTimeline {
         // NB: The animations the timeline updates stay alive through it, which can run script.
         let roots: RefCell<Vec<CellRoot<c_void>>> = RefCell::default();
         let keep_alive = |cell: NonNull<c_void>| {
-            // SAFETY: The record names a live cell of the host.
             roots
                 .borrow_mut()
                 .push(CellRoot::new(unsafe { Gc::from_non_null(cell) }));
@@ -85,9 +84,7 @@ impl InternalAnimationTimeline {
 ///
 /// `vm` must be the live VM, and `document` a live document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_internal_animation_timeline_create(vm: *mut c_void, document: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
+pub unsafe extern "C" fn web_internal_animation_timeline_create(vm: &Vm, document: *mut c_void) -> *mut c_void {
     let document = NonNull::new(document).expect("a timeline is associated with a document");
     let record = TimelineRecordRef::new(document, TimelineDescription::Internal);
     let crate::animations::animation_timeline::AnyAnimationTimeline::InternalAnimationTimeline(object) =

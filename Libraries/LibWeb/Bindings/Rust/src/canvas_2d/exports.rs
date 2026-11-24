@@ -17,7 +17,7 @@ use libgfx_rust::{IntRect, IntSize};
 use super::canvas::Canvas;
 use super::context::{ContextParameters, ContextState, Offscreen, OnScreen, RenderingContext2D};
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::interface::{Interface, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{Interface, InterfaceCell, allocate, cell_into_abi};
 use crate::html::canvas_draw_image::CanvasImageSource;
 use crate::html::canvas_pattern::read_back_current_video_frame;
 use crate::html::canvas_rendering_context2d_settings::{CanvasColorType, CanvasRenderingContext2DSettings};
@@ -200,12 +200,11 @@ pub extern "C" fn web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(conte
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_canvas_2d_context_draw_image_bitmap(
     context: &ContextCell,
-    image_bitmap: *mut c_void,
+    image_bitmap: &InterfaceCell,
     x: f32,
     y: f32,
 ) -> bool {
-    // SAFETY: The caller passes a live cell of an ImageBitmap.
-    let image_bitmap = unsafe { cell_from_abi::<ImageBitmap>(image_bitmap) };
+    let image_bitmap = image_bitmap.object::<ImageBitmap>();
     let image = CanvasImageSource::ImageBitmap(image_bitmap);
     // An ImageBitmap has a size of its own, so no default object size applies to it.
     let (width, height) = image.size(IntSize::default());

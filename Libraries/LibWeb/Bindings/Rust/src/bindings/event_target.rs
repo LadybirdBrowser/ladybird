@@ -17,7 +17,7 @@ use libjs_rust::api::{FunctionObject, Gc, Realm, Trace, Value};
 
 use crate::bindings::CallContext;
 use crate::bindings::callback::CallbackInterface;
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::interface::{Interface, Ref, Wrappable, cell_from_abi, cell_into_abi};
 
 unsafe extern "C" {
@@ -102,6 +102,11 @@ impl CppEventTarget {
     pub(crate) fn new() -> Self {
         // SAFETY: LibWeb returns a new, live EventTarget.
         Self(unsafe { CppCell::from_raw(web_bindings_create_event_target()) })
+    }
+
+    /// An EventTarget of LibWeb's C++ code, which this keeps alive.
+    pub(crate) fn from_lent(event_target: &LentCppCell<cpp_class::EventTarget>) -> Self {
+        Self(CppCell::from_lent(event_target))
     }
 
     /// An EventTarget of LibWeb's C++ code, which this keeps alive.
@@ -225,12 +230,8 @@ impl CppEventTarget {
 pub(crate) struct CppEvent(CppCell);
 
 impl CppEvent {
-    /// # Safety
-    ///
-    /// `event` must be a live Event.
-    pub(crate) unsafe fn from_raw(event: *mut c_void) -> Self {
-        // SAFETY: The caller passes a live Event.
-        Self(unsafe { CppCell::from_raw(event) })
+    pub(crate) fn from_lent(event: &LentCppCell<cpp_class::Event>) -> Self {
+        Self(CppCell::from_lent(event))
     }
 
     pub(crate) fn create(realm: Gc<Realm>, r#type: &str, bubbles: bool, cancelable: bool, composed: bool) -> Self {

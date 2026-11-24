@@ -15,7 +15,7 @@ use crate::bindings::callback::PromiseCallbackFunction;
 use crate::bindings::conversions::ToJs;
 use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject, relevant_settings_object};
 use crate::bindings::global_object::window_from_global_object;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi, realm_arguments, wrap};
+use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi, wrap};
 use crate::bindings::promise::{
     WebIdlPromise, create_promise, create_rejected_promise, create_rejected_promise_from_exception, react_to_promise,
     reject_promise_with_exception, resolve_promise,
@@ -517,12 +517,7 @@ impl LockManager {
     }
 }
 
-/// # Safety
-///
-/// The pointers must be the live VM and a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_web_locks_create_lock_manager(vm: *mut c_void, realm: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+pub extern "C" fn web_rust_web_locks_create_lock_manager(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
     cell_into_abi(LockManager::create(vm, realm))
 }

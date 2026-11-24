@@ -10,10 +10,9 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, ThrowCompletionOr, Value, Vm};
+use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Realm, ThrowCompletionOr, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
-use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
     IPCSerializationRecord, ReceivedIPCSerializationRecord, SerializedTransferRecord, StorageSerializationRecord,
@@ -70,13 +69,11 @@ fn structured_serialize_in_current_realm<'vm>(
 /// The pointers must be the VM and a record that C++ lends. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize(
-    vm: *mut c_void,
+    vm: &Vm,
     value: u64,
     allow_shared_array_buffers: u8,
     record: *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
     // SAFETY: The caller passes a live value, and lends the record.
     let (value, record) = unsafe { (Value::from_raw(value), IPCSerializationRecord::from_raw(record)) };
     let serialized = StructuredSerializeWriter::new(vm, SerializationType::Ipc);
@@ -100,12 +97,10 @@ pub unsafe extern "C" fn web_rust_structured_serialize(
 /// The pointers must be the VM and a record that C++ lends. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
-    vm: *mut c_void,
+    vm: &Vm,
     value: u64,
     record: *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
     // SAFETY: The caller passes a live value, and lends the record.
     let (value, record) = unsafe { (Value::from_raw(value), StorageSerializationRecord::from_raw(record)) };
     let serialized = StructuredSerializeWriter::new(vm, SerializationType::Storage);
@@ -129,12 +124,10 @@ pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
 /// The pointers must be the VM, a live realm, and a record that C++ lends.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_deserialize(
-    vm: *mut c_void,
-    target_realm: *mut c_void,
+    vm: &Vm,
+    target_realm: Gc<Realm>,
     record: *const c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
     // SAFETY: The caller lends the record.
     let record = unsafe { ReceivedIPCSerializationRecord::from_raw(record) };
@@ -145,18 +138,12 @@ pub unsafe extern "C" fn web_rust_structured_deserialize(
 
 /// StructuredDeserialize of the bytes of the storage record in the realm, which throws a "DataCloneError" DOMException
 /// for bytes after its value.
-///
-/// # Safety
-///
-/// The pointers must be the VM and a live realm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_structured_deserialize_for_storage(
-    vm: *mut c_void,
-    target_realm: *mut c_void,
+pub extern "C" fn web_rust_structured_deserialize_for_storage(
+    vm: &Vm,
+    target_realm: Gc<Realm>,
     data: ak::Span<'_, u8>,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
     let result = StructuredSerializeReader::new_storage(target_realm, data.as_slice()).and_then(|serialized| {
         let memory = DeserializationMemory::new(vm);
@@ -172,15 +159,13 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_for_storage(
 /// The pointers must be the VM, a live realm, and `count` live objects. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     value: u64,
     transfer_list: *const *mut c_void,
     count: usize,
     out_record: &mut *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let cx = CallContext::new(vm, realm);
     // SAFETY: The caller passes a live value.
     let value = unsafe { Value::from_raw(value) };
@@ -209,13 +194,11 @@ pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
 /// The pointers must be the VM, a live realm, and a record and a list that C++ lends.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer(
-    vm: *mut c_void,
-    target_realm: *mut c_void,
+    vm: &Vm,
+    target_realm: Gc<Realm>,
     record: *mut c_void,
     transferred_values: *mut c_void,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
     // SAFETY: The caller lends the record and the list.
     let (record, transferred_values) = unsafe {

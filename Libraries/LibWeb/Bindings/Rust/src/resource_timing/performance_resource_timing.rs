@@ -14,7 +14,7 @@ use libjs_rust::api::{Gc, MarkedVec, Realm, Trace, Vm};
 
 use crate::bindings::conversions::ByteString;
 use crate::bindings::environment_settings_object::relevant_settings_object;
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, realm_arguments};
+use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::fetch::infrastructure::fetch_timing_info::CppFetchTimingInfo;
 use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, PerformanceEntry};
@@ -499,8 +499,8 @@ fn mark_resource_timing(
 /// over, and `initiator_type` and `delivery_type` raw AK::Utf16FlyStrings that LibWeb lends for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_resource_timing_mark_resource_timing(
-    vm: *mut c_void,
-    realm: *mut c_void,
+    vm: &Vm,
+    realm: Gc<Realm>,
     timing_info: *mut c_void,
     requested_url: usize,
     initiator_type: usize,
@@ -509,8 +509,6 @@ pub unsafe extern "C" fn web_rust_resource_timing_mark_resource_timing(
     response_status: u16,
     delivery_type: usize,
 ) {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     // SAFETY: The caller hands over a reference to the timing info and the strings, and lends the fly strings.
     unsafe {
         mark_resource_timing(

@@ -22,7 +22,7 @@ use super::media_list::MediaList;
 use super::style_sheet::StyleSheet;
 use crate::bindings::conversions::UsvString;
 use crate::bindings::cpp_cell::CppCell;
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_from_abi};
+use crate::bindings::interface::{Inherits, InterfaceCell, Ref, Wrappable, allocate, cell_from_abi};
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
@@ -139,7 +139,7 @@ impl CSSStyleSheet {
         // SAFETY: The cell is live.
         let rule = unsafe { web_css_sheet_state_owner_rule(self.state()) };
         // SAFETY: LibWeb returns the live cell of a CSSImportRule, or null.
-        Ok((!rule.is_null()).then(|| unsafe { rule_from_abi(rule) }))
+        Ok((!rule.is_null()).then(|| unsafe { rule_from_abi(InterfaceCell::from_raw(rule)) }))
     }
 
     // https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssrules

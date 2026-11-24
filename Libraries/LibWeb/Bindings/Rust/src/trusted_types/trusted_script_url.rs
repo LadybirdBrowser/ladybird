@@ -13,7 +13,7 @@ use ak::Utf16String;
 use libjs_rust::api::{Trace, Vm};
 
 use crate::bindings::conversions::UsvString;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::{CallContext, WebIdlResult};
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trused-script-url
@@ -53,19 +53,14 @@ impl TrustedScriptURL {
 ///
 /// `vm` must be the live VM, and `data` a raw string that C++ hands over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_create_trusted_script_url(vm: *mut c_void, data: usize) -> *mut c_void {
+pub unsafe extern "C" fn web_rust_trusted_types_create_trusted_script_url(vm: &Vm, data: usize) -> *mut c_void {
     // SAFETY: The caller passes the live VM and hands over the string.
-    let (vm, data) = unsafe { (&*vm.cast::<Vm>(), Utf16String::from_raw_owned(data)) };
+    let data = unsafe { Utf16String::from_raw_owned(data) };
     cell_into_abi(TrustedScriptURL::create(vm, data))
 }
 
 /// The associated data of the TrustedScriptURL, a raw AK::Utf16String that the call lends for as long as the object lives.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of a TrustedScriptURL.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_trusted_script_url_data(cell: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell.
-    unsafe { cell_from_abi::<TrustedScriptURL>(cell) }.data().raw_identity()
+pub extern "C" fn web_rust_trusted_types_trusted_script_url_data(cell: &InterfaceCell) -> usize {
+    cell.object::<TrustedScriptURL>().data().raw_identity()
 }

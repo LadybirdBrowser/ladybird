@@ -10,6 +10,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, Object, Trace, Visitor, Vm};
+use libjs_rust::api::{ThrowCompletionOr, Value};
 use libweb_rust::web_animations::{TimelineInterfaceKind, TimelineRecordRef};
 
 use super::animation_playback_event::time_value_as_css_numberish;
@@ -19,11 +20,9 @@ use super::view_timeline::ViewTimeline;
 use crate::bindings::conversions::CppInterface;
 use core::ops::Deref;
 
-use libjs_rust::api::{ThrowCompletionOr, Value};
-
 use crate::bindings::conversions::ToJs;
 use crate::bindings::interface::{
-    Inherits, Interface, Ref, Wrappable, allocate, cell_from_abi, cell_if_abi, cell_into_abi,
+    Inherits, Interface, InterfaceCell, Ref, Wrappable, allocate, cell_if_abi, cell_into_abi,
 };
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::css::css_numeric_value::CSSNumberish;
@@ -104,7 +103,7 @@ pub(crate) fn did_create_timeline(cell: *mut c_void) {
 pub(crate) fn timeline_object_of_record(vm: &Vm, record: &TimelineRecordRef) -> AnyAnimationTimeline {
     if let Some(cell) = record.object_cell() {
         // SAFETY: The object cell of a record is the live cell of its object.
-        return unsafe { timeline_object(cell.as_ptr()) };
+        return unsafe { timeline_object(InterfaceCell::from_raw(cell.as_ptr())) };
     }
     let timeline = AnimationTimeline::new(record.clone());
     let cell = match record.kind() {
@@ -117,7 +116,7 @@ pub(crate) fn timeline_object_of_record(vm: &Vm, record: &TimelineRecordRef) -> 
     };
     did_create_timeline(cell);
     // SAFETY: The cell is that of the new object.
-    unsafe { timeline_object(cell) }
+    unsafe { timeline_object(InterfaceCell::from_raw(cell)) }
 }
 
 /// The part as an AnimationTimeline of the timeline whose cell the host names.
@@ -208,25 +207,18 @@ impl ToJs for AnyAnimationTimeline {
 }
 
 /// The object of the timeline whose cell the host names.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of a timeline.
-pub(crate) unsafe fn timeline_object(cell: *mut c_void) -> AnyAnimationTimeline {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        if let Some(object) = cell_if_abi::<DocumentTimeline>(cell) {
-            return AnyAnimationTimeline::DocumentTimeline(object);
-        }
-        if let Some(object) = cell_if_abi::<ViewTimeline>(cell) {
-            return AnyAnimationTimeline::ViewTimeline(object);
-        }
-        if let Some(object) = cell_if_abi::<ScrollTimeline>(cell) {
-            return AnyAnimationTimeline::ScrollTimeline(object);
-        }
-        if let Some(object) = cell_if_abi::<InternalAnimationTimeline>(cell) {
-            return AnyAnimationTimeline::InternalAnimationTimeline(object);
-        }
-        AnyAnimationTimeline::AnimationTimeline(cell_from_abi::<AnimationTimeline>(cell))
+pub(crate) fn timeline_object(cell: &InterfaceCell) -> AnyAnimationTimeline {
+    if let Some(object) = cell.object_if::<DocumentTimeline>() {
+        return AnyAnimationTimeline::DocumentTimeline(object);
     }
+    if let Some(object) = cell.object_if::<ViewTimeline>() {
+        return AnyAnimationTimeline::ViewTimeline(object);
+    }
+    if let Some(object) = cell.object_if::<ScrollTimeline>() {
+        return AnyAnimationTimeline::ScrollTimeline(object);
+    }
+    if let Some(object) = cell.object_if::<InternalAnimationTimeline>() {
+        return AnyAnimationTimeline::InternalAnimationTimeline(object);
+    }
+    AnyAnimationTimeline::AnimationTimeline(cell.object::<AnimationTimeline>())
 }

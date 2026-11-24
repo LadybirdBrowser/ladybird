@@ -11,7 +11,7 @@ use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Trace, Vm};
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::Wrappable;
 use crate::bindings::realm_data::realm_data;
@@ -109,6 +109,10 @@ pub(crate) fn active_windows(vm: &Vm) -> MarkedVec<'_, CppWindow> {
 }
 
 impl CppWindow {
+    pub(crate) fn from_lent(window: &LentCppCell<cpp_class::Window>) -> Self {
+        Self(CppCell::from_lent(window))
+    }
+
     /// # Safety
     ///
     /// `window` must be a live Window.

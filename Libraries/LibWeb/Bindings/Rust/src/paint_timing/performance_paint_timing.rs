@@ -70,14 +70,14 @@ impl PerformancePaintTiming {
 /// `vm` must be the live VM, and `paint_type` a raw AK::Utf16String that C++ hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_paint_timing_create_performance_paint_timing(
-    vm: *mut c_void,
+    vm: &Vm,
     paint_type: usize,
     rendering_update_end_time: f64,
     has_presentation_time: bool,
     presentation_time: f64,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and hands over the string.
-    let (vm, paint_type) = unsafe { (&*vm.cast::<Vm>(), Utf16String::from_raw_owned(paint_type)) };
+    let paint_type = unsafe { Utf16String::from_raw_owned(paint_type) };
     let paint_timing_info =
         PaintTimingInfo::from_abi(rendering_update_end_time, has_presentation_time, presentation_time);
     cell_into_abi(PerformancePaintTiming::create(vm, paint_type, paint_timing_info))
