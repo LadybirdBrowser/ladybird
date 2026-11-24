@@ -46,7 +46,7 @@ Optional<String> resolve_named_html_entity(StringView entity_name)
 
 XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
     : m_document(document)
-    , m_current_node(m_document)
+    , m_current_node(m_document.ptr())
     , m_scripting_support(scripting_support)
 {
     m_namespace_stack.append({ {}, 1 });
@@ -65,7 +65,7 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
         return;
     }
 
-    auto document_type = DOM::DocumentType::create(m_document);
+    auto document_type = DOM::DocumentType::create(*m_document);
     auto name = Utf16FlyString::from_utf8(doctype.type.view());
     document_type->set_name(name);
 
@@ -122,7 +122,7 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
 
     auto qualified_name = qualified_name_or_error.value();
 
-    auto node_or_error = DOM::create_element(m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix());
+    auto node_or_error = DOM::create_element(*m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix());
 
     if (node_or_error.is_error()) {
         m_has_error = true;
@@ -136,14 +136,14 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
     // FIXME: If the parser was created as part of the XML fragment parsing algorithm, then the element must be marked as "already started" also.
     // AD-HOC: SVG script elements are processed like HTML script elements, since SVG defines them as equivalent.
     if (auto* script_element = as_if<HTML::HTMLOrSVGScriptElement>(*node); script_element && m_scripting_support == XMLScriptingSupport::Enabled) {
-        script_element->set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
+        script_element->set_parser_document(Badge<XMLDocumentBuilder> {}, *m_document);
         script_element->set_force_async(Badge<XMLDocumentBuilder> {}, false);
     }
 
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
     //         This is used for the script-blocking and render-blocking logic.
     if (auto* link_element = as_if<HTML::HTMLLinkElement>(*node)) {
-        link_element->set_parser_document(Badge<XMLDocumentBuilder> {}, m_document);
+        link_element->set_parser_document(Badge<XMLDocumentBuilder> {}, *m_document);
         auto has_disabled_attribute = any_of(attributes, [](auto const& attribute) { return attribute.name == "disabled"sv; });
         link_element->set_was_enabled_when_created_by_parser(Badge<XMLDocumentBuilder> {}, !has_disabled_attribute);
     }
@@ -293,7 +293,7 @@ void XMLDocumentBuilder::document_end()
     m_open_elements.clear();
     m_current_node = nullptr;
 
-    HTML::HTMLParser::the_end(m_document, nullptr);
+    HTML::HTMLParser::the_end(*m_document, nullptr);
 }
 
 Optional<Utf16FlyString> XMLDocumentBuilder::namespace_for_name(Utf16FlyString const& name)

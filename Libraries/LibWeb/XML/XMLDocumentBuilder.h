@@ -48,7 +48,7 @@ private:
 
     Optional<Utf16FlyString> namespace_for_name(Utf16FlyString const&);
 
-    GC::RawRef<DOM::Document> m_document;
+    GC::Root<DOM::Document> m_document;
     GC::RootVector<GC::Ref<DOM::Node>> m_open_elements;
     GC::RawPtr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
