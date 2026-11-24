@@ -131,7 +131,7 @@ public:
     bool has_date_picker() const;
     bool handle_date_time_field_key(UIEvents::KeyCode, u32 modifiers, u32 code_point);
     bool handle_range_key(UIEvents::KeyCode, u32 modifiers);
-    void start_slider_drag(double client_x);
+    void start_slider_drag(CSSPixelPoint viewport_position);
     void activate_last_date_time_field();
     void update_date_time_fields_for_step();
 
@@ -470,10 +470,11 @@ private:
     void update_slider_ticks();
     GC::Ptr<DOM::Element> m_slider_runnable_track;
     GC::Ptr<DOM::Element> m_slider_progress_element;
+    GC::Ptr<DOM::Element> m_slider_thumb_container;
     GC::Ptr<DOM::Element> m_slider_thumb;
     GC::Ptr<DOM::Element> m_slider_ticks_element;
     Vector<double> m_slider_tick_positions;
-    void set_slider_value_from_client_x(double client_x);
+    void set_slider_value_from_position(CSSPixelPoint viewport_position);
     void end_slider_drag();
     GC::Ptr<DOM::IDLEventListener> m_slider_drag_mousemove_listener;
     GC::Ptr<DOM::IDLEventListener> m_slider_drag_mouseup_listener;

@@ -10,8 +10,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div> at [63.3125,10] flex-container(row) [0+0+0 342.6875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [63.3125,16] positioned flex-item [0+0+0 342.6875 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
               BlockContainer <div> at [63.3125,16] positioned [0+0+0 171.34375 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-              BlockContainer <div> at [234.65625,18] positioned [171.34375+0+0 16 0+0+155.34375] [0+0+0 16 0+0+0] children: not-inline
+              Box <div> at [63.3125,16] [0+0+0 342.6875 0+0+0] [0+0+0 4 0+0+0] [GFC] children: not-inline
+                BlockContainer <div> at [226.65625,10] positioned [0+0+0 16 0+0+0] [-6+0+0 16 0+0+-6] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)
-  SC for BlockContainer<DIV> [234.65625,18 16x16] (z-index: auto), has_transform

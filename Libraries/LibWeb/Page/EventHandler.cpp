@@ -427,13 +427,13 @@ static bool press_opens_context_menu(u32 button, [[maybe_unused]] u32 modifiers)
 
 // NB: Pressing a range input with the primary button starts dragging its thumb, unless the press opens the context
 //     menu.
-static void start_slider_drag_for_press(DOM::Node& pressed_node, CSSPixels client_x, u32 button, u32 modifiers)
+static void start_slider_drag_for_press(DOM::Node& pressed_node, CSSPixelPoint viewport_position, u32 button, u32 modifiers)
 {
     if (button != UIEvents::MouseButton::Primary || press_opens_context_menu(button, modifiers))
         return;
     for (auto* ancestor = &pressed_node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (auto* input = as_if<HTML::HTMLInputElement>(*ancestor)) {
-            input->start_slider_drag(client_x.to_double());
+            input->start_slider_drag(viewport_position);
             return;
         }
     }
@@ -579,7 +579,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     if (!pressed_on_chrome) {
         auto& pressed_node = dispatched_pointer_down.pointer_capture_target ? *dispatched_pointer_down.pointer_capture_target : *node;
-        start_slider_drag_for_press(pressed_node, coordinates.viewport_position.x(), button, modifiers);
+        start_slider_drag_for_press(pressed_node, coordinates.viewport_position, button, modifiers);
         if (m_navigable->active_document() != document)
             return EventResult::Accepted;
     }
@@ -5511,7 +5511,7 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
                 if (m_navigable->active_document() != document)
                     return EventResult::Handled;
                 if (allowed) {
-                    start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position.x(), UIEvents::MouseButton::Primary, pointer.modifiers);
+                    start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position, UIEvents::MouseButton::Primary, pointer.modifiers);
                     if (m_navigable->active_document() != document)
                         return EventResult::Handled;
                     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
@@ -5530,7 +5530,7 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
             if (m_navigable->active_document() != document)
                 return EventResult::Handled;
             if (allowed && mouse_name == UIEvents::EventNames::mousedown) {
-                start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position.x(), input.button, pointer.modifiers);
+                start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position, input.button, pointer.modifiers);
                 if (m_navigable->active_document() != document)
                     return EventResult::Handled;
                 document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
