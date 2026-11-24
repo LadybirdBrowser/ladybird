@@ -139,7 +139,7 @@ struct CAPI {
     static_assert(sizeof(Heap::m_total_allocated_bytes) == sizeof(size_t));
 
     // Foreign code reads and writes the head of the list, the cursor and the end as plain pointers.
-    static_assert(sizeof(RawPtr<Cell>) == sizeof(Cell*));
+    static_assert(sizeof(Ptr<Cell>) == sizeof(Cell*));
     static_assert(offsetof(CellAllocator::LocalFreeCells, free_list) == 0);
     static_assert(sizeof(FlatPtr) == sizeof(void*));
     static CellAllocator::LocalFreeCells* local_free_cells(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return heap.cell_allocator_for(descriptor).local_free_cells({}); }

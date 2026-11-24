@@ -372,14 +372,6 @@ private:
     T* m_ptr { nullptr };
 };
 
-// Non-Owning GC::Ptr
-template<typename T>
-using RawPtr = Ptr<T>;
-
-// Non-Owning Ref
-template<typename T>
-using RawRef = Ref<T>;
-
 template<typename T, typename U>
 inline bool operator==(Ptr<T> const& a, Ptr<U> const& b)
 {

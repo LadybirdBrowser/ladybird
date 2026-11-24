@@ -65,11 +65,11 @@ class EphemeronTable final
 
 public:
     struct Entry {
-        GC::RawPtr<GC::Cell> key;
+        GC::Weak<GC::Cell> key;
         TestNanBox value;
     };
 
-    void add(GC::Cell& key, TestNanBox value) { entries.append({ &key, value }); }
+    void add(GC::Cell& key, TestNanBox value) { entries.append({ key, value }); }
 
     Vector<Entry> entries;
 
@@ -82,15 +82,17 @@ private:
     virtual void visit_edges(Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        for (auto& entry : entries)
-            visitor.visit_ephemeron(*entry.key, entry.value);
+        for (auto& entry : entries) {
+            if (entry.key)
+                visitor.visit_ephemeron(*entry.key, entry.value);
+        }
     }
 
     virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
 
     virtual void remove_dead_cells(Badge<GC::Heap>) override
     {
-        entries.remove_all_matching([](auto const& entry) { return !entry.key->is_marked(); });
+        entries.remove_all_matching([](auto const& entry) { return !entry.key || !entry.key->is_marked(); });
     }
 };
 
