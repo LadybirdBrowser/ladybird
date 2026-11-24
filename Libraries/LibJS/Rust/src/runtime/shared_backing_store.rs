@@ -20,6 +20,7 @@
 //! as it does for any descriptor in flight, so it does not matter whether the message is delivered to one receiver, to
 //! many, to a process that has no use for it, or to nobody.
 
+use core::any::Any;
 use core::ffi::c_int;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, PoisonError, Weak};
@@ -145,10 +146,13 @@ pub unsafe fn duplicate_lifeline_from_raw_descriptor(descriptor: c_int) -> std::
     }
 }
 
+/// Something that a message names, which the agents of the process share: a store, or the shared memory of an embedder.
+pub type SharedByMessage = Arc<dyn Any + Send + Sync>;
+
 /// What keeps the stores that a message names.
 pub enum SharedStorePin {
     /// For a message in memory of this process.
-    Counted(Vec<Arc<SharedBackingStore>>),
+    Counted(Vec<SharedByMessage>),
     /// For a message that has been through a socket, or is about to go through one.
     Lifeline(SharedStoreLifeline),
 }
@@ -187,7 +191,7 @@ struct PinnedStores {
     #[cfg_attr(windows, allow(dead_code))]
     write_end: std::io::PipeWriter,
     /// NB: Only dropped for what it keeps alive.
-    _stores: Vec<Arc<SharedBackingStore>>,
+    _stores: Vec<SharedByMessage>,
 }
 
 fn pinned_stores() -> std::sync::MutexGuard<'static, Vec<PinnedStores>> {
@@ -237,7 +241,7 @@ pub fn release_stores_of_lost_messages() {
 }
 
 /// A new lifeline that keeps `stores` for as long as it, or a duplicate of it, is open anywhere.
-fn pin_stores_for_a_message(stores: Vec<Arc<SharedBackingStore>>) -> std::io::Result<SharedStoreLifeline> {
+fn pin_stores_for_a_message(stores: Vec<SharedByMessage>) -> std::io::Result<SharedStoreLifeline> {
     release_stores_of_lost_messages();
     let (read_end, write_end) = std::io::pipe()?;
     pinned_stores().push(PinnedStores {

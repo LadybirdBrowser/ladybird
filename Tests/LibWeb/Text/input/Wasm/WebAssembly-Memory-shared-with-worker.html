@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<script type="worker">
+    // Runs the function that each message names, and answers with what it returns.
+    let exports;
+    let memory;
+    const commands = {
+        instantiate(module, sharedMemory) {
+            memory = sharedMemory;
+            exports = new WebAssembly.Instance(module, { env: { memory } }).exports;
+            return [
+                memory instanceof WebAssembly.Memory,
+                memory.buffer instanceof SharedArrayBuffer,
+                memory.buffer.byteLength,
+                Object.isFrozen(memory.buffer),
+            ].join(", ");
+        },
+        call(name, ...args) {
+            try {
+                return exports[name](...args);
+            } catch (error) {
+                return error.constructor.name;
+            }
+        },
+        growFromJavaScript(delta) {
+            return memory.grow(delta);
+        },
+        bufferByteLength() {
+            return memory.buffer.byteLength;
+        },
+        sameMemoryObject(other) {
+            const view = new Uint8Array(other.buffer);
+            view[20] = 99;
+            return `${other === memory}, ${new Uint8Array(memory.buffer)[20]}`;
+        },
+        describeBufferOf(other) {
+            return `${other.buffer.growable}, ${other.buffer.byteLength}, ${other.buffer.maxByteLength}`;
+        },
+        describeBuffer(buffer) {
+            self.receivedBuffer = buffer;
+            return [
+                buffer instanceof SharedArrayBuffer,
+                buffer.byteLength,
+                buffer.growable,
+                buffer.growable ? buffer.maxByteLength : "",
+                new Uint8Array(buffer)[30],
+                Object.isFrozen(buffer),
+            ].join(", ");
+        },
+        receivedBufferByteLength() {
+            return self.receivedBuffer.byteLength;
+        },
+        growReceivedBuffer(byteLength) {
+            try {
+                self.receivedBuffer.grow(byteLength);
+            } catch (error) {
+                return error.constructor.name;
+            }
+            return self.receivedBuffer.byteLength / 65536;
+        },
+        waitUntilNonzero(address) {
+            // The store can land before the wait, which then returns without blocking. Loop until the value is
+            // visible, so that the result does not depend on which thread is first.
+            postMessage("waiting");
+            while (exports.atomicLoad(address) === 0)
+                exports.wait(address, 0);
+            return exports.atomicLoad(address);
+        },
+        waitOnce(address) {
+            postMessage("waiting");
+            return exports.wait(address, 0);
+        },
+        createMemory() {
+            const created = new WebAssembly.Memory({ initial: 1, maximum: 2, shared: true });
+            new Uint8Array(created.buffer)[0] = 123;
+            return created;
+        },
+    };
+    onmessage = ({ data: [command, ...args] }) => postMessage({ result: commands[command](...args) });
+</script>
+<script src="../include.js"></script>
+<script>
+    const PAGE_SIZE = 65536;
+
+    promiseTest(async () => {
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        let onWaiting = () => {};
+        const ask = (...message) =>
+            new Promise(resolve => {
+                worker.onmessage = ({ data }) => {
+                    if (data === "waiting") {
+                        onWaiting();
+                        return;
+                    }
+                    resolve(data.result);
+                };
+                worker.postMessage(message);
+            });
+
+        const response = await fetch("resources/WebAssembly-shared-memory.wasm");
+        const module = await WebAssembly.compile(await response.arrayBuffer());
+
+        try {
+            worker.postMessage(new WebAssembly.Memory({ initial: 1 }));
+            println("FAIL: a memory that is not shared was serialized");
+        } catch (error) {
+            println(`memory that is not shared: ${error.name}`);
+        }
+
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 4, shared: true });
+        const exports = new WebAssembly.Instance(module, { env: { memory } }).exports;
+        const firstBuffer = memory.buffer;
+        println(`worker instantiated with: ${await ask("instantiate", module, memory)}`);
+
+        new Uint32Array(firstBuffer)[1] = 0x12345678;
+        println(`worker loads what the window stored: 0x${(await ask("call", "load", 4)).toString(16)}`);
+        await ask("call", "atomicStore", 8, 0x0badf00d);
+        println(`window loads what the worker stored: 0x${exports.load(8).toString(16)}`);
+
+        println(`window loads past the end: ${(() => { try { return exports.load(PAGE_SIZE); } catch (error) { return error.constructor.name; } })()}`);
+        println(`worker grew from pages: ${await ask("call", "grow", 1)}`);
+        println(`window sees pages: ${exports.size()}`);
+        println(`first buffer keeps its length: ${firstBuffer.byteLength === PAGE_SIZE}`);
+        println(`new buffer in the window: ${memory.buffer !== firstBuffer}, ${memory.buffer.byteLength / PAGE_SIZE} pages, frozen ${Object.isFrozen(memory.buffer)}`);
+        println(`buffer stays the same until the next grow: ${memory.buffer === memory.buffer}`);
+        exports.fill(PAGE_SIZE, 7, PAGE_SIZE);
+        println(`worker loads from the new page: 0x${(await ask("call", "load", 2 * PAGE_SIZE - 4)).toString(16)}`);
+
+        println(`window grew from pages: ${memory.grow(1)}`);
+        println(`worker sees pages: ${await ask("call", "size")}`);
+        println(`worker buffer byte length in pages: ${(await ask("bufferByteLength")) / PAGE_SIZE}`);
+        println(`worker loads past the end: ${await ask("call", "load", 3 * PAGE_SIZE)}`);
+        println(`worker fills past the end: ${await ask("call", "fill", 3 * PAGE_SIZE - 1, 1, 2)}`);
+        println(`worker grew from JavaScript from pages: ${await ask("growFromJavaScript", 1)}`);
+        println(`window sees pages: ${exports.size()}, ${memory.buffer.byteLength / PAGE_SIZE}`);
+        println(`worker cannot grow past the maximum: ${await ask("call", "grow", 1)}`);
+
+        println(`a second message is another Memory object of the same memory: ${await ask("sameMemoryObject", memory)}`);
+        println(`window sees the store through it: ${new Uint8Array(memory.buffer)[20]}`);
+
+        const clone = structuredClone(memory);
+        new Uint8Array(clone.buffer)[21] = 77;
+        println(`structuredClone: ${clone !== memory}, ${clone instanceof WebAssembly.Memory}, ${new Uint8Array(memory.buffer)[21]}`);
+
+        const memoryOfClonedBuffer = new WebAssembly.Memory({ initial: 1, maximum: 3, shared: true });
+        const bufferClone = structuredClone(memoryOfClonedBuffer.toResizableBuffer());
+        bufferClone.grow(2 * PAGE_SIZE);
+        println(`structuredClone of a growable buffer grows the memory: ${bufferClone.byteLength / PAGE_SIZE}, ${memoryOfClonedBuffer.buffer.byteLength / PAGE_SIZE}`);
+
+        new Uint8Array(memory.buffer)[30] = 55;
+        println(`worker receives the fixed-length buffer: ${await ask("describeBuffer", memory.buffer)}`);
+
+        const growableMemory = new WebAssembly.Memory({ initial: 1, maximum: 3, shared: true });
+        const growable = growableMemory.toResizableBuffer();
+        println(`worker receives the growable buffer: ${await ask("describeBuffer", growable)}`);
+        growableMemory.grow(1);
+        println(`its byte length in pages once the window grew the memory: ${(await ask("receivedBufferByteLength")) / PAGE_SIZE}`);
+        println(`worker grows it by less than a page: ${await ask("growReceivedBuffer", 2 * PAGE_SIZE + 1)}`);
+        println(`worker grows it to pages: ${await ask("growReceivedBuffer", 3 * PAGE_SIZE)}`);
+        println(`window sees pages: ${growable.byteLength / PAGE_SIZE}, ${growableMemory.buffer === growable}`);
+        println(`worker grows it to the pages it has: ${await ask("growReceivedBuffer", 3 * PAGE_SIZE)}`);
+        println(`worker receives the memory with a growable buffer: ${await ask("describeBufferOf", growableMemory)}`);
+
+        // The value stays 0, so the wait blocks, and a notify wakes a waiter only once the worker is blocked.
+        const blocked = ask("waitOnce", 68);
+        let wokenWaiters = 0;
+        onWaiting = () => {
+            while (wokenWaiters !== 1)
+                wokenWaiters = exports.notify(68, 1);
+        };
+        println(`worker blocked in a wait until notified: ${await blocked}, ${wokenWaiters}`);
+
+        const waited = ask("waitUntilNonzero", 64);
+        onWaiting = () => {
+            exports.atomicStore(64, 42);
+            exports.notify(64, 1);
+        };
+        println(`worker woke up with: ${await waited}`);
+
+        const fromWorker = await ask("createMemory");
+        println(`memory of the worker: ${fromWorker instanceof WebAssembly.Memory}, ${fromWorker.buffer.byteLength / PAGE_SIZE} pages, ${new Uint8Array(fromWorker.buffer)[0]}`);
+        worker.terminate();
+        println(`memory of the worker after it ended: ${fromWorker.grow(1)}, ${new Uint8Array(fromWorker.buffer)[0]}`);
+    });
+</script>

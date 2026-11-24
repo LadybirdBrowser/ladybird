@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script type="worker">
+    onmessage = ({ data: [module, memory, count] }) => {
+        new WebAssembly.Instance(module, { env: { memory } }).exports.run(count);
+        postMessage("done");
+    };
+</script>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const WORKER_COUNT = 4;
+        const COUNT = 10000;
+        const response = await fetch("resources/WebAssembly-shared-memory-lock.wasm");
+        const module = await WebAssembly.compile(await response.arrayBuffer());
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const workerURL = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+        const workers = [];
+        for (let i = 0; i < WORKER_COUNT; ++i)
+            workers.push(new Worker(workerURL));
+        await Promise.all(
+            workers.map(
+                worker =>
+                    new Promise(resolve => {
+                        worker.onmessage = resolve;
+                        worker.postMessage([module, memory, COUNT]);
+                    })
+            )
+        );
+        const counter = new WebAssembly.Instance(module, { env: { memory } }).exports.counter();
+        println(`every increment under the lock counted: ${counter === WORKER_COUNT * COUNT}`);
+        for (const worker of workers)
+            worker.terminate();
+    });
+</script>

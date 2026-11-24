@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`isolated: ${crossOriginIsolated}`);
+        const memory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+        for (const [name, clone] of [
+            ["structuredClone", () => structuredClone(memory)],
+            ["postMessage", () => new MessageChannel().port1.postMessage(memory)],
+        ]) {
+            try {
+                clone();
+                println(`FAIL: ${name} serialized a shared memory`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+    });
+</script>

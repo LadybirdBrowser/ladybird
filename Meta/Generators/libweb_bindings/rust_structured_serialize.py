@@ -30,6 +30,9 @@ STORAGE_IDENTIFIERS = (
     "QuotaExceededError",
 )
 
+# The serializable interfaces whose objects no storage record holds, so they have no storage identifier.
+IPC_ONLY_INTERFACES = ("Memory", "RTCEncodedAudioFrame")
+
 # The serializable interfaces implemented in C++ whose steps run in Rust.
 CPP_INTERFACES_WITH_RUST_STEPS = ("DOMException", "QuotaExceededError", "RTCEncodedAudioFrame")
 
@@ -124,7 +127,8 @@ pub(crate) mod serializable_objects {
     }}
 
     pub(crate) fn is_ipc_interface(interface_name: u16) -> bool {{
-        interface_name == {values["RTCEncodedAudioFrame"]} || serializable_interface_storage_identifier(interface_name).is_some()
+        matches!(interface_name, {" | ".join(str(values[name]) for name in IPC_ONLY_INTERFACES)})
+            || serializable_interface_storage_identifier(interface_name).is_some()
     }}
 
     pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {{

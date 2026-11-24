@@ -1,0 +1,3 @@
+isolated: false
+structuredClone: DataCloneError
+postMessage: DataCloneError
