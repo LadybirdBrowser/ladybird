@@ -64,7 +64,7 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 
 appdir="$work_directory/AppDir"
 for component in ladybird_Runtime ladybird_Freedesktop; do
-    cmake --install "$build_directory" --prefix "$appdir/usr" --component "$component"
+    cmake --install "$build_directory" --prefix "$appdir/usr" --component "$component" --strip
 done
 echo AppImage >"$appdir/usr/share/Lagom/package-format"
 
