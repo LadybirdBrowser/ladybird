@@ -44,7 +44,7 @@ use libcompositing_rust::display_list::tile_keys::{
     BandTileKeys, ContentHash, FrameStateReadByReplay, LayerRasterSettings, LiveContentVersions, TileCoverage,
     TileKeyingOfList, TileKeyingOfRasterSpace,
 };
-use libcompositing_rust::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
+use libcompositing_rust::display_list::tiles::{TILE_HEIGHT_IN_DEVICE_PIXELS, TILE_WIDTH_IN_DEVICE_PIXELS};
 use libcompositing_rust::scrolling::DisplayList;
 use libcompositing_rust::visual_context::{VisualContextTree, WorldTransforms};
 use libgfx_rust::{Color, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint, IntRect};
@@ -645,9 +645,9 @@ fn composited_filter_read_reach_by_layer(
 
 /// How many cells a rect of the size of `viewport_rect` can touch.
 fn cells_one_layer_shows_at_most(viewport_rect: IntRect) -> u64 {
-    let tile_size = TILE_SIZE_IN_DEVICE_PIXELS as u64;
-    let most_cells_along = |length: i32| (length.max(1) as u64 - 1).div_ceil(tile_size) + 1;
-    most_cells_along(viewport_rect.width) * most_cells_along(viewport_rect.height)
+    let most_cells_along = |length: i32, tile_length: i32| (length.max(1) as u64 - 1).div_ceil(tile_length as u64) + 1;
+    most_cells_along(viewport_rect.width, TILE_WIDTH_IN_DEVICE_PIXELS)
+        * most_cells_along(viewport_rect.height, TILE_HEIGHT_IN_DEVICE_PIXELS)
 }
 
 /// The tiles a frame drawn with a plan shows so far, which it counts as it keys them, against how many it may show.
@@ -661,7 +661,7 @@ struct TileBudgetOfFrame {
 impl TileBudgetOfFrame {
     fn within(viewport_rect: IntRect) -> Self {
         let cells = cells_one_layer_shows_at_most(viewport_rect);
-        let cell_pixels = (TILE_SIZE_IN_DEVICE_PIXELS as u64).pow(2);
+        let cell_pixels = TILE_WIDTH_IN_DEVICE_PIXELS as u64 * TILE_HEIGHT_IN_DEVICE_PIXELS as u64;
         Self {
             most_tiles: MAXIMUM_TILES_A_PLAN_SHOWS_PER_CELL_ONE_LAYER_SHOWS * cells,
             most_tile_pixels: MAXIMUM_LAYERS_OF_TILES_A_PLAN_SHOWS * cells * cell_pixels,
@@ -2333,14 +2333,14 @@ mod tests {
     // Many layers that each hold a fill of the whole viewport, of one color or not, or many small fills.
     #[test]
     fn a_frame_drawn_with_a_plan_shows_tiles_of_any_color_up_to_a_budget_of_pixels_and_of_tiles() {
-        // A viewport of 800 by 600 pixels touches at most 3 by 3 cells.
-        let cells_shown_most = MAXIMUM_LAYERS_OF_TILES_A_PLAN_SHOWS * 9;
+        // A viewport of 800 by 600 pixels touches at most 2 by 3 cells.
+        let cells_shown_most = MAXIMUM_LAYERS_OF_TILES_A_PLAN_SHOWS * 6;
         let whole_cell = TileCoord::new(0, 0).cell_rect();
         let one_pixel = IntRect::new(0, 0, 1, 1);
         let mut budget_of_whole_cells = TileBudgetOfFrame::within(VIEWPORT);
         assert!((0..cells_shown_most).all(|_| budget_of_whole_cells.takes_tile(whole_cell)));
         assert!(!budget_of_whole_cells.takes_tile(one_pixel));
-        let tiles_shown_most = MAXIMUM_TILES_A_PLAN_SHOWS_PER_CELL_ONE_LAYER_SHOWS * 9;
+        let tiles_shown_most = MAXIMUM_TILES_A_PLAN_SHOWS_PER_CELL_ONE_LAYER_SHOWS * 6;
         let mut budget_of_small_tiles = TileBudgetOfFrame::within(VIEWPORT);
         assert!((0..tiles_shown_most).all(|_| budget_of_small_tiles.takes_tile(one_pixel)));
         assert!(!budget_of_small_tiles.takes_tile(one_pixel));
@@ -2369,8 +2369,8 @@ mod tests {
     fn the_tiles_of_a_viewport_smaller_than_a_cell_are_counted_in_whole_cells() {
         assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 1, 1)), 1);
         assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 100, 40)), 4);
-        assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 800, 1)), 3);
-        assert_eq!(cells_one_layer_shows_at_most(VIEWPORT), 9);
-        assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 1025, 513)), 6);
+        assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 1500, 1)), 3);
+        assert_eq!(cells_one_layer_shows_at_most(VIEWPORT), 6);
+        assert_eq!(cells_one_layer_shows_at_most(IntRect::new(0, 0, 2049, 513)), 6);
     }
 }

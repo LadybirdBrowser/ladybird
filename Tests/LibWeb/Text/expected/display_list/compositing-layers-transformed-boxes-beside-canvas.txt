@@ -4,8 +4,8 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
         [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(535,175) bounds=[505,145 60x60] (BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas)
         [s3] transform=[3,0,0,3,0,0] origin=(550,80) bounds=[530,60 40x40] (BlockContainer<DIV>#scaled-onto-canvas)
-        [s4] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(630,430) bounds=[600,400 60x60] (BlockContainer<DIV>#rotated-clear-of-canvas)
-        [s5] transform=[3,0,0,3,0,0] origin=(720,540) bounds=[700,520 40x40] (BlockContainer<DIV>#scaled-clear-of-canvas)
+        [s4] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(705,560) bounds=[690,545 30x30] (BlockContainer<DIV>#rotated-clear-of-canvas)
+        [s5] transform=[3,0,0,3,0,0] origin=(768,558) bounds=[760,550 16x16] (BlockContainer<DIV>#scaled-clear-of-canvas)
   effects:
     [e0 in s0] effects=[]
 
@@ -16,8 +16,8 @@ Layers (for a window server that shows tiles and filters what is below layers):
 
 DisplayList:
 L1 DrawCanvas@s1/e0 dst_rect=[300,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L0,L2 FillRect@s2/e0 rect=[505,145 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas phase=background
-L0,L2 FillRect@s3/e0 rect=[530,60 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-onto-canvas phase=background
-L0 FillRect@s4/e0 rect=[600,400 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-clear-of-canvas phase=background
-L0 FillRect@s5/e0 rect=[700,520 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-clear-of-canvas phase=background
+L2 FillRect@s2/e0 rect=[505,145 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas phase=background
+L2 FillRect@s3/e0 rect=[530,60 40x40] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-onto-canvas phase=background
+L0 FillRect@s4/e0 rect=[690,545 30x30] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#rotated-clear-of-canvas phase=background
+L0 FillRect@s5/e0 rect=[760,550 16x16] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#scaled-clear-of-canvas phase=background
 

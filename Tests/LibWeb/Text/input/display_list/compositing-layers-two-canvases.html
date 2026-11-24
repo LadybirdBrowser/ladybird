@@ -2,16 +2,16 @@
 <script src="../include.js"></script>
 <style>
     body { margin: 0; }
-    canvas { position: absolute; top: 20px; }
-    #left { left: 20px; }
-    #right { left: 520px; }
-    #over-both { position: absolute; left: 100px; top: 60px; width: 600px; height: 40px; background: rgba(255, 255, 255, 0.5); }
-    #over-right { position: absolute; left: 620px; top: 100px; width: 50px; height: 20px; background: green; }
+    canvas { position: absolute; left: 20px; }
+    #upper { top: 20px; }
+    #lower { top: 530px; }
+    #over-both { position: absolute; left: 100px; top: 60px; width: 40px; height: 500px; background: rgba(255, 255, 255, 0.5); }
+    #over-lower { position: absolute; left: 150px; top: 550px; width: 50px; height: 20px; background: green; }
 </style>
-<canvas id="left" width="200" height="120"></canvas>
-<canvas id="right" width="200" height="120"></canvas>
+<canvas id="upper" width="200" height="120"></canvas>
+<canvas id="lower" width="200" height="60"></canvas>
 <div id="over-both"></div>
-<div id="over-right"></div>
+<div id="over-lower"></div>
 <script>
     test(() => {
         for (const canvas of document.querySelectorAll("canvas")) {

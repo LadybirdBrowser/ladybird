@@ -4,7 +4,7 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   effects:
     [e0 in s0] effects=[]
-      [e1 in s1] effects=[backdrop-filter=[region=[540,120 60x40] filter=[Grayscale(1)]]] (BlockContainer<DIV>#frosted)
+      [e1 in s1] effects=[backdrop-filter=[region=[170,530 60x40] filter=[Grayscale(1)]]] (BlockContainer<DIV>#frosted)
 
 Layers (for a window server that shows tiles and filters what is below layers):
   [L0] base space=viewport
@@ -14,6 +14,6 @@ Layers (for a window server that shows tiles and filters what is below layers):
 
 DisplayList:
 L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L0,L2 FillRect@s1/e0 rect=[180,100 440x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
-L0 BackdropFilterRegion@s1/e1 rect=[540,120 60x40] owner=BlockContainer<DIV>#frosted phase=background
+L0,L2 FillRect@s1/e0 rect=[180,100 40x480] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+L0 BackdropFilterRegion@s1/e1 rect=[170,530 60x40] owner=BlockContainer<DIV>#frosted phase=background
 

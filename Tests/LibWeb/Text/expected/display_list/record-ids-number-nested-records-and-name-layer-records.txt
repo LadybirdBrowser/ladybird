@@ -6,8 +6,8 @@ Layers (for a window server that shows tiles and filters what is below layers):
 DisplayList:
 L0 #1 FillRect@s1/e0 rect=[0,0 300x10] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#below phase=background
 L1 #2 DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
-L0 #3 DeclareMaskContent@s1/e1 rect=[600,20 50x50] effect=e1 owner=BlockContainer<DIV>#masked phase=preamble
-     #4 PaintLinearGradient@s1/e1 gradient_rect=[600,20 50x50] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[600,20 50x50]] owner=BlockContainer<DIV>#masked phase=preamble
-L0 #5 FillRect@s1/e1 rect=[600,20 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#masked phase=background
-L0,L2 #6 FillRect@s1/e0 rect=[100,60 500x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over phase=background
+L0 #3 DeclareMaskContent@s1/e1 rect=[600,530 50x50] effect=e1 owner=BlockContainer<DIV>#masked phase=preamble
+     #4 PaintLinearGradient@s1/e1 gradient_rect=[600,530 50x50] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[600,530 50x50]] owner=BlockContainer<DIV>#masked phase=preamble
+L0 #5 FillRect@s1/e1 rect=[600,530 50x50] color=rgb(0, 0, 255) owner=BlockContainer<DIV>#masked phase=background
+L0,L2 #6 FillRect@s1/e0 rect=[100,60 40x500] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over phase=background
 
