@@ -15,6 +15,8 @@ use std::net::Ipv4Addr;
 use libcrypto_rust::{KeyPair, OkpCurve, ShaHashKind};
 
 use super::crypto::verify_signature;
+use super::denial::DenialProofs;
+use super::rrset::{SignedRRSet, VerifiedRRSet};
 use super::{Fetches, SecurityStatus, Step, ValidationResult, Validator};
 use crate::message::{
     Algorithm, Class, DigestType, Dnskey, DomainName, Ds, Message, Nsec, Nsec3, Nsec3HashAlgorithm, Nsec3Param,
@@ -1095,4 +1097,62 @@ fn rsa_keys_with_public_exponents_over_33_bits_are_not_used() {
         "101001f511d08effc4cce25db428834b55699597244d62fbd4672226f9948f69",
     ));
     assert!(!verify_signature(&key, b"signed data", &signature));
+}
+
+fn unsigned_nsec3(
+    zone: &DomainName,
+    owner_hash: &[u8],
+    next_hash: &[u8],
+    flags: u8,
+    types: &[ResourceType],
+) -> VerifiedRRSet {
+    let owner = zone.with_label_prepended(base32hex_encode(owner_hash));
+    let nsec3 = Nsec3 {
+        hash_algorithm: Nsec3HashAlgorithm::SHA1,
+        flags,
+        iterations: 0,
+        salt: Vec::new(),
+        next_hashed_owner_name: next_hash.to_vec(),
+        types: types.to_vec(),
+    };
+    VerifiedRRSet {
+        rrset: SignedRRSet {
+            owner: owner.clone(),
+            rtype: ResourceType::NSEC3,
+            class: Class::IN,
+            records: vec![record(&owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3), 300)],
+            rrsigs: Vec::new(),
+            rrsig_ttl: 300,
+        },
+        zone: zone.clone(),
+        wildcard_label_count: None,
+        ttl: 300,
+    }
+}
+
+#[test]
+fn opt_out_proof_does_not_depend_on_record_order() {
+    let zone = name("example");
+    let delegation = name("insecure.example");
+    let apex = unsigned_nsec3(
+        &zone,
+        &nsec3_hash(&zone),
+        &[0; 20],
+        Nsec3::FLAG_OPT_OUT,
+        &[ResourceType::SOA, ResourceType::NS, ResourceType::NSEC3PARAM],
+    );
+    // Two records whose spans both cover the hash of the delegation name.
+    let opt_out = unsigned_nsec3(&zone, &[0x00; 20], &[0xff; 20], Nsec3::FLAG_OPT_OUT, &[ResourceType::A]);
+    let mut first = [0x00; 20];
+    first[19] = 1;
+    let mut last = [0xff; 20];
+    last[19] = 0xfe;
+    let no_opt_out = unsigned_nsec3(&zone, &first, &last, 0, &[ResourceType::A]);
+    let both_opt_out = unsigned_nsec3(&zone, &first, &last, Nsec3::FLAG_OPT_OUT, &[ResourceType::A]);
+
+    let proves_insecure = |rrsets: &[VerifiedRRSet]| DenialProofs { rrsets }.proves_insecure_delegation(&delegation);
+    assert!(!proves_insecure(&[apex.clone(), opt_out.clone(), no_opt_out.clone()]));
+    assert!(!proves_insecure(&[apex.clone(), no_opt_out, opt_out.clone()]));
+    assert!(proves_insecure(&[apex.clone(), opt_out.clone(), both_opt_out.clone()]));
+    assert!(proves_insecure(&[apex, both_opt_out, opt_out]));
 }

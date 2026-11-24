@@ -190,7 +190,10 @@ fn nsec3_closest_encloser_proof(rrsets: &[VerifiedRRSet], name: &DomainName) -> 
     for labels in (1..=name.labels.len()).rev() {
         let sname = name.suffix(labels);
         let mut covered = false;
-        let mut opt_out = false;
+        // RFC 5155, 3.1.2.1. Opt-Out Flag.
+        // If the Opt-Out flag is clear, the NSEC3 record covers zero unsigned delegations.
+        // So any covering record without the flag rules out an unsigned delegation, whatever order they come in.
+        let mut all_opt_out = true;
         for record in nsec3_records(rrsets) {
             if record.matches(&sname) {
                 // Once the closest encloser has been discovered, the validator MUST check that the NSEC3 RR that has
@@ -209,11 +212,11 @@ fn nsec3_closest_encloser_proof(rrsets: &[VerifiedRRSet], name: &DomainName) -> 
             }
             if record.covers(&sname) {
                 covered = true;
-                opt_out = record.nsec3.is_opt_out();
+                all_opt_out &= record.nsec3.is_opt_out();
             }
         }
         previous_covered = covered;
-        previous_opt_out = opt_out;
+        previous_opt_out = covered && all_opt_out;
     }
     None
 }
