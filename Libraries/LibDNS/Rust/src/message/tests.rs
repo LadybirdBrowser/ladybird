@@ -1073,6 +1073,38 @@ fn canonical_form() {
 }
 
 #[test]
+fn dname_records() {
+    // An answer owned by the question name, with a DNAME target of "Target" followed by a pointer to "example.com".
+    let mut message = header(1, 1, 0, 0);
+    message.extend_from_slice(b"\x03old\x07example\x03com\x00");
+    message.extend_from_slice(&[0, 39, 0, 1]);
+    message.extend_from_slice(&[0xc0, 0x0c]);
+    message.extend(rr_fixed(ResourceType::DNAME, 9));
+    message.extend_from_slice(b"\x06Target\xc0\x10");
+
+    let parsed = Message::from_wire(&message).unwrap();
+    let dname = &parsed.answers[0];
+    assert_eq!(dname.data, RecordData::Dname(name("Target.example.com")));
+    assert_eq!(
+        dname.to_string(),
+        "[IN DNAME Target.example.com. | ttl=60, name=old.example.com.]"
+    );
+    assert_eq!(
+        dname.data.canonicalized(),
+        RecordData::Dname(name("target.example.com"))
+    );
+
+    // The target is written out in full.
+    let mut rdata = Vec::new();
+    dname.data.write_rdata(&mut rdata).unwrap();
+    assert_eq!(rdata, b"\x06Target\x07example\x03com\x00");
+    assert_eq!(
+        without_raw(Message::from_wire(&parsed.to_wire().unwrap()).unwrap()),
+        without_raw(parsed)
+    );
+}
+
+#[test]
 fn answers_to_follows_cname_chains() {
     let question = Question {
         name: name("www.example.com"),
