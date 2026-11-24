@@ -1,7 +1,19 @@
 pointerdown: 0 coalesced event(s)
-pointermove: 0 coalesced event(s)
-pointermove: 0 coalesced event(s)
+pointermove: 1 coalesced event(s)
+  type=pointermove clientX=20 clientY=30 buttons=1
+  isTrusted=true bubbles=false cancelable=false
+  same target=true same pointerId=true same pointerType=true same isPrimary=true
+  own coalesced=0 own predicted=0
+pointermove: 1 coalesced event(s)
+  type=pointermove clientX=40 clientY=50 buttons=1
+  isTrusted=true bubbles=false cancelable=false
+  same target=true same pointerId=true same pointerType=true same isPrimary=true
+  own coalesced=0 own predicted=0
 pointerup: 0 coalesced event(s)
 redispatched: isTrusted=false same target=true
-redispatched unread: 0 coalesced event(s)
-host listener: no coalesced event kept
+  coalesced isTrusted=true target is original=true
+redispatched unread: 1 coalesced event(s)
+  coalesced target is original=true
+shadow tree listener: coalesced target is inner=true
+host listener: kept coalesced target is host=true
+after dispatch: kept coalesced target is host=true

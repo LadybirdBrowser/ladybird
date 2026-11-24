@@ -64,6 +64,10 @@ public:
         Utf16FlyString const& type, PointerEventOptions&&,
         double page_x, double page_y, double offset_x, double offset_y,
         HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<PointerEvent> create_trusted(
+        Utf16FlyString const& type, PointerEventOptions&&,
+        double page_x, double page_y, double offset_x, double offset_y,
+        HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_for_constructor(FlyString const&, Bindings::PointerEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_for_constructor(Utf16String const&, Bindings::PointerEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
@@ -103,6 +107,7 @@ public:
     bool is_primary() const { return m_is_primary; }
     WebIDL::Long persistent_device_id() const { return m_persistent_device_id; }
     AK::ReadonlySpan<GC::Ref<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
+    void set_target_of_coalesced_events(GC::Ptr<DOM::EventTarget>);
     AK::ReadonlySpan<GC::Ref<PointerEvent>> get_predicted_events() const { return m_predicted_events; }
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
