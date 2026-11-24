@@ -1,0 +1,12 @@
+A paint server in object bounding box units on a <tspan> or <textPath>
+maps onto the box of the whole <text> element in Ladybird, and getBBox()
+still reports the <tspan>’s own box. Chrome 158, Firefox 151, and WebKit
+26.5 all render it that way: for fills, strokes, radial gradients, and
+patterns, and for a nested <tspan>, a <tspan> in a <textPath>, a filled
+<textPath>, and a <tspan> on a line of its own. In Blink, SVGResources::
+ReferenceBoxForEffects() swaps an SVG inline for the <text> it finds
+with LayoutSVGText::LocateLayoutSVGTextAncestor(). In WebKit, the box
+RenderSVGInline::objectBoundingBox() returns is its RenderSVGText
+ancestor’s. And in Gecko, SVGUtils::GetBBox() swaps a frame in a text
+subtree for its closest SVGTextFrame, unless getBBox() asked for the
+TextContentBounds of the frame itself.
