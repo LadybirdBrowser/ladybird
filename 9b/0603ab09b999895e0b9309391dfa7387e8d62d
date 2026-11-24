@@ -1,0 +1,27 @@
+Ladybird tries the highest-priority layer first when font faces share
+the same matching descriptors. It tries the last rule in that layer
+first, falling back if the face fails to load or excludes the character.
+Scripts that iterate document.fonts still see the faces in source order.
+
+Blink orders CSS-connected faces by cascade layer in FontFaceList::
+Insert(). CSSSegmentedFontFace::GetFontData() visits them in reverse
+through FontFaceList::ForEachReverse(). WebKit walks its family faces
+backward in CSSFontFaceSet::fontFace() and sorts them stably by style
+distance. Gecko appends faces in gfxUserFontFamily::AddFontEntry() and
+visits them backward in gfxFontFamily::FindAllFontsForStyle().
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all used the
+later face for exact and nearest-weight matches, skipped an overridden
+broken font and a face outside the Unicode range, and fell back after
+the preferred face failed. In each browser the last rule rendered at
+80px, where Ladybird had used the first rule and rendered at 23px.
+
+Firefox and WebKit kept the later rule first after an earlier face
+changed its weight and then restored it. Chrome used the earlier face.
+Chrome and Firefox recomputed layer priority after the sheet that
+declared the order was disabled or removed. WebKit kept the previous
+priority. Ladybird follows the rule order and active cascade layers.
+
+All three browsers also honored the layer order in adoptedStyleSheets.
+Replacing the sheet that declared the order changed the chosen face
+from the 80px sample to the 23px sample in each browser.
