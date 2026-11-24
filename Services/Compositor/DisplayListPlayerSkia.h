@@ -94,6 +94,7 @@ private:
     void set_matrix(Gfx::FloatMatrix4x4 const&);
     Gfx::FloatMatrix4x4 canvas_matrix() const;
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const;
+    Gfx::IntRect device_clip_bounds() const;
     void push_clip(Compositing::ReplayClip const&);
     void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule);
     void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule, Compositing::ClipMode);

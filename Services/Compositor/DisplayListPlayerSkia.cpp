@@ -105,6 +105,7 @@ struct DisplayListPlayerSkia::PainterCallbacks {
             .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return PainterCallbacks::player(context).canvas_matrix(); },
             .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { PainterCallbacks::player(context).set_matrix(*matrix); },
             .would_be_fully_clipped_by_painter = [](void* context, Gfx::IntRect rect) -> bool { return PainterCallbacks::player(context).would_be_fully_clipped_by_painter(rect); },
+            .device_clip_bounds = [](void* context) -> Gfx::IntRect { return PainterCallbacks::player(context).device_clip_bounds(); },
             .push_clip = [](void* context, ReplayClip const* clip) { PainterCallbacks::player(context).push_clip(*clip); },
             .push_clip_path = [](void* context, Gfx::FFI::PathGeometryData const* path, u64 path_identity, Gfx::WindingRule winding_rule) { PainterCallbacks::player(context).push_clip_path(Gfx::PathData::from_ffi(*path), path_identity, winding_rule); },
             .push_layer = [](void* context, ReplayLayer const* layer) { PainterCallbacks::player(context).push_layer(*layer); },
@@ -1825,6 +1826,12 @@ void DisplayListPlayerSkia::clip_path(SkPath path, Gfx::WindingRule winding_rule
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     return surface().canvas().quickReject(to_skia_rect(rect));
+}
+
+Gfx::IntRect DisplayListPlayerSkia::device_clip_bounds() const
+{
+    auto bounds = surface().canvas().getDeviceClipBounds();
+    return { bounds.x(), bounds.y(), bounds.width(), bounds.height() };
 }
 
 }

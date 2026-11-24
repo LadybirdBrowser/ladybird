@@ -108,12 +108,14 @@ impl CompositedContexts for ContextsNestedIn<'_> {
         child_context_id: u64,
         destination_rect: FloatRect,
         canvas_matrix: &FloatMatrix4x4,
+        visible_device_rect: IntRect,
     ) -> Option<ResolvedCompositedContext> {
         self.core.resolve_composited_context(
             self.parent_context_id,
             CompositorContextId(child_context_id),
             destination_rect,
             canvas_matrix,
+            visible_device_rect,
             self.now,
         )
     }
@@ -380,6 +382,7 @@ impl CompositorCore {
         child_context_id: CompositorContextId,
         destination_rect: FloatRect,
         canvas_matrix: &FloatMatrix4x4,
+        visible_device_rect: IntRect,
         now: MonotonicTime,
     ) -> Option<ResolvedCompositedContext> {
         let child_state = self.context_if_present(child_context_id)?;
@@ -388,7 +391,7 @@ impl CompositorCore {
         }
         // A context nested in itself, through others, is already being painted.
         let mut child_presenting = self.presenting_of(child_context_id)?.try_borrow_mut().ok()?;
-        child_presenting.update_composited_raster_transform(destination_rect, canvas_matrix);
+        child_presenting.update_composited_raster_transform(destination_rect, canvas_matrix, visible_device_rect);
         if child_presenting.needs_rasterization() {
             let (display_list, frame_inputs) = {
                 let mut child_state = child_state.try_borrow_mut().ok()?;
