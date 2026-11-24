@@ -51,7 +51,9 @@ fn align_up(value: usize, alignment: usize) -> usize {
     value.div_ceil(alignment) * alignment
 }
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+// The key goes through glibc's wrappers of the protection key system calls, which musl lacks, so a musl build writes
+// JIT code with mprotect() instead.
+#[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
 mod protection_key {
     use std::sync::OnceLock;
 
@@ -193,7 +195,7 @@ impl Chunk {
             let mut has_protection_key = false;
             // NB: With a protection key, the pages can be writable without any thread being able to write them, which
             //     makes writing code a per-thread register change instead of a page protection change.
-            #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+            #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
             if let Some(key) = protection_key::key() {
                 // SAFETY: The chunk was just mapped with this size.
                 has_protection_key = unsafe {
@@ -251,7 +253,7 @@ fn write_codes_in_chunk(chunk: &Chunk, writes: &[CodeWrite<'_>]) {
         }
     };
 
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
     if chunk.has_protection_key {
         let key = protection_key::key().expect("a chunk with a protection key has one");
         protection_key::set_writable(key, true);
