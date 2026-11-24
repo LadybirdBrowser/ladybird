@@ -240,6 +240,11 @@ private:
 
 Optional<DecoderCapabilities> FFmpegVulkanVideoDecoderImplementation::capabilities(FFmpegFunctions const& functions, ParsedCodec const& codec)
 {
+    return capabilities(functions, codec, ChecksExportableFormat::Yes);
+}
+
+Optional<DecoderCapabilities> FFmpegVulkanVideoDecoderImplementation::capabilities(FFmpegFunctions const& functions, ParsedCodec const& codec, ChecksExportableFormat checks_exportable_format)
+{
     auto* device = VulkanVideoDevice::the();
     if (device == nullptr)
         return {};
@@ -368,6 +373,12 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoderImplementation::capabiliti
     if (device->video_capabilities(profile_info, video_capabilities).is_error())
         return {};
 
+    // Decoded frames are exported as dma-bufs, but a driver may not support any modifiers for export. Check whether
+    // it does to determine whether export may succeed.
+    auto output_format = bit_depth == 10 ? VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 : VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
+    if (checks_exportable_format == ChecksExportableFormat::Yes && device->exportable_drm_format_modifiers(output_format, VulkanExportableImagePool::IMAGE_USAGE, 0, nullptr).is_empty())
+        return {};
+
     // Before FFmpeg 7.1, a device that decodes references into the output images, but cannot keep each reference in an
     // image of its own, has FFmpeg use an array of reference images that it never created.
     auto decodes_references_into_the_output = (decode_capabilities.flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR) != 0;
@@ -383,7 +394,9 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoderImplementation>> FFmpegVulk
     auto* device = VulkanVideoDevice::the();
     if (device == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No Vulkan device can decode video in this process"sv);
-    if (!capabilities(functions, ParsedCodec { codec_id }).has_value())
+    // The checks that depend on the stream's profile use the one its configuration names, if it has one.
+    auto codec = parse_configuration_record(codec_id, codec_initialization_data).value_or(ParsedCodec { codec_id });
+    if (!capabilities(functions, codec, ChecksExportableFormat::No).has_value())
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "The Vulkan device cannot decode codec {} with this FFmpeg", codec_id);
 
     auto* device_context = TRY(device_context_for(functions, *device));
