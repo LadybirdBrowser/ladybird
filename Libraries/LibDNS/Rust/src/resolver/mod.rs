@@ -485,7 +485,7 @@ impl Resolver {
             && let Some(entry) = self.cache.lookup(name, &queried_types, now)
             && (!options.validate_dnssec_locally || Cache::was_validated(entry))
         {
-            let result = entry.snapshot();
+            let result = entry.snapshot_for(&queried_types);
             return self.settle_lookup_waiter(waiter, Ok(result), now);
         }
 
