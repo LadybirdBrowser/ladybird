@@ -36,6 +36,8 @@ public:
     GC_HOLDS_NO_CELL_EDGES;
 
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, Utf16String code);
+    // Source code under another filename that shares the code of the given source code, parked or not.
+    static NonnullRefPtr<SourceCode const> create_sharing_code(Utf16String filename, SourceCode const&);
 
     Utf16String const& filename() const;
     // NB: The runtime may hold the code compressed, so this is a string of its own, not a reference to one.
@@ -60,6 +62,7 @@ public:
     ~WeakSourceCode();
 
     bool is_alive() const;
+    RefPtr<SourceCode const> strong_ref() const;
 
 private:
     FFI::WeakSourceCode* m_weak { nullptr };
