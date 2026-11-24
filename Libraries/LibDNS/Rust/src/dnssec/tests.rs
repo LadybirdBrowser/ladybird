@@ -864,6 +864,25 @@ fn wildcard_answer_validates_with_proof() {
 }
 
 #[test]
+fn wildcard_answer_lives_no_longer_than_its_proof() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, |_| {});
+        for record in &mut server.zones[1].nsec_records {
+            record.ttl = 5;
+        }
+
+        let result = validated_lookup(&mut server, &mut validator, "anything.wild.example", ResourceType::A).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert_eq!(result.records.len(), 1);
+        assert_eq!(result.records[0].ttl, 5);
+
+        // An exact answer does not depend on the proof.
+        let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+        assert_eq!(result.records[0].ttl, 300);
+    }
+}
+
+#[test]
 fn wildcard_answer_without_proof_is_bogus() {
     for use_nsec3 in [false, true] {
         let (mut server, mut validator) = setup(use_nsec3, |server| server.zones[1].omit_wildcard_proof = true);

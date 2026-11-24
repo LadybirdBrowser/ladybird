@@ -83,6 +83,7 @@ struct NsecRecord<'a> {
     owner: &'a DomainName,
     nsec: &'a Nsec,
     zone: &'a DomainName,
+    ttl: u32,
 }
 
 impl NsecRecord<'_> {
@@ -121,6 +122,7 @@ struct Nsec3Record<'a> {
     owner_hash: Vec<u8>,
     nsec3: &'a Nsec3,
     zone: &'a DomainName,
+    ttl: u32,
 }
 
 impl Nsec3Record<'_> {
@@ -159,6 +161,7 @@ fn nsec_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = NsecRecord<'_>
                         owner: &record.name,
                         nsec,
                         zone: &verified.zone,
+                        ttl: verified.ttl,
                     }),
                     _ => None,
                 })
@@ -194,6 +197,7 @@ fn nsec3_records_with_any_iterations(rrsets: &[VerifiedRRSet]) -> impl Iterator<
                     owner_hash,
                     nsec3,
                     zone: &verified.zone,
+                    ttl: verified.ttl,
                 })
             })
         })
@@ -333,20 +337,32 @@ impl DenialProofs<'_> {
             || nsec3_records(self.rrsets).any(|record| record.covers(&wildcard))
     }
 
-    pub fn proves_next_closer_absent(&self, name: &DomainName, closest_encloser_label_count: usize) -> bool {
+    /// Returns how long the proof holds, if there is one.
+    pub fn proves_next_closer_absent(&self, name: &DomainName, closest_encloser_label_count: usize) -> Option<u32> {
         // RFC 4035, 5.3.4 / RFC 5155, 8.8. Validating Wildcard Answer Responses.
         // Validators MUST verify that there is an NSEC3 RR that covers the "next closer" name to QNAME present in the
         // response.  This proves that QNAME itself did not exist and that the correct wildcard was used to generate the
         // response.
         if closest_encloser_label_count >= name.labels.len() {
-            return false;
+            return None;
         }
         let next_closer = name.suffix(closest_encloser_label_count + 1);
         // An NSEC can span an empty non-terminal, which exists all the same.
-        let nsec_proves_absent = !nsec_records(self.rrsets).any(|record| record.matches(&next_closer))
-            && !nsec_proves_empty_non_terminal(self.rrsets, &next_closer)
-            && nsec_records(self.rrsets).any(|record| record.covers(&next_closer));
-        nsec_proves_absent || nsec3_records(self.rrsets).any(|record| record.covers(&next_closer))
+        let nsec_ttl = if nsec_records(self.rrsets).any(|record| record.matches(&next_closer))
+            || nsec_proves_empty_non_terminal(self.rrsets, &next_closer)
+        {
+            None
+        } else {
+            nsec_records(self.rrsets)
+                .filter(|record| record.covers(&next_closer))
+                .map(|record| record.ttl)
+                .max()
+        };
+        let nsec3_ttl = nsec3_records(self.rrsets)
+            .filter(|record| record.covers(&next_closer))
+            .map(|record| record.ttl)
+            .max();
+        nsec_ttl.max(nsec3_ttl)
     }
 
     pub fn proves_no_data(&self, name: &DomainName, rtype: ResourceType) -> Option<Denial> {
