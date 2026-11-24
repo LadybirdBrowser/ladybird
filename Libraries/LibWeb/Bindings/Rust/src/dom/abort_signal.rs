@@ -16,7 +16,7 @@ use libjs_rust::api::{Gc, GcRefCell, MarkedVec, NativeFunction, Realm, Throw, Tr
 use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::event_target::{CppEvent, CppEventTarget, GetTheParent};
 use crate::bindings::global_object::window_or_worker_global_scope_from_global_object;
-use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::promise::{TaskSource, exception_value, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
@@ -398,19 +398,14 @@ pub extern "C" fn web_rust_abort_signal_signal_abort(vm: &Vm, signal: &Interface
 }
 
 /// Creates a dependent AbortSignal from the signals.
-///
-/// # Safety
-///
-/// `vm` and every cell in `signals` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_create_dependent_abort_signal(
+pub extern "C" fn web_rust_abort_signal_create_dependent_abort_signal(
     vm: &Vm,
-    signals: ak::Span<'_, *mut c_void>,
+    signals: ak::Span<'_, &InterfaceCell>,
 ) -> *mut c_void {
     let list = MarkedVec::with_capacity(vm, signals.as_slice().len());
-    for &signal in signals.as_slice() {
-        // SAFETY: The caller passes live AbortSignal cells.
-        list.push(unsafe { cell_from_abi::<AbortSignal>(signal) });
+    for signal in signals.as_slice() {
+        list.push(signal.object::<AbortSignal>());
     }
     cell_into_abi(AbortSignal::create_dependent_abort_signal(vm, &list.values()))
 }

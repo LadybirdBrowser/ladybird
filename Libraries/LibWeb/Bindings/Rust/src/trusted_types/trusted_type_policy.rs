@@ -8,7 +8,6 @@
 //! TrustedTypePolicy, https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
 
 use core::ffi::c_void;
-use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{
@@ -19,7 +18,7 @@ use crate::bindings::callback::CallbackFunction;
 #[cfg(web_idl_bindings)]
 use crate::bindings::conversions::FromJs;
 use crate::bindings::conversions::{to_dom_string, to_usv_string};
-use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi, create_dictionary_object, wrap};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, cell_into_abi, create_dictionary_object, wrap};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::sanitizer::SetHTMLUnsafeOptions;
 use crate::html::sanitizer_configuration::{
@@ -820,77 +819,58 @@ enum AlgorithmResultAbi {
 }
 
 /// The result, written to `string` (a raw AK::Utf16String handed over) or `exception`.
-///
-/// # Safety
-///
-/// `string` and `exception` must be writable.
-unsafe fn result_into_abi(result: WebIdlResult<Utf16String>, string: *mut usize, exception: *mut u64) -> u8 {
-    // SAFETY: The caller passes writable pointers.
-    unsafe {
-        match result {
-            Ok(value) => {
-                *string = value.into_raw();
-                AlgorithmResultAbi::Normal as u8
-            }
-            Err(Exception::Thrown(throw)) => {
-                *exception = throw.value().to_raw();
-                AlgorithmResultAbi::Thrown as u8
-            }
-            Err(Exception::TypeError(message)) => {
-                *string = message.into_raw();
-                AlgorithmResultAbi::TypeError as u8
-            }
-            Err(_) => unreachable!("the Trusted Types algorithms throw only TypeErrors"),
+fn result_into_abi(result: WebIdlResult<Utf16String>, string: &mut usize, exception: &mut u64) -> u8 {
+    match result {
+        Ok(value) => {
+            *string = value.into_raw();
+            AlgorithmResultAbi::Normal as u8
         }
+        Err(Exception::Thrown(throw)) => {
+            *exception = throw.value().to_raw();
+            AlgorithmResultAbi::Thrown as u8
+        }
+        Err(Exception::TypeError(message)) => {
+            *string = message.into_raw();
+            AlgorithmResultAbi::TypeError as u8
+        }
+        Err(_) => unreachable!("the Trusted Types algorithms throw only TypeErrors"),
     }
 }
 
-/// The TrustedType or string that C++ passes: a cell of the kind's interface, or a raw AK::Utf16String it hands over.
-///
-/// # Safety
-///
-/// `cell` must be a live cell of the interface of `kind` (TrustedTypeName + 1), or `string` a live raw string if `kind`
-/// is 0.
-unsafe fn trusted_type_or_string_from_abi(kind: u8, cell: *mut c_void, string: usize) -> TrustedTypeOrString {
-    // SAFETY: The caller passes a live cell of the interface, or a live string.
-    unsafe {
-        match kind {
-            0 => TrustedTypeOrString::String(Utf16String::from_raw_owned(string)),
-            1 => TrustedTypeOrString::TrustedType(TrustedType::TrustedHTML(cell_from_abi(cell))),
-            2 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScript(cell_from_abi(cell))),
-            3 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScriptURL(cell_from_abi(cell))),
-            _ => unreachable!("{kind} is not a kind of TrustedType or string"),
-        }
+/// The TrustedType or string that C++ passes: a cell of the interface of `kind` (TrustedTypeName + 1), or a string it
+/// hands over if `kind` is 0.
+fn trusted_type_or_string_from_abi(
+    kind: u8,
+    cell: Option<&InterfaceCell>,
+    string: Option<Utf16String>,
+) -> TrustedTypeOrString {
+    if kind == 0 {
+        return TrustedTypeOrString::String(string.expect("C++ passes a string"));
+    }
+    let cell = cell.expect("C++ passes the cell of a TrustedType");
+    match kind {
+        1 => TrustedTypeOrString::TrustedType(TrustedType::TrustedHTML(cell.object())),
+        2 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScript(cell.object())),
+        3 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScriptURL(cell.object())),
+        _ => unreachable!("{kind} is not a kind of TrustedType or string"),
     }
 }
 
 /// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-string-algorithm
-///
-/// # Safety
-///
-/// `vm` must be the live VM and `global` a live global object. `input_kind`, `input_cell` and `input_string` must be
-/// as trusted_type_or_string_from_abi() takes them, `sink` and `sink_group` raw strings that C++ hands over, and
-/// `string` and `exception` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_string(
+pub extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_string(
     vm: &Vm,
     expected_type: u8,
-    global: *mut c_void,
+    global: Gc<Object>,
     input_kind: u8,
-    input_cell: *mut c_void,
-    input_string: usize,
+    input_cell: Option<&InterfaceCell>,
+    input_string: Option<Utf16String>,
     sink: Utf16String,
     sink_group: Utf16String,
-    string: *mut usize,
-    exception: *mut u64,
+    string: &mut usize,
+    exception: &mut u64,
 ) -> u8 {
-    // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (global, input) = unsafe {
-        (
-            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
-            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-        )
-    };
+    let input = trusted_type_or_string_from_abi(input_kind, input_cell, input_string);
     let result = get_trusted_type_compliant_string(
         vm,
         TrustedTypeName::from_abi(expected_type),
@@ -899,36 +879,25 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
         &sink,
         &sink_group,
     );
-    // SAFETY: The caller passes writable pointers.
-    unsafe { result_into_abi(result, string, exception) }
+    result_into_abi(result, string, exception)
 }
 
 /// https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
-///
-/// # Safety
-///
-/// As web_rust_trusted_types_get_trusted_type_compliant_string().
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
+pub extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
     vm: &Vm,
     attribute_name: Utf16String,
     attribute_ns: Option<Utf16String>,
     element_local_name: Utf16String,
     element_namespace: Option<Utf16String>,
-    global: *mut c_void,
+    global: Gc<Object>,
     input_kind: u8,
-    input_cell: *mut c_void,
-    input_string: usize,
-    string: *mut usize,
-    exception: *mut u64,
+    input_cell: Option<&InterfaceCell>,
+    input_string: Option<Utf16String>,
+    string: &mut usize,
+    exception: &mut u64,
 ) -> u8 {
-    // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
-    let (global, input) = unsafe {
-        (
-            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
-            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-        )
-    };
+    let input = trusted_type_or_string_from_abi(input_kind, input_cell, input_string);
     let result = get_trusted_types_compliant_attribute_value(
         vm,
         &attribute_name,
@@ -938,54 +907,40 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
         global,
         &input,
     );
-    // SAFETY: The caller passes writable pointers.
-    unsafe { result_into_abi(result, string, exception) }
+    result_into_abi(result, string, exception)
 }
 
 /// https://w3c.github.io/trusted-types/dist/spec/#process-value-with-a-default-policy-algorithm
-///
-/// # Safety
-///
-/// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `result` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_policy(
+pub extern "C" fn web_rust_trusted_types_process_value_with_a_default_policy(
     vm: &Vm,
     trusted_type_name: u8,
-    global: *mut c_void,
+    global: Gc<Object>,
     input_kind: u8,
-    input_cell: *mut c_void,
-    input_string: usize,
+    input_cell: Option<&InterfaceCell>,
+    input_string: Option<Utf16String>,
     sink: Utf16String,
-    result: *mut *mut c_void,
-    exception: *mut u64,
+    result: &mut *mut c_void,
+    exception: &mut u64,
 ) -> bool {
-    // SAFETY: The caller passes the live VM, a live global object, a live input and a live string.
-    let (global, input) = unsafe {
-        (
-            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
-            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
-        )
-    };
+    let input = trusted_type_or_string_from_abi(input_kind, input_cell, input_string);
     let converted =
         process_value_with_a_default_policy(vm, TrustedTypeName::from_abi(trusted_type_name), global, &input, &sink);
-    // SAFETY: The caller passes writable pointers.
-    unsafe {
-        match converted {
-            Ok(converted) => {
-                *result = match converted {
-                    None => core::ptr::null_mut(),
-                    Some(TrustedType::TrustedHTML(value)) => cell_into_abi(value),
-                    Some(TrustedType::TrustedScript(value)) => cell_into_abi(value),
-                    Some(TrustedType::TrustedScriptURL(value)) => cell_into_abi(value),
-                };
-                false
-            }
-            Err(Exception::Thrown(throw)) => {
-                *exception = throw.value().to_raw();
-                true
-            }
-            Err(_) => unreachable!("process value with a default policy throws only what the policy throws"),
+    match converted {
+        Ok(converted) => {
+            *result = match converted {
+                None => core::ptr::null_mut(),
+                Some(TrustedType::TrustedHTML(value)) => cell_into_abi(value),
+                Some(TrustedType::TrustedScript(value)) => cell_into_abi(value),
+                Some(TrustedType::TrustedScriptURL(value)) => cell_into_abi(value),
+            };
+            false
         }
+        Err(Exception::Thrown(throw)) => {
+            *exception = throw.value().to_raw();
+            true
+        }
+        Err(_) => unreachable!("process value with a default policy throws only what the policy throws"),
     }
 }
 
@@ -1011,12 +966,11 @@ pub(crate) enum CompliantParserOptionsResultAbi {
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM and `global` a live global object. `input` and what it points to must be live for the call,
-/// `sink` a raw string that C++ hands over, and `options`, `message` and `exception` writable.
+/// What `input` points to must be live for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parser_options(
     vm: &Vm,
-    global: *mut c_void,
+    global: Gc<Object>,
     input: &ParserOptionsInputAbi,
     throw_if_missing: bool,
     sink: Utf16String,
@@ -1025,8 +979,6 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parse
     message: &mut usize,
     exception: &mut u64,
 ) -> CompliantParserOptionsResultAbi {
-    let global =
-        unsafe { Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")) };
     let sanitizer = match input.sanitizer_kind {
         SanitizerInputKind::None => None,
         // SAFETY: C++ lends the sanitizer input of the kind for the call.

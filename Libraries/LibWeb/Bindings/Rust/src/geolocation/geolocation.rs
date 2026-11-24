@@ -1061,7 +1061,7 @@ pub unsafe extern "C" fn web_rust_geolocation_receive_position(
     request: *mut c_void,
     result: &GeolocationPositionResultAbi,
 ) {
-    // SAFETY: The caller passes the live VM and the live cell of a request.
+    // SAFETY: The caller passes the live cell of a request.
     let request = unsafe {
         POSITION_REQUEST_CLASS
             .downcast(NonNull::new(request).expect("LibWeb passes the request"))
@@ -1092,7 +1092,7 @@ pub unsafe extern "C" fn web_rust_geolocation_document_visibility_changed(
     wait: *mut c_void,
     is_visible: bool,
 ) {
-    // SAFETY: The caller passes the live VM and the live cell of a wait.
+    // SAFETY: The caller passes the live cell of a wait.
     let wait = unsafe {
         VISIBILITY_WAIT_CLASS
             .downcast(NonNull::new(wait).expect("LibWeb passes the wait"))

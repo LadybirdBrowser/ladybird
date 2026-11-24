@@ -8,12 +8,11 @@
 //! Streams/WritableStream.h set streams up and read them, for the specifications that LibWeb implements in C++.
 
 use core::ffi::c_void;
-use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, ThrowCompletionOr, Value, Vm};
 
 use crate::bindings::conversions::BufferSource;
-use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
+use crate::bindings::cpp_cell::{LentCppCell, cpp_class};
 use crate::bindings::interface::{InterfaceCell, Ref, allocate, cell_into_abi};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::{CallContext, MustNotThrow, WebIdlResult};
@@ -35,14 +34,6 @@ use crate::streams::transform_stream_default_controller::transform_stream_defaul
 use crate::streams::underlying_source::ReadableStreamController;
 use crate::streams::writable_stream::WritableStream;
 
-/// # Safety
-///
-/// `cell` must be null or a live cell of LibWeb's C++ code.
-unsafe fn optional_cpp_cell(cell: *mut c_void) -> Option<CppCell> {
-    // SAFETY: The caller passes null or a live cell.
-    NonNull::new(cell).map(|cell| unsafe { CppCell::from_raw(cell.as_ptr()) })
-}
-
 fn completion(cx: &CallContext, result: WebIdlResult<()>) -> RawNativeFunctionResult {
     let result: ThrowCompletionOr<Value> = result
         .map(|()| Value::UNDEFINED)
@@ -62,28 +53,20 @@ pub extern "C" fn web_rust_readable_stream_create(vm: &Vm, realm: Gc<Realm>) -> 
 
 /// Sets the stream up with byte reading support, https://streams.spec.whatwg.org/#readablestream-set-up-with-byte-reading-support,
 /// given the pullAlgorithm and the cancelAlgorithm that C++ gives, if any.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, a live ReadableStream, and null or the live GC::Functions of the
-/// algorithms.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_set_up_with_byte_reading_support(
+pub extern "C" fn web_rust_readable_stream_set_up_with_byte_reading_support(
     vm: &Vm,
     realm: Gc<Realm>,
     stream: &InterfaceCell,
-    pull_algorithm: *mut c_void,
-    cancel_algorithm: *mut c_void,
+    pull_algorithm: Option<&LentCppCell<cpp_class::PromiseAlgorithm>>,
+    cancel_algorithm: Option<&LentCppCell<cpp_class::PromiseAlgorithmWithArgument>>,
     high_water_mark: f64,
 ) {
-    // SAFETY: The caller passes the VM, a live realm, a live stream, and null or live algorithms.
-    let (stream, pull_algorithm, cancel_algorithm) = unsafe {
-        (
-            stream.object::<ReadableStream>(),
-            optional_cpp_cell(pull_algorithm).map(CppPromiseAlgorithm),
-            optional_cpp_cell(cancel_algorithm).map(CppPromiseAlgorithmWithArgument),
-        )
-    };
+    let (stream, pull_algorithm, cancel_algorithm) = (
+        stream.object::<ReadableStream>(),
+        pull_algorithm.map(CppPromiseAlgorithm::from_lent),
+        cancel_algorithm.map(CppPromiseAlgorithmWithArgument::from_lent),
+    );
     let cx = CallContext::new(vm, realm);
     ReadableStream::set_up_with_byte_reading_support(stream, &cx, pull_algorithm, cancel_algorithm, high_water_mark);
 }
@@ -138,12 +121,8 @@ pub extern "C" fn web_rust_readable_stream_is_readable_byte_stream(stream: &Inte
 
 /// The desired size to fill the stream's internal queue, written to `desired_size`, or false if it is null because the
 /// stream is errored, https://streams.spec.whatwg.org/#readablestream-get-the-desired-size
-///
-/// # Safety
-///
-/// `stream` must be a live ReadableStream with a ReadableStreamDefaultController, and `desired_size` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_readable_stream_desired_size(stream: &InterfaceCell, desired_size: *mut f64) -> bool {
+pub extern "C" fn web_rust_readable_stream_desired_size(stream: &InterfaceCell, desired_size: &mut f64) -> bool {
     let stream = stream.object::<ReadableStream>();
     let Some(ReadableStreamController::ReadableStreamDefaultController(controller)) = stream.controller() else {
         panic!("only a ReadableStream with a ReadableStreamDefaultController has a desired size to read");
@@ -151,8 +130,7 @@ pub unsafe extern "C" fn web_rust_readable_stream_desired_size(stream: &Interfac
     let Some(size) = readable_stream_default_controller_get_desired_size(controller) else {
         return false;
     };
-    // SAFETY: The caller passes a writable f64.
-    unsafe { desired_size.write(size) };
+    *desired_size = size;
     true
 }
 
@@ -392,30 +370,21 @@ pub extern "C" fn web_rust_transform_stream_create(vm: &Vm, realm: Gc<Realm>) ->
 }
 
 /// Sets the stream up with the algorithms that C++ gives, https://streams.spec.whatwg.org/#transformstream-set-up
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, a live TransformStream, the live GC::Function of the transformAlgorithm,
-/// and null or the live GC::Functions of the flushAlgorithm and the cancelAlgorithm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_transform_stream_set_up(
+pub extern "C" fn web_rust_transform_stream_set_up(
     vm: &Vm,
     realm: Gc<Realm>,
     stream: &InterfaceCell,
     transform_algorithm: &LentCppCell<cpp_class::PromiseAlgorithmWithArgument>,
-    flush_algorithm: *mut c_void,
-    cancel_algorithm: *mut c_void,
+    flush_algorithm: Option<&LentCppCell<cpp_class::PromiseAlgorithm>>,
+    cancel_algorithm: Option<&LentCppCell<cpp_class::PromiseAlgorithmWithArgument>>,
 ) {
-    // SAFETY: The caller passes the VM, a live realm, a live stream, a live transformAlgorithm and null or live
-    //         algorithms.
-    let (stream, transform_algorithm, flush_algorithm, cancel_algorithm) = unsafe {
-        (
-            stream.object::<TransformStream>(),
-            CppPromiseAlgorithmWithArgument::from_lent(transform_algorithm),
-            optional_cpp_cell(flush_algorithm).map(CppPromiseAlgorithm),
-            optional_cpp_cell(cancel_algorithm).map(CppPromiseAlgorithmWithArgument),
-        )
-    };
+    let (stream, transform_algorithm, flush_algorithm, cancel_algorithm) = (
+        stream.object::<TransformStream>(),
+        CppPromiseAlgorithmWithArgument::from_lent(transform_algorithm),
+        flush_algorithm.map(CppPromiseAlgorithm::from_lent),
+        cancel_algorithm.map(CppPromiseAlgorithmWithArgument::from_lent),
+    );
     let cx = CallContext::new(vm, realm);
     TransformStream::set_up(
         stream,

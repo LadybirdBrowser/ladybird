@@ -14,7 +14,6 @@
 //! specification gives it: "[[BufferObject]] : an ArrayBuffer whose Data Block is identified with the above memory
 //! address".
 
-use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{
@@ -494,45 +493,32 @@ fn grow_memory_of_buffer(vm: &Vm, buffer: Gc<ArrayBuffer>, new_length: usize) ->
 
 /// HostResizeArrayBuffer(buffer, newLength), https://webassembly.github.io/spec/js-api/#HostResizeArrayBuffer, which
 /// writes whether it handled the buffer.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live ArrayBuffer, and a writable bool.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_web_assembly_host_resize_array_buffer(
+pub extern "C" fn web_rust_web_assembly_host_resize_array_buffer(
     vm: &Vm,
-    buffer: *mut c_void,
+    buffer: Gc<ArrayBuffer>,
     new_length: usize,
-    handled: *mut bool,
+    handled: &mut bool,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live buffer.
-    let buffer = unsafe { Gc::from_non_null(NonNull::new_unchecked(buffer.cast())) };
     // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     //     4. Return handled.
     // 2. Otherwise, return unhandled.
     let result = grow_memory_of_buffer(vm, buffer, new_length);
     if let Ok(was_handled) = result {
-        // SAFETY: The caller passes a writable bool.
-        unsafe { *handled = was_handled };
+        *handled = was_handled;
     }
     RawNativeFunctionResult::from_completion(result.map(|_| Value::UNDEFINED))
 }
 
 /// HostGrowSharedArrayBuffer(buffer, newLength), https://webassembly.github.io/threads/js-api/#abstract-operation-hostgrowsharedarraybuffer,
 /// which writes whether it handled the buffer.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live SharedArrayBuffer, and a writable bool.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
+pub extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
     vm: &Vm,
-    buffer: *mut c_void,
+    buffer: Gc<ArrayBuffer>,
     new_length: usize,
-    handled: *mut bool,
+    handled: &mut bool,
 ) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live buffer.
-    let buffer = unsafe { Gc::from_non_null(NonNull::new_unchecked(buffer.cast::<ArrayBuffer>())) };
     // AD-HOC: If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     let current_byte_length = buffer.byte_length();
     let result = grow_memory_of_buffer(vm, buffer, new_length).and_then(|was_handled| {
@@ -570,8 +556,7 @@ pub unsafe extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
         Ok(true)
     });
     if let Ok(was_handled) = result {
-        // SAFETY: The caller passes a writable bool.
-        unsafe { *handled = was_handled };
+        *handled = was_handled;
     }
     RawNativeFunctionResult::from_completion(result.map(|_| Value::UNDEFINED))
 }
