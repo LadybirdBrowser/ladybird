@@ -14,23 +14,25 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(StaticNodeList);
 
-GC::Ref<NodeList> StaticNodeList::create(Vector<GC::RawRef<Node>> static_nodes)
-{
-    return GC::Heap::the().allocate<StaticNodeList>(move(static_nodes));
-}
-
 GC::Ref<NodeList> StaticNodeList::create(ReadonlySpan<GC::Ref<Node>> nodes)
 {
-    Vector<GC::RawRef<Node>> static_nodes;
-    static_nodes.ensure_capacity(nodes.size());
-    for (auto& node : nodes)
-        static_nodes.unchecked_append(*node);
-    return create(move(static_nodes));
+    return GC::Heap::the().allocate<StaticNodeList>(nodes);
 }
 
-StaticNodeList::StaticNodeList(Vector<GC::RawRef<Node>> static_nodes)
+GC::Ref<NodeList> StaticNodeList::create(GC::RootVector<GC::Ref<Node>>&& nodes)
+{
+    return GC::Heap::the().allocate<StaticNodeList>(move(nodes));
+}
+
+StaticNodeList::StaticNodeList(ReadonlySpan<GC::Ref<Node>> nodes)
     : NodeList()
-    , m_static_nodes(move(static_nodes))
+    , m_static_nodes(nodes)
+{
+}
+
+StaticNodeList::StaticNodeList(Vector<GC::Ref<Node>>&& nodes)
+    : NodeList()
+    , m_static_nodes(move(nodes))
 {
 }
 

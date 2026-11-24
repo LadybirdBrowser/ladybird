@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/NodeList.h>
 
 namespace Web::DOM {
@@ -15,10 +16,8 @@ class StaticNodeList final : public NodeList {
     GC_DECLARE_ALLOCATOR(StaticNodeList);
 
 public:
-    // The nodes must be kept alive by something else until the list is created, such as the live tree they
-    // were collected from; the list itself is the only owner they need afterwards.
-    [[nodiscard]] static GC::Ref<NodeList> create(Vector<GC::RawRef<Node>>);
     [[nodiscard]] static GC::Ref<NodeList> create(ReadonlySpan<GC::Ref<Node>>);
+    [[nodiscard]] static GC::Ref<NodeList> create(GC::RootVector<GC::Ref<Node>>&&);
 
     virtual ~StaticNodeList() override;
 
@@ -26,7 +25,8 @@ public:
     virtual Node const* item(u32 index) const override;
 
 private:
-    explicit StaticNodeList(Vector<GC::RawRef<Node>>);
+    explicit StaticNodeList(ReadonlySpan<GC::Ref<Node>>);
+    explicit StaticNodeList(Vector<GC::Ref<Node>>&&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
