@@ -2099,6 +2099,12 @@ void SeccompPolicy::allow_file_descriptor_operations()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, lseek);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pread64);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pwrite64);
+    // musl's pwrite() first tries pwritev2() with RWF_NOAPPEND, so that a descriptor opened for appending still writes
+    // at the offset. Where pwritev2() doesn't exist, it falls back to pwrite64() for any other descriptor.
+#ifdef __NR_pwritev2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_pwritev2, 0, 1));
+    append(SECCOMP_ERRNO(ENOSYS));
+#endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendfile);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, memfd_create);
 

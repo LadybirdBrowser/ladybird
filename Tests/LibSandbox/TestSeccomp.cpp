@@ -40,6 +40,7 @@
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -166,6 +167,37 @@ TEST_CASE(file_descriptor_policy_answers_both_terminal_queries_isatty_makes)
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
+
+#ifdef __NR_pwritev2
+#    ifndef RWF_NOAPPEND
+#        define RWF_NOAPPEND 0x00000020
+#    endif
+
+TEST_CASE(file_descriptor_policy_sends_pwritev2_to_the_pwrite64_fallback)
+{
+    char path[] = "/tmp/ladybird-pwritev2-XXXXXX";
+    int fd = mkstemp(path);
+    VERIFY(fd >= 0);
+    VERIFY(unlink(path) == 0);
+
+    auto body = [&] {
+        char byte = 'x';
+        iovec io { .iov_base = &byte, .iov_len = 1 };
+        VERIFY(syscall(__NR_pwritev2, fd, &io, 1, 4, 0, RWF_NOAPPEND) == -1);
+        VERIFY(errno == ENOSYS);
+        VERIFY(pwrite(fd, &byte, 1, 4) == 1);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    struct stat metadata {};
+    VERIFY(fstat(fd, &metadata) == 0);
+    EXPECT_EQ(metadata.st_size, 5);
+    VERIFY(close(fd) == 0);
+}
+#endif
 
 TEST_CASE(runtime_policy_refuses_other_processes_and_resource_limit_changes)
 {
