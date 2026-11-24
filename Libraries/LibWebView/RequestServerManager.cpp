@@ -246,14 +246,14 @@ void RequestServerManager::did_lose_process(RequestServerInstance& instance)
 
     if (auto result = launch_process(instance); result.is_error()) {
         warnln("\033[31;1mUnable to launch replacement RequestServer: {}\033[0m", result.error());
-        VERIFY_NOT_REACHED();
+        // Another RequestServer is launched when one is next asked for, such as by a process that lost its client.
+        retire(instance);
+        return;
     }
 
     auto reconnect = [&](RequestServerSiteBindings& bindings) {
-        if (auto result = bindings.reconnect_lost_clients(instance, lost_client_ids); result.is_error()) {
+        if (auto result = bindings.reconnect_lost_clients(instance, lost_client_ids); result.is_error())
             warnln("Unable to reconnect a process to its RequestServer: {}", result.error());
-            VERIFY_NOT_REACHED();
-        }
         return IterationDecision::Continue;
     };
     WebContentClient::for_each_client([&](WebContentClient& client) { return reconnect(client.request_server_site_bindings()); });
