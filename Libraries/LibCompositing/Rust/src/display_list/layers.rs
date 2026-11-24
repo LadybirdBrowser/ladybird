@@ -53,21 +53,10 @@ pub use wire::{LayerPlan, UnvalidatedLayerPlan, compositor_takes_plans_within};
 // a rect offset by such an offset still fits in an `IntRect`.
 const COORDINATE_LIMIT_IN_DEVICE_PIXELS: i32 = 2 * EXTENT_LIMIT_IN_DEVICE_PIXELS as i32;
 
-/// The most canvases, videos and nested contexts that get layers.
-pub const MAXIMUM_MEDIA_LAYER_COUNT: usize = 8;
-
 /// The most carets and scroll bars that get layers, each of which the compositor paints into a small surface of its
-/// own. Each cuts its band once, and a plan cuts a band at most `MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND` times.
+/// own. Each cuts its band once, and a plan cuts a band at most `MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND` times. Canvases,
+/// videos and nested contexts are bounded only by those cuts.
 pub const MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD: usize = 64;
-
-/// The most layers a plan gives live content of the kind of `content`.
-pub(crate) fn maximum_layer_count_of_live_content_like(content: LiveContent) -> usize {
-    if content.is_drawn_by_its_record() {
-        MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD
-    } else {
-        MAXIMUM_MEDIA_LAYER_COUNT
-    }
-}
 
 /// The most composited effects that nest around a layer of a plan: the effects a frame composites the layer inside,
 /// each inside the next. Pages nest far fewer, as the compositor composites only an effect that it animates, or one

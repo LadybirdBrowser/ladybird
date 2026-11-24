@@ -15,11 +15,13 @@
 //! effect whose opacity or filter the compositor animates, so that its samples change how its layers are composited and
 //! not their tiles.
 
-use super::wire::plan_holds_more_than_compositor_decodes;
+use super::wire::{
+    CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR, plan_holds_more_than_compositor_decodes,
+};
 use super::{
     BandOfPlan, BarrierCut, BarrierOfPlan, CutOfPlan, LayerIndex, LayerStack, LayeredPlan, LayeringObstacles,
-    MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex, WhyCompositorCannotCompositeEffect,
-    WhyListIsOneLayer, maximum_layer_count_of_live_content_like, media_name,
+    MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan,
+    PlacementNodeIndex, WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
 use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
@@ -434,12 +436,14 @@ fn backdrop_filter_reads_nothing_past_mirrored_edge(filter: &[u8]) -> bool {
 
 /// Where each part of the list is placed among `spaces`, given the geometry of each of them, with what the stack holds
 /// per space of them: `LayerStack::swept_reach_in_parent_space_by_space_index` and
-/// `LayerStack::tiles_hold_content_moving_within_space_by_space_index`.
+/// `LayerStack::tiles_hold_content_moving_within_space_by_space_index`. Canvases, videos and nested contexts past
+/// `most_canvas_video_and_nested_context_layers`, in paint order, get no layers.
 fn place_list(
     inputs: &LayerStackInputs<'_>,
     spaces: RasterSpacesForPlacing,
     geometries: &[RasterSpaceGeometryForPlacing],
     nesting_of_live_effects: &NestingOfLiveEffects<'_>,
+    most_canvas_video_and_nested_context_layers: Option<usize>,
 ) -> (ListPlacement, Vec<Option<IntRect>>, Vec<bool>) {
     let tree = inputs.tree;
     // Placing decides for the filter that the tree holds and for each filter that an animation can give the effect.
@@ -451,7 +455,7 @@ fn place_list(
     };
     let placing = ListBeingPlaced::new(inputs, spaces, geometries, nesting_of_live_effects, filters_and_clips);
     let (runs, mut animations_without_layers) = placing.place_run_groups();
-    let (placed_media, media_without_layers) = placing.place_media(&runs);
+    let (placed_media, media_without_layers) = placing.place_media(&runs, most_canvas_video_and_nested_context_layers);
     let mut why_composited_regardless_of_layer_content =
         placing.effects_composited_regardless_of_layer_content(&runs, &placed_media, &mut animations_without_layers);
     let (backdrop_read_reach_by_effect_index, backdrop_readers_in_paint_order, reads_root_group_by_effect_index) =
@@ -1155,7 +1159,11 @@ impl<'a> ListBeingPlaced<'a> {
         Ok(swept_reach)
     }
 
-    fn place_media(&self, runs: &RunGroupsPlaced) -> (Vec<PlacedMedia>, Vec<(LiveContent, WhyMediaHasNoLayer)>) {
+    fn place_media(
+        &self,
+        runs: &RunGroupsPlaced,
+        most_canvas_video_and_nested_context_layers: Option<usize>,
+    ) -> (Vec<PlacedMedia>, Vec<(LiveContent, WhyMediaHasNoLayer)>) {
         let (tree, list, run_groups) = (self.tree, self.list, &*self.run_groups);
         let mut placed_media: Vec<PlacedMedia> = Vec::new();
         let mut media_without_layers = Vec::new();
@@ -1201,10 +1209,9 @@ impl<'a> ListBeingPlaced<'a> {
                 Some(why_no_layer) => media_without_layers.push((content, why_no_layer)),
             }
         }
-        // Past the most layers that live content of its kind gets, canvases and videos keep theirs before nested
-        // contexts, carets before scroll bars, and the scroll bars of the viewport before those of other scrollers.
+        // Past the most layers that carets and scroll bars get, carets keep theirs before scroll bars, and the scroll bars
+        // of the viewport before those of other scrollers.
         let order_among_others_of_its_kind = |media: &PlacedMedia| match media.content {
-            LiveContent::CompositedContext(_) => 1,
             LiveContent::ScrollBar { scroll_node, .. } => {
                 if compositor_scroll_record_of(tree, scroll_node).is_some_and(|record| record.is_viewport) {
                     1
@@ -1215,22 +1222,33 @@ impl<'a> ListBeingPlaced<'a> {
             _ => 0,
         };
         placed_media.sort_by_key(order_among_others_of_its_kind);
-        let mut layer_count_by_kind = [0usize; 2];
+        let mut layer_count_of_live_content_drawn_by_its_record = 0;
+        let mut layer_count_of_canvases_videos_and_nested_contexts = 0;
         placed_media.retain(|media| {
-            let layer_count = &mut layer_count_by_kind[usize::from(media.content.is_drawn_by_its_record())];
+            let (layer_count, maximum_layer_count) = if media.content.is_drawn_by_its_record() {
+                (
+                    &mut layer_count_of_live_content_drawn_by_its_record,
+                    Some(MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD),
+                )
+            } else {
+                (
+                    &mut layer_count_of_canvases_videos_and_nested_contexts,
+                    most_canvas_video_and_nested_context_layers,
+                )
+            };
             *layer_count += 1;
-            let gets_layer = *layer_count <= maximum_layer_count_of_live_content_like(media.content);
+            let gets_layer = maximum_layer_count.is_none_or(|maximum| *layer_count <= maximum);
             if !gets_layer {
                 media_without_layers.push((media.content, WhyMediaHasNoLayer::MoreMediaThanLayersFor));
             }
             gets_layer
         });
         placed_media.sort_by_key(|media| media.record_span.begin);
-        for index in 0..placed_media.len() {
-            placed_media[index].ordinal = placed_media[..index]
-                .iter()
-                .filter(|earlier| earlier.content == placed_media[index].content)
-                .count() as u32;
+        let mut drawings_painted_before_by_content: HashMap<LiveContent, u32> = HashMap::new();
+        for media in &mut placed_media {
+            let drawings_painted_before = drawings_painted_before_by_content.entry(media.content).or_insert(0);
+            media.ordinal = *drawings_painted_before;
+            *drawings_painted_before += 1;
         }
         (placed_media, media_without_layers)
     }
@@ -2763,24 +2781,50 @@ fn plan_layer_stack_at_anchors(
     if let Some(why) = why_list_cannot_be_layered(inputs) {
         return one_layer(inputs, why, layering_obstacles, ListPlacement::default());
     }
-    let (spaces, geometries) = spaces_with_geometries(
-        inputs.tree,
-        anchors_of_tree,
-        inputs.scroll_offsets,
-        inputs.viewport_rect,
-    );
-    let spaces_of_stack = spaces.spaces().to_vec();
-    let (placement, swept_reach_in_parent_space_by_space_index, tiles_hold_content_moving_within_space_by_space_index) =
-        place_list(inputs, spaces, &geometries, &nesting_of_live_effects);
-    build_layer_stack(
-        inputs,
-        placement,
-        swept_reach_in_parent_space_by_space_index,
-        tiles_hold_content_moving_within_space_by_space_index,
-        spaces_of_stack,
-        layering_obstacles,
-        &nesting_of_live_effects,
-    )
+    let plan_giving_layers_to_at_most = |most_canvas_video_and_nested_context_layers: Option<usize>| {
+        let (spaces, geometries) = spaces_with_geometries(
+            inputs.tree,
+            anchors_of_tree,
+            inputs.scroll_offsets,
+            inputs.viewport_rect,
+        );
+        let spaces_of_stack = spaces.spaces().to_vec();
+        let (
+            placement,
+            swept_reach_in_parent_space_by_space_index,
+            tiles_hold_content_moving_within_space_by_space_index,
+        ) = place_list(
+            inputs,
+            spaces,
+            &geometries,
+            &nesting_of_live_effects,
+            most_canvas_video_and_nested_context_layers,
+        );
+        build_layer_stack(
+            inputs,
+            placement,
+            swept_reach_in_parent_space_by_space_index,
+            tiles_hold_content_moving_within_space_by_space_index,
+            spaces_of_stack,
+            layering_obstacles,
+            &nesting_of_live_effects,
+        )
+    };
+    let planned_with_layers_for_all = plan_giving_layers_to_at_most(None);
+    let canvases_videos_and_nested_contexts_cut_bands_more_than_compositor_decodes =
+        planned_with_layers_for_all.stack.why_list_is_one_layer
+            == Some(WhyListIsOneLayer::PlanHoldsMoreThanCompositorDecodes)
+            && planned_with_layers_for_all
+                .placement
+                .placed_media
+                .iter()
+                .filter(|media| !media.content.is_drawn_by_its_record())
+                .count()
+                > CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR;
+    if canvases_videos_and_nested_contexts_cut_bands_more_than_compositor_decodes {
+        return plan_giving_layers_to_at_most(Some(CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR));
+    }
+    planned_with_layers_for_all
 }
 
 /// What a plan of the layers of a list is made from, all of which WebContent publishes: the list, the tree, the viewport
@@ -2879,16 +2923,13 @@ impl InputsOfLayerPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display_list::commands::{CanvasId, ContextRef, FillRoundedRectRing};
+    use crate::display_list::commands::{CanvasId, CompositorContextId, ContextRef, FillRoundedRectRing};
     use crate::display_list::layers::{
         BarrierCut, BarrierIdentity, CutsOfCell, LayerIdentity, NodeNamesFromIndices, WindowServerPresentationOfMedia,
         media_name,
     };
-    use crate::display_list::layers::{
-        MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_MEDIA_LAYER_COUNT,
-    };
     use crate::display_list::test_fixtures::{
-        GREEN, ListOfOneChunk, VIEWPORT, animation_of, canvas, caret, effects, fill, frosted_glass,
+        GREEN, ListOfOneChunk, VIEWPORT, animation_of, canvas, caret, effects, fill, frosted_glass, nested_context,
         opacity_animation_of, scroll_bar, scroll_node, scroll_record, spinning, transform, transform_animation_of,
         tree_with_document_scroll, tree_with_document_scroller, tree_with_root_isolation_effect,
     };
@@ -3558,14 +3599,15 @@ mod tests {
         );
     }
 
-    // Carets and scroll bars get layers past the most canvases, videos and nested contexts that do, and past the most
-    // carets and scroll bars that get layers, carets keep theirs.
+    // Carets and scroll bars get layers however many canvases do, and past the most carets and scroll bars that get
+    // layers, carets keep theirs.
     #[test]
     fn carets_and_scroll_bars_count_against_a_limit_of_their_own() {
         let (tree, _, contexts) = tree_with_document_scroller(&[IntRect::new(100, 100, 300, 200)]);
         let (document, scroller) = (contexts[0], contexts[1]);
+        let canvas_count = 10;
         let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document);
-        for index in 0..MAXIMUM_MEDIA_LAYER_COUNT {
+        for index in 0..canvas_count {
             list = list.with(
                 canvas(IntRect::new(10 + index as i32 * 60, 1000, 50, 50), index as u64 + 1),
                 document,
@@ -3590,7 +3632,7 @@ mod tests {
         };
         assert_eq!(
             placed_count(|content| matches!(content, LiveContent::Canvas(_))),
-            MAXIMUM_MEDIA_LAYER_COUNT
+            canvas_count
         );
         assert_eq!(placed_count(|content| *content == LiveContent::Caret), 1);
         assert_eq!(
@@ -3606,6 +3648,79 @@ mod tests {
                 },
                 WhyMediaHasNoLayer::MoreMediaThanLayersFor
             )]
+        );
+    }
+
+    // Canvases and nested contexts in turn, in rows, the first a canvas.
+    fn page_of_canvases_and_nested_contexts_in_rows(media_count: usize) -> (VisualContextTree, ListOfOneChunk) {
+        let (tree, _, document) = tree_with_document_scroll();
+        let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document);
+        for (index, content) in canvases_and_nested_contexts_in_turn(media_count)
+            .into_iter()
+            .enumerate()
+        {
+            let rect = IntRect::new((index % 20) as i32 * 40, (index / 20) as i32 * 40, 30, 30);
+            list = match content {
+                LiveContent::Canvas(CanvasId(id)) => list.with(canvas(rect, id), document),
+                LiveContent::CompositedContext(CompositorContextId(id)) => {
+                    list.with(nested_context(rect, id, document), document)
+                }
+                _ => unreachable!(),
+            };
+        }
+        (tree, list)
+    }
+
+    fn canvases_and_nested_contexts_in_turn(media_count: usize) -> Vec<LiveContent> {
+        (1..=media_count as u64)
+            .map(|id| {
+                if id % 2 == 1 {
+                    LiveContent::Canvas(CanvasId(id))
+                } else {
+                    LiveContent::CompositedContext(CompositorContextId(id))
+                }
+            })
+            .collect()
+    }
+
+    fn media_with_layers(planned: &PlannedLayers) -> Vec<LiveContent> {
+        planned
+            .placement
+            .placed_media
+            .iter()
+            .map(|media| media.content)
+            .collect()
+    }
+
+    #[test]
+    fn every_canvas_and_nested_context_gets_a_layer_however_many_a_page_paints() {
+        let (tree, list) = page_of_canvases_and_nested_contexts_in_rows(100);
+        let planned = list.planned(&tree, &[]);
+        assert_eq!(planned.stack.why_list_is_one_layer, None);
+        assert!(planned.placement.media_without_layers.is_empty());
+        assert_eq!(media_with_layers(&planned), canvases_and_nested_contexts_in_turn(100));
+    }
+
+    // Each canvas, video or nested context with a layer cuts its band once. Where every one of them having a layer would
+    // cut a band more times than the compositor decodes, those painted first keep layers, up to as many as a band leaves
+    // cuts for, and the rest of the list stays layered.
+    #[test]
+    fn canvases_and_nested_contexts_past_the_cuts_a_band_leaves_for_them_get_no_layers() {
+        let media_count = CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR + 100;
+        let (tree, list) = page_of_canvases_and_nested_contexts_in_rows(media_count);
+        let planned = list.planned(&tree, &[]);
+        assert_eq!(planned.stack.why_list_is_one_layer, None);
+        assert_eq!(
+            media_with_layers(&planned),
+            canvases_and_nested_contexts_in_turn(CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR)
+        );
+        assert_eq!(planned.placement.media_without_layers.len(), 100);
+        assert!(
+            planned
+                .placement
+                .media_without_layers
+                .iter()
+                .all(|(_, why)| *why == WhyMediaHasNoLayer::MoreMediaThanLayersFor)
         );
     }
 
