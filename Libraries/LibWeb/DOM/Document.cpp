@@ -8294,10 +8294,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             // FIXME: Initialise hasUAVisualTransition
             auto& relevant_global_object = HTML::relevant_global_object(*this);
             auto& window = HTML::relevant_window(*this);
-            auto pop_state_event = HTML::PopStateEvent::create(
-                "popstate"_fly_string,
-                history()->state_value(),
-                HighResolutionTime::current_high_resolution_time(relevant_global_object));
+            auto pop_state_event = HTML::create_pop_state_event(HTML::relevant_realm(*this), HTML::EventNames::popstate, history()->state_value());
             window.dispatch_event(pop_state_event);
 
             // 4. Restore persisted state given entry.

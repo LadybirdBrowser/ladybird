@@ -106,6 +106,8 @@ pub(crate) mod page_transition_event;
 #[cfg(not(test))]
 pub(crate) mod path2d;
 #[cfg(not(test))]
+pub(crate) mod pop_state_event;
+#[cfg(not(test))]
 pub(crate) mod port_channel;
 #[cfg(not(test))]
 pub(crate) mod promise_rejection_event;
