@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="windows-1252">
+<script src="../include.js"></script>
+<script>
+    const text = "Prøv ’ é";
+    const report = `<p id="text">${text}</p><script>parent.postMessage([document.characterSet, document.getElementById("text").textContent], "*")<\/script>`;
+
+    function loadSrcdoc(srcdoc, sandbox) {
+        const iframe = document.createElement("iframe");
+        if (sandbox !== undefined)
+            iframe.sandbox = sandbox;
+        iframe.srcdoc = srcdoc;
+        const reported = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        document.body.append(iframe);
+        return reported;
+    }
+
+    promiseTest(async () => {
+        println(`Parent document encoding: ${document.characterSet}`);
+        const cases = {
+            "Same-origin srcdoc": [report],
+            "Sandboxed srcdoc": [report, "allow-scripts"],
+            "srcdoc declaring windows-1252": [`<meta charset="windows-1252">${report}`],
+        };
+        for (const [name, [srcdoc, sandbox]] of Object.entries(cases)) {
+            const [encoding, decodedText] = await loadSrcdoc(srcdoc, sandbox);
+            println(`${name}: ${encoding}, text decoded intact: ${decodedText === text}`);
+        }
+    });
+</script>
