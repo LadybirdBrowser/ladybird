@@ -283,7 +283,6 @@ public:
     void synchronized_resize_committed(Badge<CompositorPresentationClient>, u64 token) { did_commit_synchronized_resize(token); }
     void set_has_system_focus(bool);
 
-    // A URL the user chose in the browser's UI. Loading a file: URL this way grants a root for that file.
     void load_from_browser_ui(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
 
     // Shown by about:certificate so only the user, never a web page, can answer it.
@@ -301,7 +300,7 @@ public:
     void answer_certificate_warning(Badge<CertificateUI>, URL::URL const& url, StringView fingerprint, bool trust);
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
     void open_url_in_new_window(URL::URL const&, IsPrivate);
-    void load(Web::HTML::PreparedNavigationDescriptor, LocalFileAccess = {});
+    void load(Web::HTML::PreparedNavigationDescriptor);
     void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab);
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate);
     void set_next_history_visit_transition(HistoryVisitTransition transition) { m_history_visit_transition_for_next_load = transition; }
@@ -956,7 +955,6 @@ protected:
     struct NavigationToRetry {
         URL::URL url;
         Optional<Web::HTML::PreparedNavigationDescriptor> navigation;
-        LocalFileAccess local_file_access {};
     };
     Optional<NavigationToRetry> navigation_to_retry_for_ongoing_navigation() const;
     void retry_navigation(NavigationToRetry, Web::Bindings::NavigationHistoryBehavior);

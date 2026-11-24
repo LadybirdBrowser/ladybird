@@ -54,11 +54,11 @@ public:
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
 
-    void set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject>, Vector<LocalFileRoot> local_file_roots);
+    void set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject>, bool may_read_local_files);
     CanonicalWorkerEnvironmentSettingsObject const* inside_settings() const { return m_inside_settings.ptr(); }
     void forget_inside_settings_of_closing_worker();
     Optional<URL::Origin> const& top_level_origin() const { return m_top_level_origin; }
-    Vector<LocalFileRoot> const& local_file_roots() const { return m_local_file_roots; }
+    bool may_read_local_files() const { return m_may_read_local_files; }
     void keep_script_blob_url_until_script_loads(BlobURLHandle handle) { m_script_blob_url = move(handle); }
 
     virtual void did_close_worker() override;
@@ -97,7 +97,7 @@ private:
 
     OwnPtr<CanonicalWorkerEnvironmentSettingsObject> m_inside_settings;
     Optional<URL::Origin> m_top_level_origin;
-    Vector<LocalFileRoot> m_local_file_roots;
+    bool m_may_read_local_files { false };
     // Keeps the blob URL entry of the worker's script alive until the script is loaded, so that the owner can
     // revoke the URL right after constructing the worker.
     BlobURLHandle m_script_blob_url;

@@ -439,27 +439,21 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
     m_response_body_request = request;
 }
 
-// NB: The process that fetched a navigation's response to a file: URL ran the navigation's population steps for a
-//     source document that can be web content, so it did not read the file. The UI process reads it off its main
-//     thread, with the navigation's local file access, and hands its contents to the process creating the document.
+// NB: The UI process reads the file off its main thread.
 void NavigationLoader::read_local_file_for_response()
 {
-    if (m_local_file_access.has<Empty>() || m_requested_url.scheme() != "file"sv) {
+    if (m_may_read_local_file == MayReadLocalFile::No || m_requested_url.scheme() != "file"sv) {
         did_read_local_file_for_response(Error::from_errno(EACCES));
         return;
     }
 
-    Threading::ThreadPool::the().submit([weak_this = make_weak_ptr(), path = m_requested_url.file_path(), access = m_local_file_access, event_loop = Core::EventLoop::current_weak()] mutable {
+    Threading::ThreadPool::the().submit([weak_this = make_weak_ptr(), path = m_requested_url.file_path(), event_loop = Core::EventLoop::current_weak()] mutable {
         auto read_local_file = [&] -> ErrorOr<LocalFile> {
-            auto opened = TRY(access.has<UserSelectedLocalFile>()
-                    ? open_local_file_the_user_chose(path)
-                    : open_local_file_for_renderer(path, access.get<Vector<LocalFileRoot>>()));
-            auto file = TRY(Core::File::adopt_fd(opened.file.fd(), Core::File::OpenMode::Read));
-            (void)opened.file.take_fd();
+            auto file = TRY(Core::File::adopt_fd(TRY(open_local_file_for_renderer(path)).take_fd(), Core::File::OpenMode::Read));
             if (TRY(Core::Directory::is_valid_directory(file->fd())))
                 return Error::from_errno(EISDIR);
             auto stat = TRY(file->stat());
-            return LocalFile { TRY(file->read_until_eof()), stat.st_mtime, move(opened.canonical_path) };
+            return LocalFile { TRY(file->read_until_eof()), stat.st_mtime };
         };
         auto local_file = read_local_file();
 
@@ -473,23 +467,10 @@ void NavigationLoader::read_local_file_for_response()
     });
 }
 
-Optional<LocalFileRoot> NavigationLoader::root_of_local_file(ByteString const& canonical_path) const
-{
-    if (m_local_file_access.has<UserSelectedLocalFile>())
-        return Application::local_file_grant_policy().root_for_opened_file(canonical_path);
-    return m_local_file_access.get<Vector<LocalFileRoot>>().first_matching([&](auto const& root) { return root.covers(canonical_path); }).copy();
-}
-
 void NavigationLoader::did_read_local_file_for_response(ErrorOr<LocalFile> local_file)
 {
     if (!m_completion_steps)
         return;
-
-    if (!local_file.is_error()) {
-        m_local_file_root = root_of_local_file(local_file.value().canonical_path);
-        if (!m_local_file_root.has_value())
-            local_file = Error::from_errno(EACCES);
-    }
 
     // NB: A file the UI process cannot read creates an error document, as a network error does.
     if (local_file.is_error()) {
