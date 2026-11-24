@@ -1,3 +1,3 @@
-width seen by script: 0
-height seen by script > 0: false
+width seen by script: 300
+height seen by script > 0: true
 width after insertion: 300
