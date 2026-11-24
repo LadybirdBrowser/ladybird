@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/InputState.h>
@@ -16,9 +17,9 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-browsing-context-input-state-map
 // NB: The map is keyed by the navigable of the top-level browsing context, which a process hosting a frame of the tab
 //     holds as well.
-static HashMap<GC::RawPtr<HTML::Navigable>, InputState>& browsing_context_input_state_map()
+static GC::WeakHashMap<HTML::Navigable, NonnullRefPtr<InputState>>& browsing_context_input_state_map()
 {
-    static NeverDestroyed<HashMap<GC::RawPtr<HTML::Navigable>, InputState>> map;
+    static NeverDestroyed<GC::WeakHashMap<HTML::Navigable, NonnullRefPtr<InputState>>> map;
     return *map;
 }
 
@@ -33,10 +34,10 @@ InputState& get_input_state(HTML::Navigable& top_level_traversable)
 
     // 2. Let input state map be session's browsing context input state map.
     // 3. If input state map does not contain browsing context, set input state map[browsing context] to create an input state.
-    auto& input_state = browsing_context_input_state_map().ensure(top_level_traversable);
+    auto& input_state = browsing_context_input_state_map().ensure(top_level_traversable, [] { return make_ref_counted<InputState>(); });
 
     // 4. Return input state map[browsing context].
-    return input_state;
+    return *input_state;
 }
 
 // https://w3c.github.io/webdriver/#dfn-reset-the-input-state
@@ -168,7 +169,7 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
     if (!input_state.actions_queue.is_empty())
         return Error::from_code(ErrorCode::UnknownError, "Cannot restore input state during action dispatch"sv);
 
-    InputState restored;
+    auto restored = make_ref_counted<InputState>();
     if (!snapshot.is_null()) {
         if (!snapshot.is_object())
             return invalid_input_state();
@@ -183,12 +184,12 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
             auto const& object = value.as_object();
             auto id = object.get_string("id"sv);
             auto type = object.get_string("type"sv);
-            if (!id.has_value() || !type.has_value() || restored.input_state_map.contains(*id))
+            if (!id.has_value() || !type.has_value() || restored->input_state_map.contains(*id))
                 return invalid_input_state();
             if (*type == "none"sv) {
-                restored.input_state_map.set(*id, NullInputSource {});
+                restored->input_state_map.set(*id, NullInputSource {});
             } else if (*type == "wheel"sv) {
-                restored.input_state_map.set(*id, WheelInputSource {});
+                restored->input_state_map.set(*id, WheelInputSource {});
             } else if (*type == "key"sv) {
                 auto pressed = object.get_array("pressed"sv);
                 auto alt = object.get_bool("alt"sv);
@@ -207,7 +208,7 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
                 source.ctrl = *ctrl;
                 source.meta = *meta;
                 source.shift = *shift;
-                restored.input_state_map.set(*id, move(source));
+                restored->input_state_map.set(*id, move(source));
             } else if (*type == "pointer"sv) {
                 auto pointer_type = object.get_string("pointerType"sv);
                 auto subtype = pointer_type.has_value() ? pointer_input_source_subtype_from_string(*pointer_type) : Optional<PointerInputSource::Subtype> {};
@@ -217,11 +218,11 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
                 auto y = object.get_i32("y"sv);
                 if (!subtype.has_value() || !pointer_id.has_value() || !pressed.has_value() || *pressed > 31 || !x.has_value() || !y.has_value())
                     return invalid_input_state();
-                PointerInputSource source { restored, *subtype };
+                PointerInputSource source { *restored, *subtype };
                 source.pointer_id = *pointer_id;
                 source.pressed = static_cast<UIEvents::MouseButton>(*pressed);
                 source.position = { CSSPixels::from_raw(*x), CSSPixels::from_raw(*y) };
-                restored.input_state_map.set(*id, move(source));
+                restored->input_state_map.set(*id, move(source));
             } else {
                 return invalid_input_state();
             }
@@ -242,7 +243,7 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
                     return invalid_input_state();
                 ActionObject action { *id, InputSourceType::Key, ActionObject::Subtype::KeyUp };
                 action.key_fields().value = *key;
-                restored.input_cancel_list.append(move(action));
+                restored->input_cancel_list.append(move(action));
             } else if (*type == "pointer"sv) {
                 auto pointer_type = object.get_string("pointerType"sv);
                 auto subtype = pointer_type.has_value() ? pointer_input_source_subtype_from_string(*pointer_type) : Optional<PointerInputSource::Subtype> {};
@@ -262,15 +263,15 @@ ErrorOr<void, Error> restore_input_state(HTML::Navigable& top_level_traversable,
                 TRY(restore_optional_field(object, "twist"sv, pointer.twist));
                 TRY(restore_optional_field(object, "altitudeAngle"sv, pointer.altitude_angle));
                 TRY(restore_optional_field(object, "azimuthAngle"sv, pointer.azimuth_angle));
-                restored.input_cancel_list.append(move(action));
+                restored->input_cancel_list.append(move(action));
             } else {
                 return invalid_input_state();
             }
         }
     }
 
-    input_state.input_state_map = move(restored.input_state_map);
-    input_state.input_cancel_list = move(restored.input_cancel_list);
+    input_state.input_state_map = move(restored->input_state_map);
+    input_state.input_cancel_list = move(restored->input_cancel_list);
     return {};
 }
 
