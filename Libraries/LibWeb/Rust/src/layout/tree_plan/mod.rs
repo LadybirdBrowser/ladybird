@@ -47,8 +47,6 @@ pub(crate) mod box_fact {
     pub(crate) const INLINE_OUTSIDE_BEFORE_BLOCKIFICATION: u32 = 1 << 8;
     /// The display is table-internal or a caption.
     pub(crate) const TABLE_NON_ROOT: u32 = 1 << 9;
-    /// The display before blockification is table-internal or a caption.
-    pub(crate) const TABLE_NON_ROOT_BEFORE_BLOCKIFICATION: u32 = 1 << 10;
     /// The box has a style of its own, which a text node lacks.
     pub(crate) const HAS_STYLE: u32 = 1 << 12;
     pub(crate) const LIST_STYLE_POSITION_INSIDE: u32 = 1 << 13;
@@ -90,7 +88,7 @@ pub(crate) mod box_fact {
     /// fixup reads, see [`super::PlanTree::table_fixup_lists`].
     pub(crate) const HAS_TABLE_PART_CHILD: u32 = 1 << 29;
     /// The facts that make a box a part of a table that table fixup reads among its siblings.
-    pub(crate) const TABLE_PART: u32 = TABLE_INSIDE | TABLE_NON_ROOT | TABLE_NON_ROOT_BEFORE_BLOCKIFICATION;
+    pub(crate) const TABLE_PART: u32 = TABLE_INSIDE | TABLE_NON_ROOT;
     /// The facts a box's children set.
     pub(crate) const OF_CHILDREN: u32 = HAS_INLINE_OR_IN_FLOW_CHILDREN | HAS_IN_FLOW_BLOCK_CHILDREN;
     /// The facts the display decides, as [`super::box_facts_of_display`] answers them.
@@ -269,15 +267,7 @@ impl<'a> PlannedBox<'a> {
 
     /// Whether the box's display, as table fixup reads it, is table-internal or a caption.
     pub(crate) fn is_table_non_root_for_table_fixup(&self) -> bool {
-        if !(self.has_fact(box_fact::HAS_STYLE) && self.has_fact(box_fact::ABSOLUTELY_POSITIONED))
-            || self.has_flag(NodeFlag::IsReplacedElement)
-            || self.has_flag(NodeFlag::Anonymous)
-            || self.has_flag(NodeFlag::UsesButtonLayout)
-        {
-            self.has_fact(box_fact::TABLE_NON_ROOT)
-        } else {
-            self.has_fact(box_fact::TABLE_NON_ROOT_BEFORE_BLOCKIFICATION)
-        }
+        self.has_fact(box_fact::TABLE_NON_ROOT)
     }
 }
 
@@ -294,9 +284,6 @@ pub(crate) fn box_facts_of_style(style: crate::layout::ComputedValuesView<'_>) -
     }
     if before_blockification.is_inline_outside() {
         facts |= box_fact::INLINE_OUTSIDE_BEFORE_BLOCKIFICATION;
-    }
-    if before_blockification.is_internal_table() || before_blockification.is_table_caption() {
-        facts |= box_fact::TABLE_NON_ROOT_BEFORE_BLOCKIFICATION;
     }
     if style.list_style_position_is_inside() {
         facts |= box_fact::LIST_STYLE_POSITION_INSIDE;

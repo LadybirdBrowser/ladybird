@@ -1,0 +1,8 @@
+after-thead: box top 40, table height 40
+inline-table-rows: box top 40, table height 40
+with-caption: box top 70, table height 70
+border-spacing: box top 60, table height 70
+before-thead: box top 40, table height 40
+before-tfoot: box top 40, table height 80
+row: box top 40, table height 80
+caption: box top 40, table height 80

@@ -49,11 +49,9 @@ pub(crate) trait TableFixupTree {
     fn kind(&self, node: NodeSlotId) -> NodeKind;
     fn has_flag(&self, node: NodeSlotId, flag: NodeFlag) -> bool;
     fn is_out_of_flow(&self, node: NodeSlotId) -> bool;
-    fn is_absolutely_positioned(&self, node: NodeSlotId) -> bool;
     fn is_inline_outside(&self, node: NodeSlotId) -> bool;
     /// The display of the box `node`, the one its box uses; that of its parent for a text, whose style it carries.
     fn display(&self, node: NodeSlotId) -> FfiDisplay;
-    fn display_before_box_type_transformation(&self, node: NodeSlotId) -> FfiDisplay;
     /// Whether `text`, a text, holds nothing but white space.
     fn text_is_white_space(&mut self, text: NodeSlotId) -> bool;
     /// Takes `nodes` out of the tree, as if they were `display: none`.
@@ -113,21 +111,9 @@ pub(crate) fn display_for_table_fixup(tree: &impl TableFixupTree, node: NodeSlot
     // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
     // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
     // height. Their containing blocks are chosen accordingly.
-    //
-    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for absolutely
-    // positioned authored boxes so an absolutely positioned table-header-group is still recognized as a proper table
-    // child during fixup. A floated table-internal box is a block float, though, which fixup wraps in an anonymous row
-    // and cell like any other block; so is an in-flow box blockified as a flex or grid item.
-    // Element-specific display adjustments for replaced elements and buttons take precedence over that display.
-    if !tree.is_absolutely_positioned(node)
-        || tree.has_flag(node, NodeFlag::IsReplacedElement)
-        || tree.has_flag(node, NodeFlag::Anonymous)
-        || tree.has_flag(node, NodeFlag::UsesButtonLayout)
-    {
-        tree.display(node)
-    } else {
-        tree.display_before_box_type_transformation(node)
-    }
+    // NB: So an absolutely positioned or floated table-internal box, which is blockified, is wrapped like any other
+    //     block: in an anonymous row and cell, where it gets its static position from where it is among the rows.
+    tree.display(node)
 }
 
 fn is_proper_table_child(tree: &impl TableFixupTree, node: NodeSlotId) -> bool {
@@ -512,10 +498,6 @@ impl TableFixupTree for PlanTableFixup<'_> {
         self.tree.node(node).is_out_of_flow()
     }
 
-    fn is_absolutely_positioned(&self, node: NodeSlotId) -> bool {
-        self.tree.node(node).has_fact(box_fact::ABSOLUTELY_POSITIONED)
-    }
-
     fn is_inline_outside(&self, node: NodeSlotId) -> bool {
         self.tree.node(node).has_fact(box_fact::INLINE_OUTSIDE)
     }
@@ -536,13 +518,6 @@ impl TableFixupTree for PlanTableFixup<'_> {
             //     table.
             None if planned.has_fact(box_fact::INLINE_OUTSIDE) => FfiDisplay::inline(),
             None => FfiDisplay::block(),
-        }
-    }
-
-    fn display_before_box_type_transformation(&self, node: NodeSlotId) -> FfiDisplay {
-        match self.tree.style_of(node) {
-            Some(style) => style.display_before_box_type_transformation(),
-            None => self.display(node),
         }
     }
 

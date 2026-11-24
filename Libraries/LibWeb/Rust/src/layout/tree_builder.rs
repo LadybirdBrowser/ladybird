@@ -1195,12 +1195,6 @@ impl<'a> TreeBuilderHost<'a> {
         self.style(node).map_or_else(FfiDisplay::block, |style| style.display())
     }
 
-    fn display_before_box_type_transformation(&self, node: LayoutNode) -> FfiDisplay {
-        self.style(node).map_or_else(FfiDisplay::block, |style| {
-            style.display_before_box_type_transformation()
-        })
-    }
-
     fn set_children_are_inline(&mut self, node: LayoutNode, children_are_inline: bool) {
         self.arena_mut()
             .set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline);
@@ -1925,20 +1919,12 @@ impl crate::layout::tree_plan::table_fixup::TableFixupTree for TreeBuilderHost<'
         node_is_out_of_flow(self, node)
     }
 
-    fn is_absolutely_positioned(&self, node: LayoutNode) -> bool {
-        self.style(node).is_some_and(|style| style.is_absolutely_positioned())
-    }
-
     fn is_inline_outside(&self, node: LayoutNode) -> bool {
         node_is_inline_outside(self, node)
     }
 
     fn display(&self, node: LayoutNode) -> FfiDisplay {
         TreeBuilderHost::display(self, node)
-    }
-
-    fn display_before_box_type_transformation(&self, node: LayoutNode) -> FfiDisplay {
-        TreeBuilderHost::display_before_box_type_transformation(self, node)
     }
 
     fn text_is_white_space(&mut self, text: LayoutNode) -> bool {

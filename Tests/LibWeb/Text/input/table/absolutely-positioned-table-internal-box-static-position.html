@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body { margin: 0; }
+.wrap { position: relative; width: 400px; margin-bottom: 120px; }
+table { width: 100%; border-spacing: 0; }
+td, th { padding: 0; height: 40px; }
+.abs { position: absolute; width: 100%; }
+</style>
+<!-- An absolutely positioned row group, row or caption is wrapped in an anonymous row and cell by table fixup, which gives it its static position among the rows. -->
+<div class="wrap"><table id="after-thead"><thead><tr><th>h</th></tr></thead><tbody class="abs" id="after-thead-box"><tr><td>r</td></tr></tbody></table></div>
+<div class="wrap"><table id="inline-table-rows"><thead><tr style="display: inline-table; width: 100%"><th>h</th></tr></thead><tbody class="abs" id="inline-table-rows-box"><tr style="display: table; width: 100%"><td>r</td></tr></tbody></table></div>
+<div class="wrap"><table id="with-caption"><caption style="height: 30px">c</caption><thead><tr><th>h</th></tr></thead><tbody class="abs" id="with-caption-box"><tr><td>r</td></tr></tbody></table></div>
+<div class="wrap"><table id="border-spacing" style="border-spacing: 10px"><thead><tr><th>h</th></tr></thead><tbody class="abs" id="border-spacing-box"><tr><td>r</td></tr></tbody></table></div>
+<div class="wrap"><table id="before-thead"><tbody class="abs" id="before-thead-box"><tr><td>r</td></tr></tbody><thead><tr><th>h</th></tr></thead></table></div>
+<div class="wrap"><table id="before-tfoot"><thead><tr><th>h</th></tr></thead><tbody class="abs" id="before-tfoot-box"><tr><td>r</td></tr></tbody><tfoot><tr><td>f</td></tr></tfoot></table></div>
+<div class="wrap"><table id="row"><tbody><tr><td>a</td></tr><tr class="abs" id="row-box"><td>r</td></tr><tr><td>b</td></tr></tbody></table></div>
+<div class="wrap"><table id="caption"><tr><td>a</td></tr><caption class="abs" id="caption-box">c</caption><tr><td>b</td></tr></table></div>
+<script>
+test(() => {
+  for (const t of document.querySelectorAll("table")) {
+    const box = document.getElementById(t.id + "-box").getBoundingClientRect(), table = t.getBoundingClientRect();
+    println(`${t.id}: box top ${Math.round(box.top - table.top)}, table height ${Math.round(table.height)}`);
+  }
+});
+</script>
