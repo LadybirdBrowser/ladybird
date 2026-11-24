@@ -16,24 +16,15 @@
 #include <LibWebCommon/Forward.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/LocalFileRoot.h>
 
 namespace WebView {
 
 WEBVIEW_API ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const&);
 
-struct OpenedLocalFile {
-    IPC::File file;
-    ByteString canonical_path;
-};
-
-// Opens a local file a renderer asked for, read-only, if one of the roots covers it once its symbolic links are
-// resolved. Anything but a regular file or a directory is refused, as Core::File::open_regular_file_or_directory()
-// refuses it, and so is a file on devfs on macOS, or a process information or sysfs file on Linux.
-WEBVIEW_API ErrorOr<OpenedLocalFile> open_local_file_for_renderer(ByteString const& path, ReadonlySpan<LocalFileRoot>);
-
-// Opens a local file the user chose, wherever it is, as open_local_file_for_renderer() opens one under its roots.
-WEBVIEW_API ErrorOr<OpenedLocalFile> open_local_file_the_user_chose(ByteString const& path);
+// Opens a local file a renderer asked for, read-only, once its symbolic links are resolved. Anything but a regular file
+// or a directory is refused, as Core::File::open_regular_file_or_directory() refuses it, and so is a file on devfs on
+// macOS, or a process information or sysfs file on Linux.
+WEBVIEW_API ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path);
 
 WEBVIEW_API ErrorOr<JsonObject> read_json_file(ByteString const& path);
 WEBVIEW_API ErrorOr<void> write_json_file(ByteString const& path, JsonValue const& value);

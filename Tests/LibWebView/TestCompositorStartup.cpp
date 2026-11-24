@@ -9,6 +9,7 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
@@ -67,12 +68,8 @@ TEST_CASE(a_video_that_starts_before_the_compositor_launches_plays_once_it_does)
     Array arguments { "--temporary-profile"sv, "--enable-autoplay"sv };
     auto app = TRY_OR_FAIL(environment.create_application<TestApplication>(arguments));
 
-    // The tests run from this directory. A page reads only the files in its own folder, so the video is put beside it.
-    auto video = TRY_OR_FAIL(Core::File::open("../LibWeb/Assets/blue-with-second-in-gray-64x36.webm"sv, Core::File::OpenMode::Read));
-    auto video_path = LexicalPath::join(environment.directory(), "video.webm"sv).string();
-    auto video_copy = TRY_OR_FAIL(Core::File::open(video_path, Core::File::OpenMode::Write));
-    TRY_OR_FAIL(video_copy->write_until_depleted(TRY_OR_FAIL(video->read_until_eof())));
-    video_copy->close();
+    // The tests run from this directory.
+    auto video_path = TRY_OR_FAIL(FileSystem::real_path("../LibWeb/Assets/blue-with-second-in-gray-64x36.webm"sv));
     auto page_path = LexicalPath::join(environment.directory(), "video.html"sv).string();
     auto page = TRY_OR_FAIL(Core::File::open(page_path, Core::File::OpenMode::Write));
     TRY_OR_FAIL(page->write_formatted("<video autoplay muted src=\"{}\" oncanplay=\"document.title = 'canplay'\"></video>", URL::create_with_file_scheme(video_path)->serialize()));

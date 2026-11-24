@@ -112,7 +112,7 @@ private:
         IsPrivate is_private { IsPrivate::No };
         WebContentClient& process;
         RequestServerSiteBindings const& request_server_site_bindings;
-        Vector<LocalFileRoot> local_file_roots;
+        bool may_read_local_files { false };
         bool has_cross_site_ancestor { false };
     };
     void register_dedicated_worker(DedicatedWorkerOwner const&, CanonicalEnvironmentSettingsObject const& outside_settings, Web::HTML::WorkerAgentStartRequest, IPC::TransportHandle worker_transport);
@@ -121,7 +121,7 @@ private:
     static bool page_environment_has_cross_site_ancestor(WebContentClient&, Web::PageId, CanonicalEnvironmentSettingsObject const&);
     bool has_reached_worker_limit(IsPrivate, CanonicalEnvironmentSettingsObject const& outside_settings) const;
     ErrorOr<NonnullRefPtr<WebWorkerClient>> create_worker_client(NonnullOwnPtr<IPC::Transport>, Web::HTML::WorkerAgentId, WebContentClient& host, RequestServerSiteBindings const& owner_request_server_site_bindings);
-    static void start_worker(WebWorkerClient&, Web::HTML::WorkerAgentStartRequest, CanonicalEnvironmentSettingsObject const& outside_settings, bool has_cross_site_ancestor, Vector<LocalFileRoot> const& owner_local_file_roots, bool has_process_to_itself);
+    static void start_worker(WebWorkerClient&, Web::HTML::WorkerAgentStartRequest, CanonicalEnvironmentSettingsObject const& outside_settings, bool has_cross_site_ancestor, bool owner_may_read_local_files, bool has_process_to_itself);
 
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_content_security_policy_violation(Owner const&, u64 policy_index, String const& effective_directive, URL::URL const& resource);

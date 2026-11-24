@@ -77,7 +77,6 @@ public:
         RefPtr<WebContentPage> page {};
         RefPtr<CanonicalSessionHistoryEntry> history_entry {};
         RefPtr<WebContentPage> source_page {};
-        LocalFileAccess local_file_access {};
     };
     static NonnullRefPtr<CanonicalNavigation> create(Start start)
     {
@@ -99,8 +98,6 @@ public:
     BlobURLHandle blob_url;
     // The page hosting the source document, as checked when another page requested the navigation.
     RefPtr<WebContentPage> source_page {};
-    // Kept for a retry, which reads only what this navigation could.
-    LocalFileAccess local_file_access;
 
     RefPtr<WebContentPage> worker() const;
     RefPtr<WebContentPage> host() const;
@@ -119,7 +116,6 @@ private:
         , page(move(start.page))
         , history_entry(move(start.history_entry))
         , source_page(move(start.source_page))
-        , local_file_access(move(start.local_file_access))
     {
     }
 };

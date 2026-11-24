@@ -185,23 +185,11 @@ struct WebView::ContextMenuRequest {
 }
 
 [ExistingCpp]
-struct WebView::LocalFileRoot {
-    ByteString path;
-    WebView::LocalFileRoot::Scope scope;
-}
-
-[ExistingCpp]
-struct WebView::DocumentStateLocalFileRoot {
-    Web::HTML::CrossProcessId document_state_id;
-    WebView::LocalFileRoot root;
-}
-
-[ExistingCpp]
 struct WebView::SessionHistorySnapshot {
     Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
     Vector<i32> used_steps;
     size_t current_used_step_index;
-    Vector<WebView::DocumentStateLocalFileRoot> local_file_roots_of_document_states;
+    Vector<Web::HTML::CrossProcessId> document_states_holding_local_file_content;
 }
 
 // A language the tab's page can be translated into, perhaps after a download.

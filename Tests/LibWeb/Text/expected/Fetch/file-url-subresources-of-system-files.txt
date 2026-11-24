@@ -1,5 +1,4 @@
 a regular file: loaded
-/etc/hosts: refused
 /proc/self/maps: refused
 /proc/self/environ: refused
 /proc/self/fd/0: refused

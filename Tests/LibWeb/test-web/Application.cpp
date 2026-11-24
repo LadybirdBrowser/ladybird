@@ -85,11 +85,6 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 
 void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions& request_server_options, WebView::WebContentOptions& web_content_options)
 {
-    // NB: Tests load local files from all over the source tree, not just the directory of the test that loads them.
-    LexicalPath test_root { test_root_path };
-    auto is_in_source_tree = test_root.basename() == "LibWeb"sv && test_root.parent().basename() == "Tests"sv;
-    browser_options.local_file_root_for_tests = is_in_source_tree ? test_root.parent().parent().string() : test_root_path;
-
     if (verify_style) {
         // NB: The style engine checks what it installed against a cold computation of the document.
         MUST(Core::Environment::set("LIBWEB_STYLE_SELFCHECK"sv, "1"sv, Core::Environment::Overwrite::Yes));

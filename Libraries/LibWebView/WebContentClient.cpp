@@ -813,38 +813,7 @@ bool WebContentClient::renderers_may_synthesize_input_for_testing()
 
 bool WebContentClient::may_read_local_files() const
 {
-    return !m_local_file_roots.is_empty();
-}
-
-ErrorOr<void> WebContentClient::add_local_file_root(LocalFileRoot root)
-{
-    if (m_local_file_roots.contains_slow(root))
-        return {};
-    // NB: Site isolation places local file content only in a process of its root, so a second root here would merge
-    //     what two folders' pages may read. It's refused rather than added.
-    if (!m_local_file_roots.is_empty() && Application::the().tab_processes() != TabProcesses::PerTabWithoutSiteIsolation)
-        return Error::from_string_literal("A process may read local files under one root only");
-    m_local_file_roots.append(move(root));
-    return {};
-}
-
-LocalFileAccess WebContentClient::local_file_access() const
-{
-    if (m_local_file_roots.is_empty())
-        return {};
-    return m_local_file_roots;
-}
-
-LocalFileAccess WebContentClient::local_file_access_of_process_hosting(Web::HTML::EnvironmentId const& environment_id)
-{
-    LocalFileAccess local_file_access;
-    for_each_client([&](WebContentClient& client) {
-        if (!client.hosted_environment(environment_id).has_value())
-            return IterationDecision::Continue;
-        local_file_access = client.local_file_access();
-        return IterationDecision::Break;
-    });
-    return local_file_access;
+    return m_has_hosted_local_file_content;
 }
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context)
