@@ -1,0 +1,31 @@
+abort() with the response queued:
+readystatechange, readyState 1, responseText ""
+readystatechange, readyState 4, responseText ""
+abort, readyState 4, responseText ""
+loadend, readyState 4, responseText ""
+after abort(): readyState 0
+abort(), open() and send() with the response queued:
+readystatechange, readyState 1, responseText ""
+readystatechange, readyState 4, responseText ""
+abort, readyState 4, responseText ""
+loadend, readyState 4, responseText ""
+readystatechange, readyState 1, responseText ""
+readystatechange, readyState 2, responseText ""
+readystatechange, readyState 3, responseText "second"
+progress, readyState 3, responseText "second"
+readystatechange, readyState 4, responseText "second"
+load, readyState 4, responseText "second"
+loadend, readyState 4, responseText "second"
+abort(), open() and send() in a loadstart listener:
+readystatechange, readyState 1, responseText ""
+readystatechange, readyState 4, responseText ""
+abort, readyState 4, responseText ""
+loadend, readyState 4, responseText ""
+readystatechange, readyState 1, responseText ""
+readystatechange, readyState 2, responseText ""
+readystatechange, readyState 3, responseText "replacement"
+progress, readyState 3, responseText "replacement"
+readystatechange, readyState 4, responseText "replacement"
+load, readyState 4, responseText "replacement"
+loadend, readyState 4, responseText "replacement"
+requests for the replaced URL: 0
