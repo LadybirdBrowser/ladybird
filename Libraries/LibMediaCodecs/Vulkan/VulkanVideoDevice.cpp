@@ -253,6 +253,12 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     device->m_get_physical_device_video_capabilities = reinterpret_cast<PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR>(vkGetInstanceProcAddr(device->m_instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR"));
     if (device->m_get_physical_device_video_capabilities == nullptr)
         return Error::from_string_literal("vkGetPhysicalDeviceVideoCapabilitiesKHR is unavailable");
+    device->m_get_memory_fd = reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(device->m_logical_device, "vkGetMemoryFdKHR"));
+    if (device->m_get_memory_fd == nullptr)
+        return Error::from_string_literal("vkGetMemoryFdKHR is unavailable");
+    device->m_get_image_drm_format_modifier_properties = reinterpret_cast<PFN_vkGetImageDrmFormatModifierPropertiesEXT>(vkGetDeviceProcAddr(device->m_logical_device, "vkGetImageDrmFormatModifierPropertiesEXT"));
+    if (device->m_get_image_drm_format_modifier_properties == nullptr)
+        return Error::from_string_literal("vkGetImageDrmFormatModifierPropertiesEXT is unavailable");
 
     return device;
 }
@@ -296,19 +302,25 @@ ErrorOr<void> VulkanVideoDevice::video_capabilities(VkVideoProfileInfoKHR const&
     return {};
 }
 
-Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, VkImageUsageFlags usage, VkImageCreateFlags flags, void const* video_profile_list) const
+static Vector<VkDrmFormatModifierPropertiesEXT> drm_format_modifier_properties_of(VkPhysicalDevice physical_device, VkFormat format)
 {
     VkDrmFormatModifierPropertiesListEXT modifier_list {};
     modifier_list.sType = VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT;
     VkFormatProperties2 format_properties {};
     format_properties.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2;
     format_properties.pNext = &modifier_list;
-    vkGetPhysicalDeviceFormatProperties2(m_physical_device, format, &format_properties);
+    vkGetPhysicalDeviceFormatProperties2(physical_device, format, &format_properties);
 
     Vector<VkDrmFormatModifierPropertiesEXT> modifier_properties;
     modifier_properties.resize(modifier_list.drmFormatModifierCount);
     modifier_list.pDrmFormatModifierProperties = modifier_properties.data();
-    vkGetPhysicalDeviceFormatProperties2(m_physical_device, format, &format_properties);
+    vkGetPhysicalDeviceFormatProperties2(physical_device, format, &format_properties);
+    return modifier_properties;
+}
+
+Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, VkImageUsageFlags usage, VkImageCreateFlags flags, void const* video_profile_list) const
+{
+    auto modifier_properties = drm_format_modifier_properties_of(m_physical_device, format);
 
     Vector<u32> queue_family_indices;
     for (auto const& family : m_queue_families)
@@ -357,6 +369,52 @@ Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, 
         modifiers.append(properties.drmFormatModifier);
     }
     return modifiers;
+}
+
+ErrorOr<Gfx::LinuxDmaBufHandle> VulkanVideoDevice::export_image_as_dma_buf(VkImage image, VkDeviceMemory memory, VkFormat format, Gfx::IntSize size, u32 drm_format) const
+{
+    // The driver picks one of the modifiers that the image was offered when it was created.
+    VkImageDrmFormatModifierPropertiesEXT image_modifier {};
+    image_modifier.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT;
+    if (m_get_image_drm_format_modifier_properties(m_logical_device, image, &image_modifier) != VK_SUCCESS)
+        return Error::from_string_literal("Could not find the DRM format modifier of an image");
+
+    Optional<u32> plane_count;
+    for (auto const& properties : drm_format_modifier_properties_of(m_physical_device, format)) {
+        if (properties.drmFormatModifier == image_modifier.drmFormatModifier)
+            plane_count = properties.drmFormatModifierPlaneCount;
+    }
+    if (!plane_count.has_value() || *plane_count < 1 || *plane_count > Gfx::LinuxDmaBufHandle::MAXIMUM_PLANE_COUNT)
+        return Error::from_string_literal("An image's DRM format modifier lays it out in an unusable number of planes");
+
+    VkMemoryGetFdInfoKHR fd_info {};
+    fd_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+    fd_info.memory = memory;
+    fd_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+    int fd = -1;
+    if (m_get_memory_fd(m_logical_device, &fd_info, &fd) != VK_SUCCESS)
+        return Error::from_string_literal("Could not export an image's memory as a dma-buf");
+
+    Gfx::LinuxDmaBufHandle dma_buf;
+    dma_buf.size = size;
+    dma_buf.drm_format = drm_format;
+    dma_buf.modifier = image_modifier.drmFormatModifier;
+    dma_buf.objects.append(IPC::File::adopt_fd(fd));
+
+    static constexpr Array memory_plane_aspects {
+        VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT,
+        VK_IMAGE_ASPECT_MEMORY_PLANE_1_BIT_EXT,
+        VK_IMAGE_ASPECT_MEMORY_PLANE_2_BIT_EXT,
+        VK_IMAGE_ASPECT_MEMORY_PLANE_3_BIT_EXT,
+    };
+    for (u32 plane_index = 0; plane_index < *plane_count; plane_index++) {
+        VkImageSubresource subresource {};
+        subresource.aspectMask = memory_plane_aspects[plane_index];
+        VkSubresourceLayout layout {};
+        vkGetImageSubresourceLayout(m_logical_device, image, &subresource, &layout);
+        dma_buf.planes.append({ 0, static_cast<u32>(layout.offset), static_cast<u32>(layout.rowPitch) });
+    }
+    return dma_buf;
 }
 
 }

@@ -14,6 +14,7 @@
 #    include <AK/NonnullOwnPtr.h>
 #    include <AK/Vector.h>
 #    include <LibGfx/GpuDeviceIdentity.h>
+#    include <LibGfx/LinuxDmaBufHandle.h>
 #    include <LibMediaCodecs/Export.h>
 #    include <vulkan/vulkan.h>
 
@@ -67,6 +68,9 @@ public:
     // Compositor can import images with.
     Vector<u64> exportable_drm_format_modifiers(VkFormat, VkImageUsageFlags, VkImageCreateFlags, void const* video_profile_list) const;
 
+    // Exports an image created under a DRM format modifier, whose planes share one allocation, as a dma-buf.
+    ErrorOr<Gfx::LinuxDmaBufHandle> export_image_as_dma_buf(VkImage, VkDeviceMemory, VkFormat, Gfx::IntSize, u32 drm_format) const;
+
 private:
     VulkanVideoDevice() = default;
 
@@ -92,6 +96,8 @@ private:
     VkPhysicalDeviceVideoMaintenance2FeaturesKHR m_video_maintenance2_features {};
 
     PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR m_get_physical_device_video_capabilities { nullptr };
+    PFN_vkGetMemoryFdKHR m_get_memory_fd { nullptr };
+    PFN_vkGetImageDrmFormatModifierPropertiesEXT m_get_image_drm_format_modifier_properties { nullptr };
 };
 
 }
