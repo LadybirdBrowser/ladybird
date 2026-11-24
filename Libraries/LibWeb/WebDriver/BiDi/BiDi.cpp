@@ -469,8 +469,8 @@ void ensure_console_steps_run_for(DOM::Document& document)
 
 static void install_console_clients_for_existing_documents()
 {
-    for (auto navigable : HTML::all_local_navigables()) {
-        if (auto document = navigable->active_document())
+    for (auto& navigable : HTML::all_local_navigables()) {
+        if (auto document = navigable.active_document())
             ensure_console_steps_run_for(*document);
     }
 }

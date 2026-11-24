@@ -1542,8 +1542,8 @@ public:
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         GC::RootVector<GC::Ref<WebIDL::Promise>> scroll_promises;
         for (auto& navigable : HTML::all_local_navigables()) {
-            if (&navigable->page() == &m_browsing_context->page() && !navigable->has_been_destroyed())
-                navigable->wait_for_wheel_scrolls(scroll_promises);
+            if (&navigable.page() == &m_browsing_context->page() && !navigable.has_been_destroyed())
+                navigable.wait_for_wheel_scrolls(scroll_promises);
         }
         if (scroll_promises.is_empty()) {
             queue_next_tick->function()();
