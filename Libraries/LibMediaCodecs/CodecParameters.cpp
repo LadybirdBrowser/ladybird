@@ -90,7 +90,8 @@ Optional<ParsedCodec> parse_codec_parameters_string(StringView string)
 
     return {};
 }
-static Optional<ParsedCodec> parse_configuration_record(CodecID codec_id, ReadonlyBytes configuration_record)
+
+Optional<ParsedCodec> parse_configuration_record(CodecID codec_id, ReadonlyBytes configuration_record)
 {
     if (configuration_record.is_empty())
         return {};
