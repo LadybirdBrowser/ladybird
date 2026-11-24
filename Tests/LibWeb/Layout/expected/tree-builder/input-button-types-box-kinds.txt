@@ -68,7 +68,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div> at [50,53] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [50,59] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
               BlockContainer <div> at [50,59] positioned [0+0+0 64.5 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-              BlockContainer <div> at [114.5,61] positioned [64.5+0+0 16 0+0+48.5] [0+0+0 16 0+0+0] children: not-inline
+              Box <div> at [50,59] [0+0+0 129 0+0+0] [0+0+0 4 0+0+0] [GFC] children: not-inline
+                BlockContainer <div> at [106.5,53] positioned [0+0+0 16 0+0+0] [-6+0+0 16 0+0+-6] [BFC] children: not-inline
         TextInputBox <input> at [186,58] inline-block [0+2+3 167.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
           Box <div> at [186,58] flex-container(row) [0+0+0 167.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [186,58] flex-item [0+0+0 167.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
@@ -96,7 +97,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div> at [41,77] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [41,77] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
               BlockContainer <div> at [41,77] positioned [0+0+0 64.5 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-              BlockContainer <div> at [105.5,77] positioned [64.5+0+0 16 0+0+48.5] [0+0+0 16 0+0+0] children: not-inline
+              Box <div> at [41,77] [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+                BlockContainer <div> at [97.5,77] positioned [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         TextNode <#text> (not painted)
         BlockContainer <input> at [185,82] inline-block [0+2+3 167.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
           Box <div> at [185,82] flex-container(row) [0+0+0 167.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
@@ -116,5 +118,3 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x107] (z-index: auto)
-  SC for BlockContainer<DIV> [114.5,61 16x16] (z-index: auto), has_transform
-  SC for BlockContainer<DIV> [105.5,77 16x16] (z-index: auto), has_transform

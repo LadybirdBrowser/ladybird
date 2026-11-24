@@ -8,7 +8,10 @@
         range.addEventListener("input", () => println(`${step}: input value=${range.value}`));
 
         const rect = range.getBoundingClientRect();
-        const x = fraction => rect.left + rect.width * fraction;
+        const track = internals.getShadowRoot(range).firstElementChild.firstElementChild;
+        const thumbWidth = track.lastElementChild.firstElementChild.getBoundingClientRect().width;
+        const trackRect = track.getBoundingClientRect();
+        const x = fraction => trackRect.left + thumbWidth / 2 + (trackRect.width - thumbWidth) * fraction;
         const y = rect.top + rect.height / 2;
         const run = async (label, action) => {
             step = label;

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    input {
+        appearance: none;
+        inline-size: 120px;
+        block-size: 24px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+    input::-webkit-slider-thumb {
+        appearance: none;
+        width: 12px;
+        height: 12px;
+    }
+</style>
+<input type="range">
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        const track = internals.getShadowRoot(input).firstElementChild.firstElementChild;
+        const thumb = track.lastElementChild.firstElementChild;
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr", "sideways-rl", "sideways-lr"]) {
+            input.style.writingMode = mode;
+            const horizontal = mode === "horizontal-tb";
+            for (const direction of ["ltr", "rtl"]) {
+                input.dir = direction;
+                const rect = input.getBoundingClientRect();
+                const point = offset => horizontal
+                    ? [rect.left + offset, rect.top + rect.height / 2]
+                    : [rect.left + rect.width / 2, rect.top + offset];
+                internals.mouseDown(...point(2));
+                const first = input.value;
+                internals.mouseMove(...point(118), 0, 1);
+                internals.mouseUp(...point(118));
+                println(`${mode} ${direction}: pointer ${first}, ${input.value}`);
+                const positions = [];
+                for (const value of [0, 50, 100]) {
+                    input.value = value;
+                    const box = thumb.getBoundingClientRect();
+                    positions.push(`(${box.x - rect.x}, ${box.y - rect.y})`);
+                }
+                println("thumb " + positions.join(" "));
+            }
+        }
+
+        input.style.writingMode = "horizontal-tb";
+        input.dir = "ltr";
+        const trackStyle = document.createElement("style");
+        trackStyle.textContent = "input::-webkit-slider-runnable-track { display: var(--track-display); }";
+        document.head.append(trackStyle);
+        for (const mode of ["horizontal-tb", "vertical-lr"]) {
+            input.style.writingMode = mode;
+            for (const display of ["block", "flex", "grid", "none"]) {
+                input.style.setProperty("--track-display", display);
+                const axis = mode === "horizontal-tb" ? "x" : "y";
+                const origin = track.getBoundingClientRect()[axis];
+                const positions = [0, 50, 100].map(value => {
+                    input.value = value;
+                    const box = thumb.getBoundingClientRect();
+                    return box.width ? box[axis] - origin : "hidden";
+                });
+                println(`${mode} ${display}: ${positions.join(", ")}`);
+            }
+        }
+        trackStyle.remove();
+        input.style.writingMode = "horizontal-tb";
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = "position: absolute; left: 100px; top: 100px; display: flex";
+        document.body.append(wrapper);
+        wrapper.append(input);
+        for (const transformed of [input, wrapper]) {
+            transformed.style.transform = "rotate(-90deg)";
+            const box = input.getBoundingClientRect();
+            const x = box.left + box.width / 2;
+            internals.mouseDown(x, box.top + 2);
+            const first = input.value;
+            internals.mouseMove(x, box.bottom - 2, 0, 1);
+            internals.mouseUp(x, box.bottom - 2);
+            println(`rotated ${transformed.localName}: pointer ${first}, ${input.value}`);
+            transformed.style.transform = "";
+        }
+        input.style.cssText = "position:fixed;left:20px;top:20px;width:100px;height:20px;writing-mode:horizontal-tb;direction:ltr";
+        thumb.style.display = "none";
+        internals.mouseDown(40, 30);
+        const first = input.value;
+        internals.mouseMove(100, 30, 0, 1);
+        internals.mouseUp(100, 30);
+        println(`hidden thumb: pointer ${first}, ${input.value}`);
+    });
+</script>

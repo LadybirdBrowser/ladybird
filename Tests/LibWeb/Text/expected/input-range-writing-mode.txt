@@ -1,0 +1,31 @@
+horizontal-tb ltr: pointer 0, 100
+thumb (0, 6) (54, 6) (108, 6)
+horizontal-tb rtl: pointer 100, 0
+thumb (108, 6) (54, 6) (0, 6)
+vertical-rl ltr: pointer 0, 100
+thumb (6, 0) (6, 54) (6, 108)
+vertical-rl rtl: pointer 100, 0
+thumb (6, 108) (6, 54) (6, 0)
+vertical-lr ltr: pointer 0, 100
+thumb (6, 0) (6, 54) (6, 108)
+vertical-lr rtl: pointer 100, 0
+thumb (6, 108) (6, 54) (6, 0)
+sideways-rl ltr: pointer 0, 100
+thumb (6, 0) (6, 54) (6, 108)
+sideways-rl rtl: pointer 100, 0
+thumb (6, 108) (6, 54) (6, 0)
+sideways-lr ltr: pointer 100, 0
+thumb (6, 108) (6, 54) (6, 0)
+sideways-lr rtl: pointer 0, 100
+thumb (6, 0) (6, 54) (6, 108)
+horizontal-tb block: 0, 54, 108
+horizontal-tb flex: 0, 54, 108
+horizontal-tb grid: 0, 54, 108
+horizontal-tb none: hidden, hidden, hidden
+vertical-lr block: 0, 54, 108
+vertical-lr flex: 0, 54, 108
+vertical-lr grid: 0, 54, 108
+vertical-lr none: hidden, hidden, hidden
+rotated input: pointer 100, 0
+rotated div: pointer 100, 0
+hidden thumb: pointer 20, 80

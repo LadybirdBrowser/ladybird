@@ -209,22 +209,25 @@ input[type=range] {
     &::slider-track {
         display: block;
         position: relative;
-        height: 4px;
-        width: 100%;
+        block-size: 4px;
+        inline-size: 100%;
         background-color: color-mix(in srgb, CanvasText 20%, transparent);
     }
 
     &::slider-fill {
         display: block;
         position: absolute;
-        height: 100%;
+        inset-inline-start: 0;
+        inset-block-start: 0;
+        block-size: 100%;
         border-radius: inherit;
     }
 
-    /* NB: The thumb's position assumes this width, see HTMLInputElement::update_slider_shadow_tree_elements(). */
+    /* NB: The native fill and ticks assume this thumb size, see HTMLInputElement::update_slider_shadow_tree_elements(). */
     &::slider-thumb {
         display: block;
         position: relative;
+        grid-column: 2;
         width: 16px;
         height: 16px;
         border-radius: 50%;
