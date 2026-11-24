@@ -66,6 +66,15 @@ fn nsec3_hash(name: &DomainName) -> Vec<u8> {
     libcrypto_rust::sha_digest(ShaHashKind::Sha1, &input).unwrap()
 }
 
+// The last record in the chain wraps around and covers the names before the first one, too.
+fn is_within_interval(after_owner: bool, before_next: bool, wraps: bool) -> bool {
+    if wraps {
+        after_owner || before_next
+    } else {
+        after_owner && before_next
+    }
+}
+
 fn record(owner: &DomainName, rtype: ResourceType, data: RecordData, ttl: u32) -> ResourceRecord {
     ResourceRecord {
         name: owner.clone(),
@@ -390,8 +399,8 @@ impl Zone {
                 }
                 let after_owner = owner_hash < hash;
                 let before_next = hash < nsec3.next_hashed_owner_name;
-                let is_last = nsec3.next_hashed_owner_name <= owner_hash;
-                if after_owner && (before_next || is_last) {
+                let wraps = nsec3.next_hashed_owner_name <= owner_hash;
+                if is_within_interval(after_owner, before_next, wraps) {
                     result.push(record.clone());
                 }
             }
@@ -403,8 +412,8 @@ impl Zone {
             };
             let after_owner = record.name.canonical_cmp(name) == Ordering::Less;
             let before_next = name.canonical_cmp(&nsec.next_domain_name) == Ordering::Less;
-            let is_last = nsec.next_domain_name.canonical_cmp(&record.name) != Ordering::Greater;
-            if after_owner && (before_next || is_last) {
+            let wraps = nsec.next_domain_name.canonical_cmp(&record.name) != Ordering::Greater;
+            if is_within_interval(after_owner, before_next, wraps) {
                 result.push(record.clone());
             }
         }
@@ -770,6 +779,37 @@ fn name_error_is_proven() {
         assert_eq!(result.status, SecurityStatus::Secure);
         assert!(result.records.is_empty());
     }
+}
+
+#[test]
+fn name_error_below_the_first_nsec3_hash_is_proven() {
+    let (mut server, mut validator) = setup(true, |_| {});
+
+    // A name whose hash sorts before every hashed owner name in the zone is covered by the last NSEC3 in hash
+    // order, whose next hashed owner name wraps around to the first.
+    let zone = &server.zones[1];
+    let first_hash = zone.names.iter().map(nsec3_hash).min().unwrap();
+    let missing = (0..)
+        .map(|index| name(&format!("n{index}.example")))
+        .find(|candidate| nsec3_hash(candidate) < first_hash)
+        .unwrap();
+    let last = zone
+        .nsec_records
+        .iter()
+        .find(|record| matches!(&record.data, RecordData::Nsec3(nsec3) if nsec3.next_hashed_owner_name == first_hash))
+        .unwrap()
+        .clone();
+    let lookup = Lookup::start(&mut server, &missing.to_string(), ResourceType::A);
+    assert!(
+        lookup
+            .response
+            .authorities
+            .iter()
+            .any(|record| record.rtype == ResourceType::NSEC3 && record.name.eq_ignore_case(&last.name))
+    );
+    let result = lookup.finish(&mut server, &mut validator, NOW).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+    assert!(result.records.is_empty());
 }
 
 #[test]
