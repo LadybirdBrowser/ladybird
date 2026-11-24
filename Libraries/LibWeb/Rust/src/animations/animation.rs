@@ -149,8 +149,6 @@ pub(crate) struct CssTransitionState {
     pub(crate) generation: u64,
     /// https://drafts.csswg.org/css-transitions/#transition-start-time
     pub(crate) start_time: f64,
-    /// https://drafts.csswg.org/css-transitions/#transition-end-time
-    pub(crate) end_time: f64,
     /// https://drafts.csswg.org/css-transitions/#transition-start-value
     pub(crate) start_value: RetainedStyleValueData,
     /// https://drafts.csswg.org/css-transitions/#transition-end-value

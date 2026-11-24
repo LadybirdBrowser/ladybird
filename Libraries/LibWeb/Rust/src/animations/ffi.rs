@@ -609,7 +609,6 @@ pub(crate) fn new_css_animation(name: RetainedUtf16FlyString) -> AnimationHandle
 pub struct TransitionDescription {
     pub generation: u64,
     pub start_time: f64,
-    pub end_time: f64,
     pub reversing_shortening_factor: f64,
     pub custom_name: usize,
     pub start_value: *const c_void,
@@ -1698,7 +1697,6 @@ unsafe fn start_a_provisional_transition(
             custom_property_name: RetainedUtf16FlyString::from_borrowed_raw(description.custom_name),
             generation: description.generation,
             start_time: description.start_time,
-            end_time: description.end_time,
             start_value: retained_value(description.start_value),
             end_value: retained_value(description.end_value),
             reversing_adjusted_start_value: retained_value(description.reversing_adjusted_start_value),
@@ -1909,7 +1907,7 @@ pub unsafe extern "C" fn animations_document_animations_run_transition_step(
         .iter()
         .map(|transition| {
             let record = transition.borrow();
-            let mut existing = record.existing_transition(t);
+            let mut existing = record.existing_transition();
             if existing.custom_name != 0 && existing.running {
                 existing.custom_current_value = overlay
                     .and_then(|store| store.get(existing.custom_name))
@@ -1970,7 +1968,6 @@ pub unsafe extern "C" fn animations_document_animations_run_transition_step(
                 transition: TransitionDescription {
                     generation: step.generation,
                     start_time: t + action.delay,
-                    end_time: t + action.active_duration + action.delay,
                     reversing_shortening_factor: action.reversing_shortening_factor,
                     custom_name: action.custom_name,
                     start_value: action.start_value.cast(),
@@ -2305,7 +2302,6 @@ pub unsafe extern "C" fn animations_element_animations_adopt_lane_transitions(
             transition: TransitionDescription {
                 generation,
                 start_time: lane_transition.start_time + lane_transition.delay,
-                end_time: lane_transition.start_time + lane_transition.duration + lane_transition.delay,
                 reversing_shortening_factor: lane_transition.reversing_shortening_factor,
                 custom_name: 0,
                 start_value: lane_transition.start_value.cast(),
