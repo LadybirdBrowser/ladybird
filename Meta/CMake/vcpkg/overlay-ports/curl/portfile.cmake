@@ -1,9 +1,11 @@
 # FIXME: Send wake-all-pending-transfers.patch upstream. RequestServer needs it to use CURLOPT_PIPEWAIT, and goes without
 #        when it is missing.
+# FIXME: Send wait-for-http2-stream-limit.patch upstream. It keeps curl from opening more HTTP/2 streams before the server
+#        tells its limit than strict servers like www.heise.de accept.
 # FIXME: Drop poll-idle-connection-input.patch once curl is updated past 8.23.0: It backports curl/curl@ef6b17cf12d4, which
 #        keeps an HTTP/1.1 connection with stray input pending from being reused.
-# NB: This is vcpkg's own curl port with two more patches. To update curl, update the version in vcpkg.json here.
-set(ladybird_curl_patches "${CMAKE_CURRENT_LIST_DIR}/wake-all-pending-transfers.patch" "${CMAKE_CURRENT_LIST_DIR}/poll-idle-connection-input.patch")
+# NB: This is vcpkg's own curl port with three more patches. To update curl, update the version in vcpkg.json here.
+set(ladybird_curl_patches "${CMAKE_CURRENT_LIST_DIR}/wake-all-pending-transfers.patch" "${CMAKE_CURRENT_LIST_DIR}/poll-idle-connection-input.patch" "${CMAKE_CURRENT_LIST_DIR}/wait-for-http2-stream-limit.patch")
 set(CURRENT_PORT_DIR "${VCPKG_ROOT_DIR}/ports/curl")
 
 macro(vcpkg_from_github)

@@ -1,0 +1,31 @@
+From: Ladybird
+Subject: http2: open at most 10 streams before the server SETTINGS arrive
+
+nghttp2 assumes 100 concurrent streams until the server SETTINGS arrive.
+Some servers, like www.heise.de, announce 10 and send a GOAWAY with
+PROTOCOL_ERROR when a client exceeds that, failing all transfers on the
+connection. Make nghttp2 hold back requests above 10 until the server
+announces its real limit.
+
+diff --git a/lib/http2.c b/lib/http2.c
+index 9010179..00f1311 100644
+--- a/lib/http2.c
++++ b/lib/http2.c
+@@ -77,6 +77,9 @@
+ #define H2_STREAM_SEND_CHUNKS   ((64 * 1024) / H2_CHUNK_SIZE)
+ /* spare chunks we keep for a full window */
+ #define H2_STREAM_POOL_SPARES   (H2_CONN_WINDOW_SIZE / H2_CHUNK_SIZE)
++/* streams we open before the server SETTINGS tell us its limit, some
++ * servers close the connection when a client goes over it */
++#define H2_MAX_STREAMS_INITIAL  10
+ 
+ /* We need to accommodate the max number of streams with their window sizes on
+  * the overall connection. Streams might become PAUSED which will block their
+@@ -487,6 +490,7 @@ static int h2_client_new(struct Curl_cfilter *cf,
+     return rc;
+   /* We handle window updates ourself to enforce buffer limits */
+   nghttp2_option_set_no_auto_window_update(o, 1);
++  nghttp2_option_set_peer_max_concurrent_streams(o, H2_MAX_STREAMS_INITIAL);
+ #if NGHTTP2_VERSION_NUM >= 0x013200 /* with 1.50.0 */
+   /* turn off RFC 9113 leading and trailing white spaces validation against
+      HTTP field value. */
