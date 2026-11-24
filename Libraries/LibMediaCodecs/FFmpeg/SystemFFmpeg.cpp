@@ -38,7 +38,7 @@ static DecoderErrorOr<void> verify_library_layout(FFmpegFunctions const& functio
     ScopeGuard free_codec_context = [&] { functions.avcodec_free_context(&codec_context); };
     if (codec_context == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate an FFmpeg codec context"sv);
-    for (auto const* option : { "threads", "ar", "colorspace", "color_primaries", "color_trc", "color_range" }) {
+    for (auto const* option : { "threads", "max_pixels", "ar", "colorspace", "color_primaries", "color_trc", "color_range" }) {
         i64 value = 0;
         if (functions.av_opt_get_int(codec_context, option, 0, &value) != 0)
             return DecoderError::format(DecoderErrorCategory::NotImplemented, "AVCodecContext has no {} option", option);
