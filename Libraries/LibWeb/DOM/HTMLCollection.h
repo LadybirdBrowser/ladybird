@@ -32,7 +32,8 @@ namespace Web::DOM {
 
 class HTMLCollection
     : public Bindings::GCAllocatedWrappable
-    , public GC::WeakContainer {
+    , public GC::WeakContainer
+    , public HTMLCollectionCacheRegistration {
     WEB_WRAPPABLE(HTMLCollection, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(HTMLCollection);
 
@@ -104,8 +105,6 @@ private:
     GC::Ref<ParentNode> m_root;
     Filter m_filter;
     Sort m_sort;
-
-    mutable HTMLCollectionCacheRegistration m_cache_registration;
 
     Scope m_scope { Scope::Descendants };
     Kind m_kind { Kind::Generic };
