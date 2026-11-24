@@ -501,6 +501,8 @@ public:
         m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, Application::bookmarks().toggle_bookmark_bar_action(), IncludeActionIcon::No);
         m_toggle_sidebar_action = create_application_action(*m_application_widget, application.toggle_vertical_tabs_expanded_action(), IncludeActionIcon::No);
 
+        m_navigate_back_action = create_application_action(*m_application_widget, application.navigate_back_action(), IncludeActionIcon::No);
+        m_navigate_forward_action = create_application_action(*m_application_widget, application.navigate_forward_action(), IncludeActionIcon::No);
         m_reload_action = create_application_action(*m_application_widget, application.reload_action(), IncludeActionIcon::No);
         m_reload_bypassing_cache_action = create_application_action(*m_application_widget, application.reload_bypassing_cache_action(), IncludeActionIcon::No);
 
@@ -546,6 +548,7 @@ public:
         m_bookmarks_menu = create_application_menu(*m_application_widget, Application::bookmarks().menu());
 
         m_history_menu = create_application_menu(*m_application_widget, application.history_menu());
+        add_history_navigation_actions(*m_history_menu, *m_navigate_back_action, *m_navigate_forward_action);
         QObject::connect(m_history_menu, &QMenu::aboutToShow, this, [this]() {
             auto* tab = Application::the().active_tab();
             update_history_menu(*m_history_menu, tab ? &tab->view() : nullptr);
@@ -668,6 +671,8 @@ private:
     QAction* m_toggle_bookmark_bar_action { nullptr };
     QAction* m_toggle_sidebar_action { nullptr };
     QAction* m_open_location_action { nullptr };
+    QAction* m_navigate_back_action { nullptr };
+    QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
     QAction* m_reload_bypassing_cache_action { nullptr };
     QAction* m_stop_action { nullptr };
@@ -3250,6 +3255,8 @@ DEFINE_APP_MENU_GETTER(QAction, open_downloads_action);
 DEFINE_APP_MENU_GETTER(QAction, toggle_bookmark_bar_action);
 DEFINE_APP_MENU_GETTER(QAction, toggle_sidebar_action);
 DEFINE_APP_MENU_GETTER(QAction, open_location_action);
+DEFINE_APP_MENU_GETTER(QAction, navigate_back_action);
+DEFINE_APP_MENU_GETTER(QAction, navigate_forward_action);
 DEFINE_APP_MENU_GETTER(QAction, reload_action);
 DEFINE_APP_MENU_GETTER(QAction, reload_bypassing_cache_action);
 DEFINE_APP_MENU_GETTER(QAction, stop_action);

@@ -29,6 +29,7 @@
 namespace Ladybird {
 
 static constexpr auto DYNAMIC_HISTORY_MENU_ITEM_PROPERTY = "LadybirdDynamicHistoryMenuItem";
+static constexpr auto HISTORY_NAVIGATION_SEPARATOR_PROPERTY = "LadybirdHistoryNavigationSeparator";
 static constexpr size_t RECENT_HISTORY_MENU_ITEM_LIMIT = 15;
 
 static void set_action_shortcuts(QAction&, ActionID);
@@ -508,17 +509,6 @@ static QAction* create_dynamic_history_separator(QMenu& menu)
     return separator;
 }
 
-static QAction* create_history_navigation_action(QMenu& menu, WebContentView& view, Action& source_action, QKeySequence::StandardKey shortcut)
-{
-    auto* action = new QAction(qstring_from_ak_string(source_action.text()), &menu);
-    action->setEnabled(source_action.enabled());
-    action->setShortcuts(QKeySequence::keyBindings(shortcut));
-    QObject::connect(action, &QAction::triggered, &view, [&source_action] {
-        source_action.activate();
-    });
-    return action;
-}
-
 static QAction* create_recent_history_menu_action(QMenu& menu, WebContentView& view, WebView::HistoryEntry const& entry)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
@@ -543,6 +533,15 @@ static QAction* create_recent_history_menu_action(QMenu& menu, WebContentView& v
     return action;
 }
 
+// NB: Back and Forward stay in the History menu at all times, so their shortcuts work before the menu is first shown.
+void add_history_navigation_actions(QMenu& menu, QAction& back, QAction& forward)
+{
+    auto* first = menu.actions().isEmpty() ? nullptr : menu.actions().first();
+    menu.insertAction(first, &back);
+    menu.insertAction(first, &forward);
+    menu.insertSeparator(first)->setProperty(HISTORY_NAVIGATION_SEPARATOR_PROPERTY, true);
+}
+
 void update_history_menu(QMenu& menu, WebContentView* view)
 {
     for (auto* action : menu.actions()) {
@@ -555,10 +554,15 @@ void update_history_menu(QMenu& menu, WebContentView* view)
     if (!view)
         return;
 
-    auto* insertion_point = menu.actions().isEmpty() ? nullptr : menu.actions().first();
-    insert_dynamic_history_action(menu, insertion_point, *create_history_navigation_action(menu, *view, view->navigate_back_action(), QKeySequence::StandardKey::Back));
-    insert_dynamic_history_action(menu, insertion_point, *create_history_navigation_action(menu, *view, view->navigate_forward_action(), QKeySequence::StandardKey::Forward));
-    insert_dynamic_history_action(menu, insertion_point, *create_dynamic_history_separator(menu));
+    // NB: The recent entries go after Back, Forward and the separator below them.
+    QAction* insertion_point = nullptr;
+    auto actions = menu.actions();
+    for (qsizetype i = 0; i < actions.size(); ++i) {
+        if (actions[i]->property(HISTORY_NAVIGATION_SEPARATOR_PROPERTY).toBool()) {
+            insertion_point = i + 1 < actions.size() ? actions[i + 1] : nullptr;
+            break;
+        }
+    }
 
     auto entries = view->recent_history_entries(RECENT_HISTORY_MENU_ITEM_LIMIT);
     for (auto const& entry : entries) {

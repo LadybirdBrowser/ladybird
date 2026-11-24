@@ -40,6 +40,8 @@ public:
     void update_for_active_view();
     void devtools_enabled_changed(bool enabled);
 
+    Action& navigate_back_action() { return *m_navigate_back_action; }
+    Action& navigate_forward_action() { return *m_navigate_forward_action; }
     Action& reload_action() { return *m_reload_action; }
     Action& show_compositor_layers_action() { return *m_show_compositor_layers_action; }
     Action& reload_bypassing_cache_action() { return *m_reload_bypassing_cache_action; }
@@ -81,6 +83,8 @@ private:
     void update_website_color_scheme_actions();
     void update_vertical_tabs_action();
 
+    RefPtr<Action> m_navigate_back_action;
+    RefPtr<Action> m_navigate_forward_action;
     RefPtr<Action> m_reload_action;
     RefPtr<Action> m_reload_bypassing_cache_action;
     RefPtr<Action> m_copy_selection_action;

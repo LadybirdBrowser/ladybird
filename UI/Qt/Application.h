@@ -210,6 +210,8 @@ public:
     QAction* toggle_bookmark_bar_action();
     QAction* toggle_sidebar_action();
     QAction* open_location_action();
+    QAction* navigate_back_action();
+    QAction* navigate_forward_action();
     QAction* reload_action();
     QAction* reload_bypassing_cache_action();
     QAction* stop_action();

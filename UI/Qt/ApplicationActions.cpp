@@ -218,6 +218,13 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
     });
     m_toggle_menu_bar_action->set_checked(Application::settings().appearance().show_menu_bar);
 
+    m_navigate_back_action = Action::create("Back"sv, ActionID::NavigateBack, on_active_view([](RemoteView& view) {
+        view.traverse_the_history_by_delta(-1);
+    }));
+    m_navigate_forward_action = Action::create("Forward"sv, ActionID::NavigateForward, on_active_view([](RemoteView& view) {
+        view.traverse_the_history_by_delta(+1);
+    }));
+
     m_history_menu = Menu::create("History"sv);
     m_history_menu->add_action(Action::create("View History"sv, ActionID::ViewHistory, [] {
         Application::the().activate_or_open_tab_with_url(URL::about_history());
@@ -364,6 +371,8 @@ void ApplicationActions::update_for_active_view()
     auto* view = active_view();
     // NB: The page's undo state says nothing about a focused text field, where these actions go instead.
     auto text_field_has_focus = is_text_field(QApplication::focusWidget());
+    m_navigate_back_action->set_enabled(view && view->can_navigate_back());
+    m_navigate_forward_action->set_enabled(view && view->can_navigate_forward());
     m_undo_action->set_enabled(text_field_has_focus || (view && view->can_undo()));
     m_redo_action->set_enabled(text_field_has_focus || (view && view->can_redo()));
     m_view_source_action->set_enabled(!view || view->can_view_source());
