@@ -17,7 +17,6 @@ use crate::css::ffi_support::OwnedArc;
 use crate::css::style_value::CounterStylePayload;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -987,24 +986,12 @@ pub extern "C" fn rust_counter_styles_release(styles: OwnedArc<RegisteredCounter
 
 /// Whether the marker text of a list item whose `list-style-type` is `list_style_type` depends on
 /// its counter value, with counter style names looked up in `scopes`, nearest first.
-///
-/// # Safety
-///
-/// `list_style_type` must point to a live style value, and `scopes` must address `scope_count`
-/// live registrations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_list_style_type_depends_on_counter_value(
-    list_style_type: *const c_void,
-    scopes: *const &RegisteredCounterStyles,
-    scope_count: usize,
+pub extern "C" fn rust_list_style_type_depends_on_counter_value(
+    list_style_type: &StyleValueData,
+    scopes: ak::Span<'_, &RegisteredCounterStyles>,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let (list_style_type, scopes) = unsafe {
-        (
-            &*list_style_type.cast::<StyleValueData>(),
-            ak::slice_from_raw_parts(scopes, scope_count),
-        )
-    };
+    let scopes = scopes.as_slice();
     match list_style_type {
         // `none`, and a string marker, are the same for every item.
         StyleValueData::Keyword { .. } | StyleValueData::String { .. } => false,

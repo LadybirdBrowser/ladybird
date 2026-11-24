@@ -30,6 +30,12 @@ struct RegisteredCounterStyles;
 
 }
 
+namespace Web::CSS::StyleValueFFI {
+
+union StyleValueData;
+
+}
+
 namespace Web::CSS {
 
 class StyleScope;
@@ -150,7 +156,7 @@ public:
     u64 counter_style_environment_identity(Layout::BegunRead const& read) const;
     void publish_counter_style_lookup_chain(Layout::BegunRead const& read) const;
     // Whether the marker text of a list item with this `list-style-type` value differs between counter values.
-    bool list_style_type_depends_on_counter_value(void const* list_style_type) const;
+    bool list_style_type_depends_on_counter_value(StyleValueFFI::StyleValueData const* list_style_type) const;
 
     // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
     // The scope a global tree-scoped name this scope does not define is looked up in next, if any.

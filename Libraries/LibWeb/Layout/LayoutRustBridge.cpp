@@ -407,7 +407,7 @@ void publish_writing_suggestion(DOM::Document& document, DOM::Text const* text, 
     code_units.ensure_capacity(remainder.length_in_code_units());
     for (size_t i = 0; i < remainder.length_in_code_units(); ++i)
         code_units.unchecked_append(remainder.code_unit_at(i));
-    RustFFI::render_state_set_writing_suggestion(document.layout_node_arena().host(), identity, offset, code_units.data(), code_units.size());
+    RustFFI::render_state_set_writing_suggestion(document.layout_node_arena().host(), identity, offset, code_units.span());
 }
 
 void publish_table_spans(DOM::Element const& element)

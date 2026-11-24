@@ -102,7 +102,7 @@ CSS::SelectorFFI::DomSelectorProgram const& SelectorQuery::program(Document cons
     for (auto const& selector : m_selectors)
         selectors.unchecked_append(&selector->rust_selector());
     m_program_is_for_html_document = document.is_html_document();
-    m_program = CSS::SelectorFFI::rust_dom_selector_program_create(selectors.data(), selectors.size(), m_program_is_for_html_document ? Namespace::HTML.raw_identity() : 0);
+    m_program = CSS::SelectorFFI::rust_dom_selector_program_create(selectors.span(), m_program_is_for_html_document ? Namespace::HTML.raw_identity() : 0);
     return *m_program;
 }
 

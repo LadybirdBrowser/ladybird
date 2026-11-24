@@ -3336,7 +3336,7 @@ GC::Ref<JS::Object> Internals::style_memory_report()
     }
     u64 elements = 0;
     u64 styled_elements = 0;
-    auto count = CSS::StyleEngineFFI::style_engine_memory_report(document.style_computer().style_engine().host(), read, bytes.data(), bytes.size(), &elements, &styled_elements);
+    auto count = CSS::StyleEngineFFI::style_engine_memory_report(document.style_computer().style_engine().host(), read, bytes.span(), &elements, &styled_elements);
     VERIFY(count == bytes.size());
     for (size_t index = 0; index < bytes.size(); ++index) {
         size_t name_length = 0;
@@ -3608,11 +3608,11 @@ Utf16String Internals::style_engine_matched_rules()
     auto host = style_computer.style_engine().host();
     Vector<CSS::StyleEngineFFI::FfiMatchedRule> matches;
     matches.resize(max(nodes.size() * 4, 16uz));
-    auto count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.data(), nodes.size(), matches.data(), matches.size(), false);
+    auto count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.span(), matches.span(), false);
     if (count > matches.size()) {
         // Nothing was written, so grow and ask again.
         matches.resize(count);
-        count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.data(), nodes.size(), matches.data(), matches.size(), false);
+        count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.span(), matches.span(), false);
         VERIFY(count <= matches.size());
     }
     matches.shrink(count);

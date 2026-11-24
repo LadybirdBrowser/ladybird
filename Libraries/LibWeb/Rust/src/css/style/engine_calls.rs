@@ -1502,16 +1502,11 @@ pub extern "C" fn style_engine_memory_owner_name(index: usize, out_name_length: 
 /// What the document's style engine holds on the heap, by owner, as a job on the render owner: the bytes of each owner
 /// in the order `style_engine_memory_owner_name` names them, with the elements the document holds and those of them
 /// holding a style record.
-///
-/// # Safety
-///
-/// `out_bytes` must point at room for `capacity` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_memory_report(
+pub extern "C" fn style_engine_memory_report(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    out_bytes: *mut u64,
-    capacity: usize,
+    out_bytes: ak::SpanMut<'_, u64>,
     out_elements: &mut u64,
     out_styled_elements: &mut u64,
 ) -> usize {
@@ -1521,9 +1516,7 @@ pub unsafe extern "C" fn style_engine_memory_report(
     //     published projection the engine counted.
     host.engine_memo().projection.borrow().report_memory(&mut report);
     host.engine_memo().report_memory(&mut report);
-    // SAFETY: Guaranteed by the caller.
-    let out = unsafe { ak::slice_from_raw_parts_mut(out_bytes, capacity) };
-    for (slot, owner) in out.iter_mut().zip(MemoryOwner::ALL) {
+    for (slot, owner) in out_bytes.into_slice().iter_mut().zip(MemoryOwner::ALL) {
         *slot = report.bytes(*owner) as u64;
     }
     *out_elements = report.elements as u64;
