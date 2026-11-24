@@ -20,7 +20,8 @@ use super::rrset::{SignedRRSet, VerifiedRRSet};
 use super::{Fetches, SecurityStatus, Step, ValidationResult, Validator};
 use crate::message::{
     Algorithm, Class, DigestType, Dnskey, DomainName, Ds, Message, Nsec, Nsec3, Nsec3HashAlgorithm, Nsec3Param,
-    Question, RecordData, ResourceRecord, ResourceType, ResponseCode, Sig, Soa, Txt,
+    Question, RecordData, ResourceRecord, ResourceType, ResponseCode, Sig, Soa, Tlsa, TlsaCertUsage, TlsaMatchingType,
+    TlsaSelector, Txt,
 };
 
 pub(crate) const NOW: u32 = 1_800_000_000;
@@ -219,7 +220,11 @@ impl Zone {
 
     fn types_at(&self, name: &DomainName) -> Vec<ResourceType> {
         let mut types = Vec::new();
-        for record in &self.records[&name.to_canonical_string()] {
+        // RFC 5155, 7.1: an empty non-terminal's NSEC3 RR has an empty type bit map.
+        let Some(records) = self.records.get(&name.to_canonical_string()) else {
+            return types;
+        };
+        for record in records {
             if !types.contains(&record.rtype) {
                 types.push(record.rtype);
             }
@@ -242,6 +247,8 @@ impl Zone {
 
         let mut sorted_names = self.names.clone();
         if self.use_nsec3 {
+            // Each empty non-terminal MUST have a corresponding NSEC3 RR.
+            sorted_names.extend(self.empty_non_terminals());
             sorted_names.sort_by_key(nsec3_hash);
             let apex = self.apex.clone();
             self.add(
@@ -342,6 +349,33 @@ impl Zone {
         self.records.contains_key(&name.to_canonical_string())
     }
 
+    fn is_empty_non_terminal(&self, name: &DomainName) -> bool {
+        !self.has_name(name)
+            && self
+                .names
+                .iter()
+                .any(|owner| name.is_ancestor_or_equal_of(owner) && !name.eq_ignore_case(owner))
+    }
+
+    fn empty_non_terminals(&self) -> Vec<DomainName> {
+        let mut result: Vec<DomainName> = Vec::new();
+        for owner in &self.names {
+            let mut ancestor = owner.parent();
+            while ancestor.labels.len() > self.apex.labels.len() {
+                if self.is_empty_non_terminal(&ancestor) && !result.iter().any(|known| known.eq_ignore_case(&ancestor))
+                {
+                    result.push(ancestor.clone());
+                }
+                ancestor = ancestor.parent();
+            }
+        }
+        result
+    }
+
+    fn exists(&self, name: &DomainName) -> bool {
+        self.has_name(name) || self.is_empty_non_terminal(name)
+    }
+
     // Appends an RRset and its signature to a section, optionally renaming the records (wildcard expansion or
     // a spoofed owner) while signing as `signature_owner`.
     fn append_signed(
@@ -390,7 +424,7 @@ impl Zone {
                 };
                 // Recover the owner hash from the record's owner label.
                 let mut owner_hash = nsec3_hash(&DomainName::root());
-                for candidate in &self.names {
+                for candidate in self.names.iter().chain(&self.empty_non_terminals()) {
                     if record
                         .name
                         .eq_ignore_case(&self.apex.with_label_prepended(base32hex_encode(&nsec3_hash(candidate))))
@@ -424,7 +458,7 @@ impl Zone {
 
     fn closest_encloser(&self, name: &DomainName) -> DomainName {
         let mut candidate = name.clone();
-        while !self.has_name(&candidate) && candidate.labels.len() > self.apex.labels.len() {
+        while !self.exists(&candidate) && candidate.labels.len() > self.apex.labels.len() {
             candidate = candidate.parent();
         }
         candidate
@@ -481,7 +515,7 @@ impl Zone {
                     }
                 }
 
-                if self.has_name(&name) {
+                if self.exists(&name) {
                     let exact = self.rrset(&name, question.rtype);
                     if !exact.is_empty() {
                         self.append_signed(&mut answers, exact, &name, self.spoof_answer_owner.as_ref());
@@ -499,14 +533,18 @@ impl Zone {
                         name = target;
                         continue;
                     }
-                    // No Data.
+                    // No Data. An empty non-terminal has no NSEC, so the one covering it stands in.
                     self.append_signed(
                         &mut authority,
                         self.rrset(&self.apex, ResourceType::SOA),
                         &self.apex,
                         None,
                     );
-                    self.append_denial(&mut authority, self.nsec_matching(&name));
+                    if self.use_nsec3 || self.has_name(&name) {
+                        self.append_denial(&mut authority, self.nsec_matching(&name));
+                    } else {
+                        self.append_denial(&mut authority, self.nsec_covering(&name));
+                    }
                     break 'done;
                 }
 
@@ -773,6 +811,35 @@ fn wildcard_answer_without_proof_is_bogus() {
 }
 
 #[test]
+fn wildcard_answer_for_a_name_below_an_empty_non_terminal_is_bogus() {
+    // "y.wild.example" owns no records, but exists as the parent of "x.y.wild.example", so "*.wild.example" does not
+    // answer for "a.y.wild.example".
+    let (mut server, mut validator) = setup(false, |server| {
+        server.zones[1].add_a("x.y.wild.example", Ipv4Addr::new(192, 0, 2, 9));
+    });
+
+    // The NSEC from "*.wild.example" to "x.y.wild.example" spans "y.wild.example".
+    let mut lookup = Lookup::start(&mut server, "a.y.wild.example", ResourceType::A);
+    let zone = &server.zones[1];
+    let wildcard = name("*.wild.example");
+    lookup.response.header.options.set_response_code(ResponseCode::NO_ERROR);
+    lookup.response.answers.clear();
+    lookup.response.authorities.clear();
+    zone.append_signed(
+        &mut lookup.response.answers,
+        zone.rrset(&wildcard, ResourceType::A),
+        &wildcard,
+        Some(&name("a.y.wild.example")),
+    );
+    zone.append_denial(&mut lookup.response.authorities, zone.nsec_matching(&wildcard));
+
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW),
+        Err("Wildcard expansion is not proven")
+    );
+}
+
+#[test]
 fn name_error_is_proven() {
     for use_nsec3 in [false, true] {
         let (mut server, mut validator) = setup(use_nsec3, |_| {});
@@ -831,6 +898,55 @@ fn no_data_is_proven() {
         let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::AAAA).unwrap();
         assert_eq!(result.status, SecurityStatus::Secure);
         assert!(result.records.is_empty());
+    }
+}
+
+// "_tcp.example" owns no records, but exists as the parent of "_443._tcp.example".
+fn add_tlsa_below_empty_non_terminal(server: &mut Server) {
+    server.zones[1].add(
+        &name("_443._tcp.example"),
+        ResourceType::TLSA,
+        RecordData::Tlsa(Tlsa {
+            cert_usage: TlsaCertUsage(3),
+            selector: TlsaSelector(1),
+            matching_type: TlsaMatchingType(1),
+            certificate_association_data: vec![0xab; 32],
+        }),
+        300,
+    );
+}
+
+#[test]
+fn no_data_at_empty_non_terminal_is_proven() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, add_tlsa_below_empty_non_terminal);
+
+        let result = validated_lookup(&mut server, &mut validator, "_tcp.example", ResourceType::TLSA).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert!(result.records.is_empty());
+
+        let result = validated_lookup(&mut server, &mut validator, "_443._tcp.example", ResourceType::TLSA).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert_eq!(result.records.len(), 1);
+    }
+}
+
+#[test]
+fn name_error_at_empty_non_terminal_is_bogus() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, add_tlsa_below_empty_non_terminal);
+
+        // The No Data response, passed off as a Name Error.
+        let mut lookup = Lookup::start(&mut server, "_tcp.example", ResourceType::TLSA);
+        lookup
+            .response
+            .header
+            .options
+            .set_response_code(ResponseCode::NAME_ERROR);
+        assert_eq!(
+            lookup.finish(&mut server, &mut validator, NOW),
+            Err("Name error is not proven")
+        );
     }
 }
 
