@@ -1353,6 +1353,24 @@ fn cached_chain_expires() {
 }
 
 #[test]
+fn cached_chain_expires_counting_from_when_responses_came_in() {
+    let (mut server, mut validator) = setup(false, |_| {});
+
+    // Every DS and DNSKEY response came in 3000 seconds before validation ran.
+    let received_at = NOW - 3000;
+    let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::A);
+    while let Step::NeedFetch(question) = lookup.step(&mut validator, NOW) {
+        let response = server.answer(&question);
+        lookup.fetches.insert_received_at(&question, response, received_at);
+    }
+
+    // The DS and DNSKEY RRsets of "example" have a TTL of an hour.
+    let example = name("example");
+    assert_eq!(validator.zone_keys[&example].expires, u64::from(received_at) + 3600);
+    assert_eq!(validator.delegations[&example].expires, u64::from(received_at) + 3600);
+}
+
+#[test]
 fn cached_keys_are_reauthenticated_after_ds_rollover() {
     // The DS for "example" lives for 600 seconds, its DNSKEY RRset for an hour.
     let (mut server, mut validator) = setup(false, |server| {
