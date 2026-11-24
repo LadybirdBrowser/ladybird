@@ -35,12 +35,6 @@ void DocumentObserver::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_document_page_showing_observer);
 }
 
-void DocumentObserver::finalize()
-{
-    Base::finalize();
-    m_document->unregister_document_observer({}, *this);
-}
-
 void DocumentObserver::set_document(GC::Ref<Document> document)
 {
     VERIFY(document != m_document);

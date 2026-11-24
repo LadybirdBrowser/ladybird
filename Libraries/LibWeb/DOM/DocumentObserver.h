@@ -52,7 +52,6 @@ private:
     explicit DocumentObserver(Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void finalize() override;
 
     GC::Ref<Document> m_document;
     GC::Ptr<GC::Function<void()>> m_document_became_active;
