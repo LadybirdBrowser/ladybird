@@ -1,0 +1,7 @@
+Ladybird renders an hr between list-box options in document order.
+Blink uses ListBoxSelectType::ManuallyAssignSlots() for the children
+and styles hr in its user-agent stylesheet. WebKit identifies
+the separator in HTMLSelectElement::itemIsSeparator(). Gecko checks
+hr ancestry in HTMLSelectElement::ComputeNearestAncestors(). Adding
+the separator moved the next row down by 8px in Chrome 158.0.8127.37
+and by 18px in Firefox 151.0 and WebKit 26.5.
