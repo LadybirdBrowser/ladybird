@@ -1,0 +1,15 @@
+Ladybird renders each list-box option with its own computed style.
+Blink assigns the option in ListBoxSelectType::ManuallyAssignSlots(),
+and WebKit reads its color in RenderListBox::paintItemForeground().
+Chrome 158.0.8127.37, Firefox 151.0 and WebKit 26.5 all painted the
+author colors when the option belonged to a group.
+
+Ladybird skips options without layout boxes when finding the next row.
+Gecko checks for an option frame in IsOptionInteractivelySelectable().
+Chrome and Firefox skipped a hidden option and a hidden group, then
+reached the group option after its stylesheet made it visible. WebKit
+selected the hidden option in the same keyboard test.
+
+Shift+End selects the enabled options between the anchor and the last
+visible row, including CSS-hidden options. Firefox and WebKit included
+them in the same range. Chrome selected only the visible options.
