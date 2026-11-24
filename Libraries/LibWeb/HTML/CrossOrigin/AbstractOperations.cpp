@@ -201,6 +201,8 @@ void CrossOriginPropertyDescriptorMap::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& [key, descriptor] : m_descriptors) {
+        if (!key.current_settings_object)
+            continue;
         auto& current_settings_object = *key.current_settings_object;
         if (descriptor.value.has_value())
             visitor.visit_ephemeron(current_settings_object, *descriptor.value);
@@ -213,9 +215,8 @@ void CrossOriginPropertyDescriptorMap::visit_edges(Visitor& visitor)
 
 void CrossOriginPropertyDescriptorMap::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_descriptors.remove_all_matching([&](CrossOriginKey const& key, JS::PropertyDescriptor const&) {
-        auto const& current_settings_object = *key.current_settings_object;
-        return !heap().is_live_cell(&current_settings_object) || !current_settings_object.is_marked();
+    m_descriptors.remove_all_matching([](CrossOriginKey const& key, JS::PropertyDescriptor const&) {
+        return !key.current_settings_object || !key.current_settings_object->is_marked();
     });
 }
 
