@@ -8,7 +8,6 @@
 //! context of either kind.
 
 use core::ffi::c_void;
-use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, Realm, Vm};
@@ -25,7 +24,7 @@ use super::state::{
 };
 use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
-use crate::bindings::interface::{Interface, allocate, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, allocate, cell_into_abi};
 
 /// Mirrors `Web::WebGL::ContextAttributes`.
 #[derive(Clone, Copy)]
@@ -116,28 +115,11 @@ pub(super) fn create_remote_context(
     unsafe { RemoteContext::create(connection, &creation) }
 }
 
-/// The cell of a WebGLRenderingContext or of a WebGL2RenderingContext, which only C++ lends out, for as long as the
-/// context is live.
-#[repr(C)]
-pub struct ContextCell {
-    // NB: The cell is mutable behind a shared reference, and bigger than Rust sees, so a reference to one must not tell
-    //     the compiler that the memory behind it is read only or unaliased.
-    _opaque: core::cell::UnsafeCell<[u8; 0]>,
-    _not_send_sync_or_unpin: PhantomData<(*const (), core::marker::PhantomPinned)>,
-}
-
-fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -> R) -> R {
-    let cell = NonNull::from(context).cast();
-    // SAFETY: A ContextCell is the live cell of one of the two classes, which the downcasts tell apart.
-    unsafe {
-        if let Some(context) = RenderingContext::<WebGL1>::CELL_CLASS.downcast(cell) {
-            return function(&context);
-        }
-        let context = RenderingContext::<WebGL2>::CELL_CLASS
-            .downcast(cell)
-            .expect("the cell is a WebGL context");
-        function(&context)
+fn with_context<R>(context: &InterfaceCell, function: impl FnOnce(&ContextState) -> R) -> R {
+    if let Some(context) = context.object_if::<RenderingContext<WebGL1>>() {
+        return function(&context);
     }
+    function(&context.object::<RenderingContext<WebGL2>>())
 }
 
 /// # Safety
@@ -198,12 +180,12 @@ pub unsafe extern "C" fn web_webgl_context_create(vm: &Vm, arguments: &ContextCr
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_is_lost(context: &ContextCell) -> bool {
+pub extern "C" fn web_webgl_context_is_lost(context: &InterfaceCell) -> bool {
     with_context(context, ContextState::is_context_lost)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_canvas_id(context: &ContextCell, out_canvas_id: &mut u64) -> bool {
+pub extern "C" fn web_webgl_context_canvas_id(context: &InterfaceCell, out_canvas_id: &mut u64) -> bool {
     let Some(canvas_id) = with_context(context, |context| context.proxy.canvas_id()) else {
         return false;
     };
@@ -212,7 +194,7 @@ pub extern "C" fn web_webgl_context_canvas_id(context: &ContextCell, out_canvas_
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_set_size(context: &ContextCell, width: i32, height: i32) {
+pub extern "C" fn web_webgl_context_set_size(context: &InterfaceCell, width: i32, height: i32) {
     with_context(context, |context| {
         context
             .proxy
@@ -221,7 +203,7 @@ pub extern "C" fn web_webgl_context_set_size(context: &ContextCell, width: i32, 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_present_for_compositing(context: &ContextCell) {
+pub extern "C" fn web_webgl_context_present_for_compositing(context: &InterfaceCell) {
     with_context(context, |context| {
         let preserve_drawing_buffer = context.context_creation_parameters.preserve_drawing_buffer;
         context.proxy.present_canvas_for_compositing(preserve_drawing_buffer);
@@ -229,14 +211,14 @@ pub extern "C" fn web_webgl_context_present_for_compositing(context: &ContextCel
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_webgl_context_clear_drawing_buffer(context: &ContextCell) {
+pub extern "C" fn web_webgl_context_clear_drawing_buffer(context: &InterfaceCell) {
     with_context(context, |context| context.proxy.clear_drawing_buffer());
 }
 
 /// A Gfx::DecodedImageFrame allocated with new that the caller takes over, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
-    context: &ContextCell,
+    context: &InterfaceCell,
     x: i32,
     y: i32,
     width: i32,

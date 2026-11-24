@@ -8,7 +8,6 @@
 //! of either kind.
 
 use core::ffi::c_void;
-use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace};
@@ -17,7 +16,7 @@ use libgfx_rust::{IntRect, IntSize};
 use super::canvas::Canvas;
 use super::context::{ContextParameters, ContextState, Offscreen, OnScreen, RenderingContext2D};
 use crate::bindings::conversions::CppInterface;
-use crate::bindings::interface::{Interface, InterfaceCell, allocate, cell_into_abi};
+use crate::bindings::interface::{InterfaceCell, allocate, cell_into_abi};
 use crate::html::canvas_draw_image::CanvasImageSource;
 use crate::html::canvas_pattern::read_back_current_video_frame;
 use crate::html::canvas_rendering_context2d_settings::{CanvasColorType, CanvasRenderingContext2DSettings};
@@ -41,28 +40,11 @@ pub struct ContextCreationArguments {
     will_read_frequently: bool,
 }
 
-/// The cell of a CanvasRenderingContext2D or of an OffscreenCanvasRenderingContext2D, which only C++ lends out, for as
-/// long as the context is live.
-#[repr(C)]
-pub struct ContextCell {
-    // NB: The cell is mutable behind a shared reference, and bigger than Rust sees, so a reference to one must not tell
-    //     the compiler that the memory behind it is read only or unaliased.
-    _opaque: core::cell::UnsafeCell<[u8; 0]>,
-    _not_send_sync_or_unpin: PhantomData<(*const (), core::marker::PhantomPinned)>,
-}
-
-fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -> R) -> R {
-    let cell = NonNull::from(context).cast();
-    // SAFETY: A ContextCell is the live cell of one of the two classes, which the downcasts tell apart.
-    unsafe {
-        if let Some(context) = RenderingContext2D::<OnScreen>::CELL_CLASS.downcast(cell) {
-            return function(&context);
-        }
-        let context = RenderingContext2D::<Offscreen>::CELL_CLASS
-            .downcast(cell)
-            .expect("the cell is a 2D context");
-        function(&context)
+fn with_context<R>(context: &InterfaceCell, function: impl FnOnce(&ContextState) -> R) -> R {
+    if let Some(context) = context.object_if::<RenderingContext2D<OnScreen>>() {
+        return function(&context);
     }
+    function(&context.object::<RenderingContext2D<Offscreen>>())
 }
 
 /// # Safety
@@ -105,62 +87,62 @@ pub unsafe extern "C" fn web_canvas_2d_context_create(
 
 /// The Web::HTML::CanvasHost of the canvas of the context.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_canvas_host(context: &ContextCell) -> *mut c_void {
+pub extern "C" fn web_canvas_2d_context_canvas_host(context: &InterfaceCell) -> *mut c_void {
     with_context(context, |context| context.canvas_handle().host.as_ptr())
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_origin_clean(context: &ContextCell) -> bool {
+pub extern "C" fn web_canvas_2d_context_origin_clean(context: &InterfaceCell) -> bool {
     with_context(context, ContextState::origin_clean)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_set_size(context: &ContextCell, width: i32, height: i32) {
+pub extern "C" fn web_canvas_2d_context_set_size(context: &InterfaceCell, width: i32, height: i32) {
     with_context(context, |context| context.set_size(IntSize { width, height }));
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_reset_to_default_state(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_reset_to_default_state(context: &InterfaceCell) {
     with_context(context, ContextState::reset_to_default_state);
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_ensure_backing_storage(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_ensure_backing_storage(context: &InterfaceCell) {
     with_context(context, ContextState::ensure_backing_storage);
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_discard_backing_storage(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_discard_backing_storage(context: &InterfaceCell) {
     with_context(context, ContextState::discard_backing_storage);
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_has_backing_storage(context: &ContextCell) -> bool {
+pub extern "C" fn web_canvas_2d_context_has_backing_storage(context: &InterfaceCell) -> bool {
     with_context(context, ContextState::has_backing_storage)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_drop_cached_readback(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_drop_cached_readback(context: &InterfaceCell) {
     with_context(context, ContextState::drop_cached_readback);
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_is_lost(context: &ContextCell) -> bool {
+pub extern "C" fn web_canvas_2d_context_is_lost(context: &InterfaceCell) -> bool {
     with_context(context, ContextState::context_is_lost)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_set_lost(context: &ContextCell, lost: bool) {
+pub extern "C" fn web_canvas_2d_context_set_lost(context: &InterfaceCell, lost: bool) {
     with_context(context, |context| context.set_context_lost(lost));
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_prepare_for_compositing(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_prepare_for_compositing(context: &InterfaceCell) {
     with_context(context, ContextState::prepare_for_compositing);
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_canvas_id(context: &ContextCell, out_canvas_id: &mut u64) -> bool {
+pub extern "C" fn web_canvas_2d_context_canvas_id(context: &InterfaceCell, out_canvas_id: &mut u64) -> bool {
     let Some(canvas_id) = with_context(context, ContextState::canvas_id) else {
         return false;
     };
@@ -170,7 +152,7 @@ pub extern "C" fn web_canvas_2d_context_canvas_id(context: &ContextCell, out_can
 
 /// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-color-space
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_color_space(context: &ContextCell) -> ColorSpace {
+pub extern "C" fn web_canvas_2d_context_color_space(context: &InterfaceCell) -> ColorSpace {
     with_context(context, |context| context.context_attributes.color_space.into())
 }
 
@@ -178,7 +160,7 @@ pub extern "C" fn web_canvas_2d_context_color_space(context: &ContextCell) -> Co
 /// as RGBA8888, and premultiplied pixels as BGRA8888, in the color space.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_canvas_2d_context_read_pixels(
-    context: &ContextCell,
+    context: &InterfaceCell,
     rect: IntRect,
     alpha_type: AlphaType,
     color_space: ColorSpace,
@@ -188,14 +170,14 @@ pub extern "C" fn web_canvas_2d_context_read_pixels(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(context: &ContextCell) {
+pub extern "C" fn web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(context: &InterfaceCell) {
     with_context(context, ContextState::replace_bitmap_with_cleared_bitmap);
 }
 
 /// Draws the ImageBitmap at the point as drawImage() does, and returns whether that threw nothing.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_canvas_2d_context_draw_image_bitmap(
-    context: &ContextCell,
+    context: &InterfaceCell,
     image_bitmap: &InterfaceCell,
     x: f32,
     y: f32,
