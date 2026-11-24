@@ -6,11 +6,11 @@
 
 use crate::css::css_enums::writing_mode;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor};
 use crate::painting::paintable_geometry::{absolute_padding_box_rect, has_scrollable_overflow};
 use crate::painting::paintable_rows::PaintableRowsRead;
-use crate::painting::{chrome_geometry, scroll_snap};
+use crate::painting::{chrome_geometry, scroll_snap, style_queries};
 
 /// The nearest box, `start` included, that keeps a scroll step by the delta to itself: neither it nor a box inside it
 /// passes the step on to a scroller around it. A step belongs to one scroller, and a touchpad rarely moves along one
@@ -89,10 +89,21 @@ pub(crate) fn scroll_target_for_text_position(
     }
 
     let mut container = caret.owner;
+    let mut axes_fixed_to_the_viewport = (false, false);
     while !has_scrollable_overflow(arena, container) {
-        container = arena
+        let containing_block = arena
             .node_containing_block_if_live(container)
             .filter(|&containing_block| arena.paintable_row_is_populated(containing_block))?;
+        // INTEROP: Scrolling the viewport cannot move a box that is fixed to it, so other engines do not scroll it to
+        //          bring a caret in such a box into view. A fixed box that compensates for the scroll of its default
+        //          anchor in an axis moves with that scroll, so it is not fixed to the viewport in that axis.
+        if let Some(axes) = axes_fixed_to_the_viewport_of(arena, container, containing_block) {
+            if axes == (true, true) {
+                return None;
+            }
+            axes_fixed_to_the_viewport = axes;
+        }
+        container = containing_block;
     }
     let snapport = scroll_snap::scroll_snapport_rect(arena, container, absolute_padding_box_rect(arena, container));
     let current_offset = arena.row_scroll_offset(container);
@@ -105,7 +116,34 @@ pub(crate) fn scroll_target_for_text_position(
             rect.width = snapport.width;
         }
     }
-    Some((container, offset_showing_rect(rect, snapport, current_offset)))
+    let mut new_offset = offset_showing_rect(rect, snapport, current_offset);
+    if axes_fixed_to_the_viewport.0 {
+        new_offset.x = current_offset.x;
+    }
+    if axes_fixed_to_the_viewport.1 {
+        new_offset.y = current_offset.y;
+    }
+    Some((container, new_offset))
+}
+
+// The horizontal and vertical axes in which `node` is fixed to the viewport, if `node` is a fixed box whose containing
+// block is the viewport.
+fn axes_fixed_to_the_viewport_of(
+    arena: &impl PaintableRowsRead,
+    node: NodeSlotId,
+    containing_block: NodeSlotId,
+) -> Option<(bool, bool)> {
+    let containing_block_is_viewport = arena
+        .node_data_if_live(containing_block)
+        .is_some_and(|data| data.kind.get() == NodeKind::Viewport);
+    if !style_queries::is_fixed_position(arena, node) || !containing_block_is_viewport {
+        return None;
+    }
+    let flags = arena.node_flags_if_live(node);
+    Some((
+        flags & NodeFlag::CompensatesForHorizontalScroll as u32 == 0,
+        flags & NodeFlag::CompensatesForVerticalScroll as u32 == 0,
+    ))
 }
 
 // The nearest offset to `current_offset` at which `rect`, in the same space as `snapport`, lies inside the snapport.

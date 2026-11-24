@@ -1,2 +1,5 @@
 before typing: 3000
-after typing: 23
+after typing: 3000
+anchored box before typing: 1000 3000
+anchored box scrolled horizontally: true
+anchored box vertical scroll after typing: 3000
