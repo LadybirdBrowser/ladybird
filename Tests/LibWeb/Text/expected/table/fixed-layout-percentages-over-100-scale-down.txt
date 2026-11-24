@@ -1,0 +1,9 @@
+two-at-100: 170 + 170
+two-at-60: 170 + 170
+padding-ignored: 170 + 170
+three-uneven: 170 + 85 + 85
+with-auto-column: 170 + 170 + 0
+with-length-column: 100 + 120 + 120
+col-elements: 170 + 170
+exactly-100: 102 + 238
+auto-layout: 204 + 136
