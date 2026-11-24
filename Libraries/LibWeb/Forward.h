@@ -793,7 +793,6 @@ class NavigationTransition;
 class Navigator;
 class OffscreenCanvas;
 class OffscreenCanvasRenderingContext2D;
-class PageTransitionEvent;
 class Plugin;
 class PluginArray;
 class PopoverTargetAttributes;

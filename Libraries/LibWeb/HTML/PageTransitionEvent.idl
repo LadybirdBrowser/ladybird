@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#pagetransitionevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface PageTransitionEvent : Event {
     constructor(DOMString type, optional PageTransitionEventInit eventInitDict = {});
 
