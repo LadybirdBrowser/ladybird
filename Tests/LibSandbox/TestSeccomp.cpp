@@ -41,6 +41,7 @@
 #include <sys/sysmacros.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 #if defined(__NR_newfstatat) && defined(__NR_fstat)
@@ -139,6 +140,25 @@ TEST_CASE(file_descriptor_policy_allows_open_file_description_queries)
         }
         VERIFY(result == 1);
         VERIFY(fcntl(descriptors[0], F_DUPFD_QUERY, descriptors[1]) == 0);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(file_descriptor_policy_answers_both_terminal_queries_isatty_makes)
+{
+    auto body = [] {
+        int descriptors[2];
+        VERIFY(pipe(descriptors) == 0);
+        termios attributes {};
+        VERIFY(ioctl(descriptors[0], TCGETS, &attributes) == -1);
+        VERIFY(errno == ENOTTY);
+        winsize size {};
+        VERIFY(ioctl(descriptors[0], TIOCGWINSZ, &size) == -1);
+        VERIFY(errno == ENOTTY);
+        VERIFY(!isatty(descriptors[0]));
     };
     auto status = run_with_policy([](auto&) { }, body);
     EXPECT(WIFEXITED(status));
