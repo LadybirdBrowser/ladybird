@@ -1010,7 +1010,8 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16Fl
     auto is_beforeunload = event.type() == HTML::EventNames::beforeunload;
 
     // 7. Process return value as follows:
-    if (is<HTML::BeforeUnloadEvent>(event) && is_beforeunload) {
+    auto before_unload_event_return_value = HTML::before_unload_event_return_value(event);
+    if (before_unload_event_return_value.has_value() && is_beforeunload) {
         // ->  If event is a BeforeUnloadEvent object and event's type is "beforeunload"
         //         If return value is not null, then:
         if (!return_value.is_nullish()) {
@@ -1018,9 +1019,8 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(Utf16Fl
             event.set_cancelled(true);
 
             // 2. If event's returnValue attribute's value is the empty string, then set event's returnValue attribute's value to return value.
-            auto& before_unload_event = static_cast<HTML::BeforeUnloadEvent&>(event);
-            if (before_unload_event.return_value().is_empty())
-                before_unload_event.set_return_value(TRY(return_value.to_utf16_string(vm())));
+            if (before_unload_event_return_value->is_empty())
+                HTML::set_before_unload_event_return_value(event, TRY(return_value.to_utf16_string(vm())));
         }
     }
 

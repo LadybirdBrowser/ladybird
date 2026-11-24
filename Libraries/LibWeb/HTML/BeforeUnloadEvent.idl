@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-beforeunloadevent-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface BeforeUnloadEvent : Event {
     attribute DOMString returnValue;
 };
