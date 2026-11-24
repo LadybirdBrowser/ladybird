@@ -1231,3 +1231,128 @@ fn query_ids_are_found_when_random_ones_keep_colliding() {
     ids.sort_unstable();
     assert_eq!(ids, vec![7, 8]);
 }
+
+#[test]
+fn server_is_reached_at_its_other_addresses_when_one_fails() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    let first = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let requests = std::mem::take(&mut harness.system);
+    // The IPv6 side answers first, so its address comes first.
+    for (request, _, family) in requests.iter().rev() {
+        let address = match family {
+            AddressFamily::V4 => IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)),
+            AddressFamily::V6 => IpAddr::V6("2620:fe::fe".parse().unwrap()),
+        };
+        harness.system_resolved(*request, Ok(vec![address]));
+    }
+    assert_eq!(harness.connects[0].address, "[2620:fe::fe]:853".parse().unwrap());
+    harness
+        .resolver
+        .on_connect_failed(harness.connects[0].connection, "unreachable".to_owned(), harness.now);
+    harness.drain();
+    assert!(harness.result(first).is_err());
+
+    // The next attempt goes to the IPv4 address, still verifying the certificate for the server's name.
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert_eq!(harness.connects.len(), 2);
+    assert_eq!(harness.connects[1].address, "9.9.9.9:853".parse().unwrap());
+    assert_eq!(harness.connects[1].server_name, "dns.quad9.net");
+}
+
+fn server_v6() -> IpAddr {
+    IpAddr::V6("2620:fe::fe".parse().unwrap())
+}
+
+fn server_v4() -> IpAddr {
+    IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9))
+}
+
+#[test]
+fn server_addresses_that_come_in_after_connecting_started_are_tried_too() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![server_v6()]));
+    harness.advance(IPV4_RESOLUTION_DELAY);
+    assert_eq!(harness.connects.len(), 1);
+    assert_eq!(harness.connects[0].address.ip(), server_v6());
+
+    harness.system_resolved(a, Ok(vec![server_v4()]));
+    harness
+        .resolver
+        .on_connect_failed(harness.connects[0].connection, "unreachable".to_owned(), harness.now);
+    harness.drain();
+
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert_eq!(harness.connects[1].address.ip(), server_v4());
+}
+
+#[test]
+fn server_name_is_looked_up_again_once_all_its_addresses_failed() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    for (request, _, family) in std::mem::take(&mut harness.system) {
+        let address = if family == AddressFamily::V4 {
+            server_v4()
+        } else {
+            server_v6()
+        };
+        harness.system_resolved(request, Ok(vec![address]));
+    }
+    for attempt in 0..2 {
+        if attempt > 0 {
+            harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+        }
+        let connection = harness.connects.last().unwrap().connection;
+        harness
+            .resolver
+            .on_connect_failed(connection, "unreachable".to_owned(), harness.now);
+        harness.drain();
+    }
+    assert!(harness.system.is_empty());
+
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert_eq!(harness.system.len(), 2);
+}
+
+#[test]
+fn server_name_lookups_from_before_a_server_change_do_not_serve_the_new_server() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![server_v6()]));
+    harness.advance(IPV4_RESOLUTION_DELAY);
+    assert_eq!(harness.connects.len(), 1);
+
+    // Only the port changes, while the IPv4 side of the server's name is still being looked up.
+    let server = ServerConfig {
+        host: "dns.quad9.net".to_owned(),
+        port: 8853,
+        transport: ServerTransport::Tls,
+    };
+    harness.resolver.set_server(Some(server), harness.now);
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (new_a, new_aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![server_v4()]));
+
+    // The new server gets the addresses of its own lookup.
+    harness.system_resolved(new_aaaa.unwrap(), Ok(vec![server_v6()]));
+    harness.system_resolved(new_a, Ok(vec![server_v4()]));
+    let connect = harness.connects.last().unwrap();
+    assert_eq!(connect.address.port(), 8853);
+    let connection = connect.connection;
+    harness
+        .resolver
+        .on_connect_failed(connection, "unreachable".to_owned(), harness.now);
+    harness.drain();
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let addresses: Vec<IpAddr> = harness
+        .connects
+        .iter()
+        .skip(1)
+        .map(|connect| connect.address.ip())
+        .collect();
+    assert!(addresses.contains(&server_v4()) && addresses.contains(&server_v6()));
+}

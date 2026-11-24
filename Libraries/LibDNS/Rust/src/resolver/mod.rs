@@ -154,6 +154,8 @@ struct Link {
     role: LinkRole,
     kind: ConnectKind,
     connection: Connection,
+    // Whether the connection got as far as connecting, so that failing tells nothing about the address.
+    connected: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -222,11 +224,21 @@ impl FamilyLookup {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SystemResolutionPurpose {
+    // A lookup, whose answers go in the cache.
+    Lookup,
+    // The addresses of the configured server, which stay out of the cache, as it only holds the server's answers.
+    ServerAddress,
+}
+
 struct PendingSystemResolution {
     // Tells this resolution apart from a later one for the same name and types, which answers to it do not concern.
     id: u64,
     // Where the result goes in the cache, if it goes there at all.
     cache_key: Option<String>,
+    // The configured server whose addresses these are, if they are, and its name still names it.
+    server_host: Option<String>,
     entry: CacheEntry,
     waiters: Vec<LookupWaiter>,
     a: FamilyLookup,
@@ -237,7 +249,9 @@ struct PendingSystemResolution {
 
 pub struct Resolver {
     server: Option<ServerConfig>,
-    server_address: Option<SocketAddr>,
+    // Where the server is, and which of those addresses to connect to next.
+    server_addresses: Vec<SocketAddr>,
+    next_server_address: usize,
     links: Vec<Link>,
     next_connection_id: ConnectionId,
     next_system_request_id: SystemRequestId,
@@ -249,6 +263,8 @@ pub struct Resolver {
     in_flight_by_id: HashMap<u16, String>,
     system_resolutions: HashMap<String, PendingSystemResolution>,
     system_requests: HashMap<SystemRequestId, (String, u64, AddressFamily)>,
+    // Counts resets, which a lookup of the server's name belongs to the latest of.
+    connection_generation: u64,
 
     loopback_domains: Vec<String>,
     is_ipv6_globally_reachable: Box<dyn FnMut() -> bool>,
@@ -271,7 +287,8 @@ impl Resolver {
     pub fn new(is_ipv6_globally_reachable: Box<dyn FnMut() -> bool>, random: Box<dyn FnMut() -> Option<u16>>) -> Self {
         Self {
             server: None,
-            server_address: None,
+            server_addresses: Vec::new(),
+            next_server_address: 0,
             links: Vec::new(),
             next_connection_id: 1,
             next_system_request_id: 1,
@@ -282,6 +299,7 @@ impl Resolver {
             in_flight_by_id: HashMap::new(),
             system_resolutions: HashMap::new(),
             system_requests: HashMap::new(),
+            connection_generation: 0,
             loopback_domains: Vec::new(),
             is_ipv6_globally_reachable,
             ipv6_reachability_checked_at: None,
@@ -351,7 +369,8 @@ impl Resolver {
             return;
         }
         self.server = server;
-        self.server_address = None;
+        self.server_addresses.clear();
+        self.next_server_address = 0;
         self.reset_connection(now);
     }
 
@@ -371,10 +390,12 @@ impl Resolver {
         }
         self.cache.clear();
         self.validator.clear_caches();
+        self.connection_generation += 1;
         // What the system resolver is still looking up answers the lookups waiting on it, but it is from before the
         // reset, so it stays out of the cache.
         for state in self.system_resolutions.values_mut() {
             state.cache_key = None;
+            state.server_host = None;
         }
     }
 
@@ -519,7 +540,12 @@ impl Resolver {
                     now,
                 );
             }
-            return self.resolve_with_system_resolver(waiter, name, queried_types, !is_server_address, now);
+            let purpose = if is_server_address {
+                SystemResolutionPurpose::ServerAddress
+            } else {
+                SystemResolutionPurpose::Lookup
+            };
+            return self.resolve_with_system_resolver(waiter, name, queried_types, purpose, now);
         }
 
         // Nothing to ask for is answered at once, with nothing.
@@ -781,7 +807,7 @@ impl Resolver {
         waiter: LookupWaiter,
         name: &str,
         queried_types: Vec<ResourceType>,
-        caches_result: bool,
+        purpose: SystemResolutionPurpose,
         now: Instant,
     ) {
         // The system resolver only knows addresses.
@@ -800,9 +826,10 @@ impl Resolver {
         for rtype in &sorted_types {
             key.push_str(&format!("|{}", rtype.0));
         }
-        // A resolution that stays out of the cache never serves one that goes in it, nor the other way around.
-        if !caches_result {
-            key.push_str("|uncached");
+        // A resolution that stays out of the cache never serves one that goes in it, nor the other way around. Nor does
+        // one of the server's name from before a reset, such as for another port, serve one after it.
+        if purpose == SystemResolutionPurpose::ServerAddress {
+            key.push_str(&format!("|uncached|{}", self.connection_generation));
         }
 
         if let Some(state) = self.system_resolutions.get_mut(&key) {
@@ -828,7 +855,8 @@ impl Resolver {
             key.clone(),
             PendingSystemResolution {
                 id,
-                cache_key: caches_result.then(|| name.to_owned()),
+                cache_key: (purpose == SystemResolutionPurpose::Lookup).then(|| name.to_owned()),
+                server_host: (purpose == SystemResolutionPurpose::ServerAddress).then(|| name.to_owned()),
                 entry,
                 waiters: vec![waiter],
                 a: if wants_a {
@@ -923,6 +951,22 @@ impl Resolver {
                 .all(|lookup| matches!(lookup, FamilyLookup::Answered | FamilyLookup::NotAsked));
             let result =
                 (!state.settled).then(|| (state.entry.has_records() || answered).then(|| state.entry.snapshot()));
+
+            // Connecting to the server went ahead with the addresses it had then. The ones that came in since are
+            // worth trying too, should those not work.
+            if state.settled
+                && let Some(host) = &state.server_host
+                && let Some(server) = self.server.as_ref().filter(|server| &server.host == host)
+            {
+                let port = server.port;
+                for address in state.entry.snapshot().addresses() {
+                    let address = SocketAddr::new(address, port);
+                    if !self.server_addresses.contains(&address) {
+                        self.server_addresses.push(address);
+                    }
+                }
+            }
+
             if let Some(cache_key) = state.cache_key {
                 self.cache.insert(cache_key, state.entry, now);
             }
@@ -1149,15 +1193,18 @@ impl Resolver {
             role,
             kind,
             connection: Connection::new(transport_kind, now, CONNECT_TIMEOUT),
+            connected: false,
         });
 
-        if self.server_address.is_none()
+        if self.server_addresses.is_empty()
             && let Ok(address) = server.host.parse::<IpAddr>()
         {
-            self.server_address = Some(SocketAddr::new(address, server.port));
+            self.server_addresses.push(SocketAddr::new(address, server.port));
         }
 
-        match self.server_address {
+        // The fallback goes where the primary connection went.
+        let address = self.server_addresses.get(self.next_server_address).copied();
+        match address {
             Some(address) => self.actions.push_back(Action::Connect {
                 connection: id,
                 kind,
@@ -1192,15 +1239,19 @@ impl Resolver {
             return;
         };
         let Some(server) = self.server.clone() else { return };
-        let address = result.ok().and_then(|result| result.addresses().first().copied());
-        let Some(address) = address else {
+        let addresses = result.map(|result| result.addresses()).unwrap_or_default();
+        let Some(address) = addresses.first() else {
             self.links[index]
                 .connection
                 .on_socket_error("Failed to resolve DNS server hostname".to_owned());
             return self.process_link(index, now);
         };
-        let address = SocketAddr::new(address, server.port);
-        self.server_address = Some(address);
+        let address = SocketAddr::new(*address, server.port);
+        self.server_addresses = addresses
+            .iter()
+            .map(|address| SocketAddr::new(*address, server.port))
+            .collect();
+        self.next_server_address = 0;
         let kind = self.links[index].kind;
         self.actions.push_back(Action::Connect {
             connection,
@@ -1215,6 +1266,7 @@ impl Resolver {
             return;
         };
         self.links[index].connection.on_connected();
+        self.links[index].connected = true;
         let role = self.links[index].role;
         for query in self.in_flight.values_mut() {
             let query_role = if query.over_tcp_fallback {
@@ -1324,6 +1376,22 @@ impl Resolver {
 
         let link = self.links.remove(index);
         self.actions.push_back(Action::Close { connection: link.id });
+
+        // The server may be reachable at another of its addresses, such as over IPv4 when IPv6 does not work here.
+        // Once all of them have failed, look the server's name up again, as its addresses may have changed.
+        if link.role == LinkRole::Primary && !link.connected && !self.server_addresses.is_empty() {
+            self.next_server_address += 1;
+            if self.next_server_address == self.server_addresses.len() {
+                self.next_server_address = 0;
+                let named = self
+                    .server
+                    .as_ref()
+                    .is_some_and(|server| server.host.parse::<IpAddr>().is_err());
+                if named {
+                    self.server_addresses.clear();
+                }
+            }
+        }
 
         // Questions that never went out fail with the connection. Ones that did keep their retry schedule, so they get
         // sent again on the next connection.
