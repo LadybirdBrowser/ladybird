@@ -115,7 +115,18 @@ pub(crate) fn range_rect(
         start_offset_in_code_units,
         end_offset_in_code_units,
     ) {
-        Some(offsets) => rect_for_selection_offsets(layout_arena, fragment, offsets),
+        Some(offsets) => {
+            // CSSOM geometry measures rendered text. Selection painting can extend into trimmed whitespace.
+            let length = fragment.length_in_code_units;
+            rect_for_selection_offsets(
+                layout_arena,
+                fragment,
+                SelectionOffsets {
+                    start: offsets.start.min(length),
+                    end: offsets.end.min(length),
+                },
+            )
+        }
         None => CssPixelRect::default(),
     }
 }
