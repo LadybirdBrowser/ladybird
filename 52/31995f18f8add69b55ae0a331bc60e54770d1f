@@ -1,0 +1,15 @@
+Before it applies its sandbox, the AudioServer creates and discards an
+AudioConverter, which gets AudioToolbox’s per-process code-signing check
+done while F_GETPATH is still allowed. Run on macOS 27.3, a probe that
+applies the AudioServer’s own generated profile and then initializes
+CoreAudio’s default output unit crashed with SIGBUS in
+AudioUnitInitialize(); with one AudioConverter created and discarded
+before the profile went on, the unit initialized and started, under the
+unchanged profile. The reporter’s macOS 14.8.7 log shows the same
+denial, along with F_GETSIGSINFO and csrctl.
+
+WebKit allows F_GETPATH (and F_GETSIGSINFO) in its GPU process, which
+plays audio, in com.apple.WebKit.GPUProcess.sb. Chrome’s audio service
+profile, audio.sb on top of common.sb, has no system-fcntl rules of its
+own, and neither do Firefox’s macOS sandbox policies; this is from
+reading their sources, not from running them.
