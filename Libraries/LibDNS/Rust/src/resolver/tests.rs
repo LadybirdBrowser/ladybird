@@ -1356,3 +1356,28 @@ fn server_name_lookups_from_before_a_server_change_do_not_serve_the_new_server()
         .collect();
     assert!(addresses.contains(&server_v4()) && addresses.contains(&server_v6()));
 }
+
+#[test]
+fn late_udp_answers_do_not_count_once_a_question_moved_to_tcp() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let udp = harness.connects[0].connection;
+    harness.connected(udp);
+    let (_, query) = harness.take_writes().remove(0);
+    let truncated = respond(&query, |response| {
+        response.header.options.set_is_truncated(true);
+        response.answers.clear();
+    });
+    harness.receive(udp, &truncated);
+    let tcp = harness.connects[1].connection;
+    harness.connected(tcp);
+    let (_, tcp_query) = harness.take_writes().remove(0);
+
+    // A full answer over UDP that shows up late is not the one asked for now.
+    let late = respond(&query, |response| response.answers.truncate(1));
+    harness.receive(udp, &late);
+    assert!(!harness.done.contains_key(&lookup));
+
+    harness.receive(tcp, &frame(&respond(unframe(&tcp_query), |_| {})));
+    assert!(harness.result(lookup).is_ok());
+}
