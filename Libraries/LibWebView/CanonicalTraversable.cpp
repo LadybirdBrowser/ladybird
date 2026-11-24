@@ -980,12 +980,7 @@ void CanonicalTraversable::reconstruct_the_history_to_step(i32 step)
 
 ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot(SessionHistorySnapshot snapshot)
 {
-    Vector<DocumentStateLocalFileRoot> local_file_roots;
-    for (auto& [document_state_id, root] : snapshot.local_file_roots_of_document_states) {
-        if (auto restored_root = Application::local_file_grant_policy().restore(move(root)); restored_root.has_value())
-            local_file_roots.append({ document_state_id, restored_root.release_value() });
-    }
-    TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }, local_file_roots));
+    TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }, snapshot.document_states_holding_local_file_content));
     session_history_changed();
 
     return m_session_history.current_entry().url;
@@ -1414,13 +1409,12 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_reached_po
         .user_involvement = operation->algorithm->user_involvement(),
         .navigation_id = finalized_navigation_id(*operation, navigable_id).value_or(Utf16String {}),
     };
-    // NB: The process running the job need not have hosted local file content. The UI process reads the entry's file
-    //     for the process creating the document, with the root saved with the document state, or else with the roots
-    //     of the process running the job.
-    auto local_file_access = source_page.client().local_file_access();
-    if (auto const& root = changing_navigable->target_entry->document_state->local_file_root; root.has_value())
-        local_file_access = Vector { *root };
-    auto loader = NavigationLoader::create(move(request), move(local_file_access));
+    // NB: The UI process reads an entry's file if its document state held local file content, or if the process running
+    //     the job may read local files.
+    auto may_read_local_file = changing_navigable->target_entry->document_state->held_local_file_content || source_page.client().may_read_local_files()
+        ? NavigationLoader::MayReadLocalFile::Yes
+        : NavigationLoader::MayReadLocalFile::No;
+    auto loader = NavigationLoader::create(move(request), may_read_local_file);
     changing_navigable->population = ChangingNavigable::CreatingNavigationParams { loader };
     source_page.owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
     source_page.async_create_history_navigation_params(operation_id, loader->request(), allow_POST);

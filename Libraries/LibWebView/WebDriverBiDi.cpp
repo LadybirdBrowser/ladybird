@@ -1426,7 +1426,7 @@ static ErrorOr<Optional<StringView>, Web::WebDriver::Error> get_wait_condition(J
 }
 
 // https://w3c.github.io/webdriver-bidi/#await-a-navigation
-void WebDriverBiDi::await_a_navigation(CanonicalNavigable& navigable, URL::URL url, WaitCondition wait_condition, LocalFileAccess local_file_access, CommandResult on_complete)
+void WebDriverBiDi::await_a_navigation(CanonicalNavigable& navigable, URL::URL url, WaitCondition wait_condition, CommandResult on_complete)
 {
     // 1. Let navigation id be the string representation of a UUID based on truly random, or pseudo-random numbers.
     // 2. Navigate navigable with resource request, and using navigable's active document as the source Document, with
@@ -1471,11 +1471,11 @@ void WebDriverBiDi::await_a_navigation(CanonicalNavigable& navigable, URL::URL u
 
     if (navigable.is_top_level_traversable()) {
         if (auto view = static_cast<CanonicalTraversable&>(navigable).view(); view.has_value()) {
-            view->load(move(navigation), move(local_file_access));
+            view->load(move(navigation));
             return;
         }
     }
-    navigable.begin_navigation(move(navigation), {}, move(local_file_access));
+    navigable.begin_navigation(move(navigation));
 }
 
 void WebDriverBiDi::await_navigation_completion(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, WaitCondition wait_condition, CommandResult on_complete)
@@ -1549,7 +1549,7 @@ void WebDriverBiDi::browsing_context_navigate(JsonObject const& params, CommandR
 
     // 11. Let request be a new request whose URL is url record.
     // 12. Return the result of await a navigation with navigable, request and wait condition.
-    await_a_navigation(*navigable, url_record.release_value(), wait_condition, UserSelectedLocalFile {}, move(on_complete));
+    await_a_navigation(*navigable, url_record.release_value(), wait_condition, move(on_complete));
 }
 
 // https://w3c.github.io/webdriver-bidi/#command-browsingContext-reload
@@ -1586,10 +1586,7 @@ void WebDriverBiDi::browsing_context_reload(JsonObject const& params, CommandRes
     //     id is passed through the history job to the replacement document.
     // NB: A child navigable is navigated to the URL of its active document, which replaces its session history entry.
     if (!navigable->is_top_level_traversable()) {
-        LocalFileAccess local_file_access;
-        if (auto const& root = navigable->active_document().local_file_root(); root.has_value())
-            local_file_access = Vector { *root };
-        await_a_navigation(*navigable, navigable->active_document_url(), wait_condition, move(local_file_access), move(on_complete));
+        await_a_navigation(*navigable, navigable->active_document_url(), wait_condition, move(on_complete));
         return;
     }
 

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // A file: document loads other local files only under the root the browser granted it, which is the test tree here.
     function load(url) {
         return new Promise(resolve => {
             const script = document.createElement("script");
@@ -15,7 +14,6 @@
     promiseTest(async () => {
         println(`a regular file: ${await load(new URL("file-script-canary.js", window.location.href).href)}`);
         for (const path of [
-            "/etc/hosts",
             "/proc/self/maps",
             "/proc/self/environ",
             "/proc/self/fd/0",

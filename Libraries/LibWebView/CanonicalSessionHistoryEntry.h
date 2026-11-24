@@ -75,9 +75,8 @@ public:
     Utf16String navigable_target_name;
     Vector<CanonicalNestedHistory> nested_histories;
 
-    // Saved root used when repopulating this document state.
-    // The renderer can report entry URLs, but cannot supply this root.
-    Optional<LocalFileRoot> local_file_root;
+    // Whether the UI process populated local file content for this document state.
+    bool held_local_file_content { false };
 
 private:
     explicit CanonicalDocumentState(Web::HTML::CrossProcessId);

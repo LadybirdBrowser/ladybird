@@ -24,7 +24,6 @@
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/LocalFileRoot.h>
 #include <LibWebView/RequestServerManager.h>
 #include <time.h>
 
@@ -38,9 +37,16 @@ class WEBVIEW_API NavigationLoader final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullRefPtr<NavigationLoader> create(Web::HTML::NavigationPopulationRequest request, LocalFileAccess local_file_access = {})
+    // Whether the UI process may read the local file that the request's file: URL names, for the process creating the
+    // document: the UI process admitted a navigation to the URL, or its entry's document state held local file content.
+    enum class MayReadLocalFile : bool {
+        No,
+        Yes,
+    };
+
+    static NonnullRefPtr<NavigationLoader> create(Web::HTML::NavigationPopulationRequest request, MayReadLocalFile may_read_local_file = MayReadLocalFile::No)
     {
-        return adopt_ref(*new NavigationLoader(move(request), move(local_file_access)));
+        return adopt_ref(*new NavigationLoader(move(request), may_read_local_file));
     }
 
     ~NavigationLoader();
@@ -82,7 +88,6 @@ public:
     // The host's client that RequestServer was told may adopt the response body.
     Optional<int> response_body_adopter_client_id() const { return m_response_body_adopter_client_id; }
     Web::HTML::NavigationPopulationRequest const& request() const { return m_request; }
-    Optional<LocalFileRoot> const& local_file_root() const { return m_local_file_root; }
     Web::HTML::NavigationPopulationResult const& result() const;
     Web::HTML::NavigationPopulationResult take_result();
     void reclaim_response_body_after_failed_handoff();
@@ -112,20 +117,18 @@ public:
     static void discard(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult&);
 
 private:
-    NavigationLoader(Web::HTML::NavigationPopulationRequest request, LocalFileAccess local_file_access)
+    NavigationLoader(Web::HTML::NavigationPopulationRequest request, MayReadLocalFile may_read_local_file)
         : m_request(move(request))
         , m_requested_url(m_request.history_entry.url)
-        , m_local_file_access(move(local_file_access))
+        , m_may_read_local_file(may_read_local_file)
     {
     }
 
     struct LocalFile {
         ByteBuffer contents;
         time_t modified_time { 0 };
-        ByteString canonical_path;
     };
     void read_local_file_for_response();
-    Optional<LocalFileRoot> root_of_local_file(ByteString const& canonical_path) const;
     void did_read_local_file_for_response(ErrorOr<LocalFile>);
 
     void determine_the_origin_of_the_response();
@@ -139,8 +142,7 @@ private:
     Web::HTML::NavigationPopulationRequest m_request;
     // The URL the request was made for, before the process that fetched the response reported where it ended up.
     URL::URL m_requested_url;
-    LocalFileAccess m_local_file_access;
-    Optional<LocalFileRoot> m_local_file_root;
+    MayReadLocalFile m_may_read_local_file { MayReadLocalFile::No };
     Optional<Web::HTML::NavigationPopulationResult> m_result;
     RefPtr<Requests::Request> m_response_body_request;
     RefPtr<HTTP::HeaderList> m_response_header_list;

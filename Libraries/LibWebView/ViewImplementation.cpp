@@ -888,26 +888,42 @@ void ViewImplementation::set_has_system_focus(bool has_system_focus)
 
 void ViewImplementation::load_from_browser_ui(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
-    load(traversable().prepare_navigation(url, {}, history_handling), UserSelectedLocalFile {});
+    load(traversable().prepare_navigation(url, {}, history_handling));
+}
+
+static bool process_hosting_may_read_local_files(Web::HTML::EnvironmentId const& environment_id)
+{
+    bool may_read_local_files = false;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (!client.hosted_environment(environment_id).has_value())
+            return IterationDecision::Continue;
+        may_read_local_files = client.may_read_local_files();
+        return IterationDecision::Break;
+    });
+    return may_read_local_files;
 }
 
 // A navigation a page asked the browser's UI to start for it — a link opened with a middle-click, e.g. — whose
 // source is still that page.
-void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation, LocalFileAccess local_file_access)
+void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation)
 {
+    // NB: A page can't have the browser's UI load a file: URL that its own navigation couldn't.
+    if (auto const& fetch_client = navigation.source_snapshot_params.fetch_client; navigation.url.scheme() == "file"sv && fetch_client.has_value()) {
+        if (!process_hosting_may_read_local_files(fetch_client->id))
+            return;
+    }
+
     if (on_before_browser_initiated_navigation)
         on_before_browser_initiated_navigation();
 
-    if (auto const& fetch_client = navigation.source_snapshot_params.fetch_client; local_file_access.has<Empty>() && fetch_client.has_value())
-        local_file_access = WebContentClient::local_file_access_of_process_hosting(fetch_client->id);
-    prepare_for_navigation_after_crash(NavigationToRetry { navigation.url, prepare_navigation_to_retry(navigation), local_file_access });
+    prepare_for_navigation_after_crash(NavigationToRetry { navigation.url, prepare_navigation_to_retry(navigation) });
     m_last_stopped_navigation.clear();
     if (navigation.url.scheme() != "javascript"sv) {
         if (navigation.url.fragment().has_value() && navigation.url.fragment()->contains(":~:"sv))
             m_text_fragment_indication_is_visible = true;
         m_browser_ui_load = BrowserUILoad { navigation.navigation_id, navigation.url };
     }
-    traversable().begin_navigation(move(navigation), {}, move(local_file_access));
+    traversable().begin_navigation(move(navigation));
     if (traversable().has_uncommitted_navigation())
         set_loading_state(true);
     dump_session_history("load"sv);
@@ -4597,8 +4613,8 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView
 void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
 {
     auto navigation = traversable().prepare_navigation(url);
-    prepare_for_navigation_after_crash(NavigationToRetry { url, prepare_navigation_to_retry(navigation), UserSelectedLocalFile {} });
-    traversable().begin_navigation(move(navigation), {}, UserSelectedLocalFile {});
+    prepare_for_navigation_after_crash(NavigationToRetry { url, prepare_navigation_to_retry(navigation) });
+    traversable().begin_navigation(move(navigation));
 }
 
 void ViewImplementation::did_start_webdriver_navigation()
@@ -4762,7 +4778,7 @@ SessionHistorySnapshot ViewImplementation::session_history_snapshot() const
         .entries = session_history.entries(),
         .used_steps = session_history.used_steps(),
         .current_used_step_index = session_history.current_used_step_index(),
-        .local_file_roots_of_document_states = session_history.local_file_roots_of_document_states(),
+        .document_states_holding_local_file_content = session_history.document_states_holding_local_file_content(),
     };
 }
 
@@ -5106,18 +5122,18 @@ Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_t
         navigation = traversable().navigation_being_finalized();
     if (!navigation)
         return {};
-    return NavigationToRetry { navigation->url, navigation->retry, navigation->local_file_access };
+    return NavigationToRetry { navigation->url, navigation->retry };
 }
 
 void ViewImplementation::retry_navigation(NavigationToRetry retry, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (!retry.navigation.has_value()) {
-        load(traversable().prepare_navigation(retry.url, {}, history_handling), move(retry.local_file_access));
+        load_from_browser_ui(retry.url, history_handling);
         return;
     }
     auto navigation = retry.navigation.release_value();
     navigation.history_handling = history_handling;
-    load(move(navigation), move(retry.local_file_access));
+    load(move(navigation));
 }
 
 void ViewImplementation::prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry)
