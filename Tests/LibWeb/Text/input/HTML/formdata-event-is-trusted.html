@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form></form>
+<script>
+    test(() => {
+        const form = document.querySelector("form");
+        form.addEventListener("formdata", event => println(`formdata isTrusted: ${event.isTrusted}`));
+        new FormData(form);
+    });
+</script>

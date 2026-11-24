@@ -1,0 +1,4 @@
+addTextTrack() addtrack isTrusted: true
+<track> insertion addtrack isTrusted: true
+<track> removal removetrack isTrusted: true
+VideoTrackList addtrack isTrusted: true

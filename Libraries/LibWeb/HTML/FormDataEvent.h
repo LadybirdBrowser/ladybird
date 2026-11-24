@@ -14,7 +14,7 @@
 
 namespace Web::HTML {
 
-// The Event of a new FormDataEvent in the realm, for the implementation to fire.
+// The Event of a new trusted FormDataEvent in the realm, for the implementation to fire.
 GC::Ref<DOM::Event> create_form_data_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, XHR::FormData&);
 
 }

@@ -80,7 +80,7 @@ impl FormDataEvent {
     }
 }
 
-/// The Event of a new FormDataEvent in the realm, for the implementation to fire.
+/// The Event of a new trusted FormDataEvent in the realm, for the implementation to fire.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_rust_form_data_event_create(
     vm: &Vm,
@@ -100,5 +100,7 @@ pub extern "C" fn web_rust_form_data_event_create(
         form_data: form_data.object::<FormData>(),
     };
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
-    FormDataEvent::create(vm, realm, &r#type, event_init).event().as_ptr()
+    let event = FormDataEvent::create(vm, realm, &r#type, event_init);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }

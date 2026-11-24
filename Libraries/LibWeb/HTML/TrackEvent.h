@@ -17,7 +17,7 @@ namespace Web::HTML {
 
 using TrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>>;
 
-// The Event of a new TrackEvent in the realm, for the implementation to fire.
+// The Event of a new trusted TrackEvent in the realm, for the implementation to fire.
 GC::Ref<DOM::Event> create_track_event(JS::Realm&, Utf16FlyString const& type, TrackType const& track);
 
 }
