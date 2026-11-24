@@ -45,8 +45,8 @@ pub mod ranges;
 
 use crate::abi::{
     EntryRecord, ExecutionContext, FRAME_HEADER_SIZE, FUNCTION_KIND_HOST, FUNCTION_KIND_WASM,
-    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, SPILL_AREA_SIZE, STACK_LIMIT_INTERRUPTED, Segment,
-    TableData,
+    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, MemoryData, SPILL_AREA_SIZE, STACK_LIMIT_INTERRUPTED,
+    Segment, TableData,
 };
 use crate::module::{DataMode, ElementItems, ElementMode, ExternalKind, ImportDescription, Module};
 use crate::types::{FuncType, GlobalType, HeapType, RefType, TableType, TypeCanonicalizer, ValType};
@@ -334,6 +334,8 @@ pub struct Instance {
     pub functions: Vec<FunctionAddress>,
     pub tables: Vec<TableAddress>,
     pub memories: Vec<MemoryAddress>,
+    /// The data of each memory. The interpreter sees them through `memories` of the instance's data.
+    memory_data: Vec<*const MemoryData>,
     pub globals: Vec<GlobalAddress>,
     pub tags: Vec<TagAddress>,
     pub exports: HashMap<String, ExternValue>,
@@ -387,7 +389,7 @@ pub struct Store {
     /// The module `module_type_identities_of()` was last asked about, and its identities. An embedder asks about
     /// one module many times in a row while it links its imports.
     last_module_identities: Option<(std::sync::Weak<Module>, Rc<[u32]>)>,
-    /// What runs after `memory.grow` grows a memory.
+    /// What runs after `memory.grow` grows a memory that is not shared.
     pub memory_grow_callback: Option<Rc<dyn Fn(MemoryAddress)>>,
     /// Whether the agent the store runs code for may block, its [[CanBlock]]: `memory.atomic.wait` traps where it
     /// may not. The embedder decides (a browser's window agents may not block).
@@ -660,6 +662,11 @@ impl Store {
         Some(entity::allocate(&self.heap, memory))
     }
 
+    /// A memory of this store over a shared memory, which another agent of the process may have made.
+    pub fn allocate_memory_sharing(&mut self, shared: Arc<memory::SharedMemory>) -> MemoryAddress {
+        entity::allocate(&self.heap, MemoryInstance::sharing(shared))
+    }
+
     /// Collects garbage so that the memories that died release their reservations, before failing to allocate one.
     /// Each memory reserves gigabytes of address space, which a memory that died keeps until a collection sweeps it, and
     /// nothing counts the reservations towards a collection. So a page that makes memories in a loop runs out of address
@@ -837,6 +844,7 @@ impl Store {
                 functions: Vec::new(),
                 tables: Vec::new(),
                 memories: Vec::new(),
+                memory_data: Vec::new(),
                 globals: Vec::new(),
                 exports: HashMap::new(),
                 type_identities: type_identities.clone(),
@@ -1104,7 +1112,7 @@ impl Store {
                 if end.is_none_or(|end| end > memory.size() as u64) {
                     return Err(InstantiationError::Trap(Trap::MemoryOutOfBounds));
                 }
-                memory.bytes_mut()[offset as usize..offset as usize + bytes.len()].copy_from_slice(bytes);
+                memory.write(offset as usize, bytes);
                 unsafe { instance_address.get_mut() }.data_segments[index].length = 0;
             }
         }
@@ -1348,7 +1356,7 @@ impl Store {
 }
 
 /// Point the instance's interpreter-visible data at its current contents. The interpreter's view of each entity is at
-/// its handle.
+/// its handle, except for that of a memory, which is elsewhere if the memory is shared.
 fn refresh_instance_data(instance: &mut Instance) {
     // NB: A handle is the address of its entity's interpreter view (see entity.rs), so the instance's vectors of
     //     handles are the arrays of views the interpreter indexes.
@@ -1357,19 +1365,23 @@ fn refresh_instance_data(instance: &mut Instance) {
         assert!(core::mem::offset_of!(FunctionInstance, header) == 0);
         assert!(core::mem::offset_of!(GlobalInstance, value) == 0);
         assert!(core::mem::offset_of!(TableInstance, data) == 0);
-        assert!(core::mem::offset_of!(memory::MemoryInstance, data) == 0);
     };
+    instance.memory_data = instance
+        .memories
+        .iter()
+        .map(|address| MemoryInstance::data(*address))
+        .collect();
     let data = &mut instance.data;
     data.functions = instance.functions.as_ptr().cast();
     data.function_count = instance.functions.len() as u32;
     data.globals = instance.globals.as_ptr().cast();
     data.tables = instance.tables.as_ptr().cast();
-    data.memories = instance.memories.as_ptr().cast();
-    data.memory_count = instance.memories.len() as u32;
+    data.memories = instance.memory_data.as_ptr().cast();
+    data.memory_count = instance.memory_data.len() as u32;
     data.memory0_base = instance
-        .memories
+        .memory_data
         .first()
-        .map_or(std::ptr::null_mut(), |address| unsafe { address.get() }.data.base);
+        .map_or(std::ptr::null_mut(), |&data| unsafe { &*data }.base);
     data.type_identities = instance.type_identities.as_ptr();
     data.tags = instance.tags.as_ptr().cast();
 }

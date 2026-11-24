@@ -240,7 +240,13 @@ impl Memory {
             .copied()
             .find(|buffer| buffer.shape().realm() == realm);
         if let Some(buffer) = buffer {
-            return buffer;
+            // AD-HOC: Any agent with a shared memory can grow it, and nothing refreshes the memory buffers of the
+            //         other agents then. So this is where an agent finds out that the size changed. A fixed-length
+            //         buffer keeps its length, and a new one takes its place, as refreshing the memory buffer does.
+            let is_stale = this.shared && buffer.is_fixed_length() && buffer.byte_length() != this.size(vm);
+            if !is_stale {
+                return buffer;
+            }
         }
         let buffer = Self::create_a_fixed_length_memory_buffer(this, vm, realm);
         this.set_buffer_object(vm, buffer);
@@ -485,8 +491,23 @@ fn grow_memory_of_buffer(vm: &Vm, buffer: Gc<ArrayBuffer>, new_length: usize) ->
     // 4. Let delta be lengthDelta ÷ 65536.
     let delta = (new_length - byte_length) as u64 / PAGE_SIZE;
 
-    // 5. Grow the memory buffer associated with memaddr by delta.
     let cx = CallContext::new(vm, buffer.shape().realm());
+
+    // AD-HOC: Another agent can grow a shared memory after the byte length was read above, and delta pages more would
+    //         then give more than newLength. So a shared memory grows to newLength. If it has more than that by now,
+    //         newLength is less than its length, which is an error as above.
+    let shared = Agent::the(vm).store().memory(memory.address()).shared().cloned();
+    if let Some(shared) = shared {
+        if !shared.grow_to(new_length as u64 / PAGE_SIZE) {
+            return Err(
+                Exception::range_error("Cannot grow the buffer of the WebAssembly.Memory to this length").throw(&cx),
+            );
+        }
+        refresh_the_memory_buffer(vm, memory);
+        return Ok(true);
+    }
+
+    // 5. Grow the memory buffer associated with memaddr by delta.
     Memory::grow_the_memory_buffer(memory, vm, delta).map_err(|exception| exception.throw(&cx))?;
     Ok(true)
 }
@@ -550,7 +571,8 @@ pub extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
         // FIXME: 7. Let event be an implementation defined ReadModifyWriteSharedMemory event, whose [[Order]] is "SeqCst", [[Payload]] is NumericToRawBytes(Bigint, newLength, isLittleEndian), [[Block]] is buffer.[[ArrayBufferByteLengthData]], [[ByteIndex]] is 0, and [[ElementSize]] is 8.
         // FIXME: 8. Let eventsRecord be the EventsRecord in agentRecord.[[CandidateExecution]].[[EventsRecords]] that corresponds to the surrounding agent’s signifier agentRecord.[[Signifier]].
         // FIXME: 9. Append event to eventsRecord.[[EventsList]].
-        assert_eq!(buffer.byte_length(), new_length);
+        // NB: Another agent with the memory may have grown it further by now.
+        assert!(buffer.byte_length() >= new_length);
 
         // 10. Return handled.
         Ok(true)

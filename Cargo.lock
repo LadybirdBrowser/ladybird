@@ -2096,6 +2096,7 @@ dependencies = [
  "cbindgen",
  "cc",
  "flapc",
+ "getrandom 0.4.2",
  "ladybird_allocator",
  "libc",
  "libwasm_jit",

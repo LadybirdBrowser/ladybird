@@ -31,7 +31,7 @@
 #![allow(dead_code)]
 
 use std::mem::offset_of;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// The frame header. All fields are 8 bytes, at `fp + FRAME_*`. Its first two words are where a native call and
 /// `push fp` leave the return address and the caller's fp, so that compiled frames have the same header.
@@ -112,16 +112,25 @@ pub struct FunctionHeader {
     pub native_entry: u64,
 }
 
-/// A memory, as the interpreter sees it.
+/// A memory, as the interpreter sees it. Every agent that has a shared memory sees the same data, so a shared memory
+/// that one of them grows is as large for all of them.
 #[repr(C)]
 pub struct MemoryData {
     pub base: *mut u8,
-    /// The accessible size, in bytes.
-    pub size: u64,
+    /// The accessible size, in bytes. Compiled code loads the word; an agent that grows a shared memory stores it
+    /// while others load it.
+    pub size: AtomicU64,
     /// Nonzero for a memory64, whose addresses and sizes are i64 values.
     pub address64: u64,
     /// Nonzero for a shared memory, which atomic waits may block on.
     pub shared: u64,
+}
+
+impl MemoryData {
+    /// The accessible size, in bytes.
+    pub fn size(&self) -> u64 {
+        self.size.load(Ordering::SeqCst)
+    }
 }
 
 /// A table, as the interpreter sees it. Elements are 8-byte references, zero for null.
