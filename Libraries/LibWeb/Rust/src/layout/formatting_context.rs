@@ -881,6 +881,15 @@ fn box_baseline_for_purpose(
             // Specifies last-baseline alignment.
             baseline_source::LAST => baseline_set = BaselineSet::Last,
             _ if flex_or_grid_baseline || inline_table_baseline => baseline_set = BaselineSet::First,
+            _ if facts.is_block_container()
+                && (display.is_flow_inside() || display.is_flow_root_inside())
+                && !facts.uses_button_layout() =>
+            {
+                // A block container with no contributing line has no inline-alignment baseline, even when its
+                // contents provide table baselines for other alignment contexts.
+                // https://www.w3.org/TR/CSS22/visudet.html#leading
+                content_baselines.last = content_baselines.inline_alignment;
+            }
             _ => content_baselines.last = content_baselines.inline_alignment.or(content_baselines.last),
         }
     }
@@ -990,6 +999,24 @@ pub(crate) fn baselines_laid_out_child_gives_container(
     child: LaidOutChild<'_, impl BoxMetricCells>,
 ) -> DerivedBaselines {
     let baseline = |baseline_set, purpose| {
+        if purpose == BaselinePurpose::InlineAlignment {
+            let facts = NodeFacts::new(pass, child.node);
+            let display = facts.display();
+            // Block-level tables don't contribute line baselines to their containing block. Ordinary blocks
+            // preserve that absence through nesting; scroll containers can synthesize a margin-edge baseline.
+            // https://www.w3.org/TR/CSS22/visudet.html#leading
+            if facts.is_table_wrapper()
+                || (facts.is_block_container()
+                    && (display.is_flow_inside() || display.is_flow_root_inside())
+                    && !facts.uses_button_layout()
+                    && !facts.is_scroll_container()
+                    && StyleValues::for_node(pass, child.node).baseline_source()
+                        == crate::css::css_enums::baseline_source::AUTO
+                    && child.content_baselines.inline_alignment.is_none())
+            {
+                return None;
+            }
+        }
         baseline_of_laid_out_child_for_purpose(pass, child, baseline_set, ChildBaselineSource::Own, purpose)
     };
     DerivedBaselines {

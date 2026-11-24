@@ -1,0 +1,8 @@
+explicit-table: baseline 40, box height 40
+anonymous-table-from-row: baseline 40, box height 40
+anonymous-table-from-cell: baseline 40, box height 40
+table-element: baseline 46, box height 46
+nested-block: baseline 40, box height 40
+text-before-table: baseline 16, box height 60
+inline-table: baseline 16, box height 40
+margin-below-table: baseline 50, box height 50

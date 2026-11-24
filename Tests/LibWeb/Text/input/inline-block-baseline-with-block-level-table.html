@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body { margin: 0; font: 20px/20px sans-serif; }
+td { padding: 0; }
+.ib { display: inline-block; }
+.marker { display: inline-block; width: 10px; height: 10px; }
+</style>
+<!-- A block-level table gives its containing inline-block no line box, so the inline-block's baseline is its bottom margin edge. -->
+<div id="explicit-table"><div class="ib"><div style="display: table"><div style="display: table-cell">A<br>B</div></div></div><span class="marker"></span></div>
+<div id="anonymous-table-from-row"><div class="ib"><div style="display: table-row"><div style="display: table-cell">A<br>B</div></div></div><span class="marker"></span></div>
+<div id="anonymous-table-from-cell"><div class="ib"><div style="display: table-cell">A<br>B</div></div><span class="marker"></span></div>
+<div id="table-element"><table class="ib"><tr><td>A</td></tr><tr><td>B</td></tr></table><span class="marker"></span></div>
+<div id="nested-block"><div class="ib"><div><div style="display: table"><div style="display: table-cell">A<br>B</div></div></div></div><span class="marker"></span></div>
+<div id="text-before-table"><div class="ib">T<div style="display: table"><div style="display: table-cell">A<br>B</div></div></div><span class="marker"></span></div>
+<div id="inline-table"><div class="ib"><div style="display: inline-table"><div style="display: table-cell">A<br>B</div></div></div><span class="marker"></span></div>
+<div id="margin-below-table"><div class="ib"><div style="display: table; margin-bottom: 10px"><div style="display: table-cell">A<br>B</div></div></div><span class="marker"></span></div>
+<script>
+test(() => {
+  for (const c of document.querySelectorAll("body > div")) {
+    const m = c.querySelector(".marker").getBoundingClientRect(), ib = c.firstElementChild.getBoundingClientRect();
+    println(`${c.id}: baseline ${Math.round(m.bottom - ib.top)}, box height ${Math.round(ib.height)}`);
+  }
+});
+</script>
