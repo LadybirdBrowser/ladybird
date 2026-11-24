@@ -1,0 +1,7 @@
+Ladybird now places a clock tick’s recording window, and presents the
+tick’s frame, with the scroll offsets of the updated visual context
+tree, whether or not the tick changed the tree’s structure. That’s a
+matter of Ladybird’s own render-thread pipeline, which records a frame
+off the main thread while a transition runs. So there’s no behavior of
+Blink, WebKit or Gecko to compare it with: Their frames show a
+scrolled pane’s content wherever it’s scrolled to, as ours now do.
