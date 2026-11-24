@@ -24,6 +24,12 @@ enum Compositing::ContextVisibility : u8 {
 }
 
 [ExistingCpp]
+enum Compositing::RenderingOpportunityFrameTime : u8 {
+    DisplayTick,
+    BetweenDisplayTicks,
+}
+
+[ExistingCpp]
 enum Compositing::RemoteLayerHostKind : u8 {
     None,
     CoreAnimationContext,

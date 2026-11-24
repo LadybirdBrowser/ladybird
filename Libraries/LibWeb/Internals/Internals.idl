@@ -364,7 +364,9 @@ interface Internals {
     undefined beginRenderingTrace();
     DOMString takeRenderingTrace();
     undefined setManualRenderingOpportunities(boolean enabled);
-    undefined injectRenderingOpportunity(double frameTimeMs);
+    // With a cadence, in milliseconds, the opportunities after the injected one follow it at that interval, or come at
+    // any time where it is zero.
+    undefined injectRenderingOpportunity(double frameTimeMs, optional double cadenceMs, optional boolean displayTick = false);
     // Hands the clock lanes of the current document a tick at the given time, and waits until it has run.
     // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
     undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);

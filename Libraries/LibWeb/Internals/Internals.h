@@ -306,7 +306,7 @@ public:
     void fail_held_notification_show_for_testing();
 
     void set_manual_rendering_opportunities(bool enabled);
-    void inject_rendering_opportunity(double frame_time_ms);
+    void inject_rendering_opportunity(double frame_time_ms, Optional<double> cadence_ms, bool display_tick);
     Utf16String frame_scheduler_state() const;
     void synchronize_compositor();
     void hold_next_frame(Utf16String const& hold);

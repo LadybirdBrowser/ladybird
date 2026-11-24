@@ -125,6 +125,7 @@ public:
         Manual,
     };
     bool rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp frame_time, RenderingOpportunitySource);
+    void advance_last_render_opportunity_time(HighResolutionTime::DOMHighResTimeStamp frame_time);
     bool rendering_task_queued_or_running() const { return m_rendering_task_queued || m_running_rendering_task; }
     double last_render_opportunity_time() const { return m_last_render_opportunity_time; }
     void queue_task_to_process_input_events();

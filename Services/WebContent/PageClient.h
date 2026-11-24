@@ -203,7 +203,8 @@ private:
     void schedule_local_rendering_opportunity();
     void schedule_compositor_watchdog();
     void frame_timer_fired();
-    void grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource);
+    void grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource, Optional<double> cadence, bool is_display_tick);
+    bool rendered_display_tick_already(double frame_time, double display_interval) const;
     void deliver_granted_rendering_opportunity();
 
     // ^PageClient
@@ -252,13 +253,13 @@ private:
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
     virtual void request_frame() override;
-    virtual void rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
+    virtual void rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds, double display_interval_milliseconds, Compositing::RenderingOpportunityFrameTime frame_time_kind) override;
     virtual double rendering_frame_interval_in_milliseconds() const override { return m_last_rendering_opportunity_frame_interval; }
     virtual void will_begin_rendering_update() override;
     virtual bool has_rendering_opportunity() const override;
     virtual void did_finish_rendering_update() override;
     virtual void set_manual_rendering_opportunities(bool enabled) override;
-    virtual void inject_rendering_opportunity(double frame_time) override;
+    virtual void inject_rendering_opportunity(double frame_time, Optional<double> cadence, bool is_display_tick) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void page_did_set_text_fragment_indication_visibility(bool) override;
@@ -509,6 +510,10 @@ private:
     bool m_rendering_opportunity_for_current_update { false };
     bool m_manual_rendering_opportunities { false };
     Optional<double> m_granted_rendering_opportunity_time;
+    // Cadence in milliseconds. Zero means uncapped. An absent value means the cadence is unknown.
+    Optional<double> m_granted_rendering_opportunity_cadence;
+    bool m_granted_rendering_opportunity_is_display_tick { false };
+    Optional<double> m_last_rendered_display_tick;
     Web::HTML::EventLoop::RenderingOpportunitySource m_granted_rendering_opportunity_source { Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer };
     Queue<PendingDOMMutation> m_pending_dom_mutations;
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;
