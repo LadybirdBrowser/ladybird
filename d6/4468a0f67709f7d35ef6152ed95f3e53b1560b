@@ -1,0 +1,18 @@
+In “sequence” mode, Ladybird now sets timestampOffset from the [[group
+start timestamp]] at the first coded frame of each new group, as step 3
+of the MSE coded frame processing algorithm says. So does Chrome, in
+FrameProcessor::ProcessFrame(), and so do WebKit and Firefox, in their
+SourceBufferPrivate::processMediaSample() and TrackBuffersManager::
+CheckSequenceDiscontinuity().
+
+Appending the first media segment of aac-encoder-delay-tfdt.mp4 three
+times in sequence mode gives the same timestampOffset and buffered range
+after each append in Ladybird as in Chrome 158: 0.021, 0.533, and 1.045,
+and [0, 0.512), [0, 1.024), and [0, 1.536). Firefox 151 extends the
+range the same way, by 0.491 rather than 0.512 per append, since it
+trims the encoder-delay samples. And WebKit 26.5 never extends the range
+past the end of the first append, at 0.512.
+
+The live somafm.com Groove Salad stream, which the player wraps with
+mse-audio-wrapper, buffered only its first 2.32 seconds before this
+change, and it buffers and plays continuously after it.
