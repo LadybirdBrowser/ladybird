@@ -1,0 +1,29 @@
+language = "C++"
+header = """/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */"""
+pragma_once = true
+include_version = true
+namespaces = ["DNS", "FFI"]
+line_length = 120
+tab_width = 4
+no_includes = true
+sys_includes = ["stdint.h", "stddef.h"]
+usize_is_size_t = true
+
+[export.mangle]
+rename_types = "PascalCase"
+
+[export]
+# Only the C ABI in ffi.rs, not the constants of the types behind it.
+exclude = [
+    "Dnskey_FLAG_ZONE_KEY",
+    "Dnskey_FLAG_REVOKED",
+    "Dnskey_FLAG_SECURE_ENTRY_POINT",
+    "Nsec3_FLAG_OPT_OUT",
+    "Opt_MASK_EXTENDED_RCODE",
+    "Opt_MASK_VERSION",
+    "Opt_MASK_DO",
+]

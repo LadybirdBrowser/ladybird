@@ -1877,6 +1877,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdns_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "cbindgen",
+ "ladybird_allocator",
+ "libcrypto_rust",
+ "rustc-demangle",
+]
+
+[[package]]
 name = "libgc_rust"
 version = "0.1.0"
 dependencies = [
