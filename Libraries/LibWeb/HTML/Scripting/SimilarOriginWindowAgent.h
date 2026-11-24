@@ -9,7 +9,7 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
-#include <LibGC/Root.h>
+#include <LibGC/RootHashMap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibWeb/Export.h>
@@ -54,7 +54,7 @@ struct SimilarOriginWindowAgent : public Agent {
     // https://html.spec.whatwg.org/multipage/custom-elements.html#active-custom-element-constructor-map
     // Each similar-origin window agent has an associated active custom element constructor map, which is a map of
     // constructors to CustomElementRegistry objects.
-    HashMap<GC::RawRef<JS::FunctionObject>, GC::Root<CustomElementRegistry>> active_custom_element_constructor_map;
+    GC::RootHashMap<GC::Ref<JS::FunctionObject>, GC::Ptr<CustomElementRegistry>> active_custom_element_constructor_map;
 
 private:
     SimilarOriginWindowAgent(CanBlock);
