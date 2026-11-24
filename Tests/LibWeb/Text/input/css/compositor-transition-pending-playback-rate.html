@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #fader {
+        width: 20px;
+        height: 20px;
+        opacity: 0;
+        transition: opacity 1000ms linear;
+    }
+    #fader.open {
+        opacity: 1;
+    }
+</style>
+<div id="fader"></div>
+<script>
+    // A rendering update starts a transition, which the compositor runs while its play stays pending. Script then sets
+    // a playback rate of zero, which its pending play task applies, so the compositor stops running it.
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    function compositorAnimations() {
+        return internals.dumpCompositorAnimations().split("\n").filter(line => line.startsWith("opacity "));
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const frameTime = performance.now();
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+
+        fader.classList.add("open");
+        internals.injectRenderingOpportunity(frameTime + 60);
+        await nextTask();
+        const transition = fader.getAnimations()[0];
+        internals.updateCompositorAnimations();
+        println(`transition pending: ${transition.pending}`);
+        println(`compositor animations: ${compositorAnimations().join(", ") || "none"}`);
+
+        transition.updatePlaybackRate(0);
+        internals.updateCompositorAnimations();
+        println(`transition pending after the rate change: ${transition.pending}`);
+        println(`compositor animations after the rate change: ${compositorAnimations().join(", ") || "none"}`);
+
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

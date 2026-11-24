@@ -1,0 +1,4 @@
+transition pending: true
+compositor animations: opacity div#fader.open
+transition pending after the rate change: true
+compositor animations after the rate change: none
