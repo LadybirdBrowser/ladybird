@@ -1,0 +1,6 @@
+Ladybird invalidates every macOS accessibility element of a web view
+when the view or its overlay goes away. Chromium detaches each node’s
+native object with “detachAndNotifyDestroyed:” as the node is
+destroyed in ax_platform_node_mac.mm. Gecko’s AccessibleWrap::Shutdown()
+sends its native object -expire, and WebKit detaches each wrapper with
+AXObjectCache::detachWrapper(). All three are from reading the source.
