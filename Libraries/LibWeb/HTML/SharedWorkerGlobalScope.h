@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -51,7 +50,5 @@ private:
     URL::URL m_constructor_url;
     Fetch::Infrastructure::Request::CredentialsMode m_credentials;
 };
-
-HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes();
 
 }
