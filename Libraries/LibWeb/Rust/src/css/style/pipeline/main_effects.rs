@@ -32,7 +32,7 @@ pub struct InstalledElementEffects {
     damage: u32,
     /// The record the element moves from, where the main thread held one, which the effects compare the new one with:
     /// the record the host holds for it, which the installation pins until the host ends the transaction.
-    old_record: *const std::ffi::c_void,
+    old_record: *const super::Record,
     /// The pseudo-elements whose records the host composes once it swapped them in, each a bit at its kind: those
     /// that owe the plan of their animations or the transition step, and those of an element with animations. The
     /// host applies the plan a record decides as it composes it.
@@ -386,7 +386,6 @@ impl RetainedState {
                         .host_record(old.raw())
                         .expect("the installation pins the record an element moves from"),
                 )
-                .cast()
             }),
             pseudo_elements_composed: facts.pseudo_elements.composed,
             pseudo_element_transition_steps: facts.pseudo_elements.transition_steps,

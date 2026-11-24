@@ -6208,7 +6208,7 @@ pub unsafe extern "C" fn rust_create_document_style_record(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     input: &FfiDocumentLonghandInput,
-) -> *const c_void {
+) -> *const crate::css::style::pipeline::Record {
     crate::css::style::engine_calls::with_engine(read, host, |engine| {
         // SAFETY: Guaranteed by the caller.
         unsafe { create_document_style_record(engine.default_groups(), input) }
@@ -6222,7 +6222,7 @@ pub unsafe extern "C" fn rust_create_document_style_record(
 unsafe fn create_document_style_record(
     defaults: &crate::css::computed_values::DefaultGroups,
     input: &FfiDocumentLonghandInput,
-) -> *const c_void {
+) -> *const crate::css::style::pipeline::Record {
     let store = CascadedPropertyStore::new();
     let environment = FfiStyleComputationEnvironment {
         box_type_input: FfiBoxTypeTransformationInput {
@@ -8020,23 +8020,14 @@ pub(crate) use adjustments::*;
 
 /// The value of `property` the element whose style is `record` reads, with what `overlay` composes over it where
 /// `with_animations` asks for that, and which source it is.
-///
-/// # Safety
-/// `record` must be a style record the caller holds a reference to, and `overlay` null or live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_record_effective_value(
-    record: *const c_void,
-    overlay: *const c_void,
+pub extern "C" fn rust_style_record_effective_value(
+    record: &crate::css::style::pipeline::Record,
+    overlay: Option<&AnimatedOverlay>,
     property: u16,
     with_animations: bool,
 ) -> crate::css::computed_longhand_table::FfiEffectiveLonghandValue {
-    // SAFETY: Guaranteed by the caller.
-    let (longhands, overlay) = unsafe {
-        (
-            crate::css::style::ViewLonghands::of_raw_record(record),
-            overlay.cast::<AnimatedOverlay>().as_ref(),
-        )
-    };
+    let longhands = crate::css::style::ViewLonghands::of_record(record);
     let (value, source) = longhands.effective_value_and_source(overlay, property, with_animations);
     crate::css::computed_longhand_table::FfiEffectiveLonghandValue {
         value: value.pointer().cast(),
@@ -8046,40 +8037,31 @@ pub unsafe extern "C" fn rust_style_record_effective_value(
 
 /// The computed value of `property` that the style `record` holds, or null, borrowed while the
 /// record lives.
-///
-/// # Safety
-/// `record` must be a style record the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_record_longhand(record: *const c_void, property: u16) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { crate::css::style::ViewLonghands::of_raw_record(record) }
+pub extern "C" fn rust_style_record_longhand(
+    record: &crate::css::style::pipeline::Record,
+    property: u16,
+) -> *const c_void {
+    crate::css::style::ViewLonghands::of_record(record)
         .handle(property)
         .map_or(std::ptr::null(), |value| value.pointer().cast())
 }
 
 /// One bit per longhand of the style `record`: whether its value is important.
-///
-/// # Safety
-/// `record` must be a style record the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_record_importance_bits(record: *const c_void) -> *const u8 {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { crate::css::style::ViewLonghands::of_raw_record(record) }
+pub extern "C" fn rust_style_record_importance_bits(record: &crate::css::style::pipeline::Record) -> *const u8 {
+    crate::css::style::ViewLonghands::of_record(record)
         .importance_bits()
         .as_ptr()
 }
 
 /// What the computation of the style `record` settled beside its values, which the host starts an update of the
 /// element's style from.
-///
-/// # Safety
-/// `record` must be a style record the caller holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_record_metadata(
-    record: *const c_void,
+pub extern "C" fn rust_style_record_metadata(
+    record: &crate::css::style::pipeline::Record,
 ) -> crate::css::computed_longhand_table::FfiComputedStyleMetadata {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { crate::css::style::ViewLonghands::of_raw_record(record) }.metadata()
+    crate::css::style::ViewLonghands::of_record(record).metadata()
 }
 
 /// Computes the font-weight property from its absolutized value.

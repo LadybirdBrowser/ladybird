@@ -1464,7 +1464,7 @@ impl DocumentHost {
 
     /// The style of `record`, one the rows of the style update the host took last name, and the custom-property
     /// environment it was computed in.
-    pub(crate) fn transaction_record(&self, record: u64) -> Option<*const std::ffi::c_void> {
+    pub(crate) fn transaction_record(&self, record: u64) -> Option<*const crate::css::style::pipeline::Record> {
         self.style_update.borrow().as_ref()?.record(record)
     }
 

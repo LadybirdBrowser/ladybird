@@ -96,7 +96,7 @@ void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& re
         CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), {}, style_record_identity.value(), held_before.record_pointer());
 }
 
-void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read, void const* record)
+void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read, CSS::StyleEngineFFI::Record const* record)
 {
     VERIFY(m_originating_element);
     CSS::InstalledStyle style { record };

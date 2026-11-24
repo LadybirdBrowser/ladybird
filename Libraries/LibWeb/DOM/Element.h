@@ -410,10 +410,10 @@ public:
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(Layout::BegunRead const& read, u64 environment, bool& installable) const;
     // Swaps in the style record the render side installed for the element, or for one of its synthetic
     // pseudo-elements, in its box too. The side effects of the move are left to apply_style_main_effects().
-    void swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::PseudoElement>, void const* record);
+    void swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::PseudoElement>, CSS::StyleEngineFFI::Record const* record);
     using CustomHighlightStyles = HashMap<CSS::StyleAtomID, CSS::InstalledStyle>;
     [[nodiscard]] CustomHighlightStyles const* custom_highlight_styles() const;
-    void swap_in_custom_highlight_style_record(CSS::StyleAtomID, void const* record);
+    void swap_in_custom_highlight_style_record(CSS::StyleAtomID, CSS::StyleEngineFFI::Record const* record);
     // Moves the animation subtree style generation of the element and its ancestors.
     void note_subtree_style_moved();
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> style_custom_property_environment(Layout::BegunRead const& read, CSS::InstalledStyle const&) const;

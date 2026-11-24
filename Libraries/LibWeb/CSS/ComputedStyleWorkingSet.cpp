@@ -73,7 +73,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     return working_set;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(void const* record, ComputedValuesFFI::AnimatedOverlay const* overlay)
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(StyleEngineFFI::Record const* record, ComputedValuesFFI::AnimatedOverlay const* overlay)
 {
     auto working_set = create_over_record(StyleRecordRef { record });
     if (overlay) {

@@ -375,7 +375,7 @@ Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_i
 
 ComputedValues::ComputedValues() = default;
 
-StyleRecordRef::StyleRecordRef(void const* record)
+StyleRecordRef::StyleRecordRef(StyleEngineFFI::Record const* record)
     : m_record(record)
 {
     if (m_record)

@@ -1776,7 +1776,7 @@ void Element::note_subtree_style_moved()
         element->m_animation_subtree_style_generation = generation;
 }
 
-void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::PseudoElement> pseudo_element, void const* record)
+void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::PseudoElement> pseudo_element, CSS::StyleEngineFFI::Record const* record)
 {
     if (pseudo_element.has_value()) {
         VERIFY(is_synthetic_pseudo_element(*pseudo_element));
@@ -1817,7 +1817,7 @@ Element::CustomHighlightStyles const* Element::custom_highlight_styles() const
     return &rare_data->custom_highlight_styles;
 }
 
-void Element::swap_in_custom_highlight_style_record(CSS::StyleAtomID name, void const* record)
+void Element::swap_in_custom_highlight_style_record(CSS::StyleAtomID name, CSS::StyleEngineFFI::Record const* record)
 {
     if (record) {
         ensure_element_rare_data().custom_highlight_styles.set(name, CSS::InstalledStyle { record });

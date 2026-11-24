@@ -61,7 +61,7 @@ public:
     void set_computed_style(Layout::BegunRead const&, CSS::InstalledStyle);
     // Swaps in a record a style installation installs, which the render side noted the pseudo-element holds, unless
     // `tell_render_side` asks.
-    void swap_in_style_record(Layout::BegunRead const&, void const* record);
+    void swap_in_style_record(Layout::BegunRead const&, CSS::StyleEngineFFI::Record const* record);
     void clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment = nullptr);
     // Installs `style`, which the engine just published for the pseudo-element, without asking the engine for it.
     void replace_installed_style(Layout::BegunRead const&, CSS::InstalledStyle);

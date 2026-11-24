@@ -927,11 +927,8 @@ pub extern "C" fn rust_rule_containing_function(rule: &NativeRule) -> *const Nat
 }
 
 /// Parse a CSSOM selector edit using native namespace and nesting context.
-///
-/// # Safety
-/// Input and the optional sheet rule list must be live for this call on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_set_selector_text(
+pub extern "C" fn rust_rule_set_selector_text(
     rule: &NativeRule,
     input: FfiUtf16View,
     sheet_rules: Option<&NativeRuleList>,

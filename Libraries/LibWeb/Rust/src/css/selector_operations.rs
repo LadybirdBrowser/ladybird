@@ -258,24 +258,14 @@ fn query_facts(selector: ArenaSelector<'_>) -> FfiSelectorQueryFacts {
     facts
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_query_facts(selector: *const RustSelector) -> FfiSelectorQueryFacts {
-    unsafe {
-        assert!(!selector.is_null());
-        query_facts((*selector).compiled())
-    }
+pub extern "C" fn rust_selector_query_facts(selector: &RustSelector) -> FfiSelectorQueryFacts {
+    query_facts(selector.compiled())
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const RustSelector) -> bool {
-    unsafe {
-        assert!(!selector.is_null());
-        contains_named_namespace((*selector).compiled())
-    }
+pub extern "C" fn rust_selector_contains_named_namespace(selector: &RustSelector) -> bool {
+    contains_named_namespace(selector.compiled())
 }
 
 pub(crate) fn absolutize_selector_list(
