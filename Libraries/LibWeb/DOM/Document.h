@@ -1338,7 +1338,7 @@ public:
         // A containing block's line content, which each source holds a reference to, and that block's raw
         // document-absolute position.
         struct Source {
-            void const* line_content { nullptr };
+            Layout::RustFFI::InlineContent const* line_content { nullptr };
             i32 x { 0 };
             i32 y { 0 };
             bool operator==(Source const&) const = default;

@@ -483,7 +483,7 @@ pub struct FfiStyleRecordDelta {
 pub struct FfiStyleRecordView {
     /// The record's groups, a `StyleGroups`, composed with its animation overlay where it carries
     /// one, which the host reads through `CSS::style_record_group`.
-    pub groups: *const c_void,
+    pub groups: *const crate::css::computed_value_views::StyleRecordGroups,
     /// The style record that makes a table for each reader asking for one, which holds the
     /// payloads beneath the animation overlay where the view carries one.
     pub longhand_table_record: *const super::pipeline::Record,
@@ -502,14 +502,14 @@ impl FfiStyleRecordView {
     pub(super) fn of_record(record: &super::pipeline::Record) -> Self {
         match record.sample_of_animations() {
             Some(sample) => Self {
-                groups: std::ptr::from_ref(&record.payloads).cast(),
+                groups: crate::css::computed_value_views::StyleRecordGroups::of(&record.payloads),
                 longhand_table_record: std::sync::Arc::as_ptr(&sample.base),
                 animated_overlay: std::sync::Arc::as_ptr(&sample.animated_overlay).cast(),
                 dependency_flags: sample.dependency_flags,
                 present: true,
             },
             None => Self {
-                groups: std::ptr::from_ref(&record.payloads).cast(),
+                groups: crate::css::computed_value_views::StyleRecordGroups::of(&record.payloads),
                 longhand_table_record: std::ptr::from_ref(record),
                 animated_overlay: std::ptr::null(),
                 dependency_flags: record.view_dependency_flags(),

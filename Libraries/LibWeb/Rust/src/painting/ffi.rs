@@ -1470,31 +1470,31 @@ unsafe fn svg_filter_primitive_from_ffi(primitive: &FfiSvgFilterPrimitive) -> Sv
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously; `primitive` must be
-/// readable, with every pointer in it readable for the length that accompanies it, each UTF-16
-/// view satisfying [`FfiUtf16View::units`], each non-null component transfer table holding
-/// 256 bytes, and `image_frame` null or pointing to a live `Gfx::DecodedImageFrame`.
+/// `sink` must be the pointer handed to the callback, used synchronously; every pointer in
+/// `primitive` must be readable for the length that accompanies it, each UTF-16 view satisfying
+/// [`FfiUtf16View::units`], each non-null component transfer table holding 256 bytes, and
+/// `image_frame` null or pointing to a live `Gfx::DecodedImageFrame`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
     sink: *mut c_void,
-    primitive: *const FfiSvgFilterPrimitive,
+    primitive: &FfiSvgFilterPrimitive,
 ) {
     let filter = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgFilter>() };
     filter
         .primitives
-        .push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+        .push(unsafe { svg_filter_primitive_from_ffi(primitive) });
 }
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously, and `region` must be readable.
+/// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_set_svg_filter_region(
     sink: *mut c_void,
-    region: *const crate::painting::host::visual_context::FfiSvgFilterRegion,
+    region: &crate::painting::host::visual_context::FfiSvgFilterRegion,
 ) {
     let filter = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgFilter>() };
-    filter.region = unsafe { *region };
+    filter.region = *region;
 }
 
 /// Notes that the SVG paint resources the document's rows enrolled may have changed, and answers whether any row

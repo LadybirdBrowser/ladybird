@@ -461,7 +461,7 @@ public:
     u64 animation_style_generation() const { return m_animation_style_generation; }
     u64 animation_subtree_style_generation() const { return m_animation_subtree_style_generation; }
     [[nodiscard]] bool has_style(Optional<CSS::PseudoElement> pseudo_element = {}) const { return !!style_record_identity(pseudo_element); }
-    [[nodiscard]] void const* style_record_groups(Optional<CSS::PseudoElement> pseudo_element = {}) const { return installed_style(pseudo_element).groups(); }
+    [[nodiscard]] CSS::ComputedValuesFFI::StyleRecordGroups const* style_record_groups(Optional<CSS::PseudoElement> pseudo_element = {}) const { return installed_style(pseudo_element).groups(); }
     template<typename StyleGroup>
     StyleGroup const* style_group(Optional<CSS::PseudoElement> pseudo_element = {}) const
     {

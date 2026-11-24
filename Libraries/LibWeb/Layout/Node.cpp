@@ -511,7 +511,7 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void const* payloads, bool derived, bool should_attach_resources)
+void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, CSS::ComputedValuesFFI::StyleRecordGroups const* payloads, bool derived, bool should_attach_resources)
 {
     release_pinned_style_record();
     m_style_record_identity = record;

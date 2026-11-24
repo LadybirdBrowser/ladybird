@@ -954,14 +954,9 @@ pub extern "C" fn navigable_presenter_create() -> *const NavigablePresenter {
 }
 
 /// Gives up a reference to `presenter`.
-///
-/// # Safety
-///
-/// `presenter` must be a reference to a presenter the caller holds.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn navigable_presenter_release(presenter: *const NavigablePresenter) {
-    // SAFETY: Guaranteed by the caller.
-    drop(unsafe { Arc::from_raw(presenter) });
+pub extern "C" fn navigable_presenter_release(presenter: crate::css::ffi_support::OwnedArc<NavigablePresenter>) {
+    drop(presenter);
 }
 
 /// Writes the paint config of the display list the compositor context holds to `out`, and answers whether it holds one.

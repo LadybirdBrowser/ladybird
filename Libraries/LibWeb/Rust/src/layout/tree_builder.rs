@@ -6,6 +6,7 @@
 
 use super::*;
 
+use crate::css::computed_value_views::StyleRecordGroups;
 use crate::css::css_enums::{content_visibility, white_space_collapse};
 use crate::css::style::RecordDemand;
 use crate::css::style::RetainedState;
@@ -1132,24 +1133,19 @@ pub extern "C" fn layout_node_kind_is_replaced_box(kind: NodeKind) -> bool {
 /// Whether a box of `kind`, built for an element whose style was `built_for`, can show the style `style` as it is. A box
 /// whose kind its display decided can't show a display that asks for another kind of box: the layout tree update that
 /// the display change marks replaces it, and until then it keeps the style it was built for.
-///
-/// # Safety
-/// Each of `built_for` and `style` is null or the groups of a style record the caller keeps alive for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_box_can_show_style(
+pub extern "C" fn layout_box_can_show_style(
     kind: NodeKind,
-    built_for: *const std::ffi::c_void,
-    style: *const std::ffi::c_void,
+    built_for: Option<&StyleRecordGroups>,
+    style: Option<&StyleRecordGroups>,
 ) -> bool {
-    use super::node_data::LayoutStyleRef;
-    // SAFETY: Guaranteed by the caller.
-    let (Some(built_for), Some(style)) = (unsafe { LayoutStyleRef::from_raw(built_for) }, unsafe {
-        LayoutStyleRef::from_raw(style)
-    }) else {
+    let (Some(built_for), Some(style)) = (built_for, style) else {
         return true;
     };
-    // SAFETY: Guaranteed by the caller.
-    let (built_for, style) = unsafe { (built_for.view().display(), style.view().display()) };
+    let (built_for, style) = (
+        ComputedValuesView::of_record_groups(built_for).display(),
+        ComputedValuesView::of_record_groups(style).display(),
+    );
     node_kind_for_display(built_for) != Some(kind) || node_kind_for_display(style) == Some(kind)
 }
 

@@ -529,7 +529,7 @@ public:
     explicit ComputedValues(BorrowedStyleRecord);
 
 private:
-    void borrow_style_record_groups(void const* groups);
+    void borrow_style_record_groups(ComputedValuesFFI::StyleRecordGroups const* groups);
 
     RefPtr<StyleValue const> style_value_from_handle(PropertyID, RustStyleValueHandle const&) const;
 
@@ -894,10 +894,10 @@ private:
 // made of its own. This is the only place C++ knows how a style finds a group: the groups from
 // ROOT_START on are in the style's root, and a pointer to each of its group sets follows them.
 template<size_t index>
-void const* style_record_group_payload(void const* record)
+void const* style_record_group_payload(ComputedValuesFFI::StyleRecordGroups const* record)
 {
     VERIFY(record);
-    auto const* slots = static_cast<void const* const*>(record);
+    auto const* slots = reinterpret_cast<void const* const*>(record);
     constexpr auto root_count = to_underlying(StyleGroupIndex::Count) - ComputedValuesFFI::STYLE_GROUP_ROOT_START;
     if constexpr (index >= ComputedValuesFFI::STYLE_GROUP_ROOT_START)
         return slots[index - ComputedValuesFFI::STYLE_GROUP_ROOT_START];
@@ -911,20 +911,20 @@ void const* style_record_group_payload(void const* record)
 
 // Reads what the inherited set of the style whose groups `record` points at holds beside its
 // groups, which follow them in the set.
-inline ComputedValuesFFI::InheritedSetValues const& style_record_inherited_values(void const* record)
+inline ComputedValuesFFI::InheritedSetValues const& style_record_inherited_values(ComputedValuesFFI::StyleRecordGroups const* record)
 {
     VERIFY(record);
-    auto const* slots = static_cast<void const* const*>(record);
+    auto const* slots = reinterpret_cast<void const* const*>(record);
     constexpr auto root_count = to_underlying(StyleGroupIndex::Count) - ComputedValuesFFI::STYLE_GROUP_ROOT_START;
     auto const* inherited_set = static_cast<void const* const*>(slots[root_count]);
     return *reinterpret_cast<ComputedValuesFFI::InheritedSetValues const*>(inherited_set + ComputedValuesFFI::STYLE_GROUP_RARE_SET_START);
 }
 
 // Reads the reset bits of the style whose groups `record` points at, which follow its set pointers.
-inline ComputedValuesFFI::ResetBits style_record_reset_bits(void const* record)
+inline ComputedValuesFFI::ResetBits style_record_reset_bits(ComputedValuesFFI::StyleRecordGroups const* record)
 {
     VERIFY(record);
-    auto const* slots = static_cast<void const* const*>(record);
+    auto const* slots = reinterpret_cast<void const* const*>(record);
     constexpr auto root_count = to_underlying(StyleGroupIndex::Count) - ComputedValuesFFI::STYLE_GROUP_ROOT_START;
     return *reinterpret_cast<ComputedValuesFFI::ResetBits const*>(slots + root_count + 3);
 }
@@ -968,7 +968,7 @@ private:
 };
 
 template<typename StyleGroup>
-StyleGroup const& style_record_group(void const* record)
+StyleGroup const& style_record_group(ComputedValuesFFI::StyleRecordGroups const* record)
 {
     auto const* payload = style_record_group_payload<StyleGroup::style_group_index>(record);
     VERIFY(payload);

@@ -403,7 +403,7 @@ static Optional<Document::CachedTextGeometry> text_geometry_sources(Layout::Node
     Document::CachedTextGeometry geometry;
     auto known = Layout::RustFFI::layout_script_text_geometry_sources(
         layout.document_host(), Layout::Node::slot_id(&layout), &geometry,
-        [](void* context, void const* line_content, i32 x, i32 y) {
+        [](void* context, Layout::RustFFI::InlineContent const* line_content, i32 x, i32 y) {
             static_cast<Document::CachedTextGeometry*>(context)->sources.append({ line_content, x, y });
         });
     if (!known)

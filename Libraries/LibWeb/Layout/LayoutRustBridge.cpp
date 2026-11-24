@@ -141,7 +141,7 @@ static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element,
 // The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
 // through a materialized view: this runs for every SVG graphics element whose style record is replaced, and pinning a
 // record to look at four properties is most of the cost of looking at them.
-static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(void const* record_groups)
+static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(CSS::ComputedValuesFFI::StyleRecordGroups const* record_groups)
 {
     if (!record_groups)
         return {};
