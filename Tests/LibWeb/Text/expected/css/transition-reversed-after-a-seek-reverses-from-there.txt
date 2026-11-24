@@ -1,0 +1,1 @@
+a transition script seeks before it runs reverses from where script put it: true
