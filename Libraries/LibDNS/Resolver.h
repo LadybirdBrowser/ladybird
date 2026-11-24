@@ -105,6 +105,9 @@ public:
     // Names within these domains resolve to loopback, as names within "localhost" do.
     void set_loopback_domains(Vector<ByteString> const&);
 
+    // How long the system resolver may take to answer, for tests that cannot wait for it.
+    void set_system_resolution_timeout_for_testing(AK::Duration);
+
     // Drops the connection, everything in flight on it, and everything cached.
     void reset_connection();
 
@@ -114,17 +117,20 @@ public:
 private:
     struct Shared;
     struct Connection;
+    struct SystemRequest;
 
     void run_actions();
     void schedule_tick();
     void connect(u64 connection, u8 kind, Core::SocketAddress const&, ByteString const& server_name);
     void write(u64 connection, ReadonlyBytes);
     void resolve_with_system_resolver(u64 request, ByteString name, bool ipv6);
+    void cancel_system_resolution(u64 request);
 
     FFI::DnsResolver* m_resolver { nullptr };
     NonnullRefPtr<Shared> m_shared;
     HashMap<u64, NonnullRefPtr<ResultPromise>> m_lookups;
     HashMap<u64, NonnullOwnPtr<Connection>> m_connections;
+    HashMap<u64, NonnullOwnPtr<SystemRequest>> m_system_requests;
     StreamConnector m_stream_connector;
     RemoteSystemResolver m_remote_system_resolver;
     RefPtr<Core::Timer> m_tick_timer;

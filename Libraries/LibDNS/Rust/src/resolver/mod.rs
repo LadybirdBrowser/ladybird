@@ -37,6 +37,10 @@ const MAX_CACHE_ENTRIES: usize = 4096;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const IPV6_REACHABILITY_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS: u32 = 60;
+// How long the system resolver may take to answer for a family, after which it counts as having failed. Its answer can
+// get lost, such as in another process that goes away. The UI process, which looks names up for RequestServer, skips a
+// lookup that waited this long for a worker.
+const SYSTEM_RESOLVER_TIMEOUT: Duration = Duration::from_secs(15);
 // RFC 8305, 3. Hostname Resolution Query Handling: the Resolution Delay.
 const IPV6_RESOLUTION_DELAY: Duration = Duration::from_millis(50);
 // curl never learns of IPv4 records that come after it went ahead with IPv6 records that turn out to be unreachable.
@@ -127,6 +131,10 @@ pub enum Action {
         request: SystemRequestId,
         name: String,
         family: AddressFamily,
+    },
+    /// The answer to a `SystemResolve` action is no longer wanted, and it need not be looked up.
+    CancelSystemResolve {
+        request: SystemRequestId,
     },
     LookupDone {
         lookup: LookupId,
@@ -245,6 +253,7 @@ struct PendingSystemResolution {
     aaaa: FamilyLookup,
     settled: bool,
     grace_deadline: Option<Instant>,
+    give_up_at: Instant,
 }
 
 pub struct Resolver {
@@ -263,6 +272,7 @@ pub struct Resolver {
     in_flight_by_id: HashMap<u16, String>,
     system_resolutions: HashMap<String, PendingSystemResolution>,
     system_requests: HashMap<SystemRequestId, (String, u64, AddressFamily)>,
+    system_resolver_timeout: Duration,
     // Counts resets, which a lookup of the server's name belongs to the latest of.
     connection_generation: u64,
 
@@ -299,6 +309,7 @@ impl Resolver {
             in_flight_by_id: HashMap::new(),
             system_resolutions: HashMap::new(),
             system_requests: HashMap::new(),
+            system_resolver_timeout: SYSTEM_RESOLVER_TIMEOUT,
             connection_generation: 0,
             loopback_domains: Vec::new(),
             is_ipv6_globally_reachable,
@@ -345,11 +356,12 @@ impl Resolver {
     pub fn next_deadline(&self) -> Option<Instant> {
         let links = self.links.iter().filter_map(|link| link.connection.deadline());
         let retries = self.in_flight.values().filter_map(|query| query.retry_at);
-        let graces = self
+        let system = self
             .system_resolutions
             .values()
-            .filter_map(|state| state.grace_deadline);
-        links.chain(retries).chain(graces).min()
+            .flat_map(|state| [state.grace_deadline, Some(state.give_up_at)])
+            .flatten();
+        links.chain(retries).chain(system).min()
     }
 
     /// Without a server, every name goes to the system resolver.
@@ -372,6 +384,11 @@ impl Resolver {
         self.server_addresses.clear();
         self.next_server_address = 0;
         self.reset_connection(now);
+    }
+
+    /// How long the system resolver may take to answer, for tests that cannot wait for it.
+    pub fn set_system_resolver_timeout(&mut self, timeout: Duration) {
+        self.system_resolver_timeout = timeout;
     }
 
     /// Names within these domains resolve to loopback, as names within "localhost" do.
@@ -845,7 +862,9 @@ impl Resolver {
                 let result = Ok(state.entry.snapshot());
                 return self.settle_lookup_waiter(waiter, result, now);
             }
-            self.system_resolutions.remove(&key);
+            if let Some(state) = self.system_resolutions.remove(&key) {
+                self.forget_system_requests(&key, state.id);
+            }
         }
 
         let entry = CacheEntry::new(DomainName::from_string(name));
@@ -871,6 +890,7 @@ impl Resolver {
                 },
                 settled: false,
                 grace_deadline: None,
+                give_up_at: now + self.system_resolver_timeout,
             },
         );
 
@@ -932,48 +952,7 @@ impl Resolver {
         }
 
         if state.a.is_done() && state.aaaa.is_done() {
-            // A family the system resolver looked up and found no addresses of has none, as far as it knows. It says
-            // nothing about for how long, so that holds as long as addresses it finds would. A family it failed to look
-            // up, or was not asked about, may well have some.
-            let negative_expiration = now + Duration::from_secs(u64::from(SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS));
-            for (lookup, rtype) in [(state.a, ResourceType::A), (state.aaaa, ResourceType::AAAA)] {
-                if lookup == FamilyLookup::Answered && !state.entry.has_record_of_type(rtype) {
-                    state.entry.add_negative_answer(rtype, negative_expiration);
-                }
-            }
-            state.entry.finished_request();
-            let mut state = self.system_resolutions.remove(&key).expect("system resolution");
-            let waiters = std::mem::take(&mut state.waiters);
-            // Every family it was asked about having no addresses is an answer, as when a DNS server says so. A family
-            // it failed to look up leaves the lookup failed, unless the other found some.
-            let answered = [state.a, state.aaaa]
-                .iter()
-                .all(|lookup| matches!(lookup, FamilyLookup::Answered | FamilyLookup::NotAsked));
-            let result =
-                (!state.settled).then(|| (state.entry.has_records() || answered).then(|| state.entry.snapshot()));
-
-            // Connecting to the server went ahead with the addresses it had then. The ones that came in since are
-            // worth trying too, should those not work.
-            if state.settled
-                && let Some(host) = &state.server_host
-                && let Some(server) = self.server.as_ref().filter(|server| &server.host == host)
-            {
-                let port = server.port;
-                for address in state.entry.snapshot().addresses() {
-                    let address = SocketAddr::new(address, port);
-                    if !self.server_addresses.contains(&address) {
-                        self.server_addresses.push(address);
-                    }
-                }
-            }
-
-            if let Some(cache_key) = state.cache_key {
-                self.cache.insert(cache_key, state.entry, now);
-            }
-            if let Some(result) = result {
-                self.settle_system_waiters(waiters, result, now);
-            }
-            return;
+            return self.finish_system_resolution(&key, now);
         }
 
         if state.settled || !got_records || state.grace_deadline.is_some() {
@@ -986,6 +965,80 @@ impl Resolver {
             AddressFamily::V6 => IPV4_RESOLUTION_DELAY,
         };
         state.grace_deadline = Some(now + delay);
+    }
+
+    fn give_up_on_system_resolution(&mut self, key: &str, now: Instant) {
+        let Some(state) = self.system_resolutions.get_mut(key) else {
+            return;
+        };
+        for lookup in [&mut state.a, &mut state.aaaa] {
+            if *lookup == FamilyLookup::Pending {
+                *lookup = FamilyLookup::Failed;
+            }
+        }
+        self.finish_system_resolution(key, now);
+    }
+
+    // Answers that come in for a resolution that is gone find no request to go with, as if they never came.
+    fn forget_system_requests(&mut self, key: &str, id: u64) {
+        let forgotten: Vec<SystemRequestId> = self
+            .system_requests
+            .iter()
+            .filter(|(_, (request_key, request_id, _))| request_key == key && *request_id == id)
+            .map(|(request, _)| *request)
+            .collect();
+        for request in forgotten {
+            self.system_requests.remove(&request);
+            self.actions.push_back(Action::CancelSystemResolve { request });
+        }
+    }
+
+    fn finish_system_resolution(&mut self, key: &str, now: Instant) {
+        let Some(mut state) = self.system_resolutions.remove(key) else {
+            return;
+        };
+        self.forget_system_requests(key, state.id);
+
+        // A family the system resolver looked up and found no addresses of has none, as far as it knows. It says
+        // nothing about for how long, so that holds as long as addresses it finds would. A family it failed to look up,
+        // or was not asked about, may well have some.
+        let negative_expiration = now + Duration::from_secs(u64::from(SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS));
+        for (lookup, rtype) in [(state.a, ResourceType::A), (state.aaaa, ResourceType::AAAA)] {
+            if lookup == FamilyLookup::Answered && !state.entry.has_record_of_type(rtype) {
+                state.entry.add_negative_answer(rtype, negative_expiration);
+            }
+        }
+        state.entry.finished_request();
+
+        let waiters = std::mem::take(&mut state.waiters);
+        // Every family it was asked about having no addresses is an answer, as when a DNS server says so. A family
+        // it failed to look up leaves the lookup failed, unless the other found some.
+        let answered = [state.a, state.aaaa]
+            .iter()
+            .all(|lookup| matches!(lookup, FamilyLookup::Answered | FamilyLookup::NotAsked));
+        let result = (!state.settled).then(|| (state.entry.has_records() || answered).then(|| state.entry.snapshot()));
+
+        // Connecting to the server went ahead with the addresses it had then. The ones that came in since are worth
+        // trying too, should those not work.
+        if state.settled
+            && let Some(host) = &state.server_host
+            && let Some(server) = self.server.as_ref().filter(|server| &server.host == host)
+        {
+            let port = server.port;
+            for address in state.entry.snapshot().addresses() {
+                let address = SocketAddr::new(address, port);
+                if !self.server_addresses.contains(&address) {
+                    self.server_addresses.push(address);
+                }
+            }
+        }
+
+        if let Some(cache_key) = state.cache_key {
+            self.cache.insert(cache_key, state.entry, now);
+        }
+        if let Some(result) = result {
+            self.settle_system_waiters(waiters, result, now);
+        }
     }
 
     fn settle_system_resolution_early(&mut self, key: &str, now: Instant) {
@@ -1334,6 +1387,16 @@ impl Resolver {
             .collect();
         for key in due {
             self.settle_system_resolution_early(&key, now);
+        }
+
+        let due: Vec<String> = self
+            .system_resolutions
+            .iter()
+            .filter(|(_, state)| state.give_up_at <= now)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in due {
+            self.give_up_on_system_resolution(&key, now);
         }
     }
 

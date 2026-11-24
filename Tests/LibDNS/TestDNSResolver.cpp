@@ -318,6 +318,42 @@ TEST_CASE(test_lookups_answered_at_once_settle_before_lookup_returns)
     EXPECT(resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->is_resolved());
 }
 
+TEST_CASE(test_remote_system_resolver_lookups_given_up_on_are_cancelled)
+{
+    event_loop();
+    DNS::Resolver resolver;
+    resolver.set_system_resolution_timeout_for_testing(AK::Duration::from_milliseconds(100));
+    // The remote resolver never answers, and keeps what it was asked to answer with. Both families are asked about,
+    // whether or not this host reaches the IPv6 internet.
+    Vector<Function<void(DNS::Resolver::SystemResolution)>> unanswered;
+    size_t cancelled = 0;
+    resolver.set_remote_system_resolver([&](auto const&, auto, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
+        unanswered.append(move(on_resolved));
+        return [&] { ++cancelled; };
+    });
+
+    EXPECT(await_lookup(resolver.lookup("example.com", DNS::Messages::Class::IN, { .query_aaaa_without_global_ipv6 = true })).is_error());
+    EXPECT_EQ(unanswered.size(), 2u);
+    EXPECT_EQ(cancelled, 2u);
+
+    // Answers that come anyway are dropped.
+    for (auto& on_resolved : unanswered)
+        on_resolved(Vector<DNS::LookupResult::Address> { IPv4Address { 192, 0, 2, 9 } });
+    bool spun = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::zero(), [&] { spun = true; });
+    timer->start();
+    EXPECT(spin_until([&] { return spun; }));
+
+    // So the next lookup asks again.
+    unanswered.clear();
+    auto promise = resolver.lookup("example.com", DNS::Messages::Class::IN, { .query_aaaa_without_global_ipv6 = true });
+    EXPECT_EQ(unanswered.size(), 2u);
+    for (auto& on_resolved : unanswered)
+        on_resolved(Vector<DNS::LookupResult::Address> { IPv4Address { 192, 0, 2, 10 } });
+    auto result = TRY_OR_FAIL(await_lookup(promise));
+    EXPECT_EQ(result->cached_addresses().first().get<IPv4Address>(), (IPv4Address { 192, 0, 2, 10 }));
+}
+
 // A closed connection goes away from the top of the event loop, and its callbacks must leave a resolver that is gone
 // by then alone.
 TEST_CASE(test_closed_stream_outliving_the_resolver_is_ignored)
