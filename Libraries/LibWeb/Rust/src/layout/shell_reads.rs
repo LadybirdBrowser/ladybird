@@ -106,7 +106,10 @@ pub extern "C" fn layout_row_style_is_derived(host: &DocumentHost, id: NodeSlotI
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_row_style(host: &DocumentHost, id: NodeSlotId) -> *const c_void {
+pub extern "C" fn layout_row_style(
+    host: &DocumentHost,
+    id: NodeSlotId,
+) -> *const crate::css::computed_value_views::StyleRecordGroups {
     styles(host, id, node_read())
         .style(id)
         .map_or(std::ptr::null(), |style| style.as_ptr())

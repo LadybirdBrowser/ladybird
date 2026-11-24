@@ -146,7 +146,7 @@ CSS::InstalledStyle const& AbstractElement::installed_style() const
     return m_element->installed_style(m_pseudo_element);
 }
 
-void const* AbstractElement::style_record_groups() const
+CSS::ComputedValuesFFI::StyleRecordGroups const* AbstractElement::style_record_groups() const
 {
     return m_element->style_record_groups(m_pseudo_element);
 }

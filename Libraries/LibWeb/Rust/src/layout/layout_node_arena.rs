@@ -668,7 +668,14 @@ pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
     pub context: *mut c_void,
-    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
+    pub shell_style_changed: unsafe extern "C" fn(
+        *mut c_void,
+        *mut c_void,
+        u64,
+        *const crate::css::computed_value_views::StyleRecordGroups,
+        bool,
+        bool,
+    ),
     pub shell_style_damaged: unsafe extern "C" fn(*mut c_void, *mut c_void, u32),
 }
 
@@ -6692,16 +6699,13 @@ pub(crate) struct NodeAllocation {
 /// Whether an element whose installed style is `style` has an innermost `list-item` counter of its own that counts
 /// forward, as the counters a layout tree build resolves for it from that style have: appending a last list item to
 /// such an element leaves the items before it as they are numbered.
-///
-/// # Safety
-///
-/// `style` must point at the groups of a live style record.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_resets_forward_list_item_counter(style: *const c_void) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let style = unsafe { LayoutStyleRef::from_raw(style) }.expect("an element's style record is not null");
-    // SAFETY: Guaranteed by the caller.
-    super::counters::style_resets_forward_list_item_counter(unsafe { style.view() })
+pub extern "C" fn style_resets_forward_list_item_counter(
+    style: &crate::css::computed_value_views::StyleRecordGroups,
+) -> bool {
+    super::counters::style_resets_forward_list_item_counter(
+        crate::css::computed_value_views::ComputedValuesView::of_record_groups(style),
+    )
 }
 
 #[unsafe(no_mangle)]

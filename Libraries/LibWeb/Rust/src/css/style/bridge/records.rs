@@ -40,9 +40,13 @@ pub(in crate::css::style) fn host_record(engine: &StyleEngine, style_record: u64
 /// # Safety
 /// `view` must be a view of a record the host holds live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_view_base_groups(view: &FfiStyleRecordView) -> *const c_void {
+pub unsafe extern "C" fn style_engine_view_base_groups(
+    view: &FfiStyleRecordView,
+) -> *const crate::css::computed_value_views::StyleRecordGroups {
     // SAFETY: Guaranteed by the caller.
-    unsafe { view.base_groups() }.map_or(std::ptr::null(), |groups| std::ptr::from_ref(groups).cast())
+    unsafe { view.base_groups() }.map_or(std::ptr::null(), |groups| {
+        crate::css::computed_value_views::StyleRecordGroups::of(groups)
+    })
 }
 
 /// Whether the element of the record `view` views would compute `display` to `none` when ignoring its animations:

@@ -256,7 +256,7 @@ pub unsafe extern "C" fn layout_script_text_geometry_sources(
     host: &DocumentHost,
     primary: NodeSlotId,
     context: *mut c_void,
-    push_source: unsafe extern "C" fn(*mut c_void, *const c_void, i32, i32),
+    push_source: unsafe extern "C" fn(*mut c_void, *const crate::layout::inline_content::InlineContent, i32, i32),
 ) -> bool {
     read_rows(host, |arena| {
         let fragments = arena.text_fragments(primary);
@@ -277,7 +277,7 @@ pub unsafe extern "C" fn layout_script_text_geometry_sources(
                 return false;
             }
             let position = crate::painting::paintable_geometry::absolute_line_root_position(arena, block, 0);
-            let retained = std::sync::Arc::into_raw(content.clone()).cast::<c_void>();
+            let retained = std::sync::Arc::into_raw(content.clone());
             // SAFETY: The consumer takes ownership of the reference, and copies the position synchronously.
             unsafe { push_source(context, retained, position.x.raw_value(), position.y.raw_value()) };
         }
@@ -286,17 +286,11 @@ pub unsafe extern "C" fn layout_script_text_geometry_sources(
 }
 
 /// Releases a reference to line content that layout_script_text_geometry_sources() handed out.
-///
-/// # Safety
-///
-/// `content` must be a reference layout_script_text_geometry_sources() pushed, released only once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_release_inline_content(content: *const c_void) {
-    if content.is_null() {
-        return;
-    }
-    // SAFETY: The caller passes a reference from Arc::into_raw() in layout_script_text_geometry_sources(), once.
-    drop(unsafe { std::sync::Arc::from_raw(content.cast::<crate::layout::inline_content::InlineContent>()) });
+pub extern "C" fn layout_release_inline_content(
+    content: crate::css::ffi_support::OwnedArc<crate::layout::inline_content::InlineContent>,
+) {
+    drop(content);
 }
 
 /// Calls `push_position` with each DOM offset (in UTF-16 code units) of the text node `primary` that one of its

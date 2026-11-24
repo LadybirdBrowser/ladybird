@@ -12,12 +12,18 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Forward.h>
 
+namespace Web::CSS::ComputedValuesFFI {
+
+struct StyleRecordGroups;
+
+}
+
 namespace Web::CSS {
 
 class InstalledStyle;
 
 template<typename StyleGroup>
-StyleGroup const& style_record_group(void const* record);
+StyleGroup const& style_record_group(ComputedValuesFFI::StyleRecordGroups const* record);
 
 }
 
@@ -59,7 +65,7 @@ public:
     [[nodiscard]] CSS::StyleRecordID style_record_identity() const;
     [[nodiscard]] CSS::InstalledStyle const& installed_style() const;
     [[nodiscard]] bool has_style() const { return !!style_record_identity(); }
-    [[nodiscard]] void const* style_record_groups() const;
+    [[nodiscard]] CSS::ComputedValuesFFI::StyleRecordGroups const* style_record_groups() const;
     template<typename StyleGroup>
     StyleGroup const* style_group() const
     {

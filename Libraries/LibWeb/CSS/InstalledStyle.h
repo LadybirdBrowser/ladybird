@@ -81,7 +81,7 @@ public:
 
     // The record's groups, which `CSS::style_record_group` reads, or null where nothing is installed. NB: A record's
     // groups are at its head.
-    void const* groups() const { return m_record; }
+    ComputedValuesFFI::StyleRecordGroups const* groups() const { return reinterpret_cast<ComputedValuesFFI::StyleRecordGroups const*>(m_record); }
 
     // Whether the record's own display, beneath any animation, is none, read straight out of its box group payload.
     bool display_is_none() const;

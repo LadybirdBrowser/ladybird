@@ -66,8 +66,8 @@ impl LayoutStyleRef {
         std::ptr::NonNull::new(pointer.cast_mut()).map(|pointer| Self(pointer.cast()))
     }
 
-    pub(crate) fn as_ptr(self) -> *const c_void {
-        self.0.as_ptr().cast_const().cast()
+    pub(crate) fn as_ptr(self) -> *const crate::css::computed_value_views::StyleRecordGroups {
+        self.0.as_ptr().cast_const()
     }
 
     /// A style no read reaches, for a row a test lays out without reading its style.
