@@ -140,7 +140,8 @@ fn nsec_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = NsecRecord<'_>
         })
 }
 
-fn nsec3_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = Nsec3Record<'_>> {
+// Every NSEC3 record that could take part in a proof, regardless of its iteration count.
+fn nsec3_records_with_any_iterations(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = Nsec3Record<'_>> {
     rrsets
         .iter()
         .filter(|verified| verified.rrset.rtype == ResourceType::NSEC3)
@@ -149,11 +150,8 @@ fn nsec3_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = Nsec3Record<'
                 let RecordData::Nsec3(nsec3) = &record.data else {
                     return None;
                 };
-                // RFC 5155, 8.1 / 8.2: unknown hash types, unknown flags and excessive iterations are ignored.
-                if nsec3.hash_algorithm != Nsec3HashAlgorithm::SHA1
-                    || (nsec3.flags & !Nsec3::FLAG_OPT_OUT) != 0
-                    || nsec3.iterations > MAX_NSEC3_ITERATIONS
-                {
+                // RFC 5155, 8.1 / 8.2: unknown hash types and unknown flags are ignored.
+                if nsec3.hash_algorithm != Nsec3HashAlgorithm::SHA1 || (nsec3.flags & !Nsec3::FLAG_OPT_OUT) != 0 {
                     return None;
                 }
                 let first_label = record.name.labels.first()?;
@@ -171,6 +169,10 @@ fn nsec3_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = Nsec3Record<'
                 })
             })
         })
+}
+
+fn nsec3_records(rrsets: &[VerifiedRRSet]) -> impl Iterator<Item = Nsec3Record<'_>> {
+    nsec3_records_with_any_iterations(rrsets).filter(|record| record.nsec3.iterations <= MAX_NSEC3_ITERATIONS)
 }
 
 // RFC 5155, 8.3. Closest Encloser Proof.
@@ -245,11 +247,7 @@ fn nsec_proves_empty_non_terminal(rrsets: &[VerifiedRRSet], name: &DomainName) -
 }
 
 pub(super) fn has_excessive_nsec3_iterations(rrsets: &[VerifiedRRSet]) -> bool {
-    rrsets
-        .iter()
-        .filter(|verified| verified.rrset.rtype == ResourceType::NSEC3)
-        .flat_map(|verified| &verified.rrset.records)
-        .any(|record| matches!(&record.data, RecordData::Nsec3(nsec3) if nsec3.iterations > MAX_NSEC3_ITERATIONS))
+    nsec3_records_with_any_iterations(rrsets).any(|record| record.nsec3.iterations > MAX_NSEC3_ITERATIONS)
 }
 
 pub(super) struct DenialProofs<'a> {
