@@ -218,7 +218,9 @@ void Page::notify_document_about_user_activation(HTML::CrossProcessId document_i
             continue;
 
         // 5.1. Set window's last activation timestamp to the current high resolution time.
-        // 5.2. Notify the close watcher manager about user activation given window.
+        // 5.2. Set window's has history-action activation to true.
+        // 5.3. Set window's has sticky activation to true.
+        // 5.4. Notify the close watcher manager about user activation given window.
         document->window()->notify_about_user_activation();
         return;
     }

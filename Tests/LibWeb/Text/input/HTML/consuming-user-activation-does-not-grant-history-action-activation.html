@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Consuming transient activation leaves history-action activation as it was. A close request after both have been
+    // consumed can't be canceled, and the window keeps its sticky activation.
+    test(() => {
+        // Each close request takes away one of the allowed close watcher groups, and an activation after a close
+        // watcher is created gives one. Two spare groups keep the second close request's result down to the window's
+        // history-action activation.
+        for (let i = 0; i < 2; i++) {
+            const spare = new CloseWatcher();
+            internals.grantTransientActivation();
+            spare.destroy();
+        }
+
+        const watcher = new CloseWatcher();
+        watcher.addEventListener("cancel", event => {
+            println(`cancel cancelable: ${event.cancelable}`);
+            event.preventDefault();
+        });
+
+        internals.sendKey(document.body, "Escape");
+
+        const popup = window.open("about:blank");
+        popup?.close();
+        println(`Has transient activation after window.open(): ${navigator.userActivation.isActive}`);
+        println(`Has sticky activation after window.open(): ${navigator.userActivation.hasBeenActive}`);
+
+        internals.sendKey(document.body, "Escape");
+        watcher.destroy();
+    });
+</script>

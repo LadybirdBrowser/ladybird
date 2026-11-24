@@ -735,7 +735,7 @@ impl Notification {
                 // NB: The user activated the notification, so the window gets transient activation first: That's what lets
                 //     focus() work from within the event listener, as the spec encourages.
                 if let Some(window) = &this.window {
-                    window.set_last_activation_timestamp_to_now();
+                    window.give_transient_activation();
                 }
                 let event = CppEvent::create(this.realm, "click", false, true, false);
                 let into_focus = this.event_target.dispatch_event(&event);
