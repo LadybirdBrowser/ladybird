@@ -5833,8 +5833,7 @@ void Document::detach_range(Badge<Range>, Range& range)
 
 void Document::register_document_observer(Badge<DocumentObserver>, DocumentObserver& document_observer)
 {
-    auto result = m_document_observers.set(document_observer);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    m_document_observers.set(document_observer);
 }
 
 void Document::unregister_document_observer(Badge<DocumentObserver>, DocumentObserver& document_observer)
