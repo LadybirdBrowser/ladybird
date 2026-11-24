@@ -918,3 +918,16 @@ fn zero_ttl_answers_are_not_served_from_the_cache() {
     harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
     assert_eq!(harness.take_writes().len(), 1);
 }
+
+#[test]
+fn cache_hits_only_return_the_requested_types() {
+    let mut harness = Harness::udp();
+    let both = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    harness.answer_udp();
+    assert_eq!(harness.addresses(both).len(), 2);
+
+    let only_a = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.writes.is_empty());
+    assert_eq!(harness.addresses(only_a), vec![IpAddr::V4(A_ADDRESS)]);
+}
