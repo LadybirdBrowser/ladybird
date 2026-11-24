@@ -985,14 +985,9 @@ impl Resolver {
             return;
         }
 
-        let id = loop {
-            let Some(id) = (self.random)() else {
-                let error = Error::new("Could not pick a random DNS query ID");
-                return self.settle_query_waiter(waiter, Err(error), now);
-            };
-            if !self.in_flight_by_id.contains_key(&id) {
-                break id;
-            }
+        let id = match self.free_query_id() {
+            Ok(id) => id,
+            Err(error) => return self.settle_query_waiter(waiter, Err(error), now),
         };
 
         self.in_flight.insert(
@@ -1098,6 +1093,23 @@ impl Resolver {
             QueryWaiter::Lookup { key, index } => self.on_lookup_response(&key, index, result, now),
             QueryWaiter::Validation(id) => self.on_validation_fetch(id, result, now),
         }
+    }
+
+    // A random ID that no query in flight has. Once random tries keep hitting ones in use, look for a free one, which
+    // there may not be.
+    fn free_query_id(&mut self) -> Result<u16, Error> {
+        const RANDOM_TRIES: usize = 16;
+        let mut id = 0;
+        for _ in 0..RANDOM_TRIES {
+            id = (self.random)().ok_or(Error::new("Could not pick a random DNS query ID"))?;
+            if !self.in_flight_by_id.contains_key(&id) {
+                return Ok(id);
+            }
+        }
+        (1..=u16::MAX)
+            .map(|offset| id.wrapping_add(offset))
+            .find(|id| !self.in_flight_by_id.contains_key(id))
+            .ok_or(Error::new("Too many DNS queries are in flight"))
     }
 
     // ---- Connections -------------------------------------------------------------------------------------------
