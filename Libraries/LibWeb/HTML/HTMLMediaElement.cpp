@@ -2645,7 +2645,7 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     //     https://html.spec.whatwg.org/multipage/media.html#media-elements
     //     Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
 
-    set_up_playback_manager_error_handler(GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { *this }), [](auto& weak_self, Utf16String error_message) {
+    m_playback_manager_failure_callback = GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { *this }), [](auto& weak_self, Utf16String error_message) {
         if (!weak_self)
             return;
         auto& self = *weak_self;
@@ -2657,10 +2657,12 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         failure_callback->function()(move(error_message));
-    }));
+    });
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream)
         ->when_resolved(GC::weak_callback(*this, [weak_manager = m_playback_manager->make_weak_ptr()](auto& self, MediaClient::RemotePlaybackManager::AddedTracks& added_tracks) {
+            self.listen_for_playback_manager_errors();
+
             // -> If the media resource is found to have an audio track
             for (auto const& track : added_tracks.audio_tracks) {
                 self.on_audio_track_added(track);
@@ -2711,9 +2713,8 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager_error_handler(GC::Ref<GC::Function<void(Utf16String)>> failure_callback)
+void HTMLMediaElement::listen_for_playback_manager_errors()
 {
-    m_playback_manager_failure_callback = failure_callback;
     m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
         self.handle_playback_manager_error(move(error));
     });
@@ -2762,7 +2763,7 @@ void HTMLMediaElement::set_up_playback_manager_for_local(GC::Ref<GC::Function<vo
     // NB: The Media Source Extensions spec creates the tracks in its initialization segment received algorithm, and
     //     SourceBuffer runs the steps once enough of the media data has been fetched to determine its metadata.
 
-    set_up_playback_manager_error_handler(GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { *this }, failure_callback), [](auto& weak_self, auto& failure_callback, Utf16String error_message) {
+    m_playback_manager_failure_callback = GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { *this }, failure_callback), [](auto& weak_self, auto& failure_callback, Utf16String error_message) {
         if (!weak_self)
             return;
         auto& self = *weak_self;
@@ -2772,7 +2773,8 @@ void HTMLMediaElement::set_up_playback_manager_for_local(GC::Ref<GC::Function<vo
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         failure_callback->function()(move(error_message));
-    }));
+    });
+    listen_for_playback_manager_errors();
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();

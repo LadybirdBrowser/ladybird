@@ -350,12 +350,10 @@ void RemotePlaybackManager::handle_connection_lost()
     dispatch_playback_state_settled_change_if_changed(was_settled);
     for (auto& [id, source_buffer] : m_source_buffers)
         source_buffer->connection_lost({});
+    // The pending media sources can't be added anymore, and the sources already added can't play anymore.
     auto pending_media_stream_sources = move(m_pending_media_stream_sources);
-    if (!pending_media_stream_sources.is_empty()) {
-        for (auto& [id, promise] : pending_media_stream_sources)
-            promise->reject(media_server_gone_error());
-        return;
-    }
+    for (auto& [id, promise] : pending_media_stream_sources)
+        promise->reject(media_server_gone_error());
     dispatch_error(media_server_gone_error());
 }
 
