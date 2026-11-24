@@ -14,8 +14,12 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <LibCrypto/OpenSSL.h>
-#include <LibTLS/OpenSSLForward.h>
+#include <LibCrypto/OpenSSLForward.h>
 #include <RequestServer/IsPrivate.h>
+
+extern "C" {
+typedef struct ssl_ctx_st SSL_CTX;
+}
 
 namespace RequestServer {
 
