@@ -80,7 +80,7 @@ fn make_color_function(
     }))
 }
 
-fn make_legacy_color(rgba: [u8; 4], name: Option<&[u16]>) -> StyleValueData {
+pub(crate) fn make_legacy_color(rgba: [u8; 4], name: Option<&[u16]>) -> StyleValueData {
     make_color_function(
         color_conversion::RGB,
         [
