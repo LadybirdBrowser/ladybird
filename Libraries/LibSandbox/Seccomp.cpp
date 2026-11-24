@@ -183,6 +183,7 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_open(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_openat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_pipe(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pipe2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_poll(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pread64(if_defined, if_not_defined) if_defined
@@ -387,6 +388,10 @@ static constexpr unsigned read_only_open_flags = [] {
 #ifndef __NR_mmap2
 #    undef IF_DEFINED_mmap2
 #    define IF_DEFINED_mmap2(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_pipe
+#    undef IF_DEFINED_pipe
+#    define IF_DEFINED_pipe(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_pipe2
 #    undef IF_DEFINED_pipe2
@@ -2127,6 +2132,8 @@ void SeccompPolicy::allow_file_descriptor_operations()
     SECCOMP_APPEND_ALLOW_SYSCALL(*this, dup2);
 #endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, dup3);
+    // glibc's pipe() makes pipe2(), but musl's makes pipe() itself, where the architecture has it.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pipe);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pipe2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ftruncate);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, lseek);

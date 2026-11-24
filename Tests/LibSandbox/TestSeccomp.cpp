@@ -226,6 +226,23 @@ TEST_CASE(filesystem_metadata_policy_answers_the_lstat_musl_makes)
 }
 #endif
 
+#ifdef __NR_pipe
+TEST_CASE(file_descriptor_policy_answers_the_pipe_musl_makes)
+{
+    auto body = [] {
+        int descriptors[2];
+        VERIFY(syscall(__NR_pipe, descriptors) == 0);
+        VERIFY(write(descriptors[1], "x", 1) == 1);
+        char byte = 0;
+        VERIFY(read(descriptors[0], &byte, 1) == 1 && byte == 'x');
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+#endif
+
 TEST_CASE(runtime_policy_refuses_other_processes_and_resource_limit_changes)
 {
     auto parent = getpid();
