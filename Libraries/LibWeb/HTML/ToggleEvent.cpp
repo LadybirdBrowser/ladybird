@@ -4,32 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(ToggleEvent);
-
-GC::Ref<ToggleEvent> ToggleEvent::create(Utf16FlyString const& event_name, ToggleEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    auto event = GC::Heap::the().allocate<ToggleEvent>(event_name, event_init, time_stamp);
-    event->set_is_trusted(true);
-    return event;
+extern "C" {
+// Defined in Bindings/Rust/src/html/toggle_event.rs.
+DOM::Event* web_rust_toggle_event_create(JSVM*, void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed, FlatPtr old_state, FlatPtr new_state, DOM::Element* source);
 }
 
-ToggleEvent::ToggleEvent(Utf16FlyString const& event_name, ToggleEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp)
-    , m_old_state(event_init.old_state)
-    , m_new_state(event_init.new_state)
-    , m_source(event_init.source)
+GC::Ref<DOM::Event> create_toggle_event(JS::Realm& realm, Utf16FlyString const& type, DOM::EventInit const& event_init, Utf16FlyString const& old_state, Utf16FlyString const& new_state, GC::Ptr<DOM::Element> source)
 {
-}
-
-void ToggleEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_source);
+    return *web_rust_toggle_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), event_init.bubbles, event_init.cancelable, event_init.composed, old_state.raw_identity(), new_state.raw_identity(), source.ptr());
 }
 
 }

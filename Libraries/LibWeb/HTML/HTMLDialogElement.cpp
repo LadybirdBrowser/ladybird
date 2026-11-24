@@ -81,12 +81,7 @@ void HTMLDialogElement::queue_a_dialog_toggle_event_task(Utf16FlyString old_stat
     auto task_id = queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, old_state, move(new_state), source), [](auto& self, auto& old_state, auto& new_state, auto& source) {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        ToggleEventInit event_init {};
-        event_init.old_state = move(old_state);
-        event_init.new_state = move(new_state);
-        event_init.source = source;
-
-        self.dispatch_event(ToggleEvent::create(HTML::EventNames::toggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(self))));
+        self.dispatch_event(create_toggle_event(relevant_realm(self), HTML::EventNames::toggle, {}, old_state, new_state, source));
 
         // 2. Set element's dialog toggle task tracker to null.
         self.m_dialog_toggle_task_tracker = {};
@@ -113,12 +108,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 3. If the result of firing an event named beforetoggle, using ToggleEvent,
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    and the newState attribute initialized to "open" at this is false, then return.
-    ToggleEventInit event_init {};
-    event_init.cancelable = true;
-    event_init.old_state = "closed"_utf16_fly_string;
-    event_init.new_state = "open"_utf16_fly_string;
-
-    auto beforetoggle_result = dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
+    auto beforetoggle_result = dispatch_event(create_toggle_event(relevant_realm(*this), HTML::EventNames::beforetoggle, { .cancelable = true }, "closed"_utf16_fly_string, "open"_utf16_fly_string, nullptr));
     if (!beforetoggle_result)
         return {};
 
@@ -194,13 +184,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    the newState attribute initialized to "open", and the source attribute initialized to source at subject is
     //    false, then return.
-    ToggleEventInit event_init {};
-    event_init.cancelable = true;
-    event_init.old_state = "closed"_utf16_fly_string;
-    event_init.new_state = "open"_utf16_fly_string;
-    event_init.source = source;
-
-    auto beforetoggle_result = subject.dispatch_event(ToggleEvent::create(EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(subject))));
+    auto beforetoggle_result = subject.dispatch_event(create_toggle_event(relevant_realm(subject), EventNames::beforetoggle, { .cancelable = true }, "closed"_utf16_fly_string, "open"_utf16_fly_string, source));
     if (!beforetoggle_result)
         return {};
 
@@ -332,12 +316,7 @@ void HTMLDialogElement::close_the_dialog(Optional<Utf16String> result, GC::Ptr<D
 
     // 2. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the
     //    newState attribute initialized to "closed", and the source attribute initialized to source at subject.
-    ToggleEventInit event_init {};
-    event_init.old_state = "open"_utf16_fly_string;
-    event_init.new_state = "closed"_utf16_fly_string;
-    event_init.source = source;
-
-    dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
+    dispatch_event(create_toggle_event(relevant_realm(*this), HTML::EventNames::beforetoggle, {}, "open"_utf16_fly_string, "closed"_utf16_fly_string, source));
 
     // 3. If subject does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))

@@ -1825,12 +1825,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     //    initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to
     //    "open" at element, and the source attribute initialized to source at element is false,
     //    then run cleanupShowingFlag and return.
-    Bindings::ToggleEventInit event_init {};
-    event_init.old_state = "closed"_utf16_fly_string;
-    event_init.new_state = "open"_utf16_fly_string;
-    event_init.cancelable = true;
-    event_init.source = GC::make_root<DOM::Element>(source.ptr());
-    if (!dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))))) {
+    if (!dispatch_event(create_toggle_event(relevant_realm(*this), HTML::EventNames::beforetoggle, { .cancelable = true }, "closed"_utf16_fly_string, "open"_utf16_fly_string, source))) {
         cleanup_showing_flag();
         return {};
     }
@@ -2078,11 +2073,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (fire_events == FireEvents::Yes) {
         // 1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open",
         //    the newState attribute initialized to "closed", and the source attribute set to source at element.
-        Bindings::ToggleEventInit event_init {};
-        event_init.old_state = "open"_utf16_fly_string;
-        event_init.new_state = "closed"_utf16_fly_string;
-        event_init.source = GC::make_root<DOM::Element>(source.ptr());
-        dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
+        dispatch_event(create_toggle_event(relevant_realm(*this), HTML::EventNames::beforetoggle, {}, "open"_utf16_fly_string, "closed"_utf16_fly_string, source));
 
         // 2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not
         //    element, then run hide all popovers until given element, focusPreviousElement, and false.
@@ -2495,12 +2486,7 @@ void HTMLElement::queue_a_popover_toggle_event_task(Utf16FlyString old_state, Ut
     auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, old_state, move(new_state), source), [](auto& self, auto& old_state, auto& new_state, auto& source) {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        ToggleEventInit event_init {};
-        event_init.old_state = move(old_state);
-        event_init.new_state = move(new_state);
-        event_init.source = GC::make_root<DOM::Element>(source.ptr());
-
-        self.dispatch_event(ToggleEvent::create(HTML::EventNames::toggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(self))));
+        self.dispatch_event(create_toggle_event(relevant_realm(self), HTML::EventNames::toggle, {}, old_state, new_state, source));
 
         // 2. Set element's popover toggle task tracker to null.
         self.ensure_html_element_rare_data().popover_toggle_task_tracker = {};

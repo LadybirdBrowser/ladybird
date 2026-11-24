@@ -130,6 +130,8 @@ pub(crate) mod text_metrics;
 #[cfg(not(test))]
 pub(crate) mod text_track_cue;
 #[cfg(not(test))]
+pub(crate) mod toggle_event;
+#[cfg(not(test))]
 pub(crate) mod visibility_state;
 #[cfg(not(test))]
 pub(crate) mod visibility_state_entry;
