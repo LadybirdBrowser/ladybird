@@ -1,0 +1,13 @@
+Ladybird gives a rendered legend its fit-content inline size, applies
+the inline-size limits, and resolves auto margins against the result.
+The limits also apply to its intrinsic contribution to the fieldset.
+
+Blink lays out the legend in FieldsetLayoutAlgorithm::LayoutLegend(),
+using CreateConstraintSpaceForLegend() to supply its available size and
+percentage basis. Gecko reflows the legend in nsFieldSetFrame::Reflow().
+WebKit lays out the legend in RenderBlock::layoutExcludedChildren().
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all clamped a
+legend with 4px of padding and a 20px maximum content width to 24px.
+They agreed on minimum and percentage limits, vertical writing,
+intrinsic fieldsets, and child widths after the maximum changed.
