@@ -9,12 +9,18 @@
 #include <LibCore/Socket.h>
 #include <LibDNS/Resolver.h>
 #include <LibMain/Main.h>
-#include <LibTLS/TLSv12.h>
+#include <RequestServer/DNSStreamCurl.h>
+
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h> // Needed because curl.h includes winsock2.h
+#endif
+
+#include <curl/curl.h>
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     struct Request {
-        Vector<Vector<DNS::Messages::ResourceType>> types;
+        Vector<DNS::Messages::ResourceType> types;
         ByteString name;
     };
     Vector<Request> requests;
@@ -40,7 +46,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 return Error::from_string_literal("Invalid record/name format");
 
             if (parts.size() == 1) {
-                current_request.types.append({ DNS::Messages::ResourceType::ANY });
+                current_request.types.append(DNS::Messages::ResourceType::ANY);
                 current_request.name = parts[0];
             } else {
                 auto rr_parts = parts[0].split_view(',');
@@ -49,7 +55,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     auto type = DNS::Messages::resource_type_from_string(rr_name.to_uppercase());
                     if (!type.has_value())
                         return Error::from_string_literal("Invalid resource type");
-                    current_request.types.append({ type.value() });
+                    current_request.types.append(type.value());
                 }
                 current_request.name = parts[1];
             }
@@ -73,40 +79,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto& loop = Core::EventLoop::initialize_for_current_thread();
 
-    DNS::Resolver resolver {
-        [&] -> ErrorOr<DNS::Resolver::SocketResult> {
-            auto make_resolver = [&](Core::SocketAddress const& address) -> ErrorOr<DNS::Resolver::SocketResult> {
-                if (use_tls) {
-                    TLS::Options options;
-                    if (!cert_path.is_empty())
-                        options.root_certificates_path = cert_path;
+    if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK)
+        return Error::from_string_literal("Failed to initialize libcurl");
 
-                    auto tls = TRY(TLS::TLSv12::connect(address, server_address, move(options)));
-                    return DNS::Resolver::SocketResult { move(tls), DNS::Resolver::ConnectionMode::TCP };
-                }
-
-                return DNS::Resolver::SocketResult {
-                    TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
-                    DNS::Resolver::ConnectionMode::UDP,
-                    [address] -> ErrorOr<NonnullOwnPtr<Core::Socket>> {
-                        return TRY(Core::TCPSocket::connect(address));
-                    },
-                };
-            };
-
-            if (auto v4 = IPv4Address::from_string(server_address); v4.has_value()) {
-                return make_resolver({ v4.value(), static_cast<u16>(use_tls ? 853 : 53) });
-            } else if (auto v6 = IPv6Address::from_string(server_address); v6.has_value()) {
-                return make_resolver({ v6.value(), static_cast<u16>(use_tls ? 853 : 53) });
-            } else {
-                return TRY(resolver.lookup(server_address)->await())->cached_addresses().first().visit([&](auto& address) {
-                    return make_resolver({ address, static_cast<u16>(use_tls ? 853 : 53) });
-                });
-            }
-        }
-    };
-
-    TRY(resolver.when_socket_ready()->await());
+    DNS::Resolver resolver;
+    resolver.set_stream_connector([&](Core::SocketAddress const& address, ByteString const& server_name, DNS::StreamSecurity security) {
+        return RequestServer::connect_dns_stream(address, server_name, security, { .root_certificates_path = cert_path });
+    });
+    resolver.set_server(DNS::Resolver::Server {
+        .host = server_address,
+        .port = static_cast<u16>(use_tls ? 853 : 53),
+        .transport = use_tls ? DNS::Resolver::ServerTransport::TLS : DNS::Resolver::ServerTransport::UDP,
+    });
 
     size_t pending_requests = requests.size();
     Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> promises;
@@ -115,7 +99,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 ->when_resolved([&](auto& result) {
                     outln("Resolved {}:", request.name);
                     HashTable<DNS::Messages::ResourceType> types;
-                    auto recs = result->records();
+                    auto const& recs = result->records();
                     for (auto& record : recs)
                         types.set(record.type);
 
@@ -125,7 +109,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                             if (type != record.type)
                                 continue;
 
-                            outln("    - {}", record.to_string());
+                            outln("    - {}", record.text);
                         }
                     }
 
@@ -133,7 +117,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         loop.quit(0);
                 })
                 .when_rejected([&](auto& error) {
-                    outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first().first()), error);
+                    outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first()), error);
                     if (--pending_requests == 0)
                         loop.quit(1);
                 }));

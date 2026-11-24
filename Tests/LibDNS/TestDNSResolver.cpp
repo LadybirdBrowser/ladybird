@@ -4,1595 +4,350 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
-#include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
-#include <AK/ConditionVariable.h>
 #include <AK/Endian.h>
 #include <AK/Function.h>
 #include <AK/IPv4Address.h>
-#include <AK/IPv6Address.h>
-#include <AK/MemoryStream.h>
-#include <AK/Mutex.h>
-#include <AK/Optional.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
-#include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
 #include <LibCore/UDPServer.h>
 #include <LibDNS/Resolver.h>
 #include <LibTest/TestCase.h>
-#include <LibThreading/ThreadPool.h>
 
 #include <AK/Windows.h>
 
 namespace {
 
-// Builds a canned DNS response for a query: It echoes the question section and answers with one fixed A and one fixed
-// AAAA record. The resolver correlates responses to lookups by header ID, and reads the answer section. Enough to drive
-// a successful lookup while exercising the real wire encode and decode paths — without depending on a live DNS server.
-ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes)
+// The resolver's wire format lives in Rust and has tests of its own there. These only need a canned answer: the query
+// echoed back as a response, with one A record for the queried name.
+ByteBuffer build_dns_response(ReadonlyBytes query)
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
+    auto response = MUST(ByteBuffer::copy(query));
+    // QR: this is a response. RA: recursion is available.
+    response[2] |= 0x80;
+    response[3] |= 0x80;
+    // ANCOUNT = 1, and no additional records (the query may have carried an OPT record).
+    response[6] = 0;
+    response[7] = 1;
+    response[10] = 0;
+    response[11] = 0;
 
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.options.set_recursion_available(true);
-    response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NoError);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
+    // Drop whatever follows the question: name, QTYPE, QCLASS.
+    size_t offset = 12;
+    while (response[offset] != 0)
+        offset += response[offset] + 1;
+    offset += 1 + 4;
+    response.trim(offset, false);
 
-    auto name = response.questions.is_empty()
-        ? DNS::Messages::DomainName::from_string("example.com"sv)
-        : response.questions.first().name;
-
-    response.answers.append(DNS::Messages::ResourceRecord {
-        name, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 300,
-        DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
-    response.answers.append(DNS::Messages::ResourceRecord {
-        name, DNS::Messages::ResourceType::AAAA, DNS::Messages::Class::IN, 300,
-        DNS::Messages::Records::AAAA { IPv6Address::loopback() }, {} });
-    response.header.answer_count = response.answers.size();
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    u8 const answer[] = {
+        0xc0,
+        0x0c, // NAME: a pointer to the question's name
+        0x00,
+        0x01, // TYPE: A
+        0x00,
+        0x01, // CLASS: IN
+        0x00,
+        0x00,
+        0x01,
+        0x2c, // TTL: 300
+        0x00,
+        0x04, // RDLENGTH
+        192,
+        0,
+        2,
+        1, // RDATA
+    };
+    response.append(answer, sizeof(answer));
+    return response;
 }
 
-ErrorOr<ByteBuffer> build_response_with_unknown_key_tag(ReadonlyBytes query_bytes)
+ByteBuffer frame(ReadonlyBytes message)
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
-
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
-
-    auto owner = response.questions.first().name;
-    response.answers.append({ owner, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 60,
-        DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
-    u8 signature_byte = 0;
-    auto now = UnixDateTime::now();
-    response.answers.append({ owner, DNS::Messages::ResourceType::RRSIG, DNS::Messages::Class::IN, 60,
-        DNS::Messages::Records::RRSIG { DNS::Messages::ResourceType::A, DNS::Messages::DNSSEC::Algorithm::RSASHA256,
-            0, 60, now + AK::Duration::from_seconds(60), now - AK::Duration::from_seconds(60), 1, owner,
-            TRY(ByteBuffer::copy(ReadonlyBytes { &signature_byte, 1 })) },
-        {} });
-    response.header.answer_count = response.answers.size();
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    ByteBuffer framed;
+    BigEndian<u16> length = message.size();
+    framed.append(&length, sizeof(length));
+    framed.append(message);
+    return framed;
 }
 
-ErrorOr<ByteBuffer> build_response_with_unhandled_dnssec_algorithm(ReadonlyBytes query_bytes)
+// System-lookup workers post results to their originating event loop and expect it to outlive them.
+// Share one process-lifetime loop; each test runs it until its goal is reached.
+Core::EventLoop& event_loop()
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
-
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
-
-    auto algorithm = static_cast<DNS::Messages::DNSSEC::Algorithm>(250);
-    auto owner = response.questions.first().name;
-    u8 data_byte = 0;
-    response.answers.append({ owner, DNS::Messages::ResourceType::DNSKEY, DNS::Messages::Class::IN, 60,
-        DNS::Messages::Records::DNSKEY { 0, 0, algorithm, TRY(ByteBuffer::copy(ReadonlyBytes { &data_byte, 1 })), 0 }, {} });
-    auto now = UnixDateTime::now();
-    response.answers.append({ owner, DNS::Messages::ResourceType::RRSIG, DNS::Messages::Class::IN, 60,
-        DNS::Messages::Records::RRSIG { DNS::Messages::ResourceType::DNSKEY, algorithm, 0, 60,
-            now + AK::Duration::from_seconds(60), now - AK::Duration::from_seconds(60), 250, owner,
-            TRY(ByteBuffer::copy(ReadonlyBytes { &data_byte, 1 })) },
-        {} });
-    response.header.answer_count = response.answers.size();
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    static auto& event_loop = *new Core::EventLoop;
+    VERIFY(&Core::EventLoop::current() == &event_loop);
+    return event_loop;
 }
 
-// Answers with one TXT record for the queried owner and one A record for a different owner; neither answers the question.
-ErrorOr<ByteBuffer> build_response_with_unrelated_answers(ReadonlyBytes query_bytes)
+// Runs the event loop until the goal is reached, or fails the test once that takes too long.
+[[nodiscard]] bool spin_until(Function<bool()> goal)
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
-
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.options.set_recursion_available(true);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
-
-    auto owner = response.questions.first().name;
-    response.answers.append({ owner, DNS::Messages::ResourceType::TXT, DNS::Messages::Class::IN, 3600,
-        DNS::Messages::Records::TXT { "x"sv }, {} });
-    response.answers.append({ DNS::Messages::DomainName::from_string("other.example"sv), DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 3600,
-        DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
-    response.header.answer_count = response.answers.size();
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    bool timed_out = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(10), [&] { timed_out = true; });
+    timer->start();
+    event_loop().spin_until([&] { return timed_out || goal(); });
+    timer->stop();
+    if (timed_out) {
+        FAIL("Timed out waiting on the event loop");
+        return false;
+    }
+    return true;
 }
 
-ErrorOr<ByteBuffer> build_empty_response(ReadonlyBytes query_bytes)
+ErrorOr<NonnullRefPtr<DNS::LookupResult const>> await_lookup(NonnullRefPtr<DNS::Resolver::ResultPromise> const& promise)
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
-
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.options.set_recursion_available(true);
-    response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NameError);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    Optional<ErrorOr<NonnullRefPtr<DNS::LookupResult const>>> result;
+    promise->when_resolved([&](auto& lookup_result) { result = lookup_result; })
+        .when_rejected([&](auto& error) { result = Error::copy(error); });
+    auto settled = spin_until([&] { return result.has_value(); });
+    // NB: A lookup that settles after all must not reach into this frame.
+    promise->on_resolution = nullptr;
+    promise->on_rejection = nullptr;
+    if (!settled)
+        return Error::from_string_literal("The lookup did not settle");
+    return result.release_value();
 }
 
-// Echoes the question with the TC bit set and no answers, as a server does when the answer does not fit in a datagram.
-ErrorOr<ByteBuffer> build_truncated_response(ReadonlyBytes query_bytes)
+bool is_pending(DNS::Resolver::ResultPromise& promise)
 {
-    FixedMemoryStream stream { query_bytes };
-    auto query = TRY(DNS::Messages::Message::from_raw(stream));
-
-    DNS::Messages::Message response;
-    response.header.id = query.header.id;
-    response.header.options.set_is_question(false);
-    response.header.options.set_is_truncated(true);
-    response.header.question_count = query.questions.size();
-    response.questions = move(query.questions);
-
-    ByteBuffer out;
-    TRY(response.to_raw(out));
-    return out;
+    return !promise.is_resolved() && !promise.is_rejected();
 }
 
-// The resolver's system-lookup workers post their results to the event loop they were started from, and expect it to
-// live as long as the process, as a real process's main loop does: A worker can still be waking the loop after posting
-// the result that ends a test. So all the tests share one event loop that's never destroyed. And since an event loop
-// can't run again once it's been asked to quit, each test runs that loop through a TestLoop of its own.
-class TestLoop {
+// A stream the test drives by hand: it connects when the test says so, and answers what is written to it.
+class FakeStream final : public DNS::StreamConnection {
+    AK_ALLOC_WITH_KMALLOC;
+
 public:
-    TestLoop()
+    virtual void write(ReadonlyBytes bytes) override
     {
-        static auto& event_loop = *new Core::EventLoop;
-        VERIFY(&Core::EventLoop::current() == &event_loop);
+        written.append(bytes);
+        while (written.size() >= 2) {
+            size_t length = written[0] << 8 | written[1];
+            if (written.size() < 2 + length)
+                break;
+            auto query = MUST(ByteBuffer::copy(written.bytes().slice(2, length)));
+            written = MUST(ByteBuffer::copy(written.bytes().slice(2 + length)));
+            ++queries;
+            if (answer_queries) {
+                auto response = build_dns_response(query);
+                auto framed = frame(response);
+                on_data(framed.bytes());
+            }
+        }
     }
 
-    int exec()
-    {
-        spin_until([this] { return m_exit_code.has_value(); });
-        return *m_exit_code;
-    }
-
-    void quit(int code) { m_exit_code = code; }
-    bool was_exit_requested() const { return m_exit_code.has_value(); }
-    void spin_until(Function<bool()> goal_condition) { Core::EventLoop::current().spin_until(move(goal_condition)); }
-
-private:
-    Optional<int> m_exit_code;
+    ByteBuffer written;
+    size_t queries { 0 };
+    bool answer_queries { true };
 };
-
-void expect_successful_lookup(DNS::Resolver& resolver, TestLoop& loop)
-{
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
-        ->when_resolved([&](auto& result) {
-            EXPECT(!result->records().is_empty());
-            loop.quit(0);
-        })
-        .when_rejected([&](auto& error) {
-            outln("Failed to resolve: {}", error);
-            loop.quit(1);
-        });
-
-    EXPECT_EQ(0, loop.exec());
-}
 
 }
 
 TEST_CASE(test_udp)
 {
-    TestLoop loop;
-
+    event_loop();
     auto server = Core::UDPServer::construct();
     EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-
+    size_t queries = 0;
     server->on_ready_to_receive = [&] {
         sockaddr_in from {};
         auto query = MUST(server->receive(4096, from));
-        auto response = MUST(build_dns_response(query.bytes()));
-        MUST(server->send(response.bytes(), from));
+        ++queries;
+        auto response = build_dns_response(query.bytes());
+        MUST(server->send(response, from));
     };
 
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
+    DNS::Resolver resolver;
+    resolver.set_server(DNS::Resolver::Server { "127.0.0.1", server->local_port().value(), DNS::Resolver::ServerTransport::UDP });
 
-    expect_successful_lookup(resolver, loop);
+    auto result = TRY_OR_FAIL(await_lookup(resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })));
+    auto addresses = result->cached_addresses();
+    EXPECT_EQ(addresses.size(), 1u);
+    EXPECT_EQ(addresses.first().get<IPv4Address>(), (IPv4Address { 192, 0, 2, 1 }));
+    EXPECT_EQ(result->records().first().text, "192.0.2.1"sv);
+
+    // The second lookup comes from the cache.
+    (void)TRY_OR_FAIL(await_lookup(resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })));
+    EXPECT_EQ(queries, 1u);
 }
 
-TEST_CASE(test_tcp)
+TEST_CASE(test_tls_lookups_wait_for_the_handshake_without_blocking)
 {
-    TestLoop loop;
+    event_loop();
+    FakeStream* stream = nullptr;
+    Optional<ByteString> server_name;
 
-    auto server = MUST(Core::TCPServer::try_create());
-    MUST(server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
-    auto server_port = server->local_port().value();
+    DNS::Resolver resolver;
+    resolver.set_stream_connector([&](Core::SocketAddress const& address, ByteString const& name, DNS::StreamSecurity security) -> ErrorOr<NonnullOwnPtr<DNS::StreamConnection>> {
+        EXPECT_EQ(address.port(), 853);
+        EXPECT(security == DNS::StreamSecurity::TLS);
+        server_name = name;
+        auto fake = make<FakeStream>();
+        stream = fake.ptr();
+        return fake;
+    });
+    resolver.set_server(DNS::Resolver::Server { "9.9.9.9", 853, DNS::Resolver::ServerTransport::TLS });
 
-    Vector<NonnullOwnPtr<Core::TCPSocket>> connections;
-    ByteBuffer inbox;
-    server->on_ready_to_accept = [&] {
-        // The listening socket is non-blocking — so a readiness notification can outpace the connection. Tolerate
-        // accept() reporting nothing is ready yet.
-        auto accepted = server->accept();
-        if (accepted.is_error())
-            return;
-        connections.append(accepted.release_value());
-        auto& socket = *connections.last();
-        socket.on_ready_to_read = [&socket, &inbox] {
-            // The accepted socket is non-blocking and TCP is a stream — so read what is available, and accumulate it
-            // until the framed message is complete.
-            u8 chunk[1024];
-            auto read = socket.read_some({ chunk, sizeof(chunk) });
-            if (read.is_error() || inbox.try_append(read.value()).is_error())
-                return;
+    auto promise = resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A });
 
-            // DNS over TCP frames each message with a 2-byte length prefix.
-            if (inbox.size() < sizeof(u16))
-                return;
-            u16 const message_size = (static_cast<u16>(inbox[0]) << 8) | inbox[1];
-            if (inbox.size() < sizeof(u16) + message_size)
-                return;
+    // The event loop keeps going while the handshake is under way.
+    bool timer_fired = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(50), [&] { timer_fired = true; });
+    timer->start();
+    if (!spin_until([&] { return timer_fired; }))
+        return;
+    if (!stream) {
+        FAIL("The lookup did not connect to the DNS server");
+        return;
+    }
+    EXPECT_EQ(server_name, "9.9.9.9"sv);
+    EXPECT(is_pending(*promise));
+    EXPECT_EQ(stream->queries, 0u);
 
-            auto response = MUST(build_dns_response(inbox.bytes().slice(sizeof(u16), message_size)));
-            ByteBuffer framed;
-            NetworkOrdered<u16> framed_size = response.size();
-            MUST(framed.try_append(&framed_size, sizeof(framed_size)));
-            MUST(framed.try_append(response));
-            MUST(socket.write_until_depleted(framed.bytes()));
-            inbox.clear();
-        };
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            auto socket = TRY(Core::TCPSocket::connect(address));
-            TRY(socket->set_blocking(false));
-            return DNS::Resolver::SocketResult {
-                TRY(Core::BufferedSocket<Core::TCPSocket>::create(move(socket))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-    };
-
-    expect_successful_lookup(resolver, loop);
+    stream->on_connected();
+    (void)TRY_OR_FAIL(await_lookup(promise));
+    EXPECT_EQ(stream->queries, 1u);
 }
 
-TEST_CASE(test_dnssec_response_rejects_unknown_key_tag)
+TEST_CASE(test_tls_handshake_failure_fails_lookups)
 {
-    TestLoop loop;
+    event_loop();
+    FakeStream* stream = nullptr;
+    DNS::Resolver resolver;
+    resolver.set_stream_connector([&](auto const&, auto const&, auto) -> ErrorOr<NonnullOwnPtr<DNS::StreamConnection>> {
+        auto fake = make<FakeStream>();
+        stream = fake.ptr();
+        return fake;
+    });
+    resolver.set_server(DNS::Resolver::Server { "9.9.9.9", 853, DNS::Resolver::ServerTransport::TLS });
 
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        auto response = MUST(build_response_with_unknown_key_tag(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-    resolver.lookup(""sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A }, { .validate_dnssec_locally = true })
-        ->when_resolved([&](auto&) {
-            loop.quit(1);
-        })
-        .when_rejected([&](auto&) {
-            loop.quit(0);
-        });
-    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { loop.quit(2); });
-    deadline->start();
-    EXPECT_EQ(0, loop.exec());
+    auto promise = resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A });
+    if (!spin_until([&] { return stream != nullptr; }))
+        return;
+    stream->on_error(Error::from_string_literal("certificate verify failed"));
+    EXPECT(await_lookup(promise).is_error());
 }
 
-TEST_CASE(test_dnssec_response_rejects_unhandled_algorithm)
+TEST_CASE(test_tls_without_a_stream_connector_fails_lookups)
 {
-    TestLoop loop;
-
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        auto response = MUST(build_response_with_unhandled_dnssec_algorithm(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-    resolver.lookup(""sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
-        ->when_resolved([&](auto& result) {
-            loop.quit(result->is_dnssec_validated() ? 1 : 2);
-        })
-        .when_rejected([&](auto&) {
-            loop.quit(0);
-        });
-    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1000), [&] { loop.quit(3); });
-    deadline->start();
-    EXPECT_EQ(0, loop.exec());
+    event_loop();
+    DNS::Resolver resolver;
+    resolver.set_server(DNS::Resolver::Server { "9.9.9.9", 853, DNS::Resolver::ServerTransport::TLS });
+    EXPECT(await_lookup(resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })).is_error());
 }
 
 TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
 {
-    TestLoop loop;
+    event_loop();
+    DNS::Resolver resolver;
+    resolver.set_server(DNS::Resolver::Server { "192.0.2.53", 53, DNS::Resolver::ServerTransport::UDP });
+    resolver.set_loopback_domains({ "test" });
 
-    // The socket factory must never run: localhost names are answered in-process, never sent upstream.
-    DNS::Resolver resolver {
-        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            return Error::from_string_literal("DNS socket should not be created for a localhost lookup");
-        }
-    };
-
-    auto expect_loopback = [&](StringView name) {
-        bool saw_loopback_v4 = false;
-        bool saw_loopback_v6 = false;
-        resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
-            ->when_resolved([&](auto& result) {
-                for (auto const& record : result->records()) {
-                    if (auto const* a = record.record.template get_pointer<DNS::Messages::Records::A>())
-                        saw_loopback_v4 = a->address == IPv4Address { 127, 0, 0, 1 };
-                    else if (auto const* aaaa = record.record.template get_pointer<DNS::Messages::Records::AAAA>())
-                        saw_loopback_v6 = aaaa->address == IPv6Address::loopback();
-                }
-                loop.quit(0);
-            })
-            .when_rejected([&](auto& error) {
-                outln("Failed to resolve {}: {}", name, error);
-                loop.quit(1);
-            });
-        EXPECT_EQ(0, loop.exec());
-        EXPECT(saw_loopback_v4);
-        EXPECT(saw_loopback_v6);
-    };
-
-    expect_loopback("localhost"sv);
-    // A multi-label subdomain: the case that the host resolver / upstream server may not map to loopback.
-    expect_loopback("test-host.localhost"sv);
-    // Absolute forms take the same path.
-    expect_loopback("localhost."sv);
-    expect_loopback("test-host.localhost."sv);
-    // URL hosts may have labels longer than DNS allows; these never reach the wire.
-    expect_loopback(ByteString::formatted("{}.localhost", ByteString::repeated('a', 64)));
-    expect_loopback("Test-Host.LocalHost"sv);
-}
-
-TEST_CASE(test_loopback_domains_resolve_to_loopback_without_a_socket)
-{
-    TestLoop loop;
-
-    auto resolves_to_loopback = [](DNS::Resolver& resolver, StringView name) {
-        auto result = resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
-        if (result.is_error())
-            return false;
-        bool saw_loopback_v4 = false;
-        bool saw_loopback_v6 = false;
-        for (auto const& record : result.value()->records()) {
-            if (auto const* a = record.record.get_pointer<DNS::Messages::Records::A>())
-                saw_loopback_v4 = a->address == IPv4Address { 127, 0, 0, 1 };
-            else if (auto const* aaaa = record.record.get_pointer<DNS::Messages::Records::AAAA>())
-                saw_loopback_v6 = aaaa->address == IPv6Address::loopback();
-        }
-        return saw_loopback_v4 && saw_loopback_v6;
-    };
-
-    DNS::Resolver resolver {
-        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            return Error::from_string_literal("DNS socket should not be created for a loopback lookup");
-        }
-    };
-    resolver.set_loopback_domains({ "test"sv });
-    EXPECT(resolves_to_loopback(resolver, "test"sv));
-    EXPECT(resolves_to_loopback(resolver, "web-platform.test"sv));
-    EXPECT(resolves_to_loopback(resolver, "a.b.test"sv));
-    EXPECT(resolves_to_loopback(resolver, "Web-Platform.Test."sv));
-    EXPECT(!resolves_to_loopback(resolver, "nottest"sv));
-    EXPECT(!resolves_to_loopback(resolver, "xtest"sv));
-    EXPECT(!resolves_to_loopback(resolver, "test.example"sv));
-
-    DNS::Resolver resolver_without_loopback_domains {
-        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            return Error::from_string_literal("DNS socket should not be created for this lookup");
-        }
-    };
-    EXPECT(!resolves_to_loopback(resolver_without_loopback_domains, "web-platform.test"sv));
-}
-
-TEST_CASE(test_lookup_rejects_names_that_must_not_go_upstream)
-{
-    TestLoop loop;
-
-    DNS::Resolver resolver {
-        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            return Error::from_string_literal("DNS socket should not be created for this lookup");
-        }
-    };
-
-    auto expect_rejection = [&](StringView name) {
-        auto result = resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await();
-        EXPECT(result.is_error());
-    };
-
-    expect_rejection("service.onion"sv);
-    expect_rejection("Service.ONION"sv);
-    expect_rejection("service.onion.."sv);
-    expect_rejection("localhost.."sv);
-    expect_rejection("victim..example"sv);
-    expect_rejection(".example"sv);
-}
-
-TEST_CASE(test_configured_server_failure_does_not_fall_back_to_the_system_resolver)
-{
-    TestLoop loop;
-
-    DNS::Resolver resolver {
-        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            return Error::from_string_literal("Configured DNS server is unreachable");
-        }
-    };
-
-    resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
-        ->when_resolved([&](auto&) { loop.quit(1); })
-        .when_rejected([&](auto&) { loop.quit(0); });
-    EXPECT_EQ(0, loop.exec());
-}
-
-TEST_CASE(test_unrelated_answers_are_not_cached)
-{
-    TestLoop loop;
-
-    size_t queries = 0;
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        ++queries;
-        auto response = MUST(build_response_with_unrelated_answers(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    auto lookup = [&] {
-        auto result = resolver.lookup("victim.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await();
-        if (!result.is_error())
-            EXPECT(!result.value()->has_cached_addresses());
-    };
-
-    lookup();
-    EXPECT_EQ(queries, 1u);
-    // Nothing answered the question, so nothing should have been cached for it.
-    lookup();
-    EXPECT_EQ(queries, 2u);
-}
-
-TEST_CASE(test_concurrent_lookups_for_one_name_all_resolve)
-{
-    TestLoop loop;
-
-    size_t queries = 0;
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        ++queries;
-        auto response = MUST(build_dns_response(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> promises;
-    for (size_t i = 0; i < 3; ++i)
-        promises.append(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }));
-
-    for (auto& promise : promises) {
-        auto result = TRY_OR_FAIL(promise->await());
-        EXPECT(result->has_cached_addresses());
+    for (auto name : { "localhost"sv, "app.localhost"sv, "web-platform.test"sv }) {
+        auto result = TRY_OR_FAIL(await_lookup(resolver.lookup(name)));
+        auto addresses = result->cached_addresses();
+        EXPECT_EQ(addresses.size(), 2u);
+        EXPECT(addresses.contains_slow(IPv4Address { 127, 0, 0, 1 }));
+        EXPECT(addresses.contains_slow(IPv6Address::loopback()));
     }
-    // One query per type, shared by all three callers.
-    EXPECT_EQ(queries, 2u);
 }
 
-TEST_CASE(test_validated_lookup_settles_on_a_negative_response)
+TEST_CASE(test_remote_system_resolver_answers_lookups)
 {
-    TestLoop loop;
-
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        auto response = MUST(build_empty_response(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    bool settled = false;
-    resolver.lookup("nonexistent.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A }, { .validate_dnssec_locally = true })
-        ->when_resolved([&](auto& result) {
-            EXPECT(!result->is_dnssec_validated());
-            EXPECT(!result->has_cached_addresses());
-            settled = true;
-        })
-        .when_rejected([&](auto&) { settled = true; });
-
-    auto deadline = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(2000), [&] { loop.quit(1); });
-    deadline->start();
-    loop.spin_until([&] { return settled || loop.was_exit_requested(); });
-    EXPECT(settled);
-}
-
-TEST_CASE(test_short_udp_datagram_does_not_block_the_event_loop)
-{
-    TestLoop loop;
-
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(server->receive(4096, from));
-        // A datagram that is not even a header, then the real answer.
-        u8 junk = 0;
-        MUST(server->send({ &junk, 1 }, from));
-        auto response = MUST(build_dns_response(query.bytes()));
-        MUST(server->send(response.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await());
-    EXPECT(result->has_cached_addresses());
-}
-
-TEST_CASE(test_partial_tcp_frame_does_not_block_the_event_loop)
-{
-    TestLoop loop;
-
-    auto server = MUST(Core::TCPServer::try_create());
-    MUST(server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
-    auto server_port = server->local_port().value();
-
-    Vector<NonnullOwnPtr<Core::TCPSocket>> connections;
-    ByteBuffer inbox;
-    ByteBuffer pending_response;
-    server->on_ready_to_accept = [&] {
-        auto accepted = server->accept();
-        if (accepted.is_error())
-            return;
-        connections.append(accepted.release_value());
-        auto& socket = *connections.last();
-        socket.on_ready_to_read = [&] {
-            u8 chunk[1024];
-            auto read = socket.read_some({ chunk, sizeof(chunk) });
-            if (read.is_error() || inbox.try_append(read.value()).is_error())
-                return;
-            if (inbox.size() < sizeof(u16))
-                return;
-            u16 const message_size = (static_cast<u16>(inbox[0]) << 8) | inbox[1];
-            if (inbox.size() < sizeof(u16) + message_size)
-                return;
-
-            auto response = MUST(build_dns_response(inbox.bytes().slice(sizeof(u16), message_size)));
-            NetworkOrdered<u16> framed_size = response.size();
-            MUST(pending_response.try_append(&framed_size, sizeof(framed_size)));
-            MUST(pending_response.try_append(response));
-            inbox.clear();
-
-            // Only the first byte of the length prefix for now; the rest follows later.
-            MUST(socket.write_until_depleted(pending_response.bytes().slice(0, 1)));
-        };
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            auto socket = TRY(Core::TCPSocket::connect(address));
-            TRY(socket->set_blocking(false));
-            return DNS::Resolver::SocketResult {
-                TRY(Core::BufferedSocket<Core::TCPSocket>::create(move(socket))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    auto promise = resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A });
-
-    // The event loop must keep running while the frame is incomplete.
-    bool timer_fired = false;
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(100), [&] { timer_fired = true; });
-    timer->start();
-    loop.spin_until([&] { return timer_fired; });
-    EXPECT(!promise->is_resolved());
-
-    MUST(connections.last()->write_until_depleted(pending_response.bytes().slice(1)));
-    auto result = TRY_OR_FAIL(promise->await());
-    EXPECT(result->has_cached_addresses());
-}
-
-TEST_CASE(test_tcp_connection_is_replaced_after_the_server_closes_it)
-{
-    TestLoop loop;
-
-    auto server = MUST(Core::TCPServer::try_create());
-    MUST(server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
-    auto server_port = server->local_port().value();
-
-    size_t accepted_connections = 0;
-    Vector<NonnullOwnPtr<Core::TCPSocket>> connections;
-    ByteBuffer inbox;
-    server->on_ready_to_accept = [&] {
-        auto accepted = server->accept();
-        if (accepted.is_error())
-            return;
-        ++accepted_connections;
-        connections.append(accepted.release_value());
-        auto& socket = *connections.last();
-        socket.on_ready_to_read = [&] {
-            u8 chunk[1024];
-            auto read = socket.read_some({ chunk, sizeof(chunk) });
-            if (read.is_error() || inbox.try_append(read.value()).is_error())
-                return;
-            if (inbox.size() < sizeof(u16))
-                return;
-            u16 const message_size = (static_cast<u16>(inbox[0]) << 8) | inbox[1];
-            if (inbox.size() < sizeof(u16) + message_size)
-                return;
-
-            // The first connection is closed without an answer; every later one answers.
-            if (accepted_connections == 1) {
-                inbox.clear();
-                socket.close();
-                return;
-            }
-
-            auto response = MUST(build_dns_response(inbox.bytes().slice(sizeof(u16), message_size)));
-            ByteBuffer framed;
-            NetworkOrdered<u16> framed_size = response.size();
-            MUST(framed.try_append(&framed_size, sizeof(framed_size)));
-            MUST(framed.try_append(response));
-            MUST(socket.write_until_depleted(framed.bytes()));
-            inbox.clear();
-        };
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            auto socket = TRY(Core::TCPSocket::connect(address));
-            TRY(socket->set_blocking(false));
-            return DNS::Resolver::SocketResult {
-                TRY(Core::BufferedSocket<Core::TCPSocket>::create(move(socket))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await());
-    EXPECT(result->has_cached_addresses());
-    EXPECT_EQ(accepted_connections, 2u);
-}
-
-TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
-{
-    TestLoop loop;
-
-    // The server answers on one port over both UDP and TCP. The system may reserve ranges of ports for one protocol but
-    // not the other, and hands out ports in order, so a port it picks for one protocol can sit in a block the other is
-    // refused for. So each attempt tries both ways: TCP on the port the system picks for UDP, then UDP on the port it
-    // picks for TCP. A server whose port the other protocol turns down stays open for the rest of the test, so that the
-    // system moves on to a fresh port rather than handing out the same one again.
-    RefPtr<Core::TCPServer> tcp_server;
-    RefPtr<Core::UDPServer> udp_server;
-    Vector<NonnullRefPtr<Core::UDPServer>> rejected_udp_servers;
-    Vector<NonnullRefPtr<Core::TCPServer>> rejected_tcp_servers;
-    Vector<u16> udp_ports_tcp_refused;
-    Vector<u16> tcp_ports_udp_refused;
-    Optional<Error> listen_error;
-    for (size_t attempt = 0; attempt < 10 && !tcp_server; ++attempt) {
-        auto udp_candidate = Core::UDPServer::construct();
-        if (!udp_candidate->bind(IPv4Address { 127, 0, 0, 1 }, 0)) {
-            FAIL("Couldn't bind UDP to a port the system picks");
-            return;
-        }
-        auto udp_port = udp_candidate->local_port().value();
-        auto tcp_candidate = MUST(Core::TCPServer::try_create());
-        auto listened = tcp_candidate->listen(IPv4Address { 127, 0, 0, 1 }, udp_port);
-        if (!listened.is_error()) {
-            udp_server = move(udp_candidate);
-            tcp_server = move(tcp_candidate);
-            break;
-        }
-        listen_error = listened.release_error();
-        udp_ports_tcp_refused.append(udp_port);
-        rejected_udp_servers.append(move(udp_candidate));
-
-        auto tcp_first = MUST(Core::TCPServer::try_create());
-        if (auto result = tcp_first->listen(IPv4Address { 127, 0, 0, 1 }, 0); result.is_error()) {
-            FAIL(ByteString::formatted("Couldn't listen for TCP on a port the system picks: {}", result.error()));
-            return;
-        }
-        auto tcp_port = tcp_first->local_port().value();
-        auto udp_second = Core::UDPServer::construct();
-        if (udp_second->bind(IPv4Address { 127, 0, 0, 1 }, tcp_port)) {
-            udp_server = move(udp_second);
-            tcp_server = move(tcp_first);
-            break;
-        }
-        tcp_ports_udp_refused.append(tcp_port);
-        rejected_tcp_servers.append(move(tcp_first));
-    }
-    if (!tcp_server) {
-        FAIL(ByteString::formatted("Couldn't serve UDP and TCP on one port: TCP refused UDP's ports {} ({}), and UDP refused TCP's ports {}",
-            ByteString::join(", "sv, udp_ports_tcp_refused), listen_error.value(), ByteString::join(", "sv, tcp_ports_udp_refused)));
-        return;
-    }
-    auto server_port = udp_server->local_port().value();
-
-    size_t udp_queries = 0;
-    udp_server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query = MUST(udp_server->receive(4096, from));
-        ++udp_queries;
-        auto response = MUST(build_truncated_response(query.bytes()));
-        MUST(udp_server->send(response.bytes(), from));
-    };
-
-    size_t tcp_queries = 0;
-    Vector<NonnullOwnPtr<Core::TCPSocket>> connections;
-    ByteBuffer inbox;
-    tcp_server->on_ready_to_accept = [&] {
-        auto accepted = tcp_server->accept();
-        if (accepted.is_error())
-            return;
-        connections.append(accepted.release_value());
-        auto& socket = *connections.last();
-        socket.on_ready_to_read = [&] {
-            u8 chunk[1024];
-            auto read = socket.read_some({ chunk, sizeof(chunk) });
-            if (read.is_error() || inbox.try_append(read.value()).is_error())
-                return;
-            if (inbox.size() < sizeof(u16))
-                return;
-            u16 const message_size = (static_cast<u16>(inbox[0]) << 8) | inbox[1];
-            if (inbox.size() < sizeof(u16) + message_size)
-                return;
-
-            ++tcp_queries;
-            auto response = MUST(build_dns_response(inbox.bytes().slice(sizeof(u16), message_size)));
-            ByteBuffer framed;
-            NetworkOrdered<u16> framed_size = response.size();
-            MUST(framed.try_append(&framed_size, sizeof(framed_size)));
-            MUST(framed.try_append(response));
-            MUST(socket.write_until_depleted(framed.bytes()));
-            inbox.clear();
-        };
-    };
-
-    auto socket_factory = [server_port](bool with_tcp_fallback) {
-        return [server_port, with_tcp_fallback] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            DNS::Resolver::SocketResult result { TRY(Core::UDPSocket::connect(address)), DNS::Resolver::ConnectionMode::UDP };
-            if (with_tcp_fallback) {
-                result.connect_tcp = [address] -> ErrorOr<NonnullOwnPtr<Core::Socket>> {
-                    return TRY(Core::TCPSocket::connect(address));
-                };
-            }
-            return result;
-        };
-    };
-
-    DNS::Resolver resolver { socket_factory(true) };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await());
-    EXPECT(result->has_cached_addresses());
-    EXPECT_EQ(udp_queries, 1u);
-    EXPECT_EQ(tcp_queries, 1u);
-
-    // Without a way to reach the server over TCP, a truncated answer is still an error rather than an empty one.
-    DNS::Resolver udp_only_resolver { socket_factory(false) };
-    TRY_OR_FAIL(udp_only_resolver.when_socket_ready()->await());
-    EXPECT(udp_only_resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await().is_error());
-    EXPECT_EQ(tcp_queries, 1u);
-}
-
-TEST_CASE(test_expired_addresses_are_not_mistaken_for_a_negative_answer)
-{
-    TestLoop loop;
-
-    // A long-lived CNAME to short-lived addresses: Once the addresses expire, the CNAME is still cached.
-    size_t queries = 0;
-    auto server = Core::UDPServer::construct();
-    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
-    auto server_port = server->local_port().value();
-    server->on_ready_to_receive = [&] {
-        sockaddr_in from {};
-        auto query_bytes = MUST(server->receive(4096, from));
-        ++queries;
-
-        FixedMemoryStream stream { query_bytes.bytes() };
-        auto query = MUST(DNS::Messages::Message::from_raw(stream));
-
-        DNS::Messages::Message response;
-        response.header.id = query.header.id;
-        response.header.options.set_is_question(false);
-        response.header.question_count = query.questions.size();
-        response.questions = move(query.questions);
-
-        auto owner = response.questions.first().name;
-        auto target = DNS::Messages::DomainName::from_string("target.example"sv);
-        response.answers.append({ owner, DNS::Messages::ResourceType::CNAME, DNS::Messages::Class::IN, 3600,
-            DNS::Messages::Records::CNAME { target }, {} });
-        if (response.questions.first().type == DNS::Messages::ResourceType::A) {
-            response.answers.append({ target, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 1,
-                DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
-        }
-        response.header.answer_count = response.answers.size();
-
-        ByteBuffer out;
-        MUST(response.to_raw(out));
-        MUST(server->send(out.bytes(), from));
-    };
-
-    DNS::Resolver resolver {
-        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
-            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
-            return DNS::Resolver::SocketResult {
-                TRY(Core::UDPSocket::connect(address)),
-                DNS::Resolver::ConnectionMode::UDP,
-            };
-        }
-    };
-    TRY_OR_FAIL(resolver.when_socket_ready()->await());
-
-    auto lookup = [&] {
-        return resolver.lookup("expiring.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
-    };
-
-    auto first = TRY_OR_FAIL(lookup());
-    EXPECT_EQ(first->cached_addresses().size(), 1u);
-    auto queries_for_first_lookup = queries;
-
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(2100), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    auto second = TRY_OR_FAIL(lookup());
-    EXPECT_EQ(second->cached_addresses().size(), 1u);
-    EXPECT(queries > queries_for_first_lookup);
-}
-
-namespace {
-
-// A system resolver that answers for IPv6 right away, and for IPv4 only once the test lets it.
-class SystemResolverWithHeldBackIPv4 {
-public:
-    DNS::Resolver::SystemResolverForTesting system_resolver(bool is_ipv6_globally_reachable = true)
-    {
-        m_ipv6_is_globally_reachable.store(is_ipv6_globally_reachable);
-        return {
-            .resolve_host = [this](ByteString const&, Core::Socket::AddressFamily family) -> ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> {
-                if (family == Core::Socket::AddressFamily::IPv6Only) {
-                    m_ipv6_answered.store(true);
-                    return Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() };
-                }
-                MutexLocker locker { m_mutex };
-                m_condition.wait_while([&] { return !m_ipv4_may_answer; });
-                return Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } };
-            },
-            .is_ipv6_globally_reachable = [this] { return m_ipv6_is_globally_reachable.load(); },
-            .resolution_timeout = {},
-        };
-    }
-
-    bool ipv6_answered() const { return m_ipv6_answered.load(); }
-    void set_ipv6_is_globally_reachable(bool reachable) { m_ipv6_is_globally_reachable.store(reachable); }
-
-    void let_ipv4_answer()
-    {
-        MutexLocker locker { m_mutex };
-        m_ipv4_may_answer = true;
-        m_condition.broadcast();
-    }
-
-private:
-    Mutex m_mutex;
-    ConditionVariable m_condition { m_mutex };
-    bool m_ipv4_may_answer { false };
-    Atomic<bool> m_ipv6_answered { false };
-    Atomic<bool> m_ipv6_is_globally_reachable { true };
-};
-
-bool has_address_of_family(DNS::LookupResult const& result, bool ipv6)
-{
-    return any_of(result.cached_addresses(), [ipv6](auto const& address) { return address.template has<IPv6Address>() == ipv6; });
-}
-
-}
-
-TEST_CASE(test_system_resolver_waits_for_ipv4_addresses_after_ipv6_addresses)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(),
-    };
-
-    auto promise = resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA });
-    loop.spin_until([&] { return system_resolver.ipv6_answered(); });
-
-    // Well past the 50 ms that the AAAA side gets after the A side, and well short of the 1 s the A side gets.
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(200), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    // IPv6 addresses alone are no use if they turn out to be unreachable, so the lookup waits for the IPv4 addresses.
-    EXPECT(!promise->is_resolved());
-    EXPECT(!promise->is_rejected());
-
-    system_resolver.let_ipv4_answer();
-    auto result = TRY_OR_FAIL(promise->await());
-    EXPECT_EQ(result->cached_addresses().size(), 2u);
-    EXPECT(has_address_of_family(*result, false));
-    EXPECT(has_address_of_family(*result, true));
-}
-
-TEST_CASE(test_system_resolver_goes_ahead_with_ipv6_addresses_when_ipv4_addresses_take_too_long)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(),
-    };
-
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-    EXPECT(has_address_of_family(*result, true));
-
-    // The IPv4 addresses that come later are still cached for later lookups.
-    system_resolver.let_ipv4_answer();
-    loop.spin_until([&] { return resolver.lookup_in_cache("example.com"sv); });
-    EXPECT_EQ(resolver.expect_cached("example.com"sv)->cached_addresses().size(), 2u);
-}
-
-TEST_CASE(test_system_resolver_skips_ipv6_addresses_when_ipv6_is_unreachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(false),
-    };
-
-    system_resolver.let_ipv4_answer();
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-    EXPECT(has_address_of_family(*result, false));
-    EXPECT(!system_resolver.ipv6_answered());
-}
-
-TEST_CASE(test_system_resolver_resolves_ipv6_addresses_on_request_when_ipv6_is_unreachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(false),
-    };
-
-    auto promise = resolver.lookup("proxy.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .query_aaaa_without_global_ipv6 = true });
-    loop.spin_until([&] { return system_resolver.ipv6_answered(); });
-    system_resolver.let_ipv4_answer();
-    auto result = TRY_OR_FAIL(promise->await());
-    EXPECT(system_resolver.ipv6_answered());
-    EXPECT(has_address_of_family(*result, true));
-}
-
-TEST_CASE(test_system_resolver_resolves_ipv6_addresses_of_local_names_when_ipv6_is_unreachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(false),
-    };
-
-    // Link-local IPv6 addresses work without a route to the IPv6 internet, so ".local" names keep the AAAA side.
-    system_resolver.let_ipv4_answer();
-    auto result = TRY_OR_FAIL(resolver.lookup("printer.local"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
-    EXPECT(system_resolver.ipv6_answered());
-    EXPECT(has_address_of_family(*result, true));
-}
-
-TEST_CASE(test_system_resolver_looks_up_ipv6_addresses_again_once_ipv6_is_reachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(false),
-    };
-
-    system_resolver.let_ipv4_answer();
-    auto lookup = [&] {
-        return resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
-    };
-
-    auto first = TRY_OR_FAIL(lookup());
-    EXPECT_EQ(first->cached_addresses().size(), 1u);
-    EXPECT(!system_resolver.ipv6_answered());
-
-    // While IPv6 stays unreachable, the cached result without IPv6 addresses is used.
-    auto second = TRY_OR_FAIL(lookup());
-    EXPECT_EQ(second.ptr(), first.ptr());
-
-    // Reachability is checked again at most once a second.
-    system_resolver.set_ipv6_is_globally_reachable(true);
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1100), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    // The cached result never asked for IPv6 addresses, so it does not answer for them now that IPv6 is reachable.
-    auto third = TRY_OR_FAIL(lookup());
-    EXPECT(system_resolver.ipv6_answered());
-    EXPECT_EQ(third->cached_addresses().size(), 2u);
-    EXPECT(has_address_of_family(*third, false));
-    EXPECT(has_address_of_family(*third, true));
-}
-
-TEST_CASE(test_system_resolver_does_not_join_a_lookup_without_ipv6_addresses_once_ipv6_is_reachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(false),
-    };
-
-    auto lookup = [&] {
-        return resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA });
-    };
-
-    auto first = lookup();
-
-    // Reachability is checked again at most once a second.
-    system_resolver.set_ipv6_is_globally_reachable(true);
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1100), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    // The first lookup is still waiting for IPv4 addresses, but it never asked for IPv6 addresses.
-    auto second = lookup();
-    bool gave_up = false;
-    timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(500), [&] { gave_up = true; });
-    timer->start();
-    loop.spin_until([&] { return system_resolver.ipv6_answered() || gave_up; });
-    EXPECT(system_resolver.ipv6_answered());
-
-    system_resolver.let_ipv4_answer();
-    auto first_result = TRY_OR_FAIL(first->await());
-    EXPECT_EQ(first_result->cached_addresses().size(), 1u);
-    EXPECT(has_address_of_family(*first_result, false));
-
-    auto second_result = TRY_OR_FAIL(second->await());
-    EXPECT_EQ(second_result->cached_addresses().size(), 2u);
-    EXPECT(has_address_of_family(*second_result, false));
-    EXPECT(has_address_of_family(*second_result, true));
-}
-
-TEST_CASE(test_system_resolver_does_not_join_a_lookup_without_ipv4_addresses_once_ipv6_is_unreachable)
-{
-    TestLoop loop;
-    SystemResolverWithHeldBackIPv4 system_resolver;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        system_resolver.system_resolver(),
-    };
-
-    auto lookup = [&] {
-        return resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA });
-    };
-
-    // The first lookup goes ahead with IPv6 addresses alone while it keeps waiting for IPv4 addresses.
-    auto first = TRY_OR_FAIL(lookup()->await());
-    EXPECT_EQ(first->cached_addresses().size(), 1u);
-    EXPECT(has_address_of_family(*first, true));
-
-    // Reachability is checked again at most once a second.
-    system_resolver.set_ipv6_is_globally_reachable(false);
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1100), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    // IPv6 addresses are of no use now, so the second lookup waits for its own IPv4 addresses.
-    auto second = lookup();
-    system_resolver.let_ipv4_answer();
-    auto second_result = TRY_OR_FAIL(second->await());
-    EXPECT_EQ(second_result->cached_addresses().size(), 1u);
-    EXPECT(has_address_of_family(*second_result, false));
-
-    loop.spin_until([&] { return has_address_of_family(*first, false); });
-}
-
-TEST_CASE(test_remote_system_resolver_answers_lookups_in_place_of_the_thread_pool)
-{
-    TestLoop loop;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = [](ByteString const&, Core::Socket::AddressFamily) -> ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> {
-                return Error::from_string_literal("The thread pool's resolver must not be asked");
-            },
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = {},
-        },
-    };
-
-    Vector<Core::Socket::AddressFamily> families_asked;
+    event_loop();
+    DNS::Resolver resolver;
+    Vector<ByteString> asked;
     resolver.set_remote_system_resolver([&](ByteString const& name, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
-        EXPECT_EQ(name, "example.com"sv);
-        families_asked.append(family);
-        // A remote resolver answers later, never from inside the call.
-        Core::deferred_invoke([family, on_resolved = move(on_resolved)] mutable {
-            if (family == Core::Socket::AddressFamily::IPv6Only)
-                on_resolved(Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
-            else
-                on_resolved(Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
-        });
+        asked.append(name);
+        if (family == Core::Socket::AddressFamily::IPv4Only)
+            on_resolved(Vector<DNS::LookupResult::Address> { IPv4Address { 192, 0, 2, 9 } });
+        else
+            on_resolved(Vector<DNS::LookupResult::Address> {});
         return {};
     });
 
-    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
-    EXPECT_EQ(families_asked.size(), 2u);
-    EXPECT(families_asked.contains_slow(Core::Socket::AddressFamily::IPv4Only));
-    EXPECT(families_asked.contains_slow(Core::Socket::AddressFamily::IPv6Only));
-    EXPECT_EQ(result->cached_addresses().size(), 2u);
-    EXPECT(has_address_of_family(*result, false));
-    EXPECT(has_address_of_family(*result, true));
+    auto result = TRY_OR_FAIL(await_lookup(resolver.lookup("example.com", DNS::Messages::Class::IN, { .query_aaaa_without_global_ipv6 = true })));
+    EXPECT_EQ(result->cached_addresses().first().get<IPv4Address>(), (IPv4Address { 192, 0, 2, 9 }));
+    EXPECT_EQ(asked.size(), 2u);
 }
 
 TEST_CASE(test_lookup_fails_when_the_remote_system_resolver_fails)
 {
-    TestLoop loop;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        { .resolve_host = {}, .is_ipv6_globally_reachable = [] { return true; }, .resolution_timeout = {} },
-    };
-    resolver.set_remote_system_resolver([](ByteString const&, Core::Socket::AddressFamily, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
-        Core::deferred_invoke([on_resolved = move(on_resolved)] mutable {
-            on_resolved(Error::from_string_literal("No such name"));
-        });
+    event_loop();
+    DNS::Resolver resolver;
+    resolver.set_remote_system_resolver([](auto const&, auto, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
+        on_resolved(Error::from_string_literal("No such host"));
         return {};
     });
-
-    auto result = resolver.lookup("nonexistent.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
-    EXPECT(result.is_error());
+    EXPECT(await_lookup(resolver.lookup("example.com")).is_error());
 }
 
-namespace {
-
-class DeferredSystemResolver {
-public:
-    DNS::Resolver::RemoteSystemResolver callback()
-    {
-        return [this](ByteString const&, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> callback) -> DNS::Resolver::CancelRemoteSystemResolution {
-            auto index = m_requests.size();
-            m_requests.append({ family, move(callback) });
-            return [this, index] {
-                m_requests[index].cancelled = true;
-                ++m_cancelled_count;
-            };
-        };
-    }
-
-    size_t request_count() const { return m_requests.size(); }
-    size_t cancelled_count() const { return m_cancelled_count; }
-
-    // Answers the earliest request for `family` that hasn't been answered yet.
-    void answer_first(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
-    {
-        for (auto& request : m_requests) {
-            if (request.family != family || !request.callback || request.cancelled)
-                continue;
-            auto callback = move(request.callback);
-            request.callback = nullptr;
-            callback(move(result));
-            return;
-        }
-        FAIL("No unanswered request for that address family");
-    }
-
-    // Answers the earliest request for `family` that the resolver cancelled, as a remote resolver whose answer was
-    // already on its way would.
-    void answer_cancelled_first(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
-    {
-        for (auto& request : m_requests) {
-            if (request.family != family || !request.callback || !request.cancelled)
-                continue;
-            auto callback = move(request.callback);
-            request.callback = nullptr;
-            callback(move(result));
-            return;
-        }
-        FAIL("No cancelled request for that address family");
-    }
-
-    // Answers the latest request for `family` that hasn't been answered yet.
-    void answer_latest(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
-    {
-        for (size_t i = m_requests.size(); i > 0; --i) {
-            auto& request = m_requests[i - 1];
-            if (request.family != family || !request.callback || request.cancelled)
-                continue;
-            auto callback = move(request.callback);
-            request.callback = nullptr;
-            callback(move(result));
-            return;
-        }
-        FAIL("No unanswered request for that address family");
-    }
-
-private:
-    struct Request {
-        Core::Socket::AddressFamily family;
-        Function<void(DNS::Resolver::SystemResolution)> callback;
-        bool cancelled { false };
-    };
-    Vector<Request> m_requests;
-    size_t m_cancelled_count { 0 };
-};
-
-bool wait_for_system_lookup(TestLoop& loop, DNS::Resolver::ResultPromise& promise)
+TEST_CASE(test_resource_type_names)
 {
-    bool timed_out = false;
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(2), [&] { timed_out = true; });
-    timer->start();
-    loop.spin_until([&] { return promise.is_resolved() || promise.is_rejected() || timed_out; });
-    EXPECT(!timed_out);
-    return !timed_out;
+    event_loop();
+    EXPECT_EQ(DNS::Messages::to_string(DNS::Messages::ResourceType::AAAA), "AAAA"sv);
+    EXPECT(DNS::Messages::resource_type_from_string("HTTPS"sv) == DNS::Messages::ResourceType::HTTPS);
+    EXPECT(!DNS::Messages::resource_type_from_string("NOPE"sv).has_value());
 }
 
-}
-
-TEST_CASE(test_system_resolver_deadline_rejects_all_waiters_and_allows_retry)
+// Callers may rely on a lookup the resolver can answer at once having settled when lookup() returns.
+TEST_CASE(test_lookups_answered_at_once_settle_before_lookup_returns)
 {
-    TestLoop loop;
-    DeferredSystemResolver remote;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = {},
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = AK::Duration::from_milliseconds(20),
-        },
+    event_loop();
+
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        auto response = build_dns_response(query.bytes());
+        MUST(server->send(response, from));
     };
-    resolver.set_remote_system_resolver(remote.callback());
 
-    auto first = resolver.lookup("example.com"sv);
-    auto joined = resolver.lookup("example.com"sv);
-    EXPECT_EQ(remote.request_count(), 2u);
-    if (!wait_for_system_lookup(loop, *first))
-        return;
-    EXPECT(first->is_rejected());
-    EXPECT(joined->is_rejected());
-    auto failure = first->await();
-    EXPECT(failure.is_error());
-    if (failure.is_error())
-        EXPECT_EQ(failure.error().string_literal(), "System DNS resolution timed out"sv);
+    DNS::Resolver resolver;
+    resolver.set_server(DNS::Resolver::Server { "127.0.0.1", server->local_port().value(), DNS::Resolver::ServerTransport::UDP });
 
-    auto retry = resolver.lookup("example.com"sv);
-    EXPECT_EQ(remote.request_count(), 4u);
-    if (remote.request_count() != 4)
-        return;
-    remote.answer_latest(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
-    remote.answer_latest(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
-    if (!wait_for_system_lookup(loop, *retry))
-        return;
-    auto result = TRY_OR_FAIL(retry->await());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-    EXPECT_EQ(result->record<DNS::Messages::Records::A>().address, (IPv4Address { 192, 0, 2, 2 }));
-}
+    EXPECT(resolver.lookup("localhost")->is_resolved());
+    EXPECT(resolver.lookup("192.0.2.7")->is_resolved());
 
-TEST_CASE(test_system_resolver_deadline_removes_a_lookup_finalized_after_grace)
-{
-    TestLoop loop;
-    DeferredSystemResolver remote;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = {},
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = AK::Duration::from_milliseconds(500),
-        },
-    };
-    resolver.set_remote_system_resolver(remote.callback());
-
-    auto first = resolver.lookup("example.com"sv);
-    auto joined = resolver.lookup("example.com"sv);
-    remote.answer_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
+    auto first = resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A });
     EXPECT(!first->is_resolved());
-    EXPECT(!joined->is_resolved());
-    if (!wait_for_system_lookup(loop, *first))
-        return;
-    auto result = TRY_OR_FAIL(first->await());
-    EXPECT(joined->is_resolved());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-    auto join_after_grace = TRY_OR_FAIL(resolver.lookup("example.com"sv)->await());
-    EXPECT_EQ(join_after_grace.ptr(), result.ptr());
-    EXPECT_EQ(remote.request_count(), 2u);
+    (void)TRY_OR_FAIL(await_lookup(first));
 
-    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(550), [&] { loop.quit(0); });
-    timer->start();
-    loop.exec();
-
-    auto retry = resolver.lookup("example.com"sv);
-    EXPECT_EQ(remote.request_count(), 4u);
-    if (remote.request_count() != 4)
-        return;
-    EXPECT(!retry->is_resolved());
-    remote.answer_latest(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
-    remote.answer_latest(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
-    if (!wait_for_system_lookup(loop, *retry))
-        return;
-    auto retry_result = TRY_OR_FAIL(retry->await());
-    EXPECT_EQ(resolver.expect_cached("example.com"sv).ptr(), retry_result.ptr());
+    EXPECT(resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->is_resolved());
 }
 
-TEST_CASE(test_system_resolver_ignores_answers_after_the_deadline)
+// A closed connection goes away from the top of the event loop, and its callbacks must leave a resolver that is gone
+// by then alone.
+TEST_CASE(test_closed_stream_outliving_the_resolver_is_ignored)
 {
-    TestLoop loop;
-    DeferredSystemResolver remote;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = {},
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = AK::Duration::from_milliseconds(20),
-        },
-    };
-    resolver.set_remote_system_resolver(remote.callback());
+    event_loop();
 
-    auto first = resolver.lookup("example.com"sv);
-    if (!wait_for_system_lookup(loop, *first))
-        return;
-    EXPECT(first->is_rejected());
-
-    // The deadline cancels both halves with the remote resolver.
-    EXPECT_EQ(remote.cancelled_count(), 2u);
-
-    auto retry = resolver.lookup("example.com"sv);
-    EXPECT_EQ(remote.request_count(), 4u);
-    if (remote.request_count() != 4)
-        return;
-    remote.answer_cancelled_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
-    remote.answer_cancelled_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
-    EXPECT(!retry->is_resolved());
-    EXPECT(!retry->is_rejected());
-    EXPECT(!resolver.lookup_in_cache("example.com"sv));
-
-    remote.answer_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
-    remote.answer_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
-    if (!wait_for_system_lookup(loop, *retry))
-        return;
-    auto result = TRY_OR_FAIL(retry->await());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-    EXPECT_EQ(result->record<DNS::Messages::Records::A>().address, (IPv4Address { 192, 0, 2, 2 }));
-    EXPECT_EQ(resolver.expect_cached("example.com"sv).ptr(), result.ptr());
-}
-
-TEST_CASE(test_system_resolver_deadline_resolves_with_the_addresses_it_has)
-{
-    TestLoop loop;
-    DeferredSystemResolver remote;
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = {},
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = AK::Duration::from_milliseconds(100),
-        },
-    };
-    resolver.set_remote_system_resolver(remote.callback());
-
-    // The IPv6 addresses start a grace period for the IPv4 ones that outlasts the deadline, which then goes ahead with
-    // the IPv6 addresses rather than failing the lookup.
-    auto lookup = resolver.lookup("example.com"sv);
-    remote.answer_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
-    EXPECT(!lookup->is_resolved());
-    if (!wait_for_system_lookup(loop, *lookup))
-        return;
-    auto result = TRY_OR_FAIL(lookup->await());
-    EXPECT_EQ(result->cached_addresses().size(), 1u);
-}
-
-TEST_CASE(test_system_resolver_skips_lookups_given_up_on_while_queued)
-{
-    TestLoop loop;
-    Atomic<size_t> lookups_made { 0 };
-    DNS::Resolver resolver {
-        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        {
-            .resolve_host = [&](ByteString const&, Core::Socket::AddressFamily) -> ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> {
-                lookups_made.fetch_add(1);
-                return Error::from_string_literal("Not found");
-            },
-            .is_ipv6_globally_reachable = [] { return true; },
-            .resolution_timeout = AK::Duration::from_milliseconds(20),
-        },
-    };
-
-    // Hold every worker of the lookup pool, so the lookup's jobs wait in its queue past the deadline.
-    auto& pool = Threading::ThreadPool::for_name_resolution();
-    Mutex mutex;
-    ConditionVariable condition { mutex };
-    size_t held = 0;
-    bool release = false;
-    for (size_t i = 0; i < pool.worker_count(); ++i) {
-        pool.submit([&] {
-            MutexLocker locker { mutex };
-            ++held;
-            condition.broadcast();
-            while (!release)
-                condition.wait();
-            --held;
-            condition.broadcast();
+    FakeStream* stream = nullptr;
+    {
+        DNS::Resolver resolver;
+        resolver.set_stream_connector([&](auto const&, auto const&, auto) -> ErrorOr<NonnullOwnPtr<DNS::StreamConnection>> {
+            auto fake = make<FakeStream>();
+            stream = fake.ptr();
+            return fake;
         });
+        resolver.set_server(DNS::Resolver::Server { "9.9.9.9", 853, DNS::Resolver::ServerTransport::TLS });
+        (void)resolver.lookup("example.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A });
+        resolver.reset_connection();
     }
-    {
-        MutexLocker locker { mutex };
-        while (held != pool.worker_count())
-            condition.wait();
+    if (!stream) {
+        FAIL("The lookup did not connect to the DNS server");
+        return;
     }
 
-    auto lookup = resolver.lookup("example.com"sv);
-    bool waited = wait_for_system_lookup(loop, *lookup);
-    EXPECT(lookup->is_rejected());
+    stream->on_connected();
+    u8 const bytes[] = { 0, 1, 0 };
+    stream->on_data({ bytes, sizeof(bytes) });
+    stream->on_eof();
 
-    {
-        MutexLocker locker { mutex };
-        release = true;
-        condition.broadcast();
-        while (held != 0)
-            condition.wait();
-    }
-    // Once one job per worker, queued after the lookup's, runs on every worker at once, each job queued before them has
-    // finished.
-    {
-        size_t at_barrier = 0;
-        size_t left_barrier = 0;
-        for (size_t i = 0; i < pool.worker_count(); ++i) {
-            pool.submit([&] {
-                MutexLocker locker { mutex };
-                ++at_barrier;
-                condition.broadcast();
-                while (at_barrier < pool.worker_count())
-                    condition.wait();
-                ++left_barrier;
-                condition.broadcast();
-            });
-        }
-        MutexLocker locker { mutex };
-        while (left_barrier < pool.worker_count())
-            condition.wait();
-    }
-    if (waited)
-        EXPECT_EQ(lookups_made.load(), 0u);
+    bool spun = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::zero(), [&] { spun = true; });
+    timer->start();
+    EXPECT(spin_until([&] { return spun; }));
 }
