@@ -2622,7 +2622,7 @@ pub(crate) mod definitions {
         buffer_source_if, dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface,
         frozen_array_to_js, iterator_method, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js,
         sequence_to_js, throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source,
-        to_byte_string, to_cpp_interface,
+        to_byte_string, to_cpp_interface, to_cpp_interface_in_union,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
         to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_shared_array_buffer, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping, to_unsigned_short,
