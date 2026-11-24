@@ -13,6 +13,7 @@
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
 #include <AK/MemoryStream.h>
+#include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
@@ -21,6 +22,7 @@
 #include <LibCore/UDPServer.h>
 #include <LibDNS/Resolver.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/ThreadPool.h>
 
 #include <AK/Windows.h>
 
@@ -995,6 +997,7 @@ public:
                 return Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } };
             },
             .is_ipv6_globally_reachable = [this] { return m_ipv6_is_globally_reachable.load(); },
+            .resolution_timeout = {},
         };
     }
 
@@ -1239,11 +1242,12 @@ TEST_CASE(test_remote_system_resolver_answers_lookups_in_place_of_the_thread_poo
                 return Error::from_string_literal("The thread pool's resolver must not be asked");
             },
             .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = {},
         },
     };
 
     Vector<Core::Socket::AddressFamily> families_asked;
-    resolver.set_remote_system_resolver([&](ByteString const& name, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
+    resolver.set_remote_system_resolver([&](ByteString const& name, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
         EXPECT_EQ(name, "example.com"sv);
         families_asked.append(family);
         // A remote resolver answers later, never from inside the call.
@@ -1253,6 +1257,7 @@ TEST_CASE(test_remote_system_resolver_answers_lookups_in_place_of_the_thread_poo
             else
                 on_resolved(Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
         });
+        return {};
     });
 
     auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
@@ -1269,14 +1274,325 @@ TEST_CASE(test_lookup_fails_when_the_remote_system_resolver_fails)
     TestLoop loop;
     DNS::Resolver resolver {
         [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
-        { .resolve_host = {}, .is_ipv6_globally_reachable = [] { return true; } },
+        { .resolve_host = {}, .is_ipv6_globally_reachable = [] { return true; }, .resolution_timeout = {} },
     };
-    resolver.set_remote_system_resolver([](ByteString const&, Core::Socket::AddressFamily, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
+    resolver.set_remote_system_resolver([](ByteString const&, Core::Socket::AddressFamily, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
         Core::deferred_invoke([on_resolved = move(on_resolved)] mutable {
             on_resolved(Error::from_string_literal("No such name"));
         });
+        return {};
     });
 
     auto result = resolver.lookup("nonexistent.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
     EXPECT(result.is_error());
+}
+
+namespace {
+
+class DeferredSystemResolver {
+public:
+    DNS::Resolver::RemoteSystemResolver callback()
+    {
+        return [this](ByteString const&, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> callback) -> DNS::Resolver::CancelRemoteSystemResolution {
+            auto index = m_requests.size();
+            m_requests.append({ family, move(callback) });
+            return [this, index] {
+                m_requests[index].cancelled = true;
+                ++m_cancelled_count;
+            };
+        };
+    }
+
+    size_t request_count() const { return m_requests.size(); }
+    size_t cancelled_count() const { return m_cancelled_count; }
+
+    // Answers the earliest request for `family` that hasn't been answered yet.
+    void answer_first(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
+    {
+        for (auto& request : m_requests) {
+            if (request.family != family || !request.callback || request.cancelled)
+                continue;
+            auto callback = move(request.callback);
+            request.callback = nullptr;
+            callback(move(result));
+            return;
+        }
+        FAIL("No unanswered request for that address family");
+    }
+
+    // Answers the earliest request for `family` that the resolver cancelled, as a remote resolver whose answer was
+    // already on its way would.
+    void answer_cancelled_first(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
+    {
+        for (auto& request : m_requests) {
+            if (request.family != family || !request.callback || !request.cancelled)
+                continue;
+            auto callback = move(request.callback);
+            request.callback = nullptr;
+            callback(move(result));
+            return;
+        }
+        FAIL("No cancelled request for that address family");
+    }
+
+    // Answers the latest request for `family` that hasn't been answered yet.
+    void answer_latest(Core::Socket::AddressFamily family, DNS::Resolver::SystemResolution result)
+    {
+        for (size_t i = m_requests.size(); i > 0; --i) {
+            auto& request = m_requests[i - 1];
+            if (request.family != family || !request.callback || request.cancelled)
+                continue;
+            auto callback = move(request.callback);
+            request.callback = nullptr;
+            callback(move(result));
+            return;
+        }
+        FAIL("No unanswered request for that address family");
+    }
+
+private:
+    struct Request {
+        Core::Socket::AddressFamily family;
+        Function<void(DNS::Resolver::SystemResolution)> callback;
+        bool cancelled { false };
+    };
+    Vector<Request> m_requests;
+    size_t m_cancelled_count { 0 };
+};
+
+bool wait_for_system_lookup(TestLoop& loop, DNS::Resolver::ResultPromise& promise)
+{
+    bool timed_out = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(2), [&] { timed_out = true; });
+    timer->start();
+    loop.spin_until([&] { return promise.is_resolved() || promise.is_rejected() || timed_out; });
+    EXPECT(!timed_out);
+    return !timed_out;
+}
+
+}
+
+TEST_CASE(test_system_resolver_deadline_rejects_all_waiters_and_allows_retry)
+{
+    TestLoop loop;
+    DeferredSystemResolver remote;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = {},
+            .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = AK::Duration::from_milliseconds(20),
+        },
+    };
+    resolver.set_remote_system_resolver(remote.callback());
+
+    auto first = resolver.lookup("example.com"sv);
+    auto joined = resolver.lookup("example.com"sv);
+    EXPECT_EQ(remote.request_count(), 2u);
+    if (!wait_for_system_lookup(loop, *first))
+        return;
+    EXPECT(first->is_rejected());
+    EXPECT(joined->is_rejected());
+    auto failure = first->await();
+    EXPECT(failure.is_error());
+    if (failure.is_error())
+        EXPECT_EQ(failure.error().string_literal(), "System DNS resolution timed out"sv);
+
+    auto retry = resolver.lookup("example.com"sv);
+    EXPECT_EQ(remote.request_count(), 4u);
+    if (remote.request_count() != 4)
+        return;
+    remote.answer_latest(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
+    remote.answer_latest(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
+    if (!wait_for_system_lookup(loop, *retry))
+        return;
+    auto result = TRY_OR_FAIL(retry->await());
+    EXPECT_EQ(result->cached_addresses().size(), 1u);
+    EXPECT_EQ(result->record<DNS::Messages::Records::A>().address, (IPv4Address { 192, 0, 2, 2 }));
+}
+
+TEST_CASE(test_system_resolver_deadline_removes_a_lookup_finalized_after_grace)
+{
+    TestLoop loop;
+    DeferredSystemResolver remote;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = {},
+            .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = AK::Duration::from_milliseconds(500),
+        },
+    };
+    resolver.set_remote_system_resolver(remote.callback());
+
+    auto first = resolver.lookup("example.com"sv);
+    auto joined = resolver.lookup("example.com"sv);
+    remote.answer_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
+    EXPECT(!first->is_resolved());
+    EXPECT(!joined->is_resolved());
+    if (!wait_for_system_lookup(loop, *first))
+        return;
+    auto result = TRY_OR_FAIL(first->await());
+    EXPECT(joined->is_resolved());
+    EXPECT_EQ(result->cached_addresses().size(), 1u);
+    auto join_after_grace = TRY_OR_FAIL(resolver.lookup("example.com"sv)->await());
+    EXPECT_EQ(join_after_grace.ptr(), result.ptr());
+    EXPECT_EQ(remote.request_count(), 2u);
+
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(550), [&] { loop.quit(0); });
+    timer->start();
+    loop.exec();
+
+    auto retry = resolver.lookup("example.com"sv);
+    EXPECT_EQ(remote.request_count(), 4u);
+    if (remote.request_count() != 4)
+        return;
+    EXPECT(!retry->is_resolved());
+    remote.answer_latest(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
+    remote.answer_latest(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
+    if (!wait_for_system_lookup(loop, *retry))
+        return;
+    auto retry_result = TRY_OR_FAIL(retry->await());
+    EXPECT_EQ(resolver.expect_cached("example.com"sv).ptr(), retry_result.ptr());
+}
+
+TEST_CASE(test_system_resolver_ignores_answers_after_the_deadline)
+{
+    TestLoop loop;
+    DeferredSystemResolver remote;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = {},
+            .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = AK::Duration::from_milliseconds(20),
+        },
+    };
+    resolver.set_remote_system_resolver(remote.callback());
+
+    auto first = resolver.lookup("example.com"sv);
+    if (!wait_for_system_lookup(loop, *first))
+        return;
+    EXPECT(first->is_rejected());
+
+    // The deadline cancels both halves with the remote resolver.
+    EXPECT_EQ(remote.cancelled_count(), 2u);
+
+    auto retry = resolver.lookup("example.com"sv);
+    EXPECT_EQ(remote.request_count(), 4u);
+    if (remote.request_count() != 4)
+        return;
+    remote.answer_cancelled_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
+    remote.answer_cancelled_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
+    EXPECT(!retry->is_resolved());
+    EXPECT(!retry->is_rejected());
+    EXPECT(!resolver.lookup_in_cache("example.com"sv));
+
+    remote.answer_first(Core::Socket::AddressFamily::IPv4Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 2 } });
+    remote.answer_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> {});
+    if (!wait_for_system_lookup(loop, *retry))
+        return;
+    auto result = TRY_OR_FAIL(retry->await());
+    EXPECT_EQ(result->cached_addresses().size(), 1u);
+    EXPECT_EQ(result->record<DNS::Messages::Records::A>().address, (IPv4Address { 192, 0, 2, 2 }));
+    EXPECT_EQ(resolver.expect_cached("example.com"sv).ptr(), result.ptr());
+}
+
+TEST_CASE(test_system_resolver_deadline_resolves_with_the_addresses_it_has)
+{
+    TestLoop loop;
+    DeferredSystemResolver remote;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = {},
+            .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = AK::Duration::from_milliseconds(100),
+        },
+    };
+    resolver.set_remote_system_resolver(remote.callback());
+
+    // The IPv6 addresses start a grace period for the IPv4 ones that outlasts the deadline, which then goes ahead with
+    // the IPv6 addresses rather than failing the lookup.
+    auto lookup = resolver.lookup("example.com"sv);
+    remote.answer_first(Core::Socket::AddressFamily::IPv6Only, Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
+    EXPECT(!lookup->is_resolved());
+    if (!wait_for_system_lookup(loop, *lookup))
+        return;
+    auto result = TRY_OR_FAIL(lookup->await());
+    EXPECT_EQ(result->cached_addresses().size(), 1u);
+}
+
+TEST_CASE(test_system_resolver_skips_lookups_given_up_on_while_queued)
+{
+    TestLoop loop;
+    Atomic<size_t> lookups_made { 0 };
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = [&](ByteString const&, Core::Socket::AddressFamily) -> ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> {
+                lookups_made.fetch_add(1);
+                return Error::from_string_literal("Not found");
+            },
+            .is_ipv6_globally_reachable = [] { return true; },
+            .resolution_timeout = AK::Duration::from_milliseconds(20),
+        },
+    };
+
+    // Hold every worker of the lookup pool, so the lookup's jobs wait in its queue past the deadline.
+    auto& pool = Threading::ThreadPool::for_name_resolution();
+    Mutex mutex;
+    ConditionVariable condition { mutex };
+    size_t held = 0;
+    bool release = false;
+    for (size_t i = 0; i < pool.worker_count(); ++i) {
+        pool.submit([&] {
+            MutexLocker locker { mutex };
+            ++held;
+            condition.broadcast();
+            while (!release)
+                condition.wait();
+            --held;
+            condition.broadcast();
+        });
+    }
+    {
+        MutexLocker locker { mutex };
+        while (held != pool.worker_count())
+            condition.wait();
+    }
+
+    auto lookup = resolver.lookup("example.com"sv);
+    bool waited = wait_for_system_lookup(loop, *lookup);
+    EXPECT(lookup->is_rejected());
+
+    {
+        MutexLocker locker { mutex };
+        release = true;
+        condition.broadcast();
+        while (held != 0)
+            condition.wait();
+    }
+    // Once one job per worker, queued after the lookup's, runs on every worker at once, each job queued before them has
+    // finished.
+    {
+        size_t at_barrier = 0;
+        size_t left_barrier = 0;
+        for (size_t i = 0; i < pool.worker_count(); ++i) {
+            pool.submit([&] {
+                MutexLocker locker { mutex };
+                ++at_barrier;
+                condition.broadcast();
+                while (at_barrier < pool.worker_count())
+                    condition.wait();
+                ++left_barrier;
+                condition.broadcast();
+            });
+        }
+        MutexLocker locker { mutex };
+        while (left_barrier < pool.worker_count())
+            condition.wait();
+    }
+    if (waited)
+        EXPECT_EQ(lookups_made.load(), 0u);
 }
