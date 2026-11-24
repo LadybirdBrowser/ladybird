@@ -2313,6 +2313,20 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.set_track_percentage(axis, index, value);
             }
         }
+        // https://drafts.csswg.org/css-tables-3/#width-distribution-in-fixed-mode
+        // If, when percentages are resolved based on the assignable table width, the sum of columns widths based on this
+        // resolution would exceed the assignable table width, they are instead to be resolved relative to their
+        // percentage value such that the sum of columns width meets the assignable table width exactly.
+        if axis == TrackAxis::Column && self.use_fixed_mode_layout() {
+            let sum: f64 = (0..count).map(|index| self.track_percentage(axis, index)).sum();
+            if sum > 100.0 {
+                for index in 0..count {
+                    let value = self.track_percentage(axis, index) * 100.0 / sum;
+                    self.set_track_percentage(axis, index, value);
+                }
+            }
+            return;
+        }
         // Clamp total intrinsic percentage to 100%: https://www.w3.org/TR/css-tables-3/#intrinsic-percentage-width-of-a-column
         let mut total = 0.0;
         for index in 0..count {
