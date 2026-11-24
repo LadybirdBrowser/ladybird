@@ -1,0 +1,4 @@
+Parent document encoding: windows-1252
+Same-origin srcdoc: UTF-8, text decoded intact: true
+Sandboxed srcdoc: UTF-8, text decoded intact: true
+srcdoc declaring windows-1252: UTF-8, text decoded intact: true
