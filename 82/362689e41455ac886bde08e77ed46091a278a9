@@ -1,0 +1,7 @@
+Ladybird gives disabled option groups the disabled text color. Gecko
+styles optgroup:disabled in forms.css and renders the group label with
+optgroup[label]::before. Blink updates its label in UpdateGroupLabel()
+and styles the disabled group in html.css. WebKit reads the group
+color in RenderListBox::paintItemForeground(). Chrome 158.0.8127.37,
+Firefox 151.0 and WebKit 26.5 all drew the disabled label lighter
+than the enabled label on the same white background.
