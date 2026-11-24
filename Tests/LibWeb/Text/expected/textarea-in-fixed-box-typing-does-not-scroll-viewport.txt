@@ -1,0 +1,2 @@
+before typing: 3000
+after typing: 23

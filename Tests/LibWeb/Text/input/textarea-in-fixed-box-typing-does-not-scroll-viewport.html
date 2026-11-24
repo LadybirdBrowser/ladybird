@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+body {
+    height: 5000px;
+    margin: 0;
+}
+#reply {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+}
+</style>
+<div id="reply"><textarea></textarea></div>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    window.scrollTo(0, 3000);
+    const textarea = document.querySelector("textarea");
+    textarea.focus({ preventScroll: true });
+    println(`before typing: ${window.scrollY}`);
+    internals.sendText(textarea, "x");
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            println(`after typing: ${window.scrollY}`);
+            done();
+        });
+    });
+});
+</script>
