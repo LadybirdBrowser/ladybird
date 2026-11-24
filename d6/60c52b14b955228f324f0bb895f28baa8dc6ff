@@ -1,0 +1,13 @@
+Ladybird adds a clear button to the editable search field and exposes it
+through the prefixed search-cancel-button pseudo-element.
+
+Chrome 158.0.8127.37 and WebKit 26.5 cleared a focused search input on a
+pointer click at its inline end, including in right-to-left text. Both
+dispatched an input Event and a change Event on blur. Chrome also
+dispatched the nonstandard search event.
+
+Blink clears the value in
+SearchFieldCancelButtonElement::DefaultEventHandler(). WebKit creates
+the clear button in TextControlInnerElements.cpp. Gecko gates the
+anonymous button in TextControlElement.cpp. Firefox 151.0 left the value
+intact in its default configuration.
