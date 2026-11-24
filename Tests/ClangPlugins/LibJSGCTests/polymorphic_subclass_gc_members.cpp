@@ -62,7 +62,6 @@ struct VisitedParamsWithCell : VisitedParams {
 
 struct ParamsWithRootedOrUntracedCells : Params {
     GC::Root<GC::Cell> rooted_cell;
-    GC::RawPtr<GC::Cell> untraced_cell;
     GC::Weak<GC::Cell> weak_cell;
 };
 

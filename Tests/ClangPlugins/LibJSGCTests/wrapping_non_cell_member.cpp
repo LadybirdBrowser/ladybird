@@ -16,6 +16,4 @@ class TestClass {
     GC::Ptr<NotACell> m_member_1;
     // expected-error@+1 {{Specialization type must inherit from GC::Cell}}
     GC::Ref<NotACell> m_member_2;
-    // expected-error@+1 {{Specialization type must inherit from GC::Cell}}
-    GC::RawPtr<NotACell> m_member_3;
 };

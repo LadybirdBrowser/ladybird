@@ -273,10 +273,6 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
         if (template_name == "GC::Ptr" || template_name == "GC::Ref")
             return ContainsGCPtrResult::Yes;
 
-        // Raw pointers don't need visiting
-        if (template_name == "GC::RawPtr" || template_name == "GC::RawRef")
-            return ContainsGCPtrResult::No;
-
         // A weak vector's owner prunes it of dead cells instead of visiting it
         if (template_name == "GC::WeakVector")
             return ContainsGCPtrResult::No;
@@ -319,8 +315,6 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
         static std::unordered_set<std::string> gc_relevant_type_names {
             "GC::Ptr",
             "GC::Ref",
-            "GC::RawPtr",
-            "GC::RawRef",
             "GC::RootVector",
             "GC::RootHashMap",
             "GC::RootHashTable",
@@ -347,7 +341,6 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
 }
 enum class OuterType {
     GCPtr,
-    RawPtr,
     Root,
     Ptr,
     Ref,
@@ -373,8 +366,6 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
         OuterType outer_type;
         if (template_type_name == "GC::Ptr" || template_type_name == "GC::Ref") {
             outer_type = OuterType::GCPtr;
-        } else if (template_type_name == "GC::RawPtr" || template_type_name == "GC::RawRef") {
-            outer_type = OuterType::RawPtr;
         } else if (template_type_name == "GC::Root") {
             outer_type = OuterType::Root;
         } else {
@@ -487,11 +478,11 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
                                 << "GC::Ptr";
                     }
                 }
-            } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawPtr || outer_type == OuterType::Value) {
+            } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::Value) {
                 if (!base_type_inherits_from_cell) {
                     auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from GC::Cell");
                     diag_engine.Report(field->getLocation(), diag_id);
-                } else if (outer_type != OuterType::RawPtr) {
+                } else {
                     fields_that_need_visiting.push_back(field);
                 }
             } else if (outer_type == OuterType::Root) {
@@ -1193,8 +1184,6 @@ static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& 
         "AK::RefPtr",
         "AK::Span",
         "AK::WeakPtr",
-        "GC::RawPtr",
-        "GC::RawRef",
         "GC::Root",
         "GC::RootHashMap",
         "GC::RootHashTable",
@@ -1207,8 +1196,7 @@ static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& 
     return template_names.contains(template_name);
 }
 
-// The template arguments as written keep alias templates such as GC::RawPtr, which the canonical arguments of a
-// specialization resolve to the template they alias. A dependent type such as Vector<GC::Ref<T>> only has those.
+// A dependent type such as Vector<GC::Ref<T>> only has the template arguments as written.
 static std::optional<TemplateInstance> template_instance_of_type(clang::QualType type)
 {
     if (auto const* specialization_type = type->getAs<clang::TemplateSpecializationType>()) {
@@ -1216,7 +1204,7 @@ static std::optional<TemplateInstance> template_instance_of_type(clang::QualType
         if (!template_decl)
             return {};
         auto template_name = template_decl->getQualifiedNameAsString();
-        if (specialization_type->isTypeAlias() && !is_type_that_does_not_store_gc_pointers_by_value(template_name))
+        if (specialization_type->isTypeAlias())
             return template_instance_of_type(specialization_type->getAliasedType());
 
         TemplateInstance instance { std::move(template_name), {} };
@@ -1345,7 +1333,7 @@ static bool type_violates_claim_of_no_cell_edges(clang::QualType type, ClaimViol
     if (auto instance = template_instance_of_type(type)) {
         if (instance->name == "AK::Function")
             return violation == ClaimViolation::OpaqueFunction;
-        if (instance->name == "GC::Ptr" || instance->name == "GC::Ref" || instance->name == "GC::RawPtr" || instance->name == "GC::RawRef" || instance->name == "GC::Member" || instance->name == "GC::NonnullMember")
+        if (instance->name == "GC::Ptr" || instance->name == "GC::Ref" || instance->name == "GC::Member" || instance->name == "GC::NonnullMember")
             return violation == ClaimViolation::GCPointer;
         if (is_owning_pointer(instance->name)) {
             if (violation != ClaimViolation::GCPointer || instance->type_arguments.empty())

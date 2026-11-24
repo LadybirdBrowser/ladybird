@@ -127,7 +127,7 @@ using Entity = GC::ForeignCell*;
 
 struct Extern {
     ExternKind kind { ExternKind::Function };
-    GC::RawPtr<GC::ForeignCell> entity;
+    GC::Ptr<GC::ForeignCell> entity;
 
     void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(entity.ptr()); }
 };

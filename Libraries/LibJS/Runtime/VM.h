@@ -537,7 +537,7 @@ private:
     struct ExecutionContextStackEntry {
         ExecutionContext* execution_context;
         ExecutionContext* previous_running_execution_context;
-        GC::RawPtr<Realm> previous_realm;
+        GC::Ptr<Realm> previous_realm;
     };
     static_assert(sizeof(ExecutionContextStackEntry) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_SIZE);
     static_assert(__builtin_offsetof(ExecutionContextStackEntry, execution_context) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_EXECUTION_CONTEXT_OFFSET);

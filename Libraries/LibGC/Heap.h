@@ -125,7 +125,7 @@ public:
     // A cell on a retaining path, which reaches the next one through a field it visits. The cell is live until the next
     // garbage collection at least.
     struct RetainingPathStep {
-        RawPtr<Cell> cell;
+        Ptr<Cell> cell;
         StringView class_name;
     };
     struct RetainingPath {
