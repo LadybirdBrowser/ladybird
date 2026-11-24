@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Diagnostics.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 
@@ -12,21 +11,9 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedWorkerGlobalScope);
 
-HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes()
-{
-    // NB: Free what this thread kept when it exits.
-#ifdef AK_COMPILER_CLANG
-    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local HashTable<GC::RawRef<SharedWorkerGlobalScope>> set)
-#else
-    static thread_local HashTable<GC::RawRef<SharedWorkerGlobalScope>> set;
-#endif
-    return set;
-}
-
 SharedWorkerGlobalScope::SharedWorkerGlobalScope(GC::Ref<Web::Page> page)
     : WorkerGlobalScope(page)
 {
-    all_shared_worker_global_scopes().set(*this);
 }
 
 SharedWorkerGlobalScope::~SharedWorkerGlobalScope() = default;
@@ -35,8 +22,6 @@ void SharedWorkerGlobalScope::finalize()
 {
     Base::finalize();
     WindowOrWorkerGlobalScopeMixin::finalize();
-
-    all_shared_worker_global_scopes().remove(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworkerglobalscope-close
