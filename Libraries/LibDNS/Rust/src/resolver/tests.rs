@@ -1103,3 +1103,28 @@ fn system_resolver_finding_no_addresses_is_the_same_answer_before_and_after_cach
     assert!(harness.system.is_empty());
     assert!(harness.addresses(cached).is_empty());
 }
+
+#[test]
+fn system_resolver_answers_from_before_a_reset_stay_out_of_the_cache() {
+    let mut harness = Harness::new(None);
+    let before = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+
+    harness.resolver.set_server(
+        Some(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 53,
+            transport: ServerTransport::Udp,
+        }),
+        harness.now,
+    );
+    harness.drain();
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![]));
+    assert_eq!(harness.addresses(before), vec![IpAddr::V4(A_ADDRESS)]);
+
+    // The configured server answers from now on.
+    let after = harness.lookup("example.com");
+    assert!(!harness.done.contains_key(&after));
+    assert_eq!(harness.connects.len(), 1);
+}
