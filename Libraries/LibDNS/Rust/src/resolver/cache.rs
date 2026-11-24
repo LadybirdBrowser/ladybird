@@ -101,7 +101,7 @@ impl CacheEntry {
         self.has_record_of_type(rtype) || (self.request_done && self.queried_types.contains(&rtype))
     }
 
-    fn check_expiration(&mut self, now: Instant) {
+    pub(crate) fn expire(&mut self, now: Instant) {
         if !self.valid {
             return;
         }
@@ -184,7 +184,7 @@ impl Cache {
 
     pub(crate) fn lookup(&mut self, name: &str, desired_types: &[ResourceType], now: Instant) -> Option<&CacheEntry> {
         let entry = self.entries.get_mut(name)?;
-        entry.check_expiration(now);
+        entry.expire(now);
         if entry.can_be_removed() {
             return None;
         }
@@ -214,7 +214,7 @@ impl Cache {
         }
 
         for entry in self.entries.values_mut() {
-            entry.check_expiration(now);
+            entry.expire(now);
         }
         self.entries.retain(|_, entry| !entry.can_be_removed());
         if self.entries.len() < self.max_entries {
