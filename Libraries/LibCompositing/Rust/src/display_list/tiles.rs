@@ -8,7 +8,8 @@ use libgfx_rust::IntRect;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-pub const TILE_SIZE_IN_DEVICE_PIXELS: i32 = 512;
+pub const TILE_WIDTH_IN_DEVICE_PIXELS: i32 = 1024;
+pub const TILE_HEIGHT_IN_DEVICE_PIXELS: i32 = 512;
 const MAXIMUM_CELLS_CONTENT_IS_FOLLOWED_INTO_ONE_BY_ONE: u64 = 4096;
 
 /// A cell of the tile grid of a layer's raster space, which starts at the space's origin.
@@ -27,17 +28,17 @@ impl TileCoord {
     /// The cell that holds the device pixel at `x` and `y`.
     pub const fn of_pixel(x: i32, y: i32) -> Self {
         Self::new(
-            x.div_euclid(TILE_SIZE_IN_DEVICE_PIXELS),
-            y.div_euclid(TILE_SIZE_IN_DEVICE_PIXELS),
+            x.div_euclid(TILE_WIDTH_IN_DEVICE_PIXELS),
+            y.div_euclid(TILE_HEIGHT_IN_DEVICE_PIXELS),
         )
     }
 
     pub const fn cell_rect(self) -> IntRect {
         IntRect::new(
-            self.column * TILE_SIZE_IN_DEVICE_PIXELS,
-            self.row * TILE_SIZE_IN_DEVICE_PIXELS,
-            TILE_SIZE_IN_DEVICE_PIXELS,
-            TILE_SIZE_IN_DEVICE_PIXELS,
+            self.column * TILE_WIDTH_IN_DEVICE_PIXELS,
+            self.row * TILE_HEIGHT_IN_DEVICE_PIXELS,
+            TILE_WIDTH_IN_DEVICE_PIXELS,
+            TILE_HEIGHT_IN_DEVICE_PIXELS,
         )
     }
 }
@@ -250,10 +251,10 @@ mod tests {
     #[test]
     fn a_rect_touches_the_cells_it_reaches_into_row_by_row() {
         let coords: Vec<TileCoord> = tile_coords_touching(IntRect::new(
-            TILE_SIZE_IN_DEVICE_PIXELS - 6,
+            TILE_WIDTH_IN_DEVICE_PIXELS - 6,
             10,
-            TILE_SIZE_IN_DEVICE_PIXELS + 44,
-            TILE_SIZE_IN_DEVICE_PIXELS - 6,
+            TILE_WIDTH_IN_DEVICE_PIXELS + 44,
+            TILE_HEIGHT_IN_DEVICE_PIXELS - 6,
         ))
         .collect();
         assert_eq!(
@@ -274,8 +275,8 @@ mod tests {
         let coords: Vec<TileCoord> = tile_coords_touching(IntRect::new(
             0,
             0,
-            TILE_SIZE_IN_DEVICE_PIXELS,
-            2 * TILE_SIZE_IN_DEVICE_PIXELS,
+            TILE_WIDTH_IN_DEVICE_PIXELS,
+            2 * TILE_HEIGHT_IN_DEVICE_PIXELS,
         ))
         .collect();
         assert_eq!(coords, [TileCoord::new(0, 0), TileCoord::new(0, 1)]);
@@ -284,7 +285,7 @@ mod tests {
     #[test]
     fn cells_left_of_and_above_the_origin_have_negative_coords() {
         let coords: Vec<TileCoord> =
-            tile_coords_touching(IntRect::new(-1, -TILE_SIZE_IN_DEVICE_PIXELS - 1, 2, 1)).collect();
+            tile_coords_touching(IntRect::new(-1, -TILE_HEIGHT_IN_DEVICE_PIXELS - 1, 2, 1)).collect();
         assert_eq!(coords, [TileCoord::new(-1, -2), TileCoord::new(0, -2)]);
     }
 
@@ -306,8 +307,8 @@ mod tests {
             CellRange::touched_by(IntRect::new(
                 0,
                 0,
-                2 * TILE_SIZE_IN_DEVICE_PIXELS,
-                2 * TILE_SIZE_IN_DEVICE_PIXELS,
+                2 * TILE_WIDTH_IN_DEVICE_PIXELS,
+                2 * TILE_HEIGHT_IN_DEVICE_PIXELS,
             )),
             CellRange::around(TileCoord::new(0, 0), 3),
             CellRange::around(TileCoord::new(4, 4), 1 << 20),
@@ -341,10 +342,10 @@ mod tests {
         assert_eq!(
             window.intersected(CellRange::around(TileCoord::new(13, -4), 1)),
             CellRange::touched_by(IntRect::new(
-                12 * TILE_SIZE_IN_DEVICE_PIXELS,
-                -5 * TILE_SIZE_IN_DEVICE_PIXELS,
-                TILE_SIZE_IN_DEVICE_PIXELS,
-                3 * TILE_SIZE_IN_DEVICE_PIXELS
+                12 * TILE_WIDTH_IN_DEVICE_PIXELS,
+                -5 * TILE_HEIGHT_IN_DEVICE_PIXELS,
+                TILE_WIDTH_IN_DEVICE_PIXELS,
+                3 * TILE_HEIGHT_IN_DEVICE_PIXELS
             ))
         );
         assert_eq!(

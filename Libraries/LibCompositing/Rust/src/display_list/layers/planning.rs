@@ -2887,7 +2887,7 @@ mod tests {
         opacity_animation_of, scroll_bar, scroll_node, scroll_record, spinning, transform, transform_animation_of,
         tree_with_document_scroll, tree_with_document_scroller, tree_with_root_isolation_effect,
     };
-    use crate::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
+    use crate::display_list::tiles::TILE_HEIGHT_IN_DEVICE_PIXELS;
     use crate::node_slot_id::NodeSlotId;
     use crate::visual_context::{
         CompositorScrollNodeRecord, CompositorScrollTable, EffectsData, SpatialData, TransformData, TransformDataRole,
@@ -2985,7 +2985,7 @@ mod tests {
     #[test]
     fn content_reaching_too_many_cells_to_follow_marks_no_layer_below_a_cut_that_covers_it() {
         let (mut tree, _, document) = tree_with_document_scroll();
-        let taller_than_the_cells_followed_one_by_one = IntRect::new(0, 0, 800, 4100 * TILE_SIZE_IN_DEVICE_PIXELS);
+        let taller_than_the_cells_followed_one_by_one = IntRect::new(0, 0, 800, 4100 * TILE_HEIGHT_IN_DEVICE_PIXELS);
         let mut scroll_table = tree.compositor_scroll_table().clone();
         let mut document_scrolling_past_the_cells_followed_one_by_one = scroll_table.nodes.to_vec();
         document_scrolling_past_the_cells_followed_one_by_one[0]
@@ -3763,6 +3763,8 @@ mod tests {
     }
 
     const ELEMENT: IntRect = IntRect::new(50, 50, 40, 40);
+    const WRAPPER_AROUND_ELEMENT: IntRect = IntRect::new(0, 0, 800, 600);
+    const BLENDING_ELEMENT_IN_ANOTHER_CELL: IntRect = IntRect::new(600, TILE_HEIGHT_IN_DEVICE_PIXELS + 10, 150, 60);
 
     // An element whose own value equals that of the first keyframe of its animation, between two fills of the page.
     fn page_with_animated_element(
@@ -3941,9 +3943,9 @@ mod tests {
         ))]);
         let list = ListOfOneChunk::default()
             .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
-            .with(fill(IntRect::new(0, 0, 800, 300), GREEN), wrapper)
+            .with(fill(WRAPPER_AROUND_ELEMENT, GREEN), wrapper)
             .with(fill(ELEMENT, GREEN), element)
-            .with(fill(IntRect::new(600, 0, 150, 150), GREEN), blending_element);
+            .with(fill(BLENDING_ELEMENT_IN_ANOTHER_CELL, GREEN), blending_element);
         let planned = layers_planned_alike_for_every_sample(&list, &tree);
         assert!(planned.stack.composited_effects.is_empty());
         assert_eq!(
@@ -3972,9 +3974,9 @@ mod tests {
         ))]);
         let list = ListOfOneChunk::default()
             .with(fill(IntRect::new(0, 0, 200, 200), GREEN), viewport)
-            .with(fill(IntRect::new(0, 0, 800, 300), GREEN), wrapper)
+            .with(fill(WRAPPER_AROUND_ELEMENT, GREEN), wrapper)
             .with(fill(ELEMENT, GREEN), element)
-            .with(fill(IntRect::new(600, 0, 150, 150), GREEN), blending_element);
+            .with(fill(BLENDING_ELEMENT_IN_ANOTHER_CELL, GREEN), blending_element);
         let planned = layers_planned_alike_for_every_sample(&list, &tree);
         assert!(planned.placement.animations_without_layers.is_empty());
         assert!(
@@ -4375,10 +4377,14 @@ mod tests {
             crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
             NodeSlotId::INVALID,
         );
-        sticky_data.position_relative_to_scroller = FloatPoint { x: 0.0, y: 100.0 };
+        let toolbar_top = TILE_HEIGHT_IN_DEVICE_PIXELS - 60;
+        sticky_data.position_relative_to_scroller = FloatPoint {
+            x: 0.0,
+            y: toolbar_top as f32,
+        };
         sticky_data.border_box_size = libgfx_rust::FloatSize {
             width: 800.0,
-            height: 50.0,
+            height: 120.0,
         };
         sticky_data.scrollport_size = libgfx_rust::FloatSize {
             width: 800.0,
@@ -4391,16 +4397,21 @@ mod tests {
             spatial: tree.append_spatial(SpatialData::Sticky(sticky_data), document.spatial),
             ..document
         };
-        let spinner = transformed_context(&mut tree, toolbar, FloatRect::new(650.0, 105.0, 40.0, 40.0));
-        tree.set_visual_animations(vec![spinning(spinner.spatial)]);
         // The label and the spinner of the toolbar are in different cells, and the card covers both of them.
-        let label = IntRect::new(10, 110, 100, 30);
-        let card = IntRect::new(0, 100, 800, 50);
-        assert!(TILE_SIZE_IN_DEVICE_PIXELS < 650);
+        let label = IntRect::new(10, toolbar_top + 5, 100, 20);
+        let spinner_box = IntRect::new(650, toolbar_top + 85, 20, 20);
+        let card = IntRect::new(0, toolbar_top, 800, 120);
+        assert_ne!(
+            CellRange::touched_by(label),
+            CellRange::touched_by(spinner_box),
+            "the label and the spinner are in different cells"
+        );
+        let spinner = transformed_context(&mut tree, toolbar, spinner_box.to_float());
+        tree.set_visual_animations(vec![spinning(spinner.spatial)]);
         let list = ListOfOneChunk::default()
             .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
             .with(fill(label, GREEN), toolbar)
-            .with(fill(IntRect::new(650, 105, 40, 40), GREEN), spinner)
+            .with(fill(spinner_box, GREEN), spinner)
             .with(fill(card, GREEN), document);
         let planned = list.planned(&tree, &[]);
         assert_eq!(

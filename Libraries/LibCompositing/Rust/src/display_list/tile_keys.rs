@@ -2205,7 +2205,7 @@ mod tests {
         frosted_glass, opacity_animation_of, raster_settings_hash_by_layer, transform, transform_animation_of,
         tree_with_document_scroll, tree_with_root_isolation_effect,
     };
-    use crate::display_list::tiles::TILE_SIZE_IN_DEVICE_PIXELS;
+    use crate::display_list::tiles::TILE_WIDTH_IN_DEVICE_PIXELS;
     use crate::host::FfiVisualAnimationTargetKind;
     use crate::visual_context::{EffectsData, SpatialData, TransformData, TransformDataRole};
     use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator};
@@ -2713,7 +2713,7 @@ mod tests {
     }
 
     fn cell_of(rect: IntRect) -> TileCoord {
-        TileCoord::new(rect.x / TILE_SIZE_IN_DEVICE_PIXELS, rect.y / TILE_SIZE_IN_DEVICE_PIXELS)
+        TileCoord::of_pixel(rect.x, rect.y)
     }
 
     // Each sample keys every tile of the band again, and only the tile that draws a value the sample changed gets a new
@@ -3016,8 +3016,9 @@ mod tests {
             .tile(TileCoord::new(0, 0), stack.base_layer)
             .expect("the base layer holds a tile at every shown cell");
         let white = Color::from_rgb(255, 255, 255);
+        let part_of_cell_in_viewport = tile.coord.cell_rect().intersected(VIEWPORT);
         assert_eq!(
-            raster_space.coverage_of_tile(&band_tile_keys, tile, tile.coord.cell_rect(), white),
+            raster_space.coverage_of_tile(&band_tile_keys, tile, part_of_cell_in_viewport, white),
             TileCoverage::Unknown
         );
     }
@@ -3056,9 +3057,9 @@ mod tests {
         let tile = band_tile_keys
             .tile(TileCoord::new(0, 0), stack.base_layer)
             .expect("the base layer holds a tile at every shown cell");
-        let area = tile.coord.cell_rect();
+        let part_of_cell_in_viewport = tile.coord.cell_rect().intersected(VIEWPORT);
         assert_eq!(
-            raster_space.coverage_of_tile(&band_tile_keys, tile, area, Color::TRANSPARENT),
+            raster_space.coverage_of_tile(&band_tile_keys, tile, part_of_cell_in_viewport, Color::TRANSPARENT),
             TileCoverage::Opaque
         );
     }
@@ -3166,7 +3167,10 @@ mod tests {
         let raster_space = TileKeyingOfRasterSpace::new(&list_keying, &geometry);
         let mut band_tile_keys = raster_space.bind_band(&stack, BandIndex(0));
         key_band(&raster_space, &mut band_tile_keys, &stack, BandIndex(0), VIEWPORT);
-        assert_eq!(tiles_within(&band_tile_keys, VIEWPORT).len(), 4);
+        assert_eq!(
+            tiles_within(&band_tile_keys, VIEWPORT).len() as u64,
+            CellRange::touched_by(VIEWPORT).cell_count()
+        );
         assert_ne!(raster_space.content_hash_of_composited_effect(context.effect), 0);
     }
 
@@ -3215,7 +3219,7 @@ mod tests {
             BackdropReadsOfBand::new(
                 (0..count as i32)
                     .map(|index| {
-                        let region = IntRect::new(600 + index, 10, 1, 1);
+                        let region = IntRect::new(TILE_WIDTH_IN_DEVICE_PIXELS + 88 + index, 10, 1, 1);
                         BackdropReadInLayer {
                             first_record_position: ListPosition::new(ChunkIndexInList(0), 100 + index as u32),
                             region_reach: Reach::Within(region),
@@ -3287,7 +3291,10 @@ mod tests {
             BandIndex(0),
             &[VIEWPORT],
         );
-        assert_eq!(tiles_within(&band_tile_keys, VIEWPORT).len(), 4);
+        assert_eq!(
+            tiles_within(&band_tile_keys, VIEWPORT).len() as u64,
+            CellRange::touched_by(VIEWPORT).cell_count()
+        );
     }
 
     // A box that the compositor scales up from nothing shows at a tiny part of its raster scale at first.
@@ -3299,7 +3306,7 @@ mod tests {
         let animated_space = RasterSpaceIndex(1);
         let band = band_of_space(&stack, animated_space);
         let shown_rect = viewport_in_space_scaled_by(1.0e-4);
-        assert!(CellRange::touched_by(shown_rect).cell_count() > 100_000_000);
+        assert!(CellRange::touched_by(shown_rect).cell_count() > 50_000_000);
 
         let frame = (&*display_list, &at_start, &stack);
         let (keyed_at_tiny_scale, counts) =
@@ -3367,7 +3374,7 @@ mod tests {
         assert_eq!(stack.base_layer, stack.bands[0].layer_below_all_cuts);
         // The band of the base layer holds a tile at every cell it shows.
         let shown_rect = viewport_in_space_scaled_by(1.0e-4);
-        let moved_shown_rect = shown_rect.translated(10 * TILE_SIZE_IN_DEVICE_PIXELS, 0);
+        let moved_shown_rect = shown_rect.translated(10 * TILE_WIDTH_IN_DEVICE_PIXELS, 0);
         let (band_tile_keys, counts) = band_tile_keys_after_frames_showing(
             (&display_list, &tree, &stack),
             RasterSpaceIndex::VIEWPORT,

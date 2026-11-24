@@ -17,7 +17,7 @@ L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[20,20 20
 L1 DrawCompositedContext@s1/e0 dst_rect=[20,20 200x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[20,20 200x120]] owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
 L0 CompositorNestedContextWheelRegion@s1/e0 rect=[20,20 200x120] child_context_id=context1 owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[100,60 200x40] owner=BlockContainer<DIV>#over-iframe phase=scroll-metadata
-L0,L2 FillRect@s1/e0 rect=[100,60 200x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-iframe phase=background
-L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[600,300 50x20] owner=BlockContainer<DIV>#elsewhere phase=scroll-metadata
-L0,L2 FillRect@s1/e0 rect=[600,300 50x20] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#elsewhere phase=background
+L2 FillRect@s1/e0 rect=[100,60 200x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-iframe phase=background
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[600,540 50x20] owner=BlockContainer<DIV>#elsewhere phase=scroll-metadata
+L0 FillRect@s1/e0 rect=[600,540 50x20] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#elsewhere phase=background
 

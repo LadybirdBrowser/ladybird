@@ -28,7 +28,7 @@ const RASTER_SCRATCH_SURFACE_RELEASE_DELAY: Duration = Duration::from_millisecon
 const TIME_SPARE_TILE_STAYS_POOLED_FOR_CONTENT_THAT_COMES_BACK: Duration = Duration::from_milliseconds(3000);
 const TIME_SPARE_SURFACE_IS_KEPT_FOR_NEXT_TILE: Duration = Duration::from_milliseconds(3000);
 // About the tiles of two rows of a wide viewport, which a scroll lets go of and needs anew with each row it passes.
-const MAXIMUM_SPARE_SURFACE_COUNT: usize = 32;
+const MAXIMUM_SPARE_SURFACE_COUNT: usize = 16;
 
 pub(super) struct TileShownInFrame {
     pub(super) coord: TileCoord,
