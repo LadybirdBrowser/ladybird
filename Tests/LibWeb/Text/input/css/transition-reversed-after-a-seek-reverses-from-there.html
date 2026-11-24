@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 0px;
+        height: 10px;
+        transition: width 60s linear;
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        let reversedDuration;
+        requestAnimationFrame(() => {
+            target.style.width = "100px";
+            getComputedStyle(target).width;
+            target.getAnimations()[0].currentTime = 500;
+            target.style.width = "0px";
+            getComputedStyle(target).width;
+            reversedDuration = target.getAnimations()[0].effect.getTiming().duration;
+        });
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        println(`a transition script seeks before it runs reverses from where script put it: ${Math.abs(reversedDuration - 500) < 1}`);
+        done();
+    });
+</script>
