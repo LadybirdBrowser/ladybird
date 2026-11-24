@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; }
+    .scroller { width: 360px; height: 150px; overflow: hidden; margin: 8px; }
+    iframe { display: block; border: 0; width: 360px; height: 150px; }
+</style>
+<div class="scroller"><iframe></iframe></div>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <body style="margin: 0; font: 18px/1.4 serif">
+        <div style="position: absolute; left: 8px; top: 8px; width: 344px; border-top: 1px solid black">The quick brown fox jumps over the lazy dog 0123456789</div></body>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>
