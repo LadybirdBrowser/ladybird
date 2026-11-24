@@ -1,0 +1,5 @@
+a transition a rendering update starts begins at its style change event: true
+a transition a style read starts begins at its style change event: true
+a delay script sets before it is ready does not move it: true
+a transition script cancels and plays again begins at the frame after: true
+a transition a scroll event handler starts begins at its style change event: true

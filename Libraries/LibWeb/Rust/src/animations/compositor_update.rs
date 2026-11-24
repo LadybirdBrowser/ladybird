@@ -401,7 +401,7 @@ impl Pass<'_> {
             timing: FfiCompositorAnimationTiming {
                 monotonic_time_at_anchor_ns: (timing_anchor.0 * 1_000_000.0) as i64,
                 local_time_at_anchor_ms: timing_anchor.1,
-                playback_rate: animation.borrow().playback().playback_rate,
+                playback_rate: animation.borrow().playback().effective_playback_rate(),
                 effect: effect_timing,
                 easing: default_easing.descriptor(),
             },

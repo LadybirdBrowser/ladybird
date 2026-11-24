@@ -239,6 +239,7 @@ mod tests {
             property_id,
             previous_phase: TransitionPhase::Before,
             provisional: false,
+            initial_ready_time: None,
             adopted_from_lane: false,
             effect_started_with: None,
         }));
