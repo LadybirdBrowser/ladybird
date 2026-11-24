@@ -106,8 +106,8 @@ static Optional<String> missing_capability(Feature feature, SystemFacts const& f
     case Feature::VulkanVideoSystemFFmpeg:
         if (!facts.system_ffmpeg.has_value())
             return "No system FFmpeg was found"_string;
-        if (!facts.system_ffmpeg->shares_bundled_struct_layouts)
-            return "The system FFmpeg's structs are not laid out like the bundled one's"_string;
+        if (!facts.system_ffmpeg->has_vulkan_decoder_for_its_version)
+            return MUST(String::formatted("This build has no Vulkan decoder for the system FFmpeg's version, libavcodec {}.{}.{}", facts.system_ffmpeg->avcodec_version >> 16, (facts.system_ffmpeg->avcodec_version >> 8) & 0xff, facts.system_ffmpeg->avcodec_version & 0xff));
         if (!facts.gpu.has_value() || !(facts.gpu->h264.supported || facts.gpu->h265.supported))
             return "The GPU decodes neither H.264 nor HEVC through Vulkan"_string;
         return {};

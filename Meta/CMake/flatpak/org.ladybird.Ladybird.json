@@ -777,6 +777,24 @@
           "sha256": "4ca70f051571a198246bc337bd357f759fb8f9fdeddbe66b65960997540ee163"
         },
         {
+          "type": "file",
+          "url": "https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz",
+          "dest": "Caches/FFmpegHeaders/",
+          "sha256": "d4fcb164028dd3beee5d92c0ac72e46aac6973c75ea12dc14de07bf8f407370a"
+        },
+        {
+          "type": "file",
+          "url": "https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz",
+          "dest": "Caches/FFmpegHeaders/",
+          "sha256": "de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f"
+        },
+        {
+          "type": "file",
+          "url": "https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz",
+          "dest": "Caches/FFmpegHeaders/",
+          "sha256": "7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3"
+        },
+        {
           "type": "shell",
           "commands": [
             "# FIXME Is there an easier way to set an absolute path in config-opts?",

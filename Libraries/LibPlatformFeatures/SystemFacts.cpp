@@ -28,7 +28,7 @@ static JsonObject ffmpeg_to_json(FFmpegFacts const& facts)
     JsonObject object;
     object.set("avcodec_version"sv, facts.avcodec_version);
     object.set("avutil_version"sv, facts.avutil_version);
-    object.set("shares_bundled_struct_layouts"sv, facts.shares_bundled_struct_layouts);
+    object.set("has_vulkan_decoder_for_its_version"sv, facts.has_vulkan_decoder_for_its_version);
     return object;
 }
 
@@ -133,7 +133,7 @@ static ErrorOr<FFmpegFacts> ffmpeg_from_json(JsonObject const& object)
     FFmpegFacts facts;
     facts.avcodec_version = TRY(read_u32(object, "avcodec_version"sv));
     facts.avutil_version = TRY(read_u32(object, "avutil_version"sv));
-    facts.shares_bundled_struct_layouts = TRY(read_bool(object, "shares_bundled_struct_layouts"sv));
+    facts.has_vulkan_decoder_for_its_version = TRY(read_bool(object, "has_vulkan_decoder_for_its_version"sv));
     return facts;
 }
 
