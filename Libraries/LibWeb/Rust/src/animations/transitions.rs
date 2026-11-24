@@ -14,7 +14,7 @@ use super::effect::{AnimationEffectId, EffectHandle};
 use super::element_animations::{AnimationOwnerSlot, ElementAnimations};
 use super::host_effects::{HostEffectKind, HostEffects};
 use super::procedures::{Invalidate, Procedures};
-use super::timing::{AnimationPlayState, FillMode, SpecifiedIterationDuration};
+use super::timing::{self, AnimationEffectPhase, AnimationPlayState, FillMode, SpecifiedIterationDuration};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::transition::{FfiExistingTransition, FfiLaneTransition};
 
@@ -109,6 +109,7 @@ impl AnimationRecord {
             custom_name: state.custom_property_name.raw(),
             custom_current_value: std::ptr::null(),
             running,
+            ended: self.effect_ended(),
             end_value: state.end_value.pointer(),
             reversing_adjusted_start_value: state.reversing_adjusted_start_value.pointer(),
             timing_function_output: if running {
@@ -118,6 +119,24 @@ impl AnimationRecord {
             },
             reversing_shortening_factor: state.reversing_shortening_factor,
         }
+    }
+
+    /// Whether the associated effect is past its active interval at the current time of the animation and no longer
+    /// contributes a value.
+    fn effect_ended(&self) -> bool {
+        let Some(effect) = self.effect() else {
+            return false;
+        };
+        let sample = self.timeline().map(|timeline| timeline.sample());
+        let timeline_time = sample.as_ref().and_then(|sample| sample.current_time.get());
+        let current_time = timing::current_time_at(self.playback(), timeline_time);
+        let resolved = timing::resolve_timing(
+            &effect.borrow().timing(),
+            current_time,
+            Some(self.playback()),
+            sample.as_ref(),
+        );
+        resolved.phase == AnimationEffectPhase::After && !timing::is_in_effect(&resolved)
     }
 
     /// The output of the timing function of the effect the transition was started with at time `t` of the document
