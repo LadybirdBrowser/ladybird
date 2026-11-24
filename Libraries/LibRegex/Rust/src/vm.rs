@@ -1209,11 +1209,13 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
     let first_filter = if first_char.is_none() && !program.ignore_case {
         match filter_inst {
             Some(Instruction::BuiltinClass(class)) => Some(SimpleMatch::BuiltinClass(*class)),
-            Some(Instruction::CharClass { ranges, negated }) => Some(SimpleMatch::CharClass {
-                ranges: ranges.clone(),
+            Some(Instruction::CharClass { class, negated }) => Some(SimpleMatch::CharClass {
+                ranges: program.class(*class).clone(),
                 negated: *negated,
             }),
-            Some(Instruction::GreedyLoop { matcher, min, .. }) if *min >= 1 => Some(matcher.clone()),
+            Some(Instruction::GreedyLoop { index, .. }) if program.simple_loop(*index).min >= 1 => {
+                Some(program.simple_loop(*index).matcher.clone())
+            }
             _ => None,
         }
     } else {
@@ -1279,19 +1281,22 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
         && matches!(program.instructions.get(3), Some(Instruction::Match))
     {
         match &program.instructions[1] {
-            Instruction::CharClass { ranges, negated } => Some(SimpleScan::CharClass {
-                ranges: ranges.clone(),
+            Instruction::CharClass { class, negated } => Some(SimpleScan::CharClass {
+                ranges: program.class(*class).clone(),
                 negated: *negated,
             }),
             Instruction::BuiltinClass(class) => Some(SimpleScan::BuiltinClass(*class)),
             Instruction::Char(c) => Some(SimpleScan::Char(*c)),
             // GreedyLoop of a simple matcher: e.g., \s+, \d+, .+
             // Only when min >= 1 (min=0 means every position matches, complicating the scan).
-            Instruction::GreedyLoop { matcher, min, max } if *min >= 1 => Some(SimpleScan::GreedyQuantifier {
-                matcher: matcher.clone(),
-                min: *min,
-                max: *max,
-            }),
+            Instruction::GreedyLoop { index, .. } if program.simple_loop(*index).min >= 1 => {
+                let simple_loop = program.simple_loop(*index);
+                Some(SimpleScan::GreedyQuantifier {
+                    matcher: simple_loop.matcher.clone(),
+                    min: simple_loop.min,
+                    max: simple_loop.max,
+                })
+            }
             _ => None,
         }
     } else {
@@ -1564,7 +1569,8 @@ impl<'a, I: Input> Vm<'a, I> {
     /// Fast VM loop specialized for non-Unicode, forward-only patterns.
     /// Eliminates surrogate pair checks and backward mode branches.
     fn run_fast(&mut self) -> VmResult {
-        let instructions = &self.program.instructions;
+        let program = self.program;
+        let instructions = &program.instructions;
         let num_instructions = instructions.len();
         let input = self.input;
         let input_len = input.len();
@@ -1634,7 +1640,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::CharClass { ranges, negated } => {
+                Instruction::CharClass { class, negated } => {
+                    let ranges = program.class(*class);
                     if self.pos < input_len {
                         let cp = input.code_unit(self.pos) as u32;
                         let in_class = if self.modifiers.ignore_case {
@@ -1668,7 +1675,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::UnicodeProperty(data) => {
+                Instruction::UnicodeProperty(index) => {
+                    let data = program.unicode_property(*index);
                     if self.pos < input_len {
                         let cp = input.code_unit(self.pos) as u32;
                         // NB: run_fast is only entered when !unicode, so the
@@ -1703,9 +1711,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     // OPTIMIZATION: A preferred path that starts by matching a character the input does not have here
                     //               fails right away, which would backtrack to the other path with nothing changed. So
                     //               take the other path without saving a backtrack state.
-                    if !self.modifiers.ignore_case
-                        && Self::fails_at_first_code_unit(instructions, prefer, input, self.pos)
-                    {
+                    if !self.modifiers.ignore_case && Self::fails_at_first_code_unit(program, prefer, input, self.pos) {
                         self.pc = other;
                         continue;
                     }
@@ -1811,8 +1817,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::BackrefNamed(name) => {
-                    if let Some(result) = self.handle_backref_named(name) {
+                Instruction::BackrefNamed(index) => {
+                    if let Some(result) = self.handle_backref_named(program.backref_name(*index)) {
                         return result;
                     }
                 }
@@ -1821,14 +1827,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.handle_repeat_start(*counter_reg);
                 }
 
-                Instruction::RepeatCheck {
-                    counter_reg,
-                    min,
-                    max,
-                    body,
-                    greedy,
-                } => {
-                    self.handle_repeat_check(*counter_reg, *min, *max, *body, *greedy);
+                Instruction::RepeatCheck { check, body } => {
+                    self.handle_repeat_check(program.repeat_check(*check), *body);
                 }
 
                 Instruction::LookStart { positive, forward, end } => {
@@ -1857,8 +1857,11 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.pc += 1;
                 }
 
-                Instruction::StringPropertyMatch { strings, property } => {
-                    if let Some(result) = self.handle_string_property_match(strings, property) {
+                Instruction::StringPropertyMatch(index) => {
+                    let string_property = program.string_property(*index);
+                    if let Some(result) =
+                        self.handle_string_property_match(&string_property.strings, &string_property.property)
+                    {
                         return result;
                     }
                 }
@@ -1869,7 +1872,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     if last_pos == self.pos as i32 {
                         // Zero-width match detected. Per ECMA-262, captures from the
                         // body should be cleared to undefined before exiting.
-                        for &cap_reg in clear_captures {
+                        for &cap_reg in program.register_list(*clear_captures) {
                             let r = cap_reg as usize;
                             if r < self.registers.len() {
                                 self.set_register(r, -1);
@@ -1884,7 +1887,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::GreedyLoop { matcher, min, max } => {
+                Instruction::GreedyLoop { index, .. } => {
+                    let SimpleLoop { matcher, min, max, .. } = program.simple_loop(*index);
                     let min = *min;
                     let max = *max;
                     let start_pos = self.pos;
@@ -1905,7 +1909,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::LazyLoop { matcher, min, max } => {
+                Instruction::LazyLoop(index) => {
+                    let SimpleLoop { matcher, min, max, .. } = program.simple_loop(*index);
                     let min = *min;
                     let max = *max;
                     let start_pos = self.pos;
@@ -1940,7 +1945,8 @@ impl<'a, I: Input> Vm<'a, I> {
 
     /// General VM loop for Unicode and backward patterns.
     fn run_general(&mut self) -> VmResult {
-        let instructions = &self.program.instructions;
+        let program = self.program;
+        let instructions = &program.instructions;
         let num_instructions = instructions.len();
         'vm_loop: loop {
             self.steps += 1;
@@ -2000,7 +2006,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::CharClass { ranges, negated } => {
+                Instruction::CharClass { class, negated } => {
+                    let ranges = program.class(*class);
                     if let Some(cp) = self.current_code_point() {
                         let in_class = match_char_class(
                             cp,
@@ -2037,7 +2044,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::UnicodeProperty(data) => {
+                Instruction::UnicodeProperty(index) => {
+                    let data = program.unicode_property(*index);
                     if let Some(cp) = self.current_code_point() {
                         let result = if self.modifiers.ignore_case && self.program.unicode {
                             if data.negated && !self.program.unicode_sets {
@@ -2145,8 +2153,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::BackrefNamed(name) => {
-                    if let Some(result) = self.handle_backref_named(name) {
+                Instruction::BackrefNamed(index) => {
+                    if let Some(result) = self.handle_backref_named(program.backref_name(*index)) {
                         return result;
                     }
                 }
@@ -2155,14 +2163,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.handle_repeat_start(*counter_reg);
                 }
 
-                Instruction::RepeatCheck {
-                    counter_reg,
-                    min,
-                    max,
-                    body,
-                    greedy,
-                } => {
-                    self.handle_repeat_check(*counter_reg, *min, *max, *body, *greedy);
+                Instruction::RepeatCheck { check, body } => {
+                    self.handle_repeat_check(program.repeat_check(*check), *body);
                 }
 
                 Instruction::LookStart { positive, forward, end } => {
@@ -2191,8 +2193,11 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.pc += 1;
                 }
 
-                Instruction::StringPropertyMatch { strings, property } => {
-                    if let Some(result) = self.handle_string_property_match(strings, property) {
+                Instruction::StringPropertyMatch(index) => {
+                    let string_property = program.string_property(*index);
+                    if let Some(result) =
+                        self.handle_string_property_match(&string_property.strings, &string_property.property)
+                    {
                         return result;
                     }
                 }
@@ -2201,7 +2206,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     let reg = *reg as usize;
                     let last_pos = self.registers[reg];
                     if last_pos == self.pos as i32 {
-                        for &cap_reg in clear_captures {
+                        for &cap_reg in program.register_list(*clear_captures) {
                             let r = cap_reg as usize;
                             if r < self.registers.len() {
                                 self.set_register(r, -1);
@@ -2216,7 +2221,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::GreedyLoop { matcher, min, max } => {
+                Instruction::GreedyLoop { index, .. } => {
+                    let SimpleLoop { matcher, min, max, .. } = program.simple_loop(*index);
                     let min = *min;
                     let max = *max;
                     let start_pos = self.pos;
@@ -2257,7 +2263,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::LazyLoop { matcher, min, max } => {
+                Instruction::LazyLoop(index) => {
+                    let SimpleLoop { matcher, min, max, .. } = program.simple_loop(*index);
                     let min = *min;
                     let max = *max;
                     let start_pos = self.pos;
@@ -2367,7 +2374,13 @@ impl<'a, I: Input> Vm<'a, I> {
     }
 
     #[inline(always)]
-    fn handle_repeat_check(&mut self, counter_reg: u32, min: u32, max: Option<u32>, body: u32, greedy: bool) {
+    fn handle_repeat_check(&mut self, check: &RepeatCheck, body: u32) {
+        let RepeatCheck {
+            counter_reg,
+            min,
+            max,
+            greedy,
+        } = *check;
         let reg = counter_reg as usize;
         let count = self.registers[reg] as u32;
 
@@ -2688,14 +2701,15 @@ impl<'a, I: Input> Vm<'a, I> {
     /// of which fails on the input from `pos` on. Saves and clears of registers in between change nothing a failure
     /// would not undo.
     #[inline(always)]
-    fn fails_at_first_code_unit(instructions: &[Instruction], mut pc: u32, input: I, mut pos: usize) -> bool {
+    fn fails_at_first_code_unit(program: &Program, mut pc: u32, input: I, mut pos: usize) -> bool {
         const MAX_CODE_UNITS_CHECKED: usize = 4;
         let mut checked = 0;
         while checked < MAX_CODE_UNITS_CHECKED {
             let code_unit = (pos < input.len()).then(|| u32::from(input.code_unit(pos)));
-            let matches = match instructions.get(pc as usize) {
+            let matches = match program.instructions.get(pc as usize) {
                 Some(Instruction::Char(character)) => code_unit == Some(*character),
-                Some(Instruction::CharClass { ranges, negated }) => {
+                Some(Instruction::CharClass { class, negated }) => {
+                    let ranges = program.class(*class);
                     code_unit.is_some_and(|code_unit| ranges.contains(code_unit) != *negated)
                 }
                 Some(Instruction::Save(_) | Instruction::ClearRegister(_)) => {
@@ -2816,34 +2830,6 @@ impl<'a, I: Input> Vm<'a, I> {
         }
     }
 
-    // Sum the minimum counts of immediately following loops that match the
-    // same simple atom, so a greedy loop can leave that suffix in one step.
-    fn same_matcher_loop_suffix_min(&self, mut pc: usize, matcher: &SimpleMatch) -> Option<u32> {
-        let mut total = 0u32;
-        let mut saw_positive_min = false;
-
-        while let Some(instruction) = self.program.instructions.get(pc) {
-            let min = match instruction {
-                Instruction::GreedyLoop {
-                    matcher: next_matcher,
-                    min,
-                    ..
-                }
-                | Instruction::LazyLoop {
-                    matcher: next_matcher,
-                    min,
-                    ..
-                } if next_matcher == matcher => *min,
-                _ => break,
-            };
-            total = total.checked_add(min)?;
-            saw_positive_min |= min > 0;
-            pc += 1;
-        }
-
-        if saw_positive_min { Some(total) } else { None }
-    }
-
     fn count_available_same_matcher_chars(
         &self,
         mut pos: usize,
@@ -2881,12 +2867,19 @@ impl<'a, I: Input> Vm<'a, I> {
     }
 
     fn same_matcher_loop_suffix_deficit(&self, pc: usize, current_pos: usize, backward: bool) -> Option<u32> {
-        let matcher = match self.program.instructions.get(pc) {
-            Some(Instruction::GreedyLoop { matcher, .. }) => matcher,
+        let SimpleLoop {
+            matcher,
+            same_matcher_suffix_min,
+            ..
+        } = match self.program.instructions.get(pc) {
+            Some(Instruction::GreedyLoop {
+                index,
+                same_matcher_suffix: true,
+            }) => self.program.simple_loop(*index),
             _ => return None,
         };
 
-        let suffix_min = self.same_matcher_loop_suffix_min(pc + 1, matcher)?;
+        let suffix_min = (*same_matcher_suffix_min)?;
         let available = self.count_available_same_matcher_chars(current_pos, matcher, suffix_min, backward);
         let deficit = suffix_min.saturating_sub(available);
         (deficit > 0).then_some(deficit)
@@ -3182,8 +3175,9 @@ impl<'a, I: Input> Vm<'a, I> {
                     // Try to consume one more character.
                     self.pos = pos;
                     if let Some(cp) = self.current_code_point() {
-                        let matcher = match &self.program.instructions[pc as usize] {
-                            Instruction::LazyLoop { matcher, .. } => matcher,
+                        let program = self.program;
+                        let matcher = match &program.instructions[pc as usize] {
+                            Instruction::LazyLoop(index) => &program.simple_loop(*index).matcher,
                             _ => unreachable!(),
                         };
                         if self.match_simple(cp, matcher) {
