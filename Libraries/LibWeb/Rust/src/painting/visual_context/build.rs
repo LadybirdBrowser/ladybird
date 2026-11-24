@@ -90,6 +90,13 @@ impl BoxFacts {
         })
     }
 
+    /// Whether an SVG mask or clip path of the box covers no area, which leaves nothing of the box.
+    pub(crate) fn is_hidden_by_empty_svg_mask_or_clip(&self) -> bool {
+        self.mask_layers
+            .iter()
+            .any(|mask| mask.origin != super::MaskLayerOrigin::CssMaskLayers && mask.rect.is_empty())
+    }
+
     /// Whether the box's effects layer sits under its transform, clip and mask nodes, rather than above them: for a
     /// backdrop filter, and for a filter the box's clip-path, clip or mask has to apply to.
     pub(crate) fn effects_layer_is_inside_transform_and_clips(&self) -> bool {
@@ -209,7 +216,7 @@ impl BoxFacts {
             .map(|(path, bounding_rect, fill_rule)| (std::sync::Arc::new(path), bounding_rect, fill_rule));
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
         let masks_backdrop = facts.effects_layer_is_inside_transform_and_clips();
-        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, slot, true)
+        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, slot)
             .into_iter()
             .map(|layer| MaskData {
                 rect: converter.enclosing_device_rect(layer.area),
