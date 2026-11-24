@@ -103,8 +103,10 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Utf16
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
     // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
     // module linking) are drained after it.
-    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_filename = move(source_filename), cache_key](OffThreadCompiledProgram result, Utf16String source_text) mutable {
-        auto source_code = JS::SourceCode::create(move(source_filename), move(source_text));
+    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_filename = move(source_filename), cache_key](OffThreadCompiledProgram result, Utf16String source_text, RefPtr<JS::SourceCode const> source_code_to_share) mutable {
+        auto source_code = source_code_to_share
+            ? JS::SourceCode::create_sharing_code(move(source_filename), *source_code_to_share)
+            : JS::SourceCode::create(move(source_filename), move(source_text));
         // NB: The record that the task creates holds the source code, and so does every function of it.
         if (cache_key.has_value() && result.compiled)
             CompiledScriptCache::the().note_linked(*cache_key, *source_code);
@@ -113,9 +115,10 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Utf16
         }));
     };
 
-    if (cache_key.has_value()) {
-        if (auto hit = CompiledScriptCache::the().find(*cache_key, source_text); hit.has_value()) {
-            run_callback(OffThreadCompiledProgram { .compiled = move(hit->program) }, move(hit->source_text));
+    // NB: Text that the cache has no entry for is fingerprinted on the thread pool, beside its compilation.
+    if (cache_key.has_value() && CompiledScriptCache::the().contains(*cache_key)) {
+        if (auto hit = CompiledScriptCache::the().find(*cache_key, CompiledScriptFingerprint::of(source_text)); hit.has_value()) {
+            run_callback(OffThreadCompiledProgram { .compiled = move(hit->program) }, move(source_text), move(hit->source_code_to_share));
             return;
         }
     }
@@ -123,28 +126,33 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Utf16
     struct OffThreadCompilation {
         OffThreadCompiledProgram result;
         Utf16String source_text;
+        Optional<CompiledScriptFingerprint> fingerprint;
     };
 
-    auto compile = [source_text = move(source_text), type, line_number_offset]() mutable {
+    auto compile = [source_text = move(source_text), type, line_number_offset, wants_fingerprint = cache_key.has_value()]() mutable {
         OffThreadCompiledProgram result { .parsed = JS::ParsedProgram::parse(source_text, type, line_number_offset) };
         if (result.parsed && !result.parsed.has_errors())
             result.compiled = JS::CompiledProgram::compile(move(result.parsed));
-        return OffThreadCompilation { .result = move(result), .source_text = move(source_text) };
+        Optional<CompiledScriptFingerprint> fingerprint;
+        if (wants_fingerprint && result.compiled)
+            fingerprint = CompiledScriptFingerprint::of(source_text);
+        return OffThreadCompilation { .result = move(result), .source_text = move(source_text), .fingerprint = move(fingerprint) };
     };
     Platform::run_on_thread_pool<OffThreadCompilation>(move(compile),
         [cache_key = move(cache_key), run_callback = move(run_callback)](OffThreadCompilation compilation) mutable {
             auto result = move(compilation.result);
+            RefPtr<JS::SourceCode const> source_code_to_share;
             if (cache_key.has_value() && result.compiled) {
                 // NB: Another load of the script may have stored it while this one compiled.
-                if (auto hit = CompiledScriptCache::the().find(*cache_key, compilation.source_text); hit.has_value()) {
+                if (auto hit = CompiledScriptCache::the().find(*cache_key, *compilation.fingerprint); hit.has_value()) {
                     result.compiled = move(hit->program);
-                    compilation.source_text = move(hit->source_text);
+                    source_code_to_share = move(hit->source_code_to_share);
                 } else {
-                    CompiledScriptCache::the().store(cache_key.release_value(), compilation.source_text, result.compiled);
+                    CompiledScriptCache::the().store(cache_key.release_value(), *compilation.fingerprint, result.compiled);
                 }
             }
 
-            run_callback(move(result), move(compilation.source_text));
+            run_callback(move(result), move(compilation.source_text), move(source_code_to_share));
         });
 }
 

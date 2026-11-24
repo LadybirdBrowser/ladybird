@@ -64,6 +64,23 @@ pub unsafe extern "C" fn js_source_code_create(
     Rc::into_raw(SourceCode::create(filename, code)).cast()
 }
 
+/// SourceCode::create_sharing_code(filename, other): new source code with the code of `other`, whose one reference the
+/// caller owns and gives up with js_source_code_release(). Adopts the filename, which the caller gives up with
+/// AK::Utf16String::into_raw(). Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `filename` must be a raw AK::Utf16String whose reference the caller gives up, and `other` must be live source code.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_source_code_create_sharing_code(
+    filename: JSOwnedUtf16String,
+    other: *const JSSourceCode,
+) -> *const JSSourceCode {
+    // SAFETY: The caller transfers the reference to the filename and passes live source code.
+    let (filename, other) = unsafe { (owned_utf16_string_from_abi(filename), source_code_from_abi(other)) };
+    Rc::into_raw(SourceCode::create_sharing_code(filename, other)).cast()
+}
+
 /// Adds a reference to the source code, which the caller gives up with js_source_code_release(). Only the VM's thread
 /// may call this.
 ///
@@ -175,6 +192,22 @@ pub unsafe extern "C" fn js_weak_source_code_is_alive(weak: *const JSWeakSourceC
     assert!(!weak.is_null(), "the embedder passes a weak reference");
     // SAFETY: The caller passes a live weak reference, which is a boxed Weak<SourceCode>.
     unsafe { &*weak.cast::<std::rc::Weak<SourceCode>>() }.strong_count() > 0
+}
+
+/// The source code of the weak reference with one more reference, which the caller gives up with
+/// js_source_code_release(), or null if nothing holds it anymore. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `weak` must be a weak reference that js_source_code_downgrade() handed out and that was not destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_weak_source_code_upgrade(weak: *const JSWeakSourceCode) -> *const JSSourceCode {
+    assert!(!weak.is_null(), "the embedder passes a weak reference");
+    // SAFETY: The caller passes a live weak reference, which is a boxed Weak<SourceCode>.
+    unsafe { &*weak.cast::<std::rc::Weak<SourceCode>>() }
+        .upgrade()
+        .map_or(core::ptr::null(), Rc::into_raw)
+        .cast()
 }
 
 /// Destroys a weak reference that js_source_code_downgrade() handed out. Null does nothing. Only the VM's thread may
