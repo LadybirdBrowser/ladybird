@@ -603,6 +603,14 @@ impl CompactEffectTiming {
         self.key_with(easing, samples, timing::EndpointInclusiveActiveInterval::No)
     }
 
+    /// Whether the effect is past its active interval with its timeline at `samples` and no longer contributes a value,
+    /// or none where the samples do not move its timeline.
+    #[must_use]
+    pub(crate) fn has_ended_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<bool> {
+        let (_, resolved) = self.resolve_at(samples, timing::EndpointInclusiveActiveInterval::No)?;
+        Some(resolved.phase == timing::AnimationEffectPhase::After && !timing::is_in_effect(&resolved))
+    }
+
     /// https://drafts.csswg.org/web-animations-1/#commit-computed-styles
     /// The key the effect's keyframes are sampled at as the host sampled it, eased by `easing`, with the
     /// endpoint-inclusive active interval flag set when determining its phase, as committing computed styles samples
