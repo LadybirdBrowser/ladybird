@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/abspos-escaping-overflow-clip-that-hides-its-masked-ancestor-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.containing-block {
+    position: relative;
+    width: 100px;
+    height: 300px;
+}
+.clip {
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+}
+.spacer {
+    height: 200px;
+}
+.masked {
+    mask-image: linear-gradient(black, black);
+    width: 100px;
+    height: 100px;
+    background: red;
+}
+.escaping {
+    position: absolute;
+    left: 0;
+    top: 200px;
+    width: 100px;
+    height: 100px;
+    background: green;
+}
+</style>
+<!-- The overflow clip hides the masked box, which sits below it. The absolute child skips the clip and shows
+     where the masked box is, so the mask still has to composite its content for the child. -->
+<div class="containing-block">
+    <div class="clip">
+        <div class="spacer"></div>
+        <div class="masked">
+            <div class="escaping"></div>
+        </div>
+    </div>
+</div>

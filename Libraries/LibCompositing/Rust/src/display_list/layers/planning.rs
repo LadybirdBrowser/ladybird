@@ -217,10 +217,7 @@ fn root_isolation_effect_is_plain_group(tree: &VisualContextTree) -> bool {
 }
 
 /// Why a list cannot be layered at all.
-fn why_list_cannot_be_layered(
-    inputs: &LayerStackInputs<'_>,
-    layering_obstacles: &LayeringObstacles,
-) -> Option<WhyListIsOneLayer> {
+fn why_list_cannot_be_layered(inputs: &LayerStackInputs<'_>) -> Option<WhyListIsOneLayer> {
     if inputs.viewport_rect.is_empty() {
         return Some(WhyListIsOneLayer::EmptyViewport);
     }
@@ -229,9 +226,6 @@ fn why_list_cannot_be_layered(
     }
     if !root_isolation_effect_is_plain_group(inputs.tree) {
         return Some(WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup);
-    }
-    if layering_obstacles.mask_declared_under_effects_its_mask_is_not_under {
-        return Some(WhyListIsOneLayer::MaskDeclaredUnderEffectsItsMaskIsNotUnder);
     }
     None
 }
@@ -2760,9 +2754,8 @@ fn plan_layer_stack_at_anchors(
     anchors_of_tree: &RasterSpaceAnchorsOfTree,
 ) -> PlannedLayers {
     let nesting_of_live_effects = NestingOfLiveEffects::of(inputs.tree);
-    let layering_obstacles =
-        LayeringObstacles::of_with_nesting_of_live_effects(inputs.list, inputs.tree, &nesting_of_live_effects);
-    if let Some(why) = why_list_cannot_be_layered(inputs, &layering_obstacles) {
+    let layering_obstacles = LayeringObstacles::of(inputs.tree);
+    if let Some(why) = why_list_cannot_be_layered(inputs) {
         return one_layer(inputs, why, layering_obstacles, ListPlacement::default());
     }
     let (spaces, geometries) = spaces_with_geometries(

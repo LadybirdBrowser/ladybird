@@ -13,9 +13,7 @@ use libcompositing_rust::display_list::commands::{
     FillPath, FillRect, FontResourceId, OptionalFloatRect, PathPaintKind, ReplayLayer, StrokePath,
 };
 use libcompositing_rust::display_list::ffi_bytes::FfiBytes;
-use libcompositing_rust::display_list::replay::{
-    ListReplay, RecordsContext, ReplayFrame, ReplayPainter, replay_records,
-};
+use libcompositing_rust::display_list::replay::{RecordsContext, ReplayFrame, ReplayPainter, replay_records};
 use libcompositing_rust::overlays::{
     PausedDebuggerOverlayGeometry, paused_debugger_overlay_geometry, picture_in_picture_controls_geometry,
     scaled_overlay_length,
@@ -335,10 +333,9 @@ impl OverlayRecords {
 
 fn replay_overlay_records(records: &AlignedRecords, painter: &mut impl ReplayPainter) {
     OVERLAY_TREE.with(|tree| {
-        let list = ListReplay::new(tree);
         let frame = ReplayFrame::unscrolled(0);
         let context = RecordsContext {
-            list_replay: &list,
+            tree,
             frame: &frame,
             to_root_matrix_of_inline_clip_space: &|_| None,
         };
