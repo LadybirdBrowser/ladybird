@@ -10,7 +10,7 @@
 use core::cell::RefCell;
 
 use ak::Utf16FlyString;
-use libregex_rust::ast::Flags;
+use libregex_compiler::ast::Flags;
 use libregex_rust::regex::Regex;
 use libregex_rust::vm::VmResult;
 

@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
-use libregex_rust::ast::Flags;
+use libregex_compiler::ast::Flags;
 use libregex_rust::regex::Regex;
 use libregex_rust::vm::VmResult;
 

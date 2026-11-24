@@ -11,6 +11,7 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 ak = { path = "../../../AK/Rust" }
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
+libregex_compiler = { path = "../Compiler/Rust" }
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 memchr = "2"
 rustc-demangle = "0.1"

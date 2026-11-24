@@ -455,20 +455,17 @@ impl<'z> Parser<'z> {
         let start = self.pos;
         self.pos += 1; // skip '{'
 
-        let min = match self.try_parse_decimal()? {
-            Some(n) => n,
-            None => {
-                // Not a valid quantifier -- rewind.
-                self.pos = start;
-                if self.unicode_aware() {
-                    return Err(Error::InvalidQuantifier);
-                }
-                return Ok(None);
+        let Some(min) = self.try_parse_decimal() else {
+            // Not a valid quantifier -- rewind.
+            self.pos = start;
+            if self.unicode_aware() {
+                return Err(Error::InvalidQuantifier);
             }
+            return Ok(None);
         };
 
         let max = if self.eat(',') {
-            self.try_parse_decimal()?
+            self.try_parse_decimal()
         } else {
             Some(min) // {n} means exactly n
         };
@@ -494,11 +491,11 @@ impl<'z> Parser<'z> {
     }
 
     /// Try to parse a decimal integer. Returns:
-    /// - `Ok(None)` if no digits were found
-    /// - `Ok(Some(n))` if a valid u32 was parsed
+    /// - `None` if no digits were found
+    /// - `Some(n)` if a valid u32 was parsed
     ///
     /// Clamp braced quantifier bounds to 2^31 - 1 to match browser behavior.
-    fn try_parse_decimal(&mut self) -> Result<Option<u32>, Error<'z>> {
+    fn try_parse_decimal(&mut self) -> Option<u32> {
         let start = self.pos;
         let mut value: u32 = 0;
         while let Some(ch) = self.peek() {
@@ -510,7 +507,7 @@ impl<'z> Parser<'z> {
                 break;
             }
         }
-        if self.pos == start { Ok(None) } else { Ok(Some(value)) }
+        if self.pos == start { None } else { Some(value) }
     }
 
     // ---------------------------------------------------------------
@@ -1154,7 +1151,7 @@ impl<'z> Parser<'z> {
 
         loop {
             match self.peek() {
-                Some(':') | Some(')') | None => break,
+                Some(':' | ')') | None => break,
                 Some('-') if !removing => {
                     self.advance();
                     removing = true;

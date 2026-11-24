@@ -267,7 +267,7 @@ pub struct CharRange {
 }
 
 /// Re-export for use by the compiler and VM.
-pub use crate::ast::BuiltinCharacterClass;
+pub use libregex_compiler::ast::BuiltinCharacterClass;
 
 impl Default for Program {
     fn default() -> Self {

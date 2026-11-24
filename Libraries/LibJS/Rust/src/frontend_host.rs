@@ -6,8 +6,8 @@
 
 //! The functions the Rust frontend (Libraries/LibJS/Rust) calls on the runtime that embeds it, through host.rs.
 
-use libregex_rust::ast::Flags;
-use libregex_rust::parser::Error as ParseError;
+use libregex_compiler::ast::Flags;
+use libregex_compiler::parser::Error as ParseError;
 use libregex_rust::regex::Regex;
 use num_bigint::BigInt;
 

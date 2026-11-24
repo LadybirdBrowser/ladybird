@@ -7,7 +7,14 @@
 //! The copy of what a regex keeps of its compile, out of the zone of the compile and at its final size: the program
 //! that the VM runs and the literals that let a search skip the VM.
 
-use crate::ast::UnicodeProperty;
+use libregex_compiler::ast::UnicodeProperty;
+use libregex_compiler::compiler;
+use libregex_compiler::literal_hints::RequiredLiteral;
+use libregex_compiler::zone_program::CodePointRange;
+use libregex_compiler::zone_program::ZoneInstruction;
+use libregex_compiler::zone_program::ZoneProgram;
+use libregex_compiler::zone_program::ZoneSimpleMatch;
+
 use crate::bytecode::CharRange;
 use crate::bytecode::CharRanges;
 use crate::bytecode::Instruction;
@@ -15,13 +22,7 @@ use crate::bytecode::NamedGroupEntry;
 use crate::bytecode::Program;
 use crate::bytecode::SimpleMatch;
 use crate::bytecode::UnicodePropertyData;
-use crate::compiler;
-use crate::literal_hints::RequiredLiteral;
 use crate::vm;
-use crate::zone_program::CodePointRange;
-use crate::zone_program::ZoneInstruction;
-use crate::zone_program::ZoneProgram;
-use crate::zone_program::ZoneSimpleMatch;
 
 pub(crate) fn program(program: &ZoneProgram<'_>) -> Program {
     let mut instructions = Vec::with_capacity(program.instructions.len());
