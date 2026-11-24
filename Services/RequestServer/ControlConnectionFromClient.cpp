@@ -171,13 +171,6 @@ void ControlConnectionFromClient::set_dns_server(ByteString host_or_address, u16
     if (host_or_address == dns_info.server_hostname && port == dns_info.port && use_tls == dns_info.use_dns_over_tls && validate_dnssec_locally == dns_info.validate_dnssec_locally)
         return;
 
-    if (auto v4 = IPv4Address::from_string(host_or_address); v4.has_value())
-        dns_info.server_address = Core::SocketAddress { v4.value(), port };
-    else if (auto v6 = IPv6Address::from_string(host_or_address); v6.has_value())
-        dns_info.server_address = Core::SocketAddress { v6.value(), port };
-    else
-        dns_info.server_address = {};
-
     dns_info.server_hostname = host_or_address;
     dns_info.port = port;
     dns_info.use_dns_over_tls = use_tls;
@@ -190,7 +183,6 @@ void ControlConnectionFromClient::set_use_system_dns()
 {
     auto& dns_info = DNSInfo::the();
     dns_info.server_hostname = {};
-    dns_info.server_address = {};
 
     Resolver::reset_connections();
 }

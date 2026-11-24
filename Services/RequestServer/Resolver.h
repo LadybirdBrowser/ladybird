@@ -20,7 +20,7 @@ namespace RequestServer {
 struct DNSInfo {
     static DNSInfo& the();
 
-    Optional<Core::SocketAddress> server_address;
+    // Without a server, names go to the system resolver.
     Optional<ByteString> server_hostname;
     u16 port { 0 };
     bool use_dns_over_tls { true };
@@ -28,7 +28,7 @@ struct DNSInfo {
     Vector<ByteString> loopback_domains;
 
     // Only configured DNS gives us the full address pool to distribute requests over.
-    bool uses_configured_dns_server() const { return server_address.has_value() || server_hostname.has_value(); }
+    bool uses_configured_dns_server() const { return server_hostname.has_value(); }
 
 private:
     DNSInfo() = default;
@@ -53,7 +53,7 @@ struct Resolver
 private:
     static NonnullRefPtr<Resolver> create();
 
-    explicit Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket);
+    Resolver() = default;
 };
 
 // curl resolves the host of a proxy given by name itself, with the system resolver, unless the handle's CURLOPT_RESOLVE

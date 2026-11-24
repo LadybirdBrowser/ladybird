@@ -5,6 +5,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     ControlConnectionFromClient.cpp
     CURL.cpp
+    DNSStreamCurl.cpp
     Request.cpp
     RequestPipe.cpp
     Resolver.cpp

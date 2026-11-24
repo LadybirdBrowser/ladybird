@@ -332,10 +332,7 @@ static CURLcode connect_websocket(TLSServer const& server, StringView hostname =
     impl->on_connection_error = [] { };
     impl->on_ready_to_read = [] { };
 
-    auto name = DNS::Messages::DomainName::from_string(hostname);
-    auto dns_result = make_ref_counted<DNS::LookupResult>(name);
-    dns_result->add_record({ name, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 60,
-        DNS::Messages::Records::A { IPv4Address { 127, 0, 0, 1 } }, {} });
+    auto dns_result = make_ref_counted<DNS::LookupResult>(hostname, Vector<DNS::LookupResult::Record> { { .type = DNS::Messages::ResourceType::A, .ttl = 60, .address = IPv4Address { 127, 0, 0, 1 }, .text = "127.0.0.1"_string } }, OptionalNone {});
     auto url = URL::Parser::basic_parse(ByteString::formatted("wss://{}:{}/", hostname, server.port())).release_value();
     WebSocket::ConnectionInfo info { move(url) };
     info.set_dns_result(move(dns_result));
