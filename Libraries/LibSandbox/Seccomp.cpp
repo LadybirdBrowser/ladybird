@@ -2747,6 +2747,17 @@ void SeccompPolicy::allow_gpu_device_operations()
     append(SECCOMP_ERRNO(EPERM));
 #endif
 
+    // NVIDIA also tries to make its device nodes when they are missing, as they are on a machine without an NVIDIA
+    // GPU. Refuse mknod() the same way, whatever it would make.
+#ifdef __NR_mknod
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mknod, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_mknodat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mknodat, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+
     // DRM, DMA-BUF, sync files, udmabuf, and NVIDIA's device interfaces. Keep unrelated
     // device and terminal controls out of the GPU policy. Individual driver commands
     // remain the driver's responsibility; ioctl type numbers are not unique device IDs.
