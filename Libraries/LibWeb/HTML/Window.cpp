@@ -756,18 +756,9 @@ void Window::fire_a_page_transition_event(Utf16FlyString const& event_name, bool
     // To fire a page transition event named eventName at a Window window with a boolean persisted,
     // fire an event named eventName at window, using PageTransitionEvent,
     // with the persisted attribute initialized to persisted,
-    PageTransitionEventInit event_init {};
-    event_init.persisted = persisted;
-    auto event = PageTransitionEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-
-    // ...the cancelable attribute initialized to true,
-    event->set_cancelable(true);
-
+    // the cancelable attribute initialized to true,
     // the bubbles attribute initialized to true,
-    event->set_bubbles(true);
-
-    // isTrusted is a convenience that indicates whether an event is dispatched by the user agent (as opposed to using dispatchEvent())
-    event->set_is_trusted(true);
+    auto event = create_page_transition_event(relevant_realm(*this), event_name, { .bubbles = true, .cancelable = true }, persisted);
 
     // and legacy target override flag set.
     DOM::EventDispatcher::dispatch(*this, event, true);

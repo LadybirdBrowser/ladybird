@@ -4,24 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(PageTransitionEvent);
-
-GC::Ref<PageTransitionEvent> PageTransitionEvent::create(Utf16FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<PageTransitionEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/html/page_transition_event.rs.
+DOM::Event* web_rust_page_transition_event_create(JSVM*, void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed, bool persisted);
 }
 
-PageTransitionEvent::PageTransitionEvent(Utf16FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_persisted(event_init.persisted)
+GC::Ref<DOM::Event> create_page_transition_event(JS::Realm& realm, Utf16FlyString const& type, DOM::EventInit const& event_init, bool persisted)
 {
+    return *web_rust_page_transition_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), event_init.bubbles, event_init.cancelable, event_init.composed, persisted);
 }
-
-PageTransitionEvent::~PageTransitionEvent() = default;
 
 }

@@ -96,6 +96,8 @@ pub(crate) mod offscreen_canvas;
 #[cfg(not(test))]
 pub(crate) mod offscreen_canvas_rendering_context2d;
 #[cfg(not(test))]
+pub(crate) mod page_transition_event;
+#[cfg(not(test))]
 pub(crate) mod path2d;
 #[cfg(not(test))]
 pub(crate) mod port_channel;

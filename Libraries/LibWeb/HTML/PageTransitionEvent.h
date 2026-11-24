@@ -7,30 +7,14 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PageTransitionEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using PageTransitionEventInit = Bindings::PageTransitionEventInit;
-
-class PageTransitionEvent final : public DOM::Event {
-    WEB_WRAPPABLE(PageTransitionEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(PageTransitionEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(Utf16FlyString const& event_name, PageTransitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~PageTransitionEvent() override;
-
-    bool persisted() const { return m_persisted; }
-
-private:
-    PageTransitionEvent(Utf16FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    bool m_persisted { false };
-};
+// The Event of a new trusted PageTransitionEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_page_transition_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, bool persisted);
 
 }
