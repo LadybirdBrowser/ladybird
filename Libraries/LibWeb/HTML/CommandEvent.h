@@ -6,39 +6,16 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CommandEvent.h>
-#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/Utils.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using CommandEventInit = Bindings::CommandEventInit;
-
-class CommandEvent : public DOM::Event {
-    WEB_WRAPPABLE(CommandEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(CommandEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<CommandEvent> create(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<CommandEvent> create(Utf16FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-command
-    Utf16String const& command() const { return m_command; }
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-source
-    GC::Ptr<DOM::Element> source() const { return as<DOM::Element>(retarget(m_source.ptr(), current_target().ptr())); }
-
-private:
-    void visit_edges(Visitor&) override;
-
-    CommandEvent(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    GC::Ptr<DOM::Element> m_source;
-    Utf16String m_command;
-};
+// The Event of a new trusted CommandEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_command_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, DOM::Element& source, Utf16String const& command);
 
 }

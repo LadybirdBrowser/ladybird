@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/interaction.html#commandevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CommandEvent : Event {
     constructor(DOMString type, optional CommandEventInit eventInitDict = {});
     readonly attribute Element? source;

@@ -23,10 +23,11 @@ use libjs_rust::api::{
 };
 
 use crate::ak_format::ak_formatted;
+use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::services::{
-    web_bindings_object_implements_interface, web_bindings_object_is_window_proxy,
+    web_bindings_cell_of_wrapper, web_bindings_object_implements_interface, web_bindings_object_is_window_proxy,
     web_bindings_window_proxy_object_in_realm,
 };
 use crate::bindings::{CallContext, WebIdlResult};
@@ -1363,6 +1364,11 @@ impl CppInterface {
 
     pub(crate) fn wrapper(self) -> Gc<Object> {
         self.0
+    }
+
+    pub(crate) fn cell(self) -> CppCell {
+        // SAFETY: The wrapper is live, and LibWeb returns the live cell of the object that it wraps.
+        unsafe { CppCell::from_raw(web_bindings_cell_of_wrapper(self.0.as_ptr().cast())) }
     }
 }
 
