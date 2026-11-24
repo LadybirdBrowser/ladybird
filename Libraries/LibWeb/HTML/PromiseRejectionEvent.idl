@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#promiserejectionevent
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface PromiseRejectionEvent : Event {
     constructor(DOMString type, PromiseRejectionEventInit eventInitDict);
 

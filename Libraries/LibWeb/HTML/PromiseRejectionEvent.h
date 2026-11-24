@@ -8,49 +8,15 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibGC/Root.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
-
-namespace Web::Bindings {
-
-struct PromiseRejectionEventInit;
-
-}
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-struct PromiseRejectionEventInit : DOM::EventInit {
-    GC::Ref<JS::Object> promise;
-    JS::Value reason { JS::js_undefined() };
-};
-
-class PromiseRejectionEvent final : public DOM::Event {
-    WEB_WRAPPABLE(PromiseRejectionEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(PromiseRejectionEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, PromiseRejectionEventInit const&);
-    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(Utf16FlyString const& event_name, PromiseRejectionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> create_for_constructor(Utf16String const& event_name, Bindings::PromiseRejectionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~PromiseRejectionEvent() override;
-
-    // Needs to return a pointer for the generated JS bindings to work.
-    JS::Object const* promise() const { return m_promise.ptr(); }
-    JS::Value const& reason() const { return m_reason; }
-
-private:
-    PromiseRejectionEvent(Utf16FlyString const& event_name, PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ref<JS::Object> m_promise;
-    JS::Value m_reason;
-};
+// The Event of a new trusted PromiseRejectionEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_promise_rejection_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, JS::Object& promise, JS::Value reason);
 
 }

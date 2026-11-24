@@ -796,7 +796,6 @@ class PluginArray;
 class PopoverTargetAttributes;
 class PreloadEntry;
 struct PreloadKey;
-class PromiseRejectionEvent;
 class RadioButtonGroupRegistry;
 class RadioNodeList;
 class RemoteNavigable;
