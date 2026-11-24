@@ -64,15 +64,14 @@ static bool s_resolves_system_names_remotely = false;
 
 static void use_remote_system_resolver(DNS::Resolver& resolver)
 {
-    resolver.set_remote_system_resolver([](ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
-        if (auto control_connection = ControlConnectionFromClient::the(); control_connection.has_value()) {
-            control_connection->resolve_host_with_system_resolver(host, family, move(on_resolved));
-            return;
-        }
+    resolver.set_remote_system_resolver([](ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) -> DNS::Resolver::CancelRemoteSystemResolution {
+        if (auto control_connection = ControlConnectionFromClient::the(); control_connection.has_value())
+            return control_connection->resolve_host_with_system_resolver(host, family, move(on_resolved));
         // The resolver expects its answer later, never from inside this call.
         Core::deferred_invoke([on_resolved = move(on_resolved)] mutable {
             on_resolved(Error::from_string_literal("No process to resolve the name with the system resolver"));
         });
+        return {};
     });
 }
 
