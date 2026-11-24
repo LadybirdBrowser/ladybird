@@ -584,9 +584,17 @@ impl Validator {
             if has_excessive_nsec3_iterations(proofs.rrsets) {
                 return Ok(Accepted::Insecure(EXCESSIVE_NSEC3_ITERATIONS));
             }
-            if !proofs.proves_next_closer_absent(current, wildcard_label_count) {
+            let Some(proof_ttl) = proofs.proves_next_closer_absent(current, wildcard_label_count) else {
                 return Ok(Accepted::Bogus("Wildcard expansion is not proven"));
+            };
+            // RFC 9077, 4.1. A Note on Wildcards.
+            // Validating resolvers consider an expanded wildcard valid for the wildcard's TTL, capped by the TTLs of
+            // the NSEC or NSEC3 proof that shows that the wildcard expansion is legal.
+            let mut records = verified.rrset.records;
+            for record in &mut records {
+                record.ttl = record.ttl.min(proof_ttl);
             }
+            return Ok(Accepted::Records(records));
         }
         Ok(Accepted::Records(verified.rrset.records))
     }
