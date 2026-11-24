@@ -145,69 +145,14 @@ fn missing_jit_cpu_features() -> Vec<&'static str> {
 
 /// The lowest address the interpreter's frames may use on the current thread, leaving `reserve` bytes below it.
 pub fn stack_limit(reserve: usize) -> u64 {
-    // OPTIMIZATION: Finding where a thread's stack ends can mean reading /proc/self/maps (glibc does for the main
-    //               thread), which took over half a millisecond per call from JavaScript into WebAssembly, so each
-    //               thread finds it once.
-    thread_local! {
-        static LOWEST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
-    }
-    let lowest = LOWEST.with(|lowest| {
-        if lowest.get() == 0
-            && let Some(address) = thread_stack_lowest_address()
-        {
-            lowest.set(address);
-        }
-        lowest.get()
-    });
-    if lowest != 0 {
+    if let Some(lowest) = ak::stack::lowest_address_of_this_thread() {
         return (lowest + reserve) as u64;
     }
     // NB: Without the stack's bounds, the limit is a mebibyte below wherever this is called from, which depends on the
-    //     caller, so it is not cached.
+    //     caller.
     let marker = 0u8;
     let current = &raw const marker as usize;
     (current.saturating_sub(1024 * 1024) + reserve) as u64
-}
-
-#[cfg(target_os = "linux")]
-fn thread_stack_lowest_address() -> Option<usize> {
-    unsafe {
-        let mut attributes: libc::pthread_attr_t = std::mem::zeroed();
-        if libc::pthread_getattr_np(libc::pthread_self(), &raw mut attributes) != 0 {
-            return None;
-        }
-        let mut address = std::ptr::null_mut();
-        let mut size = 0;
-        let result = libc::pthread_attr_getstack(&raw const attributes, &raw mut address, &raw mut size);
-        libc::pthread_attr_destroy(&raw mut attributes);
-        (result == 0).then_some(address as usize)
-    }
-}
-
-#[cfg(target_os = "macos")]
-#[allow(clippy::unnecessary_wraps)] // The other platforms' versions can fail.
-fn thread_stack_lowest_address() -> Option<usize> {
-    unsafe {
-        let thread = libc::pthread_self();
-        let top = libc::pthread_get_stackaddr_np(thread) as usize;
-        Some(top - libc::pthread_get_stacksize_np(thread))
-    }
-}
-
-#[cfg(windows)]
-#[allow(clippy::unnecessary_wraps)] // The other platforms' versions can fail.
-fn thread_stack_lowest_address() -> Option<usize> {
-    unsafe extern "system" {
-        fn GetCurrentThreadStackLimits(low: *mut usize, high: *mut usize);
-    }
-    let (mut low, mut high) = (0, 0);
-    unsafe { GetCurrentThreadStackLimits(&raw mut low, &raw mut high) };
-    Some(low)
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-fn thread_stack_lowest_address() -> Option<usize> {
-    None
 }
 
 #[cfg(all(wasm_interpreter, unix))]
