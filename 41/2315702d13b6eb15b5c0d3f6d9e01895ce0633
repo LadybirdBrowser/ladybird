@@ -1,0 +1,16 @@
+Ladybird now places a tab from where its item starts on its line,
+measured from the content box’s start edge past floats and the indent,
+whether the line began at a soft wrap or a forced break. Chrome 158 and
+Firefox 151 give identical results for every case of the regression test
+(soft wraps at a space and at a wbr, two wraps, a forced break, a padded
+span, a length tab-size, a first-line indent, a float on the first and
+on a wrapped line, and vertical text). Blink’s LineBreaker shapes a tab
+with ShapeResult::CreateForTabulationCharacters() at the line breaker’s
+position_ plus ComputeFloatOffset(), and Gecko measures from the block’s
+origin through nsTextFrame’s mOffsetFromBlockOriginForTabs.
+
+WebKit 26.5 matches except beside a float, where it measures from
+the line’s start past the float, and in vertical text. The engines
+disagree on a right-to-left tab after a wrap (Chrome and WebKit put
+the text after it 15px from the line’s left, Firefox 95px), so the
+test leaves that case out.
