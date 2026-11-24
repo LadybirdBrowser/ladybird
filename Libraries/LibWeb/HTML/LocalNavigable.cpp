@@ -2227,7 +2227,9 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    body: the UTF-8 encoding of documentResource, as a body
     auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(URL::about_srcdoc());
-    response->header_list()->append({ "Content-Type"sv, "text/html"sv });
+    // AD-HOC: Label the body as UTF-8, matching other engines. Otherwise the encoding sniffing algorithm may decode it
+    //         with another encoding.
+    response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });
     auto document_resource_utf8 = MUST(document_resource.get<Utf16String>().utf16_view().to_utf8());
     response->set_body(Fetch::Infrastructure::byte_sequence_as_response_body(document_resource_utf8.bytes()));
 
