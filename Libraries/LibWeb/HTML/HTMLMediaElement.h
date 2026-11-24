@@ -292,7 +292,7 @@ private:
 
     void set_up_playback_manager_for_remote();
     void set_up_playback_manager_for_local(GC::Ref<GC::Function<void(Utf16String)>> failure_callback);
-    void set_up_playback_manager_error_handler(GC::Ref<GC::Function<void(Utf16String)>> failure_callback);
+    void listen_for_playback_manager_errors();
     void handle_playback_manager_error(Media::DecoderError&&);
     enum class FetchingStatus : u8 {
         Ongoing,
