@@ -208,6 +208,8 @@ struct PendingValidation {
 // a grace window for the other side: briefly for AAAA (RFC 8305's Resolution Delay), and longer for A. The slower side
 // keeps going and merges its records into the cache entry, so later lookups see the full set.
 struct PendingSystemResolution {
+    // Tells this resolution apart from a later one for the same name and types, which answers to it do not concern.
+    id: u64,
     // Where the result goes in the cache, if it goes there at all.
     cache_key: Option<String>,
     entry: CacheEntry,
@@ -231,7 +233,7 @@ pub struct Resolver {
     in_flight: HashMap<String, InFlightQuery>,
     in_flight_by_id: HashMap<u16, String>,
     system_resolutions: HashMap<String, PendingSystemResolution>,
-    system_requests: HashMap<SystemRequestId, (String, AddressFamily)>,
+    system_requests: HashMap<SystemRequestId, (String, u64, AddressFamily)>,
 
     loopback_domains: Vec<String>,
     is_ipv6_globally_reachable: Box<dyn FnMut() -> bool>,
@@ -768,27 +770,31 @@ impl Resolver {
         }
 
         if let Some(state) = self.system_resolutions.get_mut(&key) {
-            // The grace window may have settled the resolution while the slower side is still going. Serve the
-            // joining caller from what is there.
-            if state.settled {
-                let result = if state.entry.has_records() {
-                    Ok(state.entry.snapshot())
-                } else {
-                    Err(Error::new("Could not resolve to IPv4 or IPv6 address"))
-                };
+            if !state.settled {
+                state.waiters.push(waiter);
+                return;
+            }
+            // The grace window settled the resolution while the slower side is still going. Serve the joining
+            // caller from what is there, as long as some of it is still fresh. The slower side may never answer, so
+            // once nothing is, start over.
+            state.entry.expire(now);
+            if state.entry.has_records() {
+                let result = Ok(state.entry.snapshot());
                 return self.settle_lookup_waiter(waiter, result, now);
             }
-            state.waiters.push(waiter);
-            return;
+            self.system_resolutions.remove(&key);
         }
 
         let mut entry = CacheEntry::new(DomainName::from_string(name));
         for rtype in &queried_types {
             entry.will_add_record_of_type(*rtype);
         }
+        let id = self.next_system_request_id;
+        self.next_system_request_id += 1;
         self.system_resolutions.insert(
             key.clone(),
             PendingSystemResolution {
+                id,
                 cache_key: caches_result.then(|| name.to_owned()),
                 entry,
                 waiters: vec![waiter],
@@ -799,16 +805,16 @@ impl Resolver {
             },
         );
 
-        self.ask_system_resolver(&key, name, AddressFamily::V4);
+        self.ask_system_resolver(&key, id, name, AddressFamily::V4);
         if !skips_aaaa {
-            self.ask_system_resolver(&key, name, AddressFamily::V6);
+            self.ask_system_resolver(&key, id, name, AddressFamily::V6);
         }
     }
 
-    fn ask_system_resolver(&mut self, key: &str, name: &str, family: AddressFamily) {
+    fn ask_system_resolver(&mut self, key: &str, id: u64, name: &str, family: AddressFamily) {
         let request = self.next_system_request_id;
         self.next_system_request_id += 1;
-        self.system_requests.insert(request, (key.to_owned(), family));
+        self.system_requests.insert(request, (key.to_owned(), id, family));
         self.actions.push_back(Action::SystemResolve {
             request,
             name: name.to_owned(),
@@ -818,10 +824,10 @@ impl Resolver {
 
     /// The system resolver answered a `SystemResolve` action.
     pub fn on_system_resolved(&mut self, request: SystemRequestId, result: Result<Vec<IpAddr>, String>, now: Instant) {
-        let Some((key, family)) = self.system_requests.remove(&request) else {
+        let Some((key, id, family)) = self.system_requests.remove(&request) else {
             return;
         };
-        let Some(state) = self.system_resolutions.get_mut(&key) else {
+        let Some(state) = self.system_resolutions.get_mut(&key).filter(|state| state.id == id) else {
             return;
         };
 
