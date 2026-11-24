@@ -1355,17 +1355,10 @@ impl Resolver {
             let Some(bytes) = self.links[index].connection.take_message() else {
                 break;
             };
-            let is_stream = self.links[index].kind != ConnectKind::Udp;
-            match Message::from_wire(&bytes) {
-                Ok(message) => self.on_message(id, message, now),
-                // A frame that does not parse leaves us with no idea where the next one starts.
-                Err(_) if is_stream => {
-                    self.links[index]
-                        .connection
-                        .on_socket_error("Malformed DNS message".to_owned());
-                    break;
-                }
-                Err(_) => {}
+            // A message that does not parse answers nothing. Over a stream, its length still says where the next one
+            // starts, so the ones after it are as good as the ones before.
+            if let Ok(message) = Message::from_wire(&bytes) {
+                self.on_message(id, message, now);
             }
         }
 
