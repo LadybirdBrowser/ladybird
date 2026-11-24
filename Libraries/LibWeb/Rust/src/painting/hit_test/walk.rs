@@ -44,9 +44,8 @@ pub(crate) fn stacking_context_paints(rows: &impl PaintRead, owner: NodeSlotId) 
 /// Whether the SVG box paints nothing, and so can be hit nowhere, because a mask or clip path it references covers
 /// no area.
 fn svg_box_is_hidden_by_an_empty_mask_or_clip(rows: &impl PaintRead, svg_box: NodeSlotId) -> bool {
-    crate::painting::visual_context::node_values::mask_layer_presence(rows, svg_box, false)
-        .iter()
-        .any(|layer| layer.area.is_empty())
+    rows.paintable_data(svg_box)
+        .has_flag(PaintableFlag::HiddenByEmptySvgMaskOrClip)
 }
 
 /// The boxes below an SVG box that its producer walks: those a stacking context of their own does not paint.

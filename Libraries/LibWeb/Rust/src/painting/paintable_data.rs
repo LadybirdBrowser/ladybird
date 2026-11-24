@@ -17,6 +17,8 @@ pub enum PaintableFlag {
     VerticalScrollbarHidden = 1 << 2,
     InLaterContainingBlockFragment = 1 << 3,
     HasLaterBoxFragments = 1 << 4,
+    /// An SVG mask or clip path of the box covers no area, which leaves nothing of the box.
+    HiddenByEmptySvgMaskOrClip = 1 << 5,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
