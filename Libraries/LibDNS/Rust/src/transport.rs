@@ -187,18 +187,20 @@ impl Connection {
     }
 
     fn take_frames(&mut self) {
-        while let Some(length) = self
-            .incoming
+        // NB: The bytes of complete frames go all at once, rather than moving what follows each one forward.
+        let mut consumed = 0;
+        while let Some(length) = self.incoming[consumed..]
             .first_chunk::<2>()
             .map(|length| usize::from(u16::from_be_bytes(*length)))
         {
-            if self.incoming.len() < 2 + length {
-                return;
+            let start = consumed + 2;
+            if self.incoming.len() < start + length {
+                break;
             }
-            let frame = self.incoming[2..2 + length].to_vec();
-            self.incoming.drain(..2 + length);
-            self.messages.push_back(frame);
+            self.messages.push_back(self.incoming[start..start + length].to_vec());
+            consumed = start + length;
         }
+        self.incoming.drain(..consumed);
     }
 }
 
@@ -231,6 +233,24 @@ mod tests {
         assert_eq!(connection.take_message(), None);
         connection.on_received(&[9]);
         assert_eq!(connection.take_message(), Some(vec![9]));
+    }
+
+    #[test]
+    fn stream_takes_every_frame_of_one_read() {
+        let mut connection = Connection::new(Kind::Stream, Instant::now(), Duration::from_secs(5));
+        connection.on_connected();
+        let mut bytes = Vec::new();
+        for frame in 0..100u8 {
+            bytes.extend_from_slice(&[0, 1, frame]);
+        }
+        bytes.extend_from_slice(&[0, 2, 7]);
+        connection.on_received(&bytes);
+        for frame in 0..100u8 {
+            assert_eq!(connection.take_message(), Some(vec![frame]));
+        }
+        assert_eq!(connection.take_message(), None);
+        connection.on_received(&[8]);
+        assert_eq!(connection.take_message(), Some(vec![7, 8]));
     }
 
     #[test]
