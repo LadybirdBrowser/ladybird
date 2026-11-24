@@ -107,7 +107,10 @@ impl CacheEntry {
         }
         let mut expired_types = HashSet::new();
         self.records.retain(|record| {
-            if record.expiration < now {
+            // RFC 1035, 3.2.1. Format
+            // Zero values are interpreted to mean that the RR can only be used for the transaction in progress, and
+            // should not be cached.
+            if record.expiration <= now {
                 expired_types.insert(record.record.rtype);
                 return false;
             }
