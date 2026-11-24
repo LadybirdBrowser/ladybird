@@ -8,7 +8,8 @@
 ///
 /// Provides a C-compatible API for use from C++ (LibJS, LibURL).
 /// All functions use `extern "C"` linkage and opaque pointer types.
-use crate::ast::Flags;
+use libregex_compiler::ast::Flags;
+
 use crate::regex::Regex;
 
 /// Opaque regex handle.

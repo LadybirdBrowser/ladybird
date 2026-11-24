@@ -1,0 +1,16 @@
+[package]
+name = "libregex_compiler"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+ak = { path = "../../../../AK/Rust" }
+libunicode_rust = { path = "../../../LibUnicode/Rust", default-features = false }
+
+[lints]
+workspace = true

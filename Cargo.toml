@@ -16,6 +16,7 @@ members = [
     "Libraries/LibJS/Rust",
     "Libraries/LibJS/Rust/embedding_headers",
     "Libraries/LibJS/Rust/macros",
+    "Libraries/LibRegex/Compiler/Rust",
     "Libraries/LibRegex/Rust",
     "Libraries/LibTextCodec/Rust",
     "Libraries/LibUnicode/Rust",

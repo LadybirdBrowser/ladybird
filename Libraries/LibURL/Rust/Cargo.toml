@@ -11,6 +11,7 @@ ak = { path = "../../../AK/Rust" }
 encoding_rs = "0.8.44"
 getrandom = "0.4"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
+libregex_compiler = { path = "../../LibRegex/Compiler/Rust" }
 libregex_rust = { path = "../../LibRegex/Rust" }
 libunicode_rust = { path = "../../LibUnicode/Rust", features = ["idna"] }
 rustc-demangle = "0.1"

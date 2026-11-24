@@ -7,16 +7,16 @@
 /// High-level regex API.
 ///
 /// This is the main entry point for using the regex engine.
-use crate::ast::Flags;
 use crate::bytecode::NamedGroupEntry;
-use crate::compiler;
 use crate::copy_out;
-use crate::literal_hints;
-use crate::literal_hints::is_ascii_word_code_unit;
-use crate::parser;
 use crate::vm;
 use crate::work_zone::with_work_zone;
 use ak::Zone;
+use libregex_compiler::ast::Flags;
+use libregex_compiler::compiler;
+use libregex_compiler::literal_hints;
+use libregex_compiler::literal_hints::is_ascii_word_code_unit;
+use libregex_compiler::parser;
 use std::cell::RefCell;
 
 /// A compiled regular expression.

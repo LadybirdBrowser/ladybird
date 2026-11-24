@@ -6,9 +6,9 @@
 
 //! The program that the compiler makes of a pattern, in the zone of the compile.
 //!
-//! It has the instructions of the program that the VM runs (see `bytecode::Program`), but its lists and names are
-//! slices and strings of the zone, so it is plain data with the lifetime `'z` of the zone. What a compile keeps is a
-//! copy of it at its final size, outside of the zone.
+//! It has the instructions of the program that the VM runs (see `libregex_rust::bytecode::Program`), but its lists
+//! and names are slices and strings of the zone, so it is plain data with the lifetime `'z` of the zone. What a compile
+//! keeps is a copy of it at its final size, outside of the zone.
 
 use crate::ast::BuiltinCharacterClass;
 use crate::ast::NamedGroup;
@@ -40,7 +40,7 @@ pub struct ZoneProgram<'z> {
     pub named_groups: &'z [NamedGroup<'z>],
 }
 
-/// A single bytecode instruction, as `bytecode::Instruction` has it, with the variable data in the zone.
+/// A single bytecode instruction, as `libregex_rust::bytecode::Instruction` has it, with the variable data in the zone.
 /// <https://tc39.es/ecma262/#sec-pattern-semantics>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZoneInstruction<'z> {
@@ -156,7 +156,7 @@ pub enum ZoneInstruction<'z> {
     },
 }
 
-/// A simple character matcher for optimized greedy/lazy loops, as `bytecode::SimpleMatch` has it.
+/// A simple character matcher for optimized greedy/lazy loops, as `libregex_rust::bytecode::SimpleMatch` has it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZoneSimpleMatch<'z> {
     /// Any character (`.`), with dot_all flag.

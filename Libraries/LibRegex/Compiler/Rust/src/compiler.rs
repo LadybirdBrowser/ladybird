@@ -1598,7 +1598,7 @@ impl<'z> Compiler<'z> {
                     return;
                 }
                 self.emit_split_chain(&filtered, |s, operand| {
-                    s.compile_class_set_operand_at_length(operand, length)
+                    s.compile_class_set_operand_at_length(operand, length);
                 });
             }
             ClassSetExpression::Intersection(operands) => {
