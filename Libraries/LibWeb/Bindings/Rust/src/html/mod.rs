@@ -126,6 +126,8 @@ pub(crate) mod storage_event;
 #[cfg(not(test))]
 pub(crate) mod structured_serialize;
 #[cfg(not(test))]
+pub(crate) mod submit_event;
+#[cfg(not(test))]
 pub(crate) mod text_metrics;
 #[cfg(not(test))]
 pub(crate) mod text_track_cue;

@@ -1,9 +1,9 @@
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface SubmitEvent : Event {
     constructor(DOMString type, optional SubmitEventInit eventInitDict = {});
 
-    [DirectGetter] readonly attribute HTMLElement? submitter;
+    readonly attribute HTMLElement? submitter;
 };
 
 dictionary SubmitEventInit : EventInit {

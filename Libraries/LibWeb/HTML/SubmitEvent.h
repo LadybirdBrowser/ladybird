@@ -6,35 +6,15 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SubmitEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HTML/HTMLElement.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using SubmitEventInit = Bindings::SubmitEventInit;
-
-class SubmitEvent final : public DOM::Event {
-    WEB_WRAPPABLE(SubmitEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(SubmitEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<SubmitEvent> create(FlyString const& event_name, SubmitEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<SubmitEvent> create(Utf16FlyString const& event_name, SubmitEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~SubmitEvent() override;
-
-    GC::Ptr<HTMLElement> submitter() const { return m_submitter; }
-    static constexpr size_t submitter_offset() { return offsetof(SubmitEvent, m_submitter); }
-
-private:
-    SubmitEvent(FlyString const& event_name, SubmitEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ptr<HTMLElement> m_submitter;
-};
+// The Event of a new trusted SubmitEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_submit_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, GC::Ptr<HTMLElement> submitter);
 
 }

@@ -807,7 +807,6 @@ class SharedResourceRequest;
 class SharedWorker;
 class SharedWorkerGlobalScope;
 class Storage;
-class SubmitEvent;
 class TextTrack;
 class TextTrackCue;
 class TextTrackCueList;
