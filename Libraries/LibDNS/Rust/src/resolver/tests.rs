@@ -958,3 +958,91 @@ fn system_resolver_starts_over_once_a_grace_window_result_has_expired() {
     harness.system_resolved(aaaa.unwrap(), Ok(vec![]));
     assert_eq!(harness.addresses(later), vec![IpAddr::V4(A_ADDRESS)]);
 }
+
+fn soa(ttl: u32, minimum: u32) -> ResourceRecord {
+    ResourceRecord {
+        name: DomainName::from_string("example.com"),
+        rtype: ResourceType::SOA,
+        class: Class::IN,
+        ttl,
+        data: RecordData::Soa(crate::message::Soa {
+            mname: DomainName::from_string("ns.example.com"),
+            rname: DomainName::from_string("hostmaster.example.com"),
+            minimum,
+            ..crate::message::Soa::default()
+        }),
+        raw: None,
+    }
+}
+
+// Answers A queries with an address that lives for 300 seconds, and AAAA queries with no data.
+fn answer_without_aaaa(harness: &mut Harness, authority: Option<&ResourceRecord>) {
+    for (connection, query) in harness.take_writes() {
+        let response = respond(&query, |response| {
+            let rtype = response.questions[0].rtype;
+            response
+                .answers
+                .retain(|answer| answer.rtype == rtype && rtype == ResourceType::A);
+            response.authorities.extend(authority.cloned());
+            response.header.authority_count = u16::try_from(response.authorities.len()).unwrap();
+        });
+        harness.receive(connection, &response);
+    }
+}
+
+#[test]
+fn negative_answers_are_cached_for_as_long_as_the_soa_says() {
+    let mut harness = Harness::udp();
+    let first = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    answer_without_aaaa(&mut harness, Some(&soa(3600, 5)));
+    assert_eq!(harness.addresses(first), vec![IpAddr::V4(A_ADDRESS)]);
+
+    harness.lookup("example.com");
+    assert!(harness.writes.is_empty());
+
+    // The address is still fresh, but that there is none for IPv6 no longer holds.
+    harness.now += Duration::from_secs(5);
+    harness.lookup("example.com");
+    assert_eq!(harness.take_writes().len(), 2);
+    let only_a = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.writes.is_empty());
+    assert_eq!(harness.addresses(only_a), vec![IpAddr::V4(A_ADDRESS)]);
+}
+
+#[test]
+fn negative_answers_without_an_soa_are_not_cached() {
+    let mut harness = Harness::udp();
+    harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    answer_without_aaaa(&mut harness, None);
+
+    harness.lookup("example.com");
+    assert_eq!(harness.take_writes().len(), 2);
+}
+
+#[test]
+fn negative_answers_behind_an_alias_last_no_longer_than_the_alias() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("www.example.com", &[ResourceType::AAAA], LookupOptions::default());
+    harness.connected(harness.connects[0].connection);
+    let (connection, query) = harness.take_writes().remove(0);
+    let response = respond(&query, |response| {
+        response.answers = vec![ResourceRecord {
+            name: DomainName::from_string("www.example.com"),
+            rtype: ResourceType::CNAME,
+            class: Class::IN,
+            ttl: 5,
+            data: RecordData::Cname(DomainName::from_string("cdn.example.com")),
+            raw: None,
+        }];
+        response.authorities.push(soa(300, 300));
+        response.header.authority_count = 1;
+    });
+    harness.receive(connection, &response);
+    assert!(harness.result(lookup).as_ref().unwrap().addresses().is_empty());
+
+    harness.now += Duration::from_secs(5);
+    harness.lookup_with("www.example.com", &[ResourceType::AAAA], LookupOptions::default());
+    assert_eq!(harness.take_writes().len(), 1);
+}
