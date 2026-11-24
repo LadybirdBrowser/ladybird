@@ -116,9 +116,24 @@ struct Chain {
     reason: &'static str,
 }
 
+type CanonicalDsSet = Vec<(u16, Algorithm, DigestType, Vec<u8>)>;
+
+fn canonical_ds_set(ds_set: &[Ds]) -> CanonicalDsSet {
+    let mut canonical: CanonicalDsSet = ds_set
+        .iter()
+        .map(|ds| (ds.key_tag, ds.algorithm, ds.digest_type, ds.digest.clone()))
+        .collect();
+    canonical.sort();
+    canonical.dedup();
+    canonical
+}
+
 #[derive(Clone, Debug)]
 struct ZoneKeys {
     keys: Vec<Dnskey>,
+    /// The DS set the keys were authenticated with. Keys are only good for that set: once the parent has published
+    /// a different one, e.g. in a key rollover, they have to be authenticated again.
+    ds_set: CanonicalDsSet,
     /// Seconds since the epoch.
     expires: u64,
 }
@@ -248,8 +263,9 @@ impl Validator {
         now: u32,
     ) -> Result<Option<Vec<Dnskey>>, Failure> {
         let cache_key = zone.to_canonical_string();
+        let canonical_ds = canonical_ds_set(ds_set);
         if let Some(cached) = self.zone_keys.get(&cache_key) {
-            if cached.expires > u64::from(now) {
+            if cached.expires > u64::from(now) && cached.ds_set == canonical_ds {
                 return Ok(Some(cached.keys.clone()));
             }
             self.zone_keys.remove(&cache_key);
@@ -318,6 +334,7 @@ impl Validator {
                 cache_key,
                 ZoneKeys {
                     keys: keys.clone(),
+                    ds_set: canonical_ds,
                     expires: expiry(now, verified.ttl),
                 },
             );

@@ -1160,6 +1160,43 @@ fn cached_chain_expires() {
 }
 
 #[test]
+fn cached_keys_are_reauthenticated_after_ds_rollover() {
+    // The DS for "example" lives for 600 seconds, its DNSKEY RRset for an hour.
+    let (mut server, mut validator) = setup(false, |server| {
+        for record in server.zones[0]
+            .records
+            .get_mut(&name("example").to_canonical_string())
+            .unwrap()
+        {
+            if record.rtype == ResourceType::DS {
+                record.ttl = 600;
+            }
+        }
+    });
+    let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+
+    // Roll the key of "example" over to a new one, and the DS in the root along with it.
+    let mut rekeyed = make_server(false).zones.remove(1);
+    rekeyed.finalize();
+    let new_ds = rekeyed.ds();
+    for record in server.zones[0]
+        .records
+        .get_mut(&name("example").to_canonical_string())
+        .unwrap()
+    {
+        if let RecordData::Ds(ds) = &mut record.data {
+            *ds = new_ds.clone();
+        }
+    }
+    server.zones[1] = rekeyed;
+
+    let result = validated_lookup_at(&mut server, &mut validator, "www.example", ResourceType::A, NOW + 601).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+    assert_eq!(first_address(&result), Some(Ipv4Addr::new(192, 0, 2, 1)));
+}
+
+#[test]
 fn root_trust_anchors_are_the_iana_ones() {
     let anchors = Validator::root_trust_anchors();
     assert_eq!(anchors.len(), 2);
