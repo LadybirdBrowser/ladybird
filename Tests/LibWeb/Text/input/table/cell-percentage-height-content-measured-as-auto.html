@@ -1,0 +1,56 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    table { width: 300px; border-spacing: 0; }
+    td { padding: 0; }
+    .box { height: 100px; }
+</style>
+<table data-name="zero-cell"><tr><td style="height: 0">
+    <div class="child" style="height: 100%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="short-cell"><tr><td style="height: 50px">
+    <div class="child" style="height: 100%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="tall-cell-empty-child"><tr><td style="height: 200px">
+    <div class="child" style="height: 100%"></div>
+</td></tr></table>
+<table data-name="half-height"><tr><td style="height: 0">
+    <div class="child" style="height: 50%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="overflow-auto"><tr><td style="height: 0">
+    <div class="child" style="height: 100%; overflow: auto"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="overflow-hidden"><tr><td style="height: 0">
+    <div class="child" style="height: 100%; overflow: hidden"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="zero-cell-image"><tr><td style="height: 0">
+    <img class="child" src="../../../Assets/120.png" style="display: block; height: 100%">
+</td></tr></table>
+<table data-name="short-cell-image"><tr><td style="height: 50px">
+    <img class="child" src="../../../Assets/120.png" style="display: block; height: 100%">
+</td></tr></table>
+<table data-name="min-height"><tr><td style="height: 50px">
+    <div class="child" style="min-height: 100%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="max-height"><tr><td style="height: 50px">
+    <div class="child" style="max-height: 100%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="nested-table"><tr><td style="height: 0">
+    <div class="child" style="display: table; height: 100%; width: 100%"><div class="box"></div></div>
+</td></tr></table>
+<table data-name="taller-sibling"><tr>
+    <td style="height: 50px"><div class="child" style="height: 100%"><div style="height: 10px"></div></div></td>
+    <td><div style="height: 200px"></div></td>
+</tr></table>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            for (const table of document.querySelectorAll("table[data-name]")) {
+                const tableHeight = Math.round(table.getBoundingClientRect().height);
+                const childHeight = Math.round(table.querySelector(".child").getBoundingClientRect().height);
+                println(`${table.dataset.name}: table ${tableHeight}, child ${childHeight}`);
+            }
+            done();
+        }, { once: true });
+    });
+</script>

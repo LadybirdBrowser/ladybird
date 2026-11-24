@@ -1,0 +1,3 @@
+a: table 200, X 90, Y 90
+b: table 100, X 40, Y 40
+c: table 200, X 100, Y 100

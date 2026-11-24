@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body { margin: 0; font: 20px/1 sans-serif; }
+table { border-spacing: 0; width: 300px; }
+td { padding: 0; vertical-align: baseline; }
+.flex { display: flex; align-items: center; height: 100%; }
+</style>
+<!-- The second cell of each row is aligned on the baseline that the first cell has at its final block size. -->
+<table id="a"><tr>
+  <td style="height: 200px"><div class="flex"><span id="a1">X</span></div></td>
+  <td><div style="display: flex"><span id="a2">Y</span></div></td>
+</tr></table>
+<table id="b"><tr>
+  <td style="height: 0"><div class="flex" style="height: 100%"><div style="height: 100px; display: flex; align-items: center"><span id="b1">X</span></div></div></td>
+  <td><div style="display: flex"><span id="b2">Y</span></div></td>
+</tr></table>
+<table id="c"><tr>
+  <td style="height: 200px"><div style="height: 50%"></div><div style="display: flex"><span id="c1">X</span></div></td>
+  <td><div style="display: flex"><span id="c2">Y</span></div></td>
+</tr></table>
+<script>
+function offsetIn(id, t) { return Math.round(document.getElementById(id).getBoundingClientRect().top - document.getElementById(t).getBoundingClientRect().top); }
+test(() => {
+  for (const t of ["a", "b", "c"])
+    println(`${t}: table ${Math.round(document.getElementById(t).getBoundingClientRect().height)}, X ${offsetIn(t + "1", t)}, Y ${offsetIn(t + "2", t)}`);
+});
+</script>
