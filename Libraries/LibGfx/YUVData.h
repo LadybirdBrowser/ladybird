@@ -65,7 +65,8 @@ struct BiplanarYUVPlane {
 };
 
 // Converts the bi-planar layouts hardware decoders hand back, such as NV12, or P010 for bit depths above 8. Samples deeper
-// than 8 bits sit in the high bits of each 16-bit component.
+// than 8 bits sit in the high bits of each 16-bit component. Every row of each plane, the last included, must be
+// padded up to its stride.
 ErrorOr<NonnullRefPtr<Bitmap>> biplanar_yuv_to_bitmap(IntSize, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, BiplanarYUVPlane luma, BiplanarYUVPlane chroma);
 
 }

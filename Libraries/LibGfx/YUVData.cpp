@@ -211,8 +211,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> biplanar_yuv_to_bitmap(IntSize size, u8 bit_depth
         if (plane.stride < row_byte_count)
             return false;
         Checked<size_t> required_size = plane.stride;
-        required_size *= row_count - 1;
-        required_size += row_byte_count;
+        required_size *= row_count;
         return !required_size.has_overflow() && plane.data.size() >= required_size.value();
     };
     auto chroma_size = subsampling.subsampled_size(size.to_type<size_t>());

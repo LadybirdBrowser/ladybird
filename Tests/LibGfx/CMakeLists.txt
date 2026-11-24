@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestSharedFontProvider.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
+    TestYUVData.cpp
 )
 
 list(APPEND TEST_SOURCES TestBitmapSequence.cpp TestShareableBitmap.cpp)

@@ -181,17 +181,9 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     result.is_ok()
 }
 
-/// The number of elements a plane spans when its rows start `stride` elements apart, but its last row may end right
-/// after its `row_length` elements, without padding up to the stride.
-fn biplanar_plane_length(stride: u32, row_length: usize, rows: usize) -> Option<usize> {
-    (stride as usize)
-        .checked_mul(rows.checked_sub(1)?)?
-        .checked_add(row_length)
-}
-
 /// # Safety
 /// All plane pointers must be valid for the specified dimensions and strides.
-/// Each plane's last row may end without padding up to its stride.
+/// Each plane must span its stride times its row count, so its last row is padded up to its stride as well.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
@@ -208,12 +200,11 @@ pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
     range: YUVRange,
     matrix: YUVMatrix,
 ) -> bool {
-    let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
+    let Some(y_len) = (y_stride as usize).checked_mul(height as usize) else {
         return false;
     };
-    let chroma_width = if subsampling_x { width.div_ceil(2) } else { width } as usize;
     let chroma_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
-    let Some(uv_len) = biplanar_plane_length(uv_stride, chroma_width * 2, chroma_height) else {
+    let Some(uv_len) = (uv_stride as usize).checked_mul(chroma_height) else {
         return false;
     };
 
@@ -250,7 +241,7 @@ pub unsafe extern "C" fn yuv_biplanar_u8_to_rgba(
 /// # Safety
 /// All plane pointers must be valid for the specified dimensions and strides.
 /// Strides are in components per row, not bytes.
-/// Each plane's last row may end without padding up to its stride.
+/// Each plane must span its stride times its row count, so its last row is padded up to its stride as well.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
 /// Samples must sit in the high 10 bits of each u16.
 #[unsafe(no_mangle)]
@@ -268,12 +259,11 @@ pub unsafe extern "C" fn yuv_biplanar_u16_to_rgba(
     range: YUVRange,
     matrix: YUVMatrix,
 ) -> bool {
-    let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
+    let Some(y_len) = (y_stride as usize).checked_mul(height as usize) else {
         return false;
     };
-    let chroma_width = if subsampling_x { width.div_ceil(2) } else { width } as usize;
     let chroma_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
-    let Some(uv_len) = biplanar_plane_length(uv_stride, chroma_width * 2, chroma_height) else {
+    let Some(uv_len) = (uv_stride as usize).checked_mul(chroma_height) else {
         return false;
     };
 
