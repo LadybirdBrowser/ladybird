@@ -366,6 +366,11 @@ ErrorOr<void> CrashHandler::initialize(int fd)
     struct sigaction action {};
     action.sa_sigaction = CrashHandler::handle_fatal_signal;
     sigfillset(&action.sa_mask);
+#if defined(AK_OS_LINUX)
+    // A system call that the sandbox traps raises SIGSYS, and the kernel kills a process for a trap that arrives while
+    // SIGSYS is blocked. musl's sigaction() for SIGABRT, which the handler makes, blocks signals with one.
+    sigdelset(&action.sa_mask, SIGSYS);
+#endif
     action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     for (int signal : { SIGSEGV, SIGBUS, SIGFPE, SIGABRT, SIGILL, SIGTRAP }) {
         if (sigaction(signal, &action, nullptr) < 0)
