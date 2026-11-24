@@ -24,7 +24,7 @@ void register_javascript_source(Script& script, NonnullRefPtr<JS::SourceCode con
     }
 
     auto source_length = is_inline_source == ScriptRegistry::IsInlineSource::Yes
-        ? document->source().length_in_code_units()
+        ? document->source_length_in_code_units()
         : source_code->length_in_code_units();
 
     auto const& registered_script = document->script_registry().register_javascript_source(

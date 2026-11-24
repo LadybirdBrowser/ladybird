@@ -3750,6 +3750,15 @@ GC::Ref<CSS::HighlightRegistry> Document::highlight_registry()
     return *m_highlight_registry;
 }
 
+void Document::set_source(Utf16String source)
+{
+    if (source.is_empty()) {
+        m_source = nullptr;
+        return;
+    }
+    m_source = JS::SourceCode::create({}, move(source));
+}
+
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-clear
 void Document::clear()
 {

@@ -32,6 +32,7 @@
 #include <LibGfx/Point.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibJS/Forward.h>
+#include <LibJS/SourceCode.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
@@ -733,8 +734,10 @@ public:
     void capture_events();
     void release_events();
 
-    Utf16String const& source() const { return m_source; }
-    void set_source(Utf16String source) { m_source = move(source); }
+    // NB: The source is kept as source code, which LibJS compresses while nothing reads it.
+    Utf16String source() const { return m_source ? m_source->code() : Utf16String {}; }
+    size_t source_length_in_code_units() const { return m_source ? m_source->length_in_code_units() : 0; }
+    void set_source(Utf16String);
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
@@ -2063,7 +2066,7 @@ private:
     bool m_has_been_destroyed { false };
     bool m_observers_consider_document_fully_active { false };
 
-    Utf16String m_source;
+    RefPtr<JS::SourceCode const> m_source;
 
     GC::Ptr<Element> m_pending_parsing_blocking_script;
 

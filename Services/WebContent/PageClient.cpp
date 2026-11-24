@@ -2874,7 +2874,8 @@ Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content
     if (!document)
         return {};
 
-    return document->script_registry().script_content(source_id.script_id, document->source().utf16_view());
+    auto document_source = document->source();
+    return document->script_registry().script_content(source_id.script_id, document_source.utf16_view());
 }
 
 Vector<WebView::DebuggerSourcePosition> PageClient::devtools_source_breakpoint_positions(Web::HTML::ScriptRegistry::Identifier const& source_id) const
