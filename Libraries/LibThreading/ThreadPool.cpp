@@ -9,6 +9,7 @@
 #include <LibThreading/ThreadPool.h>
 
 static constexpr size_t THREAD_COUNT = 4;
+static constexpr size_t NAME_RESOLUTION_THREAD_COUNT = 4;
 static constexpr size_t THREAD_STACK_SIZE = 8 * MiB;
 static constexpr auto THREAD_IDLE_MEMORY_COLLECTION_DELAY = AK::Duration::from_seconds(1);
 
@@ -16,15 +17,21 @@ namespace Threading {
 
 ThreadPool& ThreadPool::the()
 {
-    static ThreadPool* instance = new ThreadPool;
+    static ThreadPool* instance = new ThreadPool(THREAD_COUNT, "Pool"sv);
     return *instance;
 }
 
-ThreadPool::ThreadPool()
+ThreadPool& ThreadPool::for_name_resolution()
 {
-    for (size_t i = 0; i < THREAD_COUNT; ++i) {
-        auto name = ByteString::formatted("Pool/{}", i);
-        auto thread = Thread::construct(name, [this]() -> intptr_t {
+    static ThreadPool* instance = new ThreadPool(NAME_RESOLUTION_THREAD_COUNT, "DNS"sv);
+    return *instance;
+}
+
+ThreadPool::ThreadPool(size_t worker_count, StringView name)
+{
+    for (size_t i = 0; i < worker_count; ++i) {
+        auto thread_name = ByteString::formatted("{}/{}", name, i);
+        auto thread = Thread::construct(thread_name, [this]() -> intptr_t {
             return worker_thread_func();
         });
         thread->set_stack_size(THREAD_STACK_SIZE);
