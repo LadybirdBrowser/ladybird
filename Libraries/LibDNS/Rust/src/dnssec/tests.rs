@@ -1088,6 +1088,31 @@ fn bad_signature_is_bogus() {
 }
 
 #[test]
+fn ttl_is_capped_by_the_rrsig_that_validates() {
+    let (mut server, mut validator) = setup(false, |_| {});
+
+    // An expired RRSIG with a TTL of 0 next to the valid one.
+    let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::A);
+    let mut expired = lookup
+        .response
+        .answers
+        .iter()
+        .find(|record| record.rtype == ResourceType::RRSIG)
+        .unwrap()
+        .clone();
+    expired.ttl = 0;
+    if let RecordData::Rrsig(rrsig) = &mut expired.data {
+        rrsig.expiration = NOW - 1;
+    }
+    lookup.response.answers.insert(0, expired);
+
+    let result = lookup.finish(&mut server, &mut validator, NOW).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+    assert_eq!(result.records.len(), 1);
+    assert_eq!(result.records[0].ttl, 300);
+}
+
+#[test]
 fn answer_for_another_name_is_bogus() {
     let (mut server, mut validator) = setup(false, |_| {});
 
@@ -1407,7 +1432,6 @@ fn unsigned_nsec3(
             class: Class::IN,
             records: vec![record(&owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3), 300)],
             rrsigs: Vec::new(),
-            rrsig_ttl: 300,
         },
         zone: zone.clone(),
         wildcard_label_count: None,
