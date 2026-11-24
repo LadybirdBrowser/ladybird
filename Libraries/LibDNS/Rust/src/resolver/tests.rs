@@ -1200,3 +1200,34 @@ fn validated_record_lifetimes_start_when_the_answer_arrived() {
     harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
     assert!(!harness.writes.is_empty());
 }
+
+#[test]
+fn query_ids_are_found_when_random_ones_keep_colliding() {
+    let mut resolver = Resolver::new(Box::new(|| true), Box::new(|| Some(7)));
+    let now = Instant::now();
+    resolver.set_server(
+        Some(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 53,
+            transport: ServerTransport::Udp,
+        }),
+        now,
+    );
+    resolver.lookup(
+        "a.example",
+        Class::IN,
+        &[ResourceType::A],
+        LookupOptions::default(),
+        now,
+    );
+    resolver.lookup(
+        "b.example",
+        Class::IN,
+        &[ResourceType::A],
+        LookupOptions::default(),
+        now,
+    );
+    let mut ids = resolver.in_flight_by_id.keys().copied().collect::<Vec<_>>();
+    ids.sort_unstable();
+    assert_eq!(ids, vec![7, 8]);
+}
