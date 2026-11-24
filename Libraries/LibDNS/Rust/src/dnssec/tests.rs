@@ -15,7 +15,7 @@ use std::net::Ipv4Addr;
 use libcrypto_rust::{KeyPair, OkpCurve, ShaHashKind};
 
 use super::crypto::verify_signature;
-use super::denial::DenialProofs;
+use super::denial::{Denial, DenialProofs};
 use super::rrset::{SignedRRSet, VerifiedRRSet};
 use super::{DelegationKind, Fetches, SecurityStatus, Step, ValidationResult, Validator};
 use crate::message::{
@@ -1629,7 +1629,7 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
     let proofs = DenialProofs { rrsets: &rrsets };
     assert!(proofs.proves_no_data(&sub, ResourceType::DS));
     assert!(!proofs.proves_no_data(&sub, ResourceType::A));
-    assert!(!proofs.proves_name_error(&name("www.sub.example")));
+    assert!(proofs.proves_name_error(&name("www.sub.example")).is_none());
     assert!(!proofs.proves_no_data(&name("www.sub.example"), ResourceType::A));
 
     let rrsets = [unsigned_nsec3(
@@ -1652,7 +1652,7 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
     )];
     let proofs = DenialProofs { rrsets: &rrsets };
     assert!(proofs.proves_no_data(&name("old.example"), ResourceType::A));
-    assert!(!proofs.proves_name_error(&name("www.old.example")));
+    assert!(proofs.proves_name_error(&name("www.old.example")).is_none());
 
     // Within the signer's zone, including at its apex, the bit maps still count.
     let rrsets = [
@@ -1677,6 +1677,34 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
     let proofs = DenialProofs { rrsets: &rrsets };
     assert!(proofs.proves_no_data(&zone, ResourceType::A));
     assert!(proofs.proves_no_data(&name("www.example"), ResourceType::AAAA));
+}
+
+// An NSEC3 at the apex of "example", whose span covers next to nothing, and one that covers the hash of every other
+// name, with or without Opt-Out.
+fn apex_and_covering_nsec3(flags: u8) -> [VerifiedRRSet; 2] {
+    let zone = name("example");
+    let apex_hash = nsec3_hash(&zone);
+    let mut next_hash = apex_hash.clone();
+    next_hash[19] = next_hash[19].wrapping_add(1);
+    [
+        unsigned_nsec3(&zone, &apex_hash, &next_hash, 0, &[ResourceType::NS, ResourceType::SOA]),
+        unsigned_nsec3(&zone, &[0x00; 20], &[0xff; 20], flags, &[ResourceType::A]),
+    ]
+}
+
+#[test]
+fn name_error_proven_by_an_opt_out_span_is_insecure() {
+    let missing = name("missing.example");
+    let rrsets = apex_and_covering_nsec3(Nsec3::FLAG_OPT_OUT);
+    assert_eq!(
+        DenialProofs { rrsets: &rrsets }.proves_name_error(&missing),
+        Some(Denial::OptOut)
+    );
+    let rrsets = apex_and_covering_nsec3(0);
+    assert_eq!(
+        DenialProofs { rrsets: &rrsets }.proves_name_error(&missing),
+        Some(Denial::Proven)
+    );
 }
 
 #[test]
