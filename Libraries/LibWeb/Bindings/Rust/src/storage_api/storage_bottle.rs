@@ -116,15 +116,22 @@ impl StorageBottle {
     }
 }
 
-type BottleMap = [Option<StorageBottle>; StorageEndpointType::COUNT];
+/// https://storage.spec.whatwg.org/#bucket-mode
+/// A local storage bucket has a mode, which is "best-effort" or "persistent". It is initially "best-effort".
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StorageBucketMode {
+    BestEffort,
+    Persistent,
+}
 
 // https://storage.spec.whatwg.org/#storage-bucket
 // A storage bucket is a place for storage endpoints to store data.
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct StorageBucket {
-    // A storage bucket has a bottle map of storage identifiers to storage bottles.
-    bottle_map: BottleMap,
+    // NB: Only a local storage bucket has a mode.
+    #[gc(untraced)]
+    mode: Option<StorageBucketMode>,
 }
 
 static STORAGE_BUCKET_CLASS: EmbedderClass<StorageBucket> = EmbedderClass::new("StorageBucket");
@@ -134,30 +141,28 @@ impl EmbedderValue for StorageBucket {
 }
 
 impl StorageBucket {
-    pub(crate) fn create(
-        vm: &Vm,
-        environment: &CppEnvironmentSettingsObject,
-        key: &StorageKey,
-        storage_type: StorageType,
-    ) -> Gc<EmbedderCell<Self>> {
+    // https://storage.spec.whatwg.org/#create-a-storage-bucket
+    pub(crate) fn create(vm: &Vm, storage_type: StorageType) -> Gc<EmbedderCell<Self>> {
         // 1. Let bucket be null.
         // 2. If type is "local", then set bucket to a new local storage bucket.
         // 3. Otherwise:
         //     1. Assert: type is "session".
         //     2. Set bucket to a new session storage bucket.
-        STORAGE_BUCKET_CLASS.allocate(vm, |_| {
-            let mut bottle_map = core::array::from_fn(|_| None);
+        let mode = match storage_type {
+            StorageType::Local => Some(StorageBucketMode::BestEffort),
+            StorageType::Session => None,
+        };
 
-            // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
-            for endpoint in StorageEndpoint::registered_endpoints() {
-                if endpoint.storage_type == storage_type {
-                    bottle_map[endpoint.identifier as usize] = Some(StorageBottle::create(environment, &endpoint, key));
-                }
-            }
+        // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
+        // AD-HOC: The bucket holds no bottles. Each bottle's map is kept by the browser process, and obtain a storage
+        //         bottle map creates the bottle it returns.
 
-            // 5. Return bucket.
-            StorageBucket { bottle_map }
-        })
+        // 5. Return bucket.
+        STORAGE_BUCKET_CLASS.allocate(vm, |_| StorageBucket { mode })
+    }
+
+    pub(crate) fn mode(&self) -> Option<StorageBucketMode> {
+        self.mode
     }
 }
 

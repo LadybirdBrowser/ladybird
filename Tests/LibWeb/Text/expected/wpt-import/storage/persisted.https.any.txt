@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	persisted() method exists and returns a Promise
+Pass	persisted() returns a promise and resolves as boolean with false
