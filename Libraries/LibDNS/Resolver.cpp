@@ -221,6 +221,9 @@ void Resolver::run_actions()
         case FFI::FfiActionKind::SystemResolve:
             resolve_with_system_resolver(action.request, string_view(action.name), action.ipv6);
             break;
+        case FFI::FfiActionKind::CancelSystemResolve:
+            cancel_system_resolution(action.request);
+            break;
         case FFI::FfiActionKind::LookupSucceeded:
         case FFI::FfiActionKind::LookupFailed: {
             ErrorOr<NonnullRefPtr<LookupResult const>> result = Error::from_string_literal("DNS lookup failed");
@@ -382,11 +385,42 @@ void Resolver::write(u64 connection, ReadonlyBytes bytes)
         });
 }
 
+// A system lookup the resolver may give up on: then the remote resolver forgets it, and a worker skips it.
+struct Resolver::SystemRequest {
+    AK_ALLOC_WITH_KMALLOC;
+
+    struct Abandoned : public AtomicRefCounted<Abandoned> {
+        Atomic<bool> value { false };
+    };
+
+    CancelRemoteSystemResolution cancel_remote_resolution;
+    NonnullRefPtr<Abandoned> abandoned { adopt_ref(*new Abandoned) };
+};
+
+void Resolver::set_system_resolution_timeout_for_testing(AK::Duration timeout)
+{
+    FFI::dns_resolver_set_system_resolver_timeout(m_resolver, timeout.to_milliseconds());
+}
+
+void Resolver::cancel_system_resolution(u64 request)
+{
+    auto system_request = m_system_requests.take(request);
+    if (!system_request.has_value())
+        return;
+    (*system_request)->abandoned->value.store(true);
+    if (auto& cancel = (*system_request)->cancel_remote_resolution)
+        cancel();
+}
+
 void Resolver::resolve_with_system_resolver(u64 request, ByteString name, bool ipv6)
 {
     auto family = ipv6 ? Core::Socket::AddressFamily::IPv6Only : Core::Socket::AddressFamily::IPv4Only;
+    auto& system_request = *m_system_requests.ensure(request, [] { return make<SystemRequest>(); });
     auto answer = [this, shared = m_shared, request](SystemResolution resolution) {
         if (!shared->alive.load())
+            return;
+        // An answer to a lookup the resolver gave up on is dropped.
+        if (!m_system_requests.remove(request))
             return;
         Vector<FFI::FfiAddress> addresses;
         if (!resolution.is_error()) {
@@ -399,7 +433,7 @@ void Resolver::resolve_with_system_resolver(u64 request, ByteString name, bool i
 
     if (m_remote_system_resolver) {
         // The remote resolver answers later, never from inside this call; still, nothing here relies on that.
-        m_remote_system_resolver(name, family, [answer = move(answer)](SystemResolution resolution) mutable {
+        system_request.cancel_remote_resolution = m_remote_system_resolver(name, family, [answer = move(answer)](SystemResolution resolution) mutable {
             Core::deferred_invoke([answer = move(answer), resolution = move(resolution)] mutable {
                 answer(move(resolution));
             });
@@ -408,7 +442,10 @@ void Resolver::resolve_with_system_resolver(u64 request, ByteString name, bool i
     }
 
     // Run blocking getaddrinfo() on a worker.
-    Threading::ThreadPool::for_name_resolution().submit([name = move(name), family, event_loop = Core::EventLoop::current_weak(), answer = move(answer)] mutable {
+    Threading::ThreadPool::for_name_resolution().submit([name = move(name), family, abandoned = system_request.abandoned, event_loop = Core::EventLoop::current_weak(), answer = move(answer)] mutable {
+        // A lookup given up on while it waited in the queue is not made, so the worker goes on to the next one.
+        if (abandoned->value.load())
+            return;
         auto resolution = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
         auto origin_event_loop = event_loop->take();
         if (!origin_event_loop.is_alive())
