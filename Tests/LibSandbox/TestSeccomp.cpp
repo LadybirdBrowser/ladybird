@@ -11,6 +11,7 @@
 #include <AK/Time.h>
 #include <LibCore/DirIterator.h>
 #include <LibSandbox/ConnectBroker.h>
+#include <LibSandbox/ControlMessages.h>
 #include <LibSandbox/LinuxFcntl.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
@@ -1361,7 +1362,7 @@ static i32 await_broker_error(int reply_fd)
 
     // A successful answer carries the connected socket. Close it here rather than leaving it to the
     // kernel, so that a test counting descriptors is counting something it fully accounts for.
-    for (auto* header = CMSG_FIRSTHDR(&message); header; header = CMSG_NXTHDR(&message, header)) {
+    for (auto* header = CMSG_FIRSTHDR(&message); header; header = Sandbox::next_control_message_header(message, header)) {
         if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS)
             continue;
         auto count = (header->cmsg_len - CMSG_LEN(0)) / sizeof(int);

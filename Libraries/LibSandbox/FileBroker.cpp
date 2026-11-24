@@ -11,6 +11,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
+#include <LibSandbox/ControlMessages.h>
 #include <LibSandbox/FileBroker.h>
 #include <LibSandbox/Seccomp.h>
 #include <dirent.h>
@@ -687,7 +688,7 @@ void FileBrokerServer::serve(int socket)
 
         int fds[8];
         size_t fd_count = 0;
-        for (auto* header = CMSG_FIRSTHDR(&message); header; header = CMSG_NXTHDR(&message, header)) {
+        for (auto* header = CMSG_FIRSTHDR(&message); header; header = next_control_message_header(message, header)) {
             if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS || header->cmsg_len < CMSG_LEN(0))
                 continue;
             auto count = (header->cmsg_len - CMSG_LEN(0)) / sizeof(int);

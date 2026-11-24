@@ -8,6 +8,7 @@
 
 #if defined(AK_OS_LINUX)
 #    include <AK/ScopeGuard.h>
+#    include <LibSandbox/ControlMessages.h>
 #    include <errno.h>
 #    include <fcntl.h>
 #    include <poll.h>
@@ -65,7 +66,7 @@ static ReceiveResult receive_request(int fd, ConnectBrokerRequest& request, int&
     int received_fds[maximum_received_fds];
     size_t received_fd_count = 0;
 
-    for (auto* header = CMSG_FIRSTHDR(&message); header; header = CMSG_NXTHDR(&message, header)) {
+    for (auto* header = CMSG_FIRSTHDR(&message); header; header = next_control_message_header(message, header)) {
         if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS)
             continue;
         if (header->cmsg_len < CMSG_LEN(0))

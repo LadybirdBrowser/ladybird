@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <LibCore/CrashHandler.h>
 #include <LibSandbox/ConnectBroker.h>
+#include <LibSandbox/ControlMessages.h>
 #include <LibSandbox/FileBroker.h>
 #include <LibSandbox/LinuxFcntl.h>
 #include <LibSandbox/Sandbox.h>
@@ -1334,7 +1335,7 @@ static i64 exchange_with_broker(int broker_fd, void const* request, size_t reque
     if (received < 0)
         return -saved_errno;
 
-    for (auto* header = CMSG_FIRSTHDR(&response_message); header; header = CMSG_NXTHDR(&response_message, header)) {
+    for (auto* header = CMSG_FIRSTHDR(&response_message); header; header = next_control_message_header(response_message, header)) {
         if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS)
             continue;
         if (header->cmsg_len < CMSG_LEN(0))
