@@ -149,7 +149,7 @@ static Utf16String generated_content_accessible_text(Element const& element, CSS
 static constexpr u32 max_node_directory_generation = (1u << 21) - 1;
 
 struct NodeDirectorySlot {
-    GC::RawPtr<Node> node;
+    GC::Weak<Node> node;
     u32 generation { 0 };
     // The free slot freed after this one, while this one is free.
     u32 next_free { 0 };
@@ -208,7 +208,7 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
     auto const& directory = node_directory();
     if (index >= directory.size() || directory[index].generation != generation)
         return nullptr;
-    return directory[index].node.ptr();
+    return directory[index].node.ptr().ptr();
 }
 
 Node::Node(Document& document, NodeType type)
