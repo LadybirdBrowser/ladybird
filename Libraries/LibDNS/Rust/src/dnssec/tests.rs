@@ -117,7 +117,6 @@ struct Zone {
 
     omit_denial_records: bool,
     omit_wildcard_proof: bool,
-    spoof_answer_owner: Option<DomainName>,
 }
 
 impl Zone {
@@ -136,7 +135,6 @@ impl Zone {
             signing_time: NOW,
             omit_denial_records: false,
             omit_wildcard_proof: false,
-            spoof_answer_owner: None,
         }
     }
 
@@ -513,7 +511,7 @@ impl Zone {
                 if self.exists(&name) {
                     let exact = self.rrset(&name, question.rtype);
                     if !exact.is_empty() {
-                        self.append_signed(&mut answers, exact, &name, self.spoof_answer_owner.as_ref());
+                        self.append_signed(&mut answers, exact, &name, None);
                         break 'done;
                     }
                     let cname = self.rrset(&name, ResourceType::CNAME);
@@ -1091,12 +1089,23 @@ fn bad_signature_is_bogus() {
 
 #[test]
 fn answer_for_another_name_is_bogus() {
-    // The signed RRset for other.example is presented under the queried name.
-    let (mut server, mut validator) = setup(false, |server| {
-        server.zones[1].spoof_answer_owner = Some(name("www.example"));
-    });
+    let (mut server, mut validator) = setup(false, |_| {});
 
-    assert!(validated_lookup(&mut server, &mut validator, "other.example", ResourceType::A).is_err());
+    // The signed RRset for other.example, presented under the queried name.
+    let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::A);
+    let zone = &server.zones[1];
+    let other = name("other.example");
+    lookup.response.answers.clear();
+    zone.append_signed(
+        &mut lookup.response.answers,
+        zone.rrset(&other, ResourceType::A),
+        &other,
+        Some(&name("www.example")),
+    );
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW),
+        Err("RRset signature did not validate")
+    );
 }
 
 #[test]
