@@ -931,3 +931,30 @@ fn cache_hits_only_return_the_requested_types() {
     assert!(harness.writes.is_empty());
     assert_eq!(harness.addresses(only_a), vec![IpAddr::V4(A_ADDRESS)]);
 }
+
+#[test]
+fn system_resolver_starts_over_once_a_grace_window_result_has_expired() {
+    let mut harness = Harness::new(None);
+    let first = harness.lookup("example.com");
+    let (a, stalled_aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    harness.advance(IPV6_RESOLUTION_DELAY);
+    assert_eq!(harness.addresses(first), vec![IpAddr::V4(A_ADDRESS)]);
+
+    // The AAAA side never answers. While the A record is fresh, it serves.
+    let joined = harness.lookup("example.com");
+    assert!(harness.system.is_empty());
+    assert_eq!(harness.addresses(joined), vec![IpAddr::V4(A_ADDRESS)]);
+
+    harness.advance(Duration::from_secs(u64::from(SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS)));
+    let later = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    assert!(!harness.done.contains_key(&later));
+
+    // The answer to the abandoned resolution changes nothing for the new one.
+    harness.system_resolved(stalled_aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    assert!(!harness.done.contains_key(&later));
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![]));
+    assert_eq!(harness.addresses(later), vec![IpAddr::V4(A_ADDRESS)]);
+}
