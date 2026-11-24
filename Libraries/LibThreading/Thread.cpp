@@ -67,8 +67,15 @@ ErrorOr<void> Thread::try_start()
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    if (m_stack_size > 0)
-        pthread_attr_setstacksize(&attr, m_stack_size);
+    auto stack_size = m_stack_size;
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID) && !defined(AK_LIBC_GLIBC)
+    // musl gives a thread only 128 KiB of stack by default, where glibc gives it as much as the main thread's stack size
+    // limit, which is 8 MiB on most systems. Deep recursion in script, regular expressions, or layout would overflow it.
+    if (stack_size == 0)
+        stack_size = 8 * MiB;
+#endif
+    if (stack_size > 0)
+        pthread_attr_setstacksize(&attr, stack_size);
 #if defined(AK_OS_MACOS)
     MUST(Core::Platform::apply_thread_qos_to_pthread_attributes(attr, m_qos));
 #endif
