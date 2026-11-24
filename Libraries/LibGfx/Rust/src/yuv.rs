@@ -181,8 +181,17 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     result.is_ok()
 }
 
+/// The number of elements a plane spans when its rows start `stride` elements apart, but its last row may end right
+/// after its `row_length` elements, without padding up to the stride.
+fn biplanar_plane_length(stride: u32, row_length: usize, rows: usize) -> Option<usize> {
+    (stride as usize)
+        .checked_mul(rows.checked_sub(1)?)?
+        .checked_add(row_length)
+}
+
 /// # Safety
 /// All plane pointers must be valid for the specified dimensions and strides.
+/// Each plane's last row may end without padding up to its stride.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yuv_nv12_to_rgba(
@@ -197,8 +206,13 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
     range: YUVRange,
     matrix: YUVMatrix,
 ) -> bool {
-    let y_len = y_stride as usize * height as usize;
-    let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
+    let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
+        return false;
+    };
+    let Some(uv_len) = biplanar_plane_length(uv_stride, width.div_ceil(2) as usize * 2, height.div_ceil(2) as usize)
+    else {
+        return false;
+    };
 
     let bi_planar_image = YuvBiPlanarImage {
         y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
@@ -226,6 +240,7 @@ pub unsafe extern "C" fn yuv_nv12_to_rgba(
 /// # Safety
 /// All plane pointers must be valid for the specified dimensions and strides.
 /// Strides are in components per row, not bytes.
+/// Each plane's last row may end without padding up to its stride.
 /// `dst` must point to a buffer of at least `dst_stride * height` bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yuv_p010_to_rgba(
@@ -240,8 +255,13 @@ pub unsafe extern "C" fn yuv_p010_to_rgba(
     range: YUVRange,
     matrix: YUVMatrix,
 ) -> bool {
-    let y_len = y_stride as usize * height as usize;
-    let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
+    let Some(y_len) = biplanar_plane_length(y_stride, width as usize, height as usize) else {
+        return false;
+    };
+    let Some(uv_len) = biplanar_plane_length(uv_stride, width.div_ceil(2) as usize * 2, height.div_ceil(2) as usize)
+    else {
+        return false;
+    };
 
     let bi_planar_image = YuvBiPlanarImage {
         y_plane: unsafe { ak::slice_from_raw_parts(y_plane, y_len) },
