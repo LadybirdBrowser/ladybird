@@ -2,7 +2,7 @@
 [SecureContext, Exposed=(Window,Worker), ImplementedIn=Rust]
 interface StorageManager {
     Promise<boolean> persisted();
-    [FIXME, Exposed=Window] Promise<boolean> persist();
+    [Exposed=Window] Promise<boolean> persist();
 
     // FIXME: This should also be exposed to Workers
     [Exposed=Window] Promise<StorageEstimate> estimate();

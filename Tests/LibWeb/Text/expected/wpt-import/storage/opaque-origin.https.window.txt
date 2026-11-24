@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	navigator.storage.persisted() in non-sandboxed iframe should not reject
+Pass	navigator.storage.persisted() in sandboxed iframe should reject with TypeError
+Pass	navigator.storage.estimate() in non-sandboxed iframe should not reject
+Pass	navigator.storage.estimate() in sandboxed iframe should reject with TypeError
+Pass	navigator.storage.persist() in non-sandboxed iframe should not reject
+Pass	navigator.storage.persist() in sandboxed iframe should reject with TypeError
