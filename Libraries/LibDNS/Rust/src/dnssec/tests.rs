@@ -951,6 +951,37 @@ fn name_error_at_empty_non_terminal_is_bogus() {
 }
 
 #[test]
+fn nsec3_iterations_count_only_for_usable_records() {
+    for (hash_algorithm, expected) in [
+        (Nsec3HashAlgorithm(2), SecurityStatus::Secure),
+        (Nsec3HashAlgorithm::SHA1, SecurityStatus::Insecure),
+    ] {
+        let (mut server, mut validator) = setup(true, |_| {});
+
+        // A signed NSEC3 with 101 iterations, next to the proof.
+        let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::AAAA);
+        let zone = &server.zones[1];
+        let owner = zone
+            .apex
+            .with_label_prepended(base32hex_encode(&nsec3_hash(&name("unrelated.example"))));
+        let nsec3 = Nsec3 {
+            hash_algorithm,
+            flags: 0,
+            iterations: 101,
+            salt: Vec::new(),
+            next_hashed_owner_name: vec![0xff; 20],
+            types: vec![ResourceType::A],
+        };
+        let extra = vec![record(&owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3), 300)];
+        zone.append_signed(&mut lookup.response.authorities, extra, &owner, None);
+
+        let result = lookup.finish(&mut server, &mut validator, NOW).unwrap();
+        assert_eq!(result.status, expected);
+        assert!(result.records.is_empty());
+    }
+}
+
+#[test]
 fn no_data_without_proof_is_bogus() {
     for use_nsec3 in [false, true] {
         let (mut server, mut validator) = setup(use_nsec3, |server| server.zones[1].omit_denial_records = true);
