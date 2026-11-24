@@ -602,7 +602,7 @@ public:
                     ask_remote_resolver(family);
                     return;
                 }
-                Threading::ThreadPool::the().submit(
+                Threading::ThreadPool::for_name_resolution().submit(
                     [this, shared = m_shared_with_workers, name, pending_key, state = our_state, family,
                         &main_thread_event_loop]() mutable {
                         // A lookup given up on while this waited in the queue has no one left to answer, so it isn't
