@@ -1,0 +1,16 @@
+Ladybird now lays the decorations of vertical text out along the run of
+its glyphs and turns them with the glyphs, and lines up the decorations
+of upright glyphs with the edges of their em box. Run in Chrome 158,
+Firefox 151 and WebKit 26.5 with Latin, Japanese and mixed text in every
+vertical writing mode, all three draw underlines down the line-under
+side, overlines down the line-over side and line-throughs down the
+middle, and honor text-underline-position: left and right; Ladybird now
+matches Chrome on all twelve cases of the probe, including one straight
+underline under mixed Latin and Japanese text. Blink paints decorations
+in line-relative coordinates and maps them to physical ones with the
+same LineRelativeRect transform as the text, which is the approach taken
+here; Gecko’s nsTextFrame passes the run’s verticality and sidewaysLeft
+to nsCSSRendering::PaintDecorationLine(). Six more WPT css-text-decor
+vertical tests pass. Ink isn’t skipped around upright glyphs yet, so
+text-decoration-skip-ink-upright-001 fails, and test-web’s font has
+descenders too short for the sideways skip-ink tests to tell anything.
