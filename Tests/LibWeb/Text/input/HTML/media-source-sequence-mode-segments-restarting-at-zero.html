@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function topLevelBoxes(bytes) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const boxes = [];
+        for (let offset = 0; offset + 8 <= bytes.length;) {
+            const size = view.getUint32(offset);
+            boxes.push({ offset, size, type: String.fromCharCode(...bytes.subarray(offset + 4, offset + 8)) });
+            offset += size;
+        }
+        return boxes;
+    }
+
+    function rangesOf(sourceBuffer) {
+        const ranges = [];
+        for (let i = 0; i < sourceBuffer.buffered.length; ++i)
+            ranges.push(`[${sourceBuffer.buffered.start(i).toFixed(3)}, ${sourceBuffer.buffered.end(i).toFixed(3)})`);
+        return ranges.join(" ");
+    }
+
+    promiseTest(async () => {
+        const data = new Uint8Array(await (await fetch("../../../Assets/aac-encoder-delay-tfdt.mp4")).arrayBuffer());
+        const boxes = topLevelBoxes(data);
+        const firstFragment = boxes.findIndex(box => box.type === "moof");
+        const initializationSegment = data.subarray(0, boxes[firstFragment].offset);
+        const mediaSegment = data.subarray(boxes[firstFragment].offset, boxes[firstFragment + 1].offset + boxes[firstFragment + 1].size);
+
+        const audio = document.createElement("audio");
+        const mediaSource = new MediaSource();
+        audio.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+        const sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+        sourceBuffer.mode = "sequence";
+
+        async function append(bytes) {
+            sourceBuffer.appendBuffer(bytes);
+            await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+        }
+
+        await append(initializationSegment);
+        // Each append of the same media segment starts over at its decode time of 0, so sequence mode places it right
+        // after the media appended before it.
+        for (let i = 1; i <= 3; ++i) {
+            await append(mediaSegment);
+            println(`After append ${i}: timestampOffset ${sourceBuffer.timestampOffset.toFixed(3)}, buffered ${rangesOf(sourceBuffer)}`);
+        }
+    });
+</script>

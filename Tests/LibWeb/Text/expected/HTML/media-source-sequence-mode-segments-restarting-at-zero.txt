@@ -1,0 +1,3 @@
+After append 1: timestampOffset 0.021, buffered [0.000, 0.512)
+After append 2: timestampOffset 0.533, buffered [0.000, 1.024)
+After append 3: timestampOffset 1.045, buffered [0.000, 1.536)
