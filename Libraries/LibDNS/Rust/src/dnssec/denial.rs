@@ -278,17 +278,28 @@ pub(super) fn has_excessive_nsec3_iterations(rrsets: &[VerifiedRRSet]) -> bool {
     nsec3_records_with_any_iterations(rrsets).any(|record| record.nsec3.iterations > MAX_NSEC3_ITERATIONS)
 }
 
+/// What a denial proof establishes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Denial {
+    Proven,
+    /// RFC 5155, 9.2. Use of the AD Bit.
+    /// The AD bit, as defined by [RFC4035], MUST NOT be set when returning a response containing a closest (provable)
+    /// encloser proof in which the NSEC3 RR that covers the "next closer" name has the Opt-Out bit set.
+    /// An unsigned delegation may exist in the span, so the denial is only Insecure.
+    OptOut,
+}
+
 pub(super) struct DenialProofs<'a> {
     pub rrsets: &'a [VerifiedRRSet],
 }
 
 impl DenialProofs<'_> {
-    pub fn proves_name_error(&self, name: &DomainName) -> bool {
+    pub fn proves_name_error(&self, name: &DomainName) -> Option<Denial> {
         // A name that owns an NSEC record, or is an empty non-terminal, exists.
         if nsec_records(self.rrsets).any(|record| record.matches(name))
             || nsec_proves_empty_non_terminal(self.rrsets, name)
         {
-            return false;
+            return None;
         }
 
         // RFC 4035, 5.4. Authenticated Denial of Existence.
@@ -297,17 +308,23 @@ impl DenialProofs<'_> {
         if let Some(closest_encloser) = nsec_closest_encloser(self.rrsets, name)
             && self.proves_wildcard_absent(&closest_encloser)
         {
-            return true;
+            return Some(Denial::Proven);
         }
 
         // RFC 5155, 8.4. Validating Name Error Responses.
         // A validator MUST verify that there is a closest encloser proof for QNAME present in the response and that
         // there is an NSEC3 RR that covers the wildcard at the closest encloser.
-        if let Some(proof) = nsec3_closest_encloser_proof(self.rrsets, name) {
-            return self.proves_wildcard_absent(&proof.closest_encloser);
+        if let Some(proof) = nsec3_closest_encloser_proof(self.rrsets, name)
+            && self.proves_wildcard_absent(&proof.closest_encloser)
+        {
+            return Some(if proof.next_closer_opt_out {
+                Denial::OptOut
+            } else {
+                Denial::Proven
+            });
         }
 
-        false
+        None
     }
 
     pub fn proves_wildcard_absent(&self, closest_encloser: &DomainName) -> bool {

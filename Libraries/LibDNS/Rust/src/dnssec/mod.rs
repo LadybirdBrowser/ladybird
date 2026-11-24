@@ -24,7 +24,7 @@ use crate::message::{
 };
 
 use crypto::{ds_matches_key, is_supported_algorithm, is_supported_digest_type, is_usable_zone_key};
-use denial::{DenialProofs, has_excessive_nsec3_iterations};
+use denial::{Denial, DenialProofs, has_excessive_nsec3_iterations};
 use rrset::{SignedRRSet, group_rrsets, verify_denial_records, verify_rrset};
 
 /// RFC 4035, 4.3. Determining Security Status of Data.
@@ -123,6 +123,7 @@ impl Fetches {
 
 const MAX_CACHED_ENTRIES: usize = 1024;
 const EXCESSIVE_NSEC3_ITERATIONS: &str = "NSEC3 iteration count is too high";
+const OPT_OUT: &str = "Denial is covered by an NSEC3 Opt-Out span";
 const MAX_CNAME_CHAIN_LENGTH: usize = 16;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -483,7 +484,10 @@ impl Validator {
         if proofs.proves_name_exists_without_delegation(name) {
             return remember(insecure_or_not_a_cut(DelegationKind::NotACut, expires));
         }
-        if response.header.options.response_code() == ResponseCode::NAME_ERROR && proofs.proves_name_error(name) {
+        // Had an Opt-Out span covered the name, it would have made an insecure delegation above.
+        if response.header.options.response_code() == ResponseCode::NAME_ERROR
+            && proofs.proves_name_error(name).is_some()
+        {
             return remember(insecure_or_not_a_cut(DelegationKind::NonExistent, expires));
         }
         // A No Data answer for DS without a matching NSEC means the name is an empty non-terminal or is covered by
@@ -701,10 +705,11 @@ impl Validator {
                 ));
             }
             if response.header.options.response_code() == ResponseCode::NAME_ERROR {
-                if proofs.proves_name_error(&current) {
-                    return Ok(result);
-                }
-                return Ok(bogus("Name error is not proven"));
+                return Ok(match proofs.proves_name_error(&current) {
+                    Some(Denial::Proven) => result,
+                    Some(Denial::OptOut) => insecure(result.records, &current, chain_ttl, OPT_OUT),
+                    None => bogus("Name error is not proven"),
+                });
             }
             if proofs.proves_no_data(&current, question.rtype) {
                 return Ok(result);
