@@ -79,7 +79,7 @@ private:
 
     // The elements that declare timelines or scope timeline names, in tree order.
     Vector<DeclaringElement> m_declaring_elements;
-    HashMap<GC::RawPtr<DOM::Element const>, size_t> m_declaring_element_indices;
+    HashMap<GC::Ref<DOM::Element const>, size_t> m_declaring_element_indices;
     Optional<u64> m_collected_dom_tree_version;
     Optional<u64> m_collected_declarations_generation;
 
