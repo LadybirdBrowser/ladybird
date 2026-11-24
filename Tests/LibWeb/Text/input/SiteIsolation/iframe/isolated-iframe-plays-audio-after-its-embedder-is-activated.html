@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<button id="button" style="width: 100px; height: 50px">embedder control</button>
+<script>
+    // An embedder's own controls start audible media in a cross-site iframe that it allows to autoplay. The click
+    // activates the embedder, not the iframe, and the iframe's process learns of it from the UI process.
+    promiseTest(async () => {
+        const iframeBody = `<!DOCTYPE html><script>
+            internals.setAutoplayPolicy("block-audio");
+            const tryToPlayAudibly = () => {
+                const audio = new Audio();
+                audio.play().catch(() => {});
+                return audio.paused ? "blocked" : "playing";
+            };
+            const tryToUnmute = () => {
+                const video = document.createElement("video");
+                video.muted = true;
+                video.play().catch(() => {});
+                video.muted = false;
+                return video.paused ? "paused" : "playing";
+            };
+            addEventListener("message", () => parent.postMessage({ play: tryToPlayAudibly(), unmute: tryToUnmute() }, "*"));
+            parent.postMessage("ready", "*");
+        <\/script>`;
+
+        const hostname = uniqueLocalhostHostname("autoplay-iframe");
+        const iframeUrl = async name => {
+            const url = new URL(
+                await httpTestServer().createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: iframeBody,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const addIframe = async (name, allow) => {
+            const ready = nextMessage();
+            const iframe = document.createElement("iframe");
+            if (allow)
+                iframe.allow = allow;
+            iframe.src = await iframeUrl(name);
+            document.body.appendChild(iframe);
+            await ready;
+            return iframe;
+        };
+
+        const askIframe = async iframe => {
+            const reply = nextMessage();
+            iframe.contentWindow.postMessage("query", "*");
+            const { play, unmute } = await reply;
+            return `play() ${play}, unmuting ${unmute}`;
+        };
+
+        const allowedIframe = await addIframe("allowed", "autoplay");
+        const disallowedIframe = await addIframe("disallowed", null);
+
+        println(`Allowed iframe before the click: ${await askIframe(allowedIframe)}`);
+
+        const rect = document.getElementById("button").getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 10, rect.top + 10);
+        for (let attempts = 0; attempts < 600 && !navigator.userActivation.hasBeenActive; ++attempts)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        println(`Embedder has been active after the click: ${navigator.userActivation.hasBeenActive}`);
+
+        // The embedder's activation reaches the iframe's process after the click, by way of the UI process.
+        let result;
+        for (let attempts = 0; attempts < 600; ++attempts) {
+            result = await askIframe(allowedIframe);
+            if (result.startsWith("play() playing"))
+                break;
+            await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        println(`Allowed iframe after the click: ${result}`);
+
+        // Both iframes are in the same process, so the activation has reached the disallowed one by now.
+        println(`Disallowed iframe after the click: ${await askIframe(disallowedIframe)}`);
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

@@ -1,0 +1,7 @@
+Allowed iframe before the click: play() blocked, unmuting paused
+Embedder has been active after the click: true
+Allowed iframe after the click: play() playing, unmuting playing
+Disallowed iframe after the click: play() blocked, unmuting paused
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#1

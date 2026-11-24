@@ -98,6 +98,7 @@ struct ReplicatedNavigableState {
     URL::Origin active_document_origin;
     SandboxingFlagSet active_document_sandboxing_flag_set {};
     bool active_document_is_fully_active { false };
+    bool active_window_has_sticky_activation { false };
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
     bool top_level_is_created_by_web_content { false };

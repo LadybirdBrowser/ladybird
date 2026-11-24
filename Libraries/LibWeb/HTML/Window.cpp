@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf8View.h>
 #include <LibGC/Heap.h>
@@ -953,6 +954,10 @@ void Window::run_activation_notification_steps(DOM::Document& document)
             windows.append(*window);
     }
 
+    // NB: The UI process keeps each window's sticky activation for documents in other processes. It must learn of a
+    //     window's first activation even if the activation reaches no other process.
+    auto gives_a_window_sticky_activation = any_of(windows, [](auto const& window) { return !window->has_sticky_activation(); });
+
     // 5. For each window of windows:
     for (auto& window : windows) {
         // 1. Set window's last activation timestamp to the current high resolution time.
@@ -962,7 +967,7 @@ void Window::run_activation_notification_steps(DOM::Document& document)
         window->notify_about_user_activation();
     }
 
-    if (reaches_navigables_other_pages_host)
+    if (reaches_navigables_other_pages_host || gives_a_window_sticky_activation)
         document.page().client().page_did_notify_about_user_activation(document.id());
 }
 

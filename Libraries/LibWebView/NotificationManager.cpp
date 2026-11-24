@@ -41,7 +41,7 @@ void NotificationManager::install_backend_callbacks()
     m_backend->on_closed = [this](u64 id, NotificationBackend::ByUser by_user) { backend_did_close(id, by_user); };
 }
 
-void NotificationManager::show(WebContentPage& page, u64 page_notification_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
+void NotificationManager::show(WebContentPage& page, u64 page_notification_id, Web::HTML::CrossProcessId document_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
 {
     // Only the page that shows the tab's document may notify for that document. A page hosting a cross-site frame
     // in the tab has its own process, and its renderer refuses the notification; one that asks anyway is misbehaving,
@@ -66,6 +66,7 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, U
         .page = page,
         .page_id = page.id(),
         .page_notification_id = page_notification_id,
+        .document_id = document_id,
         .origin = origin,
         .origin_url = URL::Parser::basic_parse(origin.serialize()).value_or(url),
         .traversable = page.traversable().make_weak_ptr<CanonicalTraversable>(),
@@ -248,6 +249,9 @@ void NotificationManager::backend_did_click(u64 id)
         // The click is the user's, so the page may open a window from its handler: The UI process checks the
         // activation it granted, not the one the renderer reports.
         record.page->give_user_activation();
+        // The renderer gives the notification's window activation too. The UI process keeps that window's sticky
+        // activation for documents in other processes.
+        record.page->give_sticky_activation_to_window_of(record.document_id);
         m_clicks_awaiting_reply.append({ record.page, record.page_notification_id });
         record.page->async_notification_clicked(record.page_notification_id);
         return;

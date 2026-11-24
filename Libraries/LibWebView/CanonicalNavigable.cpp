@@ -587,29 +587,35 @@ void CanonicalNavigable::run_activation_notification_steps_for_active_document(H
     auto const& document = active_document();
 
     // 2. Let windows be « document's relevant global object ».
-    Vector<NonnullRefPtr<CanonicalDocument const>> windows { document };
+    // NB: Each window is held as the navigable it is the active window of, since that navigable's replicated state
+    //     carries the window's sticky activation.
+    Vector<CanonicalNavigable const*> windows { this };
 
     // 3. Extend windows with the active window of each of document's ancestor navigables.
     for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent())
-        windows.append(ancestor->active_document());
+        windows.append(ancestor);
 
     // 4. Extend windows with the active window of each of document's descendant navigables, filtered to include only
     //    those navigables whose active document's origin is same origin with document's origin.
     for_each_in_subtree([&](CanonicalNavigable const& descendant) {
-        auto const& descendant_document = descendant.active_document();
-        if (descendant_document.origin().is_same_origin(document.origin()))
-            windows.append(descendant_document);
+        if (descendant.active_document().origin().is_same_origin(document.origin()))
+            windows.append(&descendant);
         return IterationDecision::Continue;
     });
 
-    // 5. For each window in windows:
-    // NB: The page hosting the window's document runs steps 5.1 and 5.2. Running them again for the same input changes
-    //     nothing, so a window already notified for it is skipped.
-    for (auto const& window : windows) {
-        if (notified_document_ids.set(window->id()) != HashSetResult::InsertedNewEntry)
+    // 5. For each window of windows:
+    for (auto const* navigable : windows) {
+        auto const& window_document = navigable->active_document();
+
+        // 3. Set window's has sticky activation to true.
+        navigable->give_sticky_activation_to_window_of(window_document);
+
+        // NB: The page hosting the window's document runs the steps for its own copy of the window. Running them again
+        //     for the same input changes nothing, so a window already notified for it is skipped.
+        if (notified_document_ids.set(window_document.id()) != HashSetResult::InsertedNewEntry)
             continue;
-        if (auto const& host = window->host())
-            host->notify_about_user_activation(window->id());
+        if (auto const& host = window_document.host())
+            host->notify_about_user_activation(window_document.id());
     }
 }
 
@@ -1433,6 +1439,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .active_document_origin = active_document().origin(),
         .active_document_sandboxing_flag_set = active_document().active_sandboxing_flag_set(),
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
+        .active_window_has_sticky_activation = active_document().relevant_global_object().has_sticky_activation(),
         .top_level_creation_url = active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value(),
         .top_level_origin = traversable.active_document().origin(),
         .top_level_is_created_by_web_content = traversable.is_created_by_web_content(),
@@ -1450,6 +1457,19 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .has_session_history_entry_and_ready_for_navigation = has_session_history_entry_and_ready_for_navigation(),
         .compositor_context_id = hosted_state.compositor_context_id,
     };
+}
+
+void CanonicalNavigable::give_sticky_activation_to_window_of(CanonicalDocument const& document) const
+{
+    auto& window = document.relevant_global_object();
+    if (window.has_sticky_activation())
+        return;
+    window.set_has_sticky_activation(true);
+
+    // Documents in other processes read the sticky activation of the active document's window from the replicated
+    // state.
+    if (&active_document() == &document)
+        send_replicated_state();
 }
 
 void CanonicalNavigable::send_replicated_state() const

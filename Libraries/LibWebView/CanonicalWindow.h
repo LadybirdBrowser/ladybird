@@ -38,12 +38,19 @@ public:
     CanonicalDocument const& associated_document() const;
     void set_associated_document(Badge<CanonicalDocument>, CanonicalDocument&);
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
+    bool has_sticky_activation() const { return m_has_sticky_activation; }
+    void set_has_sticky_activation(bool value) { m_has_sticky_activation = value; }
+
 private:
     explicit CanonicalWindow(NonnullRefPtr<CanonicalSimilarOriginWindowAgent>);
 
     NonnullRefPtr<CanonicalSimilarOriginWindowAgent> m_agent;
     OwnPtr<CanonicalEnvironmentSettingsObject> m_relevant_settings_object;
     WeakPtr<CanonicalDocument> m_associated_document;
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#has-sticky-activation
+    bool m_has_sticky_activation { false };
 };
 
 }
