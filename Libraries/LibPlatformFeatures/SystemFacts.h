@@ -57,8 +57,8 @@ struct FFmpegFacts {
 
     u32 avcodec_version { 0 };
     u32 avutil_version { 0 };
-    // Whether the library lays out the structs the decoders reach into the way the bundled one does.
-    bool shares_bundled_struct_layouts { false };
+    // Whether this build has a Vulkan decoder compiled against headers that match the library's version.
+    bool has_vulkan_decoder_for_its_version { false };
 
     bool operator==(FFmpegFacts const&) const = default;
 };

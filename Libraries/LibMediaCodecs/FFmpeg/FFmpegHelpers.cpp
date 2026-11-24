@@ -9,7 +9,7 @@
 
 #include "FFmpegHelpers.h"
 
-namespace Media::FFmpeg {
+namespace FFMPEG_ABI_NAMESPACE {
 
 DecoderErrorOr<void> set_codec_initialization_data(FFmpegFunctions const& functions, AVCodecContext& codec_context, CodecID codec_id, ReadonlyBytes codec_initialization_data)
 {
@@ -44,30 +44,6 @@ DecoderErrorOr<void> add_new_extradata_to_packet(FFmpegFunctions const& function
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg packet extradata"sv);
     new_extradata.copy_to({ packet_extradata, new_extradata.size() });
     return {};
-}
-
-// Frames that FFmpeg never output, such as ones it drops for corruption, stop being kept once this many later ones
-// have gone in.
-static constexpr u64 MAXIMUM_FRAMES_AWAITING_OUTPUT = 256;
-
-DecoderErrorOr<u64> VideoFramesAwaitingOutput::add(CodedFrame const& coded_frame, DecodeIntent intent)
-{
-    auto key = m_next_key++;
-    if (m_frames.size() >= MAXIMUM_FRAMES_AWAITING_OUTPUT) {
-        auto stale_frame_count = m_frames.size();
-        m_frames.remove_all_matching([&](u64 frame_key, auto const&) { return frame_key + MAXIMUM_FRAMES_AWAITING_OUTPUT <= key; });
-        stale_frame_count -= m_frames.size();
-        if (stale_frame_count > 0)
-            dbgln("FFmpeg: {} frames were never output", stale_frame_count);
-    }
-    auto const& high_dynamic_range_metadata = m_high_dynamic_range_metadata_tracker.apply_coded_frame(coded_frame);
-    DECODER_TRY_ALLOC(m_frames.try_set(key, { coded_frame.presentation_timestamp(), coded_frame.duration(), intent, high_dynamic_range_metadata }));
-    return key;
-}
-
-Optional<VideoFramesAwaitingOutput::Frame> VideoFramesAwaitingOutput::take(i64 key)
-{
-    return m_frames.take(static_cast<u64>(key));
 }
 
 DecoderErrorOr<void> send_coded_frame(FFmpegFunctions const& functions, AVCodecContext& codec_context, AVPacket& packet, CodedFrame const& coded_frame, u64 key)

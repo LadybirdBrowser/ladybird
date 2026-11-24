@@ -10,6 +10,7 @@
 #include <LibMediaCodecs/FFmpeg/FFmpegVulkanVideoDecoder.h>
 #include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
 #include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibMediaCodecs/Vulkan/VulkanVideoDevice.h>
 #include <LibPlatformFeatures/ProcessFeatures.h>
 
@@ -62,7 +63,7 @@ struct DecodedFrame {
 };
 
 struct Decoding {
-    NonnullOwnPtr<Media::FFmpeg::FFmpegVulkanVideoDecoder> decoder;
+    NonnullOwnPtr<Media::VideoDecoder> decoder;
     NonnullRefPtr<Media::Demuxer> demuxer;
     Media::Track track;
     mutable size_t accepted_sample_count { 1 };
@@ -111,7 +112,7 @@ Optional<Decoding> open_decoding(StringView path, Media::CodecID codec_id)
     MUST(demuxer->create_context_for_track(*track));
 
     auto first_sample = MUST(demuxer->get_next_sample_for_track(*track));
-    auto start_decoding = [&] -> Media::DecoderErrorOr<NonnullOwnPtr<Media::FFmpeg::FFmpegVulkanVideoDecoder>> {
+    auto start_decoding = [&] -> Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> {
         auto decoder = TRY(Media::FFmpeg::FFmpegVulkanVideoDecoder::try_create(codec_id, first_sample.new_codec_configuration().value_or({})));
         // Whether the device can decode and export the stream is only known once the first frame negotiates its format.
         TRY(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Output));
