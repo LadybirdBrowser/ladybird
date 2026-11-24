@@ -155,18 +155,28 @@ pub extern "C" fn web_rust_xhr_create(vm: &Vm, realm: Gc<Realm>) -> *mut c_void 
 pub extern "C" fn web_rust_xhr_process_request_body_chunk_length(
     vm: &Vm,
     xhr: &InterfaceCell,
+    request: *mut c_void,
     request_body_length: u64,
     bytes_length: u64,
 ) {
     let xhr = xhr.object::<XMLHttpRequest>();
-    xhr.process_request_body_chunk_length(vm, request_body_length, bytes_length);
+    if xhr.is_fetching(request) {
+        xhr.process_request_body_chunk_length(vm, request_body_length, bytes_length);
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
 #[unsafe(no_mangle)]
-pub extern "C" fn web_rust_xhr_process_request_end_of_body(vm: &Vm, xhr: &InterfaceCell, request_body_length: u64) {
+pub extern "C" fn web_rust_xhr_process_request_end_of_body(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    request_body_length: u64,
+) {
     let xhr = xhr.object::<XMLHttpRequest>();
-    xhr.process_request_end_of_body(vm, request_body_length);
+    if xhr.is_fetching(request) {
+        xhr.process_request_end_of_body(vm, request_body_length);
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -174,31 +184,46 @@ pub extern "C" fn web_rust_xhr_process_request_end_of_body(vm: &Vm, xhr: &Interf
 pub extern "C" fn web_rust_xhr_process_response(
     vm: &Vm,
     xhr: &InterfaceCell,
+    request: *mut c_void,
     response: &LentCppCell<cpp_class::ResponseView>,
 ) {
     let (xhr, response) = (xhr.object::<XMLHttpRequest>(), CppResponseView::from_lent(response));
-    XMLHttpRequest::process_response(xhr, vm, response);
+    if xhr.is_fetching(request) {
+        XMLHttpRequest::process_response(xhr, vm, request, response);
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
 #[unsafe(no_mangle)]
-pub extern "C" fn web_rust_xhr_process_body_chunk(vm: &Vm, xhr: &InterfaceCell, length: u64, bytes: ak::Span<'_, u8>) {
+pub extern "C" fn web_rust_xhr_process_body_chunk(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    length: u64,
+    bytes: ak::Span<'_, u8>,
+) {
     let xhr = xhr.object::<XMLHttpRequest>();
-    xhr.process_body_chunk(vm, length, bytes.as_slice());
+    if xhr.is_fetching(request) {
+        xhr.process_body_chunk(vm, length, bytes.as_slice());
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
 #[unsafe(no_mangle)]
-pub extern "C" fn web_rust_xhr_process_end_of_body(vm: &Vm, xhr: &InterfaceCell) {
+pub extern "C" fn web_rust_xhr_process_end_of_body(vm: &Vm, xhr: &InterfaceCell, request: *mut c_void) {
     let xhr = xhr.object::<XMLHttpRequest>();
-    xhr.process_end_of_body(vm);
+    if xhr.is_fetching(request) {
+        xhr.process_end_of_body(vm);
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
 #[unsafe(no_mangle)]
-pub extern "C" fn web_rust_xhr_process_body_error(vm: &Vm, xhr: &InterfaceCell) {
+pub extern "C" fn web_rust_xhr_process_body_error(vm: &Vm, xhr: &InterfaceCell, request: *mut c_void) {
     let xhr = xhr.object::<XMLHttpRequest>();
-    xhr.process_body_error(vm);
+    if xhr.is_fetching(request) {
+        xhr.process_body_error(vm);
+    }
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
