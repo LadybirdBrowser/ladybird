@@ -9,6 +9,7 @@
 #include <AK/JsonArray.h>
 #include <AK/Random.h>
 #include <AK/TemporaryChange.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -243,8 +244,7 @@ struct Serializer {
     // https://w3c.github.io/webdriver-bidi/#serialization-internal-map
     // NB: The objects of the map are kept alive, as serializing may run script that drops them, so that the address of
     //     an object is not reused for another one while the map names it.
-    HashMap<GC::RawPtr<JS::Object const>, u64> serialization_internal_map;
-    GC::RootVector<JS::Value> serialized_objects;
+    GC::RootHashMap<GC::Ref<JS::Object const>, u64> serialization_internal_map;
     HashTable<u64> duplicated_markers;
     u64 next_marker { 0 };
 
@@ -291,11 +291,10 @@ void Serializer::set_internal_ids_if_needed(JsonObject& remote_value, JS::Object
 {
     // 1. If the serialization internal map does not contain object, set serialization internal map[object] to remote
     //    value.
-    auto it = serialization_internal_map.find(&object);
+    auto it = serialization_internal_map.find(object);
     if (it == serialization_internal_map.end()) {
         auto marker = next_marker++;
-        serialization_internal_map.set(&object, marker);
-        serialized_objects.append(JS::Value { const_cast<JS::Object*>(&object) });
+        serialization_internal_map.set(object, marker);
         remote_value.set("internalId"sv, marker_string(marker));
         return;
     }
@@ -554,7 +553,7 @@ JsonValue Serializer::serialize_as_a_remote_value(JS::Value value, Serialization
     ownership_type = ResultOwnership::None;
 
     // 5. Let known object be true, if value is in the serialization internal map, otherwise false.
-    auto known_object = serialization_internal_map.contains(&object);
+    auto known_object = serialization_internal_map.contains(object);
 
     auto set_handle = [&](JsonObject& remote_value) {
         if (handle_id.has_value())
@@ -927,7 +926,7 @@ JsonValue Serializer::serialize_as_a_remote_value(JS::Value value, Serialization
 
 JsonValue serialize_as_a_remote_value(JS::Value value, SerializationOptions const& serialization_options, ResultOwnership ownership_type, HTML::EnvironmentSettingsObject& settings)
 {
-    Serializer serializer { .settings = settings, .depth = 0, .serialization_internal_map = {}, .serialized_objects = {}, .duplicated_markers = {}, .next_marker = 0, .internal_ids = {} };
+    Serializer serializer { .settings = settings, .depth = 0, .serialization_internal_map = {}, .duplicated_markers = {}, .next_marker = 0, .internal_ids = {} };
     auto remote_value = serializer.serialize_as_a_remote_value(value, serialization_options, ownership_type);
     serializer.assign_internal_ids(remote_value);
     return remote_value;
