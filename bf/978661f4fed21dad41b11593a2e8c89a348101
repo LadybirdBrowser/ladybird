@@ -1,0 +1,22 @@
+Ladybird’s video sink now counts a frame as late only once the frame
+after it is due, and leaves the container’s sample durations alone.
+Chrome does the same: Its MP4StreamParser keeps each sample’s track-run
+duration, and its VideoRendererAlgorithm::UpdateFrameStatistics() ends
+each queued frame at the next frame’s timestamp. WebKit plays MP4
+through AVFoundation, so its source shows nothing comparable.
+
+Firefox instead rewrites the durations in its MP4 demuxer, so that each
+sample ends at the next one’s composition time: Moof::Moof() in
+MoofParser.cpp does that for each fragment, and create_sample_table() in
+mp4parse does it for each sample table. Its TrackBuffersManager then
+checks for a decode-time discontinuity against twice the longest frame
+duration since the last keyframe, where the MSE spec says the last
+frame’s duration. Rewriting the durations that way in Ladybird, with the
+spec’s check left in place, split this file’s buffered range in five:
+Some of its decode-time steps are 84ms, after frames shown for 42ms.
+
+The issue’s file played directly, a plain MP4 remuxed from it with
+“ffmpeg -c copy” (which keeps the uneven decode times), and the issue’s
+file appended through MSE each play 4 seconds with no frames dropped in
+Chrome 158, Firefox 151, and WebKit 26.5. Ladybird dropped 43, 45, and
+37 of 96 before this change, and drops none after it.
