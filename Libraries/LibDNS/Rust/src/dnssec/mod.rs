@@ -492,7 +492,7 @@ impl Validator {
         }
         // A No Data answer for DS without a matching NSEC means the name is an empty non-terminal or is covered by
         // a wildcard; either way it is not a zone cut.
-        if proofs.proves_no_data(name, ResourceType::DS) {
+        if proofs.proves_no_data(name, ResourceType::DS).is_some() {
             return remember(insecure_or_not_a_cut(DelegationKind::NotACut, expires));
         }
 
@@ -711,10 +711,11 @@ impl Validator {
                     None => bogus("Name error is not proven"),
                 });
             }
-            if proofs.proves_no_data(&current, question.rtype) {
-                return Ok(result);
-            }
-            return Ok(bogus("Absence of the requested type is not proven"));
+            return Ok(match proofs.proves_no_data(&current, question.rtype) {
+                Some(Denial::Proven) => result,
+                Some(Denial::OptOut) => insecure(result.records, &current, chain_ttl, OPT_OUT),
+                None => bogus("Absence of the requested type is not proven"),
+            });
         }
 
         Ok(bogus("CNAME chain is too long"))

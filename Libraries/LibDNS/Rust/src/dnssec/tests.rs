@@ -1627,10 +1627,14 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
         &[ResourceType::NS, ResourceType::RRSIG, ResourceType::NSEC],
     )];
     let proofs = DenialProofs { rrsets: &rrsets };
-    assert!(proofs.proves_no_data(&sub, ResourceType::DS));
-    assert!(!proofs.proves_no_data(&sub, ResourceType::A));
+    assert_eq!(proofs.proves_no_data(&sub, ResourceType::DS), Some(Denial::Proven));
+    assert!(proofs.proves_no_data(&sub, ResourceType::A).is_none());
     assert!(proofs.proves_name_error(&name("www.sub.example")).is_none());
-    assert!(!proofs.proves_no_data(&name("www.sub.example"), ResourceType::A));
+    assert!(
+        proofs
+            .proves_no_data(&name("www.sub.example"), ResourceType::A)
+            .is_none()
+    );
 
     let rrsets = [unsigned_nsec3(
         &zone,
@@ -1640,8 +1644,8 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
         &[ResourceType::NS],
     )];
     let proofs = DenialProofs { rrsets: &rrsets };
-    assert!(proofs.proves_no_data(&sub, ResourceType::DS));
-    assert!(!proofs.proves_no_data(&sub, ResourceType::A));
+    assert_eq!(proofs.proves_no_data(&sub, ResourceType::DS), Some(Denial::Proven));
+    assert!(proofs.proves_no_data(&sub, ResourceType::A).is_none());
 
     // Nor does the NSEC at a DNAME.
     let rrsets = [unsigned_nsec(
@@ -1651,7 +1655,10 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
         &[ResourceType::DNAME, ResourceType::RRSIG, ResourceType::NSEC],
     )];
     let proofs = DenialProofs { rrsets: &rrsets };
-    assert!(proofs.proves_no_data(&name("old.example"), ResourceType::A));
+    assert_eq!(
+        proofs.proves_no_data(&name("old.example"), ResourceType::A),
+        Some(Denial::Proven)
+    );
     assert!(proofs.proves_name_error(&name("www.old.example")).is_none());
 
     // Within the signer's zone, including at its apex, the bit maps still count.
@@ -1675,8 +1682,11 @@ fn parent_side_denial_says_nothing_below_the_delegation() {
         ),
     ];
     let proofs = DenialProofs { rrsets: &rrsets };
-    assert!(proofs.proves_no_data(&zone, ResourceType::A));
-    assert!(proofs.proves_no_data(&name("www.example"), ResourceType::AAAA));
+    assert_eq!(proofs.proves_no_data(&zone, ResourceType::A), Some(Denial::Proven));
+    assert_eq!(
+        proofs.proves_no_data(&name("www.example"), ResourceType::AAAA),
+        Some(Denial::Proven)
+    );
 }
 
 // An NSEC3 at the apex of "example", whose span covers next to nothing, and one that covers the hash of every other
@@ -1704,6 +1714,23 @@ fn name_error_proven_by_an_opt_out_span_is_insecure() {
     assert_eq!(
         DenialProofs { rrsets: &rrsets }.proves_name_error(&missing),
         Some(Denial::Proven)
+    );
+}
+
+#[test]
+fn no_data_proven_by_an_opt_out_span_is_insecure() {
+    // An empty non-terminal above an unsigned delegation can be left out of an Opt-Out zone's NSEC3 chain.
+    let empty_non_terminal = name("ent.example");
+    let rrsets = apex_and_covering_nsec3(Nsec3::FLAG_OPT_OUT);
+    assert_eq!(
+        DenialProofs { rrsets: &rrsets }.proves_no_data(&empty_non_terminal, ResourceType::A),
+        Some(Denial::OptOut)
+    );
+    // Without Opt-Out, the name does not exist, and there is no wildcard for it to have no data at.
+    let rrsets = apex_and_covering_nsec3(0);
+    assert_eq!(
+        DenialProofs { rrsets: &rrsets }.proves_no_data(&empty_non_terminal, ResourceType::A),
+        None
     );
 }
 
