@@ -41,7 +41,7 @@ fn retained(value: StyleValueData) -> RetainedStyleValueData {
     RetainedStyleValueData::from_owned(value)
 }
 
-fn edge(edge: Option<u8>, offset: Option<StyleValueData>) -> StyleValueData {
+pub(crate) fn edge(edge: Option<u8>, offset: Option<StyleValueData>) -> StyleValueData {
     StyleValueData::Edge {
         has_edge: edge.is_some(),
         edge: edge.unwrap_or(0),
@@ -49,7 +49,7 @@ fn edge(edge: Option<u8>, offset: Option<StyleValueData>) -> StyleValueData {
     }
 }
 
-fn position(edge_x: StyleValueData, edge_y: StyleValueData) -> StyleValueData {
+pub(crate) fn position(edge_x: StyleValueData, edge_y: StyleValueData) -> StyleValueData {
     StyleValueData::Position(StyleValueBox::new(PositionPayload {
         edge_x: retained(edge_x),
         edge_y: retained(edge_y),
