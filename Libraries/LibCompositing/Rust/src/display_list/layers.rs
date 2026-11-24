@@ -37,7 +37,7 @@ use crate::display_list::window_server_placement::{
     WhyWindowServerCannotCompositeEffect, WhyWindowServerCannotShowMedia, WindowServerPlacement,
     WindowServerPlacementOfEffect, window_server_placement_of_effect,
 };
-use crate::visual_context::queries::{NestingOfLiveEffects, backdrop_reader_by_reading_effect_index};
+use crate::visual_context::queries::backdrop_reader_by_reading_effect_index;
 use crate::visual_context::{VisualContextTree, WorldTransforms, device_offset_for_index};
 use libgfx_rust::{AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint, IntRect};
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -116,7 +116,6 @@ pub enum WhyListIsOneLayer {
     EmptyDisplayList,
     SortingContext3D,
     RootIsolationEffectIsNotPlainGroup,
-    MaskDeclaredUnderEffectsItsMaskIsNotUnder,
     RecordsBlendWithWhatOtherLayersHoldBelowThem,
     EffectTheCompositorCannotCompositeIsComposited(WhyCompositorCannotCompositeEffect),
     CompositedEffectsNestTooDeep,
@@ -137,9 +136,6 @@ impl std::fmt::Display for WhyListIsOneLayer {
             WhyListIsOneLayer::EmptyDisplayList => "empty display list",
             WhyListIsOneLayer::SortingContext3D => "3D sorting context holding an effect that reads or is composited",
             WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup => "root isolation effect is not a plain group",
-            WhyListIsOneLayer::MaskDeclaredUnderEffectsItsMaskIsNotUnder => {
-                "mask content declared under effects its mask is not under"
-            }
             WhyListIsOneLayer::RecordsBlendWithWhatOtherLayersHoldBelowThem => {
                 "records blend with what other layers hold below them"
             }
@@ -1682,48 +1678,14 @@ impl LayerStack {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LayeringObstacles {
     pub sorts_planes_by_depth: bool,
-    pub mask_declared_under_effects_its_mask_is_not_under: bool,
 }
 
 impl LayeringObstacles {
-    pub fn of(list: &DisplayListStorage, tree: &VisualContextTree) -> Self {
-        Self::of_with_nesting_of_live_effects(list, tree, &NestingOfLiveEffects::of(tree))
-    }
-
-    pub(crate) fn of_with_nesting_of_live_effects(
-        list: &DisplayListStorage,
-        tree: &VisualContextTree,
-        nesting_of_live_effects: &NestingOfLiveEffects<'_>,
-    ) -> Self {
+    pub fn of(tree: &VisualContextTree) -> Self {
         Self {
             sorts_planes_by_depth: tree.may_sort_planes_by_depth(),
-            mask_declared_under_effects_its_mask_is_not_under: !mask_declarations_are_on_effect_chains_of_their_masks(
-                list,
-                nesting_of_live_effects,
-            ),
         }
     }
-
-    /// Whether every tile replays every record of its band, as which records can show in a tile cannot be told.
-    pub fn every_tile_replays_every_record(&self) -> bool {
-        self.mask_declared_under_effects_its_mask_is_not_under
-    }
-}
-
-// A tile replays the declaration of a mask's content along with what the mask holds, and so opens the effects the
-// declaration is under there, which draw nothing only when they are the mask's own or those around it. A list from
-// another process can name a mask that the tree does not hold as a live node. No effect is inside such a mask.
-fn mask_declarations_are_on_effect_chains_of_their_masks(
-    list: &DisplayListStorage,
-    nesting_of_live_effects: &NestingOfLiveEffects<'_>,
-) -> bool {
-    list.summary().mask_declarations.iter().all(|declaration| {
-        let mask_effect = declaration.mask_effect;
-        let declaration_effect = list.run(declaration.record.run_index as usize).context.effect;
-        declaration_effect.is_none()
-            || nesting_of_live_effects.is_or_is_inside(declaration_effect, mask_effect)
-            || nesting_of_live_effects.is_or_is_inside(mask_effect, declaration_effect)
-    })
 }
 
 fn anchors_of_layer_plans(tree: &VisualContextTree) -> Vec<SpatialNodeIndex> {

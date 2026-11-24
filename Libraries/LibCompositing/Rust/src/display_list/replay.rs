@@ -9,17 +9,17 @@ use crate::display_list::builder::{
     inline_transform_of, read_command,
 };
 use crate::display_list::commands::{
-    ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
-    DisplayListCommandType, DisplayListPaintStyleType, DrawCompositedContext, DrawIsolatedGroup, DrawRepeatedTile,
-    EffectNodeIndex, FillPath, FillRect, FillRectWithRoundedCorners, InlineClipKind, OptionalFloatRect, PaintCaret,
-    PaintScrollBar, PaintVectorImage, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex, StrokePath,
+    ClipMode, ClipNodeIndex, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType,
+    DisplayListPaintStyleType, DrawCompositedContext, DrawIsolatedGroup, DrawRepeatedTile, EffectNodeIndex, FillPath,
+    FillRect, FillRectWithRoundedCorners, InlineClipKind, OptionalFloatRect, PaintCaret, PaintScrollBar,
+    PaintVectorImage, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex, StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{
     EffectGeometry, Extent, compute_effect_geometry, nearest_effects_at_or_above_where,
 };
-use crate::display_list::nested_records::{replays_nested_records_where_it_plays, span_bytes};
+use crate::display_list::nested_records::{holds_nested_records, span_bytes};
 use crate::display_list::storage::{ChunkIndexInList, DisplayListStorage, ListSpan};
 use crate::host::{
     CompositedContextDraw, IsolatedGroup, PresentedScrollbar, ResolvedFillRect, ResolvedFillRectWithRoundedCorners,
@@ -37,7 +37,6 @@ use libgfx_rust::{
     FloatVector3, IntRect, IntSize, MaskKind, WindingRule, enclosing_int_rect, multiply_affine,
 };
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::hash::Hasher;
 
 /// The raster primitives a replay draws through. Everything a painter is handed is resolved for the frame: it never
@@ -179,35 +178,10 @@ impl ReplayFrame<'_> {
     }
 }
 
-/// What one display list holds for the streams of records it plays: the tree it was recorded against, and the
-/// content that each of its masks declared.
-pub struct ListReplay<'t> {
-    pub tree: &'t VisualContextTree,
-    declared_mask_content_by_effect: RefCell<HashMap<EffectNodeIndex, &'t [u8]>>,
-}
-
-impl<'t> ListReplay<'t> {
-    pub fn new(tree: &'t VisualContextTree) -> Self {
-        Self {
-            tree,
-            declared_mask_content_by_effect: RefCell::new(HashMap::new()),
-        }
-    }
-
-    fn declare_mask_content(&self, effect: EffectNodeIndex, content: &'t [u8]) {
-        self.declared_mask_content_by_effect
-            .borrow_mut()
-            .insert(effect, content);
-    }
-
-    fn declared_mask_content(&self, effect: EffectNodeIndex) -> Option<&'t [u8]> {
-        self.declared_mask_content_by_effect.borrow().get(&effect).copied()
-    }
-}
-
 /// What playing a stream of records needs besides the records.
 pub struct RecordsContext<'c, 't> {
-    pub list_replay: &'c ListReplay<'t>,
+    /// The tree the records were recorded against.
+    pub tree: &'t VisualContextTree,
     pub frame: &'c ReplayFrame<'c>,
     pub to_root_matrix_of_inline_clip_space: &'c dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
 }
@@ -339,7 +313,7 @@ fn rasterize_tile_if_pattern<'t, Painter: ReplayPainter + ?Sized>(
         replay_records(
             span_bytes(payload, paint_style.pattern_tile),
             &RecordsContext {
-                list_replay: context.list_replay,
+                tree: context.tree,
                 frame: &tile_frame,
                 to_root_matrix_of_inline_clip_space: &|_| None,
             },
@@ -355,7 +329,7 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
     context: &RecordsContext<'_, 't>,
     painter: &mut Painter,
 ) {
-    let tree = context.list_replay.tree;
+    let tree = context.tree;
     match header.command_type {
         DisplayListCommandType::FillRect => {
             let command = read_command::<FillRect>(payload);
@@ -460,12 +434,6 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
                 scaling_mode: command.scaling_mode,
             });
         }
-        DisplayListCommandType::DeclareMaskContent => {
-            let command = read_command::<DeclareMaskContent>(payload);
-            context
-                .list_replay
-                .declare_mask_content(command.effect, span_bytes(payload, command.content));
-        }
         DisplayListCommandType::DrawIsolatedGroup => {
             let command = read_command::<DrawIsolatedGroup>(payload);
             let filter = span_bytes(payload, command.filter);
@@ -477,7 +445,7 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
                 filter_bytes_size: filter.len(),
             });
             let nested_records_context = RecordsContext {
-                list_replay: context.list_replay,
+                tree: context.tree,
                 frame: context.frame,
                 to_root_matrix_of_inline_clip_space: &|_| None,
             };
@@ -505,7 +473,7 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
                 replay_records(
                     tile_records,
                     &RecordsContext {
-                        list_replay: context.list_replay,
+                        tree: context.tree,
                         frame: &tile_frame,
                         to_root_matrix_of_inline_clip_space: &|_| None,
                     },
@@ -539,7 +507,7 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
             replay_records(
                 span_bytes(payload, command.records),
                 &RecordsContext {
-                    list_replay: context.list_replay,
+                    tree: context.tree,
                     frame: &vector_image_frame,
                     to_root_matrix_of_inline_clip_space: &|_| None,
                 },
@@ -562,10 +530,13 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
 ) {
     let to_root_matrix_of_inline_clip_space = context.to_root_matrix_of_inline_clip_space;
     for_each_command(records, |header, _, payload| {
-        if header.command_type.is_compositor_metadata() {
+        // NB: A mask composites the content it declares where the mask is, whatever the declaration is recorded under.
+        if header.command_type.is_compositor_metadata()
+            || header.command_type == DisplayListCommandType::DeclareMaskContent
+        {
             return;
         }
-        if replays_nested_records_where_it_plays(header.command_type, payload) {
+        if holds_nested_records(header.command_type, payload) {
             let bounding_rect = bounding_rect_computed_from_payload(header, payload).unwrap_or_default();
             if bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(bounding_rect) {
                 return;
@@ -713,7 +684,6 @@ enum SwitchResult {
 struct ReplayDriver<'a, Painter: ReplayPainter + ?Sized> {
     tree: &'a VisualContextTree,
     display_list: &'a DisplayListStorage,
-    list_replay: ListReplay<'a>,
     frame: &'a ReplayFrame<'a>,
     effect_clips: &'a EffectClipPlan,
     root_group_color: Color,
@@ -1219,9 +1189,9 @@ impl<Painter: ReplayPainter + ?Sized> ReplayDriver<'_, Painter> {
                         EffectNodeData::Mask(mask) => {
                             self.ensure_canvas_matrix_in_draw_space_of(node.spatial);
                             self.painter.begin_mask_content(&replay_mask_of(mask));
-                            if let Some(content) = self.list_replay.declared_mask_content(effect) {
+                            if let Some(content) = self.display_list.records_of_mask_content(effect) {
                                 let records_context = RecordsContext {
-                                    list_replay: &self.list_replay,
+                                    tree,
                                     frame: self.frame,
                                     to_root_matrix_of_inline_clip_space: &|_| None,
                                 };
@@ -1400,7 +1370,7 @@ impl<Painter: ReplayPainter + ?Sized> ReplayDriver<'_, Painter> {
         let world = &self.world;
         let to_root_matrix_of_inline_clip_space = |space: SpatialNodeIndex| world.draw_matrix_if_known(space);
         let records_context = RecordsContext {
-            list_replay: &self.list_replay,
+            tree: self.tree,
             frame: self.frame,
             to_root_matrix_of_inline_clip_space: &to_root_matrix_of_inline_clip_space,
         };
@@ -1556,7 +1526,6 @@ impl<'a, Painter: ReplayPainter + ?Sized> ReplayDriver<'a, Painter> {
         let mut driver = ReplayDriver {
             tree,
             display_list,
-            list_replay: ListReplay::new(tree),
             frame,
             effect_clips,
             root_group_color,
@@ -1596,17 +1565,6 @@ impl<'a, Painter: ReplayPainter + ?Sized> ReplayDriver<'a, Painter> {
             target_canvas_stack: std::mem::take(&mut self.target_canvas_stack),
             effect_geometry_by_effect_index: std::mem::take(&mut self.effect_geometry_by_effect_index),
         });
-    }
-
-    // Compositing enters masks without replaying the declarations of their content ahead of them.
-    fn declare_every_mask_content_of_list(&mut self) {
-        let display_list = self.display_list;
-        for declaration in &display_list.summary().mask_declarations {
-            let (_, payload) = display_list.record_at(declaration.record.position);
-            let command = read_command::<DeclareMaskContent>(payload);
-            self.list_replay
-                .declare_mask_content(command.effect, span_bytes(payload, command.content));
-        }
     }
 }
 
@@ -1762,7 +1720,6 @@ pub fn composite_inside_effects<Painter: ReplayPainter + ?Sized>(
         },
         painter,
     );
-    driver.declare_every_mask_content_of_list();
     let mut compositing = CompositingInsideEffects {
         driver: &mut driver,
         canvas_matrix_of_raster_pixels,
@@ -2087,12 +2044,11 @@ mod tests {
         painter: &mut RecordingPainter,
     ) {
         let tree = identity_tree();
-        let list = ListReplay::new(&tree);
         let frame = ReplayFrame::unscrolled(0);
         replay_records(
             records,
             &RecordsContext {
-                list_replay: &list,
+                tree: &tree,
                 frame: &frame,
                 to_root_matrix_of_inline_clip_space,
             },

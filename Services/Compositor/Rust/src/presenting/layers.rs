@@ -510,7 +510,7 @@ impl ContextLayers {
                 of_list_and_tree.obstacles
             }
             _ => {
-                let obstacles = LayeringObstacles::of(display_list.storage(), tree);
+                let obstacles = LayeringObstacles::of(tree);
                 self.layering_obstacles_of_frames_not_drawn_as_planned = Some(LayeringObstaclesOfListAndTree {
                     display_list: Rc::downgrade(display_list),
                     tree_copy_number: tree.copy.number(),
@@ -2200,13 +2200,9 @@ mod tests {
             .as_mut()
             .expect("the obstacles of the list and the tree are kept")
             .obstacles
-            .mask_declared_under_effects_its_mask_is_not_under = true;
+            .sorts_planes_by_depth = false;
         let stack_of_next_frame = layers.one_layer_stack_of_frame(&display_list, &tree, VIEWPORT, not_as_planned);
-        assert!(
-            stack_of_next_frame
-                .layering_obstacles
-                .mask_declared_under_effects_its_mask_is_not_under
-        );
+        assert!(!stack_of_next_frame.layering_obstacles.sorts_planes_by_depth);
         let another_tree = Arc::new((*tree).clone());
         let stack_of_another_tree =
             layers.one_layer_stack_of_frame(&display_list, &another_tree, VIEWPORT, not_as_planned);

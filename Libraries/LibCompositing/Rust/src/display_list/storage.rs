@@ -7,19 +7,26 @@
 //! A display list as the chunks it is cut into, in paint order: chunks another process sent that passed validation, or
 //! the chunks of a recording this process made, with the visual context tree it was recorded against.
 
-use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, RecordedDisplayList, for_each_command, read_header};
+use super::builder::{
+    COMMAND_ALIGNMENT, HEADER_SIZE, RecordedDisplayList, for_each_command, read_command, read_header,
+};
 use super::chunks::{
     Chunk, ChunkId, DisplayListChunk, TopLevelRecordReachingOutsideRunContext, chunk_id, chunks_of,
     top_level_records_reaching_outside_run_context,
 };
-use super::commands::{ContextRef, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType};
+use super::commands::{
+    ContextRef, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType,
+    EffectNodeIndex,
+};
 use super::effect_clip_plan::EffectClipPlan;
+use super::nested_records::span_bytes;
 use super::placement::RunGroups;
 use super::summary::{DisplayListSummary, summarize, summary_of_pieces};
 use super::tile_keys::{ChunkPlacedInRasterSpace, ContentHash, RecordTable};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
 use libipc_rust::wire::{Decode, Encode};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 // Room for the spaces a chunk shows in and those of a moment before, which a scroll that comes back needs again.
@@ -257,6 +264,7 @@ pub struct DisplayListStorage {
     // they were found to hold for, and found to hold again only for the samples of such an animation.
     cached_run_groups: Mutex<Option<(u64, Arc<RunGroups>)>>,
     summary: OnceLock<DisplayListSummary>,
+    declaration_of_mask_content_by_mask_effect: OnceLock<HashMap<EffectNodeIndex, ListPosition>>,
 }
 
 impl DisplayListStorage {
@@ -278,6 +286,7 @@ impl DisplayListStorage {
             effect_clip_plan: OnceLock::new(),
             cached_run_groups: Mutex::new(None),
             summary: OnceLock::new(),
+            declaration_of_mask_content_by_mask_effect: OnceLock::new(),
         })
     }
 
@@ -445,6 +454,27 @@ impl DisplayListStorage {
                 )
             }))
         })
+    }
+
+    /// Where the list declares the content of the mask `mask_effect`, if it does. A mask composites the content of
+    /// its last declaration, wherever in the list that is.
+    pub fn declaration_of_mask_content(&self, mask_effect: EffectNodeIndex) -> Option<ListPosition> {
+        self.declaration_of_mask_content_by_mask_effect
+            .get_or_init(|| {
+                self.summary()
+                    .mask_declarations
+                    .iter()
+                    .map(|declaration| (declaration.mask_effect, declaration.record.position))
+                    .collect()
+            })
+            .get(&mask_effect)
+            .copied()
+    }
+
+    /// The records the mask `mask_effect` composites as its content, if the list declares any.
+    pub fn records_of_mask_content(&self, mask_effect: EffectNodeIndex) -> Option<&[u8]> {
+        let (_, payload) = self.record_at(self.declaration_of_mask_content(mask_effect)?);
+        Some(span_bytes(payload, read_command::<DeclareMaskContent>(payload).content))
     }
 
     pub fn effect_clip_plan(&self, tree: &VisualContextTree) -> &EffectClipPlan {
