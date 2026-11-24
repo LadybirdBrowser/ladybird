@@ -34,6 +34,7 @@ struct hb_font_t;
 namespace Gfx {
 
 class Font;
+struct TypefaceRasterizerData;
 
 struct SystemFontIdentifier {
     u64 generation { 0 };
@@ -174,8 +175,8 @@ public:
     Optional<String> postscript_name() const;
 
     // What a rasterizer keeps with this typeface. The first call makes it.
-    template<typename T, typename Callback>
-    T& rasterizer_data(Callback make) const { return m_rasterizer_data.get<T>(make); }
+    template<typename Callback>
+    TypefaceRasterizerData& rasterizer_data(Callback make) const { return m_rasterizer_data.get(make); }
 
     // Union of all glyph bounding boxes as recorded in the `head` table, in font units with y pointing up.
     // is_empty() when the face has no usable `head` table (e.g. bitmap-only fonts).
@@ -263,7 +264,7 @@ private:
     mutable Optional<FaceDescription> m_description;
     mutable OnceFlag m_bounding_box_once;
     mutable BoundingBoxInFontUnits m_bounding_box_in_font_units;
-    RasterizerDataSlot m_rasterizer_data;
+    RasterizerDataSlot<TypefaceRasterizerData> m_rasterizer_data;
 };
 
 }

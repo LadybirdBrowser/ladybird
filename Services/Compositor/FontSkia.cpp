@@ -37,7 +37,7 @@
 #    include <src/ports/SkTypeface_win_dw.h>
 #endif
 
-namespace Compositor {
+using Compositor::FontRasterizer;
 
 static FontRasterizer s_font_rasterizer { FontRasterizer::Platform };
 static bool s_use_test_font_rendering { false };
@@ -72,17 +72,17 @@ static u64 encode_rendering_options(float scale, Gfx::FontRenderingOptions optio
 }
 #endif
 
-namespace {
-
 // What the compositor keeps with each typeface.
-struct TypefaceData final : public Gfx::RasterizerData {
-    explicit TypefaceData(sk_sp<SkTypeface> typeface)
+struct Gfx::TypefaceRasterizerData final : public Gfx::RasterizerData {
+    explicit TypefaceRasterizerData(sk_sp<SkTypeface> typeface)
         : typeface(move(typeface))
     {
     }
 
     sk_sp<SkTypeface> typeface;
 };
+
+namespace {
 
 #if defined(AK_OS_MACOS)
 // CoreText places the bitmap glyphs of an installed font, such as Apple Color Emoji, lower than it places the same
@@ -157,7 +157,7 @@ sk_sp<SkTypeface> make_skia_typeface(Gfx::Typeface const& typeface)
 // The Skia typeface of a typeface. Null if Skia cannot load it.
 sk_sp<SkTypeface> const& skia_typeface(Gfx::Typeface const& typeface)
 {
-    return typeface.rasterizer_data<TypefaceData>([&] { return make<TypefaceData>(make_skia_typeface(typeface)); }).typeface;
+    return typeface.rasterizer_data([&] { return make<Gfx::TypefaceRasterizerData>(make_skia_typeface(typeface)); }).typeface;
 }
 
 // The typeface of the font's variations. Without variations, or if Skia cannot apply them, it is the typeface itself.
@@ -182,9 +182,11 @@ sk_sp<SkTypeface> typeface_with_variations(Gfx::Font const& font)
     return typeface;
 }
 
+}
+
 // What the compositor keeps with each font.
-struct FontData final : public Gfx::RasterizerData {
-    explicit FontData(Gfx::Font const& font)
+struct Gfx::FontRasterizerData final : public Gfx::RasterizerData {
+    explicit FontRasterizerData(Font const& font)
         : typeface(typeface_with_variations(font))
     {
     }
@@ -197,13 +199,15 @@ struct FontData final : public Gfx::RasterizerData {
 #endif
 };
 
-FontData& font_data(Gfx::Font const& font)
+namespace {
+
+Gfx::FontRasterizerData& font_data(Gfx::Font const& font)
 {
-    return font.rasterizer_data<FontData>([&] { return make<FontData>(font); });
+    return font.rasterizer_data([&] { return make<Gfx::FontRasterizerData>(font); });
 }
 
 #if defined(USE_FONTCONFIG)
-Gfx::FontRenderingOptions rendering_options(Gfx::Font const& font, float scale, FontData& data)
+Gfx::FontRenderingOptions rendering_options(Gfx::Font const& font, float scale, Gfx::FontRasterizerData& data)
 {
     auto& memo = data.rendering_options_memo;
     auto value = memo.load(AK::MemoryOrder::memory_order_relaxed);
@@ -222,6 +226,8 @@ Gfx::FontRenderingOptions rendering_options(Gfx::Font const& font, float scale, 
 #endif
 
 }
+
+namespace Compositor {
 
 void set_font_rasterizer(FontRasterizer rasterizer)
 {
