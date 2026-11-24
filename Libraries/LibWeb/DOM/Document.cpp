@@ -1104,8 +1104,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_potentially_named_elements);
     m_anchor_name_map.visit_edges(visitor);
-    if (m_query_selector_result_cache)
-        m_query_selector_result_cache->visit_edges(visitor);
+    visitor.visit(m_query_selector_result_cache);
     if (m_spelling_markers)
         m_spelling_markers->visit_edges(visitor);
     if (m_spell_check_controller)
@@ -12314,7 +12313,7 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16String const& sele
 QuerySelectorResultCache& Document::query_selector_result_cache()
 {
     if (!m_query_selector_result_cache)
-        m_query_selector_result_cache = make<QuerySelectorResultCache>();
+        m_query_selector_result_cache = heap().allocate<QuerySelectorResultCache>();
     return *m_query_selector_result_cache;
 }
 
