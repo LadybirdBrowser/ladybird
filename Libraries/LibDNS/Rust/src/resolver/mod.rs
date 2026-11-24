@@ -207,16 +207,29 @@ struct PendingValidation {
 // drops one half of a coupled query can't stall us on it. When one side has records first, the waiters get them after
 // a grace window for the other side: briefly for AAAA (RFC 8305's Resolution Delay), and longer for A. The slower side
 // keeps going and merges its records into the cache entry, so later lookups see the full set.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FamilyLookup {
+    NotAsked,
+    Pending,
+    Answered,
+    Failed,
+}
+
+impl FamilyLookup {
+    fn is_done(self) -> bool {
+        self != FamilyLookup::Pending
+    }
+}
+
 struct PendingSystemResolution {
     // Tells this resolution apart from a later one for the same name and types, which answers to it do not concern.
     id: u64,
-    queried_types: Vec<ResourceType>,
     // Where the result goes in the cache, if it goes there at all.
     cache_key: Option<String>,
     entry: CacheEntry,
     waiters: Vec<LookupWaiter>,
-    a_done: bool,
-    aaaa_done: bool,
+    a: FamilyLookup,
+    aaaa: FamilyLookup,
     settled: bool,
     grace_deadline: Option<Instant>,
 }
@@ -500,7 +513,7 @@ impl Resolver {
                     now,
                 );
             }
-            return self.resolve_with_system_resolver(waiter, name, queried_types, skips_aaaa, !is_server_address, now);
+            return self.resolve_with_system_resolver(waiter, name, queried_types, !is_server_address, now);
         }
 
         // Nothing to ask for is answered at once, with nothing.
@@ -757,10 +770,17 @@ impl Resolver {
         waiter: LookupWaiter,
         name: &str,
         queried_types: Vec<ResourceType>,
-        skips_aaaa: bool,
         caches_result: bool,
         now: Instant,
     ) {
+        // The system resolver only knows addresses.
+        let wants = |rtype: ResourceType| queried_types.contains(&rtype) || queried_types.contains(&ResourceType::ANY);
+        let (wants_a, wants_aaaa) = (wants(ResourceType::A), wants(ResourceType::AAAA));
+        if !wants_a && !wants_aaaa {
+            let error = Error::new("The system resolver can only look up addresses");
+            return self.settle_lookup_waiter(waiter, Err(error), now);
+        }
+
         // NB: A resolution only serves callers that query the same types, so that a caller wanting AAAA never joins
         //     one that skips it, and one that skips AAAA never joins one that went ahead without A.
         let mut sorted_types = queried_types.clone();
@@ -798,18 +818,27 @@ impl Resolver {
             PendingSystemResolution {
                 id,
                 cache_key: caches_result.then(|| name.to_owned()),
-                queried_types,
                 entry,
                 waiters: vec![waiter],
-                a_done: false,
-                aaaa_done: skips_aaaa,
+                a: if wants_a {
+                    FamilyLookup::Pending
+                } else {
+                    FamilyLookup::NotAsked
+                },
+                aaaa: if wants_aaaa {
+                    FamilyLookup::Pending
+                } else {
+                    FamilyLookup::NotAsked
+                },
                 settled: false,
                 grace_deadline: None,
             },
         );
 
-        self.ask_system_resolver(&key, id, name, AddressFamily::V4);
-        if !skips_aaaa {
+        if wants_a {
+            self.ask_system_resolver(&key, id, name, AddressFamily::V4);
+        }
+        if wants_aaaa {
             self.ask_system_resolver(&key, id, name, AddressFamily::V6);
         }
     }
@@ -834,9 +863,14 @@ impl Resolver {
             return;
         };
 
+        let outcome = if result.is_ok() {
+            FamilyLookup::Answered
+        } else {
+            FamilyLookup::Failed
+        };
         match family {
-            AddressFamily::V4 => state.a_done = true,
-            AddressFamily::V6 => state.aaaa_done = true,
+            AddressFamily::V4 => state.a = outcome,
+            AddressFamily::V6 => state.aaaa = outcome,
         }
 
         // Late-arriving records still populate the cache for later lookups.
@@ -858,19 +892,26 @@ impl Resolver {
             got_records = true;
         }
 
-        if state.a_done && state.aaaa_done {
-            // The system resolver says nothing about how long there are no addresses of a family, so that holds as
-            // long as addresses it finds would.
+        if state.a.is_done() && state.aaaa.is_done() {
+            // A family the system resolver looked up and found no addresses of has none, as far as it knows. It says
+            // nothing about for how long, so that holds as long as addresses it finds would. A family it failed to look
+            // up, or was not asked about, may well have some.
             let negative_expiration = now + Duration::from_secs(u64::from(SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS));
-            for rtype in &state.queried_types {
-                if !state.entry.has_record_of_type(*rtype) {
-                    state.entry.add_negative_answer(*rtype, negative_expiration);
+            for (lookup, rtype) in [(state.a, ResourceType::A), (state.aaaa, ResourceType::AAAA)] {
+                if lookup == FamilyLookup::Answered && !state.entry.has_record_of_type(rtype) {
+                    state.entry.add_negative_answer(rtype, negative_expiration);
                 }
             }
             state.entry.finished_request();
             let mut state = self.system_resolutions.remove(&key).expect("system resolution");
             let waiters = std::mem::take(&mut state.waiters);
-            let result = (!state.settled).then(|| state.entry.has_records().then(|| state.entry.snapshot()));
+            // Every family it was asked about having no addresses is an answer, as when a DNS server says so. A family
+            // it failed to look up leaves the lookup failed, unless the other found some.
+            let answered = [state.a, state.aaaa]
+                .iter()
+                .all(|lookup| matches!(lookup, FamilyLookup::Answered | FamilyLookup::NotAsked));
+            let result =
+                (!state.settled).then(|| (state.entry.has_records() || answered).then(|| state.entry.snapshot()));
             if let Some(cache_key) = state.cache_key {
                 self.cache.insert(cache_key, state.entry, now);
             }
