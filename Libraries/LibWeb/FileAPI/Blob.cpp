@@ -55,7 +55,7 @@ void* web_blob_create(JSVM*, BlobBytesABI bytes, FlatPtr type);
 u8 const* web_blob_byte_sequence(void* blob, size_t* out_length);
 BlobBytes* web_blob_foreign_bytes_owner(void* blob);
 void web_blob_set_foreign_bytes(void* blob, BlobBytesABI bytes);
-void* web_blob_slice(JSVM*, void* blob, bool has_start, i64 start, bool has_end, i64 end, bool has_content_type, FlatPtr content_type);
+void* web_blob_slice(JSVM*, void* blob, bool has_start, i64 start, bool has_end, i64 end, FlatPtr content_type);
 FlatPtr web_blob_type(void* blob);
 bool web_blob_is_file(void* blob);
 
@@ -120,9 +120,8 @@ ErrorOr<Core::ImmutableBytes> Blob::immutable_bytes()
 
 GC::Ref<Blob> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<Utf16String> content_type) const
 {
-    auto has_content_type = content_type.has_value();
-    auto raw_content_type = has_content_type ? content_type.release_value().into_raw() : 0;
-    auto* sliced_blob = web_blob_slice(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<Blob*>(this), start.has_value(), start.value_or(0), end.has_value(), end.value_or(0), has_content_type, raw_content_type);
+    auto raw_content_type = content_type.has_value() ? content_type.release_value().into_raw() : 0;
+    auto* sliced_blob = web_blob_slice(JS::HostABI::vm_to_abi(JS::VM::the()), const_cast<Blob*>(this), start.has_value(), start.value_or(0), end.has_value(), end.value_or(0), raw_content_type);
     return GC::Ref { *static_cast<Blob*>(sliced_blob) };
 }
 

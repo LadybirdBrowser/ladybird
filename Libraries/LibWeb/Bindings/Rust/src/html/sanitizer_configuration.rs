@@ -17,6 +17,7 @@ use super::sanitizer::{
     SanitizerProcessingInstruction,
 };
 use crate::bindings::interface::{Ref, cell_from_abi};
+use crate::bindings::lent_string::LentUtf16String;
 use crate::bindings::{Exception, WebIdlResult};
 use crate::trusted_types::trusted_html_parser_options::TrustedHTMLParserOptions;
 
@@ -1726,6 +1727,7 @@ impl ConfigInputAbi<'_> {
 pub(crate) unsafe fn input_from_abi(kind: SanitizerInputKind, input: *const c_void) -> SanitizerInput {
     match kind {
         SanitizerInputKind::DefaultPreset => SanitizerInput::SanitizerPresets(SanitizerPresets::Default),
+        // SAFETY: C++ passes a live view whose buffers and strings outlive this conversion.
         SanitizerInputKind::Config => {
             SanitizerInput::SanitizerConfig(unsafe { (&*input.cast::<ConfigInputAbi<'_>>()).config() })
         }
@@ -1818,22 +1820,14 @@ fn event_handler_content_attributes() -> &'static [usize] {
 }
 
 /// Checks whether the configuration allows comments.
-///
-/// # Safety
-///
-/// `configuration` must point to a live SanitizerConfiguration.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_sanitizer_config_allows_comments(configuration: &SanitizerConfiguration) -> bool {
+pub extern "C" fn web_rust_sanitizer_config_allows_comments(configuration: &SanitizerConfiguration) -> bool {
     sanitizer_config_allows_comments(configuration)
 }
 
 /// Checks whether the configuration allows a processing-instruction target.
-///
-/// # Safety
-///
-/// `configuration` and the target's buffers must be live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_sanitizer_config_allows_processing_instruction_target(
+pub extern "C" fn web_rust_sanitizer_config_allows_processing_instruction_target(
     configuration: &SanitizerConfiguration,
     target: StringViewAbi<'_>,
 ) -> bool {
@@ -1841,49 +1835,35 @@ pub unsafe extern "C" fn web_rust_sanitizer_config_allows_processing_instruction
 }
 
 /// Returns the sanitizer action for the element name.
-///
-/// # Safety
-///
-/// The configuration and nonzero string representations must be live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_sanitizer_action_for_element_name(
+pub extern "C" fn web_rust_sanitizer_action_for_element_name(
     configuration: &SanitizerConfiguration,
-    name: usize,
-    namespace_: usize,
+    name: LentUtf16String<'_>,
+    namespace_: Option<LentUtf16String<'_>>,
 ) -> SanitizerAction {
-    // SAFETY: C++ lends the strings for the query.
-    let (name, namespace_) = unsafe {
-        (
-            Utf16String::from_raw_borrowed(name),
-            (namespace_ != 0).then(|| Utf16String::from_raw_borrowed(namespace_)),
-        )
-    };
+    let (name, namespace_) = (
+        name.to_utf16_string(),
+        namespace_.as_ref().map(LentUtf16String::to_utf16_string),
+    );
     sanitizer_action_for_element_name(&name, namespace_.as_ref(), configuration)
 }
 
 /// Checks whether the configuration allows an attribute.
-///
-/// # Safety
-///
-/// The configuration, value buffers, and nonzero string representations must be live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_sanitizer_config_allows_attribute(
+pub extern "C" fn web_rust_sanitizer_config_allows_attribute(
     configuration: &SanitizerConfiguration,
-    name: usize,
-    namespace_: usize,
+    name: LentUtf16String<'_>,
+    namespace_: Option<LentUtf16String<'_>>,
     value: StringViewAbi<'_>,
-    element_name: usize,
-    element_namespace: usize,
+    element_name: LentUtf16String<'_>,
+    element_namespace: Option<LentUtf16String<'_>>,
 ) -> bool {
-    // SAFETY: C++ lends all strings for the query.
-    let (name, namespace_, element_name, element_namespace) = unsafe {
-        (
-            Utf16String::from_raw_borrowed(name),
-            (namespace_ != 0).then(|| Utf16String::from_raw_borrowed(namespace_)),
-            Utf16String::from_raw_borrowed(element_name),
-            (element_namespace != 0).then(|| Utf16String::from_raw_borrowed(element_namespace)),
-        )
-    };
+    let (name, namespace_, element_name, element_namespace) = (
+        name.to_utf16_string(),
+        namespace_.as_ref().map(LentUtf16String::to_utf16_string),
+        element_name.to_utf16_string(),
+        element_namespace.as_ref().map(LentUtf16String::to_utf16_string),
+    );
     sanitizer_config_allows_attribute(
         &name,
         namespace_.as_ref(),

@@ -70,12 +70,12 @@ fn structured_serialize_in_current_realm<'vm>(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize(
     vm: &Vm,
-    value: u64,
+    value: Value,
     allow_shared_array_buffers: u8,
     record: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes a live value, and lends the record.
-    let (value, record) = unsafe { (Value::from_raw(value), IPCSerializationRecord::from_raw(record)) };
+    let record = unsafe { IPCSerializationRecord::from_raw(record) };
     let serialized = StructuredSerializeWriter::new(vm, SerializationType::Ipc);
     if let Err(result) = structured_serialize_in_current_realm(
         vm,
@@ -98,11 +98,11 @@ pub unsafe extern "C" fn web_rust_structured_serialize(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
     vm: &Vm,
-    value: u64,
+    value: Value,
     record: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes a live value, and lends the record.
-    let (value, record) = unsafe { (Value::from_raw(value), StorageSerializationRecord::from_raw(record)) };
+    let record = unsafe { StorageSerializationRecord::from_raw(record) };
     let serialized = StructuredSerializeWriter::new(vm, SerializationType::Storage);
     if let Err(result) = structured_serialize_in_current_realm(
         vm,
@@ -161,14 +161,12 @@ pub extern "C" fn web_rust_structured_deserialize_for_storage(
 pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
     vm: &Vm,
     realm: Gc<Realm>,
-    value: u64,
+    value: Value,
     transfer_list: *const *mut c_void,
     count: usize,
     out_record: &mut *mut c_void,
 ) -> RawNativeFunctionResult {
     let cx = CallContext::new(vm, realm);
-    // SAFETY: The caller passes a live value.
-    let value = unsafe { Value::from_raw(value) };
     let transfer_list_values = MarkedVec::with_capacity(vm, count);
     for index in 0..count {
         // SAFETY: The caller passes `count` live objects.

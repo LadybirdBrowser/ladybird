@@ -10,12 +10,13 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
 use crate::bindings::conversions::UsvString;
 use crate::bindings::event_target::CppEvent;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -199,7 +200,7 @@ impl SecurityPolicyViolationEvent {
 pub unsafe extern "C" fn web_rust_security_policy_violation_event_create(
     vm: &Vm,
     realm: Gc<Realm>,
-    r#type: usize,
+    r#type: LentUtf16FlyString<'_>,
     event_init: &FfiSecurityPolicyViolationEventInit,
 ) -> *mut c_void {
     // SAFETY: The caller lends each string for the call.
@@ -224,8 +225,7 @@ pub unsafe extern "C" fn web_rust_security_policy_violation_event_create(
         line_number: event_init.line_number,
         column_number: event_init.column_number,
     };
-    // SAFETY: The caller lends the type for the call.
-    let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
+    let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     SecurityPolicyViolationEvent::create(vm, realm, &r#type, event_init)
         .event()
         .as_ptr()

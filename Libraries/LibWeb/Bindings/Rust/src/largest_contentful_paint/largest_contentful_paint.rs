@@ -132,30 +132,19 @@ impl LargestContentfulPaint {
 }
 
 /// https://w3c.github.io/largest-contentful-paint/#create-a-largestcontentfulpaint-entry
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `url` and `id` raw AK::Utf16Strings that C++ hands over, and `element` a live Element.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_largest_contentful_paint_create(
+pub extern "C" fn web_rust_largest_contentful_paint_create(
     vm: &Vm,
     rendering_update_end_time: f64,
     has_presentation_time: bool,
     presentation_time: f64,
     size: u32,
-    url: usize,
-    id: usize,
+    url: Utf16String,
+    id: Utf16String,
     load_time: f64,
     element: &LentCppCell<cpp_class::Element>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live Element, and hands over the strings.
-    let (url, id, element) = unsafe {
-        (
-            Utf16String::from_raw_owned(url),
-            Utf16String::from_raw_owned(id),
-            CppCell::from_lent(element),
-        )
-    };
+    let element = CppCell::from_lent(element);
     let paint_timing_info =
         PaintTimingInfo::from_abi(rendering_update_end_time, has_presentation_time, presentation_time);
     cell_into_abi(LargestContentfulPaint::create(

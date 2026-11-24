@@ -11,11 +11,12 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, Realm, Trace, Value, Vm};
 
 use crate::bindings::event_target::CppEvent;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
@@ -103,16 +104,12 @@ impl CustomEvent {
 }
 
 /// The Event of a new trusted CustomEvent in the realm, for the implementation to fire.
-///
-/// # Safety
-///
-/// The VM, the realm and the detail must be live. The type is lent for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_custom_event_create(
+pub extern "C" fn web_rust_custom_event_create(
     vm: &Vm,
     realm: Gc<Realm>,
-    r#type: usize,
-    detail: u64,
+    r#type: LentUtf16FlyString<'_>,
+    detail: Value,
 ) -> *mut c_void {
     let event_init = CustomEventInit {
         parent: EventInit {
@@ -120,11 +117,9 @@ pub unsafe extern "C" fn web_rust_custom_event_create(
             cancelable: false,
             composed: false,
         },
-        // SAFETY: The caller passes a live detail.
-        detail: unsafe { Value::from_raw(detail) },
+        detail,
     };
-    // SAFETY: The caller lends the type for the call.
-    let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
+    let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let event = CustomEvent::create(vm, realm, &r#type, event_init);
     event.event().set_is_trusted(true);
     event.event().as_ptr()

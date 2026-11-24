@@ -18,6 +18,7 @@ use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
 use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
 use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file::File;
@@ -509,21 +510,22 @@ pub extern "C" fn web_rust_data_transfer_effect_allowed(transfer: &InterfaceCell
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_set_drop_effect(transfer: &InterfaceCell, effect: usize) {
-    // SAFETY: LibWeb passes a live DataTransfer and lends a fly string.
-    unsafe {
+pub extern "C" fn web_rust_data_transfer_set_drop_effect(transfer: &InterfaceCell, effect: LentUtf16FlyString<'_>) {
+    {
         transfer
             .object::<DataTransfer>()
-            .set_drop_effect_value(Utf16FlyString::from_raw_borrowed(effect));
+            .set_drop_effect_value(effect.to_utf16_fly_string());
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(transfer: &InterfaceCell, effect: usize) {
-    // SAFETY: LibWeb passes a live DataTransfer and lends a fly string.
-    unsafe {
+pub extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(
+    transfer: &InterfaceCell,
+    effect: LentUtf16FlyString<'_>,
+) {
+    {
         transfer
             .object::<DataTransfer>()
-            .set_effect_allowed_internal(Utf16FlyString::from_raw_borrowed(effect));
+            .set_effect_allowed_internal(effect.to_utf16_fly_string());
     }
 }

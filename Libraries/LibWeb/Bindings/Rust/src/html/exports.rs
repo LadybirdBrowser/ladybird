@@ -14,7 +14,7 @@
 use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Realm, Value, Vm};
 use liburl_rust::FfiOrigin;
@@ -37,6 +37,7 @@ use crate::bindings::cpp_cell::{CppCell, LentCppCell, cpp_class};
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::{InterfaceCell, allocate, cell_from_abi, cell_into_abi, wrap};
+use crate::bindings::lent_string::{LentUtf16FlyString, LentUtf16String};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::canvas_2d::canvas::Canvas;
 use crate::dom::event::EventInit;
@@ -199,13 +200,12 @@ pub unsafe extern "C" fn web_rust_message_port_post_message(
     vm: &Vm,
     realm: Gc<Realm>,
     port: &InterfaceCell,
-    message: u64,
+    message: Value,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
     let mut cx = CallContext::new(vm, realm);
-    // SAFETY: The caller passes a live cell of a MessagePort and a live value.
-    let (port, message) = unsafe { (port.object::<MessagePort>(), Value::from_raw(message)) };
+    let port = port.object::<MessagePort>();
     // SAFETY: The caller passes `count` live objects.
     let transfer_list = unsafe { objects_from_abi(vm, transfer, count) };
     let result = MessagePort::post_message(&port, &mut cx, message, transfer_list);
@@ -350,18 +350,17 @@ pub extern "C" fn web_rust_shut_down_agent(vm: &Vm) {
 pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     vm: &Vm,
     storage_key_origin: *const FfiOrigin,
-    channel_name: usize,
+    channel_name: Utf16String,
     source_origin: *const FfiOrigin,
     serialized_message: ak::Span<'_, u8>,
     shared_store_lifeline: c_int,
 ) {
     // SAFETY: The caller passes the live VM, lends the origins and the descriptor, and hands over the name.
-    let (storage_key, channel_name, source_origin) = unsafe {
+    let (storage_key, source_origin) = unsafe {
         (
             StorageKey {
                 origin: (*storage_key_origin).to_origin(),
             },
-            Utf16String::from_raw_owned(channel_name),
             (*source_origin).to_origin(),
         )
     };
@@ -454,16 +453,15 @@ pub extern "C" fn web_rust_html_create_storage_event(vm: &Vm, realm: Gc<Realm>) 
 pub unsafe extern "C" fn web_rust_html_create_message_event(
     vm: &Vm,
     realm: Gc<Realm>,
-    r#type: usize,
-    data: u64,
+    r#type: LentUtf16FlyString<'_>,
+    data: Value,
     ports: *const *mut c_void,
     count: usize,
     source: Option<&InterfaceCell>,
     origin: *const FfiOrigin,
 ) -> *mut c_void {
     let mut event_init = MessageEventInit::new(vm);
-    // SAFETY: The caller passes live data.
-    event_init.data = unsafe { Value::from_raw(data) };
+    event_init.data = data;
     // SAFETY: The caller lends the ports for the call.
     for &port in unsafe { ak::slice_from_raw_parts(ports, count) } {
         // SAFETY: Each port is a live MessagePort.
@@ -474,8 +472,7 @@ pub unsafe extern "C" fn web_rust_html_create_message_event(
     }
     // SAFETY: An origin that is not null is lent for the call.
     let origin = (!origin.is_null()).then(|| unsafe { (*origin).to_origin() });
-    // SAFETY: The caller lends the type for the call.
-    let r#type: Utf16String = unsafe { Utf16FlyString::from_raw_borrowed(r#type) }.into();
+    let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let event = MessageEvent::create(vm, realm, &r#type, event_init, origin);
     event.event().set_is_trusted(true);
     event.event().as_ptr()
@@ -497,21 +494,14 @@ pub unsafe extern "C" fn web_window_post_message(
     realm: Gc<Realm>,
     target: &LentCppCell<cpp_class::Cell>,
     remote: bool,
-    message: u64,
-    target_origin: usize,
+    message: Value,
+    target_origin: Utf16String,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
     let cx = CallContext::new(vm, realm);
     // SAFETY: The caller lends the live target, message and transferred objects, and hands over the string.
-    let (target, message, target_origin, transfer) = unsafe {
-        (
-            CppCell::from_lent(target),
-            Value::from_raw(message),
-            Utf16String::from_raw_owned(target_origin),
-            objects_from_abi(vm, transfer, count),
-        )
-    };
+    let (target, transfer) = unsafe { (CppCell::from_lent(target), objects_from_abi(vm, transfer, count)) };
     let result = window_post_message_steps(&cx, target, remote, message, &target_origin, &transfer.values());
     RawNativeFunctionResult::from_completion(result.map(|()| Value::UNDEFINED).map_err(|error| error.throw(&cx)))
 }
@@ -548,13 +538,13 @@ pub unsafe extern "C" fn web_window_queue_posted_message(
 pub unsafe extern "C" fn web_rust_structured_clone(
     vm: &Vm,
     realm: Gc<Realm>,
-    value: u64,
+    value: Value,
     transfer: *const *mut c_void,
     count: usize,
 ) -> RawNativeFunctionResult {
     let cx = CallContext::new(vm, realm);
     // SAFETY: The caller passes a live value and `count` live objects.
-    let (value, transfer) = unsafe { (Value::from_raw(value), objects_from_abi(vm, transfer, count)) };
+    let transfer = unsafe { objects_from_abi(vm, transfer, count) };
     let result = structured_clone(&cx, value, &transfer.values());
     RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
 }
@@ -628,13 +618,9 @@ pub extern "C" fn web_text_track_cue_id(cue: &InterfaceCell) -> usize {
     AnyTextTrackCue::from_abi(cue).identifier().into_raw()
 }
 
-/// # Safety
-///
-/// `cue` must be the live cell of a TextTrackCue, and `id` a string that the caller lends for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_text_track_cue_set_id(cue: &InterfaceCell, id: usize) {
-    // SAFETY: The caller passes a live cell and lends the string.
-    let (cue, id) = unsafe { (AnyTextTrackCue::from_abi(cue), Utf16String::from_raw_borrowed(id)) };
+pub extern "C" fn web_text_track_cue_set_id(cue: &InterfaceCell, id: LentUtf16String<'_>) {
+    let (cue, id) = (AnyTextTrackCue::from_abi(cue), id.to_utf16_string());
     cue.set_identifier(id);
 }
 

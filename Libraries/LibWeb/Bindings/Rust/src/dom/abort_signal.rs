@@ -391,19 +391,10 @@ pub extern "C" fn web_rust_abort_signal_remove_abort_algorithm(vm: &Vm, signal: 
 }
 
 /// Signals abort with the reason in the realm.
-///
-/// # Safety
-///
-/// `vm`, `signal`, `reason`, and `realm` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_abort_signal_signal_abort(
-    vm: &Vm,
-    signal: &InterfaceCell,
-    reason: u64,
-    realm: Gc<Realm>,
-) {
+pub extern "C" fn web_rust_abort_signal_signal_abort(vm: &Vm, signal: &InterfaceCell, reason: Value, realm: Gc<Realm>) {
     let signal = signal.object::<AbortSignal>();
-    signal.signal_abort(vm, Some(unsafe { Value::from_raw(reason) }), realm);
+    signal.signal_abort(vm, Some(reason), realm);
 }
 
 /// Creates a dependent AbortSignal from the signals.

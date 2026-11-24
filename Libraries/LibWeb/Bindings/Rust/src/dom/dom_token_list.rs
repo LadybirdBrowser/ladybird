@@ -18,6 +18,7 @@ use libwebcommon_rust::infra::character_types::is_ascii_whitespace;
 
 use crate::bindings::cpp_cell::{LentCppCell, cpp_class};
 use crate::bindings::interface::{InterfaceCell, Wrappable, allocate, cell_into_abi};
+use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::dom::element::CppElement;
 
@@ -446,61 +447,36 @@ fn serialize_ordered_set(token_set: &[Utf16String]) -> Utf16String {
     builder.to_utf16_string()
 }
 
-/// # Safety
-///
-/// The caller passes a live VM and Element, and lends the interned attribute name.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_create(
+pub extern "C" fn web_dom_token_list_create(
     vm: &Vm,
     element: &LentCppCell<cpp_class::Element>,
-    attribute: usize,
+    attribute: LentUtf16FlyString<'_>,
 ) -> *mut c_void {
-    // SAFETY: The caller passes a live Element and a live, borrowed attribute name.
-    let (element, attribute) = unsafe {
-        (
-            CppElement::from_lent(element),
-            Utf16FlyString::from_raw_borrowed(attribute),
-        )
-    };
+    let (element, attribute) = (CppElement::from_lent(element), attribute.to_utf16_fly_string());
     cell_into_abi(allocate(vm, |_| DOMTokenList::new(element, attribute)))
 }
 
-/// # Safety
-///
-/// The caller passes a live DOMTokenList and transfers ownership of the new attribute value if it is nonzero.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_attribute_changed(list: &InterfaceCell, value: usize) {
+pub extern "C" fn web_dom_token_list_attribute_changed(list: &InterfaceCell, value: Option<Utf16String>) {
     let list = list.object::<DOMTokenList>();
-    let value = (value != 0).then(|| unsafe { Utf16String::from_raw_owned(value) });
     list.associated_attribute_changed(value);
 }
 
-/// # Safety
-///
-/// The caller passes a live DOMTokenList and transfers ownership of a valid token.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_add(list: &InterfaceCell, token: usize) {
-    // SAFETY: The caller passes a live DOMTokenList and transfers a reference to the token.
-    let (list, token) = unsafe { (list.object::<DOMTokenList>(), Utf16String::from_raw_owned(token)) };
+pub extern "C" fn web_dom_token_list_add(list: &InterfaceCell, token: Utf16String) {
+    let list = list.object::<DOMTokenList>();
     list.add_tokens(&[token]).must();
 }
 
-/// # Safety
-///
-/// The caller passes a live DOMTokenList and transfers ownership of a valid token.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_remove(list: &InterfaceCell, token: usize) {
-    // SAFETY: The caller passes a live DOMTokenList and transfers a reference to the token.
-    let (list, token) = unsafe { (list.object::<DOMTokenList>(), Utf16String::from_raw_owned(token)) };
+pub extern "C" fn web_dom_token_list_remove(list: &InterfaceCell, token: Utf16String) {
+    let list = list.object::<DOMTokenList>();
     list.remove_tokens(&[token]).must();
 }
 
-/// # Safety
-///
-/// The caller passes a live DOMTokenList and transfers ownership of a valid token.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_dom_token_list_toggle(list: &InterfaceCell, token: usize, force: bool) {
-    // SAFETY: The caller passes a live DOMTokenList and transfers a reference to the token.
-    let (list, token) = unsafe { (list.object::<DOMTokenList>(), Utf16String::from_raw_owned(token)) };
+pub extern "C" fn web_dom_token_list_toggle(list: &InterfaceCell, token: Utf16String, force: bool) {
+    let list = list.object::<DOMTokenList>();
     list.toggle_token(token, Some(force)).must();
 }

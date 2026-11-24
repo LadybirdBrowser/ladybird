@@ -114,18 +114,13 @@ pub extern "C" fn web_form_data_entry(cell: &InterfaceCell, index: usize) -> Ent
 
 /// The value of the first entry named `name`, a raw AK::Utf16String that C++ hands over. C++ owns the string of the
 /// value.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of a FormData, and `name` a raw string that C++ owns a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_form_data_value_named(
+pub extern "C" fn web_form_data_value_named(
     cell: &InterfaceCell,
-    name: usize,
+    name: Utf16String,
     out_value: &mut EntryValueAbi,
 ) -> bool {
-    // SAFETY: The caller passes a live cell of a FormData and hands over the name.
-    let (form_data, name): (Ref<FormData>, _) = unsafe { (cell.object(), Utf16String::from_raw_owned(name)) };
+    let (form_data, name): (Ref<FormData>, _) = (cell.object(), name);
     let Some(value) = form_data.value_named(&UsvString::from_utf16_string(&name)) else {
         return false;
     };
@@ -136,20 +131,13 @@ pub unsafe extern "C" fn web_form_data_value_named(
 /// Creates an entry with the name and the Blob or File `blob`, or the string if `blob` is null. C++ hands over the raw
 /// AK::Utf16Strings and owns those of the entry,
 /// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `name` and `string` raw strings that C++ owns a reference to, and `blob` null or the live
-/// cell of a Blob or a File.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_html_create_an_entry(
+pub extern "C" fn web_html_create_an_entry(
     vm: &Vm,
-    name: usize,
+    name: Utf16String,
     blob: Option<&InterfaceCell>,
-    string: usize,
+    string: Utf16String,
 ) -> EntryAbi {
-    // SAFETY: The caller passes the live VM and hands over the strings.
-    let (name, string) = unsafe { (Utf16String::from_raw_owned(name), Utf16String::from_raw_owned(string)) };
     let value = match blob {
         Some(blob) => StringOrBlob::Blob(any_blob_from_abi(blob)),
         None => StringOrBlob::String(string),
