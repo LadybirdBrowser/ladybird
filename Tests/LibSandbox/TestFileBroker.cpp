@@ -170,6 +170,8 @@ TEST_CASE(the_broker_enforces_the_path_rules)
     make_file(hidden_file);
     auto subdirectory = ByteString::formatted("{}/subdirectory", read_only);
     VERIFY(mkdir(subdirectory.characters(), 0700) == 0);
+    auto read_only_link = ByteString::formatted("{}/link", read_only);
+    VERIFY(symlink(read_only_file.characters(), read_only_link.characters()) == 0);
 
     auto child = fork();
     VERIFY(child >= 0);
@@ -257,6 +259,14 @@ TEST_CASE(the_broker_enforces_the_path_rules)
         // A descriptor can be queried with no path at all.
         check(43, syscall(__NR_newfstatat, directory_fd, nullptr, &statbuf, AT_EMPTY_PATH) == 0 && S_ISDIR(statbuf.st_mode));
 
+#ifdef __NR_lstat
+        // musl's lstat() makes the lstat system call itself, which looks at a link rather than at what it names.
+        check(62, syscall(__NR_lstat, read_only_file.characters(), &statbuf) == 0 && S_ISREG(statbuf.st_mode));
+        check(63, syscall(__NR_lstat, read_only_link.characters(), &statbuf) == 0 && S_ISLNK(statbuf.st_mode));
+        check(64, syscall(__NR_lstat, hidden_file.characters(), &statbuf) < 0 && errno == EACCES);
+        check(65, syscall(__NR_lstat, ByteString::formatted("{}/missing", read_only).characters(), &statbuf) < 0 && errno == ENOENT);
+#endif
+
         _exit(0);
     }
 
@@ -271,6 +281,7 @@ TEST_CASE(the_broker_enforces_the_path_rules)
 
     (void)unlink(hidden_file.characters());
     (void)unlink(read_only_file.characters());
+    (void)unlink(read_only_link.characters());
     (void)rmdir(subdirectory.characters());
     (void)rmdir(hidden.characters());
     (void)rmdir(writable.characters());

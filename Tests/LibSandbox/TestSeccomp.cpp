@@ -199,6 +199,33 @@ TEST_CASE(file_descriptor_policy_sends_pwritev2_to_the_pwrite64_fallback)
 }
 #endif
 
+#ifdef __NR_lstat
+TEST_CASE(filesystem_metadata_policy_answers_the_lstat_musl_makes)
+{
+    char directory[] = "/tmp/ladybird-lstat-XXXXXX";
+    VERIFY(mkdtemp(directory));
+    auto link = ByteString::formatted("{}/link", directory);
+    VERIFY(symlink("missing", link.characters()) == 0);
+    auto missing = ByteString::formatted("{}/missing", directory);
+
+    auto status = run_with_policy(
+        [](auto& policy) { policy.allow_filesystem_metadata_queries(); },
+        [&] {
+            struct stat metadata {};
+            VERIFY(syscall(__NR_lstat, link.characters(), &metadata) == 0);
+            VERIFY(S_ISLNK(metadata.st_mode));
+            VERIFY(syscall(__NR_lstat, missing.characters(), &metadata) == -1);
+            VERIFY(errno == ENOENT);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    VERIFY(unlink(link.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+#endif
+
 TEST_CASE(runtime_policy_refuses_other_processes_and_resource_limit_changes)
 {
     auto parent = getpid();
