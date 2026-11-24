@@ -13,7 +13,7 @@ use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, Trace, Vm}
 
 use crate::bindings::environment_settings_object::CppEnvironmentSettingsObject;
 use crate::storage_api::storage_bottle::{StorageBucket, StorageType};
-use crate::storage_api::storage_key::{StorageKey, obtain_a_storage_key};
+use crate::storage_api::storage_key::obtain_a_storage_key;
 
 unsafe extern "C" {
     fn web_storage_api_storage_usage(environment: *mut c_void) -> u64;
@@ -41,22 +41,26 @@ impl StorageShelf {
     fn create(
         vm: &Vm,
         environment: &CppEnvironmentSettingsObject,
-        key: &StorageKey,
         storage_type: StorageType,
     ) -> Gc<EmbedderCell<Self>> {
         // 1. Let shelf be a new storage shelf.
         STORAGE_SHELF_CLASS.allocate(vm, |_| {
             // 2. Set shelf’s bucket map["default"] to the result of running create a storage bucket with type.
-            let bucket_map = vec![(
-                "default".to_owned(),
-                StorageBucket::create(vm, environment, key, storage_type),
-            )];
+            let bucket_map = vec![("default".to_owned(), StorageBucket::create(vm, storage_type))];
             // 3. Return shelf.
             StorageShelf {
                 environment: environment.clone(),
                 bucket_map,
             }
         })
+    }
+
+    /// The bucket map[key], which exists.
+    pub(crate) fn bucket(&self, key: &str) -> Gc<EmbedderCell<StorageBucket>> {
+        self.bucket_map
+            .iter()
+            .find_map(|(name, bucket)| (name == key).then_some(*bucket))
+            .expect("the shelf has the bucket")
     }
 
     /// https://storage.spec.whatwg.org/#storage-usage
@@ -80,6 +84,25 @@ impl StorageShelf {
     }
 }
 
+/// https://storage.spec.whatwg.org/#obtain-a-storage-shelf
+fn obtain_a_storage_shelf(
+    vm: &Vm,
+    environment: &CppEnvironmentSettingsObject,
+    storage_type: StorageType,
+) -> Option<Gc<EmbedderCell<StorageShelf>>> {
+    // 1. Let key be the result of running obtain a storage key with environment.
+    // 2. If key is failure, then return failure.
+    let _key = obtain_a_storage_key(environment)?;
+
+    // 3. If shed[key] does not exist, then set shed[key] to the result of running create a storage shelf with type.
+    // 4. Return shed[key].
+    // AD-HOC: The user agent's storage shed is kept by the browser process, in a StorageJar. This shelf is a transient
+    //         helper for the StorageManager methods, which read its usage, quota and default bucket's mode. Nothing
+    //         sets a bucket's mode yet, so a standalone shelf is functionally equivalent to the spec's requirement to
+    //         obtain one from a shed.
+    Some(StorageShelf::create(vm, environment, storage_type))
+}
+
 /// https://storage.spec.whatwg.org/#obtain-a-local-storage-shelf
 pub(crate) fn obtain_a_local_storage_shelf(
     vm: &Vm,
@@ -87,12 +110,5 @@ pub(crate) fn obtain_a_local_storage_shelf(
 ) -> Option<Gc<EmbedderCell<StorageShelf>>> {
     // To obtain a local storage shelf, given an environment settings object environment, return the result of running
     // obtain a storage shelf with the user agent’s storage shed, environment, and "local".
-
-    // FIXME: This should be implemented in a way that works for Workers.
-    let key = obtain_a_storage_key(environment)?;
-
-    // AD-HOC: The user agent's storage shed is kept by the browser process, in a StorageJar. This shelf is a transient
-    //         helper for computing estimate()'s usage and quota — so a standalone shelf is functionally equivalent to
-    //         the spec's requirement to obtain one from a shed.
-    Some(StorageShelf::create(vm, environment, &key, StorageType::Local))
+    obtain_a_storage_shelf(vm, environment, StorageType::Local)
 }

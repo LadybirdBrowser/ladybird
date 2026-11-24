@@ -32,10 +32,6 @@ pub(crate) enum StorageEndpointType {
     SessionStorage = 4,
 }
 
-impl StorageEndpointType {
-    pub(crate) const COUNT: usize = 5;
-}
-
 /// Bytes a string contributes toward a storage bottle's quota: its UTF-8 length, with a lone surrogate counted as the
 /// three bytes it is written as. The process that keeps a bottle and the processes that mirror it measure the same
 /// way, so a write one accepts is a write the other accepts.
