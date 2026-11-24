@@ -47,6 +47,8 @@ pub fn compile(pattern: &Pattern) -> Result<Program, Error> {
             index: ng.index,
         })
         .collect();
+    // NB: Nothing adds to a program once it is compiled, so it keeps no room to grow.
+    compiler.program.instructions.shrink_to_fit();
     Ok(compiler.program)
 }
 
