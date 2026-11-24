@@ -133,6 +133,29 @@ impl CacheEntry {
         !self.valid && self.request_done
     }
 
+    /// What a lookup for these types finds in the entry: records of those types, and the aliases and signatures that
+    /// lead to them, as the lookup that filled the entry would have found for them.
+    pub(crate) fn snapshot_for(&self, desired_types: &[ResourceType]) -> Arc<LookupResult> {
+        let wanted = |rtype: ResourceType| {
+            rtype == ResourceType::CNAME || desired_types.contains(&rtype) || desired_types.contains(&ResourceType::ANY)
+        };
+        let records = self
+            .records
+            .iter()
+            .map(|record| &record.record)
+            .filter(|record| match &record.data {
+                RecordData::Rrsig(rrsig) if record.rtype == ResourceType::RRSIG => wanted(rrsig.type_covered),
+                _ => wanted(record.rtype),
+            })
+            .cloned()
+            .collect();
+        Arc::new(LookupResult {
+            name: self.name.clone(),
+            records,
+            security_status: self.security_status,
+        })
+    }
+
     pub(crate) fn snapshot(&self) -> Arc<LookupResult> {
         Arc::new(LookupResult {
             name: self.name.clone(),
