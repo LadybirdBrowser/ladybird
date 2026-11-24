@@ -1,0 +1,14 @@
+Ladybird now sets a character upright in mixed orientation when its
+Unicode Vertical_Orientation is U, Tu or Tr, and shapes upright runs
+with the vert feature. Run in Chrome 158, Firefox 151 and WebKit 26.5:
+All three draw “「」（）ー、。” in their vertical forms in vertical-rl text, as
+Ladybird now does with a font that has them. And Chrome and Firefox set
+§ © ± × upright, as Ladybird now does, while WebKit sets ± and ×
+sideways. Blink’s Character reads Vertical_Orientation from ICU, as
+Ladybird now does, and sets upright everything but U_VO_ROTATED; its
+HarfBuzzShaper shapes upright runs top to bottom (HB_DIRECTION_TTB),
+where HarfBuzz turns on vert. Gecko keeps its own Vertical_Orientation
+table in nsUnicodeProperties, with the same four classes. Ladybird keeps
+shaping upright runs left to right, setting each glyph one em apart, and
+asks for vert by name. A Tr character whose font has no vertical form is
+still set upright rather than turned, which the spec allows.
