@@ -37,6 +37,7 @@ use super::timeline_host::{create_timeline, default_document_timeline};
 use super::timing::{AnimationPlayState, OptionalTimeValue, SpecifiedEffectTiming, TimeValue};
 use super::transitions::{self, LaneAdoption, ProvisionalTransitionTiming, TransitionOrigin};
 use crate::css::animation::FfiCompositeOperation;
+use crate::css::ffi_support::{ArcRef, RcRef};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::animations::AppliedAnimationDefinition;
 use crate::css::style::tree::StyleNodeID;
@@ -259,15 +260,6 @@ pub extern "C" fn animations_animation_cancel(
     });
 }
 
-/// The keyframe set `set` names, borrowed for as long as the reference the host holds.
-///
-/// # Safety
-/// `set` must be a keyframe set the host holds a reference to.
-unsafe fn borrowed_keyframe_set<'a>(set: *const KeyframeSet) -> &'a KeyframeSet {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*set }
-}
-
 /// Hands the host the one reference to a new keyframe set.
 fn into_host(set: KeyframeSet) -> *const KeyframeSet {
     Arc::into_raw(Arc::new(set))
@@ -293,20 +285,15 @@ pub unsafe extern "C" fn animations_keyframe_set_release(set: *const KeyframeSet
     unsafe { Arc::decrement_strong_count(set) };
 }
 
-/// The keyframe set of the `@keyframes` rule `rule` views, a `ValueParserFFI::NativeRuleView`, from a style sheet
-/// whose base URL, where `has_resource_context`, is `base_url`, with the reference to it the host takes over.
-///
-/// # Safety
-/// `rule` must view a live `@keyframes` rule for the call.
+/// The keyframe set of the `@keyframes` rule `rule` views, from a style sheet whose base URL, where
+/// `has_resource_context`, is `base_url`, with the reference to it the host takes over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_keyframe_set_from_keyframes_rule(
-    rule: *const c_void,
+pub extern "C" fn animations_keyframe_set_from_keyframes_rule(
+    rule: &crate::css::rule::read::NativeRuleView<'_>,
     has_resource_context: bool,
     base_url: ak::Span<'_, u8>,
     origin_clean: bool,
 ) -> *const KeyframeSet {
-    // SAFETY: Guaranteed by the caller.
-    let rule = unsafe { &*rule.cast::<crate::css::rule::read::NativeRuleView<'_>>() };
     let resource_context = has_resource_context.then(|| ResourceContext {
         base_url: base_url.as_slice().into(),
         origin_clean,
@@ -424,13 +411,8 @@ pub struct FfiKeyframeSetFacts {
 }
 
 /// What follows from the keyframes of a set alone.
-///
-/// # Safety
-/// `set` must be a keyframe set the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_keyframe_set_facts(set: *const KeyframeSet) -> FfiKeyframeSetFacts {
-    // SAFETY: Guaranteed by the caller.
-    let set = unsafe { borrowed_keyframe_set(set) };
+pub extern "C" fn animations_keyframe_set_facts(set: &KeyframeSet) -> FfiKeyframeSetFacts {
     FfiKeyframeSetFacts {
         target_properties: set.target_properties().as_ptr(),
         target_property_count: set.target_properties().len(),
@@ -443,16 +425,8 @@ pub unsafe extern "C" fn animations_keyframe_set_facts(set: *const KeyframeSet) 
 
 /// Notes what the `attr()`s of the values a keyframe set declares can read, answering whether they can read a name
 /// none could before.
-///
-/// # Safety
-/// `set` must be a keyframe set the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_note_attr_names_read_by_keyframe_set(
-    host: &DocumentHost,
-    set: *const KeyframeSet,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let set = unsafe { borrowed_keyframe_set(set) };
+pub extern "C" fn animations_note_attr_names_read_by_keyframe_set(host: &DocumentHost, set: &KeyframeSet) -> bool {
     let before = crate::css::style::host_atoms::attr_names_read_generation(host);
     crate::css::style::host_atoms::note_attr_names_read_by(host, set.declared_values());
     crate::css::style::host_atoms::attr_names_read_generation(host) != before
@@ -495,16 +469,10 @@ pub extern "C" fn animations_effect_keyframe_set(effect: &AnimationEffectCell) -
     effect.borrow().keyframes().map_or(std::ptr::null(), Arc::as_ptr)
 }
 
-/// Sets the keyframe set `effect` runs to `set`, which it takes a reference of its own to, or to none where `set` is
-/// null.
-///
-/// # Safety
-/// `set` must be null or a keyframe set the host holds a reference to.
+/// Sets the keyframe set `effect` runs to `set`, which it takes a reference of its own to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_effect_set_keyframe_set(effect: &AnimationEffectCell, set: *const KeyframeSet) {
-    // SAFETY: Guaranteed by the caller.
-    let keyframes = (!set.is_null()).then(|| unsafe { KeyframeSet::retained_from_host(set) });
-    effect.borrow_mut().set_keyframes(keyframes);
+pub extern "C" fn animations_effect_set_keyframe_set(effect: &AnimationEffectCell, set: ArcRef<'_, KeyframeSet>) {
+    effect.borrow_mut().set_keyframes(Some(set.to_arc()));
 }
 
 /// Sets the host's `DOM::Element` that `effect` targets, which the host keeps alive while the effect targets it, or
@@ -2428,18 +2396,14 @@ pub extern "C" fn animations_document_animations_commit_provisional_events(
 /// Appends `event` of `animation` to the pending animation event queue of a document, or, where `provisional`, to the
 /// events it queues during its style stabilization epoch.
 /// https://www.w3.org/TR/web-animations-1/#pending-animation-event-queue
-///
-/// # Safety
-/// `animation` must be an animation the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_document_animations_append_event(
+pub extern "C" fn animations_document_animations_append_event(
     animations: &mut DocumentAnimations,
-    animation: *const AnimationCell,
+    animation: RcRef<'_, AnimationCell>,
     event: &FfiPendingAnimationEvent,
     provisional: bool,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let animation = unsafe { AnimationHandle::retained_from_host(animation) };
+    let animation = AnimationHandle::retained_from_lent(animation);
     let mut event = *event;
     // NB: A time event is scheduled at the origin-relative time of the current time of a document timeline.
     if event.kind == PendingAnimationEventKind::Time {
@@ -2567,17 +2531,13 @@ pub extern "C" fn animations_document_animations_visit_edges(
 }
 
 /// Adds `effect` to the set `kind` of the effects a document knows of, answering whether the set did not hold it yet.
-///
-/// # Safety
-/// `effect` must be an effect the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_document_effect_set_insert(
+pub extern "C" fn animations_document_effect_set_insert(
     animations: &mut DocumentAnimations,
     kind: DocumentEffectSetKind,
-    effect: *const AnimationEffectCell,
+    effect: RcRef<'_, AnimationEffectCell>,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let effect = unsafe { EffectHandle::retained_from_host(effect) };
+    let effect = EffectHandle::retained_from_lent(effect);
     animations.effect_set_mut(kind).insert(&effect)
 }
 
@@ -2645,18 +2605,14 @@ pub extern "C" fn animations_element_animations_for_each_host_cell(
 /// Associates `animation` with the element, and, where it was not associated yet, with its document, whose animations
 /// `document` are, as one created during its style stabilization epoch where `in_style_stabilization_epoch`, answering
 /// whether it was not associated yet.
-///
-/// # Safety
-/// `animation` must be an animation the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_element_animations_associate(
+pub extern "C" fn animations_element_animations_associate(
     animations: &mut ElementAnimations,
     document: &mut DocumentAnimations,
-    animation: *const AnimationCell,
+    animation: RcRef<'_, AnimationCell>,
     in_style_stabilization_epoch: bool,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let animation = unsafe { AnimationHandle::retained_from_host(animation) };
+    let animation = AnimationHandle::retained_from_lent(animation);
     if !animations.associate(animation.clone()) {
         return false;
     }
@@ -2668,20 +2624,15 @@ pub unsafe extern "C" fn animations_element_animations_associate(
 /// Disassociates `animation`, whose associated effect `effect` was, if any, from the element, whose lists `animations`
 /// are where it has any, and from its document, whose animations `document` are, answering whether it was associated
 /// with the element.
-///
-/// # Safety
-/// `animations` must be null or the live lists of the element, and `effect` null or a live effect.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_element_animations_disassociate(
-    animations: *mut ElementAnimations,
+pub extern "C" fn animations_element_animations_disassociate(
+    animations: Option<&mut ElementAnimations>,
     document: &mut DocumentAnimations,
     animation: &AnimationCell,
-    effect: *const AnimationEffectCell,
+    effect: Option<&AnimationEffectCell>,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let was_associated = unsafe { animations.as_mut() }.is_some_and(|animations| animations.disassociate(animation));
-    // SAFETY: Guaranteed by the caller.
-    document.disassociate(animation, unsafe { effect.as_ref() });
+    let was_associated = animations.is_some_and(|animations| animations.disassociate(animation));
+    document.disassociate(animation, effect);
     was_associated
 }
 
