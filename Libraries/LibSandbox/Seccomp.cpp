@@ -166,6 +166,7 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_link(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_linkat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_lseek(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_lstat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_madvise(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_membarrier(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_memfd_create(if_defined, if_not_defined) if_defined
@@ -360,6 +361,10 @@ static constexpr unsigned read_only_open_flags = [] {
 #ifndef __NR_getresuid
 #    undef IF_DEFINED_getresuid
 #    define IF_DEFINED_getresuid(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_lstat
+#    undef IF_DEFINED_lstat
+#    define IF_DEFINED_lstat(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_membarrier
 #    undef IF_DEFINED_membarrier
@@ -1689,6 +1694,10 @@ static i64 perform_file_syscall(int syscall_number, SyscallRegisters const& regi
     case __NR_stat:
         return stat_through_broker(AT_FDCWD, path(0), reinterpret_cast<void*>(registers.arguments[1]), true);
 #endif
+#ifdef __NR_lstat
+    case __NR_lstat:
+        return stat_through_broker(AT_FDCWD, path(0), reinterpret_cast<void*>(registers.arguments[1]), false);
+#endif
 #ifdef __NR_newfstatat
     case __NR_newfstatat: {
         auto flags = number(3);
@@ -2019,6 +2028,8 @@ void SeccompPolicy::allow_filesystem_metadata_queries()
     SECCOMP_APPEND_PATH_SYSCALL_IF_DEFINED(*this, faccessat2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fstatfs);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getdents64);
+    // glibc's lstat() makes newfstatat() with AT_SYMLINK_NOFOLLOW, but musl's makes lstat() itself.
+    SECCOMP_APPEND_PATH_SYSCALL_IF_DEFINED(*this, lstat);
     SECCOMP_APPEND_PATH_SYSCALL_IF_DEFINED(*this, newfstatat);
     SECCOMP_APPEND_PATH_SYSCALL_IF_DEFINED(*this, readlink);
     SECCOMP_APPEND_PATH_SYSCALL_IF_DEFINED(*this, readlinkat);
@@ -3081,6 +3092,9 @@ ErrorOr<void> install_file_system_filter()
 #ifdef __NR_stat
         { __NR_stat, brokered },
 #endif
+#ifdef __NR_lstat
+        { __NR_lstat, brokered },
+#endif
 #ifdef __NR_newfstatat
         { __NR_newfstatat, brokered },
 #endif
@@ -3116,9 +3130,6 @@ ErrorOr<void> install_file_system_filter()
 #endif
 #ifdef __NR_bind
         { __NR_bind, brokered },
-#endif
-#ifdef __NR_lstat
-        { __NR_lstat, refused(ENOSYS) },
 #endif
 #ifdef __NR_statx
         { __NR_statx, refused(ENOSYS) },
