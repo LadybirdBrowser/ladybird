@@ -74,6 +74,8 @@ pub(crate) mod event_source;
 #[cfg(not(test))]
 pub(crate) mod exports;
 #[cfg(not(test))]
+pub(crate) mod form_data_event;
+#[cfg(not(test))]
 pub(crate) mod global_event_handlers;
 #[cfg(not(test))]
 pub(crate) mod hash_change_event;

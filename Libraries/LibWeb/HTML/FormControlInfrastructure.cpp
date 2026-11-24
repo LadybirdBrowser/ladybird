@@ -222,8 +222,7 @@ Optional<GC::RootVector<XHR::FormDataEntry>> construct_entry_list(HTMLFormElemen
     auto form_data = XHR::FormData::create(move(entry_list));
 
     // 7. Fire an event named formdata at form using FormDataEvent, with the formData attribute initialized to form data and the bubbles attribute initialized to true.
-    FormDataEventInit init { { .bubbles = true }, form_data };
-    auto form_data_event = FormDataEvent::create(HTML::EventNames::formdata, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(form)));
+    auto form_data_event = create_form_data_event(relevant_realm(form), HTML::EventNames::formdata, { .bubbles = true }, *form_data);
     form.dispatch_event(form_data_event);
 
     // 8. Set form's constructing entry list to false.

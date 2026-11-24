@@ -6,35 +6,15 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/FormDataEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/XHR/FormData.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using FormDataEventInit = Bindings::FormDataEventInit;
-
-class FormDataEvent final : public DOM::Event {
-    WEB_WRAPPABLE(FormDataEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(FormDataEvent);
-
-public:
-    static constexpr size_t form_data_offset() { return offsetof(FormDataEvent, m_form_data); }
-    static GC::Ref<FormDataEvent> create(FlyString const& event_name, FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static GC::Ref<FormDataEvent> create(Utf16FlyString const& event_name, FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~FormDataEvent() override;
-
-    GC::Ptr<XHR::FormData> form_data() const { return m_form_data; }
-
-private:
-    FormDataEvent(FlyString const& event_name, FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ptr<XHR::FormData> m_form_data;
-};
+// The Event of a new FormDataEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_form_data_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, XHR::FormData&);
 
 }
