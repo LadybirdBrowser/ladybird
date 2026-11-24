@@ -12,6 +12,7 @@ pub(crate) use crate::css::display::*;
 
 pub(crate) mod abspos_engine;
 pub(crate) mod abspos_inputs;
+mod bidi;
 pub(crate) mod block_formatting_context;
 pub(crate) mod box_alignment;
 pub mod commit;

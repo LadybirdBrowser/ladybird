@@ -50,7 +50,7 @@ pub(crate) fn unions(arena: &impl GeometryRead, inline_box: NodeSlotId) -> Optio
     let mut padding_union = None;
     let mut border_union = None;
     for piece_index in side.inline_box_piece_indices(inline_box) {
-        let piece = side.inline_box_pieces()[*piece_index as usize];
+        let piece = &side.inline_box_pieces()[*piece_index as usize];
         let root_fragment_offset =
             root_positions
                 .as_ref()

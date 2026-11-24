@@ -937,7 +937,6 @@ u32 unicode_simple_case_fold(u32, bool);
 bool unicode_code_point_matches_range_ignoring_case(u32, u32, u32, bool);
 u32 unicode_get_case_closure(u32, u32*, u32);
 
-u8 unicode_layout_bidirectional_class(u32);
 u8 unicode_layout_line_break_class(u32);
 size_t unicode_layout_find_forced_line_break(u16 const*, size_t, bool);
 u8 unicode_layout_joining_type(u32);
@@ -1138,13 +1137,7 @@ extern "C" u32 unicode_get_case_closure(
     return count;
 }
 
-// LibWeb's text chunker classifies code points by these, mirroring the declaration order of BidiClass,
-// LineBreakClass and JoiningType.
-extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
-{
-    return to_underlying(Unicode::bidirectional_class(code_point));
-}
-
+// LibWeb's text chunker mirrors the declaration order of LineBreakClass and JoiningType.
 extern "C" u8 unicode_layout_line_break_class(u32 code_point)
 {
     return to_underlying(Unicode::line_break_class(code_point));

@@ -13,9 +13,9 @@ HTML direction: 2,1,0
 plaintext: 0,1,2
 LTR override: 0,1,2
 vertical-rl, mixed: 190,140,90
-vertical-rl, upright: 190,140,90
+vertical-rl, upright: 0,50,100
 vertical-lr, mixed: 190,140,90
-vertical-lr, upright: 190,140,90
+vertical-lr, upright: 0,50,100
 sideways-rl, mixed: 190,140,90
 sideways-rl, upright: 190,140,90
 sideways-lr, mixed: 0,50,100

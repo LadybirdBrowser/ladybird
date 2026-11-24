@@ -154,7 +154,6 @@ pub(crate) fn enroll_text_after_language_change(arena: &mut LayoutNodeArena, roo
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
     pub(crate) should_respect_linebreaks: bool,
-    pub(crate) unidirectional_ltr: bool,
     pub(crate) white_space_collapse: u8,
     pub(crate) word_break: u8,
     pub(crate) line_break: u8,
@@ -171,7 +170,7 @@ pub(crate) struct TextChunkCacheKey {
 
 pub(crate) struct CachedTextChunks {
     key: TextChunkCacheKey,
-    chunks: super::text_chunker::ChunkedText,
+    chunks: CachedChunks,
     /// The letter and word spacing, as their bits, for which horizontal LTR preparation kept every original chunk
     /// separate, or `NO_SPACING_NOTED`. The first spacing noted stays.
     independent_chunks_for_spacing: std::sync::atomic::AtomicU64,
@@ -179,6 +178,42 @@ pub(crate) struct CachedTextChunks {
 
 // OPTIMIZATION: Every text node has one of these, which this size fits in an allocation of 96 bytes with its counts.
 const _: () = assert!(size_of::<CachedTextChunks>() <= 80);
+
+enum CachedChunks {
+    Plain(super::text_chunker::ChunkedText),
+    Bidi(Box<BidiChunks>),
+}
+
+struct BidiChunks {
+    chunks: super::text_chunker::ChunkedText,
+    levels: Box<[u8]>,
+}
+
+impl CachedChunks {
+    fn chunks(&self) -> &super::text_chunker::ChunkedText {
+        match self {
+            Self::Plain(chunks) => chunks,
+            Self::Bidi(bidi) => &bidi.chunks,
+        }
+    }
+
+    fn bidi_levels(&self) -> Option<&[u8]> {
+        match self {
+            Self::Plain(_) => None,
+            Self::Bidi(bidi) => Some(&bidi.levels),
+        }
+    }
+
+    fn heap_bytes(&self) -> usize {
+        let chunks = self.chunks();
+        size_of_val(&*chunks.chunks)
+            + size_of_val(&*chunks.fonts)
+            + match self {
+                Self::Plain(_) => 0,
+                Self::Bidi(bidi) => size_of::<BidiChunks>() + size_of_val(&*bidi.levels),
+            }
+    }
+}
 
 impl CachedTextChunks {
     /// What no spacing reads as: both are NaNs with every bit set, and a spacing that did read so would only go
@@ -209,7 +244,7 @@ impl CachedTextChunks {
     }
 
     pub(crate) fn font_of(&self, chunk: &super::text_chunker::TextChunk) -> &libgfx_rust::font::FontHandle {
-        self.chunks.font_of(chunk)
+        self.chunks.chunks().font_of(chunk)
     }
 }
 
@@ -217,7 +252,7 @@ impl std::ops::Deref for CachedTextChunks {
     type Target = [super::text_chunker::TextChunk];
 
     fn deref(&self) -> &Self::Target {
-        &self.chunks
+        self.chunks.chunks()
     }
 }
 
@@ -293,7 +328,7 @@ impl TextMemos {
                 if chunks == 0 {
                     return 0;
                 }
-                chunks + size_of_val(&*row.chunks.chunks.chunks) + size_of_val(&*row.chunks.chunks.fonts)
+                chunks + row.chunks.chunks.heap_bytes()
             })
         }) + self.grapheme_segmenters.heap_size(|_| 0)
     }
@@ -306,18 +341,23 @@ impl TextMemos {
         }
     }
 
-    /// The chunks of the text row `node`, whose rendered text is `rendered`, for `key`, made by `compute` where the last
-    /// run that chunked the row's text did so for another key.
+    /// The chunks of this rendered text row for the current style and bidi levels. Surrounding text can change the
+    /// levels without changing the rendered text snapshot.
     pub(crate) fn text_chunks(
         &self,
         text_state: u32,
         rendered: &Arc<RenderedText>,
         key: &TextChunkCacheKey,
+        bidi_levels: Option<&[u8]>,
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> Arc<CachedTextChunks> {
         let index = text_state as usize;
         let memoized = self.chunks.with_row(index, |memo| match memo {
-            Some(Some(memo)) if Arc::ptr_eq(&memo.rendered, rendered) && memo.chunks.key == *key => {
+            Some(Some(memo))
+                if Arc::ptr_eq(&memo.rendered, rendered)
+                    && memo.chunks.key == *key
+                    && memo.chunks.chunks.bidi_levels() == bidi_levels =>
+            {
                 Some(memo.chunks.clone())
             }
             _ => None,
@@ -329,9 +369,16 @@ impl TextMemos {
         // A nested measurement can request a different key while an iterator
         // still uses the previous chunks. Keep the chunks and their fonts alive
         // until that iterator finishes, even if this snapshot is replaced.
+        let chunks = compute();
         let entry = Arc::new(CachedTextChunks {
             key: key.clone(),
-            chunks: compute(),
+            chunks: match bidi_levels {
+                Some(levels) => CachedChunks::Bidi(Box::new(BidiChunks {
+                    chunks,
+                    levels: levels.into(),
+                })),
+                None => CachedChunks::Plain(chunks),
+            },
             independent_chunks_for_spacing: std::sync::atomic::AtomicU64::new(CachedTextChunks::NO_SPACING_NOTED),
         });
         self.chunks.with_row_mut(index, |memo| {
@@ -651,7 +698,6 @@ mod tests {
         let mut key = TextChunkCacheKey {
             should_wrap_lines: true,
             should_respect_linebreaks: false,
-            unidirectional_ltr: true,
             white_space_collapse: 0,
             word_break: 0,
             line_break: crate::css::css_enums::line_break::LOOSE,
@@ -665,16 +711,16 @@ mod tests {
         let mut memos = TextMemos::default();
         memos.cover_text_states(1);
         let text_state = 0;
-        let mut previous = memos.text_chunks(text_state, content.rendered(), &key, ChunkedText::default);
+        let mut previous = memos.text_chunks(text_state, content.rendered(), &key, None, ChunkedText::default);
         for language in [
             LineBreakLanguage::Other,
             LineBreakLanguage::Chinese,
             LineBreakLanguage::Japanese,
         ] {
             key.line_break_language = language;
-            let chunks = memos.text_chunks(text_state, content.rendered(), &key, ChunkedText::default);
+            let chunks = memos.text_chunks(text_state, content.rendered(), &key, None, ChunkedText::default);
             assert!(!std::sync::Arc::ptr_eq(&previous, &chunks));
-            let hit = memos.text_chunks(text_state, content.rendered(), &key, || {
+            let hit = memos.text_chunks(text_state, content.rendered(), &key, None, || {
                 panic!("unchanged language should reuse chunks")
             });
             assert!(std::sync::Arc::ptr_eq(&chunks, &hit));
@@ -685,7 +731,7 @@ mod tests {
     #[test]
     fn text_chunk_users_survive_cache_and_snapshot_replacement() {
         use super::TextChunkCacheKey;
-        use crate::layout::text_chunker::{ChunkedText, TextChunk};
+        use crate::layout::text_chunker::{ChunkedText, GraphemeContinuation, TextChunk};
         use std::sync::Arc;
 
         let mut arena = LayoutNodeArena::new();
@@ -696,11 +742,13 @@ mod tests {
         let text_chunks = |scratch: &crate::layout::run_state::LayoutScratch,
                            arena: &LayoutNodeArena,
                            key: &TextChunkCacheKey,
+                           bidi_levels: Option<&[u8]>,
                            compute: &dyn Fn() -> ChunkedText| {
             scratch.text_memos().text_chunks(
                 arena.text_state_index(node).unwrap(),
                 arena.text_content(node).unwrap().rendered(),
                 key,
+                bidi_levels,
                 compute,
             )
         };
@@ -709,7 +757,6 @@ mod tests {
         let key = TextChunkCacheKey {
             should_wrap_lines: true,
             should_respect_linebreaks: false,
-            unidirectional_ltr: true,
             white_space_collapse: 0,
             word_break: 0,
             line_break: crate::css::css_enums::line_break::AUTO,
@@ -728,7 +775,8 @@ mod tests {
             has_breaking_tab: false,
             is_all_whitespace: false,
             can_break_after: true,
-            text_type: 0,
+            grapheme_continuation: GraphemeContinuation::None,
+            bidi_level: 0,
         };
         let font = unsafe { libgfx_rust::font::FontHandle::intern(std::ptr::dangling()) };
         let chunked_hello = || ChunkedText {
@@ -736,20 +784,15 @@ mod tests {
             fonts: Box::new([font.clone()]),
             frozen_font_list_held_for_memo_key: None,
         };
-        let original = text_chunks(&scratch, &arena, &key, &chunked_hello);
-        let hit = text_chunks(&scratch, &arena, &key, &|| panic!("matching chunks should be cached"));
+        let levels = [1; 5];
+        let original = text_chunks(&scratch, &arena, &key, Some(&levels), &chunked_hello);
+        let hit = text_chunks(&scratch, &arena, &key, Some(&[1; 5]), &|| {
+            panic!("matching bidi levels should reuse chunks")
+        });
         assert!(Arc::ptr_eq(&original, &hit));
         drop(hit);
         let original_weak = Arc::downgrade(&original);
-        let replacement = text_chunks(
-            &scratch,
-            &arena,
-            &TextChunkCacheKey {
-                should_wrap_lines: false,
-                ..key.clone()
-            },
-            &ChunkedText::default,
-        );
+        let replacement = text_chunks(&scratch, &arena, &key, Some(&[0; 5]), &ChunkedText::default);
         assert!(replacement.is_empty());
         assert_eq!(&**original, std::slice::from_ref(&chunk));
         assert_eq!(Arc::strong_count(&original), 1);
@@ -787,7 +830,7 @@ mod tests {
             published_text(&arena.publish_paint_facts().text).text,
             "goodbye".encode_utf16().collect::<Vec<_>>()
         );
-        let new_chunks = text_chunks(&scratch, &arena, &key, &chunked_hello);
+        let new_chunks = text_chunks(&scratch, &arena, &key, None, &chunked_hello);
         assert_eq!(&**new_chunks, std::slice::from_ref(&chunk));
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
@@ -800,7 +843,7 @@ mod tests {
     fn kept_prepared_inline_content_goes_with_an_epoch_bump_or_a_freed_slot_and_survives_a_fork() {
         use crate::layout::LayoutPass;
         use crate::layout::fc_run_cache::run_root_validity;
-        use crate::layout::prepared_inline_content::PreparedInlineContent;
+        use crate::layout::prepared_inline_content::InlineContentPreparationBuffers;
         use crate::layout::run_state::LayoutScratch;
         use std::sync::Arc;
 
@@ -814,19 +857,15 @@ mod tests {
                 &LayoutPass::for_test(arena, scratch, &host_findings_outside_runs),
                 block,
             );
-            let prepared = Arc::new(PreparedInlineContent {
-                validity,
-                items: Box::default(),
-                box_events: Box::default(),
-                fonts: Box::default(),
-                tab_stops: Box::default(),
-                tab_stop_items: Box::default(),
-                soft_wraps: Box::default(),
-            });
+            let prepared = Arc::new(InlineContentPreparationBuffers::default().take_prepared_inline_content(validity));
             scratch.prepared_inline_content_memos().keep(block, prepared.clone());
             (validity, Arc::downgrade(&prepared))
         };
-        let kept = |scratch: &LayoutScratch, validity| scratch.prepared_inline_content_memos().kept(block, validity);
+        let kept = |scratch: &LayoutScratch, validity| {
+            scratch
+                .prepared_inline_content_memos()
+                .kept(block, validity, crate::layout::CssPixels::default())
+        };
 
         let (validity, prepared) = keep(&arena, &scratch);
         arena.clear_committed_fragment_link(block);

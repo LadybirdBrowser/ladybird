@@ -1,0 +1,54 @@
+Split inline has two pieces: true
+Neither piece covers the outside text: true
+Wrapping preserves both pieces on the first line: true
+Empty inline is 12px wide: true
+Empty inline follows the Hebrew run: true
+Empty inlines stay between opposite-direction runs: true
+A leading empty inline follows the direction of its isolate: true
+Collapsed inline keeps both edges after the Hebrew run: true
+Leading collapsed inline keeps both edges before the Hebrew run: true
+Adjacent collapsed inlines each keep their own edges: true
+A redundant space preserves the empty inline's position: true
+Nested trailing collapsed inlines preserve the empty boxes' positions: true
+Nested leading collapsed inlines preserve the empty boxes' positions: true
+Nested collapsed inlines preserve start-only padding: true
+Nested collapsed inlines preserve end-only padding: true
+Successive collapsed whitespace nodes preserve nested padding: true
+Trailing collapsible spaces disappear and empty inline edges remain: true
+Inline borders and padding keep ideographic spaces inside the line: true
+Hanging ideographic spaces retain their geometry and leave alignment unchanged: true
+A zero-width atomic inline keeps the preceding space: true
+Undecorated empty inline preserves the number: true
+Empty inline padding keeps Arabic digits in order: true
+Calculated zero padding preserves the number: true
+Resolved padding preserves bidi order after a resize: true
+Mandatory Unicode breaks split lines: true
+A bidi separator of line-break class CM stays on one line: true
+U+001C resolves as a visible neutral symbol between digits: true
+Upright runs follow logical order: true
+Computed direction remains RTL: true
+Whitespace is at the wrap: true
+Spaces within the fragment follow line direction: true
+Spaces in the same text node reset at a wrap: true
+Justification moves a box that overlaps the preceding space: true
+An RTL atomic inline with a negative end margin fits on the first line: true
+An RTL span with right padding and a negative end margin fits on the first line: true
+Inline static positions follow the visual boundary inside a bidi run: true
+An earlier bidi paragraph preserves the static position on a right-aligned last line: true
+Weak plaintext lines inherit the preceding line's alignment or the block direction: true
+An empty plaintext line inherits the preceding line's alignment: true
+An RTL alignment fallback preserves LTR order in a weak paragraph: true
+Text inside a plaintext isolate does not determine the line alignment: true
+Weak plaintext lines inherit alignment across columns: true
+Bidi text overflow preserves static positions inside the line beside a float: true
+A bidi level change inside a grapheme preserves the Arabic letters' visual order: true
+A shaping boundary inside a grapheme does not allow a line break: true
+Overflow wrapping keeps a split grapheme together even when it overflows: true
+Overflow wrapping measures the whole grapheme before choosing a break: true
+An oversized first grapheme stays on the line with the empty inline: true
+A first grapheme that fits on a fresh line wraps after the empty inline: true
+Min-content sizing measures the split grapheme as one unit: true
+Intrinsic sizing counts empty inline padding and collapses line-edge spaces: true
+Trailing preserved tabs contribute their advances: true
+Digits follow the replaced inline-block: true
+Digits precede the strong replaced inline: true

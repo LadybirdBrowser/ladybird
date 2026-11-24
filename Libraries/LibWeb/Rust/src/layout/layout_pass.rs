@@ -361,12 +361,12 @@ impl<'arena> LayoutPass<'arena> {
             .expect("text node content must be synced to the arena before layout")
     }
 
-    /// The chunks of the text row `node` for `key`, made by `compute` where the last run that chunked the row's text did
-    /// so for another key.
+    /// The chunks of the text row `node` for the current style and paragraph bidi levels.
     pub(crate) fn text_chunks(
         &self,
         node: Node,
         key: &super::rendered_text::TextChunkCacheKey,
+        bidi_levels: Option<&[u8]>,
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
         super::parallel_layout::check_row_reached_by_forked_task(node.slot_index() as usize, true);
@@ -374,6 +374,7 @@ impl<'arena> LayoutPass<'arena> {
             self.text_state_index(node),
             self.text_content(node).rendered(),
             key,
+            bidi_levels,
             compute,
         )
     }

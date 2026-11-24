@@ -21,6 +21,16 @@ pub(crate) struct PreparedInlineContent {
     pub(super) tab_stop_items: Box<[u32]>,
     /// Prepared item indices paired with UTF-16 offsets in their text nodes, ordered by item and then offset.
     pub(super) soft_wraps: Box<[(u32, u32)]>,
+    pub(super) bidi: Option<Box<PreparedBidi>>,
+}
+
+#[derive(PartialEq, Eq)]
+pub(super) struct PreparedBidi {
+    pub(super) positions: Box<[Option<bidi::Position>]>,
+    pub(super) empty_inline_positions: HashMap<Node, bidi::EmptyInlinePosition>,
+    pub(super) paragraphs: Arc<[bidi::Paragraph]>,
+    /// The basis used to resolve percentage edges of otherwise empty inlines, if any.
+    pub(super) inline_edge_basis: Option<CssPixels>,
 }
 
 const _: () = {
@@ -59,21 +69,24 @@ const _: () = {
 };
 
 impl PreparedItem {
-    const ITEM_TYPE_MASK: u16 = 0b111;
-    const TEXT_TYPE_SHIFT: u16 = 3;
-    const TEXT_TYPE_MASK: u16 = 0b111;
-    pub(super) const COLLAPSIBLE_WHITESPACE: u16 = 1 << 6;
-    pub(super) const CAN_BREAK_BEFORE: u16 = 1 << 7;
-    pub(super) const TRAILING_WHITESPACE_IS_WHOLE_ITEM: u16 = 1 << 8;
-    pub(super) const TAKES_LEADING_EDGES: u16 = 1 << 9;
-    pub(super) const TAKES_TRAILING_EDGES: u16 = 1 << 10;
-    pub(super) const UPRIGHT: u16 = 1 << 11;
-    pub(super) const TAB_STOP: u16 = 1 << 12;
-    pub(super) const SOFT_WRAPS: u16 = 1 << 13;
+    // The three low bits store either the item type or, when the text tag is set, the glyph run's text type.
+    const TYPE_MASK: u16 = 0b111;
+    const TEXT_ITEM_TAG: u16 = 1 << 3;
+    pub(super) const COLLAPSIBLE_WHITESPACE: u16 = 1 << 4;
+    pub(super) const CAN_BREAK_BEFORE: u16 = 1 << 5;
+    pub(super) const TRAILING_WHITESPACE_IS_WHOLE_ITEM: u16 = 1 << 6;
+    pub(super) const TAKES_LEADING_EDGES: u16 = 1 << 7;
+    pub(super) const TAKES_TRAILING_EDGES: u16 = 1 << 8;
+    pub(super) const UPRIGHT: u16 = 1 << 9;
+    pub(super) const TAB_STOP: u16 = 1 << 10;
+    pub(super) const SOFT_WRAPS: u16 = 1 << 11;
+    pub(super) const CONTINUES_GRAPHEME: u16 = 1 << 12;
+    pub(super) const IS_ONLY_GRAPHEME_CONTINUATION: u16 = 1 << 13;
     /// Collapsible white space that follows another collapsible space, which it collapses into.
     pub(super) const COLLAPSES_INTO_PRECEDING_SPACE: u16 = 1 << 14;
 
     pub(super) fn new(type_: ItemType, node: Node, flags: u16) -> Self {
+        debug_assert_ne!(type_, ItemType::Text);
         Self {
             shape: None,
             node,
@@ -100,19 +113,23 @@ impl PreparedItem {
         font_index: u16,
         flags: u16,
     ) -> Self {
-        debug_assert!(u16::from(text_type) <= Self::TEXT_TYPE_MASK);
+        debug_assert!(u16::from(text_type) <= Self::TYPE_MASK);
         Self {
             shape: Some(shape),
             node,
             offset_in_node: u32::try_from(text_range.start).expect("text offsets fit in 32 bits"),
             length_in_node: u32::try_from(text_range.len()).expect("text lengths fit in 32 bits"),
-            bits: ItemType::Text as u16 | u16::from(text_type) << Self::TEXT_TYPE_SHIFT | flags,
+            bits: Self::TEXT_ITEM_TAG | u16::from(text_type) | flags,
             font_index,
         }
     }
 
     pub(super) fn type_(&self) -> ItemType {
-        ITEM_TYPES_BY_DISCRIMINANT[usize::from(self.bits & Self::ITEM_TYPE_MASK)]
+        if self.bits & Self::TEXT_ITEM_TAG != 0 {
+            ItemType::Text
+        } else {
+            ITEM_TYPES_BY_DISCRIMINANT[usize::from(self.bits & Self::TYPE_MASK)]
+        }
     }
 
     pub(super) fn node(&self) -> Node {
@@ -133,7 +150,8 @@ impl PreparedItem {
     }
 
     pub(super) fn text_type(&self) -> u8 {
-        ((self.bits >> Self::TEXT_TYPE_SHIFT) & Self::TEXT_TYPE_MASK) as u8
+        debug_assert!(self.bits & Self::TEXT_ITEM_TAG != 0);
+        (self.bits & Self::TYPE_MASK) as u8
     }
 
     pub(super) fn has(&self, flag: u16) -> bool {
@@ -234,38 +252,30 @@ impl InlineContentPreparationBuffers {
             tab_stops: self.tab_stops.drain(..).collect(),
             tab_stop_items: self.tab_stop_items.drain(..).collect(),
             soft_wraps: self.soft_wraps.drain(..).collect(),
+            bidi: None,
         }
     }
 }
 
 impl PreparedInlineContent {
+    pub(super) fn bidi_position(&self, item_index: usize) -> Option<bidi::Position> {
+        self.bidi.as_ref()?.positions.get(item_index).copied().flatten()
+    }
+
+    pub(super) fn empty_inline_bidi_position(&self, node: Node) -> Option<&bidi::EmptyInlinePosition> {
+        self.bidi.as_ref()?.empty_inline_positions.get(&node)
+    }
+
+    pub(super) fn bidi_paragraphs(&self) -> Arc<[bidi::Paragraph]> {
+        self.bidi
+            .as_ref()
+            .map_or_else(Arc::default, |bidi| bidi.paragraphs.clone())
+    }
+
     /// The tab stop of `item`, a text item that starts with tabs.
     pub(super) fn tab_stop_of_item(&self, item: u32) -> Option<&PreparedTabStop> {
         let index = self.tab_stop_items.binary_search(&item).ok()?;
         self.tab_stops.get(index)
-    }
-
-    /// The first text with a strong direction from `item` on, up to the next forced break or block-level box: The
-    /// index the search stopped at (that text's item, the boundary, or the end of the items), and that text's type if
-    /// it found one. Every item from `item` to that index has the same answer.
-    pub(super) fn first_strong_text_from(&self, item: u32) -> (u32, Option<u8>) {
-        for (index, prepared_item) in self.items.iter().enumerate().skip(item as usize) {
-            let index = u32::try_from(index).expect("prepared item indices fit in 32 bits");
-            match prepared_item.type_() {
-                ItemType::ForcedBreak | ItemType::BlockLevelBox => return (index, None),
-                ItemType::Text
-                    if matches!(
-                        prepared_item.text_type(),
-                        line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
-                    ) =>
-                {
-                    return (index, Some(prepared_item.text_type()));
-                }
-                _ => {}
-            }
-        }
-        let end = u32::try_from(self.items.len()).expect("prepared item indices fit in 32 bits");
-        (end, None)
     }
 
     /// The font the text of `item`, one of this content's text items, is set in.
@@ -273,20 +283,24 @@ impl PreparedInlineContent {
         &self.fonts[usize::from(item.font_index)]
     }
 
-    pub(crate) fn for_block_container(pass: LayoutPass<'_>, block_container: Node) -> Arc<Self> {
+    pub(crate) fn for_block_container(
+        pass: LayoutPass<'_>,
+        block_container: Node,
+        inline_basis: CssPixels,
+    ) -> Arc<Self> {
         let Some(memos) = pass
             .prepared_inline_content_memos()
             .filter(|_| !pass.lays_out_with_position_option())
         else {
-            return Arc::new(Self::prepare(pass, block_container));
+            return Arc::new(Self::prepare(pass, block_container, inline_basis));
         };
-        if let Some(kept) = memos.kept(block_container, run_root_validity(&pass, block_container)) {
+        if let Some(kept) = memos.kept(block_container, run_root_validity(&pass, block_container), inline_basis) {
             if cfg!(debug_assertions) || run_repeatability::verification_is_enabled() {
-                kept.verify_against_fresh_preparation(pass, block_container);
+                kept.verify_against_fresh_preparation(pass, block_container, inline_basis);
             }
             return kept;
         }
-        let prepared = Arc::new(Self::prepare(pass, block_container));
+        let prepared = Arc::new(Self::prepare(pass, block_container, inline_basis));
         if !prepared.is_empty() {
             memos.keep(block_container, prepared.clone());
         }
@@ -297,8 +311,8 @@ impl PreparedInlineContent {
         self.items.is_empty() && self.box_events.is_empty()
     }
 
-    fn verify_against_fresh_preparation(&self, pass: LayoutPass<'_>, block_container: Node) {
-        let fresh = Self::prepare(pass, block_container);
+    fn verify_against_fresh_preparation(&self, pass: LayoutPass<'_>, block_container: Node, inline_basis: CssPixels) {
+        let fresh = Self::prepare(pass, block_container, inline_basis);
         if let Some(difference) = self.first_difference_from(&fresh) {
             panic!(
                 "the inline content kept for {block_container:?} differs from its fresh preparation in {difference}"
@@ -321,6 +335,7 @@ impl PreparedInlineContent {
             .or_else(|| first_difference("tab stop", &self.tab_stops, &fresh.tab_stops))
             .or_else(|| first_difference("tab stop item", &self.tab_stop_items, &fresh.tab_stop_items))
             .or_else(|| first_difference("soft wrap", &self.soft_wraps, &fresh.soft_wraps))
+            .or_else(|| (self.bidi != fresh.bidi).then(|| "different paragraph bidi data".to_owned()))
     }
 }
 
@@ -345,6 +360,12 @@ impl PreparedInlineContentMemos {
                     + size_of_val(&*content.tab_stops)
                     + size_of_val(&*content.tab_stop_items)
                     + size_of_val(&*content.soft_wraps)
+                    + content.bidi.as_deref().map_or(0, |bidi| {
+                        size_of::<PreparedBidi>()
+                            + size_of_val(&*bidi.positions)
+                            + crate::heap_size::map_bytes(&bidi.empty_inline_positions)
+                            + sizer.arc(&bidi.paragraphs)
+                    })
             })
         })
     }
@@ -359,9 +380,20 @@ impl PreparedInlineContentMemos {
         &self,
         block_container: Node,
         validity: FcRunCacheValidity,
+        inline_basis: CssPixels,
     ) -> Option<Arc<PreparedInlineContent>> {
         self.by_slot.with_row(block_container.slot_index() as usize, |kept| {
-            kept?.as_ref().filter(|kept| kept.validity == validity).cloned()
+            kept?
+                .as_ref()
+                .filter(|kept| {
+                    kept.validity == validity
+                        && kept
+                            .bidi
+                            .as_ref()
+                            .and_then(|bidi| bidi.inline_edge_basis)
+                            .is_none_or(|basis| basis == inline_basis)
+                })
+                .cloned()
         })
     }
 

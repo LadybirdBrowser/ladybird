@@ -13,7 +13,8 @@
             const rect = label.getBoundingClientRect();
             const range = document.createRange();
             range.selectNodeContents(label);
-            println(`label: ${rect.width}x${rect.height}, text fragments: ${range.getClientRects().length}`);
+            const lines = new Set(Array.from(range.getClientRects(), fragment => fragment.top));
+            println(`label: ${rect.width}x${rect.height}, text lines: ${lines.size}`);
         }
     });
 </script>

@@ -29,8 +29,8 @@
 9 pre-wrap: \u{e9}\u{a0}  | \u{e9}  | \u{e9}  | \u{a0}\u{e9}  | \u{e9}\u{a0}\u{e9}
 9 break-spaces: \u{e9}\u{a0}  | \u{e9}  | \u{e9}  | \u{a0}\u{e9}  | \u{e9}\u{a0}\u{e9}
 10: a\u{2028}  | b  | \u{e9}\u{2028}  | \u{e9}  | \u{e9}\u{2029}  | \u{e9}  | \u{e9}\u{85}  | \u{e9}
-10 pre-wrap: a\u{2028}  | b  | \u{e9}\u{2028}  | \u{e9}  | \u{e9}\u{2029}  | \u{e9}  | \u{e9}\u{85}  | \u{e9}
-10 break-spaces: a\u{2028}  | b  | \u{e9}\u{2028}  | \u{e9}  | \u{e9}\u{2029}  | \u{e9}  | \u{e9}\u{85}  | \u{e9}
+10 pre-wrap: a\u{2028} |   | b  | \u{e9}\u{2028} |   | \u{e9}  | \u{e9}\u{2029} |   | \u{e9}  | \u{e9}\u{85} |   | \u{e9}
+10 break-spaces: a\u{2028} |   | b  | \u{e9}\u{2028} |   | \u{e9}  | \u{e9}\u{2029} |   | \u{e9}  | \u{e9}\u{85} |   | \u{e9}
 11: na\u{ef}ve  | \u{b5}m  | \u{df}  | \u{ff}  | \u{e9}\u{d7}\u{e9}  | \u{e9}\u{f7}\u{e9}  | \u{aa}  | \u{ba}
 11 pre-wrap: na\u{ef}ve  | \u{b5}m  | \u{df}  | \u{ff}  | \u{e9}\u{d7}\u{e9}  | \u{e9}\u{f7}\u{e9}  | \u{aa}  | \u{ba}
 11 break-spaces: na\u{ef}ve  | \u{b5}m  | \u{df}  | \u{ff}  | \u{e9}\u{d7}\u{e9}  | \u{e9}\u{f7}\u{e9}  | \u{aa}  | \u{ba}

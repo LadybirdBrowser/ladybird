@@ -242,7 +242,7 @@ fn inline_box_unions(
         }
         let physical_piece = crate::layout::inline_content::InlineBoxPieceRecord {
             present_edges: plane.piece_present_edges(piece),
-            ..*piece
+            ..piece.clone()
         };
         unite(
             &mut padding_union,

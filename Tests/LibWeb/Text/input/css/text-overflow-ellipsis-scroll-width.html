@@ -13,6 +13,7 @@
 <div id="fits" style="text-overflow: ellipsis">short</div>
 <div id="clip-after-float" style="text-overflow: clip"><span style="float: left; width: 40px; height: 10px"></span>hello this is a long line of text</div>
 <div id="ellipsis-after-float" style="text-overflow: ellipsis"><span style="float: left; width: 40px; height: 10px"></span>hello this is a long line of text</div>
+<div id="padded-after-float"><span style="float: left; width: 40px; height: 10px"></span><span style="padding-right: 20px">hello this is a long line of text אבג</span></div>
 <script src="../include.js"></script>
 <script>
     test(() => {
@@ -24,6 +25,10 @@
         }
         const clipAfterFloat = document.getElementById("clip-after-float").scrollWidth;
         println(`ellipsis-after-float: scrollWidth matches clip: ${document.getElementById("ellipsis-after-float").scrollWidth === clipAfterFloat}`);
+        const padded = document.getElementById("padded-after-float");
+        const paddedClipWidth = padded.scrollWidth;
+        padded.style.textOverflow = "ellipsis";
+        println(`padded bidi line after float: scrollWidth matches clip: ${padded.scrollWidth === paddedClipWidth}`);
         const fits = document.getElementById("fits");
         println(`fits: scrollWidth matches clientWidth: ${fits.scrollWidth === fits.clientWidth}`);
         const rtl = document.getElementById("ellipsis-rtl");

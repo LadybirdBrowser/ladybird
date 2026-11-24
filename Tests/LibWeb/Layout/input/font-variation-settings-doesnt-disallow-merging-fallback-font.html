@@ -3,6 +3,8 @@
 <style>
     #foo {
         font-variation-settings: "wght" 100;
+        /* Keep the text at one bidi level so the test isolates font fallback merging. */
+        unicode-bidi: bidi-override;
     }
 </style>
 <div id="foo">حسنًا ، hello friends مرحباً أيها ا test لأصدقاء end</div>

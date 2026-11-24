@@ -14,6 +14,8 @@ TEST_CASE(detect_bidirectional_text)
     EXPECT(!Unicode::may_require_bidi_processing("Michelangelo’s"_utf16));
     EXPECT(Unicode::may_require_bidi_processing("abc אבג"_utf16));
     EXPECT(Unicode::may_require_bidi_processing("abc\u202Edef"_utf16));
+    EXPECT(Unicode::may_require_bidi_processing("abc \u0661\u0662 \u0663\u0664"_utf16));
+    EXPECT(!Unicode::may_require_bidi_processing("abc 12 34"_utf16));
 }
 
 TEST_CASE(find_bidi_paragraph_separator)

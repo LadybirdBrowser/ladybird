@@ -1311,12 +1311,27 @@ impl<'a> ComputedValuesView<'a> {
             || misc.scroll_snap_align_inline != crate::css::css_enums::scroll_snap_align::NONE
     }
 
+    pub(crate) fn has_upright_vertical_text(self) -> bool {
+        matches!(
+            self.writing_mode(),
+            writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
+        ) && self.text_orientation() == crate::css::css_enums::text_orientation::UPRIGHT
+    }
+
+    pub(crate) fn used_direction(self) -> u8 {
+        if self.has_upright_vertical_text() {
+            direction::LTR
+        } else {
+            self.direction()
+        }
+    }
+
     pub(crate) fn inline_axis_is_reverse(self) -> bool {
         match self.writing_mode() {
             writing_mode::HORIZONTAL_TB
             | writing_mode::VERTICAL_RL
             | writing_mode::VERTICAL_LR
-            | writing_mode::SIDEWAYS_RL => self.direction() == direction::RTL,
+            | writing_mode::SIDEWAYS_RL => self.used_direction() == direction::RTL,
             writing_mode::SIDEWAYS_LR => self.direction() == direction::LTR,
             _ => unreachable!("invalid writing mode"),
         }

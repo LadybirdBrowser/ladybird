@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<!-- Each line prints a paragraph's characters in logical order, then in the order they appear from left to right,
+     line by line. Hebrew letters print as A, B, G, Arabic letters as a, b, j, Arabic-Indic digits with a ',
+     Extended Arabic-Indic digits with a ", and mathematical bold digits as m1, m2. -->
+<style>p { font-size: 20px; width: 600px; margin: 0 0 4px 0; }</style>
+<p dir="rtl">אבג 2026</p>
+<p dir="rtl">ابج 2026</p>
+<p dir="rtl">ابج ۲۰۲۵</p>
+<p dir="rtl">ابج ٢٠٢٥</p>
+<p dir="rtl">2026 אבג</p>
+<p dir="rtl">2026</p>
+<p dir="rtl">abc 2026 אבג</p>
+<p dir="rtl">אבג 2026 abc</p>
+<p dir="rtl">אבג 12 34 אבג</p>
+<p dir="rtl">אבג 2026/11/19</p>
+<p dir="rtl">אבג 4:00</p>
+<p dir="rtl">אבג 1,234.5</p>
+<p dir="rtl">אבג 50%</p>
+<p dir="rtl">אבג $100</p>
+<p dir="rtl">אבג 1-2</p>
+<p dir="rtl">אבג 1+2</p>
+<p dir="rtl">ابج 2026/11/19</p>
+<p dir="rtl">ابج 4:00</p>
+<p dir="rtl">ابج 50%</p>
+<p dir="rtl">ابج 1-2</p>
+<p dir="rtl">ابج ٤:٠٠</p>
+<p dir="rtl">ابج ۵۰%</p>
+<p dir="ltr">אבג 2026</p>
+<p dir="ltr">אבג 2026 abc</p>
+<p dir="ltr">ابج 12 34 ابج</p>
+<p dir="ltr">abc ١٢ ٣٤ abc</p>
+<p dir="auto">2026 אבג</p>
+<p style="unicode-bidi: plaintext">2026 אבג</p>
+<p style="unicode-bidi: plaintext">אבג 2026 abc</p>
+<p dir="rtl" style="white-space: pre">אבג 4:00  2026</p>
+<p style="unicode-bidi: plaintext; white-space: pre">אבג 1
+2 abc</p>
+<p style="unicode-bidi: plaintext; white-space: pre">abc
+12 אבג</p>
+<p dir="rtl" style="unicode-bidi: plaintext; white-space: pre">abc
+12 34</p>
+<p dir="rtl">abc١٢def</p>
+<p dir="rtl">١٢def</p>
+<p dir="rtl">אבג 12abc</p>
+<p dir="rtl">אבג abc12 אבג</p>
+<p dir="rtl"><span dir="ltr">12 34</span></p>
+<p dir="ltr"><span dir="rtl">12 34</span></p>
+<p dir="rtl">אבג 𝟏𝟐 34</p>
+<p dir="rtl">אבג 1𝟐3</p>
+<p dir="rtl">אבג <b>4</b>:<i>00</i></p>
+<p dir="rtl">١2a</p>
+<p dir="rtl"><span>ابج</span> <b>50</b>%</p>
+<p dir="ltr">abc <span dir="rtl">אב</span><span dir="rtl">גב</span> xyz</p>
+<p dir="rtl"><bdo dir="rtl">123</bdo></p>
+<p style="unicode-bidi: plaintext; width: 1px">ابج <span>50%</span></p>
+<p style="unicode-bidi: plaintext">ابج 50%&#x2029;abc 50%</p>
+<p dir="rtl" id="changing"><span>אבג</span> <span>50%</span></p>
+<script>
+const TR = {"\u05d0": "A", "\u05d1": "B", "\u05d2": "G", "\u0627": "a", "\u0628": "b", "\u062c": "j", "\u0660": "0'", "\u06f0": "0\"", "\u0661": "1'", "\u06f1": "1\"", "\u0662": "2'", "\u06f2": "2\"", "\u0663": "3'", "\u06f3": "3\"", "\u0664": "4'", "\u06f4": "4\"", "\u0665": "5'", "\u06f5": "5\"", "\u0666": "6'", "\u06f6": "6\"", "\u0667": "7'", "\u06f7": "7\"", "\u0668": "8'", "\u06f8": "8\"", "\u0669": "9'", "\u06f9": "9\""};
+function name(c) {
+    if (c === "\u{1D7CF}" || c === "\u{1D7D0}")
+        return "m" + (c.codePointAt(0) - 0x1d7ce);
+    return c === " " ? "_" : c === "\n" || c === "\u2029" ? "\u23ce" : (TR[c] ?? c);
+}
+function visual(p) {
+    const chars = [];
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    for (let text; (text = walker.nextNode()); ) {
+        for (let i = 0; i < text.length; ) {
+            const c = String.fromCodePoint(text.data.codePointAt(i));
+            // A newline's own box sits wherever the engine puts the end of its line, so it's left out.
+            if (c !== "\n" && c !== "\u2029") {
+                const range = document.createRange();
+                range.setStart(text, i);
+                range.setEnd(text, i + c.length);
+                const r = range.getBoundingClientRect();
+                if (r.width > 0)
+                    chars.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, c });
+            }
+            i += c.length;
+        }
+    }
+    // A line starts wherever a character sits more than 10px below the one above it.
+    const ys = chars.map(e => e.y).sort((a, b) => a - b);
+    const starts = ys.filter((y, i) => i === 0 || y - ys[i - 1] > 10);
+    const lineOf = y => starts.filter(s => s <= y).length;
+    return starts
+        .map((_, i) => {
+            const ordered = chars.filter(e => lineOf(e.y) === i + 1).sort((a, b) => a.x - b.x);
+            if (ordered.some((entry, index) => index > 0 && entry.x === ordered[index - 1].x))
+                return "ERROR: two characters have the same visual center";
+            return ordered.map(e => name(e.c)).join(" ");
+        })
+        .join(" | ");
+}
+function logical(p) { return [...p.textContent].map(name).join(" "); }
+function run(print) {
+    for (const p of document.querySelectorAll("p"))
+        print(`${p.dir || p.style.unicodeBidi} [${logical(p)}] -> ${visual(p)}`);
+    const changing = document.getElementById("changing");
+    changing.firstChild.firstChild.data = "ابج";
+    print(`rtl [${logical(changing)}] -> ${visual(changing)}`);
+}
+test(() => run(println));
+</script>

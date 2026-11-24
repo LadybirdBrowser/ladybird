@@ -25,6 +25,7 @@ bool may_require_bidi_processing(Utf16View const& text)
 
     for (auto code_point : text) {
         switch (bidirectional_class(code_point)) {
+        case BidiClass::ArabicNumber:
         case BidiClass::RightToLeft:
         case BidiClass::RightToLeftArabic:
         case BidiClass::RightToLeftEmbedding:

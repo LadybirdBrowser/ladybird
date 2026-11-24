@@ -98,6 +98,29 @@ struct LineTextFacts {
     holds_only_block_ellipsis: bool,
 }
 
+#[derive(Default)]
+struct EmptyFragmentEdges {
+    leading_size: CssPixels,
+    trailing_size: CssPixels,
+    leading_margin: CssPixels,
+    trailing_margin: CssPixels,
+    bidi_edges_on_left: CssPixels,
+    bidi_inline_box_edges: Option<Box<bidi::InlineBoxEdges>>,
+}
+
+impl EmptyFragmentEdges {
+    fn from_item(item: &mut inline_level_iterator::Item) -> Self {
+        Self {
+            leading_size: item.border_start + item.padding_start,
+            trailing_size: item.border_end + item.padding_end,
+            leading_margin: item.margin_start,
+            trailing_margin: item.margin_end,
+            bidi_edges_on_left: item.bidi_start_edges_on_left + item.bidi_end_edges_on_left,
+            bidi_inline_box_edges: item.bidi_inline_box_edges.take(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct LineBuilder<'builder, 'context> {
     context: &'builder inline_formatting_context::InlineFormattingContext<'context>,
@@ -128,12 +151,8 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     lines_known_to_hold_no_content: Option<usize>,
     text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
-    /// The direction that unicode-bidi: plaintext gives a line from the first strong text of the next content, while
-    /// the line holds none yet.
+    /// The direction of the paragraph containing the next tab, for sizing it before it joins a line.
     plaintext_direction_of_next_content: Option<u8>,
-    /// The last search for the first strong text ahead: the items it covers, from where it started to where it
-    /// stopped, and the text type it found.
-    first_strong_text_ahead: Option<(std::ops::RangeInclusive<u32>, Option<u8>)>,
     last_line_needs_update: bool,
     is_continuation: bool,
     should_advance_to_last_line_box_block_end: bool,
@@ -233,7 +252,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
             plaintext_direction_of_next_content: None,
-            first_strong_text_ahead: None,
             last_line_needs_update: false,
             is_continuation: false,
             should_advance_to_last_line_box_block_end: false,
@@ -268,15 +286,19 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn push_line_box(&self) {
-        self.context()
-            .line_data_mut()
-            .line_boxes
-            .push(line_box::LineBoxData::new(
-                self.direction,
-                // NB: Lines are laid out in the frame of their formatting context, where they run horizontally.
-                writing_mode::HORIZONTAL_TB,
-                self.context().current_line_start.get(),
-            ));
+        let mut data = self.context().line_data_mut();
+        // An empty plaintext line can have no fragment to supply its paragraph's alignment direction.
+        let direction = if self.containing_style().unicode_bidi() == unicode_bidi::PLAINTEXT {
+            data.line_boxes.last().map_or(self.direction, |line| line.direction)
+        } else {
+            self.direction
+        };
+        data.line_boxes.push(line_box::LineBoxData::new(
+            direction,
+            // NB: Lines are laid out in the frame of their formatting context, where they run horizontally.
+            writing_mode::HORIZONTAL_TB,
+            self.context().current_line_start.get(),
+        ));
     }
 
     fn ensure_last_line_index(&mut self) -> usize {
@@ -480,58 +502,32 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
     }
 
-    /// Where the next content on the current line starts, from the start edge of the block container's content box:
-    /// past the floats on the start side of the line's direction, any indent, and the content already on the line.
-    /// Notes `item` as the next content, for the direction that the first strong text from it on gives a line under
-    /// unicode-bidi: plaintext, which tabs that start the item are placed for.
+    /// Records the base direction of the next tab's paragraph before measuring it on this line or after a wrap.
     pub(crate) fn note_next_content(
         &mut self,
         prepared: &prepared_inline_content::PreparedInlineContent,
         item: &inline_level_iterator::Item,
     ) {
-        self.plaintext_direction_of_next_content = None;
-        if self.containing_style().unicode_bidi() != unicode_bidi::PLAINTEXT || !item.starts_with_tabs(prepared) {
-            return;
-        }
-        let index = item.prepared_item_index();
-        let text_type = match &self.first_strong_text_ahead {
-            Some((covered, text_type)) if covered.contains(&index) => *text_type,
-            _ => {
-                let (stop, text_type) = prepared.first_strong_text_from(index);
-                self.first_strong_text_ahead = Some((index..=stop, text_type));
-                text_type
-            }
-        };
-        self.plaintext_direction_of_next_content = text_type.map(|text_type| {
-            if text_type == GLYPH_TEXT_TYPE_RTL {
-                direction::RTL
+        self.plaintext_direction_of_next_content =
+            if self.containing_style().unicode_bidi() == unicode_bidi::PLAINTEXT && item.starts_with_tabs(prepared) {
+                self.bidi_for_position(item.bidi_position(prepared))
+                    .map(|(_, paragraph)| paragraph.alignment_direction)
             } else {
-                direction::LTR
-            }
-        });
+                None
+            };
     }
 
-    fn line_holds_strong_text(&self, line_index: usize) -> bool {
-        self.line(line_index).fragments.iter().any(|fragment| {
-            fragment
-                .glyphs
-                .as_ref()
-                .is_some_and(|glyphs| matches!(glyphs.text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL))
-        })
-    }
-
+    /// Where the next content on the current line starts, from the start edge of the block container's content box:
+    /// past the floats on the start side of the line's direction, any indent, and the content already on the line.
     pub(crate) fn inline_position_of_next_content(&mut self) -> CssPixels {
         let line_index = self.ensure_last_line_index();
         let line_block_size = self
             .max_block_size_on_current_line
             .max(self.containing_style().line_height())
             .max(self.float_fit_height());
-        // NB: Under unicode-bidi: plaintext, a line takes its direction from its first strong text, which content
-        //     before that text is placed for too.
-        let line_direction = match self.plaintext_direction_of_next_content {
-            Some(direction) if !self.line_holds_strong_text(line_index) => direction,
-            _ => self.line(line_index).direction,
-        };
+        let line_direction = self
+            .plaintext_direction_of_next_content
+            .unwrap_or_else(|| self.line(line_index).direction);
         let start_side_intrusion = self.context().start_side_float_intrusion(
             self.current_block_offset,
             self.current_block_offset + line_block_size,
@@ -584,6 +580,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     ///     line breaks at instead.
     pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {
         self.remaining_inline_size_on_current_line_within(self.available_inline_size_for_current_line)
+    }
+
+    pub(super) fn unobstructed_inline_size_after_soft_break(&self) -> CssPixels {
+        self.context().input.available_space.inline_size.to_px_or_zero()
+            - self.text_indentation.indent_of_line(false, false)
     }
 
     pub(crate) fn only_finds_line_breaks(&self) -> bool {
@@ -655,7 +656,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     /// Appends the box of `item`, an element item, to the current line.
-    pub(crate) fn append_box(&mut self, item: &inline_level_iterator::Item) {
+    pub(crate) fn append_box(
+        &mut self,
+        item: &mut inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+    ) {
         let node = item.node;
         let leading_size = item.border_start + item.padding_start;
         let trailing_size = item.padding_end + item.border_end;
@@ -670,6 +675,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let fragment_index = self.line(line_index).fragments.len();
         let fragment_facts = self.fragment_facts(node);
         let text_align_is_justify = may_justify_lines(self.containing_style());
+        let bidi = self.bidi_for_position(item.bidi_position(prepared));
         self.line_mut(line_index).add_fragment(
             node,
             0,
@@ -686,6 +692,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             fragment_facts,
             text_align_is_justify,
             line_box_fragment::TrailingWhitespace::default(),
+            bidi,
+            item.bidi_start_edges_on_left + item.bidi_end_edges_on_left,
+            item.bidi_inline_box_edges.take(),
         );
         {
             let mut line = self.line_mut(line_index);
@@ -696,36 +705,72 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
     }
 
-    pub(crate) fn append_inline_edge(&mut self, item: &inline_level_iterator::Item) {
-        self.append_empty_fragment(
-            item.node,
-            item.border_start + item.padding_start,
-            item.border_end + item.padding_end,
-            item.margin_start,
-            item.margin_end,
-        );
+    pub(crate) fn append_inline_edge(
+        &mut self,
+        item: &mut inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+    ) {
+        let position = prepared
+            .empty_inline_bidi_position(item.node)
+            .map(|empty| empty.position);
+        self.append_empty_fragment(item.node, position, EmptyFragmentEdges::from_item(item));
     }
 
-    fn append_empty_fragment(
+    pub(super) fn append_inline_box_of_collapsed_whitespace(
         &mut self,
-        node: Node,
-        leading_size: CssPixels,
-        trailing_size: CssPixels,
-        leading_margin: CssPixels,
-        trailing_margin: CssPixels,
-    ) {
+        item: &mut inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+    ) -> bool {
+        let Some(edges) = &item.bidi_inline_box_edges else {
+            return false;
+        };
+        // Each side can omit zero-advance edges. Walk the two lists independently from the innermost box out.
+        let mut leading = edges.leading.iter().rev().peekable();
+        let mut trailing = edges.trailing.iter().peekable();
+        let mut ancestor = self.context().inline_box_for_fragment(item.node);
+        let mut innermost = None;
+        while leading.peek().is_some() || trailing.peek().is_some() {
+            if ancestor.is_invalid() {
+                return false;
+            }
+            let has_leading = leading.next_if(|edge| edge.owner == ancestor).is_some();
+            let has_trailing = trailing.next_if(|edge| edge.owner == ancestor).is_some();
+            if has_leading || has_trailing {
+                innermost.get_or_insert(ancestor);
+            }
+            ancestor = self.context().nearest_fragmented_inline_ancestor(ancestor);
+        }
+        let Some(node) = innermost else {
+            return false;
+        };
+        if !prepared
+            .empty_inline_bidi_position(node)
+            .is_some_and(|empty| empty.requires_whitespace_collapse)
+        {
+            return false;
+        }
+        let Some(position) = item.bidi_position(prepared) else {
+            return false;
+        };
+        // Keep each edge's owner so bidi placement can move it to the visual end of its box.
+        self.append_empty_fragment(node, Some(position), EmptyFragmentEdges::from_item(item));
+        true
+    }
+
+    fn append_empty_fragment(&mut self, node: Node, bidi_position: Option<bidi::Position>, edges: EmptyFragmentEdges) {
         self.prepare_to_append_inline_content();
         let line_index = self.ensure_last_line_index();
         let facts = self.fragment_facts(node);
         let block_size = TextLayoutBounds::new(self.style(facts.style_source), None).block_size();
+        let bidi = self.bidi_for_position(bidi_position);
         self.line_mut(line_index).add_fragment(
             node,
             0,
             0,
-            leading_size,
-            trailing_size,
-            leading_margin,
-            trailing_margin,
+            edges.leading_size,
+            edges.trailing_size,
+            edges.leading_margin,
+            edges.trailing_margin,
             CssPixels::default(),
             block_size,
             CssPixels::default(),
@@ -734,6 +779,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             facts,
             false,
             line_box_fragment::TrailingWhitespace::default(),
+            bidi,
+            edges.bidi_edges_on_left,
+            edges.bidi_inline_box_edges,
         );
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
     }
@@ -802,7 +850,15 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         for (node, inline_offset) in nodes {
             // NB: The line has already advanced past these edges, so each fragment goes back to where its node was.
             let distance = self.line(self.line_count() - 1).inline_length - inline_offset;
-            self.append_empty_fragment(node, none, none, none - distance, distance);
+            self.append_empty_fragment(
+                node,
+                None,
+                EmptyFragmentEdges {
+                    leading_margin: none - distance,
+                    trailing_margin: distance,
+                    ..Default::default()
+                },
+            );
         }
     }
 
@@ -827,6 +883,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             content_block_size,
             glyphs,
             item.trailing_whitespace,
+            item.bidi_position(prepared),
+            item.bidi_start_edges_on_left + item.bidi_end_edges_on_left,
+            item.bidi_inline_box_edges.take(),
         );
         // https://drafts.csswg.org/css-overflow-4/#block-ellipsis
         // AD-HOC: Block ellipses displace content at soft wraps. Legacy clamping preserves glyph-based truncation
@@ -842,7 +901,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn append_text_chunk(
+    fn append_text_chunk(
         &mut self,
         node: Node,
         offset_in_node: usize,
@@ -855,21 +914,15 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         content_block_size: CssPixels,
         glyphs: line_box_fragment::ItemGlyphRun<'_>,
         trailing_whitespace: line_box_fragment::TrailingWhitespace,
+        bidi_position: Option<bidi::Position>,
+        bidi_edges_on_left: CssPixels,
+        bidi_inline_box_edges: Option<Box<bidi::InlineBoxEdges>>,
     ) {
         self.prepare_to_append_inline_content();
         let line_index = self.ensure_last_line_index();
-        if self.containing_style().unicode_bidi() == unicode_bidi::PLAINTEXT
-            && !self.line_holds_strong_text(line_index)
-            && matches!(glyphs.text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL)
-        {
-            self.line_mut(line_index).direction = if glyphs.text_type == GLYPH_TEXT_TYPE_RTL {
-                direction::RTL
-            } else {
-                direction::LTR
-            };
-        }
         let facts = self.fragment_facts(node);
         let text_align_is_justify = may_justify_lines(self.containing_style());
+        let bidi = self.bidi_for_position(bidi_position);
         self.line_mut(line_index).add_fragment(
             node,
             offset_in_node,
@@ -886,9 +939,30 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             facts,
             text_align_is_justify,
             trailing_whitespace,
+            bidi,
+            bidi_edges_on_left,
+            bidi_inline_box_edges,
         );
         let line_block_length = self.line(line_index).block_length;
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(line_block_length);
+    }
+
+    fn bidi_for_position(&self, position: Option<bidi::Position>) -> Option<(bidi::Position, &bidi::Paragraph)> {
+        let position = position?;
+        Some((position, self.context().bidi_paragraphs.get(position.paragraph)?))
+    }
+
+    pub(super) fn set_bidi_paragraph_direction(
+        &mut self,
+        item: &inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+    ) {
+        let Some((_, paragraph)) = self.bidi_for_position(item.bidi_position(prepared)) else {
+            return;
+        };
+        let direction = paragraph.alignment_direction;
+        let line_index = self.ensure_last_line_index();
+        self.line_mut(line_index).direction = direction;
     }
 
     /// Puts `box_`, an inline box that holds no in-flow content, at the end of the current line, for the line to take
@@ -1569,7 +1643,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         ) && (fragment.is_justifiable_whitespace()
             || (fragment.length_in_code_units > 0
-                && fragment.trailing_whitespace.length_in_code_units == fragment.length_in_code_units))
+                && fragment.collapsible_trailing_whitespace().length_in_code_units == fragment.length_in_code_units))
     }
 
     /// The outside markers whose list items have the line at `line_index` as their first line box.
@@ -1722,6 +1796,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if self.line(line_index).inline_length_before_block_ellipsis.is_none() {
             self.line_mut(line_index).trim_trailing_whitespace();
         }
+        self.line_mut(line_index).reorder_bidi_fragments(self.context());
+        self.line_mut(line_index).measure_hanging_spaces();
 
         let current_line_block_size = if self.line(line_index).inline_length_before_block_ellipsis.is_some() {
             self.line(line_index)
@@ -1790,7 +1866,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     _ => CssPixels::default(),
                 }
         };
-        let inline_offset = aligned_inline_offset(self.line(line_index).inline_length);
+        let (line_inline_length, hanging_space) = {
+            let line = self.line(line_index);
+            (line.inline_length, line.hanging_space_inline_size)
+        };
+        let mut inline_offset = aligned_inline_offset(line_inline_length - hanging_space);
+        if line_direction == direction::RTL {
+            inline_offset -= hanging_space;
+        }
         self.line_mut(line_index).placed_inline_start = start_inline_offset;
         let block_offset = CssPixels::default();
 
@@ -1858,16 +1941,16 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 normal_subtree_shift,
             );
             let mut line = self.line_mut(line_index);
-            // NB: A marker records where its box would have been in the logical order of the line's content, which a
-            //     right-to-left line lays out from its right end.
-            // FIXME: Resolve the marker's position within the visual order of the line's bidi runs.
-            if line.direction == direction::RTL {
-                let content_inline_length = line.inline_length;
-                let marker = &mut line.static_position_markers[marker_index];
-                marker.inline_offset = content_inline_length - marker.inline_offset;
-            }
+            let marker = &line.static_position_markers[marker_index];
+            let visual_offset = if let Some(offset) = marker.inline_offset_from_bidi_fragment {
+                line.fragments[marker.fragments_before - 1].inline_offset + offset
+            } else if line.direction == direction::RTL {
+                marker_inline_offset + (line.inline_length - marker.inline_offset)
+            } else {
+                marker_inline_offset + marker.inline_offset
+            };
             let marker = &mut line.static_position_markers[marker_index];
-            marker.inline_offset += marker_inline_offset;
+            marker.inline_offset = visual_offset;
             marker.block_offset += block_offset + current_block_offset + shift;
         }
         {

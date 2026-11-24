@@ -14,10 +14,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "friends!"
         TextNode <#text> (not painted)
       BlockContainer <div> at [401,213] [200+1+0 100 0+1+290] [0+1+0 100 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [421.03125,213 79.96875x16] baseline: 13
-            "Well, hello"
-        frag 1 from TextNode start: 12, length: 8, rect: [441.78125,229 59.21875x16] baseline: 13
-            "friends!"
+        frag 0 from TextNode start: 0, length: 5, rect: [421.03125,213 35.125x16] baseline: 13
+            "Well,"
+        frag 1 from TextNode start: 5, length: 1, rect: [456.15625,213 8x16] baseline: 13
+            " "
+        frag 2 from TextNode start: 6, length: 5, rect: [464.15625,213 36.84375x16] baseline: 13
+            "hello"
+        frag 3 from TextNode start: 12, length: 7, rect: [445.640625,229 55.359375x16] baseline: 13
+            "friends"
+        frag 4 from TextNode start: 19, length: 1, rect: [441.78125,229 3.859375x16] baseline: 13
+            "!"
         TextNode <#text> (not painted)
       BlockContainer <div> at [301,315] [100+1+0 100 0+1+390] [0+1+0 100 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 11, rect: [301,315 79.96875x16] baseline: 13
@@ -26,16 +32,40 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "friends!"
         TextNode <#text> (not painted)
       BlockContainer <div> at [301,417] [100+1+0 100 0+1+390] [0+1+0 100 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 14, rect: [301,417 74.4375x16] baseline: 13
-            "حسنًا ، مرحباً"
-        frag 1 from TextNode start: 15, length: 13, rect: [301,433 78.125x16] baseline: 13
-            "أيها الأصدقاء"
+        frag 0 from TextNode start: 0, length: 5, rect: [352.0625,417 23.375x16] baseline: 13
+            "حسنًا"
+        frag 1 from TextNode start: 5, length: 1, rect: [344.0625,417 8x16] baseline: 13
+            " "
+        frag 2 from TextNode start: 6, length: 1, rect: [338.21875,417 5.84375x16] baseline: 13
+            "،"
+        frag 3 from TextNode start: 7, length: 1, rect: [330.21875,417 8x16] baseline: 13
+            " "
+        frag 4 from TextNode start: 8, length: 6, rect: [301,417 29.21875x16] baseline: 13
+            "مرحباً"
+        frag 5 from TextNode start: 15, length: 4, rect: [355.75,433 23.375x16] baseline: 13
+            "أيها"
+        frag 6 from TextNode start: 19, length: 1, rect: [347.75,433 8x16] baseline: 13
+            " "
+        frag 7 from TextNode start: 20, length: 8, rect: [301,433 46.75x16] baseline: 13
+            "الأصدقاء"
         TextNode <#text> (not painted)
       BlockContainer <div> at [301,519] [100+1+0 100 0+1+390] [0+1+0 100 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 14, rect: [301,519 74.4375x16] baseline: 13
-            "حسنًا ، مرحباً"
-        frag 1 from TextNode start: 15, length: 13, rect: [301,535 78.125x16] baseline: 13
-            "أيها الأصدقاء"
+        frag 0 from TextNode start: 0, length: 5, rect: [352.0625,519 23.375x16] baseline: 13
+            "حسنًا"
+        frag 1 from TextNode start: 5, length: 1, rect: [344.0625,519 8x16] baseline: 13
+            " "
+        frag 2 from TextNode start: 6, length: 1, rect: [338.21875,519 5.84375x16] baseline: 13
+            "،"
+        frag 3 from TextNode start: 7, length: 1, rect: [330.21875,519 8x16] baseline: 13
+            " "
+        frag 4 from TextNode start: 8, length: 6, rect: [301,519 29.21875x16] baseline: 13
+            "مرحباً"
+        frag 5 from TextNode start: 15, length: 4, rect: [355.75,535 23.375x16] baseline: 13
+            "أيها"
+        frag 6 from TextNode start: 19, length: 1, rect: [347.75,535 8x16] baseline: 13
+            " "
+        frag 7 from TextNode start: 20, length: 8, rect: [301,535 46.75x16] baseline: 13
+            "الأصدقاء"
         TextNode <#text> (not painted)
       BlockContainer <div> at [401,621] [200+1+0 100 0+1+290] [0+1+0 100 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 14, rect: [426.5625,621 74.4375x16] baseline: 13
