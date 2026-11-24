@@ -17,7 +17,7 @@ use libcrypto_rust::{KeyPair, OkpCurve, ShaHashKind};
 use super::crypto::verify_signature;
 use super::denial::DenialProofs;
 use super::rrset::{SignedRRSet, VerifiedRRSet};
-use super::{Fetches, SecurityStatus, Step, ValidationResult, Validator};
+use super::{DelegationKind, Fetches, SecurityStatus, Step, ValidationResult, Validator};
 use crate::message::{
     Algorithm, Class, DigestType, Dnskey, DomainName, Ds, Message, Nsec, Nsec3, Nsec3HashAlgorithm, Nsec3Param,
     Question, RecordData, ResourceRecord, ResourceType, ResponseCode, Sig, Soa, Tlsa, TlsaCertUsage, TlsaMatchingType,
@@ -1367,7 +1367,25 @@ fn cached_chain_expires_counting_from_when_responses_came_in() {
     // The DS and DNSKEY RRsets of "example" have a TTL of an hour.
     let example = name("example");
     assert_eq!(validator.zone_keys[&example].expires, u64::from(received_at) + 3600);
-    assert_eq!(validator.delegations[&example].expires, u64::from(received_at) + 3600);
+    assert_eq!(
+        validator.delegations[&example].delegation.expires,
+        u64::from(received_at) + 3600
+    );
+}
+
+#[test]
+fn cached_delegation_holds_only_under_its_parent_zone() {
+    let (mut server, mut validator) = setup(false, |_| {});
+    validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+
+    // A decision that "www.example" is an unsigned delegation, made by some other zone.
+    let cached = validator.delegations.get_mut(&name("www.example")).unwrap();
+    cached.parent_zone = name("other");
+    cached.delegation.kind = DelegationKind::Insecure;
+
+    let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+    assert_eq!(result.status, SecurityStatus::Secure);
+    assert_eq!(validator.delegations[&name("www.example")].parent_zone, name("example"));
 }
 
 #[test]
