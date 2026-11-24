@@ -375,3 +375,37 @@ TEST_CASE(biplanar_conversion_refuses_planes_shorter_than_the_size)
     EXPECT(Gfx::biplanar_yuv_to_bitmap({ 64, 48 }, 8, {}, luma_plane, { .data = chroma.bytes().slice(0, 64), .stride = 64 }).is_error());
     EXPECT(Gfx::biplanar_yuv_to_bitmap({ 64, 48 }, 8, {}, luma_plane, { .data = chroma.bytes(), .stride = 16 }).is_error());
 }
+
+// Only the rows before a plane's last one have to be padded up to its stride, so a plane can end right after its last
+// sample. Such a plane must convert to the same pixels as a padded one.
+TEST_CASE(biplanar_conversion_reads_planes_whose_last_row_is_not_padded)
+{
+    constexpr Gfx::IntSize size { 5, 3 };
+    constexpr size_t chroma_width = 3;
+    constexpr size_t chroma_height = 2;
+
+    for (u8 bit_depth : { 8, 10 }) {
+        size_t bytes_per_sample = bit_depth > 8 ? 2 : 1;
+        size_t stride = 8 * bytes_per_sample;
+        auto luma_row_byte_count = size.width() * bytes_per_sample;
+        auto chroma_row_byte_count = chroma_width * 2 * bytes_per_sample;
+
+        auto padded_luma = MUST(ByteBuffer::create_uninitialized(stride * size.height()));
+        auto padded_chroma = MUST(ByteBuffer::create_uninitialized(stride * chroma_height));
+        for (size_t index = 0; index < padded_luma.size(); index++)
+            padded_luma[index] = static_cast<u8>(40 + (index * 7));
+        for (size_t index = 0; index < padded_chroma.size(); index++)
+            padded_chroma[index] = static_cast<u8>(90 + (index * 13));
+
+        // The unpadded planes are copies in buffers of their own, which end right after their last sample.
+        auto unpadded_luma = MUST(ByteBuffer::copy(padded_luma.bytes().trim((stride * (size.height() - 1)) + luma_row_byte_count)));
+        auto unpadded_chroma = MUST(ByteBuffer::copy(padded_chroma.bytes().trim((stride * (chroma_height - 1)) + chroma_row_byte_count)));
+
+        auto padded = MUST(Gfx::biplanar_yuv_to_bitmap(size, bit_depth, {}, { .data = padded_luma.bytes(), .stride = stride }, { .data = padded_chroma.bytes(), .stride = stride }));
+        auto unpadded = MUST(Gfx::biplanar_yuv_to_bitmap(size, bit_depth, {}, { .data = unpadded_luma.bytes(), .stride = stride }, { .data = unpadded_chroma.bytes(), .stride = stride }));
+        for (int y = 0; y < size.height(); y++) {
+            for (int x = 0; x < size.width(); x++)
+                EXPECT_EQ(unpadded->get_pixel(x, y), padded->get_pixel(x, y));
+        }
+    }
+}
