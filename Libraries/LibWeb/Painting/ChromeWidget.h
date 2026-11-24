@@ -68,6 +68,8 @@ public:
 
     virtual Optional<CSS::CursorPredefined> cursor() const { return {}; }
 
+    void visit_edges(GC::Cell::Visitor& visitor) const { m_arena->visit_edges(visitor); }
+
 protected:
     ChromeWidget(Layout::NodeArena&, Compositing::RustFFI::NodeSlotId);
 

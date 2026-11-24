@@ -31,6 +31,8 @@ public:
 
     explicit DocumentPaintState(Layout::NodeArena&);
 
+    void visit_edges(GC::Cell::Visitor& visitor) const { m_layout_node_arena->visit_edges(visitor); }
+
     void viewport_row_was_reset();
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
