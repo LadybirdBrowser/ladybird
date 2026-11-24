@@ -46,7 +46,6 @@ Optional<String> resolve_named_html_entity(StringView entity_name)
 
 XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
     : m_document(document)
-    , m_current_node(m_document.ptr())
     , m_scripting_support(scripting_support)
 {
     m_namespace_stack.append({ {}, 1 });
@@ -148,12 +147,12 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
         link_element->set_was_enabled_when_created_by_parser(Badge<XMLDocumentBuilder> {}, !has_disabled_attribute);
     }
 
-    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
-    if (m_current_node->is_html_template_element()) {
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *current_node() };
+    if (current_node()->is_html_template_element()) {
         // When an XML parser would append a node to a template element, it must instead append it to the template element's template contents (a DocumentFragment node).
-        MUST(static_cast<HTML::HTMLTemplateElement&>(*m_current_node).content()->append_child(node));
+        MUST(static_cast<HTML::HTMLTemplateElement&>(*current_node()).content()->append_child(node));
     } else {
-        MUST(m_current_node->append_child(node));
+        MUST(current_node()->append_child(node));
     }
 
     for (auto const& attribute : attributes) {
@@ -186,7 +185,6 @@ void XMLDocumentBuilder::element_start(Utf16FlyString const& name, Vector<XML::L
     }
 
     m_open_elements.append(node);
-    m_current_node = node.ptr();
 }
 
 void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
@@ -198,10 +196,10 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
         m_namespace_stack.take_last();
     }
 
-    VERIFY(m_current_node->node_name().equals_ignoring_ascii_case(name));
+    VERIFY(current_node()->node_name().equals_ignoring_ascii_case(name));
     // When an XML parser with XML scripting support enabled creates a script element, [...]
     // When the element's end tag is subsequently parsed,
-    if (auto* script_element = as_if<HTML::HTMLOrSVGScriptElement>(*m_current_node); script_element && m_scripting_support == XMLScriptingSupport::Enabled) {
+    if (auto* script_element = as_if<HTML::HTMLOrSVGScriptElement>(*current_node()); script_element && m_scripting_support == XMLScriptingSupport::Enabled) {
         // the user agent must perform a microtask checkpoint,
         HTML::perform_a_microtask_checkpoint();
         // and then prepare the script element.
@@ -233,11 +231,6 @@ void XMLDocumentBuilder::element_end(Utf16FlyString const& name)
     }
 
     (void)m_open_elements.take_last();
-    if (m_open_elements.is_empty()) {
-        m_current_node = m_document.ptr();
-    } else {
-        m_current_node = m_open_elements.last().ptr();
-    }
 }
 
 void XMLDocumentBuilder::text(StringView data)
@@ -245,8 +238,8 @@ void XMLDocumentBuilder::text(StringView data)
     if (m_has_error)
         return;
 
-    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
-    if (auto* last = m_current_node->last_child(); last && last->is_text()) {
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *current_node() };
+    if (auto* last = current_node()->last_child(); last && last->is_text()) {
         auto& text_node = static_cast<DOM::Text&>(*last);
         m_text_builder.append(text_node.data());
         m_text_builder.append(Utf16String::from_utf8(data));
@@ -254,44 +247,53 @@ void XMLDocumentBuilder::text(StringView data)
         m_text_builder.clear();
     } else if (!data.is_empty()) {
         auto node = m_document->create_text_node(Utf16String::from_utf8(data));
-        MUST(m_current_node->append_child(node));
+        MUST(current_node()->append_child(node));
     }
 }
 
 void XMLDocumentBuilder::comment(StringView data)
 {
-    if (m_has_error || !m_current_node)
+    if (m_has_error || !current_node())
         return;
 
-    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
-    MUST(m_current_node->append_child(m_document->create_comment(Utf16String::from_utf8(data))));
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *current_node() };
+    MUST(current_node()->append_child(m_document->create_comment(Utf16String::from_utf8(data))));
 }
 
 void XMLDocumentBuilder::cdata_section(StringView data)
 {
-    if (m_has_error || !m_current_node)
+    if (m_has_error || !current_node())
         return;
 
     auto section = MUST(m_document->create_cdata_section(Utf16String::from_utf8(data)));
-    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
-    MUST(m_current_node->append_child(section));
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *current_node() };
+    MUST(current_node()->append_child(section));
 }
 
 void XMLDocumentBuilder::processing_instruction(Utf16FlyString const& target, Utf16String const& data)
 {
-    if (m_has_error || !m_current_node)
+    if (m_has_error || !current_node())
         return;
 
     auto processing_instruction = MUST(m_document->create_processing_instruction(target, data));
-    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *m_current_node };
-    MUST(m_current_node->append_child(processing_instruction));
+    HTML::HTMLOrSVGScriptElement::ParserChildrenChangeScope script_children_change { *current_node() };
+    MUST(current_node()->append_child(processing_instruction));
+}
+
+DOM::Node* XMLDocumentBuilder::current_node() const
+{
+    if (m_document_ended)
+        return nullptr;
+    if (m_open_elements.is_empty())
+        return m_document.ptr();
+    return m_open_elements.last().ptr();
 }
 
 void XMLDocumentBuilder::document_end()
 {
     // When an XML parser reaches the end of its input, it must stop parsing, following the same rules as the HTML parser.
     m_open_elements.clear();
-    m_current_node = nullptr;
+    m_document_ended = true;
 
     HTML::HTMLParser::the_end(*m_document, nullptr);
 }

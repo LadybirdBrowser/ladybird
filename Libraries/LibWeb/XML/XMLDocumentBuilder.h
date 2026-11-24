@@ -47,12 +47,13 @@ private:
     };
 
     Optional<Utf16FlyString> namespace_for_name(Utf16FlyString const&);
+    DOM::Node* current_node() const;
 
     GC::Root<DOM::Document> m_document;
     GC::RootVector<GC::Ref<DOM::Node>> m_open_elements;
-    GC::RawPtr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
+    bool m_document_ended { false };
     Utf16StringBuilder m_text_builder;
 
     struct NamespaceStackEntry {
