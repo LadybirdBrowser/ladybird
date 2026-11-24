@@ -1046,3 +1046,60 @@ fn negative_answers_behind_an_alias_last_no_longer_than_the_alias() {
     harness.lookup_with("www.example.com", &[ResourceType::AAAA], LookupOptions::default());
     assert_eq!(harness.take_writes().len(), 1);
 }
+
+#[test]
+fn system_resolver_only_looks_up_the_requested_address_families() {
+    let mut harness = Harness::new(None);
+    let only_aaaa = harness.lookup_with("example.com", &[ResourceType::AAAA], LookupOptions::default());
+    let requests = std::mem::take(&mut harness.system);
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].2, AddressFamily::V6);
+    harness.system_resolved(requests[0].0, Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    assert_eq!(harness.addresses(only_aaaa), vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]);
+
+    let tlsa = harness.lookup_with("_443._tcp.example.com", &[ResourceType::TLSA], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert_eq!(harness.error(tlsa), "The system resolver can only look up addresses");
+}
+
+#[test]
+fn system_resolver_failures_are_not_cached_as_missing_addresses() {
+    let mut harness = Harness::new(None);
+    let first = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (a, _) = system_requests(&mut harness);
+    harness.system_resolved(a, Err("temporary failure".to_owned()));
+    assert!(harness.result(first).is_err());
+
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert_eq!(harness.system.len(), 1);
+}
+
+#[test]
+fn system_resolver_answers_say_nothing_about_types_it_was_not_asked_about() {
+    let mut harness = Harness::new(None);
+    let first = harness.lookup_with(
+        "example.com",
+        &[ResourceType::A, ResourceType::MX],
+        LookupOptions::default(),
+    );
+    let (a, aaaa) = system_requests(&mut harness);
+    assert_eq!(aaaa, None);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    assert_eq!(harness.addresses(first), vec![IpAddr::V4(A_ADDRESS)]);
+
+    let mx = harness.lookup_with("example.com", &[ResourceType::MX], LookupOptions::default());
+    assert_eq!(harness.error(mx), "The system resolver can only look up addresses");
+}
+
+#[test]
+fn system_resolver_finding_no_addresses_is_the_same_answer_before_and_after_caching() {
+    let mut harness = Harness::new(None);
+    let first = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let (a, _) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![]));
+    assert!(harness.addresses(first).is_empty());
+
+    let cached = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert!(harness.addresses(cached).is_empty());
+}
