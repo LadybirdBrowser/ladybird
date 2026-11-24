@@ -588,6 +588,10 @@ impl Server {
         Message::from_wire(&response.to_wire().unwrap()).unwrap()
     }
 
+    pub(crate) fn root_ds(&self) -> Ds {
+        self.zones[0].ds()
+    }
+
     fn anchor(&self, validator: &mut Validator) {
         validator.set_trust_anchors(vec![self.zones[0].ds()]);
     }
