@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://compat.spec.whatwg.org/#css-gradients-webkit-linear-gradient">
+<meta name="assert" content="Check that we do not crash even if color-stop() is not resolvable at parse time.">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+    assert_true(CSS.supports("background-image", "-webkit-gradient(linear, left top, left bottom, color-stop(calc(0.5 + 0.001 * sign(1em - 1px)), blue))"));
+});
+
+test(() => {
+    assert_true(CSS.supports("background-image", "-webkit-gradient(linear, left top, left bottom, color-stop(calc(50% + 0.001% * sign(1em - 1px)), blue))"));
+});
+</script>
