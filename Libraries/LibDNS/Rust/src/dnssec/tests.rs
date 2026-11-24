@@ -1441,3 +1441,15 @@ fn opt_out_proof_does_not_depend_on_record_order() {
     assert!(proves_insecure(&[apex.clone(), opt_out.clone(), both_opt_out.clone()]));
     assert!(proves_insecure(&[apex, both_opt_out, opt_out]));
 }
+
+#[test]
+fn nsec3_endpoints_must_be_sha1_hashes() {
+    let zone = name("example");
+    let proves_wildcard_absent = |owner_hash: &[u8], next_hash: &[u8]| {
+        let rrsets = [unsigned_nsec3(&zone, owner_hash, next_hash, 0, &[ResourceType::A])];
+        DenialProofs { rrsets: &rrsets }.proves_wildcard_absent(&zone)
+    };
+    assert!(proves_wildcard_absent(&[0x00; 20], &[0xff; 20]));
+    assert!(!proves_wildcard_absent(&[0x00; 19], &[0xff; 19]));
+    assert!(!proves_wildcard_absent(&[0x00; 21], &[0xff; 21]));
+}
