@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-compositor-animations-in-opacity-group-over-scrolled-content-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-30000">
+<style>
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<iframe></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.srcdoc = `<!DOCTYPE html>
+        <style>
+            @keyframes still-slide { from { transform: translateX(40px); } to { transform: translateX(40px); } }
+            @keyframes still-turn { from { transform: rotate(90deg); } to { transform: rotate(90deg); } }
+            body { margin: 0; height: 1000px; background: white; }
+            main { opacity: 0.5; height: 600px; background: navy; }
+            .stripe { position: absolute; left: 0; width: 200px; height: 30px; background: lime; }
+            #fixed { position: fixed; left: 20px; top: 10px; width: 100px; height: 20px; background: orange; }
+            #slide { position: absolute; left: 10px; top: 200px; width: 50px; height: 30px; background: red; animation: still-slide 100s linear infinite; }
+            #turn { position: absolute; left: 130px; top: 205px; width: 40px; height: 20px; background: yellow; animation: still-turn 100s linear infinite; }
+        </style>
+        <main>
+            <div class="stripe" style="top: 120px"></div>
+            <div class="stripe" style="top: 160px"></div>
+            <div id="slide"></div>
+            <div id="turn"></div>
+            <div id="fixed"></div>
+        </main>`;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        // The translucent group holds the fixed box and the scrolled content, which keep their spaces around the boxes
+        // the compositor animates.
+        iframe.contentWindow.scrollTo(0, 115);
+        for (let i = 0; i < 4; ++i)
+            await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>
