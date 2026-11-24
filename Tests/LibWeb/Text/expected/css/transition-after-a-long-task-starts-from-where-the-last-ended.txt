@@ -1,0 +1,1 @@
+each transition starts from where the last one ended: 0px, 40px, 80px

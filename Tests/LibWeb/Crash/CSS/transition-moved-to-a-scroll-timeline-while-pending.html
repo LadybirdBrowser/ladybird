@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #scroller {
+        overflow: scroll;
+        height: 100px;
+    }
+
+    #content {
+        height: 1000px;
+    }
+
+    #target {
+        width: 0px;
+        transition: width 1s linear;
+    }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<div id="target"></div>
+<script>
+    getComputedStyle(target).width;
+    target.style.width = "100px";
+    getComputedStyle(target).width;
+    const transition = target.getAnimations()[0];
+    transition.timeline = new ScrollTimeline({ source: scroller });
+    transition.currentTime = CSS.percent(10);
+    scroller.scrollTop = 100;
+    requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("test-wait")));
+</script>
+</html>

@@ -166,6 +166,9 @@ pub(crate) struct CssTransitionState {
     pub(crate) previous_phase: TransitionPhase,
     /// Whether the transition was started provisionally and is neither committed nor discarded yet.
     pub(crate) provisional: bool,
+    /// The time of the style change event that started the transition, which the play that started it becomes ready
+    /// at, until that play's pending play task runs or the play ends.
+    pub(crate) initial_ready_time: Option<f64>,
     /// Whether the transition is one the hover of a clock lane started, which the host took in.
     pub(crate) adopted_from_lane: bool,
     /// The effect the transition was started with, which it keeps whatever script sets as its associated effect. Its
@@ -455,15 +458,9 @@ impl AnimationRecord {
         }
     }
 
-    /// The time of the style change event that started the CSS transition the record is of.
-    /// https://drafts.csswg.org/css-transitions/#style-change-event
     #[must_use]
-    pub(crate) fn css_transition_style_change_event_time(&self) -> f64 {
-        let start_delay = self
-            .effect
-            .as_ref()
-            .map_or(0.0, |effect| effect.borrow().timing().start_delay.value);
-        self.css_transition().start_time - start_delay
+    pub(crate) fn css_transition_initial_ready_time(&self) -> Option<f64> {
+        self.css_transition().initial_ready_time
     }
 
     pub(crate) fn css_transition_mut(&mut self) -> &mut CssTransitionState {

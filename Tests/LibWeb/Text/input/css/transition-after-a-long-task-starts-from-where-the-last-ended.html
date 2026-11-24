@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #bar {
+        width: 0px;
+        height: 10px;
+        transition: width 200ms linear;
+    }
+</style>
+<div id="bar"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderFrame() {
+        const frame = new Promise(resolve => requestAnimationFrame(resolve));
+        internals.injectRenderingOpportunity(performance.now());
+        await frame;
+        await nextTask();
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await renderFrame();
+
+        // Each width starts a transition between frames, and a task longer than the transition runs before the next.
+        const starts = [];
+        for (const width of ["40px", "80px", "120px"]) {
+            bar.style.width = width;
+            getComputedStyle(bar).width;
+            starts.push(bar.getAnimations()[0].effect.getKeyframes()[0].width);
+            const taskStart = performance.now();
+            while (performance.now() < taskStart + 250) { }
+            await renderFrame();
+        }
+        internals.setManualRenderingOpportunities(false);
+
+        println(`each transition starts from where the last one ended: ${starts.join(", ")}`);
+        done();
+    });
+</script>
