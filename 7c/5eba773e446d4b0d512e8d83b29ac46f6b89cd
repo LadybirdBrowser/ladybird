@@ -1,0 +1,15 @@
+Ladybird now starts a middle-button autoscroll over a nested document
+that can’t scroll on the box that the nested document’s container
+element is in, and tracks the pointer in screen coordinates at the page
+level, so moves, presses, and releases over any document drive and end
+it. Blink’s LayoutBox::FindAutoscrollable() walks up the layout tree to
+the first user-scrollable box, continuing from a document’s LocalOwner()
+in the parent frame. Its AutoscrollController belongs to the Page: Every
+frame’s EventHandler hands it the pointer’s screen position through
+HandleMouseMoveForMiddleClickAutoscroll(), and a press in any frame
+stops it (EventHandler::HandleMousePressEvent()).
+
+Chrome 158, Firefox 151, and WebKit 26.5 don’t start middle-button
+autoscroll in headless macOS runs, so the comparison comes from Blink’s
+source. Firefox’s bug 2075178 reports the same culmus.sourceforge.io
+symptom in Firefox, with a video of Chrome scrolling as expected.
