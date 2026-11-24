@@ -1,0 +1,11 @@
+Ladybird displays up to 20 rows of a long select popup in one scrollable
+column. Its short popup uses the regular menu.
+
+Blink sets a 20-row limit in ListPicker, then fits the popup to the
+available screen. Gecko constrains the menu to its browser in
+SelectParent.sys.mjs. WebKit uses the platform menu in
+WebPopupMenuProxyMac::showPopupMenu().
+
+A 250-option probe ran on Chrome 158.0.8127.37, Firefox 151.0, and
+WebKit 26.5. None exposed the native popup in a page screenshot, so the
+comparisons of popup height come from source inspection.
