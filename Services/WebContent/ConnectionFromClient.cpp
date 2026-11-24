@@ -1973,8 +1973,8 @@ void ConnectionFromClient::clear_inspected_dom_node(Web::PageId page_id)
         return;
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->active_document() != nullptr) {
-            navigable->active_document()->set_inspected_node(nullptr);
+        if (navigable.active_document() != nullptr) {
+            navigable.active_document()->set_inspected_node(nullptr);
         }
     }
 }
@@ -1986,8 +1986,8 @@ void ConnectionFromClient::highlight_dom_node(Web::PageId page_id, Web::UniqueNo
         return;
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->active_document() != nullptr) {
-            navigable->active_document()->set_highlighted_node(nullptr, {});
+        if (navigable.active_document() != nullptr) {
+            navigable.active_document()->set_highlighted_node(nullptr, {});
         }
     }
 
@@ -2079,8 +2079,8 @@ void ConnectionFromClient::clear_flexbox_highlight(Web::PageId page_id, Web::Uni
     }
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->active_document())
-            navigable->active_document()->clear_flexbox_highlighted_node(nullptr);
+        if (navigable.active_document())
+            navigable.active_document()->clear_flexbox_highlighted_node(nullptr);
     }
 }
 
@@ -2117,8 +2117,8 @@ void ConnectionFromClient::clear_grid_highlight(Web::PageId page_id, Web::Unique
     }
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->active_document())
-            navigable->active_document()->clear_grid_highlighted_node(nullptr);
+        if (navigable.active_document())
+            navigable.active_document()->clear_grid_highlighted_node(nullptr);
     }
 }
 

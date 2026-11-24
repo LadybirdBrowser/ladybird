@@ -705,8 +705,8 @@ static void let_compositor_take_in_every_rendered_frame(HTML::Window& window)
 {
     auto& page = window.page();
     for (auto& navigable : HTML::all_local_navigables()) {
-        if (&navigable->page() == &page && !navigable->has_been_destroyed())
-            (void)navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
+        if (&navigable.page() == &page && !navigable.has_been_destroyed())
+            (void)navigable.take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
     }
     if (auto* compositor_context = compositor_context_routing_input_for(window))
         compositor_context->synchronize_for_testing();
@@ -1020,8 +1020,8 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
 
     GC::RootVector<GC::Ref<WebIDL::Promise>> scroll_promises;
     for (auto& navigable : HTML::all_local_navigables()) {
-        if (&navigable->page() == &page && !navigable->has_been_destroyed())
-            navigable->wait_for_wheel_scrolls(scroll_promises);
+        if (&navigable.page() == &page && !navigable.has_been_destroyed())
+            navigable.wait_for_wheel_scrolls(scroll_promises);
     }
     auto& realm = window().principal_realm();
     auto resolve = GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {

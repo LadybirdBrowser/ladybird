@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 
@@ -89,7 +89,6 @@ private:
     RemoteNavigable(GC::Ref<Page>, CrossProcessId, GC::Ptr<Navigable> parent, ReplicatedNavigableState);
 
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual void finalize() override;
 
     virtual WebIDL::ExceptionOr<void> continue_navigation_in_active_document_agent(PreparedNavigation) override;
 
@@ -109,7 +108,7 @@ private:
     bool m_has_been_destroyed { false };
 };
 
-WEB_API HashTable<GC::RawRef<RemoteNavigable>>& all_remote_navigables();
+WEB_API GC::WeakHashSet<RemoteNavigable>& all_remote_navigables();
 WEB_API GC::Ptr<RemoteNavigable> remote_navigable_with_id(Page const&, CrossProcessId);
 
 }

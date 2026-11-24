@@ -136,8 +136,8 @@ void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapsh
         return;
 
     // A document whose microphone permission went away loses its live microphone tracks.
-    for (auto navigable : HTML::all_local_navigables()) {
-        auto document = navigable->active_document();
+    for (auto& navigable : HTML::all_local_navigables()) {
+        auto document = navigable.active_document();
         if (!document || !document->window())
             continue;
         if (auto navigator = document->window()->navigator_if_created(); navigator) {

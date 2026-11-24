@@ -757,19 +757,19 @@ void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)
 void CompositorConnection::request_rendering_update()
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->is_local_root() && navigable->has_compositor_context())
-            navigable->page().client().request_frame();
+        if (navigable.is_local_root() && navigable.has_compositor_context())
+            navigable.page().client().request_frame();
     }
 }
 
 void CompositorConnection::rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds, double display_interval_milliseconds, Compositing::RenderingOpportunityFrameTime frame_time_kind)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (!navigable->is_local_root() || !navigable->has_compositor_context())
+        if (!navigable.is_local_root() || !navigable.has_compositor_context())
             continue;
-        if (navigable->compositor_context().id() != context_id)
+        if (navigable.compositor_context().id() != context_id)
             continue;
-        navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds, display_interval_milliseconds, frame_time_kind);
+        navigable.page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds, display_interval_milliseconds, frame_time_kind);
         return;
     }
 }
@@ -777,9 +777,9 @@ void CompositorConnection::rendering_opportunity(Web::CompositorContextId contex
 void CompositorConnection::animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (!navigable->has_compositor_context() || navigable->compositor_context().id() != context_id)
+        if (!navigable.has_compositor_context() || navigable.compositor_context().id() != context_id)
             continue;
-        navigable->event_handler().note_animated_content_moved_under_pointer(frame_time_nanoseconds);
+        navigable.event_handler().note_animated_content_moved_under_pointer(frame_time_nanoseconds);
         return;
     }
 }
@@ -789,7 +789,7 @@ void CompositorConnection::overlay_scrollbar_visibilities_changed(Vector<Web::Ov
     // Each scroller belongs to the active document of one of our navigables, which takes its scrollbar's visibility.
     for (auto const& visibility : visibilities) {
         for (auto& navigable : Web::HTML::all_local_navigables()) {
-            if (navigable->set_overlay_scrollbar_hidden(visibility.scroller_stable_node_id, visibility.vertical, visibility.hidden))
+            if (navigable.set_overlay_scrollbar_hidden(visibility.scroller_stable_node_id, visibility.vertical, visibility.hidden))
                 break;
         }
     }
@@ -823,7 +823,7 @@ void CompositorConnection::paint_contexts_for_screenshot(u64 preparation_id, Vec
     GC::RootVector<GC::Ref<Web::HTML::LocalNavigable>> navigables;
     for (auto context_id : context_ids.in_reverse()) {
         for (auto& navigable : Web::HTML::all_local_navigables()) {
-            if (navigable->has_been_destroyed() || !navigable->has_compositor_context() || navigable->compositor_context().id() != context_id)
+            if (navigable.has_been_destroyed() || !navigable.has_compositor_context() || navigable.compositor_context().id() != context_id)
                 continue;
             navigables.append(navigable);
             break;

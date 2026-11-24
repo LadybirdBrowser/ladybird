@@ -23,17 +23,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(RemoteNavigable);
 
-HashTable<GC::RawRef<RemoteNavigable>>& all_remote_navigables()
+GC::WeakHashSet<RemoteNavigable>& all_remote_navigables()
 {
     // NB: Worker agents have no navigables, and these are cells of the window agent's heap.
-    static thread_local NeverDestroyed<HashTable<GC::RawRef<RemoteNavigable>>> set;
+    static thread_local NeverDestroyed<GC::WeakHashSet<RemoteNavigable>> set;
     return *set;
 }
 
 GC::Ptr<RemoteNavigable> remote_navigable_with_id(Page const& page, CrossProcessId id)
 {
     for (auto& navigable : all_remote_navigables()) {
-        if (navigable->id() == id && &navigable->page() == &page)
+        if (navigable.id() == id && &navigable.page() == &page)
             return navigable;
     }
     return nullptr;
@@ -54,12 +54,6 @@ RemoteNavigable::RemoteNavigable(GC::Ref<Page> page, CrossProcessId id, GC::Ptr<
 }
 
 RemoteNavigable::~RemoteNavigable() = default;
-
-void RemoteNavigable::finalize()
-{
-    all_remote_navigables().remove(*this);
-    Base::finalize();
-}
 
 void RemoteNavigable::remove_from_all_remote_navigables()
 {

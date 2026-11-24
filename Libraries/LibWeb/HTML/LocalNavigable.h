@@ -21,6 +21,7 @@
 #include <LibCore/Forward.h>
 #include <LibCore/StatsLog.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -854,7 +855,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 };
 
-WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
+WEB_API GC::WeakHashSet<LocalNavigable>& all_local_navigables();
 WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
