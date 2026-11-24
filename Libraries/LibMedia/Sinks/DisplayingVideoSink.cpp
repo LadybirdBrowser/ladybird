@@ -262,7 +262,9 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             last_status = next.status;
             m_input_checkpoint = next.checkpoint;
             if (!is_terminal(last_status)) {
-                if (last_status == PipelineStatus::HaveData) {
+                // A passed frame stays on screen until the next one replaces it.
+                auto next_frame_is_due = last_status == PipelineStatus::HaveData && next.frame->timestamp() <= current_time;
+                if (next_frame_is_due) {
                     if (!m_seek_resolution_is_pending_frame_at_target) {
                         passed_frame_count++;
                         last_passed_frame_was_late = true;
@@ -273,7 +275,8 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
                     m_cached_frames_are_discontinuous = true;
                     continue;
                 }
-                break;
+                if (last_status != PipelineStatus::HaveData)
+                    break;
             }
         }
         m_current_frame = m_next_frame.release_nonnull();
