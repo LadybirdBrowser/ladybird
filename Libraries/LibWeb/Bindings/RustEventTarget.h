@@ -65,6 +65,11 @@ private:
 
     InterfaceName m_owner_interface_name { InterfaceName::Unknown };
     GC::Ptr<RustInterfaceCell> m_owner;
+
+    friend RustInterfaceCell* rust_event_owner(DOM::Event const&, InterfaceName);
 };
+
+// The object that owns the event, if the event is owned by an object of the interface.
+RustInterfaceCell* rust_event_owner(DOM::Event const&, InterfaceName);
 
 }

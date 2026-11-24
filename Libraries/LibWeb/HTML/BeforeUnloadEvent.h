@@ -6,29 +6,26 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class BeforeUnloadEvent final : public DOM::Event {
-    WEB_WRAPPABLE(BeforeUnloadEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
+// The Event of a new trusted BeforeUnloadEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_before_unload_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&);
 
-public:
-    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(Utf16FlyString const& event_name, DOM::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+// The Event of a new BeforeUnloadEvent in the realm whose type is the empty string, for createEvent().
+GC::Ref<DOM::Event> create_before_unload_event(JS::Realm&);
 
-    virtual ~BeforeUnloadEvent() override;
+// The returnValue of the event, if it is a BeforeUnloadEvent.
+Optional<Utf16String> before_unload_event_return_value(DOM::Event const&);
 
-    Utf16String const& return_value() const { return m_return_value; }
-    void set_return_value(Utf16String return_value) { m_return_value = move(return_value); }
-
-private:
-    BeforeUnloadEvent(Utf16FlyString const& event_name, DOM::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    Utf16String m_return_value;
-};
+// Sets the returnValue of the event, which is a BeforeUnloadEvent.
+void set_before_unload_event_return_value(DOM::Event&, Utf16String const&);
 
 }

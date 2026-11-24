@@ -3938,7 +3938,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
     if (interface.equals_ignoring_ascii_case("beforeunloadevent"sv)) {
-        event = HTML::BeforeUnloadEvent::create(Utf16FlyString {}, {}, time_stamp);
+        event = HTML::create_before_unload_event(realm);
     } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
         event = UIEvents::CompositionEvent::create(String {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
@@ -11550,8 +11550,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
     // 4. Let eventFiringResult be the result of firing an event named beforeunload at document's relevant global object,
     //    using BeforeUnloadEvent, with the cancelable attribute initialized to true.
     auto& window = HTML::relevant_window(*this);
-    auto beforeunload_event = HTML::BeforeUnloadEvent::create(HTML::EventNames::beforeunload, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-    beforeunload_event->set_cancelable(true);
+    auto beforeunload_event = HTML::create_before_unload_event(HTML::relevant_realm(*this), HTML::EventNames::beforeunload, { .cancelable = true });
     auto event_firing_result = window.dispatch_event(*beforeunload_event);
 
     // 5. Decrease document's relevant agent's event loop's termination nesting level by 1.
@@ -11566,7 +11565,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
         //    - document's relevant global object has sticky activation;
         && window.has_sticky_activation()
         //    - eventFiringResult is false, or the returnValue attribute of event is not the empty string; and
-        && (!event_firing_result || !beforeunload_event->return_value().is_empty())
+        && (!event_firing_result || !HTML::before_unload_event_return_value(*beforeunload_event)->is_empty())
         //    - showing an unload prompt is unlikely to be annoying, deceptive, or pointless,
         && showing_an_unload_prompt_is_unlikely_to_be_annoying_deceptive_or_pointless()) {
         // 1. Set unloadPromptShown to true.

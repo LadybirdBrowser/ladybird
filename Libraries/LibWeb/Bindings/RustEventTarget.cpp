@@ -95,6 +95,16 @@ void RustEvent::visit_edges(Visitor& visitor)
     visitor.visit(m_owner);
 }
 
+RustInterfaceCell* rust_event_owner(DOM::Event const& event, InterfaceName interface_name)
+{
+    if (!event.is_owned_by_rust_interface_object())
+        return nullptr;
+    auto const& rust_event = static_cast<RustEvent const&>(event);
+    if (rust_event.m_owner_interface_name != interface_name)
+        return nullptr;
+    return rust_event.m_owner.ptr();
+}
+
 }
 
 using namespace Web;
