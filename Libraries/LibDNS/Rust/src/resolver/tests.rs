@@ -899,3 +899,22 @@ fn queries_for_names_that_differ_only_in_label_boundaries_are_kept_apart() {
     harness.drain();
     assert_eq!(harness.take_writes().len(), 2);
 }
+
+#[test]
+fn zero_ttl_answers_are_not_served_from_the_cache() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    let response = respond(&query, |response| {
+        for answer in &mut response.answers {
+            answer.ttl = 0;
+        }
+    });
+    harness.receive(connection, &response);
+    assert_eq!(harness.addresses(lookup), vec![IpAddr::V4(A_ADDRESS)]);
+
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert_eq!(harness.take_writes().len(), 1);
+}
