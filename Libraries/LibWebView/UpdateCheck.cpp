@@ -370,6 +370,7 @@ AK::Duration time_until_next_update_check(UnixDateTime last_check, UnixDateTime 
 }
 
 struct CountedPeriods {
+    bool _new { false };
     bool day { false };
     bool week { false };
     bool month { false };
@@ -458,6 +459,8 @@ static ByteString update_check_header(SystemDescription const& system, StringVie
         append_member(builder, "arch"sv, "aarch64"sv);
 
     append_member(builder, "pkg"sv, install_method_name(system.install_method));
+    if (counted._new)
+        append_member(builder, "new"sv, {});
     if (counted.day)
         append_member(builder, "daily"sv, {});
     if (counted.week)
@@ -611,13 +614,13 @@ void UpdateChecker::check(UpdateCheckTrigger trigger)
     }
 
     // The first check of each day, week and month counts this installation once for it, and the very first check counts
-    // it for all three.
+    // it for all three and marks the installation as new.
     CountedPeriods counted;
     if (BROWSER_IS_RELEASE_BUILD) {
         if (auto previous_check = last_check(); previous_check.has_value())
             counted = periods_begun_since(*previous_check, m_check_started);
         else
-            counted = { .day = true, .week = true, .month = true };
+            counted = { ._new = true, .day = true, .week = true, .month = true };
     }
 
     auto headers = HTTP::HeaderList::create();
