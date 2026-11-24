@@ -24,7 +24,7 @@ namespace IPC {
 ErrorOr<NonnullOwnPtr<Transport>> take_over_startup_transport(StringView mach_server_name)
 {
     auto ports = TRY(bootstrap_transport_from_mach_server(mach_server_name));
-    return make<Transport>(move(ports.receive_right), move(ports.send_right));
+    return Transport::create(move(ports.receive_right), move(ports.send_right));
 }
 
 #else

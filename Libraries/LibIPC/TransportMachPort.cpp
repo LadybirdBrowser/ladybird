@@ -26,9 +26,20 @@ ErrorOr<TransportMachPort::Paired> TransportMachPort::create_paired()
     raise_receive_queue_limit(port_b_recv);
 
     return Paired {
-        make<TransportMachPort>(move(port_a_recv), move(port_b_send)),
+        TRY(create(move(port_a_recv), move(port_b_send))),
         TransportHandle { move(port_b_recv), move(port_a_send) },
     };
+}
+
+ErrorOr<NonnullOwnPtr<TransportMachPort>> TransportMachPort::create(Core::MachPort receive_right, Core::MachPort send_right)
+{
+    // NB: The transport has the pipe from the start, so that what arrives before set_up_read_hook() still leaves a byte
+    //     in it.
+    auto fds = TRY(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
+    auto notify_hook_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
+    auto* transport = FFI::ipc_mach_transport_create(receive_right.release(), send_right.release(), fds[1]);
+    VERIFY(transport);
+    return adopt_own(*new TransportMachPort(transport, move(notify_hook_read_fd)));
 }
 
 void TransportMachPort::raise_receive_queue_limit(Core::MachPort const& receive_right)
@@ -36,14 +47,10 @@ void TransportMachPort::raise_receive_queue_limit(Core::MachPort const& receive_
     FFI::ipc_mach_raise_receive_queue_limit(receive_right.port());
 }
 
-TransportMachPort::TransportMachPort(Core::MachPort receive_right, Core::MachPort send_right)
+TransportMachPort::TransportMachPort(FFI::MachTransport* transport, NonnullRefPtr<AutoCloseFileDescriptor> notify_hook_read_fd)
+    : m_transport(transport)
+    , m_notify_hook_read_fd(move(notify_hook_read_fd))
 {
-    // NB: The transport has the pipe from the start, so that what arrives before set_up_read_hook() still leaves a byte
-    //     in it.
-    auto fds = MUST(Core::System::pipe2(O_CLOEXEC | O_NONBLOCK));
-    m_notify_hook_read_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[0]));
-    m_transport = FFI::ipc_mach_transport_create(receive_right.release(), send_right.release(), fds[1]);
-    VERIFY(m_transport);
 }
 
 TransportMachPort::~TransportMachPort()

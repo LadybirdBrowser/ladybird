@@ -49,10 +49,10 @@ public:
         TransportHandle remote_handle;
     };
     static ErrorOr<Paired> create_paired();
+    static ErrorOr<NonnullOwnPtr<TransportMachPort>> create(Core::MachPort receive_right, Core::MachPort send_right);
 
     static void raise_receive_queue_limit(Core::MachPort const&);
 
-    TransportMachPort(Core::MachPort receive_right, Core::MachPort send_right);
     ~TransportMachPort();
 
     void set_up_read_hook(Function<void()>);
@@ -97,6 +97,8 @@ public:
     ErrorOr<TransportHandle> release_for_transfer();
 
 private:
+    TransportMachPort(FFI::MachTransport*, NonnullRefPtr<AutoCloseFileDescriptor> notify_hook_read_fd);
+
     FFI::MachTransport* m_transport { nullptr };
 
     RefPtr<AutoCloseFileDescriptor> m_notify_hook_read_fd;

@@ -422,7 +422,7 @@ ErrorOr<BrowserProcess::HandoverResult> BrowserProcess::connect_as_client(pid_t 
     if (transport_ports.is_error())
         return HandoverResult { process_is_gone(pid) ? Handover::BrowserIsGone : Handover::BrowserIsUnresponsive, pid };
 
-    auto client = UIProcessClient::construct(make<IPC::Transport>(move(transport_ports.value().receive_right), move(transport_ports.value().send_right)));
+    auto client = UIProcessClient::construct(TRY(IPC::Transport::create(move(transport_ports.value().receive_right), move(transport_ports.value().send_right))));
     return HandoverResult { hand_over(*client, raw_urls, new_window, handover_timeout), pid };
 }
 #else

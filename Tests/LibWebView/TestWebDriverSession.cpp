@@ -58,7 +58,7 @@ struct SessionTest {
             if (connect_browser) {
 #if defined(AK_OS_MACOS)
                 auto ports = TRY(IPC::bootstrap_transport_from_mach_server(endpoint));
-                browser_transport = make<IPC::Transport>(move(ports.receive_right), move(ports.send_right));
+                browser_transport = TRY(IPC::Transport::create(move(ports.receive_right), move(ports.send_right)));
 #else
                 browser_transport = TRY(IPC::Transport::from_socket(TRY(Core::LocalSocket::connect(endpoint))));
 #endif

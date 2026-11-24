@@ -57,7 +57,7 @@ ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
     VERIFY(MACH_PORT_VALID(m_receive_right.port()));
     VERIFY(m_send_right.port() != MACH_PORT_NULL);
-    return make<Transport>(move(m_receive_right), move(m_send_right));
+    return Transport::create(move(m_receive_right), move(m_send_right));
 }
 
 ErrorOr<TransportHandlePair> TransportHandle::create_pair()
