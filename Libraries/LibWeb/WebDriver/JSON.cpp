@@ -12,6 +12,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibGC/RootHashTable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
@@ -54,7 +55,7 @@ namespace Web::WebDriver {
         _temporary_result.release_value();                                                                \
     })
 
-using SeenMap = HashTable<GC::RawPtr<JS::Object const>>;
+using SeenMap = GC::RootHashTable<GC::Ref<JS::Object const>>;
 
 static DOM::Element const* web_driver_element_from_object(JS::Object const& object)
 {
