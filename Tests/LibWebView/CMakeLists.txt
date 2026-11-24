@@ -162,6 +162,7 @@ if (NOT WIN32)
         TestFavicon.cpp
         TestFileDownloader.cpp
         TestFocusWithoutSystemFocus.cpp
+        TestFormValidationMessage.cpp
         TestGamepadExposure.cpp
         TestImageDecoderIsolation.cpp
         TestInputMethodState.cpp

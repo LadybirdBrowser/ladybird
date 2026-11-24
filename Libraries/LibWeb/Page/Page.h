@@ -994,6 +994,7 @@ public:
     virtual void page_did_request_color_picker([[maybe_unused]] Color current_color) { }
     virtual void page_did_request_date_picker([[maybe_unused]] Utf16String input_type, [[maybe_unused]] Utf16String value, [[maybe_unused]] Utf16String minimum, [[maybe_unused]] Utf16String maximum) { }
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) { }
+    virtual void page_did_show_validation_message(HTML::CrossProcessId, CSSPixelPoint, Utf16String) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] HTML::CrossProcessId local_root_id, [[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
     virtual void page_did_request_geolocation_position([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId requesting_document_id) { }
     virtual void page_did_cancel_geolocation_position_request([[maybe_unused]] u64 request_id) { }

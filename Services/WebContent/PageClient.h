@@ -375,6 +375,7 @@ private:
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_date_picker(Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
+    virtual void page_did_show_validation_message(Web::HTML::CrossProcessId, Web::CSSPixelPoint, Utf16String) override;
     virtual void page_did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void page_did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId requesting_document_id) override;
     virtual void page_did_cancel_geolocation_position_request(u64 request_id) override;

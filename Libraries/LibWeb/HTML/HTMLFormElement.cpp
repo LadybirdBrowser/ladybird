@@ -702,18 +702,9 @@ bool HTMLFormElement::interactively_validate_constraints()
     //     - User agents may report more than one constraint violation.
     //     - User agents may coalesce related constraint violation reports if appropriate (e.g. if multiple radio buttons in a group are marked as required, only one error need be reported).
     //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set), then user agents may report a script error.
-    // FIXME: Does this align with other browsers?
-    auto first_invalid_control = unhandled_invalid_controls.first_matching([](auto control) {
-        return control->check_visibility({});
-    });
-    if (first_invalid_control.has_value()) {
-        auto control = first_invalid_control.release_value();
-        run_focusing_steps(control);
-        DOM::Element::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
-        scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
-        control->scroll_into_view(scroll_options, nullptr);
+    for (auto& control : unhandled_invalid_controls) {
+        if (as<FormAssociatedElement>(*control).show_validation_message())
+            break;
     }
 
     // 4. Return a negative result.
