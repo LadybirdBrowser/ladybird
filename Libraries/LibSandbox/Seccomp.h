@@ -58,6 +58,7 @@ private:
 
     Vector<sock_filter> m_filter;
     bool m_sends_paths_to_file_broker { false };
+    bool m_emulates_tkill { false };
 };
 
 }

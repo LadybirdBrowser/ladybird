@@ -269,6 +269,88 @@ TEST_CASE(runtime_policy_allows_thread_self_signals)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+#ifdef __NR_tkill
+static Atomic<int> s_signals_received;
+
+TEST_CASE(runtime_policy_sends_tkill_only_within_the_process)
+{
+    // A process outside the sandbox, whose ID is also its main thread's ID.
+    auto outsider = fork();
+    VERIFY(outsider >= 0);
+    if (outsider == 0) {
+        pause();
+        _exit(0);
+    }
+
+    auto body = [&] {
+        VERIFY(signal(SIGUSR1, [](int) { s_signals_received++; }) != SIG_ERR);
+        pthread_t thread;
+        VERIFY(pthread_create(&thread, nullptr, [](void*) -> void* {
+            VERIFY(syscall(__NR_tkill, gettid(), SIGUSR1) == 0);
+            return nullptr; }, nullptr) == 0);
+        VERIFY(pthread_join(thread, nullptr) == 0);
+        VERIFY(s_signals_received == 1);
+
+#    if !defined(AK_LIBC_GLIBC)
+        // musl's raise() makes its tkill() with every signal blocked, SIGSYS included.
+        sigset_t all_signals;
+        sigfillset(&all_signals);
+        VERIFY(pthread_sigmask(SIG_BLOCK, &all_signals, nullptr) == 0);
+        VERIFY(syscall(__NR_tkill, gettid(), SIGUSR1) == 0);
+        VERIFY(pthread_sigmask(SIG_UNBLOCK, &all_signals, nullptr) == 0);
+        VERIFY(s_signals_received == 2);
+#    endif
+
+        VERIFY(syscall(__NR_tkill, outsider, SIGKILL) == -1);
+        VERIFY(errno == ESRCH);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    int outsider_status = 0;
+    EXPECT_EQ(waitpid(outsider, &outsider_status, WNOHANG), 0);
+    VERIFY(kill(outsider, SIGKILL) == 0);
+    VERIFY(waitpid(outsider, &outsider_status, 0) == outsider);
+}
+#endif
+
+#ifdef __NR_tkill
+static Atomic<int> s_signals_received_with_the_signal_policy_alone;
+
+TEST_CASE(signal_policy_alone_sends_tkill_within_the_process)
+{
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        rlimit limit { 0, 0 };
+        setrlimit(RLIMIT_CORE, &limit);
+        // A forked child's only thread has the process's ID as its thread ID.
+        auto tid = getpid();
+        MUST(Sandbox::install_no_new_privileges());
+        Sandbox::SeccompPolicy policy;
+        policy.allow_signals();
+        policy.allow_exit();
+        MUST(policy.install());
+
+        VERIFY(signal(SIGUSR1, [](int) { s_signals_received_with_the_signal_policy_alone++; }) != SIG_ERR);
+        VERIFY(syscall(__NR_tkill, tid, SIGUSR1) == 0);
+        VERIFY(s_signals_received_with_the_signal_policy_alone == 1);
+
+        // The crash handler re-raises a fatal signal at the thread it found with gettid().
+        VERIFY(syscall(__NR_gettid) == tid);
+        _exit(0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+#endif
+
 TEST_CASE(runtime_policy_limits_prctl_operations)
 {
     auto body = [] {

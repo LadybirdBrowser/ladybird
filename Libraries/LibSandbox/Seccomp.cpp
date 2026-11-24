@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/Platform.h>
 #include <LibCore/CrashHandler.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibSandbox/ControlMessages.h>
@@ -56,6 +57,7 @@ static constexpr u16 broker_socket_trap = 2;
 static constexpr u16 broker_connect_trap = 3;
 static constexpr u16 file_broker_trap = 4;
 static constexpr u16 signal_mask_trap = 5;
+static constexpr u16 emulate_tkill_trap = 6;
 // A refusal for a system call that the file system filter sends to the broker. The policy can't refuse it with an errno,
 // because the kernel takes the filter's trap over that, so it traps too, with the errno added to this.
 static constexpr u16 refused_path_syscall_trap = 0x1000;
@@ -1234,6 +1236,20 @@ static void set_syscall_result(SyscallRegisters const& registers, i64 result)
     *registers.result = static_cast<FlatPtr>(result);
 }
 
+#ifdef __NR_tkill
+// musl's raise(), abort(), and pthread_kill() signal a thread with tkill(), which names just a thread ID, where glibc's
+// name the thread group too, with tgkill(). A thread ID alone could be another process's, so the filter can't allow
+// tkill() outright. Instead, it's sent as a tgkill() within this process, which the filter allows.
+static void emulate_tkill(void* context)
+{
+    auto registers = syscall_registers(context);
+    auto saved_errno = errno;
+    auto result = syscall(__NR_tgkill, getpid(), registers.arguments[0], registers.arguments[1]);
+    set_syscall_result(registers, result < 0 ? -errno : result);
+    errno = saved_errno;
+}
+#endif
+
 #if defined(__NR_newfstatat) && defined(__NR_fstat)
 static void emulate_fstatat(void* context)
 {
@@ -1853,6 +1869,12 @@ NO_SANITIZE_ADDRESS static void handle_sigsys(int, siginfo_t* info, void* contex
 #if defined(__NR_newfstatat) && defined(__NR_fstat)
         if (info->si_syscall == __NR_newfstatat && info->si_errno == emulate_fstatat_trap) {
             emulate_fstatat(context);
+            return;
+        }
+#endif
+#ifdef __NR_tkill
+        if (info->si_syscall == __NR_tkill && info->si_errno == emulate_tkill_trap) {
+            emulate_tkill(context);
             return;
         }
 #endif
@@ -2738,6 +2760,15 @@ void SeccompPolicy::allow_signals()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
+#ifdef __NR_tkill
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_tkill, 0, 1));
+    append(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP | emulate_tkill_trap));
+    m_emulates_tkill = true;
+#endif
+    // The tkill() emulation names this process with getpid(), and the crash handler re-raises a fatal signal at this
+    // thread with getpid() and gettid().
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpid);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, gettid);
 }
 
 void SeccompPolicy::allow_clocks()
@@ -2943,9 +2974,15 @@ ErrorOr<void> SeccompPolicy::install()
 
     // A logged refusal traps, and the kernel kills a process for a trap that arrives while SIGSYS is blocked, as it is
     // in glibc's pthread_create(). The file broker's filter keeps SIGSYS out of every mask, so without the broker this
-    // policy has to, ahead of any group that allows rt_sigprocmask.
+    // policy has to, ahead of any group that allows rt_sigprocmask. Outside glibc, the tkill() that the signal policy
+    // traps arrives with every signal blocked, from musl's raise(), abort(), and pthread_kill().
+#if defined(AK_LIBC_GLIBC)
+    bool const keeps_sigsys_unblocked = sandbox_debugging_is_enabled();
+#else
+    bool const keeps_sigsys_unblocked = sandbox_debugging_is_enabled() || m_emulates_tkill;
+#endif
 #ifdef __NR_rt_sigprocmask
-    if (sandbox_debugging_is_enabled() && !file_broker_is_active()) {
+    if (keeps_sigsys_unblocked && !file_broker_is_active()) {
         static constexpr size_t after_the_syscall_number_load = 4;
         VERIFY(m_filter[after_the_syscall_number_load - 1].k == offsetof(seccomp_data, nr));
         sock_filter const keep_sigsys_unblocked[] = {
