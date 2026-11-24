@@ -1,0 +1,11 @@
+Ladybird now turns the glyphs of sideways-lr text a quarter turn
+counterclockwise, from the bottom-left corner of their fragment. Run in
+Chrome 158, Firefox 151 and WebKit 26.5, all three draw sideways-lr text
+reading bottom to top with the glyphs’ tops facing left, as Ladybird now
+does, and WPT’s sideways-inline-001 and text-shadow-sideways-001 now
+pass. Blink’s LineRelativeRect::ComputeRelativeToPhysicalTransform()
+maps line-relative coordinates to physical ones with a counterclockwise
+turn for kSidewaysLr, and a clockwise one for the other vertical modes,
+for the text and its decorations alike; Gecko marks such a text run
+IsSidewaysLeft(), and nsTextFrame passes sidewaysLeft to the painter,
+which turns it the same way.
