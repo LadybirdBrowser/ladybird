@@ -1,0 +1,11 @@
+(module
+  (import "env" "memory" (memory 1 4 shared))
+  (func (export "load") (param i32) (result i32) (i32.load (local.get 0)))
+  (func (export "atomicLoad") (param i32) (result i32) (i32.atomic.load (local.get 0)))
+  (func (export "atomicStore") (param i32 i32) (i32.atomic.store (local.get 0) (local.get 1)))
+  (func (export "size") (result i32) (memory.size))
+  (func (export "grow") (param i32) (result i32) (memory.grow (local.get 0)))
+  (func (export "fill") (param i32 i32 i32) (memory.fill (local.get 0) (local.get 1) (local.get 2)))
+  (func (export "wait") (param i32 i32) (result i32)
+    (memory.atomic.wait32 (local.get 0) (local.get 1) (i64.const -1)))
+  (func (export "notify") (param i32 i32) (result i32) (memory.atomic.notify (local.get 0) (local.get 1))))

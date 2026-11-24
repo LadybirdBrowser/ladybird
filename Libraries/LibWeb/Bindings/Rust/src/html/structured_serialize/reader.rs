@@ -32,6 +32,7 @@ use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::serializable::{
     is_ipc_interface, serializable_interface_name_from_storage_identifier,
 };
+use crate::web_assembly::memory::buffer_of_shared_memory;
 
 /// Where the record keeps the SharedArrayBuffers that it shares.
 #[derive(Clone, Copy)]
@@ -203,6 +204,20 @@ impl<'a> StructuredSerializeReader<'a> {
         Ok(Value::from_object(ArrayBuffer::create_from_shared_store(
             vm, self.realm, store,
         )))
+    }
+
+    /// A new SharedArrayBuffer of the shared WebAssembly memory that `id` names: a fixed-length one of the byte length,
+    /// or a growable one without. A memory is only found in the process of the agent that sent the message, as its
+    /// bytes do not leave that process.
+    pub(crate) fn array_buffer_of_web_assembly_memory(
+        &self,
+        vm: &Vm,
+        id: u64,
+        fixed_byte_length: Option<usize>,
+    ) -> WebIdlResult<Value> {
+        buffer_of_shared_memory(vm, self.realm, id, fixed_byte_length)
+            .map(Value::from_object)
+            .ok_or_else(|| data_clone_error_from_serialization_error(self.realm, "SharedArrayBuffer is out of reach"))
     }
 
     /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-agent side

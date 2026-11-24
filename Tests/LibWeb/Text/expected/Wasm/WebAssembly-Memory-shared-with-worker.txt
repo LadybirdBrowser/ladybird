@@ -1,0 +1,35 @@
+memory that is not shared: DataCloneError
+worker instantiated with: true, true, 65536, true
+worker loads what the window stored: 0x12345678
+window loads what the worker stored: 0xbadf00d
+window loads past the end: RuntimeError
+worker grew from pages: 1
+window sees pages: 2
+first buffer keeps its length: true
+new buffer in the window: true, 2 pages, frozen true
+buffer stays the same until the next grow: true
+worker loads from the new page: 0x7070707
+window grew from pages: 2
+worker sees pages: 3
+worker buffer byte length in pages: 3
+worker loads past the end: RuntimeError
+worker fills past the end: RuntimeError
+worker grew from JavaScript from pages: 3
+window sees pages: 4, 4
+worker cannot grow past the maximum: -1
+a second message is another Memory object of the same memory: false, 99
+window sees the store through it: 99
+structuredClone: true, true, 77
+structuredClone of a growable buffer grows the memory: 2, 2
+worker receives the fixed-length buffer: true, 262144, false, , 55, false
+worker receives the growable buffer: true, 65536, true, 196608, 0, false
+its byte length in pages once the window grew the memory: 2
+worker grows it by less than a page: RangeError
+worker grows it to pages: 3
+window sees pages: 3, true
+worker grows it to the pages it has: 3
+worker receives the memory with a growable buffer: true, 196608, 196608
+worker blocked in a wait until notified: 0, 1
+worker woke up with: 42
+memory of the worker: true, 1 pages, 123
+memory of the worker after it ended: 1, 123

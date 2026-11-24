@@ -22,7 +22,7 @@ use std::collections::VecDeque;
 
 use ak::Utf16String;
 use libipc_rust::{Decode, DecodeError, Decoder, Encode};
-use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Value, Vm};
+use libjs_rust::api::{ArrayBuffer, Gc, MarkedVec, Object, Realm, Value, Vm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
@@ -59,6 +59,11 @@ impl<'a, 'memory> SerializationWriter<'a, 'memory> {
     /// https://html.spec.whatwg.org/multipage/structured-data.html#sub-serialization
     pub(crate) fn write_value(&mut self, value: Value) -> WebIdlResult<()> {
         self.serializer.serialize(value)
+    }
+
+    /// Writes the record of the shared WebAssembly memory that `id` names, and that `buffer` is a buffer of.
+    pub(crate) fn write_shared_web_assembly_memory(&mut self, id: u64, buffer: Gc<ArrayBuffer>) -> WebIdlResult<()> {
+        self.serializer.serialize_shared_web_assembly_memory(id, buffer)
     }
 
     pub(crate) fn write_u8(&mut self, value: u8) {
@@ -139,6 +144,12 @@ impl<'a, 'memory> SerializationReader<'a, 'memory> {
     /// https://html.spec.whatwg.org/multipage/structured-data.html#sub-deserialization
     pub(crate) fn read_value(&mut self) -> WebIdlResult<Value> {
         self.deserializer.deserialize()
+    }
+
+    /// The id of the shared WebAssembly memory of a record, which the realm may have the memory of.
+    pub(crate) fn read_shared_web_assembly_memory_id(&mut self) -> WebIdlResult<u64> {
+        self.deserializer.deserialize_agent_cluster()?;
+        self.read_u64()
     }
 
     /// Whether the record is one for storage, rather than for IPC.

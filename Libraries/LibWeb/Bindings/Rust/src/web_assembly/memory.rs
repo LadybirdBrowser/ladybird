@@ -15,6 +15,9 @@
 //! address".
 
 use core::ptr::NonNull;
+use std::sync::Arc;
+
+use ak::Utf16String;
 
 use libjs_rust::api::{
     ArrayBuffer, ArrayBufferShared, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, ForeignCellSlot, Gc,
@@ -22,10 +25,11 @@ use libjs_rust::api::{
     Trace, Value, Vm, detach_array_buffer, same_value,
 };
 use libwasm_engine::runtime::MemoryAddress;
-use libwasm_engine::runtime::memory::MemoryInstance;
+use libwasm_engine::runtime::memory::{MemoryInstance, SharedMemory};
 use libwasm_engine::types::{AddressType, Limits, MemoryType};
 
 use crate::bindings::interface::{Ref, Wrappable, allocate, cell_if_abi};
+use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::web_assembly::{Agent, EntityRef, PAGE_SIZE, host_object, set_host_object};
 
@@ -127,6 +131,13 @@ impl Memory {
 
     pub(crate) fn address(&self) -> MemoryAddress {
         self.address.0
+    }
+
+    /// A new Memory object of the surrounding agent for a shared memory, which another agent may have created. The
+    /// agents share the bytes of the memory and its size, and each of them has Memory objects of its own for it.
+    fn sharing(vm: &Vm, shared: Arc<SharedMemory>) -> Ref<Self> {
+        let memory = Agent::the(vm).store().allocate_memory_sharing(shared);
+        Self::initialize(vm, memory)
     }
 
     fn size(&self, vm: &Vm) -> usize {
@@ -356,7 +367,7 @@ impl Memory {
         //        1. Let maxsize be the max value in memtype.
         // 7. Otherwise,
         //        1. Let maxsize be 65536 x 65536.
-        let max_size = maximum.unwrap_or(65536) * PAGE_SIZE;
+        let max_size = max_size_of_memory_buffer(maximum);
 
         // 8. Let resizableBuffer be the result of creating a resizable memory buffer from memaddr and maxsize.
         let resizable_buffer = Self::create_a_resizable_memory_buffer(*this, vm, realm, max_size)?;
@@ -581,6 +592,125 @@ pub extern "C" fn web_rust_web_assembly_host_grow_shared_array_buffer(
         *handled = was_handled;
     }
     RawNativeFunctionResult::from_completion(result.map(|_| Value::UNDEFINED))
+}
+
+/// The maxsize of a memory buffer: that of a memory type with the maximum, or 65536 × 65536 without one.
+fn max_size_of_memory_buffer(maximum: Option<u64>) -> u64 {
+    maximum.unwrap_or(65536).saturating_mul(PAGE_SIZE)
+}
+
+/// The shared memory that the SharedArrayBuffer is a buffer of, if it is one of a memory. That is so for the
+/// [[BufferObject]] of a Memory object, and for every clone of one that shares its Data Block.
+pub(crate) fn shared_memory_of_buffer(buffer: Gc<ArrayBuffer>) -> Option<Arc<SharedMemory>> {
+    if !buffer.is_shared_array_buffer() {
+        return None;
+    }
+    let handle = buffer.with_data_block(|block| match &block.byte_buffer {
+        DataBlockStorage::External(storage) => Some(storage.handle()),
+        _ => None,
+    })?;
+    SharedMemory::with_primitive_storage_handle(handle)
+}
+
+/// A new SharedArrayBuffer of the realm for the shared memory that `id` names, which the message of another agent
+/// carries. A fixed-length buffer has the byte length that the buffer of the sender had, and a growable one has the size
+/// of the memory, which it grows. Returns None for a memory that is out of reach, as that of another process is, or one
+/// that is smaller than the buffer.
+pub(crate) fn buffer_of_shared_memory(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    id: u64,
+    fixed_byte_length: Option<usize>,
+) -> Option<Gc<ArrayBuffer>> {
+    let shared = SharedMemory::with_id(id)?;
+    let maximum = shared.ty().limits.max;
+    // NB: The Memory object owns the storage of the buffer, and is how the agent grows the memory of a growable one.
+    let memory = Memory::sharing(vm, shared);
+    let Some(byte_length) = fixed_byte_length else {
+        let max_size = max_size_of_memory_buffer(maximum);
+        if max_size > 65536 * PAGE_SIZE {
+            return None;
+        }
+        // NB: The buffer is the [[BufferObject]] of the Memory object, as a resizable memory buffer is, so that the
+        //     agent grows the memory through it. Unlike one, it is not frozen: a deserialization creates an ordinary
+        //     SharedArrayBuffer.
+        let block = DataBlock::external(Memory::external_storage(memory, vm, false), ArrayBufferShared::Yes);
+        let buffer = ArrayBuffer::create_from_data_block(vm, realm, block);
+        buffer.set_max_byte_length(max_size as usize);
+        buffer.set_detach_key(detach_key(vm));
+        memory.set_buffer_object(vm, buffer);
+        return Some(buffer);
+    };
+    // NB: A memory only grows, so it holds every byte of a buffer that an agent had of it.
+    if byte_length > memory.size(vm) {
+        return None;
+    }
+    let owner = ForeignCellSlot::empty();
+    // SAFETY: The memory object is a live cell of the heap, which the slot then keeps alive.
+    unsafe { owner.set(Some(NonNull::new_unchecked(memory.as_ptr().cast()))) };
+    let handle = Agent::the(vm)
+        .store()
+        .memory(memory.address())
+        .primitive_storage_handle();
+    let storage = ExternalPrimitiveStorage::new(owner, handle, Some(byte_length));
+    Some(ArrayBuffer::create_from_data_block(
+        vm,
+        realm,
+        DataBlock::external(storage, ArrayBufferShared::Yes),
+    ))
+}
+
+impl Serializable for Memory {
+    // INTEROP: No specification has steps to serialize a Memory object yet, but all engines serialize a shared one, and
+    //          web-platform-tests cover it. A shared memory serializes as a record that names it, which keeps the
+    //          memory within its agent cluster and requires the cross-origin isolated capability, as the record of a
+    //          SharedArrayBuffer does. A memory that is not shared cannot be serialized.
+    fn serialization_steps(
+        &self,
+        cx: &mut CallContext,
+        serialized: &mut SerializationWriter,
+        for_storage: bool,
+    ) -> WebIdlResult<()> {
+        let vm = cx.vm();
+        let Some(shared) = Agent::the(vm).store().memory(self.address()).shared().cloned() else {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_utf8("Cannot serialize a WebAssembly.Memory that is not shared"),
+            ));
+        };
+        if for_storage {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_utf8("WebAssembly.Memory instances may not be serialized for storage"),
+            ));
+        }
+        let this: Ref<Self> = host_object(self.address().cell()).expect("the memory has a Memory object");
+        let buffer = Self::buffer_object(this, vm, cx.realm());
+        serialized.write_shared_web_assembly_memory(shared.id(), buffer)?;
+        // NB: The buffer of the new Memory object is of the kind that the buffer of this one is.
+        serialized.write_bool(buffer.is_fixed_length());
+        Ok(())
+    }
+
+    // INTEROP: See the serialization steps. Each deserialization creates a new Memory object for the memory.
+    fn deserialization_steps(cx: &mut CallContext, serialized: &mut SerializationReader) -> WebIdlResult<Ref<Self>> {
+        let id = serialized.read_shared_web_assembly_memory_id()?;
+        let has_fixed_length_buffer = serialized.read_bool()?;
+        // NB: The memory of another process is out of reach, as its bytes do not leave that process.
+        let Some(shared) = SharedMemory::with_id(id) else {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_utf8("WebAssembly.Memory is out of reach"),
+            ));
+        };
+        let max_size = max_size_of_memory_buffer(shared.ty().limits.max);
+        let memory = Self::sharing(cx.vm(), shared);
+        if !has_fixed_length_buffer {
+            let buffer = Self::create_a_resizable_memory_buffer(memory, cx.vm(), cx.realm(), max_size)?;
+            memory.set_buffer_object(cx.vm(), buffer);
+        }
+        Ok(memory)
+    }
 }
 
 impl Memory {

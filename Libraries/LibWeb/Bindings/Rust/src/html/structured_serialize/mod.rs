@@ -410,6 +410,17 @@ impl AllowSharedArrayBuffers {
     }
 }
 
+/// Where the record of a fixed-length SharedArrayBuffer has its [[ArrayBufferData]].
+#[repr(u8)]
+enum SharedBytes {
+    /// A copy in the record, which a receiver uses that cannot share the bytes of the buffer.
+    Copied = 0,
+    /// In the store that the record names.
+    InStore = 1,
+    /// In the shared WebAssembly memory that the record names.
+    OfWebAssemblyMemory = 2,
+}
+
 // The [[AgentCluster]] of a shared buffer's record: the surrounding agent's agent cluster, which deserialization holds
 // the target realm's against — so the buffer never leaves the cluster it was created in. A SameAgentAlways clone never
 // leaves its agent, and names no cluster.
@@ -432,6 +443,19 @@ fn serialize_agent_cluster(
     Ok(())
 }
 
+fn throw_unless_shared_memory_can_be_serialized(
+    allow_shared_array_buffers: AllowSharedArrayBuffers,
+) -> WebIdlResult<()> {
+    if allow_shared_array_buffers == AllowSharedArrayBuffers::CrossOriginIsolatedOnly
+        && !current_settings_object_cross_origin_isolated_capability()
+    {
+        return Err(data_clone_error(
+            "Cannot serialize SharedArrayBuffer when not cross-origin isolated",
+        ));
+    }
+    Ok(())
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 fn serialize_array_buffer(
     vm: &Vm,
@@ -449,13 +473,7 @@ fn serialize_array_buffer(
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
         // AD-HOC: SameAgentAlways clones never leave the surrounding agent, so the gate's threat model does not apply to
         //         them; see AllowSharedArrayBuffers.
-        if allow_shared_array_buffers == AllowSharedArrayBuffers::CrossOriginIsolatedOnly
-            && !current_settings_object_cross_origin_isolated_capability()
-        {
-            return Err(data_clone_error(
-                "Cannot serialize SharedArrayBuffer when not cross-origin isolated",
-            ));
-        }
+        throw_unless_shared_memory_can_be_serialized(allow_shared_array_buffers)?;
         if !array_buffer.is_fixed_length() {
             // 2. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
             //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
@@ -469,8 +487,17 @@ fn serialize_array_buffer(
             data_holder.encode_u8(ValueTag::GrowableSharedArrayBuffer as u8);
             serialize_agent_cluster(data_holder, allow_shared_array_buffers)?;
             data_holder.encode_u32(data_holder.add_shared_array_buffer(array_buffer));
-            data_holder.encode_bytes(&array_buffer.copy_all_to_byte_buffer());
-            data_holder.encode_u64(array_buffer.max_byte_length() as u64);
+            // AD-HOC: The buffer of a shared WebAssembly memory is the exception. Every agent of the process that has
+            //         the memory shares its bytes and its size, so on the messaging path, such a buffer goes by the id
+            //         of its memory.
+            let web_assembly_memory_id = data_holder.name_web_assembly_memory_of(array_buffer);
+            data_holder.encode_bool(web_assembly_memory_id.is_some());
+            if let Some(id) = web_assembly_memory_id {
+                data_holder.encode_u64(id);
+            } else {
+                data_holder.encode_bytes(&array_buffer.copy_all_to_byte_buffer());
+                data_holder.encode_u64(array_buffer.max_byte_length() as u64);
+            }
         } else {
             // 3. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]] }.
@@ -485,11 +512,17 @@ fn serialize_array_buffer(
             //         process: a receiver in another one is not in the agent cluster, and only gets the id. Without the
             //         messaging path (e.g., serialization for storage) or a store (e.g., a zero-length buffer), fall back
             //         to copying the bytes.
-            let shared_store_id = data_holder.name_store_of(array_buffer);
-            data_holder.encode_bool(shared_store_id.is_some());
-            if let Some(id) = shared_store_id {
+            //         The buffer of a shared WebAssembly memory goes by the id of its memory instead, with its byte
+            //         length, as it holds the bytes that the memory had when the buffer was created.
+            if let Some(id) = data_holder.name_web_assembly_memory_of(array_buffer) {
+                data_holder.encode_u8(SharedBytes::OfWebAssemblyMemory as u8);
+                data_holder.encode_u64(id);
+                data_holder.encode_u64(array_buffer.byte_length() as u64);
+            } else if let Some(id) = data_holder.name_store_of(array_buffer) {
+                data_holder.encode_u8(SharedBytes::InStore as u8);
                 data_holder.encode_u64(id);
             } else {
+                data_holder.encode_u8(SharedBytes::Copied as u8);
                 data_holder.encode_bytes(&array_buffer.copy_all_to_byte_buffer());
             }
         }
@@ -658,6 +691,22 @@ impl<'memory> Serializer<'_, '_, 'memory> {
     /// The record that the serialization writes.
     pub(crate) fn serialized(&self) -> &StructuredSerializeWriter<'memory> {
         self.serialized
+    }
+
+    // AD-HOC: The record of a shared WebAssembly memory, which the serialization steps of a Memory object write. A
+    //         Memory object shares memory as a SharedArrayBuffer does, so its record requires the cross-origin isolated
+    //         capability and has an [[AgentCluster]] as the record of one. It names the memory by its id, which every
+    //         agent of the process finds the memory by.
+    pub(crate) fn serialize_shared_web_assembly_memory(&self, id: u64, buffer: Gc<ArrayBuffer>) -> WebIdlResult<()> {
+        throw_unless_shared_memory_can_be_serialized(self.allow_shared_array_buffers)?;
+        serialize_agent_cluster(self.serialized, self.allow_shared_array_buffers)?;
+        // NB: A message keeps the memory alive. Any other record keeps the buffer of the memory in its side table, and
+        //     the buffer keeps the memory.
+        if self.serialized.name_web_assembly_memory_of(buffer).is_none() {
+            self.serialized.add_shared_array_buffer(buffer);
+        }
+        self.serialized.encode_u64(id);
+        Ok(())
     }
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
@@ -1127,8 +1176,9 @@ impl Deserializer<'_, '_, '_> {
 
     // Step 1 of deserializing a "SharedArrayBuffer" or "GrowableSharedArrayBuffer" record: it names the agent cluster it
     // was serialized in, and a target realm in any other cluster can't have the buffer. A record that names none (a
-    // SameAgentAlways clone's) is deserialized in the agent that serialized it.
-    fn deserialize_agent_cluster(&self) -> WebIdlResult<()> {
+    // SameAgentAlways clone's) is deserialized in the agent that serialized it. The record of a shared WebAssembly memory
+    // has an agent cluster the same way.
+    pub(crate) fn deserialize_agent_cluster(&self) -> WebIdlResult<()> {
         if !self.serialized.decode_bool()? {
             return Ok(());
         }
@@ -1280,12 +1330,27 @@ impl Deserializer<'_, '_, '_> {
 
                 let side_table_index = self.serialized.decode_u32()?;
 
-                // AD-HOC: A record on the messaging path names the store, which this agent shares with the sender.
-                let has_shared_store = self.serialized.decode_bool()?;
-                if has_shared_store {
+                // AD-HOC: A record on the messaging path names the store or the WebAssembly memory, which this agent
+                //         shares with the sender.
+                let shared_bytes = self.serialized.decode_u8()?;
+                if shared_bytes == SharedBytes::InStore as u8 {
                     let id = self.serialized.decode_u64()?;
                     value = self.serialized.array_buffer_from_shared_store(vm, id)?;
                     break 'shared_array_buffer;
+                }
+                if shared_bytes == SharedBytes::OfWebAssemblyMemory as u8 {
+                    let id = self.serialized.decode_u64()?;
+                    let byte_length = self.serialized.decode_size()?;
+                    value = self
+                        .serialized
+                        .array_buffer_of_web_assembly_memory(vm, id, Some(byte_length))?;
+                    break 'shared_array_buffer;
+                }
+                if shared_bytes != SharedBytes::Copied as u8 {
+                    return Err(data_clone_error_from_serialization_error(
+                        realm,
+                        "Unknown SharedArrayBuffer record",
+                    ));
                 }
 
                 let bytes = self.serialized.decode_bytes()?;
@@ -1310,6 +1375,16 @@ impl Deserializer<'_, '_, '_> {
                 self.deserialize_agent_cluster()?;
 
                 let side_table_index = self.serialized.decode_u32()?;
+
+                // AD-HOC: A record on the messaging path names the WebAssembly memory, which this agent shares with the
+                //         sender.
+                let has_web_assembly_memory = self.serialized.decode_bool()?;
+                if has_web_assembly_memory {
+                    let id = self.serialized.decode_u64()?;
+                    value = self.serialized.array_buffer_of_web_assembly_memory(vm, id, None)?;
+                    break 'growable_shared_array_buffer;
+                }
+
                 let bytes = self.serialized.decode_bytes()?;
                 let max_byte_length = self.serialized.decode_size()?;
 

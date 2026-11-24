@@ -18,13 +18,14 @@ use std::sync::Arc;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libjs_rust::api::{
-    ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, SharedBackingStore, SharedStorePin, Vm,
+    ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, SharedByMessage, SharedStorePin, Vm,
 };
 use libwebcommon_rust::html::serialization_records::{RecordEncoder, SerializationType};
 
 use crate::html::structured_serialize::cpp::{IPCSerializationRecord, StorageSerializationRecord};
 use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
 use crate::html::structured_serialize::serializable::serializable_interface_storage_identifier;
+use crate::web_assembly::memory::shared_memory_of_buffer;
 
 /// The record of a structured serialization, which the serialization writes its values to.
 pub(crate) struct StructuredSerializeWriter<'vm> {
@@ -34,8 +35,9 @@ pub(crate) struct StructuredSerializeWriter<'vm> {
     shared_array_buffers: MarkedVec<'vm, Gc<ArrayBuffer>>,
     /// The shared memory that a MessageRecord, which may reach agents in other processes, hands over beside its bytes.
     shared_memory: Option<RefCell<Vec<SharedMemory>>>,
-    /// The stores that a message names, which only a record that may reach an agent on another thread has.
-    stores_of_message: Option<RefCell<Vec<Arc<SharedBackingStore>>>>,
+    /// The stores and the shared WebAssembly memories that a message names, which only a record that may reach an agent
+    /// on another thread has.
+    stores_of_message: Option<RefCell<Vec<SharedByMessage>>>,
     shared_store_pin: RefCell<Option<SharedStorePin>>,
 }
 
@@ -184,6 +186,16 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         })?;
         let id = store.id();
         stores.borrow_mut().push(store);
+        Some(id)
+    }
+
+    /// Has the message keep the shared WebAssembly memory alive that the SharedArrayBuffer is a buffer of, and returns
+    /// the id that names the memory, if the buffer is one of a memory, and the record is a message.
+    pub(crate) fn name_web_assembly_memory_of(&self, array_buffer: Gc<ArrayBuffer>) -> Option<u64> {
+        let stores = self.stores_of_message.as_ref()?;
+        let memory = shared_memory_of_buffer(array_buffer)?;
+        let id = memory.id();
+        stores.borrow_mut().push(memory);
         Some(id)
     }
 
