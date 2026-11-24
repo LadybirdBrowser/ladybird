@@ -993,7 +993,7 @@ target_sources(LibWeb PRIVATE $<TARGET_OBJECTS:LibJSObjects>)
 target_compile_definitions(LibWeb PRIVATE LibJS_EXPORTS)
 target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon LibJSHeaders)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibWebRTCClient)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibRequests LibGC LibImageDecoderClient LibThreading LibWebRTCClient)
 
 # The library's Rust code: the bindings crate, which depends on the LibJS runtime and on libweb_rust, so that one archive
 # holds all three and the runtime is in the process once. The runtime's features are LibJS's.
