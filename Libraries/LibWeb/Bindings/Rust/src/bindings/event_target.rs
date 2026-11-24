@@ -81,6 +81,7 @@ unsafe extern "C" {
     fn web_bindings_event_time_stamp(event: *mut c_void) -> f64;
     fn web_bindings_event_cancelable(event: *mut c_void) -> bool;
     fn web_bindings_initialize_event(event: *mut c_void, r#type: usize, bubbles: bool, cancelable: bool);
+    fn web_bindings_event_retarget_against_current_target(event: *mut c_void, object: *mut c_void) -> *mut c_void;
 }
 
 /// The EventTarget that an object owns.
@@ -306,6 +307,18 @@ impl CppEvent {
     pub(crate) fn cancelable(&self) -> bool {
         // SAFETY: The event is live.
         unsafe { web_bindings_event_cancelable(self.as_ptr()) }
+    }
+
+    /// The result of retargeting the object, an EventTarget, against the event's currentTarget,
+    /// https://dom.spec.whatwg.org/#retarget
+    pub(crate) fn retarget_against_current_target(&self, object: &CppCell) -> CppCell {
+        // SAFETY: The event and the object are live, and LibWeb returns a live EventTarget.
+        unsafe {
+            CppCell::from_raw(web_bindings_event_retarget_against_current_target(
+                self.as_ptr(),
+                object.as_ptr(),
+            ))
+        }
     }
 
     /// https://dom.spec.whatwg.org/#canceled-flag

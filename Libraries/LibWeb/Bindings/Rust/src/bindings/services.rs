@@ -64,6 +64,9 @@ unsafe extern "C" {
     /// an interface that LibWeb implements in C++.
     pub(crate) fn web_bindings_object_implements_interface(object: *mut c_void, interface_name: u16) -> bool;
 
+    /// The cell of the C++ object that the wrapper wraps.
+    pub(crate) fn web_bindings_cell_of_wrapper(wrapper: *mut c_void) -> *mut c_void;
+
     /// Whether the object is the exotic object of a WindowProxy.
     pub(crate) fn web_bindings_object_is_window_proxy(object: *mut c_void) -> bool;
 

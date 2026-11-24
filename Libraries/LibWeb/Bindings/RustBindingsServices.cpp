@@ -149,6 +149,7 @@ double web_bindings_environment_settings_object_current_wall_time(HTML::Environm
 void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject*, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
+GC::Cell* web_bindings_cell_of_wrapper(JSObject* wrapper);
 bool web_bindings_object_is_window_proxy(JSObject* object);
 JSObject* web_bindings_window_proxy_object_in_realm(JSObject* object, void* realm);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
@@ -462,6 +463,11 @@ bool web_bindings_object_implements_interface(JSObject* object, u16 interface_na
 {
     auto* wrappable = wrappable_impl_from(JS::HostABI::object_from_abi(object));
     return wrappable && wrappable->implements_interface(static_cast<InterfaceName>(interface_name));
+}
+
+GC::Cell* web_bindings_cell_of_wrapper(JSObject* wrapper)
+{
+    return wrappable_impl_from(JS::HostABI::object_from_abi(wrapper));
 }
 
 bool web_bindings_object_is_window_proxy(JSObject* object)

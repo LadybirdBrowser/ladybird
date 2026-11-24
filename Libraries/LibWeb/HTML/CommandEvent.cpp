@@ -4,34 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/CommandEvent.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(CommandEvent);
-
-GC::Ref<CommandEvent> CommandEvent::create(FlyString const& event_name, CommandEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<CommandEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/html/command_event.rs.
+DOM::Event* web_rust_command_event_create(JSVM*, void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed, DOM::Element* source, FlatPtr command);
 }
 
-GC::Ref<CommandEvent> CommandEvent::create(Utf16FlyString const& event_name, CommandEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> create_command_event(JS::Realm& realm, Utf16FlyString const& type, DOM::EventInit const& event_init, DOM::Element& source, Utf16String const& command)
 {
-    return GC::Heap::the().allocate<CommandEvent>(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp);
-}
-
-CommandEvent::CommandEvent(FlyString const& event_name, CommandEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_source(event_init.source)
-    , m_command(event_init.command)
-{
-}
-
-void CommandEvent::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_source);
+    return *web_rust_command_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), event_init.bubbles, event_init.cancelable, event_init.composed, &source, command.raw_identity());
 }
 
 }
