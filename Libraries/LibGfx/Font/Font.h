@@ -26,6 +26,8 @@ struct hb_buffer_t;
 
 namespace Gfx {
 
+struct FontRasterizerData;
+
 struct FontPixelMetrics {
     float x_height { 0 };
     float cap_height { 0 };
@@ -97,8 +99,8 @@ public:
     void will_be_destroyed() const;
 
     // What a rasterizer keeps with this font. The first call makes it.
-    template<typename T, typename Callback>
-    T& rasterizer_data(Callback make) const { return m_rasterizer_data.get<T>(make); }
+    template<typename Callback>
+    FontRasterizerData& rasterizer_data(Callback make) const { return m_rasterizer_data.get(make); }
 
 private:
     friend class Typeface;
@@ -111,7 +113,7 @@ private:
 
     hb_font_t* m_harfbuzz_font { nullptr };
 
-    RasterizerDataSlot m_rasterizer_data;
+    RasterizerDataSlot<FontRasterizerData> m_rasterizer_data;
 
     // A layout pass classifies fonts while the document thread may be doing the same to the same
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification
