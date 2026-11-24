@@ -1,0 +1,8 @@
+inline-block: cell width 300, height 40
+inline-flow-root: cell width 300, height 40
+after-inline-content: cell width 300, height 40
+explicit-inline-table: cell width 300, height 40
+explicit-table: cell width 300, height 40
+block: cell width 300, height 40
+inline-flex: cell width 300, height 40
+span-in-narrow-block: cell width 300, height 40

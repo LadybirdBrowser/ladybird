@@ -2,10 +2,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 204 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 188 0+0+8] children: not-inline
       BlockContainer <div.horizontal> at [8,8] [0+0+0 784 0+0+0] [0+0+0 188 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 159.90625x186] baseline: 28
+        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 159.90625x186] baseline: 176
         BlockContainer <table> at [9,9] inline-block [0+1+0 159.90625 0+1+0] [0+1+0 186 0+1+0] [BFC] children: not-inline
-          TableWrapper <(anonymous)> at [9,9] inline-block [0+0+0 159.90625 0+0+0] [0+0+0 186 0+0+0] [BFC] children: not-inline
-            Box <(anonymous)> at [10,10] inline-table table-box [0+1+0 158.90625 0+1+0] [0+1+0 185 0+1+0] [TFC] children: not-inline
+          TableWrapper <(anonymous)> at [9,9] [0+0+0 159.90625 0+0+0] [0+0+0 186 0+0+0] [BFC] children: not-inline
+            Box <(anonymous)> at [10,10] table-box [0+1+0 158.90625 0+1+0] [0+1+0 185 0+1+0] [TFC] children: not-inline
               Box <tbody> at [10,10] table-row-group [0+0+0 158.90625 0+0+0] [0+0+0 185 0+0+0] children: not-inline
                 Box <tr> at [10,10] table-row [0+0+0 158.90625 0+0+0] [0+0+0 37 0+0+0] children: not-inline
                   BlockContainer <td> at [30,20] table-cell [0+1+20 14.265625 20+1+0] [0+1+10 16 10+1+0] [BFC] children: inline

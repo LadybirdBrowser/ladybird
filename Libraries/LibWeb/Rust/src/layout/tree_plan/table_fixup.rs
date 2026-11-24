@@ -408,8 +408,10 @@ fn generate_missing_parents<T: TableFixupTree>(tree: &mut T, owner: NodeSlotId, 
         //    child boxes which are misparented.
         // If the box’s parent is an inline, run-in, or ruby box (or any box that would perform inlinification of its
         // children), then an inline-table box must be generated; otherwise it must be a table box.
+        // NB: An inline box is a non-atomic inline: an inline-block or other inline-level block container is not one, so
+        //     a table generated inside it is block-level.
         // FIXME: run-in and ruby boxes
-        let anonymous_table_kind = if tree.is_inline_outside(parent) {
+        let anonymous_table_kind = if tree.is_inline_outside(parent) && tree.display(parent).is_flow_inside() {
             AnonymousTableBoxKind::InlineTable
         } else {
             AnonymousTableBoxKind::Table
