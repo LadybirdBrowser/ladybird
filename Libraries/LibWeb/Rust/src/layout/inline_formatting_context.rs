@@ -300,7 +300,8 @@ fn apply_text_overflow_at_right_edge(
     // NB: Content can only reach as far as leaves room for the ellipsis before the edge.
     let content_right_limit = right_edge - ellipsis.inline_size();
     let mut line_has_visible_content = false;
-    for index in 0..line.fragments.len() {
+    let order = line.fragment_indices_in_visual_order();
+    for (position, &index) in order.iter().enumerate() {
         let fragment_start = line.fragments[index].inline_offset;
         if border_box_inline_extent(&line.fragments[index]).1 <= content_right_limit {
             line_has_visible_content = true;
@@ -317,30 +318,26 @@ fn apply_text_overflow_at_right_edge(
             let ellipsis_offset = if keeps_atomic_inline {
                 border_box_inline_extent(&line.fragments[index]).1
             } else {
-                line.fragments[..index]
+                order[..position]
                     .iter()
+                    .map(|&index| &line.fragments[index])
                     .filter(|fragment| !fragment.is_fully_truncated)
                     .map(|fragment| border_box_inline_extent(fragment).1)
                     .max()
                     .unwrap_or_else(|| border_box_inline_extent(&line.fragments[index]).0)
                     .min(content_right_limit)
             };
-            line.text_overflow_elision = Some(line_box::TextOverflowElision {
-                inline_length: line.inline_length,
-                ellipsis_fragment_start: fragment_start,
-                ellipsis_fragment_inline_length: original_inline_length,
-                ellipsis_fragment_inline_length_lost_on_left: None,
-            });
-            let first_hidden = if keeps_atomic_inline { index + 1 } else { index };
-            for hidden in &mut line.fragments[first_hidden..] {
-                hide_fragment_for_text_overflow(hidden, context);
+            line.note_text_overflow_elision(fragment_start, original_inline_length, None);
+            let first_hidden = position + usize::from(keeps_atomic_inline);
+            for &hidden in &order[first_hidden..] {
+                hide_fragment_for_text_overflow(&mut line.fragments[hidden], context);
             }
             line.fragments[index].has_text_overflow_ellipsis = true;
             let layout_node = line.fragments[index].layout_node;
             let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, 0, ellipsis_offset);
             line.fragments.insert(index + 1, ellipsis_fragment);
             line.inline_length = available_inline_size;
-            line.clamp_static_position_markers_to_inline_length();
+            line.clamp_static_position_markers_to_inline_end();
             break;
         };
         let max_text_end = (content_right_limit - fragment_start).to_double() as f32;
@@ -367,19 +364,14 @@ fn apply_text_overflow_at_right_edge(
         } else {
             (fragment_start + fragment.inline_length).min(content_right_limit)
         };
-        line.text_overflow_elision = Some(line_box::TextOverflowElision {
-            inline_length: line.inline_length,
-            ellipsis_fragment_start: fragment_start,
-            ellipsis_fragment_inline_length: original_inline_length,
-            ellipsis_fragment_inline_length_lost_on_left: None,
-        });
-        for later in &mut line.fragments[index + 1..] {
-            hide_fragment_for_text_overflow(later, context);
+        line.note_text_overflow_elision(fragment_start, original_inline_length, None);
+        for &later in &order[position + 1..] {
+            hide_fragment_for_text_overflow(&mut line.fragments[later], context);
         }
         let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, ellipsis_start, ellipsis_offset);
         line.fragments.insert(index + 1, ellipsis_fragment);
         line.inline_length = available_inline_size;
-        line.clamp_static_position_markers_to_inline_length();
+        line.clamp_static_position_markers_to_inline_end();
         break;
     }
 }
@@ -398,7 +390,8 @@ fn apply_text_overflow_at_left_edge(
     // NB: Content can only start as far left as leaves room for the ellipsis after the edge.
     let content_left_limit = left_edge + ellipsis_inline_size;
     let mut line_has_visible_content = false;
-    for index in (0..line.fragments.len()).rev() {
+    let order = line.fragment_indices_in_visual_order();
+    for (position, &index) in order.iter().enumerate().rev() {
         let fragment_start = line.fragments[index].inline_offset;
         if border_box_inline_extent(&line.fragments[index]).0 >= content_left_limit {
             line_has_visible_content = true;
@@ -414,8 +407,9 @@ fn apply_text_overflow_at_left_edge(
             let ellipsis_offset = if keeps_atomic_inline {
                 border_box_inline_extent(&line.fragments[index]).0 - ellipsis_inline_size
             } else {
-                line.fragments[index + 1..]
+                order[position + 1..]
                     .iter()
+                    .map(|&index| &line.fragments[index])
                     .filter(|fragment| !fragment.is_fully_truncated)
                     .map(|fragment| border_box_inline_extent(fragment).0)
                     .min()
@@ -424,10 +418,9 @@ fn apply_text_overflow_at_left_edge(
                     - ellipsis_inline_size
             };
             let original_inline_length = line.fragments[index].inline_length;
-            let elided_inline_length = line.inline_length;
-            let last_hidden = if keeps_atomic_inline { index } else { index + 1 };
-            for hidden in &mut line.fragments[..last_hidden] {
-                hide_fragment_for_text_overflow(hidden, context);
+            let hidden_end = position + usize::from(!keeps_atomic_inline);
+            for &hidden in &order[..hidden_end] {
+                hide_fragment_for_text_overflow(&mut line.fragments[hidden], context);
             }
             line.fragments[index].has_text_overflow_ellipsis = true;
             let layout_node = line.fragments[index].layout_node;
@@ -441,14 +434,13 @@ fn apply_text_overflow_at_left_edge(
                     marker.inline_offset -= shift;
                 }
             }
-            line.text_overflow_elision = Some(line_box::TextOverflowElision {
-                inline_length: elided_inline_length,
-                ellipsis_fragment_start: line.fragments[index + 1].inline_offset,
-                ellipsis_fragment_inline_length: original_inline_length,
-                ellipsis_fragment_inline_length_lost_on_left: Some(CssPixels::default()),
-            });
+            line.note_text_overflow_elision(
+                line.fragments[index + 1].inline_offset,
+                original_inline_length,
+                Some(CssPixels::default()),
+            );
             line.inline_length = available_inline_size;
-            line.clamp_static_position_markers_to_inline_length();
+            line.clamp_static_position_markers_to_inline_end();
             break;
         };
         let min_text_start = (content_left_limit - fragment_start).to_double() as f32;
@@ -479,9 +471,8 @@ fn apply_text_overflow_at_left_edge(
         } else {
             (fragment.inline_offset - ellipsis_inline_size).max(left_edge)
         };
-        let elided_inline_length = line.inline_length;
-        for earlier in &mut line.fragments[..index] {
-            hide_fragment_for_text_overflow(earlier, context);
+        for &earlier in &order[..position] {
+            hide_fragment_for_text_overflow(&mut line.fragments[earlier], context);
         }
         let ellipsis_fragment = ellipsis.into_fragment(context, line, layout_node, ellipsis_start, ellipsis_offset);
         line.fragments.insert(index, ellipsis_fragment);
@@ -493,17 +484,13 @@ fn apply_text_overflow_at_left_edge(
                 marker.inline_offset -= shift;
             }
         }
-        // NB: As for a line whose right end is elided, the line box starts at the cut fragment's offset less this one,
-        //     wherever placing the line moves them.
-        let cut_fragment = &line.fragments[index + 1];
-        line.text_overflow_elision = Some(line_box::TextOverflowElision {
-            inline_length: elided_inline_length,
-            ellipsis_fragment_start: cut_fragment.inline_offset,
-            ellipsis_fragment_inline_length: original_inline_length,
-            ellipsis_fragment_inline_length_lost_on_left: Some(kept_start_px),
-        });
+        line.note_text_overflow_elision(
+            line.fragments[index + 1].inline_offset,
+            original_inline_length,
+            Some(kept_start_px),
+        );
         line.inline_length = available_inline_size;
-        line.clamp_static_position_markers_to_inline_length();
+        line.clamp_static_position_markers_to_inline_end();
         break;
     }
 }
@@ -661,7 +648,8 @@ fn apply_block_ellipsis(
     // For bidi purposes, the block overflow ellipsis must be treated as an anonymous inline with unicode-bidi:
     // isolate, with the same embedding level as the bidi paragraph, and which inherits direction from the bidi
     // paragraph.
-    let ellipsis_precedes_content = line.direction == direction::RTL
+    let ellipsis_precedes_content = context.bidi_paragraphs.is_empty()
+        && line.direction == direction::RTL
         && line
             .visible_fragments()
             .next_back()
@@ -741,7 +729,8 @@ pub(crate) fn apply_to_fragments(
         text_justify::AUTO | text_justify::INTER_WORD | text_justify::INTER_CHARACTER
     ));
 
-    let excess_inline_space = line.original_available_inline_size.to_px_or_zero() - line.inline_length;
+    let excess_inline_space =
+        line.original_available_inline_size.to_px_or_zero() - (line.inline_length - line.hanging_space_inline_size);
     // https://drafts.csswg.org/css-text-3/#text-align-property
     // If (after justification, if any) the inline contents of a line box are too long to fit within it, then the
     // contents are start-aligned: any content that doesn't fit overflows the line box's end edge.
@@ -763,10 +752,17 @@ pub(crate) fn apply_to_fragments(
     };
 
     let mut running_diff = CssPixels::default();
-    // Expand spaces in increasing inline-coordinate order, including when logical order was mirrored for placement.
     let fragment_count = line.fragments.len();
+    // Negative margins can put a fragment before its predecessor's offset. Expand spaces in bidi placement order.
+    let order = line.bidi_reordered.then(|| {
+        let mut indices: Vec<_> = (0..fragment_count).collect();
+        indices.sort_by_key(|&index| line.fragments[index].bidi_visual_index);
+        indices
+    });
     for index in 0..fragment_count {
-        let index = if atomic_items_are_right_to_left {
+        let index = if let Some(order) = &order {
+            order[index]
+        } else if atomic_items_are_right_to_left {
             fragment_count - 1 - index
         } else {
             index
@@ -803,7 +799,7 @@ pub(crate) const EDGE_LEFT: u8 = 1 << 3;
 
 pub(crate) use inline_content::InlineBoxPieceRecord as InlineBoxPieceData;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StagedPiece {
     pub(crate) piece: InlineBoxPieceData,
     pub(crate) depth: u32,
@@ -811,12 +807,22 @@ pub(crate) struct StagedPiece {
 }
 
 pub(crate) fn sort_for_emission(pieces: &mut [StagedPiece]) {
-    pieces.sort_by_key(|piece| (piece.piece.line_index, piece.depth, piece.discovery_index));
+    pieces.sort_by_key(|piece| {
+        (
+            piece.piece.line_index,
+            piece.depth,
+            piece.discovery_index,
+            piece.piece.first_fragment_index,
+        )
+    });
 }
 
 #[derive(Debug)]
 struct PerLine {
     line_index: usize,
+    visual_range: Option<std::ops::Range<usize>>,
+    last_bidi_position: Option<bidi::Position>,
+    fragment_indices: Vec<u32>,
     contributions_inline_range: Option<(CssPixels, CssPixels)>,
     first_direct_fragment_block_start: Option<CssPixels>,
     max_direct_fragment_block_length: CssPixels,
@@ -831,6 +837,9 @@ impl PerLine {
     fn new(line_index: usize) -> Self {
         Self {
             line_index,
+            visual_range: None,
+            last_bidi_position: None,
+            fragment_indices: Vec::new(),
             contributions_inline_range: None,
             first_direct_fragment_block_start: None,
             max_direct_fragment_block_length: CssPixels::default(),
@@ -839,6 +848,39 @@ impl PerLine {
             fragment_count: 0,
             is_strut: false,
         }
+    }
+
+    fn note_fragment(&mut self, index: u32, visual_index: Option<usize>, bidi_position: Option<bidi::Position>) {
+        let first = self.first_fragment_index.unwrap_or(index);
+        let end = (first + self.fragment_count).max(index + 1);
+        let first = first.min(index);
+        self.first_fragment_index = Some(first);
+        self.fragment_count = end - first;
+        if let Some(visual_index) = visual_index {
+            self.visual_range.get_or_insert(visual_index..visual_index).end = visual_index + 1;
+            self.fragment_indices.push(index);
+            if bidi_position.is_some() {
+                self.last_bidi_position = bidi_position;
+            }
+        }
+    }
+
+    fn sparse_fragment_ranges(&mut self) -> Option<std::sync::Arc<[std::ops::Range<u32>]>> {
+        if self.fragment_indices.is_empty() || self.fragment_indices.len() == self.fragment_count as usize {
+            return None;
+        }
+        self.fragment_indices.sort_unstable();
+        let mut ranges: Vec<std::ops::Range<u32>> = Vec::new();
+        for &index in &self.fragment_indices {
+            if let Some(last) = ranges.last_mut()
+                && last.end == index
+            {
+                last.end += 1;
+            } else {
+                ranges.push(index..index + 1);
+            }
+        }
+        Some(ranges.into())
     }
 }
 
@@ -859,6 +901,58 @@ fn ensure_line(per_node: &mut PerNode, line_index: usize) -> &mut PerLine {
     }
     per_node.lines.insert(insertion, PerLine::new(line_index));
     &mut per_node.lines[insertion]
+}
+
+fn piece_for_fragment<'a>(
+    per_node: &'a mut PerNode,
+    line_index: usize,
+    visual_index: Option<usize>,
+    bidi_position: Option<bidi::Position>,
+    paragraphs: &[bidi::Paragraph],
+) -> &'a mut PerLine {
+    let Some(visual_index) = visual_index else {
+        return ensure_line(per_node, line_index);
+    };
+    if !per_node.lines.last().is_some_and(|piece| {
+        piece.line_index == line_index
+            && piece
+                .visual_range
+                .as_ref()
+                .is_some_and(|range| range.end == visual_index)
+            && piece
+                .last_bidi_position
+                .zip(bidi_position)
+                .is_none_or(|(previous, current)| {
+                    previous.paragraph == current.paragraph
+                        && paragraphs[current.paragraph].same_unwrapped_inline_piece(
+                            per_node.node,
+                            previous.offset,
+                            current.offset,
+                        )
+                })
+    }) {
+        per_node.lines.push(PerLine::new(line_index));
+    }
+    per_node.lines.last_mut().unwrap()
+}
+
+fn piece_for_child<'a>(parent: &'a mut PerNode, child: &PerLine) -> &'a mut PerLine {
+    let Some(visual_range) = &child.visual_range else {
+        return ensure_line(parent, child.line_index);
+    };
+    let first_on_line = parent
+        .lines
+        .partition_point(|piece| piece.line_index < child.line_index);
+    parent.lines[first_on_line..]
+        .iter_mut()
+        .take_while(|piece| piece.line_index == child.line_index)
+        .find(|piece| {
+            piece
+                .visual_range
+                .as_ref()
+                .is_some_and(|range| range.contains(&visual_range.start))
+        })
+        .expect("a parent inline piece contains the child piece's fragments")
 }
 
 fn note_contribution(line: &mut PerLine, inline_start: CssPixels, inline_end: CssPixels) {
@@ -904,6 +998,15 @@ struct CandidateLineCorners {
     block_end: CssPixels,
 }
 
+impl CandidateLineCorners {
+    fn unite(&mut self, other: Self) {
+        self.inline_start = self.inline_start.min(other.inline_start);
+        self.inline_end = self.inline_end.max(other.inline_end);
+        self.block_start = self.block_start.min(other.block_start);
+        self.block_end = self.block_end.max(other.block_end);
+    }
+}
+
 #[derive(Default)]
 struct FirstAndLastContentLineCorners {
     first: Option<CandidateLineCorners>,
@@ -922,21 +1025,25 @@ pub(crate) fn compute(
     let mut inline_containing_block_rect_candidates = Vec::<InlineContainingBlockRectCandidate>::new();
     let mut per_nodes = Vec::<PerNode>::new();
     let mut node_to_index = HashMap::<Node, usize>::default();
+    let mut has_reordered_lines = false;
 
     let mut committed_fragment_index = 0u32;
     for (line_index, line) in context.line_data().line_boxes.iter().enumerate() {
-        for fragment in &line.fragments {
-            if fragment.is_fully_truncated || fragment.is_block_ellipsis {
-                continue;
-            }
+        let fragments = line
+            .fragments
+            .iter()
+            .filter(|fragment| !fragment.is_fully_truncated && !fragment.is_block_ellipsis)
+            .map(|fragment| {
+                let index = committed_fragment_index;
+                committed_fragment_index += 1;
+                (fragment, index)
+            });
+        let mut note_fragment = |fragment: &line_box_fragment::LineBoxFragmentData, fragment_index, visual_index| {
             // NB: The text-overflow ellipsis is committed like any other fragment, so it takes an index, but it
             //     belongs to no inline box.
             if fragment.is_text_overflow_ellipsis {
-                committed_fragment_index += 1;
-                continue;
+                return;
             }
-            let fragment_index = committed_fragment_index;
-            committed_fragment_index += 1;
             let interrupting = line.has_block_level_box;
             // Block-level here means what the line builder interrupted the line for, which includes
             // boxes whose outer display is not `block` (e.g. `run-in`, laid out as a block).
@@ -1008,9 +1115,14 @@ pub(crate) fn compute(
                 }
                 previous = Some(node_index);
                 let per_node = &mut per_nodes[node_index];
-                let line = ensure_line(per_node, line_index);
-                let first = *line.first_fragment_index.get_or_insert(fragment_index);
-                line.fragment_count = fragment_index + 1 - first;
+                let line = piece_for_fragment(
+                    per_node,
+                    line_index,
+                    visual_index,
+                    fragment.bidi_position,
+                    &context.bidi_paragraphs,
+                );
+                line.note_fragment(fragment_index, visual_index, fragment.bidi_position);
                 if let Some(interrupting_block) = interrupting_block {
                     line.interrupting_block.get_or_insert(interrupting_block);
                     ancestor = context.nearest_fragmented_inline_ancestor(ancestor);
@@ -1027,6 +1139,18 @@ pub(crate) fn compute(
                 per_node.last_line_with_content = Some(line_index);
                 direct = false;
                 ancestor = context.nearest_fragmented_inline_ancestor(ancestor);
+            }
+        };
+        if line.bidi_reordered {
+            has_reordered_lines = true;
+            let mut fragments: Vec<_> = fragments.collect();
+            fragments.sort_by_key(|(fragment, _)| fragment.bidi_visual_index);
+            for (visual_index, (fragment, index)) in fragments.into_iter().enumerate() {
+                note_fragment(fragment, index, Some(visual_index));
+            }
+        } else {
+            for (fragment, index) in fragments {
+                note_fragment(fragment, index, None);
             }
         }
         if !line.takes_inline_box_struts() {
@@ -1084,6 +1208,18 @@ pub(crate) fn compute(
     }
 
     let mut staged = Vec::<StagedPiece>::new();
+    // Visual collection can encounter inline siblings out of tree order. Keep their paint order in tree order.
+    let inline_tree_order: HashMap<Node, usize> = if has_reordered_lines {
+        context
+            .fragmented_inlines_in_pre_order
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, node)| (node, index))
+            .collect()
+    } else {
+        HashMap::default()
+    };
     let mut deepest_first: Vec<_> = (0..per_nodes.len()).collect();
     deepest_first.sort_by(|left, right| {
         per_nodes[*right]
@@ -1105,6 +1241,7 @@ pub(crate) fn compute(
             )
         };
         let sides = context.sides_of_entered_inline_box(node);
+        let discovery_index = inline_tree_order.get(&node).copied().unwrap_or(node_index);
         let reversed = context.facts(node).inline_axis_is_reverse();
         let (
             border_padding_low,
@@ -1128,6 +1265,8 @@ pub(crate) fn compute(
                 .fragments
                 .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node));
         let mut corners = FirstAndLastContentLineCorners::default();
+        let mut first_corner_line = None;
+        let mut last_corner_line = None;
         // NB: Lines that hold only a block-level box inside the inline box don't count as its first or last line. They
         //     stand in for it only where it has no other lines.
         let mut corners_from_block_lines = FirstAndLastContentLineCorners::default();
@@ -1138,7 +1277,12 @@ pub(crate) fn compute(
         let holds_content = lines.iter().any(|line| line.first_fragment_index.is_some())
             || context.inline_boxes_continued_from_previous_fragment.contains(&node)
             || context.inline_boxes_continued_in_next_fragment.borrow().contains(&node);
-        for line in lines {
+        let mut previous_line = None;
+        let mut lines = lines.into_iter().peekable();
+        while let Some(mut line) = lines.next() {
+            let first_piece_on_line = previous_line != Some(line.line_index);
+            let last_piece_on_line = lines.peek().is_none_or(|next| next.line_index != line.line_index);
+            previous_line = Some(line.line_index);
             let inline_box_anchor = || {
                 let line_data = context.line_data();
                 let line_box = &line_data.line_boxes[line.line_index];
@@ -1159,6 +1303,7 @@ pub(crate) fn compute(
                             node,
                             first_fragment_index: line.first_fragment_index.unwrap_or(0),
                             fragment_count: line.fragment_count,
+                            sparse_fragment_ranges: None,
                             line_index: line.line_index as u32,
                             border_box_rect: FfiCssPixelRect {
                                 x: position.0,
@@ -1172,7 +1317,7 @@ pub(crate) fn compute(
                             is_geometry_only_placeholder: true,
                         },
                         depth,
-                        discovery_index: node_index,
+                        discovery_index,
                     });
                 }
                 continue;
@@ -1181,8 +1326,8 @@ pub(crate) fn compute(
                 && !context.inline_boxes_continued_from_previous_fragment.contains(&node);
             let last = last_line_with_content == Some(line.line_index)
                 && !context.inline_boxes_continued_in_next_fragment.borrow().contains(&node);
-            let has_low_edge = if reversed { last } else { first };
-            let has_high_edge = if reversed { first } else { last };
+            let has_low_edge = first_piece_on_line && if reversed { last } else { first };
+            let has_high_edge = last_piece_on_line && if reversed { first } else { last };
             let (inline_box_baseline, inline_box_vertical_shift) = inline_box_anchor();
             // https://www.w3.org/TR/CSS22/visudet.html#inline-non-replaced
             // The height of the content area should be based on the font, but this specification does not specify how.
@@ -1231,6 +1376,7 @@ pub(crate) fn compute(
                     node,
                     first_fragment_index: line.first_fragment_index.unwrap_or(0),
                     fragment_count: line.fragment_count,
+                    sparse_fragment_ranges: line.sparse_fragment_ranges(),
                     line_index: line.line_index as u32,
                     border_box_rect: rect,
                     relpos_delta: FfiCssPixelPoint::default(),
@@ -1240,7 +1386,7 @@ pub(crate) fn compute(
                     is_geometry_only_placeholder: is_placeholder,
                 },
                 depth,
-                discovery_index: node_index,
+                discovery_index,
             });
             if node_is_inline_containing_block {
                 let block_start = if context.style(context.containing_block).writing_mode() == writing_mode::VERTICAL_LR
@@ -1256,11 +1402,19 @@ pub(crate) fn compute(
                     block_start,
                     block_end: block_start + border_block_length,
                 };
-                corners.first.get_or_insert(source);
-                corners.last = Some(source);
+                let first_line = *first_corner_line.get_or_insert(line.line_index);
+                if line.line_index == first_line {
+                    corners.first.get_or_insert(source).unite(source);
+                }
+                if last_corner_line == Some(line.line_index) {
+                    corners.last.as_mut().unwrap().unite(source);
+                } else {
+                    last_corner_line = Some(line.line_index);
+                    corners.last = Some(source);
+                }
             }
             if let Some(parent_index) = parent_index {
-                let parent_line = ensure_line(&mut per_nodes[parent_index], line.line_index);
+                let parent_line = piece_for_child(&mut per_nodes[parent_index], &line);
                 note_contribution(
                     parent_line,
                     border_inline_start - if has_low_edge { margin_low } else { CssPixels::default() },
@@ -1340,6 +1494,7 @@ pub(crate) fn compute(
                 node,
                 first_fragment_index: 0,
                 fragment_count: 0,
+                sparse_fragment_ranges: None,
                 line_index: placeholder_line_index,
                 border_box_rect: placeholder_rect,
                 relpos_delta: FfiCssPixelPoint::default(),
@@ -1494,6 +1649,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
     pub(crate) atomic_items_are_right_to_left: bool,
+    pub(super) bidi_paragraphs: std::sync::Arc<[bidi::Paragraph]>,
     inline_boxes_continued_from_previous_fragment: Vec<Node>,
     inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
     block_axis_float_clearance: Cell<CssPixels>,
@@ -1548,6 +1704,7 @@ impl<'context> InlineFormattingContext<'context> {
             fragmented_inlines_in_pre_order: Vec::new(),
             current_line_start: Cell::new(fragmentation::LinePosition::default()),
             atomic_items_are_right_to_left: false,
+            bidi_paragraphs: Default::default(),
             inline_boxes_continued_from_previous_fragment: Vec::new(),
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
@@ -1694,10 +1851,6 @@ impl<'context> InlineFormattingContext<'context> {
             has_immediate_continuation,
             line_block_end_in_bfc_root,
         ) {
-            line.trim_trailing_whitespace();
-            if self.text_overflow_applies() {
-                apply_text_overflow_to_line(line, self);
-            }
             let ellipsis_text = match self.style(self.containing_block).block_ellipsis() {
                 crate::css::style_value::StyleValueData::Keyword { keyword: code } if *code == keyword::NO_ELLIPSIS => {
                     None
@@ -1716,6 +1869,10 @@ impl<'context> InlineFormattingContext<'context> {
                 _ => unreachable!("computed block-ellipsis is no-ellipsis, auto, or a string"),
             };
             if let Some(ellipsis_text) = ellipsis_text.filter(|text| !text.is_empty()) {
+                line.trim_trailing_whitespace();
+                if self.text_overflow_applies() {
+                    apply_text_overflow_to_line(line, self);
+                }
                 apply_block_ellipsis(line, self, &ellipsis_text);
             }
         }
@@ -1856,7 +2013,7 @@ impl<'context> InlineFormattingContext<'context> {
         ancestors
     }
 
-    fn inline_box_for_fragment(&self, node: Node) -> Node {
+    pub(super) fn inline_box_for_fragment(&self, node: Node) -> Node {
         if !node.is_invalid() && self.facts(node).is_fragmented_inline() {
             node
         } else {
@@ -2109,6 +2266,8 @@ impl<'context> InlineFormattingContext<'context> {
                 block_level_box: None,
                 uses_last_line_alignment: None,
                 placed_inline_start: CssPixels::default(),
+                hanging_space_inline_size: CssPixels::default(),
+                bidi_reordered: false,
             };
             fragment_start = fragment_end;
             let line_item_start = item_index;
@@ -2211,7 +2370,7 @@ impl<'context> InlineFormattingContext<'context> {
         line_ends_in_whitespace: bool,
         can_break_after_previous_overflow_item: bool,
     ) -> TextItemWrapOpportunity {
-        if style.text_wrap_mode() != text_wrap_mode::WRAP {
+        if style.text_wrap_mode() != text_wrap_mode::WRAP || item.continues_grapheme(prepared) {
             return TextItemWrapOpportunity::None;
         }
         if is_whitespace {
@@ -2371,12 +2530,18 @@ impl<'context> InlineFormattingContext<'context> {
             } else {
                 inline_level_iterator::hyphen_inline_size_after(self, prepared, &prefix)
             };
-            if inline_level_iterator::inline_extent([&prefix]) + hyphen > remaining {
+            let grapheme_continuation = if overflow_break_allowed {
+                iterator.grapheme_continuation_inline_size(self, &prefix)
+            } else {
+                CssPixels::default()
+            };
+            if inline_level_iterator::inline_extent([&prefix]) + hyphen + grapheme_continuation > remaining {
                 if overflow_break_allowed {
+                    let continues_grapheme = prefix.continues_grapheme(prepared);
                     let physical_remaining = line_builder
                         .remaining_inline_size_for_overflow_break()
                         .expect("splitting text requires a definite line width");
-                    if prefix.border_box_inline_size() + hyphen > physical_remaining {
+                    if prefix.border_box_inline_size() + hyphen + grapheme_continuation > physical_remaining {
                         let split = self.split_for_overflow_break_before_hyphen(
                             &mut prefix,
                             prepared,
@@ -2385,11 +2550,11 @@ impl<'context> InlineFormattingContext<'context> {
                             word_spacing,
                             physical_remaining,
                             hyphen,
-                            line_is_empty,
+                            line_is_empty || continues_grapheme,
                         );
                         if let Some(split) = split {
                             prefix = split;
-                        } else if !line_is_empty {
+                        } else if !line_is_empty && !continues_grapheme {
                             line_builder.break_line(
                                 line_builder::ForcedBreak::No,
                                 None,
@@ -2451,6 +2616,10 @@ impl<'context> InlineFormattingContext<'context> {
             if line_limit.as_deref_mut().is_some_and(|limit| limit.is_reached(self)) {
                 return true;
             }
+            // No break can start before or within this item. The first piece of its grapheme already measured it.
+            if item.is_only_grapheme_continuation(prepared) {
+                return false;
+            }
             let Some(remaining_inline_size) = line_builder.remaining_inline_size_for_overflow_break() else {
                 return false;
             };
@@ -2465,13 +2634,16 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 _ => CssPixels::default(),
             };
-            if item.border_box_inline_size() + hyphen <= remaining_inline_size {
-                return false;
-            }
             if !self.overflow_break_applies_to_style(style) {
                 return false;
             }
+            let needed_inline_size =
+                item.border_box_inline_size() + hyphen + iterator.grapheme_continuation_inline_size(self, item);
+            if needed_inline_size <= remaining_inline_size {
+                return false;
+            }
             let line_is_empty = self.line_data().line_boxes.last().is_some_and(|line| line.is_empty());
+            let continues_grapheme = item.continues_grapheme(prepared);
             self.set_current_line_start_offset(item_index, item.offset_in_node);
             if line_is_empty && line_builder.current_line_has_no_space_left_by_floats() {
                 line_builder.break_line(line_builder::ForcedBreak::No, None, None);
@@ -2480,6 +2652,32 @@ impl<'context> InlineFormattingContext<'context> {
             let text_content = self.pass.text_content(item.node);
             let letter_spacing = style.letter_spacing().to_double() as f32;
             let word_spacing = style.word_spacing().to_double() as f32;
+            // Breaking after bidi inline edges alone cannot help if the first grapheme overflows even a line clear of floats.
+            let line_has_only_bidi_edges = self.line_data().line_boxes.last().is_some_and(|line| {
+                !line.fragments.is_empty()
+                    && line
+                        .fragments
+                        .iter()
+                        .all(line_box_fragment::LineBoxFragmentData::is_bidi_inline_edge)
+            });
+            let keep_first_grapheme = line_is_empty
+                || continues_grapheme
+                || (line_has_only_bidi_edges && {
+                    let first_grapheme_inline_size = self.pass.with_grapheme_segmenter(item.node, |segmenter| {
+                        item.first_grapheme_cluster_inline_size(
+                            prepared,
+                            &text_content.text,
+                            segmenter,
+                            letter_spacing,
+                            word_spacing,
+                        )
+                    });
+                    let first_grapheme_inline_size = first_grapheme_inline_size
+                        .map_or(needed_inline_size - hyphen, |size| {
+                            item.border_start + item.padding_start + size
+                        });
+                    first_grapheme_inline_size > line_builder.unobstructed_inline_size_after_soft_break()
+                });
             let split_item = self.split_for_overflow_break_before_hyphen(
                 item,
                 prepared,
@@ -2488,13 +2686,13 @@ impl<'context> InlineFormattingContext<'context> {
                 word_spacing,
                 remaining_inline_size,
                 hyphen,
-                line_is_empty,
+                keep_first_grapheme,
             );
             let Some(mut prefix) = split_item else {
-                if line_is_empty {
+                if keep_first_grapheme {
                     return false;
                 }
-                line_builder.break_line(line_builder::ForcedBreak::No, None, Some(item.border_box_inline_size()));
+                line_builder.break_line(line_builder::ForcedBreak::No, None, Some(needed_inline_size));
                 continue;
             };
             line_builder.append_text_item(&mut prefix, prepared, style);
@@ -2735,7 +2933,7 @@ impl<'context> InlineFormattingContext<'context> {
         line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
         item_count: usize,
         pending_resume_offset: Option<usize>,
-        item_state: InlineItemRunState,
+        item_state: &InlineItemRunState,
     ) {
         let items = iterator.items();
         let segment_has_float = items
@@ -2761,7 +2959,7 @@ impl<'context> InlineFormattingContext<'context> {
                 pending_resume_offset,
                 None,
                 None,
-                item_state,
+                item_state.clone(),
                 true,
             );
             trial.update_last_line(false);
@@ -2835,7 +3033,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
             if needs_float_fitting {
                 needs_float_fitting = false;
-                self.fit_lines_around_floats(iterator, line_builder, item_count, pending_resume_offset, item_state);
+                self.fit_lines_around_floats(iterator, line_builder, item_count, pending_resume_offset, &item_state);
             }
             if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                 break;
@@ -2939,35 +3137,63 @@ impl<'context> InlineFormattingContext<'context> {
             let run_fits_after_previous_whitespace = std::mem::take(&mut item_state.whitespace_measured_next_run);
             // https://drafts.csswg.org/css-text-3/#white-space-phase-2
             // "A sequence of collapsible spaces at the beginning of a line is removed."
-            let is_at_start_of_line = self
-                .line_data()
-                .line_boxes
-                .last()
-                .is_none_or(|line| line.fragments.is_empty() || line.has_block_level_box);
+            let is_at_start_of_line = self.line_data().line_boxes.last().is_none_or(|line| {
+                line.has_block_level_box
+                    || line
+                        .fragments
+                        .iter()
+                        .all(line_box_fragment::LineBoxFragmentData::is_bidi_inline_edge)
+            });
+
+            // Carry the leading edges past floats.
+            if item.type_ != inline_level_iterator::ItemType::FloatingElement {
+                item.margin_start += std::mem::take(&mut item_state.leading_margin);
+                item.border_start += std::mem::take(&mut item_state.leading_border);
+                item.padding_start += std::mem::take(&mut item_state.leading_padding);
+                item.entered_right_to_left_end_margin +=
+                    std::mem::take(&mut item_state.leading_right_to_left_end_margin);
+                item.bidi_start_edges_on_left += std::mem::take(&mut item_state.bidi_leading_edges_on_left);
+                if !item_state.bidi_leading_box_edges.is_empty() {
+                    let leading = &mut item.bidi_inline_box_edges.get_or_insert_default().leading;
+                    // The carried edges precede this item's own edges in logical order.
+                    item_state.bidi_leading_box_edges.append(leading);
+                    std::mem::swap(leading, &mut item_state.bidi_leading_box_edges);
+                }
+            }
+
             if item.is_collapsible_whitespace
                 && (item.collapses_into_preceding_space(iterator.prepared_content()) || is_at_start_of_line)
             {
-                // NB: The whitespace disappears, but the inline boxes that end with it still end on this line.
-                item_state.collapsed_whitespace_node = item.node;
-                item_state.leading_margin += item.margin_start;
-                item_state.leading_border += item.border_start;
-                item_state.leading_padding += item.padding_start;
-                item_state.leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
-                let zero = CssPixels::default();
-                if item.margin_end != zero || item.border_end != zero || item.padding_end != zero {
-                    // NB: A box that ends here started on this line, so its start edges come before its end edges.
-                    line_builder.append_start_edges_of_collapsed_whitespace(
-                        item.node,
-                        std::mem::take(&mut item_state.leading_margin),
-                        std::mem::take(&mut item_state.leading_border),
-                        std::mem::take(&mut item_state.leading_padding),
-                    );
-                    line_builder.append_end_edges_of_collapsed_whitespace(
-                        item.node,
-                        item.margin_end,
-                        item.border_end,
-                        item.padding_end,
-                    );
+                // Nested edges from successive discarded items can share one bidi position.
+                if !line_builder.append_inline_box_of_collapsed_whitespace(&mut item, iterator.prepared_content()) {
+                    // The whitespace disappears, but the inline boxes that end with it still end on this line.
+                    item_state.collapsed_whitespace_node = item.node;
+                    item_state.leading_margin += item.margin_start;
+                    item_state.leading_border += item.border_start;
+                    item_state.leading_padding += item.padding_start;
+                    item_state.leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
+                    item_state.bidi_leading_edges_on_left += item.bidi_start_edges_on_left;
+                    if let Some(edges) = &mut item.bidi_inline_box_edges {
+                        item_state.bidi_leading_box_edges.append(&mut edges.leading);
+                    }
+                    let zero = CssPixels::default();
+                    if item.margin_end != zero || item.border_end != zero || item.padding_end != zero {
+                        // NB: A box that ends here started on this line, so its start edges come before its end edges.
+                        line_builder.append_start_edges_of_collapsed_whitespace(
+                            item.node,
+                            std::mem::take(&mut item_state.leading_margin),
+                            std::mem::take(&mut item_state.leading_border),
+                            std::mem::take(&mut item_state.leading_padding),
+                        );
+                        item_state.bidi_leading_edges_on_left = CssPixels::default();
+                        item_state.bidi_leading_box_edges.clear();
+                        line_builder.append_end_edges_of_collapsed_whitespace(
+                            item.node,
+                            item.margin_end,
+                            item.border_end,
+                            item.padding_end,
+                        );
+                    }
                 }
                 if self.style(self.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                     let next_inline_size = iterator.next_inline_run_size(self).unwrap_or_default();
@@ -2989,24 +3215,12 @@ impl<'context> InlineFormattingContext<'context> {
                 continue;
             }
 
-            // NB: A float is not on the line, so the leading edges wait for the next item that is.
-            if item.type_ != inline_level_iterator::ItemType::FloatingElement {
-                item.margin_start += item_state.leading_margin;
-                item.border_start += item_state.leading_border;
-                item.padding_start += item_state.leading_padding;
-                item.entered_right_to_left_end_margin += item_state.leading_right_to_left_end_margin;
-                item_state.leading_margin = CssPixels::default();
-                item_state.leading_border = CssPixels::default();
-                item_state.leading_padding = CssPixels::default();
-                item_state.leading_right_to_left_end_margin = CssPixels::default();
-            }
-
             match item.type_ {
                 inline_level_iterator::ItemType::InlineEdge => {
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    line_builder.append_inline_edge(&item);
+                    line_builder.append_inline_edge(&mut item, iterator.prepared_content());
                 }
                 inline_level_iterator::ItemType::ForcedBreak => {
                     line_builder.append_start_edges_of_collapsed_whitespace(
@@ -3022,6 +3236,7 @@ impl<'context> InlineFormattingContext<'context> {
                     let continuation = iterator.next_unbreakable_run_inline_size(self);
                     let position = iterator.forced_break_position(&item);
                     line_builder.add_struts_of_inline_boxes_around(position.node, CssPixels::default());
+                    line_builder.set_bidi_paragraph_direction(&item, iterator.prepared_content());
                     line_builder.break_line(line_builder::ForcedBreak::Yes, Some(position), continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
@@ -3066,13 +3281,17 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    line_builder.append_box(&item);
+                    line_builder.append_box(&mut item, iterator.prepared_content());
                 }
                 inline_level_iterator::ItemType::BlockLevelBox => {
                     item_state.leading_margin += item.margin_start;
                     item_state.leading_border += item.border_start;
                     item_state.leading_padding += item.padding_start;
                     item_state.leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
+                    item_state.bidi_leading_edges_on_left += item.bidi_start_edges_on_left;
+                    if let Some(edges) = &mut item.bidi_inline_box_edges {
+                        item_state.bidi_leading_box_edges.append(&mut edges.leading);
+                    }
                     // https://drafts.csswg.org/css2/#anonymous-block-level
                     // NB: The inline boxes around the block-level box are broken around it, so they're on the line
                     //     before it and on the line after it.
@@ -3618,16 +3837,13 @@ impl<'context> InlineFormattingContext<'context> {
                 }
             }
         }
-        if self.parent.has_line_clamp() {
+        if self.parent.has_line_clamp() || !self.bidi_paragraphs.is_empty() {
             line_builder.update_last_line(false);
         }
         let line_count = self.line_data().line_boxes.len();
-        for line_index in reused_line_count..line_count {
-            if self.line_data().line_boxes[line_index]
-                .inline_length_before_block_ellipsis
-                .is_none()
-            {
-                self.line_data_mut().line_boxes[line_index].trim_trailing_whitespace();
+        for line in &mut self.line_data_mut().line_boxes[reused_line_count..] {
+            if !line.bidi_reordered && line.inline_length_before_block_ellipsis.is_none() {
+                line.trim_trailing_whitespace();
             }
         }
         if self.text_overflow_applies() {
@@ -4279,12 +4495,14 @@ struct StateBeforeFindingLineBreaks {
     block_axis_float_clearance: CssPixels,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 struct InlineItemRunState {
     leading_margin: CssPixels,
     leading_border: CssPixels,
     leading_padding: CssPixels,
     leading_right_to_left_end_margin: CssPixels,
+    bidi_leading_edges_on_left: CssPixels,
+    bidi_leading_box_edges: Vec<bidi::InlineBoxEdge>,
     collapsed_whitespace_node: Node,
     previous_text_item_allows_overflow_break_after: bool,
     whitespace_measured_next_run: bool,
@@ -4401,7 +4619,7 @@ pub(super) struct LinesWithoutLineBoxes {
     first_line: Option<FirstLineMaxContent>,
     inline_size: CssPixels,
     has_fragments: bool,
-    has_edges_of_collapsed_whitespace: bool,
+    has_unattached_inline_box_edges: bool,
     ends_in_whitespace: bool,
     trailing_whitespace_wraps: bool,
     trailing_whitespace_inline_size: CssPixels,
@@ -4480,9 +4698,14 @@ impl LinesWithoutLineBoxes {
 
     fn append_edges_of_collapsed_whitespace(&mut self, margin: CssPixels, border: CssPixels, padding: CssPixels) {
         self.inline_size += margin + border + padding;
-        self.has_edges_of_collapsed_whitespace |= [margin, border, padding]
+        self.has_unattached_inline_box_edges |= [margin, border, padding]
             .iter()
             .any(|edge| *edge != CssPixels::default());
+    }
+
+    fn append_unattached_inline_edge(&mut self, advance: CssPixels) {
+        self.inline_size += advance;
+        self.has_unattached_inline_box_edges = true;
     }
 
     fn note_line(&mut self, inline_size: CssPixels) {
@@ -4494,16 +4717,16 @@ impl LinesWithoutLineBoxes {
             .get_or_insert(floats_beside_line.beside_first_line(inline_size.max(CssPixels::default())));
         self.inline_size = CssPixels::default();
         self.has_fragments = false;
-        self.has_edges_of_collapsed_whitespace = false;
+        self.has_unattached_inline_box_edges = false;
         self.ends_in_whitespace = false;
         self.trailing_whitespace_inline_size = CssPixels::default();
     }
 
     fn finish(&mut self) {
-        if self.has_edges_of_collapsed_whitespace {
+        if self.has_unattached_inline_box_edges {
             self.start_line_if_empty();
         }
-        if self.has_fragments || self.has_edges_of_collapsed_whitespace || !self.floats_beside_line.is_empty() {
+        if self.has_fragments || self.has_unattached_inline_box_edges || !self.floats_beside_line.is_empty() {
             self.note_line(self.inline_size - self.trailing_whitespace_inline_size);
             self.follows_forced_break = false;
         }
@@ -4629,7 +4852,11 @@ impl ContentSizingLines {
                 self.lines.force_break();
             }
             inline_level_iterator::ItemType::InlineEdge => {
-                self.lines.append(border_box_inline_size, false, CssPixels::default());
+                if prepared.empty_inline_bidi_position(item.node).is_some() {
+                    self.lines.append_unattached_inline_edge(border_box_inline_size);
+                } else {
+                    self.lines.append(border_box_inline_size, false, CssPixels::default());
+                }
             }
             inline_level_iterator::ItemType::Element => {
                 self.lines
@@ -4833,7 +5060,9 @@ impl ContentSizingLines {
             )
         });
         let border_and_padding_end = item.padding_end + item.border_end;
-        if border_and_padding_start + item.inline_size + border_and_padding_end > CssPixels::default() {
+        if !item.continues_grapheme(prepared)
+            && border_and_padding_start + item.inline_size + border_and_padding_end > CssPixels::default()
+        {
             self.lines.finish();
         }
         let last_cluster_index = cluster_inline_sizes.len() - 1;
@@ -4885,7 +5114,10 @@ pub(crate) fn elided_content_rect(line: &line_box::LineBoxData) -> Option<FfiCss
         .iter()
         .position(|fragment| fragment.has_text_overflow_ellipsis)?;
     let fragment = &line.fragments[ellipsis_index];
-    let line_box_inline_start = fragment.inline_offset - elision.ellipsis_fragment_start;
+    let line_box_inline_start = match elision.origin {
+        line_box::TextOverflowOrigin::LineBoxStart(inline_start) => inline_start,
+        line_box::TextOverflowOrigin::CutFragmentStart(inline_offset) => fragment.inline_offset - inline_offset,
+    };
     let content_inline_start = if line.direction == direction::RTL {
         line_box_inline_start + line.original_available_inline_size.to_px_or_zero() - inline_length
     } else {

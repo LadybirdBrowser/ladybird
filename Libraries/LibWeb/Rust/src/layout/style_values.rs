@@ -260,7 +260,11 @@ impl<'a> StyleValues<'a> {
             return self.style.inline_axis_is_reverse();
         }
         // NB: The left side of a frame is the line-left side, which is inline-start in ltr text.
-        self.style.direction() == direction::RTL
+        self.direction() == direction::RTL
+    }
+
+    pub(crate) fn direction(self) -> u8 {
+        self.style.used_direction()
     }
 
     /// Whether the block-start side is the frame's bottom side rather than its top side.

@@ -1432,7 +1432,7 @@ fn text_clip_fragments<O: Observer>(
             let side = layout_arena.committed_side_data(root);
             for piece_index in side.inline_box_piece_indices(paintable) {
                 let piece = &side.inline_box_pieces()[*piece_index as usize];
-                for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
+                for fragment_index in piece.fragment_indices() {
                     append_fragment(root, fragment_index as usize);
                 }
             }

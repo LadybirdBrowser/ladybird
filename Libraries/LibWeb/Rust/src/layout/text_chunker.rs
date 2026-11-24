@@ -161,8 +161,8 @@ unsafe extern "C" {
         start: *mut usize,
         end: *mut usize,
     );
-    safe fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
     safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
+    fn unicode_layout_find_forced_line_break(text: *const u16, length: usize, preserve_line_feeds: bool) -> usize;
     safe fn unicode_layout_joining_type(code_point: u32) -> u8;
     safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
     safe fn unicode_layout_vertical_orientation(code_point: u32) -> u8;
@@ -266,6 +266,11 @@ fn line_break_class(code_point: u32) -> u8 {
     unicode_layout_line_break_class(code_point)
 }
 
+pub(super) fn next_forced_line_break(text: &[u16], preserve_line_feeds: bool) -> usize {
+    // SAFETY: LibUnicode reads the supplied UTF-16 slice synchronously.
+    unsafe { unicode_layout_find_forced_line_break(text.as_ptr(), text.len(), preserve_line_feeds) }
+}
+
 pub(crate) const SOFT_HYPHEN: u16 = 0xad;
 
 /// Whether a line that breaks right after `text[..end]` breaks at a soft hyphen there, and so ends in a hyphen: The
@@ -340,57 +345,26 @@ pub(crate) fn joining_context(text: &[u16], range: std::ops::Range<usize>) -> li
     }
 }
 
-// Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
-// (resolved from surrounding runs).
-fn text_type_for_code_point(code_point: u32) -> u8 {
-    use line_box_fragment::{
-        GLYPH_TEXT_TYPE_COMMON as C, GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT as X, GLYPH_TEXT_TYPE_LTR as L,
-        GLYPH_TEXT_TYPE_RTL as R,
-    };
-
-    // Each ASCII character has a statically known bidi class.
-    #[rustfmt::skip]
-    const ASCII_TEXT_TYPES: [u8; 128] = [
-        // 0x00-0x0F: Control characters (BN=Common, S/B/WS=ContextDependent)
-        C, C, C, C, C, C, C, C, C, X, X, X, X, X, C, C,
-        // 0x10-0x1F: Control characters
-        C, C, C, C, C, C, C, C, C, C, C, C, X, X, X, X,
-        // 0x20-0x2F: Space and punctuation
-        X, C, C, X, X, X, C, C, C, C, C, X, X, X, X, X,
-        // 0x30-0x3F: Digits and punctuation
-        X, X, X, X, X, X, X, X, X, X, X, C, C, C, C, C,
-        // 0x40-0x4F: @ and uppercase letters
-        C, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L,
-        // 0x50-0x5F: Uppercase letters and punctuation
-        L, L, L, L, L, L, L, L, L, L, L, C, C, C, C, C,
-        // 0x60-0x6F: ` and lowercase letters
-        C, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L,
-        // 0x70-0x7F: Lowercase letters and punctuation
-        L, L, L, L, L, L, L, L, L, L, L, C, C, C, C, C,
-    ];
-    if let Some(&text_type) = ASCII_TEXT_TYPES.get(code_point as usize) {
-        return text_type;
-    }
-
-    match unicode_layout_bidirectional_class(code_point) {
-        // LibUnicode's BidiClass, in declaration order: AN, B, CS, NSM, EN, ES, ET, S, WS.
-        0 | 1 | 3..=7 | 21 | 22 => X,
-        // BN, FSI, ON, PDF, PDI.
-        2 | 8 | 13..=15 => C,
-        // L, LRE, LRI, LRO.
-        9..=12 => L,
-        // R, AL, RLE, RLI, RLO.
-        16..=20 => R,
-        _ => unreachable!("invalid bidi class"),
-    }
-}
-
 // Stand-ins for the Unicode library's segmenters and the host's code point facts, which a unit test links through a
 // document's render state but never reaches.
 #[cfg(test)]
 mod unicode_test_stubs {
     use std::ffi::c_void;
 
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_find_forced_line_break(
+        text: *const u16,
+        length: usize,
+        preserve_line_feeds: bool,
+    ) -> usize {
+        // SAFETY: The caller supplies the UTF-16 slice for the duration of this call.
+        let text = unsafe { std::slice::from_raw_parts(text, length) };
+        text.iter()
+            .position(|&unit| {
+                matches!(unit, 0x0b | 0x0c | 0x85 | 0x2028 | 0x2029) || (preserve_line_feeds && unit == 0x0a)
+            })
+            .unwrap_or(length)
+    }
     #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_grapheme_segmenter_create(
         _text: *const u16,
@@ -442,11 +416,6 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn unicode_layout_bidirectional_class(_code_point: u32) -> u8 {
-        unreachable!("no unit test segments text");
-    }
-
-    #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_line_break_class(_code_point: u32) -> u8 {
         unreachable!("no unit test segments text");
     }
@@ -490,7 +459,15 @@ pub(crate) struct TextChunk {
     pub has_breaking_tab: bool,
     pub is_all_whitespace: bool,
     pub can_break_after: bool,
-    pub text_type: u8,
+    pub grapheme_continuation: GraphemeContinuation,
+    pub bidi_level: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GraphemeContinuation {
+    None,
+    StartsInside,
+    EntireChunk,
 }
 
 pub(crate) struct TextChunkInputs<'text> {
@@ -505,7 +482,7 @@ pub(crate) struct TextChunkInputs<'text> {
     pub font_variant_emoji: u8,
     pub should_wrap_lines: bool,
     pub should_respect_linebreaks: bool,
-    pub unidirectional_ltr: bool,
+    pub bidi_levels: Option<&'text [u8]>,
     /// Whether the text is vertical text in mixed orientation, where some characters are typeset upright and others
     /// sideways.
     pub splits_at_orientation_changes: bool,
@@ -943,9 +920,10 @@ fn ascii_line_break_at_whitespace_or_text_edge(text: &[u16], index: usize) -> Op
 struct PendingChunk {
     start: usize,
     font_index: u16,
-    text_type: u8,
+    bidi_level: u8,
     is_upright: bool,
     broken_on_tab: bool,
+    grapheme_end_at_start: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -1245,9 +1223,11 @@ struct TextChunker<'text> {
     break_after_preserved_tabs: bool,
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
-    unidirectional_ltr: bool,
+    next_forced_break: usize,
+    bidi_levels: Option<&'text [u8]>,
     splits_at_orientation_changes: bool,
     current_index: usize,
+    grapheme_end: usize,
     /// The fonts of the chunks, each once, which the chunks name by index.
     fonts: Vec<FontHandle>,
     first_font_and_ascii_code_points_it_resolves: Option<(&'text FontHandle, u128)>,
@@ -1290,9 +1270,11 @@ impl<'text> TextChunker<'text> {
                 && inputs.should_wrap_lines,
             should_wrap_lines: inputs.should_wrap_lines,
             should_respect_linebreaks: inputs.should_respect_linebreaks,
-            unidirectional_ltr: inputs.unidirectional_ltr,
+            next_forced_break: next_forced_line_break(inputs.text, inputs.should_respect_linebreaks),
+            bidi_levels: inputs.bidi_levels,
             splits_at_orientation_changes: inputs.splits_at_orientation_changes,
             current_index: 0,
+            grapheme_end: 0,
             fonts: Vec::new(),
             first_font_and_ascii_code_points_it_resolves,
             font_for_every_space,
@@ -1303,25 +1285,44 @@ impl<'text> TextChunker<'text> {
         code_point_at(self.text, self.current_index)
     }
 
-    fn current_text_type(&self) -> u8 {
-        if self.unidirectional_ltr {
-            return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
-        }
-        text_type_for_code_point(self.current_code_point())
+    fn current_bidi_level(&self) -> u8 {
+        self.bidi_levels.map_or(0, |levels| levels[self.current_index])
     }
 
     fn current_code_point_is_upright(&self) -> bool {
         self.splits_at_orientation_changes && code_point_is_upright_in_mixed_orientation(self.current_code_point())
     }
 
-    fn next_chunk_boundary(&self) -> usize {
-        // CRLF is one grapheme, but the line feed must start its own chunk when CSS preserves line breaks.
-        if self.should_respect_linebreaks && self.text.get(self.current_index) == Some(&u16::from(b'\r')) {
-            return self.current_index + 1;
+    fn advance_to_next_chunk_boundary(&mut self) {
+        // A preserved tab run can already have advanced to the end of the text.
+        if self.current_index >= self.text.len() {
+            return;
         }
-        self.grapheme_segmenter
-            .next_boundary(self.current_index, false)
-            .unwrap_or(self.text.len())
+        if self.current_index >= self.grapheme_end {
+            // CRLF is one grapheme, but the line feed must start its own chunk when CSS preserves line breaks.
+            self.grapheme_end =
+                if self.should_respect_linebreaks && self.text.get(self.current_index) == Some(&u16::from(b'\r')) {
+                    self.current_index + 1
+                } else {
+                    self.grapheme_segmenter
+                        .next_boundary(self.current_index, false)
+                        .unwrap_or(self.text.len())
+                };
+        }
+        let mut next = self.grapheme_end;
+        if let Some(levels) = self.bidi_levels {
+            // UAX #9 limits shaping to a single level run, even inside a grapheme cluster.
+            // A change in the line-end tag alone does not split the cluster (for example, at a ZWJ).
+            let start = self.current_index + 1;
+            let current_level = bidi::resolved_level(levels[self.current_index]);
+            if let Some(change) = levels[start..next]
+                .iter()
+                .position(|&level| bidi::resolved_level(level) != current_level)
+            {
+                next = start + change;
+            }
+        }
+        self.current_index = next;
     }
 
     fn is_collapsible(&self, code_point: u32) -> bool {
@@ -1333,7 +1334,9 @@ impl<'text> TextChunker<'text> {
     }
 
     fn is_at_line_break_opportunity(&self) -> bool {
-        self.should_wrap_lines && self.line_breaker.is_at_line_break_opportunity(self.current_index)
+        self.should_wrap_lines
+            && self.current_index >= self.grapheme_end
+            && self.line_breaker.is_at_line_break_opportunity(self.current_index)
     }
 
     fn emoji_presentation_at(&self, code_unit_offset: usize, code_point: u32) -> EmojiPresentation {
@@ -1459,13 +1462,13 @@ impl<'text> TextChunker<'text> {
     }
 
     fn try_commit_chunk(
-        &mut self,
-        start: usize,
+        &self,
+        pending: &PendingChunk,
         end: usize,
         break_flags: ChunkBreakFlags,
         font_index: u16,
-        text_type: u8,
     ) -> Option<TextChunk> {
+        let start = pending.start;
         let length_in_code_units = end - start;
         if length_in_code_units == 0 {
             return None;
@@ -1473,6 +1476,13 @@ impl<'text> TextChunker<'text> {
         let is_all_whitespace = self.text[start..end]
             .iter()
             .all(|unit| *unit <= 0x7f && code_point_is_ascii_space(u32::from(*unit)));
+        let grapheme_continuation = if start >= pending.grapheme_end_at_start {
+            GraphemeContinuation::None
+        } else if end <= pending.grapheme_end_at_start {
+            GraphemeContinuation::EntireChunk
+        } else {
+            GraphemeContinuation::StartsInside
+        };
         Some(TextChunk {
             start: TextChunk::code_units(start),
             length: TextChunk::code_units(length_in_code_units),
@@ -1481,7 +1491,8 @@ impl<'text> TextChunker<'text> {
             has_breaking_tab: break_flags.has_breaking_tab,
             is_all_whitespace,
             can_break_after: break_flags.can_break_after,
-            text_type,
+            grapheme_continuation,
+            bidi_level: pending.bidi_level,
         })
     }
 
@@ -1497,9 +1508,10 @@ impl<'text> TextChunker<'text> {
             let mut pending = PendingChunk {
                 start: self.current_index,
                 font_index: self.index_of_font(expected_font),
-                text_type: self.current_text_type(),
+                bidi_level: self.current_bidi_level(),
                 is_upright: self.current_code_point_is_upright(),
                 broken_on_tab: false,
+                grapheme_end_at_start: self.grapheme_end,
             };
 
             while self.current_index < self.text.len() {
@@ -1523,8 +1535,8 @@ impl<'text> TextChunker<'text> {
                     return Some(chunk);
                 }
 
-                if self.should_respect_linebreaks && code_point == '\n' as u32 {
-                    // Newline encountered, and we're supposed to preserve them.
+                if self.current_index == self.next_forced_break && self.current_index < self.text.len() {
+                    // A preserved newline or a mandatory Unicode break ends the line.
                     // If we have accumulated some code points in the current chunk, commit them now and continue with
                     // the newline next time.
                     if let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, false) {
@@ -1532,9 +1544,11 @@ impl<'text> TextChunker<'text> {
                     }
 
                     // Otherwise, commit the newline!
-                    self.current_index = self.next_chunk_boundary();
+                    self.advance_to_next_chunk_boundary();
+                    self.next_forced_break = self.current_index
+                        + next_forced_line_break(&self.text[self.current_index..], self.should_respect_linebreaks);
                     let chunk = self.try_commit_chunk(
-                        pending.start,
+                        &pending,
                         self.current_index,
                         ChunkBreakFlags {
                             has_breaking_newline: true,
@@ -1542,7 +1556,6 @@ impl<'text> TextChunker<'text> {
                             can_break_after: false,
                         },
                         pending.font_index,
-                        pending.text_type,
                     );
                     return Some(chunk.expect("newline chunk must be non-empty"));
                 }
@@ -1555,8 +1568,9 @@ impl<'text> TextChunker<'text> {
                 {
                     let chunk = self.try_commit_chunk_at_cursor(&pending, false);
 
-                    while self.current_index < self.text.len() && self.is_collapsible(self.current_code_point()) {
-                        self.current_index = self.next_chunk_boundary();
+                    while self.current_index < self.next_forced_break && self.is_collapsible(self.current_code_point())
+                    {
+                        self.advance_to_next_chunk_boundary();
                     }
 
                     if let Some(chunk) = chunk {
@@ -1569,7 +1583,7 @@ impl<'text> TextChunker<'text> {
                 // Tabs can advance the cursor past the text. Split shaping runs at direction changes independently
                 // of line wrapping, while keeping the direction lookup inside the text.
                 if self.current_index < self.text.len()
-                    && pending.text_type != self.current_text_type()
+                    && pending.bidi_level != self.current_bidi_level()
                     && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
                 {
                     return Some(chunk);
@@ -1594,12 +1608,12 @@ impl<'text> TextChunker<'text> {
                         }
 
                         // Otherwise, commit the whitespace!
-                        self.current_index = self.next_chunk_boundary();
+                        self.advance_to_next_chunk_boundary();
                         can_break_at_current_position = self.is_at_line_break_opportunity();
                         let space_font = self.font_for_space(code_point);
                         let space_font_index = self.index_of_font(space_font);
                         if let Some(chunk) = self.try_commit_chunk(
-                            pending.start,
+                            &pending,
                             self.current_index,
                             ChunkBreakFlags {
                                 has_breaking_newline: false,
@@ -1607,7 +1621,6 @@ impl<'text> TextChunker<'text> {
                                 can_break_after: false,
                             },
                             space_font_index,
-                            pending.text_type,
                         ) {
                             return Some(chunk);
                         }
@@ -1621,14 +1634,14 @@ impl<'text> TextChunker<'text> {
                     }
                 }
 
-                self.current_index = self.next_chunk_boundary();
+                self.advance_to_next_chunk_boundary();
                 can_break_at_current_position = self.is_at_line_break_opportunity();
             }
 
             if pending.start != self.text.len() {
                 // Try to output whatever's left at the end of the text node.
                 if let Some(chunk) = self.try_commit_chunk(
-                    pending.start,
+                    &pending,
                     self.text.len(),
                     ChunkBreakFlags {
                         has_breaking_newline: false,
@@ -1636,7 +1649,6 @@ impl<'text> TextChunker<'text> {
                         can_break_after: false,
                     },
                     pending.font_index,
-                    pending.text_type,
                 ) {
                     return Some(chunk);
                 }
@@ -1652,7 +1664,7 @@ impl<'text> TextChunker<'text> {
             return None;
         }
         self.try_commit_chunk(
-            pending.start,
+            pending,
             self.current_index,
             ChunkBreakFlags {
                 has_breaking_newline: false,
@@ -1660,7 +1672,6 @@ impl<'text> TextChunker<'text> {
                 can_break_after,
             },
             pending.font_index,
-            pending.text_type,
         )
     }
 }
@@ -1670,7 +1681,7 @@ pub(crate) fn text_chunks(
     node: Node,
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
-    unidirectional_ltr: bool,
+    bidi_levels: Option<&[u8]>,
 ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
     let parent_style = StyleValues::for_node(pass, pass.parent(node));
     let frozen_font_list = parent_style.frozen_font_list();
@@ -1678,7 +1689,6 @@ pub(crate) fn text_chunks(
     let key = super::rendered_text::TextChunkCacheKey {
         should_wrap_lines,
         should_respect_linebreaks,
-        unidirectional_ltr,
         white_space_collapse: parent_style.white_space_collapse(),
         word_break: parent_style.word_break(),
         line_break: parent_style.line_break(),
@@ -1697,7 +1707,7 @@ pub(crate) fn text_chunks(
         ) && parent_style.text_orientation() == text_orientation::MIXED,
     };
     let text = &pass.text_content(node).text;
-    pass.text_chunks(node, &key, || ChunkedText {
+    let make_chunks = || ChunkedText {
         frozen_font_list_held_for_memo_key: Some(parent_style.frozen_font_list_ref()),
         ..chunk_text(TextChunkInputs {
             text,
@@ -1710,10 +1720,11 @@ pub(crate) fn text_chunks(
             font_variant_emoji: key.font_variant_emoji,
             should_wrap_lines,
             should_respect_linebreaks,
-            unidirectional_ltr,
+            bidi_levels,
             splits_at_orientation_changes: key.splits_at_orientation_changes,
         })
-    })
+    };
+    pass.text_chunks(node, &key, bidi_levels, make_chunks)
 }
 
 // Tabs occupy one UTF-16 code unit each. Other preserved whitespace is split below by next_chunk().

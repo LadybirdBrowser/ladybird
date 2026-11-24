@@ -18,5 +18,5 @@ text: 2 rows, 0 layout nodes per element
   fragments: within 220
   inlineContent: within 904
   visualContexts: within 4
-  memos: within 1156
+  memos: within 1164
   layoutNodeTable: within 0

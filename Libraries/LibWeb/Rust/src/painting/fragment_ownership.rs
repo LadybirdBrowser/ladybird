@@ -177,25 +177,28 @@ pub(crate) fn compute_fragment_ownership_for_block(
         if !is_self_painting_inline(layout_arena, piece_paintable) {
             continue;
         }
-        let range = FragmentRange {
-            begin: piece.first_fragment_index,
-            end: piece.first_fragment_index + piece.fragment_count,
+        let ranges = || {
+            piece.fragment_ranges().map(|range| FragmentRange {
+                begin: range.start,
+                end: range.end,
+            })
         };
         let index = filter_index(&mut owners, &mut filters, piece_paintable);
-        filters[index].included.push(range);
+        filters[index].included.extend(ranges());
         // The nearest self-painting box above owns the surrounding content but must not paint this
         // box's subtree; content outside any such box falls to the block.
         if let Some(enclosing_owner) = nearest_self_painting_inline_box(layout_arena, piece.node) {
             let index = filter_index(&mut owners, &mut filters, enclosing_owner);
-            filters[index].excluded.push(range);
+            filters[index].excluded.extend(ranges());
         } else {
-            block_filter.excluded.push(range);
+            block_filter.excluded.extend(ranges());
         }
     }
 
     block_filter.excluded.sort_by_key(|range| range.begin);
     let mut owners_with_filters = vec![(block, block_filter)];
     for (owner, mut filter) in owners.into_iter().zip(filters) {
+        filter.included.sort_by_key(|range| range.begin);
         filter.excluded.sort_by_key(|range| range.begin);
         owners_with_filters.push((owner, filter));
     }

@@ -410,7 +410,7 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
     }
 
     fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
-        self.rows.committed_side_data(root).inline_box_pieces()[piece_index as usize]
+        self.rows.committed_side_data(root).inline_box_pieces()[piece_index as usize].clone()
     }
 
     fn inline_has_content(&self, paintable: NodeSlotId) -> bool {

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    body { font: 20px/30px monospace; }
+    #split span { background: yellow; }
+    #wrapped { width: 95px; }
+    #empty span, .collapsed span, .edge { padding-inline: 5px; border: 1px solid; }
+    .trailing-ideographic-space, .hanging-ideographic-space { width: 200px; text-align: end; }
+    #number-container { width: 80px; white-space: nowrap; }
+    #upright { writing-mode: vertical-rl; text-orientation: upright; height: 300px; }
+    .spaces { width: 65px; white-space: pre-wrap; }
+    .overlap { width: 180px; }
+    .overlap span { display: inline-block; width: 40px; height: 10px; margin-left: -20px; }
+    #justified { text-align: justify; text-align-last: justify; }
+    #negative-end-margin { width: 100px; }
+    #negative-end-margin b { display: inline-block; width: 40px; height: 10px; margin-left: -20px; }
+    .trailing-tabs { font: inherit; tab-size: 60px; }
+    .overflow-marker { position: relative; width: 150px; overflow: hidden; white-space: nowrap; }
+    .overflow-marker i { float: left; width: 65px; height: 30px; }
+    .overflow-marker b { position: absolute; display: inline-block; width: 3px; height: 8px; }
+    .static-position { position: relative; width: 220px; }
+    .static-position b { position: absolute; display: inline-block; width: 3px; height: 5px; }
+    .plaintext { width: 200px; text-align: start; unicode-bidi: plaintext; white-space: pre; }
+    #plaintext-empty { position: absolute; display: inline-block; width: 0; height: 1px; }
+    #plaintext-columns { columns: 2; height: 30px; column-gap: 20px; width: 360px; }
+    .replaced img { width: 10px; height: 10px; unicode-bidi: embed; direction: rtl; }
+</style>
+<div id="split"><span>abc אבג</span> דהו</div>
+<div id="wrapped"><span>abc אבג</span> דהו</div>
+<div id="empty">אבג<span></span></div>
+<div id="empty-at-run-boundary">abc<span class="edge"></span><span class="edge"></span>אבג</div>
+<div id="empty-in-isolate">A<span dir="rtl"><span class="edge"></span>אבג</span>B</div>
+<div id="collapsed" class="collapsed">אבג<span> </span></div>
+<div id="collapsed-leading" class="collapsed"><span> </span>אבג</div>
+<div id="collapsed-adjacent" class="collapsed">אבג<span> </span><span> </span></div>
+<div id="collapsed-between" class="collapsed">אבג <span> </span>דהו</div>
+<div id="empty-between" class="collapsed">אבג <span></span>דהו</div>
+<div id="nested-empty">אבג<span class="edge"><span class="edge"></span></span></div>
+<div id="nested-collapsed">אבג<span class="edge"><span class="edge"> </span></span></div>
+<div id="nested-leading-empty"><span class="edge"><span class="edge"></span></span>אבג</div>
+<div id="nested-leading-collapsed"><span class="edge"><span class="edge"> </span></span>אבג</div>
+<div class="trailing-space">אבג <span class="edge"> </span><span class="edge"> </span></div>
+<div class="trailing-space" dir="rtl">אבג <span class="edge"></span></div>
+<div class="trailing-ideographic-space">אבג&#x3000;<span class="edge">&#x3000;</span><span class="edge"></span></div>
+<div class="trailing-ideographic-space" dir="rtl">אבג&#x3000;<span class="edge">&#x3000;</span><span class="edge"></span></div>
+<div class="hanging-ideographic-space">אבג&#x3000;<span>&#x3000;</span> </div>
+<div class="hanging-ideographic-space" dir="rtl">אבג&#x3000;<span>&#x3000;</span> </div>
+<div class="hanging-ideographic-space">abc&#x3000;<span>&#x3000; </span></div>
+<div id="space-before-atomic-inline">אבג <span style="display: inline-block; width: 0"></span></div>
+<div id="number" dir="rtl">123<span></span>,456</div>
+<div id="padded-arabic-number" dir="rtl">١,<span style="padding-left:1px; background: yellow"></span>٢</div>
+<div id="zero-padding-number" dir="rtl">123<span style="padding-inline: 0%"></span>,456</div>
+<div id="calc-padding-number" dir="rtl">123<span style="padding-inline: min(0px, 1%)"></span>,456</div>
+<div id="number-container"><div id="resized-number" dir="rtl">123<span style="padding-inline: max(0px, 10% - 10px)"></span>,456</div></div>
+<div class="separator">abc&#x2029;def</div>
+<div class="separator" dir="rtl">abc&#x2029;def</div>
+<div class="separator">abc&#x2029;אבג</div>
+<div class="separator">abc&#x2028;def</div>
+<div class="separator" dir="rtl">abc&#x2028;אבג</div>
+<div id="bidi-separator-only" dir="rtl">abc&#x1c;def</div>
+<div id="upright" dir="rtl">אבג<span>דהו</span>זחט</div>
+<div id="spaces" class="spaces">אבג<span>   </span>דהו</div>
+<div id="spaces-same-node" class="spaces">אבג   דהו</div>
+<div id="unjustified" class="overlap">אבג <span></span></div>
+<div id="justified" class="overlap">אבג <span></span></div>
+<div id="negative-end-margin">ABC <span dir="rtl" style="white-space: nowrap"><b></b>א</span></div>
+<div id="inline-negative-end-margin">ABCD <span dir="rtl" style="padding-right: 5px; margin-left: -20px">אבגדה</span></div>
+<div class="static-position">א<b></b>בג</div>
+<div class="static-position" style="text-align: center">א<b></b>בג</div>
+<div class="static-position" style="text-align: justify; text-align-last: justify">א <b></b>בג</div>
+<div class="static-position" dir="rtl" style="text-indent: 15px">A<b></b>BC</div>
+<div class="plaintext" id="plaintext-rtl" dir="rtl">123!<br>Latin<br>456?<br>שלום!<br><br>789!</div>
+<div class="plaintext" id="plaintext-ltr" style="position: relative">...<br>שלום!<br><b id="plaintext-empty"></b><br>456?<br>Latin<br><br>...</div>
+<div class="plaintext" id="plaintext-strong" dir="rtl">Latin<br>...</div>
+<div class="plaintext" id="plaintext-isolate" dir="rtl"><bdi>Latin</bdi>...</div>
+<div class="plaintext" id="plaintext-columns">שלום!<br>123!</div>
+<div id="prepend">&#x600;&#x627;&#x628;</div>
+<div id="prepend-wrap" style="word-break: break-all">&#x600;&#x627;&#x628;</div>
+<div id="prepend-overflow" style="overflow-wrap: anywhere">&#x600;&#x627;&#x628;</div>
+<div id="prepend-overflow-after-text" style="overflow-wrap: anywhere">AB&#x600;&#x627;&#x628;</div>
+<div id="prepend-min-content" style="overflow-wrap: anywhere; width: min-content">&#x600;&#x627;&#x628;</div>
+<pre class="trailing-tabs">אבג&#9;</pre>
+<pre class="trailing-tabs" dir="rtl">אבג&#9;&#9;</pre>
+<div id="inline-block" class="replaced">A<img style="display: inline-block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">123</div>
+<div id="inline" class="replaced">A<img style="display: inline" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">123</div>
+<script>
+function rect(text, start = 0, end = text.length) {
+    const range = document.createRange();
+    range.setStart(text, start);
+    range.setEnd(text, end);
+    return range.getBoundingClientRect();
+}
+
+test(() => {
+    const geometryTolerance = 1 / 32;
+    const split = document.getElementById("split");
+    const pieces = [...split.firstChild.getClientRects()];
+    const outside = rect(split.lastChild, 1, 2);
+    println(`Split inline has two pieces: ${pieces.length === 2}`);
+    println(`Neither piece covers the outside text: ${pieces.every(piece => piece.right <= outside.left || piece.left >= outside.right)}`);
+
+    const wrapped = document.getElementById("wrapped");
+    const wrappedPieces = [...wrapped.firstChild.getClientRects()];
+    println(`Wrapping preserves both pieces on the first line: ${wrappedPieces.length === 2 && wrappedPieces[0].top === wrappedPieces[1].top && wrappedPieces[0].bottom < rect(wrapped.lastChild, 1, 2).bottom}`);
+
+    const empty = document.getElementById("empty");
+    const edgeBox = empty.lastChild.getBoundingClientRect();
+    println(`Empty inline is 12px wide: ${edgeBox.width === 12}`);
+    println(`Empty inline follows the Hebrew run: ${edgeBox.left >= rect(empty.firstChild).right - 0.01}`);
+
+    const runBoundary = document.getElementById("empty-at-run-boundary");
+    const [firstEdge, secondEdge] = [...runBoundary.children].map(span => span.getBoundingClientRect());
+    const edgesStayBetweenRuns = firstEdge.width === 12 && secondEdge.width === 12
+        && firstEdge.left >= rect(runBoundary.firstChild).right - 0.01
+        && secondEdge.left >= firstEdge.right - 0.01
+        && secondEdge.right <= rect(runBoundary.lastChild).left + 0.01;
+    println(`Empty inlines stay between opposite-direction runs: ${edgesStayBetweenRuns}`);
+
+    const isolate = document.querySelector("#empty-in-isolate [dir=rtl]");
+    const isolatedEdge = isolate.firstElementChild.getBoundingClientRect();
+    println(`A leading empty inline follows the direction of its isolate: ${isolatedEdge.width === 12 && isolatedEdge.left >= rect(isolate.lastChild).right - 0.01}`);
+
+    const collapsed = document.getElementById("collapsed");
+    const collapsedBox = collapsed.lastChild.getBoundingClientRect();
+    println(`Collapsed inline keeps both edges after the Hebrew run: ${collapsedBox.width === 12 && collapsedBox.left >= rect(collapsed.firstChild).right - 0.01}`);
+
+    const leading = document.getElementById("collapsed-leading");
+    const leadingBox = leading.firstChild.getBoundingClientRect();
+    println(`Leading collapsed inline keeps both edges before the Hebrew run: ${leadingBox.width === 12 && leadingBox.right <= rect(leading.lastChild).left + 0.01}`);
+
+    const adjacent = document.getElementById("collapsed-adjacent");
+    const [firstBox, secondBox] = [...adjacent.children].map(child => child.getBoundingClientRect());
+    println(`Adjacent collapsed inlines each keep their own edges: ${firstBox.width === 12 && secondBox.width === 12 && firstBox.left >= rect(adjacent.firstChild).right - 0.01 && secondBox.left >= firstBox.right - 0.01}`);
+
+    const collapsedBetween = document.querySelector("#collapsed-between span").getBoundingClientRect();
+    const emptyBetween = document.querySelector("#empty-between span").getBoundingClientRect();
+    println(`A redundant space preserves the empty inline's position: ${collapsedBetween.left === emptyBetween.left && collapsedBetween.width === emptyBetween.width}`);
+
+    function nestedEdgesMatch(collapsedId, emptyId) {
+        const collapsed = document.querySelectorAll(`#${collapsedId} span`);
+        const empty = document.querySelectorAll(`#${emptyId} span`);
+        return [...collapsed].every((span, index) => {
+            const collapsedBox = span.getBoundingClientRect();
+            const emptyBox = empty[index].getBoundingClientRect();
+            return collapsedBox.width === (index === 0 ? 24 : 12) && collapsedBox.left === emptyBox.left;
+        });
+    }
+    println(`Nested trailing collapsed inlines preserve the empty boxes' positions: ${nestedEdgesMatch("nested-collapsed", "nested-empty")}`);
+    println(`Nested leading collapsed inlines preserve the empty boxes' positions: ${nestedEdgesMatch("nested-leading-collapsed", "nested-leading-empty")}`);
+
+    function checkNestedPadding(outerPadding, innerPadding, outerWidth, innerWidth, spaceBeforeInner = false) {
+        function layout(space) {
+            const block = document.createElement("div");
+            const outerSpace = spaceBeforeInner ? space : "";
+            block.innerHTML = `<span style="${outerPadding}: 6px">${outerSpace}<span style="${innerPadding}: 6px">${space}</span></span>אבג`;
+            document.body.append(block);
+            const left = block.getBoundingClientRect().left;
+            const outer = block.firstChild.getBoundingClientRect();
+            const inner = block.firstChild.firstElementChild.getBoundingClientRect();
+            const text = rect(block.lastChild);
+            block.remove();
+            return {
+                outerLeft: outer.left - left,
+                outerWidth: outer.width,
+                innerLeft: inner.left - left,
+                innerWidth: inner.width,
+                textLeft: text.left - left,
+            };
+        }
+        const collapsed = layout(" ");
+        const empty = layout("");
+        return collapsed.outerWidth === outerWidth && collapsed.innerWidth === innerWidth && collapsed.textLeft === outerWidth
+            && Object.keys(empty).every(key => collapsed[key] === empty[key]);
+    }
+    println(`Nested collapsed inlines preserve start-only padding: ${checkNestedPadding("padding-inline-start", "padding-inline", 18, 12)}`);
+    println(`Nested collapsed inlines preserve end-only padding: ${checkNestedPadding("padding-inline-end", "padding-inline-end", 12, 6)}`);
+    println(`Successive collapsed whitespace nodes preserve nested padding: ${checkNestedPadding("padding-inline", "padding-inline", 24, 12, true)}`);
+
+    function trailingSpacesTrimmed(line) {
+        const rtl = line.dir === "rtl";
+        const text = rect(line.firstChild, 0, 3);
+        let boundary = rtl ? text.left : text.right;
+        for (const span of line.children) {
+            const edge = span.getBoundingClientRect();
+            if (edge.width !== 12 || Math.abs(boundary - (rtl ? edge.right : edge.left)) > 0.01)
+                return false;
+            boundary = rtl ? edge.left : edge.right;
+        }
+        return rect(line.firstChild, 3).width === 0;
+    }
+    println(`Trailing collapsible spaces disappear and empty inline edges remain: ${[...document.querySelectorAll(".trailing-space")].every(trailingSpacesTrimmed)}`);
+    const decoratedSpacesFit = [...document.querySelectorAll(".trailing-ideographic-space")].every(line => {
+        const [padded, empty] = [...line.children].map(span => span.getBoundingClientRect());
+        const outerSpace = rect(line.firstChild, 3);
+        const innerSpace = rect(line.firstElementChild.firstChild);
+        const [start, end] = line.dir === "rtl" ? ["right", "left"] : ["left", "right"];
+        const bounds = line.getBoundingClientRect();
+        return outerSpace.width > 0 && innerSpace.width > 0
+            && Math.abs(padded.width - innerSpace.width - 12) <= 0.01 && empty.width === 12
+            && Math.abs(outerSpace[end] - padded[start]) <= 0.01
+            && Math.abs(padded[end] - empty[start]) <= 0.01
+            && Math.abs(empty[end] - bounds[end]) <= 0.01;
+    });
+    println(`Inline borders and padding keep ideographic spaces inside the line: ${decoratedSpacesFit}`);
+
+    const spacesHang = [...document.querySelectorAll(".hanging-ideographic-space")].every(line => {
+        const word = rect(line.firstChild, 0, 3);
+        const outerSpace = rect(line.firstChild, 3);
+        const innerSpace = rect(line.firstElementChild.firstChild);
+        const span = line.firstElementChild.getBoundingClientRect();
+        const [start, end] = line.dir === "rtl" ? ["right", "left"] : ["left", "right"];
+        return outerSpace.width > 0 && innerSpace.width > 0 && Math.abs(innerSpace.width - span.width) <= geometryTolerance
+            && Math.abs(word[end] - line.getBoundingClientRect()[end]) <= geometryTolerance
+            && Math.abs(outerSpace[start] - word[end]) <= geometryTolerance
+            && Math.abs(innerSpace[start] - outerSpace[end]) <= geometryTolerance
+            && (line.lastChild.nodeType !== Node.TEXT_NODE || rect(line.lastChild).width === 0);
+    });
+    println(`Hanging ideographic spaces retain their geometry and leave alignment unchanged: ${spacesHang}`);
+
+    const spaceBeforeAtomicInline = document.getElementById("space-before-atomic-inline").firstChild;
+    println(`A zero-width atomic inline keeps the preceding space: ${rect(spaceBeforeAtomicInline, 3).width > 0}`);
+
+    const numbers = document.querySelectorAll("#number, #zero-padding-number");
+    const digitsAreInOrder = number => {
+        const comma = rect(number.lastChild, 0, 1);
+        return rect(number.firstChild).right <= comma.left + 0.01 && comma.right <= rect(number.lastChild, 1).left + 0.01;
+    };
+    println(`Undecorated empty inline preserves the number: ${[...numbers].every(digitsAreInOrder)}`);
+    const paddedArabicNumber = document.getElementById("padded-arabic-number");
+    const firstDigit = rect(paddedArabicNumber.firstChild, 0, 1);
+    const arabicComma = rect(paddedArabicNumber.firstChild, 1);
+    const padding = paddedArabicNumber.firstElementChild.getBoundingClientRect();
+    const secondDigit = rect(paddedArabicNumber.lastChild);
+    const arabicDigitsAreInOrder = firstDigit.right <= arabicComma.left && arabicComma.right <= padding.left
+        && padding.width === 1 && padding.right <= secondDigit.left;
+    println(`Empty inline padding keeps Arabic digits in order: ${arabicDigitsAreInOrder}`);
+    const calcPaddingNumber = document.getElementById("calc-padding-number");
+    println(`Calculated zero padding preserves the number: ${calcPaddingNumber.firstElementChild.getBoundingClientRect().width === 0 && digitsAreInOrder(calcPaddingNumber)}`);
+
+    const resizedNumber = document.getElementById("resized-number");
+    const numberContainer = document.getElementById("number-container");
+    const initiallyInOrder = digitsAreInOrder(resizedNumber);
+    numberContainer.style.width = "180px";
+    const paddingKeepsNumber = resizedNumber.firstElementChild.getBoundingClientRect().width === 16 && digitsAreInOrder(resizedNumber);
+    numberContainer.style.width = "80px";
+    println(`Resolved padding preserves bidi order after a resize: ${initiallyInOrder && paddingKeepsNumber && digitsAreInOrder(resizedNumber)}`);
+
+    const separators = [...document.querySelectorAll(".separator")];
+    println(`Mandatory Unicode breaks split lines: ${separators.every(({firstChild: text}) => rect(text, 0, 1).top < rect(text, 4, 5).top)}`);
+    const bidiSeparatorOnly = document.getElementById("bidi-separator-only").firstChild;
+    println(`A bidi separator of line-break class CM stays on one line: ${rect(bidiSeparatorOnly, 0, 1).top === rect(bidiSeparatorOnly, 4, 5).top}`);
+
+    const controlLine = document.createElement("div");
+    controlLine.dir = "rtl";
+    controlLine.textContent = "123\u001c,456";
+    document.body.append(controlLine);
+    const controlText = controlLine.firstChild;
+    const control = rect(controlText, 3, 4);
+    const controlComma = rect(controlText, 4, 5);
+    const controlSeparatesDigits = control.width > 0
+        && rect(controlText, 5).right <= controlComma.left + geometryTolerance
+        && controlComma.right <= control.left + geometryTolerance
+        && control.right <= rect(controlText, 0, 3).left + geometryTolerance;
+    controlLine.remove();
+    println(`U+001C resolves as a visible neutral symbol between digits: ${controlSeparatesDigits}`);
+
+    const upright = document.getElementById("upright");
+    const runs = [upright.firstChild, upright.children[0].firstChild, upright.lastChild].map(text => rect(text));
+    println(`Upright runs follow logical order: ${runs[0].top < runs[1].top && runs[1].top < runs[2].top}`);
+    println(`Computed direction remains RTL: ${getComputedStyle(upright).direction === "rtl"}`);
+
+    const spaces = document.getElementById("spaces");
+    const whitespace = spaces.firstElementChild.firstChild;
+    println(`Whitespace is at the wrap: ${rect(whitespace).top < rect(spaces.lastChild).top}`);
+    println(`Spaces within the fragment follow line direction: ${rect(whitespace, 0, 1).left < rect(whitespace, 1, 2).left}`);
+
+    const sameNode = document.getElementById("spaces-same-node").firstChild;
+    const firstSpace = rect(sameNode, 3, 4);
+    const secondSpace = rect(sameNode, 4, 5);
+    const spacesResetAtWrap = firstSpace.top < rect(sameNode, 6).top
+        && firstSpace.left >= rect(sameNode, 0, 3).right - 0.01 && firstSpace.left < secondSpace.left;
+    println(`Spaces in the same text node reset at a wrap: ${spacesResetAtWrap}`);
+
+    const unjustified = document.getElementById("unjustified");
+    const justified = document.getElementById("justified");
+    const unexpandedSpace = rect(unjustified.firstChild, 3, 4);
+    const expandedSpace = rect(justified.firstChild, 3, 4);
+    const beforeOverlap = unjustified.firstElementChild.getBoundingClientRect();
+    const afterOverlap = justified.firstElementChild.getBoundingClientRect();
+    const expansion = expandedSpace.width - unexpandedSpace.width;
+    println(`Justification moves a box that overlaps the preceding space: ${beforeOverlap.left < unexpandedSpace.left && expansion > 0 && Math.abs(afterOverlap.left - beforeOverlap.left - expansion) <= 0.01}`);
+
+    const negativeMargin = document.getElementById("negative-end-margin");
+    println(`An RTL atomic inline with a negative end margin fits on the first line: ${negativeMargin.getBoundingClientRect().height === 30}`);
+
+    const inlineMargin = document.getElementById("inline-negative-end-margin");
+    const runWidth = rect(inlineMargin.firstChild).width + rect(inlineMargin.firstElementChild.firstChild).width;
+    inlineMargin.style.width = `${runWidth + 9}px`;
+    println(`An RTL span with right padding and a negative end margin fits on the first line: ${inlineMargin.getBoundingClientRect().height === 30}`);
+
+    const movesWithRun = [...document.querySelectorAll(".static-position")].every(line => {
+        const box = line.firstElementChild.getBoundingClientRect();
+        if (line.dir === "rtl")
+            return Math.abs(box.right - rect(line.firstChild).right) <= 0.01;
+        return Math.abs(box.left - rect(line.lastChild).right) <= 0.01;
+    });
+    println(`Inline static positions follow the visual boundary inside a bidi run: ${movesWithRun}`);
+
+    const alignedLine = document.createElement("div");
+    alignedLine.className = "static-position";
+    alignedLine.style.textAlign = "right";
+    alignedLine.innerHTML = "אב<br>A<b></b>";
+    document.body.append(alignedLine);
+    const alignedMarker = alignedLine.lastChild;
+    const markerFollowsAlignedText = Math.abs(alignedMarker.getBoundingClientRect().left
+        - rect(alignedMarker.previousSibling).right) <= geometryTolerance;
+    alignedLine.remove();
+    println(`An earlier bidi paragraph preserves the static position on a right-aligned last line: ${markerFollowsAlignedText}`);
+
+    function plaintextAlignmentMatches(id, alignments) {
+        const block = document.getElementById(id);
+        const bounds = block.getBoundingClientRect();
+        const lines = [...block.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
+        return lines.length === alignments.length && lines.every((text, index) => {
+            const side = alignments[index];
+            return Math.abs(rect(text)[side] - bounds[side]) <= 0.01;
+        });
+    }
+    const plaintextAlignment = plaintextAlignmentMatches("plaintext-rtl", ["right", "left", "left", "right", "right"])
+        && plaintextAlignmentMatches("plaintext-ltr", ["left", "right", "right", "left", "left"])
+        && plaintextAlignmentMatches("plaintext-strong", ["left", "left"]);
+    println(`Weak plaintext lines inherit the preceding line's alignment or the block direction: ${plaintextAlignment}`);
+
+    const emptyPlaintextMarker = document.getElementById("plaintext-empty");
+    println(`An empty plaintext line inherits the preceding line's alignment: ${Math.abs(emptyPlaintextMarker.getBoundingClientRect().left - emptyPlaintextMarker.parentElement.getBoundingClientRect().right) <= 0.01}`);
+
+    const weakDigits = document.getElementById("plaintext-rtl").firstChild;
+    println(`An RTL alignment fallback preserves LTR order in a weak paragraph: ${rect(weakDigits, 0, 1).right <= rect(weakDigits, 3).left}`);
+    println(`Text inside a plaintext isolate does not determine the line alignment: ${plaintextAlignmentMatches("plaintext-isolate", ["right"])}`);
+
+    const columns = document.getElementById("plaintext-columns");
+    const weakColumn = rect(columns.lastChild);
+    const strongColumn = rect(columns.firstChild);
+    println(`Weak plaintext lines inherit alignment across columns: ${weakColumn.left >= strongColumn.right && Math.abs(weakColumn.right - columns.getBoundingClientRect().right) <= 0.01}`);
+
+    function overflowMarkerOffset(direction, textOverflow, content) {
+        const line = document.createElement("div");
+        line.className = "overflow-marker";
+        line.dir = direction;
+        line.style.textOverflow = textOverflow;
+        line.innerHTML = `<i></i>${content}`;
+        document.body.append(line);
+        const offset = line.querySelector("b").getBoundingClientRect().left - line.getBoundingClientRect().left;
+        line.remove();
+        return offset;
+    }
+    const markerStaysInPlace = [
+        ["ltr", "א<b></b>בגדהו ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
+        ["rtl", "A<b></b>BCDE אבגדהוזחטיכלמנסעפצקרשת"],
+    ].every(([direction, content]) => {
+        const clipped = overflowMarkerOffset(direction, "clip", content);
+        const ellipsed = overflowMarkerOffset(direction, "ellipsis", content);
+        return clipped > 85 && clipped < 150 && Math.abs(clipped - ellipsed) <= 0.01;
+    });
+    println(`Bidi text overflow preserves static positions inside the line beside a float: ${markerStaysInPlace}`);
+
+    const prependText = document.getElementById("prepend").firstChild;
+    const [prepend, alef, beh] = [0, 1, 2].map(index => rect(prependText, index, index + 1));
+    println(`A bidi level change inside a grapheme preserves the Arabic letters' visual order: ${beh.left < alef.left && alef.left < prepend.left}`);
+
+    const prependWrap = document.getElementById("prepend-wrap");
+    prependWrap.style.width = `${prepend.width + alef.width - 1}px`;
+    const wrappedPrependText = prependWrap.firstChild;
+    const [wrappedPrepend, wrappedAlef, wrappedBeh] = [0, 1, 2].map(index => rect(wrappedPrependText, index, index + 1));
+    const clusterStaysTogether = wrappedPrepend.top < wrappedAlef.bottom && wrappedAlef.top < wrappedPrepend.bottom
+        && wrappedAlef.bottom <= wrappedBeh.top;
+    println(`A shaping boundary inside a grapheme does not allow a line break: ${clusterStaysTogether}`);
+
+    const prependOverflow = document.getElementById("prepend-overflow");
+    prependOverflow.style.width = `${Math.max(prepend.width, alef.width, beh.width) + 1}px`;
+    const [overflowPrepend, overflowAlef, overflowBeh] = [0, 1, 2].map(index => rect(prependOverflow.firstChild, index, index + 1));
+    function sameLine(first, second) {
+        return first.top < second.bottom && second.top < first.bottom;
+    }
+    println(`Overflow wrapping keeps a split grapheme together even when it overflows: ${sameLine(overflowPrepend, overflowAlef) && overflowAlef.bottom <= overflowBeh.top}`);
+
+    const prependAfterText = document.getElementById("prepend-overflow-after-text");
+    const textBeforePrepend = rect(prependAfterText.firstChild, 0, 2);
+    prependAfterText.style.width = `${textBeforePrepend.width + prepend.width + 1}px`;
+    const [afterTextPrepend, afterTextAlef] = [2, 3].map(index => rect(prependAfterText.firstChild, index, index + 1));
+    println(`Overflow wrapping measures the whole grapheme before choosing a break: ${sameLine(afterTextPrepend, afterTextAlef) && textBeforePrepend.bottom <= afterTextPrepend.top}`);
+
+    function lineCountAfterEmptyInline(text, extraWidth) {
+        const line = document.createElement("div");
+        line.style.cssText = "unicode-bidi: plaintext; overflow-wrap: anywhere";
+        line.textContent = text;
+        document.body.append(line);
+        line.style.width = `${rect(line.firstChild, 0, 1).width + extraWidth}px`;
+        line.insertAdjacentHTML("afterbegin", '<span style="padding-inline: 4px"></span>');
+        const lineCount = line.getBoundingClientRect().height / 30;
+        line.remove();
+        return lineCount;
+    }
+    println(`An oversized first grapheme stays on the line with the empty inline: ${lineCountAfterEmptyInline("W", -2) === 1 && lineCountAfterEmptyInline("WW", -2) === 2}`);
+    println(`A first grapheme that fits on a fresh line wraps after the empty inline: ${lineCountAfterEmptyInline("W", 2) === 2}`);
+
+    const minContent = document.getElementById("prepend-min-content").getBoundingClientRect().width;
+    println(`Min-content sizing measures the split grapheme as one unit: ${Math.abs(minContent - Math.max(prepend.width + alef.width, beh.width)) <= 0.01}`);
+
+    function intrinsicWidthWithEmptyInline(width, prefix, suffix) {
+        const line = document.createElement("div");
+        line.dir = "rtl";
+        line.style.width = width;
+        line.innerHTML = `${prefix}<span style="padding-right: 10px"></span>${suffix}`;
+        document.body.append(line);
+        const measured = line.getBoundingClientRect().width;
+        line.remove();
+        return measured;
+    }
+    const emptyInlineWidths = ["min-content", "max-content"].every(width => {
+        const withoutSpace = intrinsicWidthWithEmptyInline(width, "", "א");
+        return Math.abs(withoutSpace - (rect(empty.firstChild, 0, 1).width + 10)) <= geometryTolerance
+            && intrinsicWidthWithEmptyInline(width, "", " א") === withoutSpace
+            && intrinsicWidthWithEmptyInline(width, "א ", "") === intrinsicWidthWithEmptyInline(width, "א", "");
+    });
+    println(`Intrinsic sizing counts empty inline padding and collapses line-edge spaces: ${emptyInlineWidths}`);
+
+    const tabWidths = [...document.querySelectorAll(".trailing-tabs")].map(line => rect(line.firstChild).width);
+    println(`Trailing preserved tabs contribute their advances: ${tabWidths[0] === 60 && tabWidths[1] === 120}`);
+
+    const inlineBlock = document.getElementById("inline-block");
+    const inline = document.getElementById("inline");
+    println(`Digits follow the replaced inline-block: ${inlineBlock.firstElementChild.getBoundingClientRect().right <= rect(inlineBlock.lastChild).left + 0.01}`);
+    println(`Digits precede the strong replaced inline: ${rect(inline.lastChild).right <= inline.firstElementChild.getBoundingClientRect().left + 0.01}`);
+});
+</script>

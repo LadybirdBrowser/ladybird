@@ -38,20 +38,32 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             " dd"
         TextNode <#text> (not painted)
         InlineNode <span.rel> at [38.6875,166] [0+4+0 44.71875 0+8+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 5, rect: [38.6875,166 44.71875x16] baseline: 13
-              "bb cc"
+          frag 0 from TextNode start: 0, length: 2, rect: [38.6875,166 18.9375x16] baseline: 13
+              "bb"
+          frag 1 from TextNode start: 2, length: 1, rect: [57.625,166 8x16] baseline: 13
+              " "
+          frag 2 from TextNode start: 3, length: 2, rect: [65.625,166 17.78125x16] baseline: 13
+              "cc"
           TextNode <#text> (not painted)
           BlockContainer <span.cb> at [34.6875,166] positioned [0+0+0 56.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         TextNode <#text> (not painted)
       BlockContainer <div.frame> at [8,192] [8+0+0 300 0+0+492] [8+0+0 20 0+0+8] children: inline
-        frag 0 from TextNode start: 5, length: 3, rect: [200.875,194 26.6875x16] baseline: 13
-            "aa "
-        frag 1 from TextNode start: 0, length: 3, rect: [284.28125,194 23.71875x16] baseline: 13
-            " dd"
+        frag 0 from TextNode start: 5, length: 2, rect: [200.875,194 18.6875x16] baseline: 13
+            "aa"
+        frag 1 from TextNode start: 7, length: 1, rect: [219.5625,194 8x16] baseline: 13
+            " "
+        frag 2 from TextNode start: 0, length: 1, rect: [284.28125,194 8x16] baseline: 13
+            " "
+        frag 3 from TextNode start: 1, length: 2, rect: [292.28125,194 15.71875x16] baseline: 13
+            "dd"
         TextNode <#text> (not painted)
         InlineNode <span.rel> at [231.5625,194] [0+4+0 44.71875 0+8+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 5, rect: [231.5625,194 44.71875x16] baseline: 13
-              "bb cc"
+          frag 0 from TextNode start: 0, length: 2, rect: [231.5625,194 18.9375x16] baseline: 13
+              "bb"
+          frag 1 from TextNode start: 2, length: 1, rect: [250.5,194 8x16] baseline: 13
+              " "
+          frag 2 from TextNode start: 3, length: 2, rect: [258.5,194 17.78125x16] baseline: 13
+              "cc"
           TextNode <#text> (not painted)
           BlockContainer <span.cb> at [231.5625,194] positioned [0+0+0 44.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
         TextNode <#text> (not painted)

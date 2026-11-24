@@ -487,11 +487,13 @@ pub struct FragmentRecord {
     pub glyph_run: Option<std::sync::Arc<GlyphRunRecord>>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InlineBoxPieceRecord {
     pub node: NodeSlotId,
     pub first_fragment_index: u32,
     pub fragment_count: u32,
+    /// The exact logical ranges when a visual piece's fragments are not consecutive in logical order.
+    pub(crate) sparse_fragment_ranges: Option<std::sync::Arc<[std::ops::Range<u32>]>>,
     pub line_index: u32,
     pub border_box_rect: used_values::FfiCssPixelRect,
     pub relpos_delta: used_values::FfiCssPixelPoint,
@@ -499,6 +501,22 @@ pub struct InlineBoxPieceRecord {
     pub accumulated_vertical_shift: CssPixels,
     pub present_edges: u8,
     pub is_geometry_only_placeholder: bool,
+}
+
+impl InlineBoxPieceRecord {
+    pub(crate) fn fragment_ranges(&self) -> impl Iterator<Item = std::ops::Range<u32>> + '_ {
+        let contiguous = (self.sparse_fragment_ranges.is_none() && self.fragment_count != 0)
+            .then(|| self.first_fragment_index..self.first_fragment_index + self.fragment_count);
+        contiguous.into_iter().chain(
+            self.sparse_fragment_ranges
+                .iter()
+                .flat_map(|ranges| ranges.iter().cloned()),
+        )
+    }
+
+    pub(crate) fn fragment_indices(&self) -> impl Iterator<Item = u32> + '_ {
+        self.fragment_ranges().flatten()
+    }
 }
 
 fn pieces_only_moved<'a>(
@@ -859,9 +877,15 @@ impl InlineContent {
             }));
         self.inline_box_pieces
             .extend(content.inline_box_pieces.iter().map(|piece| {
-                let mut piece = *piece;
+                let mut piece = piece.clone();
                 piece.line_index += line_offset;
                 piece.first_fragment_index += fragment_offset;
+                if let Some(ranges) = &mut piece.sparse_fragment_ranges {
+                    for range in std::sync::Arc::make_mut(ranges) {
+                        range.start += fragment_offset;
+                        range.end += fragment_offset;
+                    }
+                }
                 piece.border_box_rect.x += offset.x;
                 piece.border_box_rect.y += offset.y;
                 piece.baseline += offset.y;

@@ -733,17 +733,6 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
                 rect.y
             }
         };
-        let mut chosen = None;
-        for fragment in self.fragments_on_line(&side, line, accepts) {
-            let rect = text_fragment::absolute_rect(arena, fragment);
-            if chosen.is_none() || inline_start(rect) <= x {
-                chosen = Some((fragment, rect));
-            }
-        }
-        let Some((mut fragment, mut rect)) = chosen else {
-            return self.position_before_forced_break(line);
-        };
-        // INTEROP: A point in the gap between two atomic inlines goes to the one after it.
         let inline_end = |rect: CssPixelRect| {
             if horizontal {
                 rect.right()
@@ -753,26 +742,43 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
                 rect.bottom()
             }
         };
+        let mut chosen = None;
+        let mut next = None;
+        let mut rightmost = None;
+        for fragment in self.fragments_on_line(&side, line, accepts) {
+            let rect = text_fragment::absolute_rect(arena, fragment);
+            let start = inline_start(rect);
+            if start <= x {
+                if chosen.is_none_or(|(_, previous)| start >= inline_start(previous)) {
+                    chosen = Some((fragment, rect));
+                }
+            } else if next.is_none_or(|(_, previous)| start < inline_start(previous)) {
+                next = Some((fragment, rect));
+            }
+            rightmost = Some(rightmost.map_or(inline_end(rect), |end: CssPixels| end.max(inline_end(rect))));
+        }
+        let before_all_fragments = chosen.is_none();
+        let Some((mut fragment, mut rect)) = chosen.or(next) else {
+            return self.position_before_forced_break(line);
+        };
+        // INTEROP: A point in the gap between two atomic inlines goes to the one after it.
         if fragment.is_atomic_inline
             && x >= inline_end(rect)
-            && let Some(next) = self
-                .fragments_on_line(&side, line, accepts)
-                .find(|next| inline_start(text_fragment::absolute_rect(arena, next)) > x)
+            && let Some((next, next_rect)) = next
             && next.is_atomic_inline
         {
             fragment = next;
-            rect = text_fragment::absolute_rect(arena, next);
+            rect = next_rect;
         }
         // INTEROP: Past the end of a line, the position is at its end, after whitespace that hangs there, but before
         //          collapsible whitespace, which the line removes.
         if let Some(last) = self.fragments_on_line(&side, line, accepts).last()
             && !last.is_atomic_inline
         {
-            let last_rect = text_fragment::absolute_rect(arena, last);
             let past_line_end = if last.direction == crate::css::css_enums::direction::LTR {
-                x >= inline_end(last_rect)
+                rightmost.is_some_and(|right| x >= right)
             } else {
-                x < inline_start(last_rect)
+                before_all_fragments
             };
             if past_line_end {
                 let collapsible = matches!(

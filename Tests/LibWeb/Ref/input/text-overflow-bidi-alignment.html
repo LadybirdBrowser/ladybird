@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="match" href="../expected/text-overflow-bidi-alignment-ref.html">
+<style>
+    div {
+        font: 20px/24px monospace;
+        width: 7ch;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+</style>
+<div style="text-align-last: justify">a b abc אבג&#x3000;</div>
+<div dir="rtl" style="line-clamp: 1 no-ellipsis">אבגדהוזחטיכלמנסעפצקרשת<br>Hidden</div>

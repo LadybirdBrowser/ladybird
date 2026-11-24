@@ -6,7 +6,7 @@
 
 use super::*;
 use prepared_inline_content::{
-    InlineBoxEvent, InlineContentPreparationBuffers, PreparedInlineContent, PreparedItem, PreparedTabStop,
+    InlineBoxEvent, InlineContentPreparationBuffers, PreparedBidi, PreparedInlineContent, PreparedItem, PreparedTabStop,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,6 +49,9 @@ pub(crate) struct Item {
     pub(crate) border_end: CssPixels,
     pub(crate) margin_start: CssPixels,
     pub(crate) margin_end: CssPixels,
+    pub(super) bidi_start_edges_on_left: CssPixels,
+    pub(super) bidi_end_edges_on_left: CssPixels,
+    pub(super) bidi_inline_box_edges: Option<Box<bidi::InlineBoxEdges>>,
     pub(crate) entered_right_to_left_end_margin: CssPixels,
     pub(crate) exited_right_to_left_end_margin: CssPixels,
     pub(crate) is_collapsible_whitespace: bool,
@@ -58,7 +61,7 @@ pub(crate) struct Item {
     atomic: Option<Box<AtomicItemMetrics>>,
 }
 
-const _: () = assert!(size_of::<Item>() == 96);
+const _: () = assert!(size_of::<Item>() == 112);
 
 #[derive(Clone, Debug)]
 pub(crate) struct OwnedGlyphRun {
@@ -238,8 +241,6 @@ pub(crate) fn text_is_set_upright(writing_mode: u8, text_orientation: u8, code_p
         // upright: Typographic character units from horizontal-only scripts are typeset upright, i.e. in their
         // standard horizontal orientation. Typographic character units from vertical scripts are typeset with their
         // intrinsic orientation and shaped normally.
-        // FIXME: This value causes the used value of 'direction' to be 'ltr', and for the purposes of bidi
-        //        reordering, causes all characters to be treated as strong LTR.
         text_orientation::UPRIGHT => true,
         // mixed: Typographic character units from horizontal-only scripts are typeset sideways, i.e. 90° clockwise
         // from their standard orientation in horizontal text. Typographic character units from vertical scripts are
@@ -338,10 +339,6 @@ impl Item {
         Some((prepared_item, prepared.tab_stop_of_item(self.prepared_item_index)?))
     }
 
-    pub(crate) fn prepared_item_index(&self) -> u32 {
-        self.prepared_item_index
-    }
-
     pub(crate) fn starts_with_tabs(&self, prepared: &PreparedInlineContent) -> bool {
         self.leading_tabs(prepared).is_some()
     }
@@ -375,6 +372,9 @@ impl Item {
             border_end: CssPixels::default(),
             margin_start: CssPixels::default(),
             margin_end: CssPixels::default(),
+            bidi_start_edges_on_left: CssPixels::default(),
+            bidi_end_edges_on_left: CssPixels::default(),
+            bidi_inline_box_edges: None,
             entered_right_to_left_end_margin: CssPixels::default(),
             exited_right_to_left_end_margin: CssPixels::default(),
             is_collapsible_whitespace: false,
@@ -402,6 +402,14 @@ impl Item {
             "an item is read against the content it was resolved from"
         );
         prepared_item
+    }
+
+    pub(super) fn bidi_position(&self, prepared: &PreparedInlineContent) -> Option<bidi::Position> {
+        let mut position = prepared.bidi_position(self.prepared_item_index as usize)?;
+        if self.type_ == ItemType::Text {
+            position.offset += self.offset_in_node - self.prepared_item(prepared).offset_in_node();
+        }
+        Some(position)
     }
 
     /// The glyphs of a text item, read against the content the item was resolved from.
@@ -615,6 +623,22 @@ impl Item {
         self.soft_wrap_offsets(prepared).next().is_some()
     }
 
+    /// Whether this item's current start is a shaping boundary inside a grapheme of the same text node.
+    pub(super) fn continues_grapheme(&self, prepared: &PreparedInlineContent) -> bool {
+        if self.type_ != ItemType::Text {
+            return false;
+        }
+        let item = self.prepared_item(prepared);
+        item.has(PreparedItem::CONTINUES_GRAPHEME) && self.offset_in_node == item.offset_in_node()
+    }
+
+    pub(super) fn is_only_grapheme_continuation(&self, prepared: &PreparedInlineContent) -> bool {
+        self.type_ == ItemType::Text
+            && self
+                .prepared_item(prepared)
+                .has(PreparedItem::IS_ONLY_GRAPHEME_CONTINUATION)
+    }
+
     pub(crate) fn soft_wrap_segment_inline_sizes(
         &self,
         prepared: &PreparedInlineContent,
@@ -700,6 +724,10 @@ impl Item {
             fragment.margin_start = CssPixels::default();
             fragment.border_start = CssPixels::default();
             fragment.padding_start = CssPixels::default();
+            fragment.bidi_start_edges_on_left = CssPixels::default();
+            if let Some(edges) = &mut fragment.bidi_inline_box_edges {
+                edges.leading.clear();
+            }
             fragment.entered_right_to_left_end_margin = CssPixels::default();
             fragment.can_break_before = false;
         }
@@ -707,6 +735,10 @@ impl Item {
             fragment.margin_end = CssPixels::default();
             fragment.border_end = CssPixels::default();
             fragment.padding_end = CssPixels::default();
+            fragment.bidi_end_edges_on_left = CssPixels::default();
+            if let Some(edges) = &mut fragment.bidi_inline_box_edges {
+                edges.trailing.clear();
+            }
             fragment.exited_right_to_left_end_margin = CssPixels::default();
             fragment.trailing_whitespace = Default::default();
         }
@@ -827,6 +859,15 @@ impl Item {
         prefix.margin_start = self.margin_start;
         prefix.border_start = self.border_start;
         prefix.padding_start = self.padding_start;
+        prefix.bidi_start_edges_on_left = self.bidi_start_edges_on_left;
+        if let Some(edges) = &mut self.bidi_inline_box_edges
+            && !edges.leading.is_empty()
+        {
+            prefix.bidi_inline_box_edges = Some(Box::new(bidi::InlineBoxEdges {
+                leading: std::mem::take(&mut edges.leading),
+                ..Default::default()
+            }));
+        }
         prefix.entered_right_to_left_end_margin = self.entered_right_to_left_end_margin;
         prefix.can_break_before = self.can_break_before;
         prefix.owned_glyph_run = Some(Box::new(prefix_glyphs));
@@ -842,6 +883,10 @@ impl Item {
         self.margin_start = CssPixels::default();
         self.border_start = CssPixels::default();
         self.padding_start = CssPixels::default();
+        self.bidi_start_edges_on_left = CssPixels::default();
+        if let Some(edges) = &mut self.bidi_inline_box_edges {
+            edges.leading.clear();
+        }
         self.entered_right_to_left_end_margin = CssPixels::default();
         self.can_break_before = false;
     }
@@ -1145,6 +1190,16 @@ struct PendingInlineEdge {
     takes_leading_metrics: bool,
 }
 
+impl PendingInlineEdge {
+    fn bidi_edge(&self) -> bidi::InlineBoxEdge {
+        bidi::InlineBoxEdge {
+            owner: self.node,
+            advance: self.margin + self.border + self.padding,
+            is_left: self.is_low,
+        }
+    }
+}
+
 /// An inline box that holds no in-flow item.
 #[derive(Clone, Copy)]
 pub(crate) struct EmptyInlineBox {
@@ -1174,44 +1229,6 @@ struct TextNodeContext<'pass> {
     is_generated_for_pseudo_element: bool,
     produces_line_box_fragment_when_empty: bool,
     is_text_control_text: bool,
-    last_known_direction: Option<u8>,
-    /// The direction of the first chunk with a strong direction from the chunk at the first index on, which is the
-    /// chunk at the second index.
-    next_known_direction: std::cell::Cell<Option<(usize, usize, Option<u8>)>>,
-    /// The direction each bracket that is open at this point in the paragraph took, if it took one.
-    open_bracket_directions: std::cell::RefCell<Vec<Option<u8>>>,
-}
-
-impl TextNodeContext<'_> {
-    /// The direction of the first chunk with a strong direction among the chunks not yet taken.
-    fn next_known_direction(&self) -> Option<u8> {
-        // NB: The answer holds until the chunk that gave it is taken, so a run of neutral chunks looks ahead once.
-        if let Some((from, until, direction)) = self.next_known_direction.get()
-            && (from..=until).contains(&self.next_chunk_index)
-        {
-            return direction;
-        }
-        let found = self
-            .chunks
-            .iter()
-            .enumerate()
-            .skip(self.next_chunk_index)
-            .find_map(|(index, chunk)| {
-                // NB: A preserved newline ends the paragraph, and the text after it has no say in this one.
-                if self.should_respect_linebreaks && chunk.has_breaking_newline {
-                    return Some((index, None));
-                }
-                matches!(
-                    chunk.text_type,
-                    line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
-                )
-                .then_some((index, Some(chunk.text_type)))
-            });
-        let (until, direction) = found.unwrap_or((usize::MAX, None));
-        self.next_known_direction
-            .set(Some((self.next_chunk_index, until, direction)));
-        direction
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1227,6 +1244,7 @@ struct InlineContentPreparer<'pass> {
     current_node: Node,
     next_node: Node,
     text_node_context: Option<TextNodeContext<'pass>>,
+    bidi: bidi::InlineContent,
     is_unidirectional_left_to_right: bool,
     walks_within_item: bool,
     previous_chunk_can_break_after: bool,
@@ -1275,13 +1293,7 @@ impl PreparedInlineContent {
         self.items.iter().all(|item| match item.type_() {
             ItemType::Element => {
                 let facts = context.facts(item.node());
-                if !facts.is_atomic_inline()
-                    || (facts.is_replaced_box()
-                        && matches!(
-                            context.style(item.node()).unicode_bidi(),
-                            unicode_bidi::EMBED | unicode_bidi::BIDI_OVERRIDE | unicode_bidi::ISOLATE_OVERRIDE
-                        ))
-                {
+                if !facts.is_atomic_inline() || bidi::replaced_inline_is_strong(facts, context.style(item.node())) {
                     return false;
                 }
                 has_atomic_box = true;
@@ -1293,8 +1305,8 @@ impl PreparedInlineContent {
         }) && has_atomic_box
     }
 
-    pub(super) fn prepare(pass: LayoutPass<'_>, block_container: Node) -> Self {
-        InlineContentPreparer::prepare(pass, block_container)
+    pub(super) fn prepare(pass: LayoutPass<'_>, block_container: Node, inline_basis: CssPixels) -> Self {
+        InlineContentPreparer::prepare(pass, block_container, inline_basis)
     }
 
     pub(crate) fn resolve_items_for_run(
@@ -1303,11 +1315,15 @@ impl PreparedInlineContent {
         atomic_sizing: AtomicInlineSizing,
     ) -> InlineLevelIterator {
         context.atomic_items_are_right_to_left = self.orders_atomic_items_right_to_left(context);
+        if !context.atomic_items_are_right_to_left {
+            context.bidi_paragraphs = self.bidi_paragraphs();
+        }
         let (entered_box_model_nodes, empty_inline_boxes, items) = RunItemResolver {
             context,
             prepared: &self,
             atomic_sizing,
             pending_inline_edges: Vec::new(),
+            closed_bidi_empty_boxes: Vec::new(),
             box_model_node_stack: Vec::new(),
             entered_box_model_nodes: Vec::new(),
             in_flow_item_count: 0,
@@ -1339,7 +1355,7 @@ impl PreparedInlineContent {
 }
 
 impl<'pass> InlineContentPreparer<'pass> {
-    fn prepare(pass: LayoutPass<'pass>, block_container: Node) -> PreparedInlineContent {
+    fn prepare(pass: LayoutPass<'pass>, block_container: Node, inline_basis: CssPixels) -> PreparedInlineContent {
         let mut preparer = Self {
             pass,
             block_container,
@@ -1347,6 +1363,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             next_node: pass.first_child(block_container),
             current_node: NodeSlotId::INVALID,
             text_node_context: None,
+            bidi: bidi::InlineContent::default(),
             is_unidirectional_left_to_right: false,
             walks_within_item: false,
             previous_chunk_can_break_after: false,
@@ -1359,15 +1376,39 @@ impl<'pass> InlineContentPreparer<'pass> {
             code_unit_before_text: None,
         };
         preparer.is_unidirectional_left_to_right = preparer.compute_is_unidirectional_left_to_right();
+        if !preparer.is_unidirectional_left_to_right {
+            preparer.bidi = bidi::InlineContent::resolve(&pass, block_container, inline_basis);
+        }
         preparer.skip_to_next();
         let mut follows_collapsible_space = false;
         while let Some(mut item) = preparer.prepare_next_item() {
             preparer.collapse_into_preceding_space(&mut item, &mut follows_collapsible_space);
             preparer.buffers.items.push(item);
         }
-        let prepared = preparer
+        let bidi_positions = if preparer.bidi.paragraphs.is_empty() {
+            Box::default()
+        } else {
+            preparer
+                .buffers
+                .items
+                .iter()
+                .map(|item| preparer.bidi.position(item.node(), item.offset_in_node()))
+                .collect()
+        };
+        let mut prepared = preparer
             .buffers
             .take_prepared_inline_content(super::fc_run_cache::run_root_validity(&pass, block_container));
+        if !preparer.bidi.paragraphs.is_empty()
+            || !preparer.bidi.empty_inline_positions.is_empty()
+            || preparer.bidi.inline_edge_basis.is_some()
+        {
+            prepared.bidi = Some(Box::new(PreparedBidi {
+                positions: bidi_positions,
+                empty_inline_positions: preparer.bidi.empty_inline_positions,
+                paragraphs: preparer.bidi.paragraphs.into(),
+                inline_edge_basis: preparer.bidi.inline_edge_basis,
+            }));
+        }
         pass.return_inline_content_preparation_buffers(preparer.buffers);
         prepared
     }
@@ -1432,7 +1473,13 @@ impl<'pass> InlineContentPreparer<'pass> {
 
     fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
         let containing_block = self.block_container;
-        if self.style(containing_block).direction() == direction::RTL {
+        let style = self.style(containing_block);
+        if style.direction() == direction::RTL
+            || matches!(
+                style.unicode_bidi(),
+                unicode_bidi::PLAINTEXT | unicode_bidi::BIDI_OVERRIDE | unicode_bidi::ISOLATE_OVERRIDE
+            )
+        {
             return false;
         }
 
@@ -1509,21 +1556,9 @@ impl<'pass> InlineContentPreparer<'pass> {
     }
 
     fn next_inline_node_in_pre_order(&mut self, current: Node, stay_within: Node) -> Node {
-        let first_child = self.pass.first_child(current);
-        let current_facts = self.facts(current);
-        if !first_child.is_invalid() {
-            let child_facts = self.facts(first_child);
-            let current_style = self.style(current);
-            if (child_facts.is_inline()
-                || child_facts.is_inline_flow_interrupting_block()
-                || self.is_out_of_flow(first_child))
-                && current_style.display().is_flow_inside()
-                && !current_facts.is_inline_flow_interrupting_block()
-                && !current_facts.is_atomic_inline()
-                && (!current_facts.is_box() || !self.is_out_of_flow(current))
-            {
-                return first_child;
-            }
+        let child = bidi::first_inline_child(&self.pass, current);
+        if !child.is_invalid() {
+            return child;
         }
 
         let mut node = current;
@@ -1588,10 +1623,7 @@ impl<'pass> InlineContentPreparer<'pass> {
     fn enter_text_node(&mut self, text_node: Node) {
         let style = self.style(self.pass.parent(text_node));
         let should_wrap_lines = style.text_wrap_mode() == text_wrap_mode::WRAP;
-        let should_respect_linebreaks = matches!(
-            style.white_space_collapse(),
-            white_space_collapse::PRESERVE | white_space_collapse::PRESERVE_BREAKS | white_space_collapse::BREAK_SPACES
-        );
+        let should_respect_linebreaks = bidi::preserves_newlines(style.white_space_collapse());
         let should_collapse_whitespace = matches!(
             style.white_space_collapse(),
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
@@ -1601,7 +1633,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             text_node,
             should_wrap_lines,
             should_respect_linebreaks,
-            self.is_unidirectional_left_to_right,
+            self.bidi.levels_for_node(text_node).as_deref(),
         );
         let facts = self.facts(text_node);
         let letter_spacing = style.letter_spacing().to_double() as f32;
@@ -1632,62 +1664,13 @@ impl<'pass> InlineContentPreparer<'pass> {
             is_generated_for_pseudo_element: facts.is_generated_for_pseudo_element(),
             produces_line_box_fragment_when_empty: facts.produces_line_box_fragment_when_empty(),
             is_text_control_text: facts.is_text_control_text(),
-            last_known_direction: None,
-            next_known_direction: Default::default(),
-            open_bracket_directions: Default::default(),
         });
-    }
-
-    fn resolve_text_direction_from_context(&self, context: &TextNodeContext<'_>) -> u8 {
-        let next_known_direction = context.next_known_direction();
-        if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
-            && last != next
-        {
-            return match self.style(self.block_container).direction() {
-                direction::LTR => line_box_fragment::GLYPH_TEXT_TYPE_LTR,
-                direction::RTL => line_box_fragment::GLYPH_TEXT_TYPE_RTL,
-                _ => unreachable!(),
-            };
-        }
-        context
-            .last_known_direction
-            .or(next_known_direction)
-            .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
-    }
-
-    // https://www.unicode.org/reports/tr9/#N1
-    // A sequence of NIs takes the direction of the surrounding strong text if the text on both sides has the same
-    // direction.
-    // NB: Otherwise the sequence keeps its neutral type, which takes the direction of the fragment it lands in.
-    // FIXME: Look at the strong text in the other text nodes of the paragraph as well.
-    fn direction_of_strong_text_around(&self, context: &TextNodeContext<'_>, neutral_text: &[u16]) -> Option<u8> {
-        let next_known_direction = context.next_known_direction();
-        let direction_of_text_around = context
-            .last_known_direction
-            .filter(|last| Some(*last) == next_known_direction);
-
-        // NB: The two brackets of a pair get one direction, as in https://www.unicode.org/reports/tr9/#N0. So a
-        //     closing bracket takes what its opening bracket took: the direction of the strong text before the pair
-        //     and at the start of it, where those agree.
-        // FIXME: Look at all the strong text inside the pair, and pair brackets across text nodes.
-        let mut open_bracket_directions = context.open_bracket_directions.borrow_mut();
-        let mut direction_of_first_bracket = None;
-        for code_unit in neutral_text {
-            let direction = match u8::try_from(*code_unit) {
-                Ok(b'(' | b'[' | b'{') => {
-                    open_bracket_directions.push(direction_of_text_around);
-                    direction_of_text_around
-                }
-                Ok(b')' | b']' | b'}') => open_bracket_directions.pop().flatten(),
-                _ => continue,
-            };
-            direction_of_first_bracket.get_or_insert(direction);
-        }
-        direction_of_first_bracket.unwrap_or(direction_of_text_around)
     }
 
     /// The text node's next item, or none once it has no more and the preparer has moved past it.
     fn prepare_text_item(&mut self, text_node: Node) -> Option<PreparedItem> {
+        use text_chunker::GraphemeContinuation;
+
         if self.text_node_context.is_none() {
             self.enter_text_node(text_node);
         }
@@ -1723,7 +1706,8 @@ impl<'pass> InlineContentPreparer<'pass> {
                 has_breaking_tab: false,
                 is_all_whitespace: true,
                 can_break_after: false,
-                text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
+                grapheme_continuation: GraphemeContinuation::None,
+                bidi_level: 0,
             };
             let first_available_font = text_context
                 .style
@@ -1773,7 +1757,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 || next.has_breaking_newline
                 || next.has_breaking_tab
                 || next.font_index != chunk.font_index
-                || next.text_type != chunk.text_type
+                || next.bidi_level != chunk.bidi_level
                 || next.start != chunk.start + chunk.length
                 || text_is_set_upright(
                     text_context.writing_mode,
@@ -1797,40 +1781,24 @@ impl<'pass> InlineContentPreparer<'pass> {
             }
             chunk.length += next.length;
             chunk.can_break_after = next.can_break_after;
+            if chunk.grapheme_continuation == GraphemeContinuation::EntireChunk
+                && next.grapheme_continuation != GraphemeContinuation::EntireChunk
+            {
+                chunk.grapheme_continuation = GraphemeContinuation::StartsInside;
+            }
             text_context.next_chunk_index += 1;
         }
         is_last_chunk = text_context.next_chunk_index >= chunks.len();
 
-        let mut text_type = chunk.text_type;
-        if matches!(
-            text_type,
-            line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
-        ) {
-            text_context.last_known_direction = Some(text_type);
-        }
-        if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
-            is_last_chunk = true;
-            if chunk.is_all_whitespace {
-                text_type = line_box_fragment::GLYPH_TEXT_TYPE_END_PADDING;
-            }
-        }
-        if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
-            text_type = self.resolve_text_direction_from_context(&text_context);
-        } else if text_type == line_box_fragment::GLYPH_TEXT_TYPE_COMMON
-            && let Some(direction) = self.direction_of_strong_text_around(
-                &text_context,
-                &text_context.text[chunk.start()..chunk.start() + chunk.length()],
-            )
-        {
-            text_type = direction;
-        }
-        if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
-            // NB: The strong text before a preserved newline has no say in the paragraph after it either.
-            text_context.last_known_direction = None;
-            text_context.open_bracket_directions.borrow_mut().clear();
+        if chunk.has_breaking_newline {
             self.text_node_context = Some(text_context);
             return Some(PreparedItem::newline(text_node, chunk.start()));
         }
+        let text_type = if bidi::direction_of_level(chunk.bidi_level) == direction::RTL {
+            line_box_fragment::GLYPH_TEXT_TYPE_RTL
+        } else {
+            line_box_fragment::GLYPH_TEXT_TYPE_LTR
+        };
 
         let full_text = text_context.text;
         let mut shaped_start = chunk.start();
@@ -1916,6 +1884,12 @@ impl<'pass> InlineContentPreparer<'pass> {
             );
         }
         let mut flags = if has_soft_wraps { PreparedItem::SOFT_WRAPS } else { 0 };
+        if chunk.grapheme_continuation != GraphemeContinuation::None {
+            flags |= PreparedItem::CONTINUES_GRAPHEME;
+        }
+        if chunk.grapheme_continuation == GraphemeContinuation::EntireChunk {
+            flags |= PreparedItem::IS_ONLY_GRAPHEME_CONTINUATION;
+        }
         if is_set_upright(shaped_text) {
             // NB: The font's own size takes any font-size-adjust into account.
             let advance = font.facts().pixel_size + text_context.letter_spacing;
@@ -2137,6 +2111,7 @@ struct RunItemResolver<'resolver, 'context> {
     prepared: &'resolver PreparedInlineContent,
     atomic_sizing: AtomicInlineSizing,
     pending_inline_edges: Vec<PendingInlineEdge>,
+    closed_bidi_empty_boxes: Vec<Node>,
     /// The inline boxes the resolver is inside, each with the number of in-flow items there were when it began.
     box_model_node_stack: Vec<(Node, usize)>,
     entered_box_model_nodes: Vec<Node>,
@@ -2186,10 +2161,15 @@ impl<'context> RunItemResolver<'_, 'context> {
                     .is_none_or(|next| matches!(next.type_(), ItemType::BlockLevelBox | ItemType::ForcedBreak))
                 {
                     // Whitespace at a line end disappears, but its inline box edges still belong on that line.
+                    self.apply_inline_box_events_at(index, true);
+                    self.append_bidi_empty_inline_edges(&mut items, true);
+                    self.empty_inline_boxes.append(&mut self.empty_inline_boxes_after_item);
                     self.keep_inline_boxes_ending_with_item_as_empty();
                     continue;
                 }
             }
+            self.append_bidi_empty_inline_edges(&mut items, prepared_item.type_() != ItemType::Text);
+            self.item_count = items.len();
             if let Some(last) = items.last()
                 && last.type_ == ItemType::ForcedBreak
             {
@@ -2236,6 +2216,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         }
         self.item_count = items.len();
         self.apply_inline_box_events_at(prepared.items.len(), false);
+        self.append_bidi_empty_inline_edges(&mut items, true);
         self.keep_inline_boxes_ending_with_item_as_empty();
         self.append_unattached_edges(&mut items, InlineEdgeBoundary::End);
         debug_assert_eq!(self.next_box_event, prepared.box_events.len());
@@ -2245,6 +2226,55 @@ impl<'context> RunItemResolver<'_, 'context> {
     /// The item that these inline boxes end with isn't in-flow content, so they hold none.
     fn keep_inline_boxes_ending_with_item_as_empty(&mut self) {
         self.empty_inline_boxes.append(&mut self.inline_boxes_ending_with_item);
+    }
+
+    fn append_bidi_empty_inline_edges(&mut self, items: &mut Vec<Item>, whitespace_is_absent: bool) {
+        if self.closed_bidi_empty_boxes.is_empty() {
+            return;
+        }
+        let mut positions = HashMap::default();
+        let mut closed_items = Vec::new();
+        for node in self.closed_bidi_empty_boxes.drain(..) {
+            let empty = self
+                .prepared
+                .empty_inline_bidi_position(node)
+                .expect("a closed bidi inline has a position");
+            if empty.requires_whitespace_collapse && !whitespace_is_absent {
+                continue;
+            }
+            positions.insert(node, closed_items.len());
+            closed_items.push(Item::new(
+                ItemType::InlineEdge,
+                node,
+                Item::NOT_RESOLVED_FROM_A_PREPARED_ITEM,
+            ));
+        }
+        if closed_items.is_empty() {
+            return;
+        }
+        self.pending_inline_edges.retain(|edge| {
+            let Some(&index) = positions.get(&edge.node) else {
+                return true;
+            };
+            let item = &mut closed_items[index];
+            if edge.is_low {
+                item.margin_start += edge.margin;
+                item.border_start += edge.border;
+                item.padding_start += edge.padding;
+            } else {
+                item.margin_end += edge.margin;
+                item.border_end += edge.border;
+                item.padding_end += edge.padding;
+            }
+            false
+        });
+        for mut item in closed_items {
+            if item.carries_inline_box_edges() {
+                item.bidi_start_edges_on_left = item.margin_start + item.border_start + item.padding_start;
+                self.accumulated_inline_size_for_tabs += item.border_box_inline_size();
+                items.push(item);
+            }
+        }
     }
 
     fn append_unattached_edges(&mut self, items: &mut Vec<Item>, boundary: InlineEdgeBoundary) {
@@ -2290,7 +2320,8 @@ impl<'context> RunItemResolver<'_, 'context> {
                 return false;
             }
             let mut item = Item::new(ItemType::InlineEdge, edge.node, Item::NOT_RESOLVED_FROM_A_PREPARED_ITEM);
-            if edge.is_low != context.atomic_items_are_right_to_left {
+            let takes_leading_metrics = edge.is_low != context.atomic_items_are_right_to_left;
+            if takes_leading_metrics {
                 item.margin_start = edge.margin;
                 item.border_start = edge.border;
                 item.padding_start = edge.padding;
@@ -2298,6 +2329,18 @@ impl<'context> RunItemResolver<'_, 'context> {
                 item.margin_end = edge.margin;
                 item.border_end = edge.border;
                 item.padding_end = edge.padding;
+            }
+            if edge.is_low {
+                item.bidi_start_edges_on_left = edge.margin + edge.border + edge.padding;
+            }
+            let bidi_edge = edge.bidi_edge();
+            if !context.bidi_paragraphs.is_empty() && bidi_edge.advance != CssPixels::default() {
+                let edges = item.bidi_inline_box_edges.get_or_insert_default();
+                if takes_leading_metrics {
+                    edges.leading.push(bidi_edge);
+                } else {
+                    edges.trailing.push(bidi_edge);
+                }
             }
             if !edge.is_start
                 && items.last().is_some_and(|last| {
@@ -2333,7 +2376,14 @@ impl<'context> RunItemResolver<'_, 'context> {
         } else {
             (sides.margin_right, sides.border_right, sides.padding_right)
         };
-        let physical = if is_start != self.context().atomic_items_are_right_to_left {
+        let uses_logical_sides = !self.context().bidi_paragraphs.is_empty();
+        let physical = if uses_logical_sides {
+            ExtraBoxMetrics {
+                margin,
+                border,
+                padding,
+            }
+        } else if is_start != self.context().atomic_items_are_right_to_left {
             ExtraBoxMetrics {
                 margin: sides.margin_left,
                 border: sides.border_left,
@@ -2346,7 +2396,12 @@ impl<'context> RunItemResolver<'_, 'context> {
                 padding: sides.padding_right,
             }
         };
-        let right_to_left_end_margin = self.negative_right_to_left_end_margin(node, sides.margin_left);
+        // Only the legacy path initially counts an RTL end margin on the physical left.
+        let right_to_left_end_margin = if uses_logical_sides {
+            CssPixels::default()
+        } else {
+            self.negative_right_to_left_end_margin(node, sides.margin_left)
+        };
         if margin != CssPixels::default()
             || border != CssPixels::default()
             || padding != CssPixels::default()
@@ -2395,6 +2450,11 @@ impl<'context> RunItemResolver<'_, 'context> {
         // NB: No item tells the line builder about an inline box that holds no in-flow item, so it's kept apart, for
         //     the line it's on to place it and take its strut from.
         if in_flow_item_count_at_start == self.in_flow_item_count {
+            if !self.context().atomic_items_are_right_to_left
+                && self.prepared.empty_inline_bidi_position(node).is_some()
+            {
+                self.closed_bidi_empty_boxes.push(node);
+            }
             let empty_box = EmptyInlineBox {
                 position: self.item_count,
                 node,
@@ -2438,17 +2498,33 @@ impl<'context> RunItemResolver<'_, 'context> {
         add_leading_metrics: bool,
         add_trailing_metrics: bool,
     ) {
+        let has_bidi_paragraphs = !self.context().bidi_paragraphs.is_empty();
         self.pending_inline_edges.retain(|edge| {
             if edge.takes_leading_metrics && add_leading_metrics {
                 item.margin_start += edge.physical.margin;
                 item.border_start += edge.physical.border;
                 item.padding_start += edge.physical.padding;
+                if edge.is_low {
+                    item.bidi_start_edges_on_left += edge.margin + edge.border + edge.padding;
+                }
             } else if !edge.takes_leading_metrics && add_trailing_metrics {
                 item.margin_end += edge.physical.margin;
                 item.border_end += edge.physical.border;
                 item.padding_end += edge.physical.padding;
+                if edge.is_low {
+                    item.bidi_end_edges_on_left += edge.margin + edge.border + edge.padding;
+                }
             } else {
                 return true;
+            }
+            let bidi_edge = edge.bidi_edge();
+            if has_bidi_paragraphs && bidi_edge.advance != CssPixels::default() {
+                let edges = item.bidi_inline_box_edges.get_or_insert_default();
+                if edge.takes_leading_metrics {
+                    edges.leading.push(bidi_edge);
+                } else {
+                    edges.trailing.push(bidi_edge);
+                }
             }
             if edge.is_start {
                 item.entered_right_to_left_end_margin += edge.right_to_left_end_margin;
@@ -2627,7 +2703,25 @@ impl<'context> RunItemResolver<'_, 'context> {
                 box_cells: Some(box_cells),
             }));
         }
-        if self.context().atomic_items_are_right_to_left {
+        let position = self.prepared.bidi_position(item_index);
+        let is_rtl = position
+            .and_then(|position| {
+                self.context()
+                    .bidi_paragraphs
+                    .get(position.paragraph)
+                    .map(|paragraph| bidi::direction_of_level(paragraph.level_at(position.offset)) == direction::RTL)
+            })
+            .unwrap_or(false);
+        let physical_left = item.margin_start + item.border_start + item.padding_start;
+        if is_rtl {
+            item.bidi_end_edges_on_left = physical_left;
+            // The swap below places the box's own left margin at logical end.
+            item.entered_right_to_left_end_margin = CssPixels::default();
+            item.exited_right_to_left_end_margin = CssPixels::default();
+        } else {
+            item.bidi_start_edges_on_left = physical_left;
+        }
+        if self.context().atomic_items_are_right_to_left || is_rtl {
             std::mem::swap(&mut item.margin_start, &mut item.margin_end);
             std::mem::swap(&mut item.border_start, &mut item.border_end);
             std::mem::swap(&mut item.padding_start, &mut item.padding_end);
@@ -2671,6 +2765,7 @@ fn lay_out_entered_inline_box(
 }
 
 struct SharedInlineItems {
+    inline_basis: CssPixels,
     items: std::rc::Rc<[Item]>,
     entered_box_model_nodes: std::rc::Rc<[Node]>,
     empty_inline_boxes: std::rc::Rc<[EmptyInlineBox]>,
@@ -2743,10 +2838,12 @@ impl InlineLevelIterator {
         cache: &InlineItemCache,
     ) -> Self {
         let containing_block = context.containing_block;
+        let inline_basis = context.input.containing_block_constraints.inline_basis();
         let shared = cache
             .items_by_block_container
             .borrow()
             .get(&containing_block)
+            .filter(|shared| shared.inline_basis == inline_basis)
             .map(|shared| {
                 (
                     shared.items.clone(),
@@ -2757,6 +2854,9 @@ impl InlineLevelIterator {
             });
         if let Some((items, entered_box_model_nodes, empty_inline_boxes, prepared)) = shared {
             context.atomic_items_are_right_to_left = prepared.orders_atomic_items_right_to_left(context);
+            if !context.atomic_items_are_right_to_left {
+                context.bidi_paragraphs = prepared.bidi_paragraphs();
+            }
             for node in entered_box_model_nodes.iter() {
                 lay_out_entered_inline_box(context, *node);
             }
@@ -2777,6 +2877,7 @@ impl InlineLevelIterator {
         cache.items_by_block_container.borrow_mut().insert(
             containing_block,
             SharedInlineItems {
+                inline_basis,
                 items: shared_items.clone(),
                 entered_box_model_nodes: iterator.entered_box_model_nodes.as_slice().into(),
                 empty_inline_boxes: iterator.empty_inline_boxes.clone(),
@@ -2810,7 +2911,8 @@ impl InlineLevelIterator {
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
     ) -> Self {
-        PreparedInlineContent::for_block_container(context.pass, context.containing_block)
+        let inline_basis = context.input.containing_block_constraints.inline_basis();
+        PreparedInlineContent::for_block_container(context.pass, context.containing_block, inline_basis)
             .resolve_items_for_run(context, atomic_sizing)
     }
 
@@ -3082,6 +3184,52 @@ impl InlineLevelIterator {
             - inline_extent([item])
     }
 
+    /// The advance still needed to finish the grapheme when shaping splits it across items.
+    pub(super) fn grapheme_continuation_inline_size(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+        item: &Item,
+    ) -> CssPixels {
+        let mut offset = item.offset_in_node + item.length_in_node;
+        if !self.items().first().is_some_and(|next| {
+            next.node == item.node && next.offset_in_node == offset && next.continues_grapheme(&self.prepared)
+        }) {
+            return CssPixels::default();
+        }
+        let style = context.style(context.parent_node(item.node));
+        let text = context.pass.text_content(item.node);
+        context.pass.with_grapheme_segmenter(item.node, |segmenter| {
+            let end = segmenter
+                .next_boundary(offset, false)
+                .expect("the grapheme ends after the shaping boundary");
+            let mut advance = CssPixels::default();
+            for next in self.items() {
+                if next.type_ != ItemType::Text || next.node != item.node || next.offset_in_node != offset {
+                    break;
+                }
+                offset += next.length_in_node;
+                if offset > end {
+                    let prefix_size = next
+                        .first_grapheme_cluster_inline_size(
+                            &self.prepared,
+                            &text.text,
+                            segmenter,
+                            style.letter_spacing().to_double() as f32,
+                            style.word_spacing().to_double() as f32,
+                        )
+                        .expect("a grapheme boundary falls within the last item");
+                    advance += next.border_start + next.padding_start + prefix_size;
+                    break;
+                }
+                advance += next.border_box_inline_size();
+                if offset == end {
+                    break;
+                }
+            }
+            advance
+        })
+    }
+
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
@@ -3110,12 +3258,14 @@ pub(crate) fn whitespace_and_sequence_inline_size(
     whitespace: &Item,
     items: &[Item],
 ) -> Option<CssPixels> {
-    // NB: An atomic inline that a line can break before decides that break itself when the line builder comes to it, so
-    //     the white space before it stays on the line, as it would before a line break there.
+    // Empty inline edges at the end of a line stay with the preceding content. An atomic inline that can wrap
+    // decides the break itself, leaving the whitespace on the preceding line.
     if items
         .iter()
         .find(|item| !sits_between_line_content(item))
-        .is_some_and(|item| item.type_ == ItemType::Element && item.can_break_before)
+        .is_none_or(|item| {
+            item.type_ == ItemType::ForcedBreak || (item.type_ == ItemType::Element && item.can_break_before)
+        })
     {
         return None;
     }

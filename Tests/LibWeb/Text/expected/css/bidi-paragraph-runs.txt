@@ -1,0 +1,50 @@
+rtl [A B G _ 2 0 2 6] -> 2 0 2 6 _ G B A
+rtl [a b j _ 2 0 2 6] -> 2 0 2 6 _ j b a
+rtl [a b j _ 2" 0" 2" 5"] -> 2" 0" 2" 5" _ j b a
+rtl [a b j _ 2' 0' 2' 5'] -> 2' 0' 2' 5' _ j b a
+rtl [2 0 2 6 _ A B G] -> G B A _ 2 0 2 6
+rtl [2 0 2 6] -> 2 0 2 6
+rtl [a b c _ 2 0 2 6 _ A B G] -> G B A _ a b c _ 2 0 2 6
+rtl [A B G _ 2 0 2 6 _ a b c] -> a b c _ 2 0 2 6 _ G B A
+rtl [A B G _ 1 2 _ 3 4 _ A B G] -> G B A _ 3 4 _ 1 2 _ G B A
+rtl [A B G _ 2 0 2 6 / 1 1 / 1 9] -> 2 0 2 6 / 1 1 / 1 9 _ G B A
+rtl [A B G _ 4 : 0 0] -> 4 : 0 0 _ G B A
+rtl [A B G _ 1 , 2 3 4 . 5] -> 1 , 2 3 4 . 5 _ G B A
+rtl [A B G _ 5 0 %] -> 5 0 % _ G B A
+rtl [A B G _ $ 1 0 0] -> $ 1 0 0 _ G B A
+rtl [A B G _ 1 - 2] -> 1 - 2 _ G B A
+rtl [A B G _ 1 + 2] -> 1 + 2 _ G B A
+rtl [a b j _ 2 0 2 6 / 1 1 / 1 9] -> 2 0 2 6 / 1 1 / 1 9 _ j b a
+rtl [a b j _ 4 : 0 0] -> 4 : 0 0 _ j b a
+rtl [a b j _ 5 0 %] -> % 5 0 _ j b a
+rtl [a b j _ 1 - 2] -> 2 - 1 _ j b a
+rtl [a b j _ 4' : 0' 0'] -> 4' : 0' 0' _ j b a
+rtl [a b j _ 5" 0" %] -> % 5" 0" _ j b a
+ltr [A B G _ 2 0 2 6] -> 2 0 2 6 _ G B A
+ltr [A B G _ 2 0 2 6 _ a b c] -> 2 0 2 6 _ G B A _ a b c
+ltr [a b j _ 1 2 _ 3 4 _ a b j] -> j b a _ 3 4 _ 1 2 _ j b a
+ltr [a b c _ 1' 2' _ 3' 4' _ a b c] -> a b c _ 3' 4' _ 1' 2' _ a b c
+auto [2 0 2 6 _ A B G] -> G B A _ 2 0 2 6
+plaintext [2 0 2 6 _ A B G] -> G B A _ 2 0 2 6
+plaintext [A B G _ 2 0 2 6 _ a b c] -> a b c _ 2 0 2 6 _ G B A
+rtl [A B G _ 4 : 0 0 _ _ 2 0 2 6] -> 2 0 2 6 _ _ 4 : 0 0 _ G B A
+plaintext [A B G _ 1 ⏎ 2 _ a b c] -> 1 _ G B A | 2 _ a b c
+plaintext [a b c ⏎ 1 2 _ A B G] -> a b c | G B A _ 1 2
+rtl [a b c ⏎ 1 2 _ 3 4] -> a b c | 1 2 _ 3 4
+rtl [a b c 1' 2' d e f] -> a b c 1' 2' d e f
+rtl [1' 2' d e f] -> 1' 2' d e f
+rtl [A B G _ 1 2 a b c] -> 1 2 a b c _ G B A
+rtl [A B G _ a b c 1 2 _ A B G] -> G B A _ a b c 1 2 _ G B A
+rtl [1 2 _ 3 4] -> 1 2 _ 3 4
+ltr [1 2 _ 3 4] -> 3 4 _ 1 2
+rtl [A B G _ m1 m2 _ 3 4] -> 3 4 _ m1 m2 _ G B A
+rtl [A B G _ 1 m2 3] -> 1 m2 3 _ G B A
+rtl [A B G _ 4 : 0 0] -> 4 : 0 0 _ G B A
+rtl [1' 2 a] -> 1' 2 a
+rtl [a b j _ 5 0 %] -> % 5 0 _ j b a
+ltr [a b c _ A B G B _ x y z] -> a b c _ B A B G _ x y z
+rtl [1 2 3] -> 3 2 1
+plaintext [a b j _ 5 0 %] -> j b a | % 5 0
+plaintext [a b j _ 5 0 % ⏎ a b c _ 5 0 %] -> % 5 0 _ j b a | a b c _ 5 0 %
+rtl [A B G _ 5 0 %] -> 5 0 % _ G B A
+rtl [a b j _ 5 0 %] -> % 5 0 _ j b a

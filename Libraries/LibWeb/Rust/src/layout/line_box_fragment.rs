@@ -83,6 +83,13 @@ pub(crate) struct BlockEllipsisText {
 pub(crate) struct LineBoxFragmentData {
     pub(crate) record: inline_content::FragmentRecord,
     pub(crate) glyphs: Option<GlyphData>,
+    pub(super) bidi_position: Option<bidi::Position>,
+    /// Visual sequence on a reordered line, independent of overlap from negative inline margins.
+    pub(super) bidi_visual_index: u32,
+    /// The advances contributed by margins, borders and padding on either side of this fragment in logical order.
+    pub(super) bidi_edges: (CssPixels, CssPixels),
+    pub(super) bidi_edges_on_left: CssPixels,
+    pub(super) bidi_inline_box_edges: Option<Box<bidi::InlineBoxEdges>>,
     pub(crate) insert_position: f32,
     pub(crate) current_insert_direction: u8,
     pub(crate) has_text_overflow_ellipsis: bool,
@@ -175,6 +182,11 @@ impl LineBoxFragmentData {
         let mut fragment = Self {
             record,
             glyphs,
+            bidi_position: None,
+            bidi_visual_index: u32::MAX,
+            bidi_edges: Default::default(),
+            bidi_edges_on_left: Default::default(),
+            bidi_inline_box_edges: None,
             insert_position: 0.0,
             current_insert_direction: direction::LTR,
             has_text_overflow_ellipsis: false,
@@ -212,6 +224,34 @@ impl LineBoxFragmentData {
         // SAFETY: The text snapshot owns this buffer for the layout-state
         // lifetime, and the asserted range comes from its chunk snapshot.
         unsafe { ak::slice_from_raw_parts(self.text_utf16.add(self.start), self.length_in_code_units) }
+    }
+
+    pub(super) fn collapsible_trailing_whitespace(&self) -> TrailingWhitespace {
+        let whitespace = self.trailing_whitespace;
+        if whitespace.length_in_code_units == 0 {
+            return whitespace;
+        }
+        let length_in_code_units = self
+            .text()
+            .iter()
+            .rev()
+            .take(whitespace.length_in_code_units)
+            .take_while(|&&unit| is_ascii_space(unit))
+            .count();
+        TrailingWhitespace {
+            length_in_code_units,
+            inline_size: whitespace.ascii_inline_size,
+            ascii_inline_size: whitespace.ascii_inline_size,
+        }
+    }
+
+    pub(super) fn remove_trailing_whitespace(&mut self, whitespace: TrailingWhitespace) {
+        self.length_in_code_units -= whitespace.length_in_code_units;
+        self.inline_length -= whitespace.inline_size;
+        self.trailing_whitespace.length_in_code_units -= whitespace.length_in_code_units;
+        self.trailing_whitespace.inline_size -= whitespace.inline_size;
+        self.trailing_whitespace.ascii_inline_size -= whitespace.ascii_inline_size;
+        self.record.trimmed_trailing_whitespace += whitespace;
     }
 
     pub(crate) fn reshape_prefix_for_block_ellipsis(
@@ -279,8 +319,44 @@ impl LineBoxFragmentData {
         self.text().last().is_some_and(|code_unit| is_ascii_space(*code_unit))
     }
 
+    pub(super) fn is_bidi_inline_edge(&self) -> bool {
+        self.bidi_position.is_some() && self.length_in_code_units == 0 && !self.is_atomic_inline
+    }
+
     pub(crate) fn is_justifiable_whitespace(&self) -> bool {
         self.text() == [b' ' as u16]
+    }
+
+    /// L1 can give a fragment of trailing whitespace the opposite direction from its shaping run.
+    pub(super) fn set_bidi_whitespace_direction(&mut self, direction: u8) {
+        let width = self.inline_length.to_double() as f32;
+        let Some(glyphs) = &mut self.glyphs else { return };
+        let text_type = if direction == direction::RTL {
+            GLYPH_TEXT_TYPE_RTL
+        } else {
+            GLYPH_TEXT_TYPE_LTR
+        };
+        if glyphs.text_type == text_type {
+            return;
+        }
+        let old: Vec<_> = glyphs.glyphs.placed().collect();
+        let mut reordered = libgfx_rust::text_layout::GlyphBuffer::default();
+        reordered.reserve(old.len());
+        for cluster in old.chunk_by(|a, b| a.cluster_start == b.cluster_start).rev() {
+            let advance: f32 = cluster.iter().map(|glyph| glyph.glyph.advance).sum();
+            let shift = width - 2.0 * cluster[0].x - advance;
+            for &glyph in cluster {
+                reordered.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                    x: glyph.x + shift,
+                    is_rtl: direction == direction::RTL,
+                    ..glyph
+                });
+            }
+        }
+        glyphs.glyphs = reordered;
+        glyphs.text_type = text_type;
+        glyphs.derived_placements_end = None;
+        self.current_insert_direction = direction;
     }
 
     fn resolve_glyph_run_direction(&self, text_type: u8) -> u8 {

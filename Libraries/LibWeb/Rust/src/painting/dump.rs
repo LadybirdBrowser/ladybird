@@ -182,7 +182,7 @@ pub(crate) fn dump_inline_piece_fragments(
     for piece_index in root_side.inline_box_piece_indices(inline_paintable) {
         let piece = &root_side.inline_box_pieces()[*piece_index as usize];
         let mut fragment_index_within_piece = 0usize;
-        for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
+        for fragment_index in piece.fragment_indices() {
             let fragment = &root_side.fragments()[fragment_index as usize];
             if layout_arena.node_kind_if_live(fragment.layout_node).is_some()
                 && fragment_ownership::nearest_fragmented_inline_ancestor(layout_arena, fragment.layout_node)
