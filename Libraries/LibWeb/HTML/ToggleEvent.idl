@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/interaction.html#toggleevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface ToggleEvent : Event {
     constructor(DOMString type, optional ToggleEventInit eventInitDict = {});
     readonly attribute DOMString oldState;

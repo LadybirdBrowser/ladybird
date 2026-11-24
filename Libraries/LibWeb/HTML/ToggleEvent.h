@@ -6,47 +6,15 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Utf16FlyString.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/ToggleEvent.h>
-#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/Utils.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-using ToggleEventInit = Bindings::ToggleEventInit;
-
-class ToggleEvent : public DOM::Event {
-    WEB_WRAPPABLE(ToggleEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(ToggleEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<ToggleEvent> create(Utf16FlyString const& event_name, ToggleEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
-    Utf16FlyString const& old_state() const { return m_old_state; }
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-newstate
-    Utf16FlyString const& new_state() const { return m_new_state; }
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-source
-    GC::Ptr<DOM::Element> source() const
-    {
-        // The source getter steps are to return the result of retargeting source against this's currentTarget.
-        return as<DOM::Element>(retarget(m_source.ptr(), current_target().ptr()));
-    }
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-private:
-    ToggleEvent(Utf16FlyString const& event_name, ToggleEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    Utf16FlyString m_old_state;
-    Utf16FlyString m_new_state;
-    GC::Ptr<DOM::Element> m_source;
-};
+// The Event of a new trusted ToggleEvent in the realm, for the implementation to fire.
+GC::Ref<DOM::Event> create_toggle_event(JS::Realm&, Utf16FlyString const& type, DOM::EventInit const&, Utf16FlyString const& old_state, Utf16FlyString const& new_state, GC::Ptr<DOM::Element> source);
 
 }
