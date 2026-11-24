@@ -240,6 +240,14 @@ void Document::update_style_and_layout_once(Layout::BegunRead const& read, Updat
         && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
         flush_throttled_animation_style_update();
 
+    // The stabilization epoch defers microtask checkpoints. It ends after the cleanup below, so that a checkpoint that a
+    // re-snap's scroll reaches doesn't run script while the update is still going, which could leave its caller reading
+    // layout that the script made stale.
+    begin_style_stabilization_epoch();
+    ScopeGuard end_stabilization_epoch = [&] {
+        end_style_stabilization_epoch();
+    };
+
     auto& arena = layout_node_arena();
     Layout::RustFFI::document_host_begin_update_layout(arena.host());
     ScopeGuard guard = [&] {
@@ -251,11 +259,6 @@ void Document::update_style_and_layout_once(Layout::BegunRead const& read, Updat
         }
 
         page().client().flush_pending_dom_mutations();
-    };
-
-    begin_style_stabilization_epoch();
-    ScopeGuard end_stabilization_epoch = [&] {
-        end_style_stabilization_epoch();
     };
 
     // Keep shared style records alive across both style and layout, so temporary views

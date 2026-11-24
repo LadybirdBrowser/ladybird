@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    body {
+        margin: 0;
+    }
+    #field {
+        display: block;
+        width: 200px;
+        height: 30px;
+    }
+    #scroller {
+        overflow-y: scroll;
+        height: 100px;
+        width: 200px;
+        scroll-snap-type: y mandatory;
+    }
+    #scroller > div {
+        height: 100px;
+        scroll-snap-align: start;
+    }
+    #scroller > #spacer {
+        height: 50px;
+        scroll-snap-align: none;
+    }
+    body:has(#field:focus) #scroller > #spacer {
+        height: 80px;
+    }
+    @keyframes fade {
+        from { opacity: 0.5; }
+        to { opacity: 1; }
+    }
+    #animated {
+        animation: fade 10s linear;
+    }
+    body:has(#field:focus) #animated {
+        animation: none;
+    }
+</style>
+<input id="field">
+<div id="scroller"><div id="spacer"></div><div id="target">target</div><div>after</div></div>
+<p id="animated">animated</p>
+<p id="text">text</p>
+<script>
+    // Focusing the field on mousedown cancels the animation, which queues the rejection of its finished promise, and
+    // moves the snapped target, so the layout update after the focus re-snaps the scroll container. The reaction must
+    // not run inside that layout update, where its change to the DOM would leave the mousedown's default actions
+    // reading stale layout.
+    scroller.scrollTop = 50;
+    requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
+            for (const animation of animated.getAnimations())
+                animation.finished.catch(() => {
+                    text.firstChild.data = "changed";
+                    document.body.prepend(document.createElement("div"));
+                });
+            await internals.clickThroughUIProcess(20, 15);
+            document.documentElement.classList.remove("test-wait");
+        });
+    });
+</script>
+</html>
