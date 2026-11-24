@@ -25,7 +25,7 @@ use super::effect_geometry::{
 use super::layers::{BandIndex, BarrierCutsOfCell, CutsOfCell, LayerContent, LayerIndex, LayerStack};
 use super::nested_records::for_each_command_including_nested;
 use super::placement::{
-    ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, FiltersAndClipsOfList, RasterSpaceGeometry, RunGroupIndex, RunGroups,
+    ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, FiltersAndClipsOfList, RasterSpaceGeometry, RunGroups,
     enclosing_int_rect_within_extent_limit, is_finite_rect,
 };
 use super::reach::Reach;
@@ -675,11 +675,11 @@ struct ChunkHeldByBand {
     reach_of_held_records: Reach<IntRect>,
 }
 
-struct RunReplayedWholeWhereverRunGroupShows {
+struct RunReplayedWholeWhereverSortingContextShows {
     reach: Reach<IntRect>,
 }
 
-type RunsReplayedWhole = HashMap<(ChunkIndexInList, RunIndexInChunk), RunReplayedWholeWhereverRunGroupShows>;
+type RunsReplayedWhole = HashMap<(ChunkIndexInList, RunIndexInChunk), RunReplayedWholeWhereverSortingContextShows>;
 
 struct BandBoundToListAndGeometry {
     /// In the order of their chunks, as the spans of a band are in paint order.
@@ -1879,7 +1879,8 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
         BackdropReadsOfBand::new(backdrop_reads_in_paint_order)
     }
 
-    /// The held runs that replay whole wherever any run of their run group shows.
+    /// The held runs of the 3D sorting contexts that sort their planes by depth, which replay whole wherever any run of
+    /// their context shows.
     fn runs_replayed_whole(
         &self,
         held_chunks: &[ChunkHeldByBand],
@@ -1887,45 +1888,42 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     ) -> RunsReplayedWhole {
         let list = self.list;
         let display_list = list.display_list;
-        // A mask or a depth sort reads every run of its run group, so those runs replay whole wherever any of them
-        // shows.
+        // A depth sort splits and orders the planes of its context by every one of them, so the runs of the context
+        // replay whole wherever any of them shows.
         let run_groups = list.run_groups();
-        let mut reach_and_first_position_of_run_groups_replayed_whole: BTreeMap<
-            RunGroupIndex,
-            (Reach<IntRect>, ListPosition),
-        > = BTreeMap::new();
-        let mut held_runs_replayed_whole: Vec<(ChunkIndexInList, RunIndexInChunk, RunGroupIndex)> = Vec::new();
+        let mut reach_and_first_position_by_root_of_sorting_context: BTreeMap<u32, (Reach<IntRect>, ListPosition)> =
+            BTreeMap::new();
+        let mut held_runs_replayed_whole: Vec<(ChunkIndexInList, RunIndexInChunk, SpatialNodeIndex)> = Vec::new();
         for held_chunk in held_chunks {
             let runs = display_list.chunk(held_chunk.chunk_index).runs();
             for &run_index in &held_chunk.held_run_indices {
-                let position = ListPosition::new(held_chunk.chunk_index, runs[run_index.0 as usize].offset);
-                let run_group_index = run_groups
-                    .group_of_run(display_list.first_run_of_chunk(held_chunk.chunk_index) + run_index.0 as usize);
-                if !run_groups.group_is_under_mask(run_group_index)
-                    && !run_groups.group_is_sorted_by_depth(run_group_index)
-                {
+                let run = &runs[run_index.0 as usize];
+                let Some(root_of_sorting_context) =
+                    run_groups.root_of_context_sorting_planes_by_depth(run.context.spatial)
+                else {
                     continue;
-                }
+                };
+                let position = ListPosition::new(held_chunk.chunk_index, run.offset);
                 let ranges_of_run = &held_chunk.placement.ranges_of_each_run[run_index.0 as usize];
                 let whole_run_reach =
                     held_chunk.placement.record_ranges[ranges_of_run.whole_run_range_index.0 as usize].reach;
-                reach_and_first_position_of_run_groups_replayed_whole
-                    .entry(run_group_index)
+                reach_and_first_position_by_root_of_sorting_context
+                    .entry(root_of_sorting_context.0)
                     .and_modify(|(united_reach, first_position)| {
                         *united_reach = united_reach.united(whole_run_reach);
                         *first_position = (*first_position).min(position);
                     })
                     .or_insert((whole_run_reach, position));
-                held_runs_replayed_whole.push((held_chunk.chunk_index, run_index, run_group_index));
+                held_runs_replayed_whole.push((held_chunk.chunk_index, run_index, root_of_sorting_context));
             }
         }
         held_runs_replayed_whole
             .into_iter()
-            .map(|(chunk_index, run_index, run_group_index)| {
-                let (run_group_reach, first_position) =
-                    reach_and_first_position_of_run_groups_replayed_whole[&run_group_index];
-                let run_replayed_whole = RunReplayedWholeWhereverRunGroupShows {
-                    reach: backdrop_reads.reach_extended_through_reads(run_group_reach, first_position),
+            .map(|(chunk_index, run_index, root_of_sorting_context)| {
+                let (sorting_context_reach, first_position) =
+                    reach_and_first_position_by_root_of_sorting_context[&root_of_sorting_context.0];
+                let run_replayed_whole = RunReplayedWholeWhereverSortingContextShows {
+                    reach: backdrop_reads.reach_extended_through_reads(sorting_context_reach, first_position),
                 };
                 ((chunk_index, run_index), run_replayed_whole)
             })
@@ -3497,5 +3495,62 @@ mod tests {
             content_hash_of_tile_of_masked_box_with_mask_content_of(GREEN),
             content_hash_of_tile_of_masked_box_with_mask_content_of(RED)
         );
+    }
+
+    // A group around the whole page, as an isolated root element makes, with a masked box in one cell and another box
+    // of the group in a cell the masked box does not reach.
+    #[test]
+    fn a_tile_holds_only_the_records_that_reach_it_in_a_group_that_holds_a_mask() {
+        use crate::visual_context::{MaskData, MaskLayerOrigin};
+        let (mut tree, root) = tree_with_root_isolation_effect(1.0);
+        let group = tree.append_effect_node_under(root, effects(1.0, CompositingAndBlendingOperator::Normal));
+        let masked = tree.append_effect_node_under(
+            group,
+            EffectNodeData::Mask(MaskData {
+                rect: IntRect::new(0, 0, 100, 100),
+                kind: libgfx_rust::MaskKind::Alpha,
+                origin: MaskLayerOrigin::CssMaskLayers,
+                masks_backdrop: false,
+            }),
+        );
+        let masked_box = IntRect::new(10, 10, 80, 80);
+        let far_box = IntRect::new(10, 530, 80, 40);
+        assert_ne!(cell_of(masked_box), cell_of(far_box));
+        let content_hashes_of_tiles_of_masked_box_and_far_box_of = |color_of_far_box: Color| {
+            let mut list = ListOfOneChunk::default().with(fill(masked_box, BLUE), masked);
+            let far_box_position = ListPosition::new(ChunkIndexInList(0), list.builder.byte_size() as u32);
+            list = list.with(fill(far_box, color_of_far_box), group);
+            let display_list = list.storage();
+            let stack = stack_of(&display_list, &tree);
+            let band_index = band_of_space(&stack, RasterSpaceIndex::VIEWPORT);
+            let layer_index = stack.bands[band_index.0].layer_below_all_cuts;
+            let (band_tile_keys, _) = band_tile_keys_after_frames_showing(
+                (&display_list, &tree, &stack),
+                RasterSpaceIndex::VIEWPORT,
+                band_index,
+                &[VIEWPORT],
+            );
+            let tile_of_masked_box = band_tile_keys.tile(cell_of(masked_box), layer_index).unwrap();
+            let tile_of_far_box = band_tile_keys.tile(cell_of(far_box), layer_index).unwrap();
+            assert!(
+                !band_tile_keys
+                    .record_spans_of_tiles([tile_of_masked_box])
+                    .iter()
+                    .any(|span| span.contains(far_box_position))
+            );
+            assert!(
+                band_tile_keys
+                    .record_spans_of_tiles([tile_of_far_box])
+                    .iter()
+                    .any(|span| span.contains(far_box_position))
+            );
+            (tile_of_masked_box.content_hash, tile_of_far_box.content_hash)
+        };
+        let (tile_of_masked_box_beside_green, tile_of_green_far_box) =
+            content_hashes_of_tiles_of_masked_box_and_far_box_of(GREEN);
+        let (tile_of_masked_box_beside_red, tile_of_red_far_box) =
+            content_hashes_of_tiles_of_masked_box_and_far_box_of(RED);
+        assert_eq!(tile_of_masked_box_beside_green, tile_of_masked_box_beside_red);
+        assert_ne!(tile_of_green_far_box, tile_of_red_far_box);
     }
 }
