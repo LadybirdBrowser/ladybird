@@ -1,0 +1,18 @@
+Ladybird rejects at parse time a var() whose name isn’t a single
+<custom-property-name> (var(--x 0px), var(name), var(--), var(var(--n)),
+e.g.) and an env() whose name isn’t an identifier followed by
+non-negative integers. Chrome 158, Firefox 151 and WebKit 26.5 give
+identical results on all 19 lines of the test, as Ladybird now does.
+
+That departs from the current spec and from upstream WPT. Since a
+WebKit change in August 2026 (bug 320896, “variable reference name
+substitution”), the argument grammar of var() takes any
+<declaration-value> as the name, and css/css-variables/var-parsing.html
+and variable-reference.html upstream expect “var(--x ())” and
+“var(--prop 20px)” to be valid at parse time. WebKit 26.5, the
+shipping release, still rejects them, as do Chrome and Firefox.
+Upstream css/css-env/env-parsing.html made the same change for env()
+in November 2026. Ladybird’s imported copies of var-parsing.html and
+env-parsing.html are the older versions; with this change, all of
+their cases pass, and so do six more in indexed-env.tentative.html and
+syntax.tentative.html.
