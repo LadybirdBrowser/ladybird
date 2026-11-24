@@ -567,6 +567,16 @@ AVPixelFormat FFmpegVulkanVideoDecoder::negotiate_pixel_format(AVCodecContext* c
 int FFmpegVulkanVideoDecoder::get_buffer(AVCodecContext* codec_context, AVFrame* frame, int flags)
 {
     auto& decoder = *static_cast<FFmpegVulkanVideoDecoder*>(codec_context->opaque);
+
+    // FFmpeg's AV1 decoder keeps its frames across a new sequence with larger frames, which would decode out of bounds.
+    if (codec_context->hw_frames_ctx != nullptr) {
+        auto const& frames_context = *reinterpret_cast<AVHWFramesContext const*>(codec_context->hw_frames_ctx->data);
+        if (frame->width > frames_context.width || frame->height > frames_context.height) {
+            decoder.m_codec_context_must_be_replaced = true;
+            return AVERROR(EINVAL);
+        }
+    }
+
     MutexLocker locker { decoder.m_frames_context_mutex };
     return decoder.m_functions.avcodec_default_get_buffer2(codec_context, frame, flags);
 }
