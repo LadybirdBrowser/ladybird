@@ -11,6 +11,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakContainer.h>
+#include <LibGC/WeakVector.h>
 #include <LibWeb/DOM/NodeList.h>
 
 namespace Web::DOM {
@@ -59,7 +60,7 @@ private:
     mutable GC::Weak<Document const> m_cached_document;
     mutable u64 m_cached_dom_tree_version { 0 };
     mutable u64 m_cached_invalidation_version { 0 };
-    mutable Vector<GC::RawPtr<Node>> m_cached_nodes;
+    mutable GC::WeakVector<Node> m_cached_nodes;
 
     GC::Ref<Node const> m_root;
     Filter m_filter;
