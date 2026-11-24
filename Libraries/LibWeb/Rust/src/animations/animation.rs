@@ -13,6 +13,7 @@ use super::timeline::TimelineHandle;
 use super::timeline_state::TimelineState;
 use super::timing::{AnimationPlayState, AnimationPlayback, TimeValue};
 use super::weak_record_set::WeakRecordSet;
+use crate::css::ffi_support::RcRef;
 use crate::css::property_metadata::property_name;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::animations::AppliedAnimationDefinition;
@@ -645,6 +646,11 @@ impl AnimationHandle {
     /// Whether the handle is to `animation`.
     pub(crate) fn is(&self, animation: &AnimationCell) -> bool {
         std::ptr::eq(Rc::as_ptr(&self.0), animation)
+    }
+
+    /// Takes a reference of its own to the animation the host lends.
+    pub(crate) fn retained_from_lent(cell: RcRef<'_, AnimationCell>) -> Self {
+        Self(cell.to_rc())
     }
 
     /// Takes a reference of its own to an animation the host holds a reference to.

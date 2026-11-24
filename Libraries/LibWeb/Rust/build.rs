@@ -3240,6 +3240,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .rename
         .insert("CompositorAnimationEffectState".to_string(), "void".to_string());
+    // The view of a `@keyframes` rule a keyframe set is made from is the value parser header's.
+    animations_config.export.rename.insert(
+        "NativeRuleView".to_string(),
+        "Web::CSS::Parser::ValueParserFFI::NativeRuleView".to_string(),
+    );
+    animations_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct NativeRuleView; }");
     // The host defines what the timeline records ask of documents, which the tests stub.
     animations_config
         .export
@@ -3316,6 +3325,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/animations/timeline.rs"),
             manifest_dir.join("src/animations/timeline_host.rs"),
             manifest_dir.join("src/animations/transitions.rs"),
+            manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,
         Path::new("Animations/RustFFI.h"),

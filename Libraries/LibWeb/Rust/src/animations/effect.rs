@@ -14,6 +14,7 @@ use super::timeline_state::{TimelineState, time_unit};
 use super::timing::{self, AnimationEffectPhase, AnimationEffectTiming, FillMode, SpecifiedEffectTiming, TimeValue};
 use super::weak_record_set::WeakRecordSet;
 use crate::css::animation::FfiCompositeOperation;
+use crate::css::ffi_support::RcRef;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::effect_descriptions::{EffectAnimation, EffectDescription};
 use crate::painting::visual_animation_builder::CompositorAnimationEffectState;
@@ -544,6 +545,11 @@ impl EffectHandle {
     /// Hands the reference to the host, which gives it back to `from_raw`.
     pub(crate) fn into_raw(self) -> *const AnimationEffectCell {
         Rc::into_raw(self.0)
+    }
+
+    /// Takes a reference of its own to the effect the host lends.
+    pub(crate) fn retained_from_lent(cell: RcRef<'_, AnimationEffectCell>) -> Self {
+        Self(cell.to_rc())
     }
 
     /// Takes a reference of its own to an effect the host holds a reference to.
