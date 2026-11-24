@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/CharacterTypes.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
 #include <LibTest/TemporaryDirectory.h>
@@ -103,6 +105,16 @@ TEST_CASE(a_package_target_names_the_release_that_built_it)
     EXPECT_EQ(WebView::package_target_from("ID=arch\n"sv), "arch"sv);
     EXPECT(!WebView::package_target_from("VERSION_ID=24.04\n"sv).has_value());
     EXPECT(!WebView::package_target_from(""sv).has_value());
+}
+
+TEST_CASE(musl_is_known_by_its_dynamic_loader)
+{
+    EXPECT_EQ(WebView::c_library_from_loaded_object("/lib/ld-musl-x86_64.so.1"sv), "musl"sv);
+    EXPECT_EQ(WebView::c_library_from_loaded_object("/lib/ld-musl-aarch64.so.1"sv), "musl"sv);
+    EXPECT(!WebView::c_library_from_loaded_object("/lib64/ld-linux-x86-64.so.2"sv).has_value());
+    EXPECT(!WebView::c_library_from_loaded_object("/usr/lib/libc.so.6"sv).has_value());
+    EXPECT(!WebView::c_library_from_loaded_object("/opt/ld-musl-tools/ld-linux-x86-64.so.2"sv).has_value());
+    EXPECT(!WebView::c_library_from_loaded_object(""sv).has_value());
 }
 
 TEST_CASE(a_version_is_only_reported_as_a_number)
@@ -216,6 +228,20 @@ TEST_CASE(only_a_package_reports_its_target)
 #else
     EXPECT_EQ(reported_value("Install method"sv), "deb"sv);
     EXPECT_EQ(reported_value("Package target"sv), "ubuntu 24.04"sv);
+#endif
+}
+
+TEST_CASE(a_report_names_a_c_library_it_can_identify)
+{
+    auto c_library = reported_value("C library"sv);
+#if defined(__GLIBC__)
+    VERIFY(c_library.has_value());
+    auto value = c_library->bytes_as_string_view();
+    VERIFY(value.starts_with("glibc "sv));
+    auto version = value.substring_view("glibc "sv.length());
+    EXPECT(!version.is_empty() && all_of(version, [](char c) { return is_ascii_digit(c) || c == '.'; }));
+#elif defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS)
+    EXPECT(!c_library.has_value());
 #endif
 }
 

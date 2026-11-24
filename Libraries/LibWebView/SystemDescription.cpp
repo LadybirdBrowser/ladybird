@@ -25,6 +25,14 @@
 #    include <sys/utsname.h>
 #endif
 
+#if defined(__GLIBC__)
+#    include <gnu/libc-version.h>
+#endif
+
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+#    include <link.h>
+#endif
+
 namespace WebView {
 
 static NeverDestroyed<String> s_ui_toolkit;
@@ -114,6 +122,15 @@ Optional<String> package_target_from(StringView package_target)
     if (version.is_empty())
         return release.id;
     return MUST(String::formatted("{} {}", *release.id, version));
+}
+
+// musl names itself nowhere a program can ask, but its dynamic loader, which is also its C library, is
+// ld-musl-<arch>.so.1.
+Optional<String> c_library_from_loaded_object(StringView path)
+{
+    if (path.find_last_split_view('/').starts_with("ld-musl-"sv))
+        return "musl"_string;
+    return {};
 }
 
 // Rounded to whole gibibytes, the way machines are sold.
@@ -415,6 +432,38 @@ static Optional<String> current_virtual_machine()
 #endif
 }
 
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+// A C library told apart by the name of an object loaded into the process. A static build loads none.
+[[maybe_unused]] static Optional<String> c_library_from_loaded_objects()
+{
+    Optional<String> c_library;
+    dl_iterate_phdr([](dl_phdr_info* info, size_t, void* data) {
+        if (!info->dlpi_name)
+            return 0;
+        auto& result = *static_cast<Optional<String>*>(data);
+        result = c_library_from_loaded_object({ info->dlpi_name, strlen(info->dlpi_name) });
+        return result.has_value() ? 1 : 0;
+    },
+        &c_library);
+    return c_library;
+}
+#endif
+
+// The system calls behind many C library functions differ between C libraries, and between versions of one.
+static Optional<String> current_c_library()
+{
+#if defined(__GLIBC__)
+    auto version = version_number_from(StringView { gnu_get_libc_version(), strlen(gnu_get_libc_version()) });
+    if (version.is_empty())
+        return "glibc"_string;
+    return MUST(String::formatted("glibc {}", version));
+#elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    return c_library_from_loaded_objects();
+#else
+    return {};
+#endif
+}
+
 // What kind of container runs the browser, if any. Its os-release then describes the container, not the host.
 static StringView current_container()
 {
@@ -454,6 +503,7 @@ Vector<ReportedSystemDetail> describe_system_for_report()
     auto os_release = system.install_method == InstallMethod::Flatpak ? read_os_release(Array { "/run/host/os-release"sv }) : current_os_release();
     add("OS version"sv, version_number_from(view(system.macos_version.has_value() ? system.macos_version : os_release.version_id)));
     add("Distribution"sv, view(os_release.id));
+    add("C library"sv, view(current_c_library()));
     add("Install method"sv, install_method_name(system.install_method));
     if (first_is_one_of(system.install_method, InstallMethod::DEB, InstallMethod::RPM))
         add("Package target"sv, view(current_package_target()));

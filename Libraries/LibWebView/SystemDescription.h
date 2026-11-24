@@ -46,6 +46,7 @@ WEBVIEW_API OSRelease parse_os_release(StringView);
 WEBVIEW_API Optional<InstallMethod> parse_package_format(StringView);
 WEBVIEW_API Optional<String> flatpak_runtime_from(StringView flatpak_info);
 WEBVIEW_API Optional<String> package_target_from(StringView package_target);
+WEBVIEW_API Optional<String> c_library_from_loaded_object(StringView path);
 WEBVIEW_API Optional<String> hypervisor_from_dmi(StringView sys_vendor, StringView product_name);
 WEBVIEW_API StringView session_type_from(StringView xdg_session_type, StringView wayland_display, StringView x11_display);
 WEBVIEW_API String desktop_from(StringView xdg_current_desktop);
@@ -65,6 +66,7 @@ inline constexpr Array reported_system_fields {
     ReportedSystemField { "Kernel release"sv, "kernel_release"sv },
     ReportedSystemField { "OS version"sv, "os_version"sv },
     ReportedSystemField { "Distribution"sv, "distribution"sv },
+    ReportedSystemField { "C library"sv, "c_library"sv },
     ReportedSystemField { "Install method"sv, "install_method"sv },
     ReportedSystemField { "Package target"sv, "package_target"sv },
     ReportedSystemField { "Flatpak runtime"sv, "flatpak_runtime"sv },
