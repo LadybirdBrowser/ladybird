@@ -28,12 +28,17 @@ public:
     virtual ~WebEngineCustomJobCallbackData() override = default;
 
     GC::Ref<HTML::EnvironmentSettingsObject> incumbent_settings;
-    OwnPtr<JS::ExecutionContext> active_script_context;
+
+    // The realm and script or module of [[ActiveScriptContext]], or a null realm if it is null. The execution context
+    // itself is only made when the callback is called, since most of these callbacks outlive it by far.
+    GC::Ptr<JS::Realm> active_script_realm;
+    JS::ScriptOrModule active_script_or_module;
 
 private:
-    WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, OwnPtr<JS::ExecutionContext> active_script_context)
+    WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, GC::Ptr<JS::Realm> active_script_realm, JS::ScriptOrModule active_script_or_module)
         : incumbent_settings(incumbent_settings)
-        , active_script_context(move(active_script_context))
+        , active_script_realm(active_script_realm)
+        , active_script_or_module(active_script_or_module)
     {
     }
 
