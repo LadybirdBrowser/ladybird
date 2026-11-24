@@ -735,6 +735,10 @@
         {
           "type": "patch",
           "path": "../vcpkg/overlay-ports/curl/poll-idle-connection-input.patch"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/curl/wait-for-http2-stream-limit.patch"
         }
       ],
       "config-opts": [
