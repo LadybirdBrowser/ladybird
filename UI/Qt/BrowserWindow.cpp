@@ -501,6 +501,8 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.toggle_bookmark_bar_action());
     addAction(application.toggle_sidebar_action());
     addAction(application.open_location_action());
+    addAction(application.navigate_back_action());
+    addAction(application.navigate_forward_action());
     addAction(application.reload_action());
     addAction(application.reload_bypassing_cache_action());
     addAction(application.find_in_page_action());

@@ -1777,6 +1777,9 @@ void WindowToolbar::show_tab(Tab& tab)
 
     m_navigate_back_action.bind(tab.view().navigate_back_action());
     m_navigate_forward_action.bind(tab.view().navigate_forward_action());
+    // NB: The History menu's Back and Forward actions own the shortcuts.
+    m_navigate_back_action.action().setShortcuts({});
+    m_navigate_forward_action.action().setShortcuts({});
     m_zoom_level_action.bind(tab.view().reset_zoom_action());
     m_reload_button->show_loading_at_once(tab.is_loading());
     m_performance_monitor->set_stats(tab.performance_stats());
