@@ -122,16 +122,6 @@ bool may_export_directly_with(FFmpegFunctions const& functions)
     return PlatformFeatures::ProcessFeatures::the().is_enabled(feature);
 }
 
-// FFmpeg decodes references into the output images unless it keeps a separate DPB: before 63.8.101 it does so whenever
-// the driver can, and from then on whenever the driver cannot keep them apart. A later decode may be reading such an
-// image, so it cannot be copied.
-bool decodes_references_into_the_output(FFmpegFunctions const& functions, VkVideoDecodeCapabilityFlagsKHR flags)
-{
-    if (functions.avcodec_version() < AV_VERSION_INT(63, 8, 101))
-        return (flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR) != 0;
-    return (flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_DISTINCT_BIT_KHR) == 0;
-}
-
 AVCodec const* vulkan_capable_decoder(FFmpegFunctions const& functions, CodecID codec_id)
 {
     auto const* codec = functions.avcodec_find_decoder_by_name(decoder_name_for(codec_id));
@@ -399,8 +389,6 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
     video_capabilities.pNext = &decode_capabilities;
     if (device->video_capabilities(profile_info, video_capabilities).is_error())
         return {};
-    if (!may_export_directly_with(*functions) && decodes_references_into_the_output(*functions, decode_capabilities.flags))
-        return {};
 
     return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
@@ -531,8 +519,6 @@ FFmpegVulkanVideoDecoder::~FFmpegVulkanVideoDecoder()
         vkDestroyCommandPool(m_device.logical_device(), m_copy_command_pool, nullptr);
     m_surfaces_by_image.clear();
     m_functions.av_buffer_unref(&m_frames_context_of_surfaces);
-    m_functions.av_buffer_unref(&m_exportable_frames_context);
-    m_functions.av_buffer_unref(&m_frames_context_copied_from);
 
     m_functions.av_packet_free(&m_packet);
     m_functions.av_frame_free(&m_received_frame);
@@ -593,16 +579,11 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoder::create_frames_context()
     // Storage use is only for FFmpeg's own filters, and can rule out the modifiers that export.
     vulkan_frames_context.usage = static_cast<VkImageUsageFlagBits>(vulkan_frames_context.usage & ~VK_IMAGE_USAGE_STORAGE_BIT);
 
-    // Images that a later decode may be reading as references cannot be copied, which capabilities() has ruled out.
-    auto copies_decoded_frames = !may_export_directly_with(m_functions);
-    if (copies_decoded_frames && (vulkan_frames_context.usage & VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR) != 0)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Decoded images used as references cannot be copied for export"sv);
-
-    if (!copies_decoded_frames) {
+    // Decoded images that no DRM format modifier can export are copied into images that can.
+    m_drm_format_modifiers = {};
+    if (may_export_directly_with(m_functions))
         m_drm_format_modifiers = m_device.exportable_drm_format_modifiers(vulkan_frames_context.format[0], vulkan_frames_context.usage, vulkan_frames_context.img_flags, vulkan_frames_context.create_pnext);
-        if (m_drm_format_modifiers.is_empty())
-            return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No DRM format modifier can export the decoded images"sv);
-
+    if (!m_drm_format_modifiers.is_empty()) {
         // FFmpeg chains the video profile in, and leaves choosing a modifier to us.
         m_drm_format_modifier_list = {};
         m_drm_format_modifier_list.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT;
@@ -783,31 +764,28 @@ void FFmpegVulkanVideoDecoder::complete_frames_until_exit()
 DecoderErrorOr<FFmpegVulkanVideoDecoder::DecodedOutput> FFmpegVulkanVideoDecoder::complete_frame(DecodingFrame& decoding_frame)
 {
     ScopeGuard free_frame = [&] { m_functions.av_frame_free(&decoding_frame.frame); };
-    auto logical_device = m_device.logical_device();
-
-    if (!wait_for_semaphore(logical_device, decoding_frame.semaphore, decoding_frame.decoded_semaphore_value))
-        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while decoding a frame"sv);
-
-    if (static_cast<AVVulkanFramesContext const*>(frames_context_of(*decoding_frame.frame).hwctx)->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-        auto* copied_frame = TRY(copy_into_exportable_frame(*decoding_frame.frame, decoding_frame.semaphore, decoding_frame.decoded_semaphore_value));
-        m_functions.av_frame_free(&decoding_frame.frame);
-        decoding_frame.frame = copied_frame;
-    }
     auto& frame = *decoding_frame.frame;
 
-    auto surface = TRY(surface_for_frame(frame));
+    if (!wait_for_semaphore(m_device.logical_device(), decoding_frame.semaphore, decoding_frame.decoded_semaphore_value))
+        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while decoding a frame"sv);
+
     auto const& frames_context = frames_context_of(frame);
     Gfx::Size<u32> size { static_cast<u32>(frame.width), static_cast<u32>(frame.height) };
     auto bit_depth = bit_depth_of(frames_context);
+
+    // The decoded image goes back to be decoded into as soon as it has been copied.
+    if (static_cast<AVVulkanFramesContext const*>(frames_context.hwctx)->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+        auto image = TRY(copy_into_exportable_image(frame));
+        return DecodedOutput { image->surface(), move(image), decoding_frame.timing, size, bit_depth, decoding_frame.cicp };
+    }
+
+    auto surface = TRY(surface_for_frame(frame));
     auto contents = DECODER_TRY_ALLOC(try_make_ref_counted<VulkanFrameContents>(m_functions, exchange(decoding_frame.frame, nullptr)));
     return DecodedOutput { move(surface), move(contents), decoding_frame.timing, size, bit_depth, decoding_frame.cicp };
 }
 
 DecoderErrorOr<void> FFmpegVulkanVideoDecoder::prepare_to_copy_frames_from(AVFrame const& frame)
 {
-    if (m_frames_context_copied_from != nullptr && m_frames_context_copied_from->data == frame.hw_frames_ctx->data)
-        return {};
-
     auto* logical_device = m_device.logical_device();
     if (m_copy_command_pool == VK_NULL_HANDLE) {
         VkCommandPoolCreateInfo pool_info {};
@@ -827,76 +805,42 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoder::prepare_to_copy_frames_from(AVFra
             return DecoderError::with_description(DecoderErrorCategory::Memory, "Could not allocate a command buffer for copying decoded frames"sv);
     }
 
-    m_functions.av_buffer_unref(&m_exportable_frames_context);
-    m_functions.av_buffer_unref(&m_frames_context_copied_from);
-
-    auto const& source_context = frames_context_of(frame);
-    auto const& source_vulkan_context = *static_cast<AVVulkanFramesContext const*>(source_context.hwctx);
-    if (source_vulkan_context.format[1] != VK_FORMAT_UNDEFINED)
+    auto const& frames_context = frames_context_of(frame);
+    auto const& vulkan_frames_context = *static_cast<AVVulkanFramesContext const*>(frames_context.hwctx);
+    if (vulkan_frames_context.format[1] != VK_FORMAT_UNDEFINED)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Decoded frames that span several images cannot be copied"sv);
 
-    VkImageUsageFlags const usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    m_exportable_drm_format_modifiers = m_device.exportable_drm_format_modifiers(source_vulkan_context.format[0], usage, 0, source_vulkan_context.create_pnext);
-    if (m_exportable_drm_format_modifiers.is_empty())
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No DRM format modifier can export copies of the decoded images"sv);
-
-    auto* reference = m_functions.av_hwframe_ctx_alloc(m_device_context);
-    if (reference == nullptr)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Could not allocate a frames context for exportable frames"sv);
-    ArmedScopeGuard free_reference = [&] { m_functions.av_buffer_unref(&reference); };
-
-    auto& context = *reinterpret_cast<AVHWFramesContext*>(reference->data);
-    context.format = AV_PIX_FMT_VULKAN;
-    context.sw_format = source_context.sw_format;
-    context.width = source_context.width;
-    context.height = source_context.height;
-
-    // FFmpeg only leaves the usage and flags as given for modifier-tiled images when a video profile list is chained.
-    m_exportable_drm_format_modifier_list = {};
-    m_exportable_drm_format_modifier_list.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT;
-    m_exportable_drm_format_modifier_list.pNext = source_vulkan_context.create_pnext;
-    m_exportable_drm_format_modifier_list.drmFormatModifierCount = m_exportable_drm_format_modifiers.size();
-    m_exportable_drm_format_modifier_list.pDrmFormatModifiers = m_exportable_drm_format_modifiers.data();
-
-    auto& vulkan_context = *static_cast<AVVulkanFramesContext*>(context.hwctx);
-    vulkan_context.format[0] = source_vulkan_context.format[0];
-    vulkan_context.tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
-    vulkan_context.usage = static_cast<VkImageUsageFlagBits>(usage);
-    vulkan_context.create_pnext = &m_exportable_drm_format_modifier_list;
-
-    if (m_functions.av_hwframe_ctx_init(reference) < 0)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "FFmpeg could not create exportable Vulkan frames"sv);
-
-    m_frames_context_copied_from = m_functions.av_buffer_ref(frame.hw_frames_ctx);
-    if (m_frames_context_copied_from == nullptr)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Could not reference the decoded frames' context"sv);
-
-    free_reference.disarm();
-    m_exportable_frames_context = reference;
+    auto format = vulkan_frames_context.format[0];
+    Gfx::IntSize size { frames_context.width, frames_context.height };
+    if (m_exportable_images != nullptr && m_exportable_images->format() == format && m_exportable_images->size() == size)
+        return {};
+    auto drm_format = frames_context.sw_format == AV_PIX_FMT_P010 ? DRM_FORMAT_P010 : DRM_FORMAT_NV12;
+    auto exportable_images = VulkanExportableImagePool::create(m_device, format, size, drm_format);
+    if (exportable_images.is_error())
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Decoded frames cannot be copied for export: {}", exportable_images.error());
+    m_exportable_images = exportable_images.release_value();
     return {};
 }
 
-DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AVFrame const& frame, VkSemaphore decoded_semaphore, u64 decoded_semaphore_value)
+DecoderErrorOr<NonnullRefPtr<VulkanExportableImagePool::Image>> FFmpegVulkanVideoDecoder::copy_into_exportable_image(AVFrame const& frame)
 {
     if (m_copy_stalled)
         return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device stalled while copying an earlier frame"sv);
     TRY(prepare_to_copy_frames_from(frame));
 
-    auto* copy = m_functions.av_frame_alloc();
-    if (copy == nullptr)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
-    ArmedScopeGuard free_copy = [&] { m_functions.av_frame_free(&copy); };
-    if (m_functions.av_hwframe_get_buffer(m_exportable_frames_context, copy, 0) < 0)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Could not allocate an exportable Vulkan frame"sv);
-    copy->width = frame.width;
-    copy->height = frame.height;
+    auto image_or_error = m_exportable_images->take_image();
+    if (image_or_error.is_error())
+        return DecoderError::format(DecoderErrorCategory::Memory, "Could not allocate an exportable image: {}", image_or_error.error());
+    auto destination = image_or_error.release_value();
 
     auto& source_context = frames_context_of(frame);
     auto& source_vulkan_context = *static_cast<AVVulkanFramesContext*>(source_context.hwctx);
     auto* source = reinterpret_cast<AVVkFrame*>(frame.data[0]);
-    auto& destination_context = frames_context_of(*copy);
-    auto& destination_vulkan_context = *static_cast<AVVulkanFramesContext*>(destination_context.hwctx);
-    auto* destination = reinterpret_cast<AVVkFrame*>(copy->data[0]);
+
+    // FFmpeg may be decoding other frames that use the image as a reference, and orders each use of it by the values of
+    // its semaphore, under the frame's lock. Taking the next value under the same lock places the copy between them.
+    source_vulkan_context.lock_frame(&source_context, source);
+    ArmedScopeGuard unlock_source = [&] { source_vulkan_context.unlock_frame(&source_context, source); };
 
     VkCommandBufferBeginInfo begin_info {};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -906,7 +850,6 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
 
     VkImageSubresourceRange const whole_image { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    source_vulkan_context.lock_frame(&source_context, source);
     VkImageMemoryBarrier2 prepare_barriers[2] {};
     prepare_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     prepare_barriers[0].srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
@@ -918,9 +861,6 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     prepare_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     prepare_barriers[0].image = source->img[0];
     prepare_barriers[0].subresourceRange = whole_image;
-    source->layout[0] = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    source->access[0] = VK_ACCESS_2_TRANSFER_READ_BIT;
-    source_vulkan_context.unlock_frame(&source_context, source);
 
     // The image's previous contents are discarded, so whichever device last read it needs no handing back.
     prepare_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -931,7 +871,7 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     prepare_barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     prepare_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     prepare_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    prepare_barriers[1].image = destination->img[0];
+    prepare_barriers[1].image = destination->image();
     prepare_barriers[1].subresourceRange = whole_image;
 
     VkDependencyInfo prepare_dependency {};
@@ -947,10 +887,10 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     regions[1].srcSubresource = { VK_IMAGE_ASPECT_PLANE_1_BIT, 0, 0, 1 };
     regions[1].dstSubresource = { VK_IMAGE_ASPECT_PLANE_1_BIT, 0, 0, 1 };
     regions[1].extent = { static_cast<u32>(source_context.width + 1) / 2, static_cast<u32>(source_context.height + 1) / 2, 1 };
-    vkCmdCopyImage(m_copy_command_buffer, source->img[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->img[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 2, regions);
+    vkCmdCopyImage(m_copy_command_buffer, source->img[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 2, regions);
 
-    // The copy leaves the image ready for whichever device samples it next. FFmpeg shares its images between queue
-    // families whenever there are several, and otherwise leaves them owned by the one family.
+    // The copy leaves the image ready for whichever device samples it next. It is shared between the queue families
+    // whenever there are several, and is otherwise owned by the one family.
     auto releasing_queue_family = m_device.queue_families().size() > 1 ? VK_QUEUE_FAMILY_IGNORED : m_device.compute_queue_family();
     VkImageMemoryBarrier2 export_barrier {};
     export_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -960,7 +900,7 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     export_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     export_barrier.srcQueueFamilyIndex = releasing_queue_family;
     export_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
-    export_barrier.image = destination->img[0];
+    export_barrier.image = destination->image();
     export_barrier.subresourceRange = whole_image;
 
     VkDependencyInfo export_dependency {};
@@ -972,22 +912,18 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     if (vkEndCommandBuffer(m_copy_command_buffer) != VK_SUCCESS)
         return DecoderError::with_description(DecoderErrorCategory::Unknown, "Could not finish recording a frame copy"sv);
 
-    destination_vulkan_context.lock_frame(&destination_context, destination);
-    auto destination_semaphore = destination->sem[0];
-    auto copied_semaphore_value = ++destination->sem_value[0];
-    destination->layout[0] = VK_IMAGE_LAYOUT_GENERAL;
-    destination->access[0] = VK_ACCESS_2_MEMORY_READ_BIT;
-    destination_vulkan_context.unlock_frame(&destination_context, destination);
+    auto semaphore = source->sem[0];
+    auto copied_semaphore_value = source->sem_value[0] + 1;
 
     VkSemaphoreSubmitInfo wait_info {};
     wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    wait_info.semaphore = decoded_semaphore;
-    wait_info.value = decoded_semaphore_value;
+    wait_info.semaphore = semaphore;
+    wait_info.value = source->sem_value[0];
     wait_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
     VkSemaphoreSubmitInfo signal_info {};
     signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    signal_info.semaphore = destination_semaphore;
+    signal_info.semaphore = semaphore;
     signal_info.value = copied_semaphore_value;
     signal_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
@@ -1014,14 +950,21 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     if (submit_result != VK_SUCCESS)
         return DecoderError::with_description(DecoderErrorCategory::Unknown, "Could not submit a frame copy"sv);
 
-    // The command buffer is reused for the next copy, and the decoded image goes back to be decoded into.
-    if (!wait_for_semaphore(logical_device, destination_semaphore, copied_semaphore_value)) {
+    // FFmpeg's next use of the image waits for the copy, and moves the image on from the layout the copy left it in.
+    source->sem_value[0] = copied_semaphore_value;
+    source->layout[0] = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    source->access[0] = VK_ACCESS_2_TRANSFER_READ_BIT;
+    unlock_source.disarm();
+    source_vulkan_context.unlock_frame(&source_context, source);
+
+    // The command buffer is reused for the next copy. A copy that never finishes keeps using its images.
+    if (!wait_for_semaphore(logical_device, semaphore, copied_semaphore_value)) {
         m_copy_stalled = true;
+        destination->abandon();
         return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while copying a decoded frame"sv);
     }
 
-    free_copy.disarm();
-    return copy;
+    return destination;
 }
 
 DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_for_frame(AVFrame const& frame)
