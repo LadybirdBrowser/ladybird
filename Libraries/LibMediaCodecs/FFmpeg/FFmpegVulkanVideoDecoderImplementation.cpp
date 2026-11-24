@@ -423,8 +423,8 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoderImplementation>> FFmpegVulk
     if (frame == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
 
-    memory_guard.disarm();
     auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) FFmpegVulkanVideoDecoderImplementation(functions, exports_directly, *device, codec_id, device_context, move(codec_configuration), packet, frame)));
+    memory_guard.disarm();
     decoder->m_codec_context = TRY(decoder->create_codec_context());
 
     decoder->m_completion_thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("VulkanDecode"sv, [decoder = decoder.ptr()] -> intptr_t {
@@ -781,7 +781,8 @@ DecoderErrorOr<FFmpegVulkanVideoDecoderImplementation::DecodedOutput> FFmpegVulk
     }
 
     auto surface = TRY(surface_for_frame(frame));
-    auto contents = DECODER_TRY_ALLOC(try_make_ref_counted<VulkanFrameContents>(m_functions, exchange(decoding_frame.frame, nullptr)));
+    auto contents = DECODER_TRY_ALLOC(try_make_ref_counted<VulkanFrameContents>(m_functions, decoding_frame.frame));
+    decoding_frame.frame = nullptr;
     return DecodedOutput { move(surface), move(contents), decoding_frame.timing, size, bit_depth, decoding_frame.cicp };
 }
 
