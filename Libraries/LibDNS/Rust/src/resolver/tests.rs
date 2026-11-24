@@ -1,0 +1,901 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+use super::*;
+use crate::message::Header;
+use std::cell::Cell;
+use std::rc::Rc;
+
+const A_ADDRESS: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
+
+// Answers a query with one fixed A and one fixed AAAA record, echoing the question.
+fn respond(query: &[u8], mutate: impl FnOnce(&mut Message)) -> Vec<u8> {
+    let query = Message::from_wire(query).expect("query parses");
+    let question = query.questions[0].clone();
+    let mut options = Options::default();
+    options.set_is_question(false);
+    options.set_recursion_available(true);
+    let mut response = Message {
+        header: Header {
+            id: query.header.id,
+            options,
+            question_count: 1,
+            ..Header::default()
+        },
+        questions: vec![question.clone()],
+        ..Message::default()
+    };
+    for (rtype, data) in [
+        (ResourceType::A, RecordData::A(A_ADDRESS)),
+        (ResourceType::AAAA, RecordData::Aaaa(Ipv6Addr::LOCALHOST)),
+    ] {
+        response.answers.push(ResourceRecord {
+            name: question.name.clone(),
+            rtype,
+            class: Class::IN,
+            ttl: 300,
+            data,
+            raw: None,
+        });
+    }
+    mutate(&mut response);
+    response.header.answer_count = u16::try_from(response.answers.len()).unwrap();
+    response.to_wire().unwrap()
+}
+
+fn frame(message: &[u8]) -> Vec<u8> {
+    let mut framed = u16::try_from(message.len()).unwrap().to_be_bytes().to_vec();
+    framed.extend_from_slice(message);
+    framed
+}
+
+fn unframe(bytes: &[u8]) -> &[u8] {
+    &bytes[2..]
+}
+
+#[derive(Debug)]
+struct Connect {
+    connection: ConnectionId,
+    kind: ConnectKind,
+    address: SocketAddr,
+    server_name: String,
+}
+
+struct Harness {
+    resolver: Resolver,
+    now: Instant,
+    ipv6_reachable: Rc<Cell<bool>>,
+    done: HashMap<LookupId, Result<Arc<LookupResult>, Error>>,
+    connects: Vec<Connect>,
+    writes: Vec<(ConnectionId, Vec<u8>)>,
+    closes: Vec<ConnectionId>,
+    system: Vec<(SystemRequestId, String, AddressFamily)>,
+}
+
+impl Harness {
+    fn new(server: Option<ServerConfig>) -> Self {
+        let ipv6_reachable = Rc::new(Cell::new(true));
+        let reachable = ipv6_reachable.clone();
+        let mut next_id = 0u16;
+        let mut resolver = Resolver::new(
+            Box::new(move || reachable.get()),
+            Box::new(move || {
+                next_id = next_id.wrapping_add(1);
+                Some(next_id)
+            }),
+        );
+        let now = Instant::now();
+        resolver.set_server(server, now);
+        let mut harness = Self {
+            resolver,
+            now,
+            ipv6_reachable,
+            done: HashMap::new(),
+            connects: Vec::new(),
+            writes: Vec::new(),
+            closes: Vec::new(),
+            system: Vec::new(),
+        };
+        harness.drain();
+        harness
+    }
+
+    fn udp() -> Self {
+        Self::new(Some(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 53,
+            transport: ServerTransport::Udp,
+        }))
+    }
+
+    fn tls(host: &str) -> Self {
+        Self::new(Some(ServerConfig {
+            host: host.to_owned(),
+            port: 853,
+            transport: ServerTransport::Tls,
+        }))
+    }
+
+    fn drain(&mut self) {
+        while let Some(action) = self.resolver.take_action() {
+            match action {
+                Action::Connect {
+                    connection,
+                    kind,
+                    address,
+                    server_name,
+                } => self.connects.push(Connect {
+                    connection,
+                    kind,
+                    address,
+                    server_name,
+                }),
+                Action::Write { connection, bytes } => self.writes.push((connection, bytes)),
+                Action::Close { connection } => self.closes.push(connection),
+                Action::SystemResolve { request, name, family } => self.system.push((request, name, family)),
+                Action::LookupDone { lookup, result } => {
+                    assert!(
+                        self.done.insert(lookup, result).is_none(),
+                        "lookup {lookup} settled twice"
+                    );
+                }
+            }
+        }
+    }
+
+    fn lookup(&mut self, name: &str) -> LookupId {
+        self.lookup_with(name, &[ResourceType::A, ResourceType::AAAA], LookupOptions::default())
+    }
+
+    fn lookup_with(&mut self, name: &str, types: &[ResourceType], options: LookupOptions) -> LookupId {
+        let id = self.resolver.lookup(name, Class::IN, types, options, self.now);
+        self.drain();
+        id
+    }
+
+    fn connected(&mut self, connection: ConnectionId) {
+        self.resolver.on_connected(connection, self.now);
+        self.drain();
+    }
+
+    fn receive(&mut self, connection: ConnectionId, bytes: &[u8]) {
+        self.resolver.on_received(connection, bytes, self.now);
+        self.drain();
+    }
+
+    fn advance(&mut self, by: Duration) {
+        self.now += by;
+        self.resolver.on_tick(self.now);
+        self.drain();
+    }
+
+    fn system_resolved(&mut self, request: SystemRequestId, result: Result<Vec<IpAddr>, String>) {
+        self.resolver.on_system_resolved(request, result, self.now);
+        self.drain();
+    }
+
+    fn take_writes(&mut self) -> Vec<(ConnectionId, Vec<u8>)> {
+        std::mem::take(&mut self.writes)
+    }
+
+    fn result(&self, lookup: LookupId) -> &Result<Arc<LookupResult>, Error> {
+        self.done
+            .get(&lookup)
+            .unwrap_or_else(|| panic!("lookup {lookup} has not settled"))
+    }
+
+    fn addresses(&self, lookup: LookupId) -> Vec<IpAddr> {
+        self.result(lookup).as_ref().expect("lookup succeeded").addresses()
+    }
+
+    fn error(&self, lookup: LookupId) -> String {
+        self.result(lookup).as_ref().expect_err("lookup failed").to_string()
+    }
+
+    // Answers every query written so far over UDP.
+    fn answer_udp(&mut self) {
+        for (connection, query) in self.take_writes() {
+            let response = respond(&query, |_| {});
+            self.receive(connection, &response);
+        }
+    }
+}
+
+#[test]
+fn udp_lookup_resolves_and_is_cached() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup("example.com");
+    assert_eq!(harness.connects.len(), 1);
+    assert_eq!(harness.connects[0].kind, ConnectKind::Udp);
+    assert_eq!(harness.connects[0].address, "127.0.0.1:53".parse().unwrap());
+    let connection = harness.connects[0].connection;
+
+    assert!(harness.writes.is_empty());
+    harness.connected(connection);
+    assert_eq!(harness.writes.len(), 2);
+    harness.answer_udp();
+    assert_eq!(
+        harness.addresses(lookup),
+        vec![IpAddr::V4(A_ADDRESS), IpAddr::V6(Ipv6Addr::LOCALHOST)]
+    );
+
+    let again = harness.lookup("example.com");
+    assert!(harness.writes.is_empty());
+    assert_eq!(harness.addresses(again).len(), 2);
+}
+
+#[test]
+fn tls_lookups_wait_for_the_handshake() {
+    let mut harness = Harness::tls("9.9.9.9");
+    let first = harness.lookup("example.com");
+    let second = harness.lookup("example.org");
+    assert_eq!(harness.connects.len(), 1);
+    assert_eq!(harness.connects[0].kind, ConnectKind::Tls);
+    assert_eq!(harness.connects[0].server_name, "9.9.9.9");
+    assert!(harness.writes.is_empty());
+    assert!(harness.done.is_empty());
+
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 4);
+    for (connection, query) in writes {
+        let response = respond(unframe(&query), |_| {});
+        harness.receive(connection, &frame(&response));
+    }
+    assert_eq!(harness.addresses(first).len(), 2);
+    assert_eq!(harness.addresses(second).len(), 2);
+}
+
+#[test]
+fn tls_server_that_never_finishes_the_handshake_fails_lookups_without_blocking() {
+    let mut harness = Harness::tls("9.9.9.9");
+    let lookup = harness.lookup("example.com");
+    let connection = harness.connects[0].connection;
+    assert_eq!(harness.resolver.next_deadline(), Some(harness.now + CONNECT_TIMEOUT));
+
+    harness.advance(CONNECT_TIMEOUT - Duration::from_millis(1));
+    assert!(harness.done.is_empty());
+    harness.advance(Duration::from_millis(1));
+    assert_eq!(harness.error(lookup), "Connecting to the DNS server timed out");
+    assert_eq!(harness.closes, vec![connection]);
+
+    harness.lookup("example.org");
+    assert_eq!(harness.connects.len(), 2);
+}
+
+#[test]
+fn tls_server_given_by_name_is_looked_up_with_the_system_resolver() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    let lookup = harness.lookup("example.com");
+    assert!(harness.connects.is_empty());
+    let requests = std::mem::take(&mut harness.system);
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|(_, name, _)| name == "dns.quad9.net"));
+
+    for (request, _, family) in requests {
+        let address = match family {
+            AddressFamily::V4 => IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)),
+            AddressFamily::V6 => IpAddr::V6("2620:fe::fe".parse().unwrap()),
+        };
+        harness.system_resolved(request, Ok(vec![address]));
+    }
+    assert_eq!(harness.connects.len(), 1);
+    assert_eq!(harness.connects[0].address, "9.9.9.9:853".parse().unwrap());
+    assert_eq!(harness.connects[0].server_name, "dns.quad9.net");
+
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    for (connection, query) in harness.take_writes() {
+        let response = respond(unframe(&query), |_| {});
+        harness.receive(connection, &frame(&response));
+    }
+    assert_eq!(harness.addresses(lookup).len(), 2);
+}
+
+#[test]
+fn tls_server_whose_name_does_not_resolve_fails_lookups() {
+    let mut harness = Harness::tls("dns.invalid");
+    let lookup = harness.lookup("example.com");
+    for (request, _, _) in std::mem::take(&mut harness.system) {
+        harness.system_resolved(request, Err("no such name".to_owned()));
+    }
+    assert_eq!(
+        harness.error(lookup),
+        "DNS server connection failed: Failed to resolve DNS server hostname"
+    );
+    assert!(harness.connects.is_empty());
+}
+
+#[test]
+fn stream_responses_can_arrive_in_pieces() {
+    let mut harness = Harness::tls("9.9.9.9");
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    let response = frame(&respond(unframe(&query), |_| {}));
+    for byte in &response[..response.len() - 1] {
+        harness.receive(connection, std::slice::from_ref(byte));
+        assert!(harness.done.is_empty());
+    }
+    harness.receive(connection, &response[response.len() - 1..]);
+    assert_eq!(harness.addresses(lookup), vec![IpAddr::V4(A_ADDRESS)]);
+}
+
+#[test]
+fn closed_tls_connection_is_replaced_and_questions_are_asked_again() {
+    let mut harness = Harness::tls("9.9.9.9");
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let first = harness.connects[0].connection;
+    harness.connected(first);
+    assert_eq!(harness.take_writes().len(), 1);
+
+    // DoT servers close idle connections. The question in flight goes out again on the next one.
+    harness.resolver.on_eof(first, harness.now);
+    harness.drain();
+    assert_eq!(harness.closes, vec![first]);
+    assert!(harness.done.is_empty());
+
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert_eq!(harness.connects.len(), 2);
+    let second = harness.connects[1].connection;
+    harness.connected(second);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].0, second);
+    let response = respond(unframe(&writes[0].1), |_| {});
+    harness.receive(second, &frame(&response));
+    assert!(harness.result(lookup).is_ok());
+}
+
+#[test]
+fn malformed_stream_frame_drops_the_connection() {
+    let mut harness = Harness::tls("9.9.9.9");
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    harness.receive(connection, &frame(&[1, 2, 3]));
+    assert_eq!(harness.closes, vec![connection]);
+}
+
+#[test]
+fn unanswered_queries_are_retried_then_time_out() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    harness.connected(harness.connects[0].connection);
+    assert_eq!(harness.take_writes().len(), 1);
+    for _ in 1..QUERY_MAX_ATTEMPTS {
+        harness.advance(QUERY_RETRY_INTERVAL);
+        assert_eq!(harness.take_writes().len(), 1);
+    }
+    assert!(harness.done.is_empty());
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert_eq!(harness.error(lookup), "DNS lookup timed out");
+    assert_eq!(harness.resolver.next_deadline(), None);
+}
+
+#[test]
+fn truncated_udp_response_is_retried_over_tcp() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let udp = harness.connects[0].connection;
+    harness.connected(udp);
+    let (_, query) = harness.take_writes().remove(0);
+    let truncated = respond(&query, |response| {
+        response.header.options.set_is_truncated(true);
+        response.answers.clear();
+    });
+    harness.receive(udp, &truncated);
+
+    assert_eq!(harness.connects.len(), 2);
+    assert_eq!(harness.connects[1].kind, ConnectKind::Tcp);
+    assert_eq!(harness.connects[1].address, "127.0.0.1:53".parse().unwrap());
+    let tcp = harness.connects[1].connection;
+    harness.connected(tcp);
+    let (connection, query) = harness.take_writes().remove(0);
+    assert_eq!(connection, tcp);
+    harness.receive(tcp, &frame(&respond(unframe(&query), |_| {})));
+    assert!(harness.result(lookup).is_ok());
+}
+
+#[test]
+fn truncated_response_over_a_stream_fails() {
+    let mut harness = Harness::tls("9.9.9.9");
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    let truncated = respond(unframe(&query), |response| {
+        response.header.options.set_is_truncated(true);
+    });
+    harness.receive(connection, &frame(&truncated));
+    assert_eq!(harness.error(lookup), "DNS response was truncated");
+}
+
+#[test]
+fn responses_that_do_not_echo_the_question_are_ignored() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    let wrong = respond(&query, |response| {
+        response.questions[0].name = DomainName::from_string("evil.example");
+    });
+    harness.receive(connection, &wrong);
+    assert!(harness.done.is_empty());
+    harness.receive(connection, &respond(&query, |_| {}));
+    assert!(harness.result(lookup).is_ok());
+}
+
+#[test]
+fn unrelated_answers_are_not_cached() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    let response = respond(&query, |response| {
+        for answer in &mut response.answers {
+            answer.name = DomainName::from_string("victim.example");
+        }
+    });
+    harness.receive(connection, &response);
+    assert!(harness.result(lookup).as_ref().unwrap().records.is_empty());
+
+    harness.lookup_with("victim.example", &[ResourceType::A], LookupOptions::default());
+    assert_eq!(harness.take_writes().len(), 1);
+}
+
+#[test]
+fn concurrent_lookups_for_one_name_share_one_query() {
+    let mut harness = Harness::udp();
+    let lookups: Vec<_> = (0..3).map(|_| harness.lookup("example.com")).collect();
+    harness.connected(harness.connects[0].connection);
+    assert_eq!(harness.writes.len(), 2);
+    harness.answer_udp();
+    for lookup in lookups {
+        assert_eq!(harness.addresses(lookup).len(), 2);
+    }
+}
+
+#[test]
+fn server_errors_fail_the_lookup() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let (_, query) = harness.take_writes().remove(0);
+    harness.receive(
+        connection,
+        &respond(&query, |response| {
+            response.header.options.set_response_code(ResponseCode::SERVER_FAILURE);
+        }),
+    );
+    assert_eq!(harness.error(lookup), "DNS server returned an error");
+}
+
+#[test]
+fn configured_server_failure_does_not_fall_back_to_the_system_resolver() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup("example.com");
+    harness
+        .resolver
+        .on_connect_failed(harness.connects[0].connection, "refused".to_owned(), harness.now);
+    harness.drain();
+    assert_eq!(harness.error(lookup), "DNS server connection failed: refused");
+    assert!(harness.system.is_empty());
+}
+
+#[test]
+fn literals_and_loopback_names_resolve_without_a_socket() {
+    let mut harness = Harness::udp();
+    let v4 = harness.lookup("192.0.2.7");
+    let v6 = harness.lookup("::1");
+    let localhost = harness.lookup("LocalHost.");
+    let sub = harness.lookup("app.localhost");
+    harness.resolver.set_loopback_domains(vec!["test".to_owned()]);
+    let test = harness.lookup("web-platform.test");
+    assert!(harness.connects.is_empty());
+    assert_eq!(harness.addresses(v4), vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 7))]);
+    assert_eq!(harness.addresses(v6), vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]);
+    for lookup in [localhost, sub, test] {
+        assert_eq!(
+            harness.addresses(lookup),
+            vec![IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST)]
+        );
+    }
+}
+
+#[test]
+fn bracketed_ipv6_literals_resolve_without_a_socket() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("[::ffff:7f00:1]");
+    assert!(harness.system.is_empty());
+    assert_eq!(
+        harness.addresses(lookup),
+        vec![IpAddr::V6("::ffff:127.0.0.1".parse().unwrap())]
+    );
+}
+
+#[test]
+fn names_that_must_not_go_upstream_are_rejected() {
+    let mut harness = Harness::udp();
+    let onion = harness.lookup("duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion");
+    let empty_label = harness.lookup("example..");
+    let long_label = harness.lookup(&format!("{}.com", "a".repeat(64)));
+    assert_eq!(harness.error(onion), "Refusing to resolve a .onion name");
+    assert_eq!(harness.error(empty_label), "Invalid domain name");
+    assert_eq!(harness.error(long_label), "Invalid domain name");
+    assert!(harness.connects.is_empty());
+}
+
+#[test]
+fn reset_fails_whats_in_flight_and_forgets_the_cache() {
+    let mut harness = Harness::udp();
+    let cached = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    harness.answer_udp();
+    assert!(harness.result(cached).is_ok());
+
+    let in_flight = harness.lookup("example.org");
+    harness.resolver.reset_connection(harness.now);
+    harness.drain();
+    assert_eq!(harness.error(in_flight), "DNS connection was reset");
+    assert_eq!(harness.resolver.cached_entry_count(), 0);
+}
+
+#[test]
+fn expired_addresses_are_not_mistaken_for_a_negative_answer() {
+    let mut harness = Harness::udp();
+    let first = harness.lookup("example.com");
+    harness.connected(harness.connects[0].connection);
+    harness.answer_udp();
+    assert!(harness.result(first).is_ok());
+
+    harness.now += Duration::from_secs(301);
+    harness.lookup("example.com");
+    assert_eq!(harness.take_writes().len(), 2);
+}
+
+// ---- The system resolver ---------------------------------------------------------------------------------------
+
+fn system_requests(harness: &mut Harness) -> (SystemRequestId, Option<SystemRequestId>) {
+    let requests = std::mem::take(&mut harness.system);
+    let a = requests
+        .iter()
+        .find(|(_, _, family)| *family == AddressFamily::V4)
+        .expect("A side")
+        .0;
+    let aaaa = requests
+        .iter()
+        .find(|(_, _, family)| *family == AddressFamily::V6)
+        .map(|request| request.0);
+    (a, aaaa)
+}
+
+#[test]
+fn system_resolver_waits_briefly_for_ipv6_after_ipv4() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    assert!(harness.done.is_empty());
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    assert_eq!(harness.addresses(lookup).len(), 2);
+}
+
+#[test]
+fn system_resolver_goes_ahead_with_ipv4_when_ipv6_takes_too_long() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    harness.advance(IPV6_RESOLUTION_DELAY);
+    assert_eq!(harness.addresses(lookup), vec![IpAddr::V4(A_ADDRESS)]);
+
+    // The late side still lands in the cache.
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    let again = harness.lookup("example.com");
+    assert!(harness.system.is_empty());
+    assert_eq!(harness.addresses(again).len(), 2);
+}
+
+#[test]
+fn system_resolver_waits_for_ipv4_after_ipv6() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    harness.advance(IPV6_RESOLUTION_DELAY);
+    assert!(harness.done.is_empty());
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    assert_eq!(harness.addresses(lookup).len(), 2);
+}
+
+#[test]
+fn system_resolver_goes_ahead_with_ipv6_when_ipv4_takes_too_long() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (_, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(aaaa.unwrap(), Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]));
+    harness.advance(IPV4_RESOLUTION_DELAY);
+    assert_eq!(harness.addresses(lookup), vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]);
+}
+
+#[test]
+fn system_resolver_skips_ipv6_when_ipv6_is_unreachable() {
+    let mut harness = Harness::new(None);
+    harness.ipv6_reachable.set(false);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    assert_eq!(aaaa, None);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+    assert_eq!(harness.addresses(lookup), vec![IpAddr::V4(A_ADDRESS)]);
+
+    // On request, and for local names, the AAAA side goes ahead anyway.
+    let options = LookupOptions {
+        query_aaaa_without_global_ipv6: true,
+        ..LookupOptions::default()
+    };
+    harness.lookup_with("example.org", &[ResourceType::A, ResourceType::AAAA], options);
+    assert!(system_requests(&mut harness).1.is_some());
+    harness.lookup("printer.local");
+    assert!(system_requests(&mut harness).1.is_some());
+}
+
+#[test]
+fn system_resolver_looks_up_ipv6_again_once_ipv6_is_reachable() {
+    let mut harness = Harness::new(None);
+    harness.ipv6_reachable.set(false);
+    harness.lookup("example.com");
+    let (a, _) = system_requests(&mut harness);
+    harness.system_resolved(a, Ok(vec![IpAddr::V4(A_ADDRESS)]));
+
+    harness.ipv6_reachable.set(true);
+    harness.now += IPV6_REACHABILITY_CHECK_INTERVAL;
+    harness.lookup("example.com");
+    let (_, aaaa) = system_requests(&mut harness);
+    assert!(aaaa.is_some());
+}
+
+#[test]
+fn system_resolver_failure_fails_the_lookup() {
+    let mut harness = Harness::new(None);
+    let lookup = harness.lookup("example.com");
+    let (a, aaaa) = system_requests(&mut harness);
+    harness.system_resolved(a, Err("nope".to_owned()));
+    harness.system_resolved(aaaa.unwrap(), Err("nope".to_owned()));
+    assert_eq!(harness.error(lookup), "Could not resolve to IPv4 or IPv6 address");
+}
+
+#[test]
+fn local_names_go_to_the_system_resolver_even_with_a_server() {
+    let mut harness = Harness::udp();
+    harness.lookup("printer.local");
+    assert!(harness.connects.is_empty());
+    assert_eq!(harness.system.len(), 2);
+}
+
+#[test]
+fn validating_without_a_server_fails() {
+    let mut harness = Harness::new(None);
+    let options = LookupOptions {
+        validate_dnssec_locally: true,
+        ..LookupOptions::default()
+    };
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], options);
+    assert_eq!(harness.error(lookup), "No connection available to validate DNSSEC");
+}
+
+// ---- DNSSEC ----------------------------------------------------------------------------------------------------
+
+// Answers every query the resolver sends from the signed test zones, until nothing more goes out.
+fn serve_signed_zones(harness: &mut Harness, server: &mut crate::dnssec::tests::Server) {
+    loop {
+        let writes = harness.take_writes();
+        if writes.is_empty() {
+            return;
+        }
+        for (connection, query) in writes {
+            let query = Message::from_wire(&query).unwrap();
+            let mut response = server.answer(&query.questions[0]);
+            response.header.id = query.header.id;
+            harness.receive(connection, &response.to_wire().unwrap());
+        }
+    }
+}
+
+fn dnssec_harness(server: &crate::dnssec::tests::Server) -> Harness {
+    let mut harness = Harness::udp();
+    harness.resolver.set_trust_anchors(vec![server.root_ds()]);
+    harness
+        .resolver
+        .set_wall_clock(harness.now, u64::from(crate::dnssec::tests::NOW));
+    harness
+}
+
+const VALIDATE: LookupOptions = LookupOptions {
+    validate_dnssec_locally: true,
+    query_aaaa_without_global_ipv6: false,
+};
+
+#[test]
+fn validated_lookup_is_secure() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    let lookup = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+    serve_signed_zones(&mut harness, &mut server);
+
+    let result = harness.result(lookup).as_ref().unwrap();
+    assert_eq!(result.security_status, Some(SecurityStatus::Secure));
+    assert_eq!(result.addresses(), vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1))]);
+
+    let again = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    assert!(harness.writes.is_empty());
+    assert_eq!(
+        harness.result(again).as_ref().unwrap().security_status,
+        Some(SecurityStatus::Secure)
+    );
+}
+
+#[test]
+fn validated_lookup_in_an_unsigned_zone_is_insecure() {
+    let mut server = crate::dnssec::tests::make_server(true);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    let lookup = harness.lookup_with("host.unsigned.example", &[ResourceType::A], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+    serve_signed_zones(&mut harness, &mut server);
+    assert_eq!(
+        harness.result(lookup).as_ref().unwrap().security_status,
+        Some(SecurityStatus::Insecure)
+    );
+}
+
+#[test]
+fn validated_lookup_with_the_wrong_trust_anchor_fails() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.start();
+    let mut other = crate::dnssec::tests::make_server(false);
+    other.start();
+    let mut harness = dnssec_harness(&other);
+    let lookup = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+    serve_signed_zones(&mut harness, &mut server);
+    assert_eq!(harness.error(lookup), "DNSSEC validation failed");
+}
+
+#[test]
+fn unvalidated_cache_entries_do_not_serve_validated_lookups() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    harness.lookup_with("www.example", &[ResourceType::A], LookupOptions::default());
+    harness.connected(harness.connects[0].connection);
+    serve_signed_zones(&mut harness, &mut server);
+
+    // The unvalidated answer is cached, and serves unvalidated lookups.
+    let cached = harness.lookup_with("www.example", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.writes.is_empty());
+    assert_eq!(harness.result(cached).as_ref().unwrap().security_status, None);
+
+    let lookup = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    assert!(!harness.writes.is_empty());
+    serve_signed_zones(&mut harness, &mut server);
+    assert_eq!(
+        harness.result(lookup).as_ref().unwrap().security_status,
+        Some(SecurityStatus::Secure)
+    );
+}
+
+#[test]
+fn lookup_for_no_types_settles_at_once() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[], LookupOptions::default());
+    assert!(harness.result(lookup).as_ref().unwrap().records.is_empty());
+    assert!(harness.connects.is_empty());
+}
+
+#[test]
+fn server_name_looked_up_with_the_system_resolver_stays_out_of_the_cache() {
+    let mut harness = Harness::tls("dns.quad9.net");
+    harness.lookup("example.com");
+    for (request, _, family) in std::mem::take(&mut harness.system) {
+        let address = match family {
+            AddressFamily::V4 => IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)),
+            AddressFamily::V6 => IpAddr::V6("2620:fe::fe".parse().unwrap()),
+        };
+        harness.system_resolved(request, Ok(vec![address]));
+    }
+    assert_eq!(harness.connects.len(), 1);
+    harness.connected(harness.connects[0].connection);
+    harness.take_writes();
+
+    // Looking up the server's own name goes to the server, rather than coming from what the system resolver said.
+    let lookup = harness.lookup_with("dns.quad9.net", &[ResourceType::A], LookupOptions::default());
+    assert!(!harness.done.contains_key(&lookup));
+    assert_eq!(harness.take_writes().len(), 1);
+}
+
+#[test]
+fn server_names_get_the_same_special_handling_as_other_names() {
+    let mut harness = Harness::tls("localhost.");
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert!(harness.connects[0].address.ip().is_loopback());
+
+    let mut harness = Harness::tls("dnsresolverabcdefghijklmnopqrstuvwxyz234567abcdefghijklmn.onion");
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    assert!(harness.system.is_empty());
+    assert!(harness.connects.is_empty());
+    assert!(harness.result(lookup).is_err());
+}
+
+#[test]
+fn lookup_fails_when_no_random_query_id_can_be_had() {
+    let mut resolver = Resolver::new(Box::new(|| true), Box::new(|| None));
+    let now = Instant::now();
+    resolver.set_server(
+        Some(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 53,
+            transport: ServerTransport::Udp,
+        }),
+        now,
+    );
+    let lookup = resolver.lookup(
+        "example.com",
+        Class::IN,
+        &[ResourceType::A],
+        LookupOptions::default(),
+        now,
+    );
+    let mut failure = None;
+    while let Some(action) = resolver.take_action() {
+        if let Action::LookupDone { lookup: done, result } = action {
+            assert_eq!(done, lookup);
+            failure = result.err();
+        }
+    }
+    assert_eq!(failure.unwrap().to_string(), "Could not pick a random DNS query ID");
+}
+
+#[test]
+fn port_zero_is_the_default_port_of_the_transport() {
+    for (transport, port) in [(ServerTransport::Udp, 53), (ServerTransport::Tls, 853)] {
+        let mut harness = Harness::new(Some(ServerConfig {
+            host: "192.0.2.53".to_owned(),
+            port: 0,
+            transport,
+        }));
+        harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+        assert_eq!(harness.connects[0].address.port(), port);
+    }
+}
+#[test]
+fn queries_for_names_that_differ_only_in_label_boundaries_are_kept_apart() {
+    let mut harness = Harness::udp();
+    harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    harness.connected(harness.connects[0].connection);
+    harness.take_writes();
+
+    let dotted_label = DomainName {
+        labels: vec![b"a.b".to_vec(), b"example".to_vec()],
+    };
+    let two_labels = DomainName::from_string("a.b.example");
+    for (index, name) in [dotted_label, two_labels].iter().enumerate() {
+        let waiter = QueryWaiter::Validation(index as u64);
+        harness
+            .resolver
+            .query(name, ResourceType::DS, Class::IN, true, waiter, harness.now);
+    }
+    harness.drain();
+    assert_eq!(harness.take_writes().len(), 2);
+}
