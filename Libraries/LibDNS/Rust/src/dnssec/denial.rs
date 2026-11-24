@@ -349,7 +349,7 @@ impl DenialProofs<'_> {
         nsec_proves_absent || nsec3_records(self.rrsets).any(|record| record.covers(&next_closer))
     }
 
-    pub fn proves_no_data(&self, name: &DomainName, rtype: ResourceType) -> bool {
+    pub fn proves_no_data(&self, name: &DomainName, rtype: ResourceType) -> Option<Denial> {
         // RFC 4035, 5.4. Authenticated Denial of Existence.
         // If the requested RR name matches the owner name of an authenticated NSEC RR, then the NSEC RR's type bit map
         // field lists all RR types present at that owner name, and a resolver can prove that the requested RR type does
@@ -368,12 +368,12 @@ impl DenialProofs<'_> {
 
         if nsec_records(self.rrsets).any(|record| record.matches(name) && bitmap_denies(record.nsec, name, record.zone))
         {
-            return true;
+            return Some(Denial::Proven);
         }
 
         // An empty non-terminal owns no RRsets at all.
         if nsec_proves_empty_non_terminal(self.rrsets, name) {
-            return true;
+            return Some(Denial::Proven);
         }
 
         // RFC 5155, 8.5. Validating No Data Responses, QTYPE is not DS.
@@ -382,21 +382,34 @@ impl DenialProofs<'_> {
         if nsec3_records(self.rrsets)
             .any(|record| record.matches(name) && bitmap_denies(record.nsec3, name, record.zone))
         {
-            return true;
+            return Some(Denial::Proven);
         }
 
         // Wildcard No Data: the name does not exist, but a wildcard does, and it lacks the type.
         // RFC 5155, 8.7. Validating Wildcard No Data Responses.
-        let closest_encloser = nsec_closest_encloser(self.rrsets, name)
-            .or_else(|| nsec3_closest_encloser_proof(self.rrsets, name).map(|proof| proof.closest_encloser));
-        let Some(closest_encloser) = closest_encloser else {
-            return false;
+        let wildcard_denies = |closest_encloser: &DomainName| {
+            let wildcard = closest_encloser.with_label_prepended("*");
+            nsec_records(self.rrsets)
+                .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec, &wildcard, record.zone))
+                || nsec3_records(self.rrsets)
+                    .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec3, &wildcard, record.zone))
         };
-        let wildcard = closest_encloser.with_label_prepended("*");
-        nsec_records(self.rrsets)
-            .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec, &wildcard, record.zone))
-            || nsec3_records(self.rrsets)
-                .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec3, &wildcard, record.zone))
+        if let Some(closest_encloser) = nsec_closest_encloser(self.rrsets, name)
+            && wildcard_denies(&closest_encloser)
+        {
+            return Some(Denial::Proven);
+        }
+
+        let proof = nsec3_closest_encloser_proof(self.rrsets, name)?;
+        // RFC 5155, 8.5. Validating No Data Responses, QTYPE is not DS (as corrected by erratum 3441).
+        // If there is no NSEC3 RR present that matches QNAME, then the validator MUST verify a closest provable
+        // encloser proof for the QNAME.  The validator MUST verify that the Opt-Out bit is set in the NSEC3 RR that
+        // covers the "next closer" name to the delegation name. This test covers the case where the response is due
+        // to an Empty Non-Terminal derived from an insecure delegation covered by an Opt-Out NSEC3 RR.
+        if proof.next_closer_opt_out {
+            return Some(Denial::OptOut);
+        }
+        wildcard_denies(&proof.closest_encloser).then_some(Denial::Proven)
     }
 
     pub fn proves_insecure_delegation(&self, name: &DomainName) -> bool {
