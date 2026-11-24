@@ -86,6 +86,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
+use crate::runtime::regexp_prototype::RegexCache;
 use crate::runtime::shape::{ConstructShapeCache, PrototypeTransitionCache};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::source_text_module::SourceTextModule;
@@ -608,6 +609,7 @@ pub struct Vm {
     /// The strings are weak: the sweep callback drops the ones that die.
     interned_strings: RefCell<HashMap<usize, Gc<PrimitiveString>, foldhash::fast::RandomState>>,
     json_parse_cache: JsonParseCache,
+    regex_cache: RegexCache,
     json_stringify_cache: JsonStringifyCache,
     empty_string: OnceCell<Gc<PrimitiveString>>,
     empty_realm: OnceCell<Gc<Realm>>,
@@ -803,6 +805,7 @@ impl Vm {
             ),
             interned_strings: RefCell::default(),
             json_parse_cache: JsonParseCache::default(),
+            regex_cache: RegexCache::default(),
             json_stringify_cache: JsonStringifyCache::new(),
             empty_string: OnceCell::new(),
             empty_realm: OnceCell::new(),
@@ -2202,6 +2205,10 @@ impl Vm {
             .expose_provenance() as u64
     }
 
+    pub fn regex_cache(&self) -> &RegexCache {
+        &self.regex_cache
+    }
+
     pub fn json_parse_cache(&self) -> &JsonParseCache {
         &self.json_parse_cache
     }
@@ -2553,10 +2560,11 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     // NB: The VM has no heap anymore when this runs for the last collection of a heap that goes away.
     if vm.heap.get().is_some_and(Heap::is_returning_memory_to_system) {
         crate::source_text::park_all_source_texts();
-        crate::runtime::regexp_prototype::clear_regex_cache();
+        vm.regex_cache.clear();
         crate::work_zone::release_idle_memory();
     } else {
         crate::source_text::park_idle_source_texts();
+        vm.regex_cache.remove_unused();
     }
     vm.remove_dead_async_waits(&sweep);
     vm.remove_dead_cells_from_weak_containers(&sweep);
