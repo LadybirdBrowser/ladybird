@@ -56,6 +56,8 @@ pub struct Program {
 
     // The data of the instructions that do not fit in an instruction. An instruction refers to its data by its index in
     // one of these tables, so that each instruction is as small as the most common instructions.
+    /// The code units of `Literal` instructions after their first.
+    pub literals: Vec<u16>,
     /// The character classes of `CharClass` instructions.
     pub classes: Vec<CharRanges>,
     /// The properties of `UnicodeProperty` instructions.
@@ -82,6 +84,16 @@ pub enum Instruction {
 
     /// Match a single character, case-insensitive (u32 code points).
     CharNoCase(u32, u32),
+
+    /// Match the run of literal code units of `first` and then `Program::literals[rest_start..rest_start + rest_len]`,
+    /// as the `Char` instructions of each code unit would, which compare under case folding if `ignore_case` is set.
+    /// The first code unit is in the instruction, as most attempts to match a literal fail at it.
+    Literal {
+        first: u16,
+        ignore_case: bool,
+        rest_start: u32,
+        rest_len: u32,
+    },
 
     /// Match any character (`.`). If `dot_all` is true, matches newlines too.
     AnyChar { dot_all: bool },
@@ -321,6 +333,7 @@ impl Program {
             multiline: false,
             dot_all: false,
             named_groups: Vec::new(),
+            literals: Vec::new(),
             classes: Vec::new(),
             unicode_properties: Vec::new(),
             backref_names: Vec::new(),
@@ -328,6 +341,26 @@ impl Program {
             string_properties: Vec::new(),
             register_lists: Vec::new(),
             loops: Vec::new(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn literal_rest(&self, start: u32, len: u32) -> &[u16] {
+        &self.literals[start as usize..start as usize + len as usize]
+    }
+
+    /// The code unit that `instruction` matches first, if it is a `Char` of the BMP or a `Literal` without case
+    /// folding.
+    #[inline(always)]
+    pub fn leading_code_unit(&self, instruction: Option<&Instruction>) -> Option<u16> {
+        match instruction? {
+            Instruction::Char(code_point) => u16::try_from(*code_point).ok(),
+            Instruction::Literal {
+                first,
+                ignore_case: false,
+                ..
+            } => Some(*first),
+            _ => None,
         }
     }
 

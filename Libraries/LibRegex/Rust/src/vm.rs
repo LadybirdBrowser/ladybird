@@ -205,7 +205,8 @@ fn next_search_position(match_start: i32, match_end: i32) -> usize {
 
 use crate::bytecode::append_code_point_wtf16;
 
-fn extract_trailing_literal(instructions: &[Instruction], assert_end_pc: usize) -> Option<Vec<u16>> {
+fn extract_trailing_literal(program: &Program, assert_end_pc: usize) -> Option<Vec<u16>> {
+    let instructions = &program.instructions;
     let mut trailing_code_points = Vec::new();
     let mut suffix_start = assert_end_pc;
     let mut pc = assert_end_pc;
@@ -215,6 +216,18 @@ fn extract_trailing_literal(instructions: &[Instruction], assert_end_pc: usize) 
         match &instructions[prev_pc] {
             Instruction::Char(cp) => {
                 trailing_code_points.push(*cp);
+                suffix_start = prev_pc;
+                pc = prev_pc;
+            }
+            Instruction::Literal {
+                first,
+                rest_start,
+                rest_len,
+                ignore_case: false,
+            } => {
+                let rest = program.literal_rest(*rest_start, *rest_len);
+                trailing_code_points.extend(rest.iter().rev().map(|&code_unit| u32::from(code_unit)));
+                trailing_code_points.push(u32::from(*first));
                 suffix_start = prev_pc;
                 pc = prev_pc;
             }
@@ -1052,7 +1065,8 @@ enum SimpleScan {
 
 /// Find a common first character across all alternatives in a Split chain.
 /// Returns Some((char, case_insensitive)) if all branches start with the same character.
-fn find_common_first_char(instructions: &[Instruction], start: u32) -> Option<(u32, bool)> {
+fn find_common_first_char(program: &Program, start: u32) -> Option<(u32, bool)> {
+    let instructions = &program.instructions;
     let mut common: Option<(u32, bool)> = None;
     let mut pc = start as usize;
     loop {
@@ -1062,7 +1076,7 @@ fn find_common_first_char(instructions: &[Instruction], start: u32) -> Option<(u
         match &instructions[pc] {
             Instruction::Split { prefer, other } => {
                 // Check the preferred branch's first char instruction.
-                let prefer_char = first_char_at(instructions, *prefer as usize)?;
+                let prefer_char = first_char_at(program, *prefer as usize)?;
                 match common {
                     None => common = Some(prefer_char),
                     Some(c) if c.0 == prefer_char.0 => {}
@@ -1073,7 +1087,7 @@ fn find_common_first_char(instructions: &[Instruction], start: u32) -> Option<(u
             }
             // The last alternative in the chain (no more Splits).
             _ => {
-                let last_char = first_char_at(instructions, pc)?;
+                let last_char = first_char_at(program, pc)?;
                 match common {
                     None => return Some(last_char),
                     Some(c) if c.0 == last_char.0 => return common,
@@ -1085,12 +1099,13 @@ fn find_common_first_char(instructions: &[Instruction], start: u32) -> Option<(u
 }
 
 /// Get the first character-matching instruction at a given position.
-fn first_char_at(instructions: &[Instruction], pc: usize) -> Option<(u32, bool)> {
-    match instructions.get(pc)? {
+fn first_char_at(program: &Program, pc: usize) -> Option<(u32, bool)> {
+    match program.instructions.get(pc)? {
         Instruction::Char(c) => Some((*c, false)),
         Instruction::CharNoCase(c, _) => Some((*c, true)),
+        Instruction::Literal { first, ignore_case, .. } => Some((u32::from(*first), *ignore_case)),
         // Skip Save instructions (capture group starts) to find the actual char.
-        Instruction::Save(_) => first_char_at(instructions, pc + 1),
+        Instruction::Save(_) => first_char_at(program, pc + 1),
         _ => None,
     }
 }
@@ -1100,16 +1115,22 @@ enum LeadingAlternativeStart {
     LiteralCodeUnit(u16),
 }
 
-fn leading_alternative_start_at(instructions: &[Instruction], pc: usize) -> Option<LeadingAlternativeStart> {
-    match instructions.get(pc)? {
+fn leading_alternative_start_at(program: &Program, pc: usize) -> Option<LeadingAlternativeStart> {
+    match program.instructions.get(pc)? {
         Instruction::AssertStart { multiline: false } => Some(LeadingAlternativeStart::InputStart),
         Instruction::Char(c) if *c <= 0xFFFF => Some(LeadingAlternativeStart::LiteralCodeUnit(*c as u16)),
-        Instruction::Save(_) | Instruction::Nop => leading_alternative_start_at(instructions, pc + 1),
+        Instruction::Literal {
+            first,
+            ignore_case: false,
+            ..
+        } => Some(LeadingAlternativeStart::LiteralCodeUnit(*first)),
+        Instruction::Save(_) | Instruction::Nop => leading_alternative_start_at(program, pc + 1),
         _ => None,
     }
 }
 
-fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Option<StartPositionHint> {
+fn analyze_start_position_hint(program: &Program, start: usize) -> Option<StartPositionHint> {
+    let instructions = &program.instructions;
     let Instruction::Split { .. } = instructions.get(start)? else {
         return None;
     };
@@ -1123,7 +1144,7 @@ fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Op
     loop {
         match instructions.get(pc)? {
             Instruction::Split { prefer, other } => {
-                match leading_alternative_start_at(instructions, *prefer as usize)? {
+                match leading_alternative_start_at(program, *prefer as usize)? {
                     LeadingAlternativeStart::InputStart => hint.includes_input_start = true,
                     LeadingAlternativeStart::LiteralCodeUnit(ch) => {
                         if !hint.literal_code_units.contains(&ch) {
@@ -1134,7 +1155,7 @@ fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Op
                 pc = *other as usize;
             }
             _ => {
-                match leading_alternative_start_at(instructions, pc)? {
+                match leading_alternative_start_at(program, pc)? {
                     LeadingAlternativeStart::InputStart => hint.includes_input_start = true,
                     LeadingAlternativeStart::LiteralCodeUnit(ch) => {
                         if !hint.literal_code_units.contains(&ch) {
@@ -1195,11 +1216,12 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
     };
 
     let first_char = match filter_inst {
-        Some(Instruction::Char(c)) => Some((*c, false)),
-        Some(Instruction::CharNoCase(c, _)) => Some((*c, true)),
+        Some(Instruction::Char(_) | Instruction::CharNoCase(..) | Instruction::Literal { .. }) => {
+            first_char_at(program, filter_offset)
+        }
         // For disjunctions (Split chains), find the common first character
         // across all alternatives. E.g., /<script|<style|<link/ all start with '<'.
-        Some(Instruction::Split { .. }) => find_common_first_char(&program.instructions, filter_offset as u32),
+        Some(Instruction::Split { .. }) => find_common_first_char(program, filter_offset as u32),
         _ => None,
     };
 
@@ -1223,7 +1245,7 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
     };
 
     let start_position_hint = if !program.unicode {
-        analyze_start_position_hint(&program.instructions, filter_offset)
+        analyze_start_position_hint(program, filter_offset)
     } else {
         None
     };
@@ -1240,7 +1262,7 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
             Instruction::Save(1),
             Instruction::Match,
         ] if !(program.ignore_case || *multiline || program.multiline) => {
-            extract_trailing_literal(&program.instructions, program.instructions.len() - 3)
+            extract_trailing_literal(program, program.instructions.len() - 3)
         }
         _ => None,
     };
@@ -1249,11 +1271,9 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
         ast_required_literal,
         match program.instructions.as_slice() {
             [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
-                extract_trailing_literal(&program.instructions, program.instructions.len() - 2).map(|literal| {
-                    RequiredLiteralHint {
-                        literal,
-                        ascii_case_insensitive: false,
-                    }
+                extract_trailing_literal(program, program.instructions.len() - 2).map(|literal| RequiredLiteralHint {
+                    literal,
+                    ascii_case_insensitive: false,
                 })
             }
             [
@@ -1262,11 +1282,9 @@ pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<Re
                 Instruction::Save(1),
                 Instruction::Match,
             ] if !program.ignore_case => {
-                extract_trailing_literal(&program.instructions, program.instructions.len() - 3).map(|literal| {
-                    RequiredLiteralHint {
-                        literal,
-                        ascii_case_insensitive: false,
-                    }
+                extract_trailing_literal(program, program.instructions.len() - 3).map(|literal| RequiredLiteralHint {
+                    literal,
+                    ascii_case_insensitive: false,
                 })
             }
             _ => None,
@@ -1544,8 +1562,11 @@ impl<'a, I: Input> Vm<'a, I> {
 
         // A single pass through the instructions can settle a prefix mismatch without searching the rest of the input.
         // Keep the literal check for patterns that would otherwise spend their match budget backtracking.
+        // NB: A literal costs a step for each of its code units, so the pass gets a step for each code unit of the
+        //     literals after their first too.
         let start = self.pos;
-        self.step_limit = self.step_limit.min(self.program.instructions.len() as u64 + 1);
+        let single_pass_steps = self.program.instructions.len() as u64 + self.program.literals.len() as u64;
+        self.step_limit = self.step_limit.min(single_pass_steps + 1);
         self.next_checkpoint = self.next_interrupt_poll.min(self.step_limit);
         let result = self.run();
         if result != VmResult::LimitExceeded {
@@ -1605,6 +1626,39 @@ impl<'a, I: Input> Vm<'a, I> {
                             self.pos += 1;
                             self.pc += 1;
                             continue;
+                        }
+                    }
+                    if !self.backtrack() {
+                        return VmResult::NoMatch;
+                    }
+                }
+
+                Instruction::Literal {
+                    first,
+                    ignore_case,
+                    rest_start,
+                    rest_len,
+                } => {
+                    // NB: Each code unit after the first that is compared costs a step, as the Char instructions of
+                    //     the literal did. A match needs no checkpoint here, as the next instruction looks first.
+                    match literal_matches_at(input, self.pos, *first, *ignore_case, false, || {
+                        program.literal_rest(*rest_start, *rest_len)
+                    }) {
+                        Ok(()) => {
+                            self.steps += u64::from(*rest_len);
+                            self.pos += 1 + *rest_len as usize;
+                            self.pc += 1;
+                            continue;
+                        }
+                        Err(rest_compared) => {
+                            if rest_compared != 0 {
+                                self.steps += rest_compared as u64;
+                                if self.steps >= self.next_checkpoint
+                                    && let Some(result) = self.reach_checkpoint()
+                                {
+                                    return result;
+                                }
+                            }
                         }
                     }
                     if !self.backtrack() {
@@ -1974,6 +2028,41 @@ impl<'a, I: Input> Vm<'a, I> {
                         }
                     } else {
                         self.pc += 1;
+                    }
+                }
+
+                Instruction::Literal {
+                    first,
+                    ignore_case,
+                    rest_start,
+                    rest_len,
+                } => {
+                    // NB: The compiler emits literals only for forward matching, of code units that are characters of
+                    //     their own in Unicode mode too.
+                    debug_assert!(!self.backward);
+                    // NB: Each code unit after the first that is compared costs a step, as the Char instructions of
+                    //     the literal did. A match needs no checkpoint here, as the next instruction looks first.
+                    match literal_matches_at(self.input, self.pos, *first, *ignore_case, program.unicode, || {
+                        program.literal_rest(*rest_start, *rest_len)
+                    }) {
+                        Ok(()) => {
+                            self.steps += u64::from(*rest_len);
+                            self.pos += 1 + *rest_len as usize;
+                            self.pc += 1;
+                        }
+                        Err(rest_compared) => {
+                            if rest_compared != 0 {
+                                self.steps += rest_compared as u64;
+                                if self.steps >= self.next_checkpoint
+                                    && let Some(result) = self.reach_checkpoint()
+                                {
+                                    return result;
+                                }
+                            }
+                            if !self.backtrack() {
+                                return VmResult::NoMatch;
+                            }
+                        }
                     }
                 }
 
@@ -2708,6 +2797,31 @@ impl<'a, I: Input> Vm<'a, I> {
             let code_unit = (pos < input.len()).then(|| u32::from(input.code_unit(pos)));
             let matches = match program.instructions.get(pc as usize) {
                 Some(Instruction::Char(character)) => code_unit == Some(*character),
+                Some(Instruction::Literal {
+                    first,
+                    rest_start,
+                    rest_len,
+                    ignore_case: false,
+                }) => {
+                    if code_unit != Some(u32::from(*first)) {
+                        return true;
+                    }
+                    let rest = program.literal_rest(*rest_start, *rest_len);
+                    let budget = MAX_CODE_UNITS_CHECKED - checked - 1;
+                    for (offset, &expected) in rest.iter().take(budget).enumerate() {
+                        let position = pos + 1 + offset;
+                        if position >= input.len() || input.code_unit(position) != expected {
+                            return true;
+                        }
+                    }
+                    if rest.len() >= budget {
+                        return false;
+                    }
+                    pc += 1;
+                    pos += 1 + rest.len();
+                    checked += 1 + rest.len();
+                    continue;
+                }
                 Some(Instruction::CharClass { class, negated }) => {
                     let ranges = program.class(*class);
                     code_unit.is_some_and(|code_unit| ranges.contains(code_unit) != *negated)
@@ -3084,10 +3198,9 @@ impl<'a, I: Input> Vm<'a, I> {
                             }
                             pos
                         } else {
-                            match next_inst {
-                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target <= 0xFFFF => {
+                            match (next_inst, self.program.leading_code_unit(next_inst)) {
+                                (_, Some(target)) if !self.modifiers.ignore_case => {
                                     // BMP char: scan code units directly.
-                                    let target = *target as u16;
                                     let mut scan_pos = if current_pos > 0 { current_pos - 1 } else { 0 };
                                     loop {
                                         if scan_pos < min_pos {
@@ -3102,7 +3215,9 @@ impl<'a, I: Input> Vm<'a, I> {
                                         scan_pos -= 1;
                                     }
                                 }
-                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target > 0xFFFF => {
+                                (Some(Instruction::Char(target)), _)
+                                    if !self.modifiers.ignore_case && *target > 0xFFFF =>
+                                {
                                     // Supplementary char: scan for the surrogate pair.
                                     let hi = ((*target - 0x10000) >> 10) as u16 + 0xD800;
                                     let lo = ((*target - 0x10000) & 0x3FF) as u16 + 0xDC00;
@@ -3629,6 +3744,38 @@ fn case_fold(cp: u32, unicode_mode: bool) -> u32 {
     }
     // Non-ASCII: call FFI which handles both modes correctly.
     libunicode_rust::character_types::simple_case_fold(cp, unicode_mode)
+}
+
+/// Whether the input from `pos` on starts with `first` and then the code units of `rest`, compared as `Char`
+/// instructions compare each of them. Most attempts fail at the first code unit, so the rest is only fetched after it.
+/// On a mismatch, the error is how many code units of `rest` were compared, the failed one included, as that many more
+/// `Char` instructions ran. The input ending counts as a failed compare.
+#[inline(always)]
+fn literal_matches_at<'a, I: Input>(
+    input: I,
+    pos: usize,
+    first: u16,
+    ignore_case: bool,
+    unicode_mode: bool,
+    rest: impl FnOnce() -> &'a [u16],
+) -> Result<(), usize> {
+    let code_units_match = |actual: u16, expected: u16| {
+        actual == expected || (ignore_case && case_fold_eq(u32::from(actual), u32::from(expected), unicode_mode))
+    };
+    if pos >= input.len() || !code_units_match(input.code_unit(pos), first) {
+        return Err(0);
+    }
+    let rest = rest();
+    let comparable = rest.len().min(input.len() - pos - 1);
+    for (offset, &expected) in rest[..comparable].iter().enumerate() {
+        if !code_units_match(input.code_unit(pos + 1 + offset), expected) {
+            return Err(offset + 1);
+        }
+    }
+    if comparable < rest.len() {
+        return Err(comparable + 1);
+    }
+    Ok(())
 }
 
 /// Compare two code points for case-insensitive equality.

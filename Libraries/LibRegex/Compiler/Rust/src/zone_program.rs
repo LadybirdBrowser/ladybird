@@ -50,6 +50,10 @@ pub enum ZoneInstruction<'z> {
     /// Match a single character, case-insensitive (u32 code points).
     CharNoCase(u32, u32),
 
+    /// Match a run of literal characters, as the `Char` instructions of its code units would, which compare under
+    /// case folding if `ignore_case` is set.
+    Literal { code_units: &'z [u16], ignore_case: bool },
+
     /// Match any character (`.`). If `dot_all` is true, matches newlines too.
     AnyChar { dot_all: bool },
 

@@ -108,6 +108,15 @@ const NON_WHITESPACE_RANGES: &[CodePointRange] = &[
     char_range(0xFF00, 0x10FFFF),
 ];
 
+/// Whether the character `cp` has a different lowercase and uppercase form, so that it matches more than itself under
+/// case folding.
+fn has_case(cp: u32) -> bool {
+    let Some(ch) = char::from_u32(cp) else {
+        return false;
+    };
+    ch.to_lowercase().next() != ch.to_uppercase().next()
+}
+
 /// Sorts `ranges` and merges the ones that overlap or touch, which the binary search of the VM relies on.
 fn normalize_char_ranges(ranges: &mut ZoneVec<'_, CodePointRange>) {
     // NB: Ranges with the same start always merge, so their order does not matter.
@@ -503,17 +512,11 @@ impl<'z> Compiler<'z> {
     /// Emit a Char or CharNoCase instruction for a single code point,
     /// depending on whether case-insensitive mode is active.
     fn emit_char_maybe_case_fold(&mut self, cp: u32) {
-        if self.effective_ignore_case
-            && let Some(ch) = char::from_u32(cp)
-        {
-            let lower = ch.to_lowercase().next().unwrap_or(ch) as u32;
-            let upper = ch.to_uppercase().next().unwrap_or(ch) as u32;
-            if lower != upper {
-                self.emit(ZoneInstruction::CharNoCase(cp, cp));
-                return;
-            }
+        if self.effective_ignore_case && has_case(cp) {
+            self.emit(ZoneInstruction::CharNoCase(cp, cp));
+        } else {
+            self.emit(ZoneInstruction::Char(cp));
         }
-        self.emit(ZoneInstruction::Char(cp));
     }
 
     fn alloc_register(&mut self) -> u32 {
@@ -660,11 +663,53 @@ impl<'z> Compiler<'z> {
             for term in alt.terms.iter().rev() {
                 self.compile_term(term);
             }
-        } else {
-            for term in alt.terms {
+            return;
+        }
+        let mut terms = alt.terms;
+        while let Some(term) = terms.first() {
+            let run = terms
+                .iter()
+                .take_while(|term| self.literal_code_unit(term).is_some())
+                .count();
+            if run >= 2 {
+                self.emit_literal(&terms[..run]);
+                terms = &terms[run..];
+            } else {
                 self.compile_term(term);
+                terms = &terms[1..];
             }
         }
+    }
+
+    /// The code unit that `term` matches, if it is a single literal character that the VM can match as one code unit
+    /// of a `Literal` instruction: a character of the BMP, and not a surrogate in Unicode mode, where a surrogate of
+    /// the pattern must not match half of a surrogate pair of the input.
+    fn literal_code_unit(&self, term: &Term<'z>) -> Option<u16> {
+        if term.quantifier.is_some() {
+            return None;
+        }
+        let Atom::Literal(code_point) = term.atom else {
+            return None;
+        };
+        let code_unit = u16::try_from(code_point).ok()?;
+        if self.unicode && (0xD800..=0xDFFF).contains(&code_unit) {
+            return None;
+        }
+        Some(code_unit)
+    }
+
+    /// Emit one `Literal` instruction for a run of forward literal terms, which would otherwise be a `Char` or
+    /// `CharNoCase` instruction each.
+    fn emit_literal(&mut self, terms: &[Term<'z>]) {
+        let mut code_units = ZoneVec::with_capacity_in(terms.len(), self.zone);
+        code_units.extend(terms.iter().filter_map(|term| self.literal_code_unit(term)));
+        // NB: A literal of characters without case compares as plain code units, as their `Char` instructions would,
+        //     which keeps it visible to the analyses that only look at case-sensitive literals.
+        let ignore_case = self.effective_ignore_case && code_units.iter().any(|&code_unit| has_case(code_unit.into()));
+        self.emit(ZoneInstruction::Literal {
+            code_units: code_units.into_slice(),
+            ignore_case,
+        });
     }
 
     /// Lower `Term`, delegating to either `CompileAtom` or the quantified path.

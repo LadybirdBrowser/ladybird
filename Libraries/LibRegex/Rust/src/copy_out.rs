@@ -53,6 +53,7 @@ pub(crate) fn program(zone_program: &ZoneProgram<'_>) -> Program {
     );
     program.instructions = instructions;
     program.compute_same_matcher_suffix_mins();
+    program.literals.shrink_to_fit();
     program.classes.shrink_to_fit();
     program.unicode_properties.shrink_to_fit();
     program.backref_names.shrink_to_fit();
@@ -76,6 +77,19 @@ fn instruction(instruction: &ZoneInstruction<'_>, program: &mut Program) -> Inst
     match *instruction {
         ZoneInstruction::Char(cp) => Instruction::Char(cp),
         ZoneInstruction::CharNoCase(lhs, rhs) => Instruction::CharNoCase(lhs, rhs),
+        ZoneInstruction::Literal {
+            code_units,
+            ignore_case,
+        } => {
+            let rest_start = program.literals.len() as u32;
+            program.literals.extend_from_slice(&code_units[1..]);
+            Instruction::Literal {
+                first: code_units[0],
+                ignore_case,
+                rest_start,
+                rest_len: code_units.len() as u32 - 1,
+            }
+        }
         ZoneInstruction::AnyChar { dot_all } => Instruction::AnyChar { dot_all },
         ZoneInstruction::CharClass { ranges, negated } => Instruction::CharClass {
             class: push(&mut program.classes, char_ranges(ranges)),
