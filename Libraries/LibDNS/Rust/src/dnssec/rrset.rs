@@ -14,8 +14,14 @@ pub(super) struct SignedRRSet {
     pub rtype: ResourceType,
     pub class: Class,
     pub records: Vec<ResourceRecord>,
-    pub rrsigs: Vec<Sig>,
-    pub rrsig_ttl: u32,
+    pub rrsigs: Vec<ReceivedRrsig>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct ReceivedRrsig {
+    pub rrsig: Sig,
+    /// The TTL of the RRSIG RR as received in the response.
+    pub ttl: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -45,7 +51,6 @@ pub(super) fn group_rrsets(section: &[ResourceRecord]) -> Vec<SignedRRSet> {
                     class,
                     records: Vec::new(),
                     rrsigs: Vec::new(),
-                    rrsig_ttl: u32::MAX,
                 });
                 rrsets.len() - 1
             }
@@ -59,9 +64,12 @@ pub(super) fn group_rrsets(section: &[ResourceRecord]) -> Vec<SignedRRSet> {
             let RecordData::Rrsig(rrsig) = &record.data else {
                 continue;
             };
-            let rrset = find(&mut rrsets, &record.name, rrsig.type_covered, record.class);
-            rrset.rrsigs.push(rrsig.clone());
-            rrset.rrsig_ttl = rrset.rrsig_ttl.min(record.ttl);
+            find(&mut rrsets, &record.name, rrsig.type_covered, record.class)
+                .rrsigs
+                .push(ReceivedRrsig {
+                    rrsig: rrsig.clone(),
+                    ttl: record.ttl,
+                });
             continue;
         }
         find(&mut rrsets, &record.name, record.rtype, record.class)
@@ -101,7 +109,7 @@ pub(super) fn verify_rrset(
     keys: &[Dnskey],
     now: u32,
 ) -> Result<Option<VerifiedRRSet>, Failure> {
-    for rrsig in &rrset.rrsigs {
+    for ReceivedRrsig { rrsig, ttl: rrsig_ttl } in &rrset.rrsigs {
         // RFC 4035, 5.3.1. Checking the RRSIG RR Validity.
         // o  The RRSIG RR's Signer's Name field MUST be the name of the zone that contains the RRset.
         // o  The RRSIG RR's Type Covered field MUST equal the RRset's type.
@@ -193,7 +201,7 @@ pub(super) fn verify_rrset(
             // o  the RRSIG RR's TTL as received in the response;
             // o  the value in the RRSIG RR's Original TTL field; and
             // o  the difference of the RRSIG RR's Signature Expiration time and the current time.
-            let mut ttl = rrsig.original_ttl.min(rrset.rrsig_ttl);
+            let mut ttl = rrsig.original_ttl.min(*rrsig_ttl);
             for record in &rrset.records {
                 ttl = ttl.min(record.ttl);
             }
