@@ -826,14 +826,7 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, JS::Value 
 
     // 6. Fire an event named navigateerror at navigation using ErrorEvent, with additional attributes initialized
     //    according to errorInfo.
-    ErrorEventInit event_init = {};
-    event_init.filename = error_info.filename;
-    event_init.message = error_info.message;
-    event_init.lineno = error_info.lineno;
-    event_init.colno = error_info.colno;
-    event_init.error = error_info.error;
-
-    dispatch_event(ErrorEvent::create(EventNames::navigateerror, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object())));
+    dispatch_event(create_error_event(realm, EventNames::navigateerror, {}, error_info));
 
     // 7. If navigation's transition is null, then return.
     if (!m_transition)

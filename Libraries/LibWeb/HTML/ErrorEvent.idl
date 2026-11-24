@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface ErrorEvent : Event {
     constructor(DOMString type, optional ErrorEventInit eventInitDict = {});
 

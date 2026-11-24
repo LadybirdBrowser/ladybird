@@ -72,12 +72,13 @@ void web_audio_worklet_set_current_frame(AudioWorkletGlobalScope* scope, u64 cur
 void web_audio_worklet_queue_processor_error(AudioWorkletNode* node, DOM::EventTarget* target, DOM::EventTarget* global, JSValue error)
 {
     auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*global));
-    HTML::ErrorEventInit event_init;
-    event_init.message = JS::HostABI::value_from_abi(error).to_utf16_string_without_side_effects();
+    auto message = JS::HostABI::value_from_abi(error).to_utf16_string_without_side_effects();
     HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object,
-        GC::create_function(GC::Heap::the(), GC::captures(*node, *target, *global, move(event_init)), [](AudioWorkletNode&, DOM::EventTarget& target, DOM::EventTarget& global, HTML::ErrorEventInit const& event_init) {
-            auto& global_object = HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(global));
-            auto event = HTML::ErrorEvent::create(HTML::EventNames::processorerror, event_init, HighResolutionTime::current_high_resolution_time(global_object));
+        GC::create_function(GC::Heap::the(), GC::captures(*node, *target, *global, move(message)), [](AudioWorkletNode&, DOM::EventTarget& target, DOM::EventTarget& global, Utf16String& message) {
+            auto& realm = HTML::relevant_realm(HTML::relevant_window_or_worker_global_scope(global));
+            HTML::ErrorInformation error_info;
+            error_info.message = move(message);
+            auto event = HTML::create_error_event(realm, HTML::EventNames::processorerror, {}, error_info);
             target.dispatch_event(event);
         }));
 }

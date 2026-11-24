@@ -674,7 +674,6 @@ class DOMStringMap;
 class DragDataStore;
 class DragEvent;
 class ElementInternals;
-class ErrorEvent;
 class EventHandler;
 class EventLoop;
 class External;
