@@ -75,7 +75,6 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelCustom) == 32 && offsetof(A
     F(av_hwframe_ctx_alloc)                 \
     F(av_hwframe_ctx_init)                  \
     F(av_hwframe_get_buffer)                \
-    F(av_hwframe_map)                       \
     F(av_malloc)                            \
     F(av_opt_set_int)                       \
     F(av_opt_set_chlayout)                  \

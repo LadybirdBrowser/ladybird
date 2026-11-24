@@ -9,7 +9,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
-#include <LibIPC/File.h>
 #include <LibMediaCodecs/CodedFrame.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
@@ -25,7 +24,6 @@
 #endif
 
 extern "C" {
-#include <libavutil/hwcontext_drm.h>
 #include <libavutil/hwcontext_vulkan.h>
 }
 
@@ -577,7 +575,6 @@ int FFmpegVulkanVideoDecoder::get_buffer(AVCodecContext* codec_context, AVFrame*
         }
     }
 
-    MutexLocker locker { decoder.m_frames_context_mutex };
     return decoder.m_functions.avcodec_default_get_buffer2(codec_context, frame, flags);
 }
 
@@ -798,23 +795,7 @@ DecoderErrorOr<FFmpegVulkanVideoDecoder::DecodedOutput> FFmpegVulkanVideoDecoder
     }
     auto& frame = *decoding_frame.frame;
 
-    // Mapping the frame to dma-bufs hands its image over to whichever device samples it next, which the frame then waits
-    // for, so that it leaves the decoder ready to be drawn.
-    auto* exported_frame = m_functions.av_frame_alloc();
-    if (exported_frame == nullptr)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
-    ScopeGuard free_exported_frame = [&] { m_functions.av_frame_free(&exported_frame); };
-    exported_frame->format = AV_PIX_FMT_DRM_PRIME;
-    {
-        MutexLocker locker { m_frames_context_mutex };
-        if (m_functions.av_hwframe_map(exported_frame, &frame, AV_HWFRAME_MAP_READ) < 0)
-            return DecoderError::with_description(DecoderErrorCategory::Unknown, "Could not export a decoded frame as dma-bufs"sv);
-    }
-    auto exported = semaphore_value_of(frame);
-    if (!wait_for_semaphore(logical_device, exported.semaphore, exported.value))
-        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while readying a frame for export"sv);
-
-    auto surface = TRY(surface_for_exported_frame(frame, *exported_frame));
+    auto surface = TRY(surface_for_frame(frame));
     auto const& frames_context = frames_context_of(frame);
     Gfx::Size<u32> size { static_cast<u32>(frame.width), static_cast<u32>(frame.height) };
     auto bit_depth = bit_depth_of(frames_context);
@@ -996,8 +977,6 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     auto copied_semaphore_value = ++destination->sem_value[0];
     destination->layout[0] = VK_IMAGE_LAYOUT_GENERAL;
     destination->access[0] = VK_ACCESS_2_MEMORY_READ_BIT;
-    // Mapping the frame only releases it to the external family if it has not been released already.
-    destination->queue_family[0] = VK_QUEUE_FAMILY_EXTERNAL;
     destination_vulkan_context.unlock_frame(&destination_context, destination);
 
     VkSemaphoreSubmitInfo wait_info {};
@@ -1045,7 +1024,7 @@ DecoderErrorOr<AVFrame*> FFmpegVulkanVideoDecoder::copy_into_exportable_frame(AV
     return copy;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_for_exported_frame(AVFrame const& frame, AVFrame const& exported_frame)
+DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_for_frame(AVFrame const& frame)
 {
     if (m_frames_context_of_surfaces == nullptr || m_frames_context_of_surfaces->data != frame.hw_frames_ctx->data) {
         m_surfaces_by_image.clear();
@@ -1063,31 +1042,16 @@ DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_fo
     if (auto surface = m_surfaces_by_image.get(image_key); surface.has_value())
         return NonnullRefPtr { **surface };
 
-    auto const& descriptor = *reinterpret_cast<AVDRMFrameDescriptor const*>(exported_frame.data[0]);
-    if (descriptor.nb_objects < 1 || static_cast<size_t>(descriptor.nb_objects) > Gfx::LinuxDmaBufHandle::MAXIMUM_PLANE_COUNT)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "A decoded image exported to an unusable number of dma-bufs"sv);
+    // The image is exported once, however many frames are decoded into it.
+    if (vulkan_frame.img[1] != VK_NULL_HANDLE || vulkan_frame.mem[1] != VK_NULL_HANDLE)
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Decoded frames that span several images cannot be exported"sv);
+    auto format = static_cast<AVVulkanFramesContext const*>(frames_context.hwctx)->format[0];
+    auto drm_format = frames_context.sw_format == AV_PIX_FMT_P010 ? DRM_FORMAT_P010 : DRM_FORMAT_NV12;
+    auto dma_buf = m_device.export_image_as_dma_buf(vulkan_frame.img[0], vulkan_frame.mem[0], format, { frames_context.width, frames_context.height }, drm_format);
+    if (dma_buf.is_error())
+        return DecoderError::format(DecoderErrorCategory::Unknown, "Could not export a decoded image: {}", dma_buf.error());
 
-    Gfx::LinuxDmaBufHandle dma_buf;
-    dma_buf.size = { frames_context.width, frames_context.height };
-    dma_buf.drm_format = frames_context.sw_format == AV_PIX_FMT_P010 ? DRM_FORMAT_P010 : DRM_FORMAT_NV12;
-    dma_buf.modifier = descriptor.objects[0].format_modifier;
-    for (int object_index = 0; object_index < descriptor.nb_objects; object_index++) {
-        auto object = IPC::File::clone_fd(descriptor.objects[object_index].fd);
-        if (object.is_error())
-            return DecoderError::format(DecoderErrorCategory::Memory, "Could not duplicate a decoded image's dma-buf: {}", object.error());
-        dma_buf.objects.append(object.release_value());
-    }
-    for (int layer_index = 0; layer_index < descriptor.nb_layers; layer_index++) {
-        auto const& layer = descriptor.layers[layer_index];
-        for (int plane_index = 0; plane_index < layer.nb_planes; plane_index++) {
-            if (dma_buf.planes.size() == Gfx::LinuxDmaBufHandle::MAXIMUM_PLANE_COUNT)
-                return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "A decoded image exported too many planes"sv);
-            auto const& plane = layer.planes[plane_index];
-            dma_buf.planes.append({ static_cast<u32>(plane.object_index), static_cast<u32>(plane.offset), static_cast<u32>(plane.pitch) });
-        }
-    }
-
-    auto surface = VideoSurface::create_from_dma_buf(get_random<u64>(), move(dma_buf));
+    auto surface = VideoSurface::create_from_dma_buf(get_random<u64>(), dma_buf.release_value());
     if (surface.is_error())
         return DecoderError::format(DecoderErrorCategory::Memory, "Could not create a surface for a decoded image: {}", surface.error());
     DECODER_TRY_ALLOC(m_surfaces_by_image.try_set(image_key, surface.value()));
