@@ -214,9 +214,6 @@ fn increment_last_index(
     )
 }
 
-/// get_or_compile_regex(): the compiled regex of a RegExp object, which is compiled the first time it is asked for.
-/// Returns None for a pattern the regex engine cannot compile.
-// FIXME: Add an eviction policy to bound the size of this cache.
 struct RegexCacheKey {
     pattern: Utf16String,
     flags: RegExpFlags,
@@ -239,23 +236,31 @@ impl Hash for RegexCacheKey {
     }
 }
 
-thread_local! {
-    /// The compiled regexes of every pattern and flags. Compiled regexes hold no cells, and each thread runs its own
-    /// VM, so each thread keeps its own.
-    static REGEX_CACHE: RefCell<HashMap<RegexCacheKey, Rc<EcmaScriptRegex>, foldhash::fast::RandomState>> =
-        RefCell::new(HashMap::default());
+/// The compiled regexes of the VM by pattern and flags, so that RegExp objects of one pattern share one. Compiled
+/// regexes hold no cells. A regex stays for as long as a RegExp object holds it, and one collection longer.
+#[derive(Default)]
+pub struct RegexCache {
+    regexes: RefCell<HashMap<RegexCacheKey, Rc<EcmaScriptRegex>, foldhash::fast::RandomState>>,
 }
 
-/// Lets go of the compiled regexes of the calling thread that no RegExp object holds, for a process that is short of
-/// memory.
-pub(crate) fn clear_regex_cache() {
-    REGEX_CACHE.with_borrow_mut(|cache| {
-        cache.clear();
-        cache.shrink_to_fit();
-    });
+impl RegexCache {
+    /// Lets go of every regex, for a process that is short of memory.
+    pub(crate) fn clear(&self) {
+        let mut regexes = self.regexes.borrow_mut();
+        regexes.clear();
+        regexes.shrink_to_fit();
+    }
+
+    /// Lets go of the regexes that only the cache holds. RegExp objects that die in a collection let go of theirs when
+    /// they are swept, after this runs, so their regexes go at the next collection.
+    pub(crate) fn remove_unused(&self) {
+        self.regexes.borrow_mut().retain(|_, regex| Rc::strong_count(regex) > 1);
+    }
 }
 
-fn get_or_compile_regex(regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptRegex>> {
+/// get_or_compile_regex(): the compiled regex of a RegExp object, which is compiled the first time it is asked for.
+/// Returns None for a pattern the regex engine cannot compile.
+fn get_or_compile_regex(vm: &Vm, regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptRegex>> {
     // Fast path: check the inline cache on the RegExpObject.
     if let Some(cached) = regexp_object.cached_regex() {
         return Some(cached);
@@ -269,7 +274,7 @@ fn get_or_compile_regex(regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptReg
         flags: flag_bits,
     };
 
-    if let Some(cached) = REGEX_CACHE.with_borrow(|cache| cache.get(&cache_key).cloned()) {
+    if let Some(cached) = vm.regex_cache().regexes.borrow().get(&cache_key).cloned() {
         regexp_object.set_cached_regex(Some(Rc::clone(&cached)));
         return Some(cached);
     }
@@ -287,7 +292,10 @@ fn get_or_compile_regex(regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptReg
         EcmaScriptRegex::compile(Utf16View::Utf16(&normalized_pattern), compile_flags_for(flag_bits)).ok()?;
 
     let compiled = Rc::new(compiled);
-    REGEX_CACHE.with_borrow_mut(|cache| cache.insert(cache_key, Rc::clone(&compiled)));
+    vm.regex_cache()
+        .regexes
+        .borrow_mut()
+        .insert(cache_key, Rc::clone(&compiled));
     regexp_object.set_cached_regex(Some(Rc::clone(&compiled)));
     Some(compiled)
 }
@@ -417,7 +425,7 @@ fn regexp_builtin_exec(
     }
     let last_index = last_index as usize;
 
-    let Some(compiled_regex) = get_or_compile_regex(&regexp_object) else {
+    let Some(compiled_regex) = get_or_compile_regex(vm, &regexp_object) else {
         return Ok(Value::NULL);
     };
 
@@ -1255,7 +1263,7 @@ impl RegExpPrototype {
         // getter reading these very bits, which the predicate has just confirmed is what would happen.
         let full_unicode = is_unicode || is_unicode_sets;
 
-        let Some(compiled_regex) = get_or_compile_regex(&typed_regexp) else {
+        let Some(compiled_regex) = get_or_compile_regex(vm, &typed_regexp) else {
             return Ok(None);
         };
 
@@ -1503,7 +1511,7 @@ impl RegExpPrototype {
         if flag_bits.has(RegExpFlags::STICKY) {
             return Ok(None);
         }
-        let Some(compiled_regex) = get_or_compile_regex(&typed_regexp) else {
+        let Some(compiled_regex) = get_or_compile_regex(vm, &typed_regexp) else {
             return Ok(None);
         };
         if !compiled_regex.named_groups().is_empty() {
@@ -2060,7 +2068,7 @@ impl RegExpPrototype {
         if flag_bits.has(RegExpFlags::STICKY) {
             return Ok(None);
         }
-        let Some(compiled_regex) = get_or_compile_regex(&typed_regexp) else {
+        let Some(compiled_regex) = get_or_compile_regex(vm, &typed_regexp) else {
             return Ok(None);
         };
 
@@ -2437,7 +2445,7 @@ impl RegExpPrototype {
             // Only use fast path when we don't need to update lastIndex.
             if !global
                 && !sticky
-                && let Some(compiled_regex) = get_or_compile_regex(&typed_regexp)
+                && let Some(compiled_regex) = get_or_compile_regex(vm, &typed_regexp)
             {
                 let utf16_view = string.utf16_string_view();
 
