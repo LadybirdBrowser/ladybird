@@ -103,7 +103,7 @@ private:
     DecoderErrorOr<DecodedOutput> complete_frame(DecodingFrame&);
     DecoderErrorOr<void> prepare_to_copy_frames_from(AVFrame const&);
     DecoderErrorOr<AVFrame*> copy_into_exportable_frame(AVFrame const&, VkSemaphore decoded_semaphore, u64 decoded_semaphore_value);
-    DecoderErrorOr<NonnullRefPtr<VideoSurface>> surface_for_exported_frame(AVFrame const& frame, AVFrame const& exported_frame);
+    DecoderErrorOr<NonnullRefPtr<VideoSurface>> surface_for_frame(AVFrame const&);
 
     FFmpegFunctions const& m_functions;
     VulkanVideoDevice& m_device;
@@ -130,10 +130,6 @@ private:
     bool m_received_end_of_stream { false };
     Vector<u64> m_drm_format_modifiers;
     VkImageDrmFormatModifierListCreateInfoEXT m_drm_format_modifier_list {};
-
-    // FFmpeg records the work that allocates images and readies them for export on a frames context's own command
-    // buffers, which it does not keep threads from sharing.
-    Mutex m_frames_context_mutex;
 
     mutable Mutex m_mutex;
     ConditionVariable m_condition { m_mutex };
