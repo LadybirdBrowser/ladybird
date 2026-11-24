@@ -35,7 +35,7 @@ static NonnullOwnPtr<IPC::Transport> start_server()
     auto our_send_right = MUST(server_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
     IPC::TransportMachPort::raise_receive_queue_limit(server_receive_right);
     rust_echo_server_serve(server_receive_right.release(), server_send_right.release());
-    return make<IPC::TransportMachPort>(move(our_receive_right), move(our_send_right));
+    return MUST(IPC::TransportMachPort::create(move(our_receive_right), move(our_send_right)));
 }
 #elif defined(AK_OS_WINDOWS)
 extern "C" void rust_echo_server_serve(int descriptor);

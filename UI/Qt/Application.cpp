@@ -906,6 +906,8 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         // The Hub may receive startup messages before it has constructed its transport.
         IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
 
+        auto transport = TRY(IPC::Transport::create(move(port_a_recv), move(port_b_send)));
+
         Optional<Core::Process> spawned_process;
         {
             MutexLocker child_registration_locker(hub_bootstrap->server.child_registration_lock());
@@ -913,8 +915,6 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
             hub_bootstrap->server.register_child_transport(spawned_process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
         }
         auto process = spawned_process.release_value();
-
-        auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
 #    else
         int socket_fds[2] {};
         TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));

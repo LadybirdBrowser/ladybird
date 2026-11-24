@@ -716,7 +716,12 @@ ErrorOr<void> Session::create_server()
                     auto session = weak_session.strong_ref();
                     if (!session)
                         return;
-                    if (auto result = session->accept_browser_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right))); result.is_error())
+                    auto browser_transport = IPC::Transport::create(move(transport.receive_right), move(transport.send_right));
+                    if (browser_transport.is_error()) {
+                        session->reject_start_promise(browser_transport.release_error());
+                        return;
+                    }
+                    if (auto result = session->accept_browser_transport(browser_transport.release_value()); result.is_error())
                         session->reject_start_promise(result.release_error());
                 });
             });
