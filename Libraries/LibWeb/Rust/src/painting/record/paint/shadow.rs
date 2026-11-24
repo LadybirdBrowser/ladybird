@@ -129,6 +129,9 @@ fn paint_box_shadow_layers<O: Observer>(
         let offset_y = converter.rounded_device_pixels(geometry.offset_y);
         let blur_radius = converter.rounded_device_pixels(geometry.blur_radius);
         let spread_distance = converter.rounded_device_pixels(geometry.spread_distance);
+        if offset_x == 0 && offset_y == 0 && blur_radius == 0 && spread_distance == 0 {
+            continue;
+        }
         let inner = layer.is_inner();
         let device_content_rect = converter.rounded_device_rect(geometry.content_rect);
 
