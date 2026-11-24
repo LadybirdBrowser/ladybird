@@ -1,0 +1,14 @@
+In Ladybird, an inline box broken across lines with
+box-decoration-break:slice draws its box shadow around one strip as long
+as all its pieces placed end to end, and each piece shows its own slice,
+cut at its break edges. Chrome 158, Firefox 151, and WebKit 26.5 render
+the test that way, and a probe of inset, blurred, rounded, and several
+shadows too, but for where Firefox places an inset shadow’s strip.
+
+Gecko draws the shadow the same way: nsCSSRendering::GetShadowRect()
+joins the pieces with JoinBoxesForSlice(). Blink and WebKit instead draw
+each piece’s own shadow and leave out its sides at the breaks. Blink’s
+PaintNormalBoxShadow() in InlineBoxFragmentPainterBase hands its
+SidesToInclude() to BoxPainterBase, which clips with ClipToSides(). And
+WebKit’s InlineBoxPainter::paintBoxShadow() hands its closed edges to
+BackgroundPainter::paintBoxShadow().
