@@ -185,6 +185,38 @@ TEST_CASE(vp9_inter_frame_size_change_needs_another_decoder)
         EXPECT_EQ(frame.size, Gfx::Size<u32>(1280, 720));
 }
 
+// A quality switch can start a sequence with larger frames, which FFmpeg does not renegotiate while the pixel format stays
+// the same.
+TEST_CASE(av1_sequence_with_larger_frames_continues_in_a_new_codec_context)
+{
+    auto decoding = open_decoding("./av1_sequence_size_increase.webm"sv, Media::CodecID::AV1);
+    if (!decoding.has_value())
+        return;
+
+    Vector<DecodedFrame> frames;
+    while (true) {
+        auto frame_result = decoding->next_frame();
+        if (frame_result.is_error()) {
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto frame = frame_result.release_value();
+        auto surface = frame->surface();
+        EXPECT(surface);
+        if (surface) {
+            EXPECT(frame->width() <= static_cast<u32>(surface->size().width()));
+            EXPECT(frame->height() <= static_cast<u32>(surface->size().height()));
+        }
+        frames.append({ frame->timestamp(), frame->size() });
+    }
+
+    EXPECT_EQ(frames.size(), 12u);
+    if (frames.size() == 12) {
+        EXPECT_EQ(frames.first().size, Gfx::Size<u32>(320, 240));
+        EXPECT_EQ(frames.last().size, Gfx::Size<u32>(640, 480));
+    }
+}
+
 // The file's mastering display and content light levels are only in metadata OBUs, which must survive the copy of a frame
 // made for export.
 TEST_CASE(frames_carry_the_high_dynamic_range_metadata_in_their_bitstream)
