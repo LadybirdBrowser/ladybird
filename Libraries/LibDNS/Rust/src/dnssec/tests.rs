@@ -115,7 +115,6 @@ struct Zone {
     nsec_records: Vec<ResourceRecord>,
     signing_time: u32,
 
-    corrupt_signatures: bool,
     omit_denial_records: bool,
     omit_wildcard_proof: bool,
     spoof_answer_owner: Option<DomainName>,
@@ -135,7 +134,6 @@ impl Zone {
             delegations: Vec::new(),
             nsec_records: Vec::new(),
             signing_time: NOW,
-            corrupt_signatures: false,
             omit_denial_records: false,
             omit_wildcard_proof: false,
             spoof_answer_owner: None,
@@ -332,9 +330,6 @@ impl Zone {
 
         let private_key = &self.key_pair.as_ref().unwrap().private_key;
         rrsig.signature = libcrypto_rust::okp_sign(private_key, &signed_data, &[]).unwrap();
-        if self.corrupt_signatures {
-            rrsig.signature[0] ^= 0x01;
-        }
         record(&first.name, ResourceType::RRSIG, RecordData::Rrsig(rrsig), first.ttl)
     }
 
@@ -950,12 +945,26 @@ fn name_error_below_the_first_nsec3_hash_is_proven() {
     assert!(result.records.is_empty());
 }
 
+// Drops the NSEC and NSEC3 records, and their signatures, from a response.
+fn strip_denial_records(response: &mut Message) {
+    let is_denial = |rtype: ResourceType| rtype == ResourceType::NSEC || rtype == ResourceType::NSEC3;
+    response.authorities.retain(|record| match &record.data {
+        RecordData::Rrsig(rrsig) => !is_denial(rrsig.type_covered),
+        _ => !is_denial(record.rtype),
+    });
+}
+
 #[test]
 fn name_error_without_proof_is_bogus() {
     for use_nsec3 in [false, true] {
-        let (mut server, mut validator) = setup(use_nsec3, |server| server.zones[1].omit_denial_records = true);
+        let (mut server, mut validator) = setup(use_nsec3, |_| {});
 
-        assert!(validated_lookup(&mut server, &mut validator, "missing.example", ResourceType::A).is_err());
+        let mut lookup = Lookup::start(&mut server, "missing.example", ResourceType::A);
+        strip_denial_records(&mut lookup.response);
+        assert_eq!(
+            lookup.finish(&mut server, &mut validator, NOW),
+            Err("Name error is not proven")
+        );
     }
 }
 
@@ -1053,17 +1062,31 @@ fn nsec3_iterations_count_only_for_usable_records() {
 #[test]
 fn no_data_without_proof_is_bogus() {
     for use_nsec3 in [false, true] {
-        let (mut server, mut validator) = setup(use_nsec3, |server| server.zones[1].omit_denial_records = true);
+        let (mut server, mut validator) = setup(use_nsec3, |_| {});
 
-        assert!(validated_lookup(&mut server, &mut validator, "www.example", ResourceType::AAAA).is_err());
+        let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::AAAA);
+        strip_denial_records(&mut lookup.response);
+        assert_eq!(
+            lookup.finish(&mut server, &mut validator, NOW),
+            Err("Absence of the requested type is not proven")
+        );
     }
 }
 
 #[test]
 fn bad_signature_is_bogus() {
-    let (mut server, mut validator) = setup(false, |server| server.zones[1].corrupt_signatures = true);
+    let (mut server, mut validator) = setup(false, |_| {});
 
-    assert!(validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).is_err());
+    let mut lookup = Lookup::start(&mut server, "www.example", ResourceType::A);
+    for record in &mut lookup.response.answers {
+        if let RecordData::Rrsig(rrsig) = &mut record.data {
+            rrsig.signature[0] ^= 0x01;
+        }
+    }
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW),
+        Err("RRset signature did not validate")
+    );
 }
 
 #[test]
