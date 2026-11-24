@@ -821,16 +821,8 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
 bool Window::has_sticky_activation() const
 {
-    // When the current high resolution time given W
-    auto current_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
-
-    // is greater than or equal to the last activation timestamp in W
-    if (current_time >= m_last_activation_timestamp) {
-        // W is said to have sticky activation.
-        return true;
-    }
-
-    return false;
+    // When W's has sticky activation is true, then W is said to have sticky activation.
+    return m_has_sticky_activation;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#transient-activation
@@ -858,8 +850,8 @@ bool Window::has_transient_activation() const
 // https://html.spec.whatwg.org/multipage/interaction.html#history-action-activation
 bool Window::has_history_action_activation() const
 {
-    // When the last history-action activation timestamp of W is not equal to the last activation timestamp of W, then W is said to have history-action activation.
-    return m_last_history_action_activation_timestamp != m_last_activation_timestamp;
+    // When W's has history-action activation is true, then W is said to have history-action activation.
+    return m_has_history_action_activation;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
@@ -877,13 +869,13 @@ void Window::consume_user_activation_of_windows_hosted_by(Page& page, UserActiva
     for (auto& window : windows) {
         switch (consumption) {
         case UserActivationConsumption::Transient:
-            // 5. For each window in windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
+            // 5. For each window of windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
             if (window->last_activation_timestamp() != AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>)
                 window->set_last_activation_timestamp(-AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>);
             break;
         case UserActivationConsumption::HistoryAction:
-            // 5. For each window in windows, set window's last history-action activation timestamp to window's last activation timestamp.
-            window->set_last_history_action_activation_timestamp(window->last_activation_timestamp());
+            // 5. For each window of windows, set window's has history-action activation to false.
+            window->set_has_history_action_activation(false);
             break;
         }
     }
@@ -907,13 +899,19 @@ void Window::consume_history_action_user_activation()
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#activation-notification
-// Steps 5.1 and 5.2 for one of the windows.
+// Steps 5.1 to 5.4 for one of the windows.
 void Window::notify_about_user_activation()
 {
     // 5.1. Set window's last activation timestamp to the current high resolution time.
     m_last_activation_timestamp = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
 
-    // 5.2. Notify the close watcher manager about user activation given window.
+    // 5.2. Set window's has history-action activation to true.
+    m_has_history_action_activation = true;
+
+    // 5.3. Set window's has sticky activation to true.
+    m_has_sticky_activation = true;
+
+    // 5.4. Notify the close watcher manager about user activation given window.
     close_watcher_manager()->notify_about_user_activation();
 }
 
@@ -955,10 +953,12 @@ void Window::run_activation_notification_steps(DOM::Document& document)
             windows.append(*window);
     }
 
-    // 5. For each window in windows:
+    // 5. For each window of windows:
     for (auto& window : windows) {
         // 1. Set window's last activation timestamp to the current high resolution time.
-        // 2. Notify the close watcher manager about user activation given window.
+        // 2. Set window's has history-action activation to true.
+        // 3. Set window's has sticky activation to true.
+        // 4. Notify the close watcher manager about user activation given window.
         window->notify_about_user_activation();
     }
 
