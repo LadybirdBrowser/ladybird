@@ -1,0 +1,13 @@
+When a box is restyled in place, Ladybird gives it back the display
+its box uses, so a replaced element whose display computes to a
+layout-internal value such as table-cell stays an inline box, as
+section 2.4 of CSS Display 3 says. Chrome 158, Firefox 151 and WebKit
+26.5 keep the size of every element in the test (an input, an img in
+table-cell, table-row and table displays, and a canvas, each after a
+float) across a restyle of the whole document, as Ladybird now does.
+None of the three turns such an element into a table part to begin
+with: Blink’s HTMLImageElement::CreateLayoutObject() makes a LayoutImage
+whatever the display, Gecko’s nsCSSFrameConstructor::FindHTMLData()
+finds an img’s frame data (FindImgData()) ahead of any data for its
+display, and WebKit’s HTMLImageElement::createElementRenderer() always
+makes a RenderImage.
