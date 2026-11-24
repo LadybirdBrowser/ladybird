@@ -3832,6 +3832,15 @@ bool HTMLMediaElement::is_allowed_to_play() const
     if (auto window = document().window(); window && window->has_sticky_activation())
         return true;
 
+    // NB: The sticky activation of an ancestor also counts if the document is allowed to use the "autoplay" feature.
+    //     A cross-origin iframe is only allowed to use it if its container allows it.
+    if (document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay)) {
+        for (auto const& ancestor : document().ancestor_navigables()) {
+            if (ancestor->active_window_has_sticky_activation())
+                return true;
+        }
+    }
+
     switch (AutoplaySettings::the().decision_for_origin(document(), document().origin())) {
     case AutoplayDecision::Allowed:
         return true;

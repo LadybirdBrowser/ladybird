@@ -73,6 +73,7 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const = 0;
     virtual SandboxingFlagSet active_document_sandboxing_flag_set() const = 0;
     virtual bool active_document_is_fully_active() const = 0;
+    virtual bool active_window_has_sticky_activation() const = 0;
     virtual bool active_document_is_completely_loaded() const = 0;
     virtual bool active_document_is(DOM::Document const&) const = 0;
 

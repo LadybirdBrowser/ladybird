@@ -1488,6 +1488,17 @@ void WebContentPage::give_user_activation()
     m_last_user_activation = MonotonicTime::now();
 }
 
+void WebContentPage::give_sticky_activation_to_window_of(Web::HTML::CrossProcessId document_id)
+{
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto document = navigable.document_with_id(document_id);
+        if (!document || document->host() != this)
+            return IterationDecision::Continue;
+        navigable.give_sticky_activation_to_window_of(*document);
+        return IterationDecision::Break;
+    });
+}
+
 void WebContentPage::notify_about_user_activation(Web::HTML::CrossProcessId document_id)
 {
     give_user_activation();
@@ -2101,7 +2112,7 @@ void WebContentPage::did_request_show_notification(u64 notification_id, Web::HTM
     RefPtr<Gfx::Bitmap const> icon_bitmap;
     if (icon.has_value() && icon->is_valid())
         icon_bitmap = icon->bitmap();
-    NotificationManager::the().show(*this, notification_id, *document->top_level_origin(), move(data), move(icon_bitmap));
+    NotificationManager::the().show(*this, notification_id, document_id, *document->top_level_origin(), move(data), move(icon_bitmap));
 }
 
 void WebContentPage::did_request_close_notification(u64 notification_id)

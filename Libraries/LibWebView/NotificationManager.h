@@ -16,6 +16,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
@@ -39,7 +40,7 @@ public:
     static constexpr int icon_maximum_side = 128;
 
     // The origin is the top-level origin of the document the notification came from, as the UI process knows it.
-    void show(WebContentPage&, u64 page_notification_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
+    void show(WebContentPage&, u64 page_notification_id, Web::HTML::CrossProcessId document_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
     void close(WebContentPage&, u64 page_notification_id);
     // The page's document is gone: The notification stays up, and a click on it opens the site in a new tab.
     void abandon(WebContentPage&, u64 page_notification_id);
@@ -63,6 +64,7 @@ private:
         RefPtr<WebContentPage> page;
         Web::PageId page_id;
         u64 page_notification_id { 0 };
+        Web::HTML::CrossProcessId document_id;
         URL::Origin origin;
         // What a click opens once the page is gone.
         URL::URL origin_url;

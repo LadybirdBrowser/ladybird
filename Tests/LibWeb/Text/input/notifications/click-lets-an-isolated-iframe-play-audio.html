@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A click on a notification gives its window sticky activation, which a cross-site iframe added afterwards sees
+    // when its container allows it to autoplay.
+    promiseTest(async () => {
+        const iframeUrl = new URL(
+            await httpTestServer().createEcho("GET", "/notification-click-autoplay-iframe", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    internals.setAutoplayPolicy("block-audio");
+                    addEventListener("message", () => {
+                        const audio = new Audio();
+                        audio.play().catch(() => {});
+                        parent.postMessage(audio.paused ? "blocked" : "playing", "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("notification-click-autoplay-iframe");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Click me");
+        await new Promise((resolve, reject) => {
+            notification.onshow = () => internals.clickNotificationForTesting(notification);
+            notification.onclick = resolve;
+            notification.onerror = () => reject(new Error("notification failed to show"));
+        });
+        notification.close();
+        println(`Has been active after the notification click: ${navigator.userActivation.hasBeenActive}`);
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.allow = "autoplay";
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const reply = nextMessage();
+        iframe.contentWindow.postMessage("play", "*");
+        println(`Audible play() in the iframe: ${await reply}`);
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

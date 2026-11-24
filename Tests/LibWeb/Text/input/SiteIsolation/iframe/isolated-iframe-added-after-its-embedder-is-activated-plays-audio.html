@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<button id="button" style="width: 100px; height: 50px">embedder control</button>
+<script>
+    // An embedder activated before it has any iframes lets a cross-site iframe it adds later play audible media. The
+    // click reaches no other process, but the UI process still learns that the embedder has sticky activation.
+    promiseTest(async () => {
+        const iframeBody = `<!DOCTYPE html><script>
+            internals.setAutoplayPolicy("block-audio");
+            const tryToPlayAudibly = () => {
+                const audio = new Audio();
+                audio.play().catch(() => {});
+                return audio.paused ? "blocked" : "playing";
+            };
+            const tryToUnmute = () => {
+                const video = document.createElement("video");
+                video.muted = true;
+                video.play().catch(() => {});
+                video.muted = false;
+                return video.paused ? "paused" : "playing";
+            };
+            addEventListener("message", () => parent.postMessage({ play: tryToPlayAudibly(), unmute: tryToUnmute() }, "*"));
+            parent.postMessage("ready", "*");
+        <\/script>`;
+
+        const hostname = uniqueLocalhostHostname("late-autoplay-iframe");
+        const iframeUrl = async name => {
+            const url = new URL(
+                await httpTestServer().createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: iframeBody,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const addIframe = async (name, allow) => {
+            const ready = nextMessage();
+            const iframe = document.createElement("iframe");
+            if (allow)
+                iframe.allow = allow;
+            iframe.src = await iframeUrl(name);
+            document.body.appendChild(iframe);
+            await ready;
+            return iframe;
+        };
+
+        const askIframe = async iframe => {
+            const reply = nextMessage();
+            iframe.contentWindow.postMessage("query", "*");
+            const { play, unmute } = await reply;
+            return `play() ${play}, unmuting ${unmute}`;
+        };
+
+        const rect = document.getElementById("button").getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 10, rect.top + 10);
+        for (let attempts = 0; attempts < 600 && !navigator.userActivation.hasBeenActive; ++attempts)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        println(`Embedder has been active after the click: ${navigator.userActivation.hasBeenActive}`);
+
+        const iframe = await addIframe("late", "autoplay");
+        println(`Allowed iframe added after the click: ${await askIframe(iframe)}`);
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
