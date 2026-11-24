@@ -26,7 +26,7 @@ public:
 private:
     HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, Filter filter);
 
-    virtual void collect_elements_into(Vector<GC::RawPtr<DOM::Element>>&) const override;
+    virtual void collect_elements_into(GC::RootVector<GC::Ref<DOM::Element>>&) const override;
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
