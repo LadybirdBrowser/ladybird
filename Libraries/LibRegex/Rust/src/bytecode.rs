@@ -53,12 +53,29 @@ pub struct Program {
     pub dot_all: bool,
     /// Named capture groups (name → group index).
     pub named_groups: Vec<NamedGroupEntry>,
+
+    // The data of the instructions that do not fit in an instruction. An instruction refers to its data by its index in
+    // one of these tables, so that each instruction is as small as the most common instructions.
+    /// The character classes of `CharClass` instructions.
+    pub classes: Vec<CharRanges>,
+    /// The properties of `UnicodeProperty` instructions.
+    pub unicode_properties: Vec<UnicodePropertyData>,
+    /// The group names of `BackrefNamed` instructions.
+    pub backref_names: Vec<String>,
+    /// The data of `RepeatCheck` instructions.
+    pub repeat_checks: Vec<RepeatCheck>,
+    /// The data of `StringPropertyMatch` instructions.
+    pub string_properties: Vec<StringProperty>,
+    /// The registers that `ProgressCheck` instructions clear, as lists packed as [len, reg0, reg1, ..., len, ...].
+    pub register_lists: Vec<u32>,
+    /// The data of `GreedyLoop` and `LazyLoop` instructions.
+    pub loops: Vec<SimpleLoop>,
 }
 
 /// A single bytecode instruction in Ladybird's concrete implementation of the
 /// abstract matchers from ECMA-262 Pattern Semantics.
 /// <https://tc39.es/ecma262/#sec-pattern-semantics>
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
     /// Match a single character (u32 code point, supports WTF-16 lone surrogates).
     Char(u32),
@@ -69,14 +86,14 @@ pub enum Instruction {
     /// Match any character (`.`). If `dot_all` is true, matches newlines too.
     AnyChar { dot_all: bool },
 
-    /// Match a character in a set of ranges. `negated` inverts the match.
-    CharClass { ranges: CharRanges, negated: bool },
+    /// Match a character in the set of ranges `Program::classes[class]`. `negated` inverts the match.
+    CharClass { class: u32, negated: bool },
 
     /// Match a built-in character class (\d, \w, \s and negations).
     BuiltinClass(BuiltinCharacterClass),
 
-    /// Match a Unicode property (boxed to keep Instruction small).
-    UnicodeProperty(Box<UnicodePropertyData>),
+    /// Match the Unicode property `Program::unicode_properties[index]`.
+    UnicodeProperty(u32),
 
     /// Unconditional jump to target instruction.
     Jump(u32),
@@ -112,8 +129,8 @@ pub enum Instruction {
     /// Backreference: match the same string as capture group `index`.
     Backref(u32),
 
-    /// Named backreference.
-    BackrefNamed(String),
+    /// Named backreference, to the group named `Program::backref_names[index]`.
+    BackrefNamed(u32),
 
     /// Begin a repetition counter at register `counter_reg`.
     /// Sets the register to 0.
@@ -121,13 +138,8 @@ pub enum Instruction {
 
     /// Check repetition: if counter < max, increment and jump to `body`.
     /// Otherwise fall through. Used with Split for greedy/lazy.
-    RepeatCheck {
-        counter_reg: u32,
-        min: u32,
-        max: Option<u32>,
-        body: u32,
-        greedy: bool,
-    },
+    /// The bounds of the check are `Program::repeat_checks[check]`.
+    RepeatCheck { check: u32, body: u32 },
 
     /// Lookahead/lookbehind assertion.
     /// `positive`: whether match must succeed or fail.
@@ -152,41 +164,63 @@ pub enum Instruction {
     /// No-op, used as a placeholder during compilation.
     Nop,
 
-    /// Atomically match one string from a Unicode string property.
+    /// Atomically match one string from the Unicode string property `Program::string_properties[index]`.
     /// Tries multi-codepoint strings first (longest match wins), then falls
     /// back to single-codepoint UnicodeProperty match. Does not create
     /// backtrack points -- once a match is found, it's committed.
-    StringPropertyMatch {
-        /// Multi-codepoint strings, sorted longest first and packed as:
-        /// [len, cp0, cp1, ..., len, cp0, ...]
-        strings: Box<[u32]>,
-        /// Fallback for single-codepoint matches.
-        property: Box<UnicodePropertyData>,
-    },
+    StringPropertyMatch(u32),
 
     /// Progress check: save position at `reg`, fail if no progress since last visit.
     /// Used to prevent infinite loops in zero-width quantifier bodies.
-    /// When `clear_captures` is set, those registers are cleared to -1 before
+    /// The registers of the list at `Program::register_lists[clear_captures]` are cleared to -1 before
     /// backtracking on zero-width, per ECMA-262 RepeatMatcher step 2.b.
-    ProgressCheck { reg: u32, clear_captures: Vec<u32> },
+    ProgressCheck { reg: u32, clear_captures: u32 },
 
     /// Greedy loop for simple character matchers.
     /// Greedily consumes as many matching characters as possible, then pushes a
     /// single backtrack state. On backtrack, gives up one character at a time.
     /// This avoids per-iteration Split/backtrack overhead for simple quantifiers.
-    GreedyLoop {
-        matcher: SimpleMatch,
-        min: u32,
-        max: Option<u32>,
-    },
+    /// The loop is `Program::loops[index]`. `same_matcher_suffix` tells if the loop has a `same_matcher_suffix_min`,
+    /// so that a backtrack into the loop looks at the table only then.
+    GreedyLoop { index: u32, same_matcher_suffix: bool },
 
     /// Lazy loop for simple character matchers.
     /// Tries to match as few characters as possible, then on backtrack consumes one more.
-    LazyLoop {
-        matcher: SimpleMatch,
-        min: u32,
-        max: Option<u32>,
-    },
+    /// The loop is `Program::loops[index]`.
+    LazyLoop(u32),
+}
+
+// A program is mostly instructions, so their size is most of the memory of a regex.
+const _: () = assert!(size_of::<Instruction>() == 12);
+
+/// The data of a `RepeatCheck` instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RepeatCheck {
+    pub counter_reg: u32,
+    pub min: u32,
+    pub max: Option<u32>,
+    pub greedy: bool,
+}
+
+/// The data of a `StringPropertyMatch` instruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringProperty {
+    /// Multi-codepoint strings, sorted longest first and packed as:
+    /// [len, cp0, cp1, ..., len, cp0, ...]
+    pub strings: Box<[u32]>,
+    /// Fallback for single-codepoint matches.
+    pub property: UnicodePropertyData,
+}
+
+/// The data of a `GreedyLoop` or `LazyLoop` instruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SimpleLoop {
+    pub matcher: SimpleMatch,
+    pub min: u32,
+    pub max: Option<u32>,
+    /// The sum of the minimum counts of the loops right after this one that match with the same matcher, if one of
+    /// them has a minimum count, so a greedy loop can give back that suffix in one step.
+    pub same_matcher_suffix_min: Option<u32>,
 }
 
 /// Data for a Unicode property match instruction.
@@ -287,6 +321,95 @@ impl Program {
             multiline: false,
             dot_all: false,
             named_groups: Vec::new(),
+            classes: Vec::new(),
+            unicode_properties: Vec::new(),
+            backref_names: Vec::new(),
+            repeat_checks: Vec::new(),
+            string_properties: Vec::new(),
+            register_lists: Vec::new(),
+            loops: Vec::new(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn class(&self, index: u32) -> &CharRanges {
+        &self.classes[index as usize]
+    }
+
+    #[inline(always)]
+    pub fn unicode_property(&self, index: u32) -> &UnicodePropertyData {
+        &self.unicode_properties[index as usize]
+    }
+
+    #[inline(always)]
+    pub fn backref_name(&self, index: u32) -> &str {
+        &self.backref_names[index as usize]
+    }
+
+    #[inline(always)]
+    pub fn repeat_check(&self, index: u32) -> &RepeatCheck {
+        &self.repeat_checks[index as usize]
+    }
+
+    #[inline(always)]
+    pub fn string_property(&self, index: u32) -> &StringProperty {
+        &self.string_properties[index as usize]
+    }
+
+    /// The registers of the list that starts at `index` in `register_lists`.
+    #[inline(always)]
+    pub fn register_list(&self, index: u32) -> &[u32] {
+        let start = index as usize;
+        let len = self.register_lists[start] as usize;
+        &self.register_lists[start + 1..start + 1 + len]
+    }
+
+    #[inline(always)]
+    pub fn simple_loop(&self, index: u32) -> &SimpleLoop {
+        &self.loops[index as usize]
+    }
+
+    /// Set `same_matcher_suffix_min` of the loop of each `GreedyLoop` instruction.
+    ///
+    /// The suffix of a loop is the run of `GreedyLoop` and `LazyLoop` instructions right after it
+    /// that have the same matcher. One backward pass keeps the run that starts at `pc + 1`.
+    pub fn compute_same_matcher_suffix_mins(&mut self) {
+        // The loop at `pc + 1`, and the sum (None on overflow) and positive-min flag of the run
+        // of loops with its matcher that starts there.
+        let mut next_run: Option<(u32, Option<u32>, bool)> = None;
+
+        for pc in (0..self.instructions.len()).rev() {
+            let index = match self.instructions[pc] {
+                Instruction::GreedyLoop { index, .. } | Instruction::LazyLoop(index) => index,
+                _ => {
+                    next_run = None;
+                    continue;
+                }
+            };
+            let simple_loop = &self.loops[index as usize];
+
+            let (suffix_total, suffix_has_positive_min) = match next_run {
+                Some((next_index, total, has_positive_min))
+                    if self.loops[next_index as usize].matcher == simple_loop.matcher =>
+                {
+                    (total, has_positive_min)
+                }
+                _ => (Some(0), false),
+            };
+            next_run = Some((
+                index,
+                suffix_total.and_then(|total| total.checked_add(simple_loop.min)),
+                suffix_has_positive_min || simple_loop.min > 0,
+            ));
+
+            if let Instruction::GreedyLoop { .. } = self.instructions[pc] {
+                let suffix_min = if suffix_has_positive_min { suffix_total } else { None };
+                self.loops[index as usize].same_matcher_suffix_min = suffix_min;
+                self.instructions[pc] = Instruction::GreedyLoop {
+                    index,
+                    same_matcher_suffix: suffix_min.is_some(),
+                };
+            }
         }
     }
 
