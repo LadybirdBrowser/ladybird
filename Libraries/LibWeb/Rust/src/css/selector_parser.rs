@@ -822,7 +822,10 @@ impl<'a> SelectorParser<'a> {
             ))));
         };
         let metadata = pseudo_class.metadata();
-        if !metadata.is_valid_as_function || function_values.is_empty() {
+        if !metadata.is_valid_as_function {
+            return Err(());
+        }
+        if function_values.is_empty() && metadata.parameter_type != PseudoClassParameterType::ForgivingSelectorList {
             return Err(());
         }
         if pseudo_class == PseudoClassType::Has && self.pseudo_class_context.contains(&PseudoClassType::Has) {
