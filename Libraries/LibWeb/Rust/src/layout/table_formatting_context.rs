@@ -1861,6 +1861,11 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
+            // In fixed mode, only the cells of the first row measure the columns (see cell_is_measured), so a length
+            // width on a cell in a later row doesn't constrain its column either.
+            if !self.cell_is_measured(cell, TrackAxis::Column) {
+                continue;
+            }
             let style = self.style(cell.box_);
             // "any of the cells spanning only that column"
             if cell.column_span == 1 && style.width().is_length() {
