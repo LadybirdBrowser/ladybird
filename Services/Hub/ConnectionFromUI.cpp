@@ -13,6 +13,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/DefaultBrowser.h>
@@ -670,8 +671,12 @@ void ConnectionFromUI::fetch_search_suggestions(u64 request_id, String engine_na
         async_request_finished(request_id, true, {}, {}, {});
         return;
     }
+
+    auto request_headers = HTTP::HeaderList::create();
+    request_headers->set({ "User-Agent"sv, Web::default_user_agent });
+
     static constexpr Array response_header_names { "Content-Type"sv };
-    start_request(request_id, "GET"sv, *url, *HTTP::HeaderList::create(), {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, is_private, response_header_names);
+    start_request(request_id, "GET"sv, *url, request_headers, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, is_private, response_header_names);
 }
 
 // NB: A report goes only to the report server, with no credentials, and with only the headers that reports carry.
