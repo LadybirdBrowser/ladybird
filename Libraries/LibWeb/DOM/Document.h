@@ -28,6 +28,7 @@
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibGfx/Point.h>
 #include <LibHTTP/Cache/CacheMode.h>
@@ -2669,11 +2670,10 @@ private:
     // The ids that aria-labelledby and aria-describedby reference in a tree, validated lazily against the tree's
     // dom_tree_version. Computing accessible names asks this for the parent and the ancestors of every text node.
     struct IdsReferencedFromAria {
-        GC::Weak<Node> root;
         u64 dom_tree_version { 0 };
         HashTable<Utf16FlyString> ids;
     };
-    mutable HashMap<GC::RawPtr<Node const>, IdsReferencedFromAria> m_ids_referenced_from_aria;
+    mutable GC::WeakHashMap<Node, IdsReferencedFromAria> m_ids_referenced_from_aria;
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
     Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
