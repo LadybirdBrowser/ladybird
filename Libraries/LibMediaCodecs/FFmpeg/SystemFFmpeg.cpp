@@ -78,6 +78,13 @@ DecoderErrorOr<NonnullOwnPtr<SystemFFmpeg>> SystemFFmpeg::try_load(ByteString co
     auto major = functions->avcodec_version() >> 16;
     if (major < LOWEST_SUPPORTED_LIBAVCODEC_MAJOR || major > HIGHEST_VERIFIED_LIBAVCODEC_MAJOR)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "libavcodec major {} provided by {} is outside the supported range", major, library_path);
+#if !defined(__GLIBC__)
+    // The bundled libraries version their symbols apart from the system ones, which keeps this libavcodec's calls into
+    // libavutil on its own libavutil. A C library that ignores symbol versions binds them to the bundled libavutil
+    // instead, since it's already loaded — so this libavcodec works only when its libavutil has the bundled major.
+    if (auto avutil_major = functions->avutil_version() >> 16; avutil_major != LIBAVUTIL_VERSION_MAJOR)
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "{} needs libavutil major {}, but its calls would reach the bundled major {}", library_path, avutil_major, LIBAVUTIL_VERSION_MAJOR);
+#endif
     TRY(verify_library_layout(*functions));
     resolve_codec_ids(*functions);
 
