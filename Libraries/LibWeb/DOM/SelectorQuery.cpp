@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/QuickSort.h>
 #include <LibGC/RootVector.h>
@@ -313,10 +314,10 @@ public:
         return result;
     }
 
-    void collect(ParentNode& root, Vector<GC::RawPtr<Element>>& elements) const
+    void collect(ParentNode& root, GC::RootVector<GC::Ref<Node>>& nodes) const
     {
         for_each_match(root, [&](Element& element) {
-            elements.append(element);
+            nodes.append(element);
             return false;
         });
     }
@@ -414,7 +415,7 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
     auto& document = root.document();
     if (m_is_result_cacheable) {
         if (auto const* cached_elements = document.query_selector_result_cache().get(root, *this, QuerySelectorResultCache::ResultType::FirstOnly))
-            return cached_elements->is_empty() ? nullptr : cached_elements->first().ptr();
+            return cached_elements->is_empty() ? nullptr : &cached_elements->first();
     }
 
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
@@ -425,20 +426,23 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
         result = DomSelectorQuery { program(document), root, root }.first(root);
 
     if (m_is_result_cacheable) {
-        Vector<GC::RawPtr<Element>> elements;
-        if (result)
-            elements.append(*result);
-        document.query_selector_result_cache().set(root, *this, QuerySelectorResultCache::ResultType::FirstOnly, move(elements));
+        auto& cache = document.query_selector_result_cache();
+        if (result) {
+            GC::Ref<Node> node = *result;
+            cache.set(root, *this, QuerySelectorResultCache::ResultType::FirstOnly, { &node, 1 });
+        } else {
+            cache.set(root, *this, QuerySelectorResultCache::ResultType::FirstOnly, {});
+        }
     }
     return result;
 }
 
-static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& elements)
+static GC::Ref<NodeList> create_node_list(GC::WeakVector<Element> const& elements)
 {
     GC::RootVector<GC::Ref<Node>> nodes;
     nodes.ensure_capacity(elements.size());
-    for (auto const& element : elements)
-        nodes.unchecked_append(static_cast<Node&>(*element));
+    for (auto& element : elements)
+        nodes.unchecked_append(element);
     return StaticNodeList::create(move(nodes));
 }
 
@@ -447,7 +451,7 @@ static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& ele
 GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
 {
     if (!root.first_element_child())
-        return create_node_list({});
+        return StaticNodeList::create(ReadonlySpan<GC::Ref<Node>> {});
 
     auto& document = root.document();
     if (m_is_result_cacheable) {
@@ -456,25 +460,31 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     }
 
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    Vector<GC::RawPtr<Element>> elements;
+    GC::RootVector<GC::Ref<Node>> nodes;
     if (m_matches_every_element) {
         root.for_each_in_subtree_of_type<Element>([&](auto& element) {
-            elements.append(element);
+            nodes.append(element);
             return TraversalDecision::Continue;
         });
     } else {
-        DomSelectorQuery { program(document), root, root }.collect(root, elements);
+        DomSelectorQuery { program(document), root, root }.collect(root, nodes);
     }
 
-    auto node_list = create_node_list(elements);
     if (m_is_result_cacheable)
-        document.query_selector_result_cache().set(root, *this, QuerySelectorResultCache::ResultType::All, move(elements));
-    return node_list;
+        document.query_selector_result_cache().set(root, *this, QuerySelectorResultCache::ResultType::All, nodes);
+    return StaticNodeList::create(move(nodes));
 }
 
-Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(ParentNode const& root, SelectorQuery const& query, ResultType result_type)
+GC_DEFINE_ALLOCATOR(QuerySelectorResultCache);
+
+QuerySelectorResultCache::QuerySelectorResultCache()
+    : GC::WeakContainer(heap())
 {
-    auto it = m_entries.find(Key { &root, &query });
+}
+
+GC::WeakVector<Element> const* QuerySelectorResultCache::get(ParentNode const& root, SelectorQuery const& query, ResultType result_type)
+{
+    auto it = m_entries.find(Key { reinterpret_cast<FlatPtr>(&root), &query });
     if (it == m_entries.end())
         return nullptr;
 
@@ -491,22 +501,26 @@ Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(ParentNode cons
     return &entry.elements;
 }
 
-void QuerySelectorResultCache::set(ParentNode const& root, SelectorQuery const& query, ResultType result_type, Vector<GC::RawPtr<Element>> elements)
+void QuerySelectorResultCache::set(ParentNode const& root, SelectorQuery const& query, ResultType result_type, ReadonlySpan<GC::Ref<Node>> nodes)
 {
     static constexpr size_t MAX_QUERY_SELECTOR_RESULT_CACHE_SIZE = 64;
 
-    auto key = Key { &root, &query };
+    auto key = Key { reinterpret_cast<FlatPtr>(&root), &query };
     if (!m_entries.contains(key) && m_entries.size() >= MAX_QUERY_SELECTOR_RESULT_CACHE_SIZE)
         m_entries.remove(m_entries.begin());
 
-    m_entries.set(key, Entry { root, query, root.dom_tree_version(), root.character_data_version(), result_type, move(elements) });
+    Entry entry { root, query, root.dom_tree_version(), root.character_data_version(), result_type, {} };
+    entry.elements.ensure_capacity(nodes.size());
+    for (auto node : nodes)
+        entry.elements.append(static_cast<Element&>(*node));
+    m_entries.set(key, move(entry));
 }
 
-void QuerySelectorResultCache::visit_edges(GC::Cell::Visitor&)
+void QuerySelectorResultCache::remove_dead_cells(Badge<GC::Heap>)
 {
-    // Entries intentionally contain only weak or raw GC pointers, so the cache does not keep query roots or matched
-    // elements alive.
-    (void)m_entries;
+    m_entries.remove_all_matching([&](Key const&, Entry& entry) {
+        return entry.elements.remove_dead_cells(heap());
+    });
 }
 
 }

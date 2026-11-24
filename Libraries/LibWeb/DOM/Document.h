@@ -2664,7 +2664,7 @@ private:
     mutable SelectorQuery const* m_last_selector_query { nullptr };
 
     // Cache of querySelectorAll results, validated lazily against the query root's dom_tree_version/character_data_version.
-    OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
+    GC::Ptr<QuerySelectorResultCache> m_query_selector_result_cache;
 
     // The ids that aria-labelledby and aria-describedby reference in a tree, validated lazily against the tree's
     // dom_tree_version. Computing accessible names asks this for the parent and the ancestors of every text node.
