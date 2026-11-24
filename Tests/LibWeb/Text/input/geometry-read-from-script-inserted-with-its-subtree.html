@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="container" style="width: 300px"></div>
+<script>
+    test(() => {
+        // Lay the document out before the insertion, so the read has a committed layout to reuse.
+        document.body.offsetWidth;
+
+        const outer = document.createElement("div");
+        outer.innerHTML = `<div><div id="target">target</div></div><div id="script-parent"></div>`;
+        const script = document.createElement("script");
+        script.textContent = `
+            const target = document.getElementById("target");
+            window.widthSeenByScript = target.offsetWidth;
+            window.heightSeenByScript = target.offsetHeight;
+        `;
+        outer.querySelector("#script-parent").appendChild(script);
+
+        // The script runs during this insertion, while the subtree it reads is being connected.
+        container.appendChild(outer);
+
+        println(`width seen by script: ${window.widthSeenByScript}`);
+        println(`height seen by script > 0: ${window.heightSeenByScript > 0}`);
+        println(`width after insertion: ${document.getElementById("target").offsetWidth}`);
+    });
+</script>
