@@ -91,7 +91,13 @@ unsafe extern "C" {
         sync_send: *mut c_void,
         request_body_length: u64,
     ) -> *mut c_void;
-    fn web_xhr_incrementally_read_body(realm: *mut c_void, response: *mut c_void, xhr: *mut c_void, length: u64);
+    fn web_xhr_incrementally_read_body(
+        realm: *mut c_void,
+        response: *mut c_void,
+        xhr: *mut c_void,
+        request: *mut c_void,
+        length: u64,
+    );
     fn web_xhr_pause_until_sync_send_is_over(sync_send: *mut c_void);
     fn web_html_get_an_xml_encoding(
         bytes: ak::Span<'_, u8>,
@@ -417,6 +423,9 @@ pub(crate) struct XMLHttpRequest {
 
     #[gc(untraced)]
     async_request: RefCell<Option<CppRequest>>,
+    // NB: This names the request and does not keep it alive. It is only compared, see is_fetching().
+    #[gc(untraced)]
+    fetched_request: Cell<*mut c_void>,
     #[gc(untraced)]
     async_send_start_time: Cell<Option<Instant>>,
     timeout_timer: GcRefCell<Option<CppTimer>>,
@@ -600,6 +609,7 @@ impl XMLHttpRequest {
             last_download_progress_timestamp: Cell::new(None),
             last_download_progress_loaded: Cell::new(None),
             async_request: RefCell::new(None),
+            fetched_request: Cell::new(core::ptr::null_mut()),
             async_send_start_time: Cell::new(None),
             timeout_timer: GcRefCell::new(None),
         });
@@ -691,6 +701,14 @@ impl XMLHttpRequest {
             },
         );
         this.timeout_timer.replace(Some(timer));
+    }
+
+    // INTEROP: abort(), open() and an error end a fetch whose tasks can be queued already, and a task that carries a
+    //          response then runs after them. Other engines deliver nothing of a fetch that ended, and pages rely on
+    //          that. So the algorithms of a fetch run only for the request of the last send(), until one of those ends
+    //          its fetch.
+    pub(crate) fn is_fetching(&self, request: *mut c_void) -> bool {
+        self.fetched_request.get() == request
     }
 
     fn stop_timeout_timer(&self) {
@@ -1222,6 +1240,7 @@ impl XMLHttpRequest {
         self.fetch_controller().terminate();
         self.stop_timeout_timer();
         self.async_request.take();
+        self.fetched_request.set(core::ptr::null_mut());
         self.event_target().set_has_pending_activity(self.realm, false);
 
         // 11. Set variables associated with the object as follows:
@@ -1466,6 +1485,9 @@ impl XMLHttpRequest {
 
         // 11. If this’s synchronous flag is unset, then:
         if !this.synchronous.get() {
+            // NB: See is_fetching(). This names the request before the first event, as a listener can end this fetch.
+            this.fetched_request.set(request.as_ptr());
+
             // 1. Fire a progress event named loadstart at this with 0 and 0.
             this.fire_progress_event(vm, "loadstart", 0, 0);
 
@@ -1495,7 +1517,10 @@ impl XMLHttpRequest {
             }
 
             // 6. If this’s state is not opened or this’s send() flag is unset, then return.
-            if this.state.get() != State::Opened || !this.send.get() {
+            // INTEROP: A listener of the events above can call abort(), open() and send(), which leaves the state
+            //          opened and the send() flag set, but for another request. As in other engines, this one does not
+            //          fetch then.
+            if this.state.get() != State::Opened || !this.send.get() || !this.is_fetching(request.as_ptr()) {
                 return Ok(());
             }
 
@@ -1656,7 +1681,7 @@ impl XMLHttpRequest {
     }
 
     // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
-    pub(crate) fn process_response(this: Ref<Self>, vm: &Vm, response: CppResponseView) {
+    pub(crate) fn process_response(this: Ref<Self>, vm: &Vm, request: *mut c_void, response: CppResponseView) {
         // 1. Set this’s response to response.
         this.set_response(Response::Fetched(response.clone()));
 
@@ -1707,12 +1732,13 @@ impl XMLHttpRequest {
         // NB: See process_body_error().
 
         // 13. Incrementally read this’s response’s body, given processBodyChunk, processEndOfBody, processBodyError, and this’s relevant global object.
-        // SAFETY: The realm, the response and this are live.
+        // SAFETY: The realm, the response and this are live, and the request is that of the algorithm that runs.
         unsafe {
             web_xhr_incrementally_read_body(
                 this.realm.as_ptr().cast(),
                 response.as_ptr(),
                 cell_into_abi(this),
+                request,
                 length,
             );
         }
@@ -1945,6 +1971,7 @@ impl XMLHttpRequest {
         let vm = cx.vm();
         self.stop_timeout_timer();
         self.async_request.take();
+        self.fetched_request.set(core::ptr::null_mut());
 
         // 1. Abort this’s fetch controller.
         self.fetch_controller().abort(self.realm);
@@ -2087,6 +2114,7 @@ impl XMLHttpRequest {
     ) -> WebIdlResult<()> {
         self.stop_timeout_timer();
         self.async_request.take();
+        self.fetched_request.set(core::ptr::null_mut());
 
         // 1. Set xhr’s state to done.
         self.state.set(State::Done);

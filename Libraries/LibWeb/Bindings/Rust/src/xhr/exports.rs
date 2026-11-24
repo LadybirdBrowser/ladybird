@@ -200,6 +200,7 @@ unsafe fn xhr_arguments<'vm>(vm: *mut JSVM, xhr: *mut c_void) -> (&'vm Vm, Ref<X
 ///
 /// `vm` must be the live VM, and `xhr` the live cell of an XMLHttpRequest.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_request_body_chunk_length(
     vm: *mut JSVM,
     xhr: *mut c_void,
@@ -209,6 +210,19 @@ pub unsafe extern "C" fn web_rust_xhr_process_request_body_chunk_length(
     // SAFETY: The caller passes the live VM and the live cell of an XMLHttpRequest.
     let (vm, xhr) = unsafe { xhr_arguments(vm, xhr) };
     xhr.process_request_body_chunk_length(vm, request_body_length, bytes_length);
+=======
+pub extern "C" fn web_rust_xhr_process_request_body_chunk_length(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    request_body_length: u64,
+    bytes_length: u64,
+) {
+    let xhr = xhr.object::<XMLHttpRequest>();
+    if xhr.is_fetching(request) {
+        xhr.process_request_body_chunk_length(vm, request_body_length, bytes_length);
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -217,6 +231,7 @@ pub unsafe extern "C" fn web_rust_xhr_process_request_body_chunk_length(
 ///
 /// `vm` must be the live VM, and `xhr` the live cell of an XMLHttpRequest.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_request_end_of_body(
     vm: *mut JSVM,
     xhr: *mut c_void,
@@ -225,6 +240,18 @@ pub unsafe extern "C" fn web_rust_xhr_process_request_end_of_body(
     // SAFETY: The caller passes the live VM and the live cell of an XMLHttpRequest.
     let (vm, xhr) = unsafe { xhr_arguments(vm, xhr) };
     xhr.process_request_end_of_body(vm, request_body_length);
+=======
+pub extern "C" fn web_rust_xhr_process_request_end_of_body(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    request_body_length: u64,
+) {
+    let xhr = xhr.object::<XMLHttpRequest>();
+    if xhr.is_fetching(request) {
+        xhr.process_request_end_of_body(vm, request_body_length);
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -233,10 +260,23 @@ pub unsafe extern "C" fn web_rust_xhr_process_request_end_of_body(
 ///
 /// `vm` must be the live VM, `xhr` the live cell of an XMLHttpRequest, and `response` a live ResponseView.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_response(vm: *mut JSVM, xhr: *mut c_void, response: *mut c_void) {
     // SAFETY: The caller passes the live VM, the live cell of an XMLHttpRequest and a live ResponseView.
     let ((vm, xhr), response) = unsafe { (xhr_arguments(vm, xhr), CppResponseView::from_raw(response)) };
     XMLHttpRequest::process_response(xhr, vm, response);
+=======
+pub extern "C" fn web_rust_xhr_process_response(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    response: &LentCppCell<cpp_class::ResponseView>,
+) {
+    let (xhr, response) = (xhr.object::<XMLHttpRequest>(), CppResponseView::from_lent(response));
+    if xhr.is_fetching(request) {
+        XMLHttpRequest::process_response(xhr, vm, request, response);
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -245,6 +285,7 @@ pub unsafe extern "C" fn web_rust_xhr_process_response(vm: *mut JSVM, xhr: *mut 
 ///
 /// `vm` must be the live VM, and `xhr` the live cell of an XMLHttpRequest.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_body_chunk(
     vm: *mut JSVM,
     xhr: *mut c_void,
@@ -254,6 +295,19 @@ pub unsafe extern "C" fn web_rust_xhr_process_body_chunk(
     // SAFETY: The caller passes the live VM and the live cell of an XMLHttpRequest.
     let (vm, xhr) = unsafe { xhr_arguments(vm, xhr) };
     xhr.process_body_chunk(vm, length, bytes.as_slice());
+=======
+pub extern "C" fn web_rust_xhr_process_body_chunk(
+    vm: &Vm,
+    xhr: &InterfaceCell,
+    request: *mut c_void,
+    length: u64,
+    bytes: ak::Span<'_, u8>,
+) {
+    let xhr = xhr.object::<XMLHttpRequest>();
+    if xhr.is_fetching(request) {
+        xhr.process_body_chunk(vm, length, bytes.as_slice());
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -262,10 +316,18 @@ pub unsafe extern "C" fn web_rust_xhr_process_body_chunk(
 ///
 /// `vm` must be the live VM, and `xhr` the live cell of an XMLHttpRequest.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_end_of_body(vm: *mut JSVM, xhr: *mut c_void) {
     // SAFETY: The caller passes the live VM and the live cell of an XMLHttpRequest.
     let (vm, xhr) = unsafe { xhr_arguments(vm, xhr) };
     xhr.process_end_of_body(vm);
+=======
+pub extern "C" fn web_rust_xhr_process_end_of_body(vm: &Vm, xhr: &InterfaceCell, request: *mut c_void) {
+    let xhr = xhr.object::<XMLHttpRequest>();
+    if xhr.is_fetching(request) {
+        xhr.process_end_of_body(vm);
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
@@ -274,10 +336,18 @@ pub unsafe extern "C" fn web_rust_xhr_process_end_of_body(vm: *mut JSVM, xhr: *m
 ///
 /// `vm` must be the live VM, and `xhr` the live cell of an XMLHttpRequest.
 #[unsafe(no_mangle)]
+<<<<<<< HEAD
 pub unsafe extern "C" fn web_rust_xhr_process_body_error(vm: *mut JSVM, xhr: *mut c_void) {
     // SAFETY: The caller passes the live VM and the live cell of an XMLHttpRequest.
     let (vm, xhr) = unsafe { xhr_arguments(vm, xhr) };
     xhr.process_body_error(vm);
+=======
+pub extern "C" fn web_rust_xhr_process_body_error(vm: &Vm, xhr: &InterfaceCell, request: *mut c_void) {
+    let xhr = xhr.object::<XMLHttpRequest>();
+    if xhr.is_fetching(request) {
+        xhr.process_body_error(vm);
+    }
+>>>>>>> 60393bb3 (LibWeb: Ignore the tasks of a fetch that an XMLHttpRequest ended)
 }
 
 /// https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send

@@ -57,12 +57,12 @@ extern "C" {
 
 // Defined in Bindings/Rust/src/xhr/exports.rs.
 void* web_rust_xhr_create(JSVM*, void* realm);
-void web_rust_xhr_process_request_body_chunk_length(JSVM*, void* xhr, u64 request_body_length, u64 bytes_length);
-void web_rust_xhr_process_request_end_of_body(JSVM*, void* xhr, u64 request_body_length);
-void web_rust_xhr_process_response(JSVM*, void* xhr, Fetch::Infrastructure::ResponseView*);
-void web_rust_xhr_process_body_chunk(JSVM*, void* xhr, u64 length, ReadonlyBytes);
-void web_rust_xhr_process_end_of_body(JSVM*, void* xhr);
-void web_rust_xhr_process_body_error(JSVM*, void* xhr);
+void web_rust_xhr_process_request_body_chunk_length(JSVM*, void* xhr, Fetch::Infrastructure::Request*, u64 request_body_length, u64 bytes_length);
+void web_rust_xhr_process_request_end_of_body(JSVM*, void* xhr, Fetch::Infrastructure::Request*, u64 request_body_length);
+void web_rust_xhr_process_response(JSVM*, void* xhr, Fetch::Infrastructure::Request*, Fetch::Infrastructure::ResponseView*);
+void web_rust_xhr_process_body_chunk(JSVM*, void* xhr, Fetch::Infrastructure::Request*, u64 length, ReadonlyBytes);
+void web_rust_xhr_process_end_of_body(JSVM*, void* xhr, Fetch::Infrastructure::Request*);
+void web_rust_xhr_process_body_error(JSVM*, void* xhr, Fetch::Infrastructure::Request*);
 void web_rust_xhr_process_response_consume_body(JSVM*, void* xhr, void* sync_send, Fetch::Infrastructure::ResponseView*, u8 kind, ReadonlyBytes);
 void web_rust_xhr_fetch_stopped(JSVM*, void* xhr, Fetch::Infrastructure::FetchController*);
 bool web_rust_xhr_sync_send_is_over(void* sync_send);
@@ -79,7 +79,7 @@ bool web_xhr_document_is_html_document(JSObject* document);
 Fetch::Infrastructure::Body* web_xhr_document_as_body(void* realm, JSObject* document);
 Fetch::Infrastructure::Request* web_xhr_create_request(void* realm, RequestABI const*);
 Fetch::Infrastructure::FetchController* web_xhr_fetch(void* realm, Fetch::Infrastructure::Request*, void* xhr, void* sync_send, u64 request_body_length);
-void web_xhr_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView*, void* xhr, u64 length);
+void web_xhr_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView*, void* xhr, Fetch::Infrastructure::Request*, u64 length);
 void web_xhr_pause_until_sync_send_is_over(void* sync_send);
 DOM::Document* web_xhr_create_document_response(JSObject* global_object, Fetch::Infrastructure::ResponseView*, ReadonlyBytes received_bytes, FlatPtr final_mime, bool final_mime_is_html, ReadonlyBytes final_encoding, bool has_final_encoding);
 }
@@ -221,22 +221,25 @@ Fetch::Infrastructure::FetchController* web_xhr_fetch(void* realm, Fetch::Infras
 
     // 11. If this’s synchronous flag is unset, then:
     if (!sync_send) {
+        // NB: The algorithms name their request, so that the XMLHttpRequest can tell which fetch runs them.
+        NonnullRefPtr fetched_request { *request };
+
         // 7. Let processRequestBodyChunkLength, given a bytesLength, be these steps:
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_request_body_chunk_length = GC::create_function<void(u64)>(GC::Heap::the(), GC::captures(xhr_cell, request_body_length), [](auto& xhr, auto& request_body_length, u64 bytes_length) {
-            web_rust_xhr_process_request_body_chunk_length(vm_abi(), xhr.ptr(), request_body_length, bytes_length);
+        auto process_request_body_chunk_length = GC::create_function<void(u64)>(GC::Heap::the(), GC::captures(xhr_cell, fetched_request, request_body_length), [](auto& xhr, auto& request, auto& request_body_length, u64 bytes_length) {
+            web_rust_xhr_process_request_body_chunk_length(vm_abi(), xhr.ptr(), request.ptr(), request_body_length, bytes_length);
         });
 
         // 8. Let processRequestEndOfBody be these steps:
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_request_end_of_body = GC::create_function<void()>(GC::Heap::the(), GC::captures(xhr_cell, request_body_length), [](auto& xhr, auto& request_body_length) {
-            web_rust_xhr_process_request_end_of_body(vm_abi(), xhr.ptr(), request_body_length);
+        auto process_request_end_of_body = GC::create_function<void()>(GC::Heap::the(), GC::captures(xhr_cell, fetched_request, request_body_length), [](auto& xhr, auto& request, auto& request_body_length) {
+            web_rust_xhr_process_request_end_of_body(vm_abi(), xhr.ptr(), request.ptr(), request_body_length);
         });
 
         // 9. Let processResponse, given a response, be these steps:
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_response = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell), [](auto& xhr, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
-            web_rust_xhr_process_response(vm_abi(), xhr.ptr(), response.ptr());
+        auto process_response = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell, fetched_request), [](auto& xhr, auto& request, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+            web_rust_xhr_process_response(vm_abi(), xhr.ptr(), request.ptr(), response.ptr());
         });
 
         // 10. Set this’s fetch controller to the result of fetching req with processRequestBodyChunkLength set to processRequestBodyChunkLength, processRequestEndOfBody set to processRequestEndOfBody, and processResponse set to processResponse.
@@ -279,19 +282,20 @@ Fetch::Infrastructure::FetchController* web_xhr_fetch(void* realm, Fetch::Infras
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
-void web_xhr_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView* response, void* xhr, u64 length)
+void web_xhr_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView* response, void* xhr, Fetch::Infrastructure::Request* request, u64 length)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     GC::Ref<GC::Cell> xhr_cell = *static_cast<GC::Cell*>(xhr);
+    NonnullRefPtr fetched_request { *request };
 
-    auto process_body_chunk = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell, length), [](auto& xhr, auto& length, ByteBuffer bytes) {
-        web_rust_xhr_process_body_chunk(vm_abi(), xhr.ptr(), length, bytes);
+    auto process_body_chunk = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell, fetched_request, length), [](auto& xhr, auto& request, auto& length, ByteBuffer bytes) {
+        web_rust_xhr_process_body_chunk(vm_abi(), xhr.ptr(), request.ptr(), length, bytes);
     });
-    auto process_end_of_body = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell), [](auto& xhr) {
-        web_rust_xhr_process_end_of_body(vm_abi(), xhr.ptr());
+    auto process_end_of_body = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell, fetched_request), [](auto& xhr, auto& request) {
+        web_rust_xhr_process_end_of_body(vm_abi(), xhr.ptr(), request.ptr());
     });
-    auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell), [](auto& xhr, JS::Value) {
-        web_rust_xhr_process_body_error(vm_abi(), xhr.ptr());
+    auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(xhr_cell, fetched_request), [](auto& xhr, auto& request, JS::Value) {
+        web_rust_xhr_process_body_error(vm_abi(), xhr.ptr(), request.ptr());
     });
 
     // 13. Incrementally read this’s response’s body, given processBodyChunk, processEndOfBody, processBodyError, and this’s relevant global object.

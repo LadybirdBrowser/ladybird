@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const headers = { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" };
+        const createEcho = name => server.createEcho("GET", `/${name}`, { status: 200, headers, body: name });
+
+        const requestCount = url => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", server.recordedRequestCountURL(url), false);
+            xhr.send();
+            return JSON.parse(xhr.responseText);
+        };
+
+        // Synchronous requests keep the event loop from running tasks. So, when this returns, the tasks of the response
+        // to url are queued, and none of them ran.
+        const sendAndBlockUntilServerAnswered = (xhr, url) => {
+            const requestCountBefore = requestCount(url);
+            xhr.send();
+            for (let roundTripsAfterAnswer = 0; roundTripsAfterAnswer < 3; ) {
+                if (requestCount(url) > requestCountBefore) ++roundTripsAfterAnswer;
+            }
+        };
+
+        const createLoggedRequest = () => {
+            const xhr = new XMLHttpRequest();
+            for (const type of ["readystatechange", "progress", "abort", "error", "load", "loadend"]) {
+                xhr.addEventListener(type, () => {
+                    println(`${type}, readyState ${xhr.readyState}, responseText "${xhr.responseText}"`);
+                });
+            }
+            return xhr;
+        };
+
+        println("abort() with the response queued:");
+        const abortedURL = await createEcho("aborted");
+        const laterURL = await createEcho("later");
+        const aborted = createLoggedRequest();
+        aborted.open("GET", abortedURL);
+        sendAndBlockUntilServerAnswered(aborted, abortedURL);
+        aborted.abort();
+        println(`after abort(): readyState ${aborted.readyState}`);
+        // The queued tasks run before the tasks of these responses.
+        for (let i = 0; i < 2; ++i) await (await fetch(laterURL)).text();
+
+        println("abort(), open() and send() with the response queued:");
+        const firstURL = await createEcho("first");
+        const secondURL = await createEcho("second");
+        const reused = createLoggedRequest();
+        reused.open("GET", firstURL);
+        sendAndBlockUntilServerAnswered(reused, firstURL);
+        reused.abort();
+        reused.open("GET", secondURL);
+        await new Promise(resolve => {
+            reused.addEventListener("loadend", resolve);
+            reused.send();
+        });
+
+        println("abort(), open() and send() in a loadstart listener:");
+        const replacedURL = await createEcho("replaced");
+        const replacementURL = await createEcho("replacement");
+        const restarted = createLoggedRequest();
+        restarted.addEventListener(
+            "loadstart",
+            () => {
+                restarted.abort();
+                restarted.open("GET", replacementURL);
+                restarted.send();
+            },
+            { once: true }
+        );
+        restarted.open("GET", replacedURL);
+        const replacedRequestCountBefore = requestCount(replacedURL);
+        await new Promise(resolve => {
+            restarted.addEventListener("load", () => restarted.addEventListener("loadend", resolve));
+            restarted.send();
+        });
+        println(`requests for the replaced URL: ${requestCount(replacedURL) - replacedRequestCountBefore}`);
+    });
+</script>
