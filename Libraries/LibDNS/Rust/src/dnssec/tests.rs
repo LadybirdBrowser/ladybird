@@ -1141,6 +1141,45 @@ fn dname_target_is_canonicalized_for_verification() {
 }
 
 #[test]
+fn names_with_dots_in_labels_are_kept_apart() {
+    let one_label = DomainName {
+        labels: vec![b"www.example".to_vec()],
+    };
+    let question = |name: &DomainName| Question {
+        name: name.clone(),
+        rtype: ResourceType::DS,
+        class: Class::IN,
+    };
+
+    let mut fetches = Fetches::new();
+    fetches.insert(&question(&one_label), Message::default());
+    assert!(fetches.get(&name("www.example"), ResourceType::DS).is_none());
+    let upper_case = DomainName {
+        labels: vec![b"WWW.example".to_vec()],
+    };
+    assert!(fetches.get(&upper_case, ResourceType::DS).is_some());
+
+    // Once "www.example" is known not to be a zone cut, the one-label name still needs its own DS query.
+    let (mut server, mut validator) = setup(false, |_| {});
+    validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+    let address_question = Question {
+        rtype: ResourceType::A,
+        ..question(&one_label)
+    };
+    let mut lookup = Lookup {
+        response: server.answer(&address_question),
+        question: address_question,
+        fetches: Fetches::new(),
+    };
+    let mut asked_for_ds = false;
+    while let Step::NeedFetch(fetch) = lookup.step(&mut validator, NOW) {
+        asked_for_ds |= fetch == question(&one_label);
+        lookup.fetch(&mut server, &fetch);
+    }
+    assert!(asked_for_ds);
+}
+
+#[test]
 fn answer_for_another_name_is_bogus() {
     let (mut server, mut validator) = setup(false, |_| {});
 
