@@ -569,6 +569,23 @@ BidiClass bidirectional_class(u32 code_point)
     return char_direction_to_bidi_class(direction);
 }
 
+size_t find_forced_line_break(Utf16View const& text, bool preserve_line_feeds)
+{
+    // https://drafts.csswg.org/css-text-3/#line-break-details
+    for (auto iterator = text.begin(); iterator != text.end(); ++iterator) {
+        auto code_point = *iterator;
+        if (code_point == '\n' && preserve_line_feeds)
+            return text.iterator_offset(iterator);
+        // BK and NL have no printable ASCII members.
+        if (code_point >= 0x20 && code_point < 0x7f)
+            continue;
+        auto line_break = u_getIntPropertyValue(static_cast<UChar32>(code_point), UCHAR_LINE_BREAK);
+        if (line_break == U_LB_MANDATORY_BREAK || line_break == U_LB_NEXT_LINE)
+            return text.iterator_offset(iterator);
+    }
+    return text.length_in_code_units();
+}
+
 LineBreakClass line_break_class(u32 code_point)
 {
     auto icu_code_point = static_cast<UChar32>(code_point);
@@ -922,6 +939,7 @@ u32 unicode_get_case_closure(u32, u32*, u32);
 
 u8 unicode_layout_bidirectional_class(u32);
 u8 unicode_layout_line_break_class(u32);
+size_t unicode_layout_find_forced_line_break(u16 const*, size_t, bool);
 u8 unicode_layout_joining_type(u32);
 bool unicode_layout_code_point_has_emoji_property(u32);
 u8 unicode_layout_vertical_orientation(u32);
@@ -1130,6 +1148,11 @@ extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
 extern "C" u8 unicode_layout_line_break_class(u32 code_point)
 {
     return to_underlying(Unicode::line_break_class(code_point));
+}
+
+extern "C" size_t unicode_layout_find_forced_line_break(u16 const* text, size_t length, bool preserve_line_feeds)
+{
+    return Unicode::find_forced_line_break({ reinterpret_cast<char16_t const*>(text), length }, preserve_line_feeds);
 }
 
 extern "C" u8 unicode_layout_joining_type(u32 code_point)
