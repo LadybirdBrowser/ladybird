@@ -29,7 +29,6 @@ HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Filter filter, Att
     , m_root(root)
     , m_filter(filter)
     , m_sort(sort)
-    , m_cache_registration(*this)
     , m_scope(scope)
     , m_kind(kind)
     , m_attribute_invalidation_type(attribute_invalidation_type)
@@ -112,7 +111,7 @@ void HTMLCollection::collect_elements_into(Vector<GC::RawPtr<Element>>& elements
 bool HTMLCollection::cache_is_valid() const
 {
     auto& document = root()->document();
-    return m_cache_registration.list_node.is_in_list()
+    return list_node.is_in_list()
         && m_cached_document.ptr().ptr() == &document
         && m_cached_invalidation_version == invalidation_version(document);
 }
@@ -144,12 +143,12 @@ void HTMLCollection::update_cache_if_needed() const
 
 void HTMLCollection::invalidate_cache() const
 {
-    if (!m_cache_registration.list_node.is_in_list())
+    if (!list_node.is_in_list())
         return;
     invalidate_name_to_element_mappings();
     if (auto cached_document = m_cached_document.ptr())
         cached_document->unregister_valid_html_collection_cache(m_attribute_invalidation_type);
-    m_cache_registration.list_node.remove();
+    list_node.remove();
     m_cached_elements.clear();
 }
 
