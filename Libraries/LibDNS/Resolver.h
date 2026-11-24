@@ -209,13 +209,16 @@ public:
         // Resolves a name to the addresses of one family. It runs on a thread pool worker.
         Function<ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>>(ByteString const&, Core::Socket::AddressFamily)> resolve_host;
         Function<bool()> is_ipv6_globally_reachable;
+        Optional<AK::Duration> resolution_timeout;
     };
 
     using SystemResolution = ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>>;
 
     // Resolves a name to the addresses of one family somewhere else, such as in another process, and calls back on the
     // thread that asked, once it has them.
-    using RemoteSystemResolver = Function<void(ByteString const&, Core::Socket::AddressFamily, Function<void(SystemResolution)>)>;
+    // Forgets a lookup handed to the remote resolver, whose answer, if any comes, is then dropped.
+    using CancelRemoteSystemResolution = Function<void()>;
+    using RemoteSystemResolver = Function<CancelRemoteSystemResolution(ByteString const&, Core::Socket::AddressFamily, Function<void(SystemResolution)>)>;
 
     // An empty result means no server is configured and the system resolver should be used instead.
     Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket, SystemResolverForTesting system_resolver_for_testing = {})
@@ -538,10 +541,52 @@ public:
 
             lookup_path = "system-resolver-bg"sv;
 
+            auto timeout = m_system_resolver_for_testing.resolution_timeout.value_or(SYSTEM_RESOLVER_TIMEOUT);
+            our_state->deadline_timer = Core::Timer::create_single_shot(timeout,
+                [this, shared = m_shared_with_workers, name, pending_key, weak_state = our_state->make_weak_ptr()] {
+                    if (!shared->resolver_is_alive.load())
+                        return;
+                    auto state = weak_state.strong_ref();
+                    if (!state)
+                        return;
+                    auto removed = m_pending_system_resolutions.with_write_locked([&](auto& pending) {
+                        auto it = pending.find(pending_key);
+                        if (it == pending.end() || it->value.ptr() != state.ptr())
+                            return false;
+                        pending.remove(it);
+                        return true;
+                    });
+                    if (!removed)
+                        return;
+                    state->abandoned.store(true);
+                    if (state->grace_timer)
+                        state->grace_timer->stop();
+                    // The remote resolver forgets the halves still out, and with them the callbacks holding this state.
+                    auto cancel_remote_resolutions = move(state->cancel_remote_resolutions);
+                    for (auto& cancel : cancel_remote_resolutions) {
+                        if (cancel)
+                            cancel();
+                    }
+                    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path=system-resolver-timeout total={} ms",
+                        name, (MonotonicTime::now() - state->dispatched_at).to_milliseconds());
+                    if (state->promise_resolved)
+                        return;
+                    // Addresses that one side found still serve the lookup, even though the other side never answered.
+                    if (!state->result->records().is_empty()) {
+                        try_finalize_pending_system_resolution(*state);
+                        return;
+                    }
+                    state->promise_resolved = true;
+                    auto promises = move(state->waiting_promises);
+                    for (auto& waiter : promises)
+                        waiter->reject(Error::from_string_literal("System DNS resolution timed out"));
+                });
+            our_state->deadline_timer->start();
+
             auto& main_thread_event_loop = Core::EventLoop::current();
 
             auto ask_remote_resolver = [&, this](Core::Socket::AddressFamily family) {
-                m_remote_system_resolver(name, family, [this, shared = m_shared_with_workers, name, pending_key, state = our_state, family](SystemResolution record_or_error) mutable {
+                our_state->cancel_remote_resolutions.append(m_remote_system_resolver(name, family, [this, shared = m_shared_with_workers, name, pending_key, state = our_state, family](SystemResolution record_or_error) mutable {
                     if (!shared->resolver_is_alive.load())
                         return;
                     PendingSystemResolution::SideTiming timing {
@@ -549,7 +594,7 @@ public:
                         .work_ms = (MonotonicTime::now() - state->dispatched_at).to_milliseconds(),
                     };
                     handle_system_resolver_completion(name, pending_key, *state, family, move(record_or_error), timing);
-                });
+                }));
             };
 
             auto submit_worker = [&, this](Core::Socket::AddressFamily family) {
@@ -560,6 +605,10 @@ public:
                 Threading::ThreadPool::the().submit(
                     [this, shared = m_shared_with_workers, name, pending_key, state = our_state, family,
                         &main_thread_event_loop]() mutable {
+                        // A lookup given up on while this waited in the queue has no one left to answer, so it isn't
+                        // made, and the worker goes on to the next one.
+                        if (state->abandoned.load())
+                            return;
                         auto worker_started_at = MonotonicTime::now();
                         auto record_or_error = shared->resolve_host_for_testing
                             ? shared->resolve_host_for_testing(name, family)
@@ -906,6 +955,8 @@ private:
         return m_ipv6_is_globally_reachable;
     }
 
+    static constexpr auto SYSTEM_RESOLVER_TIMEOUT = AK::Duration::from_seconds(15);
+
     // Per-name state for an in-flight system-resolver lookup. We split the
     // single AF_UNSPEC `getaddrinfo` call into two parallel calls (AF_INET +
     // AF_INET6) so that buggy stub resolvers (notably systemd-resolved under
@@ -940,7 +991,11 @@ private:
         Optional<SideTiming> a;
         Optional<SideTiming> aaaa;
         bool promise_resolved { false };
+        // Set on the main thread once the deadline gives up on this resolution, and read by the workers.
+        Atomic<bool> abandoned { false };
         RefPtr<Core::Timer> grace_timer;
+        RefPtr<Core::Timer> deadline_timer;
+        Vector<CancelRemoteSystemResolution> cancel_remote_resolutions;
 
         explicit PendingSystemResolution(NonnullRefPtr<LookupResult> r)
             : result(move(r))
@@ -979,6 +1034,13 @@ private:
         ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> record_or_error,
         PendingSystemResolution::SideTiming timing)
     {
+        auto is_current = m_pending_system_resolutions.with_read_locked([&](auto const& pending) {
+            auto it = pending.find(pending_key);
+            return it != pending.end() && it->value.ptr() == &state;
+        });
+        if (!is_current)
+            return;
+
         (family == Core::Socket::AddressFamily::IPv4Only ? state.a : state.aaaa) = timing;
 
         // Merge this side's records into the (shared, main-thread-only) LookupResult. Late-arriving records still
@@ -1002,6 +1064,7 @@ private:
         bool both_completed = state.a.has_value() && state.aaaa.has_value();
 
         if (both_completed) {
+            state.deadline_timer->stop();
             state.result->finished_request();
             m_cache.with_write_locked([&](auto& cache) {
                 make_room_in_cache(cache);
