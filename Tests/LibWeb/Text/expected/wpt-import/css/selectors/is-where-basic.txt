@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	:is() matches expected elements
+Pass	:is(#a) matches expected elements
+Pass	:is(#a, #f) matches expected elements
+Pass	:is(#a, #c) :where(#a #d, #c #f) matches expected elements
+Pass	#c > :is(#c > #f) matches expected elements
+Pass	#c > :is(#b > #f) matches expected elements
+Pass	#a div:is(#d) matches expected elements
+Pass	:is(div) > div matches expected elements
+Pass	:is(*) > div matches expected elements
+Pass	:is(*) div matches expected elements
+Pass	div > :where(#e, #f) matches expected elements
+Pass	div > :where(*) matches expected elements
+Pass	:is(*) > :where(*) matches expected elements
+Pass	:is(#a + #b) + :is(#c) matches expected elements
+Pass	:is(#a, #b) + div matches expected elements

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Basic :is/:where matching behavior</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#matches">
+
+<main id=main>
+  <div id=a><div id=d></div></div>
+  <div id=b><div id=e></div></div>
+  <div id=c><div id=f></div></div>
+</main>
+
+<script>
+  function formatElements(elements) {
+    return elements.map(e => e.id).sort().join();
+  }
+
+  // Test that |selector| returns the given elements in #main.
+  function test_selector(selector, expected) {
+    test(function() {
+      let actual = Array.from(main.querySelectorAll(selector));
+      assert_equals(formatElements(actual), formatElements(expected));
+    }, `${selector} matches expected elements`);
+  }
+
+  test_selector(':is()', []);
+  test_selector(':is(#a)', [a]);
+  test_selector(':is(#a, #f)', [a, f]);
+  test_selector(':is(#a, #c) :where(#a #d, #c #f)', [d, f]);
+  test_selector('#c > :is(#c > #f)', [f]);
+  test_selector('#c > :is(#b > #f)', []);
+  test_selector('#a div:is(#d)', [d]);
+  test_selector(':is(div) > div', [d, e, f]);
+  test_selector(':is(*) > div', [a, b, c, d, e, f]);
+  test_selector(':is(*) div', [a, b, c, d, e, f]);
+  test_selector('div > :where(#e, #f)', [e, f]);
+  test_selector('div > :where(*)', [d, e, f]);
+  test_selector(':is(*) > :where(*)', [a, b, c, d, e, f]);
+  test_selector(':is(#a + #b) + :is(#c)', [c]);
+  test_selector(':is(#a, #b) + div', [b, c]);
+</script>
