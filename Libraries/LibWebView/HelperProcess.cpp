@@ -724,6 +724,12 @@ static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(Ref
         controller = TRY(launch_video_decoder_server_process(owner_child_id, is_private, gpu_device_identity));
 
     auto response = send_sync_to_helper<Messages::VideoDecoderServerControl::ConnectNewClient>(*controller);
+    // A server exits once its one client has gone, which this process only notices later, so a server that is exiting
+    // or still holds its old client can get the request. One that does not hand out a client is replaced by a new one.
+    if (!response || !response->handle().has_value()) {
+        controller = TRY(launch_video_decoder_server_process(owner_child_id, is_private, gpu_device_identity));
+        response = send_sync_to_helper<Messages::VideoDecoderServerControl::ConnectNewClient>(*controller);
+    }
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to VideoDecoderServer");
     return response->take_handle().release_value();
