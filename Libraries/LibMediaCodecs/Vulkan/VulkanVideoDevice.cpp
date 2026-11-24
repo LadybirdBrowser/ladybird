@@ -15,9 +15,12 @@ namespace Media {
 
 namespace {
 
-constexpr Array required_extensions {
+constexpr Array required_video_extensions {
     VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
     VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
+};
+
+constexpr Array required_export_extensions {
     VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
     VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
     VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
@@ -91,8 +94,11 @@ ErrorOr<void> VulkanVideoDevice::check_can_decode_video(VkPhysicalDevice physica
     if (properties.apiVersion < VK_API_VERSION_1_3)
         return Error::from_string_literal("The GPU's Vulkan is older than 1.3");
     auto extensions = device_extensions_of(physical_device);
-    if (!all_of(required_extensions, [&](auto name) { return contains_extension(extensions, { name, strlen(name) }); }))
-        return Error::from_string_literal("The GPU cannot decode video into images that export as dma-bufs");
+    auto has_extension = [&](auto name) { return contains_extension(extensions, { name, strlen(name) }); };
+    if (!all_of(required_video_extensions, has_extension))
+        return Error::from_string_literal("The GPU's Vulkan driver does not expose a video decode queue");
+    if (!all_of(required_export_extensions, has_extension))
+        return Error::from_string_literal("The GPU's Vulkan driver cannot export images as dma-bufs");
 
     // FFmpeg submits with synchronization2 and tracks its frames with timeline semaphores, without checking for either.
     VkPhysicalDeviceVulkan13Features vulkan13 {};
@@ -161,7 +167,9 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     TRY(check_can_decode_video(device->m_physical_device));
 
     auto available_extensions = device_extensions_of(device->m_physical_device);
-    for (auto const* name : required_extensions)
+    for (auto const* name : required_video_extensions)
+        device->m_enabled_extensions.append(name);
+    for (auto const* name : required_export_extensions)
         device->m_enabled_extensions.append(name);
 
     VkPhysicalDeviceVideoMaintenance1FeaturesKHR supported_video_maintenance1 {};
