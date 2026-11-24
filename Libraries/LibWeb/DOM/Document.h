@@ -1985,10 +1985,8 @@ private:
     void notify_each_document_observer(GetNotifier&& get_notifier, Args&&... args)
     {
         GC::RootVector<GC::Ref<DocumentObserver>> document_observers;
-        document_observers.ensure_capacity(m_document_observers.size());
-
-        for (auto observer : m_document_observers)
-            document_observers.unchecked_append(observer);
+        for (auto& observer : m_document_observers)
+            document_observers.append(observer);
 
         for (auto document_observer : document_observers) {
             if (auto notifier = get_notifier(*document_observer))
@@ -2260,7 +2258,7 @@ private:
 
     // Document should not visit DocumentObserver to avoid leaks.
     // It's responsibility of object that requires DocumentObserver to keep it alive.
-    HashTable<GC::RawRef<DocumentObserver>> m_document_observers;
+    GC::WeakHashSet<DocumentObserver> m_document_observers;
 
     // Every SVG use element connected to this document's node tree, maintained by SVGUseElement on insertion and
     // removal. This lets SVG elements notify interested use elements about mutations without traversing the entire
