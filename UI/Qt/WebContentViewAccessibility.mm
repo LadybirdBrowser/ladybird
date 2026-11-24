@@ -33,6 +33,8 @@ extern "C" void NSAccessibilityHandleFocusChanged();
 @property (nonatomic, assign) Ladybird::WebContentView* webContentView;
 @property (nonatomic, strong) NSMutableDictionary<NSNumber*, LadybirdAccessibilityElement*>* elements;
 
+- (void)detach;
+
 @end
 
 @implementation WebContentAccessibilityView
@@ -49,6 +51,23 @@ extern "C" void NSAccessibilityHandleFocusChanged();
         self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     }
     return self;
+}
+
+- (void)dealloc
+{
+    [self detach];
+}
+
+// The elements this overlay vended hold raw pointers into the view's accessibility tree, and an assistive technology
+// can hold them longer than the overlay, the view, and the tree. So once the overlay goes away, or its view does, they
+// are all invalidated, and the overlay itself reaches into neither the view nor the tree again.
+- (void)detach
+{
+    for (LadybirdAccessibilityElement* element in _elements.allValues)
+        [element invalidate];
+    [_elements removeAllObjects];
+    _manager = nullptr;
+    _webContentView = nullptr;
 }
 
 - (NSView*)hitTest:(NSPoint)point
@@ -75,6 +94,8 @@ extern "C" void NSAccessibilityHandleFocusChanged();
     if (existing)
         return existing;
 
+    if (!_manager)
+        return nil;
     auto const* data = _manager->node(nodeID);
     if (!data)
         return nil;
@@ -93,6 +114,8 @@ extern "C" void NSAccessibilityHandleFocusChanged();
     // pixel ratio that LocalAccessible::Bounds() converts with), so a CSS pixel is zoom_level() points. No device-
     // pixel-ratio scaling on top of that — convertRect works in points. (Blink and WebKit zoom in layout instead, so
     // their AX bounds come out zoomed already.)
+    if (!_webContentView)
+        return NSZeroRect;
     auto zoom = _webContentView->zoom_level();
     NSRect zoomed_rect = NSMakeRect(viewRect.origin.x * zoom, viewRect.origin.y * zoom, viewRect.size.width * zoom, viewRect.size.height * zoom);
     NSRect window_rect = [self convertRect:zoomed_rect toView:nil];
@@ -102,6 +125,8 @@ extern "C" void NSAccessibilityHandleFocusChanged();
 - (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint
 {
     // The inverse: a screen point to CSS pixels, so points divided by the zoom level.
+    if (!_webContentView)
+        return NSZeroRect;
     NSRect screen_rect = NSMakeRect(screenPoint.x, screenPoint.y, 0, 0);
     NSRect window_rect = [self.window convertRectFromScreen:screen_rect];
     NSPoint view_point = [self convertPoint:window_rect.origin fromView:nil];
@@ -116,6 +141,8 @@ extern "C" void NSAccessibilityHandleFocusChanged();
     // focused. VoiceOver also sets the focus on what its cursor moves to when the keyboard focus follows that cursor,
     // the AXWebArea first as the cursor enters the page. Leave the focus alone if the view or a child of it, such as
     // the crash overlay's buttons, already has it.
+    if (!_webContentView)
+        return;
     auto& view = *_webContentView;
     auto* focus_widget = view.window()->focusWidget();
     auto focus_is_in_view = focus_widget && (focus_widget == &view || view.isAncestorOf(focus_widget));
@@ -510,6 +537,12 @@ void update_accessibility_tree(WebContentView* view, bool announce_load, bool re
         NSAccessibilityPostNotification(NSAccessibilityUnignoredAncestor(ns_view ?: (NSView*)overlay),
             @"AXLoadComplete");
     NSAccessibilityHandleFocusChanged();
+}
+
+void uninstall_accessibility(WebContentView* view)
+{
+    if (auto* overlay = get_overlay(view))
+        [overlay detach];
 }
 
 void post_accessibility_focus_changed(WebContentView* view, i64 node_id)
