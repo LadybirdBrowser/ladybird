@@ -1316,15 +1316,11 @@ static int submit_broker_request(int helper_fd, ByteString const& path, int sock
         char space[CMSG_SPACE(2 * sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = &control,
-        .msg_controllen = sizeof(control),
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
+    message.msg_control = &control;
+    message.msg_controllen = sizeof(control);
 
     auto* header = CMSG_FIRSTHDR(&message);
     header->cmsg_level = SOL_SOCKET;
@@ -1349,15 +1345,11 @@ static i32 await_broker_error(int reply_fd)
         char space[CMSG_SPACE(sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = &control,
-        .msg_controllen = sizeof(control),
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
+    message.msg_control = &control;
+    message.msg_controllen = sizeof(control);
 
     ssize_t received = 0;
     do {
@@ -1567,15 +1559,11 @@ static void submit_request_with_an_unwanted_descriptor(int helper_fd)
         char space[CMSG_SPACE(2 * sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = &control,
-        .msg_controllen = sizeof(control),
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
+    message.msg_control = &control;
+    message.msg_controllen = sizeof(control);
 
     auto* header = CMSG_FIRSTHDR(&message);
     header->cmsg_level = SOL_SOCKET;

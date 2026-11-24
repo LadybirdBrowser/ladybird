@@ -1282,15 +1282,11 @@ static i64 exchange_with_broker(int broker_fd, void const* request, size_t reque
         char space[CMSG_SPACE(3 * sizeof(int))];
     } request_control {};
 
-    msghdr request_message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &request_io,
-        .msg_iovlen = 1,
-        .msg_control = &request_control,
-        .msg_controllen = CMSG_SPACE(passed_fd_count * sizeof(int)),
-        .msg_flags = 0,
-    };
+    msghdr request_message {};
+    request_message.msg_iov = &request_io;
+    request_message.msg_iovlen = 1;
+    request_message.msg_control = &request_control;
+    request_message.msg_controllen = CMSG_SPACE(passed_fd_count * sizeof(int));
 
     auto* request_header = CMSG_FIRSTHDR(&request_message);
     request_header->cmsg_level = SOL_SOCKET;
@@ -1321,15 +1317,11 @@ static i64 exchange_with_broker(int broker_fd, void const* request, size_t reque
         char space[CMSG_SPACE(sizeof(int))];
     } response_control {};
 
-    msghdr response_message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &response_io,
-        .msg_iovlen = 1,
-        .msg_control = &response_control,
-        .msg_controllen = sizeof(response_control),
-        .msg_flags = 0,
-    };
+    msghdr response_message {};
+    response_message.msg_iov = &response_io;
+    response_message.msg_iovlen = 1;
+    response_message.msg_control = &response_control;
+    response_message.msg_controllen = sizeof(response_control);
 
     ssize_t received = 0;
     do {

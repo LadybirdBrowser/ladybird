@@ -43,15 +43,11 @@ static ReceiveResult receive_request(int fd, ConnectBrokerRequest& request, int&
         char space[CMSG_SPACE(2 * sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = &control,
-        .msg_controllen = sizeof(control),
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
+    message.msg_control = &control;
+    message.msg_controllen = sizeof(control);
 
     ssize_t received = 0;
     do {
@@ -159,15 +155,9 @@ void ConnectBroker::send_response(int reply_fd, i32 error, int connected_fd)
         char space[CMSG_SPACE(sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = nullptr,
-        .msg_controllen = 0,
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
 
     if (connected_fd >= 0) {
         message.msg_control = &control;

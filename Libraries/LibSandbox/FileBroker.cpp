@@ -560,15 +560,9 @@ static void send_response(int reply_fd, FileBrokerResponse const& response, int 
         char space[CMSG_SPACE(sizeof(int))];
     } control {};
 
-    msghdr message {
-        .msg_name = nullptr,
-        .msg_namelen = 0,
-        .msg_iov = &io,
-        .msg_iovlen = 1,
-        .msg_control = nullptr,
-        .msg_controllen = 0,
-        .msg_flags = 0,
-    };
+    msghdr message {};
+    message.msg_iov = &io;
+    message.msg_iovlen = 1;
 
     if (fd >= 0) {
         message.msg_control = &control;
@@ -678,15 +672,11 @@ void FileBrokerServer::serve(int socket)
             char space[CMSG_SPACE(4 * sizeof(int))];
         } control {};
 
-        msghdr message {
-            .msg_name = nullptr,
-            .msg_namelen = 0,
-            .msg_iov = &io,
-            .msg_iovlen = 1,
-            .msg_control = &control,
-            .msg_controllen = sizeof(control),
-            .msg_flags = 0,
-        };
+        msghdr message {};
+        message.msg_iov = &io;
+        message.msg_iovlen = 1;
+        message.msg_control = &control;
+        message.msg_controllen = sizeof(control);
 
         ssize_t received = 0;
         do {
