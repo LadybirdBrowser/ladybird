@@ -72,7 +72,8 @@ pub enum Step {
 /// The DS and DNSKEY responses one validation has fetched so far.
 #[derive(Clone, Debug, Default)]
 pub struct Fetches {
-    responses: HashMap<(Vec<u8>, ResourceType), Message>,
+    // Keyed by canonicalized names, like the validator's caches.
+    responses: HashMap<(DomainName, ResourceType), Message>,
 }
 
 impl Fetches {
@@ -83,11 +84,11 @@ impl Fetches {
     /// Records the response to a question asked for by `Step::NeedFetch`.
     pub fn insert(&mut self, question: &Question, response: Message) {
         self.responses
-            .insert((question.name.to_canonical_string(), question.rtype), response);
+            .insert((question.name.canonicalized(), question.rtype), response);
     }
 
     pub fn get(&self, name: &DomainName, rtype: ResourceType) -> Option<&Message> {
-        self.responses.get(&(name.to_canonical_string(), rtype))
+        self.responses.get(&(name.canonicalized(), rtype))
     }
 
     pub fn len(&self) -> usize {
@@ -197,8 +198,9 @@ fn expiry(now: u32, ttl: u32) -> u64 {
 #[derive(Clone, Debug)]
 pub struct Validator {
     trust_anchors: Vec<Ds>,
-    zone_keys: HashMap<Vec<u8>, ZoneKeys>,
-    delegations: HashMap<Vec<u8>, Delegation>,
+    // Keyed by canonicalized names, which keep the labels apart: a label can hold a dot.
+    zone_keys: HashMap<DomainName, ZoneKeys>,
+    delegations: HashMap<DomainName, Delegation>,
 }
 
 impl Default for Validator {
@@ -262,7 +264,7 @@ impl Validator {
         fetches: &Fetches,
         now: u32,
     ) -> Result<Option<Vec<Dnskey>>, Failure> {
-        let cache_key = zone.to_canonical_string();
+        let cache_key = zone.canonicalized();
         let canonical_ds = canonical_ds_set(ds_set);
         if let Some(cached) = self.zone_keys.get(&cache_key) {
             if cached.expires > u64::from(now) && cached.ds_set == canonical_ds {
@@ -351,7 +353,7 @@ impl Validator {
         fetches: &Fetches,
         now: u32,
     ) -> Result<Delegation, Failure> {
-        let cache_key = name.to_canonical_string();
+        let cache_key = name.canonicalized();
         if let Some(cached) = self.delegations.get(&cache_key) {
             if cached.expires > u64::from(now) {
                 return Ok(cached.clone());
