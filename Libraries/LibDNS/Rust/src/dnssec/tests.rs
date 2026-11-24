@@ -1528,12 +1528,25 @@ fn unsigned_nsec3(
         next_hashed_owner_name: next_hash.to_vec(),
         types: types.to_vec(),
     };
+    unverified_rrset(zone, &owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3))
+}
+
+fn unsigned_nsec(zone: &DomainName, owner: &str, next: &str, types: &[ResourceType]) -> VerifiedRRSet {
+    let nsec = Nsec {
+        next_domain_name: name(next),
+        types: types.to_vec(),
+    };
+    unverified_rrset(zone, &name(owner), ResourceType::NSEC, RecordData::Nsec(nsec))
+}
+
+// A one-record RRset of `zone`, passed off as verified.
+fn unverified_rrset(zone: &DomainName, owner: &DomainName, rtype: ResourceType, data: RecordData) -> VerifiedRRSet {
     VerifiedRRSet {
         rrset: SignedRRSet {
             owner: owner.clone(),
-            rtype: ResourceType::NSEC3,
+            rtype,
             class: Class::IN,
-            records: vec![record(&owner, ResourceType::NSEC3, RecordData::Nsec3(nsec3), 300)],
+            records: vec![record(owner, rtype, data, 300)],
             rrsigs: Vec::new(),
         },
         zone: zone.clone(),
@@ -1567,6 +1580,71 @@ fn opt_out_proof_does_not_depend_on_record_order() {
     assert!(!proves_insecure(&[apex.clone(), no_opt_out, opt_out.clone()]));
     assert!(proves_insecure(&[apex.clone(), opt_out.clone(), both_opt_out.clone()]));
     assert!(proves_insecure(&[apex, both_opt_out, opt_out]));
+}
+
+#[test]
+fn parent_side_denial_says_nothing_below_the_delegation() {
+    let zone = name("example");
+    let sub = name("sub.example");
+
+    // The NSEC at the delegation point "sub.example" spans every name below it.
+    let rrsets = [unsigned_nsec(
+        &zone,
+        "sub.example",
+        "zzz.example",
+        &[ResourceType::NS, ResourceType::RRSIG, ResourceType::NSEC],
+    )];
+    let proofs = DenialProofs { rrsets: &rrsets };
+    assert!(proofs.proves_no_data(&sub, ResourceType::DS));
+    assert!(!proofs.proves_no_data(&sub, ResourceType::A));
+    assert!(!proofs.proves_name_error(&name("www.sub.example")));
+    assert!(!proofs.proves_no_data(&name("www.sub.example"), ResourceType::A));
+
+    let rrsets = [unsigned_nsec3(
+        &zone,
+        &nsec3_hash(&sub),
+        &[0xff; 20],
+        0,
+        &[ResourceType::NS],
+    )];
+    let proofs = DenialProofs { rrsets: &rrsets };
+    assert!(proofs.proves_no_data(&sub, ResourceType::DS));
+    assert!(!proofs.proves_no_data(&sub, ResourceType::A));
+
+    // Nor does the NSEC at a DNAME.
+    let rrsets = [unsigned_nsec(
+        &zone,
+        "old.example",
+        "zzz.example",
+        &[ResourceType::DNAME, ResourceType::RRSIG, ResourceType::NSEC],
+    )];
+    let proofs = DenialProofs { rrsets: &rrsets };
+    assert!(proofs.proves_no_data(&name("old.example"), ResourceType::A));
+    assert!(!proofs.proves_name_error(&name("www.old.example")));
+
+    // Within the signer's zone, including at its apex, the bit maps still count.
+    let rrsets = [
+        unsigned_nsec(
+            &zone,
+            "example",
+            "www.example",
+            &[
+                ResourceType::NS,
+                ResourceType::SOA,
+                ResourceType::RRSIG,
+                ResourceType::NSEC,
+            ],
+        ),
+        unsigned_nsec(
+            &zone,
+            "www.example",
+            "zzz.example",
+            &[ResourceType::A, ResourceType::RRSIG, ResourceType::NSEC],
+        ),
+    ];
+    let proofs = DenialProofs { rrsets: &rrsets };
+    assert!(proofs.proves_no_data(&zone, ResourceType::A));
+    assert!(proofs.proves_no_data(&name("www.example"), ResourceType::AAAA));
 }
 
 #[test]

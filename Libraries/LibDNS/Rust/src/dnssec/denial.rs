@@ -57,6 +57,18 @@ impl TypeBitMap for Nsec3 {
     }
 }
 
+// RFC 6840, 4.1. Clarifications on Nonexistence Proofs.
+// An "ancestor delegation" NSEC RR (or NSEC3 RR) is one with:
+// o  the NS bit set,
+// o  the Start of Authority (SOA) bit clear, and
+// o  a signer field that is shorter than the owner name of the NSEC RR, or the original owner name for the NSEC3 RR.
+// Ancestor delegation NSEC or NSEC3 RRs MUST NOT be used to assume nonexistence of any RRs below that zone cut, which
+// include all RRs at that (original) owner name other than DS RRs, and all RRs below that owner name regardless of
+// type.
+fn is_ancestor_delegation(record: &dyn TypeBitMap, original_owner: &DomainName, zone: &DomainName) -> bool {
+    record.has_type(ResourceType::NS) && !record.has_type(ResourceType::SOA) && !original_owner.eq_ignore_case(zone)
+}
+
 // The last record in a chain wraps around to the first one, so it covers both the names after its owner and the
 // names before the first owner. Neither endpoint is covered: those names exist.
 fn is_within_interval(after_owner: bool, before_next: bool, wraps: bool) -> bool {
@@ -84,6 +96,15 @@ impl NsecRecord<'_> {
     // no RRsets with the requested name exist in the zone.
     fn covers(&self, name: &DomainName) -> bool {
         if !self.zone.is_ancestor_or_equal_of(name) {
+            return false;
+        }
+        // An ancestor delegation NSEC says nothing about the names below its owner, and neither does one at a DNAME.
+        // RFC 6840, 4.1. Clarifications on Nonexistence Proofs.
+        // An NSEC or NSEC3 RR with the DNAME bit set MUST NOT be used to assume the nonexistence of any subdomain of
+        // that NSEC/NSEC3 RR's (original) owner name.
+        if self.owner.is_ancestor_or_equal_of(name)
+            && (is_ancestor_delegation(self.nsec, self.owner, self.zone) || self.nsec.has_type(ResourceType::DNAME))
+        {
             return false;
         }
         let after_owner = self.owner.canonical_cmp(name) == Ordering::Less;
@@ -318,17 +339,18 @@ impl DenialProofs<'_> {
         // not exist by checking for the RR type in the bit map.
         // RFC 4035, 5.2: A security-aware resolver MUST use the parent NSEC RR when attempting to prove that a DS RRset
         // does not exist.
-        let bitmap_denies = |record: &dyn TypeBitMap| {
+        let bitmap_denies = |record: &dyn TypeBitMap, owner: &DomainName, zone: &DomainName| {
             if record.has_type(rtype) || record.has_type(ResourceType::CNAME) {
                 return false;
             }
             if rtype == ResourceType::DS && record.has_type(ResourceType::SOA) {
                 return false;
             }
-            true
+            rtype == ResourceType::DS || !is_ancestor_delegation(record, owner, zone)
         };
 
-        if nsec_records(self.rrsets).any(|record| record.matches(name) && bitmap_denies(record.nsec)) {
+        if nsec_records(self.rrsets).any(|record| record.matches(name) && bitmap_denies(record.nsec, name, record.zone))
+        {
             return true;
         }
 
@@ -340,7 +362,9 @@ impl DenialProofs<'_> {
         // RFC 5155, 8.5. Validating No Data Responses, QTYPE is not DS.
         // The validator MUST verify that an NSEC3 RR that matches QNAME is present and that both the QTYPE and the CNAME
         // type are not set in its Type Bit Maps field.
-        if nsec3_records(self.rrsets).any(|record| record.matches(name) && bitmap_denies(record.nsec3)) {
+        if nsec3_records(self.rrsets)
+            .any(|record| record.matches(name) && bitmap_denies(record.nsec3, name, record.zone))
+        {
             return true;
         }
 
@@ -352,8 +376,10 @@ impl DenialProofs<'_> {
             return false;
         };
         let wildcard = closest_encloser.with_label_prepended("*");
-        nsec_records(self.rrsets).any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec))
-            || nsec3_records(self.rrsets).any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec3))
+        nsec_records(self.rrsets)
+            .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec, &wildcard, record.zone))
+            || nsec3_records(self.rrsets)
+                .any(|record| record.matches(&wildcard) && bitmap_denies(record.nsec3, &wildcard, record.zone))
     }
 
     pub fn proves_insecure_delegation(&self, name: &DomainName) -> bool {
