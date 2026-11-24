@@ -1,0 +1,7 @@
+Ladybird now defers microtasks until a layout update is done, the
+re-snap of scroll containers after layout included. Blink forbids
+script throughout layout: LocalFrameView::PerformLayout() takes a
+ScriptForbiddenScope. Gecko holds an nsAutoScriptBlocker while its
+PresShell flushes style and layout, in DoFlushPendingNotifications().
+And WebKit takes a ScriptDisallowedScope in LocalFrameViewLayoutContext::
+performLayout(). All three come from reading the engines’ sources.
