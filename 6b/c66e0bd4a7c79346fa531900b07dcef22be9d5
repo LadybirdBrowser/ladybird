@@ -1,0 +1,23 @@
+When float avoidance moves an in-flow block formatting context root
+down from where its collapsed top margin put it, Ladybird takes that
+margin back out of the top margin group its parent still holds open,
+and places the box past the floats from where the group leaves it.
+Chrome 158 agrees with Ladybird on all 12 cases in the test (a flex and
+a flow-root box with a -76px margin, an ordinary block, a positive
+margin, a box that fits beside the float, and an empty sibling before
+it, each with an auto and a definite height). Firefox 151 and WebKit
+26.5 agree on the flex, flow-root, ordinary-block and positive-margin
+cases; Firefox also moves a box that fits beside the float, and both
+place the case with an empty sibling before the box differently.
+
+All three treat a box that avoids floats and gets pushed down like a box
+with clearance, so its margin no longer collapses with the margins
+before it. Blink does that in BlockLayoutAlgorithm::
+HandleNewFormattingContext(), which lays out the box again with its
+margin kept apart once it doesn’t fit beside the floats where the
+collapsed margin put it. WebKit’s RenderBlockFlow::
+computedClearDeltaForChild() gives such a box a clearance delta, which
+clearFloatsIfNeeded() then applies. And Gecko’s nsBlockFrame::
+ReflowBlockFrame() takes a block that can’t intersect floats as one
+that may need clearance, and reflows its parent with the clearance it
+discovers.
