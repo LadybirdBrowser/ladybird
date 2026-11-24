@@ -19,6 +19,7 @@ static auto const& s_builtin_search_engines = *new auto(to_array<SearchEngine>({
     { "Google"_string, "https://www.google.com/search?q=%s"_string, "https://www.google.com/complete/search?client=chrome&q=%s"_string },
     { "Kagi"_string, "https://kagi.com/search?q=%s"_string, "https://kagisuggest.com/api/autosuggest?q=%s"_string },
     { "Mojeek"_string, "https://www.mojeek.com/search?q=%s"_string },
+    { "Qwant"_string, "https://www.qwant.com/?q=%s&t=web"_string, "https://api.qwant.com/api/suggest/?client=opensearch&q=%s"_string },
     { "Startpage"_string, "https://startpage.com/search?q=%s"_string, "https://www.startpage.com/osuggestions?q=%s"_string },
     { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string, "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=fxjson&command=%s"_string },
     { "Yandex"_string, "https://yandex.com/search/?text=%s"_string, "https://suggest.yandex.com/suggest-ff.cgi?part=%s&uil=en&v=3"_string },
