@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body { margin: 0; }
+table { table-layout: fixed; width: 970px; border-spacing: 0; }
+td, th { padding: 0; }
+</style>
+<!-- In fixed mode, only the cells of the first row measure the columns, so a length width on a later cell is ignored. -->
+<table id="t1"><tr><td style="width: 18%"></td><td>a</td><td>b</td></tr><tr><td style="width: 106px">k</td><td>x</td><td>y</td></tr></table>
+<table id="t2"><tr><td style="width: 180px"></td><td>a</td><td>b</td></tr><tr><td style="width: 106px">k</td><td>x</td><td>y</td></tr></table>
+<table id="t3"><tr><td></td><td>a</td><td>b</td></tr><tr><td style="width: 106px">k</td><td>x</td><td>y</td></tr></table>
+<table id="t4"><tr><td style="width: 18%"></td><td>a</td><td>b</td></tr><tr><td style="width: 50%">k</td><td>x</td><td>y</td></tr></table>
+<table id="t5"><tr><td style="width: 18%"></td><td>a</td><td>b</td></tr><tr><td>k</td><td style="width: 106px">x</td><td>y</td></tr></table>
+<table id="t6"><tr><td style="width: 18%"></td><td>a</td><td>b</td></tr></table>
+<script>
+test(() => {
+  for (let i = 1; i <= 6; i++) {
+    const t = document.getElementById("t" + i);
+    println(`t${i}: ${[...t.rows[0].cells].map(c => Math.round(c.getBoundingClientRect().width)).join(" ")}`);
+  }
+});
+</script>
