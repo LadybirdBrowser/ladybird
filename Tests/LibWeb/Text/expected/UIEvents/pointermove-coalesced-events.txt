@@ -1,0 +1,7 @@
+pointerdown: 0 coalesced event(s)
+pointermove: 0 coalesced event(s)
+pointermove: 0 coalesced event(s)
+pointerup: 0 coalesced event(s)
+redispatched: isTrusted=false same target=true
+redispatched unread: 0 coalesced event(s)
+host listener: no coalesced event kept

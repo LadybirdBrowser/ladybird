@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #target, #unread, #host {
+        width: 200px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<div id="target2"></div>
+<div id="unread"></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const describe = event => {
+            const coalesced = event.getCoalescedEvents();
+            println(`${event.type}: ${coalesced.length} coalesced event(s)`);
+            for (const c of coalesced) {
+                println(`  type=${c.type} clientX=${c.clientX} clientY=${c.clientY} buttons=${c.buttons}`);
+                println(`  isTrusted=${c.isTrusted} bubbles=${c.bubbles} cancelable=${c.cancelable}`);
+                println(`  same target=${c.target === event.target} same pointerId=${c.pointerId === event.pointerId} same pointerType=${c.pointerType === event.pointerType} same isPrimary=${c.isPrimary === event.isPrimary}`);
+                println(`  own coalesced=${c.getCoalescedEvents().length} own predicted=${c.getPredictedEvents().length}`);
+            }
+        };
+        for (const type of ["pointerdown", "pointermove", "pointerup"])
+            target.addEventListener(type, describe);
+        let lastPointerMove;
+        target.addEventListener("pointermove", event => {
+            lastPointerMove = event;
+        });
+
+        internals.mouseDown(10, 10);
+        internals.mouseMove(20, 30, 0, 1);
+        internals.mouseMove(40, 50, 0, 1);
+        internals.mouseUp(40, 50);
+
+        target2.addEventListener("pointermove", event => {
+            const coalesced = event.getCoalescedEvents();
+            println(`redispatched: isTrusted=${event.isTrusted} same target=${event.target === target2}`);
+            for (const c of coalesced)
+                println(`  coalesced isTrusted=${c.isTrusted} target is original=${c.target === target}`);
+        }, { once: true });
+        target2.dispatchEvent(lastPointerMove);
+
+        // The coalesced events keep their target even if no listener read them before script dispatches the event again.
+        let unreadPointerMove;
+        unread.addEventListener("pointermove", event => {
+            unreadPointerMove = event;
+        });
+        const unreadRect = unread.getBoundingClientRect();
+        internals.mouseMove(unreadRect.left + 10, unreadRect.top + 10);
+        target2.addEventListener("pointermove", event => {
+            const coalesced = event.getCoalescedEvents();
+            println(`redispatched unread: ${coalesced.length} coalesced event(s)`);
+            for (const c of coalesced)
+                println(`  coalesced target is original=${c.target === unread}`);
+        });
+        target2.dispatchEvent(unreadPointerMove);
+
+        // A coalesced event that a listener in a shadow tree keeps is retargeted for listeners outside the shadow tree.
+        const inner = document.createElement("div");
+        inner.style.height = "100px";
+        host.attachShadow({ mode: "closed" }).appendChild(inner);
+        let retainedCoalescedEvent;
+        inner.addEventListener("pointermove", event => {
+            retainedCoalescedEvent = event.getCoalescedEvents()[0];
+            if (retainedCoalescedEvent)
+                println(`shadow tree listener: coalesced target is inner=${retainedCoalescedEvent.target === inner}`);
+        }, { once: true });
+        host.addEventListener("pointermove", event => {
+            if (retainedCoalescedEvent)
+                println(`host listener: kept coalesced target is host=${retainedCoalescedEvent.target === host}`);
+            else
+                println("host listener: no coalesced event kept");
+        }, { once: true });
+        const hostRect = host.getBoundingClientRect();
+        internals.mouseMove(hostRect.left + 10, hostRect.top + 10);
+        if (retainedCoalescedEvent)
+            println(`after dispatch: kept coalesced target is host=${retainedCoalescedEvent.target === host}`);
+    });
+</script>
