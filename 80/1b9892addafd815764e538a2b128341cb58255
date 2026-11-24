@@ -1,0 +1,18 @@
+When margins collapse through every in-flow child of a block box that
+isn’t a formatting context root, and the collapsed margin can collapse
+with neither the box’s top margin (padding or a border above it) nor
+its bottom margin (padding or a border below it), Ladybird makes the
+box run to the bottom of that margin, from its top content edge, as
+section 10.6.3 of CSS 2 says. Chrome 158, Firefox 151 and WebKit 26.5
+agree on all 13 cases in the test: padding or borders at both ends,
+both margins of the child, two children, mixed signs, a negative margin
+(clamped to zero), a child nested a level deeper, padding or a border
+at one end only, a box before the empty one, and flow roots.
+
+Blink adds the end margin strut’s Sum() to the block size in
+BlockLayoutAlgorithm where the block end is separated by padding or a
+border. Gecko’s nsBlockFrame::ComputeFinalSize() doesn’t carry the
+children’s block-end margin out of a box that is a block-end margin
+root, but takes it into its height. And WebKit’s RenderBlockFlow::
+handleAfterSideOfBlock() adds the margin its MarginInfo still holds
+where it can’t collapse with the margin after the box.
