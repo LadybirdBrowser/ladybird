@@ -30,11 +30,9 @@
 
 namespace Web::MediaSourceExtensions {
 
-static void dispatch_addtrack_event(JS::Object& global_object, DOM::EventTarget& track_list, HTML::NullableTrackType const& track)
+static void dispatch_addtrack_event(JS::Object& global_object, DOM::EventTarget& track_list, HTML::TrackType const& track)
 {
-    HTML::TrackEventInit event_init {};
-    event_init.track = track;
-    auto event = HTML::TrackEvent::create(HTML::EventNames::addtrack, event_init, HighResolutionTime::current_high_resolution_time(global_object));
+    auto event = HTML::create_track_event(HTML::relevant_realm(global_object), HTML::EventNames::addtrack, track);
     track_list.dispatch_event(event);
 }
 

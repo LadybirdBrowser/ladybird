@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TrackEvent.h>
@@ -13,33 +15,15 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(TrackEvent);
-
-GC::Ref<TrackEvent> TrackEvent::create(FlyString const& event_name, TrackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<TrackEvent>(event_name, event_init, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/html/track_event.rs.
+DOM::Event* web_rust_track_event_create(JSVM*, void* realm, FlatPtr type, GC::Cell* track);
 }
 
-GC::Ref<TrackEvent> TrackEvent::create(Utf16FlyString const& event_name, TrackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<DOM::Event> create_track_event(JS::Realm& realm, Utf16FlyString const& type, TrackType const& track)
 {
-    return GC::Heap::the().allocate<TrackEvent>(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp);
-}
-
-TrackEvent::TrackEvent(FlyString const& event_name, TrackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : DOM::Event(event_name, event_init, time_stamp)
-    , m_track(event_init.track)
-{
-}
-
-void TrackEvent::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_track);
-}
-
-NullableTrackType TrackEvent::track() const
-{
-    return m_track;
+    auto* track_cell = track.visit([](auto const& track) -> GC::Cell* { return track.ptr(); });
+    return *web_rust_track_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), track_cell);
 }
 
 }

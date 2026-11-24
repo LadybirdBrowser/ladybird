@@ -976,10 +976,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
     //    text track's TextTrack object.
     queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(text_track), [](auto& text_track, HTMLMediaElement& self) {
-        Bindings::TrackEventInit event_init {};
-        event_init.track = text_track;
-
-        auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(self)));
+        auto event = create_track_event(HTML::relevant_realm(self), HTML::EventNames::addtrack, text_track);
         self.m_text_tracks->dispatch_event(event);
     }));
 
@@ -2500,10 +2497,7 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
         audio_track->set_enabled(true);
 
     // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
-    TrackEventInit event_init {};
-    event_init.track = audio_track;
-
-    auto event = TrackEvent::create(EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
+    auto event = create_track_event(relevant_realm(*this), EventNames::addtrack, audio_track);
     m_audio_tracks->dispatch_event(event);
 }
 
@@ -2541,10 +2535,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
         video_track->set_selected(true);
 
     // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
-    TrackEventInit event_init {};
-    event_init.track = video_track;
-
-    auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
+    auto event = create_track_event(relevant_realm(*this), HTML::EventNames::addtrack, video_track);
     m_video_tracks->dispatch_event(event);
 }
 

@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/media.html#trackevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface TrackEvent : Event {
     constructor(DOMString type, optional TrackEventInit eventInitDict = {});
 

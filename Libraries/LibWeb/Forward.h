@@ -814,7 +814,6 @@ class TextTrackList;
 class TextTrackObserver;
 class Timer;
 class TimeRanges;
-class TrackEvent;
 class UserActivation;
 class UserScrollGestureHold;
 class ValidityState;
