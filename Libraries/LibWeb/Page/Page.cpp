@@ -882,9 +882,9 @@ void Page::set_force_dark_for_local_roots(bool enabled)
     // NB: A local root can still be a stand-in that its remote parent doesn't list as a child yet, which local_roots()
     //     wouldn't find, so this sets it on every local navigable of the page.
     GC::RootVector<GC::Ref<HTML::LocalNavigable>> navigables;
-    for (auto navigable : HTML::all_local_navigables()) {
-        if (&navigable->page() == this && !navigable->has_been_destroyed())
-            navigables.append(*navigable);
+    for (auto& navigable : HTML::all_local_navigables()) {
+        if (&navigable.page() == this && !navigable.has_been_destroyed())
+            navigables.append(navigable);
     }
     for (auto const& navigable : navigables)
         navigable->set_force_dark_enabled(enabled);
@@ -920,7 +920,7 @@ Vector<GC::Root<HTML::LocalNavigable>> Page::hosted_navigables() const
 GC::Ptr<HTML::Navigable> Page::navigable_with_id(HTML::CrossProcessId id) const
 {
     for (auto& navigable : HTML::all_local_navigables()) {
-        if (navigable->id() == id && &navigable->page() == this && !navigable->has_been_destroyed())
+        if (navigable.id() == id && &navigable.page() == this && !navigable.has_been_destroyed())
             return navigable;
     }
     if (auto navigable = HTML::remote_navigable_with_id(*this, id); navigable && !navigable->has_been_destroyed())
@@ -1274,7 +1274,7 @@ void Page::finish_discarding()
     // of another page holds for one of them is closed.
     GC::RootVector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;
     for (auto& remote_navigable : HTML::all_remote_navigables()) {
-        if (&remote_navigable->page() == this)
+        if (&remote_navigable.page() == this)
             remote_navigables.append(remote_navigable);
     }
     for (auto& remote_navigable : remote_navigables) {

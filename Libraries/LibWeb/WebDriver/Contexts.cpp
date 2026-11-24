@@ -60,11 +60,11 @@ static GC::Ptr<HTML::LocalNavigable> find_navigable_with_handle(Utf16View handle
 {
     auto handle = MUST(handle_utf16.to_utf8());
 
-    for (auto navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->is_top_level_traversable() != should_be_top_level)
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
+        if (navigable.is_top_level_traversable() != should_be_top_level)
             continue;
 
-        if (window_handle(*navigable) == handle)
+        if (window_handle(navigable) == handle)
             return navigable;
     }
 
