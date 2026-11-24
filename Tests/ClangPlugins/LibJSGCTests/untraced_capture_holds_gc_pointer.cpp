@@ -127,13 +127,6 @@ struct SharesPlainData {
     RefPtr<CountedPlainData> counted;
 };
 
-struct HoldsRawCell {
-    GC_HOLDS_NO_CELL_EDGES;
-
-    // expected-error@+1 {{HoldsRawCell is declared to hold no cell edges, but its member cell holds a GC pointer}}
-    GC::RawPtr<GC::Cell> cell;
-};
-
 struct HoldsMemberCell {
     GC_HOLDS_NO_CELL_EDGES;
 

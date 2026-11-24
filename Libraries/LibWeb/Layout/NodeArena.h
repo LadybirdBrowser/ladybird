@@ -51,7 +51,7 @@ public:
 
 private:
     NonnullRefPtr<RenderDocument> m_render_document;
-    GC::RawPtr<DOM::Document> m_document;
+    GC::Ptr<DOM::Document> m_document;
 };
 
 }
