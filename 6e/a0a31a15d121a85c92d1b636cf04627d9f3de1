@@ -1,0 +1,11 @@
+Ladybird exposes width and stretch on FontFace as two names for the same
+descriptor. The constructor prefers width when both names are present.
+
+Blink uses hasWidth() to select the constructor descriptor and maps both
+attributes to FontFace::stretch(). Chrome 158.0.8127.37 accepted width
+in the constructor and reflected changes through both getters.
+
+WebKit 26.5 reflected writes through both names, but ignored width in
+the constructor. Its getter is FontFace::width(). Firefox 151.0 exposed
+only stretch. The Gecko source checkout has since added width to
+FontFaceImpl::SetDescriptors(), where width takes precedence.
