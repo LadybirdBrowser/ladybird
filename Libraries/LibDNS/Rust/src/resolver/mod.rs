@@ -714,6 +714,7 @@ impl Resolver {
     }
 
     fn on_validation_fetch(&mut self, id: u64, result: Result<Message, Error>, now: Instant) {
+        let received_at = self.unix_now(now);
         let Some(validation) = self.validations.get_mut(&id) else {
             return;
         };
@@ -721,7 +722,7 @@ impl Resolver {
             Ok(message) => {
                 let question = message.questions.first().cloned();
                 if let Some(question) = question {
-                    validation.fetches.insert(&question, message);
+                    validation.fetches.insert_received_at(&question, message, received_at);
                 }
                 self.run_validation(id, now);
             }
