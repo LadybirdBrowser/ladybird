@@ -1,0 +1,618 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! DNSSEC validation (RFC 4033, RFC 4034, RFC 4035, RFC 5155). The validator never does I/O: when it needs a DS or
+//! DNSKEY response it does not have yet, it asks for it, and the caller runs it again once that response is in
+//! `Fetches`.
+
+mod crypto;
+mod denial;
+mod rrset;
+
+#[cfg(test)]
+pub(crate) mod tests;
+
+use std::collections::HashMap;
+use std::fmt;
+
+use crate::message::{
+    Algorithm, Class, DigestType, Dnskey, DomainName, Ds, Message, Question, RecordData, ResourceRecord, ResourceType,
+    ResponseCode,
+};
+
+use crypto::{ds_matches_key, is_supported_algorithm, is_supported_digest_type, is_usable_zone_key};
+use denial::{DenialProofs, has_excessive_nsec3_iterations};
+use rrset::{SignedRRSet, group_rrsets, verify_denial_records, verify_rrset};
+
+/// RFC 4035, 4.3. Determining Security Status of Data.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum SecurityStatus {
+    Secure,
+    Insecure,
+    #[default]
+    Bogus,
+}
+
+impl SecurityStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Secure => "Secure",
+            Self::Insecure => "Insecure",
+            Self::Bogus => "Bogus",
+        }
+    }
+}
+
+impl fmt::Display for SecurityStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ValidationResult {
+    pub status: SecurityStatus,
+    /// The records answering the question, following CNAMEs. Authenticated when the status is Secure.
+    pub records: Vec<ResourceRecord>,
+    pub reason: &'static str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Step {
+    Done(ValidationResult),
+    /// Validation needs the response to this question in `Fetches` before it can go on.
+    NeedFetch(Question),
+    /// The response could not be validated at all, e.g. a needed query failed or a chain of trust is broken.
+    Failed(&'static str),
+}
+
+/// The DS and DNSKEY responses one validation has fetched so far.
+#[derive(Clone, Debug, Default)]
+pub struct Fetches {
+    responses: HashMap<(Vec<u8>, ResourceType), Message>,
+}
+
+impl Fetches {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Records the response to a question asked for by `Step::NeedFetch`.
+    pub fn insert(&mut self, question: &Question, response: Message) {
+        self.responses
+            .insert((question.name.to_canonical_string(), question.rtype), response);
+    }
+
+    pub fn get(&self, name: &DomainName, rtype: ResourceType) -> Option<&Message> {
+        self.responses.get(&(name.to_canonical_string(), rtype))
+    }
+
+    pub fn len(&self) -> usize {
+        self.responses.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.responses.is_empty()
+    }
+}
+
+const MAX_CACHED_ENTRIES: usize = 1024;
+const MAX_CNAME_CHAIN_LENGTH: usize = 16;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Failure {
+    Fetch(Question),
+    Error(&'static str),
+}
+
+/// The closest enclosing zone of a name for which a chain of trust has been established (or found broken).
+struct Chain {
+    status: SecurityStatus,
+    zone: DomainName,
+    keys: Vec<Dnskey>,
+    reason: &'static str,
+}
+
+#[derive(Clone, Debug)]
+struct ZoneKeys {
+    keys: Vec<Dnskey>,
+    /// Seconds since the epoch.
+    expires: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DelegationKind {
+    Secure,
+    Insecure,
+    NotACut,
+    NonExistent,
+}
+
+#[derive(Clone, Debug)]
+struct Delegation {
+    kind: DelegationKind,
+    ds: Vec<Ds>,
+    /// Seconds since the epoch.
+    expires: u64,
+}
+
+enum Accepted {
+    Records(Vec<ResourceRecord>),
+    Insecure(&'static str),
+    Bogus(&'static str),
+}
+
+fn decode_hex(hex: &str) -> Vec<u8> {
+    let digit = |ch: u8| match ch {
+        b'0'..=b'9' => ch - b'0',
+        b'a'..=b'f' => ch - b'a' + 10,
+        b'A'..=b'F' => ch - b'A' + 10,
+        _ => unreachable!("invalid hex digit in a built-in trust anchor"),
+    };
+    hex.as_bytes()
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[high, low]| digit(*high) << 4 | digit(*low))
+        .collect()
+}
+
+fn is_positive_or_name_error(message: &Message) -> bool {
+    let rcode = message.header.options.response_code();
+    rcode == ResponseCode::NO_ERROR || rcode == ResponseCode::NAME_ERROR
+}
+
+fn fetched<'a>(fetches: &'a Fetches, name: &DomainName, rtype: ResourceType) -> Result<&'a Message, Failure> {
+    fetches.get(name, rtype).ok_or_else(|| {
+        Failure::Fetch(Question {
+            name: name.clone(),
+            rtype,
+            class: Class::IN,
+        })
+    })
+}
+
+fn expiry(now: u32, ttl: u32) -> u64 {
+    u64::from(now) + u64::from(ttl)
+}
+
+#[derive(Clone, Debug)]
+pub struct Validator {
+    trust_anchors: Vec<Ds>,
+    zone_keys: HashMap<Vec<u8>, ZoneKeys>,
+    delegations: HashMap<Vec<u8>, Delegation>,
+}
+
+impl Default for Validator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Validator {
+    pub fn new() -> Self {
+        Self {
+            trust_anchors: Self::root_trust_anchors(),
+            zone_keys: HashMap::new(),
+            delegations: HashMap::new(),
+        }
+    }
+
+    // https://data.iana.org/root-anchors/root-anchors.xml
+    pub fn root_trust_anchors() -> Vec<Ds> {
+        vec![
+            Ds {
+                key_tag: 20326,
+                algorithm: Algorithm::RSASHA256,
+                digest_type: DigestType::SHA256,
+                digest: decode_hex("E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D"),
+            },
+            Ds {
+                key_tag: 38696,
+                algorithm: Algorithm::RSASHA256,
+                digest_type: DigestType::SHA256,
+                digest: decode_hex("683D2D0ACB8C9B712A1948B27F741219298D0A450D612C483AF444A4C0FB2B16"),
+            },
+        ]
+    }
+
+    pub fn set_trust_anchors(&mut self, anchors: Vec<Ds>) {
+        self.trust_anchors = anchors;
+        self.clear_caches();
+    }
+
+    pub fn clear_caches(&mut self) {
+        self.zone_keys.clear();
+        self.delegations.clear();
+    }
+
+    /// Authenticates the answer to `question` in `response`. `now` is the current time in seconds since the epoch.
+    /// Run it again with the same arguments, and the requested response added to `fetches`, until it is done.
+    pub fn validate(&mut self, response: &Message, question: &Question, fetches: &Fetches, now: u32) -> Step {
+        match self.try_validate(response, question, fetches, now) {
+            Ok(result) => Step::Done(result),
+            Err(Failure::Fetch(question)) => Step::NeedFetch(question),
+            Err(Failure::Error(reason)) => Step::Failed(reason),
+        }
+    }
+
+    // Empty when none of the DS records can be used to authenticate the zone, which makes the zone insecure.
+    fn zone_keys(
+        &mut self,
+        zone: &DomainName,
+        ds_set: &[Ds],
+        fetches: &Fetches,
+        now: u32,
+    ) -> Result<Option<Vec<Dnskey>>, Failure> {
+        let cache_key = zone.to_canonical_string();
+        if let Some(cached) = self.zone_keys.get(&cache_key) {
+            if cached.expires > u64::from(now) {
+                return Ok(Some(cached.keys.clone()));
+            }
+            self.zone_keys.remove(&cache_key);
+        }
+
+        // RFC 4035, 5.2. Authenticating Referrals.
+        // If the validator does not support any of the algorithms listed in an authenticated DS RRset, then the resolver
+        // has no supported authentication path leading from the parent to the child.  The resolver should treat this
+        // case as it would the case of an authenticated NSEC RRset proving that no DS RRset exists, as described above.
+        let usable_ds: Vec<&Ds> = ds_set
+            .iter()
+            .filter(|ds| is_supported_algorithm(ds.algorithm) && is_supported_digest_type(ds.digest_type))
+            .collect();
+        if usable_ds.is_empty() {
+            return Ok(None);
+        }
+
+        let response = fetched(fetches, zone, ResourceType::DNSKEY)?;
+        if !is_positive_or_name_error(response) {
+            return Err(Failure::Error("DNSKEY query failed"));
+        }
+
+        let rrsets = group_rrsets(&response.answers);
+        let dnskey_rrset = rrsets
+            .iter()
+            .find(|rrset| rrset.rtype == ResourceType::DNSKEY && rrset.owner.eq_ignore_case(zone))
+            .ok_or(Failure::Error("Zone has no DNSKEY RRset"))?;
+
+        // Given a DS RR for a delegation, the child zone's apex DNSKEY RRset can be authenticated if all of the following
+        // hold:
+        // o  The Algorithm and Key Tag in the DS RR match the Algorithm field and the key tag of a DNSKEY RR in the child
+        //    zone's apex DNSKEY RRset, and, when the DNSKEY RR's owner name and RDATA are hashed using the digest
+        //    algorithm specified in the DS RR's Digest Type field, the resulting digest value matches the Digest field
+        //    of the DS RR.
+        // o  The matching DNSKEY RR in the child zone has the Zone Flag bit set, the corresponding private key has
+        //    signed the child zone's apex DNSKEY RRset, and the resulting RRSIG RR authenticates the child zone's apex
+        //    DNSKEY RRset.
+        for record in &dnskey_rrset.records {
+            let RecordData::Dnskey(key) = &record.data else {
+                continue;
+            };
+            if !is_usable_zone_key(key) {
+                continue;
+            }
+            if !usable_ds.iter().any(|ds| ds_matches_key(zone, ds, key)) {
+                continue;
+            }
+
+            let Some(verified) = verify_rrset(dnskey_rrset, zone, std::slice::from_ref(key), now)? else {
+                continue;
+            };
+
+            let keys: Vec<Dnskey> = verified
+                .rrset
+                .records
+                .iter()
+                .filter_map(|record| match &record.data {
+                    RecordData::Dnskey(zone_key) if is_usable_zone_key(zone_key) => Some(zone_key.clone()),
+                    _ => None,
+                })
+                .collect();
+            if self.zone_keys.len() >= MAX_CACHED_ENTRIES {
+                self.zone_keys.clear();
+            }
+            self.zone_keys.insert(
+                cache_key,
+                ZoneKeys {
+                    keys: keys.clone(),
+                    expires: expiry(now, verified.ttl),
+                },
+            );
+            return Ok(Some(keys));
+        }
+
+        Err(Failure::Error("No DNSKEY matches an authenticated DS record"))
+    }
+
+    fn delegation(
+        &mut self,
+        name: &DomainName,
+        parent: &Chain,
+        fetches: &Fetches,
+        now: u32,
+    ) -> Result<Delegation, Failure> {
+        let cache_key = name.to_canonical_string();
+        if let Some(cached) = self.delegations.get(&cache_key) {
+            if cached.expires > u64::from(now) {
+                return Ok(cached.clone());
+            }
+            self.delegations.remove(&cache_key);
+        }
+
+        let mut remember = |delegation: Delegation| {
+            if self.delegations.len() >= MAX_CACHED_ENTRIES {
+                self.delegations.clear();
+            }
+            self.delegations.insert(cache_key.clone(), delegation.clone());
+            Ok(delegation)
+        };
+
+        let response = fetched(fetches, name, ResourceType::DS)?;
+        if !is_positive_or_name_error(response) {
+            return Err(Failure::Error("DS query failed"));
+        }
+
+        let answers = group_rrsets(&response.answers);
+        for rrset in &answers {
+            if !rrset.owner.eq_ignore_case(name) {
+                continue;
+            }
+            // RFC 2181, 10.1: a name that is an alias cannot have any other data, so it is not a zone cut either.
+            if rrset.rtype == ResourceType::CNAME {
+                let verified = verify_rrset(rrset, &parent.zone, &parent.keys, now)?
+                    .ok_or(Failure::Error("CNAME RRset did not validate"))?;
+                return remember(Delegation {
+                    kind: DelegationKind::NotACut,
+                    ds: Vec::new(),
+                    expires: expiry(now, verified.ttl),
+                });
+            }
+            if rrset.rtype != ResourceType::DS {
+                continue;
+            }
+            // RFC 4035, 5.2: The DS RR has been authenticated using some DNSKEY RR in the parent's apex DNSKEY RRset.
+            let verified = verify_rrset(rrset, &parent.zone, &parent.keys, now)?
+                .ok_or(Failure::Error("DS RRset did not validate"))?;
+            let ds = verified
+                .rrset
+                .records
+                .iter()
+                .filter_map(|record| match &record.data {
+                    RecordData::Ds(ds) => Some(ds.clone()),
+                    _ => None,
+                })
+                .collect();
+            return remember(Delegation {
+                kind: DelegationKind::Secure,
+                ds,
+                expires: expiry(now, verified.ttl),
+            });
+        }
+
+        // No DS: the parent has to prove that, with NSEC or NSEC3 records signed by its own keys.
+        let authority = group_rrsets(&response.authorities);
+        let verified = verify_denial_records(&authority, &parent.zone, &parent.keys, now)?;
+        let insecure_or_not_a_cut = |kind, expires| Delegation {
+            kind,
+            ds: Vec::new(),
+            expires,
+        };
+        if has_excessive_nsec3_iterations(&verified) {
+            return remember(insecure_or_not_a_cut(DelegationKind::Insecure, expiry(now, 60)));
+        }
+
+        let ttl = verified.iter().map(|rrset| rrset.ttl).min().unwrap_or(0);
+        let expires = expiry(now, ttl);
+
+        let proofs = DenialProofs { rrsets: &verified };
+        if proofs.proves_insecure_delegation(name) {
+            return remember(insecure_or_not_a_cut(DelegationKind::Insecure, expires));
+        }
+        if proofs.proves_name_exists_without_delegation(name) {
+            return remember(insecure_or_not_a_cut(DelegationKind::NotACut, expires));
+        }
+        if response.header.options.response_code() == ResponseCode::NAME_ERROR && proofs.proves_name_error(name) {
+            return remember(insecure_or_not_a_cut(DelegationKind::NonExistent, expires));
+        }
+        // A No Data answer for DS without a matching NSEC means the name is an empty non-terminal or is covered by
+        // a wildcard; either way it is not a zone cut.
+        if proofs.proves_no_data(name, ResourceType::DS) {
+            return remember(insecure_or_not_a_cut(DelegationKind::NotACut, expires));
+        }
+
+        Err(Failure::Error("Absence of DS record is not proven"))
+    }
+
+    fn chain_for(&mut self, name: &DomainName, fetches: &Fetches, now: u32) -> Result<Chain, Failure> {
+        let root = DomainName::root();
+        let anchors = self.trust_anchors.clone();
+        let Some(root_keys) = self.zone_keys(&root, &anchors, fetches, now)? else {
+            return Ok(Chain {
+                status: SecurityStatus::Insecure,
+                zone: root,
+                keys: Vec::new(),
+                reason: "No usable trust anchor",
+            });
+        };
+
+        let mut chain = Chain {
+            status: SecurityStatus::Secure,
+            zone: root,
+            keys: root_keys,
+            reason: "",
+        };
+        for labels in 1..=name.labels.len() {
+            let candidate = name.suffix(labels);
+            let delegation = self.delegation(&candidate, &chain, fetches, now)?;
+            match delegation.kind {
+                DelegationKind::Secure => {
+                    let Some(keys) = self.zone_keys(&candidate, &delegation.ds, fetches, now)? else {
+                        return Ok(Chain {
+                            status: SecurityStatus::Insecure,
+                            zone: candidate,
+                            keys: Vec::new(),
+                            reason: "No supported DS algorithm",
+                        });
+                    };
+                    chain = Chain {
+                        status: SecurityStatus::Secure,
+                        zone: candidate,
+                        keys,
+                        reason: "",
+                    };
+                }
+                DelegationKind::Insecure => {
+                    return Ok(Chain {
+                        status: SecurityStatus::Insecure,
+                        zone: candidate,
+                        keys: Vec::new(),
+                        reason: "Unsigned delegation",
+                    });
+                }
+                DelegationKind::NotACut => {}
+                DelegationKind::NonExistent => return Ok(chain),
+            }
+        }
+        Ok(chain)
+    }
+
+    fn accept(
+        &mut self,
+        rrset: &SignedRRSet,
+        current: &DomainName,
+        chain: &Chain,
+        proofs: &DenialProofs<'_>,
+        fetches: &Fetches,
+        now: u32,
+    ) -> Result<Accepted, Failure> {
+        // RFC 4035, 5.2: a DS RRset is authoritative data of the parent zone.
+        let parent_chain;
+        let zone = if rrset.rtype != ResourceType::DS || current.is_root() {
+            chain
+        } else {
+            parent_chain = self.chain_for(&current.parent(), fetches, now)?;
+            &parent_chain
+        };
+        match zone.status {
+            SecurityStatus::Insecure => return Ok(Accepted::Insecure(zone.reason)),
+            SecurityStatus::Bogus => return Ok(Accepted::Bogus(zone.reason)),
+            SecurityStatus::Secure => {}
+        }
+        let Some(verified) = verify_rrset(rrset, &zone.zone, &zone.keys, now)? else {
+            return Ok(Accepted::Bogus("RRset signature did not validate"));
+        };
+        // RFC 4035, 5.3.4. Authenticating a Wildcard Expanded RRset Positive Response.
+        // it must take additional steps to verify the non-existence of an exact match or closer wildcard match
+        // for the query.
+        if let Some(wildcard_label_count) = verified.wildcard_label_count
+            && !proofs.proves_next_closer_absent(current, wildcard_label_count)
+        {
+            return Ok(Accepted::Bogus("Wildcard expansion is not proven"));
+        }
+        Ok(Accepted::Records(verified.rrset.records))
+    }
+
+    fn try_validate(
+        &mut self,
+        response: &Message,
+        question: &Question,
+        fetches: &Fetches,
+        now: u32,
+    ) -> Result<ValidationResult, Failure> {
+        if !is_positive_or_name_error(response) {
+            return Err(Failure::Error("DNS query failed"));
+        }
+
+        let insecure = |reason| ValidationResult {
+            status: SecurityStatus::Insecure,
+            records: response.answers_to(question),
+            reason,
+        };
+        let bogus = |reason| ValidationResult {
+            status: SecurityStatus::Bogus,
+            records: Vec::new(),
+            reason,
+        };
+
+        let answers = group_rrsets(&response.answers);
+        let authority = group_rrsets(&response.authorities);
+
+        let mut result = ValidationResult {
+            status: SecurityStatus::Secure,
+            records: Vec::new(),
+            reason: "",
+        };
+        let mut current = question.name.clone();
+        for _ in 0..=MAX_CNAME_CHAIN_LENGTH {
+            let chain = self.chain_for(&current, fetches, now)?;
+            match chain.status {
+                SecurityStatus::Insecure => return Ok(insecure(chain.reason)),
+                SecurityStatus::Bogus => return Ok(bogus(chain.reason)),
+                SecurityStatus::Secure => {}
+            }
+
+            let mut answer = None;
+            let mut cname = None;
+            for rrset in &answers {
+                if rrset.class != question.class || !rrset.owner.eq_ignore_case(&current) {
+                    continue;
+                }
+                if rrset.rtype == question.rtype {
+                    answer = Some(rrset);
+                } else if rrset.rtype == ResourceType::CNAME {
+                    cname = Some(rrset);
+                }
+            }
+
+            let denial_records = verify_denial_records(&authority, &chain.zone, &chain.keys, now)?;
+            if has_excessive_nsec3_iterations(&denial_records) {
+                return Ok(insecure("NSEC3 iteration count is too high"));
+            }
+            let proofs = DenialProofs {
+                rrsets: &denial_records,
+            };
+
+            if let Some(answer) = answer {
+                return Ok(match self.accept(answer, &current, &chain, &proofs, fetches, now)? {
+                    Accepted::Records(records) => {
+                        result.records.extend(records);
+                        result
+                    }
+                    Accepted::Insecure(reason) => insecure(reason),
+                    Accepted::Bogus(reason) => bogus(reason),
+                });
+            }
+
+            if let Some(cname) = cname
+                && question.rtype != ResourceType::CNAME
+            {
+                match self.accept(cname, &current, &chain, &proofs, fetches, now)? {
+                    Accepted::Records(records) => result.records.extend(records),
+                    Accepted::Insecure(reason) => return Ok(insecure(reason)),
+                    Accepted::Bogus(reason) => return Ok(bogus(reason)),
+                }
+                let Some(RecordData::Cname(target)) = cname.records.first().map(|record| &record.data) else {
+                    return Err(Failure::Error("CNAME record has no target"));
+                };
+                current = target.clone();
+                continue;
+            }
+
+            if response.header.options.response_code() == ResponseCode::NAME_ERROR {
+                if proofs.proves_name_error(&current) {
+                    return Ok(result);
+                }
+                return Ok(bogus("Name error is not proven"));
+            }
+            if proofs.proves_no_data(&current, question.rtype) {
+                return Ok(result);
+            }
+            return Ok(bogus("Absence of the requested type is not proven"));
+        }
+
+        Ok(bogus("CNAME chain is too long"))
+    }
+}
