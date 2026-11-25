@@ -339,6 +339,18 @@ pub extern "C" fn render_state_paintable_transform_reference_box(
     };
 }
 
+/// Whether the box in `slot` is a transformable element's, where the box was laid out.
+pub(crate) fn render_state_paintable_is_transformable(host: &DocumentHost, slot: NodeSlotId) -> bool {
+    if let Some(transformable) = host.read_rows_between_jobs(node_read(), |rows| {
+        crate::painting::style_queries::is_transformable(rows, slot)
+    }) {
+        return transformable;
+    }
+    read_arena(host, node_read(), slot, |arena, slot| {
+        crate::painting::style_queries::is_transformable(&arena.paintable_rows(), slot)
+    })
+}
+
 /// The transform reference box of the box in `slot`, where the box was laid out.
 pub(crate) fn committed_transform_reference_box(rows: &impl PaintRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     if !rows.paintable_row_is_populated(slot) {

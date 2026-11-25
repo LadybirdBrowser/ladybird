@@ -9,9 +9,10 @@
 <div id="display-contents" style="display: contents; transform: translateX(10px)"></div>
 <div id="display-none-no-transform" style="display: none"></div>
 <svg><defs><rect id="svg-in-defs" width="10" height="10" style="transform: translateX(10px) scale(2)"/></defs></svg>
+<span id="inline" style="transform: translate(-50%, 10px)">inline text</span>
 <script>
     test(() => {
-        for (const id of ["with-box", "display-none", "in-display-none", "display-contents", "display-none-no-transform", "svg-in-defs"]) {
+        for (const id of ["with-box", "display-none", "in-display-none", "display-contents", "display-none-no-transform", "svg-in-defs", "inline"]) {
             const value = getComputedStyle(document.getElementById(id)).transform;
             let matrix;
             try {
