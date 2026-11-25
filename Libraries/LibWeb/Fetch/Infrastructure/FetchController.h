@@ -116,8 +116,8 @@ public:
     void set_keepalive(bool is_keepalive) { m_is_keepalive = is_keepalive; }
 
     [[nodiscard]] bool response_arrived() const { return m_control_block->response_arrived(); }
-    [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
-    void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
+    [[nodiscard]] RefPtr<Fetching::PendingResponse> const& pending_preloaded_response() const { return m_pending_preloaded_response; }
+    void set_pending_preloaded_response(RefPtr<Fetching::PendingResponse>);
     // The handle in the callback of the preload entry whose response the fetch's preloaded response candidate waits for,
     // while that callback lives.
     [[nodiscard]] WeakPtr<Fetching::PreloadWaitHandle> const& preload_wait_handle() const { return m_preload_wait_handle; }
@@ -137,9 +137,6 @@ public:
     u64 next_fetch_task_id() { return m_next_fetch_task_id++; }
     void fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id);
     void fetch_task_complete(u64 fetch_task_id);
-
-    void add_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse>);
-    void remove_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse>);
 
 private:
     explicit FetchController(FetchControllerRegistry&);
@@ -213,7 +210,7 @@ private:
 
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.
-    GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
+    RefPtr<Fetching::PendingResponse> m_pending_preloaded_response;
     WeakPtr<Fetching::PreloadWaitHandle> m_preload_wait_handle;
 
     struct StartedFetch {
@@ -227,9 +224,6 @@ private:
 
     // AD-HOC: Run when the fetch is stopped, for whatever was waiting on its response.
     GC::Ptr<GC::Function<void()>> m_stop_steps;
-
-    // The pending responses of this fetch whose callbacks have yet to run.
-    Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;
 };
 
 class FetchControllerHolder : public JS::Cell {
