@@ -3,6 +3,10 @@ name = "libcrypto_rust"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# Links OpenSSL, for binaries that do not get it from the libraries that link this crate, such as unit tests.
+link-openssl = []
+
 [dependencies]
 ak = { path = "../../../AK/Rust" }
 subtle = "2.6"

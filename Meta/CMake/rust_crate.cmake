@@ -333,6 +333,10 @@ function(test_rust_crate)
         TARGET_DIR "${CMAKE_BINARY_DIR}/cargo/tests/${ARG_CRATE_NAME}"
     )
     list(APPEND cargo_env ${ARG_ENVIRONMENT})
+    # Test binaries link OpenSSL themselves where libcrypto_rust is asked to; see its build script.
+    if (OPENSSL_CRYPTO_LIBRARY)
+        list(APPEND cargo_env "LADYBIRD_OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}")
+    endif()
     # cargo test accepts harness arguments after --, not rustc arguments.
     list(FIND cargo_common_flags "--" rustc_flags_start)
     list(SUBLIST cargo_common_flags 0 ${rustc_flags_start} cargo_test_flags)
