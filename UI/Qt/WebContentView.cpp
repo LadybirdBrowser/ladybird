@@ -2637,6 +2637,13 @@ bool WebContentView::event(QEvent* event)
             return false;
         }
 
+        // Qt has no shortcuts for keys it cannot map, so there is nothing to override. Accepting one anyway can keep the
+        // platform from handling the key press as a system shortcut.
+        if (key_event->key() == Qt::Key_unknown) {
+            event->ignore();
+            return false;
+        }
+
         event->accept();
         return true;
     }
