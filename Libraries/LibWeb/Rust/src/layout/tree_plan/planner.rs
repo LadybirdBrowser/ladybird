@@ -1041,13 +1041,9 @@ pub(crate) struct UnitPlanning {
 /// boxes stay as they are.
 #[derive(Clone, Copy)]
 pub(crate) struct ListWindow {
-    /// The child the walk plans the list from, which the walk keeps: the last child that has a box, which goes last
-    /// among the boxes of the list, or the first one whose box `wrapper` holds, or one whose box goes before the changes,
-    /// or none where the window runs from the start of the list.
+    /// The child the walk plans the list from, which the walk keeps, whose box goes before the changes, or none where
+    /// the window runs from the start of the list.
     pub(crate) start: Option<StyleNodeID>,
-    /// The anonymous box that wraps the run of inline content the list ends with, which the walk plans again in an
-    /// anonymous box of its own that takes it over, or the invalid slot where the window starts after it.
-    pub(crate) wrapper: NodeSlotId,
     /// The child the walk plans the list up to, which the walk keeps, whose box goes after the changes, or none where
     /// the window runs to the end of the list.
     pub(crate) end: Option<StyleNodeID>,
@@ -1779,16 +1775,6 @@ impl<'a> Planner<'a> {
             .unit
             .and_then(|unit| unit.window)
             .filter(|_| self.in_unit_list && Some(parent) == self.unit_element);
-        // NB: A window in the run of inline content the list ends with plans the run in an anonymous box, as a walk does
-        //     after the block the run follows.
-        if let Some(window) = window
-            && !window.wrapper.is_invalid()
-        {
-            let wrapper = self
-                .tree
-                .create_anonymous_wrapper(self.current_parent(), NodeSlotId::INVALID);
-            self.tree.set_flag(wrapper, NodeFlag::ChildrenAreInline, true);
-        }
         // NB: The children before the window keep their boxes, so the walk starts after what they did to the counters.
         if let Some(start) = window.and_then(|window| window.start)
             && !self.resolves_counters_after_commit
