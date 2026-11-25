@@ -182,8 +182,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurre
 
     // 5. Fire an event named currententrychange at this using NavigationCurrentEntryChangeEvent,
     //    with its navigationType attribute initialized to null and its from initialized to current.
-    NavigationCurrentEntryChangeEventInit event_init { {}, *current, {} };
-    dispatch_event(HTML::NavigationCurrentEntryChangeEvent::create(HTML::EventNames::currententrychange, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window()))));
+    dispatch_event(create_navigation_current_entry_change_event(relevant_realm(window()), EventNames::currententrychange, {}, *current));
 
     return {};
 }
@@ -1709,8 +1708,7 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
 
     // 12. Fire an event named currententrychange at navigation using NavigationCurrentEntryChangeEvent,
     //     with its navigationType attribute initialized to navigationType and its from initialized to oldCurrentNHE.
-    NavigationCurrentEntryChangeEventInit event_init { {}, *old_current_nhe, navigation_type };
-    dispatch_event(NavigationCurrentEntryChangeEvent::create(EventNames::currententrychange, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object())));
+    dispatch_event(create_navigation_current_entry_change_event(realm, EventNames::currententrychange, navigation_type, *old_current_nhe));
 
     // 13. For each disposedNHE of disposedNHEs:
     for (auto& disposed_nhe : disposed_nhes) {

@@ -106,6 +106,10 @@ pub(crate) mod mime_type_array;
 #[cfg(not(test))]
 pub(crate) mod navigable;
 #[cfg(not(test))]
+pub(crate) mod navigation_current_entry_change_event;
+#[cfg(not(test))]
+pub(crate) mod navigation_type;
+#[cfg(not(test))]
 pub(crate) mod navigator;
 #[cfg(not(test))]
 pub(crate) mod numbers;
