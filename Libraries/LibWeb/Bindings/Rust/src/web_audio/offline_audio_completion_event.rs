@@ -60,6 +60,10 @@ impl OfflineAudioCompletionEvent {
         Ok(Self::create(cx.vm(), event, event_init_dict.rendered_buffer))
     }
 
+    pub(crate) fn event(&self) -> &CppEvent {
+        &self.event
+    }
+
     pub(crate) fn rendered_buffer(&self, _: &mut CallContext) -> WebIdlResult<Ref<AudioBuffer>> {
         Ok(self
             .rendered_buffer

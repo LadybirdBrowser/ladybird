@@ -65,6 +65,10 @@ impl PageSwapEvent {
         Ok(object)
     }
 
+    pub(crate) fn event(&self) -> &CppEvent {
+        &self.event
+    }
+
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#dom-pageswapevent-activation
     pub(crate) fn activation(&self, cx: &mut CallContext) -> WebIdlResult<Option<CppInterface>> {
         Ok(self.activation.as_ref().map(|activation| wrap_cpp_cell(cx, activation)))

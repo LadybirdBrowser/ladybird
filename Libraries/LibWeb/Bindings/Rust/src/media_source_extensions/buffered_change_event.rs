@@ -59,4 +59,8 @@ impl BufferedChangeEvent {
         object.event.set_owner(object);
         Ok(object)
     }
+
+    pub(crate) fn event(&self) -> &CppEvent {
+        &self.event
+    }
 }

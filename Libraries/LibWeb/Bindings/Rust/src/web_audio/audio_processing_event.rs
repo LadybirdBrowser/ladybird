@@ -79,6 +79,10 @@ impl AudioProcessingEvent {
         ))
     }
 
+    pub(crate) fn event(&self) -> &CppEvent {
+        &self.event
+    }
+
     pub(crate) fn playback_time(&self, _: &mut CallContext) -> WebIdlResult<f64> {
         Ok(self.playback_time)
     }
