@@ -740,6 +740,7 @@ impl CompositorCore {
         display_list: Rc<DisplayList>,
         visual_context_tree: AccumulatedVisualContextTree,
         scroll_state_snapshot: ScrollStateSnapshot,
+        keyboard_scroll_state: KeyboardScrollState,
         now: MonotonicTime,
     ) -> bool {
         let _entered = self.enter();
@@ -749,6 +750,7 @@ impl CompositorCore {
             display_list,
             visual_context_tree,
             scroll_state_snapshot,
+            keyboard_scroll_state,
             now,
         );
         self.finish_entry(now);

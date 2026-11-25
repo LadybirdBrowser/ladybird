@@ -106,7 +106,6 @@ impl FfiAsyncScrollingMetadata {
             viewport_keeps_horizontal_scrolls: self.viewport_keeps_horizontal_scrolls,
             viewport_keeps_vertical_scrolls: self.viewport_keeps_vertical_scrolls,
             device_pixels_per_css_pixel: self.device_pixels_per_css_pixel,
-            keyboard_scroll_state: crate::painting::presentation::empty_keyboard_scroll_state(),
         }
     }
 }
