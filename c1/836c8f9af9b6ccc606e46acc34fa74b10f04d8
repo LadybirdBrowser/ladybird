@@ -1,0 +1,7 @@
+A WebGL uniform location in Ladybird belongs to one link of its program,
+and a location from before a later link, successful or not, generates
+INVALID_OPERATION. Blink’s WebGLUniformLocation compares the link count
+it was made with to its program’s LinkCount(), WebKit’s compares it to
+its program’s getLinkCount(), and Gecko ties each location to the link
+result of its program (as its mParent). And the test’s output is the
+same, line for line, in Chrome 158, Firefox 151, and WebKit 26.5.
