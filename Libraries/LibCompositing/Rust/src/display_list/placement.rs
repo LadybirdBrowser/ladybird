@@ -350,13 +350,6 @@ fn compositor_scrolled_nodes_without_own_space<'a>(
         .filter(move |node| *node != VISUAL_VIEWPORT_NODE_INDEX && !scrollers_with_spaces.contains(node))
 }
 
-fn visual_viewport_only_translates(tree: &VisualContextTree) -> bool {
-    let Some(SpatialData::Transform(transform)) = tree.spatial_nodes.first().map(|node| &node.data) else {
-        return false;
-    };
-    translation_if_only_translates(&transform.matrix_including_origin()).is_some()
-}
-
 // How deep below the viewport each node is, where nothing between it and the viewport transforms or moves on its own,
 // so that content of the node lands on whole device pixels wherever it is scrolled to.
 struct DepthsBelowViewportOnWholeDevicePixels<'a> {
@@ -551,9 +544,6 @@ pub fn raster_space_anchors(
     tree: &VisualContextTree,
     spatial_nodes_that_move_on_their_own: &[bool],
 ) -> Vec<SpatialNodeIndex> {
-    if !visual_viewport_only_translates(tree) {
-        return Vec::new();
-    }
     let mut depths_below_viewport = DepthsBelowViewportOnWholeDevicePixels::new(spatial_nodes_that_move_on_their_own);
     let candidate_scrollers: Vec<ScrollerThatCanHaveSpace> = tree
         .compositor_scroll_table()

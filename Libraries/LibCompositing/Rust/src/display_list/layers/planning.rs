@@ -191,8 +191,9 @@ pub struct PlannedLayers {
 /// What a plan of the layers of a list reads, all of which WebContent publishes.
 pub struct LayerStackInputs<'a> {
     pub list: &'a DisplayListStorage,
-    /// The tree as WebContent published it, without the samples of the compositor's animations and without a visual
-    /// viewport transform of the compositor's.
+    /// The tree as WebContent published it, without the samples of the compositor's animations, with its visual
+    /// viewport at identity: plans are made in the device pixels of the layout viewport and hold wherever the visual
+    /// viewport is.
     pub tree: &'a VisualContextTree,
     /// The scroll offsets WebContent published with the tree. A plan reads only those that
     /// `RasterSpaceAnchorsOfTree::leaves_out_scroll_offset_of_node` does not name.
@@ -2856,6 +2857,7 @@ impl InputsOfLayerPlan {
         scroll_offsets: &[FloatPoint],
         viewport_rect: IntRect,
     ) -> Self {
+        let tree = VisualContextTree::tree_of_layer_plans_for(&tree, earlier.map(|earlier| &earlier.tree));
         let anchors_of_tree = match earlier {
             Some(earlier) if Arc::ptr_eq(&earlier.tree, &tree) => earlier.anchors_of_tree.clone(),
             _ => Arc::new(RasterSpaceAnchorsOfTree::of(&tree)),

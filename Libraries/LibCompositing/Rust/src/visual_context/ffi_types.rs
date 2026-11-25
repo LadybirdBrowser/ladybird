@@ -7,7 +7,7 @@
 //! The plain FFI types the visual context tree hands across the C++ boundary on both sides of the
 //! compositor process boundary.
 
-use libgfx_rust::{FloatMatrix4x4, FloatPoint};
+use libgfx_rust::{FloatMatrix4x4, FloatPoint, translation_matrix};
 use libipc_rust::wire::{Decode, Encode};
 
 #[derive(Clone, Copy, Debug)]
@@ -24,6 +24,14 @@ pub struct FfiVisualContextTreeInputs {
 pub struct FfiVisualViewportTransform {
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
+}
+
+impl FfiVisualViewportTransform {
+    pub fn matrix_including_origin(&self) -> FloatMatrix4x4 {
+        translation_matrix(self.origin.x, self.origin.y, 0.0)
+            .multiplied(self.matrix)
+            .multiplied(translation_matrix(-self.origin.x, -self.origin.y, 0.0))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]

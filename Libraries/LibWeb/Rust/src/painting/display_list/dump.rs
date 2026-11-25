@@ -314,9 +314,9 @@ pub unsafe extern "C" fn painting_dump(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     // SAFETY: As above.
-    let visual_context_tree = unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }
+    let published_visual_context_tree = unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }
         .expect("a document with a committed viewport box has a visual context tree");
-    let visual_context_tree = visual_context_tree.as_ref();
+    let visual_context_tree = published_visual_context_tree.as_ref();
     let recording =
         crate::painting::ffi::read_arena(host, read, (), |arena, ()| arena.paint_state().last_recording.clone())
             .expect("the dump records the document first");
@@ -394,15 +394,18 @@ pub unsafe extern "C" fn painting_dump(
     );
     let scroll_state = host.scroll_state();
     let scroll_offsets = scroll_state.device_offsets();
+    let tree_of_layer_plans = crate::painting::visual_context::VisualContextTree::with_visual_viewport_at_identity(
+        &published_visual_context_tree,
+    );
     let planned_layers = plan_layer_stack(&LayerStackInputs {
         list: &display_list,
-        tree: visual_context_tree,
+        tree: &tree_of_layer_plans,
         scroll_offsets,
         viewport_rect: device_viewport_rect,
     });
     let presentation_of_media = planned_layers.stack.window_server_presentation_of_media(
         &display_list,
-        visual_context_tree,
+        &tree_of_layer_plans,
         scroll_offsets,
         device_viewport_rect,
         WINDOW_SERVER_THE_DUMP_TELLS_LAYERS_FOR,

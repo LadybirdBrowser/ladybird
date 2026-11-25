@@ -1003,6 +1003,16 @@ impl VisualContextTree {
     /// holds for the other. What only the main thread reads is left out: which slots are free, and the scroll state
     /// slots and the paintables of scroll nodes and sticky boxes, which a tree from another process does not carry.
     pub fn has_same_content_as(&self, other: &Self) -> bool {
+        self.has_same_content_but_maybe_the_visual_viewport_as(other, false)
+    }
+
+    /// Whether the tree is what `other` is in everything but which copy it is and where the visual viewport is, so that
+    /// a plan of layers made under one holds under the other.
+    pub fn has_same_content_below_the_visual_viewport_as(&self, other: &Self) -> bool {
+        self.has_same_content_but_maybe_the_visual_viewport_as(other, true)
+    }
+
+    fn has_same_content_but_maybe_the_visual_viewport_as(&self, other: &Self, ignores_visual_viewport: bool) -> bool {
         self.structural_epoch == other.structural_epoch
             && self.animation_samples_taken_from_copy == other.animation_samples_taken_from_copy
             && self.root_isolation_effect == other.root_isolation_effect
@@ -1011,8 +1021,11 @@ impl VisualContextTree {
                 .spatial_nodes
                 .iter()
                 .zip(&other.spatial_nodes)
-                .all(|(node, other_node)| {
-                    node.parent == other_node.parent && node.data.has_same_content_as(&other_node.data)
+                .enumerate()
+                .all(|(index, (node, other_node))| {
+                    node.parent == other_node.parent
+                        && ((ignores_visual_viewport && index == VISUAL_VIEWPORT_NODE_INDEX.0 as usize)
+                            || node.data.has_same_content_as(&other_node.data))
                 })
             && self.clip_nodes == other.clip_nodes
             && self.effect_nodes == other.effect_nodes
@@ -1305,6 +1318,48 @@ impl VisualContextTree {
             SpatialData::Transform(_)
         ));
         self.spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data = SpatialData::Transform(transform);
+    }
+
+    fn visual_viewport_is_at_identity(&self) -> bool {
+        match self
+            .spatial_nodes
+            .get(VISUAL_VIEWPORT_NODE_INDEX.0 as usize)
+            .map(|node| &node.data)
+        {
+            Some(SpatialData::Transform(transform)) => {
+                transform.matrix == FloatMatrix4x4::identity() && transform.origin == FloatPoint::default()
+            }
+            _ => true,
+        }
+    }
+
+    /// The tree with its visual viewport at identity, which plans of layers are made under so that they hold wherever
+    /// the visual viewport is: the tree itself where its visual viewport is at identity.
+    pub fn with_visual_viewport_at_identity(tree: &std::sync::Arc<Self>) -> std::sync::Arc<Self> {
+        if tree.visual_viewport_is_at_identity() {
+            return tree.clone();
+        }
+        let mut copy = (**tree).clone();
+        copy.set_visual_viewport_matrix_and_origin(FloatMatrix4x4::identity(), FloatPoint::default());
+        std::sync::Arc::new(copy)
+    }
+
+    /// The tree plans of layers are made under for the published tree `published`: `held`, the one they were made
+    /// under before, where `published` differs from it only in its visual viewport, so that what was worked out of
+    /// `held` holds, and `published` with its visual viewport at identity otherwise.
+    pub fn tree_of_layer_plans_for(
+        published: &std::sync::Arc<Self>,
+        held: Option<&std::sync::Arc<Self>>,
+    ) -> std::sync::Arc<Self> {
+        match held {
+            Some(held)
+                if std::sync::Arc::ptr_eq(held, published)
+                    || held.has_same_content_below_the_visual_viewport_as(published) =>
+            {
+                held.clone()
+            }
+            _ => Self::with_visual_viewport_at_identity(published),
+        }
     }
 
     pub fn set_visual_viewport_matrix_and_origin(&mut self, matrix: FloatMatrix4x4, origin: FloatPoint) {

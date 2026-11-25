@@ -34,6 +34,7 @@ pub enum ContextTimer {
     HiddenStoreRetirement,
     SpareTileEviction,
     TileRasterScratchSurfaceRelease,
+    RasterScaleOfZoomSettles,
 }
 
 /// A timer of the compositor, which fires once after the delay it is set to, until it is set again.

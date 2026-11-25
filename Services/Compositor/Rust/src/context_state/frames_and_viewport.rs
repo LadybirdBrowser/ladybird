@@ -301,10 +301,12 @@ impl ContextState {
             self.device_pixel_ratio,
             &self.host.overlay_label_shaper(self.context_id),
         );
+        let raster = self.scene.raster_of_frame(self.viewport_rect());
         FrameInputs {
-            visual_context_tree: self.scene.visual_context_tree_for_compositing().clone(),
-            raster_to_frame: None,
-            layer_plan: self.scene.layer_plan_unless_visual_viewport_differs().cloned(),
+            visual_context_tree: raster.visual_context_tree,
+            raster_to_frame: raster.raster_to_frame,
+            layer_plan: raster.layer_plan,
+            raster_scale: raster.raster_scale,
             presented_scroll_state_snapshot,
             scrollbars,
             painted_at: now,

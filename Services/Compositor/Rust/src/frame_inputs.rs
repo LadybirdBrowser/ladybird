@@ -21,10 +21,13 @@ pub struct FrameInputs {
     /// transform other than that of `visual_context_tree`: a scale and a translation. None where it shows the page as
     /// the tree places it.
     pub raster_to_frame: Option<AffineTransform>,
-    /// The plan of layers WebContent sent for the display list and a tree it published, which the frame rasters with.
-    /// None where it sent none, or where the frame rasters the page through a visual viewport transform other than that
-    /// of the tree the plan was made for, as the plan does not hold for the frame then.
+    /// The plan of layers WebContent sent for the display list and a tree it published, which holds wherever the visual
+    /// viewport is. None where it sent none, or where the frame shows the page through a visual viewport that rotates,
+    /// skews or shrinks it.
     pub layer_plan: Option<ReceivedLayerPlan>,
+    /// How many raster pixels the frame rasters each device pixel of the layout viewport at, a power of two, which
+    /// `raster_to_frame` maps to the frame's pixels.
+    pub raster_scale: i32,
     pub presented_scroll_state_snapshot: ScrollStateSnapshot,
     /// The scrollbars of the page as the frame presents them, which replace the geometry the display list recorded for
     /// them.

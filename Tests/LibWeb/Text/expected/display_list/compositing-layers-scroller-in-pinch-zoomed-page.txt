@@ -1,0 +1,10 @@
+scale=2
+layers as at zoom 1: true
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport
+  [L2] painted space=sticky@s2 in document
+  [L4] painted space=scroller@s3 in document composited within [50,100 300x200] of document
+  [L6] vertical scroll bar #0 space=document region=[332,97 21x206]
+  [L8] canvas #0 space=document region=[397,197 206x126] can be shown by the window server: clip=[0,0 800x600]
+  [L9] painted space=document above L8
+

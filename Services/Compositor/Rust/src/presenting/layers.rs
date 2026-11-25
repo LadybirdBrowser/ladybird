@@ -282,6 +282,7 @@ struct StackOfFrames {
     /// plan was made for. One plan stands for one list, one tree without the samples of the compositor's animations,
     /// one viewport, and the scroll offsets the plan reads.
     layer_plan: Option<ReceivedLayerPlan>,
+    /// The stack of the plan, or of one layer, at the raster scale of the frames.
     stack: Rc<LayerStack>,
     // Keeps the address of the list the frames draw from being taken by another list.
     display_list: Weak<DisplayList>,
@@ -467,9 +468,9 @@ pub struct ContextLayers {
     layering_obstacles_of_frames_not_drawn_as_planned: Option<LayeringObstaclesOfListAndTree>,
     pub(super) tiles: LayerTiles,
     pub(super) window_server: WindowServerLayers,
-    /// The plan whose frames show more tiles than a frame may, which frames draw as one layer until another plan comes.
-    /// The address of its stack is kept from being taken by the stack of another plan.
-    plan_showing_too_many_tiles: Option<Weak<LayerStack>>,
+    /// The plan whose frames at a raster scale show more tiles than a frame may, which frames at that scale draw as one
+    /// layer until another plan comes. The address of its stack is kept from being taken by the stack of another plan.
+    plan_showing_too_many_tiles: Option<(Weak<LayerStack>, i32)>,
 }
 
 impl ContextLayers {
@@ -477,22 +478,26 @@ impl ContextLayers {
         self.tiles.evict_spare_tiles(env);
     }
 
-    /// Whether frames draw `layer_plan` as one layer, as a frame drawn with it showed more tiles than a frame may.
-    fn plan_shows_too_many_tiles(&self, layer_plan: &ReceivedLayerPlan) -> bool {
-        self.plan_showing_too_many_tiles
-            .as_ref()
-            .is_some_and(|stack| std::ptr::eq(stack.as_ptr(), Rc::as_ptr(&layer_plan.stack)))
+    /// Whether frames at `raster_scale` draw `layer_plan` as one layer, as a frame drawn with it at that scale showed
+    /// more tiles than a frame may.
+    fn plan_shows_too_many_tiles(&self, layer_plan: &ReceivedLayerPlan, raster_scale: i32) -> bool {
+        self.plan_showing_too_many_tiles.as_ref().is_some_and(|(stack, scale)| {
+            *scale == raster_scale && std::ptr::eq(stack.as_ptr(), Rc::as_ptr(&layer_plan.stack))
+        })
     }
 
     /// Has later frames draw the plan of the stack the frame took as one layer, as the frame showed more tiles than a
     /// frame may.
     fn draw_plan_of_frames_as_one_layer(&mut self) {
-        let layer_plan = self
+        let stack_of_frames = self
             .stack_of_frames
             .as_ref()
-            .and_then(|stack_of_frames| stack_of_frames.layer_plan.as_ref())
             .expect("only a frame drawn with a plan has a budget of tiles");
-        self.plan_showing_too_many_tiles = Some(Rc::downgrade(&layer_plan.stack));
+        let layer_plan = stack_of_frames
+            .layer_plan
+            .as_ref()
+            .expect("only a frame drawn with a plan has a budget of tiles");
+        self.plan_showing_too_many_tiles = Some((Rc::downgrade(&layer_plan.stack), stack_of_frames.stack.raster_scale));
     }
 
     /// The stack of one layer that replays the whole list, for a frame that is not drawn as a plan was made for, with
@@ -540,18 +545,22 @@ impl ContextLayers {
         display_list: &Rc<DisplayList>,
         one_layer: impl FnOnce(&mut Self) -> LayerStack,
         viewport_to_raster_transform: FloatMatrix4x4,
+        raster_scale: i32,
     ) -> bool {
-        let latest_plan = self
-            .stack_of_frames
-            .as_ref()
-            .and_then(|stack_of_frames| stack_of_frames.layer_plan.as_ref());
         if let Some(layer_plan) = layer_plan
-            && latest_plan.is_some_and(|latest_plan| Rc::ptr_eq(&latest_plan.stack, &layer_plan.stack))
+            && self.stack_of_frames.as_ref().is_some_and(|latest| {
+                latest.stack.raster_scale == raster_scale
+                    && latest
+                        .layer_plan
+                        .as_ref()
+                        .is_some_and(|latest_plan| Rc::ptr_eq(&latest_plan.stack, &layer_plan.stack))
+            })
         {
             return false;
         }
         let stack = match layer_plan {
-            Some(layer_plan) => layer_plan.stack.clone(),
+            Some(layer_plan) if raster_scale == 1 => layer_plan.stack.clone(),
+            Some(layer_plan) => Rc::new(layer_plan.stack.at_raster_scale(raster_scale)),
             None => {
                 let one_layer = one_layer(self);
                 let latest_drew_same_one_layer = self.stack_of_frames.as_ref().is_some_and(|latest| {
@@ -1004,18 +1013,26 @@ impl ContextPresenting {
         let plan_drawn_as_made_for = frame.frame_inputs.layer_plan.as_ref().filter(|layer_plan| {
             raster_transform == FloatMatrix4x4::identity() && layer_plan.viewport_rect == viewport_rect
         });
-        let layer_plan = plan_drawn_as_made_for.filter(|layer_plan| !self.layers.plan_shows_too_many_tiles(layer_plan));
+        let raster_scale = frame.frame_inputs.raster_scale;
+        let layer_plan = plan_drawn_as_made_for
+            .filter(|layer_plan| !self.layers.plan_shows_too_many_tiles(layer_plan, raster_scale));
         let why_list_is_one_layer = if plan_drawn_as_made_for.is_some() {
             WhyListIsOneLayer::PlanShowsTooManyTiles
         } else {
             WhyListIsOneLayer::FrameIsNotDrawnAsPlanned
         };
         let one_layer = |layers: &mut ContextLayers| {
-            layers.one_layer_stack_of_frame(frame.display_list, tree, viewport_rect, why_list_is_one_layer)
+            layers
+                .one_layer_stack_of_frame(frame.display_list, tree, viewport_rect, why_list_is_one_layer)
+                .at_raster_scale(raster_scale)
         };
-        let took_another_stack =
-            self.layers
-                .take_stack_of_frame(layer_plan, frame.display_list, one_layer, raster_transform);
+        let took_another_stack = self.layers.take_stack_of_frame(
+            layer_plan,
+            frame.display_list,
+            one_layer,
+            raster_transform,
+            raster_scale,
+        );
         let took_plan_into_use = layer_plan.is_some() && took_another_stack;
         let layer_update = self.layer_update_of_stack(env, frame, viewport_rect, live_content, frame_allows_lcd_text);
         let Some((mut layer_update, stale_rect)) = layer_update else {
@@ -1070,15 +1087,19 @@ impl ContextPresenting {
             .expect("a frame with layers has a stack");
         let geometries = stack_of_frames.geometries_of_spaces(tree, scroll_offsets);
         let stack_the_frame_draws_with = stack_of_frames.stack.clone();
-        let mut tile_budget = stack_of_frames
-            .layer_plan
-            .is_some()
-            .then(|| TileBudgetOfFrame::within(viewport_rect));
+        // A frame that scales its raster down shows more of the raster than its own pixels.
+        let raster_shown_through_frame = frame.rect_of_raster_shown_in(viewport_rect);
+        let mut tile_budget = stack_of_frames.layer_plan.is_some().then(|| {
+            TileBudgetOfFrame::within(IntRect::new(
+                0,
+                0,
+                viewport_rect.width.max(raster_shown_through_frame.width),
+                viewport_rect.height.max(raster_shown_through_frame.height),
+            ))
+        });
         let stack = stack_the_frame_draws_with.as_ref();
         let extent_of_viewport_space = extent_of_viewport_space(stack);
-        let rect_of_raster_shown = frame
-            .rect_of_raster_shown_in(viewport_rect)
-            .intersected(extent_of_viewport_space);
+        let rect_of_raster_shown = raster_shown_through_frame.intersected(extent_of_viewport_space);
         // Built at the first question, as only media the window server may show and spaces whose anchors the
         // compositor animates ask for it.
         let world_transforms_of_frame = OnceCell::new();
@@ -1089,7 +1110,7 @@ impl ContextPresenting {
         let window_server_may_show_media = self.why_window_server_shows_no_media_of_frame(env, frame).is_none();
         let window_server_compositing = self.window_server_compositing(env, frame);
         let window_server_placements_of_media = if window_server_may_show_media {
-            stack.window_server_placements_of_media(storage, tree, world_of_frame, viewport_rect)
+            stack.window_server_placements_of_media(storage, tree, world_of_frame, extent_of_viewport_space)
         } else {
             WindowServerPlacementsOfMedia::default()
         };
@@ -1220,7 +1241,7 @@ impl ContextPresenting {
                 frame_rect_in_space_unless_viewport_or_transformed(
                     raster_space_index,
                     compositing_of_layer_below_all_cuts.space_to_frame,
-                    viewport_rect,
+                    raster_shown_through_frame,
                 ),
             );
             work_counts.cells_binned += keying_counts.cells_binned as u64;
@@ -1701,9 +1722,8 @@ impl ContextPresenting {
         debug_assert!(Rc::ptr_eq(&layer_update.layers.stack, &stack_of_frames.stack));
         let stack = layer_update.layers.stack.as_ref();
         let extent_of_viewport_space = extent_of_viewport_space(stack);
-        let rect_of_raster_shown = frame
-            .rect_of_raster_shown_in(viewport_rect)
-            .intersected(extent_of_viewport_space);
+        let raster_shown_through_frame = frame.rect_of_raster_shown_in(viewport_rect);
+        let rect_of_raster_shown = raster_shown_through_frame.intersected(extent_of_viewport_space);
         let tiles_replay_the_whole_list = stack.one_layer_list_cannot_tell_which_records_show_in_tile();
         let mut rects_painted_straight = Vec::new();
         for compositing in &layer_update.layers.compositing_of_layers {
@@ -1720,7 +1740,7 @@ impl ContextPresenting {
             let frame_rect_in_layer_space = frame_rect_in_space_unless_viewport_or_transformed(
                 raster_space_index,
                 compositing.space_to_frame,
-                viewport_rect,
+                raster_shown_through_frame,
             );
             let band_tile_keys = || {
                 stack_of_frames.band_tile_keys[layer.band_index.0]
@@ -2116,7 +2136,7 @@ mod tests {
         display_list: &Rc<DisplayList>,
         one_layer: LayerStack,
     ) -> bool {
-        !layers.take_stack_of_frame(layer_plan, display_list, |_| one_layer, FloatMatrix4x4::identity())
+        !layers.take_stack_of_frame(layer_plan, display_list, |_| one_layer, FloatMatrix4x4::identity(), 1)
     }
 
     // A plan received again is another plan, even where it holds what the plan before held.
@@ -2176,7 +2196,13 @@ mod tests {
         let identity = FloatMatrix4x4::identity();
         let resized_viewport = IntRect::new(0, 0, 400, 300);
         let mut layers = ContextLayers::default();
-        layers.take_stack_of_frame(None, &display_list, |_| one_layer_of(&display_list, VIEWPORT), identity);
+        layers.take_stack_of_frame(
+            None,
+            &display_list,
+            |_| one_layer_of(&display_list, VIEWPORT),
+            identity,
+            1,
+        );
         let stack_of_frames = layers.stack_of_frames.as_mut().expect("the frame took a stack");
         let geometry = stack_of_frames.geometries_of_spaces(&tree, &[]).remove(0);
 
@@ -2184,7 +2210,8 @@ mod tests {
             None,
             &display_list,
             |_| one_layer_of(&display_list, resized_viewport),
-            identity
+            identity,
+            1
         ));
         let resized = layers.stack_of_frames.as_mut().expect("the frame took a stack");
         assert!(Rc::ptr_eq(&resized.geometries_of_spaces(&tree, &[])[0], &geometry));
@@ -2194,6 +2221,7 @@ mod tests {
             &display_list,
             |_| one_layer_of(&display_list, resized_viewport),
             scaled_twice(),
+            1,
         );
         let scaled = layers.stack_of_frames.as_ref().expect("the frame took a stack");
         assert!(scaled.geometry_by_space.iter().all(Option::is_none));
@@ -2441,11 +2469,13 @@ mod tests {
             &display_list,
             |_| unreachable!("a frame drawn with a plan takes its stack"),
             FloatMatrix4x4::identity(),
+            1,
         );
-        assert!(!layers.plan_shows_too_many_tiles(&plan));
+        assert!(!layers.plan_shows_too_many_tiles(&plan, 1));
         layers.draw_plan_of_frames_as_one_layer();
-        assert!(layers.plan_shows_too_many_tiles(&plan));
-        assert!(!layers.plan_shows_too_many_tiles(&plan_received_again));
+        assert!(layers.plan_shows_too_many_tiles(&plan, 1));
+        assert!(!layers.plan_shows_too_many_tiles(&plan, 2));
+        assert!(!layers.plan_shows_too_many_tiles(&plan_received_again, 1));
     }
 
     // An iframe smaller than a cell shows a whole cell of each layer whose space it scrolls.

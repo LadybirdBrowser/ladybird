@@ -1264,6 +1264,8 @@ impl ContextPresenting {
         // LCD coverage follows the physical pixel grid. Destination blending can erase pixels in the canvas fill.
         self.backing_stores.publication() == StorePublication::Published
             && !self.scales_frames_to_fit
+            // A pinch from zoom 1 keeps the tiles it starts with, scaled, until it rasters at another scale.
+            && frame_inputs.raster_scale == 1
             && self.device_pixel_ratio.fract() == 0.0
             && display_list.storage().summary().destination_blending_records.is_empty()
             // A blend or backdrop filter that reads the root group needs its original isolation from the canvas fill.
