@@ -57,7 +57,7 @@
         {
           "type": "git",
           "url": "https://github.com/simdutf/simdutf.git",
-          "tag": "v9.3.3"
+          "tag": "v9.5.0"
         }
       ],
       "config-opts": [

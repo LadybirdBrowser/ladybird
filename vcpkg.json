@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "8f363bdc11359ede4bc51e5eb32a2617538049c8",
+  "builtin-baseline": "944dee83774536dd280cf459f41989584b9ef86a",
   "dependencies": [
     {
       "name": "angle",
@@ -358,6 +358,11 @@
       "version": "9.0.2#1"
     },
     {
+      "name": "ffmpeg-bin2c",
+      "version": "9.0.2#0",
+      "$comment": "ffmpeg-bin2c is a host tool built from the FFmpeg sources, so keep it on the same version as ffmpeg."
+    },
+    {
       "name": "fontconfig",
       "version": "2.17.1#2"
     },
@@ -365,6 +370,11 @@
       "name": "freetype",
       "version": "2.13.3#0",
       "$comment": "freetype is not updated yet to avoid major font rendering differences. See: https://github.com/LadybirdBrowser/ladybird/pull/10165#issuecomment-4747336594"
+    },
+    {
+      "name": "glslang",
+      "version": "16.4.0#0",
+      "$comment": "glslang is a host dependency of shaderc (used by ffmpeg's vulkan feature). Pinned to keep it from moving along with unrelated baseline bumps."
     },
     {
       "name": "harfbuzz",
@@ -462,7 +472,7 @@
     },
     {
       "name": "simdutf",
-      "version": "9.3.3#0"
+      "version": "9.5.0#0"
     },
     {
       "name": "skia",
