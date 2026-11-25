@@ -1,5 +1,5 @@
 // https://w3c.github.io/media-playback-quality/#idl-def-videoplaybackquality
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface VideoPlaybackQuality {
     readonly attribute DOMHighResTimeStamp creationTime;
     readonly attribute unsigned long droppedVideoFrames;
