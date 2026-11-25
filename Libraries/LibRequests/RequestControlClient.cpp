@@ -51,10 +51,10 @@ void RequestControlClient::network_usage(Vector<NetworkUsage> usage, u64 interva
         on_network_usage(move(usage), interval_microseconds);
 }
 
-void RequestControlClient::rejected_self_signed_certificate(ByteString host, u16 port, ByteString fingerprint)
+void RequestControlClient::rejected_certificate(ByteString host, u16 port, ByteString fingerprint, CertificateError errors, ByteString details)
 {
-    if (on_rejected_self_signed_certificate)
-        on_rejected_self_signed_certificate(host, port, fingerprint);
+    if (on_rejected_certificate)
+        on_rejected_certificate(host, port, fingerprint, errors, details);
 }
 
 void RequestControlClient::client_disconnected(int client_id)

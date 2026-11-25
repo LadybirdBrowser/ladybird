@@ -15,6 +15,7 @@
 #include <AK/Vector.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
+#include <LibRequests/CertificateError.h>
 #include <RequestServer/IsPrivate.h>
 
 extern "C" {
@@ -46,14 +47,31 @@ public:
     // Verification checks the host name instead of curl when an exception may allow a certificate for another name.
     bool checks_host_name { false };
 
-    Optional<ByteString> rejected_self_signed_certificate_fingerprint;
+    // The server's certificate, if the last verification refused it, and why.
+    struct RejectedCertificate {
+        ByteString fingerprint;
+        Requests::CertificateError errors { Requests::CertificateError::None };
+        // Descriptions of errors without a dedicated CertificateError flag.
+        ByteString details;
+    };
+    Optional<RejectedCertificate> rejected_certificate;
+
+    // Retain the chain to explain a macOS system verification failure after the handshake.
+    struct ChainForSystemVerifier {
+        RejectedCertificate rejection;
+        Vector<Crypto::OpenSSL_X509> certificates; // The leaf first.
+    };
+    Optional<ChainForSystemVerifier> chain_for_system_verifier;
 };
 
-// Accept self-signed certificates with user exceptions; otherwise record the rejected fingerprint in the collector.
+// Accept certificates with user exceptions; otherwise record the rejected certificate and its errors in the collector.
 //
 // During verification, any cert whose issuer we can't find locally or in the fetched-intermediate cache has its
 // caIssuers URLs appended to collector.pending_urls (skipping ones already attempted or recently known dead).
 void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector);
+
+// Call after curl rejects the certificate to record any deferred system verification errors.
+void explain_system_verifier_refusal(AIACollector&);
 
 // Returns true if the body yielded a certificate.
 bool add_fetched_aia_intermediates(ReadonlyBytes body, ReadonlySpan<NonnullRefPtr<AIACollector>> collectors);

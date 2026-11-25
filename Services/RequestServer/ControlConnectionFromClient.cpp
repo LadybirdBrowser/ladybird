@@ -192,9 +192,9 @@ void ControlConnectionFromClient::set_proxy_configuration(HTTP::ProxyConfigurati
     RequestServer::set_proxy_configuration(move(proxy_configuration));
 }
 
-void ControlConnectionFromClient::trust_certificate(ByteString host, u16 port, ByteString fingerprint)
+void ControlConnectionFromClient::trust_certificate(ByteString host, u16 port, ByteString fingerprint, Requests::CertificateError errors, ByteString error_details)
 {
-    add_certificate_exception(host, port, move(fingerprint));
+    add_certificate_exception(host, port, move(fingerprint), errors, move(error_details));
 }
 
 void ControlConnectionFromClient::set_performance_monitor_enabled(bool enabled)

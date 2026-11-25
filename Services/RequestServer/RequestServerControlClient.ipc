@@ -2,6 +2,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibRequests/CacheSizes.h>
+#include <LibRequests/CertificateError.h>
 #include <LibRequests/NetworkUsage.h>
 #include <LibURL/URL.h>
 #include <RequestServer/IsPrivate.h>
@@ -16,7 +17,8 @@ endpoint RequestServerControlClient
     retrieve_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, HTTP::Cookie::SameSiteContext same_site_context) =|
     store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, HTTP::Cookie::SameSiteContext same_site_context, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy) =|
 
-    rejected_self_signed_certificate(ByteString host, u16 port, ByteString fingerprint) =|
+    // Details describe unnamed errors.
+    rejected_certificate(ByteString host, u16 port, ByteString fingerprint, Requests::CertificateError errors, ByteString details) =|
 
     network_usage(Vector<Requests::NetworkUsage> usage, u64 interval_microseconds) =|
 

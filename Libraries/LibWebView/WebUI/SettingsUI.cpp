@@ -302,6 +302,8 @@ JsonObject SettingsUI::serialize_settings() const
         variable_object.set("type"sv, config_variable_type_to_string(variable.default_value.type()));
         if (variable.array_element_type.has_value())
             variable_object.set("elementType"sv, config_variable_type_to_string(*variable.array_element_type));
+        if (variable.depends_on.has_value())
+            variable_object.set("dependsOn"sv, config_variable_definition(*variable.depends_on).name);
         variable_object.set("defaultValue"sv, variable.default_value);
         variable_object.set("value"sv, Application::settings().config_variable(variable.id));
 
