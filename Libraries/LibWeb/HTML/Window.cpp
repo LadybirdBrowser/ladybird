@@ -1376,7 +1376,7 @@ void Window::blur()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-locationbar
-GC::Ref<BarProp const> Window::locationbar()
+GC::Ref<BarProp> Window::locationbar()
 {
     if (!m_locationbar)
         m_locationbar = BarProp::create(*this);
@@ -1385,7 +1385,7 @@ GC::Ref<BarProp const> Window::locationbar()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-menubar
-GC::Ref<BarProp const> Window::menubar()
+GC::Ref<BarProp> Window::menubar()
 {
     if (!m_menubar)
         m_menubar = BarProp::create(*this);
@@ -1394,7 +1394,7 @@ GC::Ref<BarProp const> Window::menubar()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-personalbar
-GC::Ref<BarProp const> Window::personalbar()
+GC::Ref<BarProp> Window::personalbar()
 {
     if (!m_personalbar)
         m_personalbar = BarProp::create(*this);
@@ -1403,7 +1403,7 @@ GC::Ref<BarProp const> Window::personalbar()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-scrollbars
-GC::Ref<BarProp const> Window::scrollbars()
+GC::Ref<BarProp> Window::scrollbars()
 {
     if (!m_scrollbars)
         m_scrollbars = BarProp::create(*this);
@@ -1412,7 +1412,7 @@ GC::Ref<BarProp const> Window::scrollbars()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-statusbar
-GC::Ref<BarProp const> Window::statusbar()
+GC::Ref<BarProp> Window::statusbar()
 {
     if (!m_statusbar)
         m_statusbar = BarProp::create(*this);
@@ -1421,7 +1421,7 @@ GC::Ref<BarProp const> Window::statusbar()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-toolbar
-GC::Ref<BarProp const> Window::toolbar()
+GC::Ref<BarProp> Window::toolbar()
 {
     if (!m_toolbar)
         m_toolbar = BarProp::create(*this);

@@ -197,12 +197,12 @@ public:
 
     // For historical reasons, the Window interface had some properties that represented the visibility of certain web browser interface elements.
     // For privacy and interoperability reasons, those properties now return values that represent whether the Window's browsing context's is popup property is true or false.
-    GC::Ref<BarProp const> locationbar();
-    GC::Ref<BarProp const> menubar();
-    GC::Ref<BarProp const> personalbar();
-    GC::Ref<BarProp const> scrollbars();
-    GC::Ref<BarProp const> statusbar();
-    GC::Ref<BarProp const> toolbar();
+    GC::Ref<BarProp> locationbar();
+    GC::Ref<BarProp> menubar();
+    GC::Ref<BarProp> personalbar();
+    GC::Ref<BarProp> scrollbars();
+    GC::Ref<BarProp> statusbar();
+    GC::Ref<BarProp> toolbar();
 
     GC::Ref<WindowProxy> frames() const;
     u32 length();
@@ -401,12 +401,12 @@ private:
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.
     Utf16String m_status;
 
-    GC::Ptr<BarProp const> m_locationbar;
-    GC::Ptr<BarProp const> m_menubar;
-    GC::Ptr<BarProp const> m_personalbar;
-    GC::Ptr<BarProp const> m_scrollbars;
-    GC::Ptr<BarProp const> m_statusbar;
-    GC::Ptr<BarProp const> m_toolbar;
+    GC::Ptr<BarProp> m_locationbar;
+    GC::Ptr<BarProp> m_menubar;
+    GC::Ptr<BarProp> m_personalbar;
+    GC::Ptr<BarProp> m_scrollbars;
+    GC::Ptr<BarProp> m_statusbar;
+    GC::Ptr<BarProp> m_toolbar;
 
     // https://html.spec.whatwg.org/multipage/obsolete.html#dom-external
     GC::Ptr<External> m_external;

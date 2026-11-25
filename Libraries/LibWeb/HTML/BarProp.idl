@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#barprop
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface BarProp {
     readonly attribute boolean visible;
 };

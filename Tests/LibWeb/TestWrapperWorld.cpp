@@ -1049,12 +1049,12 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
     auto& preferred_realm = *preferred_execution_context->realm();
     install_test_host_defined(preferred_realm, static_cast<Web::HTML::Agent&>(*vm.agent()).main_world(), window->principal_realm());
 
-    auto bar_prop = GC::Ref { const_cast<Web::HTML::BarProp&>(*window->locationbar()) };
+    auto bar_prop = window->locationbar();
     auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(preferred_realm), preferred_realm, bar_prop);
 
     EXPECT(&wrapper_realm(*wrapper) == &window->principal_realm());
     EXPECT(&wrapper_realm(*wrapper) != &preferred_realm);
-    EXPECT(wrapper.ptr() == cached_wrapper_for(preferred_realm, *bar_prop).ptr());
+    EXPECT(wrapper.ptr() == Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(preferred_realm), preferred_realm, bar_prop).ptr());
 
     vm.pop_execution_context();
     vm.pop_execution_context();
