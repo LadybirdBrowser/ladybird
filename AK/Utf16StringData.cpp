@@ -85,12 +85,13 @@ static Optional<size_t> latin1_length_of_valid_utf8(ReadonlyBytes utf8_string)
     return utf8_string.size() - two_byte_sequences;
 }
 
-static bool fits_in_latin1(ReadonlySpan<char16_t> utf16_string)
+// The bitwise OR of all code units: it is at most 0xFF if they all fit in Latin-1, and at most 0x7F if they are ASCII.
+static char16_t combined_code_units(ReadonlySpan<char16_t> utf16_string)
 {
     char16_t combined = 0;
     for (auto code_unit : utf16_string)
         combined |= code_unit;
-    return combined <= 0xFF;
+    return combined;
 }
 
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string)
@@ -138,13 +139,13 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf16(Utf16View const& utf1
         TypedTransfer<u8>::copy(string->latin1_data(), utf16_string.latin1_span().data(), utf16_string.length_in_code_units());
         if (!utf16_string.is_ascii())
             string->m_header.flags |= ContainsNonAscii;
-    } else if (fits_in_latin1(utf16_string.utf16_span())) {
+    } else if (auto combined = combined_code_units(utf16_string.utf16_span()); combined <= 0xFF) {
         string = create_uninitialized(StorageType::Latin1, utf16_string.length_in_code_units());
 
         auto* latin1_data = reinterpret_cast<char*>(string->latin1_data());
         auto result = simdutf::convert_valid_utf16_to_latin1(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), latin1_data);
         VERIFY(result == utf16_string.length_in_code_units());
-        if (!simdutf::validate_ascii(latin1_data, result))
+        if (combined > 0x7F)
             string->m_header.flags |= ContainsNonAscii;
     } else {
         string = create_uninitialized(StorageType::UTF16, utf16_string.length_in_code_units());
