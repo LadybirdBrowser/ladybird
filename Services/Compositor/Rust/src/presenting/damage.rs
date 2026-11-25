@@ -136,15 +136,18 @@ impl ContextPresenting {
         });
     }
 
-    /// Whether the frame repaints the store in full, as no frame was painted since the stores were made, or the size of
-    /// the viewport, the clear color or whether text may be drawn with LCD antialiasing differs from the frame painted
-    /// last.
+    /// Whether the frame repaints the store in full, as it is to be presented in full, no frame was painted since the
+    /// stores were made, or the size of the viewport, the clear color or whether text may be drawn with LCD
+    /// antialiasing differs from the frame painted last.
     fn repaints_store_in_full(
         &self,
         viewport_size: IntSize,
         display_list: &DisplayList,
         allows_lcd_text: bool,
     ) -> bool {
+        if self.presents_next_frame_in_full {
+            return true;
+        }
         let Some(painted_frame) = &self.painted_frame else {
             return true;
         };
@@ -166,12 +169,20 @@ impl ContextPresenting {
         };
         let viewport_rect = rect_of_size(viewport_size);
         let raster_rect = self.raster_rect();
-        let forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
         let allows_lcd_text = self.allows_lcd_text(frame.display_list, frame.frame_inputs);
         let repaints_store_in_full = self.repaints_store_in_full(viewport_size, frame.display_list, allows_lcd_text);
         let (layer_update, stale_rect) = self.layer_update_for(env, frame, raster_rect, live_content, allows_lcd_text);
 
-        let forced_damage_rect = self.raster_rect_of(forced_damage_rect);
+        let overlay_damage_rect = self
+            .painted_frame
+            .as_ref()
+            .map_or_else(IntRect::default, |painted_frame| {
+                frame
+                    .frame_inputs
+                    .overlays
+                    .damage_since(&painted_frame.frame_inputs.overlays)
+            });
+        let overlay_damage_rect = self.raster_rect_of(overlay_damage_rect.intersected(viewport_rect));
         let damage_of_layers_moved_by_animated_transforms =
             self.damage_of_layers_moved_by_animated_transforms(&layer_update, raster_rect);
         // Every pixel of a frame that maps the raster to its pixels through a transform, or of the frame after one, can
@@ -190,7 +201,7 @@ impl ContextPresenting {
             rect_in_raster_device_pixels: if repaints_everything {
                 raster_rect
             } else {
-                layer_update.damage_grown_over_what_composited_effects_read(forced_damage_rect.united(stale_rect))
+                layer_update.damage_grown_over_what_composited_effects_read(overlay_damage_rect.united(stale_rect))
             },
             layers: layer_update,
         }

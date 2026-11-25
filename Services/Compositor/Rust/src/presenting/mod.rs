@@ -269,6 +269,9 @@ pub struct ContextPresenting {
 
     pending_present_frame: Option<PendingFrame>,
     pending_present_frame_scheduled: bool,
+    /// Whether the next frame painted repaints its store in full, and is presented even where it shows nothing new, as
+    /// when the frames are to be shown in another way than the frame presented last was.
+    presents_next_frame_in_full: bool,
     presented_frame: Option<IntRect>,
     frame_generation: u64,
 
@@ -314,6 +317,7 @@ impl ContextPresenting {
             window_resize_in_progress: false,
             pending_present_frame: None,
             pending_present_frame_scheduled: false,
+            presents_next_frame_in_full: false,
             presented_frame: None,
             frame_generation: 0,
             frame_without_store_in_flight: false,
@@ -738,20 +742,14 @@ impl ContextPresenting {
         self.frame_generation
     }
 
+    /// Queues a frame, which takes the place of any frame queued before it.
     pub fn queue_present_frame(&mut self, pending_frame: PendingFrame) {
         self.frame_generation += 1;
-        let Some(queued) = &mut self.pending_present_frame else {
-            self.pending_present_frame = Some(pending_frame);
-            return;
-        };
-        if queued.viewport_rect.width != pending_frame.viewport_rect.width
-            || queued.viewport_rect.height != pending_frame.viewport_rect.height
-        {
-            self.pending_present_frame = Some(PendingFrame::repainting_everything(pending_frame.viewport_rect));
-            return;
-        }
-        queued.viewport_rect = pending_frame.viewport_rect;
-        queued.forced_damage_rect = queued.forced_damage_rect.united(pending_frame.forced_damage_rect);
+        self.pending_present_frame = Some(pending_frame);
+    }
+
+    pub fn present_next_frame_in_full(&mut self) {
+        self.presents_next_frame_in_full = true;
     }
 
     pub fn mark_pending_present_frame_scheduled(&mut self) {
@@ -905,12 +903,12 @@ impl ContextPresenting {
             || (damage_rect.is_empty() && frame_was_presented_within_same_viewport_rect);
         if frame_changes_nothing_it_holds {
             let only_media_shown_by_window_server_changed = frame_damage.layers.media_shown_by_window_server_changed;
+            let overlays_draw_same_as_in_latest_frame = self.painted_frame.as_ref().is_some_and(|painted_frame| {
+                frame_inputs
+                    .overlays
+                    .draws_same_as(&painted_frame.frame_inputs.overlays)
+            });
             let sublayers_of_tiles_rastered_for_frame = if frame_damage.layers.window_server_shows_tiles() {
-                let overlays_draw_same_as_in_latest_frame = self.painted_frame.as_ref().is_some_and(|painted_frame| {
-                    frame_inputs
-                        .overlays
-                        .draws_same_as(&painted_frame.frame_inputs.overlays)
-                });
                 Some(self.present_layers_of_frame_painted_into_no_store(
                     env,
                     &frame,
@@ -938,9 +936,10 @@ impl ContextPresenting {
                     }),
                 };
                 let window_server_shows_other_sublayers = sublayers != self.sublayers_of_latest_frame;
-                // A frame made to repaint, as one shown in another remote layer than the frame before, is presented
-                // even where the window server already shows its sublayers.
-                let frame_is_made_to_repaint = !pending_frame.forced_damage_rect.is_empty();
+                // A frame presented in full, as one shown in another remote layer than the frame before, or one whose
+                // overlays draw otherwise, is presented even where the window server already shows its sublayers.
+                let presents_frame_in_full = std::mem::take(&mut self.presents_next_frame_in_full);
+                let frame_is_made_to_repaint = presents_frame_in_full || !overlays_draw_same_as_in_latest_frame;
                 let hides_store_shown_with_latest_frame =
                     window_server_shows_every_layer && !self.latest_frame_was_presented_without_store_below_sublayers;
                 if !only_media_shown_by_window_server_changed
@@ -983,6 +982,7 @@ impl ContextPresenting {
             self.queue_present_frame(pending_frame);
             return None;
         };
+        self.presents_next_frame_in_full = false;
         let store_rect = rect_of_size(store.size());
         let repaint_rect = self.store_damage.take(bitmap_id, damage_rect, store_rect);
         let (painted_rect, sublayers) = self.paint_layered_frame(
@@ -1034,10 +1034,12 @@ impl ContextPresenting {
         let frame_inputs = frame_inputs.expect("a context with a display list has frame inputs");
         // What the parent draws of the frame can go into the parent's tiles, which the overlay must stay out of.
         self.layer_overlay.switch_for_frame(None);
+        // Without a pending frame, the frame presented last is painted again as the surface or the painted frame was
+        // dropped, which paints it in full.
         let pending_frame = match self.pending_present_frame {
             Some(pending_frame) => pending_frame,
             None => match self.presented_frame {
-                Some(presented_frame) => PendingFrame::repainting_everything(presented_frame),
+                Some(presented_frame) => PendingFrame::within(presented_frame),
                 None => return,
             },
         };
@@ -1087,6 +1089,7 @@ impl ContextPresenting {
         self.presented_frame = Some(pending_frame.viewport_rect);
         self.pending_present_frame = None;
         self.pending_present_frame_scheduled = false;
+        self.presents_next_frame_in_full = false;
     }
 
     /// Paints a screenshot into the target, without the overlays of the browser and at the raster's own scale.
@@ -1132,7 +1135,7 @@ impl ContextPresenting {
         }
         self.with_layered_paint_state(LayeredPaintState::of_screenshot(target_size), |this| {
             let live_content = this.live_content(env, frame.display_list);
-            let pending_frame = PendingFrame::repainting_everything(rect_of_size(target_size));
+            let pending_frame = PendingFrame::within(rect_of_size(target_size));
             let mut frame_damage = this.frame_damage_for(env, &pending_frame, frame, &live_content);
             let _ = this.paint_layered_frame(
                 env,

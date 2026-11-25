@@ -246,10 +246,7 @@ impl CompositorCore {
                 let Some(viewport_rect) = viewport_rect else {
                     continue;
                 };
-                let frame = PendingFrame {
-                    viewport_rect,
-                    forced_damage_rect: request.forced_damage_rect,
-                };
+                let frame = PendingFrame::within(viewport_rect);
                 match request.scheduling {
                     PresentScheduling::OnNextDisplayTick => self.schedule_present_frame(request.context_id, frame, now),
                     PresentScheduling::WithDisplayTickInProgress => presenting.borrow_mut().queue_present_frame(frame),
@@ -271,13 +268,18 @@ impl CompositorCore {
         self.schedule_pending_present_frame(context_id, now);
     }
 
-    fn schedule_present_frame_repainting_everything(
+    /// Schedules a frame that repaints its store in full, and that is presented even where it shows nothing new.
+    fn schedule_present_frame_in_full(
         &self,
         context_id: CompositorContextId,
         viewport_rect: IntRect,
         now: MonotonicTime,
     ) {
-        self.schedule_present_frame(context_id, PendingFrame::repainting_everything(viewport_rect), now);
+        let Some(presenting) = self.presenting_of(context_id) else {
+            return;
+        };
+        presenting.borrow_mut().present_next_frame_in_full();
+        self.schedule_present_frame(context_id, PendingFrame::within(viewport_rect), now);
     }
 
     pub(super) fn present_current_frame(&self, context_id: CompositorContextId, now: MonotonicTime) {
@@ -286,7 +288,7 @@ impl CompositorCore {
         };
         let frame_rect = presenting.borrow().frame_rect_to_repaint();
         if let Some(frame_rect) = frame_rect {
-            self.schedule_present_frame_repainting_everything(context_id, frame_rect, now);
+            self.schedule_present_frame_in_full(context_id, frame_rect, now);
         }
     }
 
@@ -296,7 +298,7 @@ impl CompositorCore {
         };
         let frame_rect = presenting.borrow().frame_rect_to_repaint();
         if let Some(frame_rect) = frame_rect {
-            self.schedule_present_frame(context_id, PendingFrame::repainting_changes(frame_rect), now);
+            self.schedule_present_frame(context_id, PendingFrame::within(frame_rect), now);
         }
     }
 
@@ -941,7 +943,7 @@ impl CompositorCore {
             }
             let visibility_changed = context.borrow_mut().set_scroll_capabilities(&scroll_capabilities, now);
             if visibility_changed {
-                self.request_present_repainting_everything(context_id, context);
+                self.request_present_at_presented_viewport_rect(context_id);
             }
         }
     }
@@ -1007,7 +1009,7 @@ impl CompositorCore {
             .presenting_of(root_context_id)
             .and_then(|presenting| presenting.borrow().frame_rect_to_repaint());
         if let Some(frame_rect) = frame_rect {
-            self.schedule_present_frame_repainting_everything(root_context_id, frame_rect, now);
+            self.schedule_present_frame_in_full(root_context_id, frame_rect, now);
         }
     }
 
@@ -1272,7 +1274,7 @@ impl CompositorCore {
                 {
                     presenting
                         .borrow_mut()
-                        .queue_present_frame(PendingFrame::repainting_changes(viewport_rect));
+                        .queue_present_frame(PendingFrame::within(viewport_rect));
                 }
                 let has_pending_present_frame = presenting.borrow().has_pending_present_frame();
                 if has_pending_present_frame {
@@ -1296,11 +1298,7 @@ impl CompositorCore {
                 continue;
             };
             if tick.needs_animation_frames {
-                self.schedule_present_frame(
-                    context_id,
-                    PendingFrame::repainting_changes(pending_frame.viewport_rect),
-                    now,
-                );
+                self.schedule_present_frame(context_id, PendingFrame::within(pending_frame.viewport_rect), now);
             }
             self.present_frame(context_id, pending_frame, now);
         }
@@ -1332,14 +1330,7 @@ impl CompositorCore {
         if screenshot_inputs.scrollbar_fades_changed {
             let viewport_rect = presenting.borrow().viewport_rect_of_current_frame();
             if let Some(viewport_rect) = viewport_rect {
-                self.schedule_present_frame(
-                    context_id,
-                    PendingFrame {
-                        viewport_rect,
-                        forced_damage_rect: Default::default(),
-                    },
-                    now,
-                );
+                self.schedule_present_frame(context_id, PendingFrame::within(viewport_rect), now);
             }
         }
         true
@@ -1367,7 +1358,7 @@ impl CompositorCore {
             .presenting_of(context_id)
             .and_then(|presenting| presenting.borrow().self_present_rect());
         if let Some(rect) = rect {
-            self.schedule_present_frame(context_id, PendingFrame::repainting_changes(rect), now);
+            self.schedule_present_frame(context_id, PendingFrame::within(rect), now);
         }
     }
 

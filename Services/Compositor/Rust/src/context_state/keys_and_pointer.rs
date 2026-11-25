@@ -97,7 +97,7 @@ impl ContextState {
         }
         let result_of_pan = |viewport_rect| ContextUpdateResult {
             accepted: true,
-            frame_to_present: Some(PendingFrame::repainting_changes(viewport_rect)),
+            frame_to_present: Some(PendingFrame::within(viewport_rect)),
             should_request_rendering_update: true,
             ..Default::default()
         };
@@ -310,10 +310,7 @@ impl ContextState {
         if self.async_scrolling_viewport_rect.is_empty() {
             return None;
         }
-        Some(PendingFrame {
-            viewport_rect: self.async_scrolling_viewport_rect,
-            forced_damage_rect: Default::default(),
-        })
+        Some(PendingFrame::within(self.async_scrolling_viewport_rect))
     }
 
     /// The pointer left the scrollbar it was over here for a context nested in this one, or for the one around it.

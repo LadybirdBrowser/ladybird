@@ -287,7 +287,7 @@ impl ContextState {
             is_absolute_scroll,
         );
         self.scrollbar_press_scroll_operation = Some(operation_id);
-        Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect))
+        Some(PendingFrame::within(self.async_scrolling_viewport_rect))
     }
 
     // https://source.chromium.org/chromium/chromium/src/+/main:cc/input/scroll_utils.cc
@@ -366,7 +366,7 @@ impl ContextState {
                 ScrollAnimationKind::SmoothScroll,
                 false,
             );
-            return Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect));
+            return Some(PendingFrame::within(self.async_scrolling_viewport_rect));
         }
         self.cancel_smooth_scroll_taken_over_by_user_input(scrollbar.scroll_node_index);
         self.start_scrollbar_press_scroll(&node, old_scroll_offset, destination, false, now)
@@ -425,7 +425,7 @@ impl ContextState {
                 ScrollAnimationKind::SmoothScroll,
                 true,
             );
-            return Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect));
+            return Some(PendingFrame::within(self.async_scrolling_viewport_rect));
         }
         if destination == old_scroll_offset {
             return None;
@@ -440,10 +440,7 @@ impl ContextState {
             ScrollerMoveCause::ScrollbarThumbDrag,
         )?;
         self.resolve_stale_sticky_offsets();
-        if !node.is_viewport {
-            return Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect));
-        }
-        Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect))
+        Some(PendingFrame::within(self.async_scrolling_viewport_rect))
     }
 
     pub(super) fn prepare_wheel_hit_test_targets(&mut self) {

@@ -224,9 +224,9 @@ impl ContextState {
         );
     }
 
-    /// Returns whether the overlays have to repaint all of the viewport. The page's next frame repaints all of it when
-    /// its size changes, but the paused debugger's page does not paint again, and a new pixel ratio alone need not
-    /// repaint the page.
+    /// Returns whether the overlays need a frame of their own to be drawn at the new viewport size or pixel ratio. The
+    /// page presents a frame at a new size, but the paused debugger's page does not paint again, and a new pixel ratio
+    /// alone need not repaint the page.
     pub fn viewport_size_updated(&mut self, viewport_size: IntSize, device_pixel_ratio: f64) -> bool {
         let only_the_pixel_ratio_changed =
             viewport_size == self.viewport_size && device_pixel_ratio != self.device_pixel_ratio;
@@ -240,23 +240,24 @@ impl ContextState {
             || (only_the_pixel_ratio_changed && ui_overlays.picture_in_picture_controls.is_some())
     }
 
-    pub fn set_ui_overlays(&mut self, ui_overlays: UIOverlays, now: MonotonicTime) -> UIOverlaysChange {
+    /// Answers whether the overlays changed.
+    pub fn set_ui_overlays(&mut self, ui_overlays: UIOverlays, now: MonotonicTime) -> bool {
         let shows_paused_debugger = ui_overlays.paused_debugger.is_some();
-        let change = self.overlays.set_ui_overlays(ui_overlays, now);
-        if change == UIOverlaysChange::RepaintsEverything && shows_paused_debugger {
+        let changed = self.overlays.set_ui_overlays(ui_overlays, now);
+        if changed && shows_paused_debugger {
             self.end_keyboard_scroll_gesture();
         }
-        change
+        changed
     }
 
     pub fn set_compositor_layers_overlay_needs_frames_until(&mut self, until: Option<MonotonicTime>) {
         self.overlays.set_compositor_layers_overlay_needs_frames_until(until);
     }
 
-    /// What the fades of the overlays repaint of the viewport as they advance to the frame.
-    pub fn advance_overlay_fades(&mut self, frame_time: MonotonicTime) -> Option<IntRect> {
-        self.overlays
-            .advance_fades(frame_time, self.viewport_size, self.device_pixel_ratio)
+    /// Advances the fades of the overlays to a frame, and answers whether any of them changed. The frame finds what
+    /// changed by comparing what the overlays draw over it with what they drew over the frame before.
+    pub fn advance_overlay_fades(&mut self, frame_time: MonotonicTime) -> bool {
+        self.overlays.advance_fades(frame_time)
     }
 
     /// Whether the compositor layers overlay needs the frame, which rasters no tile again for that.
