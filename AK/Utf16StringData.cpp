@@ -160,6 +160,27 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string
     return create_from_code_point_iterable(Utf8View { utf8_string });
 }
 
+NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8_with_replacement_character(StringView utf8_string)
+{
+    if (auto string = from_well_formed_utf8(utf8_string))
+        return string.release_nonnull();
+
+    auto const* input = utf8_string.characters_without_null_termination();
+    auto input_length = utf8_string.length();
+
+    // NB: simdutf replaces each maximal subpart of an ill-formed sequence with U+FFFD, which matches the UTF-8 decoder
+    //     of the Encoding Standard.
+    auto length_result = simdutf::utf16_length_from_utf8_with_replacement(input, input_length);
+    VERIFY_UTF16_LENGTH(length_result.count);
+
+    auto string = create_uninitialized(StorageType::UTF16, length_result.count);
+
+    auto result = simdutf::convert_utf8_to_utf16_with_replacement(input, input_length, string->utf16_data(), length_result);
+    VERIFY(result == length_result.count);
+
+    return string;
+}
+
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf16(Utf16View const& utf16_string)
 {
     VERIFY_UTF16_LENGTH(utf16_string.length_in_code_units());
