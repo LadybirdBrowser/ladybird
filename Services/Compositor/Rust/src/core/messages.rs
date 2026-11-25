@@ -745,8 +745,19 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             return Err(Misbehavior("Invalid scroll state"));
         }
         if self.context_is_owned_by_sender(message.context_id)? {
-            self.core
-                .update_scroll_state(message.context_id, scroll_state_snapshot, message.keyboard_scroll_state);
+            if !self.core.update_scroll_state(
+                message.context_id,
+                message.visual_context_tree_structural_epoch,
+                scroll_state_snapshot,
+                message.keyboard_scroll_state,
+            ) {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Dropping scroll state update built for another visual context tree (epoch {})",
+                    message.visual_context_tree_structural_epoch
+                );
+                return Ok(());
+            }
             self.core
                 .take_layer_plan_of_scroll_state(
                     message.context_id,

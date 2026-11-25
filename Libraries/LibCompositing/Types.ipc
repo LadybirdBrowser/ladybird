@@ -76,7 +76,6 @@ enum Compositing::WebGL::WebGLVersion : u8 {
 [ExistingCpp]
 struct Compositing::KeyboardScrollState {
     u64 generation;
-    u64 visual_context_tree_structural_epoch;
     Optional<Web::AsyncScrollNodeStableID> target;
     float page_scroll_distance;
     float arrow_scroll_distance;

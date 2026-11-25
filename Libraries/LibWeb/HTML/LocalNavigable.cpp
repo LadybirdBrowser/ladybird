@@ -7353,7 +7353,7 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(Layout::BegunRe
     // A keyboard scroll reads the layout, which one the host knows is stale leaves to the next frame that lays it out.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
     if (is_top_level_traversable() && !document.layout_is_known_stale())
-        keyboard_scroll_state = page().take_keyboard_scroll_state_for_compositor(0);
+        keyboard_scroll_state = page().take_keyboard_scroll_state_for_compositor();
     return Compositor::SealedPresentation {
         .paint_config = paint_config,
         .visual_context_tree_structural_epoch = visual_context_tree_structural_epoch,

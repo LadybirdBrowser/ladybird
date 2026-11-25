@@ -13,6 +13,7 @@ use libgfx_rust::FloatPoint;
 
 pub struct KeyboardScrollController {
     state: KeyboardScrollState,
+    visual_context_tree_structural_epoch_of_state: u64,
     held_keys: Vec<KeyCode>,
 }
 
@@ -51,11 +52,11 @@ impl Default for KeyboardScrollController {
         Self {
             state: KeyboardScrollState {
                 generation: 0,
-                visual_context_tree_structural_epoch: 0,
                 target: None,
                 page_scroll_distance: 0.0,
                 arrow_scroll_distance: 0.0,
             },
+            visual_context_tree_structural_epoch_of_state: 0,
             held_keys: Vec::new(),
         }
     }
@@ -71,11 +72,12 @@ impl KeyboardScrollController {
     }
 
     // Returns whether the state is not older than the one already adopted.
-    pub fn adopt_state(&mut self, state: KeyboardScrollState) -> bool {
+    pub fn adopt_state(&mut self, state: KeyboardScrollState, visual_context_tree_structural_epoch: u64) -> bool {
         if state.generation < self.state.generation {
             return false;
         }
         self.state = state;
+        self.visual_context_tree_structural_epoch_of_state = visual_context_tree_structural_epoch;
         true
     }
 
@@ -86,7 +88,7 @@ impl KeyboardScrollController {
         self.state.target.is_some()
     }
     pub fn state_matches_visual_context_tree_epoch(&self, visual_context_tree_structural_epoch: u64) -> bool {
-        self.state.visual_context_tree_structural_epoch == visual_context_tree_structural_epoch
+        self.visual_context_tree_structural_epoch_of_state == visual_context_tree_structural_epoch
     }
 
     pub fn step_for_key(&self, event: &KeyEvent, async_scroll_tree: &AsyncScrollTree) -> Option<KeyStep> {

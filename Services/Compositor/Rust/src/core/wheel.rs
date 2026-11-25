@@ -28,16 +28,19 @@ impl CompositorCore {
     pub fn update_scroll_state(
         &self,
         context_id: CompositorContextId,
+        visual_context_tree_structural_epoch: u64,
         scroll_state_snapshot: ScrollStateSnapshot,
         keyboard_scroll_state: KeyboardScrollState,
-    ) {
+    ) -> bool {
         let _entered = self.enter();
 
         let context = self.context_if_present(context_id).expect("context exists");
 
-        context
-            .borrow_mut()
-            .update_scroll_state(scroll_state_snapshot, keyboard_scroll_state);
+        context.borrow_mut().update_scroll_state(
+            visual_context_tree_structural_epoch,
+            scroll_state_snapshot,
+            keyboard_scroll_state,
+        )
     }
 
     pub fn invalidate_wheel_event_listener_state(&self, context_id: CompositorContextId, generation: u64) {

@@ -100,7 +100,6 @@ struct StartedUserScroll {
 // actions on WebContent. The epoch also binds incremental updates to the tree whose target they describe.
 struct KeyboardScrollState {
     u64 generation { 0 };
-    u64 visual_context_tree_structural_epoch { 0 };
     Optional<Web::AsyncScrollNodeStableID> target;
     float page_scroll_distance { 0 };
     float arrow_scroll_distance { 0 };

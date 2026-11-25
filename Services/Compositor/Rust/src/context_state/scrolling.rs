@@ -1263,6 +1263,87 @@ mod tests {
         }
     }
 
+    fn scroll_state_with_offset(node_index: SpatialNodeIndex, offset: FloatPoint) -> ScrollStateSnapshot {
+        let mut scroll_state = ScrollStateSnapshot::default();
+        scroll_state.set_device_offset_for_index(
+            node_index,
+            FloatPoint {
+                x: -offset.x,
+                y: -offset.y,
+            },
+        );
+        scroll_state
+    }
+
+    fn keyboard_scroll_state_targeting_element() -> KeyboardScrollState {
+        KeyboardScrollState {
+            generation: 1,
+            target: Some(AsyncScrollNodeStableID {
+                node_id: UniqueNodeId(1),
+                kind: AsyncScrollNodeKind::Element,
+                pseudo_element_type: 0,
+            }),
+            page_scroll_distance: 100.0,
+            arrow_scroll_distance: 40.0,
+        }
+    }
+
+    #[test]
+    fn a_scroll_state_built_for_another_visual_context_tree_is_dropped() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        let installed_epoch = test.context.scene.current_visual_context_tree().structural_epoch();
+        let offset = FloatPoint { x: 0.0, y: 50.0 };
+
+        assert!(!test.context.update_scroll_state(
+            installed_epoch + 1,
+            scroll_state_with_offset(test.node_index, offset),
+            keyboard_scroll_state_targeting_element(),
+        ));
+        assert_eq!(test.offset(), FloatPoint::default());
+        assert!(test.context.update_scroll_state(
+            installed_epoch,
+            scroll_state_with_offset(test.node_index, offset),
+            keyboard_scroll_state_targeting_element(),
+        ));
+        assert_eq!(test.offset(), offset);
+
+        test.context.has_async_scrolling_state = true;
+        test.context.keyboard_scroll_controller = KeyboardScrollController::default();
+        assert!(!test.context.update_scroll_state(
+            installed_epoch + 1,
+            ScrollStateSnapshot::default(),
+            keyboard_scroll_state_targeting_element(),
+        ));
+        assert!(!test.context.keyboard_scroll_controller.has_target());
+        assert!(test.context.update_scroll_state(
+            installed_epoch,
+            ScrollStateSnapshot::default(),
+            keyboard_scroll_state_targeting_element(),
+        ));
+        assert!(test.context.keyboard_scroll_controller.has_target());
+    }
+
+    #[test]
+    fn the_scroll_state_of_a_refused_visual_context_tree_is_dropped_with_it() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        let mut tree_of_another_structure = test
+            .context
+            .scene
+            .current_visual_context_tree()
+            .as_arc()
+            .as_ref()
+            .clone();
+        tree_of_another_structure.structural_epoch += 1;
+
+        assert!(!test.context.update_visual_context_tree(
+            AccumulatedVisualContextTree::from_arc(Arc::new(tree_of_another_structure)),
+            scroll_state_with_offset(test.node_index, FloatPoint { x: 0.0, y: 50.0 }),
+            keyboard_scroll_state_targeting_element(),
+            MonotonicTime::default(),
+        ));
+        assert_eq!(test.offset(), FloatPoint::default());
+    }
+
     #[test]
     fn discrete_wheel_step_animates_until_200ms() {
         for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {

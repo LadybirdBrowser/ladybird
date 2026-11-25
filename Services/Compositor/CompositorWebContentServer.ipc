@@ -55,7 +55,7 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] update_display_list(Web::CompositorContextId context_id, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
     describe_display_list_fonts(Web::CompositorContextId context_id, Vector<Compositing::DisplayListFontDescription> fonts) =|
     [RustReceiver, RustSender] update_visual_context_tree(Web::CompositorContextId context_id, Compositing::VisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
-    [RustReceiver, RustSender] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
+    [RustReceiver, RustSender] update_scroll_state(Web::CompositorContextId context_id, u64 visual_context_tree_structural_epoch, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     [RustReceiver, RustSender] reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)

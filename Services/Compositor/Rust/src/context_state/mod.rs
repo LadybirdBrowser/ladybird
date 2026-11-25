@@ -875,8 +875,8 @@ impl ContextState {
         self.scene.take_layer_plan_of_scroll_state(layer_plan)
     }
 
-    /// Returns false for a tree that does not fit the installed display list, which keeps the tree it has and takes
-    /// only the scroll state that pairs with the new one.
+    /// Returns false for a tree that does not fit the installed display list, which keeps the tree it has and the
+    /// scroll state that pairs with it.
     pub fn update_visual_context_tree(
         &mut self,
         visual_context_tree: AccumulatedVisualContextTree,
@@ -887,7 +887,6 @@ impl ContextState {
         let scroll_offsets_of_known_nodes = self.scroll_offsets_by_stable_id();
         let previous_visual_context_tree = self.scene.visual_context_tree().clone();
         if !self.scene.replace_visual_context_tree(visual_context_tree, now) {
-            self.update_scroll_state(scroll_state_snapshot, keyboard_scroll_state);
             return false;
         }
         let compositor_scroll_table_changed = previous_visual_context_tree.is_some_and(|previous| {
@@ -909,11 +908,22 @@ impl ContextState {
         true
     }
 
+    /// Returns false, leaving everything as it was, for a scroll state built for a visual context tree of another
+    /// structure than the installed one.
     pub fn update_scroll_state(
         &mut self,
+        visual_context_tree_structural_epoch: u64,
         scroll_state_snapshot: ScrollStateSnapshot,
         keyboard_scroll_state: KeyboardScrollState,
-    ) {
+    ) -> bool {
+        if self
+            .scene
+            .visual_context_tree()
+            .as_ref()
+            .is_none_or(|tree| tree.structural_epoch() != visual_context_tree_structural_epoch)
+        {
+            return false;
+        }
         let scroll_offsets_of_known_nodes = self.scroll_offsets_by_stable_id();
         self.update_scroll_state_with_known_offsets(
             scroll_state_snapshot,
@@ -921,6 +931,7 @@ impl ContextState {
             &scroll_offsets_of_known_nodes,
             false,
         );
+        true
     }
 
     fn update_scroll_state_with_known_offsets(
@@ -968,7 +979,16 @@ impl ContextState {
     }
 
     fn adopt_keyboard_scroll_state(&mut self, state: KeyboardScrollState) {
-        if self.keyboard_scroll_controller.adopt_state(state) && !self.keyboard_scroll_controller.has_target() {
+        let visual_context_tree_structural_epoch = self
+            .scene
+            .visual_context_tree()
+            .as_ref()
+            .map_or(0, |tree| tree.structural_epoch());
+        if self
+            .keyboard_scroll_controller
+            .adopt_state(state, visual_context_tree_structural_epoch)
+            && !self.keyboard_scroll_controller.has_target()
+        {
             self.end_keyboard_scroll_gesture();
         }
     }
