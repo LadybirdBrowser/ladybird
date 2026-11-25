@@ -2,6 +2,7 @@ First deferred resume: running
 Second deferred resume: running
 Resume after allowing autoplay: running
 A previously started AudioContext resumes after autoplay is blocked: true
+Closing a blocked context rejects its pending resume: InvalidStateError
 Blocked audio clock: suspended at 0
 Resume request is pending: true
 Only sticky activation remains: true
