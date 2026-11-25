@@ -72,7 +72,6 @@ public:
 
     // GPU work in flight on a surface counts as use too, so only a surface handed to the window server is checked.
     void did_hand_to_window_server();
-    bool is_read_by_window_server() const;
     Lease lease() { return Lease { *this }; }
     bool is_busy() const;
 

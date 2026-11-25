@@ -1186,13 +1186,6 @@ impl VisualContextTree {
         SpatialNodeIndex((self.spatial_nodes.len() - 1) as u32)
     }
 
-    pub fn append_spatial_under(&mut self, context: ContextRef, data: SpatialData) -> ContextRef {
-        ContextRef {
-            spatial: self.append_spatial(data, context.spatial),
-            ..context
-        }
-    }
-
     pub fn append_clip(
         &mut self,
         data: ClipNodeData,

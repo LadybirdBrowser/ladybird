@@ -57,11 +57,6 @@ void PresentableSurface::did_hand_to_window_server()
     RustFFI::compositor_presentable_surface_did_hand_to_window_server(this);
 }
 
-bool PresentableSurface::is_read_by_window_server() const
-{
-    return RustFFI::compositor_presentable_surface_is_read_by_window_server(this);
-}
-
 bool PresentableSurface::is_busy() const
 {
     return RustFFI::compositor_presentable_surface_is_busy(this);

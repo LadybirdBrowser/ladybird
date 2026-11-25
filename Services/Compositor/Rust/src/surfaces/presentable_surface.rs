@@ -262,11 +262,6 @@ pub extern "C" fn compositor_presentable_surface_did_hand_to_window_server(surfa
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_presentable_surface_is_read_by_window_server(surface: &PresentableSurface) -> bool {
-    surface.is_read_by_window_server()
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_presentable_surface_is_busy(surface: &PresentableSurface) -> bool {
     surface.is_busy()
 }
