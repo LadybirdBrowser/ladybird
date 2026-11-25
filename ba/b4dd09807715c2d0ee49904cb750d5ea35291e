@@ -1,0 +1,9 @@
+Ladybird emits U+FFFD for a decimal or hexadecimal HTML character
+reference above the Unicode range, even when the digits exceed 32 bits.
+
+Blink marks the accumulated value invalid in ConsumeHTMLEntity and
+emits U+FFFD in AppendLegalEntityFor. WebKit checks for overflow in
+makeEntity. Gecko emits U+FFFD for an out-of-range reference in
+nsHtml5Tokenizer::handleNcrValue. Chrome 158.0.8127.37, Firefox 151.0,
+and WebKit 26.5 all returned U+FFFD for both inputs that wrapped to A
+in Ladybird, &#4294967361; and &#x100000041;.
