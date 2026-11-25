@@ -9,25 +9,20 @@
 //! process passes before anything reads it.
 
 use super::{
-    BandOfPlan, BarrierOfPlan, COORDINATE_LIMIT_IN_DEVICE_PIXELS, CutOfPlan, LayerContent, LayerIdentity, LayerStack,
-    LayeredPlan, LayeringObstacles, MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD,
-    MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan, PlacementNodeIndex, StackLayer,
-    WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, anchors_of_layer_plans,
+    BarrierOfPlan, COORDINATE_LIMIT_IN_DEVICE_PIXELS, LayerStack, LayeredPlan, LayeringObstacles,
+    MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan,
+    WhyListIsOneLayer, anchors_of_layer_plans,
 };
-use crate::display_list::commands::{
-    CanvasId, CompositorContextId, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VideoSinkHandle,
-};
-use crate::display_list::placement::{
-    CompositeClip, MAXIMUM_RASTER_SPACE_COUNT, RasterSpace, RasterSpaceAnchorKind, RasterSpaceIndex, RasterSpaces,
-};
+use crate::display_list::commands::EffectNodeIndex;
+use crate::display_list::placement::{RasterSpace, RasterSpaceAnchorKind, RasterSpaceIndex, RasterSpaces};
 use crate::display_list::reach::Reach;
-use crate::display_list::storage::{ChunkIndexInList, DisplayListStorage, ListPosition, ListSpan};
+use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan};
 use crate::display_list::summary::{LiveContent, live_content_of};
 use crate::display_list::tape::DisplayListCommandRun;
 use crate::visual_context::VisualContextTree;
 use crate::visual_context::queries::NestingOfLiveEffects;
 use libgfx_rust::IntRect;
-use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
+use libipc_rust::wire::{Decode, Encode};
 use std::collections::{HashMap, HashSet};
 
 // Caps on a received stack, which bound what decoding allocates. The values per space, and the composite clips of a node,
@@ -35,10 +30,10 @@ use std::collections::{HashMap, HashSet};
 // as the runs of a list ask for, and the planner gives a list one layer where they are more than these caps. Keying a
 // cell looks through every cut of its band and keeps those that cut it, so the cuts of a band are capped lower: the
 // pages of the tests cut a band at most 90 times.
-const MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
-const MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
-const MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND: usize = 256;
-const MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND: usize = 1 << 20;
+pub(super) const MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
+pub(super) const MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK: usize = 1 << 16;
+pub(super) const MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND: usize = 256;
+pub(super) const MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND: usize = 1 << 20;
 /// The most canvases, videos and nested contexts that get layers where giving each one a layer cuts a band more times
 /// than the compositor decodes: the cuts a band leaves after the most carets and scroll bars that get layers.
 pub(super) const CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR: usize =
@@ -60,425 +55,76 @@ pub(super) fn note_lines_a_plan_holds(lines: impl Iterator<Item = String>) -> Ve
         .collect()
 }
 
-/// A stack decoded from another process: why it is one layer that replays the whole list, or the plan of a stack of
-/// more layers. Nothing reads it until `validated_stack` checks it and works out the stack.
-#[derive(Debug)]
-enum StackOnWire {
+/// What a plan carries of its stack to the compositor, which works out the rest: why the stack is one layer that
+/// replays the whole list, or the plan of a stack of more layers. Nothing reads one decoded from another process until
+/// `validated_stack` checks it and works out the stack.
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
+#[ipc(validate = Self::names_only_reasons_a_planner_gives)]
+pub enum StackOnWire {
     OneLayer(WhyListIsOneLayer),
     Layered(LayeredPlan),
 }
 
-/// A plan of the layers of a list as WebContent sends it to the compositor: the stack, the display list it was planned
-/// for, the viewport, in device pixels, it was planned within, and what the overlay of layers tells of the stack past
-/// its layers.
-#[derive(Clone, Debug, PartialEq)]
+impl StackOnWire {
+    // Only the compositor finds that a frame is not drawn as planned, or that a plan shows more tiles than a frame holds.
+    fn names_only_reasons_a_planner_gives(&self) -> Result<(), &'static str> {
+        match self {
+            StackOnWire::OneLayer(
+                WhyListIsOneLayer::FrameIsNotDrawnAsPlanned | WhyListIsOneLayer::PlanShowsTooManyTiles,
+            ) => Err("a plan gives a list one layer for a reason only the compositor finds"),
+            StackOnWire::OneLayer(_) | StackOnWire::Layered(_) => Ok(()),
+        }
+    }
+}
+
+/// A plan of the layers of a list as WebContent sends it to the compositor: what the compositor needs of the stack to
+/// work it out, the display list it was planned for, the viewport, in device pixels, it was planned within, and what
+/// the overlay of layers tells of the stack past its layers.
+#[derive(Clone, Debug, Encode)]
 pub struct LayerPlan {
+    pub display_list_id: u64,
+    pub viewport_rect: IntRect,
+    pub stack: StackOnWire,
+    pub note_lines: Vec<String>,
+}
+
+/// A note line of a plan decoded from another process, which goes as a `String` does.
+#[derive(Debug, Decode)]
+struct ReceivedNoteLine(#[ipc(max_size = MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN)] String);
+
+/// A `LayerPlan` decoded from another process, whose stack nothing reads until it is checked.
+#[derive(Debug, Decode)]
+pub struct UnvalidatedLayerPlan {
+    pub display_list_id: u64,
+    pub viewport_rect: IntRect,
+    stack: StackOnWire,
+    #[ipc(max_size = MAXIMUM_NOTE_LINE_COUNT_OF_PLAN)]
+    note_lines: Vec<ReceivedNoteLine>,
+}
+
+/// A plan of layers from another process that passed the checks, with the stack worked out of what it carried.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValidatedLayerPlan {
     pub display_list_id: u64,
     pub viewport_rect: IntRect,
     pub stack: LayerStack,
     pub note_lines: Vec<String>,
 }
 
-/// A plan of layers decoded from another process, whose stack nothing reads until it is checked.
-#[derive(Debug)]
-pub struct UnvalidatedLayerPlan {
-    pub display_list_id: u64,
-    pub viewport_rect: IntRect,
-    stack: StackOnWire,
-    note_lines: Vec<String>,
-}
-
 impl UnvalidatedLayerPlan {
     /// The plan, once its stack passes `validated_stack` for `list` under `tree` within the viewport the plan
     /// names. The receiver makes sure that `list` is the list that `display_list_id` names. The note lines go unchecked:
     /// decoding bounds their count and length, and only the overlay of layers shows them.
-    pub fn validated(self, list: &DisplayListStorage, tree: &VisualContextTree) -> Result<LayerPlan, &'static str> {
-        Ok(LayerPlan {
+    pub fn validated(
+        self,
+        list: &DisplayListStorage,
+        tree: &VisualContextTree,
+    ) -> Result<ValidatedLayerPlan, &'static str> {
+        Ok(ValidatedLayerPlan {
             display_list_id: self.display_list_id,
             viewport_rect: self.viewport_rect,
             stack: validated_stack(self.stack, list, tree, self.viewport_rect)?,
-            note_lines: self.note_lines,
-        })
-    }
-}
-
-macro_rules! impl_codec_of_index_going_as_u32 {
-    ($($type:ident),*) => {
-        $(
-            impl Encode for $type {
-                fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-                    encoder.encode(&u32::try_from(self.0).map_err(|_| EncodeError::SizeTooLarge(self.0))?)
-                }
-            }
-
-            impl Decode for $type {
-                const MIN_ENCODED_SIZE: usize = size_of::<u32>();
-
-                fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-                    Ok(Self(decoder.decode::<u32>()? as usize))
-                }
-            }
-        )*
-    };
-}
-
-impl_codec_of_index_going_as_u32!(RasterSpaceIndex, PlacementNodeIndex);
-
-impl Encode for ListPosition {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.chunk_index.0)?;
-        encoder.encode(&self.offset)
-    }
-}
-
-impl Decode for ListPosition {
-    const MIN_ENCODED_SIZE: usize = 2 * size_of::<u32>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self::new(ChunkIndexInList(decoder.decode()?), decoder.decode()?))
-    }
-}
-
-impl Encode for ListSpan {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.begin)?;
-        encoder.encode(&self.end)
-    }
-}
-
-impl Decode for ListSpan {
-    const MIN_ENCODED_SIZE: usize = 2 * ListPosition::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            begin: decoder.decode()?,
-            end: decoder.decode()?,
-        })
-    }
-}
-
-const REACH_KIND_NOTHING: u8 = 0;
-const REACH_KIND_WITHIN: u8 = 1;
-const REACH_KIND_ANYWHERE: u8 = 2;
-
-impl Encode for Reach<IntRect> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        match self {
-            Reach::Nothing => encoder.encode(&REACH_KIND_NOTHING),
-            Reach::Within(rect) => {
-                encoder.encode(&REACH_KIND_WITHIN)?;
-                encoder.encode(rect)
-            }
-            Reach::Anywhere => encoder.encode(&REACH_KIND_ANYWHERE),
-        }
-    }
-}
-
-impl Decode for Reach<IntRect> {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(match decoder.decode::<u8>()? {
-            REACH_KIND_NOTHING => Reach::Nothing,
-            REACH_KIND_WITHIN => Reach::Within(decoder.decode()?),
-            REACH_KIND_ANYWHERE => Reach::Anywhere,
-            _ => return Err(DecodeError::InvalidValue("Reach")),
-        })
-    }
-}
-
-const LIVE_CONTENT_KIND_CANVAS: u8 = 0;
-const LIVE_CONTENT_KIND_VIDEO_FRAME: u8 = 1;
-const LIVE_CONTENT_KIND_IMAGE_FRAME: u8 = 2;
-const LIVE_CONTENT_KIND_COMPOSITED_CONTEXT: u8 = 3;
-const LIVE_CONTENT_KIND_CARET: u8 = 4;
-const LIVE_CONTENT_KIND_SCROLL_BAR: u8 = 5;
-
-impl Encode for LiveContent {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        let (kind, id) = match self {
-            LiveContent::Canvas(id) => (LIVE_CONTENT_KIND_CANVAS, id.0),
-            LiveContent::VideoFrame(id) => (LIVE_CONTENT_KIND_VIDEO_FRAME, id.0),
-            LiveContent::ImageFrame(id) => (LIVE_CONTENT_KIND_IMAGE_FRAME, id.0),
-            LiveContent::CompositedContext(id) => (LIVE_CONTENT_KIND_COMPOSITED_CONTEXT, id.0),
-            LiveContent::Caret => (LIVE_CONTENT_KIND_CARET, 0),
-            LiveContent::ScrollBar { scroll_node, vertical } => (
-                LIVE_CONTENT_KIND_SCROLL_BAR,
-                (u64::from(scroll_node.0) << 1) | u64::from(*vertical),
-            ),
-        };
-        encoder.encode(&kind)?;
-        encoder.encode(&id)
-    }
-}
-
-impl Decode for LiveContent {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>() + size_of::<u64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        let kind = decoder.decode::<u8>()?;
-        let id = decoder.decode::<u64>()?;
-        Ok(match kind {
-            LIVE_CONTENT_KIND_CANVAS => LiveContent::Canvas(CanvasId(id)),
-            LIVE_CONTENT_KIND_VIDEO_FRAME => LiveContent::VideoFrame(VideoSinkHandle(id)),
-            LIVE_CONTENT_KIND_IMAGE_FRAME => LiveContent::ImageFrame(ImageFrameResourceId(id)),
-            LIVE_CONTENT_KIND_COMPOSITED_CONTEXT => LiveContent::CompositedContext(CompositorContextId(id)),
-            LIVE_CONTENT_KIND_CARET if id == 0 => LiveContent::Caret,
-            LIVE_CONTENT_KIND_SCROLL_BAR if id >> 33 == 0 => LiveContent::ScrollBar {
-                scroll_node: SpatialNodeIndex((id >> 1) as u32),
-                vertical: id & 1 != 0,
-            },
-            _ => return Err(DecodeError::InvalidValue("LiveContent")),
-        })
-    }
-}
-
-impl Encode for CompositeClip {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.raster_space_index)?;
-        encoder.encode(&self.rect)?;
-        encoder.encode(&self.corner_radii)
-    }
-}
-
-impl Decode for CompositeClip {
-    const MIN_ENCODED_SIZE: usize =
-        RasterSpaceIndex::MIN_ENCODED_SIZE + IntRect::MIN_ENCODED_SIZE + libgfx_rust::CornerRadii::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            raster_space_index: decoder.decode()?,
-            rect: decoder.decode()?,
-            corner_radii: decoder.decode()?,
-        })
-    }
-}
-
-impl Decode for NodeOfPlan {
-    const MIN_ENCODED_SIZE: usize = RasterSpaceIndex::MIN_ENCODED_SIZE
-        + Vec::<CompositeClip>::MIN_ENCODED_SIZE
-        + Option::<EffectNodeIndex>::MIN_ENCODED_SIZE
-        + Option::<PlacementNodeIndex>::MIN_ENCODED_SIZE
-        + Reach::<IntRect>::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            raster_space_index: decoder.decode()?,
-            composite_clips: decoder.decode_with_max_size(MAXIMUM_RASTER_SPACE_COUNT)?,
-            composited_effect: decoder.decode()?,
-            parent_index: decoder.decode()?,
-            reach_in_parent_node: decoder.decode()?,
-        })
-    }
-}
-
-const BARRIER_KIND_MEDIA: u8 = 0;
-const BARRIER_KIND_NESTED_BAND: u8 = 1;
-
-impl Decode for CutOfPlan {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>() + IntRect::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        let barrier = match decoder.decode::<u8>()? {
-            BARRIER_KIND_MEDIA => BarrierOfPlan::Media {
-                content: decoder.decode()?,
-                ordinal: decoder.decode()?,
-                record_span: decoder.decode()?,
-                reach: decoder.decode()?,
-                cuts_band: decoder.decode()?,
-            },
-            BARRIER_KIND_NESTED_BAND => BarrierOfPlan::NestedBand,
-            _ => return Err(DecodeError::InvalidValue("BarrierOfPlan")),
-        };
-        Ok(Self {
-            barrier,
-            reach_of_layer_above_cut: decoder.decode()?,
-        })
-    }
-}
-
-impl Decode for BandOfPlan {
-    const MIN_ENCODED_SIZE: usize = PlacementNodeIndex::MIN_ENCODED_SIZE
-        + Vec::<ListSpan>::MIN_ENCODED_SIZE
-        + IntRect::MIN_ENCODED_SIZE
-        + Vec::<CutOfPlan>::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            placement_node_index: decoder.decode()?,
-            record_spans: decoder.decode_with_max_size(MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND)?,
-            reach_of_layer_below_all_cuts: decoder.decode()?,
-            cuts: decoder.decode_with_max_size(MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND)?,
-        })
-    }
-}
-
-impl Encode for WhyCompositorCannotCompositeEffect {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        let kind: u8 = match self {
-            WhyCompositorCannotCompositeEffect::FilterMovesWhatItFilters => 0,
-            WhyCompositorCannotCompositeEffect::FilterReadsFartherThanTilesAreFollowed => 1,
-        };
-        encoder.encode(&kind)
-    }
-}
-
-impl Decode for WhyCompositorCannotCompositeEffect {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(match decoder.decode::<u8>()? {
-            0 => WhyCompositorCannotCompositeEffect::FilterMovesWhatItFilters,
-            1 => WhyCompositorCannotCompositeEffect::FilterReadsFartherThanTilesAreFollowed,
-            _ => return Err(DecodeError::InvalidValue("WhyCompositorCannotCompositeEffect")),
-        })
-    }
-}
-
-impl Encode for WhyListIsOneLayer {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        let kind: u8 = match self {
-            WhyListIsOneLayer::EmptyViewport => 0,
-            WhyListIsOneLayer::EmptyDisplayList => 1,
-            WhyListIsOneLayer::SortingContext3D => 2,
-            WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup => 3,
-            WhyListIsOneLayer::RecordsBlendWithWhatOtherLayersHoldBelowThem => 5,
-            WhyListIsOneLayer::EffectTheCompositorCannotCompositeIsComposited(_) => 6,
-            WhyListIsOneLayer::FrameIsNotDrawnAsPlanned => 7,
-            WhyListIsOneLayer::CompositedEffectsNestTooDeep => 8,
-            WhyListIsOneLayer::PlanShowsTooManyTiles => 9,
-            WhyListIsOneLayer::PlanFailsChecksOfCompositor => 10,
-            WhyListIsOneLayer::PlanHoldsMoreThanCompositorDecodes => 11,
-        };
-        encoder.encode(&kind)?;
-        if let WhyListIsOneLayer::EffectTheCompositorCannotCompositeIsComposited(why) = self {
-            encoder.encode(why)?;
-        }
-        Ok(())
-    }
-}
-
-impl Decode for WhyListIsOneLayer {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(match decoder.decode::<u8>()? {
-            0 => WhyListIsOneLayer::EmptyViewport,
-            1 => WhyListIsOneLayer::EmptyDisplayList,
-            2 => WhyListIsOneLayer::SortingContext3D,
-            3 => WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup,
-            5 => WhyListIsOneLayer::RecordsBlendWithWhatOtherLayersHoldBelowThem,
-            6 => WhyListIsOneLayer::EffectTheCompositorCannotCompositeIsComposited(decoder.decode()?),
-            7 => WhyListIsOneLayer::FrameIsNotDrawnAsPlanned,
-            8 => WhyListIsOneLayer::CompositedEffectsNestTooDeep,
-            9 => WhyListIsOneLayer::PlanShowsTooManyTiles,
-            10 => WhyListIsOneLayer::PlanFailsChecksOfCompositor,
-            11 => WhyListIsOneLayer::PlanHoldsMoreThanCompositorDecodes,
-            _ => return Err(DecodeError::InvalidValue("WhyListIsOneLayer")),
-        })
-    }
-}
-
-const PLAN_KIND_ONE_LAYER: u8 = 0;
-const PLAN_KIND_LAYERED: u8 = 1;
-
-impl Decode for StackOnWire {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>() + WhyListIsOneLayer::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(match decoder.decode::<u8>()? {
-            PLAN_KIND_ONE_LAYER => StackOnWire::OneLayer(decoder.decode()?),
-            PLAN_KIND_LAYERED => StackOnWire::Layered(LayeredPlan {
-                nodes: decoder.decode_with_max_size(MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK)?,
-                bands: decoder.decode_with_max_size(MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK)?,
-                tiles_hold_content_moving_within_space_by_space_index: decoder
-                    .decode_with_max_size(MAXIMUM_RASTER_SPACE_COUNT)?,
-                swept_reach_in_parent_space_by_space_index: decoder.decode_with_max_size(MAXIMUM_RASTER_SPACE_COUNT)?,
-            }),
-            _ => return Err(DecodeError::InvalidValue("StackOnWire")),
-        })
-    }
-}
-
-// A stack of one layer that replays the whole list goes as why it is one layer. A stack of more layers goes as its
-// plan: its nodes without their identities, and its bands in the order of the walk that its layers are in, each with
-// what only it knows of its layers. In that order, the layer of live content comes right below the layer above its cut,
-// and the last layer of a nested band comes right below the layer above the cut that enters it.
-impl Encode for LayerStack {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        if let Some(why_list_is_one_layer) = self.why_list_is_one_layer {
-            encoder.encode(&PLAN_KIND_ONE_LAYER)?;
-            return encoder.encode(&why_list_is_one_layer);
-        }
-        encoder.encode(&PLAN_KIND_LAYERED)?;
-        encoder.encode_size(self.nodes.len())?;
-        for node in &self.nodes {
-            encoder.encode(&node.raster_space_index)?;
-            encoder.encode(&node.composite_clips)?;
-            encoder.encode(&node.composited_effect)?;
-            encoder.encode(&node.parent_index)?;
-            encoder.encode(&node.reach_in_parent_node)?;
-        }
-        encoder.encode_size(self.bands.len())?;
-        for band in &self.bands {
-            encoder.encode(&band.placement_node_index)?;
-            encoder.encode(&band.record_spans)?;
-            encoder.encode(&self.layers[band.layer_below_all_cuts.0].reach)?;
-            encoder.encode_size(band.cuts.len())?;
-            for cut in &band.cuts {
-                match &self.layers[cut.layer_above_cut.0 - 1] {
-                    StackLayer {
-                        identity: LayerIdentity::Media { content, ordinal },
-                        content: LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span },
-                        reach,
-                        ..
-                    } => {
-                        encoder.encode(&BARRIER_KIND_MEDIA)?;
-                        encoder.encode(content)?;
-                        encoder.encode(ordinal)?;
-                        encoder.encode(record_span)?;
-                        encoder.encode(reach)?;
-                        encoder.encode(&(cut.cut_reach != Reach::Nothing))?;
-                    }
-                    _ => encoder.encode(&BARRIER_KIND_NESTED_BAND)?,
-                }
-                encoder.encode(&self.layers[cut.layer_above_cut.0].reach)?;
-            }
-        }
-        encoder.encode(&self.tiles_hold_content_moving_within_space_by_space_index)?;
-        encoder.encode(&self.swept_reach_in_parent_space_by_space_index)
-    }
-}
-
-fn decode_note_lines(decoder: &mut Decoder<'_>) -> Result<Vec<String>, DecodeError> {
-    let count = decoder.decode_size()?;
-    if count > MAXIMUM_NOTE_LINE_COUNT_OF_PLAN || count > decoder.remaining_bytes() / String::MIN_ENCODED_SIZE {
-        return Err(DecodeError::SizeTooLarge(count));
-    }
-    (0..count)
-        .map(|_| decoder.decode_with_max_size(MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN))
-        .collect()
-}
-
-impl Encode for LayerPlan {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.display_list_id)?;
-        encoder.encode(&self.viewport_rect)?;
-        encoder.encode(&self.stack)?;
-        encoder.encode(&self.note_lines)
-    }
-}
-
-impl Decode for UnvalidatedLayerPlan {
-    const MIN_ENCODED_SIZE: usize =
-        size_of::<u64>() + IntRect::MIN_ENCODED_SIZE + StackOnWire::MIN_ENCODED_SIZE + Vec::<String>::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            display_list_id: decoder.decode()?,
-            viewport_rect: decoder.decode()?,
-            stack: decoder.decode()?,
-            note_lines: decode_note_lines(decoder)?,
+            note_lines: self.note_lines.into_iter().map(|ReceivedNoteLine(line)| line).collect(),
         })
     }
 }
@@ -934,14 +580,21 @@ pub fn compositor_takes_plans_within(viewport_rect: IntRect) -> bool {
 mod tests {
     use super::*;
     use crate::display_list::builder::DisplayListBuilder;
-    use crate::display_list::commands::{ClipNodeIndex, ContextRef, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
+    use crate::display_list::commands::{
+        CanvasId, ClipNodeIndex, CompositorContextId, ContextRef, ImageFrameResourceId, SpatialNodeIndex,
+        VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
+    };
     use crate::display_list::layers::planning::{LayerStackInputs, PlannedLayers, plan_layer_stack};
     use crate::display_list::layers::{
-        BandIndex, CutsOfCell, LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerIndex,
-        MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand, WhatWindowServerShowsOfFrame,
+        BandIndex, BandOfPlan, CutOfPlan, CutsOfCell, LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS,
+        LayerContent, LayerIdentity, LayerIndex, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices,
+        PlacementNodeBand, PlacementNodeIndex, WhatWindowServerShowsOfFrame, WhyCompositorCannotCompositeEffect,
         WhyFrameHoldsLayer, WindowServerCompositing, WindowServerPresentationOfMedia,
     };
-    use crate::display_list::placement::{RasterSpace, RasterSpaceGeometry, WhatEverySpaceOfTreeShares};
+    use crate::display_list::placement::{
+        CompositeClip, MAXIMUM_RASTER_SPACE_COUNT, RasterSpace, RasterSpaceGeometry, WhatEverySpaceOfTreeShares,
+    };
+    use crate::display_list::storage::ChunkIndexInList;
     use crate::display_list::test_fixtures::{
         GREEN, ListOfOneChunk, NO_FRAME_STATE, VIEWPORT, canvas, caret, chunk_of, effects, fill, frosted_glass,
         opacity_animation_of, raster_settings_hash_by_layer, scroll_bar, scroll_node, scroll_record, spinning,
@@ -952,6 +605,7 @@ mod tests {
     use crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::visual_context::{CompositorScrollTable, EffectNodeData, EffectsData, SpatialData, StickyData};
     use libgfx_rust::{Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize};
+    use libipc_rust::wire::{DecodeError, Decoder, Encoder};
     use std::sync::Arc;
 
     struct Page {
@@ -969,29 +623,20 @@ mod tests {
             })
         }
 
-        fn validated(&self, stack: LayerStack) -> Result<LayerStack, &'static str> {
-            validated_stack(on_wire(&stack), &self.list, &self.tree, VIEWPORT)
+        fn validated(&self, stack_on_wire: StackOnWire) -> Result<LayerStack, &'static str> {
+            validated_stack(stack_on_wire, &self.list, &self.tree, VIEWPORT)
         }
 
         fn planned_plan(&self) -> LayeredPlan {
-            let StackOnWire::Layered(plan) = on_wire(&self.planned().stack) else {
+            let StackOnWire::Layered(plan) = self.planned().stack_on_wire else {
                 panic!("the page is planned in more than one layer");
             };
             plan
         }
 
         fn validated_plan(&self, plan: LayeredPlan) -> Result<LayerStack, &'static str> {
-            validated_stack(StackOnWire::Layered(plan), &self.list, &self.tree, VIEWPORT)
+            self.validated(StackOnWire::Layered(plan))
         }
-    }
-
-    // The stack as decoding its wire form gives it.
-    fn on_wire(stack: &LayerStack) -> StackOnWire {
-        let mut encoder = Encoder::new();
-        encoder.encode(stack).expect("a planned stack encodes");
-        Decoder::new(&encoder.finish().0, [])
-            .decode()
-            .expect("a planned stack decodes")
     }
 
     // A long page of fills in the document, each in a chunk of its own, under a header fixed to the viewport.
@@ -1377,6 +1022,16 @@ mod tests {
         LayerPlan {
             display_list_id: 42,
             viewport_rect: VIEWPORT,
+            stack: planned.stack_on_wire.clone(),
+            note_lines: planned.note_lines_for_layers_overlay(),
+        }
+    }
+
+    // The plan the compositor takes of what WebContent planned.
+    fn plan_validated_of(planned: &PlannedLayers) -> ValidatedLayerPlan {
+        ValidatedLayerPlan {
+            display_list_id: 42,
+            viewport_rect: VIEWPORT,
             stack: planned.stack.clone(),
             note_lines: planned.note_lines_for_layers_overlay(),
         }
@@ -1388,7 +1043,7 @@ mod tests {
         encoder.finish().0
     }
 
-    fn decoded_and_validated_plan(page: &Page, bytes: &[u8]) -> Result<LayerPlan, &'static str> {
+    fn decoded_and_validated_plan(page: &Page, bytes: &[u8]) -> Result<ValidatedLayerPlan, &'static str> {
         let mut decoder = Decoder::new(bytes, []);
         let plan: UnvalidatedLayerPlan = decoder.decode().map_err(|_| "the plan does not decode")?;
         if !decoder.is_at_end() {
@@ -1540,10 +1195,14 @@ mod tests {
             .into_iter()
             .chain([("spinner in large scale", page_with_spinner_in_large_scale())]);
         for (name, page) in pages {
-            let sent = plan_sent_of(&page.planned());
-            let plan = decoded_and_validated_plan(&page, &encoded(&sent))
+            let planned = page.planned();
+            let plan = decoded_and_validated_plan(&page, &encoded(&plan_sent_of(&planned)))
                 .unwrap_or_else(|why| panic!("the plan of the {name} is rejected: {why}"));
-            assert_eq!(plan, sent, "the plan of the {name} comes back otherwise");
+            assert_eq!(
+                plan,
+                plan_validated_of(&planned),
+                "the plan of the {name} comes back otherwise"
+            );
         }
     }
 
@@ -1555,17 +1214,7 @@ mod tests {
             page_under_translucent_root(),
         ] {
             let planned = page.planned();
-            let mut stack = planned.stack.clone();
-            for space in &mut stack.spaces {
-                space.identity ^= 1;
-                space.extent = IntRect::new(1, 2, 3, 4);
-            }
-            for composited in &mut stack.composited_effects {
-                composited.reads_what_is_composited_below_it ^= true;
-                composited.filter_spreads_what_it_composites ^= true;
-            }
-            stack.layering_obstacles.sorts_planes_by_depth ^= true;
-            assert_eq!(page.validated(stack), Ok(planned.stack));
+            assert_eq!(page.validated(planned.stack_on_wire), Ok(planned.stack));
         }
     }
 
@@ -1594,10 +1243,9 @@ mod tests {
             planned_at_limit.stack.bands.iter().map(|band| band.cuts.len()).max(),
             Some(MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND)
         );
-        let sent_at_limit = plan_sent_of(&planned_at_limit);
         assert_eq!(
-            decoded_and_validated_plan(&page_at_limit, &encoded(&sent_at_limit)),
-            Ok(sent_at_limit)
+            decoded_and_validated_plan(&page_at_limit, &encoded(&plan_sent_of(&planned_at_limit))),
+            Ok(plan_validated_of(&planned_at_limit))
         );
 
         let page = page_of_document_boxes_alternating_with_fixed_boxes(MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND + 1);
@@ -1606,8 +1254,10 @@ mod tests {
             planned.stack.why_list_is_one_layer,
             Some(WhyListIsOneLayer::PlanHoldsMoreThanCompositorDecodes)
         );
-        let sent = plan_sent_of(&planned);
-        assert_eq!(decoded_and_validated_plan(&page, &encoded(&sent)), Ok(sent));
+        assert_eq!(
+            decoded_and_validated_plan(&page, &encoded(&plan_sent_of(&planned))),
+            Ok(plan_validated_of(&planned))
+        );
     }
 
     // A page can nest composited effects deeper than a walk over the nodes of its plan can hold frames of on a stack.
@@ -1639,8 +1289,10 @@ mod tests {
                 .count(),
             deepest
         );
-        let sent = plan_sent_of(&planned);
-        assert_eq!(decoded_and_validated_plan(&page_at_limit, &encoded(&sent)), Ok(sent));
+        assert_eq!(
+            decoded_and_validated_plan(&page_at_limit, &encoded(&plan_sent_of(&planned))),
+            Ok(plan_validated_of(&planned))
+        );
 
         let page_past_limit = page_with_canvas_in_nested_groups(deepest + 1, deepest + 1);
         assert_eq!(
@@ -1696,9 +1348,9 @@ mod tests {
     fn a_plan_for_a_viewport_past_the_coordinate_limit_is_refused() {
         let viewport_past_limit = IntRect::new(0, 0, COORDINATE_LIMIT_IN_DEVICE_PIXELS + 1, 600);
         for page in [plain_page(), page_under_translucent_root()] {
-            let stack = page.planned().stack;
-            assert!(validated_stack(on_wire(&stack), &page.list, &page.tree, VIEWPORT).is_ok());
-            assert!(validated_stack(on_wire(&stack), &page.list, &page.tree, viewport_past_limit).is_err());
+            let stack_on_wire = page.planned().stack_on_wire;
+            assert!(validated_stack(stack_on_wire.clone(), &page.list, &page.tree, VIEWPORT).is_ok());
+            assert!(validated_stack(stack_on_wire, &page.list, &page.tree, viewport_past_limit).is_err());
         }
     }
 
@@ -1752,11 +1404,18 @@ mod tests {
                 .all(|line| line.len() == MAXIMUM_NOTE_LINE_LENGTH_OF_PLAN - 1)
         );
         let page = plain_page();
+        let planned = page.planned();
         let sent = LayerPlan {
-            note_lines: lines,
-            ..plan_sent_of(&page.planned())
+            note_lines: lines.clone(),
+            ..plan_sent_of(&planned)
         };
-        assert_eq!(decoded_and_validated_plan(&page, &encoded(&sent)), Ok(sent));
+        assert_eq!(
+            decoded_and_validated_plan(&page, &encoded(&sent)),
+            Ok(ValidatedLayerPlan {
+                note_lines: lines,
+                ..plan_validated_of(&planned)
+            })
+        );
     }
 
     #[test]
@@ -1789,6 +1448,29 @@ mod tests {
         ] {
             round_trip(why);
         }
+        let stack_of_one_layer_decoded_for = |why: WhyListIsOneLayer| {
+            let variant_index_of_one_layer = 0u8;
+            let mut encoder = Encoder::new();
+            encoder.encode(&variant_index_of_one_layer).unwrap();
+            encoder.encode(&why).unwrap();
+            Decoder::new(&encoder.finish().0, []).decode::<StackOnWire>()
+        };
+        let plain_group = WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup;
+        assert_eq!(
+            stack_of_one_layer_decoded_for(plain_group),
+            Ok(StackOnWire::OneLayer(plain_group))
+        );
+        for why_only_the_compositor_finds in [
+            WhyListIsOneLayer::FrameIsNotDrawnAsPlanned,
+            WhyListIsOneLayer::PlanShowsTooManyTiles,
+        ] {
+            assert!(
+                Encoder::new()
+                    .encode(&StackOnWire::OneLayer(why_only_the_compositor_finds))
+                    .is_err()
+            );
+            assert!(stack_of_one_layer_decoded_for(why_only_the_compositor_finds).is_err());
+        }
         for content in [
             LiveContent::Canvas(CanvasId(1)),
             LiveContent::VideoFrame(VideoSinkHandle(2)),
@@ -1804,15 +1486,17 @@ mod tests {
 
     #[test]
     fn a_count_or_a_length_past_its_maximum_is_refused_before_anything_is_allocated() {
+        let page = page_with_two_canvases();
+        let mut plan_with_too_many_nodes = page.planned_plan();
+        plan_with_too_many_nodes.nodes =
+            vec![plan_with_too_many_nodes.nodes[0].clone(); MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK + 1];
         let mut encoder = Encoder::new();
-        encoder.encode(&PLAN_KIND_LAYERED).unwrap();
-        encoder.encode_size(MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK + 1).unwrap();
+        encoder.encode(&StackOnWire::Layered(plan_with_too_many_nodes)).unwrap();
         let bytes = encoder.finish().0;
         assert!(matches!(
             Decoder::new(&bytes, []).decode::<StackOnWire>(),
             Err(DecodeError::SizeTooLarge(_))
         ));
-        let page = page_with_two_canvases();
         let plan_with_note_lines = |note_lines: Vec<String>| {
             encoded(&LayerPlan {
                 note_lines,
@@ -2375,6 +2059,7 @@ mod tests {
         }
         let planned_with_stack = PlannedLayers {
             stack: stack.clone(),
+            stack_on_wire: planned.stack_on_wire.clone(),
             placement: planned.placement.clone(),
         };
         planned_with_stack.layer_lines(&presentation, &NodeNamesFromIndices, |layer| {

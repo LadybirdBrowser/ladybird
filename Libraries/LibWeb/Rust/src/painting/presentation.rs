@@ -791,7 +791,7 @@ fn layer_plan_made_from(display_list_id: u64, inputs: InputsOfLayerPlan) -> Laye
             display_list_id,
             viewport_rect: inputs.viewport_rect(),
             note_lines: planned.note_lines_for_layers_overlay(),
-            stack: planned.stack,
+            stack: planned.stack_on_wire,
         }),
         inputs,
     }

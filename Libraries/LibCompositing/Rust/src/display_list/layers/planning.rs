@@ -21,7 +21,7 @@ use super::wire::{
 use super::{
     BandOfPlan, BarrierCut, BarrierOfPlan, CutOfPlan, LayerIndex, LayerStack, LayeredPlan, LayeringObstacles,
     MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan,
-    PlacementNodeIndex, WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
+    PlacementNodeIndex, StackOnWire, WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
 use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
@@ -180,11 +180,13 @@ struct BackdropReaderAnAnimationMayCut {
     read_tiles: Reach<IntRect>,
 }
 
-/// A plan of the layers of a list: the stack the compositor composites frames from, and where the parts of the list
-/// are placed among the spaces of the stack, which only the dump, the overlay of layers and the tests read.
+/// A plan of the layers of a list: the stack the compositor composites frames from, what of the stack a plan carries
+/// to the compositor, and where the parts of the list are placed among the spaces of the stack, which only the dump,
+/// the overlay of layers and the tests read.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlannedLayers {
     pub stack: LayerStack,
+    pub stack_on_wire: StackOnWire,
     pub placement: ListPlacement,
 }
 
@@ -2690,6 +2692,7 @@ fn build_layer_stack(
         &layering_obstacles,
     )
     .and_then(|plan| {
+        let stack_on_wire = StackOnWire::Layered(plan.clone());
         LayerStack::of_plan_passing_checks(
             plan,
             spaces,
@@ -2699,6 +2702,7 @@ fn build_layer_stack(
             layering_obstacles,
             nesting_of_live_effects,
         )
+        .map(|stack| (stack, stack_on_wire))
         .map_err(|why_plan_fails_checks| {
             debug_assert!(
                 false,
@@ -2711,7 +2715,11 @@ fn build_layer_stack(
         })
     });
     match stack_of_plan {
-        Ok(stack) => PlannedLayers { stack, placement },
+        Ok((stack, stack_on_wire)) => PlannedLayers {
+            stack,
+            stack_on_wire,
+            placement,
+        },
         Err(why_list_is_one_layer) => one_layer(inputs, why_list_is_one_layer, layering_obstacles, placement),
     }
 }
@@ -2729,6 +2737,7 @@ fn one_layer(
             Some(why_list_is_one_layer),
             layering_obstacles,
         ),
+        stack_on_wire: StackOnWire::OneLayer(why_list_is_one_layer),
         placement,
     }
 }

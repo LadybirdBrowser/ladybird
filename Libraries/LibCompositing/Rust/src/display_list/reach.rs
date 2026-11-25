@@ -5,6 +5,7 @@
  */
 
 use libgfx_rust::{FloatRect, IntRect};
+use libipc_rust::wire::{Decode, Encode};
 
 /// The rects a `Reach` can be bounded by.
 pub trait RectOfReach: Copy + Default {
@@ -42,7 +43,7 @@ impl RectOfReach for FloatRect {
 }
 
 /// Where content can show or a filter can read: nowhere, within a rect, or anywhere at all.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub enum Reach<Rect> {
     #[default]
     Nothing,

@@ -27,12 +27,13 @@ use crate::visual_context::{
     ClipNodeData, CompositorScrollNodeRecord, RasterRoot, SpatialData, StickyData, VisualContextTree, WorldTransforms,
 };
 use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, enclosing_int_rect};
+use libipc_rust::wire::{Decode, Encode};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hasher};
 use std::rc::Rc;
 
 /// The index of a raster space among the spaces of a placement, each after the space it is in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct RasterSpaceIndex(pub usize);
 
 impl RasterSpaceIndex {
@@ -137,7 +138,7 @@ impl RasterSpace {
 
 /// A rect, with rounded corners or not, that rasters of content are clipped to as they are composited, in the raster
 /// coordinates of a space whose anchor the content does not move with.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct CompositeClip {
     pub raster_space_index: RasterSpaceIndex,
     pub rect: IntRect,

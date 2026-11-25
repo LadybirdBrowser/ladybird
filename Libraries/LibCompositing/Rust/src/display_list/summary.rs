@@ -14,6 +14,7 @@ use super::nested_records::{for_each_nested_record_span, span_bytes};
 use super::storage::{ChunkIndexInList, ListPosition};
 use libgfx_rust::CompositingAndBlendingOperator;
 use libgfx_rust::filter::Filter;
+use libipc_rust::wire::{Decode, Encode};
 use std::collections::HashSet;
 
 /// A top-level record, by the index of its run among the runs of its list and its position in the list. In the summary
@@ -34,7 +35,7 @@ impl IndexedRecord {
 }
 
 /// Content that changes under the list's immutable commands. A record that draws it can be a layer of its own.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum LiveContent {
     Canvas(CanvasId),
     VideoFrame(VideoSinkHandle),
