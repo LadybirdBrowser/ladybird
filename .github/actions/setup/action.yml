@@ -117,10 +117,6 @@ runs:
         fi
         clang-cl --version
 
-    - name: 'Install Rust toolchain'
-      if: ${{ inputs.os == 'macOS' }}
-      uses: dtolnay/rust-toolchain@stable
-
     - name: 'Warm up the Rust toolchain'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Windows' }}
       shell: bash
