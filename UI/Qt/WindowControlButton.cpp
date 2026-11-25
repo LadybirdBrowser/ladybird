@@ -364,7 +364,9 @@ static DesktopWindowButtons read_desktop_window_buttons()
         buttons.close = buttons.order.contains_slow(ControlButton::Close);
 
         return buttons;
-    } else if (!desktops.contains_slow("GNOME"sv)) {
+    } else if (!desktops.contains_slow("GNOME"sv) && Core::Environment::get("XDG_SESSION_TYPE"sv) != "wayland"sv) {
+        // NB: On Wayland, GTK reads the GNOME layout on other desktops too, so we follow it there as well. On X11, GTK
+        //     takes the layout from the desktop's XSettings daemon instead.
         return buttons;
     }
 
