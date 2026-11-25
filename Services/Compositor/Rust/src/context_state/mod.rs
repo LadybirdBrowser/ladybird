@@ -23,7 +23,7 @@ use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame, PresentationId, WebContentClientId};
 use crate::input_event::is_keyboard_scroll_key;
 use crate::keyboard_scroll_controller::{KeyRelease, KeyStep, KeyboardScrollController};
-use crate::overlays::{ContextOverlays, UIOverlays, UIOverlaysChange};
+use crate::overlays::{ContextOverlays, UIOverlays};
 use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
 use crate::scrollbar_controller::{Drag, ScrollbarController};

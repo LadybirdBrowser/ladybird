@@ -18,7 +18,7 @@ use crate::host::{
     ContextTimer, DisplayTickInputs, DisplayTickResult, Host, PendingFrame, PresentRequest, PresentScheduling,
     PresentationId, Timer, WebContentClientId,
 };
-use crate::overlays::{UIOverlays, UIOverlaysChange};
+use crate::overlays::UIOverlays;
 use crate::presenting::ContextPresenting;
 use crate::raster_host::RasterHost;
 use crate::remote_layers::RemoteLayers;
@@ -311,7 +311,7 @@ impl CompositorCore {
         else {
             return;
         };
-        let overlays_repaint_everything = context
+        let overlays_need_frame = context
             .borrow_mut()
             .viewport_size_updated(viewport_size, device_pixel_ratio);
         let is_page_presentation_context = {
@@ -324,8 +324,8 @@ impl CompositorCore {
             is_page_presentation_context && window_resize_in_progress,
         );
         self.resize_backing_stores_if_needed(context_id, now);
-        if overlays_repaint_everything {
-            self.request_present_repainting_everything(context_id, context);
+        if overlays_need_frame {
+            self.request_present_at_presented_viewport_rect(context_id);
         }
         if presenting.borrow().window_resize_in_progress() {
             presenting
@@ -341,30 +341,16 @@ impl CompositorCore {
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
-        let change = context.borrow_mut().set_ui_overlays(ui_overlays, now);
-        match change {
-            UIOverlaysChange::Nothing => {}
-            UIOverlaysChange::OnlyCompositorLayers => self.request_present_keeping_tiles(context_id),
-            UIOverlaysChange::RepaintsEverything => self.request_present_repainting_everything(context_id, context),
+        if context.borrow_mut().set_ui_overlays(ui_overlays, now) {
+            self.request_present_at_presented_viewport_rect(context_id);
         }
         self.finish_entry(now);
     }
 
-    fn request_present_keeping_tiles(&self, context_id: CompositorContextId) {
+    fn request_present_at_presented_viewport_rect(&self, context_id: CompositorContextId) {
         self.present_requests.borrow_mut().push(PresentRequest {
             context_id,
             viewport_rect: None,
-            forced_damage_rect: Default::default(),
-            scheduling: PresentScheduling::OnNextDisplayTick,
-        });
-    }
-
-    // A frame at the viewport rect the context is presented at, which repaints all of it.
-    fn request_present_repainting_everything(&self, context_id: CompositorContextId, context: &RefCell<ContextState>) {
-        self.present_requests.borrow_mut().push(PresentRequest {
-            context_id,
-            viewport_rect: None,
-            forced_damage_rect: context.borrow().viewport_rect(),
             scheduling: PresentScheduling::OnNextDisplayTick,
         });
     }
@@ -653,7 +639,7 @@ impl CompositorCore {
                 height: viewport_rect.height,
             };
             // The frame joins whatever is queued, so a frame queued earlier cannot be presented after it.
-            presenting.queue_present_frame(PendingFrame::repainting_changes(viewport_rect));
+            presenting.queue_present_frame(PendingFrame::within(viewport_rect));
         }
         if !self.try_present_frame_during_resize(context_id, now) {
             self.schedule_pending_present_frame(context_id, now);
@@ -932,12 +918,7 @@ impl CompositorCore {
             }
             _ => {
                 if context.borrow_mut().timer_fired(timer, now) {
-                    self.present_requests.borrow_mut().push(PresentRequest {
-                        context_id,
-                        viewport_rect: None,
-                        forced_damage_rect: Default::default(),
-                        scheduling: PresentScheduling::OnNextDisplayTick,
-                    });
+                    self.request_present_at_presented_viewport_rect(context_id);
                 }
             }
         }
@@ -997,7 +978,6 @@ impl CompositorCore {
         self.present_requests.borrow_mut().push(PresentRequest {
             context_id,
             viewport_rect: Some(frame.viewport_rect),
-            forced_damage_rect: frame.forced_damage_rect,
             scheduling: PresentScheduling::OnNextDisplayTick,
         });
     }
@@ -1024,7 +1004,6 @@ impl CompositorCore {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: Some(animation_frame),
-                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
@@ -1033,7 +1012,6 @@ impl CompositorCore {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: Some(rebound_frame),
-                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
@@ -1041,7 +1019,6 @@ impl CompositorCore {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: None,
-                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
@@ -1061,16 +1038,13 @@ impl CompositorCore {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: None,
-                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
-            let overlay_fade_damage_rect = context.borrow_mut().advance_overlay_fades(frame_time);
-            if let Some(overlay_fade_damage_rect) = overlay_fade_damage_rect {
+            if context.borrow_mut().advance_overlay_fades(frame_time) {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: None,
-                    forced_damage_rect: overlay_fade_damage_rect,
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }
@@ -1078,7 +1052,6 @@ impl CompositorCore {
                 self.present_requests.borrow_mut().push(PresentRequest {
                     context_id,
                     viewport_rect: None,
-                    forced_damage_rect: Default::default(),
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }

@@ -55,7 +55,7 @@ impl ContextState {
         );
         ContextUpdateResult {
             accepted: true,
-            frame_to_present: Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect)),
+            frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
             should_request_rendering_update: false,
             ..Default::default()
         }
@@ -680,7 +680,7 @@ impl ContextState {
             return None;
         }
         self.request_rendering_update();
-        Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect))
+        Some(PendingFrame::within(self.async_scrolling_viewport_rect))
     }
 
     // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
@@ -813,7 +813,7 @@ impl ContextState {
                         operation_id: Some(operation_id),
                         ..Default::default()
                     },
-                    frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
+                    frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
                 };
             }
             self.async_scroll_update_outbox
@@ -849,7 +849,7 @@ impl ContextState {
                 operation_id: Some(operation_id),
                 ..Default::default()
             },
-            frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
+            frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
         }
     }
 

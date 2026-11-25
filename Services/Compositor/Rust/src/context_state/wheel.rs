@@ -426,7 +426,7 @@ impl ContextState {
         let outcome = node_scroll.outcome;
         ContextUpdateResult {
             accepted: true,
-            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::repainting_changes),
+            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::within),
             should_request_rendering_update: outcome.viewport_rect_to_present.is_some(),
             routing_decision: Some(InputRoutingDecision::StepOvertaken),
             tracked_scroll_operation: self.tracked_scroll_operation(step.operation_tracking, outcome.operation_id),
@@ -509,7 +509,7 @@ impl ContextState {
             }
             return ContextUpdateResult {
                 accepted: true,
-                frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
+                frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
                 should_request_rendering_update: true,
                 routing_decision: Some(InputRoutingDecision::SnappedAtGestureEnd),
                 tracked_scroll_operation: self.tracked_scroll_operation(step.operation_tracking, operation_id),
@@ -572,7 +572,7 @@ impl ContextState {
             }
             return ContextUpdateResult {
                 accepted: true,
-                frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
+                frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
                 should_request_rendering_update: true,
                 routing_decision: Some(InputRoutingDecision::PannedVisualViewport),
                 ..Default::default()
@@ -595,7 +595,7 @@ impl ContextState {
         );
         ContextUpdateResult {
             accepted: true,
-            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::repainting_changes),
+            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::within),
             should_request_rendering_update: outcome.viewport_rect_to_present.is_some()
                 && !outcome.only_elastic_overscroll_changed,
             routing_decision: Some(routing_decision),
@@ -879,7 +879,7 @@ impl ContextState {
             }
             return ContextUpdateResult {
                 accepted: true,
-                frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
+                frame_to_present: Some(PendingFrame::within(self.async_scrolling_viewport_rect)),
                 should_request_rendering_update: true,
                 routing_decision: Some(InputRoutingDecision::SnappedAtGestureEnd),
                 routed_scroller: self.wheel_gesture_routing.latched_scroller(),
@@ -921,7 +921,7 @@ impl ContextState {
         );
         ContextUpdateResult {
             accepted: true,
-            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::repainting_changes),
+            frame_to_present: outcome.viewport_rect_to_present.map(PendingFrame::within),
             should_request_rendering_update: outcome.viewport_rect_to_present.is_some()
                 && !outcome.only_elastic_overscroll_changed,
             routing_decision: Some(decision),
