@@ -7,7 +7,16 @@
                 return waitForCondition(() => context.state === "running" && context.currentTime > previousTime);
             }
 
+            internals.setAutoplayPolicy("block-audio");
+            const deferredContext = new AudioContext();
+            const resume = label => deferredContext.resume().then(() => println(`${label}: ${deferredContext.state}`));
+            const first = resume("First deferred resume");
+            const second = resume("Second deferred resume");
+
             internals.setAutoplayPolicy("allow-audio-and-video");
+            await Promise.all([first, second, resume("Resume after allowing autoplay")]);
+            await deferredContext.close();
+
             const startedContext = new AudioContext();
             const started = await waitForRunning(startedContext);
             await startedContext.suspend();
