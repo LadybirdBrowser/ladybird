@@ -1,0 +1,9 @@
+Ladybird uses a video element for application/ogg because the container
+can hold video or just audio. Blink and WebKit create a video element in
+MediaDocumentParser, and Gecko does so in
+VideoDocument::CreateVideoElement.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 used a video
+element with controls for both audio-only and video Ogg containers
+served as application/ogg. Their codec support differed. Ladybird
+decoded both samples and displayed the video at its intrinsic width.
