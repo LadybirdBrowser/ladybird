@@ -62,6 +62,7 @@ impl ContextState {
         if cause.is_user_input() {
             self.note_user_input_scrolled(node.stable_node_id);
         }
+        self.scroll_snap_controller.did_move_scroller(node.stable_node_id);
         let scroll_delta = offset_after - offset_before;
         match cause {
             ScrollerMoveCause::WheelStep { scroll_gesture_phase } => {

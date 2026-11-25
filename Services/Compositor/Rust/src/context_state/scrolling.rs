@@ -877,15 +877,15 @@ impl ContextState {
                 .scroll_snap_controller
                 .is_snap_scroll(stable_node_id, animation.operation_id)
             {
-                let mut scroll_offset = None;
-                if let Some(scroll_node_index) = self.async_scroll_tree.scroll_node_index_for_stable_id(stable_node_id)
-                {
-                    scroll_offset = self
-                        .async_scroll_tree
-                        .css_scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot);
-                }
-                self.scroll_snap_controller
-                    .did_end_snap_scroll(stable_node_id, animation.operation_id, scroll_offset);
+                let scrolling_box_remains = self
+                    .async_scroll_tree
+                    .scroll_node_index_for_stable_id(stable_node_id)
+                    .is_some();
+                self.scroll_snap_controller.did_end_snap_scroll(
+                    stable_node_id,
+                    animation.operation_id,
+                    scrolling_box_remains,
+                );
             }
             self.async_scroll_update_outbox
                 .complete_operation(animation.operation_id);
@@ -911,34 +911,33 @@ impl ContextState {
                 self.smooth_scroll_animations.remove(index);
                 continue;
             };
-            let old_offset = self
+            if self
                 .async_scroll_tree
-                .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot);
-            let Some(old_offset) = old_offset else {
+                .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot)
+                .is_none()
+            {
                 self.async_scroll_update_outbox
                     .complete_operation(active_animation.operation_id);
                 completed_operation = true;
                 self.smooth_scroll_animations.remove(index);
                 continue;
-            };
+            }
             let sample = active_animation.animation.sample(now - active_animation.started_at);
             let stable_node_id = active_animation.stable_node_id;
             let operation_id = active_animation.operation_id;
-            let mut new_offset = old_offset;
-            if let Some(scroller_move) = self.move_scroller(
-                scroll_node_index,
-                sample.offset,
-                ScrollerMoveCause::SmoothScrollAnimationTick,
-            ) {
-                new_offset = scroller_move.offset_after;
+            if self
+                .move_scroller(
+                    scroll_node_index,
+                    sample.offset,
+                    ScrollerMoveCause::SmoothScrollAnimationTick,
+                )
+                .is_some()
+            {
                 changed_scroll_offset = true;
             }
             if sample.complete {
-                self.scroll_snap_controller.did_end_snap_scroll(
-                    stable_node_id,
-                    operation_id,
-                    Some(self.async_scroll_tree.css_pixels_from_device_offset(new_offset)),
-                );
+                self.scroll_snap_controller
+                    .did_end_snap_scroll(stable_node_id, operation_id, true);
                 self.async_scroll_update_outbox.complete_operation(operation_id);
                 completed_operation = true;
                 self.smooth_scroll_animations.remove(index);

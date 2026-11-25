@@ -809,11 +809,17 @@ impl ContextState {
             self.stop_scrollbar_paging();
         }
         self.note_user_scroll_gesture_end_if_drag_ended(box_of_dragged_scrollbar);
+        let device_pixels_per_css_pixel_before = self.async_scroll_tree.device_pixels_per_css_pixel();
         self.async_scroll_tree.set_state(async_scrolling_state);
         self.elastic_overscroll_controller
             .did_install_scrolling_state(&self.async_scroll_tree);
         self.scroll_snap_controller
             .did_install_scrolling_state(&self.async_scroll_tree);
+        if self.async_scroll_tree.device_pixels_per_css_pixel() != device_pixels_per_css_pixel_before {
+            for &stable_node_id in scroll_offsets_of_known_nodes.keys() {
+                self.scroll_snap_controller.did_move_scroller(stable_node_id);
+            }
+        }
         if let Some(offset) = self.keep_scroll_offsets_of_known_nodes(scroll_offsets_of_known_nodes) {
             async_scrolling_viewport_rect.x = offset.x as i32;
             async_scrolling_viewport_rect.y = offset.y as i32;
