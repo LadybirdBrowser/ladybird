@@ -2844,11 +2844,53 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         let style = arena.style_node_style(shape)?;
         let points = arena.style_node_svg_points(shape);
-        Some(
-            self.shape_geometry()
-                // SAFETY: The record the element published is retained for the pass.
-                .path(attributes, StyleValues::new(unsafe { style.view() }), points.as_deref()),
-        )
+        // SAFETY: The record the element published is retained for the pass.
+        let style = StyleValues::new(unsafe { style.view() });
+        let path = self.shape_geometry().path(attributes, style, points.as_deref());
+        // https://svgwg.org/svg2-draft/text.html#TextPathElementHrefAttribute
+        // The 'transform' attribute on the referenced 'path element' element or basic shape element represents a
+        // supplemental transformation relative to the current user coordinate system for the current 'text' element,
+        // including any adjustments to the current user coordinate system due to a possible 'transform' property on
+        // the current 'text' element.
+        // NB: Only the element's own transform applies, not those of its ancestors.
+        if style.transform().resolved_transforms.length == 0 {
+            return Some(path);
+        }
+        let [x, y, width, height] = path.bounding_box();
+        let reference_box = match used_transform::used_transform_box(*style, true) {
+            transform_box::VIEW_BOX => {
+                FloatRect::new(0.0, 0.0, self.viewport_user_rect.width, self.viewport_user_rect.height)
+            }
+            transform_box::FILL_BOX => FloatRect::new(x, y, width, height),
+            _ => {
+                // NB: The stroke box covers the stroke's outline, so its caps and joins too.
+                let stroke = crate::svg::stroke_style::svg_stroke_style_for_percentage_basis(
+                    &style,
+                    crate::svg::stroke_style::percentage_basis(FfiCssPixelSize {
+                        width: self.viewport_width,
+                        height: self.viewport_height,
+                    }),
+                );
+                let thickness = self.visible_stroke_width_in(style);
+                let mut stroke_box = FloatRect::new(x, y, width, height);
+                if thickness > 0.0 {
+                    let outline = path.stroke_to_fill(&libgfx_rust::path::StrokeStyle {
+                        thickness,
+                        cap_style: stroke.cap_style,
+                        join_style: stroke.join_style,
+                        miter_limit: stroke.miter_limit,
+                        dash_array: Vec::new(),
+                        dash_offset: 0.0,
+                    });
+                    stroke_box = stroke_box.united(FloatRect::from_array(outline.bounding_box()));
+                }
+                stroke_box
+            }
+        };
+        let transform =
+            used_transform::transform_about_origin(*style, css_pixel_rect_of(reference_box), |_| None, None)
+                .to_affine();
+        Some(path.copy_transformed(transform.values))
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {
@@ -2892,7 +2934,11 @@ impl<'pass> SvgFormattingContext<'pass> {
     //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
     //     mark those properties as affecting layout geometry as well.
     fn visible_stroke_width(&self, node: Node) -> f32 {
-        let style = self.style(node);
+        self.visible_stroke_width_in(self.style(node))
+    }
+
+    /// The stroke width the bounding box of a path in the given style has to grow by, as visible_stroke_width() says.
+    fn visible_stroke_width_in(&self, style: StyleValues<'_>) -> f32 {
         let svg = style.inherited_svg();
         let stroke_is_visible = crate::css::svg_paint::svg_paint_color(&svg.stroke, style.current_color())
             .is_some_and(|color| color >> 24 != 0);

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/text-path-follows-referenced-path-transform-ref.html" />
+<style>
+    body { margin: 0; }
+</style>
+<!-- The referenced path's own transform applies to the path the text follows, but the transforms of the path's
+     ancestors don't. -->
+<svg width="400" height="300" font-family="sans-serif" font-size="20">
+    <path id="translated" d="M 20 20 H 270" transform="translate(30 25)" />
+    <text><textPath href="#translated">TRANSLATED</textPath></text>
+    <path id="rotated" d="M 0 0 H 200" transform="translate(320 60) rotate(90)" />
+    <text><textPath href="#rotated">ROTATED</textPath></text>
+    <path id="scaled" d="M 10 50 H 110" transform="scale(2)" />
+    <text><textPath href="#scaled">SCALED</textPath></text>
+    <g transform="translate(100 0)">
+        <path id="in-transformed-group" d="M 20 200 H 220" transform="translate(0 40)" />
+    </g>
+    <text><textPath href="#in-transformed-group">IN GROUP</textPath></text>
+    <defs>
+        <path id="stroke-box" d="M 220 120 H 320" stroke="black" stroke-width="20"
+            transform="scale(1.2)" style="transform-box: stroke-box; transform-origin: 0 0" />
+    </defs>
+    <text><textPath href="#stroke-box">STROKE</textPath></text>
+</svg>
