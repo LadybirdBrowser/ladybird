@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<canvas width="1" height="1"></canvas>
+<script>
+    test(() => {
+        const gl = document.querySelector("canvas").getContext("webgl");
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+        const floatPixels = new Float32Array([1, 0, 0, 1]);
+        const source = new ImageData(new Uint8ClampedArray([0, 128, 255, 0]), 1, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.FLOAT, floatPixels);
+        printError("ArrayBufferView before enabling", gl);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.FLOAT, source);
+        printError("ImageData before enabling", gl);
+
+        const name = "OES_texture_float";
+        println(`Extension advertised: ${gl.getSupportedExtensions().includes(name)}`);
+        const extension = gl.getExtension(name);
+        println(`Same extension object: ${extension !== null && extension === gl.getExtension(name.toLowerCase())}`);
+
+        const program = gl.createProgram();
+        for (const [type, code] of [
+            [gl.VERTEX_SHADER, "void main() { gl_Position = vec4(0, 0, 0, 1); gl_PointSize = 1.0; }"],
+            [gl.FRAGMENT_SHADER, "precision mediump float; uniform sampler2D tex; void main() { gl_FragColor = texture2D(tex, vec2(0.5)); }"],
+        ]) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, code);
+            gl.compileShader(shader);
+            gl.attachShader(program, shader);
+        }
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        function printTexel(label) {
+            printError(label, gl);
+            gl.drawArrays(gl.POINTS, 0, 1);
+            const pixel = new Uint8Array(4);
+            gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+            println(`Sampled: ${pixel.join(", ")}`);
+            printError("Draw and read", gl);
+        }
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.FLOAT, null);
+        printTexel("Null allocation");
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 1, gl.RGBA, gl.FLOAT, floatPixels);
+        printTexel("Float32Array update");
+
+        const wrongType = new Uint8Array(floatPixels.byteLength);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.FLOAT, wrongType);
+        printError("Wrong typed array for texImage2D", gl);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 1, gl.RGBA, gl.FLOAT, wrongType);
+        printError("Wrong typed array for texSubImage2D", gl);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.FLOAT, source);
+        printTexel("ImageData upload as RGB");
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#ff8000";
+        context.fillRect(0, 0, 1, 1);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGB, gl.FLOAT, canvas);
+        printTexel("Canvas update as RGB");
+    });
+</script>

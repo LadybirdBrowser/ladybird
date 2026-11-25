@@ -8,12 +8,12 @@
 //!
 //! The operations of a WebGL 1 context that a WebGL 2 context has more overloads of.
 
-use libjs_rust::api::{Gc, TypedArrayBase};
+use libjs_rust::api::{Gc, TypedArrayBase, TypedArrayKind};
 
 use super::buffer_source::{destination_bytes, list_bytes, source_bytes, write_checked};
 use super::byte_ranges::size_of_zero_filled_texture;
 use super::constants::{
-    GL_ALPHA, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_LUMINANCE, GL_LUMINANCE_ALPHA,
+    GL_ALPHA, GL_FLOAT, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_LUMINANCE, GL_LUMINANCE_ALPHA,
     GL_OUT_OF_MEMORY, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1,
     GL_UNSIGNED_SHORT_5_6_5,
 };
@@ -227,6 +227,9 @@ impl RenderingContext<WebGL1> {
         r#type: u32,
         pixels: Option<ArrayBufferView>,
     ) -> WebIdlResult<()> {
+        if !self.validate_texture_upload_type(r#type, pixels) {
+            return Ok(());
+        }
         if let Some(pixels) = pixels {
             let Ok(texture_data) = self.texture_data_for_2d_upload(pixels, 0, width, height, format, r#type) else {
                 self.set_error(GL_INVALID_OPERATION);
@@ -250,6 +253,24 @@ impl RenderingContext<WebGL1> {
                     );
                 });
             }
+            return Ok(());
+        }
+
+        // https://registry.khronos.org/webgl/specs/latest/1.0/#TEXIMAGE2D
+        // If pixels is null, a buffer of sufficient size initialized to 0 is passed.
+        if r#type == GL_FLOAT {
+            self.proxy.tex_image2d_robust_angle(
+                target,
+                level,
+                internalformat,
+                width,
+                height,
+                border,
+                format,
+                r#type,
+                0,
+                None,
+            );
             return Ok(());
         }
 
@@ -327,6 +348,9 @@ impl RenderingContext<WebGL1> {
             self.set_error(GL_INVALID_VALUE);
             return Ok(());
         };
+        if !self.validate_texture_upload_type(r#type, Some(pixels)) {
+            return Ok(());
+        }
         let Ok(texture_data) = self.texture_data_for_2d_upload(pixels, 0, width, height, format, r#type) else {
             self.set_error(GL_INVALID_OPERATION);
             return Ok(());
@@ -350,6 +374,32 @@ impl RenderingContext<WebGL1> {
             });
         }
         Ok(())
+    }
+
+    fn validate_texture_upload_type(&self, r#type: u32, pixels: Option<ArrayBufferView>) -> bool {
+        if r#type != GL_FLOAT {
+            return true;
+        }
+
+        // https://registry.khronos.org/webgl/extensions/OES_texture_float/
+        // When this extension is enabled:
+        // The texImage2D and texSubImage2D entry points taking ArrayBufferView are extended to accept Float32Array
+        // with the pixel type FLOAT.
+        if !self.extension_enabled("OES_texture_float") {
+            self.set_error(GL_INVALID_ENUM);
+            return false;
+        }
+
+        // https://registry.khronos.org/webgl/specs/latest/1.0/#TEXIMAGE2D
+        // If pixels is non-null, the type of pixels must match the type of the data to be read.
+        // If the types do not match, an INVALID_OPERATION error is generated.
+        if pixels.is_some_and(|pixels| {
+            !matches!(pixels, ArrayBufferView::TypedArray(array) if array.kind() == TypedArrayKind::Float32Array)
+        }) {
+            self.set_error(GL_INVALID_OPERATION);
+            return false;
+        }
+        true
     }
 
     pub(crate) fn tex_sub_image2d_with_source(

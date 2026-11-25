@@ -101,6 +101,7 @@ extensions::modules_of_extension_interfaces_without_operations! {
     oes_element_index_uint::OESElementIndexUint,
     /// https://registry.khronos.org/webgl/extensions/OES_standard_derivatives/
     oes_standard_derivatives::OESStandardDerivatives,
+    oes_texture_float::OESTextureFloat,
     /// https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_s3tc/
     web_gl_compressed_texture_s3tc::WebGLCompressedTextureS3tc {
         compressed_texture_formats_enabled_when_created: [

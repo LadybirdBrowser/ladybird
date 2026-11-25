@@ -17,8 +17,8 @@ use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Vis
 
 use super::canvas::{Canvas, TexImageSourceKind, texture_image_frame};
 use super::constants::{
-    GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_MAX_VERTEX_ATTRIBS,
-    GL_NO_ERROR,
+    GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_FLOAT, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE,
+    GL_MAX_VERTEX_ATTRIBS, GL_NO_ERROR,
 };
 use super::extensions::{EnabledEmptyExtension, EnabledExtension};
 use super::host::{Frame, RemoteContext};
@@ -444,6 +444,17 @@ impl ContextState {
         }
 
         let format_and_type_upload_images = texture_export_format(format, r#type).is_some();
+        // https://registry.khronos.org/webgl/extensions/OES_texture_float/
+        // When this extension is enabled:
+        // The texImage2D and texSubImage2D entry points taking ImageData, HTMLImageElement, HTMLCanvasElement and
+        // HTMLVideoElement are extended to accept the pixel type FLOAT.
+        if self.version() == WebGLVersion::WebGL1
+            && r#type == GL_FLOAT
+            && (!self.extension_enabled("OES_texture_float") || !format_and_type_upload_images)
+        {
+            self.set_error(GL_INVALID_ENUM);
+            return Ok(None);
+        }
         let frame = match *source {
             TexImageSource::ImageBitmap(image_bitmap) => match image_bitmap.frame() {
                 Some(image_frame) => format_and_type_upload_images.then_some(Frame::Image(image_frame)),

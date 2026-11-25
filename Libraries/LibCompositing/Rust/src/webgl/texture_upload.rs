@@ -11,6 +11,7 @@ const GL_RGB: u32 = 0x1907;
 const GL_RGBA: u32 = 0x1908;
 const GL_LUMINANCE: u32 = 0x1909;
 const GL_LUMINANCE_ALPHA: u32 = 0x190A;
+const GL_FLOAT: u32 = 0x1406;
 const GL_UNSIGNED_BYTE: u32 = 0x1401;
 const GL_UNSIGNED_SHORT_4_4_4_4: u32 = 0x8033;
 const GL_UNSIGNED_SHORT_5_5_5_1: u32 = 0x8034;
@@ -28,6 +29,11 @@ pub enum ExportFormat {
     RGBA4444,
     RGB888,
     RGBA8888,
+    Luminance32F,
+    LuminanceAlpha32F,
+    Alpha32F,
+    RGB32F,
+    RGBA32F,
 }
 
 pub fn texture_export_format(format: u32, r#type: u32) -> Option<ExportFormat> {
@@ -41,6 +47,11 @@ pub fn texture_export_format(format: u32, r#type: u32) -> Option<ExportFormat> {
         (GL_ALPHA, GL_UNSIGNED_BYTE) => ExportFormat::Alpha8,
         (GL_LUMINANCE, GL_UNSIGNED_BYTE) => ExportFormat::Luminance8,
         (GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE) => ExportFormat::LuminanceAlpha88,
+        (GL_LUMINANCE, GL_FLOAT) => ExportFormat::Luminance32F,
+        (GL_LUMINANCE_ALPHA, GL_FLOAT) => ExportFormat::LuminanceAlpha32F,
+        (GL_ALPHA, GL_FLOAT) => ExportFormat::Alpha32F,
+        (GL_RGB, GL_FLOAT) => ExportFormat::RGB32F,
+        (GL_RGBA, GL_FLOAT) => ExportFormat::RGBA32F,
         _ => return None,
     })
 }

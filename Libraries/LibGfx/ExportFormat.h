@@ -18,7 +18,12 @@ namespace Gfx {
     X(RGBA5551)                     \
     X(RGBA4444)                     \
     X(RGB888)                       \
-    X(RGBA8888)
+    X(RGBA8888)                     \
+    X(Luminance32F)                 \
+    X(LuminanceAlpha32F)            \
+    X(Alpha32F)                     \
+    X(RGB32F)                       \
+    X(RGBA32F)
 
 enum class ExportFormat : u8 {
 #define ENUMERATE_EXPORT_FORMAT(format) format,

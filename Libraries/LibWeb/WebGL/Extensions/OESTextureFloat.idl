@@ -1,0 +1,4 @@
+// https://registry.khronos.org/webgl/extensions/OES_texture_float/
+[Exposed=(Window,Worker), ImplementedIn=Rust, LegacyNoInterfaceObject]
+interface OESTextureFloat {
+};
