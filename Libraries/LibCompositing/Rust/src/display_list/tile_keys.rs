@@ -843,6 +843,7 @@ struct ValuesOfFrameThatTilesOfBandRead {
     tree_copy_number: u64,
     raster_settings_hash_of_layers_of_band: ContentHash,
     frame_edge_backdrop_blurs_mirror_at: Option<IntRect>,
+    rect_rasters_of_space_stay_within: Option<IntRect>,
 }
 
 /// What keying the shown tiles of a band did.
@@ -1944,9 +1945,10 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     /// Keys the tiles of the layers of `band_index` within `shown_rect` that are not keyed yet: each replay item of the
     /// band that reaches a tile goes into the layer of the band its paint position falls in there, and the base layer,
     /// if it is one of the band's, holds every tile. Every tile keyed before is keyed again where the frame state that
-    /// records of the band read, the tree, the raster settings of a layer of the band, or the edge of `frame` that its
-    /// backdrop blurs mirror at changed, and those outside `kept_rect` are forgotten. `frame` is where the frame is in
-    /// the band's space, where that is not the frame's own. The band is bound to the list and the geometry of the frame.
+    /// records of the band read, the tree, the raster settings of a layer of the band, the edge of `frame` that its
+    /// backdrop blurs mirror at, or the rect that rasters of the band's space stay within changed, and those outside
+    /// `kept_rect` are forgotten. `frame` is where the frame is in the band's space, where that is not the frame's own.
+    /// The band is bound to the list and the geometry of the frame.
     ///
     /// Only the cells where the band can hold something are keyed, at most `MAXIMUM_CELLS_ONE_BAND_KEYS_IN_A_FRAME` of
     /// them, so the work and the tiles of a frame have a bound whatever rect of the space the frame shows.
@@ -1985,6 +1987,8 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
         {
             raster_settings_hasher.write_content_hash(raster_settings_hash_by_layer[layer_index.0]);
         }
+        let rect_rasters_of_space_stay_within =
+            stack.rect_rasters_of_space_stay_within(stack.nodes[band.placement_node_index.0].raster_space_index);
         let values_of_frame = ValuesOfFrameThatTilesOfBandRead {
             frame_state_hash: bound_band
                 .replays_records_reading_frame_state_hashed_for_the_list
@@ -1992,6 +1996,7 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             tree_copy_number: list.tree.copy.number(),
             raster_settings_hash_of_layers_of_band: raster_settings_hasher.finish(),
             frame_edge_backdrop_blurs_mirror_at: bound_band.backdrop_reads.frame_edge_blurs_mirror_at(frame),
+            rect_rasters_of_space_stay_within,
         };
         if band_tile_keys
             .values_of_frame_tiles_were_keyed_with
@@ -1999,8 +2004,14 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             != Some(values_of_frame)
         {
             for (coord, tiles) in &mut band_tile_keys.cells {
-                counts.tiles_keyed +=
-                    self.key_tiles_of_cell(bound_band, *coord, tiles, raster_settings_hash_by_layer, frame);
+                counts.tiles_keyed += self.key_tiles_of_cell(
+                    bound_band,
+                    *coord,
+                    tiles,
+                    raster_settings_hash_by_layer,
+                    frame,
+                    rect_rasters_of_space_stay_within,
+                );
             }
         }
 
@@ -2008,8 +2019,14 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             return counts;
         }
         for (coord, mut tiles) in self.bin_new_cells(bound_band, stack, band_index, &new_coords) {
-            counts.tiles_keyed +=
-                self.key_tiles_of_cell(bound_band, coord, &mut tiles, raster_settings_hash_by_layer, frame);
+            counts.tiles_keyed += self.key_tiles_of_cell(
+                bound_band,
+                coord,
+                &mut tiles,
+                raster_settings_hash_by_layer,
+                frame,
+                rect_rasters_of_space_stay_within,
+            );
             let band_holds_something_in_cell = !tiles.is_empty();
             if band_holds_something_in_cell {
                 counts.cells_binned += 1;
@@ -2155,7 +2172,7 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     }
 
     /// Hashes the tiles of the cell at `coord`, which are keyed together with one raster margin, and returns how many it
-    /// hashed.
+    /// hashed. A raster of tiles that reads past their cell reads only what lies within `rect_rasters_stay_within`.
     fn key_tiles_of_cell(
         &self,
         bound_band: &BandBoundToListAndGeometry,
@@ -2163,13 +2180,25 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
         tiles: &mut [KeyedTile],
         raster_settings_hash_by_layer: &[ContentHash],
         frame: Option<IntRect>,
+        rect_rasters_stay_within: Option<IntRect>,
     ) -> usize {
         let frame_edge_backdrop_blurs_mirror_at = bound_band
             .backdrop_reads
             .frame_edge_blurs_of_cell_mirror_at(coord.cell_rect(), frame);
-        let mut near_area = tiles
-            .first()
-            .and_then(|tile| ContentHashesNearArea::of_cell(coord, tile.raster_margin_in_device_pixels));
+        let raster_margin_of_cell = tiles.first().map(|tile| tile.raster_margin_in_device_pixels);
+        let part_of_rect_rasters_stay_within_that_tiles_of_cell_read =
+            rect_rasters_stay_within.and_then(|within| match raster_margin_of_cell? {
+                Some(0) => None,
+                Some(margin) => {
+                    Some(within.intersected(
+                        with_tile_border(coord.cell_rect()).inflated_edges(margin, margin, margin, margin),
+                    ))
+                }
+                None => Some(within),
+            });
+        let mut near_area = raster_margin_of_cell.and_then(|raster_margin_in_device_pixels| {
+            ContentHashesNearArea::of_cell(coord, raster_margin_in_device_pixels)
+        });
         for tile in tiles.iter_mut() {
             let mut hasher = ContentHasher::new();
             hasher.write_content_hash(raster_settings_hash_by_layer[tile.layer_index.0]);
@@ -2178,6 +2207,10 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             hasher.write_bool(self.list.replays_every_record_into_every_tile);
             match frame_edge_backdrop_blurs_mirror_at {
                 Some(frame) => hasher.write_int_rect(frame),
+                None => hasher.write_u32(0),
+            }
+            match part_of_rect_rasters_stay_within_that_tiles_of_cell_read {
+                Some(part) => hasher.write_int_rect(part),
                 None => hasher.write_u32(0),
             }
             for &item in &tile.replay_items_in_paint_order {
@@ -2719,6 +2752,60 @@ mod tests {
 
     fn cell_of(rect: IntRect) -> TileCoord {
         TileCoord::of_pixel(rect.x, rect.y)
+    }
+
+    // A raster of several tiles of the viewport's space stays within the viewport, so a tile whose backdrop blur reads
+    // past its cell shows the edge of the viewport where the blur reads past it.
+    #[test]
+    fn a_tile_whose_backdrop_blur_reads_past_its_cell_is_keyed_with_the_part_of_the_viewport_its_raster_reads() {
+        let (mut tree, root) = tree_with_root_isolation_effect(1.0);
+        let region_of_glass = IntRect::new(100, 450, 200, 100);
+        let glass = frosted_glass(&mut tree, root, region_of_glass);
+        let page = IntRect::new(0, 0, 1100, 700);
+        let display_list = DisplayListStorage::of_chunks(vec![
+            chunk_of(fill(page, GREEN), root),
+            chunk_of(fill(region_of_glass, BLUE), glass),
+        ])
+        .unwrap();
+        let cell_above_bottom_edge_of_glass = cell_of(region_of_glass);
+        let cell_below_bottom_edge_of_glass = TileCoord::of_pixel(region_of_glass.x, region_of_glass.bottom());
+        assert_ne!(cell_above_bottom_edge_of_glass, cell_below_bottom_edge_of_glass);
+        let tiles_of_page_within_viewport = |viewport: IntRect| {
+            let stack = LayerStack::one_layer_replaying_whole_list(
+                viewport,
+                display_list.whole_span(),
+                None,
+                LayeringObstacles::default(),
+            );
+            assert_eq!(
+                stack.rect_rasters_of_space_stay_within(RasterSpaceIndex::VIEWPORT),
+                Some(viewport)
+            );
+            let (band_tile_keys, _) = band_tile_keys_after_frames_showing(
+                (&display_list, &tree, &stack),
+                RasterSpaceIndex::VIEWPORT,
+                BandIndex(0),
+                &[page],
+            );
+            for cell_of_glass in [cell_above_bottom_edge_of_glass, cell_below_bottom_edge_of_glass] {
+                assert!(
+                    band_tile_keys
+                        .tile(cell_of_glass, stack.base_layer)
+                        .and_then(|tile| tile.raster_margin_in_device_pixels)
+                        .is_some_and(|margin| margin > 0)
+                );
+            }
+            tiles_within(&band_tile_keys, page)
+        };
+        // Only the bottom edge of the viewport moves, past the cells right of the glass too, whose tiles read nothing
+        // past their cells.
+        let tiles_within_shorter_viewport = tiles_of_page_within_viewport(IntRect::new(0, 0, 1100, 600));
+        let tiles_within_taller_viewport = tiles_of_page_within_viewport(page);
+        assert_eq!(tiles_within_shorter_viewport.len(), 4);
+        assert_eq!(
+            cells_whose_hashes_differ(&tiles_within_shorter_viewport, &tiles_within_taller_viewport),
+            [cell_below_bottom_edge_of_glass]
+        );
     }
 
     // Each sample keys every tile of the band again, and only the tile that draws a value the sample changed gets a new

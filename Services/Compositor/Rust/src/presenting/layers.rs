@@ -185,6 +185,9 @@ pub struct LayerUpdate {
     shown_tiles_by_layer: Vec<Vec<TileShownInFrame>>,
     composited_filter_read_reach_by_layer: Vec<i32>,
     pub(super) frame_allows_lcd_text: bool,
+    /// Whether the window server shows by itself a canvas or video that draws something else than in the latest frame,
+    /// or that was no layer of it, which the window server shows only once the frame is presented.
+    pub(super) media_shown_by_window_server_changed: bool,
     work_counts: FrameWorkCounts,
 }
 
@@ -1011,22 +1014,18 @@ impl ContextPresenting {
     /// otherwise. A frame drawn with a plan that shows more tiles than a frame may is drawn as one layer instead.
     ///
     /// Keys the tiles the frame shows of each layer, and answers too the rect of the viewport that the tiles to raster
-    /// again, the tiles that go, and the media replayed anew cover. `invalidates_every_tile` makes every tile stale
-    /// whatever its content hash, as when the frame draws content that the list does not name. What a frame is made to
-    /// repaint otherwise leaves the tiles as they are: it is either drawn over the layers by the compositor, as its
-    /// scroll bars are, or told by the content hashes of the tiles that hold it, as a caret's blink is.
+    /// again, the tiles that go, and the media replayed anew cover. A pooled tile holds current pixels for as long as
+    /// its content hash is what a frame shows, as the hash covers all that its pixels depend on. What a frame is made
+    /// to repaint leaves the tiles as they are: it is either drawn over the layers by the compositor, as its scroll
+    /// bars are, or told by the content hashes of the tiles that hold it, as a caret's blink is.
     pub(super) fn layer_update_for(
         &mut self,
         env: &PresentingEnvironment<'_>,
         frame: &FrameToPaint<'_>,
         viewport_rect: IntRect,
         live_content: &LiveContent,
-        invalidates_every_tile: bool,
         frame_allows_lcd_text: bool,
     ) -> (LayerUpdate, IntRect) {
-        if invalidates_every_tile {
-            self.layers.tiles.invalidate_every_tile();
-        }
         let raster_transform = self.raster_transform();
         let tree = frame.frame_inputs.visual_context_tree.as_arc();
         // A plan places spaces that scroll at whole device pixels of the viewport it was made within, which a raster
@@ -1062,14 +1061,7 @@ impl ContextPresenting {
             // Frames draw the plan as one layer from now on. The budget does not hold a frame of one layer, so the frame
             // is worked out once more at most.
             self.layers.draw_plan_of_frames_as_one_layer();
-            return self.layer_update_for(
-                env,
-                frame,
-                viewport_rect,
-                live_content,
-                invalidates_every_tile,
-                frame_allows_lcd_text,
-            );
+            return self.layer_update_for(env, frame, viewport_rect, live_content, frame_allows_lcd_text);
         };
         layer_update.work_counts.took_plan_into_use = took_plan_into_use;
         (layer_update, stale_rect)
@@ -1347,6 +1339,7 @@ impl ContextPresenting {
             |identity| self.layer_overlay.hides_layer(identity),
         ) as u64;
         let mut media_replayed_by_identity = HashMap::new();
+        let mut media_shown_by_window_server_changed = false;
         for compositing in &compositing_of_layers {
             let layer_index = compositing.layer_index;
             let layer = &stack.layers[layer_index.0];
@@ -1363,6 +1356,13 @@ impl ContextPresenting {
                     stale_rect = stale_rect.united(media_replayed.reach_in_frame).united(
                         media_replayed_in_latest_frame.map_or(IntRect::default(), |latest| latest.reach_in_frame),
                     );
+                }
+                if compositing.shown_by_window_server
+                    && matches!(layer.content, LayerContent::Media { .. })
+                    && media_replayed_in_latest_frame
+                        .is_none_or(|latest| latest.content_hash != media_replayed.content_hash)
+                {
+                    media_shown_by_window_server_changed = true;
                 }
                 media_replayed_by_identity.insert(layer.identity, media_replayed);
                 continue;
@@ -1398,6 +1398,7 @@ impl ContextPresenting {
             shown_tiles_by_layer,
             composited_filter_read_reach_by_layer,
             frame_allows_lcd_text,
+            media_shown_by_window_server_changed,
             work_counts,
         };
         Some((layer_update, stale_rect))
@@ -1833,8 +1834,7 @@ impl ContextPresenting {
                         composited_filter_read_reach,
                     ),
                     clear_color: clear_color_of_layer(stack, layer_index, surface_clear_color),
-                    rastered_within: (raster_space_index == RasterSpaceIndex::VIEWPORT)
-                        .then_some(extent_of_viewport_space),
+                    rastered_within: stack.rect_rasters_of_space_stay_within(raster_space_index),
                     shown_by_window_server: layer_update.layers.window_server_shows_tiles_of(compositing),
                     window_server_shows_tiles: layer_update
                         .layers
@@ -2393,6 +2393,7 @@ mod tests {
             },
             read_reaches_of_composited_effects_in_frame,
             frame_allows_lcd_text: false,
+            media_shown_by_window_server_changed: false,
             work_counts: FrameWorkCounts::default(),
         }
     }

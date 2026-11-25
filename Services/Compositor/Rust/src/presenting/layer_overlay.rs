@@ -55,7 +55,7 @@ pub enum RasterCause {
     NewlyShown,
     /// The tile held pixels of other content.
     ContentHashChanged,
-    /// The frame made every tile stale, or rastering the tile failed before.
+    /// Rastering the tile failed before.
     HeldPixelsInvalidated,
     /// The tile held less of its cell than the frame shows.
     HeldLessThanNeeded,

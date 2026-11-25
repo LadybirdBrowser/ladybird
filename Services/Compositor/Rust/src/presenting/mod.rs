@@ -904,8 +904,7 @@ impl ContextPresenting {
         let frame_changes_nothing_it_holds = window_server_shows_every_layer
             || (damage_rect.is_empty() && frame_was_presented_within_same_viewport_rect);
         if frame_changes_nothing_it_holds {
-            let only_media_shown_by_window_server_changed =
-                frame_damage.layers.shown_by_window_server() && frame_damage.live_media_changed;
+            let only_media_shown_by_window_server_changed = frame_damage.layers.media_shown_by_window_server_changed;
             let sublayers_of_tiles_rastered_for_frame = if frame_damage.layers.window_server_shows_tiles() {
                 let overlays_draw_same_as_in_latest_frame = self.painted_frame.as_ref().is_some_and(|painted_frame| {
                     frame_inputs
@@ -930,7 +929,6 @@ impl ContextPresenting {
                     pending_frame.viewport_rect,
                     display_list,
                     frame_inputs,
-                    &live_content,
                     frame_damage.layers,
                 );
                 let sublayers = match sublayers_of_tiles_rastered_for_frame {
@@ -1009,7 +1007,6 @@ impl ContextPresenting {
             pending_frame.viewport_rect,
             display_list,
             frame_inputs,
-            &live_content,
             frame_damage.layers,
         );
         self.sublayers_of_latest_frame = sublayers.clone();
@@ -1083,7 +1080,6 @@ impl ContextPresenting {
             pending_frame.viewport_rect,
             display_list,
             frame_inputs,
-            &live_content,
             frame_damage.layers,
         );
         env.raster.flush(&surface);
