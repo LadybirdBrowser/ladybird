@@ -27,8 +27,8 @@ pub use crate::display_list::placement::{
     CompositeClip, RasterSpace, RasterSpaceAnchorKind, RasterSpaceIndex, RunGroupIndex, raster_space_anchors,
 };
 use crate::display_list::placement::{
-    EXTENT_LIMIT_IN_DEVICE_PIXELS, enclosing_int_rect_within_extent_limit, space_and_ancestors_below_viewport,
-    spatial_nodes_that_move_on_their_own,
+    EXTENT_LIMIT_IN_DEVICE_PIXELS, MAXIMUM_RASTER_SPACE_COUNT, enclosing_int_rect_within_extent_limit,
+    space_and_ancestors_below_viewport, spatial_nodes_that_move_on_their_own,
 };
 use crate::display_list::reach::Reach;
 use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan};
@@ -41,13 +41,14 @@ use crate::display_list::window_server_placement::{
 use crate::visual_context::queries::backdrop_reader_by_reading_effect_index;
 use crate::visual_context::{VisualContextTree, WorldTransforms, device_offset_for_index};
 use libgfx_rust::{AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint, IntRect};
+use libipc_rust::wire::{Decode, Encode};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::rc::Rc;
 
 pub mod planning;
 mod wire;
 
-pub use wire::{LayerPlan, UnvalidatedLayerPlan, compositor_takes_plans_within};
+pub use wire::{LayerPlan, StackOnWire, UnvalidatedLayerPlan, ValidatedLayerPlan, compositor_takes_plans_within};
 
 // Twice the extent limit of a plan, which leaves room for the margins that planning adds past the extent of a space.
 // The rects of a stack from another process are within it, and so are the offsets a frame composites spaces at, so that
@@ -82,7 +83,7 @@ pub(crate) fn media_name(content: LiveContent) -> &'static str {
 }
 
 /// Why the compositor cannot composite an effect, which keeps what it holds from having layers of its own.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum WhyCompositorCannotCompositeEffect {
     FilterMovesWhatItFilters,
     FilterReadsFartherThanTilesAreFollowed,
@@ -100,7 +101,7 @@ impl std::fmt::Display for WhyCompositorCannotCompositeEffect {
 }
 
 /// Why a list is painted in a single layer that replays all of it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum WhyListIsOneLayer {
     EmptyViewport,
     EmptyDisplayList,
@@ -273,7 +274,7 @@ fn transform_and_inverse_that_show_space(transform: AffineTransform) -> Option<(
 }
 
 /// The index of a node in `LayerStack::nodes`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct PlacementNodeIndex(pub usize);
 
 /// The index of a band in `LayerStack::bands`.
@@ -694,41 +695,48 @@ fn node_covers_viewport(nodes: &[PlacementNode], spaces: &[RasterSpace], node_in
 /// What a plan says of a stack of more than one layer, each thing once: the nodes without their identities, and the
 /// bands in the order of a walk that enters the first band, and at each cut whose barrier is a nested band, the next
 /// band, each band with what only it knows of its layers. `LayerStack::of_layered_plan` works out the rest.
-#[derive(Clone, Debug)]
-struct LayeredPlan {
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
+pub struct LayeredPlan {
+    #[ipc(max_size = wire::MAXIMUM_NODE_COUNT_OF_RECEIVED_STACK)]
     nodes: Vec<NodeOfPlan>,
+    #[ipc(max_size = wire::MAXIMUM_BAND_COUNT_OF_RECEIVED_STACK)]
     bands: Vec<BandOfPlan>,
+    #[ipc(max_size = MAXIMUM_RASTER_SPACE_COUNT)]
     tiles_hold_content_moving_within_space_by_space_index: Vec<bool>,
+    #[ipc(max_size = MAXIMUM_RASTER_SPACE_COUNT)]
     swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
 }
 
 /// A placement node without its identity, which the stack works out of the node, the node it is in and the spaces.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 struct NodeOfPlan {
     raster_space_index: RasterSpaceIndex,
+    #[ipc(max_size = MAXIMUM_RASTER_SPACE_COUNT)]
     composite_clips: Vec<CompositeClip>,
     composited_effect: Option<EffectNodeIndex>,
     parent_index: Option<PlacementNodeIndex>,
     reach_in_parent_node: Reach<IntRect>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 struct BandOfPlan {
     placement_node_index: PlacementNodeIndex,
     /// In paint order.
+    #[ipc(max_size = wire::MAXIMUM_SPAN_COUNT_OF_RECEIVED_BAND)]
     record_spans: Vec<ListSpan>,
     reach_of_layer_below_all_cuts: IntRect,
     /// In paint order.
+    #[ipc(max_size = wire::MAXIMUM_CUT_COUNT_OF_RECEIVED_BAND)]
     cuts: Vec<CutOfPlan>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 struct CutOfPlan {
     barrier: BarrierOfPlan,
     reach_of_layer_above_cut: IntRect,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Encode, Decode)]
 enum BarrierOfPlan {
     /// Live content that is a layer of its own, the `ordinal`th drawing of its content in paint order. Where `cuts_band`
     /// is set, it cuts the tiles its reach touches, and otherwise no tile, as no record of the band painted after it can

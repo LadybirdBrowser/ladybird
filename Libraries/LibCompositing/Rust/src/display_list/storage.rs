@@ -64,7 +64,7 @@ impl AlignedBytes {
 }
 
 /// The index of a chunk among the chunks of a list, in paint order.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct ChunkIndexInList(pub u32);
 
 /// The index of a run among the runs of a list, in paint order.
@@ -77,7 +77,7 @@ pub struct RunIndexInChunk(pub u32);
 
 /// Where a record is in a display list: the chunk that holds it and its offset in that chunk. Records are painted in
 /// the order of their positions.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct ListPosition {
     pub chunk_index: ChunkIndexInList,
     pub offset: u32,
@@ -91,7 +91,7 @@ impl ListPosition {
 
 /// The records of a display list from `begin` up to `end`, which can lie in a later chunk than `begin`. Every record of
 /// the chunks between the two is in the span.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub struct ListSpan {
     pub begin: ListPosition,
     pub end: ListPosition,
