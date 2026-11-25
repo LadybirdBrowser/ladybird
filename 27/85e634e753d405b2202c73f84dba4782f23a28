@@ -1,0 +1,15 @@
+Ladybird’s table fixup now wraps an absolutely positioned row group,
+row or caption in an anonymous row and cell, which gives it its static
+position among the rows. Chrome 158, Firefox 151 and WebKit 26.5 give
+the same box position and table height in all eight cases of the new
+test, run with engine-compare, including the extra border spacing the
+anonymous row adds and a row group placed before its thead.
+
+Blink’s LayoutTable::CanBeDirectChild() accepts only captions, columns
+and sections, so LayoutBlock::AddChild() puts a blockified row group in
+an anonymous section (CreateAnonymousChild()). In WebKit, a RenderTable
+keeps only captions, sections and column groups as direct children, and
+RenderTreeBuilder::Table::findOrCreateParentForChild() wraps the rest in
+an anonymous RenderTableSection. And in Gecko, nsCSSFrameConstructor::
+CreateNeededPseudoContainers() builds the anonymous table parts. All of
+this paragraph comes from reading their sources, not from running them.
