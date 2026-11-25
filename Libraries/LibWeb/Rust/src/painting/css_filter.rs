@@ -6,7 +6,7 @@
 
 //! Lowers CSS filter functions to the filter graphs painting hands over as bytes.
 
-use libgfx_rust::filter::Filter;
+use libgfx_rust::filter::{Filter, MAXIMUM_FILTER_DEPTH};
 use libgfx_rust::{Color, ColorFilterType};
 
 use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation};
@@ -36,9 +36,9 @@ pub(crate) fn contains_url(filter: &ComputedFilter) -> bool {
         .any(|operation| operation.kind == FILTER_KIND_URL)
 }
 
-/// The serialized graph for a filter list's functions; `None` when the list has none.
+/// The serialized graph for a filter list's functions; `None` when the list has none, or more than a graph can hold.
 pub(crate) fn serialize_non_url_filter(filter: &ComputedFilter, device_pixels_per_css_pixel: f64) -> Option<Vec<u8>> {
-    css_filter(filter.operations.as_slice(), device_pixels_per_css_pixel).map(|filter| filter.serialize())
+    css_filter(filter.operations.as_slice(), device_pixels_per_css_pixel)?.serialize_within_maximum_depth()
 }
 
 /// Resolves the `url()` references of a filter list through the host, one reference at a time.
@@ -57,17 +57,25 @@ pub(crate) fn serialize_filter_with_resolved_svg(
         filter.operations.as_slice(),
         resolved_svg_filter.filter,
         device_pixels_per_css_pixel,
-    )
-    .map(|filter| filter.serialize())
+    )?
+    .serialize_within_maximum_depth()
 }
 
 /// Combines the functions of a filter list with the SVG filter its `url()` references resolved
-/// to, which is applied last, after every function.
+/// to, which is applied last, after every function. A list with more functions than a graph can
+/// hold has no graph, so its SVG filter does not apply alone.
 fn css_filter_with_svg(
     operations: &[ComputedFilterOperation],
     svg_filter: Option<Filter>,
     device_pixels_per_css_pixel: f64,
 ) -> Option<Filter> {
+    let function_count = operations
+        .iter()
+        .filter(|operation| operation.kind != FILTER_KIND_URL)
+        .count();
+    if function_count > MAXIMUM_FILTER_DEPTH {
+        return None;
+    }
     match (svg_filter, css_filter(operations, device_pixels_per_css_pixel)) {
         (Some(svg_filter), Some(css_filter)) => Some(Filter::compose(svg_filter, css_filter)),
         (Some(filter), None) | (None, Some(filter)) => Some(filter),
@@ -176,12 +184,15 @@ mod tests {
         );
         assert_eq!(
             css_filter_with_svg(&[], Some(svg_filter.clone()), 1.0),
-            Some(svg_filter)
+            Some(svg_filter.clone())
         );
         assert_eq!(
             css_filter_with_svg(&[hue_rotate()], None, 1.0),
             Some(Filter::hue_rotate(90.0, None))
         );
         assert_eq!(css_filter_with_svg(&[], None, 1.0), None);
+
+        let too_many_functions = vec![hue_rotate(); MAXIMUM_FILTER_DEPTH + 1];
+        assert_eq!(css_filter_with_svg(&too_many_functions, Some(svg_filter), 1.0), None);
     }
 }

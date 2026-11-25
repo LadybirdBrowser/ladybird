@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-filter-with-too-many-functions-ref.html">
+<style>
+    div, canvas { display: block; width: 100px; height: 100px; }
+    #filtered, #backdrop { background: green; }
+</style>
+<!-- A filter list this long makes a graph too deep to walk, so no filter is applied, and nothing overflows its stack. -->
+<div id="filtered"></div>
+<div id="backdrop"><div id="backdrop-filtered"></div></div>
+<canvas id="canvas" width="100" height="100"></canvas>
+<script>
+    const functions = "brightness(0) ".repeat(20000);
+    document.getElementById("filtered").style.filter = functions;
+    document.getElementById("backdrop-filtered").style.backdropFilter = functions;
+
+    const context = document.getElementById("canvas").getContext("2d");
+    context.filter = functions;
+    context.fillStyle = "green";
+    context.fillRect(0, 0, 100, 100);
+</script>

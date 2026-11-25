@@ -388,6 +388,7 @@ mod tests {
     use crate::display_list::validate::validate_canvas_2d_tape;
     use crate::display_list::validate::validate_tape;
     use libgfx_rust::IntRect;
+    use libgfx_rust::filter::Filter;
 
     fn records(tape: &[u8]) -> Vec<(DisplayListCommandType, Vec<u8>)> {
         let mut records = Vec::new();
@@ -410,7 +411,7 @@ mod tests {
         let colors = [Color(0xff00_00ff), Color(0xffff_0000)];
         let positions = [0.0, 1.0];
         let path = [1u8, 2, 3, 4, 5];
-        let filter = [9u8, 8, 7];
+        let filter = Filter::hue_rotate(90.0, None).serialize();
         let mut writer = TapeWriter::default();
         writer.fill_path(
             &path,
@@ -498,6 +499,42 @@ mod tests {
             ]
         );
         assert_eq!(writer.bytes().len() % 8, 0);
+    }
+
+    #[test]
+    fn a_filter_that_the_player_cannot_build_is_rejected() {
+        let validate = |filter: &[u8]| {
+            let mut writer = TapeWriter::default();
+            writer.fill_path(
+                &[1],
+                &Paint::Color(Color(0xff00_0000)),
+                WindingRule::Nonzero,
+                &Compositing {
+                    filter: Some(filter),
+                    ..Compositing::default()
+                },
+            );
+            validate_canvas_2d_tape(writer.bytes())
+        };
+        let blur = Filter::blur(2.0, 2.0, None).serialize();
+        assert_eq!(validate(&blur), Ok(()));
+
+        let malformed = Err("Display list command has a malformed filter");
+        assert_eq!(validate(&[]), malformed);
+        assert_eq!(validate(&blur[..blur.len() - 1]), malformed);
+        assert_eq!(validate(&[blur.as_slice(), &[0]].concat()), malformed);
+        assert_eq!(validate(&[0xff]), malformed);
+
+        let image = Filter::Image {
+            frame_id: 1,
+            src_rect: IntRect::new(0, 0, 1, 1),
+            dest_rect: IntRect::new(0, 0, 1, 1).to_float(),
+            scaling_mode: libgfx_rust::ScalingMode::NearestNeighbor,
+        };
+        assert_eq!(
+            validate(&Filter::compose(Filter::blur(2.0, 2.0, None), image).serialize()),
+            Err("Canvas 2D stream command has a filter that draws an image")
+        );
     }
 
     #[test]
