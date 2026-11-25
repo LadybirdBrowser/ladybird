@@ -7,13 +7,13 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/MediaError.h>
+#include <LibWeb/Bindings/RustInterface.h>
 
 namespace Web::HTML {
 
-class MediaError final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(MediaError, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(MediaError);
+class MediaError final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(MediaError, media_error)
 
 public:
     enum class Code : u16 {
@@ -23,19 +23,10 @@ public:
         SrcNotSupported = 4,
     };
 
-    [[nodiscard]] static GC::Ref<MediaError> create(Code, Utf16String message);
+    [[nodiscard]] static GC::Ref<MediaError> create(Code, Utf16String const& message);
 
-    Code code() const { return m_code; }
-    Utf16String const& message() const { return m_message; }
-
-private:
-    MediaError(Code code, Utf16String message);
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-code
-    Code m_code;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-message
-    Utf16String m_message;
+    Code code() const;
+    Utf16String message() const;
 };
 
 }

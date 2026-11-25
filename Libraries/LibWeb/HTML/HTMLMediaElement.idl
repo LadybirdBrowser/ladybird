@@ -20,7 +20,7 @@ typedef (MediaStream or MediaSource or Blob) MediaProvider;
 interface HTMLMediaElement : HTMLElement {
 
     // error state
-    [DirectGetter] readonly attribute MediaError? error;
+    readonly attribute MediaError? error;
 
     // network state
     // FIXME: "Reflect, URL" should be "ReflectURL".
