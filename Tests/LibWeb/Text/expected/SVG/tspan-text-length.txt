@@ -1,0 +1,24 @@
+PASS expanded span
+PASS shrunk span
+PASS scaled span
+PASS absolute position
+PASS scaled absolute position
+PASS relative positions
+PASS scaled relative positions
+PASS nested lengths
+PASS nested lengths ending in a span
+PASS nested through an unadjusted element
+PASS nested glyph scaling
+PASS spacing around a scaled child
+PASS scaling around a spaced child
+PASS single character
+PASS scaled single character
+PASS resolved single character
+PASS empty span
+PASS invalid span inherits adjustment
+PASS middle anchor
+PASS text on a path remains independent
+PASS span bounds
+PASS lengthAdjust mutation
+PASS textLength mutation
+PASS textLength removal
