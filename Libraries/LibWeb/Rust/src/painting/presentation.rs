@@ -211,6 +211,7 @@ struct VisualContextTreeUpdate {
 }
 
 struct ScrollStateUpdate {
+    visual_context_tree_structural_epoch: u64,
     scroll_state: ScrollStateSnapshot,
     keyboard_scroll_state: Compositing_KeyboardScrollState,
 }
@@ -218,7 +219,6 @@ struct ScrollStateUpdate {
 pub(crate) fn empty_keyboard_scroll_state() -> Compositing_KeyboardScrollState {
     Compositing_KeyboardScrollState {
         generation: 0,
-        visual_context_tree_structural_epoch: 0,
         target: None,
         page_scroll_distance: 0.0,
         arrow_scroll_distance: 0.0,
@@ -305,19 +305,10 @@ impl PresenterState {
     ) -> CompositorFrame {
         // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if recording
         // was skipped or repeated the display list, and send it with the corresponding scroll state.
-        let display_list_output = published
-            .or(self
-                .compositor_display_list
-                .as_ref()
-                .map(|display_list| &display_list.output))
-            .cloned();
         let mut keyboard_scroll_state = empty_keyboard_scroll_state();
         if let Some(sealed_state) = &seal.keyboard_scroll_state {
             keyboard_scroll_state = sealed_state.clone();
             self.last_keyboard_scroll_state_generation = Some(sealed_state.generation);
-            keyboard_scroll_state.visual_context_tree_structural_epoch = display_list_output
-                .as_ref()
-                .map_or(0, |output| output.recorded_structural_epoch);
         }
 
         self.last_frame_presented_by = Some(seal.presented_by);
@@ -390,6 +381,7 @@ impl PresenterState {
             });
         } else {
             frame.scroll_state_update = Some(ScrollStateUpdate {
+                visual_context_tree_structural_epoch: visual_context_tree.structural_epoch,
                 scroll_state: scroll_state.clone(),
                 keyboard_scroll_state,
             });
@@ -916,6 +908,7 @@ fn post_frame_through(
         let layer_plan = sent.layer_plan_for_scroll_state(&update.scroll_state, viewport_rect_of_frame);
         let message = UpdateScrollState {
             context_id,
+            visual_context_tree_structural_epoch: update.visual_context_tree_structural_epoch,
             scroll_state: update.scroll_state,
             keyboard_scroll_state: update.keyboard_scroll_state,
             layer_plan: layer_plan.as_ref().map(LayerPlanSent::on_wire),

@@ -281,7 +281,7 @@ public:
     void keyboard_scroll_event_path_changed(DOM::EventTarget const&);
     void keyboard_scroll_dom_tree_changed(DOM::Node const&);
     void keyboard_scroll_editability_changed(DOM::Document&);
-    Compositing::KeyboardScrollState take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch);
+    Compositing::KeyboardScrollState take_keyboard_scroll_state_for_compositor();
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
     void update_needs_beforeunload_check();
     bool had_user_edits() const { return m_had_user_edits; }
