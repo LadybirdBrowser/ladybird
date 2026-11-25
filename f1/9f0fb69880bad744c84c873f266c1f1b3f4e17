@@ -1,0 +1,18 @@
+Ladybird resets inherited styles on the root of native media controls.
+The root inherits visibility, pointer-events, and cursor from the host.
+WebKit resets its media-controls-container and inherits all three.
+Blink styles its current-time and time-remaining displays directly, and
+Gecko sets a system font on the positionDurationBox around its labels.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 all showed elapsed
+time inside a parent with zero line height, before metadata had loaded.
+With zero line height, wide spacing, centered text, and uppercase
+on the audio element, Chrome and WebKit painted the same controls as on
+an unstyled element. Firefox painted them differently. All three hid the
+controls and excluded them from hit testing on a hidden host.
+
+Ladybird keeps the native audio and video controls left-to-right when
+an ancestor sets its direction with HTML or CSS. Chrome 158.0.8127.37,
+Firefox 151.0, and WebKit 26.5 kept Play on the left in both cases.
+Blink sets the direction on its media controls pseudo-element, Gecko
+on .videocontrols, and WebKit on .controls-bar.
