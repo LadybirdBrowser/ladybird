@@ -203,6 +203,17 @@ impl Zone {
         self.add(&name(owner), ResourceType::CNAME, RecordData::Cname(name(target)), 300);
     }
 
+    fn add_dname(&mut self, owner: &str, target: &str, ttl: u32) {
+        self.add(&name(owner), ResourceType::DNAME, RecordData::Dname(name(target)), ttl);
+    }
+
+    // The owner of a DNAME above `name`, which redirects it.
+    fn dname_above(&self, name: &DomainName) -> Option<DomainName> {
+        (self.apex.labels.len()..name.labels.len())
+            .map(|labels| name.suffix(labels))
+            .find(|owner| !self.rrset(owner, ResourceType::DNAME).is_empty())
+    }
+
     // A delegation: the NS record at the child's apex, and a DS record for a signed child.
     fn delegate(&mut self, child: &Zone) {
         self.delegate_with_ds(child, child.signed.then(|| child.ds()));
@@ -508,6 +519,31 @@ impl Zone {
                         }
                         break 'done;
                     }
+                }
+
+                // Below a DNAME: the DNAME, and a CNAME synthesized from it, which is not signed.
+                if let Some(owner) = self.dname_above(&name) {
+                    let dname = self.rrset(&owner, ResourceType::DNAME);
+                    let RecordData::Dname(dname_target) = dname[0].data.clone() else {
+                        unreachable!();
+                    };
+                    let ttl = dname[0].ttl;
+                    self.append_signed(&mut answers, dname, &owner, None);
+                    let mut target = DomainName {
+                        labels: name.labels[..name.labels.len() - owner.labels.len()].to_vec(),
+                    };
+                    target.labels.extend(dname_target.labels);
+                    answers.push(record(
+                        &name,
+                        ResourceType::CNAME,
+                        RecordData::Cname(target.clone()),
+                        ttl,
+                    ));
+                    if question.rtype == ResourceType::CNAME || !self.apex.is_ancestor_or_equal_of(&target) {
+                        break 'done;
+                    }
+                    name = target;
+                    continue;
                 }
 
                 if self.exists(&name) {
@@ -1804,4 +1840,53 @@ fn insecure_delegations_for_too_many_nsec3_iterations_expire_with_their_proof() 
     let cached = &validator.delegations[&name("www.example")].delegation;
     assert_eq!(cached.kind, DelegationKind::Insecure);
     assert_eq!(cached.expires, u64::from(NOW) + 2);
+}
+
+fn with_dname(server: &mut Server) {
+    server.zones[1].add_dname("mirror.example", "example", 120);
+}
+
+#[test]
+fn answers_through_a_signed_dname_validate() {
+    for use_nsec3 in [false, true] {
+        let (mut server, mut validator) = setup(use_nsec3, with_dname);
+        let result = validated_lookup(&mut server, &mut validator, "www.mirror.example", ResourceType::A).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert_eq!(first_address(&result), Some(Ipv4Addr::new(192, 0, 2, 1)));
+        // What the DNAME leads to lives no longer than the DNAME.
+        assert!(result.records.iter().all(|record| record.ttl <= 120));
+        assert!(result.records.iter().any(|record| record.rtype == ResourceType::DNAME));
+
+        let result = validated_lookup(&mut server, &mut validator, "www.mirror.example", ResourceType::CNAME).unwrap();
+        assert_eq!(result.status, SecurityStatus::Secure);
+        assert!(result.records.iter().any(|record| record.rtype == ResourceType::CNAME));
+    }
+}
+
+#[test]
+fn cnames_that_do_not_follow_from_their_dname_are_bogus() {
+    let (mut server, mut validator) = setup(false, with_dname);
+    let mut lookup = Lookup::start(&mut server, "www.mirror.example", ResourceType::A);
+    for answer in &mut lookup.response.answers {
+        if answer.rtype == ResourceType::CNAME {
+            answer.data = RecordData::Cname(name("other.example"));
+        }
+    }
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW).err(),
+        Some("CNAME does not follow from the DNAME above it")
+    );
+}
+
+#[test]
+fn unsigned_dnames_do_not_vouch_for_their_cnames() {
+    let (mut server, mut validator) = setup(false, with_dname);
+    let mut lookup = Lookup::start(&mut server, "www.mirror.example", ResourceType::A);
+    lookup.response.answers.retain(
+        |answer| !matches!(&answer.data, RecordData::Rrsig(rrsig) if rrsig.type_covered == ResourceType::DNAME),
+    );
+    assert_eq!(
+        lookup.finish(&mut server, &mut validator, NOW).err(),
+        Some("RRset signature did not validate")
+    );
 }
