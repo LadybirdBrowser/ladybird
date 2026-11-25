@@ -136,7 +136,6 @@ public:
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
-    void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays);
     void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
     // Asks for the next display tick the context's maximum rate lets through, for its render clock.
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);

@@ -22,6 +22,7 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServe
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockServerEndpoint.h)
 compile_ipc(Types.ipc TypesCodecs.h)
+compile_ipc(UIOverlays.ipc UIOverlaysCodecs.h)
 compile_ipc(FontClient.ipc FontClientEndpoint.h)
 compile_ipc(FontServer.ipc FontServerEndpoint.h)
 

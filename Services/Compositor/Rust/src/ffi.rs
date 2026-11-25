@@ -11,10 +11,6 @@ use crate::core::messages::{MessagesFromControl, MessagesFromPresentation, Messa
 use crate::core::presenting::{GpuBackend, PresentationCapabilities};
 use crate::core::{CompositorCore, ContextOwnerCheckResult};
 use crate::host::{FfiCompositorCoreHost, Host, PresentationId, WebContentClientId};
-use crate::overlays::{
-    CompositorLayersOverlayState, PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl,
-    PictureInPictureControlsState, UIOverlays,
-};
 use crate::raster_host::{FfiRasterHost, RasterHost};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
@@ -328,28 +324,6 @@ pub unsafe extern "C" fn compositor_core_handle_control_message(
     core.finish_message(time(now_nanoseconds));
 }
 
-/// What the browser draws over a context's page. An action or control is none where it is out of range.
-#[repr(C)]
-pub struct FfiUIOverlays<'a> {
-    pub has_paused_debugger: bool,
-    pub paused_debugger_has_font_family: bool,
-    pub paused_debugger_font_family: ak::Span<'a, u8>,
-    pub paused_debugger_has_hovered_action: bool,
-    pub paused_debugger_hovered_action: u8,
-    pub has_picture_in_picture_controls: bool,
-    pub picture_in_picture_controls_shown: bool,
-    pub picture_in_picture_controls_has_hovered_control: bool,
-    pub picture_in_picture_controls_hovered_control: u8,
-    pub has_compositor_layers: bool,
-    pub compositor_layers_has_font_family: bool,
-    pub compositor_layers_font_family: ak::Span<'a, u8>,
-    pub compositor_layers_hidden_layer_ids: ak::Span<'a, u64>,
-    pub compositor_layers_selected_layer_ids: ak::Span<'a, u64>,
-    pub compositor_layers_has_hovered_layer_id: bool,
-    pub compositor_layers_hovered_layer_id: u64,
-    pub compositor_layers_raster_count_reset_generation: u64,
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_set_visibility(
     core: &CompositorCore,
@@ -372,61 +346,6 @@ pub extern "C" fn compositor_core_set_visibility(
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_timer_fired(core: &CompositorCore, timer_number: u64, now_nanoseconds: i64) {
     core.timer_fired(timer_number, MonotonicTime::from_nanoseconds(now_nanoseconds));
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_ui_overlays(
-    core: &CompositorCore,
-    context_id: u64,
-    ui_overlays: &FfiUIOverlays<'_>,
-    now_nanoseconds: i64,
-) {
-    let paused_debugger = ui_overlays.has_paused_debugger.then(|| PausedDebuggerOverlayState {
-        font_family: ui_overlays
-            .paused_debugger_has_font_family
-            .then(|| String::from_utf8_lossy(ui_overlays.paused_debugger_font_family.as_slice()).into_owned()),
-        hovered_action: match (
-            ui_overlays.paused_debugger_has_hovered_action,
-            ui_overlays.paused_debugger_hovered_action,
-        ) {
-            (true, 0) => Some(PausedDebuggerOverlayAction::StepOver),
-            (true, 1) => Some(PausedDebuggerOverlayAction::Continue),
-            _ => None,
-        },
-    });
-    let picture_in_picture_controls =
-        ui_overlays
-            .has_picture_in_picture_controls
-            .then_some(PictureInPictureControlsState {
-                shown: ui_overlays.picture_in_picture_controls_shown,
-                hovered_control: match (
-                    ui_overlays.picture_in_picture_controls_has_hovered_control,
-                    ui_overlays.picture_in_picture_controls_hovered_control,
-                ) {
-                    (true, 0) => Some(PictureInPictureControl::BackToTab),
-                    (true, 1) => Some(PictureInPictureControl::Close),
-                    _ => None,
-                },
-            });
-    core.set_ui_overlays(
-        CompositorContextId(context_id),
-        UIOverlays {
-            paused_debugger,
-            picture_in_picture_controls,
-            compositor_layers: ui_overlays.has_compositor_layers.then(|| CompositorLayersOverlayState {
-                font_family: ui_overlays.compositor_layers_has_font_family.then(|| {
-                    String::from_utf8_lossy(ui_overlays.compositor_layers_font_family.as_slice()).into_owned()
-                }),
-                hidden_layer_ids: ui_overlays.compositor_layers_hidden_layer_ids.as_slice().to_vec(),
-                selected_layer_ids: ui_overlays.compositor_layers_selected_layer_ids.as_slice().to_vec(),
-                hovered_layer_id: ui_overlays
-                    .compositor_layers_has_hovered_layer_id
-                    .then_some(ui_overlays.compositor_layers_hovered_layer_id),
-                raster_count_reset_generation: ui_overlays.compositor_layers_raster_count_reset_generation,
-            }),
-        },
-        MonotonicTime::from_nanoseconds(now_nanoseconds),
-    );
 }
 
 #[unsafe(no_mangle)]

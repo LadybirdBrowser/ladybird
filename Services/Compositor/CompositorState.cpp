@@ -700,13 +700,6 @@ Optional<OverlayLabel> CompositorState::shape_overlay_label(Web::CompositorConte
     return context->raster_targets.shape_overlay_label(font_family, font_size_in_points, device_pixel_ratio, text);
 }
 
-void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.set_ui_overlays(context_id, overlays);
-}
-
 void CompositorState::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     if (!presented_context_if_present(context_id))

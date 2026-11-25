@@ -173,6 +173,7 @@ include!(concat!(env!("OUT_DIR"), "/KeyCode.rs"));
 include!(concat!(env!("OUT_DIR"), "/MouseButton.rs"));
 include!(concat!(env!("OUT_DIR"), "/TextEditingCommand.rs"));
 include!(concat!(env!("OUT_DIR"), "/Types.rs"));
+include!(concat!(env!("OUT_DIR"), "/UIOverlays.rs"));
 
 include!(concat!(env!("OUT_DIR"), "/CompositorControlServerEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/CompositorPresentationClientEndpoint.rs"));

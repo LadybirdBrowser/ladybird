@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Array.h>
-#include <AK/Optional.h>
 #include <LibCompositing/OverlayGeometry.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -18,18 +17,6 @@ enum class PictureInPictureControl : u8 {
     BackToTab,
     Close,
 };
-
-inline Optional<PictureInPictureControl> picture_in_picture_control_from_underlying(u8 value)
-{
-    switch (value) {
-    case to_underlying(PictureInPictureControl::BackToTab):
-        return PictureInPictureControl::BackToTab;
-    case to_underlying(PictureInPictureControl::Close):
-        return PictureInPictureControl::Close;
-    default:
-        return {};
-    }
-}
 
 struct PictureInPictureControlsGeometry {
     Gfx::IntRect back_to_tab_button;

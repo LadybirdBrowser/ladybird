@@ -14,6 +14,9 @@ use libcompositing_rust::display_list::commands::{
 };
 use libcompositing_rust::display_list::ffi_bytes::FfiBytes;
 use libcompositing_rust::display_list::replay::{RecordsContext, ReplayFrame, ReplayPainter, replay_records};
+use libcompositing_rust::ipc_types::{
+    Compositing_PausedDebuggerOverlayAction, Compositing_PictureInPictureControl, Compositing_UIOverlays,
+};
 use libcompositing_rust::overlays::{
     PausedDebuggerOverlayGeometry, paused_debugger_overlay_geometry, picture_in_picture_controls_geometry,
     scaled_overlay_length,
@@ -26,6 +29,7 @@ use libgfx_rust::{
     CapStyle, Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, GlyphRunOrientation,
     IntRect, IntSize, JoinStyle, ShouldAntiAlias, WindingRule, enclosing_int_rect,
 };
+use libipc_rust::wire::Utf8String;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PausedDebuggerOverlayAction {
@@ -72,6 +76,39 @@ pub struct UIOverlays {
     pub paused_debugger: Option<PausedDebuggerOverlayState>,
     pub picture_in_picture_controls: Option<PictureInPictureControlsState>,
     pub compositor_layers: Option<CompositorLayersOverlayState>,
+}
+
+impl From<Compositing_UIOverlays> for UIOverlays {
+    fn from(overlays: Compositing_UIOverlays) -> Self {
+        let font_family_of = |font_family: Option<Utf8String>| {
+            font_family.map(|font_family| String::from_utf8_lossy(font_family.as_bytes()).into_owned())
+        };
+        Self {
+            paused_debugger: overlays.paused_debugger.map(|state| PausedDebuggerOverlayState {
+                font_family: font_family_of(state.font_family),
+                hovered_action: state.hovered_action.map(|action| match action {
+                    Compositing_PausedDebuggerOverlayAction::StepOver => PausedDebuggerOverlayAction::StepOver,
+                    Compositing_PausedDebuggerOverlayAction::Continue => PausedDebuggerOverlayAction::Continue,
+                }),
+            }),
+            picture_in_picture_controls: overlays.picture_in_picture_controls.map(|state| {
+                PictureInPictureControlsState {
+                    shown: state.shown,
+                    hovered_control: state.hovered_control.map(|control| match control {
+                        Compositing_PictureInPictureControl::BackToTab => PictureInPictureControl::BackToTab,
+                        Compositing_PictureInPictureControl::Close => PictureInPictureControl::Close,
+                    }),
+                }
+            }),
+            compositor_layers: overlays.compositor_layers.map(|state| CompositorLayersOverlayState {
+                font_family: font_family_of(state.font_family),
+                hidden_layer_ids: state.hidden_layer_ids,
+                selected_layer_ids: state.selected_layer_ids,
+                hovered_layer_id: state.hovered_layer_id,
+                raster_count_reset_generation: state.raster_count_reset_generation,
+            }),
+        }
+    }
 }
 
 /// What a new set of overlays changes of the frames.

@@ -51,13 +51,3 @@ TEST_CASE(toolbar_stays_inside_a_small_viewport)
     EXPECT_EQ(geometry.step_over_button.left(), 0);
     EXPECT_EQ(geometry.continue_button.right(), 70);
 }
-
-TEST_CASE(action_values_are_validated)
-{
-    auto step_over = paused_debugger_overlay_action_from_underlying(to_underlying(PausedDebuggerOverlayAction::StepOver));
-    EXPECT(step_over == PausedDebuggerOverlayAction::StepOver);
-
-    auto continue_action = paused_debugger_overlay_action_from_underlying(to_underlying(PausedDebuggerOverlayAction::Continue));
-    EXPECT(continue_action == PausedDebuggerOverlayAction::Continue);
-    EXPECT(!paused_debugger_overlay_action_from_underlying(255).has_value());
-}

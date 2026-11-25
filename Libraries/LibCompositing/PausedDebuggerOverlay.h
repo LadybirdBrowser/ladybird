@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Array.h>
-#include <AK/Optional.h>
 #include <LibCompositing/OverlayGeometry.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -18,18 +17,6 @@ enum class PausedDebuggerOverlayAction : u8 {
     StepOver,
     Continue,
 };
-
-inline Optional<PausedDebuggerOverlayAction> paused_debugger_overlay_action_from_underlying(u8 value)
-{
-    switch (value) {
-    case to_underlying(PausedDebuggerOverlayAction::StepOver):
-        return PausedDebuggerOverlayAction::StepOver;
-    case to_underlying(PausedDebuggerOverlayAction::Continue):
-        return PausedDebuggerOverlayAction::Continue;
-    default:
-        return {};
-    }
-}
 
 struct PausedDebuggerOverlayGeometry {
     Gfx::IntRect toolbar;

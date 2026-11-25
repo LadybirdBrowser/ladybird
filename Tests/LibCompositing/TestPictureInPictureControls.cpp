@@ -36,10 +36,3 @@ TEST_CASE(controls_are_round)
     EXPECT(!overlay_action_at(buttons, { 790, 10 }).has_value());
     EXPECT(!overlay_action_at(buttons, { 400, 22 }).has_value());
 }
-
-TEST_CASE(control_values_are_validated)
-{
-    EXPECT(picture_in_picture_control_from_underlying(to_underlying(PictureInPictureControl::BackToTab)) == PictureInPictureControl::BackToTab);
-    EXPECT(picture_in_picture_control_from_underlying(to_underlying(PictureInPictureControl::Close)) == PictureInPictureControl::Close);
-    EXPECT(!picture_in_picture_control_from_underlying(255).has_value());
-}

@@ -22,7 +22,7 @@ use libcompositing_rust::display_list::window::RecordedWindow;
 use libcompositing_rust::ipc_types::compositor_control_server::messages::{
     AwaitSynchronizedResizeFrame, BeginSynchronizedResize, BindPresentation, BindPresentationResponse,
     CommitSynchronizedResize, CreateRemoteLayer, CreateRemoteLayerResponse, DestroyRemoteLayer,
-    SetContextPresentsFromCpuMemory, SetContextScalesFramesToFit, SetDisplayMetadata, SetRemoteLayerFit,
+    SetContextPresentsFromCpuMemory, SetContextScalesFramesToFit, SetDisplayMetadata, SetRemoteLayerFit, SetUiOverlays,
     SetWindowServerMayShowHighDynamicRange, ShowContextInRemoteLayer,
 };
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
@@ -1190,6 +1190,12 @@ impl compositor_control_server::Stub for MessagesFromControl<'_> {
             message.window_resize_in_progress == WindowResizingInProgress::Yes,
             self.now,
         );
+        Ok(())
+    }
+
+    fn set_ui_overlays(&mut self, message: SetUiOverlays) -> Result<(), Misbehavior> {
+        self.core
+            .set_ui_overlays(message.context_id, message.overlays.into(), self.now);
         Ok(())
     }
 
