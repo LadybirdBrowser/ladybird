@@ -5,97 +5,118 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <AK/Vector.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/ExifReader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
-#include <png.h>
+#include <LibImageDecoders/RustFFI.h>
 
 namespace Gfx {
 
 struct PNGLoadingContext {
     AK_ALLOC_WITH_KMALLOC;
 
-    ~PNGLoadingContext()
-    {
-        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-    }
-
-    png_structp png_ptr { nullptr };
-    png_infop info_ptr { nullptr };
-
-    ReadonlyBytes data;
     IntSize size;
-    u32 frame_count { 0 };
     u32 loop_count { 0 };
     Vector<ImageFrameDescriptor> frame_descriptors;
     Optional<Media::CodingIndependentCodePoints> cicp;
     Optional<ByteBuffer> icc_profile;
     OwnPtr<ExifMetadata> exif_metadata;
 
-    // Working state for read_frames(). These live as members (rather than as stack-locals inside read_frames()) — so
-    // that a libpng longjmp out of the setjmp scope below doesn't bypass C++ destructors, and leak the heap storage
-    // they own. The setjmp handler clears them, so the memory gets released promptly on the error path.
-    Vector<u8*> row_pointers;
-    RefPtr<Bitmap> in_flight_bitmap;
-    RefPtr<Bitmap> output_buffer;
+    RefPtr<Bitmap> pending_bitmap;
+    int pending_frame_duration { 0 };
 
-    void clear_read_frames_working_state()
-    {
-        row_pointers.clear();
-        in_flight_bitmap = nullptr;
-        output_buffer = nullptr;
-    }
-
-    ErrorOr<size_t> read_frames(png_structp, png_infop);
+    ErrorOr<void> read_image_info(ImageDecoders::FFI::PNGImageInfo const&);
     ErrorOr<void> apply_exif_orientation();
 
-    ErrorOr<void> read_all_frames()
+    static bool image_info(void* context, ImageDecoders::FFI::PNGImageInfo const* info)
     {
-        // NOTE: We need to setjmp() here because libpng uses longjmp() for error handling.
-        if (auto error_value = setjmp(png_jmpbuf(png_ptr)); error_value) {
-            if (error_value != EIO || !in_flight_bitmap || output_buffer) {
-                clear_read_frames_working_state();
-                return Error::from_errno(error_value);
-            }
-            frame_descriptors.append({ in_flight_bitmap.release_nonnull(), 0 });
-            frame_count = 1;
-            clear_read_frames_working_state();
-        } else {
-            png_read_update_info(png_ptr, info_ptr);
-            frame_count = TRY(read_frames(png_ptr, info_ptr));
-        }
+        return !static_cast<PNGLoadingContext*>(context)->read_image_info(*info).is_error();
+    }
 
-        if (exif_metadata)
-            TRY(apply_exif_orientation());
-        return {};
+    static bool get_frame_buffer(void* context, u32 duration_ms, u8** buffer, size_t* stride)
+    {
+        auto& self = *static_cast<PNGLoadingContext*>(context);
+        if (self.pending_bitmap)
+            return false;
+
+        auto bitmap_or_error = Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, self.size);
+        if (bitmap_or_error.is_error())
+            return false;
+
+        self.pending_bitmap = bitmap_or_error.release_value();
+        self.pending_frame_duration = AK::clamp_to<int>(duration_ms);
+        *buffer = self.pending_bitmap->scanline_u8(0);
+        *stride = self.pending_bitmap->pitch();
+        return true;
+    }
+
+    static bool frame_decoded(void* context)
+    {
+        auto& self = *static_cast<PNGLoadingContext*>(context);
+        if (!self.pending_bitmap)
+            return false;
+        return !self.frame_descriptors.try_empend(self.pending_bitmap.release_nonnull(), self.pending_frame_duration).is_error();
     }
 };
 
+ErrorOr<void> PNGLoadingContext::read_image_info(ImageDecoders::FFI::PNGImageInfo const& info)
+{
+    if (info.width > static_cast<u32>(NumericLimits<int>::max()) || info.height > static_cast<u32>(NumericLimits<int>::max()))
+        return Error::from_string_literal("PNGImageDecoderPlugin: Image dimensions are too large");
+    size = { static_cast<int>(info.width), static_cast<int>(info.height) };
+    if (Bitmap::size_would_overflow(BitmapFormat::BGRA8888, size))
+        return Error::from_string_literal("PNGImageDecoderPlugin: Image dimensions are too large");
+
+    loop_count = info.loop_count;
+
+    if (info.has_cicp) {
+        cicp = Media::CodingIndependentCodePoints {
+            Media::ColorPrimaries { info.cicp_color_primaries },
+            Media::TransferCharacteristics { info.cicp_transfer_function },
+            Media::MatrixCoefficients { info.cicp_matrix_coefficients },
+            Media::VideoFullRangeFlag { info.cicp_video_full_range_flag },
+        };
+    } else if (info.icc_profile) {
+        icc_profile = TRY(ByteBuffer::copy(info.icc_profile, info.icc_profile_len));
+    }
+
+    if (info.exif)
+        exif_metadata = TRY(TIFF::read_exif_metadata({ info.exif, info.exif_len }));
+
+    return {};
+}
+
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(ReadonlyBytes bytes)
 {
-    auto decoder = adopt_own(*new PNGImageDecoderPlugin(bytes));
-    TRY(decoder->initialize());
+    auto decoder = adopt_own(*new PNGImageDecoderPlugin);
+    auto& context = *decoder->m_context;
 
-    auto result = decoder->m_context->read_all_frames();
-    if (result.is_error()) {
-        // NOTE: If we didn't fail in initialize(), that means we have size information.
-        //       We can create a single-frame bitmap with that size and return it.
+    auto result = ImageDecoders::FFI::png_rust_decode(bytes.data(), bytes.size(), &context, PNGLoadingContext::image_info, PNGLoadingContext::get_frame_buffer, PNGLoadingContext::frame_decoded);
+    context.pending_bitmap = nullptr;
+
+    if (result == ImageDecoders::FFI::PNGDecodeResult::InvalidHeader)
+        return Error::from_string_literal("PNGImageDecoderPlugin: Unable to read the image header");
+
+    if (result == ImageDecoders::FFI::PNGDecodeResult::DecodingFailed) {
+        // NOTE: The header was read, so we know the size. We create a single-frame bitmap with that size and return it.
         //       This is weird, but kinda matches the behavior of other browsers.
-        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
-        decoder->m_context->frame_descriptors.append({ move(bitmap), 0 });
-        decoder->m_context->frame_count = 1;
+        context.frame_descriptors.clear();
+        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Premultiplied, context.size));
+        context.frame_descriptors.append({ move(bitmap), 0 });
         return decoder;
     }
 
+    if (context.exif_metadata)
+        TRY(context.apply_exif_orientation());
     return decoder;
 }
 
-PNGImageDecoderPlugin::PNGImageDecoderPlugin(ReadonlyBytes data)
+PNGImageDecoderPlugin::PNGImageDecoderPlugin()
     : m_context(adopt_own(*new PNGLoadingContext))
 {
-    m_context->data = data;
 }
 
 size_t PNGImageDecoderPlugin::first_animated_frame_index()
@@ -110,7 +131,7 @@ IntSize PNGImageDecoderPlugin::size()
 
 bool PNGImageDecoderPlugin::is_animated()
 {
-    return m_context->frame_count > 1;
+    return m_context->frame_descriptors.size() > 1;
 }
 
 size_t PNGImageDecoderPlugin::loop_count()
@@ -120,7 +141,7 @@ size_t PNGImageDecoderPlugin::loop_count()
 
 size_t PNGImageDecoderPlugin::frame_count()
 {
-    return m_context->frame_count;
+    return m_context->frame_descriptors.size();
 }
 
 int PNGImageDecoderPlugin::frame_duration(size_t index)
@@ -150,104 +171,6 @@ ErrorOr<Optional<ReadonlyBytes>> PNGImageDecoderPlugin::icc_data()
     return OptionalNone {};
 }
 
-static void log_png_error(png_structp png_ptr, char const* error_message)
-{
-    dbgln("libpng error: {}", error_message);
-    png_longjmp(png_ptr, 1);
-}
-
-static void log_png_warning(png_structp, char const* warning_message)
-{
-    dbgln("libpng warning: {}", warning_message);
-}
-
-ErrorOr<void> PNGImageDecoderPlugin::initialize()
-{
-    m_context->png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    if (!m_context->png_ptr)
-        return Error::from_string_view("Failed to allocate read struct"sv);
-
-    m_context->info_ptr = png_create_info_struct(m_context->png_ptr);
-    if (!m_context->info_ptr) {
-        return Error::from_string_view("Failed to allocate info struct"sv);
-    }
-
-    if (auto error_value = setjmp(png_jmpbuf(m_context->png_ptr)); error_value) {
-        return Error::from_errno(error_value);
-    }
-
-    png_set_read_fn(m_context->png_ptr, &m_context->data, [](png_structp png_ptr, png_bytep data, png_size_t length) {
-        auto* read_data = reinterpret_cast<ReadonlyBytes*>(png_get_io_ptr(png_ptr));
-        if (read_data->size() < length)
-            png_longjmp(png_ptr, EIO);
-        memcpy(data, read_data->data(), length);
-        *read_data = read_data->slice(length);
-        // Let libpng inflate the available bytes even when the file ends inside an IDAT chunk.
-        if (!read_data->is_empty() && read_data->size() < png_get_compression_buffer_size(png_ptr))
-            png_set_compression_buffer_size(png_ptr, read_data->size());
-    });
-
-    png_set_error_fn(m_context->png_ptr, nullptr, log_png_error, log_png_warning);
-
-    png_read_info(m_context->png_ptr, m_context->info_ptr);
-
-    u32 width = 0;
-    u32 height = 0;
-    int bit_depth = 0;
-    int color_type = 0;
-    int interlace_type = 0;
-    png_get_IHDR(m_context->png_ptr, m_context->info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, nullptr, nullptr);
-    m_context->size = { static_cast<int>(width), static_cast<int>(height) };
-
-    if (color_type == PNG_COLOR_TYPE_PALETTE)
-        png_set_palette_to_rgb(m_context->png_ptr);
-
-    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-        png_set_expand_gray_1_2_4_to_8(m_context->png_ptr);
-
-    if (png_get_valid(m_context->png_ptr, m_context->info_ptr, PNG_INFO_tRNS))
-        png_set_tRNS_to_alpha(m_context->png_ptr);
-
-    if (bit_depth == 16)
-        png_set_strip_16(m_context->png_ptr);
-
-    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-        png_set_gray_to_rgb(m_context->png_ptr);
-
-    if (interlace_type != PNG_INTERLACE_NONE)
-        png_set_interlace_handling(m_context->png_ptr);
-
-    png_set_filler(m_context->png_ptr, 0xFF, PNG_FILLER_AFTER);
-    png_set_bgr(m_context->png_ptr);
-
-    png_byte color_primaries { 0 };
-    png_byte transfer_function { 0 };
-    png_byte matrix_coefficients { 0 };
-    png_byte video_full_range_flag { 0 };
-    if (png_get_cICP(m_context->png_ptr, m_context->info_ptr, &color_primaries, &transfer_function, &matrix_coefficients, &video_full_range_flag)) {
-        Media::ColorPrimaries cp { color_primaries };
-        Media::TransferCharacteristics tc { transfer_function };
-        Media::MatrixCoefficients mc { matrix_coefficients };
-        Media::VideoFullRangeFlag rf { video_full_range_flag };
-        m_context->cicp = Media::CodingIndependentCodePoints { cp, tc, mc, rf };
-    } else {
-        char* profile_name = nullptr;
-        int compression_type = 0;
-        u8* profile_data = nullptr;
-        u32 profile_len = 0;
-        if (png_get_iCCP(m_context->png_ptr, m_context->info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
-            m_context->icc_profile = TRY(ByteBuffer::copy(profile_data, profile_len));
-    }
-
-    u8* exif_data = nullptr;
-    u32 exif_length = 0;
-    int const num_exif_chunks = png_get_eXIf_1(m_context->png_ptr, m_context->info_ptr, &exif_length, &exif_data);
-    if (num_exif_chunks > 0)
-        m_context->exif_metadata = TRY(TIFF::read_exif_metadata({ exif_data, exif_length }));
-
-    return {};
-}
-
 ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
 {
     auto orientation = exif_metadata->orientation().value_or(TIFF::Orientation::Default);
@@ -273,207 +196,11 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
     return {};
 }
 
-// The APNG output buffer and its frames are BGRA8888 with unpremultiplied alpha. These helpers take the same steps as
-// Skia takes when it draws such a bitmap onto such a buffer: premultiply both, blend, and unpremultiply.
-
-template<typename Callback>
-static void for_each_frame_pixel(Bitmap& output_buffer, IntPoint location, Bitmap const& source, IntRect source_rect, Callback callback)
-{
-    auto destination_rect = IntRect { location, source_rect.size() }.intersected(output_buffer.rect());
-    auto source_offset = source_rect.location() - location;
-    for (int y = destination_rect.top(); y < destination_rect.bottom(); ++y) {
-        auto* destination_pixel = output_buffer.scanline_u8(y) + destination_rect.left() * 4;
-        auto const* source_pixel = source.scanline_u8(y + source_offset.y()) + (destination_rect.left() + source_offset.x()) * 4;
-        for (int x = 0; x < destination_rect.width(); ++x, destination_pixel += 4, source_pixel += 4)
-            callback(destination_pixel, source_pixel);
-    }
-}
-
-// The source pixels replace the output buffer pixels. A pixel with no alpha also loses its color.
-static void copy_frame_pixels(Bitmap& output_buffer, IntPoint location, Bitmap const& source, IntRect source_rect)
-{
-    for_each_frame_pixel(output_buffer, location, source, source_rect, [](u8* destination, u8 const* source) {
-        __builtin_memcpy(destination, source, 4);
-        if (source[3] == 0)
-            __builtin_memset(destination, 0, 3);
-    });
-}
-
-// The source pixels go over the output buffer pixels with a simple OVER operation.
-static void blend_frame_pixels(Bitmap& output_buffer, IntPoint location, Bitmap const& source)
-{
-    for_each_frame_pixel(output_buffer, location, source, source.rect(), [](u8* destination, u8 const* source) {
-        auto source_alpha = source[3];
-        if (source_alpha == 255) {
-            __builtin_memcpy(destination, source, 4);
-            return;
-        }
-        if (source_alpha == 0) {
-            if (destination[3] == 0)
-                __builtin_memset(destination, 0, 3);
-            return;
-        }
-        constexpr float k = 1 / 255.0f;
-        float sa = source_alpha * k;
-        float da = destination[3] * k;
-        float result_alpha = da * (1.0f - sa) + sa;
-        float scale = 1.0f / result_alpha;
-        for (int channel = 0; channel < 3; ++channel) {
-            float sc = (source[channel] * k) * sa;
-            float dc = (destination[channel] * k) * da;
-            float result = (dc * (1.0f - sa) + sc) * scale;
-            destination[channel] = static_cast<u8>(__builtin_rintf(clamp(result * 255.0f, 0.0f, 255.0f)));
-        }
-        destination[3] = static_cast<u8>(__builtin_rintf(clamp(result_alpha * 255.0f, 0.0f, 255.0f)));
-    });
-}
-
-static void clear_frame_pixels(Bitmap& output_buffer, IntRect rect)
-{
-    rect.intersect(output_buffer.rect());
-    for (int y = rect.top(); y < rect.bottom(); ++y)
-        __builtin_memset(output_buffer.scanline_u8(y) + rect.left() * 4, 0, rect.width() * 4);
-}
-
-ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
-{
-    // NB: Only a frame that is handed out as it was decoded needs to be shareable. Animation frames are composed into
-    //     the output buffer first.
-    enum class DecodedFrameUse : u8 {
-        Output,
-        Composition,
-    };
-    auto decode_frame = [&](IntSize frame_size, DecodedFrameUse use) -> ErrorOr<NonnullRefPtr<Bitmap>> {
-        // Allocate into the in_flight_bitmap member — so the bitmap survives a potential libpng longjmp out of
-        // png_read_image() below.
-        if (use == DecodedFrameUse::Output)
-            in_flight_bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
-        else
-            in_flight_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
-
-        // A partial static frame keeps the pixels that libpng never wrote transparent, including between interlace passes.
-        if (!output_buffer)
-            __builtin_memset(in_flight_bitmap->begin(), 0, in_flight_bitmap->size_in_bytes());
-
-        row_pointers.resize_and_keep_capacity(frame_size.height());
-        for (auto i = 0; i < frame_size.height(); ++i)
-            row_pointers[i] = in_flight_bitmap->scanline_u8(i);
-
-        png_read_image(png_ptr, row_pointers.data());
-        // Past the longjmp window; hand the bitmap to the caller, and clear the member.
-        return in_flight_bitmap.release_nonnull();
-    };
-
-    if (png_get_acTL(png_ptr, info_ptr, &frame_count, &loop_count)) {
-        // acTL chunk present: This is an APNG.
-        png_set_acTL(png_ptr, info_ptr, frame_count, loop_count);
-
-        // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
-        output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
-        size_t animation_frame_count = 0;
-
-        for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
-            png_read_frame_head(png_ptr, info_ptr);
-            u32 width = 0;
-            u32 height = 0;
-            u32 x = 0;
-            u32 y = 0;
-            u16 delay_num = 0;
-            u16 delay_den = 0;
-            u8 dispose_op = PNG_DISPOSE_OP_NONE;
-            u8 blend_op = PNG_BLEND_OP_SOURCE;
-
-            auto duration_ms = [&]() -> int {
-                if (delay_num == 0)
-                    return 1;
-                u32 const denominator = delay_den != 0 ? static_cast<u32>(delay_den) : 100u;
-                auto unsigned_duration_ms = (delay_num * 1000) / denominator;
-                if (unsigned_duration_ms > INT_MAX)
-                    return INT_MAX;
-                return static_cast<int>(unsigned_duration_ms);
-            };
-
-            bool has_fcTL = png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL);
-            if (has_fcTL) {
-                png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
-            } else {
-                width = png_get_image_width(png_ptr, info_ptr);
-                height = png_get_image_height(png_ptr, info_ptr);
-            }
-            auto frame_rect = IntRect { static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height) };
-
-            auto decoded_frame_bitmap = TRY(decode_frame({ width, height }, DecodedFrameUse::Composition));
-
-            if (!has_fcTL)
-                continue;
-
-            RefPtr<Bitmap> prev_output_buffer;
-            if (dispose_op == PNG_DISPOSE_OP_PREVIOUS) // Only actually clone if it's necessary
-                prev_output_buffer = TRY(output_buffer->clone());
-
-            switch (blend_op) {
-            case PNG_BLEND_OP_SOURCE:
-                // All color components of the frame, including alpha, overwrite the current contents of the frame's output buffer region.
-                copy_frame_pixels(*output_buffer, frame_rect.location(), *decoded_frame_bitmap, decoded_frame_bitmap->rect());
-                break;
-            case PNG_BLEND_OP_OVER:
-                // The frame should be composited onto the output buffer based on its alpha, using a simple OVER operation as described in the "Alpha Channel Processing" section of the PNG specification.
-                blend_frame_pixels(*output_buffer, frame_rect.location(), *decoded_frame_bitmap);
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-
-            animation_frame_count++;
-            frame_descriptors.append({ TRY(output_buffer->to_bitmap_shareable_with_gpu_access()), duration_ms() });
-
-            switch (dispose_op) {
-            case PNG_DISPOSE_OP_NONE:
-                // No disposal is done on this frame before rendering the next; the contents of the output buffer are left as is.
-                break;
-            case PNG_DISPOSE_OP_BACKGROUND:
-                // The frame's region of the output buffer is to be cleared to fully transparent black before rendering the next frame.
-                clear_frame_pixels(*output_buffer, frame_rect);
-                break;
-            case PNG_DISPOSE_OP_PREVIOUS:
-                // The frame's region of the output buffer is to be reverted to the previous contents before rendering the next frame.
-                copy_frame_pixels(*output_buffer, frame_rect.location(), *prev_output_buffer, frame_rect);
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
-
-        frame_count = animation_frame_count;
-
-        // If we didn't find any valid animation frames with fcTL chunks, fall back to using the base IDAT data as a single frame.
-        if (frame_count == 0) {
-            auto frame_bitmap = TRY(decode_frame(size, DecodedFrameUse::Output));
-            frame_descriptors.append({ move(frame_bitmap), 0 });
-            frame_count = 1;
-        }
-    } else {
-        // This is a single-frame PNG.
-        frame_count = 1;
-        loop_count = 0;
-
-        auto decoded_frame_bitmap = TRY(decode_frame(size, DecodedFrameUse::Output));
-        frame_descriptors.append({ move(decoded_frame_bitmap), 0 });
-    }
-
-    // Clear the working state — so it doesn't outlive read_frames() on the success path.
-    clear_read_frames_working_state();
-    return frame_count;
-}
-
 PNGImageDecoderPlugin::~PNGImageDecoderPlugin() = default;
 
 bool PNGImageDecoderPlugin::sniff(ReadonlyBytes data)
 {
-    auto constexpr png_signature_size_in_bytes = 8;
-    if (data.size() < png_signature_size_in_bytes)
-        return false;
-    return png_sig_cmp(data.data(), 0, png_signature_size_in_bytes) == 0;
+    return ImageDecoders::FFI::png_rust_sniff(data.data(), data.size());
 }
 
 Optional<Metadata const&> PNGImageDecoderPlugin::metadata()

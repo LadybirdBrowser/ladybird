@@ -22,6 +22,13 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/adler2/adler2-2.0.1.crate",
+        "sha256": "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+        "dest": "cargo/vendor/adler2-2.0.1"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/aead/aead-0.5.2.crate",
         "sha256": "d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0",
         "dest": "cargo/vendor/aead-0.5.2"
@@ -533,6 +540,13 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/crc32fast/crc32fast-1.5.5.crate",
+        "sha256": "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64",
+        "dest": "cargo/vendor/crc32fast-1.5.5"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/crossbeam-deque/crossbeam-deque-0.8.8.crate",
         "sha256": "622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a",
         "dest": "cargo/vendor/crossbeam-deque-0.8.8"
@@ -753,6 +767,13 @@
         "url": "https://static.crates.io/crates/fastrand/fastrand-2.5.0.crate",
         "sha256": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
         "dest": "cargo/vendor/fastrand-2.5.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/fdeflate/fdeflate-0.3.7.crate",
+        "sha256": "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c",
+        "dest": "cargo/vendor/fdeflate-0.3.7"
     },
     {
         "type": "archive",
@@ -1352,6 +1373,20 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/miniz_oxide/miniz_oxide-0.8.9.crate",
+        "sha256": "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316",
+        "dest": "cargo/vendor/miniz_oxide-0.8.9"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/miniz_oxide/miniz_oxide-0.9.1.crate",
+        "sha256": "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c",
+        "dest": "cargo/vendor/miniz_oxide-0.9.1"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/mio/mio-1.2.4.crate",
         "sha256": "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee",
         "dest": "cargo/vendor/mio-1.2.4"
@@ -1586,6 +1621,13 @@
         "url": "https://static.crates.io/crates/pkg-config/pkg-config-0.3.34.crate",
         "sha256": "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548",
         "dest": "cargo/vendor/pkg-config-0.3.34"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/png/png-0.18.1.crate",
+        "sha256": "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61",
+        "dest": "cargo/vendor/png-0.18.1"
     },
     {
         "type": "archive",
@@ -2083,6 +2125,13 @@
         "url": "https://static.crates.io/crates/signature/signature-3.0.0.crate",
         "sha256": "28d567dcbaf0049cb8ac2608a76cd95ff9e4412e1899d389ee400918ca7537f5",
         "dest": "cargo/vendor/signature-3.0.0"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/simd-adler32/simd-adler32-0.3.10.crate",
+        "sha256": "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea",
+        "dest": "cargo/vendor/simd-adler32-0.3.10"
     },
     {
         "type": "archive",
@@ -2971,6 +3020,7 @@
         "commands": [
             "echo '{\"files\": {}, \"package\": \"7a4c8558f27608dec74695c866f9a8ef897ec7a77cb826f8a5baf0b8ba461d2a\"}' > cargo/vendor/adblock-0.13.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a93b8a41dbe230ad5087cc721f8d41611de654542180586b315d9f4cf6b72bef\"}' > cargo/vendor/addr-0.15.6/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa\"}' > cargo/vendor/adler2-2.0.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0\"}' > cargo/vendor/aead-0.5.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0\"}' > cargo/vendor/aes-0.8.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"831010a0f742e1209b3bcea8fab6a8e149051ba6099432c8cb2cc117dec3ead1\"}' > cargo/vendor/aes-gcm-0.10.3/.cargo-checksum.json",
@@ -3044,6 +3094,7 @@
             "echo '{\"files\": {}, \"package\": \"5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566\"}' > cargo/vendor/cpufeatures-0.3.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d\"}' > cargo/vendor/crc-3.4.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853\"}' > cargo/vendor/crc-catalog-2.5.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64\"}' > cargo/vendor/crc32fast-1.5.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a\"}' > cargo/vendor/crossbeam-deque-0.8.8/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"dc74980687109a3b14c72fd458107bf0baa1da1a1a805e178d15501ba9b86d9d\"}' > cargo/vendor/crossbeam-epoch-0.9.21/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6\"}' > cargo/vendor/crossbeam-utils-0.8.23/.cargo-checksum.json",
@@ -3076,6 +3127,7 @@
             "echo '{\"files\": {}, \"package\": \"39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb\"}' > cargo/vendor/errno-0.3.14/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"07944644247de4696c3e847a61d939928474563df1d6fc3cc5583a89008c60f7\"}' > cargo/vendor/fARM64-0.0.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223\"}' > cargo/vendor/fastrand-2.5.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c\"}' > cargo/vendor/fdeflate-0.3.7/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a1f686ab92a9fb0eaf188f6c6c87b89490baa6fdb0db4544ba4dc47f7942489f\"}' > cargo/vendor/ff-0.14.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d\"}' > cargo/vendor/fiat-crypto-0.2.9/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24\"}' > cargo/vendor/fiat-crypto-0.3.0/.cargo-checksum.json",
@@ -3161,6 +3213,8 @@
             "echo '{\"files\": {}, \"package\": \"f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79\"}' > cargo/vendor/memchr-2.8.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4\"}' > cargo/vendor/memoffset-0.7.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a\"}' > cargo/vendor/minimal-lexical-0.2.1/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316\"}' > cargo/vendor/miniz_oxide-0.8.9/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c\"}' > cargo/vendor/miniz_oxide-0.9.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee\"}' > cargo/vendor/mio-1.2.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d\"}' > cargo/vendor/multiversion_no_op-1.0.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"5e17401f259eba956ca16491461b6e8f72913a0a114e39736ce404410f915a0c\"}' > cargo/vendor/munge-0.4.7/.cargo-checksum.json",
@@ -3195,6 +3249,7 @@
             "echo '{\"files\": {}, \"package\": \"13bee6c73da26345c729282832b60b0363cf3dd9f4bfd81d8551b7a1c889a113\"}' > cargo/vendor/pin-utils-0.1.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"451913da69c775a56034ea8d9003d27ee8948e12443eae7c038ba100a4f21cb7\"}' > cargo/vendor/pkcs8-0.11.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548\"}' > cargo/vendor/pkg-config-0.3.34/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61\"}' > cargo/vendor/png-0.18.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"8159bd90725d2df49889a078b54f4f79e87f1f8a8444194cdca81d38f5393abf\"}' > cargo/vendor/poly1305-0.8.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"9d1fe60d06143b2430aa532c94cfe9e29783047f06c0d7fd359a9a51b729fa25\"}' > cargo/vendor/polyval-0.6.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85\"}' > cargo/vendor/portable-atomic-1.15.0/.cargo-checksum.json",
@@ -3266,6 +3321,7 @@
             "echo '{\"files\": {}, \"package\": \"f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba\"}' > cargo/vendor/shlex-2.0.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b\"}' > cargo/vendor/signal-hook-registry-1.4.8/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"28d567dcbaf0049cb8ac2608a76cd95ff9e4412e1899d389ee400918ca7537f5\"}' > cargo/vendor/signature-3.0.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea\"}' > cargo/vendor/simd-adler32-0.3.10/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e\"}' > cargo/vendor/simdutf8-0.1.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5\"}' > cargo/vendor/slab-0.4.12/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46\"}' > cargo/vendor/smallvec-1.16.5/.cargo-checksum.json",

@@ -32,9 +32,7 @@ public:
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
 private:
-    explicit PNGImageDecoderPlugin(ReadonlyBytes);
-
-    ErrorOr<void> initialize();
+    PNGImageDecoderPlugin();
 
     OwnPtr<PNGLoadingContext> m_context;
 };
