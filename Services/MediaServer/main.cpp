@@ -16,6 +16,7 @@
 #include <LibMain/Main.h>
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/RemoteVideoDecoder.h>
+#include <LibMediaCodecs/FFmpeg/BundledFFmpeg.h>
 #include <LibMediaCodecs/FFmpeg/MallocTuning.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/Sandbox.h>
@@ -61,8 +62,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
+    // FFmpeg's libraries load before the sandbox would keep them from reading their files, and the system library's
+    // dependencies make syscalls the sandbox will not allow.
+    TRY(Media::FFmpeg::load_bundled_ffmpeg());
 #if defined(AK_OS_LINUX)
-    // The system library's dependencies make syscalls the sandbox will not allow, so it loads first.
     Media::FFmpeg::SystemFFmpeg::load();
 #endif
 

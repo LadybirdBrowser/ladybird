@@ -25,6 +25,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
 #include <LibMediaClient/Client.h>
+#include <LibMediaCodecs/FFmpeg/BundledFFmpeg.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/TimeZone.h>
@@ -297,6 +298,10 @@ NEVER_INLINE static ErrorOr<ProcessState> initialize_process(Main::Arguments arg
     if (log_all_js_exceptions) {
         JS::set_log_all_js_exceptions(true);
     }
+
+    // WebRTC and Web Audio encode and convert audio through FFmpeg, whose libraries load before the sandbox would keep
+    // them from reading their files.
+    TRY(Media::FFmpeg::load_bundled_ffmpeg());
 
     if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(mach_server_name));

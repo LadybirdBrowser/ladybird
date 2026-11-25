@@ -110,7 +110,10 @@ target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegChannelLayout.cpp
 )
 
-if (NOT ANDROID)
+if (LINUX AND NOT ANDROID)
+    # LibMediaCodecs loads the bundled FFmpeg, and every call goes through its functions.
+    ladybird_use_bundled_ffmpeg_headers(LibMedia)
+elseif (NOT ANDROID)
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::LIBSWRESAMPLE)
 else()
     target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})

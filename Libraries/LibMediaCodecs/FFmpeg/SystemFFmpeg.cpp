@@ -53,7 +53,7 @@ static DecoderErrorOr<void> verify_library_layout(FFmpegFunctions const& functio
 static void resolve_codec_ids(FFmpegFunctions& functions)
 {
     for (auto codec_id : all_codec_ids) {
-        auto const* bundled_descriptor = avcodec_descriptor_get(ffmpeg_codec_id_from_media_codec_id(codec_id));
+        auto const* bundled_descriptor = FFmpegFunctions::bundled().avcodec_descriptor_get(ffmpeg_codec_id_from_media_codec_id(codec_id));
         VERIFY(bundled_descriptor != nullptr);
         auto const* descriptor = functions.avcodec_descriptor_get_by_name(bundled_descriptor->name);
         functions.codec_ids[to_underlying(codec_id)] = descriptor != nullptr ? descriptor->id : AV_CODEC_ID_NONE;
