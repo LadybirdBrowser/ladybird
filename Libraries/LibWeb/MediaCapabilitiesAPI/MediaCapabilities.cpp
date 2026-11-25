@@ -98,16 +98,14 @@ static bool check_mime_type_validity(MimeSniff::MimeType const& mime_type, Media
 
         //     2. If the value of mimeType.parameters["codecs"] does not describe a single media codec, return
         //        false.
-        auto codec_strings = codecs->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
-        if (codec_strings.size() != 1)
+        auto codec_string = codecs->value.bytes_as_string_view().trim_whitespace();
+        if (codec_string.is_empty())
             return false;
-        auto codec = Media::parse_codec_parameters_string(codec_strings[0].trim_whitespace());
-        if (!codec.has_value())
+        auto codec_string_separators = codec_string.count(',');
+        if (codec_string_separators > 0)
             return false;
-
-        // AD-HOC: The algorithm takes media but consults it only in step 1, so nothing rejects a codec of the
-        //         wrong kind. See https://github.com/w3c/media-capabilities/issues/261.
-        if (Media::track_type_from_codec_id(codec->codec_id()) != media)
+        auto codec = Media::parse_codec_parameters_string(codec_string);
+        if (codec.has_value() && Media::track_type_from_codec_id(codec->codec_id()) != media)
             return false;
     }
 
@@ -306,7 +304,7 @@ static NonnullRefPtr<DecoderCapabilitiesPromise> request_media_source_decoding_c
 // AD-HOC: The spec answers only supported or unsupported, leaving steps 6 and 7 of "Create a
 //         MediaCapabilitiesDecodingInfo" to determine smoothness and power efficiency by unspecified means.
 //         LibMedia answers all three from one query, so the capabilities are returned here instead.
-static NonnullRefPtr<DecoderCapabilitiesPromise> check_mime_type_support(Utf16View content_type, MediaDecodingType decoding_type)
+static NonnullRefPtr<DecoderCapabilitiesPromise> check_mime_type_support(Utf16View content_type, Media::TrackType media, MediaDecodingType decoding_type)
 {
     // 1. If encodingOrDecodingType is webrtc and mimeType is not one that is used with RTP [...], return
     //    unsupported.
@@ -324,6 +322,17 @@ static NonnullRefPtr<DecoderCapabilitiesPromise> check_mime_type_support(Utf16Vi
     auto mime_type = MimeSniff::MimeType::parse(content_type);
     if (!mime_type.has_value())
         return unsupported();
+
+    // AD-HOC: The algorithm takes media but consults it only in step 1, so nothing rejects a codec of the
+    //         wrong kind. See https://github.com/w3c/media-capabilities/issues/261.
+    if (auto codecs = mime_type->parameters().get("codecs"sv); codecs.has_value()) {
+        auto codec = Media::parse_codec_parameters_string(codecs->bytes_as_string_view().trim_whitespace());
+        if (!codec.has_value())
+            return unsupported();
+        if (Media::track_type_from_codec_id(codec->codec_id()) != media)
+            return unsupported();
+    }
+
     if (decoding_type == MediaDecodingType::MediaSource)
         return request_media_source_decoding_capabilities(*mime_type);
     return request_file_decoding_capabilities(*mime_type);
@@ -395,7 +404,7 @@ NonnullRefPtr<DecoderCapabilitiesPromise> request_media_decoding_capabilities(Me
         // 3. If video is present in configuration, [...] set videoSupported to the result of running check MIME
         //   type support with videoMimeType, configuration's type, colorGamut, and transferFunction.
         if (configuration.video.has_value())
-            video_capabilities = check_mime_type_support(configuration.video->content_type, configuration.type);
+            video_capabilities = check_mime_type_support(configuration.video->content_type, Media::TrackType::Video, configuration.type);
 
         // 4. Let audioSupported be unknown.
         auto audio_capabilities = unconstrained();
@@ -403,7 +412,7 @@ NonnullRefPtr<DecoderCapabilitiesPromise> request_media_decoding_capabilities(Me
         // 5. If audio is present in configuration, [...] set audioSupported to the result of running check MIME type
         //    support with audioMimeType and configuration's type.
         if (configuration.audio.has_value())
-            audio_capabilities = check_mime_type_support(configuration.audio->content_type, configuration.type);
+            audio_capabilities = check_mime_type_support(configuration.audio->content_type, Media::TrackType::Audio, configuration.type);
 
         // 6. If videoSupported or audioSupported is unsupported, set supported to false, smooth to false,
         //    powerEfficient to false, and return info.
