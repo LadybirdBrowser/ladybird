@@ -1,0 +1,18 @@
+While a table’s rows are sized, Ladybird measures the contents of a
+cell with a length height as if their percentage heights were auto,
+then resolves them against the cell’s final height. A scrollable child
+counts as zero, and a replaced child resolves against the cell’s
+specified height throughout. Chrome 158 and WebKit 26.5 give the same
+results in all twelve cases of the new test, run with engine-compare;
+Firefox 151 instead resolves against the specified height (0px, 50px)
+everywhere, and caps a max-height at it.
+
+In Blink, ComputeMinimumRowBlockSize() in table_layout_utils.cc lays
+cells out with an indefinite initial block size and marks them
+restricted-block-size, and CalculateReplacedChildPercentageSize() in
+length_utils.cc keeps a replaced child on the cell’s specified height.
+WebKit’s RenderBox::computePercentageLogicalHeightGeneric() skips a
+cell’s specified height as a basis for non-replaced descendants until
+the cell is stretched. Gecko’s ReflowInput::InitConstraints() uses the
+cell’s specified height as the basis, which matches the Firefox
+results above. (This paragraph is from reading their sources.)
