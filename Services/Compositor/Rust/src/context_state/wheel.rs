@@ -525,6 +525,7 @@ impl ContextState {
             WheelStepDispatch::DispatchedAndNotCanceled
         };
         if is_first_step_of_gesture && wheel_step_dispatch == WheelStepDispatch::NotYetDispatched {
+            self.prepare_wheel_hit_test_targets();
             let initial_scroll_target = self.async_scroll_tree.hit_test_scroll_node_for_wheel(
                 self.scene.visual_context_tree_for_compositing(),
                 &self.scroll_state_snapshot,
@@ -614,6 +615,7 @@ impl ContextState {
 
     /// Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
     pub fn page_may_cancel_pinch_at(&mut self, position: FloatPoint) -> bool {
+        self.prepare_wheel_hit_test_targets();
         if !self.has_async_scrolling_state || !self.wheel_gesture_routing.admits_async_pinch() {
             return true;
         }
@@ -629,6 +631,7 @@ impl ContextState {
     }
 
     pub fn nested_context_for_wheel_at(&mut self, position: FloatPoint) -> Option<NestedContextHit> {
+        self.prepare_wheel_hit_test_targets();
         if !self.has_async_scrolling_state {
             return None;
         }
@@ -686,6 +689,7 @@ impl ContextState {
         admission: WheelStepAdmission,
         scroll_chain: &[AsyncScrollNodeStableID],
     ) -> FirstWheelStepRoute {
+        self.prepare_wheel_hit_test_targets();
         use FirstWheelStepRouteKind as Kind;
         let route = |kind, decision, scroll_node_index, scroller, nested_context_hit| FirstWheelStepRoute {
             kind,

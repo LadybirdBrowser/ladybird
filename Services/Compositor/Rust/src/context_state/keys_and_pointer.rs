@@ -325,6 +325,7 @@ impl ContextState {
     }
 
     fn scrollbar_under_pointer(&mut self, position: FloatPoint) -> Option<usize> {
+        self.prepare_wheel_hit_test_targets();
         self.scrollbar_controller.hit_test_scrollbar(
             &self.async_scroll_tree,
             self.scene.visual_context_tree_for_compositing(),
@@ -336,6 +337,7 @@ impl ContextState {
     // A nested context only takes the pointer where no scrollbar comes after the nested context's content in paint order.
     // The scrollbars of the viewport come after all else. A scrollbar that has faded out takes no pointer.
     fn nested_context_taking_mouse_event_at(&mut self, position: FloatPoint) -> Option<NestedContextHit> {
+        self.prepare_wheel_hit_test_targets();
         if !self.has_async_scrolling_state {
             return None;
         }
@@ -405,6 +407,7 @@ impl ContextState {
                 if let Some(hit) = self.nested_context_taking_mouse_event_at(position) {
                     return hand_to_nested_context(self, hit);
                 }
+                self.prepare_wheel_hit_test_targets();
                 let Some(drag) = self.scrollbar_controller.begin_drag(
                     &self.async_scroll_tree,
                     self.scene.visual_context_tree_for_compositing(),

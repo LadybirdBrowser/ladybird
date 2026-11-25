@@ -33,6 +33,7 @@ impl ContextState {
         nested_context_regions: NestedContextRegions,
         scroll_chain: &[AsyncScrollNodeStableID],
     ) -> WheelHitTestResult {
+        self.prepare_wheel_hit_test_targets();
         let in_flight_destination_for = |state: &Self, stable_node_id| {
             if wheel_delta_precision == WheelDeltaPrecision::Discrete {
                 return state.in_flight_wheel_destination(stable_node_id);
@@ -441,7 +442,7 @@ impl ContextState {
         );
         self.note_user_input_scrolled(node.stable_node_id);
         assert!(new_scroll_offset.is_some());
-        self.rebuild_wheel_hit_test_targets();
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
         let new_scroll_offset = new_scroll_offset.unwrap();
         self.record_scroll_offset_report(node.stable_node_id, new_scroll_offset);
         if !node.is_viewport {
@@ -450,6 +451,12 @@ impl ContextState {
         self.async_scrolling_viewport_rect.x = new_scroll_offset.x as i32;
         self.async_scrolling_viewport_rect.y = new_scroll_offset.y as i32;
         Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect))
+    }
+
+    pub(super) fn prepare_wheel_hit_test_targets(&mut self) {
+        if self.async_scroll_tree.cached_viewport_rects_are_stale() && self.scene.display_list().is_some() {
+            self.rebuild_wheel_hit_test_targets();
+        }
     }
 
     pub(super) fn rebuild_wheel_hit_test_targets(&mut self) {
