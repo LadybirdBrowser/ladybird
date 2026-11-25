@@ -215,21 +215,7 @@ impl AudioContext {
             // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
             // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
             //    rendering.
-            let factory = unsafe { web_audio_output_factory_create(context.context.global_event_target().as_ptr()) };
-            let renderer = RealtimeAudioRenderer::new(
-                Arc::clone(context.context.control_message_queue()),
-                context.context.destination_value().parent().node_id(),
-                context.context.sample_rate_value(),
-                BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-                SharedCppObject {
-                    pointer: factory.pointer,
-                    retain: factory.retain,
-                    release: factory.release,
-                },
-            );
-            *context.renderer.borrow_mut() = Some(Arc::clone(&renderer));
-            context.set_renderer_client(cx.vm());
-            renderer.start_rendering();
+            context.start_rendering_audio_graph(cx.vm());
 
             // 2. Set this [[rendering thread state]] to running on the AudioContext.
             context.context.set_rendering_state(AudioContextState::Running);
@@ -361,15 +347,11 @@ impl AudioContext {
 
         // 2. Attempt to acquire system resources.
         // NB: The renderer acquires resources when starting the graph in step 4.
-        if self.renderer.borrow().is_some() {
-            self.set_renderer_client(vm);
-        }
-
         // 3. Set the [[rendering thread state]] on the AudioContext to running.
         self.context.set_rendering_state(AudioContextState::Running);
 
         // 4. Start rendering the audio graph.
-        let started = self.start_rendering_audio_graph();
+        let started = self.start_rendering_audio_graph(vm);
 
         // 5. In case of failure, queue a media element task to execute the following steps:
         if !started {
@@ -582,25 +564,39 @@ impl AudioContext {
             });
     }
 
-    fn start_rendering_audio_graph(&self) -> bool {
+    fn start_rendering_audio_graph(&self, vm: &Vm) -> bool {
         if let Some(renderer) = &*self.renderer.borrow() {
+            self.set_renderer_client(vm, renderer);
             renderer.resume();
+            return true;
         }
+
+        let factory = unsafe { web_audio_output_factory_create(self.context.global_event_target().as_ptr()) };
+        let renderer = RealtimeAudioRenderer::new(
+            Arc::clone(self.context.control_message_queue()),
+            self.context.destination_value().parent().node_id(),
+            self.context.sample_rate_value(),
+            BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
+            SharedCppObject {
+                pointer: factory.pointer,
+                retain: factory.retain,
+                release: factory.release,
+            },
+        );
+        self.set_renderer_client(vm, &renderer);
+        *self.renderer.borrow_mut() = Some(Arc::clone(&renderer));
+        renderer.start_rendering();
         true
     }
 
     // The renderer's callback captures a GC root on this context, keeping it alive while it renders. That root is released
     // by clearing the callbacks when the context is suspended, closed, or its document becomes inactive, so this is called
     // again to re-establish it whenever rendering resumes.
-    fn set_renderer_client(&self, vm: &Vm) {
-        self.renderer
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .set_client(Some(Rc::new(RendererClient {
-                vm: NonNull::from(vm),
-                context: CellRoot::new(self.this()),
-            })));
+    fn set_renderer_client(&self, vm: &Vm, renderer: &RealtimeAudioRenderer) {
+        renderer.set_client(Some(Rc::new(RendererClient {
+            vm: NonNull::from(vm),
+            context: CellRoot::new(self.this()),
+        })));
     }
 
     // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
