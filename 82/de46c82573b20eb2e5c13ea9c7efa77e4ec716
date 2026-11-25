@@ -1,0 +1,10 @@
+Ladybird skips underline ink where the glyphs are drawn, measuring
+each glyph from the baseline that the rasterizer snaps to a whole
+device pixel. Blink and Gecko get the same consistency by asking
+SkTextBlob::getIntercepts() of a blob built like the one they paint:
+Blink in Font::GetTextIntercepts(), through InterceptsFromBlobs(), and
+Gecko in GetTextIntercepts() in nsCSSRendering.cpp. WebKit’s
+FontCascade::lineSegmentsForIntersectionsWithRect() measures the glyph
+paths from the run’s text origin. Chrome 158, Firefox 151, and WebKit
+26.5 all skip the descenders of a “reply” link alike, wherever it falls
+within a pixel, from 0 to 0.875px in eighths.
