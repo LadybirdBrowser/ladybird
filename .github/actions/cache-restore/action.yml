@@ -46,7 +46,7 @@ runs:
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
 
     - name: 'Compiler Cache'
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@v6.1.0
       id: 'ccache'
       with:
         path: ${{ inputs.ccache_path }}
@@ -86,7 +86,7 @@ runs:
         ccache -z
 
     - name: 'Rust Compiler Cache'
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@v6.1.0
       id: 'sccache'
       with:
         path: ${{ inputs.sccache_path }}
@@ -95,7 +95,7 @@ runs:
           sccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }}
 
     - name: 'Restore vcpkg cache'
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@v6.1.0
       id: 'vcpkg'
       with:
         path: ${{ inputs.vcpkg_cache_path }}

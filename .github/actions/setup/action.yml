@@ -57,7 +57,7 @@ runs:
         mkdir -p "${RUNNER_TEMP}/pip-cache"
         echo "PIP_CACHE_DIR=${RUNNER_TEMP}/pip-cache" >> "$GITHUB_ENV"
 
-    - uses: actions/setup-python@v7
+    - uses: actions/setup-python@v7.1.0
       if: ${{ inputs.os != 'Linux' }}
       with:
         python-version: 3.12
@@ -75,7 +75,7 @@ runs:
 
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' }}
-      uses: maxim-lobanov/setup-xcode@v1
+      uses: maxim-lobanov/setup-xcode@v1.7.0
       with:
         xcode-version: '27'
 
@@ -166,7 +166,7 @@ runs:
     - name: 'Restore wasm-tools'
       id: 'wasm-tools-cache'
       if: ${{ inputs.use_caches == 'true' && inputs.type == 'build' && inputs.os != 'Linux' }}
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@v6.1.0
       with:
         path: ${{ github.workspace }}/wasm-tools
         key: ${{ steps.wasm-tools.outputs.name }}
@@ -202,7 +202,7 @@ runs:
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save wasm-tools'
       if: ${{ github.ref == 'refs/heads/master' && inputs.use_caches == 'true' && inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v6
+      uses: actions/cache/save@v6.1.0
       with:
         path: ${{ github.workspace }}/wasm-tools
         key: ${{ steps.wasm-tools-cache.outputs.cache-primary-key }}
@@ -215,7 +215,7 @@ runs:
     - name: 'Restore cargo registry'
       id: 'cargo-registry'
       if: ${{ inputs.use_caches == 'true' }}
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@v6.1.0
       with:
         path: |
           ~/.cargo/registry
@@ -240,7 +240,7 @@ runs:
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save cargo registry'
       if: ${{ github.ref == 'refs/heads/master' && inputs.use_caches == 'true' && steps.cargo-registry.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v6
+      uses: actions/cache/save@v6.1.0
       with:
         path: |
           ~/.cargo/registry

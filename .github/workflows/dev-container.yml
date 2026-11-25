@@ -33,7 +33,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Base Dev Container Image
-        uses: devcontainers/ci@v0.3
+        uses: devcontainers/ci@v0.3.1900000450
         with:
           imageName: ghcr.io/ladybirdbrowser/ladybird-devcontainer
           imageTag: base,latest

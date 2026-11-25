@@ -71,7 +71,7 @@ jobs:
 
       - name: 'Set Up Environment'
         id: 'setup'
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -79,7 +79,7 @@ jobs:
           build_preset: 'Distribution'
 
       - name: 'Restore Caches'
-        uses: ./.github/actions/cache-restore
+        uses: $/.github/actions/cache-restore
         id: 'cache-restore'
         with:
           os: ${{ matrix.os_name }}
@@ -131,7 +131,7 @@ jobs:
 
       - name: 'Save the logs of vcpkg ports that failed to build'
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: vcpkg-failure-logs-${{ matrix.os_name }}-${{ matrix.arch }}
           path: vcpkg-failure-logs/
@@ -139,7 +139,7 @@ jobs:
           retention-days: 30
 
       - name: 'Save Caches'
-        uses: ./.github/actions/cache-save
+        uses: $/.github/actions/cache-save
         with:
           arch: ${{ matrix.arch }}
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
@@ -166,7 +166,7 @@ jobs:
           ./run.py --iterations=3 --executable="${executable}"
 
       - name: 'Save results as an artifact'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
           path: web-benchmarks/results.json

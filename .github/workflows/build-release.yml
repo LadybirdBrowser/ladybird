@@ -47,13 +47,13 @@ jobs:
 
       - name: Attest
         if: ${{ inputs.version != '' }}
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.2
         with:
           subject-path: '*-source.tar.xz'
 
       - name: Upload
         id: upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: '*-source.tar.xz'
           archive: false
@@ -129,7 +129,7 @@ jobs:
 
     steps:
       - name: Download the source
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           artifact-ids: ${{ needs.Source.outputs.artifact-id }}
 
@@ -149,7 +149,7 @@ jobs:
         run: ./Meta/Docker/ci/install-build-dependencies.sh
 
       - name: Build
-        uses: ./.github/actions/build
+        uses: $/.github/actions/build
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -197,7 +197,7 @@ jobs:
 
       - name: Attest
         if: ${{ inputs.version != '' }}
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.2
         with:
           subject-path: |
             Build/packages/*.tar.xz
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload
         if: ${{ matrix.archives }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: |
             Build/packages/ladybird-*.tar.xz
@@ -218,7 +218,7 @@ jobs:
 
       - name: Upload debug symbols
         if: ${{ matrix.archives }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird-symbols-*.tar.xz
           archive: false
@@ -226,7 +226,7 @@ jobs:
 
       - name: Upload the Debian package
         if: ${{ matrix.packages == 'DEB' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird_*.deb
           archive: false
@@ -234,7 +234,7 @@ jobs:
 
       - name: Upload the Debian debug symbols
         if: ${{ matrix.packages == 'DEB' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird-dbgsym_*.deb
           archive: false
@@ -242,7 +242,7 @@ jobs:
 
       - name: Upload the RPM package
         if: ${{ matrix.packages == 'RPM' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: |
             Build/packages/ladybird-*.rpm
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload the RPM debug symbols
         if: ${{ matrix.packages == 'RPM' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird-debuginfo-*.rpm
           archive: false
@@ -260,7 +260,7 @@ jobs:
 
       - name: Upload the AppImage
         if: ${{ matrix.appimage && inputs.version != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird-*.AppImage
           archive: false
@@ -268,7 +268,7 @@ jobs:
 
       - name: Upload the source code of the LGPL libraries
         if: ${{ inputs.version != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: Build/packages/ladybird-*-third-party-sources.tar
           archive: false
@@ -288,7 +288,7 @@ jobs:
 
       - name: Upload LibWeb Test Artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: libweb-test-artifacts-${{ matrix.system }}-${{ matrix.arch }}-Distribution
           path: Build/Tests/LibWeb/test-web/test-dumps/
@@ -327,7 +327,7 @@ jobs:
 
     steps:
       - name: Download the source
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           artifact-ids: ${{ needs.Source.outputs.artifact-id }}
 
@@ -384,7 +384,7 @@ jobs:
 
       - name: Attest
         if: ${{ inputs.version != '' }}
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.2
         with:
           subject-path: |
             ${{ env.BUNDLE }}
@@ -392,14 +392,14 @@ jobs:
             ${{ env.THIRD_PARTY_SOURCES }}
 
       - name: Upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: ${{ env.BUNDLE }}
           archive: false
           if-no-files-found: error
 
       - name: Upload debug symbols
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: ${{ env.DEBUG_BUNDLE }}
           archive: false
@@ -407,7 +407,7 @@ jobs:
 
       - name: Upload the source code of the LGPL libraries
         if: ${{ inputs.version != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: ${{ env.THIRD_PARTY_SOURCES }}
           archive: false
