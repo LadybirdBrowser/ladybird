@@ -98,6 +98,7 @@ SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
     # NB: The C++ bindings only leave the interface object of such an interface off the global object.
     "LegacyNoInterfaceObject",
     "LegacyOverrideBuiltIns",
+    "LegacyUnenumerableNamedProperties",
     "NavigatorCompatibilityMode",
     "SecureContext",
     # NB: The implementation implements structured_data::Serializable or structured_data::Transferable, whose steps
@@ -259,6 +260,8 @@ def write_cpp_named_properties(
         info_fields.append("    .has_named_property_setter = true,\n")
     if deleter is not None:
         info_fields.append("    .has_named_property_deleter = true,\n")
+    if "LegacyUnenumerableNamedProperties" in interface.extended_attributes:
+        info_fields.append("    .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,\n")
     if "LegacyOverrideBuiltIns" in interface.extended_attributes:
         info_fields.append("    .has_legacy_override_built_ins_interface_extended_attribute = true,\n")
     if setter is not None and setter.operation.name:
