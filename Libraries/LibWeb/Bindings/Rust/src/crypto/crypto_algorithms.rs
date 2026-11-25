@@ -723,7 +723,7 @@ fn generate_random_key(vm: &Vm, size_in_bits: u32) -> WebIdlResult<Vec<u8>> {
     }
     key_buffer.resize(length_in_bytes, 0);
 
-    libcrypto_rust::fill_with_random(&mut key_buffer);
+    libcrypto_rust::fill_with_random(&mut key_buffer).expect("OpenSSL produces random bytes");
     keep_first_bits(&mut key_buffer, size_in_bits);
     Ok(key_buffer)
 }
