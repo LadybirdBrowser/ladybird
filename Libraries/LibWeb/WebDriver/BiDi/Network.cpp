@@ -28,36 +28,20 @@ namespace Web::WebDriver::BiDi {
 using namespace Fetch::Infrastructure;
 using Response = Fetch::Infrastructure::Response;
 
-GC_DEFINE_ALLOCATOR(NetworkContinuation);
-
 NetworkContinuation::NetworkContinuation(Callback callback)
-    : m_callback(callback)
+    : m_callback(move(callback))
 {
 }
 
-GC::Ref<NetworkContinuation> NetworkContinuation::create(GC::Heap& heap, Callback callback)
+NonnullRefPtr<NetworkContinuation> NetworkContinuation::create(Callback callback)
 {
-    return heap.allocate<NetworkContinuation>(callback);
-}
-
-void NetworkContinuation::finalize()
-{
-    Base::finalize();
-    clear_blocked_state();
-    m_callback = nullptr;
-}
-
-void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(controller);
-    visitor.visit(m_callback);
+    return adopt_ref(*new NetworkContinuation(move(callback)));
 }
 
 void NetworkContinuation::invoke(NetworkContinuationAction action, RefPtr<Response> response)
 {
-    (*m_callback)(action, response);
-    m_callback = nullptr;
+    auto callback = move(m_callback);
+    callback(action, move(response));
 }
 
 static thread_local bool g_network_events_enabled { false };
@@ -79,14 +63,13 @@ void NetworkContinuation::clear_blocked_state()
     phase = {};
     intercepts = {};
     fetch_params = nullptr;
-    controller = nullptr;
     original_request = nullptr;
     response = nullptr;
 }
 
-static HashMap<String, GC::Root<NetworkContinuation>>& blocked_requests()
+static HashMap<String, NonnullRefPtr<NetworkContinuation>>& blocked_requests()
 {
-    static thread_local NeverDestroyed<HashMap<String, GC::Root<NetworkContinuation>>> requests;
+    static thread_local NeverDestroyed<HashMap<String, NonnullRefPtr<NetworkContinuation>>> requests;
     return *requests;
 }
 
@@ -103,19 +86,19 @@ static RefPtr<NetworkRequest> network_request_of(FetchParams const& fetch_params
     return network_request_of(fetch_params.controller()->network_observation());
 }
 
-static GC::Ptr<NetworkContinuation> blocked_request(NetworkRequest const& state)
+static RefPtr<NetworkContinuation> blocked_request(NetworkRequest const& state)
 {
     auto it = blocked_requests().find(state.id);
     return it == blocked_requests().end() ? nullptr : it->value.ptr();
 }
 
-static GC::Ptr<NetworkContinuation> blocked_request(FetchController const& controller)
+static RefPtr<NetworkContinuation> blocked_request(FetchController const& controller)
 {
     auto state = network_request_of(controller.network_observation());
     if (!state)
         return nullptr;
     auto blocked = blocked_request(*state);
-    return blocked && blocked->controller.ptr() == &controller ? blocked : nullptr;
+    return blocked && blocked->fetch_params->controller_token() == controller.token() ? blocked : nullptr;
 }
 
 static void resume_blocked_request(String id, NetworkContinuationAction action, RefPtr<Fetch::Infrastructure::Response> response)
@@ -123,7 +106,7 @@ static void resume_blocked_request(String id, NetworkContinuationAction action, 
     auto it = blocked_requests().find(id);
     if (it == blocked_requests().end())
         return;
-    GC::Ptr<NetworkContinuation> continuation = it->value.ptr();
+    NonnullRefPtr continuation = it->value;
     auto fetch_params = continuation->fetch_params;
     auto original_response = continuation->response;
     // NB: Remove the entry before stopping transport or invoking a continuation, which can reenter Fetch.
@@ -555,7 +538,7 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Netw
     return params;
 }
 
-void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
+void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, NonnullRefPtr<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
 {
     initialize_network_request(fetch_params);
     auto state = network_request_of(fetch_params);
@@ -576,10 +559,9 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
     continuation->phase = move(phase);
     continuation->intercepts = move(intercepts);
     continuation->fetch_params = fetch_params;
-    continuation->controller = fetch_params.controller();
     continuation->original_request = original_request;
     continuation->response = response;
-    blocked_requests().set(state->id, GC::make_root(continuation));
+    blocked_requests().set(state->id, continuation);
     if (continuation->phase == "beforeRequestSent"sv) {
         network_before_request_sent(fetch_params);
     } else if (continuation->phase == "responseStarted"sv) {
@@ -601,7 +583,7 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
     auto it = blocked_requests().find(id);
     if (it == blocked_requests().end())
         return Error::from_code(ErrorCode::NoSuchRequest, "Blocked request not found"sv);
-    GC::Ptr<NetworkContinuation> blocked = it->value.ptr();
+    NonnullRefPtr blocked = it->value;
     auto phase = blocked->phase;
     if ((method == "network.continueRequest"sv && phase != "beforeRequestSent"sv)
         || (method == "network.continueResponse"sv && phase == "beforeRequestSent"sv)
