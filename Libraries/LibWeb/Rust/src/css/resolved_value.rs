@@ -399,6 +399,63 @@ fn transformation_value(transform_function: u8, parameters: &[f32]) -> StyleValu
     )))
 }
 
+/// The resolved value of transform, with percentages resolved against the box that `reference_box` gives.
+fn resolved_transform(
+    transform_values: &TransformValues,
+    reference_box: impl FnOnce() -> CssPixelRect,
+) -> StyleValueArc {
+    if transform_values.transformations.pointer.is_null() {
+        return keyword_value(keyword::NONE);
+    }
+
+    // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
+    // The transform property is a resolved value special case property. [CSSOM]
+    // When the computed value is a <transform-list>, the resolved value is one <matrix()> function or one
+    // <matrix3d()> function computed by the following algorithm:
+    // 1. Let transform be a 4x4 matrix initialized to the identity matrix.
+    //    The elements m11, m22, m33 and m44 of transform must be set to 1; all other elements of transform must be
+    //    set to 0.
+    // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
+    //    NB: The resolved transforms start with those of the translate, rotate and scale properties.
+    let individual_transform_count = [
+        &transform_values.translate,
+        &transform_values.rotate,
+        &transform_values.scale,
+    ]
+    .iter()
+    .filter(|handle| !handle.pointer.is_null())
+    .count();
+    let resolved_transforms = &transform_values.resolved_transforms;
+    // SAFETY: The list holds `length` transforms while the style lives.
+    let entries =
+        unsafe { ak::slice_from_raw_parts(resolved_transforms.pointer.cast_const(), resolved_transforms.length) };
+    let transform = multiply_transform_functions(
+        libgfx_rust::FloatMatrix4x4::identity(),
+        entries.get(individual_transform_count..).unwrap_or_default(),
+        reference_box(),
+    );
+    let m = &transform.elements;
+
+    // 3. Chose between <matrix()> or <matrix3d()> serialization:
+    // -> If transform is a 2D matrix
+    //        Serialize transform to a <matrix()> function.
+    if is_2d_matrix(&transform) {
+        return transformation_value(
+            transform_function::MATRIX,
+            &[m[0][0], m[1][0], m[0][1], m[1][1], m[0][3], m[1][3]],
+        );
+    }
+    // -> Otherwise
+    //        Serialize transform to a <matrix3d()> function.
+    transformation_value(
+        transform_function::MATRIX3D,
+        &[
+            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2], m[3][2],
+            m[0][3], m[1][3], m[2][3], m[3][3],
+        ],
+    )
+}
+
 /// What the host names for the box of the element whose resolved value is read.
 #[repr(C)]
 pub struct FfiResolvedValueBox {
@@ -679,59 +736,10 @@ impl ResolvedValueBox<'_> {
     }
 
     fn resolved_transform(&self) -> StyleValueArc {
-        let transform_values = self.style.transform();
-        if transform_values.transformations.pointer.is_null() {
-            return keyword_value(keyword::NONE);
-        }
-
-        // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
-        // The transform property is a resolved value special case property. [CSSOM]
-        // When the computed value is a <transform-list>, the resolved value is one <matrix()> function or one
-        // <matrix3d()> function computed by the following algorithm:
-        // 1. Let transform be a 4x4 matrix initialized to the identity matrix.
-        //    The elements m11, m22, m33 and m44 of transform must be set to 1; all other elements of transform must be
-        //    set to 0.
-        // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
-        //    NB: The resolved transforms start with those of the translate, rotate and scale properties.
-        assert!(has_committed_box(self.host, self.node));
-        let reference_box = transform_reference_box(self.host, self.node);
-        let individual_transform_count = [
-            &transform_values.translate,
-            &transform_values.rotate,
-            &transform_values.scale,
-        ]
-        .iter()
-        .filter(|handle| !handle.pointer.is_null())
-        .count();
-        let resolved_transforms = &transform_values.resolved_transforms;
-        // SAFETY: The list holds `length` transforms while the style lives.
-        let entries =
-            unsafe { ak::slice_from_raw_parts(resolved_transforms.pointer.cast_const(), resolved_transforms.length) };
-        let transform = multiply_transform_functions(
-            libgfx_rust::FloatMatrix4x4::identity(),
-            entries.get(individual_transform_count..).unwrap_or_default(),
-            reference_box,
-        );
-        let m = &transform.elements;
-
-        // 3. Chose between <matrix()> or <matrix3d()> serialization:
-        // -> If transform is a 2D matrix
-        //        Serialize transform to a <matrix()> function.
-        if is_2d_matrix(&transform) {
-            return transformation_value(
-                transform_function::MATRIX,
-                &[m[0][0], m[1][0], m[0][1], m[1][1], m[0][3], m[1][3]],
-            );
-        }
-        // -> Otherwise
-        //        Serialize transform to a <matrix3d()> function.
-        transformation_value(
-            transform_function::MATRIX3D,
-            &[
-                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2],
-                m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
-            ],
-        )
+        resolved_transform(self.style.transform(), || {
+            assert!(has_committed_box(self.host, self.node));
+            transform_reference_box(self.host, self.node)
+        })
     }
 
     fn reference_box_if_used(&self) -> Option<CssPixelRect> {
@@ -1139,6 +1147,13 @@ pub unsafe extern "C" fn rust_resolved_value_of_style(
             style_value_for_shadow(SHADOW_TYPE_TEXT, shadows, current)
         }
         property_id::BACKDROP_FILTER | property_id::FILTER => resolve_filter_style_value(&computed(), current),
+        // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
+        // NB: An element without a box resolves its transform against a 0x0 box.
+        //     https://github.com/w3c/csswg-drafts/issues/9121
+        // AD-HOC: For web compatibility, an element that display keeps out of the box tree resolves its transform to
+        //         none instead, as sites expect.
+        property_id::TRANSFORM if query.generates_no_box => keyword_value(keyword::NONE),
+        property_id::TRANSFORM => resolved_transform(transform, CssPixelRect::default),
         // https://drafts.csswg.org/cssom/#resolved-value
         // line-height: The resolved value is normal if the computed value is normal, or the used value otherwise.
         // NB: Without a box, the used value of a number is that number times the computed font size.

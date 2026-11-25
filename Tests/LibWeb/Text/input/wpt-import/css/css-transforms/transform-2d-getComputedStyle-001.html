@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Transforms API Test: transform translate</title>
+    <link rel="author" title="Mihai Balan" href="mailto:mibalan@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#two-d-transform-functions">
+    <meta name="flags" content="dom">
+    <meta name="assert" content="CSS 2D transforms correctly report their matrix via getComputedStyle()">
+    <style type="text/css">
+    .block {
+    	display: block;
+    	width: 50px;
+    	height: 50px;
+    	background-color: green;
+    }
+    #translate {
+    	transform: translate(10px, 20px);
+    }
+    #translateX {
+    	transform: translateX(10px);
+    }
+    #translateY {
+    	transform: translateY(20px);
+    }
+    #rotate {
+    	transform: rotate(90deg);
+    }
+    #scale {
+    	transform: scale(2.0);
+    }
+    #scaleX {
+    	transform: scaleX(0.5);
+    }
+    #scaleY {
+    	transform: scaleY(1.5);
+    }
+    #skewX {
+    	transform: skewX(45deg);
+    }
+    #skewY {
+    	transform: skewY(45deg);
+    }
+    #matrix {
+    	transform: matrix(1, 2, 3, 4, 5, 6);
+    }
+    </style>
+    <script type="text/javascript" src="../../resources/testharness.js"></script>
+    <script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+	<div id="log"></div>
+
+	<div id="translate" class="block"></div>
+	<div id="translateX" class="block"></div>
+	<div id="translateY" class="block"></div>
+	<div id="rotate" class="block"></div>
+	<div id="scale" class="block"></div>
+	<div id="scaleX" class="block"></div>
+	<div id="scaleY" class="block"></div>
+	<div id="skewX" class="block"></div>
+	<div id="skewY" class="block"></div>
+	<div id="matrix" class="block"></div>
+    <script type="text/javascript">
+    function getTransformFor(id) {
+      let transform =
+        window.getComputedStyle(document.getElementById(id)).getPropertyValue("transform");
+      // Round matrix arguments to allow for small errors in numerical precision.
+      transform = transform.replace(/matrix\(([^\)]*)\)/g, function(match, arguments) {
+        let parts = arguments.split(",");
+        parts = parts.map(str => parseFloat(parseFloat(str).toFixed(6)));
+        return 'matrix(' + parts.join(", ") + ')';
+      });
+      return transform;
+    }
+    function clear(id) {
+        const element = document.getElementById(id);
+        const value = window.getComputedStyle(element).transform;
+        element.style.display = 'none';
+        // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
+        // For now both 'none' and 'matrix()' are accepted as resolved value of
+        // transform for an element with 'display: none' until we get a consensus
+        // in https://github.com/w3c/csswg-drafts/issues/9121.
+        assert_in_array(
+            window.getComputedStyle(element).transform, ['none', value],
+            "The resolved value of 'transform' for an element with 'display: none' " +
+            "should be 'none' or should not depend on display value.");
+    }
+
+    test(function() {
+    	assert_equals(getTransformFor("translate"), "matrix(1, 0, 0, 1, 10, 20)", "Incorrect matrix for translate()");
+    	clear("translate");
+    	assert_equals(getTransformFor("translateX"), "matrix(1, 0, 0, 1, 10, 0)", "Incorrect matrix for translateX()");
+    	clear("translateX");
+    	assert_equals(getTransformFor("translateY"), "matrix(1, 0, 0, 1, 0, 20)", "Incorrect matrix for translateY()");
+    	clear("translateY");
+    }, "Matrix for translation transforms");
+
+    test(function() {
+    	assert_equals(getTransformFor("rotate"), "matrix(0, 1, -1, 0, 0, 0)", "Incorrect matrix for rotate()");
+    	clear("rotate");
+    }, "Matrix for rotate");
+
+    test(function() {
+    	assert_equals(getTransformFor("scale"), "matrix(2, 0, 0, 2, 0, 0)", "Incorrect matrix for scale()");
+    	clear("scale");
+    	assert_equals(getTransformFor("scaleX"), "matrix(0.5, 0, 0, 1, 0, 0)", "Incorrect matrix for scaleX()");
+    	clear("scaleX");
+    	assert_equals(getTransformFor("scaleY"), "matrix(1, 0, 0, 1.5, 0, 0)", "Incorrect matrix for scaleY()");
+    	clear("scaleY");
+    }, "Matrix for scaling");
+
+    test(function() {
+    	assert_equals(getTransformFor("skewX"), "matrix(1, 0, 1, 1, 0, 0)", "Incorrect matrix for skewX()");
+    	clear("skewX");
+    	assert_equals(getTransformFor("skewY"), "matrix(1, 1, 0, 1, 0, 0)", "Incorrect matrix for skewY()");
+    	clear("skewY");
+    }, "Matrix for skew");
+
+    test(function() {
+    	assert_equals(getTransformFor("matrix"), "matrix(1, 2, 3, 4, 5, 6)", "Incorrect matrix for matrix()");
+    	clear("matrix");
+    }, "Matrix for general transform");
+    </script>
+</body>
+</html>

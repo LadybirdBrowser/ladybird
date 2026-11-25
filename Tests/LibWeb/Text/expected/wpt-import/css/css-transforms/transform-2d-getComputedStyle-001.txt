@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Matrix for translation transforms
+Pass	Matrix for rotate
+Pass	Matrix for scaling
+Pass	Matrix for skew
+Pass	Matrix for general transform
