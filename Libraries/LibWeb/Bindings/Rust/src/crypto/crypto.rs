@@ -101,7 +101,7 @@ impl Crypto {
         let extent = array_view.extent();
         let mut random_bytes = vec![0; extent.byte_length];
         // 5. Fill bytes with cryptographically secure random bytes.
-        libcrypto_rust::fill_with_random(&mut random_bytes);
+        libcrypto_rust::fill_with_random(&mut random_bytes).expect("OpenSSL produces random bytes");
         // 6. Write bytes into array.
         extent.buffer.overwrite(extent.byte_offset, &random_bytes);
 
@@ -121,7 +121,7 @@ fn generate_random_uuid() -> Utf16String {
     let mut bytes = [0u8; 16];
 
     // 2. Fill bytes with cryptographically secure random bytes.
-    libcrypto_rust::fill_with_random(&mut bytes);
+    libcrypto_rust::fill_with_random(&mut bytes).expect("OpenSSL produces random bytes");
 
     // 3. Set the 4 most significant bits of bytes[6], which represent the UUID version, to 0100.
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
