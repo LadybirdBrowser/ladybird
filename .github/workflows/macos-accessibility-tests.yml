@@ -45,7 +45,7 @@ jobs:
       # harness and the diagnostic probe — does it through PyObjC from the python3 on PATH. And no python3 on a hosted
       # runner image ships PyObjC — Apple's /usr/bin/python3 included. actions/setup-python puts its interpreter first
       # on PATH, so this is the one they all find. Quartz is for the session-state probe.
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: 3.12
 
@@ -53,7 +53,7 @@ jobs:
         run: pip3 install pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa pyobjc-framework-Quartz
 
       - name: Download the packaged app bundle
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: ${{ inputs.artifact_name }}
           path: ${{ runner.temp }}/ladybird-app-bundle
@@ -404,7 +404,7 @@ jobs:
       - name: Upload macOS AX diagnostics
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ax-diagnostics-${{ fromJSON(inputs.runner_labels)[0] }}
           path: ax-diagnostics/

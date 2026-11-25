@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: fregante/setup-git-user@v2
+      - uses: fregante/setup-git-user@v2.0.2
       - run: |
           git fetch origin "refs/notes/*:refs/notes/*"
           curl -fsSLO https://github.com/gh-tui-tools/git-gloss/raw/refs/heads/main/git-gloss
