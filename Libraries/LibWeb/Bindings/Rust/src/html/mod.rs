@@ -92,6 +92,8 @@ pub(crate) mod image_bitmap_rendering_context;
 #[cfg(not(test))]
 pub(crate) mod image_data;
 #[cfg(not(test))]
+pub(crate) mod media_error;
+#[cfg(not(test))]
 pub(crate) mod message_channel;
 #[cfg(not(test))]
 pub(crate) mod message_event;

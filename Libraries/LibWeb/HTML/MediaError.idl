@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/media.html#mediaerror
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface MediaError {
     const unsigned short MEDIA_ERR_ABORTED = 1;
     const unsigned short MEDIA_ERR_NETWORK = 2;
