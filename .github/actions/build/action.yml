@@ -23,10 +23,6 @@ inputs:
     description: 'Version of a release build, if any'
     required: false
     default: ''
-  vcpkg_cache_sas:
-    description: 'Access token that lets builds on master write to the vcpkg binary cache'
-    required: false
-    default: ''
   use_caches:
     description: 'Whether to restore and save caches of downloaded files and build artifacts'
     required: false
@@ -135,8 +131,6 @@ runs:
       working-directory: ${{ github.workspace }}
       shell: bash
       env:
-        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
         RELEASE_VERSION: ${{ inputs.version }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build \
@@ -150,9 +144,6 @@ runs:
       if: ${{ inputs.os == 'Windows' }}
       working-directory: ${{ github.workspace }}
       shell: pwsh
-      env:
-        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build `
           -DLADYBIRD_BASELINE_CPU_TARGET=ON
@@ -161,9 +152,6 @@ runs:
       if: ${{ inputs.build_preset == 'Fuzzers' }}
       working-directory: ${{ github.workspace }}
       shell: bash
-      env:
-        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build \
           ${{ steps.build-parameters.outputs.cmake_options }} \

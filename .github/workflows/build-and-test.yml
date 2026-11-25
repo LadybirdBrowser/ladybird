@@ -27,7 +27,9 @@ on:
         type: string
         default: 'null'
     secrets:
-      VCPKG_CACHE_SAS:
+      VCPKG_R2_ACCESS_KEY_ID:
+        required: false
+      VCPKG_R2_SECRET_ACCESS_KEY:
         required: false
 
 jobs:
@@ -47,15 +49,115 @@ jobs:
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
+      - name: Prepare vcpkg source asset staging
+        id: vcpkg-assets
+        if: >-
+          ${{ vars.VCPKG_R2_ENDPOINT != '' && github.ref == 'refs/heads/master'
+              && (github.event_name == 'push' || github.event_name == 'schedule') }}
+        shell: bash
+        run: |
+          stage_root="$RUNNER_TEMP"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            stage_root=$(cygpath -u "$stage_root")
+          fi
+
+          stage=$(mktemp -d "$stage_root/vcpkg-assets.XXXXXX")
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            stage=$(cygpath -m "$stage")
+            uri_path="/$stage"
+          else
+            uri_path="$stage"
+          fi
+
+          printf 'path=%s\nurl=file://%s/\n' "$stage" "$uri_path" >> "$GITHUB_OUTPUT"
+
       - name: Build
         uses: ./.github/actions/build
+        env:
+          VCPKG_ASSET_WRITE_URL: ${{ steps.vcpkg-assets.outputs.url }}
         with:
           os: ${{ inputs.os_name }}
           arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
           build_preset: ${{ inputs.build_preset }}
           clang_plugins: ${{ inputs.clang_plugins }}
-          vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
+
+      - name: Prepare to publish staged vcpkg source assets
+        id: vcpkg-publish
+        if: ${{ !cancelled() && steps.vcpkg-assets.outputs.path != '' }}
+        shell: bash
+        env:
+          VCPKG_ASSET_STAGE: ${{ steps.vcpkg-assets.outputs.path }}
+        run: |
+          assets=("$VCPKG_ASSET_STAGE"/*)
+          [[ -f "${assets[0]}" ]] || exit 0
+
+          if [[ "$(aws --version 2>/dev/null)" != aws-cli/2.* ]]; then
+            aws_version=2.42.3
+            installer_dir=$(mktemp -d)
+
+            download_aws_installer() {
+              local filename=$1 expected_sha256=$2
+              local checksum_command=(sha256sum)
+              if [[ "$RUNNER_OS" == macOS ]]; then
+                checksum_command=(shasum -a 256)
+              fi
+
+              curl -fsSL --retry 3 "https://awscli.amazonaws.com/$filename" -o "$installer_dir/$filename"
+              printf '%s  %s\n' "$expected_sha256" "$installer_dir/$filename" | "${checksum_command[@]}" -c -
+            }
+
+            case "$RUNNER_OS" in
+              Linux)
+                arch=$(uname -m)
+                case "$arch" in
+                  x86_64) sha256=09a4a71458061ce4e6e8c1ddbeb5d128c219ef7c9906b7b92c3b542944c025c8 ;;
+                  aarch64) sha256=7c512283f5293c6fb0832ad648198993185889b22ea8b19bcd04c153dabc8643 ;;
+                  *) printf 'Unsupported AWS CLI architecture: %s\n' "$arch" >&2; exit 1 ;;
+                esac
+                installer="awscli-exe-linux-$arch-$aws_version.zip"
+                download_aws_installer "$installer" "$sha256"
+                unzip -q "$installer_dir/$installer" -d "$installer_dir"
+                "$installer_dir/aws/install" --install-dir "$installer_dir/cli" --bin-dir "$installer_dir/bin"
+                printf '%s\n' "$installer_dir/bin" >> "$GITHUB_PATH"
+                ;;
+              macOS)
+                installer="AWSCLIV2-$aws_version.pkg"
+                download_aws_installer "$installer" d98091b3a3d170fa7f9e24c5594a9664aff6dbf048cdd588bfe043e27b3ad239
+                sudo installer -pkg "$installer_dir/$installer" -target /
+                printf '%s\n' /usr/local/bin >> "$GITHUB_PATH"
+                ;;
+              Windows)
+                installer="AWSCLIV2-$aws_version.msi"
+                download_aws_installer "$installer" 68a2d5c5581f72cd9d592ed3005c7bff66613a9854e4d1d303411ccf2fd2b4a1
+                MSYS2_ARG_CONV_EXCL='*' msiexec.exe /i "$(cygpath -w "$installer_dir/$installer")" /quiet /norestart
+                printf '%s\n' "${PROGRAMFILES:-$ProgramFiles}\\Amazon\\AWSCLIV2" >> "$GITHUB_PATH"
+                ;;
+            esac
+          fi
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+      - name: Publish vcpkg source assets to R2
+        if: >-
+          ${{ !cancelled() && steps.vcpkg-publish.outputs.ready == 'true'
+              && github.ref == 'refs/heads/master'
+              && (github.event_name == 'push' || github.event_name == 'schedule') }}
+        shell: bash
+        env:
+          VCPKG_ASSET_STAGE: ${{ steps.vcpkg-assets.outputs.path }}
+          R2_ENDPOINT: ${{ vars.VCPKG_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          : "${AWS_ACCESS_KEY_ID:?Set the VCPKG_R2_ACCESS_KEY_ID secret}"
+          : "${AWS_SECRET_ACCESS_KEY:?Set the VCPKG_R2_SECRET_ACCESS_KEY secret}"
+
+          aws --endpoint-url "$R2_ENDPOINT" s3 cp "$VCPKG_ASSET_STAGE/" \
+            s3://ladybird-vcpkg-assets/source-assets/ \
+            --recursive --only-show-errors \
+            --cache-control 'public, max-age=31536000, immutable'
 
       # The macOS AX tests run against this bundle on another machine (see macos-accessibility-tests.yml). So the
       # bundle has to be self-contained. To make it self-contained, this script copies the libraries in, Qt included,

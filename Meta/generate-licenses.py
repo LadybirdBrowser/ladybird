@@ -48,7 +48,7 @@ LGPL_LIBRARIES_PATH = pathlib.PurePosixPath("Meta/CMake/lgpl-libraries.txt")
 THIRD_PARTY_SOURCES_URL = "https://download.ladybird.org/third-party"
 
 # Ladybird's vcpkg asset cache, which holds the source downloads of the ports by their SHA-512.
-VCPKG_ASSET_CACHE_URL = "https://vcpkg-cache.app.ladybird.org/ladybird/source-assets"
+VCPKG_ASSET_CACHE_URL = "https://vcpkg-assets.ladybird.org/source-assets"
 
 GITHUB_SOURCE_PATTERN = re.compile(r"^git\+https://github\.com/(?P<repository>[^/@]+/[^/@]+)@(?P<ref>.+)$")
 UNSAFE_NAME_CHARACTERS = re.compile(r"[^A-Za-z0-9._+-]")

@@ -35,7 +35,13 @@ jobs:
             runner_labels: '["blacksmith-16vcpu-windows-2025"]'
             container: 'null'
 
-    secrets: inherit
+    secrets:
+      VCPKG_R2_ACCESS_KEY_ID: >-
+        ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/master'
+            && secrets.VCPKG_R2_ACCESS_KEY_ID || '' }}
+      VCPKG_R2_SECRET_ACCESS_KEY: >-
+        ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/master'
+            && secrets.VCPKG_R2_SECRET_ACCESS_KEY || '' }}
     uses: ./.github/workflows/build-and-test.yml
     with:
       toolchain: ${{ matrix.toolchain }}
