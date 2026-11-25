@@ -1550,27 +1550,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
     m_slider_tick_positions.clear();
     update_slider_shadow_tree_elements();
 
-    auto wheel_callback_function = JS::NativeFunction::create(
-        HTML::relevant_realm(*this), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
-            if (self.type_state() != TypeAttributeState::Range)
-                return JS::js_undefined();
-            if (!self.allowed_value_step().has_value())
-                return JS::js_undefined();
-            auto delta_y_value = MUST(vm.argument(0).get(vm, "deltaY"_utf16_fly_string));
-            if (!delta_y_value.is_finite_number())
-                return JS::js_undefined();
-            if (delta_y_value.as_double() > 0) {
-                MUST(self.step_down());
-            } else {
-                MUST(self.step_up());
-            }
-            self.user_interaction_did_change_input_value();
-            return JS::js_undefined();
-        }),
-        0, Utf16FlyString {}, &HTML::relevant_realm(*this));
-    auto wheel_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*wheel_callback_function, HTML::relevant_realm(*this));
-    add_event_listener_without_options(UIEvents::EventNames::wheel, DOM::IDLEventListener::create(wheel_callback));
-
     auto update_slider_by_mouse = GC::create_function<void(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
         if (self.type_state() != TypeAttributeState::Range)
             return;
