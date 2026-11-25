@@ -10,7 +10,9 @@
 
 use super::layers::{LayerCompositingInFrame, PaintedLayers};
 use super::tiles::TileDraw;
-use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size, size_of};
+use super::{
+    ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_raster_shown_through, rect_of_size, size_of,
+};
 use crate::raster_host::{
     FfiSublayer, FfiSublayerBackdrop, FfiSublayerGroup, FfiSublayerPlacement, LiveContent, MediaKind,
     SublayerContentKind, SurfaceSampling,
@@ -36,6 +38,7 @@ const VIDEO_SUBLAYER_IDENTITY_TAG: u64 = 2 << 60;
 const PAINTED_LAYER_SUBLAYER_IDENTITY_TAG: u64 = 3 << 60;
 const COMPOSITOR_OVERLAY_SUBLAYER_IDENTITY: u64 = 4 << 60;
 const SUBLAYER_OF_TILED_LAYER_IDENTITY_TAG: u64 = 5 << 60;
+const GROUP_OF_RASTER_SUBLAYER_IDENTITY: u64 = 6 << 60;
 const SUBLAYER_IDENTITY_BITS_BELOW_TAG: u64 = (1 << 60) - 1;
 
 // The window server composites each sublayer on its own, so a frame with more of them than this is composited by the
@@ -118,7 +121,6 @@ pub(super) enum WhyMediaIsReplayed {
     TilesWerePaintedStraightIntoTheFrame,
     InsideAnEffectTheCompositorComposites,
     UnderALayerTheFrameHolds,
-    FrameScalesOrMovesTheRaster,
 }
 
 impl std::fmt::Display for WhyMediaIsReplayed {
@@ -144,9 +146,6 @@ impl std::fmt::Display for WhyMediaIsReplayed {
                 "it is inside an effect the compositor composites"
             }
             WhyMediaIsReplayed::UnderALayerTheFrameHolds => "it is under a layer the frame holds",
-            WhyMediaIsReplayed::FrameScalesOrMovesTheRaster => {
-                "the frame shows the raster scaled or moved for another visual viewport"
-            }
         })
     }
 }
@@ -248,32 +247,15 @@ impl ContextPresenting {
         None
     }
 
-    /// Why the window server shows no media of the frame, if it shows none: as for any frame of this context, or as the
-    /// frame maps the raster to its pixels through a transform, which the placements of media do not go through.
-    pub(super) fn why_window_server_shows_no_media_of_frame(
-        &self,
-        env: &PresentingEnvironment<'_>,
-        frame: &FrameToPaint<'_>,
-    ) -> Option<WhyMediaIsReplayed> {
-        self.why_window_server_shows_no_media_of_this_context(env).or(frame
-            .frame_inputs
-            .raster_to_frame
-            .map(|_| WhyMediaIsReplayed::FrameScalesOrMovesTheRaster))
-    }
-
-    /// What the window server composites by itself of the layers of the frame, besides canvases and videos. It shows
-    /// no tiles of a frame it scales to fit a view, as it would filter each tile apart from the tiles beside it, nor of
-    /// a frame that maps the raster to its pixels through a transform.
-    pub(super) fn window_server_compositing(
-        &self,
-        env: &PresentingEnvironment<'_>,
-        frame: &FrameToPaint<'_>,
-    ) -> WindowServerCompositing {
+    /// What the window server composites by itself of the layers of this context's frames, besides canvases and
+    /// videos. It shows no tiles of a frame it scales to fit a view, as it would filter each tile apart from the tiles
+    /// beside it.
+    pub(super) fn window_server_compositing(&self, env: &PresentingEnvironment<'_>) -> WindowServerCompositing {
         let compositing_of_window_server = env
             .window_server_showing_context()
             .map(|window_server| env.raster.window_server_compositing(window_server))
             .unwrap_or_default();
-        let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_frame(env, frame).is_none()
+        let shows_tiles_of_painted_layers = self.why_window_server_shows_no_media_of_this_context(env).is_none()
             && !self.scales_frames_to_fit
             && compositing_of_window_server.shows_tiles_of_painted_layers;
         WindowServerCompositing {
@@ -349,7 +331,8 @@ impl ContextPresenting {
         like: &Rc<PaintingSurface>,
     ) -> bool {
         let raster = env.raster;
-        let viewport_rect = rect_of_size(self.viewport_size);
+        let viewport_rect =
+            rect_of_raster_shown_through(painted_layers.raster_to_frame, rect_of_size(self.viewport_size));
         let layers = &mut self.layers;
         let (stack, compositing_of_layers) = (&painted_layers.stack, &painted_layers.compositing_of_layers);
         for compositing in compositing_of_layers
@@ -523,6 +506,7 @@ impl ContextPresenting {
         compositing: &LayerCompositingInFrame,
         draws: Vec<TileDraw<'_>>,
         group_index: i32,
+        raster_moves_by_whole_pixels_only: bool,
     ) {
         if draws.is_empty() {
             return;
@@ -561,10 +545,11 @@ impl ContextPresenting {
         let index_of_group_of_space = sublayers.len() as i32 - 1;
         // Scaled or moved by a fraction of a pixel, a tile is sampled at its border too, which can be transparent
         // beside an opaque tile.
-        let window_server_samples_no_tile_border = match compositing.space_to_frame {
-            SpaceToFrame::Offset(_) => true,
-            SpaceToFrame::Transform(transform) => AffineTransform::is_whole_pixel_translation(transform),
-        };
+        let window_server_samples_no_tile_border = raster_moves_by_whole_pixels_only
+            && match compositing.space_to_frame {
+                SpaceToFrame::Offset(_) => true,
+                SpaceToFrame::Transform(transform) => AffineTransform::is_whole_pixel_translation(transform),
+            };
         let mut ordinal_of_fill = 0;
         for draw in draws {
             match draw {
@@ -694,7 +679,22 @@ impl ContextPresenting {
         if !painted.shown_by_window_server() {
             return sublayers;
         }
-        let viewport_rect = self.raster_rect();
+        // Every sublayer of the page is in the pixels of the raster, which this group maps to those of the frame. It
+        // is there for frames that do not move the raster too, so that a frame that does moves no sublayer to another
+        // group.
+        sublayers.push(group(
+            GROUP_OF_RASTER_SUBLAYER_IDENTITY,
+            -1,
+            FfiSublayerGroup {
+                to_parent: painted.raster_to_frame.unwrap_or_else(AffineTransform::identity).values,
+                ..FfiSublayerGroup::default()
+            },
+        ));
+        let index_of_group_of_raster = sublayers.len() as i32 - 1;
+        let raster_moves_by_whole_pixels_only = painted
+            .raster_to_frame
+            .is_none_or(AffineTransform::is_whole_pixel_translation);
+        let rect_of_raster_shown = rect_of_raster_shown_through(painted.raster_to_frame, self.raster_rect());
         let mut entered_composited_bands_and_their_groups: Vec<(BandIndex, i32)> = Vec::new();
         let mut composited_bands_around_layer: Vec<BandIndex> = Vec::new();
         for compositing in painted
@@ -718,14 +718,14 @@ impl ContextPresenting {
             for &band_index in &composited_bands_around_layer[count_of_bands_still_entered..] {
                 let index_of_group_around = entered_composited_bands_and_their_groups
                     .last()
-                    .map_or(-1, |(_, group_index)| *group_index);
+                    .map_or(index_of_group_of_raster, |(_, group_index)| *group_index);
                 let index_of_group_of_effect =
                     Self::append_groups_of_composited_band(&mut sublayers, painted, band_index, index_of_group_around);
                 entered_composited_bands_and_their_groups.push((band_index, index_of_group_of_effect));
             }
             let group_index = entered_composited_bands_and_their_groups
                 .last()
-                .map_or(-1, |(_, group_index)| *group_index);
+                .map_or(index_of_group_of_raster, |(_, group_index)| *group_index);
             if let (LayerContent::Media { .. }, LayerIdentity::Media { content, ordinal }) =
                 (&layer.content, layer.identity)
             {
@@ -780,13 +780,25 @@ impl ContextPresenting {
                         rect_in_layer_space,
                         rect_in_surface: rect_of_size(size_of(rect_in_layer_space)),
                     };
-                    self.append_sublayers_of_tiled_layer(&mut sublayers, compositing, vec![draw], group_index);
+                    self.append_sublayers_of_tiled_layer(
+                        &mut sublayers,
+                        compositing,
+                        vec![draw],
+                        group_index,
+                        raster_moves_by_whole_pixels_only,
+                    );
                 }
                 continue;
             }
             if painted.window_server_compositing.shows_tiles_of_painted_layers {
-                let draws = self.layers.tiles.draws_reaching_into(compositing, viewport_rect);
-                self.append_sublayers_of_tiled_layer(&mut sublayers, compositing, draws, group_index);
+                let draws = self.layers.tiles.draws_reaching_into(compositing, rect_of_raster_shown);
+                self.append_sublayers_of_tiled_layer(
+                    &mut sublayers,
+                    compositing,
+                    draws,
+                    group_index,
+                    raster_moves_by_whole_pixels_only,
+                );
                 continue;
             }
             let Some(presentation) = layers.presentation_by_layer.get(&compositing.identity) else {
@@ -795,11 +807,18 @@ impl ContextPresenting {
             let Some(surface) = &presentation.latest_surface else {
                 continue;
             };
-            sublayers.push(unclipped_untransformed_surface_sublayer(
-                PAINTED_LAYER_SUBLAYER_IDENTITY_TAG | u64::from(presentation.sublayer_ordinal),
-                surface,
-                presentation.rect_in_frame,
-            ));
+            let mut sublayer = FfiSublayer {
+                group_index: index_of_group_of_raster,
+                ..unclipped_untransformed_surface_sublayer(
+                    PAINTED_LAYER_SUBLAYER_IDENTITY_TAG | u64::from(presentation.sublayer_ordinal),
+                    surface,
+                    presentation.rect_in_frame,
+                )
+            };
+            if !raster_moves_by_whole_pixels_only {
+                sublayer.placement.scaling_mode = ScalingMode::Bilinear;
+            }
+            sublayers.push(sublayer);
         }
         if let Some((surface, rect_in_frame)) = &layers.latest_compositor_overlays_surface_and_rect {
             sublayers.push(unclipped_untransformed_surface_sublayer(
