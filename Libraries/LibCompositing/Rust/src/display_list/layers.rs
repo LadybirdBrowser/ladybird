@@ -1116,6 +1116,12 @@ impl LayerStack {
         self.nodes[self.layers[layer_index.0].placement_node_index.0].raster_space_index
     }
 
+    /// What a raster of several tiles of the space at once stays within: the extent of the viewport's space, which no
+    /// frame drawn with the stack shows past, and nothing for the other spaces.
+    pub fn rect_rasters_of_space_stay_within(&self, raster_space_index: RasterSpaceIndex) -> Option<IntRect> {
+        (raster_space_index == RasterSpaceIndex::VIEWPORT).then(|| self.spaces[RasterSpaceIndex::VIEWPORT.0].extent)
+    }
+
     // An offset past the coordinate limit shows nothing of the space, and is kept within the limit so that a rect of the
     // stack offset by it still fits in an `IntRect`.
     fn composite_offset_of_space(

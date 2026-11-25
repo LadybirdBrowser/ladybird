@@ -214,14 +214,6 @@ pub(super) struct LayerTiles {
 }
 
 impl LayerTiles {
-    pub(super) fn invalidate_every_tile(&mut self) {
-        self.changed_since_eviction = true;
-        self.own_surface_by_layer.clear();
-        for tile in self.pool.values_mut() {
-            tile.holds_current_pixels = false;
-        }
-    }
-
     /// The coverage of the pooled tile of the content hash, where it holds current pixels over the part of its cell.
     pub(super) fn current_coverage(
         &self,
@@ -434,10 +426,10 @@ impl LayerTiles {
     }
 
     /// Keeps the surface that the window server shows the caret or scroll bar of the layer of `identity` from, and
-    /// paints `painting` into it with `paint` where it holds something else, as each time a caret blinks or a thumb
-    /// moves. Nothing is painted into a surface the window server shows or still reads, so the layer takes a spare
-    /// surface and spares the one it held. Answers whether it painted. Where no surface can be had, the window server
-    /// shows nothing of the layer.
+    /// paints `painting` into it with `paint` where it holds something else, or is on another backend than `like`, as
+    /// each time a caret blinks or a thumb moves. Nothing is painted into a surface the window server shows or still
+    /// reads, so the layer takes a spare surface and spares the one it held. Answers whether it painted. Where no
+    /// surface can be had, the window server shows nothing of the layer.
     pub(super) fn paint_own_surface(
         &mut self,
         env: &PresentingEnvironment<'_>,
@@ -446,10 +438,13 @@ impl LayerTiles {
         painting: OwnSurfacePainting,
         paint: impl FnOnce(&Rc<PaintingSurface>),
     ) -> bool {
+        let usable = |surface: &Rc<PresentableSurface>| {
+            surface.can_be_shown_by_window_server() && surface.painting_surface().shares_backend_with(like)
+        };
         if self
             .own_surface_by_layer
             .get(&identity)
-            .is_some_and(|held| held.painting == painting)
+            .is_some_and(|held| held.painting == painting && usable(&held.surface))
         {
             return false;
         }
@@ -459,9 +454,6 @@ impl LayerTiles {
             self.changed_since_eviction = true;
         }
         let size = size_of(painting.rect);
-        let usable = |surface: &Rc<PresentableSurface>| {
-            surface.can_be_shown_by_window_server() && surface.painting_surface().shares_backend_with(like)
-        };
         let Some(surface) = self
             .spare_surfaces
             .take(size, usable)
