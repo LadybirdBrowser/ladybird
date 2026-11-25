@@ -357,7 +357,48 @@ static Vector<VkDrmFormatModifierPropertiesEXT> drm_format_modifier_properties_o
     return modifier_properties;
 }
 
-Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, VkImageUsageFlags usage, VkImageCreateFlags flags, void const* video_profile_list) const
+struct DmaBufImageFormat {
+    VkExtent3D maximum_extent {};
+    VkExternalMemoryFeatureFlags memory_features { 0 };
+};
+
+static Optional<DmaBufImageFormat> dma_buf_image_format_of(VkPhysicalDevice physical_device, VkFormat format, u64 modifier, VkImageUsageFlags usage, VkImageCreateFlags flags, void const* video_profile_list, ReadonlySpan<u32> concurrent_queue_families)
+{
+    VkPhysicalDeviceImageDrmFormatModifierInfoEXT modifier_info {};
+    modifier_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT;
+    modifier_info.pNext = video_profile_list;
+    modifier_info.drmFormatModifier = modifier;
+    if (concurrent_queue_families.size() > 1) {
+        modifier_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        modifier_info.queueFamilyIndexCount = concurrent_queue_families.size();
+        modifier_info.pQueueFamilyIndices = concurrent_queue_families.data();
+    }
+
+    VkPhysicalDeviceExternalImageFormatInfo external_info {};
+    external_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO;
+    external_info.pNext = &modifier_info;
+    external_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+
+    VkPhysicalDeviceImageFormatInfo2 image_info {};
+    image_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2;
+    image_info.pNext = &external_info;
+    image_info.format = format;
+    image_info.type = VK_IMAGE_TYPE_2D;
+    image_info.tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
+    image_info.usage = usage;
+    image_info.flags = flags;
+
+    VkExternalImageFormatProperties external_properties {};
+    external_properties.sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES;
+    VkImageFormatProperties2 image_properties {};
+    image_properties.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2;
+    image_properties.pNext = &external_properties;
+    if (vkGetPhysicalDeviceImageFormatProperties2(physical_device, &image_info, &image_properties) != VK_SUCCESS)
+        return {};
+    return DmaBufImageFormat { image_properties.imageFormatProperties.maxExtent, external_properties.externalMemoryProperties.externalMemoryFeatures };
+}
+
+Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, VkImageUsageFlags usage, VkImageCreateFlags flags, void const* video_profile_list, Optional<Gfx::IntSize> size) const
 {
     auto modifier_properties = drm_format_modifier_properties_of(m_physical_device, format);
 
@@ -365,46 +406,31 @@ Vector<u64> VulkanVideoDevice::exportable_drm_format_modifiers(VkFormat format, 
     for (auto const& family : m_queue_families)
         queue_family_indices.append(family.index);
 
+    // An image offered several modifiers can only be as large as all of them allow.
+    auto fits = [&](DmaBufImageFormat const& image_format) {
+        if (!size.has_value())
+            return true;
+        return static_cast<u32>(size->width()) <= image_format.maximum_extent.width && static_cast<u32>(size->height()) <= image_format.maximum_extent.height;
+    };
+
     Vector<u64> modifiers;
     for (auto const& properties : modifier_properties) {
         // The Compositor runs on the same device and driver, so it sees the same features under each modifier.
         auto required_features = Gfx::ImportedYCbCrVulkanImage::REQUIRED_FORMAT_FEATURES;
         if ((properties.drmFormatModifierTilingFeatures & required_features) != required_features)
             continue;
-
-        VkPhysicalDeviceImageDrmFormatModifierInfoEXT modifier_info {};
-        modifier_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT;
-        modifier_info.pNext = video_profile_list;
-        modifier_info.drmFormatModifier = properties.drmFormatModifier;
-        if (queue_family_indices.size() > 1) {
-            modifier_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-            modifier_info.queueFamilyIndexCount = queue_family_indices.size();
-            modifier_info.pQueueFamilyIndices = queue_family_indices.data();
-        }
-
-        VkPhysicalDeviceExternalImageFormatInfo external_info {};
-        external_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO;
-        external_info.pNext = &modifier_info;
-        external_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-
-        VkPhysicalDeviceImageFormatInfo2 image_info {};
-        image_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2;
-        image_info.pNext = &external_info;
-        image_info.format = format;
-        image_info.type = VK_IMAGE_TYPE_2D;
-        image_info.tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
-        image_info.usage = usage;
-        image_info.flags = flags;
-
-        VkExternalImageFormatProperties external_properties {};
-        external_properties.sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES;
-        VkImageFormatProperties2 image_properties {};
-        image_properties.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2;
-        image_properties.pNext = &external_properties;
-        if (vkGetPhysicalDeviceImageFormatProperties2(m_physical_device, &image_info, &image_properties) != VK_SUCCESS)
+        if (properties.drmFormatModifierPlaneCount > Gfx::LinuxDmaBufHandle::MAXIMUM_PLANE_COUNT)
             continue;
-        if ((external_properties.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) == 0)
+
+        auto exported = dma_buf_image_format_of(m_physical_device, format, properties.drmFormatModifier, usage, flags, video_profile_list, queue_family_indices);
+        if (!exported.has_value() || (exported->memory_features & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) == 0 || !fits(*exported))
             continue;
+
+        // The Compositor imports the image under usage of its own, which the memory features may differ under.
+        auto imported = dma_buf_image_format_of(m_physical_device, format, properties.drmFormatModifier, Gfx::ImportedYCbCrVulkanImage::USAGE, 0, nullptr, {});
+        if (!imported.has_value() || (imported->memory_features & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) == 0 || !fits(*imported))
+            continue;
+
         modifiers.append(properties.drmFormatModifier);
     }
     return modifiers;
