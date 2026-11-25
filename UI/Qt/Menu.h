@@ -8,10 +8,14 @@
 
 #include <AK/Platform.h>
 #include <AK/kmalloc.h>
+#include <LibURL/URL.h>
+#include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Actions.h>
 
 #include <QPointer>
 #include <QWidgetAction>
+
+#include <functional>
 
 class QAction;
 class QMenu;
@@ -32,6 +36,11 @@ QMenu* create_application_menu(QWidget& parent, Menu&);
 void repopulate_application_menu(QMenu& menu, Menu& source);
 void add_history_navigation_actions(QMenu&, QAction& back, QAction& forward);
 void update_history_menu(QMenu& menu, WebContentView*);
+
+using HistoryMenuNavigator = std::function<void(URL::URL const&)>;
+// Puts `entries` in the History menu after Back and Forward, with `navigate` called for the one the user picks, unless
+// the menu already shows the same entries for the same `context`.
+void update_history_menu(QMenu& menu, QObject* context, Vector<WebView::HistoryEntry> const& entries, HistoryMenuNavigator navigate);
 void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int direction);
 
 QAction* create_application_action(QWidget& parent, Action&, IncludeActionIcon = IncludeActionIcon::Yes);

@@ -17,7 +17,9 @@
 #include <UI/Qt/WebContentView.h>
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
@@ -526,28 +528,64 @@ static QAction* create_dynamic_history_separator(QMenu& menu)
     return separator;
 }
 
-static QAction* create_recent_history_menu_action(QMenu& menu, WebContentView& view, WebView::HistoryEntry const& entry)
+// The icon of a favicon in the History menu, decoded and scaled once per distinct PNG.
+static QIcon history_menu_favicon(ReadonlyBytes favicon_png, int logical_size)
+{
+    static constexpr qsizetype MAX_CACHED_FAVICONS = 64;
+    static QHash<QByteArray, QIcon> s_favicons;
+
+    auto key = QCryptographicHash::hash(QByteArrayView(favicon_png.data(), static_cast<qsizetype>(favicon_png.size())), QCryptographicHash::Sha1);
+    if (auto it = s_favicons.constFind(key); it != s_favicons.constEnd())
+        return *it;
+    if (s_favicons.size() >= MAX_CACHED_FAVICONS)
+        s_favicons.clear();
+    auto icon = favicon_from_png(favicon_png, logical_size);
+    s_favicons.insert(key, icon);
+    return icon;
+}
+
+// What the recent entries in a History menu were made from: the view they navigate, and a digest of the menu's palette
+// and of each entry's URL, title and favicon. A menu whose entries would come out the same keeps the ones it has.
+class HistoryMenuEntriesState final : public QObject {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit HistoryMenuEntriesState(QMenu& menu)
+        : QObject(&menu)
+    {
+        setObjectName(QStringLiteral("LadybirdHistoryMenuEntriesState"));
+    }
+
+    QPointer<QObject> context;
+    QByteArray digest;
+    // The entries' actions navigate through whichever navigator the menu was last updated with.
+    HistoryMenuNavigator navigate;
+};
+
+// Makes `action` show `entry` and navigate to it, whether the action is new or showed another entry before.
+static void show_history_entry_in_action(QAction& action, QMenu& menu, QObject& context, HistoryMenuEntriesState& state, WebView::HistoryEntry const& entry)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
 
     auto title = entry.title.has_value() && !entry.title->is_empty() ? *entry.title : entry.url;
-    auto* action = new QAction(qstring_from_ak_string(title), &menu);
-    action->setToolTip(qstring_from_ak_string(entry.url));
+    action.setText(qstring_from_ak_string(title));
+    action.setToolTip(qstring_from_ak_string(entry.url));
     if (entry.favicon_png.has_value())
-        action->setIcon(favicon_from_png(entry.favicon_png->bytes(), MENU_ICON_SIZE));
+        action.setIcon(history_menu_favicon(entry.favicon_png->bytes(), MENU_ICON_SIZE));
     else
-        action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
+        action.setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
 
+    QObject::disconnect(&action, &QAction::triggered, nullptr, nullptr);
     auto url = URL::Parser::basic_parse(entry.url);
+    action.setEnabled(url.has_value());
     if (url.has_value()) {
-        QObject::connect(action, &QAction::triggered, &view, [&view, url = url.release_value()] {
-            view.load_from_user_input(url);
+        QObject::connect(&action, &QAction::triggered, &context, [&state, url = url.release_value()] {
+            // A copy, since navigating can update the menu, and with it the navigator.
+            auto navigate = state.navigate;
+            if (navigate)
+                navigate(url);
         });
-    } else {
-        action->setEnabled(false);
     }
-
-    return action;
 }
 
 // NB: Back and Forward stay in the History menu at all times, so their shortcuts work before the menu is first shown.
@@ -559,17 +597,80 @@ void add_history_navigation_actions(QMenu& menu, QAction& back, QAction& forward
     menu.insertSeparator(first)->setProperty(HISTORY_NAVIGATION_SEPARATOR_PROPERTY, true);
 }
 
+static QByteArray digest_of_history_entries(Vector<WebView::HistoryEntry> const& entries, qint64 palette_cache_key)
+{
+    QCryptographicHash hash(QCryptographicHash::Sha1);
+    hash.addData(QByteArrayView(reinterpret_cast<char const*>(&palette_cache_key), sizeof(palette_cache_key)));
+    auto add_bytes = [&](ReadonlyBytes bytes) {
+        auto size = static_cast<u64>(bytes.size());
+        hash.addData(QByteArrayView(reinterpret_cast<char const*>(&size), sizeof(size)));
+        hash.addData(QByteArrayView(bytes.data(), static_cast<qsizetype>(bytes.size())));
+    };
+    for (auto const& entry : entries) {
+        add_bytes(entry.url.bytes());
+        add_bytes(entry.title.has_value() ? entry.title->bytes() : ReadonlyBytes {});
+        // An entry without a favicon shows a fallback icon, and one with an empty favicon shows none.
+        u8 const has_favicon = entry.favicon_png.has_value();
+        hash.addData(QByteArrayView(reinterpret_cast<char const*>(&has_favicon), sizeof(has_favicon)));
+        add_bytes(entry.favicon_png.has_value() ? entry.favicon_png->bytes() : ReadonlyBytes {});
+    }
+    return hash.result();
+}
+
 void update_history_menu(QMenu& menu, WebContentView* view)
 {
+    if (!view) {
+        update_history_menu(menu, nullptr, {}, {});
+        return;
+    }
+    update_history_menu(menu, view, view->recent_history_entries(RECENT_HISTORY_MENU_ITEM_LIMIT), [view = QPointer<WebContentView>(view)](URL::URL const& url) {
+        if (view)
+            view->load_from_user_input(url);
+    });
+}
+
+void update_history_menu(QMenu& menu, QObject* context, Vector<WebView::HistoryEntry> const& entries, HistoryMenuNavigator navigate)
+{
+    // A global menu over D-Bus can ask for the menu to be prepared again and again, and every change to the menu's
+    // actions is announced back to it, under item IDs that each new action takes up for good. So the menu is left
+    // alone when what it shows wouldn't change, and otherwise keeps its actions and shows other entries in them,
+    // adding or removing actions only where the number of entries changes.
+    // Only update_history_menu() makes a child of the menu with this name, so the child it finds is its own state.
+    auto* state = static_cast<HistoryMenuEntriesState*>(menu.findChild<QObject*>(QStringLiteral("LadybirdHistoryMenuEntriesState"), Qt::FindDirectChildrenOnly));
+    if (!state)
+        state = new HistoryMenuEntriesState(menu);
+    state->navigate = move(navigate);
+    // The palette is part of what the menu shows: Entries without a favicon show an icon drawn in its colors.
+    auto digest = digest_of_history_entries(entries, menu.palette().cacheKey());
+    if (context && state->context == context && !state->digest.isEmpty() && state->digest == digest)
+        return;
+    state->context = context;
+    state->digest = digest;
+
+    Vector<QAction*> entry_actions;
+    QAction* separator = nullptr;
     for (auto* action : menu.actions()) {
-        if (action->property(DYNAMIC_HISTORY_MENU_ITEM_PROPERTY).toBool()) {
-            menu.removeAction(action);
-            action->deleteLater();
-        }
+        if (!action->property(DYNAMIC_HISTORY_MENU_ITEM_PROPERTY).toBool())
+            continue;
+        if (action->isSeparator())
+            separator = action;
+        else
+            entry_actions.append(action);
     }
 
-    if (!view)
+    auto shown_entry_count = context ? entries.size() : 0;
+    while (entry_actions.size() > shown_entry_count) {
+        auto* action = entry_actions.take_last();
+        menu.removeAction(action);
+        action->deleteLater();
+    }
+    if (shown_entry_count == 0) {
+        if (separator) {
+            menu.removeAction(separator);
+            separator->deleteLater();
+        }
         return;
+    }
 
     // NB: The recent entries go after Back, Forward and the separator below them.
     QAction* insertion_point = nullptr;
@@ -580,15 +681,18 @@ void update_history_menu(QMenu& menu, WebContentView* view)
             break;
         }
     }
-
-    auto entries = view->recent_history_entries(RECENT_HISTORY_MENU_ITEM_LIMIT);
-    for (auto const& entry : entries) {
-        auto* action = create_recent_history_menu_action(menu, *view, entry);
-        insert_dynamic_history_action(menu, insertion_point, *action);
+    if (!separator) {
+        separator = create_dynamic_history_separator(menu);
+        insert_dynamic_history_action(menu, insertion_point, *separator);
+    }
+    while (entry_actions.size() < shown_entry_count) {
+        auto* action = new QAction(&menu);
+        insert_dynamic_history_action(menu, separator, *action);
+        entry_actions.append(action);
     }
 
-    if (!entries.is_empty())
-        insert_dynamic_history_action(menu, insertion_point, *create_dynamic_history_separator(menu));
+    for (size_t i = 0; i < shown_entry_count; ++i)
+        show_history_entry_in_action(*entry_actions[i], menu, *context, *state, entries[i]);
 
 #if defined(AK_OS_MACOS)
     enable_menu_icons(menu);
