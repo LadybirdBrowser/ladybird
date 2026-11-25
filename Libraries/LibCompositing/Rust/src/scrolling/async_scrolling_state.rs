@@ -37,7 +37,6 @@ impl AsyncScrollOffset {
         if later.visual_viewport_scale.is_some() {
             self.visual_viewport_scale = later.visual_viewport_scale;
         }
-        self.unadopted_scroll_delta.translate_by(later.unadopted_scroll_delta);
         // The most recent nonzero delta of a relative scroll in each axis, such as a wheel or panning scroll. Absolute
         // scrolls, such as dragging a scrollbar thumb, leave it as it is.
         if later.last_relative_scroll_delta.x != 0.0 {

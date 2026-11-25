@@ -444,7 +444,6 @@ impl ContextState {
         scroll_offsets.push(AsyncScrollOffset {
             stable_node_id: node.stable_node_id,
             compositor_scroll_offset: new_scroll_offset,
-            unadopted_scroll_delta: new_scroll_offset - old_scroll_offset,
             last_relative_scroll_delta: Default::default(),
             visual_viewport_scale: None,
             applied_scroll_request_id: 0,

@@ -86,7 +86,6 @@ struct Compositing::KeyboardScrollState {
 struct Compositing::AsyncScrollOffset {
     Web::AsyncScrollNodeStableID stable_node_id;
     Gfx::FloatPoint compositor_scroll_offset;
-    Gfx::FloatPoint unadopted_scroll_delta;
     Gfx::FloatPoint last_relative_scroll_delta;
     Optional<float> visual_viewport_scale;
     u64 applied_scroll_request_id;
