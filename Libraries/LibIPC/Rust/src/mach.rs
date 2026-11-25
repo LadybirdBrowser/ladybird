@@ -14,6 +14,8 @@
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 
+use crate::transport::{OwnedPayload, clock_monotonic_nanoseconds};
+
 pub type PortName = u32;
 pub type KernReturn = i32;
 
@@ -173,14 +175,6 @@ impl From<KernelError> for std::io::Error {
     fn from(error: KernelError) -> Self {
         Self::other(error)
     }
-}
-
-/// The time on `CLOCK_MONOTONIC`, which AK's `MonotonicTime` reads, and which keeps counting while the system sleeps.
-pub fn clock_monotonic_nanoseconds() -> i64 {
-    let mut now = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-    // NB: now points to a local that the call writes to, and the clock always exists.
-    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &raw mut now) };
-    now.tv_sec * 1_000_000_000 + now.tv_nsec
 }
 
 /// Runs the calling thread at the user-interactive quality of service, as `Threading::Thread::set_qos()` does.
@@ -667,9 +661,6 @@ pub enum SendOutcome {
     /// The message is gone with what it carried, for the reason the kernel gave.
     Failed(KernReturn),
 }
-
-/// The bytes of a message that waits to be sent, which it owns, wherever they are.
-pub type OwnedPayload = Box<dyn AsRef<[u8]> + Send>;
 
 /// A data message that waits for room in its destination's queue, to be sent in its turn.
 pub struct PendingMessage(PendingMessageContents);

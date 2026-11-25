@@ -38,6 +38,8 @@ mod shared_memory;
 mod socket;
 #[cfg(target_vendor = "apple")]
 pub mod transport;
+#[cfg(target_vendor = "apple")]
+pub mod transport_mach_port;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub mod transport_socket;
 #[cfg(windows)]
