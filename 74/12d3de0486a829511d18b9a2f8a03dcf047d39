@@ -1,0 +1,16 @@
+In a table laid out in fixed mode, Ladybird lets only the cells of the
+first row constrain a column with a length width. Chrome 158, Firefox
+151 and WebKit 26.5 agree in every case of the new test, run with
+engine-compare: a later row’s length width doesn’t change any column,
+whether the first-row cell has a percentage width, a length width, or
+none. They also agree on the neighboring cases checked: a thead ahead of
+the first tbody row, a thead after it, a later colspan cell, a col
+width, and a rowspan cell.
+
+Gecko’s FixedTableLayoutStrategy::ComputeColumnISizes() takes the cell
+of each column from row 0 of the cell map (GetCellInfoAt(0, col)), and
+WebKit’s FixedTableLayout::calcWidthArray() reads only the cells of the
+first section’s firstRow(). Blink’s ComputeSectionInlineConstraints(),
+in table_layout_utils.cc, ignores every cell outside the first row of
+the first section in fixed layout (ignore_because_of_fixed_layout).
+This paragraph comes from reading their sources, not running them.
