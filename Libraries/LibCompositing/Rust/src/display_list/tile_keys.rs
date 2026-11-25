@@ -32,7 +32,7 @@ use super::reach::Reach;
 use super::replay::{ScrollbarShownByFrame, caret_is_visible_at_time, scrollbar_shown_by_frame};
 use super::storage::{ChunkIndexInList, DisplayListStorage, ListChunk, ListPosition, ListSpan, RunIndexInChunk};
 use super::summary::{LiveContent, live_content_of};
-use super::tiles::{CellRange, TileCoord, entries_within, for_each_entry_within};
+use super::tiles::{CellRange, TileCoord, entries_within, for_each_entry_within, with_tile_border};
 use super::window_server_placement::RoundedRect;
 use crate::display_list::commands::{CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkHandle};
 use crate::visual_context::{
@@ -2020,8 +2020,8 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     }
 
     /// The tiles of the band at each of `new_coords`, not hashed yet: each replay item of the band that reaches a cell
-    /// goes into the layer of the band its paint position falls in there, and the base layer, if it is the band's layer
-    /// below all cuts, holds every cell.
+    /// or the border its tiles hold around it goes into the layer of the band its paint position falls in there, and
+    /// the base layer, if it is the band's layer below all cuts, holds every cell.
     fn bin_new_cells(
         &self,
         bound_band: &BandBoundToListAndGeometry,
@@ -2031,9 +2031,11 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
     ) -> Vec<(TileCoord, Vec<KeyedTile>)> {
         let band = &stack.bands[band_index.0];
         let base_layer = (stack.base_layer == band.layer_below_all_cuts).then_some(stack.base_layer);
-        let new_cells_area = new_coords
-            .iter()
-            .fold(IntRect::default(), |cells, coord| cells.united(coord.cell_rect()));
+        let new_cells_area_with_tile_borders = with_tile_border(
+            new_coords
+                .iter()
+                .fold(IntRect::default(), |cells, coord| cells.united(coord.cell_rect())),
+        );
         // Per layer that items go into in the cell, the items.
         type ItemsOfLayerInCell = (LayerIndex, Vec<(ListPosition, TileReplayItem, Reach<IntRect>)>);
         struct BinOfCell<'a> {
@@ -2057,12 +2059,13 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             })
             .collect();
         let mut add_to_bins = |paint_position: ListPosition, item: TileReplayItem, reach: Reach<IntRect>| {
-            let reach_in_new_cells = reach.part_of(new_cells_area);
+            let reach_in_new_cells = reach.part_of(new_cells_area_with_tile_borders);
             if reach_in_new_cells.is_empty() {
                 return;
             }
+            let cells_whose_tile_borders_the_item_reaches = CellRange::touched_by(with_tile_border(reach_in_new_cells));
             // The new cells can lie far apart, with many more cells between them than they are.
-            for_each_entry_within(&mut bins, CellRange::touched_by(reach_in_new_cells), |_, bin| {
+            for_each_entry_within(&mut bins, cells_whose_tile_borders_the_item_reaches, |_, bin| {
                 let (layer_index, count_of_cuts_below) = bin.cuts.layer_of_record(paint_position);
                 // A frame composites only the base layer and the layers the stack says can hold content. A stretch and
                 // a placed record range both take their reach from `RasterSpaceGeometry::reach_of_content`, the
@@ -2094,7 +2097,11 @@ impl<'a> TileKeyingOfRasterSpace<'a> {
             }
             None => {
                 for held_chunk in &bound_band.held_chunks {
-                    if held_chunk.reach_of_held_records.part_of(new_cells_area).is_empty() {
+                    if held_chunk
+                        .reach_of_held_records
+                        .part_of(new_cells_area_with_tile_borders)
+                        .is_empty()
+                    {
                         continue;
                     }
                     bound_band.for_each_held_item(held_chunk, &mut add_to_bins);

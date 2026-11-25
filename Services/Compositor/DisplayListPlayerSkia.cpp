@@ -432,8 +432,7 @@ void DisplayListPlayerSkia::draw_surface(RustFFI::SurfaceDraw const& draw)
         return;
     SkPaint paint;
     paint.setBlendMode(SkBlendMode::kSrcOver);
-    auto sampling = draw.filtered ? SkSamplingOptions { SkFilterMode::kLinear } : SkSamplingOptions {};
-    surface().canvas().drawImageRect(image.get(), to_skia_rect(draw.source_rect), to_skia_rect(draw.target_rect), sampling, &paint, SkCanvas::kStrict_SrcRectConstraint);
+    Gfx::draw_tile_image_rect(surface().canvas(), *image, to_skia_rect(draw.source_rect), to_skia_rect(draw.target_rect), draw.filtered, paint);
 }
 
 void DisplayListPlayerSkia::play_command(DrawCanvas const& command)

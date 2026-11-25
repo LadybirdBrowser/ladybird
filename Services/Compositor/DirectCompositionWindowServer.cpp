@@ -433,12 +433,13 @@ IDCompositionTexture* DirectCompositionWindowServer::Impl::composition_texture_f
 struct DirectCompositionSurface::Impl {
     AK_ALLOC_WITH_KMALLOC;
 
-    IDCompositionTexture* composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4&, DXGI_ALPHA_MODE);
+    IDCompositionTexture* composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4&, DXGI_ALPHA_MODE, Gfx::IntRect source_rect);
 
     struct CompositionTexture {
         u64 window_server_id { 0 };
         ComPtr<IDCompositionTexture> texture;
         DXGI_ALPHA_MODE alpha_mode { DXGI_ALPHA_MODE_UNSPECIFIED };
+        Optional<Gfx::IntRect> source_rect {};
     };
 
     NonnullRefPtr<Gfx::D3DSharedTexture> shared_texture;
@@ -447,7 +448,7 @@ struct DirectCompositionSurface::Impl {
     Vector<CompositionTexture, 1> composition_textures;
 };
 
-IDCompositionTexture* DirectCompositionSurface::Impl::composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4& device, DXGI_ALPHA_MODE alpha_mode)
+IDCompositionTexture* DirectCompositionSurface::Impl::composition_texture_shown_by(u64 window_server_id, IDCompositionDevice4& device, DXGI_ALPHA_MODE alpha_mode, Gfx::IntRect source_rect)
 {
     CompositionTexture* composition_texture = nullptr;
     if (auto shown = composition_textures.find_if([&](auto const& texture) { return texture.window_server_id == window_server_id; }); !shown.is_end())
@@ -480,6 +481,18 @@ IDCompositionTexture* DirectCompositionSurface::Impl::composition_texture_shown_
             dbgln("Compositor: Unable to set the alpha mode of a composition texture: {}", Error::from_windows_error(result));
         else
             composition_texture->alpha_mode = alpha_mode;
+    }
+    if (composition_texture->source_rect != source_rect) {
+        D2D_RECT_U rect {
+            static_cast<UINT32>(source_rect.left()),
+            static_cast<UINT32>(source_rect.top()),
+            static_cast<UINT32>(source_rect.right()),
+            static_cast<UINT32>(source_rect.bottom()),
+        };
+        if (auto result = composition_texture->texture->SetSourceRect(rect); FAILED(result))
+            dbgln("Compositor: Unable to set the source rect of a composition texture: {}", Error::from_windows_error(result));
+        else
+            composition_texture->source_rect = source_rect;
     }
     return composition_texture->texture.Get();
 }
@@ -570,7 +583,7 @@ private:
 
     DirectCompositionWindowServer::Impl& window_server_impl() const { return *m_window_server->m_impl; }
     ErrorOr<OwnPtr<CompositionSwapChain>> create_swap_chain(Gfx::IntSize, DXGI_ALPHA_MODE) const;
-    IDCompositionTexture* composition_texture_of(PresentableSurface const&, DXGI_ALPHA_MODE) const;
+    IDCompositionTexture* composition_texture_of(PresentableSurface const&, DXGI_ALPHA_MODE, Gfx::IntRect source_rect) const;
     void lay_out_frame();
     void stop_showing_store();
     void stop_showing_frame();
@@ -979,7 +992,7 @@ ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer&
 
     if (shown_sublayer.content.has_value() && &shown_sublayer.content->surface() == &surface)
         return {};
-    if (auto* composition_texture = composition_texture_of(surface, DXGI_ALPHA_MODE_PREMULTIPLIED)) {
+    if (auto* composition_texture = composition_texture_of(surface, DXGI_ALPHA_MODE_PREMULTIPLIED, { {}, surface_size })) {
         shown_sublayer.swap_chain = nullptr;
         surface.did_hand_to_window_server();
         content_visual.SetContent(composition_texture);
@@ -997,7 +1010,7 @@ ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer&
     return {};
 }
 
-IDCompositionTexture* DirectCompositionRemoteLayer::composition_texture_of(PresentableSurface const& surface, DXGI_ALPHA_MODE alpha_mode) const
+IDCompositionTexture* DirectCompositionRemoteLayer::composition_texture_of(PresentableSurface const& surface, DXGI_ALPHA_MODE alpha_mode, Gfx::IntRect source_rect) const
 {
     auto& window_server = window_server_impl();
     if (!window_server.device_showing_composition_textures)
@@ -1005,7 +1018,7 @@ IDCompositionTexture* DirectCompositionRemoteLayer::composition_texture_of(Prese
     auto const* window_server_surface = static_cast<DirectCompositionSurface const*>(surface.window_server_surface());
     if (!window_server_surface || !window_server_surface->m_impl)
         return nullptr;
-    return window_server_surface->m_impl->composition_texture_shown_by(window_server.id, *window_server.device_showing_composition_textures.Get(), alpha_mode);
+    return window_server_surface->m_impl->composition_texture_shown_by(window_server.id, *window_server.device_showing_composition_textures.Get(), alpha_mode, source_rect);
 }
 
 static bool transforms_alike(Gfx::AffineTransform const& a, Gfx::AffineTransform const& b)
@@ -1085,10 +1098,10 @@ void DirectCompositionRemoteLayer::update_shown_tile(ShownSublayer& shown_sublay
     auto const* shown_lease = shown_sublayer.content.has_value() ? &shown_sublayer.content.value() : nullptr;
     auto shown_surface_size = shown_lease ? Optional<Gfx::IntSize> { shown_lease->surface().size() } : OptionalNone {};
     if (shown_sublayer.shown_rect != rect || shown_surface_size != surface.size()) {
-        tile_visual.SetTransform(transform_placing_content_of_size_at(surface.size(), rect));
+        tile_visual.SetTransform(transform_placing_content_of_size_at(tile.rect_in_surface.size(), rect));
         shown_sublayer.shown_rect = rect;
     }
-    auto* composition_texture = composition_texture_of(surface, tile.every_pixel_is_opaque ? DXGI_ALPHA_MODE_IGNORE : DXGI_ALPHA_MODE_PREMULTIPLIED);
+    auto* composition_texture = composition_texture_of(surface, tile.every_pixel_is_opaque ? DXGI_ALPHA_MODE_IGNORE : DXGI_ALPHA_MODE_PREMULTIPLIED, tile.rect_in_surface);
     if (shown_lease && &shown_lease->surface() == &surface)
         return;
     if (!composition_texture) {
