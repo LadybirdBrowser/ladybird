@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="connect-src http://localhost:*; frame-src http://localhost:*">
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const redirectToAnotherHost = async (path, targetHeaders) => {
+            const target = new URL(await server.createEcho("GET", `${path}-target`, {
+                status: 200,
+                headers: targetHeaders,
+                body: "target",
+            }));
+            target.hostname = "127.0.0.1";
+            return await server.createEcho("GET", `${path}-start`, {
+                status: 302,
+                headers: { "Location": target.href, "Access-Control-Allow-Origin": "*" },
+            });
+        };
+        const nextViolation = () => new Promise(resolve => document.addEventListener("securitypolicyviolation", resolve, { once: true }));
+        const printViolation = (event, start) => {
+            println(`effectiveDirective: ${event.effectiveDirective}`);
+            println(`blockedURI: ${event.blockedURI === start ? "the requested URL" : event.blockedURI}`);
+        };
+
+        const fetchStart = await redirectToAnotherHost("/csp-redirect-fetch", { "Access-Control-Allow-Origin": "*" });
+        let violation = nextViolation();
+        try {
+            await fetch(fetchStart);
+            println("fetch: resolved");
+        } catch (error) {
+            println(`fetch: ${error.name}`);
+        }
+        printViolation(await violation, fetchStart);
+
+        const iframeStart = await redirectToAnotherHost("/csp-redirect-iframe", { "Content-Type": "text/html" });
+        violation = nextViolation();
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeStart;
+        document.body.appendChild(iframe);
+        printViolation(await violation, iframeStart);
+
+        done();
+    });
+</script>

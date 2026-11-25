@@ -557,7 +557,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         begin_rendering_pending_operation(controller.ptr(), client_window->associated_document(), RenderingPendingReason::ResourceFetchesInFlight);
 
     // 15. Run main fetch given fetchParams.
-    (void)main_fetch(realm, fetch_params);
+    (void)main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request));
 
     // 16. Return fetchParams’s controller.
     return controller;
@@ -622,6 +622,13 @@ void populate_request_from_client(Infrastructure::Request& request, Optional<HTM
     //         through its global object, to queue tasks and to report violations and timing.
     if (client.has_value())
         request.set_client_snapshot(client->visit([](auto const& client) { return snapshot_client_context(*client); }));
+}
+
+static ContentSecurityPolicy::ViolationReporter engine_violation_reporter(Engine::FetchEngineRecord& engine_record, NonnullRefPtr<Infrastructure::Request> request)
+{
+    return [&engine_record, request](NonnullRefPtr<ContentSecurityPolicy::Policy const> policy) {
+        engine_record.report_violation(ContentSecurityPolicy::violation_of_request(request, move(policy)));
+    };
 }
 
 static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
@@ -796,7 +803,7 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
+RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Recursive recursive)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -820,7 +827,6 @@ RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams
         response = Infrastructure::Response::network_error("An SVG image may only fetch data: URLs"_string);
 
     // 4. Run report Content Security Policy violations for request.
-    auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(realm, request);
     ContentSecurityPolicy::report_content_security_policy_violations_for_request(request, report_violation);
 
     // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
@@ -885,7 +891,6 @@ RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams
         }
         pending_response->when_loaded([fetch_params, request, response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_response) mutable {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
-            auto& realm = fetch_params->controller()->realm();
 
             // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
             //         (fetch response handover's tasks, body pipe and body read). Record that the response has arrived
@@ -965,7 +970,7 @@ RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams
                 internal_response->set_timing_allow_passed(true);
 
             // 20. If response is not a network error and any of the following returns blocked
-            auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(realm, request);
+            auto report_violation = engine_violation_reporter(*fetch_params->engine_record(), request);
             if (!response->is_network_error() && (
                     // - should internalResponse to request be blocked as mixed content
                     MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
@@ -2276,7 +2281,10 @@ RefPtr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::Fe
     }
 
     // 22. Return the result of running main fetch given fetchParams and recursive.
-    return main_fetch(realm, fetch_params, recursive);
+    // NB: The navigation processes a manual redirect's next hop on the agent, which reports violations itself.
+    if (request->redirect_mode() == Infrastructure::Request::RedirectMode::Manual)
+        return main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), recursive);
+    return main_fetch(realm, fetch_params, engine_violation_reporter(*fetch_params.engine_record(), request), recursive);
 }
 
 enum class AuthenticationHandled {

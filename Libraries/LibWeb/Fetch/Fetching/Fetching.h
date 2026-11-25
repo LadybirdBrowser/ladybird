@@ -17,6 +17,7 @@
 #include <LibJS/Forward.h>
 #include <LibRequests/RequestTransferLease.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/ContentSecurityPolicy/FetchIntegration.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
@@ -52,7 +53,7 @@ ENUMERATE_BOOL_PARAMS
 
 WEB_API GC::Ref<Infrastructure::FetchController> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No, CreateResponseBodyTransferLease = CreateResponseBodyTransferLease::No);
 void append_accept_language_header_if_missing(Infrastructure::Request&, LoaderConfig const&);
-RefPtr<PendingResponse> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
+RefPtr<PendingResponse> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Recursive recursive = Recursive::No);
 void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page&, Infrastructure::Request&);
 // Runs the in-parallel steps that main fetch deferred under the id.
 void run_deferred_main_fetch_steps(Engine::FetchId, NonnullRefPtr<Engine::FetchEngineRecord>);

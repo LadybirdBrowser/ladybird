@@ -82,30 +82,6 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
     return violation;
 }
 
-// https://w3c.github.io/webappsec-csp/#create-violation-for-request
-GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(NonnullRefPtr<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const> policy)
-{
-    // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
-    auto directive = Directives::get_the_effective_directive_for_request(request);
-
-    // NOTE: The spec assumes that the effective directive of a Violation is a non-empty string.
-    //       See the definition of m_effective_directive.
-    VERIFY(directive.has_value());
-
-    // 2. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive
-    //      on request’s client’s global object, policy, and directive.
-    auto client = Fetch::Fetching::resolve_client(request);
-    auto violation = create_a_violation_object_for_global_policy_and_directive(client->global_object(), policy, String { directive->view().to_utf8_but_should_be_ported_to_utf16() });
-
-    // 3. Set violation’s resource to request’s url.
-    // Spec Note: We use request’s url, and not its current url, as the latter might contain information about redirect
-    //            targets to which the page MUST NOT be given access.
-    violation->m_resource = request->url();
-
-    // 4. Return violation.
-    return violation;
-}
-
 void Violation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

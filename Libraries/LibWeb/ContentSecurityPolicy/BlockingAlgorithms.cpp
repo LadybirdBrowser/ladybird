@@ -58,72 +58,124 @@ static Utf16FlyString const& directive_name(RemoteViolationDirective directive)
     VERIFY_NOT_REACHED();
 }
 
-// AD-HOC: A client another process hosts has its global object there, so its page reports the violation to that
-//         process, by the violated policy's index in the client's CSP list.
-static void report_a_violation_of_a_remote_client(Page& page, Fetch::Infrastructure::Request const& request, Policy const& policy, Utf16FlyString const& directive)
+static u64 index_of_policy(PolicyList const& policy_list, Policy const& policy)
 {
-    // NB: Request's policy container is a copy of the client's, which lists the policies in the same order.
-    auto const& policies = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
+    auto const& policies = policy_list.policies();
     auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
     VERIFY(policy_index.has_value());
+    return *policy_index;
+}
 
-    if (auto const& navigation = request.remote_client_navigation(); navigation.has_value()) {
+static u64 index_of_policy_in_requests_csp_list(Fetch::Infrastructure::Request const& request, Policy const& policy)
+{
+    // NB: Request's policy container is a copy of the client's, which lists the policies in the same order.
+    return index_of_policy(request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list, policy);
+}
+
+// AD-HOC: A client another process hosts has its global object there, so its page reports the violation to that
+//         process, by the violated policy's index in the client's CSP list.
+static void report_a_violation_of_a_remote_client(Page& page, u64 policy_index, Optional<HTML::RemoteClientNavigation> const& navigation, Utf16FlyString const& directive, URL::URL const& url)
+{
+    if (navigation.has_value()) {
         // NB: The UI process checks a navigation's report against the directives the navigation can violate, and
         //     reports the URL the navigation started with, upgraded to https when the request's URL is.
-        auto url_is_https = request.url().scheme() == "https"sv;
+        auto url_is_https = url.scheme() == "https"sv;
         if (auto remote_directive = remote_violation_directive(directive); remote_directive.has_value())
-            page.client().page_did_report_navigation_violation_of_remote_client(*navigation, *policy_index, *remote_directive, url_is_https);
+            page.client().page_did_report_navigation_violation_of_remote_client(*navigation, policy_index, *remote_directive, url_is_https);
         return;
     }
-    page.client().page_did_report_violation_of_remote_client(*policy_index, directive.view().to_utf8_but_should_be_ported_to_utf16(), request.url());
+    page.client().page_did_report_violation_of_remote_client(policy_index, directive.view().to_utf8_but_should_be_ported_to_utf16(), url);
 }
 
 // AD-HOC: A child navigable's navigation violates a policy of its container's node document, whose global object the
 //         violation is reported on. See https://github.com/w3c/webappsec-csp/issues/624.
-static void report_a_violation_of_a_container_document(Page& page, Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Request::ChildNavigableNavigation const& navigation, Policy const& policy)
+static void report_a_violation_of_a_container_document(Page& page, RequestViolation::ContainerDocument const& container, RequestViolation const& violation)
 {
-    auto effective_directive = Directives::get_the_effective_directive_for_request(request);
-    VERIFY(effective_directive.has_value());
-
-    // NB: The request's copy of the container document's CSP list lists the policies in the same order.
-    auto const& policies = navigation.container_document_csp_list.policies();
-    auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
-    VERIFY(policy_index.has_value());
-
-    auto navigable = page.navigable_with_id(navigation.navigable_id);
+    auto navigable = page.navigable_with_id(container.navigable_id);
     if (auto container_document = navigable ? navigable->container_document() : nullptr) {
         auto& settings = container_document->relevant_settings_object();
-        auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(settings.global_object(), policy, String { effective_directive->view().to_utf8_but_should_be_ported_to_utf16() });
-        violation->set_resource(request.url());
-        violation->report_a_violation(settings.realm());
+        auto violation_object = Violation::create_a_violation_object_for_global_policy_and_directive(settings.global_object(), violation.policy, String { violation.effective_directive.view().to_utf8_but_should_be_ported_to_utf16() });
+        violation_object->set_resource(violation.resource);
+        violation_object->report_a_violation(settings.realm());
         return;
     }
 
     // NB: A container document in another process gets the report through the UI process, which checks it against the
     //     directives the navigation can violate, and reports the URL the navigation started with, upgraded to https
     //     when the request's URL is.
-    auto remote_directive = remote_violation_directive(*effective_directive);
-    if (!navigation.navigation_id.has_value() || !remote_directive.has_value())
+    auto remote_directive = remote_violation_directive(violation.effective_directive);
+    if (!container.navigation_id.has_value() || !remote_directive.has_value())
         return;
-    auto url_is_https = request.url().scheme() == "https"sv;
-    page.client().page_did_report_navigation_violation_of_container_document(navigation.navigable_id, *navigation.navigation_id, *policy_index, *remote_directive, url_is_https);
+    auto url_is_https = violation.resource.scheme() == "https"sv;
+    page.client().page_did_report_navigation_violation_of_container_document(container.navigable_id, *container.navigation_id, container.policy_index, *remote_directive, url_is_https);
+}
+
+RequestViolation violation_of_request(Fetch::Infrastructure::Request const& request, NonnullRefPtr<Policy const> policy)
+{
+    // https://w3c.github.io/webappsec-csp/#create-violation-for-request
+    // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
+    auto effective_directive = Directives::get_the_effective_directive_for_request(request);
+
+    // NOTE: The spec assumes that the effective directive of a Violation is a non-empty string.
+    //       See the definition of m_effective_directive.
+    VERIFY(effective_directive.has_value());
+
+    auto reported_to = [&] -> RequestViolation::ReportedTo {
+        if (auto const& navigation = request.child_navigable_navigation(); navigation.has_value()) {
+            // NB: The request's copy of the container document's CSP list lists the policies in the same order.
+            auto policy_index = index_of_policy(navigation->container_document_csp_list, policy);
+            return RequestViolation::ContainerDocument { navigation->navigable_id, navigation->navigation_id, policy_index };
+        }
+        if (Fetch::Fetching::remote_client(request))
+            return RequestViolation::RemoteClient { index_of_policy_in_requests_csp_list(request, policy), request.remote_client_navigation() };
+        return RequestViolation::LocalClient { request.client()->get<HTML::EnvironmentSettingsObjectAddress>() };
+    }();
+
+    return RequestViolation {
+        .policy = move(policy),
+        .effective_directive = effective_directive.release_value(),
+        .resource = request.url(),
+        .reported_to = move(reported_to),
+    };
+}
+
+void report_a_violation_of_a_request(JS::Realm& realm, RequestViolation const& violation)
+{
+    auto& page = Bindings::principal_host_defined_page(realm);
+    violation.reported_to.visit(
+        [&](RequestViolation::LocalClient const& client) {
+            // https://w3c.github.io/webappsec-csp/#create-violation-for-request
+            // NB: violation_of_request() ran step 1. The RequestViolation holds its directive and the request's URL.
+
+            // 2. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and
+            //    directive on request’s client’s global object, policy, and directive.
+            // NB: A client that is gone by the time its violation is reported gets no report.
+            auto settings_object = HTML::environment_settings_object_at(client.address);
+            if (!settings_object)
+                return;
+            auto violation_object = Violation::create_a_violation_object_for_global_policy_and_directive(settings_object->global_object(), violation.policy, String { violation.effective_directive.view().to_utf8_but_should_be_ported_to_utf16() });
+
+            // 3. Set violation’s resource to request’s url.
+            // Spec Note: We use request’s url, and not its current url, as the latter might contain information about redirect
+            //            targets to which the page MUST NOT be given access.
+            violation_object->set_resource(violation.resource);
+
+            // 4. Return violation.
+            // NB: The callers of this algorithm report the violation it returns.
+            violation_object->report_a_violation(realm);
+        },
+        [&](RequestViolation::RemoteClient const& client) {
+            report_a_violation_of_a_remote_client(page, client.policy_index, client.navigation, violation.effective_directive, violation.resource);
+        },
+        [&](RequestViolation::ContainerDocument const& container) {
+            report_a_violation_of_a_container_document(page, container, violation);
+        });
 }
 
 ViolationReporter violation_reporter_for_request(JS::Realm& realm, NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     return [&realm, request](NonnullRefPtr<Policy const> policy) {
-        if (auto const& navigation = request->child_navigable_navigation(); navigation.has_value()) {
-            report_a_violation_of_a_container_document(Bindings::principal_host_defined_page(realm), request, *navigation, policy);
-            return;
-        }
-        if (Fetch::Fetching::remote_client(request)) {
-            auto effective_directive = Directives::get_the_effective_directive_for_request(request);
-            VERIFY(effective_directive.has_value());
-            report_a_violation_of_a_remote_client(Bindings::principal_host_defined_page(realm), request, policy, *effective_directive);
-            return;
-        }
-        auto violation = Violation::create_a_violation_object_for_request_and_policy(request, move(policy));
-        violation->report_a_violation(realm);
+        report_a_violation_of_a_request(realm, violation_of_request(request, move(policy)));
     };
 }
 
@@ -176,7 +228,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 continue;
 
             if (Fetch::Fetching::remote_client(*navigation_request)) {
-                report_a_violation_of_a_remote_client(page, *navigation_request, policy, directive.name());
+                report_a_violation_of_a_remote_client(page, index_of_policy_in_requests_csp_list(*navigation_request, policy), navigation_request->remote_client_navigation(), directive.name(), navigation_request->url());
             } else {
                 // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on navigation request’s
                 //    client’s global object, policy, and directive’s name.
@@ -225,7 +277,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                     continue;
 
                 if (Fetch::Fetching::remote_client(*navigation_request)) {
-                    report_a_violation_of_a_remote_client(page, *navigation_request, policy, directive_name);
+                    report_a_violation_of_a_remote_client(page, index_of_policy_in_requests_csp_list(*navigation_request, policy), navigation_request->remote_client_navigation(), directive_name, navigation_request->url());
                 } else {
                     // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
                     //    policy, and directive on navigation request’s client’s global object, policy, and directive-name.

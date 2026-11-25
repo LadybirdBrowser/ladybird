@@ -1,0 +1,5 @@
+fetch: TypeError
+effectiveDirective: connect-src
+blockedURI: the requested URL
+effectiveDirective: frame-src
+blockedURI: the requested URL

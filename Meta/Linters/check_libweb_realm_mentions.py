@@ -49,7 +49,7 @@ ALLOWED_REALM_MENTIONS = {
     "Clipboard": (4, 6, "the C++ facades create the Rust objects in a given realm"),
     "ContentSecurityPolicy": (
         6,
-        13,
+        15,
         "CSP violation/report objects and callbacks still materialize JS-facing values; "
         "the C++ glue of the Rust SecurityPolicyViolationEvent creates it in a given realm",
     ),
