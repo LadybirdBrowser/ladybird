@@ -99,6 +99,13 @@ public:
     virtual void die() override { ++m_die_count; }
     size_t die_count() const { return m_die_count; }
 
+    virtual void did_lose_peer_during_sync_request() override
+    {
+        ++m_lost_peer_during_sync_request_count;
+        ConnectionBase::did_lose_peer_during_sync_request();
+    }
+    size_t lost_peer_during_sync_request_count() const { return m_lost_peer_during_sync_request_count; }
+
     void inject_unprocessed_message(NonnullOwnPtr<IPC::Message> message)
     {
         m_unprocessed_messages.append(move(message));
@@ -125,6 +132,7 @@ private:
     }
 
     size_t m_die_count { 0 };
+    size_t m_lost_peer_during_sync_request_count { 0 };
 };
 
 struct PeerCloseOutcome {
@@ -553,6 +561,67 @@ TEST_CASE(sync_request_to_a_closed_peer_that_owns_this_process_shuts_down)
 
     while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
         ;
+}
+
+// A wait that finds the transport closed still takes the response that the peer sent before it went. The transport on
+// Windows only finds the peer gone as it reads, so it never counts as closed before the wait.
+#if !defined(AK_OS_WINDOWS)
+TEST_CASE(sync_wait_takes_a_response_that_arrived_before_the_peer_closed)
+{
+    Core::EventLoop loop;
+
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+
+    {
+        CountingStub peer_stub;
+        auto peer = TestConnection::construct(peer_stub, TRY_OR_FAIL(pair.remote_handle.create_transport()));
+        TRY_OR_FAIL(peer->post_message(TestMessage { OTHER_MESSAGE_ID }));
+        TRY_OR_FAIL(peer->post_message(TestMessage { TARGET_MESSAGE_ID }));
+        peer->transport().close_after_sending_all_pending_messages();
+    }
+
+    // Nothing drains the transport before the wait, so the response is still in it when the wait begins.
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(10);
+    while (connection->is_open() && MonotonicTime::now() < deadline)
+        connection->wait_for_transport_to_become_readable(deadline);
+    EXPECT(!connection->is_open());
+    if (connection->is_open())
+        return;
+
+    EXPECT(connection->call_wait_for_specific_endpoint_message_impl(TEST_MAGIC, TARGET_MESSAGE_ID));
+    EXPECT_EQ(stub.handle_count(), 0u);
+
+    while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+        ;
+}
+#endif
+
+// The caller of a request that failed may still use the connection, which dying could let go of.
+TEST_CASE(sync_request_to_a_closed_peer_dies_from_the_event_loop)
+{
+    Core::EventLoop loop;
+
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+
+    {
+        auto hung_up_peer = move(pair.remote_handle);
+    }
+    connection->wait_for_transport_to_become_readable();
+
+    EXPECT(connection->post_sync_request(TestMessage { TARGET_MESSAGE_ID }).is_error());
+    EXPECT_EQ(connection->die_count(), 0u);
+    EXPECT_EQ(connection->lost_peer_during_sync_request_count(), 0u);
+
+    while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+        ;
+    EXPECT(connection->die_count() > 0);
+    EXPECT_EQ(connection->lost_peer_during_sync_request_count(), 1u);
 }
 
 TEST_CASE(sync_wait_on_a_closed_peer_that_owns_this_process_shuts_down)
