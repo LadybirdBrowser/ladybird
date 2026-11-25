@@ -3993,13 +3993,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         // box".
         // NB: So the marker ends at the start of the list item's border box, rather than of its content box: Padding
         //     and borders at the start of the list item move its contents, but not its marker.
+        // A disc, circle or square marker is its symbol followed by a space, which leaves it closer to the list item's
+        // text than markers usually sit. So it ends a little further from the list item's border box.
+        const PREDEFINED_SYMBOL_MARKER_END_SPACING: i64 = 5;
+        let end_spacing = if super::generated_content::marker_shows_predefined_symbol(*marker_style, *list_item_style) {
+            CssPixels::from_integer(PREDEFINED_SYMBOL_MARKER_END_SPACING)
+                .scaled(f64::from(marker_style.effective_zoom()))
+        } else {
+            CssPixels::default()
+        };
         let collapsed = list_item.cells.uses_collapsing_borders_model();
         let marker_inline_offset = if list_item_style.direction() == direction::LTR {
             inline_space_used_before_list_item_elements_formatted.left
                 - list_item.cells.border_box_left(collapsed)
                 - marker_inline_size
+                - end_spacing
         } else {
-            list_item.cells.content_inline_size + list_item.cells.border_box_right(collapsed)
+            list_item.cells.content_inline_size + list_item.cells.border_box_right(collapsed) + end_spacing
                 - inline_space_used_before_list_item_elements_formatted.right
         };
         let marker_block_offset = if let Some(list_item_first_baseline) = list_item_first_baseline

@@ -1154,6 +1154,14 @@ impl<'a> ComputedValuesView<'a> {
         )
     }
 
+    /// Whether `content` computes to `normal`.
+    pub(crate) fn content_keyword_is_normal(self) -> bool {
+        matches!(
+            self.content().content.data(),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::css_enums::keyword::NORMAL
+        )
+    }
+
     /// Whether `line-height` computes to `normal`, which sizes an inline box by the metrics of every font its
     /// glyphs are set in rather than by its first available font alone.
     pub(crate) fn line_height_is_normal(self) -> bool {

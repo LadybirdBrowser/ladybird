@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font-family: SerenitySans;
+    }
+    ul, ol {
+        margin: 0;
+        padding-left: 40px;
+    }
+</style>
+<!-- A disc, circle or square marker sits a little further from the list item than its symbol and space alone put it. -->
+<ul style="font-size: 16px"><li>disc</li></ul>
+<ul style="font-size: 32px"><li>disc</li></ul>
+<ul style="list-style-type: circle"><li>circle</li></ul>
+<ul style="list-style-type: square"><li>square</li></ul>
+<ul dir="rtl" style="padding: 0 40px 0 0"><li>rtl</li></ul>
+<!-- The spacing grows with the zoom, as the marker does. -->
+<ul style="zoom: 2; padding-left: 20px"><li>zoom</li></ul>
+<!-- Other markers keep their place. -->
+<ol><li>decimal</li></ol>
+<ul style="list-style-type: '- '"><li>string</li></ul>
+<ul class="content"><li>content</li></ul>
+<style>
+    .content li::marker {
+        content: "\2022  ";
+    }
+</style>

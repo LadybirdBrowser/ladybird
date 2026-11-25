@@ -426,6 +426,29 @@ fn value_list(value: Option<&StyleValueData>) -> &[crate::css::style_value::Reta
     }
 }
 
+/// Whether a list marker shows the symbol of the predefined disc, circle or square counter style, which authors can't
+/// redefine: Its `content` is `normal`, it has no `list-style-image`, and its list item's `list-style-type` names one
+/// of those styles.
+pub(crate) fn marker_shows_predefined_symbol(
+    marker_style: ComputedValuesView<'_>,
+    list_item_style: ComputedValuesView<'_>,
+) -> bool {
+    if !marker_style.content_keyword_is_normal() || marker_style.list_style_image_is_set() {
+        return false;
+    }
+    let Some(StyleValueData::CounterStyle(counter_style)) = list_item_style.inherited_list().list_style_type.data()
+    else {
+        return false;
+    };
+    if counter_style.is_symbols {
+        return false;
+    }
+    let name = counter_style.name.units();
+    ["disc", "circle", "square"]
+        .iter()
+        .any(|predefined| predefined.encode_utf16().eq(name.iter().copied()))
+}
+
 pub(crate) fn content_is_normal(content: Option<&StyleValueData>) -> bool {
     matches!(content, Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL)
 }
