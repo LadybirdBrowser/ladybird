@@ -712,8 +712,7 @@ impl ContextState {
 
     /// Whether the scroll offsets here moved past those of the last frame WebContent presented.
     pub fn scrolled_since_last_frame(&self) -> bool {
-        self.has_pending_async_scroll_updates()
-            || self.scroll_offsets_differ_from_last_frame
+        self.scroll_offsets_differ_from_last_frame
             || self.has_active_smooth_scroll_animations()
             || self.has_active_scroll_fling()
     }
