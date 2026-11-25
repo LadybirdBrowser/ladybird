@@ -52,8 +52,12 @@ option(LADYBIRD_BASELINE_CPU_TARGET "Use a common CPU baseline for portable bina
 
 set(LADYBIRD_VERSION "" CACHE STRING "Version of a release, such as 2026.46.0")
 set(LADYBIRD_BROWSER_VERSION "${PROJECT_VERSION}")
+
+# Development builds have a bundle identifier of their own, so that macOS does not take them for copies of the release.
+set(LADYBIRD_BUNDLE_IDENTIFIER "org.ladybird.Ladybird.Development")
 if (NOT LADYBIRD_VERSION STREQUAL "")
     set(LADYBIRD_BROWSER_VERSION "${LADYBIRD_VERSION}")
+    set(LADYBIRD_BUNDLE_IDENTIFIER "org.ladybird.Ladybird")
 endif()
 
 # The stage of development that releases are in, if any, such as Alpha or Beta.

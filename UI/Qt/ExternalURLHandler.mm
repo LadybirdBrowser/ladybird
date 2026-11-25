@@ -82,9 +82,12 @@ void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandl
     if (application_name == nil)
         application_name = [[application_url lastPathComponent] stringByDeletingPathExtension];
 
+    // A development build counts the release as Ladybird too.
     bool is_ladybird = false;
     if (auto* bundle_identifier = [[NSBundle bundleWithURL:application_url] bundleIdentifier]; bundle_identifier != nil) {
-        is_ladybird = [bundle_identifier caseInsensitiveCompare:@"org.ladybird.Ladybird"] == NSOrderedSame;
+        auto* own_identifier = [[NSBundle mainBundle] bundleIdentifier];
+        is_ladybird = [bundle_identifier caseInsensitiveCompare:@"org.ladybird.Ladybird"] == NSOrderedSame
+            || (own_identifier != nil && [bundle_identifier caseInsensitiveCompare:own_identifier] == NSOrderedSame);
     }
 
     if (!is_ladybird) {

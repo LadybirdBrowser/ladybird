@@ -21,7 +21,7 @@
         <key>CFBundleExecutable</key>
         <string>Ladybird</string>
         <key>CFBundleIdentifier</key>
-        <string>org.ladybird.Ladybird</string>
+        <string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
         <key>CFBundleShortVersionString</key>
         <string>${MACOSX_BUNDLE_SHORT_VERSION_STRING}</string>
         <key>CFBundleVersion</key>
