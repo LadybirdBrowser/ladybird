@@ -112,6 +112,16 @@ TEST_CASE(from_utf8)
     }
 }
 
+TEST_CASE(from_well_formed_utf8_rejects_lone_surrogates)
+{
+    auto wtf8 = "hello \xed\xa0\x80!"sv;
+    EXPECT(!Utf16String::from_well_formed_utf8(wtf8).has_value());
+    EXPECT_EQ(MUST(Utf16String::try_from_utf8(wtf8)), u"hello \xd800!"sv);
+
+    EXPECT(!Utf16String::from_well_formed_utf8("caf\xc3"sv).has_value());
+    EXPECT(Utf16String::try_from_utf8("caf\xc3"sv).is_error());
+}
+
 TEST_CASE(from_utf8_with_replacement_character)
 {
     auto string1 = Utf16String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, Utf16String::WithBOMHandling::No);

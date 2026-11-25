@@ -43,11 +43,7 @@ public:
     {
     }
 
-    ALWAYS_INLINE static Utf16String from_utf8(StringView utf8_string)
-    {
-        VERIFY(Utf8View { utf8_string }.validate());
-        return from_utf8_without_validation(utf8_string);
-    }
+    static Utf16String from_utf8(StringView);
 
     ALWAYS_INLINE static Utf16String from_utf8(String const& utf8_string)
     {
@@ -66,12 +62,11 @@ public:
     static Utf16String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
     static Utf16String from_wtf8_with_replacement_character(StringView);
 
-    ALWAYS_INLINE static ErrorOr<Utf16String> try_from_utf8(StringView utf8_string)
-    {
-        if (!Utf8View { utf8_string }.validate())
-            return Error::from_string_literal("Input was not valid UTF-8");
-        return from_utf8_without_validation(utf8_string);
-    }
+    static ErrorOr<Utf16String> try_from_utf8(StringView);
+
+    // Returns an empty Optional if the input is not well-formed UTF-8. Unlike try_from_utf8(), this also rejects WTF-8
+    // input that encodes lone surrogates.
+    static Optional<Utf16String> from_well_formed_utf8(StringView);
 
     static Utf16String from_utf8_without_validation(StringView);
     static Utf16String from_ascii_without_validation(ReadonlyBytes);

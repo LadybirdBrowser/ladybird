@@ -55,6 +55,9 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_from_code_point_iterable(
     return string;
 }
 
+// NB: Utf16String decodes WTF-8 with this too.
+template NonnullRefPtr<Utf16StringData> Utf16StringData::create_from_code_point_iterable(Utf8View const&);
+
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_ascii(ReadonlyBytes ascii_string)
 {
     VERIFY_UTF16_LENGTH(ascii_string.size());
@@ -72,17 +75,29 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_uninitialized_ascii(size_
     return string;
 }
 
-// Valid UTF-8 encodes nothing above U+00FF if no lead byte is above 0xC3, and then each 0xC2 or 0xC3 lead byte and its
-// continuation byte are one code unit.
-static Optional<size_t> latin1_length_of_valid_utf8(ReadonlyBytes utf8_string)
+// Valid UTF-8 encodes nothing above U+00FF if no lead byte is above 0xC3.
+static bool could_be_latin1(ReadonlyBytes utf8_string)
 {
-    size_t two_byte_sequences = 0;
-    for (auto byte : utf8_string) {
-        if (byte > 0xC3)
-            return {};
-        two_byte_sequences += byte >= 0xC2;
+    // OPTIMIZATION: Scan fixed-size blocks without an early exit inside each one, so the compiler can vectorize it.
+    static constexpr size_t BLOCK_SIZE = 64;
+    static constexpr u8 MAX_LATIN1_LEAD_BYTE = 0xC3;
+
+    auto const* bytes = utf8_string.data();
+    auto size = utf8_string.size();
+    size_t offset = 0;
+
+    for (; offset + BLOCK_SIZE <= size; offset += BLOCK_SIZE) {
+        u8 max_byte = 0;
+        for (size_t i = 0; i < BLOCK_SIZE; ++i)
+            max_byte = max(max_byte, bytes[offset + i]);
+        if (max_byte > MAX_LATIN1_LEAD_BYTE)
+            return false;
     }
-    return utf8_string.size() - two_byte_sequences;
+
+    u8 max_byte = 0;
+    for (; offset < size; ++offset)
+        max_byte = max(max_byte, bytes[offset]);
+    return max_byte <= MAX_LATIN1_LEAD_BYTE;
 }
 
 // The bitwise OR of all code units: it is at most 0xFF if they all fit in Latin-1, and at most 0x7F if they are ASCII.
@@ -94,39 +109,55 @@ static char16_t combined_code_units(ReadonlySpan<char16_t> utf16_string)
     return combined;
 }
 
-NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string)
+RefPtr<Utf16StringData> Utf16StringData::from_well_formed_utf8(StringView utf8_string)
 {
-    RefPtr<Utf16StringData> string;
+    auto const* input = utf8_string.characters_without_null_termination();
+    auto input_length = utf8_string.length();
 
     if (utf8_string.is_ascii()) {
-        VERIFY_UTF16_LENGTH(utf8_string.length());
+        VERIFY_UTF16_LENGTH(input_length);
 
-        string = create_uninitialized(StorageType::Latin1, utf8_string.length());
-        TypedTransfer<u8>::copy(string->latin1_data(), utf8_string.bytes().data(), utf8_string.length());
-    } else if (Utf8View view { utf8_string }; view.validate(AllowLonelySurrogates::No)) {
-        if (auto latin1_length = latin1_length_of_valid_utf8(utf8_string.bytes()); latin1_length.has_value()) {
-            VERIFY_UTF16_LENGTH(*latin1_length);
-
-            string = create_uninitialized(StorageType::Latin1, *latin1_length);
-            string->m_header.flags |= ContainsNonAscii;
-
-            auto result = simdutf::convert_valid_utf8_to_latin1(utf8_string.characters_without_null_termination(), utf8_string.length(), reinterpret_cast<char*>(string->latin1_data()));
-            VERIFY(result == *latin1_length);
-            return string.release_nonnull();
-        }
-
-        auto code_unit_length = simdutf::utf16_length_from_utf8(utf8_string.characters_without_null_termination(), utf8_string.length());
-        VERIFY_UTF16_LENGTH(code_unit_length);
-
-        string = create_uninitialized(StorageType::UTF16, code_unit_length);
-
-        auto result = simdutf::convert_utf8_to_utf16(utf8_string.characters_without_null_termination(), utf8_string.length(), string->utf16_data());
-        VERIFY(result == code_unit_length);
-    } else {
-        string = create_from_code_point_iterable(view);
+        auto string = create_uninitialized(StorageType::Latin1, input_length);
+        TypedTransfer<u8>::copy(string->latin1_data(), utf8_string.bytes().data(), input_length);
+        return string;
     }
 
-    return string.release_nonnull();
+    // NB: simdutf validates the input while converting it, and does not write past the length it computes even if the
+    //     input turns out to be invalid. The conversions that report errors stop near the first one, so callers can
+    //     fall back cheaply.
+    if (could_be_latin1(utf8_string.bytes())) {
+        auto latin1_length = simdutf::latin1_length_from_utf8(input, input_length);
+        VERIFY_UTF16_LENGTH(latin1_length);
+
+        auto string = create_uninitialized(StorageType::Latin1, latin1_length);
+
+        auto result = simdutf::convert_utf8_to_latin1_with_errors(input, input_length, reinterpret_cast<char*>(string->latin1_data()));
+        if (result.error != simdutf::SUCCESS)
+            return nullptr;
+        VERIFY(result.count == latin1_length);
+
+        string->m_header.flags |= ContainsNonAscii;
+        return string;
+    }
+
+    auto code_unit_length = simdutf::utf16_length_from_utf8(input, input_length);
+    VERIFY_UTF16_LENGTH(code_unit_length);
+
+    auto string = create_uninitialized(StorageType::UTF16, code_unit_length);
+
+    auto result = simdutf::convert_utf8_to_utf16_with_errors(input, input_length, string->utf16_data());
+    if (result.error != simdutf::SUCCESS)
+        return nullptr;
+    VERIFY(result.count == code_unit_length);
+
+    return string;
+}
+
+NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string)
+{
+    if (auto string = from_well_formed_utf8(utf8_string))
+        return string.release_nonnull();
+    return create_from_code_point_iterable(Utf8View { utf8_string });
 }
 
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf16(Utf16View const& utf16_string)
