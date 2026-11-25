@@ -848,7 +848,7 @@ impl CompositorCore {
             self.request_present(context_id, &frame_to_present);
         }
         context.borrow_mut().request_display_ticks_if_needed(now);
-        self.publish_pending_async_scroll_updates(context_id, context);
+        self.publish_pending_async_scroll_updates(context);
     }
 
     pub fn take_pending_async_scroll_updates(&self, context_id: CompositorContextId) -> PendingAsyncScrollUpdates {

@@ -645,16 +645,7 @@ impl ContextState {
     pub fn request_rendering_update(&mut self) {
         // The rendering update this asks for adopts the scroll updates it finds pushed by then. What is pending here goes
         // ahead of the request on the wire, so that an update run on the request never misses it.
-        if self.has_pending_async_scroll_updates() {
-            let updates = self.take_pending_async_scroll_updates();
-            self.host.post_to_web_content(
-                self.web_content_client_id,
-                compositor_web_content_client::messages::AsyncScrollUpdates {
-                    context_id: self.context_id,
-                    updates,
-                },
-            );
-        }
+        self.publish_pending_async_scroll_updates();
         self.host.post_to_web_content(
             self.web_content_client_id,
             compositor_web_content_client::messages::RequestRenderingUpdate {},
