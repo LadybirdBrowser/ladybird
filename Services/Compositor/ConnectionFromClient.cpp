@@ -9,7 +9,6 @@
 #include <Compositor/ConnectionFromPresentation.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCompositing/FontServiceClient.h>
-#include <LibCompositing/UIOverlays.h>
 #include <LibCore/Process.h>
 #include <LibIPC/Transport.h>
 
@@ -98,11 +97,6 @@ void ConnectionFromClient::create_context(Web::CompositorContextId context_id, O
     }
 
     m_compositor_state->create_context(context_id, page_id, *connection);
-}
-
-void ConnectionFromClient::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
-{
-    m_compositor_state->set_ui_overlays(context_id, move(overlays));
 }
 
 void ConnectionFromClient::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)

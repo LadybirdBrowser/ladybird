@@ -36,7 +36,6 @@ private:
     virtual Messages::CompositorControlServer::CreatePresentationConnectionResponse create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid) override;
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
-    virtual void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays) override;
     virtual void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility) override;
     virtual void crash() override;
 

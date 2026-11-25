@@ -1,0 +1,48 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+//
+// SPDX-License-Identifier: BSD-2-Clause
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibCompositing/UIOverlays.h>
+
+[ExistingCpp]
+enum Compositing::PausedDebuggerOverlayAction : u8 {
+    StepOver,
+    Continue,
+}
+
+[ExistingCpp]
+enum Compositing::PictureInPictureControl : u8 {
+    BackToTab,
+    Close,
+}
+
+[ExistingCpp]
+struct Compositing::PausedDebuggerOverlayState {
+    Optional<String> font_family;
+    Optional<Compositing::PausedDebuggerOverlayAction> hovered_action;
+}
+
+[ExistingCpp]
+struct Compositing::PictureInPictureControlsState {
+    bool shown;
+    Optional<Compositing::PictureInPictureControl> hovered_control;
+}
+
+[ExistingCpp]
+struct Compositing::CompositorLayersOverlayState {
+    Optional<String> font_family;
+    Vector<u64> hidden_layer_ids;
+    Vector<u64> selected_layer_ids;
+    Optional<u64> hovered_layer_id;
+    u64 raster_count_reset_generation;
+}
+
+[ExistingCpp]
+struct Compositing::UIOverlays {
+    Optional<Compositing::PausedDebuggerOverlayState> paused_debugger;
+    Optional<Compositing::PictureInPictureControlsState> picture_in_picture_controls;
+    Optional<Compositing::CompositorLayersOverlayState> compositor_layers;
+}

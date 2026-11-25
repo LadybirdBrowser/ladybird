@@ -29,7 +29,7 @@ endpoint CompositorControlServer
     create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 
     [RustReceiver] viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
-    set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays) =|
+    [RustReceiver] set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays) =|
     [RustReceiver] set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
     set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility) =|

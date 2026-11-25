@@ -12,7 +12,6 @@
 #include <LibCompositing/Export.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCompositing/PictureInPictureControls.h>
-#include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
 namespace Compositing {
@@ -115,26 +114,4 @@ private:
 
 }
 
-namespace IPC {
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PausedDebuggerOverlayState const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::PausedDebuggerOverlayState> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PictureInPictureControlsState const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::PictureInPictureControlsState> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::CompositorLayersOverlayState const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::CompositorLayersOverlayState> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::UIOverlays const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::UIOverlays> decode(Decoder&);
-
-}
+#include <LibCompositing/UIOverlaysCodecs.h>

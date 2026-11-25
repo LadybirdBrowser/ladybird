@@ -12,7 +12,6 @@
 #include <Compositor/CompositorCoreHost.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibCompositing/Types.h>
-#include <LibCompositing/UIOverlays.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/RawMessage.h>
 
@@ -42,7 +41,6 @@ public:
     // Ends the fling of a context that is hidden, whether or not it was visible. Answers whether the context became
     // visible.
     bool set_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
-    void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&);
 
     void register_presentation(PresentationId, PresentationCapabilities const&);
     // Leaves every context bound to the presentation unbound.
