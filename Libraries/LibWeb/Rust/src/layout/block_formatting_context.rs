@@ -5559,36 +5559,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             return None;
         }
-        self.rebuild_float_bands();
-        let flow_position = self.flow_position();
-        let position_past_floats = self
-            .flow_position_past_floats_cleared_by(
-                node,
-                flow_position,
-                Some(BlockLevelBoxInFlow {
-                    block_start_margin: entry.cells.margin_top(),
-                    containing_block_inline_size: entry.key.containing_block_inline_size,
-                    input: &entry.key.input,
-                }),
-                containing_block_position_in_root,
-            )
-            .map(|(position, _)| position);
-        let block_start_margin = {
-            let mut margin_state = self.margin_state().clone();
-            let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
-            collapse_block_start_margin_of_reused_child(
-                &mut margin_state,
-                &entry.cells,
-                self.facts(node).has_quirky_block_start_margin(),
-                &mut margins_left_by_contents,
-                position_past_floats.is_some(),
-            )
-        };
-        let border_box_block_start_in_root = containing_block_position_in_root.y
-            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
-            + position_past_floats.unwrap_or(flow_position)
-            + block_start_margin;
-        let block_end = border_box_block_start_in_root + layout.block_size_that_stays_unbroken;
+        let position_past_floats =
+            self.position_past_floats_cleared_by_stored_layout(node, entry, containing_block_position_in_root);
+        let block_end = self.border_box_block_start_of_stored_layout_in_root(
+            node,
+            block_container,
+            entry,
+            position_past_floats,
+            containing_block_position_in_root,
+        ) + layout.block_size_that_stays_unbroken;
         (!fragmentainer.exceeds(block_end)).then_some(block_end)
     }
 
@@ -5618,20 +5597,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         if self.floats.borrow().is_empty() {
             return floats_read.floats_in_reach.is_empty() && !floats_read.introduced_clearance;
         }
-        self.rebuild_float_bands();
-        let flow_position = self.flow_position();
-        let position_past_floats = self
-            .flow_position_past_floats_cleared_by(
-                node,
-                flow_position,
-                Some(BlockLevelBoxInFlow {
-                    block_start_margin: entry.cells.margin_top(),
-                    containing_block_inline_size: entry.key.containing_block_inline_size,
-                    input: &entry.key.input,
-                }),
-                containing_block_position_in_root,
-            )
-            .map(|(position, _)| position);
+        let position_past_floats =
+            self.position_past_floats_cleared_by_stored_layout(node, entry, containing_block_position_in_root);
         if floats_read.read_before_top_margins_settled
             && (floats_read.stored_in_open_top_margin_group
                 || floats_read.margins_before_box != self.margin_state().margins_since_reset
@@ -5642,21 +5609,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some(read_start_from_border_box) = floats_read.read_start_from_border_box else {
             return true;
         };
-        let block_start_margin = {
-            let mut margin_state = self.margin_state().clone();
-            let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
-            collapse_block_start_margin_of_reused_child(
-                &mut margin_state,
-                &entry.cells,
-                self.facts(node).has_quirky_block_start_margin(),
-                &mut margins_left_by_contents,
-                position_past_floats.is_some(),
-            )
-        };
-        let border_box_block_start = containing_block_position_in_root.y
-            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
-            + position_past_floats.unwrap_or(flow_position)
-            + block_start_margin;
+        let border_box_block_start = self.border_box_block_start_of_stored_layout_in_root(
+            node,
+            node,
+            entry,
+            position_past_floats,
+            containing_block_position_in_root,
+        );
         let lowest_margin_edge = self
             .lowest_left_margin_edge
             .get()
@@ -6237,11 +6196,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some(read_start_from_border_box) = floats_read.read_start_from_border_box else {
             return !contents_ignore_quirky_margins
                 || self
-                    .position_past_floats_cleared_by_child_laid_out_ahead(
-                        node,
-                        entry,
-                        containing_block_position_in_root,
-                    )
+                    .position_past_floats_cleared_by_stored_layout(node, entry, containing_block_position_in_root)
                     .is_none();
         };
         let group_of_contents_is_negative = entry
@@ -6256,35 +6211,26 @@ impl<'pass> BlockFormattingContext<'pass> {
             return false;
         }
         let position_past_floats =
-            self.position_past_floats_cleared_by_child_laid_out_ahead(node, entry, containing_block_position_in_root);
+            self.position_past_floats_cleared_by_stored_layout(node, entry, containing_block_position_in_root);
         if contents_ignore_quirky_margins && position_past_floats.is_some() {
             return false;
         }
-        let flow_position = self.flow_position();
-        let block_start_margin = {
-            let mut margin_state = self.margin_state().clone();
-            let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
-            collapse_block_start_margin_of_reused_child(
-                &mut margin_state,
-                &entry.cells,
-                self.facts(node).has_quirky_block_start_margin(),
-                &mut margins_left_by_contents,
-                position_past_floats.is_some(),
-            )
-        };
-        let read_start_in_root = containing_block_position_in_root.y
-            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
-            + position_past_floats.unwrap_or(flow_position)
-            + block_start_margin
-            + read_start_from_border_box;
+        let read_start_in_root = self.border_box_block_start_of_stored_layout_in_root(
+            node,
+            node,
+            entry,
+            position_past_floats,
+            containing_block_position_in_root,
+        ) + read_start_from_border_box;
         self.lowest_left_margin_edge
             .get()
             .max(self.lowest_right_margin_edge.get())
             .is_none_or(|edge| edge <= read_start_in_root)
     }
 
-    /// Where clearance puts a child laid out ahead of this walk among the floats placed so far, if it gets any.
-    fn position_past_floats_cleared_by_child_laid_out_ahead(
+    /// Where clearance puts `node` among the floats placed so far, placed with its stored layout `entry` at the next
+    /// position in this flow, if it gets any.
+    fn position_past_floats_cleared_by_stored_layout(
         &self,
         node: Node,
         entry: &in_flow_block_cache::InFlowBlockEntry,
@@ -6302,6 +6248,32 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_position_in_root,
         )
         .map(|(position, _)| position)
+    }
+
+    /// Where the border box of `node` starts in the root, placed with its stored layout `entry` at the next position in
+    /// this flow, or at `position_past_floats` where clearance puts it, below the pending block-start margins of the
+    /// ancestors of `adjusted_for`. Its block-start margin collapses as placing it would collapse it.
+    fn border_box_block_start_of_stored_layout_in_root(
+        &self,
+        node: Node,
+        adjusted_for: Node,
+        entry: &in_flow_block_cache::InFlowBlockEntry,
+        position_past_floats: Option<CssPixels>,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> CssPixels {
+        let mut margin_state = self.margin_state().clone();
+        let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
+        let block_start_margin = collapse_block_start_margin_of_reused_child(
+            &mut margin_state,
+            &entry.cells,
+            self.facts(node).has_quirky_block_start_margin(),
+            &mut margins_left_by_contents,
+            position_past_floats.is_some(),
+        );
+        containing_block_position_in_root.y
+            + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(adjusted_for)
+            + position_past_floats.unwrap_or(self.flow_position())
+            + block_start_margin
     }
 
     /// Places a child laid out ahead of this walk, if that layout holds among the floats placed so far.
