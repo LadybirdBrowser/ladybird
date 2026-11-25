@@ -14,12 +14,15 @@ use libcompositing_rust::scrolling::{
     animated_content_may_affect_viewport,
 };
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::{FloatMatrix4x4, IntRect, IntSize};
+use libcompositing_rust::visual_context::VisualContextTree;
+use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, IntSize, scale_matrix};
 use std::io::Write;
 use std::rc::Rc;
+use std::sync::Arc;
 
-/// A plan of the layers of the display list a scene holds under the tree WebContent published, as WebContent sent it,
-/// once it passed the checks against the two.
+/// A plan of the layers of the display list a scene holds under the tree WebContent published with its visual viewport
+/// at identity, as WebContent sent it, once it passed the checks against the two. It holds wherever the visual viewport
+/// is.
 #[derive(Clone)]
 pub struct ReceivedLayerPlan {
     /// The viewport, in device pixels, the plan was made within.
@@ -32,11 +35,18 @@ pub struct ReceivedLayerPlan {
     pub note_lines: Rc<[String]>,
 }
 
+/// A plan of layers the scene holds, with the list and the tree of layer plans it was taken under.
+struct HeldLayerPlan {
+    plan: ReceivedLayerPlan,
+    display_list: Rc<DisplayList>,
+    tree_of_layer_plans: Arc<VisualContextTree>,
+}
+
 #[derive(Default)]
 pub struct ContextScene {
     display_list: Option<Rc<DisplayList>>,
     visual_context_tree: Option<AccumulatedVisualContextTree>,
-    layer_plan: Option<ReceivedLayerPlan>,
+    layer_plan: Option<HeldLayerPlan>,
     /// Whether the scene holds the display list and the tree of the update WebContent sent last, which the plans it
     /// sends with scroll states are of.
     holds_list_and_tree_sent_last: bool,
@@ -46,6 +56,127 @@ pub struct ContextScene {
     visual_animation_sample_time_ns: Option<i64>,
     has_active_visual_animations: bool,
     animated_content_may_affect_viewport: Option<bool>,
+    /// The published tree with its visual viewport at identity, which plans of layers are made under and checked
+    /// against. It stays the same copy while the trees WebContent publishes differ from it only in the visual viewport.
+    tree_of_layer_plans: Option<Arc<VisualContextTree>>,
+    /// The plan the scene held before WebContent sent the list or the tree it holds. The scene keeps it where WebContent
+    /// sends that plan again under the same list and tree of layer plans, as with each tree that only moves the visual
+    /// viewport, so that frames keep what they worked out of it. Frames bind what they work out of a plan to its list.
+    layer_plan_sent_before: Option<HeldLayerPlan>,
+    /// The tree of layer plans with its visual viewport at a raster scale other than 1, by that scale and the number of
+    /// the copy of the tree of layer plans.
+    tree_at_raster_scale: Option<(i32, u64, AccumulatedVisualContextTree)>,
+    /// The tree frames raster with, with the visual animations sampled, by the number of its copy and the time of the
+    /// sample.
+    sampled_raster_tree: Option<(u64, i64, AccumulatedVisualContextTree)>,
+    /// The raster scale frames hold while the compositor zooms the page, or none at rest.
+    raster_scale_while_zooming: Option<i32>,
+}
+
+#[derive(PartialEq)]
+enum KeepsPlanSentAgain {
+    Yes,
+    No,
+}
+
+/// What a frame rasters the page with, how it shows that raster, and the plan of the layers it rasters.
+pub struct RasterOfFrame {
+    pub visual_context_tree: AccumulatedVisualContextTree,
+    pub raster_to_frame: Option<AffineTransform>,
+    pub layer_plan: Option<ReceivedLayerPlan>,
+    /// How many raster pixels the frame rasters each device pixel of the layout viewport at: a power of two, at which
+    /// the rects of a plan stay on whole pixels.
+    pub raster_scale: i32,
+}
+
+// A scale this close to another shows the raster at that scale.
+const SCALE_ROUNDING_OF_RASTER_TO_FRAME: f32 = 1e-4;
+const LARGEST_RASTER_SCALE: i32 = 8;
+
+/// The raster scale of frames that show the page zoomed by `zoom` at rest: the smallest power of two the zoom does not
+/// pass, so that frames scale their raster down, by at most half.
+fn raster_scale_at_rest_for(zoom: f32) -> i32 {
+    let mut raster_scale = 1;
+    while raster_scale < LARGEST_RASTER_SCALE
+        && (raster_scale as f32) < zoom * (1.0 - SCALE_ROUNDING_OF_RASTER_TO_FRAME)
+    {
+        raster_scale *= 2;
+    }
+    raster_scale
+}
+
+/// The largest power of two, from 1, that `zoom` reaches.
+fn largest_raster_scale_reached_by(zoom: f32) -> i32 {
+    let mut raster_scale = 1;
+    while raster_scale < LARGEST_RASTER_SCALE
+        && (raster_scale * 2) as f32 <= zoom * (1.0 + SCALE_ROUNDING_OF_RASTER_TO_FRAME)
+    {
+        raster_scale *= 2;
+    }
+    raster_scale
+}
+
+/// The raster scale of frames that show the page zoomed by `zoom` while the compositor zooms it, which keeps `held` for
+/// as long as frames scale it by between half and twice: past twice, the largest power of two the zoom reaches, and
+/// below half, the scale at rest.
+fn raster_scale_while_zooming_to(held: i32, zoom: f32) -> i32 {
+    let frame_scales_held_by = zoom / held as f32;
+    if frame_scales_held_by > 2.0 {
+        largest_raster_scale_reached_by(zoom)
+    } else if frame_scales_held_by < 0.5 {
+        raster_scale_at_rest_for(zoom)
+    } else {
+        held
+    }
+}
+
+/// How a frame within `viewport_rect` maps a raster of the tree of layer plans at `raster_scale`, which covers the
+/// viewport at that scale, to its pixels through the visual viewport `transform`: none where it shows the raster as it
+/// is, a translation alone rounded to whole pixels, or a scale and a translation. Fails for a visual viewport that
+/// rotates, skews or shrinks the page, or that shows past the raster.
+fn raster_to_frame_through_visual_viewport(
+    transform: &TransformWithOrigin,
+    raster_scale: i32,
+    viewport_rect: IntRect,
+) -> Option<Option<AffineTransform>> {
+    let matrix = transform.matrix_including_origin();
+    let visual_viewport = matrix.is_2d_affine().then(|| matrix.extract_2d_affine())?;
+    let zooms_in_or_not = |scale: f32| scale >= 1.0 - SCALE_ROUNDING_OF_RASTER_TO_FRAME;
+    if visual_viewport.b() != 0.0
+        || visual_viewport.c() != 0.0
+        || !zooms_in_or_not(visual_viewport.a())
+        || !zooms_in_or_not(visual_viewport.d())
+        || !visual_viewport.values.iter().all(|value| value.is_finite())
+    {
+        return None;
+    }
+    let raster_to_visual_viewport = 1.0 / raster_scale as f32;
+    let raster_to_frame = visual_viewport.scaled(raster_to_visual_viewport, raster_to_visual_viewport);
+    let keeps_size = |scale: f32| (scale - 1.0).abs() <= SCALE_ROUNDING_OF_RASTER_TO_FRAME;
+    let raster_to_frame = if keeps_size(raster_to_frame.a()) && keeps_size(raster_to_frame.d()) {
+        let (x, y) = (raster_to_frame.e().round(), raster_to_frame.f().round());
+        if x == 0.0 && y == 0.0 {
+            return Some(None);
+        }
+        AffineTransform::new(1.0, 0.0, 0.0, 1.0, x, y)
+    } else {
+        raster_to_frame
+    };
+    let viewport = viewport_rect.to_float();
+    let raster_scale = raster_scale as f32;
+    let raster = FloatRect::new(
+        viewport.x * raster_scale,
+        viewport.y * raster_scale,
+        viewport.width * raster_scale,
+        viewport.height * raster_scale,
+    );
+    let shown = raster_to_frame.inverse()?.map_rect(viewport);
+    // A rounding of the transform may move an edge of what the frame shows by this much.
+    let rounding = 0.01;
+    raster
+        .inflated(2.0 * rounding, 2.0 * rounding)
+        .contains_rect(shown)
+        .then_some(Some(raster_to_frame))
 }
 
 fn update_visual_animation_sampling_state(
@@ -72,7 +203,7 @@ impl ContextScene {
         now: MonotonicTime,
     ) {
         self.display_list = Some(display_list);
-        self.layer_plan = None;
+        self.set_aside_layer_plan();
         self.animated_content_may_affect_viewport = None;
         self.take_visual_context_tree_unless_content_is_unchanged(visual_context_tree);
         update_visual_animation_sampling_state(
@@ -97,6 +228,10 @@ impl ContextScene {
             return;
         }
         self.invalidate_visual_context_tree_for_compositing();
+        self.tree_of_layer_plans = Some(VisualContextTree::tree_of_layer_plans_for(
+            visual_context_tree.as_arc(),
+            self.tree_of_layer_plans.as_ref(),
+        ));
         self.visual_context_tree = Some(visual_context_tree);
     }
 
@@ -141,7 +276,7 @@ impl ContextScene {
             );
             return false;
         }
-        self.layer_plan = None;
+        self.set_aside_layer_plan();
         self.take_visual_context_tree_unless_content_is_unchanged(visual_context_tree);
         update_visual_animation_sampling_state(
             self.visual_context_tree.as_ref().unwrap(),
@@ -161,8 +296,14 @@ impl ContextScene {
     /// Forgets the plan of layers, ahead of a display list or a tree that WebContent sent, which the compositor may
     /// refuse.
     pub fn forget_layer_plan(&mut self) {
-        self.layer_plan = None;
+        self.set_aside_layer_plan();
         self.holds_list_and_tree_sent_last = false;
+    }
+
+    fn set_aside_layer_plan(&mut self) {
+        if let Some(layer_plan) = self.layer_plan.take() {
+            self.layer_plan_sent_before = Some(layer_plan);
+        }
     }
 
     /// Takes the plan of layers that came with the display list or the tree the scene just installed. Fails for a plan
@@ -172,7 +313,7 @@ impl ContextScene {
         layer_plan: Option<UnvalidatedLayerPlan>,
     ) -> Result<(), &'static str> {
         self.holds_list_and_tree_sent_last = true;
-        self.take_layer_plan(layer_plan)
+        self.take_layer_plan(layer_plan, KeepsPlanSentAgain::Yes)
     }
 
     /// Takes the plan of layers that came with a scroll state, if any. Fails for a plan that does not pass the checks
@@ -182,15 +323,24 @@ impl ContextScene {
         layer_plan: Option<UnvalidatedLayerPlan>,
     ) -> Result<(), &'static str> {
         match layer_plan {
-            Some(layer_plan) if self.holds_list_and_tree_sent_last => self.take_layer_plan(Some(layer_plan)),
+            // A plan that comes with a scroll state is taken anew, as frames that drew the one before may have drawn it
+            // as one layer for the scroll offsets they showed.
+            Some(layer_plan) if self.holds_list_and_tree_sent_last => {
+                self.take_layer_plan(Some(layer_plan), KeepsPlanSentAgain::No)
+            }
             _ => Ok(()),
         }
     }
 
-    fn take_layer_plan(&mut self, layer_plan: Option<UnvalidatedLayerPlan>) -> Result<(), &'static str> {
-        self.layer_plan = None;
+    fn take_layer_plan(
+        &mut self,
+        layer_plan: Option<UnvalidatedLayerPlan>,
+        keeps_plan_sent_again: KeepsPlanSentAgain,
+    ) -> Result<(), &'static str> {
+        self.set_aside_layer_plan();
+        let layer_plan_sent_before = self.layer_plan_sent_before.take();
         let (Some(layer_plan), Some(display_list), Some(tree)) =
-            (layer_plan, &self.display_list, &self.visual_context_tree)
+            (layer_plan, &self.display_list, &self.tree_of_layer_plans)
         else {
             return Ok(());
         };
@@ -198,7 +348,17 @@ impl ContextScene {
         if layer_plan.display_list_id != display_list.id() {
             return Ok(());
         }
-        let layer_plan = layer_plan.validated(display_list.storage(), tree.as_arc())?;
+        let layer_plan = layer_plan.validated(display_list.storage(), tree)?;
+        if keeps_plan_sent_again == KeepsPlanSentAgain::Yes
+            && let Some(layer_plan_sent_before) = layer_plan_sent_before
+            && Rc::ptr_eq(&layer_plan_sent_before.display_list, display_list)
+            && Arc::ptr_eq(&layer_plan_sent_before.tree_of_layer_plans, tree)
+            && layer_plan_sent_before.plan.viewport_rect == layer_plan.viewport_rect
+            && *layer_plan_sent_before.plan.stack == layer_plan.stack
+        {
+            self.layer_plan = Some(layer_plan_sent_before);
+            return Ok(());
+        }
         // The spaces of a plan of more than one layer are at the anchors that plans take for the tree. A plan of one
         // layer replays the whole display list, and no frame reads which scroll offsets it leaves out.
         let nodes_whose_scroll_offset_plan_reads = if layer_plan.stack.replays_whole_list() {
@@ -211,18 +371,22 @@ impl ContextScene {
                 .skip(1)
                 .map(|space| space.anchor)
                 .collect();
-            spatial_nodes_whose_scroll_offset_placement_leaves_out(tree.as_arc(), &anchors_of_spaces)
+            spatial_nodes_whose_scroll_offset_placement_leaves_out(tree, &anchors_of_spaces)
                 .into_iter()
                 .enumerate()
                 .filter(|&(_, leaves_out)| !leaves_out)
                 .map(|(node_index, _)| node_index as u32)
                 .collect()
         };
-        self.layer_plan = Some(ReceivedLayerPlan {
-            viewport_rect: layer_plan.viewport_rect,
-            stack: Rc::new(layer_plan.stack),
-            nodes_whose_scroll_offset_plan_reads,
-            note_lines: layer_plan.note_lines.into(),
+        self.layer_plan = Some(HeldLayerPlan {
+            plan: ReceivedLayerPlan {
+                viewport_rect: layer_plan.viewport_rect,
+                stack: Rc::new(layer_plan.stack),
+                nodes_whose_scroll_offset_plan_reads,
+                note_lines: layer_plan.note_lines.into(),
+            },
+            display_list: display_list.clone(),
+            tree_of_layer_plans: tree.clone(),
         });
         Ok(())
     }
@@ -263,18 +427,94 @@ impl ContextScene {
         self.sampled_visual_context_tree.as_ref().unwrap()
     }
 
-    /// The plan of layers of the display list and the tree as WebContent published it, unless frames draw the tree
-    /// through a visual viewport transform other than its own.
-    pub fn layer_plan_unless_visual_viewport_differs(&self) -> Option<&ReceivedLayerPlan> {
-        let layer_plan = self.layer_plan.as_ref()?;
-        let tree = self.visual_context_tree.as_ref()?;
-        if let Some(transform) = self.async_visual_viewport_transform {
-            let published_transform = tree.visual_viewport_transform();
-            if transform.matrix != published_transform.matrix || transform.origin != published_transform.origin {
-                return None;
-            }
+    /// What a frame within `viewport_rect` rasters the page with, how it shows that raster, and the plan of the layers
+    /// it rasters. As plans hold wherever the visual viewport is, a frame that shows the page zoomed or panned rasters
+    /// the tree of layer plans at a power of two of the layout viewport's device pixels and maps the raster to its
+    /// pixels through the visual viewport, with the plan. A visual viewport that rotates, skews or shrinks the page is
+    /// drawn as the tree places it, without the plan.
+    pub fn raster_of_frame(&mut self, viewport_rect: IntRect) -> RasterOfFrame {
+        let raster_scale = self.raster_scale_of_frames();
+        match raster_to_frame_through_visual_viewport(&self.visual_viewport_transform(), raster_scale, viewport_rect) {
+            Some(raster_to_frame) => RasterOfFrame {
+                visual_context_tree: self.sampled_tree_at_raster_scale(raster_scale),
+                raster_to_frame,
+                layer_plan: self.layer_plan.as_ref().map(|held| held.plan.clone()),
+                raster_scale,
+            },
+            None => RasterOfFrame {
+                visual_context_tree: self.visual_context_tree_for_compositing().clone(),
+                raster_to_frame: None,
+                layer_plan: None,
+                raster_scale: 1,
+            },
         }
-        Some(layer_plan)
+    }
+
+    /// The raster scale of frames: the one they hold while the compositor zooms the page, and the one for the zoom at
+    /// rest.
+    pub fn raster_scale_of_frames(&self) -> i32 {
+        self.raster_scale_while_zooming
+            .unwrap_or_else(|| raster_scale_at_rest_for(self.visual_viewport_magnification()))
+    }
+
+    /// Zooms the visual viewport to `transform` for a step of a pinch, which frames show from a raster they hold the
+    /// scale of until the zoom leaves the range they scale it by.
+    pub fn zoom_visual_viewport(&mut self, transform: TransformWithOrigin) {
+        let held = self.raster_scale_of_frames();
+        self.set_async_visual_viewport_transform(transform);
+        self.raster_scale_while_zooming = Some(raster_scale_while_zooming_to(
+            held,
+            self.visual_viewport_magnification(),
+        ));
+    }
+
+    /// Ends the zoom of the compositor, after which frames raster at the scale for the zoom at rest. Answers whether
+    /// that is another scale than the one they held.
+    pub fn settle_raster_scale(&mut self) -> bool {
+        let Some(held) = self.raster_scale_while_zooming.take() else {
+            return false;
+        };
+        held != self.raster_scale_of_frames()
+    }
+
+    fn sampled_tree_at_raster_scale(&mut self, raster_scale: i32) -> AccumulatedVisualContextTree {
+        let tree_of_layer_plans = AccumulatedVisualContextTree::from_arc(
+            self.tree_of_layer_plans
+                .clone()
+                .expect("a frame draws a scene that holds a tree"),
+        );
+        let tree = if raster_scale == 1 {
+            self.tree_at_raster_scale = None;
+            tree_of_layer_plans
+        } else {
+            let copy_of_tree_of_layer_plans = tree_of_layer_plans.as_arc().copy.number();
+            match &self.tree_at_raster_scale {
+                Some((scale, copy, tree)) if *scale == raster_scale && *copy == copy_of_tree_of_layer_plans => {
+                    tree.clone()
+                }
+                _ => {
+                    let tree = tree_of_layer_plans.with_visual_viewport_transform(&TransformWithOrigin {
+                        matrix: scale_matrix(raster_scale as f32, raster_scale as f32, 1.0),
+                        origin: FloatPoint::default(),
+                    });
+                    self.tree_at_raster_scale = Some((raster_scale, copy_of_tree_of_layer_plans, tree.clone()));
+                    tree
+                }
+            }
+        };
+        let Some(sample_time_ns) = self.visual_animation_sample_time_ns else {
+            return tree;
+        };
+        let copy = tree.as_arc().copy.number();
+        if let Some((sampled_copy, sampled_time_ns, sampled)) = &self.sampled_raster_tree
+            && *sampled_copy == copy
+            && *sampled_time_ns == sample_time_ns
+        {
+            return sampled.clone();
+        }
+        let sampled = tree.with_visual_animation_samples(sample_time_ns);
+        self.sampled_raster_tree = Some((copy, sample_time_ns, sampled.clone()));
+        sampled
     }
 
     pub fn visual_viewport_transform(&self) -> TransformWithOrigin {
@@ -317,6 +557,7 @@ impl ContextScene {
     pub fn drop_async_visual_viewport_transform(&mut self) {
         self.invalidate_visual_context_tree_for_compositing();
         self.async_visual_viewport_transform = None;
+        self.raster_scale_while_zooming = None;
     }
 
     pub fn advance_visual_animations(&mut self, now: MonotonicTime) -> bool {
@@ -325,7 +566,6 @@ impl ContextScene {
         }
         self.sampled_visual_context_tree = None;
         self.visual_animation_sample_time_ns = Some(now.nanoseconds());
-        self.visual_context_tree_for_compositing();
         self.has_active_visual_animations = self
             .visual_context_tree
             .as_ref()
@@ -447,9 +687,7 @@ mod tests {
     }
 
     fn stack_of_plan(scene: &ContextScene) -> Option<LayerStack> {
-        scene
-            .layer_plan_unless_visual_viewport_differs()
-            .map(|layer_plan| (*layer_plan.stack).clone())
+        scene.layer_plan.as_ref().map(|held| (*held.plan.stack).clone())
     }
 
     #[test]

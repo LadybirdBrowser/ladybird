@@ -97,8 +97,17 @@ impl ContextState {
         visual_viewport_transform: TransformWithOrigin,
         cause: VisualViewportMoveCause,
     ) {
-        self.scene
-            .set_async_visual_viewport_transform(visual_viewport_transform);
+        if cause == VisualViewportMoveCause::Pinch {
+            self.scene.zoom_visual_viewport(visual_viewport_transform);
+            self.host.set_timer(
+                self.context_id,
+                ContextTimer::RasterScaleOfZoomSettles,
+                ZOOM_SETTLES_AFTER,
+            );
+        } else {
+            self.scene
+                .set_async_visual_viewport_transform(visual_viewport_transform);
+        }
         self.async_scroll_tree.mark_cached_viewport_rects_stale();
         self.visual_viewport_document_id = document_id;
         let Some(document_id) = document_id else {

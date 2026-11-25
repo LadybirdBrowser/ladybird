@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 2000px; }
+    #scroller { position: absolute; left: 50px; top: 100px; width: 300px; height: 200px; overflow: scroll; }
+    #scrolled { height: 1000px; background: green; }
+    #sticky-header { position: sticky; top: 0; height: 40px; background: navy; }
+    canvas { position: absolute; left: 400px; top: 200px; }
+    #over-canvas { position: absolute; left: 450px; top: 240px; width: 100px; height: 40px; background: rgba(255, 255, 255, 0.5); }
+</style>
+<div id="sticky-header"></div>
+<div id="scroller"><div id="scrolled"></div></div>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="over-canvas"></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const layersOf = dump => dump.substring(dump.indexOf("Layers ("), dump.indexOf("\nDisplayList:"));
+
+        // Printing changes the page, so both dumps are taken first.
+        const layersAtZoomOne = layersOf(internals.dumpDisplayList());
+        // A zoomed page keeps the spaces and layers it has at zoom 1, as plans are made below the visual viewport.
+        internals.pinch(400, 300, 1.0);
+        const scale = window.visualViewport.scale;
+        const layersZoomedIn = layersOf(internals.dumpDisplayList());
+        println(`scale=${scale}`);
+        println(`layers as at zoom 1: ${layersZoomedIn === layersAtZoomOne}`);
+        println(layersZoomedIn);
+    });
+</script>
