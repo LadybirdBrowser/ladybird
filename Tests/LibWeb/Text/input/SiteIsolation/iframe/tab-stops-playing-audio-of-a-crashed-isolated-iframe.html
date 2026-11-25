@@ -2,6 +2,7 @@
 <script src="../../include.js"></script>
 <script>
     function play() {
+        internals.grantTransientActivation();
         const context = new AudioContext();
         const oscillator = new OscillatorNode(context);
         oscillator.connect(context.destination);
