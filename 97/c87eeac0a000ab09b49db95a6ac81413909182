@@ -1,0 +1,26 @@
+Ladybird builds a fresh fragment for every VTTCue.getCueAsHTML() call.
+Blink uses VTTCue::CopyVTTNodeToDOMTree and WebKit uses
+copyWebVTTNodeToDOMTree to populate a fresh fragment from a parsed cue.
+Gecko uses TextTrackCue::GetCueAsHTML and its WebVTT parser wrapper.
+
+Chrome 158.0.8127.37, Firefox 151.0, and WebKit 26.5 preserved voice,
+language, classes, ruby, and timestamps. Updating the cue text produced
+a fresh fragment and left the earlier one intact. All three used the
+cue’s own document in cross-window calls, even when the method came from
+the other window. Ladybird follows them here. The specification names
+the entry settings object’s responsible document.
+
+Ladybird uses the HTML tokenizer for character references in cue text
+and annotations. Blink calls ConsumeHTMLEntity from its VTT tokenizer.
+WebKit calls consumeHTMLEntity from WebVTTTokenizer. Gecko decodes cue
+text in the unescapeEntities helper inside parseContent.
+
+Chrome 158.0.8127.37 and WebKit 26.5 both decoded the legacy reference
+in &notit; in text and preserved the literal spelling in a voice
+annotation. Firefox 151.0 also distinguished text from annotations,
+but preserved numeric references in cue text and left all references
+in the tested annotation untouched.
+
+WebVTT section 6.4 requires text-context decoding even in annotations.
+Ladybird uses attribute-context decoding there to preserve the literal
+spelling of &notit; that all three browsers expose in a voice title.
