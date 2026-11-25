@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 198 tests
+Found 225 tests
 
-198 Pass
+225 Pass
 Pass	-webkit-text-stroke-width
 Pass	border-spacing
 Pass	font-size
@@ -27,6 +27,10 @@ Pass	border-start-start-radius
 Pass	border-top-left-radius
 Pass	border-top-right-radius
 Pass	border-top-width
+Pass	column-rule-inset-cap-end
+Pass	column-rule-inset-cap-start
+Pass	column-rule-inset-junction-end
+Pass	column-rule-inset-junction-start
 Pass	column-rule-width
 Pass	cx
 Pass	cy
@@ -58,6 +62,11 @@ Pass	padding-left
 Pass	padding-right
 Pass	padding-top
 Pass	r
+Pass	row-rule-inset-cap-end
+Pass	row-rule-inset-cap-start
+Pass	row-rule-inset-junction-end
+Pass	row-rule-inset-junction-start
+Pass	row-rule-width
 Pass	scroll-margin-block-end
 Pass	scroll-margin-block-start
 Pass	scroll-margin-bottom
@@ -93,6 +102,10 @@ Pass	border-start-start-radius: initial;
 Pass	border-top-left-radius: initial;
 Pass	border-top-right-radius: initial;
 Pass	border-top-width: initial;
+Pass	column-rule-inset-cap-end: initial;
+Pass	column-rule-inset-cap-start: initial;
+Pass	column-rule-inset-junction-end: initial;
+Pass	column-rule-inset-junction-start: initial;
 Pass	column-rule-width: initial;
 Pass	cx: initial;
 Pass	cy: initial;
@@ -124,6 +137,11 @@ Pass	padding-left: initial;
 Pass	padding-right: initial;
 Pass	padding-top: initial;
 Pass	r: initial;
+Pass	row-rule-inset-cap-end: initial;
+Pass	row-rule-inset-cap-start: initial;
+Pass	row-rule-inset-junction-end: initial;
+Pass	row-rule-inset-junction-start: initial;
+Pass	row-rule-width: initial;
 Pass	scroll-margin-block-end: initial;
 Pass	scroll-margin-block-start: initial;
 Pass	scroll-margin-bottom: initial;
@@ -159,6 +177,10 @@ Pass	border-start-start-radius (all: initial)
 Pass	border-top-left-radius (all: initial)
 Pass	border-top-right-radius (all: initial)
 Pass	border-top-width (all: initial)
+Pass	column-rule-inset-cap-end (all: initial)
+Pass	column-rule-inset-cap-start (all: initial)
+Pass	column-rule-inset-junction-end (all: initial)
+Pass	column-rule-inset-junction-start (all: initial)
 Pass	column-rule-width (all: initial)
 Pass	cx (all: initial)
 Pass	cy (all: initial)
@@ -190,6 +212,11 @@ Pass	padding-left (all: initial)
 Pass	padding-right (all: initial)
 Pass	padding-top (all: initial)
 Pass	r (all: initial)
+Pass	row-rule-inset-cap-end (all: initial)
+Pass	row-rule-inset-cap-start (all: initial)
+Pass	row-rule-inset-junction-end (all: initial)
+Pass	row-rule-inset-junction-start (all: initial)
+Pass	row-rule-width (all: initial)
 Pass	scroll-margin-block-end (all: initial)
 Pass	scroll-margin-block-start (all: initial)
 Pass	scroll-margin-bottom (all: initial)

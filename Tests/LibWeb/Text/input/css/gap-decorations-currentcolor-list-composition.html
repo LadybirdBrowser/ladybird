@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<div id="target" style="color: rgb(0, 100, 0); row-rule-style: solid"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [underlying, keyframe] of [
+            ["currentcolor", "rgb(0, 0, 100)"],
+            ["currentcolor, rgb(100, 0, 0)", "rgb(0, 0, 100)"],
+            ["rgb(100, 0, 0)", "currentcolor, rgb(0, 0, 100)"],
+        ]) {
+            target.style.rowRuleColor = underlying;
+            const animation = target.animate({ rowRuleColor: [keyframe, keyframe] }, { duration: 1000, fill: "both", composite: "add" });
+            animation.currentTime = 500;
+            println(`${underlying} + ${keyframe}: ${getComputedStyle(target).rowRuleColor}`);
+            animation.cancel();
+        }
+    });
+</script>

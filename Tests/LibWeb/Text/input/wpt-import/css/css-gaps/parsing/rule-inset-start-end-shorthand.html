@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: {column/row}-rule-inset-{start/end} shorthands</title>
+<link rel="help" href="https://www.w3.org/TR/css-gaps-1/#propdef-rule-inset">
+<meta name="assert"
+    content="rule-inset-start/end supports the full grammar '<length-percentage>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+    <script>
+        const rule_properties = {
+            'column-rule-inset-start': ['column-rule-inset-cap-start', 'column-rule-inset-junction-start'],
+            'column-rule-inset-end': ['column-rule-inset-cap-end', 'column-rule-inset-junction-end'],
+            'row-rule-inset-start': ['row-rule-inset-cap-start', 'row-rule-inset-junction-start'],
+            'row-rule-inset-end': ['row-rule-inset-cap-end', 'row-rule-inset-junction-end']
+        };
+        const testCases = [
+            {
+                input: '0px',
+                expected: '0px',
+            },
+            {
+                input: '10px',
+                expected: '10px',
+            },
+            {
+                input: '50%',
+                expected: '50%',
+            },
+            {
+                input: '-20px',
+                expected: '-20px',
+            },
+            {
+                input: 'overlap-join',
+                expected: 'overlap-join',
+            },
+        ];
+
+
+        for (rule_property in rule_properties) {
+            const test_cases = testCases;
+
+            for (const { input, expected } of test_cases) {
+                const [edgeInset, interiorInset] = rule_properties[rule_property];
+                test_shorthand_value(rule_property, input, {
+                    [edgeInset]: expected,
+                    [interiorInset]: expected,
+                });
+            }
+        }
+    </script>
+</body>
+</html>

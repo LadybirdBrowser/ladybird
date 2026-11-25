@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Gaps: parsing rule-overlap valid values</title>
+  <link rel="author" title="Javier Contreras Tenorio" href="mailto:javiercon@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-gaps-1/#overlap">
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+  <script>
+    test_valid_value('rule-overlap', 'row-over-column');
+    test_valid_value('rule-overlap', 'column-over-row');
+  </script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 148 tests
+Found 157 tests
 
-148 Pass
+157 Pass
 Pass	-webkit-text-stroke-width: 10px; parent=10px; child=10px
 Pass	border-spacing: 10px; parent=10px; child=10px
 Pass	font-size: 10px; parent=10px; child=10px
@@ -52,6 +52,10 @@ Pass	clip: rect(10px 20px 30px 40px); parent=rect(10px, 20px, 30px, 40px); child
 Pass	clip-path: inset(10px); parent=inset(10px); child=inset(10px)
 Pass	column-gap: 10px; parent=10px; child=10px
 Pass	column-height: 10px; parent=10px; child=10px
+Pass	column-rule-inset-cap-end: 10px; parent=10px; child=10px
+Pass	column-rule-inset-cap-start: 10px; parent=10px; child=10px
+Pass	column-rule-inset-junction-end: 10px; parent=10px; child=10px
+Pass	column-rule-inset-junction-start: 10px; parent=10px; child=10px
 Pass	column-rule-width: 10px; parent=10px; child=10px
 Pass	column-width: 10px; parent=10px; child=10px
 Pass	contain-intrinsic-block-size: 10px; parent=10px; child=10px
@@ -122,6 +126,11 @@ Pass	perspective-origin: 10px; parent=10px 0px; child=10px 0px
 Pass	r: 10px; parent=10px; child=10px
 Pass	right: 10px; parent=10px; child=10px
 Pass	row-gap: 10px; parent=10px; child=10px
+Pass	row-rule-inset-cap-end: 10px; parent=10px; child=10px
+Pass	row-rule-inset-cap-start: 10px; parent=10px; child=10px
+Pass	row-rule-inset-junction-end: 10px; parent=10px; child=10px
+Pass	row-rule-inset-junction-start: 10px; parent=10px; child=10px
+Pass	row-rule-width: 10px; parent=10px; child=10px
 Pass	rx: 10px; parent=10px; child=10px
 Pass	ry: 10px; parent=10px; child=10px
 Pass	scroll-margin-block-end: 10px; parent=10px; child=10px

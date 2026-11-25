@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<div id="target" style="color: color(display-p3 1 0 0)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const keyframes of [
+            ["currentcolor", "rgb(0, 0, 255)"],
+            ["currentcolor, rgb(255, 0, 0)", "rgb(0, 0, 255), rgb(255, 0, 0)"],
+        ]) {
+            const animation = target.animate({ rowRuleColor: keyframes }, { duration: 1000, fill: "both" });
+            animation.currentTime = 500;
+            println(`${keyframes[0]} -> ${keyframes[1]}: ${getComputedStyle(target).rowRuleColor}`);
+            animation.cancel();
+        }
+    });
+</script>

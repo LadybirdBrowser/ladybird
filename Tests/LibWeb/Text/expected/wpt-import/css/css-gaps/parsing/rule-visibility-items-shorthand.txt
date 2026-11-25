@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['rule-visibility-items'] = "all" should set column-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "all" should set row-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "all" should not set unrelated longhands
+Pass	e.style['rule-visibility-items'] = "around" should set column-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "around" should set row-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "around" should not set unrelated longhands
+Pass	e.style['rule-visibility-items'] = "between" should set column-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "between" should set row-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "between" should not set unrelated longhands
+Pass	e.style['rule-visibility-items'] = "normal" should set column-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "normal" should set row-rule-visibility-items
+Pass	e.style['rule-visibility-items'] = "normal" should not set unrelated longhands

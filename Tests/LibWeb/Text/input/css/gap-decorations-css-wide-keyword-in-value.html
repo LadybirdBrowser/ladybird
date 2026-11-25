@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [property, value] of [
+            ["row-rule-color", "red, inherit"],
+            ["column-rule-width", "repeat(2, 1px), initial"],
+            ["rule-color", "red, unset"],
+            ["column-rule", "1px solid red, revert"],
+            ["rule-inset-cap", "initial 2px"],
+            ["column-rule-inset", "1px / inherit"],
+            ["rule-inset-start", "2px inherit"],
+            ["row-rule-color", "inherit"],
+            ["rule-inset-cap", "inherit"],
+        ])
+            println(`${property}: ${value} -> ${CSS.supports(property, value)}`);
+    });
+</script>

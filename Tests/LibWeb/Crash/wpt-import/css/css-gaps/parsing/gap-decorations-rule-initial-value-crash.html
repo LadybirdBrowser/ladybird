@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decoration: renderer doesn't crash when rule values are set to initial</title>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+</head>
+<body>
+<div id="target" style="column-rule-width: initial; column-rule-color: initial; column-rule-style: solid;"></div>
+</body>
+<script>
+  document.getElementById("target").style.columnRule;
+</script>
+</html>

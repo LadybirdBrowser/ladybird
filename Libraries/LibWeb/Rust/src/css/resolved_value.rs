@@ -29,7 +29,7 @@ use crate::css::serialize::color_function_has_missing_component;
 use crate::css::serialize::transform_function;
 use crate::css::style_compute::map_logical_alias_to_physical;
 use crate::css::style_value::{
-    ColorBase, ColorFunctionPayload, CssString, FILTER_KIND_DROP_SHADOW, RetainedStyleValueData,
+    ColorBase, ColorFunctionPayload, CssString, FILTER_KIND_DROP_SHADOW, FunctionPayload, RetainedStyleValueData,
     RetainedStyleValueDataList, ShadowPayload, StyleValueBox, StyleValueData, TransformationPayload,
     shared_style_value, value_depends_on_current_color,
 };
@@ -140,6 +140,49 @@ fn resolve_color_style_value(
     }
 
     color_value(computed_color)
+}
+
+// https://drafts.csswg.org/css-color-4/#resolving-color-values
+// The resolved value of a <color> is its used value, here for each color of a gap decoration color list.
+fn resolve_gap_decoration_color_style_value(value: &StyleValueArc, style: &ColorResolutionInput) -> StyleValueArc {
+    let resolve_list = |values: &RetainedStyleValueDataList| {
+        RetainedStyleValueDataList::from_retained_values(
+            values
+                .as_slice()
+                .iter()
+                .map(|item| {
+                    RetainedStyleValueData::from_arc(resolve_gap_decoration_color_style_value(
+                        &item.clone().into_arc(),
+                        style,
+                    ))
+                })
+                .collect(),
+        )
+    };
+    match &**value {
+        StyleValueData::ValueList {
+            values,
+            separator,
+            collapsible,
+        } => StyleValueArc::new(StyleValueData::ValueList {
+            values: resolve_list(values),
+            separator: *separator,
+            collapsible: *collapsible,
+        }),
+        StyleValueData::Function(function_payload) => {
+            StyleValueArc::new(StyleValueData::Function(StyleValueBox::new(FunctionPayload {
+                name: function_payload.name.clone(),
+                value: RetainedStyleValueData::from_arc(resolve_gap_decoration_color_style_value(
+                    &function_payload.value.clone().into_arc(),
+                    style,
+                )),
+            })))
+        }
+        _ => match to_color(value, style) {
+            Some(color) => resolve_color_style_value(value, color, Some(style)),
+            None => value.clone(),
+        },
+    }
 }
 
 // https://drafts.csswg.org/css-color-4/#resolving-color-values
@@ -846,7 +889,14 @@ impl ResolvedValueBox<'_> {
             property_id::FILL | property_id::FLOOD_COLOR | property_id::STOP_COLOR | property_id::STROKE => {
                 resolve_svg_color_style_value(&self.computed(property), &color_input)
             }
-            property_id::COLUMN_RULE_COLOR => self.resolved_color(property, style.column_rule_color()),
+            property_id::COLUMN_RULE_COLOR
+                if !matches!(&*self.computed(property), StyleValueData::ValueList { .. }) =>
+            {
+                self.resolved_color(property, style.column_rule_color())
+            }
+            property_id::COLUMN_RULE_COLOR | property_id::ROW_RULE_COLOR => {
+                resolve_gap_decoration_color_style_value(&self.computed(property), &color_input)
+            }
             property_id::OUTLINE_COLOR => self.resolved_color(property, style.outline_color()),
             property_id::TEXT_DECORATION_COLOR => self.resolved_color(property, style.text_decoration_color()),
             property_id::TEXT_SHADOW => {
@@ -1120,7 +1170,12 @@ pub unsafe extern "C" fn rust_resolved_value_of_style(
         property_id::BORDER_LEFT_COLOR => used_color(border.border_left.color.resolve(current_color)),
         property_id::BORDER_RIGHT_COLOR => used_color(border.border_right.color.resolve(current_color)),
         property_id::BORDER_TOP_COLOR => used_color(border.border_top.color.resolve(current_color)),
-        property_id::COLUMN_RULE_COLOR => used_color(misc_layout.column_rule_color.resolve(current_color)),
+        property_id::COLUMN_RULE_COLOR if !matches!(&*computed(), StyleValueData::ValueList { .. }) => {
+            used_color(misc_layout.column_rule_color.resolve(current_color))
+        }
+        property_id::COLUMN_RULE_COLOR | property_id::ROW_RULE_COLOR => {
+            resolve_gap_decoration_color_style_value(&computed(), &color_input)
+        }
         property_id::OUTLINE_COLOR => used_color(misc_layout.outline_color.resolve(current_color)),
         property_id::TEXT_DECORATION_COLOR => used_color(text_reset.text_decoration_color.resolve(current_color)),
         property_id::_WEBKIT_TEXT_FILL_COLOR => used_color(text.webkit_text_fill_color),

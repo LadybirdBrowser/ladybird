@@ -1,0 +1,9 @@
+row-rule-color: red, inherit -> false
+column-rule-width: repeat(2, 1px), initial -> false
+rule-color: red, unset -> false
+column-rule: 1px solid red, revert -> false
+rule-inset-cap: initial 2px -> false
+column-rule-inset: 1px / inherit -> false
+rule-inset-start: 2px inherit -> false
+row-rule-color: inherit -> true
+rule-inset-cap: inherit -> true

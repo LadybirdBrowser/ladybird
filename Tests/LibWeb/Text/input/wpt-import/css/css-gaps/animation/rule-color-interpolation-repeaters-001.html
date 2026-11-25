@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>rule-color interpolation with repeaters</title>
+    <link rel="author" title="Javier Contreras" href="mailto:javiercon@chromium.org">
+    <link rel="help" href="https://drafts.csswg.org/css-gaps-1/#column-row-rule-color">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+        .parent {
+            row-rule-style: solid;
+            row-rule-color: white;
+        }
+
+        .target {
+            row-gap: 40px;
+            column-gap: 40px;
+            row-rule-width: 10px;
+            row-rule-style: solid;
+            row-rule-color: black, repeat(2, red, blue), black;
+            flex-wrap: wrap;
+            column-rule-width: 10px;
+            column-rule-style: solid;
+            column-rule-color: repeat(2, black, red);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Valid Interpolations:
+        // Repeaters should expand.
+        test_interpolation({
+            property: 'row-rule-color',
+            from: neutralKeyframe,
+            to: 'red, repeat(2, black, black), blue',
+        }, [
+            { at: -0.3, expect: 'black, red, blue, red, blue, black' },
+            { at: 0, expect: 'black, red, blue, red, blue, black' },
+            { at: 0.3, expect: 'rgb(77, 0, 0), rgb(179, 0, 0), rgb(0, 0, 179), rgb(179, 0, 0), rgb(0, 0, 179), rgb(0, 0, 77)' },
+            { at: 0.6, expect: 'rgb(153, 0, 0), rgb(102, 0, 0), rgb(0, 0, 102), rgb(102, 0, 0), rgb(0, 0, 102), rgb(0, 0, 153)' },
+            { at: 1, expect: 'rgb(255, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 255)' },
+            { at: 1.5, expect: 'rgb(255, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 255)' },
+        ]);
+        test_interpolation({
+            property: 'column-rule-color',
+            from: neutralKeyframe,
+            to: 'repeat(2, red, black)',
+        }, [
+            { at: -0.3, expect: 'black, red, black, red' },
+            { at: 0, expect: 'black, red, black, red' },
+            { at: 0.3, expect: 'rgb(77, 0, 0), rgb(179, 0, 0), rgb(77, 0, 0), rgb(179, 0, 0)' },
+            { at: 0.6, expect: 'rgb(153, 0, 0), rgb(102, 0, 0), rgb(153, 0, 0), rgb(102, 0, 0)' },
+            { at: 1, expect: 'red, black, red, black' },
+            { at: 1.5, expect: 'red, black, red, black' },
+        ]);
+        // Auto repeaters don't expand.
+        test_interpolation({
+            property: 'column-rule-color',
+            from: 'repeat(auto, black, black)',
+            to: 'repeat(auto, blue, red)',
+        }, [
+            { at: -0.3, expect: 'repeat(auto, black, black)' },
+            { at: 0, expect: 'repeat(auto, black, black)' },
+            { at: 0.3, expect: 'repeat(auto, rgb(0, 0, 77), rgb(77, 0, 0))' },
+            { at: 0.6, expect: 'repeat(auto, rgb(0, 0, 153), rgb(153, 0, 0))' },
+            { at: 1, expect: 'repeat(auto, rgb(0, 0, 255), rgb(255, 0, 0))' },
+            { at: 1.5, expect: 'repeat(auto, rgb(0, 0, 255), rgb(255, 0, 0)' },
+        ]);
+
+        // Auto repeaters should interpolate, we apply
+        // lowest common multiple interpolation to the inner values
+        // of auto repeaters.
+        test_interpolation({
+          property: 'column-rule-color',
+          from: 'repeat(auto, red)',
+          to: 'repeat(auto, blue, blue)',
+        }, [
+          { at: -0.3, expect: 'repeat(auto, rgb(255, 0, 0), rgb(255, 0, 0))' },
+          { at: 0, expect: 'repeat(auto, rgb(255, 0, 0), rgb(255, 0, 0))' },
+          { at: 0.3, expect: 'repeat(auto, rgb(179, 0, 77), rgb(179, 0, 77))' },
+          { at: 0.6, expect: 'repeat(auto, rgb(102, 0, 153), rgb(102, 0, 153))' },
+          { at: 1, expect: 'repeat(auto, rgb(0, 0, 255), rgb(0, 0, 255))' },
+          { at: 1.5, expect: 'repeat(auto, rgb(0, 0, 255), rgb(0, 0, 255))' },
+        ]);
+
+        // Repeaters should expand.
+        test_interpolation({
+          property: 'column-rule-color',
+          from: 'repeat(1, red)',
+          to: 'repeat(2, blue, blue)',
+        }, [
+          { at: -0.3, expect: 'rgb(255, 0, 0), rgb(255, 0, 0), rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0, expect: 'rgb(255, 0, 0), rgb(255, 0, 0), rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0.3, expect: 'rgb(179, 0, 77), rgb(179, 0, 77), rgb(179, 0, 77), rgb(179, 0, 77)' },
+          { at: 0.6, expect: 'rgb(102, 0, 153), rgb(102, 0, 153), rgb(102, 0, 153), rgb(102, 0, 153)' },
+          { at: 1, expect: 'rgb(0, 0, 255), rgb(0, 0, 255), rgb(0, 0, 255), rgb(0, 0, 255)' },
+          { at: 1.5, expect: 'rgb(0, 0, 255), rgb(0, 0, 255), rgb(0, 0, 255), rgb(0, 0, 255)' },
+        ]);
+
+        // Repeaters should expand and interpolate with non repeaters.
+        test_interpolation({
+          property: 'column-rule-color',
+          from: 'repeat(2, red)',
+          to: 'blue, blue',
+        }, [
+          { at: -0.3, expect: 'rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0, expect: 'rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0.3, expect: 'rgb(179, 0, 77), rgb(179, 0, 77)' },
+          { at: 0.6, expect: 'rgb(102, 0, 153), rgb(102, 0, 153)' },
+          { at: 1, expect: 'rgb(0, 0, 255), rgb(0, 0, 255)' },
+          { at: 1.5, expect: 'rgb(0, 0, 255), rgb(0, 0, 255)' },
+        ]);
+
+          // Repeaters should expand and interpolate with non repeaters.
+        test_interpolation({
+          property: 'column-rule-color',
+          from: 'repeat(2, red)',
+          to: 'blue',
+        }, [
+          { at: -0.3, expect: 'rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0, expect: 'rgb(255, 0, 0), rgb(255, 0, 0)' },
+          { at: 0.3, expect: 'rgb(179, 0, 77), rgb(179, 0, 77)' },
+          { at: 0.6, expect: 'rgb(102, 0, 153), rgb(102, 0, 153)' },
+          { at: 1, expect: 'rgb(0, 0, 255), rgb(0, 0, 255)' },
+          { at: 1.5, expect: 'rgb(0, 0, 255), rgb(0, 0, 255)' },
+        ]);
+
+        // When auto repeaters are present, we only interpolate if the length
+        // of the `leading` segments match, and the length of the `trailing`
+        // segments match.
+        test_interpolation({
+          property: 'column-rule-color',
+          from: 'repeat(2, red), repeat(auto, red), red',
+          to: 'blue, blue, repeat(auto, blue), blue',
+        }, [
+          { at: -0.3, expect: 'rgb(255, 0, 0), rgb(255, 0, 0), repeat(auto, rgb(255, 0, 0)), rgb(255, 0, 0)' },
+          { at: 0, expect: 'rgb(255, 0, 0), rgb(255, 0, 0), repeat(auto, rgb(255, 0, 0)), rgb(255, 0, 0)' },
+          { at: 0.3, expect: 'rgb(179, 0, 77), rgb(179, 0, 77), repeat(auto, rgb(179, 0, 77)), rgb(179, 0, 77)' },
+          { at: 0.6, expect: 'rgb(102, 0, 153), rgb(102, 0, 153), repeat(auto, rgb(102, 0, 153)), rgb(102, 0, 153)' },
+          { at: 1, expect: 'rgb(0, 0, 255), rgb(0, 0, 255), repeat(auto, rgb(0, 0, 255)), rgb(0, 0, 255)' },
+          { at: 1.5, expect: 'rgb(0, 0, 255), rgb(0, 0, 255), repeat(auto, rgb(0, 0, 255)), rgb(0, 0, 255)' },
+        ]);
+
+        // Invalid interpolations:
+        // Shouldn't interpolate, different leading lengths with present auto repeater:
+        test_no_interpolation({
+          property: 'column-rule-color',
+          from: 'red, repeat(auto, red)',
+          to: 'blue, blue, repeat(auto, blue)',
+        });
+
+        // Shouldn't interpolate, different trailing lengths with present auto repeater:
+        test_no_interpolation({
+          property: 'column-rule-color',
+          from: 'red, repeat(auto, red)',
+          to: 'blue, repeat(auto, blue), blue',
+        });
+    </script>
+</body>

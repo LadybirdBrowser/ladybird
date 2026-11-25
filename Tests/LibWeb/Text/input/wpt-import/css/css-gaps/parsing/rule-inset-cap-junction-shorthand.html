@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: {column/row}-rule-{edge/interior}-inset shorthands</title>
+<link rel="help" href="https://www.w3.org/TR/css-gaps-1/#propdef-rule-inset">
+<meta name="assert"
+    content="rule-inset supports the full grammar '<length-percentage> <length-percentage>?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+    <script>
+        const rule_properties = {
+            'column-rule-inset-cap': ['column-rule-inset-cap-start', 'column-rule-inset-cap-end'],
+            'row-rule-inset-cap': ['row-rule-inset-cap-start', 'row-rule-inset-cap-end'],
+            'column-rule-inset-junction': ['column-rule-inset-junction-start', 'column-rule-inset-junction-end'],
+            'row-rule-inset-junction': ['row-rule-inset-junction-start', 'row-rule-inset-junction-end']
+        };
+        const testCases = [
+            {
+                input: '0px',
+                expected: {
+                    ruleInsetStart: '0px',
+                    ruleInsetEnd: '0px',
+                }
+            },
+            {
+                input: '10px',
+                expected: {
+                    ruleInsetStart: '10px',
+                    ruleInsetEnd: '10px',
+                }
+            },
+            {
+                input: '50%',
+                expected: {
+                    ruleInsetStart: '50%',
+                    ruleInsetEnd: '50%',
+                }
+            },
+            {
+                input: '10px 20px',
+                expected: {
+                    ruleInsetStart: '10px',
+                    ruleInsetEnd: '20px',
+                }
+            },
+            {
+                input: 'overlap-join',
+                expected: {
+                    ruleInsetStart: 'overlap-join',
+                    ruleInsetEnd: 'overlap-join',
+                }
+            },
+        ];
+
+
+        for (rule_property in rule_properties) {
+            const test_cases = testCases;
+
+            for (const { input, expected } of test_cases) {
+                const [ruleInsetStart, ruleInsetEnd] = rule_properties[rule_property];
+                test_shorthand_value(rule_property, input, {
+                    [ruleInsetStart]: expected.ruleInsetStart,
+                    [ruleInsetEnd]: expected.ruleInsetEnd,
+                });
+            }
+        }
+    </script>
+</body>
+</html>

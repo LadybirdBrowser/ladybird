@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: *-rule sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule">
+<meta name="assert" content="column-rule supports the full grammar '<gap-rule-list> | <gap-auto-rule-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+const rule_properties = {
+    'column-rule': ['column-rule-width',
+                    'column-rule-style',
+                    'column-rule-color'],
+    'row-rule':    ['row-rule-width',
+                    'row-rule-style',
+                    'row-rule-color'],
+    'rule': [
+          ['column-rule-width', 'row-rule-width'],
+          ['column-rule-style', 'row-rule-style'],
+          ['column-rule-color', 'row-rule-color'],
+        ]
+
+};
+
+const testCases = [
+    // <gap-rule> = [<line-width> || <line-style> || <line-color>].
+    {
+        input: '5px solid red',
+        expected: {
+            width: '5px',
+            style: 'solid',
+            color: 'red'
+        }
+    },
+    {
+        input: 'double',
+        expected: {
+            width: 'medium',
+            style: 'double',
+            color: 'currentcolor'
+        }
+    },
+    {
+        input: 'blue 10px',
+        expected: {
+            width: '10px',
+            style: 'none',
+            color: 'blue'
+        }
+    },
+
+    // <gap-auto-repeat-rule> = repeat(auto, <gap-rule># ).
+    {
+        input: 'repeat(auto, 5px solid green)',
+        expected: {
+            width: 'repeat(auto, 5px)',
+            style: 'repeat(auto, solid)',
+            color: 'repeat(auto, green)'
+        }
+    },
+    {
+        input: 'repeat(auto, 5px solid yellow, 10px dotted blue)',
+        expected: {
+            width: 'repeat(auto, 5px, 10px)',
+            style: 'repeat(auto, solid, dotted)',
+            color: 'repeat(auto, yellow, blue)'
+        }
+    },
+    {
+        input: 'repeat(auto, blue 6px, 5px solid red)',
+        expected: {
+            width: 'repeat(auto, 6px, 5px)',
+            style: 'repeat(auto, none, solid)',
+            color: 'repeat(auto, blue, red)'
+        }
+    },
+
+    // <gap-repeat-rule> = repeat(<integer [1,∞]>, <gap-rule># ).
+    {
+        input: 'repeat(4, 15px dotted pink)',
+        expected: {
+            width: 'repeat(4, 15px)',
+            style: 'repeat(4, dotted)',
+            color: 'repeat(4, pink)'
+        }
+    },
+    {
+        input: 'repeat(1, 15px ridge yellow, 10px dotted blue, 15px double green)',
+        expected: {
+            width: 'repeat(1, 15px, 10px, 15px)',
+            style: 'repeat(1, ridge, dotted, double)',
+            color: 'repeat(1, yellow, blue, green)'
+        }
+    },
+    {
+        input: 'repeat(3, lime 16px, dashed purple, 10px dotted)',
+        expected: {
+            width: 'repeat(3, 16px, medium, 10px)',
+            style: 'repeat(3, none, dashed, dotted)',
+            color: 'repeat(3, lime, purple, currentcolor)'
+        }
+    },
+
+    // <gap-rule-list> = <gap-rule-or-repeat>#.
+    // <gap-rule-or-repeat> = <gap-rule> | <gap-repeat-rule>.
+    {
+        input: 'thin, dashed, hotpink',
+        expected: {
+            width: 'thin, medium, medium',
+            style: 'none, dashed, none',
+            color: 'currentcolor, currentcolor, hotpink'
+        }
+    },
+    {
+        input: '5px double salmon, repeat(4, 5px ridge red)',
+        expected: {
+            width: '5px, repeat(4, 5px)',
+            style: 'double, repeat(4, ridge)',
+            color: 'salmon, repeat(4, red)'
+        }
+    },
+    {
+        input: 'repeat(2, dashed gray, 10px blue dotted, 20px double), 5px solid red, repeat(4, blue 6px, 5px solid white)',
+        expected: {
+            width: 'repeat(2, medium, 10px, 20px), 5px, repeat(4, 6px, 5px)',
+            style: 'repeat(2, dashed, dotted, double), solid, repeat(4, none, solid)',
+            color: 'repeat(2, gray, blue, currentcolor), red, repeat(4, blue, white)'
+        }
+    },
+    {
+        input: 'repeat(4, thick hidden skyblue), repeat(3, 5px solid red, 10px dotted)',
+        expected: {
+            width: 'repeat(4, thick), repeat(3, 5px, 10px)',
+            style: 'repeat(4, hidden), repeat(3, solid, dotted)',
+            color: 'repeat(4, skyblue), repeat(3, red, currentcolor)'
+        }
+    },
+
+    // <gap-auto-rule-list>   = <gap-rule-or-repeat>#? ,
+    //                          <gap-auto-repeat-rule> ,
+    //                          <gap-rule-or-repeat>#?.
+    {
+        input: 'repeat(auto, 10px solid red), medium dotted green, repeat(3, thick dashed blue, 15px double green)',
+        expected: {
+            width: 'repeat(auto, 10px), medium, repeat(3, thick, 15px)',
+            style: 'repeat(auto, solid), dotted, repeat(3, dashed, double)',
+            color: 'repeat(auto, red), green, repeat(3, blue, green)'
+        }
+    },
+    {
+        input: 'ridge red, repeat(auto, 5px solid green), 10px dotted blue',
+        expected: {
+            width: 'medium, repeat(auto, 5px), 10px',
+            style: 'ridge, repeat(auto, solid), dotted',
+            color: 'red, repeat(auto, green), blue'
+        }
+    },
+    {
+        input: '10px dotted salmon, repeat(4, thin blue, hidden 5px purple), repeat(auto, 5px solid red, teal)',
+        expected: {
+            width: '10px, repeat(4, thin, 5px), repeat(auto, 5px, medium)',
+            style: 'dotted, repeat(4, none, hidden), repeat(auto, solid, none)',
+            color: 'salmon, repeat(4, blue, purple), repeat(auto, red, teal)'
+        }
+    } ];
+
+for(rule_property in rule_properties) {
+    const [width, style, color] = rule_properties[rule_property];
+
+    for (const { input, expected } of testCases) {
+        if (rule_property === 'rule') {
+            test_shorthand_value(rule_property, input, {
+                [width[0]]: expected.width,
+                [width[1]]: expected.width,
+                [style[0]]: expected.style,
+                [style[1]]: expected.style,
+                [color[0]]: expected.color,
+                [color[1]]: expected.color
+            });
+        } else {
+            test_shorthand_value(rule_property, input, {
+                [width]: expected.width,
+                [style]: expected.style,
+                [color]: expected.color
+            });
+        }
+    }
+}
+</script>
+</body>
+</html>

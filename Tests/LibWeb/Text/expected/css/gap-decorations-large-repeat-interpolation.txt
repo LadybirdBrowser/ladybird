@@ -1,0 +1,6 @@
+progress 0.4: repeat(100000, 1px)
+progress 0.6: 3px
+progress 0.4: repeat(9999, 1px), 1px
+progress 0.6: repeat(7, 3px)
+progress 0.4: repeat(6000, 1px), repeat(auto, 1px), re
+progress 0.6: repeat(6000, 3px), repeat(auto, 3px), re

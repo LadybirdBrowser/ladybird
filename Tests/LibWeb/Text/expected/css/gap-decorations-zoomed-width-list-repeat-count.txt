@@ -1,0 +1,2 @@
+sibling-count(): repeat(2, 4px)
+literal count: repeat(2, 4px)

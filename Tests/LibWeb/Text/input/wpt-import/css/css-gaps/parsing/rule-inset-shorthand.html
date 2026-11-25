@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: rule-inset shorthands</title>
+<link rel="help" href="https://www.w3.org/TR/css-gaps-1/#propdef-rule-inset">
+<meta name="assert"
+    content="rule-inset supports the full grammar '<length-percentage> <length-percentage>? /[<length-percentage> <length-percentage>?]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+    <script>
+        const rule_properties = {
+            'column-rule-inset': ['column-rule-inset-cap-start', 'column-rule-inset-cap-end',
+                'column-rule-inset-junction-start', 'column-rule-inset-junction-end'],
+            'row-rule-inset': ['row-rule-inset-cap-start', 'row-rule-inset-cap-end',
+                'row-rule-inset-junction-start', 'row-rule-inset-junction-end']
+        };
+        const testCases = [
+            {
+                input: '0px',
+                expected: {
+                    ruleInsetCapStart: '0px',
+                    ruleInsetCapEnd: '0px',
+                    ruleInsetJunctionStart: '0px',
+                    ruleInsetJunctionEnd: '0px',
+                }
+            },
+            {
+                input: '10px',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: '10px',
+                    ruleInsetJunctionStart: '10px',
+                    ruleInsetJunctionEnd: '10px'
+                }
+            },
+            {
+                input: '50%',
+                expected: {
+                    ruleInsetCapStart: '50%',
+                    ruleInsetCapEnd: '50%',
+                    ruleInsetJunctionStart: '50%',
+                    ruleInsetJunctionEnd: '50%',
+                }
+            },
+            {
+                input: '10px 20px',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: '20px',
+                    ruleInsetJunctionStart: '10px',
+                    ruleInsetJunctionEnd: '20px',
+                }
+            },
+            {
+                input: '10px 20px / 30px',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: '20px',
+                    ruleInsetJunctionStart: '30px',
+                    ruleInsetJunctionEnd: '30px',
+                }
+            },
+            {
+                input: '10px / 20px 30px',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: '10px',
+                    ruleInsetJunctionStart: '20px',
+                    ruleInsetJunctionEnd: '30px',
+                }
+            },
+            {
+                input: '10px 20px / 30px 40px',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: '20px',
+                    ruleInsetJunctionStart: '30px',
+                    ruleInsetJunctionEnd: '40px',
+                }
+            },
+            {
+                input: 'overlap-join',
+                expected: {
+                    ruleInsetCapStart: 'overlap-join',
+                    ruleInsetCapEnd: 'overlap-join',
+                    ruleInsetJunctionStart: 'overlap-join',
+                    ruleInsetJunctionEnd: 'overlap-join',
+                }
+            },
+            {
+                input: 'overlap-join 10px / overlap-join 10px',
+                expected: {
+                    ruleInsetCapStart: 'overlap-join',
+                    ruleInsetCapEnd: '10px',
+                    ruleInsetJunctionStart: 'overlap-join',
+                    ruleInsetJunctionEnd: '10px',
+                }
+            },
+            {
+                input: '10px overlap-join / 10px overlap-join',
+                expected: {
+                    ruleInsetCapStart: '10px',
+                    ruleInsetCapEnd: 'overlap-join',
+                    ruleInsetJunctionStart: '10px',
+                    ruleInsetJunctionEnd: 'overlap-join',
+                }
+            },
+        ];
+
+
+        for (rule_property in rule_properties) {
+            const test_cases = testCases;
+
+            for (const { input, expected } of test_cases) {
+                const [ruleInsetCapStart, ruleInsetCapEnd, ruleInsetJunctionStart, ruleInsetJunctionEnd] = rule_properties[rule_property];
+                test_shorthand_value(rule_property, input, {
+                    [ruleInsetCapStart]: expected.ruleInsetCapStart,
+                    [ruleInsetCapEnd]: expected.ruleInsetCapEnd,
+                    [ruleInsetJunctionStart]: expected.ruleInsetJunctionStart,
+                    [ruleInsetJunctionEnd]: expected.ruleInsetJunctionEnd,
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -3216,6 +3216,15 @@ fn serialize_display(sink: &mut TextSink, raw: u32) {
     }
 }
 
+/// Whether two runs of gap decoration longhands hold the same values, regardless of how a color was written.
+fn gap_decoration_values_equal(first: &[&StyleValueData], second: &[&StyleValueData]) -> bool {
+    first.len() == second.len()
+        && first
+            .iter()
+            .zip(second)
+            .all(|(first, second)| crate::css::style_value::optional_style_values_equal(Some(first), Some(second)))
+}
+
 /// Serialize shorthand values directly from their native longhands.
 fn serialize_shorthand(
     sink: &mut TextSink,
@@ -3675,6 +3684,126 @@ fn serialize_shorthand(
             }
         }
         return default_serialize(sink);
+    }
+    if matches!(
+        shorthand_property,
+        property_id::COLUMN_RULE | property_id::ROW_RULE | property_id::RULE
+    ) {
+        let entries: Vec<&StyleValueData> = crate::css::property_metadata::longhands_for_shorthand(shorthand_property)
+            .iter()
+            .map(|&id| longhand(id).expect("Shorthand style values must have valid value graphs"))
+            .collect();
+        if entries.len() == 6 && !gap_decoration_values_equal(&entries[..3], &entries[3..]) {
+            return;
+        }
+        let longhands = &crate::css::property_metadata::longhands_for_shorthand(shorthand_property)[..3];
+        let write_gap_rule = |sink: &mut TextSink, rule: [&StyleValueData; 3]| {
+            let mut wrote_any = false;
+            for (value, &id) in rule.iter().zip(longhands) {
+                let value_sink = sub_sink(value);
+                let mut initial_sink = TextSink::new();
+                initial_sink.push_ascii(property_initial_value(id));
+                if value_sink.content_equals_ascii_case_insensitive(&initial_sink) {
+                    continue;
+                }
+                if wrote_any {
+                    sink.push_ascii(" ");
+                }
+                sink.push_sink(&value_sink);
+                wrote_any = true;
+            }
+            if !wrote_any {
+                serialize_style_value(sink, rule[0], mode);
+            }
+        };
+        let items = |value: &StyleValueData| -> Vec<StyleValueData> {
+            match value {
+                StyleValueData::ValueList { values, .. } => {
+                    values.as_slice().iter().map(|value| value.data().clone()).collect()
+                }
+                value => vec![value.clone()],
+            }
+        };
+        let repeat_arguments = |value: &StyleValueData| -> Option<Vec<StyleValueData>> {
+            let StyleValueData::Function(function) = value else {
+                return None;
+            };
+            Some(items(function.value.data()))
+        };
+        let [widths, styles, colors] = [items(entries[0]), items(entries[1]), items(entries[2])];
+        if widths.len() != styles.len() || widths.len() != colors.len() {
+            return;
+        }
+        let mut serialized = TextSink::new();
+        for (index, ((width, style), color)) in widths.iter().zip(&styles).zip(&colors).enumerate() {
+            if index != 0 {
+                serialized.push_ascii(", ");
+            }
+            match (
+                repeat_arguments(width),
+                repeat_arguments(style),
+                repeat_arguments(color),
+            ) {
+                (None, None, None) => write_gap_rule(&mut serialized, [width, style, color]),
+                (Some(widths), Some(styles), Some(colors)) => {
+                    if widths[0] != styles[0]
+                        || widths[0] != colors[0]
+                        || widths.len() != styles.len()
+                        || widths.len() != colors.len()
+                    {
+                        return;
+                    }
+                    serialized.push_ascii("repeat(");
+                    serialize_style_value(&mut serialized, &widths[0], mode);
+                    for ((width, style), color) in widths.iter().zip(&styles).zip(&colors).skip(1) {
+                        serialized.push_ascii(", ");
+                        write_gap_rule(&mut serialized, [width, style, color]);
+                    }
+                    serialized.push_ascii(")");
+                }
+                _ => return,
+            }
+        }
+        sink.push_sink(&serialized);
+        return;
+    }
+    if let Some(values_per_axis) =
+        crate::css::parser::gap_decorations_parser::shorthand_values_per_axis(shorthand_property)
+    {
+        let entries: Vec<&StyleValueData> = crate::css::property_metadata::longhands_for_shorthand(shorthand_property)
+            .iter()
+            .map(|&id| longhand(id).expect("Shorthand style values must have valid value graphs"))
+            .collect();
+        let mut axes = entries.chunks(values_per_axis);
+        let axis = axes.next().expect("Gap decoration shorthands have longhands");
+        if axes.any(|other| !gap_decoration_values_equal(other, axis)) {
+            return;
+        }
+        let write_pair = |sink: &mut TextSink, start: &StyleValueData, end: &StyleValueData| {
+            serialize_style_value(sink, start, mode);
+            if start != end {
+                sink.push_ascii(" ");
+                serialize_style_value(sink, end, mode);
+            }
+        };
+        match axis {
+            [value] => serialize_style_value(sink, value, mode),
+            [start, end] => write_pair(sink, start, end),
+            [cap_start, ..] if axis.iter().all(|value| value == cap_start) => {
+                serialize_style_value(sink, cap_start, mode);
+            }
+            [cap_start, cap_end, junction_start, junction_end] => {
+                serialize_style_value(sink, cap_start, mode);
+                sink.push_ascii(" ");
+                serialize_style_value(sink, cap_end, mode);
+                sink.push_ascii(" / ");
+                serialize_style_value(sink, junction_start, mode);
+                sink.push_ascii(" ");
+                serialize_style_value(sink, junction_end, mode);
+            }
+            _ => unreachable!("Gap decoration shorthands cover one, two or four longhands per axis"),
+        }
+        return;
     }
     // Shorthands requiring per-layer coordination or grammar disambiguation.
     if [

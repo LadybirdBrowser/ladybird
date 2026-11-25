@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 41 tests
 
-27 Pass
-14 Fail
+29 Pass
+12 Fail
 Pass	Can set 'column-rule-width' to CSS-wide keywords: initial
 Pass	Can set 'column-rule-width' to CSS-wide keywords: inherit
 Pass	Can set 'column-rule-width' to CSS-wide keywords: unset
@@ -43,5 +43,5 @@ Fail	'column-rule-width' does not support 'medium'
 Fail	'column-rule-width' does not support 'thick'
 Fail	'column-rule-width' does not support '2px'
 Fail	'column-rule-width' does not support '3px'
-Fail	'column-rule-width' does not support '4px, 5px'
-Fail	'column-rule-width' does not support 'thin, medium, thick'
+Pass	'column-rule-width' does not support '4px, 5px'
+Pass	'column-rule-width' does not support 'thin, medium, thick'

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decoration: column-rule-style getComputedStyle()</title>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#column-row-rule-style">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<meta name="assert" content="*-rule-style computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+const properties = ["column-rule-style", "row-rule-style", "rule-style"];
+for (let property of properties) {
+    test_computed_value(property, "none");
+    test_computed_value(property, "hidden");
+    test_computed_value(property, "dotted");
+    test_computed_value(property, "dashed");
+    test_computed_value(property, "solid");
+    test_computed_value(property, "double");
+    test_computed_value(property, "groove");
+    test_computed_value(property, "ridge");
+    test_computed_value(property, "inset");
+
+    test_computed_value(property, "dotted, dashed, solid");
+    test_computed_value(property, "repeat(10, double)");
+    test_computed_value(property, "repeat(3, groove), repeat(4, ridge)");
+    test_computed_value(property, "repeat(auto, solid)");
+    test_computed_value(property, "repeat(auto, dotted, solid, inset)");
+    test_computed_value(property, "repeat(4, none, ridge, solid), repeat(auto, hidden)");
+    test_computed_value(property, "inset, repeat(auto, solid, ridge), repeat(4, none, groove, hidden)");
+    test_computed_value(property, "repeat(calc(5 + 3), ridge)", "repeat(8, ridge)");
+    test_computed_value(property, "repeat(4, dotted, double, dashed), repeat(auto, solid), ridge");
+    test_computed_value(property, "repeat(4, dotted, double, dashed), repeat(auto, solid), repeat(4, none, groove, hidden)");
+    test_computed_value(property, "ridge, repeat(auto, solid)");
+    test_computed_value(property, "ridge, repeat(auto, solid), ridge");
+}
+</script>
+</body>
+</html>

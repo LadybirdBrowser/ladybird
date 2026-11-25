@@ -1,0 +1,2 @@
+row-rule-style: repeat(2, solid)
+column-rule-style: dotted, repeat(2, dashed)

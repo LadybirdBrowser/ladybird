@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<div style="zoom: 2">
+    <div id="target" style="columns: 2; column-rule-style: solid; column-rule-width: repeat(sibling-count(), 4px)"></div>
+    <div id="reference" style="columns: 2; column-rule-style: solid; column-rule-width: repeat(2, 4px)"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`sibling-count(): ${getComputedStyle(target).columnRuleWidth}`);
+        println(`literal count: ${getComputedStyle(reference).columnRuleWidth}`);
+    });
+</script>

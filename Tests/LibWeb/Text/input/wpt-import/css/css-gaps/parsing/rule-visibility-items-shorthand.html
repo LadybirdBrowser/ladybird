@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: rule-visibility-items sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<meta name="assert" content="rule-visibility-items supports the full grammar '<*-rule-visibility-items>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+const rule_properties = {
+    'rule-visibility-items': ['column-rule-visibility-items',
+                    'row-rule-visibility-items'],
+};
+const testCases = [
+    {
+        input: 'all',
+        expected: {
+            column: 'all',
+            row: 'all'
+        }
+    },
+    {
+        input: 'around',
+        expected: {
+            column: 'around',
+            row: 'around'
+        }
+    },
+    {
+        input: 'between',
+        expected: {
+            column: 'between',
+            row: 'between'
+        }
+    },
+    {
+        input: 'normal',
+        expected: {
+            column: 'normal',
+            row: 'normal'
+        }
+    },
+  ];
+for(rule_property in rule_properties) {
+    const [column, row] = rule_properties[rule_property];
+    for (const { input, expected } of testCases) {
+            test_shorthand_value(rule_property, input, {
+                [column]: expected.column,
+                [row]: expected.row
+            });
+    }
+}
+</script>
+</body>
+</html>

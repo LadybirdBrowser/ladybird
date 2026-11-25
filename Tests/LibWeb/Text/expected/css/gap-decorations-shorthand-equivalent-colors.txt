@@ -1,0 +1,4 @@
+rule: "2px solid rgb(1, 2, 3)"
+rule-color: "rgb(1, 2, 3)"
+different rule: ""
+different rule-color: ""

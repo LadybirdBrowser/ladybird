@@ -1544,6 +1544,76 @@ fn compute_border_or_outline_width(
     snap_a_length_as_a_border_width(device_pixels_per_css_pixel, absolute_length).to_double()
 }
 
+// https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-width
+// Computed value: list of absolute lengths, snapped as a border width
+fn compute_line_width_list(
+    value: &StyleValueData,
+    device_pixels_per_css_pixel: f64,
+    length_resolution_context: &FfiLengthResolutionContext,
+) -> StyleValueData {
+    let compute_width = |width: &StyleValueData| StyleValueData::Length {
+        value: compute_border_or_outline_width(
+            width,
+            device_pixels_per_css_pixel,
+            length_resolution_context.zoom,
+            Some(length_resolution_context),
+        ),
+        unit: px_length_unit(),
+    };
+    let map_list = |values: &RetainedStyleValueDataList, map: &dyn Fn(usize, &StyleValueData) -> StyleValueData| {
+        RetainedStyleValueDataList::from_retained_values(
+            values
+                .as_slice()
+                .iter()
+                .enumerate()
+                .map(|(index, value)| RetainedStyleValueData::from_owned(map(index, value.data())))
+                .collect(),
+        )
+    };
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        return compute_width(value);
+    };
+    StyleValueData::ValueList {
+        values: map_list(values, &|_, item| {
+            let StyleValueData::Function(function_payload) = item else {
+                return compute_width(item);
+            };
+            let FunctionPayload { name, value } = &**function_payload;
+            let StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } = value.data()
+            else {
+                unreachable!("a repeat() of line widths holds a list");
+            };
+            let arguments = map_list(values, &|index, argument| match (index, argument) {
+                (0, StyleValueData::Calculated { .. }) => StyleValueData::Integer {
+                    value: crate::css::calc::resolve_calculated_integer_without_context(argument)
+                        .expect("a repeat count resolves to an integer"),
+                },
+                (0, count) => count.clone(),
+                (_, width) => compute_width(width),
+            });
+            StyleValueData::Function(crate::css::style_value::StyleValueBox::new(FunctionPayload {
+                name: name.clone(),
+                value: RetainedStyleValueData::from_owned(StyleValueData::ValueList {
+                    values: arguments,
+                    separator: *separator,
+                    collapsible: *collapsible,
+                }),
+            }))
+        }),
+        separator: *separator,
+        collapsible: *collapsible,
+    }
+}
+
 // https://drafts.csswg.org/css-backgrounds/#compute-a-border-width
 pub(crate) fn snap_a_length_as_a_border_width(device_pixels_per_css_pixel: f64, length: CssPixels) -> CssPixels {
     // 1. Assert: len is non-negative.
@@ -2554,6 +2624,7 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
             | prop::CONTAIN
             | prop::OUTLINE_WIDTH
             | prop::COLUMN_RULE_WIDTH
+            | prop::ROW_RULE_WIDTH
             | prop::CORNER_BOTTOM_LEFT_SHAPE
             | prop::CORNER_BOTTOM_RIGHT_SHAPE
             | prop::CORNER_TOP_LEFT_SHAPE
@@ -3751,6 +3822,30 @@ pub(crate) unsafe fn drive_property_computation(
                         .expect("a calculated text stroke width resolves to a length"),
                 ),
 
+                (_, prop::COLUMN_RULE_WIDTH | prop::ROW_RULE_WIDTH)
+                    if matches!(value_data, StyleValueData::ValueList { .. }) =>
+                {
+                    let resolution_context =
+                        length_resolution_context.expect("line widths require a length resolution context");
+                    // NB: Recursive simplification already applied zoom to an externally absolutized list.
+                    let list = match externally_absolutized.is_some() {
+                        true => value_data.clone(),
+                        false => match absolutize_for_rule(
+                            value_data,
+                            resolution_context,
+                            current_effective_color_scheme,
+                            results,
+                        ) {
+                            Absolutized::Unchanged => value_data.clone(),
+                            Absolutized::Changed(value) => value.data().clone(),
+                        },
+                    };
+                    NativeValue::StyleValue(StyleValueArc::new(compute_line_width_list(
+                        &list,
+                        device_pixels_per_css_pixel,
+                        resolution_context,
+                    )))
+                }
                 (
                     Some(absolutized),
                     prop::BORDER_BOTTOM_WIDTH
@@ -3758,7 +3853,8 @@ pub(crate) unsafe fn drive_property_computation(
                     | prop::BORDER_RIGHT_WIDTH
                     | prop::BORDER_TOP_WIDTH
                     | prop::OUTLINE_WIDTH
-                    | prop::COLUMN_RULE_WIDTH,
+                    | prop::COLUMN_RULE_WIDTH
+                    | prop::ROW_RULE_WIDTH,
                 ) => {
                     let synthesized = synthesized_px_length(absolutized);
                     NativeValue::Px(compute_border_or_outline_width(
@@ -3775,7 +3871,8 @@ pub(crate) unsafe fn drive_property_computation(
                     | prop::BORDER_RIGHT_WIDTH
                     | prop::BORDER_TOP_WIDTH
                     | prop::OUTLINE_WIDTH
-                    | prop::COLUMN_RULE_WIDTH,
+                    | prop::COLUMN_RULE_WIDTH
+                    | prop::ROW_RULE_WIDTH,
                 ) if matches!(value_data, StyleValueData::Calculated { .. }) => {
                     let resolution_context = length_resolution_context
                         .expect("calculated border widths require a length resolution context");
@@ -4623,6 +4720,7 @@ fn is_line_width(property_id: u16) -> bool {
             | prop::BORDER_LEFT_WIDTH
             | prop::OUTLINE_WIDTH
             | prop::COLUMN_RULE_WIDTH
+            | prop::ROW_RULE_WIDTH
     )
 }
 
@@ -4781,9 +4879,12 @@ pub(crate) fn compute_declared_values<'a>(
             let Some(data) = computed.optional_data() else {
                 return false;
             };
-            computed = std::borrow::Cow::Owned(retained_new(StyleValueData::Length {
-                value: compute_border_or_outline_width(data, device_pixels_per_css_pixel, length.zoom, None),
-                unit: px_length_unit(),
+            computed = std::borrow::Cow::Owned(retained_new(match data {
+                StyleValueData::ValueList { .. } => compute_line_width_list(data, device_pixels_per_css_pixel, length),
+                _ => StyleValueData::Length {
+                    value: compute_border_or_outline_width(data, device_pixels_per_css_pixel, length.zoom, None),
+                    unit: px_length_unit(),
+                },
             }));
         }
         if property_id == prop::TEXT_ALIGN {
