@@ -378,7 +378,6 @@ impl ContextState {
         let applied_scroll_delta = self.async_scroll_tree.apply_scroll_delta(
             scroll_node_index,
             delta,
-            self.scene.current_visual_context_tree(),
             &mut self.scroll_state_snapshot,
             scroll_chaining,
         );
@@ -396,6 +395,8 @@ impl ContextState {
                 delta_the_node_did_not_scroll_by: Some(delta),
             };
         };
+        self.sticky_offsets_are_stale = true;
+        self.resolve_stale_sticky_offsets();
         self.note_user_input_scrolled(scrolled_stable_node_id);
         // On the first step of a gesture, scroll node chaining may have scrolled an ancestor instead, which took the delta.
         let node = self.async_scroll_tree.scroll_node_for_index(scroll_node_index);
@@ -645,9 +646,9 @@ impl ContextState {
                 self.async_scroll_tree.set_scroll_offset(
                     scroll_node_index,
                     instant_scroll_destination,
-                    self.scene.current_visual_context_tree(),
                     &mut self.scroll_state_snapshot,
                 );
+                self.sticky_offsets_are_stale = true;
             }
             let instant_scroll_delta = instant_scroll_destination - offset_before_instant_scroll;
             if shifts_running_animation {
@@ -722,6 +723,7 @@ impl ContextState {
             answer_with_the_offset_of_the_box(self, &mut answered_any_request, &mut moved_the_box);
             note_request_applied(self, moved_the_box);
         }
+        self.resolve_stale_sticky_offsets();
         if !answered_any_request {
             self.request_rendering_update();
             return None;
@@ -976,16 +978,17 @@ impl ContextState {
             let sample = active_animation.animation.sample(now - active_animation.started_at);
             let stable_node_id = active_animation.stable_node_id;
             let operation_id = active_animation.operation_id;
-            let new_offset = self.async_scroll_tree.set_scroll_offset(
-                scroll_node_index,
-                sample.offset,
-                self.scene.current_visual_context_tree(),
-                &mut self.scroll_state_snapshot,
-            );
-            assert!(new_offset.is_some());
-            let new_offset = new_offset.unwrap();
+            let new_offset = self
+                .async_scroll_tree
+                .clamped_scroll_offset_for_node(scroll_node_index, sample.offset);
             let scroll_delta = new_offset - old_offset;
             if !scroll_delta.is_zero() {
+                self.async_scroll_tree.set_scroll_offset(
+                    scroll_node_index,
+                    new_offset,
+                    &mut self.scroll_state_snapshot,
+                );
+                self.sticky_offsets_are_stale = true;
                 self.record_scroll_offset_report(stable_node_id, new_offset);
                 changed_scroll_offset = true;
                 if self.async_scroll_tree.scroll_node_is_viewport(scroll_node_index) {
@@ -1007,6 +1010,7 @@ impl ContextState {
             }
         }
         if changed_scroll_offset {
+            self.resolve_stale_sticky_offsets();
             self.async_scroll_tree.mark_cached_viewport_rects_stale();
         }
         if changed_scroll_offset || completed_operation {

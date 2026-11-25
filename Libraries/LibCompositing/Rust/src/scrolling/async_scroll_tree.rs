@@ -424,7 +424,6 @@ impl AsyncScrollTree {
         &mut self,
         mut scroll_node_index: SpatialNodeIndex,
         delta: FloatPoint,
-        visual_context_tree: &AccumulatedVisualContextTree,
         scroll_state_snapshot: &mut ScrollStateSnapshot,
         scroll_chaining: ScrollChaining,
     ) -> Option<AppliedScrollDelta> {
@@ -439,7 +438,6 @@ impl AsyncScrollTree {
             };
             let remaining_delta = self.apply_scroll_delta_to_node(node, delta, scroll_state_snapshot);
             if remaining_delta != delta {
-                resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
                 return Some(AppliedScrollDelta {
                     stable_node_id: node.stable_node_id,
                     scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
@@ -1126,20 +1124,16 @@ impl AsyncScrollTree {
     }
 
     pub fn set_scroll_offset(
-        &mut self,
+        &self,
         scroll_node_index: SpatialNodeIndex,
         scroll_offset: FloatPoint,
-        visual_context_tree: &AccumulatedVisualContextTree,
         scroll_state_snapshot: &mut ScrollStateSnapshot,
     ) -> Option<FloatPoint> {
         let node = self.scroll_node_for_index(scroll_node_index)?;
-        let new_scroll_offset =
-            self.set_scroll_offset_leaving_sticky_offsets_unresolved(node, scroll_offset, scroll_state_snapshot);
-        resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
-        Some(new_scroll_offset)
+        Some(self.set_scroll_offset_of_node(node, scroll_offset, scroll_state_snapshot))
     }
 
-    pub fn set_scroll_offset_leaving_sticky_offsets_unresolved(
+    pub fn set_scroll_offset_of_node(
         &self,
         node: &AsyncScrollNode,
         scroll_offset: FloatPoint,
