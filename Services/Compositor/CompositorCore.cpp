@@ -149,11 +149,6 @@ void CompositorCore::unregister_presentation(PresentationId presentation_id)
     RustFFI::compositor_core_unregister_presentation(m_core, presentation_id.value(), now().nanoseconds());
 }
 
-void CompositorCore::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
-{
-    RustFFI::compositor_core_request_clock_tick(m_core, context_id.value(), maximum_frames_per_second);
-}
-
 void CompositorCore::presented_store_released(Web::CompositorContextId context_id, i32 bitmap_id)
 {
     RustFFI::compositor_core_presented_store_released(m_core, context_id.value(), bitmap_id, now().nanoseconds());
@@ -226,6 +221,13 @@ IPC::RawMessage::OutcomeInRust CompositorCore::handle_message_from_presentation(
 {
     return message.hand_to_rust([&](IPC::FfiRawMessage raw_message) {
         RustFFI::compositor_core_handle_presentation_message(m_core, presentation_id.value(), raw_message, now().nanoseconds());
+    });
+}
+
+IPC::RawMessage::OutcomeInRust CompositorCore::handle_message_from_render_clock(WebContentClientId client_id, IPC::RawMessage& message)
+{
+    return message.hand_to_rust([&](IPC::FfiRawMessage raw_message) {
+        RustFFI::compositor_core_handle_render_clock_message(m_core, client_id.value(), raw_message, now().nanoseconds());
     });
 }
 

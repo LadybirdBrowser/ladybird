@@ -15,13 +15,14 @@ RenderClockConnection::RenderClockConnection(NonnullOwnPtr<IPC::Transport> trans
 
 void RenderClockConnection::die()
 {
-    on_request_clock_tick = nullptr;
+    on_raw_message = nullptr;
 }
 
-void RenderClockConnection::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
+ErrorOr<OwnPtr<IPC::MessageBuffer>> RenderClockConnection::handle_raw(IPC::RawMessage& message)
 {
-    if (on_request_clock_tick)
-        on_request_clock_tick(context_id, maximum_frames_per_second);
+    if (on_raw_message)
+        on_raw_message(message);
+    return nullptr;
 }
 
 }

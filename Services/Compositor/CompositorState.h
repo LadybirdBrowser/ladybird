@@ -136,9 +136,8 @@ public:
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
+    IPC::RawMessage::OutcomeInRust handle_message_from_render_clock(WebContentClientId, IPC::RawMessage&);
     void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
-    // Asks for the next display tick the context's maximum rate lets through, for its render clock.
-    void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     // Paints once the video sinks that the screenshot draws have frames following their clocks, and tells the client.
     void request_screenshot(CompositorStateWebContentClient&, Web::CompositorContextId, Compositing::ScreenshotRequestId, Gfx::ShareableBitmap);
     // Has each process that owns a descendant of the context in another process paint it, along with whatever lies below

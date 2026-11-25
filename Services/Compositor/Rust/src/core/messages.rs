@@ -47,11 +47,13 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     WebglReadBufferSubDataResponse, WebglReadPixels, WebglReadPixelsResponse, WebglSetCommandBuffer, WebglSyncCall,
     WebglSyncCallResponse, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
 };
+use libcompositing_rust::ipc_types::render_clock_server::messages::RequestClockTick;
 use libcompositing_rust::ipc_types::{
     Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Compositing_WebGL_WebGLVersion,
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
     Compositing_WindowResizingInProgress as WindowResizingInProgress, Core_AnonymousBuffer, LayerPlanOnWire,
     SharedDisplayList, compositor_control_server, compositor_presentation_server, compositor_web_content_server,
+    render_clock_server,
 };
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
 use libcompositing_rust::scrolling::{
@@ -1010,6 +1012,20 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             self.core
                 .present_frame_of_page(message.context_id, message.viewport_rect, self.now);
         }
+        Ok(())
+    }
+}
+
+impl render_clock_server::Stub for MessagesFromWebContent<'_> {
+    fn request_clock_tick(&mut self, message: RequestClockTick) -> Result<(), Misbehavior> {
+        if !self.context_is_owned_by_sender(message.context_id)? {
+            return Ok(());
+        }
+        if !message.maximum_frames_per_second.is_finite() || message.maximum_frames_per_second <= 0.0 {
+            return Err(Misbehavior("WebContent sent an invalid maximum clock tick rate"));
+        }
+        self.core
+            .request_clock_tick(message.context_id, message.maximum_frames_per_second);
         Ok(())
     }
 }

@@ -5,7 +5,6 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -51,14 +50,10 @@ void ConnectionFromWebContent::install_render_clock_channel(IPC::TransportHandle
     }
     // A new channel replaces the one before it, whose requests were for the contexts the process armed then.
     m_render_clock_connection = RenderClockConnection::construct(transport_or_error.release_value(), client_id());
-    m_render_clock_connection->on_request_clock_tick = [this](Web::CompositorContextId context_id, double maximum_frames_per_second) {
-        if (!context_is_owned_by_this_connection(context_id))
-            return;
-        if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0) {
-            did_misbehave("WebContent sent an invalid maximum clock tick rate");
-            return;
-        }
-        m_compositor_state->request_clock_tick(context_id, maximum_frames_per_second);
+    m_render_clock_connection->on_raw_message = [this](IPC::RawMessage& message) {
+        auto outcome = m_compositor_state->handle_message_from_render_clock(web_content_client_id(), message);
+        if (outcome.misbehavior.has_value())
+            did_misbehave(outcome.misbehavior->characters());
     };
 }
 

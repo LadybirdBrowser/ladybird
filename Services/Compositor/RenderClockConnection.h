@@ -10,7 +10,6 @@
 #include <Compositor/RenderClockClientEndpoint.h>
 #include <Compositor/RenderClockServerEndpoint.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibWebCommon/Page/CompositorContextId.h>
 
 namespace Compositor {
 
@@ -24,13 +23,13 @@ class RenderClockConnection final
 public:
     virtual ~RenderClockConnection() override = default;
 
-    Function<void(Web::CompositorContextId, double maximum_frames_per_second)> on_request_clock_tick;
+    Function<void(IPC::RawMessage&)> on_raw_message;
 
 private:
     RenderClockConnection(NonnullOwnPtr<IPC::Transport>, int client_id);
 
     virtual void die() override;
-    virtual void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second) override;
+    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
 };
 
 }
