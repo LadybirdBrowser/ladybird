@@ -35,14 +35,16 @@ ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates
     }
 
     if (allow_lonely_surrogates == AllowLonelySurrogates::No) {
-        if (!validate())
-            return Error::from_string_literal("Input was not valid UTF-16");
-
         String result;
         auto utf8_length = simdutf::utf8_length_from_utf16(m_string.utf16, length_in_code_units());
 
         TRY(result.replace_with_new_string(Badge<Utf16View> {}, utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-            [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(m_string.utf16, length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
+            // NB: utf8_length_from_utf16() is a safe buffer size even for invalid input, and the conversion validates
+            //     the input and returns 0 if it is invalid. The empty string returned early above, so 0 cannot mean a
+            //     successful conversion here.
+            auto result = simdutf::convert_utf16_to_utf8(m_string.utf16, length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
+            if (result == 0)
+                return Error::from_string_literal("Input was not valid UTF-16");
             ASSERT(result == buffer.size());
             return {};
         }));
