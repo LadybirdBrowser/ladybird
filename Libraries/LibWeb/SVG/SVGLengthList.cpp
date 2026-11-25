@@ -55,7 +55,7 @@ GC::Ref<SVGLength> SVGLengthList::copy_if_not_detached(GC::Ref<SVGLength> length
 }
 
 // Parses a list of lengths, percentages and numbers that are separated by commas and/or whitespace.
-static Vector<SVGLengthValue> parse_length_list(Utf16View input)
+Vector<SVGLengthValue> SVGLengthList::parse(Utf16View input)
 {
     Vector<SVGLengthValue> values;
     auto is_separator = [](char16_t code_unit) { return code_unit == ',' || code_unit == ' ' || code_unit == '\t' || code_unit == '\n' || code_unit == '\r' || code_unit == '\f'; };
@@ -102,7 +102,7 @@ void SVGLengthList::synchronize()
     // 1. Let value be the base value of the reflected content attribute (using the attribute's initial value if it is
     //    not present or invalid).
     // NB: The initial value of every attribute reflected by an SVGLengthList is the empty list.
-    auto value = parse_length_list(m_element->get_attribute_value(m_reflected_attribute));
+    auto value = parse(m_element->get_attribute_value(m_reflected_attribute));
 
     auto& realm = m_element->document().relevant_settings_object().realm();
     synchronize_items(value, [&] { return SVGLength::create_detached(realm, SVGLengthValue::number(0), SVGLength::ReadOnly::No); }, [](GC::Ref<SVGLength> const& item, SVGLengthValue const& length) { item->set_value_from_reflected_attribute(length); });

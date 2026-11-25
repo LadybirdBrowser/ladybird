@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
@@ -58,35 +57,13 @@ void SVGTextPositioningElement::attribute_changed(Utf16FlyString const& name, Op
 
 SVGTextPositioningElement::ParsedTextPositioning SVGTextPositioningElement::parsed_text_positioning() const
 {
-    CSS::Parser::ParsingParams const parsing_params { document() };
-
     // https://svgwg.org/svg2-draft/text.html#TSpanAttributes
-    // FIXME: This only handles single values, not lists.
-    auto parse_value = [&](Utf16FlyString const& attribute) -> Optional<SVGLengthValue> {
-        auto raw_value = get_attribute_value(attribute);
-
-        // FIXME: Should we support tree-counting and/or calculated values here?
-        if (auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::LengthPercentage)) {
-            if (auto value = SVGLengthValue::from_style_value(*style_value);
-                value.has_value() && value->kind() != SVGLengthValue::Kind::Number)
-                return value;
-        }
-
-        if (auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::Number)) {
-            if (auto value = SVGLengthValue::from_style_value(*style_value);
-                value.has_value() && value->kind() == SVGLengthValue::Kind::Number)
-                return value;
-        }
-
-        return {};
-    };
-
     // FIXME: Implement support for the rotate attribute.
     return {
-        .x = parse_value(AttributeNames::x),
-        .y = parse_value(AttributeNames::y),
-        .dx = parse_value(AttributeNames::dx),
-        .dy = parse_value(AttributeNames::dy),
+        .x = SVGLengthList::parse(get_attribute_value(AttributeNames::x)),
+        .y = SVGLengthList::parse(get_attribute_value(AttributeNames::y)),
+        .dx = SVGLengthList::parse(get_attribute_value(AttributeNames::dx)),
+        .dy = SVGLengthList::parse(get_attribute_value(AttributeNames::dy)),
     };
 }
 

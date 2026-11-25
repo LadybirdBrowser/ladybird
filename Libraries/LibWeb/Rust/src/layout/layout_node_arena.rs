@@ -1061,6 +1061,8 @@ struct StyleNodeTables {
     math_attribute_facts: CowMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
     svg_points: CowMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>,
+    /// One entry per addressable character covered by a text positioning element's attribute lists.
+    svg_text_positions: CowMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiSvgTextPosition]>>,
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
     anchor_name_elements: CowMap<ScopedAnchorName, Vec<StyleNodeID>>,
@@ -2495,6 +2497,7 @@ impl LayoutNodeArena {
             svg_attribute_facts,
             math_attribute_facts,
             svg_points,
+            svg_text_positions,
             anchor_name_elements,
             implicit_anchor_elements,
             implicit_anchor_candidates,
@@ -2507,6 +2510,7 @@ impl LayoutNodeArena {
         generated_content.forget(style_node);
         let removed_svg_attribute_facts = svg_attribute_facts.remove(&style_node);
         svg_points.remove(&style_node);
+        svg_text_positions.remove(&style_node);
         math_attribute_facts.remove(&style_node);
         implicit_anchor_elements.retain(|element, anchor| *element != style_node && *anchor != style_node);
         let removed_implicit_anchor = implicit_anchor_candidates.remove(&style_node);
@@ -3599,6 +3603,16 @@ impl LayoutNodeArena {
         self.style_node_tables.svg_points.get(&style_node).cloned()
     }
 
+    pub(crate) fn svg_text_positions(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<std::sync::Arc<[super::svg_formatting_context::FfiSvgTextPosition]>> {
+        self.style_node_tables
+            .svg_text_positions
+            .get(&self.node_style_node(id)?)
+            .cloned()
+    }
+
     /// The element an SVG reference resolves to, named by the atom its URL fragment interned to.
     /// `SVGGraphicsElement::resolve_fragment_identifier_to_element` asks the document first and the
     /// shadow tree the referring element sits in second, so the lookup is made in that order.
@@ -3637,6 +3651,7 @@ impl LayoutNodeArena {
         style_node: StyleNodeID,
         facts: super::svg_formatting_context::FfiSvgAttributeFacts,
         points: &[super::svg_formatting_context::FfiFloatPoint],
+        text_positions: &[super::svg_formatting_context::FfiSvgTextPosition],
     ) {
         let retained = Self::published_reference_atoms(&facts);
         let replaced = self
@@ -3652,6 +3667,12 @@ impl LayoutNodeArena {
             published_points.remove(&style_node);
         } else {
             published_points.insert(style_node, points.into());
+        }
+        let published_positions = &mut self.style_node_tables.svg_text_positions;
+        if text_positions.is_empty() {
+            published_positions.remove(&style_node);
+        } else {
+            published_positions.insert(style_node, text_positions.into());
         }
     }
 

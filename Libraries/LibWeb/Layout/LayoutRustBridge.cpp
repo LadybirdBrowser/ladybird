@@ -275,10 +275,8 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
 
     auto geometry = svg_geometry_facts(dom_node);
 
-    SVG::SVGTextPositioningElement::ParsedTextPositioning text_positioning;
     SVG::SVGTextContentElement::ParsedTextLength text_length;
     if (auto const* text_positioning_element = as_if<SVG::SVGTextPositioningElement>(dom_node)) {
-        text_positioning = text_positioning_element->parsed_text_positioning();
         text_length = text_positioning_element->parsed_text_length();
     }
 
@@ -341,10 +339,6 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .line_y2 = geometry.line_y2,
         .has_path_length = geometry.has_path_length,
         .path_length = geometry.path_length,
-        .text_x = to_ffi_svg_length_value(text_positioning.x),
-        .text_y = to_ffi_svg_length_value(text_positioning.y),
-        .text_dx = to_ffi_svg_length_value(text_positioning.dx),
-        .text_dy = to_ffi_svg_length_value(text_positioning.dy),
         .text_length = to_ffi_svg_length_value(text_length.text_length),
         .text_length_adjusts_glyphs = text_length.adjusts_glyphs,
         .reference_fragment_atom = reference_fragment.value(),
@@ -431,12 +425,30 @@ void publish_svg_attribute_facts(DOM::Element& element)
 {
     VERIFY(element.style_node_id() != 0);
     auto points = svg_shape_points(element);
+    Vector<RustFFI::FfiSvgTextPosition> text_positions;
+    if (auto const* text_element = as_if<SVG::SVGTextPositioningElement>(element)) {
+        auto positioning = text_element->parsed_text_positioning();
+        auto length = max(max(positioning.x.size(), positioning.y.size()), max(positioning.dx.size(), positioning.dy.size()));
+        text_positions.ensure_capacity(length);
+        auto value_at = [](auto const& values, size_t index) {
+            return index < values.size() ? to_ffi_svg_length_value(values[index]) : RustFFI::FfiSvgLengthValue {};
+        };
+        for (size_t index = 0; index < length; ++index) {
+            text_positions.unchecked_append({
+                .x = value_at(positioning.x, index),
+                .y = value_at(positioning.y, index),
+                .dx = value_at(positioning.dx, index),
+                .dy = value_at(positioning.dy, index),
+            });
+        }
+    }
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(RustFFI::FfiFloatPoint));
     RustFFI::render_state_set_svg_attribute_facts(
         element.document().layout_node_arena().host(),
         element.style_node_id().value(),
         build_svg_attribute_facts(element),
-        ReadonlySpan<RustFFI::FfiFloatPoint> { reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()), points.size() });
+        ReadonlySpan<RustFFI::FfiFloatPoint> { reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()), points.size() },
+        text_positions.span());
 }
 
 // The unit of a published MathML length. Mirrors Rust `math_length_unit`.

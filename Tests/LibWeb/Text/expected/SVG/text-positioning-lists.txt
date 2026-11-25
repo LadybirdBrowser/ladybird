@@ -1,0 +1,25 @@
+dx list: 15,14 45,14 80,14 100,14
+tspan dx list: 10,54 35,54 65,54 100,54 120,54 140,54
+x list: 10,94 50,94 90,94 110,94
+dy list: 10,134 30,139 50,149 70,149
+nested override: 10,14 30,14 100,14 120,14
+middle anchor: 10,14 50,14 80,14 100,14
+scaled dx list: 15,14 75,14 145,14 185,14
+scaled x list: 10,14 50,14 90,14 130,14
+y list with spacing: 10,14 50,14 90,14 130,14
+commas and units: 10,14 50,14 90,14 110,14
+y list after a middle anchor: 90,14 110,44
+x list over a surrogate pair: 10,14 50,11.45 50,11.45 90,14
+textPath dx list: 0,-8 30,-8 40,-8
+textPath dy list: 0,-8 10,12 20,12
+combining mark dx: 0,142 0,142 28.92,142
+combining mark dy: 0,142 0,142 8.92,162
+combining mark dx with middle anchor: 82.62,142 82.62,142 111.54,142
+combining mark dx with spacing: 0,142 0,142 54.16,142
+combining mark dx with glyph scaling: 0,142 0,142 66.55,142
+combining mark dx across runs: 0,142 0,142 28.92,142
+scaled dx at a y-only chunk: 0,12 40,32
+anchor after a scaled span: 90,12 115,32
+anchor entering a scaled span: 95,12 100,32
+textPath absolute x: 0,-8 100,-8 110,-8
+textPath x with dx and ignored y: 0,-8 105,-8 60,-8 70,-8

@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	Multiple chunks in a tspan
+2 Pass
+Pass	Multiple chunks in a tspan
 Pass	With dominant-baseline

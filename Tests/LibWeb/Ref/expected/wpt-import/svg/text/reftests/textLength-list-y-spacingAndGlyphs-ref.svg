@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" viewBox="0 0 400 100"
+     class="reftest-wait"
+     onload="document.fonts.ready.then(function() { document.documentElement.classList.remove('reftest-wait'); })">
+  <metadata>
+    <h:link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css"/>
+  </metadata>
+  <text x="0" y="80"
+        font-family="Ahem" font-size="50"
+        textLength="400" lengthAdjust="spacingAndGlyphs"
+        fill="black">XXXXXXXXXXXX</text>
+</svg>
