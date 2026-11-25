@@ -141,22 +141,6 @@ impl ContextState {
         operation_id
     }
 
-    fn note_async_scrolling_viewport_rect(
-        &mut self,
-        mut viewport_rect: IntRect,
-        scroll_offset: Option<(AsyncScrollNodeStableID, FloatPoint)>,
-    ) -> IntRect {
-        if let Some((stable_node_id, scroll_offset)) = scroll_offset {
-            let scroll_node_index = self.async_scroll_tree.scroll_node_index_for_stable_id(stable_node_id);
-            if scroll_node_index.is_some_and(|index| self.async_scroll_tree.scroll_node_is_viewport(index)) {
-                viewport_rect.x = scroll_offset.x as i32;
-                viewport_rect.y = scroll_offset.y as i32;
-            }
-        }
-        self.async_scrolling_viewport_rect = viewport_rect;
-        viewport_rect
-    }
-
     /// A step of a wheel gesture that is latched to the node. A stretch of the node is relaxed before the visual
     /// viewport is panned, the node only scrolls by what both leave of the step, and what the node cannot scroll by
     /// either is what pulls it past its edge.
@@ -168,7 +152,6 @@ impl ContextState {
         wheel_delta_precision: WheelDeltaPrecision,
         scroll_gesture_phase: ScrollGesturePhase,
         operation_tracking: AsyncScrollOperationTracking,
-        viewport_rect: IntRect,
         scroll_chaining: ScrollChaining,
         visual_viewport_panning: VisualViewportPanning,
         now: MonotonicTime,
@@ -230,7 +213,7 @@ impl ContextState {
             if !panned_delta.is_zero() {
                 delta_left = delta_left - panned_delta;
                 visual_viewport_took_rest_of_step = delta_left.is_zero();
-                outcome.viewport_rect_to_present = Some(self.note_async_scrolling_viewport_rect(viewport_rect, None));
+                outcome.viewport_rect_to_present = Some(self.async_scrolling_viewport_rect);
             }
         }
         let mut delta_the_scroller_did_not_scroll_by = None;
@@ -241,7 +224,6 @@ impl ContextState {
                 wheel_delta_precision,
                 scroll_gesture_phase,
                 operation_tracking,
-                viewport_rect,
                 scroll_chaining,
                 now,
             );
@@ -267,7 +249,7 @@ impl ContextState {
         if outcome.viewport_rect_to_present.is_none()
             && presented_stretch_of_latched_scroller(&self.elastic_overscroll_controller) != stretch_before_step
         {
-            outcome.viewport_rect_to_present = Some(self.note_async_scrolling_viewport_rect(viewport_rect, None));
+            outcome.viewport_rect_to_present = Some(self.async_scrolling_viewport_rect);
             outcome.only_elastic_overscroll_changed = true;
         }
         outcome
@@ -281,7 +263,6 @@ impl ContextState {
         wheel_delta_precision: WheelDeltaPrecision,
         scroll_gesture_phase: ScrollGesturePhase,
         operation_tracking: AsyncScrollOperationTracking,
-        viewport_rect: IntRect,
         scroll_chaining: ScrollChaining,
         now: MonotonicTime,
     ) -> NodeScrollByWheelDelta {
@@ -344,7 +325,7 @@ impl ContextState {
                 if operation_tracking == AsyncScrollOperationTracking::Yes {
                     outcome.operation_id = Some(operation_id);
                 }
-                outcome.viewport_rect_to_present = Some(self.note_async_scrolling_viewport_rect(viewport_rect, None));
+                outcome.viewport_rect_to_present = Some(self.async_scrolling_viewport_rect);
                 return NodeScrollByWheelDelta {
                     outcome,
                     delta_the_node_did_not_scroll_by: None,
@@ -361,10 +342,10 @@ impl ContextState {
             };
         }
         if wheel_delta_precision == WheelDeltaPrecision::Discrete {
-            let result = self.smooth_wheel_scroll_by(wheel_scroll_target.as_ref(), viewport_rect, now);
+            let result = self.smooth_wheel_scroll_by(wheel_scroll_target.as_ref(), now);
             outcome.operation_id = result.enqueue_result.operation_id;
             if result.frame_to_present.is_some() {
-                outcome.viewport_rect_to_present = Some(viewport_rect);
+                outcome.viewport_rect_to_present = Some(self.async_scrolling_viewport_rect);
             }
             return NodeScrollByWheelDelta {
                 outcome,
@@ -375,18 +356,18 @@ impl ContextState {
         if operation_tracking == AsyncScrollOperationTracking::Yes {
             outcome.operation_id = Some(self.async_scroll_update_outbox.allocate_operation_id());
         }
-        let applied_scroll_delta = self.async_scroll_tree.apply_scroll_delta(
-            scroll_node_index,
-            delta,
-            &mut self.scroll_state_snapshot,
-            scroll_chaining,
-        );
-        let Some(AppliedScrollDelta {
-            stable_node_id: scrolled_stable_node_id,
-            scroll_offset,
-            consumed_delta,
-        }) = applied_scroll_delta
-        else {
+        let scroller_move = self
+            .async_scroll_tree
+            .scroll_destination_for_delta(scroll_node_index, delta, &self.scroll_state_snapshot, scroll_chaining)
+            .and_then(|(moved_scroll_node_index, destination)| {
+                self.move_scroller(
+                    moved_scroll_node_index,
+                    destination,
+                    ScrollerMoveCause::WheelStep { scroll_gesture_phase },
+                )
+                .map(|scroller_move| (moved_scroll_node_index, scroller_move))
+            });
+        let Some((moved_scroll_node_index, scroller_move)) = scroller_move else {
             if let Some(id) = outcome.operation_id {
                 self.async_scroll_update_outbox.complete_operation(id);
             }
@@ -395,35 +376,16 @@ impl ContextState {
                 delta_the_node_did_not_scroll_by: Some(delta),
             };
         };
-        self.sticky_offsets_are_stale = true;
         self.resolve_stale_sticky_offsets();
-        self.note_user_input_scrolled(scrolled_stable_node_id);
         // On the first step of a gesture, scroll node chaining may have scrolled an ancestor instead, which took the delta.
-        let node = self.async_scroll_tree.scroll_node_for_index(scroll_node_index);
-        let an_ancestor_scrolled = node.is_some_and(|node| scrolled_stable_node_id != node.stable_node_id);
         let mut delta_the_node_did_not_scroll_by = None;
-        if !an_ancestor_scrolled {
-            delta_the_node_did_not_scroll_by = Some(delta - consumed_delta);
+        if moved_scroll_node_index == scroll_node_index {
+            delta_the_node_did_not_scroll_by = Some(delta - (scroller_move.offset_after - scroller_move.offset_before));
         }
-        // The box the delta moved is the one a gesture pans; on the first step of a gesture, scroll node chaining may have
-        // moved an ancestor of the node the gesture latched to.
-        let scroll_offset_before_scroll = scroll_offset - consumed_delta;
-        self.scroll_snap_controller.did_scroll_node_plainly(
-            scrolled_stable_node_id,
-            scroll_gesture_phase,
-            self.async_scroll_tree
-                .css_pixels_from_device_offset(scroll_offset_before_scroll),
-        );
-        // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
-        // A wheel or panning scroll is relative, which scroll-state(scrolled) queries observe.
-        self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        self.record_relative_scroll_offset_report(scrolled_stable_node_id, scroll_offset, consumed_delta);
         if let Some(id) = outcome.operation_id {
             self.async_scroll_update_outbox.complete_operation(id);
         }
-        outcome.viewport_rect_to_present = Some(
-            self.note_async_scrolling_viewport_rect(viewport_rect, Some((scrolled_stable_node_id, scroll_offset))),
-        );
+        outcome.viewport_rect_to_present = Some(self.async_scrolling_viewport_rect);
         NodeScrollByWheelDelta {
             outcome,
             delta_the_node_did_not_scroll_by,
@@ -505,10 +467,6 @@ impl ContextState {
                         .scroll_offset_for_node(scroll_node_index, &state.scroll_state_snapshot)
                         .unwrap();
                     *moved_the_box = new_offset != old_offset;
-                    if state.async_scroll_tree.scroll_node_is_viewport(scroll_node_index) {
-                        state.async_scrolling_viewport_rect.x = new_offset.x as i32;
-                        state.async_scrolling_viewport_rect.y = new_offset.y as i32;
-                    }
                     state.record_scroll_offset_report(scroll_request.stable_node_id, new_offset);
                     *answered_any_request = true;
                 };
@@ -642,14 +600,13 @@ impl ContextState {
                     .async_scroll_tree
                     .clamped_scroll_offset_for_node(scroll_node_index, instant_scroll_destination);
             }
-            if instant_scroll_destination != offset_before_instant_scroll {
-                self.async_scroll_tree.set_scroll_offset(
-                    scroll_node_index,
-                    instant_scroll_destination,
-                    &mut self.scroll_state_snapshot,
-                );
-                self.sticky_offsets_are_stale = true;
-            }
+            self.move_scroller(
+                scroll_node_index,
+                instant_scroll_destination,
+                ScrollerMoveCause::ScrollRequest {
+                    is_for_script: instant_scroll_is_for_script,
+                },
+            );
             let instant_scroll_delta = instant_scroll_destination - offset_before_instant_scroll;
             if shifts_running_animation {
                 let animation = &mut self.smooth_scroll_animations[running_animation.unwrap()];
@@ -666,10 +623,6 @@ impl ContextState {
                             .retarget(clamped_destination_offset, now - animation.started_at);
                     }
                 }
-            }
-            if instant_scroll_is_for_script {
-                self.elastic_overscroll_controller
-                    .drop_stretch_moved_by(scroll_request.stable_node_id, instant_scroll_delta);
             }
             if smooth_scroll_is_for_script {
                 self.elastic_overscroll_controller
@@ -728,9 +681,6 @@ impl ContextState {
             self.request_rendering_update();
             return None;
         }
-        if self.has_async_scrolling_state {
-            self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        }
         self.request_rendering_update();
         Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect))
     }
@@ -775,6 +725,7 @@ impl ContextState {
         transform.matrix.elements[0][3] = -new_visual_viewport_offset.x * scale;
         transform.matrix.elements[1][3] = -new_visual_viewport_offset.y * scale;
         self.scene.set_async_visual_viewport_transform(transform);
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
         self.visual_viewport_document_id = Some(document_id);
         self.record_visual_viewport_offset_report(document_id, &transform);
         layout_viewport_destination
@@ -827,7 +778,6 @@ impl ContextState {
     fn smooth_wheel_scroll_by(
         &mut self,
         scroll_target: Option<&WheelScrollTarget>,
-        viewport_rect: IntRect,
         now: MonotonicTime,
     ) -> AsyncScrollResult {
         let Some(scroll_target) = scroll_target else {
@@ -859,14 +809,13 @@ impl ContextState {
                     kind,
                     false,
                 );
-                self.async_scrolling_viewport_rect = viewport_rect;
                 return AsyncScrollResult {
                     enqueue_result: AsyncScrollEnqueueResult {
                         accepted: true,
                         operation_id: Some(operation_id),
                         ..Default::default()
                     },
-                    frame_to_present: Some(PendingFrame::repainting_changes(viewport_rect)),
+                    frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
                 };
             }
             self.async_scroll_update_outbox
@@ -896,14 +845,13 @@ impl ContextState {
             ScrollAnimationKind::Wheel,
             false,
         );
-        self.async_scrolling_viewport_rect = viewport_rect;
         AsyncScrollResult {
             enqueue_result: AsyncScrollEnqueueResult {
                 accepted: true,
                 operation_id: Some(operation_id),
                 ..Default::default()
             },
-            frame_to_present: Some(PendingFrame::repainting_changes(viewport_rect)),
+            frame_to_present: Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect)),
         }
     }
 
@@ -978,23 +926,14 @@ impl ContextState {
             let sample = active_animation.animation.sample(now - active_animation.started_at);
             let stable_node_id = active_animation.stable_node_id;
             let operation_id = active_animation.operation_id;
-            let new_offset = self
-                .async_scroll_tree
-                .clamped_scroll_offset_for_node(scroll_node_index, sample.offset);
-            let scroll_delta = new_offset - old_offset;
-            if !scroll_delta.is_zero() {
-                self.async_scroll_tree.set_scroll_offset(
-                    scroll_node_index,
-                    new_offset,
-                    &mut self.scroll_state_snapshot,
-                );
-                self.sticky_offsets_are_stale = true;
-                self.record_scroll_offset_report(stable_node_id, new_offset);
+            let mut new_offset = old_offset;
+            if let Some(scroller_move) = self.move_scroller(
+                scroll_node_index,
+                sample.offset,
+                ScrollerMoveCause::SmoothScrollAnimationTick,
+            ) {
+                new_offset = scroller_move.offset_after;
                 changed_scroll_offset = true;
-                if self.async_scroll_tree.scroll_node_is_viewport(scroll_node_index) {
-                    self.async_scrolling_viewport_rect.x = new_offset.x as i32;
-                    self.async_scrolling_viewport_rect.y = new_offset.y as i32;
-                }
             }
             if sample.complete {
                 self.scroll_snap_controller.did_end_snap_scroll(
@@ -1009,10 +948,7 @@ impl ContextState {
                 index += 1;
             }
         }
-        if changed_scroll_offset {
-            self.resolve_stale_sticky_offsets();
-            self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        }
+        self.resolve_stale_sticky_offsets();
         if changed_scroll_offset || completed_operation {
             self.request_rendering_update();
         }
@@ -1057,8 +993,10 @@ mod tests {
             decoder.decode::<CompositorContextId>().unwrap();
             let updates = decoder.decode::<PendingAsyncScrollUpdates>().unwrap();
             // SAFETY: The fixture retains the receiver until after its context and host are dropped.
-            let completed = unsafe { &*host.cast::<RefCell<Vec<AsyncScrollOperationID>>>() };
-            completed.borrow_mut().extend(updates.completed_operation_ids);
+            let recorded = unsafe { &*host.cast::<RefCell<RecordedAsyncScrollUpdates>>() };
+            let mut recorded = recorded.borrow_mut();
+            recorded.completed_operation_ids.extend(updates.completed_operation_ids);
+            recorded.scroll_offsets.extend(updates.scroll_offsets);
         }
     }
 
@@ -1078,19 +1016,25 @@ mod tests {
     ) {
     }
 
+    #[derive(Default)]
+    struct RecordedAsyncScrollUpdates {
+        completed_operation_ids: Vec<AsyncScrollOperationID>,
+        scroll_offsets: Vec<AsyncScrollOffset>,
+    }
+
     struct WheelTest {
         context: ContextState,
         node_index: SpatialNodeIndex,
-        completed_operations: Rc<RefCell<Vec<AsyncScrollOperationID>>>,
+        recorded_updates: Rc<RefCell<RecordedAsyncScrollUpdates>>,
     }
 
     impl WheelTest {
         fn new(kind: AsyncScrollNodeKind) -> Self {
-            let completed_operations = Rc::new(RefCell::new(Vec::<AsyncScrollOperationID>::new()));
+            let recorded_updates = Rc::new(RefCell::new(RecordedAsyncScrollUpdates::default()));
             // SAFETY: The receiver outlives the host, and the callbacks never reenter the context.
             let host = unsafe {
                 Host::new(FfiCompositorCoreHost {
-                    host: Rc::as_ptr(&completed_operations).cast_mut().cast(),
+                    host: Rc::as_ptr(&recorded_updates).cast_mut().cast(),
                     post_message_to_web_content: record_completions,
                     post_message_to_render_clock_of_web_content: record_completions,
                     post_message_to_presentation: record_completions,
@@ -1138,6 +1082,7 @@ mod tests {
             context
                 .scene
                 .install(Rc::new(display_list), tree, MonotonicTime::default());
+            context.async_scrolling_viewport_rect = IntRect::new(0, 0, 100, 100);
             context.async_scroll_tree.set_state(AsyncScrollingState {
                 document_id: Some(UniqueNodeId(1)),
                 scroll_nodes: vec![AsyncScrollNode {
@@ -1164,7 +1109,7 @@ mod tests {
             Self {
                 context,
                 node_index,
-                completed_operations,
+                recorded_updates,
             }
         }
 
@@ -1176,7 +1121,6 @@ mod tests {
                     WheelDeltaPrecision::Discrete,
                     ScrollGesturePhase::None,
                     AsyncScrollOperationTracking::Yes,
-                    IntRect::new(0, 0, 100, 100),
                     ScrollChaining::None,
                     now,
                 )
@@ -1291,6 +1235,91 @@ mod tests {
         assert!(!test.context.has_pending_async_scroll_updates());
     }
 
+    fn scroll_request_jumping_to(request_id: u64, jump_offset: FloatPoint) -> ScrollRequest {
+        ScrollRequest {
+            stable_node_id: AsyncScrollNodeStableID {
+                node_id: UniqueNodeId(1),
+                kind: AsyncScrollNodeKind::Element,
+                pseudo_element_type: 0,
+            },
+            request_id,
+            jump_offset: Some(jump_offset),
+            visual_viewport_scale: None,
+            relative_scroll: None,
+            relative_scroll_moves_visual_viewport_first: false,
+            instant_scroll_is_for_user_input: false,
+            smooth_scroll: None,
+            takes_over_from_momentum: false,
+        }
+    }
+
+    #[test]
+    fn a_batch_of_scroll_requests_for_one_box_reports_it_once_as_of_the_last_request() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        test.context.has_async_scrolling_state = true;
+        test.context.apply_scroll_requests(
+            &[
+                scroll_request_jumping_to(1, FloatPoint { x: 0.0, y: 100.0 }),
+                scroll_request_jumping_to(2, FloatPoint { x: 0.0, y: 300.0 }),
+            ],
+            MonotonicTime::default(),
+        );
+        assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 300.0 });
+        let recorded = test.recorded_updates.borrow();
+        assert_eq!(recorded.scroll_offsets.len(), 1);
+        assert_eq!(
+            recorded.scroll_offsets[0].compositor_scroll_offset,
+            FloatPoint { x: 0.0, y: 300.0 }
+        );
+        assert_eq!(recorded.scroll_offsets[0].applied_scroll_request_id, 2);
+    }
+
+    #[test]
+    fn a_smooth_scroll_sample_that_leaves_the_box_where_it_is_reports_nothing() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        let start = MonotonicTime::from_nanoseconds(1_000_000_000);
+        test.step(start);
+        test.context
+            .advance_smooth_scroll_animations(start + Duration::from_milliseconds(100));
+        test.context.publish_pending_async_scroll_updates();
+        let reports_while_animating = test.recorded_updates.borrow().scroll_offsets.len();
+        assert_eq!(reports_while_animating, 1);
+
+        test.context
+            .advance_smooth_scroll_animations(start + Duration::from_milliseconds(100));
+        test.context.publish_pending_async_scroll_updates();
+        assert_eq!(
+            test.recorded_updates.borrow().scroll_offsets.len(),
+            reports_while_animating
+        );
+        assert!(!test.context.sticky_offsets_are_stale);
+    }
+
+    #[test]
+    fn a_precise_wheel_step_reports_its_relative_delta_and_counts_as_user_input() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        test.context.scroll_node_by_wheel_delta(
+            test.node_index,
+            FloatPoint { x: 0.0, y: 40.0 },
+            WheelDeltaPrecision::Precise,
+            ScrollGesturePhase::Ongoing,
+            AsyncScrollOperationTracking::No,
+            ScrollChaining::None,
+            MonotonicTime::default(),
+        );
+        assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 40.0 });
+        let updates = test.context.take_pending_async_scroll_updates();
+        assert_eq!(updates.scroll_offsets.len(), 1);
+        assert_eq!(
+            updates.scroll_offsets[0].last_relative_scroll_delta,
+            FloatPoint { x: 0.0, y: 40.0 }
+        );
+        assert_eq!(updates.scroll_offsets[0].user_input_scroll_count, 1);
+        assert_eq!(updates.context_user_input_scroll_count, 1);
+        assert!(!test.context.sticky_offsets_are_stale);
+        assert!(test.context.async_scroll_tree.cached_viewport_rects_are_stale());
+    }
+
     #[test]
     fn discrete_wheel_step_animates_until_200ms() {
         for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {
@@ -1298,19 +1327,22 @@ mod tests {
             let start = MonotonicTime::from_nanoseconds(1_000_000_000);
             let operation = test.step(start);
             assert_eq!(test.offset(), FloatPoint::default());
-            assert!(test.completed_operations.borrow().is_empty());
+            assert!(test.recorded_updates.borrow().completed_operation_ids.is_empty());
 
             test.context
                 .advance_smooth_scroll_animations(start + Duration::from_milliseconds(100));
             let offset = test.offset();
             assert_eq!(offset.x, 0.0);
             assert!(offset.y > 0.0 && offset.y < 120.0);
-            assert!(test.completed_operations.borrow().is_empty());
+            assert!(test.recorded_updates.borrow().completed_operation_ids.is_empty());
 
             test.context
                 .advance_smooth_scroll_animations(start + Duration::from_milliseconds(200));
             assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 120.0 });
-            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert_eq!(
+                test.recorded_updates.borrow().completed_operation_ids.as_slice(),
+                &[operation]
+            );
             assert!(test.context.smooth_scroll_animations.is_empty());
         }
     }
@@ -1326,7 +1358,10 @@ mod tests {
             test.context
                 .advance_smooth_scroll_animations(start + Duration::from_milliseconds(250));
             assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 120.0 });
-            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert_eq!(
+                test.recorded_updates.borrow().completed_operation_ids.as_slice(),
+                &[operation]
+            );
             assert!(test.context.smooth_scroll_animations.is_empty());
         }
     }
@@ -1341,12 +1376,15 @@ mod tests {
             test.context.advance_smooth_scroll_animations(second_step_time);
             assert!(test.offset().y > 0.0 && test.offset().y < 120.0);
             assert_eq!(test.step(second_step_time), operation);
-            assert!(test.completed_operations.borrow().is_empty());
+            assert!(test.recorded_updates.borrow().completed_operation_ids.is_empty());
 
             test.context
                 .advance_smooth_scroll_animations(second_step_time + Duration::from_milliseconds(200));
             assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 240.0 });
-            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert_eq!(
+                test.recorded_updates.borrow().completed_operation_ids.as_slice(),
+                &[operation]
+            );
             assert!(test.context.smooth_scroll_animations.is_empty());
         }
     }

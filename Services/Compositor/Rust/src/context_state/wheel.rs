@@ -420,7 +420,6 @@ impl ContextState {
             step.wheel_delta_precision,
             step.scroll_gesture_phase,
             step.operation_tracking,
-            self.async_scrolling_viewport_rect,
             ScrollChaining::ToScrollableAncestors,
             now,
         );
@@ -590,7 +589,6 @@ impl ContextState {
             step.wheel_delta_precision,
             step.scroll_gesture_phase,
             step.operation_tracking,
-            self.async_scrolling_viewport_rect,
             scroll_chaining,
             VisualViewportPanning::BeforeScrolling,
             now,
@@ -917,7 +915,6 @@ impl ContextState {
             step.wheel_delta_precision,
             step.scroll_gesture_phase,
             step.operation_tracking,
-            self.async_scrolling_viewport_rect,
             scroll_chaining,
             VisualViewportPanning::No,
             now,
