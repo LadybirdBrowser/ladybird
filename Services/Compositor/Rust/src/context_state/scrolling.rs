@@ -49,7 +49,7 @@ impl ContextState {
         transform.matrix = gesture_transform.multiplied(transform.matrix);
         clamp_visual_viewport_transform_to_viewport(&mut transform, self.async_scrolling_viewport_rect);
         self.scene.set_async_visual_viewport_transform(transform);
-        self.rebuild_wheel_hit_test_targets();
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
         self.visual_viewport_document_id = self.async_scroll_tree.document_id();
         if let Some(document_id) = self.async_scroll_tree.document_id() {
             self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
@@ -415,7 +415,7 @@ impl ContextState {
         );
         // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
         // A wheel or panning scroll is relative, which scroll-state(scrolled) queries observe.
-        self.rebuild_wheel_hit_test_targets();
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
         self.record_relative_scroll_offset_report(scrolled_stable_node_id, scroll_offset, consumed_delta);
         if let Some(id) = outcome.operation_id {
             self.async_scroll_update_outbox.complete_operation(id);
@@ -727,7 +727,7 @@ impl ContextState {
             return None;
         }
         if self.has_async_scrolling_state {
-            self.rebuild_wheel_hit_test_targets();
+            self.async_scroll_tree.mark_cached_viewport_rects_stale();
         }
         self.request_rendering_update();
         Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect))
@@ -805,7 +805,7 @@ impl ContextState {
             clamp_visual_viewport_transform_to_viewport(&mut transform, self.async_scrolling_viewport_rect);
             self.scene.set_async_visual_viewport_transform(transform);
             self.visual_viewport_document_id = Some(scroll_request.stable_node_id.node_id);
-            self.rebuild_wheel_hit_test_targets();
+            self.async_scroll_tree.mark_cached_viewport_rects_stale();
         }
         let new_scroll_offset = visual_viewport_scroll_offset(&transform);
         self.record_visual_viewport_offset_report(scroll_request.stable_node_id.node_id, &transform);
@@ -1007,7 +1007,7 @@ impl ContextState {
             }
         }
         if changed_scroll_offset {
-            self.rebuild_wheel_hit_test_targets();
+            self.async_scroll_tree.mark_cached_viewport_rects_stale();
         }
         if changed_scroll_offset || completed_operation {
             self.request_rendering_update();

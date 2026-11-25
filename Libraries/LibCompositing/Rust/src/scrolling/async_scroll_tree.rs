@@ -131,6 +131,7 @@ pub struct AsyncScrollTree {
     cached_nested_context_wheel_regions: Vec<CachedNestedContextWheelRegion>,
     cached_blocking_wheel_event_targets: Vec<CachedBlockingWheelEventTarget>,
     visual_context_tree_structural_epoch: Option<u64>,
+    cached_viewport_rects_are_stale: bool,
 }
 
 struct NestedContextWheelRegionHit<'a> {
@@ -157,6 +158,12 @@ impl AsyncScrollTree {
     pub fn has_wheel_hit_test_targets_for(&self, visual_context_tree: &AccumulatedVisualContextTree) -> bool {
         self.visual_context_tree_structural_epoch == Some(visual_context_tree.structural_epoch())
     }
+    pub fn mark_cached_viewport_rects_stale(&mut self) {
+        self.cached_viewport_rects_are_stale = true;
+    }
+    pub fn cached_viewport_rects_are_stale(&self) -> bool {
+        self.cached_viewport_rects_are_stale
+    }
 
     pub fn set_state(&mut self, state: AsyncScrollingState) {
         self.state = state;
@@ -165,6 +172,7 @@ impl AsyncScrollTree {
         self.cached_nested_context_wheel_regions.clear();
         self.cached_blocking_wheel_event_targets.clear();
         self.visual_context_tree_structural_epoch = None;
+        self.cached_viewport_rects_are_stale = false;
     }
 
     pub fn state(&self) -> &AsyncScrollingState {
@@ -505,6 +513,7 @@ impl AsyncScrollTree {
         self.cached_nested_context_wheel_regions.clear();
         self.cached_blocking_wheel_event_targets.clear();
         self.visual_context_tree_structural_epoch = None;
+        self.cached_viewport_rects_are_stale = false;
         let (Some(display_list), Some(visual_context_tree)) = (display_list, visual_context_tree) else {
             return;
         };
@@ -674,6 +683,7 @@ impl AsyncScrollTree {
         scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
+        assert!(!self.cached_viewport_rects_are_stale);
         if self.state.has_blocking_wheel_event_region_covering_viewport
             || !self.has_wheel_hit_test_targets_for(visual_context_tree)
         {
@@ -705,6 +715,7 @@ impl AsyncScrollTree {
         scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
+        assert!(!self.cached_viewport_rects_are_stale);
         for target in &self.cached_main_thread_wheel_event_targets {
             if target.viewport_rect.is_some_and(|rect| !rect.contains_point(position)) {
                 continue;
@@ -731,6 +742,7 @@ impl AsyncScrollTree {
         scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> Option<NestedContextWheelRegionHit<'_>> {
+        assert!(!self.cached_viewport_rects_are_stale);
         for cached_region in self.cached_nested_context_wheel_regions.iter().rev() {
             let region = &cached_region.region;
             if cached_region
@@ -907,6 +919,7 @@ impl AsyncScrollTree {
         wheel_step_dispatch: WheelStepDispatch,
         nested_context_regions: NestedContextRegions,
     ) -> WheelHitTestResult {
+        assert!(!self.cached_viewport_rects_are_stale);
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
             return WheelHitTestResult {
                 outcome: WheelHitTestOutcome::HitTestTargetsOfAnotherVisualContextTree,
@@ -1045,6 +1058,7 @@ impl AsyncScrollTree {
         scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
+        assert!(!self.cached_viewport_rects_are_stale);
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
             return true;
         }

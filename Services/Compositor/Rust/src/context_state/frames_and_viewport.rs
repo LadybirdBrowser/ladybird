@@ -111,6 +111,7 @@ impl ContextState {
         delta_in_css_pixels: FloatPoint,
         nested_context_regions: NestedContextRegions,
     ) -> FirstWheelStepRouteForTesting {
+        self.prepare_wheel_hit_test_targets();
         let document_id = self.async_scroll_tree.document_id();
         if !self.presents_to_client() {
             return FirstWheelStepRouteForTesting {
@@ -442,7 +443,7 @@ impl ContextState {
         self.scene.set_async_visual_viewport_transform(transform);
         self.visual_viewport_document_id = Some(document_id);
         self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
-        self.rebuild_wheel_hit_test_targets();
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
         self.record_visual_viewport_offset_report(document_id, &transform);
         Some(consumed_delta)
     }
