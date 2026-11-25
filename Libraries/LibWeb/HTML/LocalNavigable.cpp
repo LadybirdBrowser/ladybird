@@ -1443,16 +1443,37 @@ void LocalNavigable::restore_pending_persisted_state_for_completed_document(GC::
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data
+static CSSPixelPoint viewport_scroll_offset_in_scroll_range(DOM::Document& document, CSSPixelPoint scroll_offset)
+{
+    if (!document.layout_is_up_to_date())
+        return scroll_offset;
+    Layout::ForcedReadScope read { document };
+    auto* layout_node = document.layout_node(read);
+    if (!layout_node)
+        return scroll_offset;
+    return Painting::clamp_scroll_offset(*layout_node, scroll_offset);
+}
+
 void LocalNavigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
 {
     auto const& scroll_position_data = entry.scroll_position_data();
     if (!scroll_position_data.viewport_scroll_position.has_value())
         return;
+    auto document = active_document();
+    if (!document)
+        return;
 
     // FIXME: If the document has been scrolled by the user, return.
+    auto scroll_offset = viewport_scroll_offset_in_scroll_range(*document, *scroll_position_data.viewport_scroll_position);
+    Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
+    if (!store_scroll_offset(viewport_stable_node_id, scroll_offset, Painting::CompositorScrollRequest::ProgrammaticJump) && has_compositor_context())
+        request_scroll_jump(viewport_stable_node_id, ScrollTrigger::Programmatic);
+}
+
+void LocalNavigable::clamp_viewport_scroll_offset()
+{
     if (auto document = active_document())
-        store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, *scroll_position_data.viewport_scroll_position, Painting::CompositorScrollRequest::ProgrammaticJump);
-    clamp_viewport_scroll_offset();
+        store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, viewport_scroll_offset_in_scroll_range(*document, m_viewport_scroll_offset), Painting::CompositorScrollRequest::None);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
@@ -5002,27 +5023,6 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
         // Schedule the HTML event loop to ensure that a `resize` event gets fired.
         HTML::main_thread_event_loop().schedule();
     }
-}
-
-void LocalNavigable::clamp_viewport_scroll_offset()
-{
-    auto document = active_document();
-    if (!document || !document->layout_is_up_to_date())
-        return;
-    Layout::ForcedReadScope read { *document };
-    auto* layout_node = document->layout_node(read);
-    if (!layout_node)
-        return;
-    if (!Painting::scrollable_overflow_rect(*layout_node).has_value())
-        return;
-    auto minimum_scroll_offset = Painting::minimum_scroll_offset(*layout_node);
-    auto maximum_scroll_offset = Painting::maximum_scroll_offset(*layout_node);
-    CSSPixelPoint clamped = {
-        clamp(m_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()),
-        clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),
-    };
-    if (clamped != m_viewport_scroll_offset)
-        store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, clamped, Painting::CompositorScrollRequest::ProgrammaticJump);
 }
 
 Optional<CSSPixelRect> LocalNavigable::viewport_intersection() const

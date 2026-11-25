@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    function spinUntilCompositorLeaves(offset) {
+        const giveUpAt = performance.now() + 5000;
+        while (internals.compositorScrollState().scrollOffset.y === offset && performance.now() < giveUpAt)
+            internals.synchronizeCompositor();
+        return internals.compositorScrollState().scrollOffset.y;
+    }
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        scrollTo(0, document.documentElement.scrollHeight);
+        internals.synchronizeCompositor();
+        await animationFrame();
+        await animationFrame();
+        const bottom = internals.compositorScrollState().scrollOffset.y;
+
+        // The page gets shorter, and beside this task the user scrolls the compositor up by less than it shrank.
+        document.body.style.height = "2900px";
+        document.documentElement.scrollHeight;
+        internals.wheelThroughUIProcess(50, 50, 0, -30, true, "ongoing");
+        println(`first step scrolled up by: ${bottom - spinUntilCompositorLeaves(bottom)}`);
+
+        // The rendering update takes that offset in, past the new bottom, and the user scrolls up further. The frame of
+        // the shorter page can reach the compositor before or after this step, so the step is measured from where it
+        // began.
+        let secondStepFrom;
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                secondStepFrom = internals.compositorScrollState().scrollOffset.y;
+                internals.wheelThroughUIProcess(50, 50, 0, -200, true, "ongoing");
+                spinUntilCompositorLeaves(secondStepFrom);
+                resolve();
+            });
+        });
+
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+        println(`after the frame, up from the start of the second step by: ${secondStepFrom - internals.compositorScrollState().scrollOffset.y}`);
+
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+    });
+</script>
