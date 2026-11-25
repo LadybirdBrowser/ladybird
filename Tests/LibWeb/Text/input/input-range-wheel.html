@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<input id="range" type="range" min="0" max="100" value="50">
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const range = document.getElementById("range");
+        range.addEventListener("input", () => println(`input value=${range.value}`));
+
+        const rect = range.getBoundingClientRect();
+        await internals.wheel(rect.left + rect.width / 2, rect.top + rect.height / 2, 0, 100);
+        println(`after scrolling over the range: value=${range.value}`);
+    });
+</script>
