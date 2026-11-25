@@ -7,8 +7,8 @@ endpoint CompositorPresentationServer
     [RustReceiver] handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll) =|
     [RustReceiver] handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event) =|
     [RustReceiver] handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event) =|
-    presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|
+    [RustReceiver] presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|
     take_frame_snapshot(Web::CompositorContextId context_id, u64 request_id) =|
-    set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
-    set_scrollbar_track_press_jumps(bool jumps) =|
+    [RustReceiver] set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
+    [RustReceiver] set_scrollbar_track_press_jumps(bool jumps) =|
 }

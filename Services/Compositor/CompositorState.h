@@ -157,8 +157,6 @@ public:
     void did_paint_contexts_for_screenshot(CompositorStateWebContentClient& painter, u64 preparation_id);
     Optional<Gfx::ShareableBitmap> take_frame_snapshot(Web::CompositorContextId);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
-    void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
-    void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);
 
     // A remote layer shows the frames of one root context at a time, in a view of the presentation it was created
     // for. Answers how that view finds the layer, whose kind is None where the presentation has no remote layers.

@@ -198,16 +198,6 @@ void CompositorCore::unregister_presentation(PresentationId presentation_id)
     RustFFI::compositor_core_unregister_presentation(m_core, presentation_id.value(), now().nanoseconds());
 }
 
-void CompositorCore::set_presentation_gpu_capability(PresentationId presentation_id, bool supported, u64 adapter_luid)
-{
-    RustFFI::compositor_core_set_presentation_gpu_capability(m_core, presentation_id.value(), supported, adapter_luid, now().nanoseconds());
-}
-
-void CompositorCore::set_scrollbar_track_press_jumps(PresentationId presentation_id, bool jumps)
-{
-    RustFFI::compositor_core_set_scrollbar_track_press_jumps(m_core, presentation_id.value(), jumps);
-}
-
 void CompositorCore::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     RustFFI::compositor_core_request_rendering_opportunity(m_core, context_id.value(), maximum_frames_per_second, now().nanoseconds());
