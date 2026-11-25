@@ -1,0 +1,9 @@
+Ladybird rasters a composited iframe too large to raster whole only
+around the part its parent shows, at full scale. Chrome 158, Firefox
+151, and WebKit 26.5, run headless, show a 100000px-wide iframe as
+sharp as a 360px one. Each rasters only tiles near the visible area:
+Chrome’s PictureLayerTiling::ComputeTilePriorityRects() limits live
+tiles to an interest rect around the visible rect, WebKit’s
+TileController::adjustTileCoverageRect() covers a rect around the
+visible one, and WebRender’s TileCacheInstance::pre_update() picks
+the picture-cache tiles to raster from the visible region.
