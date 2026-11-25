@@ -11,7 +11,7 @@
 #include <AK/HashFunctions.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 
