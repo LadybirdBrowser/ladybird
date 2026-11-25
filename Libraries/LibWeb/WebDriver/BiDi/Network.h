@@ -19,7 +19,6 @@
 #include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibHTTP/HeaderList.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
@@ -39,14 +38,11 @@ enum class NetworkContinuationAction : u8 {
     RetryAuthentication,
 };
 
-// NB: Drop a resumed interception's captured fetch state immediately, rather than waiting for collection.
-class NetworkContinuation final : public JS::Cell {
-    GC_CELL(NetworkContinuation, JS::Cell);
-    GC_DECLARE_ALLOCATOR(NetworkContinuation);
-
+// NB: A resumed interception drops its captured fetch state before its callback runs.
+class NetworkContinuation final : public RefCounted<NetworkContinuation> {
 public:
-    using Callback = GC::Ref<GC::Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>>;
-    static GC::Ref<NetworkContinuation> create(GC::Heap&, Callback);
+    using Callback = Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>;
+    static NonnullRefPtr<NetworkContinuation> create(Callback);
     void invoke(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>);
     void clear_blocked_state();
 
@@ -54,15 +50,12 @@ public:
     String phase;
     JsonArray intercepts;
     RefPtr<Fetch::Infrastructure::FetchParams const> fetch_params;
-    GC::Ptr<Fetch::Infrastructure::FetchController> controller;
     RefPtr<Fetch::Infrastructure::Request> original_request;
     RefPtr<Fetch::Infrastructure::Response> response;
 
 private:
     explicit NetworkContinuation(Callback);
-    virtual void finalize() override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-    GC::Ptr<GC::Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>> m_callback;
+    Callback m_callback;
 };
 
 // https://w3c.github.io/webdriver-bidi/#request-id
@@ -101,7 +94,7 @@ void apply_network_extra_headers(Fetch::Infrastructure::FetchParams const&);
 void apply_network_request_header_overrides(Fetch::Infrastructure::FetchParams const&);
 void remove_network_request_content_length_override(Fetch::Infrastructure::FetchParams const&);
 JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);
-void block_network_request(Fetch::Infrastructure::FetchParams const&, RefPtr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
+void block_network_request(Fetch::Infrastructure::FetchParams const&, RefPtr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, NonnullRefPtr<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
 WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
 void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable>, Optional<Utf16String> const& navigation);

@@ -40,6 +40,7 @@ public:
     [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }
     void set_request(NonnullRefPtr<Request> request) { m_request = move(request); }
     [[nodiscard]] GC::Ref<FetchController> controller() const;
+    [[nodiscard]] FetchControllerToken controller_token() const { return m_controller_token; }
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> timing_info() const { return m_timing_info; }
     [[nodiscard]] LoaderConfig const& loader_config() const { return m_loader_config->config; }
