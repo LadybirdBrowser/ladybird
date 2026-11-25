@@ -984,6 +984,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
         .pseudo_element_serialization = pseudo_element_serialization.has_value() ? pseudo_element_serialization->raw_identity() : 0,
         .has_slot = slot.has_value(),
         .slot = slot.value_or(Animations::RustFFI::AnimationOwnerSlot { 0 }),
+        .has_last_animation_frame_timestamp = m_document->last_animation_frame_timestamp().has_value(),
         .style_change_event_time = current_time->value,
         .generation = document().transition_generation(),
         .overlay_store = overlay ? overlay->rust_store() : nullptr,

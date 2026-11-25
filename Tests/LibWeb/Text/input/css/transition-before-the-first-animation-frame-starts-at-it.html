@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    #bar {
+        width: 0px;
+        height: 10px;
+        transition: width 60s linear;
+    }
+</style>
+<div id="bar"></div>
+<script>
+    internals.setManualRenderingOpportunities(true);
+    getComputedStyle(bar).width;
+    bar.style.width = "100px";
+    getComputedStyle(bar).width;
+</script>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const transition = bar.getAnimations()[0];
+        await new Promise(resolve => setTimeout(resolve, 20));
+        const frame = new Promise(resolve => requestAnimationFrame(resolve));
+        internals.injectRenderingOpportunity(performance.now());
+        const frameTime = await frame;
+        internals.setManualRenderingOpportunities(false);
+
+        println(`the transition starts at the first animation frame: ${Math.abs(transition.startTime - frameTime) < 1}`);
+        done();
+    });
+</script>
