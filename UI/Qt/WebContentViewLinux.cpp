@@ -1383,6 +1383,15 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
         return;
     }
 
+    // NB: Some compositors take a dma-buf in a layout that they cannot import, and show garbage.
+    auto const& gpu = presentation_gpu();
+    auto modifier = wayland_modifier_for_layout(dmabuf->modifier, gpu.has_value() ? gpu->drm_format_modifiers.span() : ReadonlySpan<u64> {});
+    if (!modifier.has_value()) {
+        dbgln("WebContentView: The compositor cannot import a page frame with modifier {:#x}", dmabuf->modifier);
+        give_up_on_page_surface();
+        return;
+    }
+
     // The frame is shown one dma-buf pixel per device pixel from the top left of the view, unless frames are scaled to
     // fit. A frame can be smaller than the view while it catches up with a resize, and the view paints the rest.
     // Where the frame goes in the view, in device pixels, and the part of the frame that the page surface shows.
@@ -1417,6 +1426,7 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     WaylandPageSurface::Frame frame {
         .shared_image_buffer = *paintable->shared_image_buffer,
         .dmabuf = *dmabuf,
+        .modifier = *modifier,
         .page_id = paintable->page_id,
         .bitmap_id = paintable->bitmap_id,
         .source = source,
@@ -1436,11 +1446,7 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     m_page_surface->forget_buffers_except(backing_stores().shared_image_buffers());
     auto result = m_page_surface->present(*parent, frame);
     if (result == WaylandPageSurface::PresentResult::Failed) {
-        m_page_surface_failed = true;
-        hide_page_surface();
-        update();
-        // NB: This may run in a callback of the page surface, which cannot be destroyed until that returns.
-        QTimer::singleShot(0, this, [this] { fall_back_from_page_surface(); });
+        give_up_on_page_surface();
         return;
     }
 
@@ -1544,6 +1550,15 @@ void WebContentView::release_all_retired_backing_stores()
 {
     for (auto& store : exchange(m_retired_backing_stores, {}))
         store.release->view_finished_reading();
+}
+
+void WebContentView::give_up_on_page_surface()
+{
+    m_page_surface_failed = true;
+    hide_page_surface();
+    update();
+    // NB: This may run in a callback of the page surface, which cannot be destroyed until that returns.
+    QTimer::singleShot(0, this, [this] { fall_back_from_page_surface(); });
 }
 
 // The page's window can still show frames that the compositor of the desktop cannot import itself, by drawing them in

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/Vector.h>
 
 #include <sys/types.h>
@@ -22,5 +23,8 @@ struct WaylandCompositorDevice {
 // The DRM device the Wayland compositor presents on, as it names it in its default dma-buf feedback. It is unknown off
 // Wayland, and when the compositor does not send dma-buf feedback.
 Optional<WaylandCompositorDevice> wayland_compositor_main_device();
+
+// The modifier to give the compositor a dma-buf of the given layout with, or none if it cannot import that layout.
+Optional<u64> wayland_modifier_for_layout(u64 modifier, ReadonlySpan<u64> importable_modifiers);
 
 }

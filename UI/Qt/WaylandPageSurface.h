@@ -50,6 +50,8 @@ public:
     struct Frame {
         Gfx::SharedImageBuffer const& shared_image_buffer;
         Gfx::LinuxDmaBufHandle const& dmabuf;
+        // The modifier to give the compositor the dma-buf with, which it has said it can import.
+        u64 modifier { 0 };
         // The page whose backing store the frame is in. Each page numbers its backing stores from the same start.
         u64 page_id { 0 };
         i32 bitmap_id { -1 };
