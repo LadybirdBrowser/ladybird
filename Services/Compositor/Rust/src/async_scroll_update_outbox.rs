@@ -9,6 +9,10 @@ use libcompositing_rust::scrolling::{
     PendingAsyncScrollUpdates, StartedUserScroll,
 };
 
+// The main thread allocates the ids of the scrolls it requests from here up, so that they never meet the ids the
+// compositor allocates for scrolls of its own.
+pub const FIRST_OPERATION_ID_THE_MAIN_THREAD_REQUESTS: AsyncScrollOperationID = 1 << 63;
+
 #[derive(Default)]
 pub struct AsyncScrollUpdateOutbox {
     pending_scroll_offsets: Vec<AsyncScrollOffset>,

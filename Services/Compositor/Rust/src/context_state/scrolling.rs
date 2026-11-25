@@ -607,7 +607,8 @@ impl ContextState {
                 && !retargets_running_animation
             {
                 let animation = &self.smooth_scroll_animations[index];
-                let running_animation_is_requested = animation.operation_id >= 1u64 << 63;
+                let running_animation_is_requested =
+                    animation.operation_id >= FIRST_OPERATION_ID_THE_MAIN_THREAD_REQUESTS;
                 let running_animation_is_user_step = animation.is_user_scroll
                     && animation.animation.kind() != ScrollAnimationKind::Momentum
                     && !self

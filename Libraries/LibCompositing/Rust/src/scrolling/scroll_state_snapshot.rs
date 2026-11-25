@@ -123,14 +123,6 @@ impl ScrollStateSnapshot {
         self.device_offsets[index] = offset;
     }
 
-    // Replaces every offset with a freshly derived dense array, keeping the node count bound.
-    pub fn assign_device_offsets(&mut self, offsets: &[FloatPoint]) {
-        self.world_transforms_cache.clear();
-        self.device_offsets.clear();
-        self.device_offsets
-            .extend_from_slice(&offsets[..offsets.len().min(self.node_count)]);
-    }
-
     // Bind the snapshot to the authoritative node count from the AccumulatedVisualContextTree that owns these nodes.
     // Wire-decoded offsets are staged rather than densified. So, this is where a decoded index is first validated:
     // staged pairs are applied through the bounded setter above, dropping any whose index is at or past the node count.
