@@ -261,13 +261,9 @@ public:
     // viewport's coordinates, as its embedder last reported. None of it until then.
     Optional<CSSPixelRect> viewport_intersection() const;
     void set_viewport_intersection(CSSPixelRect);
-    void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
-    // Every change of a scroll offset here, other than one the compositor made, goes to the compositor as a request.
-    void did_change_scroll_offset(Web::AsyncScrollNodeStableID);
+    void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position, Painting::CompositorScrollRequest);
+    void did_change_scroll_offset(Web::AsyncScrollNodeStableID, Painting::CompositorScrollRequest);
     u64 compositor_user_input_scroll_count() const { return m_compositor_context_user_input_scroll_count; }
-    void set_scroll_offset_settled_by_layout(Layout::Node& scrolling_box, CSSPixelPoint scroll_offset);
-    // Changes a scrolling box's offset for user input on this thread, which the compositor is asked for as the user's.
-    bool set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID, CSSPixelPoint);
     void adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness = Compositing::AsyncScrollUpdateFreshness::Pushed);
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
@@ -542,7 +538,7 @@ private:
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
     GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Optional<CSSPixelPoint> relative_displacement, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
-    bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint);
+    bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint, Painting::CompositorScrollRequest);
     void resolve_promises_of_finished_scroll(ReadonlySpan<GC::Ref<WebIDL::Promise>>);
     ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger, Compositing::ScrollAnimationKind);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
@@ -738,7 +734,6 @@ private:
     u64 m_compositor_context_user_input_scroll_count { 0 };
     // Set while this navigable changes an offset it asks for in a request of its own making, or takes the compositor's,
     // which it asks for nothing about.
-    bool m_scroll_offset_changes_need_no_request { false };
     Compositing::ScrollRequest& unsent_scroll_request_for(Web::AsyncScrollNodeStableID);
     u64 last_scroll_request_id_for(Web::AsyncScrollNodeStableID) const;
     void request_scroll_jump(Web::AsyncScrollNodeStableID, ScrollTrigger);
