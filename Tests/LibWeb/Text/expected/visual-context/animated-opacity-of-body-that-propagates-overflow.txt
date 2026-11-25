@@ -1,0 +1,10 @@
+animation at 0ms: effects=[opacity=0]
+animation at 500ms: effects=[opacity=0.5]
+animation at 750ms: effects=[opacity=0.75]
+layout for the 750ms sample: none
+animation removed: 
+transition at 250ms: effects=[opacity=0.75]
+transition finished: effects=[opacity=0]
+transition removed: 
+transition started halfway: effects=[opacity=0.5]
+viewport scrolled to: 100
