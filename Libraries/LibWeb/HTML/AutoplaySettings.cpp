@@ -10,6 +10,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
 
@@ -69,6 +71,35 @@ void AutoplaySettings::set_policy(AutoplayPolicy policy, OrderedHashMap<String, 
 
         m_site_policies.append({ url->origin(), site_policy });
     }
+}
+
+bool system_allows_media_playback(DOM::Document const& document, IsAudible is_audible)
+{
+    // NB: We allow playback once the document has been activated by the user, with an exception for inaudible media.
+    //     Gating on transient activation instead pauses audible media once the activation expires, e.g. between ads,
+    //     or media in a playlist.
+    if (auto window = document.window(); window && window->has_sticky_activation())
+        return true;
+
+    // NB: The sticky activation of an ancestor also counts if the document is allowed to use the "autoplay" feature.
+    //     A cross-origin iframe is only allowed to use it if its container allows it.
+    if (document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay)) {
+        for (auto const& ancestor : document.ancestor_navigables()) {
+            if (ancestor->active_window_has_sticky_activation())
+                return true;
+        }
+    }
+
+    switch (AutoplaySettings::the().decision_for_origin(document, document.origin())) {
+    case AutoplayDecision::Allowed:
+        return true;
+    case AutoplayDecision::AllowedIfInaudible:
+        return is_audible == IsAudible::No;
+    case AutoplayDecision::Blocked:
+        return false;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }

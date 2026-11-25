@@ -48,4 +48,11 @@ private:
     Vector<SitePolicy> m_site_policies;
 };
 
+enum class IsAudible : u8 {
+    No,
+    Yes,
+};
+
+bool system_allows_media_playback(DOM::Document const&, IsAudible);
+
 }
