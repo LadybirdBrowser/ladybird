@@ -1,0 +1,6 @@
+spans, 0.5px to spare: second line beside the float
+spans, 2px to spare: second line beside the float
+spans, 5px to spare: second line beside the float
+text, 0.5px to spare: second line beside the float
+text, 2px to spare: second line beside the float
+text, 5px to spare: second line beside the float
