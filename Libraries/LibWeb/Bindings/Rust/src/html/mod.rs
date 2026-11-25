@@ -142,6 +142,8 @@ pub(crate) mod toggle_event;
 #[cfg(not(test))]
 pub(crate) mod track_event;
 #[cfg(not(test))]
+pub(crate) mod video_playback_quality;
+#[cfg(not(test))]
 pub(crate) mod visibility_state;
 #[cfg(not(test))]
 pub(crate) mod visibility_state_entry;
