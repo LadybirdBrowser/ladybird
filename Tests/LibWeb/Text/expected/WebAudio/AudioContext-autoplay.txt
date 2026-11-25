@@ -1,1 +1,5 @@
 A previously started AudioContext resumes after autoplay is blocked: true
+Blocked audio clock: suspended at 0
+Resume request is pending: true
+Only sticky activation remains: true
+Explicit resume starts the audio clock: true

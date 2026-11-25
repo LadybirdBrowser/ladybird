@@ -10,6 +10,7 @@
 #include <AK/Time.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
@@ -19,8 +20,15 @@ namespace Web::WebAudio {
 
 static constexpr u32 TARGET_LATENCY_MS = 100;
 
+extern "C" bool web_audio_context_is_allowed_to_start(DOM::EventTarget*);
 extern "C" RustFFI::FfiSharedCppObject web_audio_output_factory_create(DOM::EventTarget*);
 extern "C" double web_audio_realtime_context_performance_now(DOM::EventTarget*);
+
+bool web_audio_context_is_allowed_to_start(DOM::EventTarget* global)
+{
+    // NB: A realtime audio graph can become audible at any time.
+    return HTML::system_allows_media_playback(as<HTML::Window>(*global).associated_document(), HTML::IsAudible::Yes);
+}
 
 RustFFI::FfiSharedCppObject web_audio_output_factory_create(DOM::EventTarget* global)
 {
