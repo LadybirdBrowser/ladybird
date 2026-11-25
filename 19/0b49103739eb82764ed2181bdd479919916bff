@@ -1,0 +1,12 @@
+When a deleted WebGL program or shader is passed to a function, Ladybird
+generates INVALID_VALUE, and INVALID_OPERATION for any other deleted
+object. WebKit’s WebGLRenderingContextBase::validateWebGLObject() picks
+the same two errors by type, and Gecko’s ObjectJS::ErrorOnDeleted() is
+INVALID_VALUE for programs and shaders. Blink does the same, in its
+ValidateWebGLProgramOrShader(), for every program and shader function
+but useProgram(), which goes through ValidateWebGLObject() instead and
+generates INVALID_OPERATION. Ladybird follows Gecko and WebKit there,
+and the GLES rule for program and shader names.
+
+The test’s output matches Firefox 151 and WebKit 26.5 line for line, and
+Chrome 158 in every line but useProgram()’s.
