@@ -36,6 +36,8 @@ interface Internals {
     // How many worker agents are alive in this process. One that a worker's owner let go of still counts until its
     // thread has shut it down.
     unsigned long workerAgentCount();
+    // How many network body pumps made on this agent's thread are alive.
+    unsigned long networkBodyPumpCount();
     // Collects garbage once the current task is over. With moveCells, the collection moves every cell it can.
     [CreatesPromise] Promise<undefined> gcAsync(optional boolean moveCells = false);
     // Discards every decoded image frame that can be decoded again, and returns how many were discarded.

@@ -33,6 +33,26 @@
 
 namespace Web {
 
+// The callbacks of a load that RequestServer does not serve, shared by each way the load can end.
+struct LocalLoadCallbacks : public RefCounted<LocalLoadCallbacks> {
+    LocalLoadCallbacks(ResourceLoader::OnHeadersReceived on_headers_received, ResourceLoader::OnDataReceived on_data_received, ResourceLoader::OnComplete on_complete)
+        : on_headers_received(move(on_headers_received))
+        , on_data_received(move(on_data_received))
+        , on_complete(move(on_complete))
+    {
+    }
+
+    ResourceLoader::OnHeadersReceived on_headers_received;
+    ResourceLoader::OnDataReceived on_data_received;
+    ResourceLoader::OnComplete on_complete;
+};
+
+}
+
+GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::LocalLoadCallbacks);
+
+namespace Web {
+
 static RefPtr<ResourceLoader>& resource_loader()
 {
     static thread_local NeverDestroyed<RefPtr<ResourceLoader>> resource_loader;
@@ -386,8 +406,8 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
     page->client().request_file(move(file_request));
 }
 
-template<typename ResourceHandler>
-void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, GC::Ref<GC::Function<void(ByteString const&)>> on_error)
+template<typename ResourceHandler, typename ErrorHandler>
+void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
 {
     auto const& url = request.url().value();
 
@@ -414,10 +434,7 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Resou
         }
     }
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(
-        m_heap, GC::captures(on_error, ByteString::formatted("No such about page: {}", serialized_path)), [](auto& on_error, auto& error_message) {
-            on_error->function()(error_message);
-        }));
+    on_error(ByteString::formatted("No such about page: {}", serialized_path));
 }
 
 template<typename ResourceHandler, typename ErrorHandler>
@@ -463,7 +480,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete, Requests::RequestClient::TransferLease transfer_lease)
+RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& request, OnHeadersReceived on_headers_received, OnDataReceived on_data_received, OnCachedBodyAvailable on_cached_body_available, OnComplete on_complete, Requests::RequestClient::TransferLease transfer_lease)
 {
     auto const& url = request.url().value();
 
@@ -471,54 +488,59 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
     request.start_timer();
 
     if (should_block_request(request)) {
-        on_complete->function()(false, {}, "Request was blocked"sv, {});
+        on_complete(false, {}, "Request was blocked"sv, {});
         return nullptr;
     }
 
     if (url.scheme() == "about"sv) {
+        auto callbacks = make_ref_counted<LocalLoadCallbacks>(move(on_headers_received), move(on_data_received), move(on_complete));
         handle_about_load_request(
             request,
-            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
+            [callbacks, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
-                on_headers_received->function()(nullptr, response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(data));
-                on_complete->function()(true, timing_info, {}, {});
+                callbacks->on_headers_received(nullptr, response_headers, {}, {}, Requests::CacheState::NotCached);
+                callbacks->on_data_received(nullptr, Requests::ResponseData::from_bytes(data));
+                callbacks->on_complete(true, timing_info, {}, {});
             },
-            GC::create_function(m_heap, GC::captures(on_complete, request), [](auto& on_complete, auto& request, ByteString const& message) {
-                log_failure(request, message);
-                Requests::RequestTimingInfo fixme_implement_timing_info {};
-                on_complete->function()(false, fixme_implement_timing_info, StringView(message), {});
-            }));
+            [this, callbacks, request](ByteString message) {
+                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, GC::captures(callbacks, request, move(message)), [](auto& callbacks, auto& request, auto& message) {
+                    log_failure(request, message);
+                    Requests::RequestTimingInfo fixme_implement_timing_info {};
+                    callbacks->on_complete(false, fixme_implement_timing_info, StringView(message), {});
+                }));
+            });
         return nullptr;
     }
 
     if (url.scheme() == "resource"sv) {
+        auto callbacks = make_ref_counted<LocalLoadCallbacks>(move(on_headers_received), move(on_data_received), move(on_complete));
         handle_resource_load_request(
             request,
-            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
-                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(load_result.data));
-                on_complete->function()(true, load_result.timing_info, {}, {});
+            [callbacks](FileLoadResult const& load_result) {
+                callbacks->on_headers_received(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
+                callbacks->on_data_received(nullptr, Requests::ResponseData::from_bytes(load_result.data));
+                callbacks->on_complete(true, load_result.timing_info, {}, {});
             },
-            [on_complete](ByteString const& message) {
+            [callbacks](ByteString const& message) {
                 Requests::RequestTimingInfo fixme_implement_timing_info {};
-                on_complete->function()(false, fixme_implement_timing_info, StringView(message), {});
+                callbacks->on_complete(false, fixme_implement_timing_info, StringView(message), {});
             });
         return nullptr;
     }
 
     if (url.scheme() == "file"sv) {
+        auto callbacks = make_ref_counted<LocalLoadCallbacks>(move(on_headers_received), move(on_data_received), move(on_complete));
         handle_file_load_request(
             request,
-            [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
+            [request, callbacks](FileLoadResult const& load_result) {
                 log_success(request);
-                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(load_result.data));
-                on_complete->function()(true, load_result.timing_info, {}, {});
+                callbacks->on_headers_received(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
+                callbacks->on_data_received(nullptr, Requests::ResponseData::from_bytes(load_result.data));
+                callbacks->on_complete(true, load_result.timing_info, {}, {});
             },
-            [on_complete, request](ByteString const& message) {
+            [callbacks, request](ByteString const& message) {
                 log_failure(request, message);
-                on_complete->function()(false, {}, StringView(message), {});
+                callbacks->on_complete(false, {}, StringView(message), {});
             });
 
         return nullptr;
@@ -527,7 +549,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
     if (!url.scheme().is_one_of("http"sv, "https"sv)) {
         auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
         log_failure(request, not_implemented_error);
-        on_complete->function()(false, {}, not_implemented_error, {});
+        on_complete(false, {}, not_implemented_error, {});
         return nullptr;
     }
 
@@ -536,24 +558,24 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
         dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the request", url);
         auto error = "PAC proxy configurations are not supported"sv;
         log_failure(request, error);
-        on_complete->function()(false, {}, error, {});
+        on_complete(false, {}, error, {});
         return nullptr;
     }
 
     auto protocol_request = start_network_request(request, transfer_lease);
     if (!protocol_request) {
-        on_complete->function()(false, {}, "Failed to start network request"sv, {});
+        on_complete(false, {}, "Failed to start network request"sv, {});
         return nullptr;
     }
 
     auto network_transport = Fetch::Engine::NetworkTransportHandle::create(*protocol_request);
 
     auto protocol_headers_received = [on_headers_received = move(on_headers_received), network_transport](auto const& response_headers, auto status_code, auto const& reason_phrase, auto cache_state) {
-        on_headers_received->function()(network_transport.ptr(), response_headers, move(status_code), reason_phrase, cache_state);
+        on_headers_received(network_transport.ptr(), response_headers, move(status_code), reason_phrase, cache_state);
     };
 
     auto protocol_data_received = [on_data_received = move(on_data_received), network_transport](auto data) {
-        on_data_received->function()(network_transport.ptr(), move(data));
+        on_data_received(network_transport.ptr(), move(data));
     };
 
     auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request, network_transport](u64 total_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
@@ -566,16 +588,16 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
         };
         if (!network_error.has_value()) {
             log_success(request);
-            on_complete->function()(true, timing_info, {}, network_request_end);
+            on_complete(true, timing_info, {}, network_request_end);
         } else {
             auto error_description = network_error_description(*network_error);
             log_failure(request, error_description);
-            on_complete->function()(false, timing_info, error_description, network_request_end);
+            on_complete(false, timing_info, error_description, network_request_end);
         }
     };
 
     auto protocol_cached_body_available = [on_cached_body_available = move(on_cached_body_available)](auto data) {
-        on_cached_body_available->function()(move(data));
+        on_cached_body_available(move(data));
     };
 
     protocol_request->set_unbuffered_request_callbacks(move(protocol_headers_received), move(protocol_data_received), move(protocol_cached_body_available), move(protocol_complete));

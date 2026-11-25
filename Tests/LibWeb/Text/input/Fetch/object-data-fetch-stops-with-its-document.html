@@ -42,7 +42,7 @@
             let pumps;
             do {
                 await internals.gcAsync();
-                pumps = countCells("NetworkBodyPump");
+                pumps = internals.networkBodyPumpCount();
                 if (pumps === count)
                     return "released";
                 await new Promise(resolve => setTimeout(resolve, 10));
@@ -51,7 +51,7 @@
         };
 
         await internals.gcAsync();
-        const initialPumps = countCells("NetworkBodyPump");
+        const initialPumps = internals.networkBodyPumpCount();
         const initialPullSources = countCells("BodyStreamPullSource");
 
         for (const held of cases) {
@@ -61,7 +61,7 @@
 
             // The server has the object's request, and holds its response.
             await waitForRequestAtServer(held.recorded);
-            await waitUntil(() => countCells("NetworkBodyPump") > initialPumps);
+            await waitUntil(() => internals.networkBodyPumpCount() > initialPumps);
             if (held.midBody)
                 await waitUntil(() => countCells("BodyStreamPullSource") > initialPullSources);
 

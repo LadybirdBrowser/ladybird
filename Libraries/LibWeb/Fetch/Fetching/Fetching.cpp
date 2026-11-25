@@ -2917,7 +2917,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // Only the bytes the navigation sniffs are delivered until it decides what the response becomes.
-    auto body_pump = GC::make_root(NetworkBodyPump::create(nullptr, Engine::FetchBodyDeliveryGate::NavigationHold::Held, nullptr));
+    auto body_pump = NetworkBodyPump::create(nullptr, Engine::FetchBodyDeliveryGate::NavigationHold::Held, nullptr);
     body_pump->set_response(response);
 
     auto network_transport = Engine::NetworkTransportHandle::create(*request);
@@ -3096,7 +3096,7 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
     // A load without a RequestServer request, such as one for a file: URL, hands over its whole body at once.
     auto whole_body_transport = create_whole_body_transport(*body_pump->delivery_gate(), *body_pump->channel(), load);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, NonnullRefPtr { *engine_record }, pending_response, request, body_pump, whole_body_transport, http_cache, load), [](auto& fetch_params, auto& engine_record, auto& pending_response, auto& request, auto& body_pump, auto& whole_body_transport, auto& http_cache, auto& load, Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
+    auto on_headers_received = [fetch_params = NonnullRefPtr { fetch_params }, engine_record = NonnullRefPtr { *engine_record }, pending_response, request, body_pump, whole_body_transport, http_cache, load](Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
         // A leased RequestServer request can run a callback after it has finished, once its load has ended.
         if (network_transport && load->has_ended())
             return;
@@ -3187,14 +3187,10 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
         pending_response->resolve(response);
         load->did_give_response();
-    });
+    };
 
     // 16. Run these steps in parallel:
-    auto deliver_body_data = GC::create_function(GC::Heap::the(), GC::captures(body_pump), [](auto& body_pump, Requests::ResponseData data) {
-        body_pump->handle_network_data(move(data));
-    });
-
-    auto on_data_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, NonnullRefPtr { *engine_record }, deliver_body_data, whole_body_transport, load), [](auto& control_block, auto& engine_record, auto& deliver_body_data, auto& whole_body_transport, auto& load, Engine::NetworkTransportHandle* network_transport, Requests::ResponseData data) {
+    auto on_data_received = [control_block = NonnullRefPtr { fetch_params.control_block() }, engine_record = NonnullRefPtr { *engine_record }, body_pump, whole_body_transport, load](Engine::NetworkTransportHandle* network_transport, Requests::ResponseData data) {
         if (network_transport && load->has_ended())
             return;
 
@@ -3204,24 +3200,24 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         }
 
         if (!whole_body_transport->is_attached()) {
-            deliver_body_data->function()(move(data));
+            body_pump->handle_network_data(move(data));
             return;
         }
         auto body = MUST(Core::ImmutableBytes::copy(data.bytes()));
-        auto on_body_data = [deliver_body_data = GC::Root { deliver_body_data }](Requests::ResponseData data) {
-            deliver_body_data->function()(move(data));
+        auto on_body_data = [body_pump](Requests::ResponseData data) {
+            body_pump->handle_network_data(move(data));
         };
         whole_body_transport->set_body(move(body), move(on_body_data));
-    });
+    };
 
-    auto on_cached_body_available = GC::create_function(GC::Heap::the(), GC::captures(body_pump), [](auto& body_pump, Core::ImmutableBytes data) {
+    auto on_cached_body_available = [body_pump](Core::ImmutableBytes data) {
         body_pump->set_cached_response_body(move(data));
-    });
+    };
 
     // A CORS preflight's network phases are those of its own timing info, not the fetch's.
     auto reports_network_phases = !fetch_params.is_cors_preflight();
-    auto complete_load = GC::create_function(GC::Heap::the(), GC::captures(realm, pending_response, body_pump, request, fetch_timing_info, cross_origin_isolated_capability, NonnullRefPtr { *engine_record }, reports_network_phases, load), [](auto& realm, auto& pending_response, auto& body_pump, auto& request, auto& fetch_timing_info, auto& cross_origin_isolated_capability, auto& engine_record, auto& reports_network_phases, auto& load, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
-        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    auto complete_load = [fetch_params = NonnullRefPtr { fetch_params }, pending_response, body_pump, request, fetch_timing_info, cross_origin_isolated_capability, engine_record = NonnullRefPtr { *engine_record }, reports_network_phases, load](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
+        HTML::TemporaryExecutionContext execution_context { fetch_params->controller()->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         if (success) {
             auto network_phases = fetch_timing_info->final_network_phases(timing_info, cross_origin_isolated_capability);
@@ -3238,9 +3234,9 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
                 load->did_give_response();
             }
         }
-    });
+    };
 
-    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, NonnullRefPtr { *engine_record }, body_pump, complete_load, whole_body_transport, load), [](auto& control_block, auto& engine_record, auto& body_pump, auto& complete_load, auto& whole_body_transport, auto& load, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
+    auto on_complete = [control_block = NonnullRefPtr { fetch_params.control_block() }, engine_record = NonnullRefPtr { *engine_record }, body_pump, complete_load, whole_body_transport, load](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
         if (network_request_end.has_value()) {
             if (load->has_ended())
                 return;
@@ -3262,11 +3258,11 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         }
 
         if (!success || !whole_body_transport->is_attached()) {
-            complete_load->function()(success, timing_info, error_message);
+            complete_load(success, timing_info, error_message);
             load->end_at_its_last_callback();
             return;
         }
-        whole_body_transport->when_delivered([control_block, body_pump = GC::Root { body_pump }, complete_load = GC::Root { complete_load }, timing_info, load] {
+        whole_body_transport->when_delivered([control_block, body_pump, complete_load, timing_info, load] {
             // 1. Run these steps, but abort when fetchParams is canceled:
             // AD-HOC: A stopped fetch is not canceled, but takes no more of its body either.
             if (!control_block->is_ongoing()) {
@@ -3274,20 +3270,20 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
                 load->end();
                 return;
             }
-            complete_load->function()(true, timing_info, {});
+            complete_load(true, timing_info, {});
             load->end();
         });
-    });
+    };
 
     auto transfer_lease = fetch_params.has_response_body_transfer_lease()
         ? Requests::RequestClient::TransferLease::Yes
         : Requests::RequestClient::TransferLease::No;
-    auto network_transport = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
+    auto network_transport = ResourceLoader::the().load(load_request, move(on_headers_received), move(on_data_received), move(on_cached_body_available), move(on_complete), transfer_lease);
     if (network_transport) {
         engine_record->report_network_activity(network_transport->request_id(), network_request_started(load_request, *request));
         body_pump->delivery_gate()->attach_transport(*network_transport);
         engine_record->add_network_transport(*network_transport, *body_pump->delivery_gate());
-        network_transport->set_on_teardown([body_pump = GC::Root { body_pump }, load](Requests::Request::TeardownReason reason) {
+        network_transport->set_on_teardown([body_pump, load](Requests::Request::TeardownReason reason) {
             if (load->has_ended())
                 return;
             body_pump->handle_network_teardown(reason);

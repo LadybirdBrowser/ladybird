@@ -71,6 +71,7 @@ public:
 
     void gc();
     u32 worker_agent_count() const;
+    u32 network_body_pump_count() const;
     void gc_async(bool move_cells, GC::Ref<WebIDL::Promise>);
     WebIDL::UnsignedLongLong discard_decoded_image_frames();
     WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);

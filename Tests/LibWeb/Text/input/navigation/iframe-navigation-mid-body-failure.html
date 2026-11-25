@@ -12,11 +12,9 @@
 
         // The body arrives through a body pump, also when the navigation adopts a request fetched elsewhere.
         const countBodyCells = () => {
-            const counts = { pumps: 0, pullSources: 0 };
+            const counts = { pumps: internals.networkBodyPumpCount(), pullSources: 0 };
             for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
-                if (cell.class_name === "NetworkBodyPump")
-                    ++counts.pumps;
-                else if (cell.class_name === "BodyStreamPullSource")
+                if (cell.class_name === "BodyStreamPullSource")
                     ++counts.pullSources;
             }
             return counts;

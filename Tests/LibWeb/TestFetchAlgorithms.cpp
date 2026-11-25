@@ -336,7 +336,7 @@ namespace {
 struct FetchWithBody {
     GC::Root<FetchController> controller;
     NonnullRefPtr<FetchParams> fetch_params;
-    GC::Root<NetworkBodyPump> body_pump;
+    NonnullRefPtr<NetworkBodyPump> body_pump;
     NonnullRefPtr<WholeBodyTransport> transport;
 };
 
@@ -351,7 +351,7 @@ static FetchWithBody fetch_with_a_body(FetchHarness const& harness)
     harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
 
     // The case's fetch has run to its end, so another engine's fetch starts the body's load.
-    auto body_pump = GC::make_root(NetworkBodyPump::create(fetch_params, FetchBodyDeliveryGate::NavigationHold::None, nullptr));
+    auto body_pump = NetworkBodyPump::create(fetch_params, FetchBodyDeliveryGate::NavigationHold::None, nullptr);
     auto transport = Web::Fetch::Fetching::create_whole_body_transport(*body_pump->delivery_gate(), *body_pump->channel(), start_a_load_of_another_engine());
     fetch_params->set_body_transport(*transport);
     return { move(controller), fetch_params.release_nonnull(), move(body_pump), move(transport) };

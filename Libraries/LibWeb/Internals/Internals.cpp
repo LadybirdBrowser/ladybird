@@ -70,6 +70,7 @@
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
@@ -404,6 +405,11 @@ void Internals::gc()
 u32 Internals::worker_agent_count() const
 {
     return Bindings::worker_agent_count();
+}
+
+u32 Internals::network_body_pump_count() const
+{
+    return Fetch::Fetching::NetworkBodyPump::live_count();
 }
 
 enum class MoveCells {
