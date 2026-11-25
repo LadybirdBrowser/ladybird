@@ -441,11 +441,7 @@ impl ContextState {
         }
         transform.matrix.elements[0][3] = new_x;
         transform.matrix.elements[1][3] = new_y;
-        self.scene.set_async_visual_viewport_transform(transform);
-        self.visual_viewport_document_id = Some(document_id);
-        self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
-        self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        self.record_visual_viewport_offset_report(document_id, &transform);
+        self.move_visual_viewport(Some(document_id), transform, VisualViewportMoveCause::Pan);
         Some(consumed_delta)
     }
 

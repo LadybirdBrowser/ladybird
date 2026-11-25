@@ -48,13 +48,11 @@ impl ContextState {
             .multiplied(translation_matrix(-position.x, -position.y, 0.0));
         transform.matrix = gesture_transform.multiplied(transform.matrix);
         clamp_visual_viewport_transform_to_viewport(&mut transform, self.async_scrolling_viewport_rect);
-        self.scene.set_async_visual_viewport_transform(transform);
-        self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        self.visual_viewport_document_id = self.async_scroll_tree.document_id();
-        if let Some(document_id) = self.async_scroll_tree.document_id() {
-            self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
-            self.record_visual_viewport_offset_report(document_id, &transform);
-        }
+        self.move_visual_viewport(
+            self.async_scroll_tree.document_id(),
+            transform,
+            VisualViewportMoveCause::Pinch,
+        );
         ContextUpdateResult {
             accepted: true,
             frame_to_present: Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect)),
@@ -724,10 +722,7 @@ impl ContextState {
         }
         transform.matrix.elements[0][3] = -new_visual_viewport_offset.x * scale;
         transform.matrix.elements[1][3] = -new_visual_viewport_offset.y * scale;
-        self.scene.set_async_visual_viewport_transform(transform);
-        self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        self.visual_viewport_document_id = Some(document_id);
-        self.record_visual_viewport_offset_report(document_id, &transform);
+        self.move_visual_viewport(Some(document_id), transform, VisualViewportMoveCause::ScrollRequest);
         layout_viewport_destination
     }
 
@@ -756,12 +751,15 @@ impl ContextState {
             transform.matrix.elements[0][3] = -jump_offset.x * scale;
             transform.matrix.elements[1][3] = -jump_offset.y * scale;
             clamp_visual_viewport_transform_to_viewport(&mut transform, self.async_scrolling_viewport_rect);
-            self.scene.set_async_visual_viewport_transform(transform);
-            self.visual_viewport_document_id = Some(scroll_request.stable_node_id.node_id);
-            self.async_scroll_tree.mark_cached_viewport_rects_stale();
+            self.move_visual_viewport(
+                Some(scroll_request.stable_node_id.node_id),
+                transform,
+                VisualViewportMoveCause::ScrollRequest,
+            );
+        } else {
+            self.record_visual_viewport_offset_report(scroll_request.stable_node_id.node_id, &transform);
         }
         let new_scroll_offset = visual_viewport_scroll_offset(&transform);
-        self.record_visual_viewport_offset_report(scroll_request.stable_node_id.node_id, &transform);
         *answered_any_request = true;
         new_scroll_offset != old_scroll_offset
     }

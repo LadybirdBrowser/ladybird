@@ -22,6 +22,13 @@ impl ScrollerMoveCause {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum VisualViewportMoveCause {
+    Pinch,
+    Pan,
+    ScrollRequest,
+}
+
 pub(super) struct ScrollerMove {
     pub offset_before: FloatPoint,
     pub offset_after: FloatPoint,
@@ -81,5 +88,24 @@ impl ContextState {
             offset_before,
             offset_after,
         })
+    }
+
+    pub(super) fn move_visual_viewport(
+        &mut self,
+        document_id: Option<UniqueNodeId>,
+        visual_viewport_transform: TransformWithOrigin,
+        cause: VisualViewportMoveCause,
+    ) {
+        self.scene
+            .set_async_visual_viewport_transform(visual_viewport_transform);
+        self.async_scroll_tree.mark_cached_viewport_rects_stale();
+        self.visual_viewport_document_id = document_id;
+        let Some(document_id) = document_id else {
+            return;
+        };
+        if cause != VisualViewportMoveCause::ScrollRequest {
+            self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
+        }
+        self.record_visual_viewport_offset_report(document_id, &visual_viewport_transform);
     }
 }
