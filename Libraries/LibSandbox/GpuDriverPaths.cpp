@@ -141,6 +141,40 @@ static ErrorOr<void> add_shader_cache_path(Vector<PathRule>& paths, ByteString c
     return {};
 }
 
+// Whether one of Mesa's boolean options is set to a value that Mesa reads as true.
+static bool mesa_option_is_on(StringView name)
+{
+    auto value = Core::Environment::get(name);
+    if (!value.has_value())
+        return false;
+    for (auto on : { "1"sv, "y"sv, "yes"sv, "t"sv, "true"sv }) {
+        if (value->equals_ignoring_ascii_case(on))
+            return true;
+    }
+    return false;
+}
+
+// Whether a render node belongs to an AMD GPU, which RADV drives.
+static bool has_amd_gpu()
+{
+    bool found = false;
+    auto flags = static_cast<Core::DirIterator::Flags>(Core::DirIterator::SkipDots | Core::DirIterator::NoStat);
+    auto result = Core::Directory::for_each_entry("/sys/class/drm"sv, flags, [&](Core::DirectoryEntry const& entry, Core::Directory const&) -> ErrorOr<IterationDecision> {
+        if (!entry.name.starts_with("renderD"sv))
+            return IterationDecision::Continue;
+        auto file = Core::File::open(ByteString::formatted("/sys/class/drm/{}/device/vendor", entry.name), Core::File::OpenMode::Read);
+        if (file.is_error())
+            return IterationDecision::Continue;
+        auto vendor = file.value()->read_until_eof();
+        if (!vendor.is_error() && StringView { vendor.value() }.trim_whitespace() == "0x1002"sv) {
+            found = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return !result.is_error() && found;
+}
+
 ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths)
 {
     TRY(add_path_if_exists(paths, "/lib"sv, PathRule::Access::ReadOnly));
@@ -194,10 +228,21 @@ ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths)
         return IterationDecision::Continue;
     }));
 
-    auto mesa_shader_cache_path = Core::Environment::get("MESA_SHADER_CACHE_DIR"sv)
-                                      .map([](auto path) { return path.to_byte_string(); })
-                                      .value_or_lazy_evaluated([] { return ByteString::formatted("{}/mesa_shader_cache", Core::StandardPaths::cache_directory()); });
-    TRY(add_shader_cache_path(paths, mesa_shader_cache_path));
+    // Mesa keeps its shader caches in MESA_SHADER_CACHE_DIR, which holds them all, or else in directories of their own in
+    // the user's cache directory: mesa_shader_cache by default, mesa_shader_cache_sf or mesa_shader_cache_db when Mesa
+    // is set to keep a single-file or database cache, and RADV's cache of its built-in shaders in radv_builtin_shaders.
+    if (auto mesa_shader_cache_path = Core::Environment::get("MESA_SHADER_CACHE_DIR"sv); mesa_shader_cache_path.has_value()) {
+        TRY(add_shader_cache_path(paths, mesa_shader_cache_path->to_byte_string()));
+    } else {
+        auto cache_directory = Core::StandardPaths::cache_directory();
+        TRY(add_shader_cache_path(paths, ByteString::formatted("{}/mesa_shader_cache", cache_directory)));
+        if (mesa_option_is_on("MESA_DISK_CACHE_SINGLE_FILE"sv))
+            TRY(add_shader_cache_path(paths, ByteString::formatted("{}/mesa_shader_cache_sf", cache_directory)));
+        if (mesa_option_is_on("MESA_DISK_CACHE_DATABASE"sv))
+            TRY(add_shader_cache_path(paths, ByteString::formatted("{}/mesa_shader_cache_db", cache_directory)));
+        if (has_amd_gpu())
+            TRY(add_shader_cache_path(paths, ByteString::formatted("{}/radv_builtin_shaders", cache_directory)));
+    }
 
     // The NVIDIA driver keeps its own shader cache.
     if (!Core::System::access("/dev/nvidiactl"sv, F_OK).is_error()) {

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Directory.h>
+#include <LibCore/File.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
@@ -228,6 +230,59 @@ TEST_CASE(signals_stay_within_the_landlock_process_tree)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 #endif
+
+TEST_CASE(gpu_driver_paths_include_each_mesa_shader_cache_in_the_cache_directory)
+{
+    char directory_template[] = "/tmp/lb-mesa-caches-XXXXXX";
+    VERIFY(mkdtemp(directory_template));
+    auto directory = ByteString { directory_template };
+    VERIFY(unsetenv("MESA_SHADER_CACHE_DIR") == 0);
+    VERIFY(unsetenv("MESA_DISK_CACHE_SINGLE_FILE") == 0);
+    VERIFY(unsetenv("MESA_DISK_CACHE_DATABASE") == 0);
+    VERIFY(setenv("XDG_CACHE_HOME", directory.characters(), 1) == 0);
+
+    auto has_writable_rule_for = [](Vector<Sandbox::PathRule> const& rules, ByteString const& path) {
+        return any_of(rules, [&](auto const& rule) { return rule.path == path && rule.access == Sandbox::PathRule::Access::ReadWrite; });
+    };
+    auto cache = [&](StringView name) { return ByteString::formatted("{}/{}", directory, name); };
+
+    Vector<Sandbox::PathRule> rules;
+    EXPECT(!Sandbox::add_gpu_driver_paths(rules).is_error());
+    EXPECT(has_writable_rule_for(rules, cache("mesa_shader_cache"sv)));
+    EXPECT(!has_writable_rule_for(rules, cache("mesa_shader_cache_sf"sv)));
+    EXPECT(!has_writable_rule_for(rules, cache("mesa_shader_cache_db"sv)));
+
+    // RADV keeps a cache of its built-in shaders of its own, which only a machine with an AMD GPU needs.
+    bool has_amd_gpu = false;
+    auto flags = static_cast<Core::DirIterator::Flags>(Core::DirIterator::SkipDots | Core::DirIterator::NoStat);
+    // A machine with no DRM devices, as in some containers, has no AMD GPU either.
+    (void)Core::Directory::for_each_entry("/sys/class/drm"sv, flags, [&](Core::DirectoryEntry const& entry, Core::Directory const&) -> ErrorOr<IterationDecision> {
+        if (!entry.name.starts_with("renderD"sv))
+            return IterationDecision::Continue;
+        auto vendor = Core::File::open(ByteString::formatted("/sys/class/drm/{}/device/vendor", entry.name), Core::File::OpenMode::Read);
+        if (vendor.is_error())
+            return IterationDecision::Continue;
+        auto contents = MUST(vendor.value()->read_until_eof());
+        if (StringView { contents }.trim_whitespace() == "0x1002"sv)
+            has_amd_gpu = true;
+        return IterationDecision::Continue;
+    });
+    EXPECT_EQ(has_writable_rule_for(rules, cache("radv_builtin_shaders"sv)), has_amd_gpu);
+
+    VERIFY(setenv("MESA_DISK_CACHE_SINGLE_FILE", "true", 1) == 0);
+    VERIFY(setenv("MESA_DISK_CACHE_DATABASE", "1", 1) == 0);
+    rules.clear();
+    EXPECT(!Sandbox::add_gpu_driver_paths(rules).is_error());
+    EXPECT(has_writable_rule_for(rules, cache("mesa_shader_cache_sf"sv)));
+    EXPECT(has_writable_rule_for(rules, cache("mesa_shader_cache_db"sv)));
+
+    VERIFY(unsetenv("MESA_DISK_CACHE_SINGLE_FILE") == 0);
+    VERIFY(unsetenv("MESA_DISK_CACHE_DATABASE") == 0);
+    VERIFY(unsetenv("XDG_CACHE_HOME") == 0);
+    for (auto name : { "mesa_shader_cache"sv, "mesa_shader_cache_sf"sv, "mesa_shader_cache_db"sv, "radv_builtin_shaders"sv, "nvidia"sv })
+        (void)rmdir(cache(name).characters());
+    (void)rmdir(directory.characters());
+}
 
 TEST_CASE(gpu_driver_paths_leave_out_shader_caches_that_cannot_be_used)
 {
