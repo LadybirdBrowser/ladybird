@@ -606,11 +606,6 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     arguments.append("--cache-path"sv);
     arguments.append(cache_path);
 
-    if (site.has_value()) {
-        arguments.append("--site"sv);
-        arguments.append(site->to_byte_string());
-    }
-
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
     for (auto const& certificate : request_server_options.certificates)
@@ -650,6 +645,8 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
         return move(process);
     }));
 
+    if (site.has_value())
+        client->async_set_top_level_site(*site);
     client->async_set_disk_cache_settings(Application::settings().disk_cache_settings());
     client->async_set_proxy_configuration(request_server_options.proxy_configuration);
     if (!Application::settings().dns_settings().has<SystemDNS>())

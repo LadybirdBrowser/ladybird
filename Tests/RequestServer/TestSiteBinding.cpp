@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cache/DiskCache.h>
@@ -15,6 +16,7 @@
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ControlConnectionFromClient.h>
+#include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 
 namespace {
@@ -36,8 +38,13 @@ HTTP::NetworkIsolationKey key(StringView top_level_site, Optional<StringView> fr
     };
 }
 
+enum class ConnectClient {
+    No,
+    Yes,
+};
+
 struct TestServer {
-    TestServer()
+    explicit TestServer(ConnectClient connect = ConnectClient::Yes)
     {
         static bool libcurl_initialized = [] {
             MUST(RequestServer::initialize_libcurl());
@@ -53,6 +60,12 @@ struct TestServer {
         control_connection = RequestServer::ControlConnectionFromClient::construct(
             move(control_pair.local), connections, request_transfer_leases, Optional<HTTP::DiskCache&> {});
 
+        if (connect == ConnectClient::Yes)
+            connect_client();
+    }
+
+    void connect_client()
+    {
         auto pair = MUST(IPC::Transport::create_paired());
         remote_transport = MUST(pair.remote_handle.create_transport());
         connection = RequestServer::ConnectionFromClient::construct(
@@ -62,10 +75,16 @@ struct TestServer {
 
     ~TestServer()
     {
-        if (connection->is_open())
+        if (connection && connection->is_open())
             connection->shutdown();
         if (control_connection->is_open())
             control_connection->shutdown();
+    }
+
+    void set_top_level_site(StringView top_level_site)
+    {
+        auto message = make<Messages::RequestServerControl::SetTopLevelSite>(Utf16String::from_utf8(top_level_site));
+        VERIFY(!MUST(static_cast<RequestServerControlEndpoint::Stub&>(*control_connection).handle(move(message))));
     }
 
     void bind_to_site(StringView top_level_site, Optional<StringView> frame_site)
@@ -173,4 +192,41 @@ TEST_CASE(bound_client_requests_only_for_its_sites)
     // ...but not under a top-level site the client is not bound to.
     server.start_request(5, "http://127.0.0.1:2/"sv, key("https://b.example"sv, "http://127.0.0.1"sv, Navigation::Subframe));
     EXPECT(server.wait_for_request_finished(5) == Requests::NetworkError::Unknown);
+}
+
+TEST_CASE(site_of_a_request_server_arrives_before_any_client)
+{
+    // The process-wide site outlives the test server, so the other tests get it back unset.
+    ScopeGuard unset_site = [] { RequestServer::set_process_top_level_site({}); };
+
+    TestServer server { ConnectClient::No };
+    server.set_top_level_site("http://localhost"sv);
+    EXPECT(server.control_connection->is_open());
+    EXPECT_EQ(RequestServer::process_top_level_site(), Optional<Utf16String> { "http://localhost"_utf16 });
+
+    server.connect_client();
+    server.bind_to_site("http://localhost"sv, "http://localhost"sv);
+    server.bind_to_site("http://127.0.0.1"sv, "http://127.0.0.1"sv);
+
+    // NB: Port 2 has no listener, so a request the client may make fails to connect, and one it may not make fails
+    //     before that.
+    server.start_request(1, "http://localhost:2/"sv, key("http://localhost"sv, "http://localhost"sv));
+    EXPECT(server.wait_for_request_finished(1) == Requests::NetworkError::UnableToConnect);
+
+    // A site's RequestServer makes no requests under another top-level site, even for a client bound to that site.
+    server.start_request(2, "http://127.0.0.1:2/"sv, key("http://127.0.0.1"sv, "http://127.0.0.1"sv));
+    EXPECT(server.wait_for_request_finished(2) == Requests::NetworkError::Unknown);
+
+    // And the site can't change once it's set.
+    server.set_top_level_site("http://127.0.0.1"sv);
+    EXPECT(!server.control_connection->is_open());
+    EXPECT_EQ(RequestServer::process_top_level_site(), Optional<Utf16String> { "http://localhost"_utf16 });
+}
+
+TEST_CASE(site_of_a_request_server_is_refused_after_a_client_connects)
+{
+    TestServer server;
+    server.set_top_level_site("http://localhost"sv);
+    EXPECT(!server.control_connection->is_open());
+    EXPECT(!RequestServer::process_top_level_site().has_value());
 }

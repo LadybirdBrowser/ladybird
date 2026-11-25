@@ -158,6 +158,17 @@ void ControlConnectionFromClient::designate_request_adopter(u64 designation_id, 
     async_request_adopter_designated(designation_id);
 }
 
+void ControlConnectionFromClient::set_top_level_site(Utf16String top_level_site)
+{
+    // The site decides which requests and cache entries the process's clients may use, so it can't change once set,
+    // or arrive after a client that would have run without it.
+    if (process_top_level_site().has_value() || !m_connections.is_empty()) {
+        did_misbehave("set_top_level_site: the site must be set once, before any client connects");
+        return;
+    }
+    set_process_top_level_site(move(top_level_site));
+}
+
 void ControlConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
 {
     if (m_disk_cache.has_value())
