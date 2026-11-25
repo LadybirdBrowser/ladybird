@@ -19,7 +19,19 @@
                 video.muted = false;
                 return video.paused ? "paused" : "playing";
             };
-            addEventListener("message", () => parent.postMessage({ play: tryToPlayAudibly(), unmute: tryToUnmute() }, "*"));
+            const tryToResume = async () => {
+                const context = new AudioContext();
+                // An allowed resume settles before the subsequent suspend. A blocked resume stays pending.
+                const result = await Promise.race([
+                    context.resume().then(() => "allowed"),
+                    context.suspend().then(() => "blocked"),
+                ]);
+                await context.close();
+                return result;
+            };
+            addEventListener("message", async () => {
+                parent.postMessage({ play: tryToPlayAudibly(), unmute: tryToUnmute(), resume: await tryToResume() }, "*");
+            });
             parent.postMessage("ready", "*");
         <\/script>`;
 
@@ -52,8 +64,8 @@
         const askIframe = async iframe => {
             const reply = nextMessage();
             iframe.contentWindow.postMessage("query", "*");
-            const { play, unmute } = await reply;
-            return `play() ${play}, unmuting ${unmute}`;
+            const { play, unmute, resume } = await reply;
+            return `play() ${play}, unmuting ${unmute}, AudioContext.resume() ${resume}`;
         };
 
         const allowedIframe = await addIframe("allowed", "autoplay");

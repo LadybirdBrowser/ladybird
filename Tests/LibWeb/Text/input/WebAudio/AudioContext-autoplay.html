@@ -18,6 +18,25 @@
             const resumed = await waitForRunning(startedContext, suspendedTime);
             println(`A previously started AudioContext resumes after autoplay is blocked: ${started && resumed}`);
             await startedContext.close();
+
+            const context = new AudioContext();
+            let resumeSettled = false;
+            const blockedResume = context.resume().then(() => (resumeSettled = true));
+
+            // Let queued audio tasks run before checking the blocked state.
+            await timeout(0);
+            println(`Blocked audio clock: ${context.state} at ${context.currentTime}`);
+            println(`Resume request is pending: ${!resumeSettled}`);
+
+            internals.click(20, 20);
+            // showPicker() consumes transient activation even though a text input has no picker.
+            document.createElement("input").showPicker();
+            println(
+                `Only sticky activation remains: ${navigator.userActivation.hasBeenActive && !navigator.userActivation.isActive}`
+            );
+            await Promise.all([blockedResume, context.resume()]);
+            println(`Explicit resume starts the audio clock: ${await waitForRunning(context)}`);
+            await context.close();
         });
     </script>
 </body>

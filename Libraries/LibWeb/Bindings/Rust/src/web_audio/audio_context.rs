@@ -66,7 +66,8 @@ pub(crate) struct AudioContext {
     context: BaseAudioContext,
     base_latency: f64,
     output_latency: f64,
-    allowed_to_start: bool,
+    // FIXME: Reject these promises with InvalidStateError when the document unloads.
+    // https://webaudio.github.io/web-audio-api/#unloading-a-document
     pending_resume_promises: GcRefCell<Vec<WebIdlPromise>>,
     suspended_by_user: Cell<bool>,
     #[gc(untraced)]
@@ -103,6 +104,7 @@ impl GetTheParent for AudioContext {
 }
 
 unsafe extern "C" {
+    fn web_audio_context_is_allowed_to_start(global: *mut c_void) -> bool;
     fn web_audio_output_factory_create(global: *mut c_void) -> FfiSharedCppObject;
     fn web_audio_realtime_context_performance_now(global: *mut c_void) -> f64;
 }
@@ -158,7 +160,6 @@ impl AudioContext {
             context: BaseAudioContext::new(defer_gc, global, 0.),
             base_latency: 0.,
             output_latency: 0.,
-            allowed_to_start: true,
             pending_resume_promises: GcRefCell::new(Vec::new()),
             suspended_by_user: Cell::new(false),
             renderer: RefCell::new(None),
@@ -210,8 +211,7 @@ impl AudioContext {
         }
 
         // 11. If context is allowed to start, send a control message to start processing.
-        // FIXME: The context is currently always allowed to start; this should be gated on sticky activation.
-        if context.allowed_to_start {
+        if context.allowed_to_start() {
             // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
             // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
             //    rendering.
@@ -289,6 +289,13 @@ impl AudioContext {
         })
     }
 
+    // https://webaudio.github.io/web-audio-api/#allowed-to-start
+    fn allowed_to_start(&self) -> bool {
+        // NB: Autoplay permission governs the first start of this context.
+        self.renderer.borrow().is_some()
+            || unsafe { web_audio_context_is_allowed_to_start(self.context.global_event_target().as_ptr()) }
+    }
+
     // https://webaudio.github.io/web-audio-api/#dom-audiocontext-resume
     pub(crate) fn resume(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
         // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
@@ -326,7 +333,7 @@ impl AudioContext {
         // FIXME: 5.2. Reject the promise with InvalidStateError, abort these steps, returning promise.
 
         // 6. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
-        if !self.allowed_to_start {
+        if !self.allowed_to_start() {
             self.context.pending_promises.borrow_mut(cx.vm()).push(promise);
             self.pending_resume_promises.borrow_mut(cx.vm()).push(promise);
             return Ok(());
