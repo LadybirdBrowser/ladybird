@@ -349,6 +349,21 @@ impl AudioContext {
         Ok(())
     }
 
+    fn settle_pending_resume_promises(&self, vm: &Vm, mut settle: impl FnMut(WebIdlPromise)) {
+        let mut resumes = self.pending_resume_promises.borrow_mut(vm);
+        if resumes.is_empty() {
+            return;
+        }
+        for &promise in resumes.iter() {
+            settle(promise);
+            let mut pending = self.context.pending_promises.borrow_mut(vm);
+            if let Some(index) = pending.iter().position(|pending| *pending == promise) {
+                pending.remove(index);
+            }
+        }
+        resumes.clear();
+    }
+
     fn run_control_message_to_resume(&self, vm: &Vm, promise: WebIdlPromise) {
         // 1. Let promise be the promise passed into this algorithm.
 
@@ -388,14 +403,9 @@ impl AudioContext {
                 // 6.2. Resolve all promises from [[pending resume promises]] in order.
                 // 6.3. Clear [[pending resume promises]]. Additionally, remove those promises from [[pending promises]].
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
-                    for pending_resume_promise in &*context.pending_resume_promises.borrow() {
-                        resolve_promise(vm, *pending_resume_promise, Value::UNDEFINED);
-                        let mut pending = context.context.pending_promises.borrow_mut(vm);
-                        if let Some(index) = pending.iter().position(|promise| promise == pending_resume_promise) {
-                            pending.remove(index);
-                        }
-                    }
-                    context.pending_resume_promises.borrow_mut(vm).clear();
+                    context
+                        .settle_pending_resume_promises(vm, |promise| resolve_promise(vm, promise, Value::UNDEFINED));
+
                     // 6.4. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
@@ -552,6 +562,19 @@ impl AudioContext {
         self.context
             .queue_a_media_element_task(vm, (self.this(), promise), |vm, (context, promise)| {
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
+                    // AD-HOC: As in Chromium and Firefox, reject resumes still waiting for autoplay permission.
+                    // This context can no longer start once it closes.
+                    context.settle_pending_resume_promises(vm, |promise| {
+                        reject_promise_with_exception(
+                            vm,
+                            promise,
+                            Exception::Dom(
+                                "InvalidStateError",
+                                Utf16String::from_ascii(b"Audio context closed before it could resume."),
+                            ),
+                        );
+                    });
+
                     // 4.1. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
