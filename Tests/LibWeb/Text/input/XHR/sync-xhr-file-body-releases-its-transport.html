@@ -23,9 +23,7 @@
         });
         const headers = { [TEST_CACHE_ENABLED_HEADER]: "1" };
 
-        const countBodyPumps = () =>
-            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "NetworkBodyPump")
-                .length;
+        const countBodyPumps = () => internals.networkBodyPumpCount();
 
         const memoryCacheWasEnabled = internals.setHttpMemoryCacheEnabled(false);
         try {

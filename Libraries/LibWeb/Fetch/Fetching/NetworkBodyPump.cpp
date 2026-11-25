@@ -20,11 +20,16 @@
 
 namespace Web::Fetch::Fetching {
 
-GC_DEFINE_ALLOCATOR(NetworkBodyPump);
+static thread_local u32 s_live_count { 0 };
+
+u32 NetworkBodyPump::live_count()
+{
+    return s_live_count;
+}
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // NB: Step 9 of HTTP-network fetch. Steps 10 to 13 run in create_body_from_channel(), when the body's view is made.
-GC::Ref<NetworkBodyPump> NetworkBodyPump::create(RefPtr<Infrastructure::FetchParams const> fetch_params, Engine::FetchBodyDeliveryGate::NavigationHold navigation_hold, RefPtr<HTTP::MemoryCache> http_cache)
+NonnullRefPtr<NetworkBodyPump> NetworkBodyPump::create(RefPtr<Infrastructure::FetchParams const> fetch_params, Engine::FetchBodyDeliveryGate::NavigationHold navigation_hold, RefPtr<HTTP::MemoryCache> http_cache)
 {
     // 9. Let buffer be an empty byte sequence.
     // NB: The buffer is the FetchByteChannel; its watermarks are the user-agent-chosen lower and upper limits.
@@ -33,31 +38,28 @@ GC::Ref<NetworkBodyPump> NetworkBodyPump::create(RefPtr<Infrastructure::FetchPar
     auto channel = Engine::FetchByteChannel::create(network_body_watermarks, delivery_gate->create_channel_sink());
     delivery_gate->grant_credit(channel->initial_credit());
 
-    return GC::Heap::the().allocate<NetworkBodyPump>(move(fetch_params), move(channel), move(delivery_gate), move(http_cache));
+    return adopt_ref(*new NetworkBodyPump(move(fetch_params), move(channel), move(delivery_gate), move(http_cache)));
 }
 
 NetworkBodyPump::NetworkBodyPump(RefPtr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel, NonnullRefPtr<Engine::FetchBodyDeliveryGate> delivery_gate, RefPtr<HTTP::MemoryCache> http_cache)
     : m_fetch_params(move(fetch_params))
-    , m_fetch_controller(m_fetch_params ? m_fetch_params->controller().ptr() : nullptr)
     , m_channel(move(channel))
     , m_delivery_gate(move(delivery_gate))
     , m_http_cache(move(http_cache))
 {
+    ++s_live_count;
 }
 
-NetworkBodyPump::~NetworkBodyPump() = default;
+NetworkBodyPump::~NetworkBodyPump()
+{
+    --s_live_count;
+}
 
 void NetworkBodyPump::set_response(NonnullRefPtr<Infrastructure::Response> response)
 {
     m_response = move(response);
     if (m_network_complete)
         m_response->set_body_sizes(m_encoded_body_size, m_decoded_body_size);
-}
-
-void NetworkBodyPump::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_fetch_controller);
 }
 
 // This implements the transmission steps of HTTP-network fetch.

@@ -9,10 +9,10 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/RefCounted.h>
 #include <LibCore/ImmutableBytes.h>
-#include <LibGC/CellAllocator.h>
+#include <LibGC/Forward.h>
 #include <LibHTTP/Cache/MemoryCache.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
@@ -23,14 +23,16 @@ namespace Web::Fetch::Fetching {
 
 // The producer half of a streamed response body: memory-cache accumulation, and the writes into the channel the
 // stream pulls from.
-class WEB_API NetworkBodyPump final : public JS::Cell {
-    GC_CELL(NetworkBodyPump, JS::Cell);
-    GC_DECLARE_ALLOCATOR(NetworkBodyPump);
-
+class WEB_API NetworkBodyPump final : public RefCounted<NetworkBodyPump> {
 public:
-    [[nodiscard]] static GC::Ref<NetworkBodyPump> create(RefPtr<Infrastructure::FetchParams const>, Engine::FetchBodyDeliveryGate::NavigationHold, RefPtr<HTTP::MemoryCache>);
+    GC_HOLDS_NO_CELL_EDGES;
 
-    virtual ~NetworkBodyPump() override;
+    [[nodiscard]] static NonnullRefPtr<NetworkBodyPump> create(RefPtr<Infrastructure::FetchParams const>, Engine::FetchBodyDeliveryGate::NavigationHold, RefPtr<HTTP::MemoryCache>);
+
+    ~NetworkBodyPump();
+
+    // How many pumps made on this thread are alive.
+    [[nodiscard]] static u32 live_count();
 
     [[nodiscard]] NonnullRefPtr<Engine::FetchByteChannel> const& channel() const { return m_channel; }
     [[nodiscard]] NonnullRefPtr<Engine::FetchBodyDeliveryGate> const& delivery_gate() const { return m_delivery_gate; }
@@ -49,15 +51,11 @@ public:
 private:
     NetworkBodyPump(RefPtr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>, NonnullRefPtr<Engine::FetchBodyDeliveryGate>, RefPtr<HTTP::MemoryCache>);
 
-    virtual void visit_edges(Visitor& visitor) override;
-
     // Drops a pending memory-cache entry that matches the response's request, for a body that will not finish arriving.
     void abandon_cache_entry(HTTP::MemoryCache::StoredResponse);
     void finalize_cache_entry();
 
     RefPtr<Infrastructure::FetchParams const> m_fetch_params;
-    // The controller of m_fetch_params, which the pump keeps alive with them.
-    GC::Ptr<Infrastructure::FetchController> m_fetch_controller;
     RefPtr<Fetch::Infrastructure::Response> m_response;
 
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;

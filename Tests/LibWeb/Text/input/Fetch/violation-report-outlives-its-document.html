@@ -6,14 +6,7 @@
         const output = [];
         const println = line => output.push(line);
 
-        const countPumps = () => {
-            let count = 0;
-            for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
-                if (cell.class_name === "NetworkBodyPump")
-                    ++count;
-            }
-            return count;
-        };
+        const countPumps = () => internals.networkBodyPumpCount();
 
         const waitUntil = async condition => {
             while (!(await condition()))

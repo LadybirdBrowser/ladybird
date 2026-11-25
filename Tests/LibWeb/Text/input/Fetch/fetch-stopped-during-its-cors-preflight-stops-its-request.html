@@ -3,9 +3,7 @@
 <script>
     // A fetch stopped while the server holds its CORS preflight stops the request it starts once the preflight is done.
     promiseTest(async () => {
-        const countBodyPumps = () =>
-            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "NetworkBodyPump")
-                .length;
+        const countBodyPumps = () => internals.networkBodyPumpCount();
 
         // A collection can free a chain of cells one link at a time, and a stale pointer on the stack can keep a cell
         // alive through one collection.

@@ -53,9 +53,9 @@ public:
 
     // A callback's transport is that of the RequestServer request the load started, or null for a load that started
     // none.
-    using OnHeadersReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)>;
-    using OnDataReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, Requests::ResponseData data)>;
-    using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
+    using OnHeadersReceived = Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)>;
+    using OnDataReceived = Function<void(Fetch::Engine::NetworkTransportHandle*, Requests::ResponseData data)>;
+    using OnCachedBodyAvailable = Function<void(Core::ImmutableBytes data)>;
 
     // What RequestServer reported at the end of the request a load started.
     struct NetworkRequestEnd {
@@ -63,12 +63,13 @@ public:
         u64 total_size { 0 };
         Optional<Requests::NetworkError> network_error;
     };
-    using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<NetworkRequestEnd> const& network_request_end)>;
+    using OnComplete = Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<NetworkRequestEnd> const& network_request_end)>;
 
     // A request keeps roots into the heap of the agent that made it.
     void stop_all_requests();
 
-    RefPtr<Fetch::Engine::NetworkTransportHandle> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
+    // The callbacks hold the cells they use in roots.
+    RefPtr<Fetch::Engine::NetworkTransportHandle> load(LoadRequest&, OnHeadersReceived, OnDataReceived, OnCachedBodyAvailable, OnComplete, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
 
     RefPtr<Requests::RequestClient> request_client_for(Optional<HTTP::NetworkIsolationKey> const&) const;
     RefPtr<Requests::RequestClient> request_client_for_top_level_site(Optional<Utf16String> const&) const;
@@ -99,8 +100,8 @@ private:
     };
     template<typename FileHandler, typename ErrorHandler>
     void handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error);
-    template<typename ResourceHandler>
-    void handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, GC::Ref<GC::Function<void(ByteString const&)>> on_error);
+    template<typename ResourceHandler, typename ErrorHandler>
+    void handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
     template<typename ResourceHandler, typename ErrorHandler>
     void handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
 
