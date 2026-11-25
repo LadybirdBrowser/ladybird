@@ -1639,6 +1639,7 @@ struct ConvertedPixelsForRust {
 // NB: `ExportFormat` of libcompositing_rust lists the formats in this order.
 static_assert(to_underlying(Gfx::ExportFormat::Luminance8) == 0);
 static_assert(to_underlying(Gfx::ExportFormat::RGBA8888) == 7);
+static_assert(to_underlying(Gfx::ExportFormat::RGBA32F) == 12);
 
 struct SharedMemoryMapping {
     AK_ALLOC_WITH_KMALLOC;
@@ -1876,7 +1877,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .convert_image_source_for_webgl = [](void* host, u64 client_id, RustFFI::FfiImageSource source, RustFFI::FfiImageConversion conversion, RustFFI::FfiConvertedPixels* converted) {
             auto* client = state_of(host).web_content_client_if_present(WebContentClientId { client_id });
             VERIFY(client);
-            VERIFY(conversion.export_format <= to_underlying(Gfx::ExportFormat::RGBA8888));
+            VERIFY(conversion.export_format <= to_underlying(Gfx::ExportFormat::RGBA32F));
             auto image_source = source.is_held_video_frame
                 ? CanvasHost::WebGLImageSource { CanvasHost::HeldVideoFrame { Media::VideoSinkHandle { source.id }, source.generation } }
                 : CanvasHost::WebGLImageSource { Compositing::ImageFrameResourceId { source.id } };

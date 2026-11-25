@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ByteReader.h>
 #include <Compositor/BitmapExport.h>
 #include <Compositor/SkiaUtils.h>
@@ -44,6 +45,15 @@ static int bytes_per_pixel_for_export_format(ExportFormat format)
         return 3;
     case ExportFormat::RGBA8888:
         return 4;
+    case ExportFormat::Luminance32F:
+    case ExportFormat::Alpha32F:
+        return sizeof(float);
+    case ExportFormat::LuminanceAlpha32F:
+        return 2 * sizeof(float);
+    case ExportFormat::RGB32F:
+        return 3 * sizeof(float);
+    case ExportFormat::RGBA32F:
+        return 4 * sizeof(float);
     default:
         VERIFY_NOT_REACHED();
     }
@@ -62,10 +72,16 @@ static SkColorType export_format_to_skia_color_type(ExportFormat format)
     case ExportFormat::LuminanceAlpha88:
     case ExportFormat::RGBA5551:
     case ExportFormat::RGB888:
+    case ExportFormat::Luminance32F:
+    case ExportFormat::LuminanceAlpha32F:
+    case ExportFormat::Alpha32F:
+    case ExportFormat::RGB32F:
         // These need to be converted manually because Skia has no color type for them.
         VERIFY_NOT_REACHED();
     case ExportFormat::RGBA8888:
         return SkColorType::kRGBA_8888_SkColorType;
+    case ExportFormat::RGBA32F:
+        return SkColorType::kRGBA_F32_SkColorType;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -83,6 +99,21 @@ static ErrorOr<void> draw_bitmap_into_pixels(Bitmap const& bitmap, ColorSpace co
         color_type,
         flags & ExportFlags::PremultiplyAlpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType,
         SkColorSpace::MakeSRGB());
+    if (color_type == SkColorType::kRGBA_F32_SkColorType && width == bitmap.width() && height == bitmap.height()) {
+        if (!image->readPixels(nullptr, image_info, pixels, pitch, 0, 0))
+            return Error::from_string_literal("Failed to read the bitmap into floating-point pixels");
+        if (flags & ExportFlags::FlipY) {
+            auto* bytes = static_cast<u8*>(pixels);
+            auto row_size = image_info.minRowBytes();
+            for (int y = 0; y < height / 2; ++y) {
+                auto* top = bytes + y * pitch;
+                auto* bottom = bytes + (height - y - 1) * pitch;
+                for (size_t offset = 0; offset < row_size; ++offset)
+                    swap(top[offset], bottom[offset]);
+            }
+        }
+        return {};
+    }
     auto surface = SkSurfaces::WrapPixels(image_info, pixels, pitch);
     if (!surface)
         return Error::from_string_literal("Failed to create a Skia surface for the exported pixels");
@@ -99,6 +130,29 @@ static ErrorOr<void> draw_bitmap_into_pixels(Bitmap const& bitmap, ColorSpace co
         dst_rect,
         Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
     return {};
+}
+
+// https://registry.khronos.org/webgl/specs/latest/1.0/#TEXIMAGE2D_HTML
+// Next, the source image data is converted to the data type and format specified by the format and type arguments,
+// and then transferred to the WebGL implementation.
+static ReadonlySpan<size_t> float_components_to_pack(ExportFormat format)
+{
+    static constexpr Array<size_t, 1> luminance { 0 };
+    static constexpr Array<size_t, 2> luminance_alpha { 0, 3 };
+    static constexpr Array<size_t, 1> alpha { 3 };
+    static constexpr Array<size_t, 3> rgb { 0, 1, 2 };
+    switch (format) {
+    case ExportFormat::Luminance32F:
+        return luminance.span();
+    case ExportFormat::LuminanceAlpha32F:
+        return luminance_alpha.span();
+    case ExportFormat::Alpha32F:
+        return alpha.span();
+    case ExportFormat::RGB32F:
+        return rgb.span();
+    default:
+        return {};
+    }
 }
 
 ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
@@ -121,10 +175,27 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     if (Checked<size_t>::multiplication_would_overflow(buffer_pitch.value(), height))
         return Error::from_string_literal("Gfx::export_bitmap_to_byte_buffer size overflow");
 
-    auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
+    auto buffer = TRY(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
 
     if (width > 0 && height > 0) {
-        if (format == ExportFormat::RGB888 || format == ExportFormat::RGBA5551 || format == ExportFormat::Luminance8 || format == ExportFormat::LuminanceAlpha88) {
+        if (auto components = float_components_to_pack(format); !components.is_empty()) {
+            Checked<size_t> rgba_pitch = width;
+            rgba_pitch *= 4 * sizeof(float);
+            if (rgba_pitch.has_overflow() || Checked<size_t>::multiplication_would_overflow(rgba_pitch.value(), height))
+                return Error::from_string_literal("Gfx::export_bitmap_to_byte_buffer size overflow");
+            auto rgba_buffer = TRY(ByteBuffer::create_zeroed(rgba_pitch.value() * height));
+            TRY(draw_bitmap_into_pixels(bitmap, color_space, SkColorType::kRGBA_F32_SkColorType, flags, width, height, rgba_buffer.data(), rgba_pitch.value()));
+
+            auto* destination = buffer.data();
+            for (size_t offset = 0; offset < rgba_buffer.size(); offset += 4 * sizeof(float)) {
+                for (auto component : components) {
+                    float value;
+                    ByteReader::load(rgba_buffer.data() + offset + component * sizeof(float), value);
+                    ByteReader::store(destination, value);
+                    destination += sizeof(float);
+                }
+            }
+        } else if (format == ExportFormat::RGB888 || format == ExportFormat::RGBA5551 || format == ExportFormat::Luminance8 || format == ExportFormat::LuminanceAlpha88) {
             // Skia has no color type for 24 bit RGB, for 16 bit RGBA with 1 bit of alpha, or for a luminance that's the
             // red channel (its gray color type weighs all three channels), so we draw into 32 bit RGBA and pack that.
             Checked<size_t> rgba_pitch = width;

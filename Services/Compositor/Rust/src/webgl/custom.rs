@@ -22,6 +22,7 @@ use super::host::{DefaultBuffers, ImageConversion, ImageConversionOutcome, Video
 use super::replay::{ReplayError, Replayer, bytes_of_slice, data_span, decode, split_packed_strings, string_data};
 
 const MAX_DRAWING_BUFFER_DIMENSION: i32 = 16384;
+const GL_FLOAT: u32 = 0x1406;
 
 fn copy_can_write_internal_format(internalformat: i32) -> bool {
     u32::try_from(internalformat).is_ok_and(|internalformat| {
@@ -362,6 +363,7 @@ impl<H: WebGLHost> Replayer<'_, H> {
             .host
             .webgl_can_copy_images_into_textures(self.client, self.canvas_id)
             || !copy_can_write_internal_format(command.internalformat)
+            || command.r#type == GL_FLOAT
         {
             return false;
         }
@@ -428,6 +430,7 @@ impl<H: WebGLHost> Replayer<'_, H> {
             .host
             .webgl_can_copy_images_into_textures(self.client, self.canvas_id)
             || format_is_integer(command.format)
+            || command.r#type == GL_FLOAT
         {
             return false;
         }

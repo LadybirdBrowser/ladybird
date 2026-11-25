@@ -1,0 +1,18 @@
+ArrayBufferView before enabling: INVALID_ENUM
+ImageData before enabling: INVALID_ENUM
+Extension advertised: true
+Same extension object: true
+Null allocation: NO_ERROR
+Sampled: 0, 0, 0, 0
+Draw and read: NO_ERROR
+Float32Array update: NO_ERROR
+Sampled: 255, 0, 0, 255
+Draw and read: NO_ERROR
+Wrong typed array for texImage2D: INVALID_OPERATION
+Wrong typed array for texSubImage2D: INVALID_OPERATION
+ImageData upload as RGB: NO_ERROR
+Sampled: 0, 128, 255, 255
+Draw and read: NO_ERROR
+Canvas update as RGB: NO_ERROR
+Sampled: 255, 128, 0, 255
+Draw and read: NO_ERROR

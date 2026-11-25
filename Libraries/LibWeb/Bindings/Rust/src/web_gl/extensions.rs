@@ -62,6 +62,7 @@ enums_of_extension_interfaces! {
     ext_texture_norm16::EXTTextureNorm16,
     oes_element_index_uint::OESElementIndexUint,
     oes_standard_derivatives::OESStandardDerivatives,
+    oes_texture_float::OESTextureFloat,
     oes_vertex_array_object::OESVertexArrayObject,
     web_gl_compressed_texture_s3tc::WebGLCompressedTextureS3tc,
     web_gl_compressed_texture_s3tc_srgb::WebGLCompressedTextureS3tcSrgb,
@@ -88,7 +89,7 @@ struct Extension {
 #[rustfmt::skip]
 static AVAILABLE_WEBGL_EXTENSIONS: [Extension; 53] = [
     Extension { name: "OES_fbo_render_mipmap", required_angle_extensions: &["GL_OES_fbo_render_mipmap"], kind: Kind::NotImplemented, only_for_webgl_version: Some(WebGLVersion::WebGL1) },
-    Extension { name: "OES_texture_float", required_angle_extensions: &["GL_OES_texture_float"], kind: Kind::NotImplemented, only_for_webgl_version: Some(WebGLVersion::WebGL1) },
+    Extension { name: "OES_texture_float", required_angle_extensions: &["GL_OES_texture_float"], kind: Kind::Interface(ExtensionInterface::OESTextureFloat), only_for_webgl_version: Some(WebGLVersion::WebGL1) },
     Extension { name: "EXT_texture_mirror_clamp_to_edge", required_angle_extensions: &["GL_EXT_texture_mirror_clamp_to_edge"], kind: Kind::NotImplemented, only_for_webgl_version: None },
     Extension { name: "WEBGL_lose_context", required_angle_extensions: &[], kind: Kind::NotImplemented, only_for_webgl_version: None },
     Extension { name: "EXT_texture_norm16", required_angle_extensions: &["GL_EXT_texture_norm16"], kind: Kind::Interface(ExtensionInterface::EXTTextureNorm16), only_for_webgl_version: Some(WebGLVersion::WebGL2) },
@@ -231,6 +232,12 @@ impl ContextState {
                     name: extension.name,
                     object,
                 });
+                // https://registry.khronos.org/webgl/extensions/OES_texture_float/
+                // Upon activation of this extension, implementations supporting WEBGL_color_buffer_float shall
+                // implicitly enable it.
+                if interface == ExtensionInterface::OESTextureFloat {
+                    self.extension(cx, &Utf16String::from_ascii(b"WEBGL_color_buffer_float"));
+                }
                 Some(object.wrap(cx))
             }
             Kind::EmptyObject => {
