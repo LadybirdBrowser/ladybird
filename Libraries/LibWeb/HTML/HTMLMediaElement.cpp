@@ -3642,6 +3642,7 @@ bool HTMLMediaElement::is_allowed_to_play() const
 {
     // A media element is said to be allowed to play if the user agent and the system allow media playback in the
     // current context.
+<<<<<<< HEAD
     // NB: We allow playback once the document has been activated by the user, with an exception for inaudible media.
     //     Gating on transient activation instead pauses audible media once the activation expires, e.g. between ads,
     //     or media in a playlist.
@@ -3658,6 +3659,10 @@ bool HTMLMediaElement::is_allowed_to_play() const
     }
 
     VERIFY_NOT_REACHED();
+=======
+    auto is_audible = effective_media_volume() == 0.0 ? IsAudible::No : IsAudible::Yes;
+    return system_allows_media_playback(document(), is_audible);
+>>>>>>> 35828af0 (LibWeb: Extract the system media playback check)
 }
 
 HTMLMediaElement::PlaybackDirection HTMLMediaElement::direction_of_playback() const
