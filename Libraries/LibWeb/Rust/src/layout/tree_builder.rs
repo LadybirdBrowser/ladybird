@@ -521,10 +521,7 @@ impl TreeBuildJob {
                 &created,
             );
         }
-        arena.set_pending_rebuilt_subtree_roots(
-            live_rebuilt_subtree_roots,
-            state.layout_tree_update_escaped_rebuild_roots,
-        );
+        arena.set_pending_rebuilt_subtree_roots(live_rebuilt_subtree_roots);
         let viewport = arena.layout_root();
         assert!(!viewport.is_invalid(), "a layout tree build places the viewport");
         state.release_pinned_style_records(arena);

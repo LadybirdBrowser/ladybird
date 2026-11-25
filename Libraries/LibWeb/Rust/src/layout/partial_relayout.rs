@@ -230,14 +230,8 @@ impl LayoutNodeArena {
         root: NodeSlotId,
         registered_root_slots: &[NodeSlotId],
     ) -> Option<Vec<PlannedBoundary>> {
-        let (rebuilt_subtree_root_slots, layout_tree_update_escaped_rebuild_roots) =
-            self.take_pending_rebuilt_subtree_roots();
-        self.plan_partial_relayout(
-            root,
-            registered_root_slots,
-            &rebuilt_subtree_root_slots,
-            layout_tree_update_escaped_rebuild_roots,
-        )
+        let rebuilt_subtree_root_slots = self.take_pending_rebuilt_subtree_roots();
+        self.plan_partial_relayout(root, registered_root_slots, &rebuilt_subtree_root_slots)
     }
 
     /// Whether the pending update may be satisfied by re-laying out only registered boundary
@@ -266,10 +260,8 @@ impl LayoutNodeArena {
         root: NodeSlotId,
         registered_root_slots: &[NodeSlotId],
         rebuilt_subtree_root_slots: &[NodeSlotId],
-        layout_tree_update_escaped_rebuild_roots: bool,
     ) -> Option<Vec<PlannedBoundary>> {
-        let pending_updates_escaped = std::mem::replace(&mut self.pending_updates_escape_partial_relayout, false)
-            || layout_tree_update_escaped_rebuild_roots;
+        let pending_updates_escaped = std::mem::replace(&mut self.pending_updates_escape_partial_relayout, false);
         // NB: A build can replace the root, which leaves nothing laid out around the boundaries, and no mark on the new box.
         if self.node_needs_layout_update(root)
             || pending_updates_escaped
@@ -1129,17 +1121,9 @@ mod tests {
         arena.record_partial_relayout_escape();
         assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
 
-        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], false), None);
+        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[]), None);
         assert!(!arena.pending_updates_escape_partial_relayout);
         assert!(arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
-        free_node(&mut arena, &parent);
-    }
-
-    #[test]
-    fn planning_refuses_when_the_build_escaped_its_rebuild_roots() {
-        let (mut arena, parent, registered) = arena_with_a_registered_child_root();
-        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], true), None);
-        assert!(!arena.pending_updates_escape_partial_relayout);
         free_node(&mut arena, &parent);
     }
 
@@ -1152,7 +1136,7 @@ mod tests {
             &registered,
             host_facts_permitting_partial_relayout()
         ));
-        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], false), None);
+        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[]), None);
         free_node(&mut arena, &parent);
     }
 
