@@ -1311,7 +1311,6 @@ bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM
     if (auto browsing_context = target.document().browsing_context())
         options.view = browsing_context->window_proxy();
     auto event = UIEvents::PointerEvent::create(event_name, move(options), 0, 0, 0, 0, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
-    event->set_is_trusted(true);
 
     // 3. Initialize event's bubbles and cancelable attributes to true.
     event->set_bubbles(true);

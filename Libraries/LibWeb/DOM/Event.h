@@ -220,7 +220,9 @@ private:
     bool m_initialized { false };
     bool m_dispatch { false };
 
-    bool m_is_trusted { false };
+    // NB: Every way that script obtains an event initializes isTrusted to false: the bindings for constructors,
+    //     createEvent(), initEvent(), dispatchEvent() and click().
+    bool m_is_trusted { true };
 
     Path m_path;
     TouchTargetList m_touch_target_list;

@@ -474,7 +474,6 @@ pub unsafe extern "C" fn web_rust_html_create_message_event(
     let origin = (!origin.is_null()).then(|| unsafe { (*origin).to_origin() });
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let event = MessageEvent::create(vm, realm, &r#type, event_init, origin);
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }
 

@@ -726,9 +726,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object cons
     event_init.cancelable = true;
     event_init.composed = true;
 
-    auto event = KeyboardEvent::create(Utf16FlyString::from_fly_string(event_name), event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
-    return event;
+    return KeyboardEvent::create(Utf16FlyString::from_fly_string(event_name), event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
 GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
@@ -757,9 +755,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object cons
     event_init.bubbles = true;
     event_init.cancelable = true;
     event_init.composed = true;
-    auto event = KeyboardEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
-    return event;
+    return KeyboardEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
 bool KeyboardEvent::get_modifier_state(Utf16FlyString const& key_arg) const

@@ -2702,7 +2702,6 @@ static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& 
     event_init.composed = true;
 
     auto event = Clipboard::create_clipboard_event(HTML::relevant_realm(document), event_name, event_init, data_transfer);
-    event->set_is_trusted(true);
     return target->dispatch_event(event);
 }
 
@@ -3347,6 +3346,7 @@ EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable,
         auto event = UIEvents::TextEvent::create(Utf16FlyString { UIEvents::EventNames::textInput }, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
         event->init_text_event(UIEvents::EventNames::textInput, true, true, navigable.active_window_proxy(), data);
         event->set_composed(true);
+        // NB: init_text_event() initializes isTrusted to false.
         event->set_is_trusted(true);
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
@@ -3744,7 +3744,6 @@ bool EventHandler::dispatch_selectstart_event(DOM::Document& document, DOM::Node
     auto event = DOM::Event::create(HTML::EventNames::selectstart, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document)));
     event->set_bubbles(true);
     event->set_cancelable(true);
-    event->set_is_trusted(true);
 
     // If the event is canceled, the user agent must not change the selection.
     if (!target.dispatch_event(event))
@@ -4970,7 +4969,7 @@ GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState&
     options.bubbles = true;
     options.cancelable = true;
     options.composed = true;
-    auto event = UIEvents::PointerEvent::create_trusted(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
+    auto event = UIEvents::PointerEvent::create_with_coalesced_events(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
     pointer.last_event = PointerEventSnapshot {
         .position = { coordinates, screen_position },
         .properties = pointer.properties,
@@ -5102,7 +5101,6 @@ bool EventHandler::dispatch_touch_event(PointerState& pointer, DOM::Node& target
         event->set_cancelable(has_non_passive_listener);
     }
 
-    event->set_is_trusted(true);
     return original_target->dispatch_event(event);
 }
 

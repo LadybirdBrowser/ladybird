@@ -196,7 +196,6 @@ pub(crate) fn dispatch_storage_events(
                 };
                 let event =
                     StorageEvent::create(vm, remote_storage.realm, &Utf16String::from_utf8("storage"), event_init);
-                event.event().set_is_trusted(true);
                 remote_storage.window().as_event_target().dispatch_event(event.event());
             },
         );

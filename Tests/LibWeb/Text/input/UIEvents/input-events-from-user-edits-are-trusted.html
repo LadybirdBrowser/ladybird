@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<input id="text">
+<textarea id="textarea"></textarea>
+<input id="number" type="number" value="1">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const type of ["beforeinput", "input"])
+            document.addEventListener(type, event => println(`${event.type} at #${event.target.id}: isTrusted=${event.isTrusted}`));
+
+        for (const id of ["text", "textarea"]) {
+            const element = document.getElementById(id);
+            element.focus();
+            internals.sendText(element, "a");
+        }
+
+        const number = document.getElementById("number");
+        number.focus();
+        internals.sendKey(number, "Up");
+    });
+</script>

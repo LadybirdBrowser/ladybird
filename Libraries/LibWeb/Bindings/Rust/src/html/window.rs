@@ -259,7 +259,6 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
             event_init,
             Some(origin.clone()),
         );
-        event.event().set_is_trusted(true);
         target_window.dispatch_event(event.event());
         return;
     };
@@ -291,6 +290,5 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
         event_init,
         Some(origin.clone()),
     );
-    event.event().set_is_trusted(true);
     target_window.dispatch_event(event.event());
 }

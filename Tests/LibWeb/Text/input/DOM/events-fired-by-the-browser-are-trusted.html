@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const log = event => println(`${event.type}: isTrusted=${event.isTrusted}`);
+
+        await new Promise(resolve => {
+            const xhr = new XMLHttpRequest();
+            for (const type of ["loadstart", "load", "loadend"])
+                xhr.addEventListener(type, log);
+            xhr.addEventListener("loadend", resolve);
+            xhr.open("GET", "data:text/plain,hello");
+            xhr.send();
+        });
+
+        const context = new OfflineAudioContext(1, 128, 44100);
+        context.addEventListener("complete", log);
+        const completed = new Promise(resolve => context.addEventListener("complete", resolve));
+        context.startRendering();
+        await completed;
+    });
+</script>

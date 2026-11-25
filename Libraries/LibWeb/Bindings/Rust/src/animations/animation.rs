@@ -235,14 +235,12 @@ fn create_animation_playback_event(
         current_time: current_time.map(|time| time_value_as_css_numberish(vm, time)),
         timeline_time: timeline_time.map(|time| time_value_as_css_numberish(vm, time)),
     };
-    let event = AnimationPlaybackEvent::create(
+    AnimationPlaybackEvent::create(
         vm,
         realm,
         &Utf16String::from_ascii(playback_event_type_name(r#type)),
         event_init,
-    );
-    event.event().set_is_trusted(true);
-    event
+    )
 }
 
 /// https://drafts.csswg.org/web-animations-1/#default-document-timeline
@@ -1182,7 +1180,6 @@ fn dispatch_pending_css_event(
     };
     // SAFETY: The event is live.
     unsafe { web_animation_event_set_time_stamp(css_event.as_ptr(), event.time_stamp) };
-    css_event.set_is_trusted(true);
     // SAFETY: The owning element is live, as the animation keeps it alive, and so is the event.
     unsafe { (host.dispatch_at_element)(host.context, owning_element, css_event.as_ptr()) };
 }

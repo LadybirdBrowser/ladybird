@@ -525,7 +525,6 @@ impl MessagePort {
                 MessageEventInit::new(vm),
                 None,
             );
-            event.event().set_is_trusted(true);
             message_event_target.dispatch_event(event.event());
             return;
         };
@@ -547,7 +546,6 @@ impl MessagePort {
         event_init.data = message_clone;
         event_init.ports = new_ports;
         let event = MessageEvent::create(vm, target_realm, &Utf16String::from_utf8("message"), event_init, None);
-        event.event().set_is_trusted(true);
         message_event_target.dispatch_event(event.event());
     }
 

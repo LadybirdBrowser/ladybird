@@ -119,6 +119,5 @@ pub unsafe extern "C" fn web_rust_media_stream_track_event_create(
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     // SAFETY: The caller passes a live MediaStreamTrack.
     let event = unsafe { MediaStreamTrackEvent::create(vm, realm, &r#type, &event_init, track) };
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

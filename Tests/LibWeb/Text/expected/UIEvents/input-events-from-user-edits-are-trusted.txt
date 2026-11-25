@@ -1,0 +1,6 @@
+beforeinput at #text: isTrusted=true
+input at #text: isTrusted=true
+beforeinput at #textarea: isTrusted=true
+input at #textarea: isTrusted=true
+beforeinput at #number: isTrusted=true
+input at #number: isTrusted=true

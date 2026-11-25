@@ -649,7 +649,6 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     auto event = HTML::DragEvent::create(name, event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
 
     // The "create an event" AO in step 9 should set these.
-    event->set_is_trusted(true);
     event->set_initialized(true);
     event->set_composed(true);
 

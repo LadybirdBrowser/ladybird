@@ -700,7 +700,6 @@ impl FontFaceSet {
             composed: false,
         };
         let event = FontFaceSetLoadEvent::create(vm, self.realm, &Utf16String::from_utf8(name), event_init, &fontfaces);
-        event.event().set_is_trusted(true);
         self.event_target.dispatch_event(event.event());
     }
 

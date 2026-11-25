@@ -3434,12 +3434,6 @@ static CSSPixelPoint hover_event_offset_for_target(Layout::BegunRead const& read
     return Painting::mouse_event_offset(*layout_node, hover_event_data->viewport_position);
 }
 
-static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optional<HoverEventData> const& hover_event_data)
-{
-    if (hover_event_data.has_value())
-        event.set_is_trusted(true);
-}
-
 void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
 {
     dispatch_boundary_events(m_hovered_node, node, hover_event_data, BoundaryEventTypes::All);
@@ -3531,7 +3525,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
             populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
         auto event = create_pointer_event(UIEvents::EventNames::pointerout, move(pointer_event_options), offset);
-        mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
 
@@ -3547,7 +3540,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
             populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
         auto event = create_mouse_event(UIEvents::EventNames::mouseout, mouse_event_options, offset);
-        mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
 
@@ -3563,7 +3555,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
                 populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
             auto event = create_pointer_event(UIEvents::EventNames::pointerleave, move(pointer_event_options), offset);
-            mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
     }
@@ -3577,7 +3568,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
                 populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
             auto event = create_mouse_event(UIEvents::EventNames::mouseleave, mouse_event_options, offset);
-            mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
     }
@@ -3596,7 +3586,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
             populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
         auto event = create_pointer_event(UIEvents::EventNames::pointerover, move(pointer_event_options), offset);
-        mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         node->dispatch_event(event);
     }
 
@@ -3612,7 +3601,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
             populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
         auto event = create_mouse_event(UIEvents::EventNames::mouseover, mouse_event_options, offset);
-        mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         node->dispatch_event(event);
     }
 
@@ -3632,7 +3620,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
                 if (hover_event_data.has_value())
                     populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
                 auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, move(pointer_event_options), offset);
-                mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
                 target.node->dispatch_event(pointer_event);
             }
             if (types != BoundaryEventTypes::Pointer) {
@@ -3641,7 +3628,6 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
                 if (hover_event_data.has_value())
                     populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
                 auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_options, offset);
-                mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
                 target.node->dispatch_event(mouse_event);
             }
         }
@@ -5517,7 +5503,6 @@ void Document::run_the_resize_steps()
             auto window_resize_event = DOM::Event::create(
                 UIEvents::EventNames::resize,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-            window_resize_event->set_is_trusted(true);
             window()->dispatch_event(window_resize_event);
         }
 
@@ -5525,7 +5510,6 @@ void Document::run_the_resize_steps()
             auto visual_viewport_resize_event = DOM::Event::create(
                 UIEvents::EventNames::resize,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-            visual_viewport_resize_event->set_is_trusted(true);
             visual_viewport.event_target()->dispatch_event(visual_viewport_resize_event);
         }
     }

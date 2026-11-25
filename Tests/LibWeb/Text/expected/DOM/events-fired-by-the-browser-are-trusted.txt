@@ -1,0 +1,4 @@
+loadstart: isTrusted=true
+load: isTrusted=true
+loadend: isTrusted=true
+complete: isTrusted=true

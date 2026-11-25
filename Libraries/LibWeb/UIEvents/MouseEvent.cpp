@@ -286,7 +286,6 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(
     event_options.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
     event_options.buttons = buttons;
     auto event = MouseEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(true);
     event->set_composed(true);
@@ -313,7 +312,6 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(
         event_options.movement_y = movement->y().to_double();
     }
     auto event = MouseEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(true);
     event->set_composed(true);

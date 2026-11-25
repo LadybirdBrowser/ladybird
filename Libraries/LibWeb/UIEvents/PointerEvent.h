@@ -64,7 +64,7 @@ public:
         Utf16FlyString const& type, PointerEventOptions&&,
         double page_x, double page_y, double offset_x, double offset_y,
         HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<PointerEvent> create_trusted(
+    [[nodiscard]] static GC::Ref<PointerEvent> create_with_coalesced_events(
         Utf16FlyString const& type, PointerEventOptions&&,
         double page_x, double page_y, double offset_x, double offset_y,
         HighResolutionTime::DOMHighResTimeStamp);

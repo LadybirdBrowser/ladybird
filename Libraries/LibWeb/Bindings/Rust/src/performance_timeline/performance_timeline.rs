@@ -465,7 +465,6 @@ impl PerformanceTimeline {
             // 2. If can add resource timing entry returns false, then fire an event named resourcetimingbufferfull at the Performance object.
             if !self.can_add_resource_timing_entry() {
                 let full_event = CppEvent::create(self.realm, "resourcetimingbufferfull", false, false, false);
-                full_event.set_is_trusted(true);
                 self.performance(vm).event_target().dispatch_event(&full_event);
             }
 

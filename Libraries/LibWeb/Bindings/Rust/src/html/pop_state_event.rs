@@ -106,6 +106,5 @@ pub extern "C" fn web_rust_pop_state_event_create(
     };
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let event = PopStateEvent::create(vm, realm, &r#type, event_init);
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

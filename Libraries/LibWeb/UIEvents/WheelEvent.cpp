@@ -109,7 +109,6 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     event_options.wheel_delta_y = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_y);
     event_options.view = window_proxy;
     auto event = WheelEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(is_cancelable == WheelEventIsCancelable::Yes);
     event->set_composed(true);
@@ -136,7 +135,6 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     event_options.wheel_delta_y = legacy_wheel_delta_from_wheel_tick_120ths(wheel_tick_120ths_y);
     event_options.view = window_proxy;
     auto event = WheelEvent::create(event_name, event_options, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
-    event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(is_cancelable == WheelEventIsCancelable::Yes);
     event->set_composed(true);
