@@ -167,6 +167,7 @@ protected:
         Yes
     };
     PeerEOF drain_messages_from_peer();
+    void did_find_transport_closed_during_sync_request();
 
     void handle_messages();
 

@@ -94,12 +94,24 @@ ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
 ErrorOr<void> ConnectionBase::post_sync_request(MessageBuffer& request)
 {
     auto result = post_message(request);
-    // NB: No response can come if the peer has closed the connection. If that peer owns this process, then shut down
-    // rather than hand the failure to a caller that may have no way to carry on — as WebKit's sendSyncMessage() does
-    // (thru didFailToSendSyncMessage) for a connection with setShouldExitOnSyncMessageSendFailure().
-    if (result.is_error() && m_peer_owns_this_process && !is_open())
-        did_lose_peer_during_sync_request();
+    // NB: No response can come if the peer has closed the connection, which is the peer going away just as when a wait
+    // for the response finds it gone. So, the connection learns of that, rather than hand the failure to a caller that
+    // may have no way to carry on.
+    if (result.is_error() && !is_open())
+        did_find_transport_closed_during_sync_request();
     return result;
+}
+
+void ConnectionBase::did_find_transport_closed_during_sync_request()
+{
+    if (m_peer_owns_this_process) {
+        did_lose_peer_during_sync_request();
+        return;
+    }
+    // NB: The caller of the request that failed may still use the connection, which dying could let go of. The event
+    // loop keeps it alive until then.
+    if (!m_died)
+        deferred_invoke([this] { did_lose_peer_during_sync_request(); });
 }
 
 bool ConnectionBase::send_raw_sync_request(MessageBuffer& request, u32 response_endpoint_magic, i32 response_message_id, Function<void(FfiRawMessage)> const& hand_over_response)
@@ -340,8 +352,18 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
         if (auto message = take_matching_message())
             return message;
 
-        if (!is_open())
+        // NB: A transport no longer counts as open once its peer is gone or a send has failed, which can be before it has
+        //     taken in everything the peer sent, the response among it.
+        if (!is_open()) {
+            m_transport->wait_until_incoming_is_current();
+            if (drain_messages_from_peer() == PeerEOF::Yes)
+                peer_disconnected_during_wait = true;
+            if (canceller && canceller->is_cancelled())
+                return {};
+            if (auto message = take_matching_message())
+                return message;
             break;
+        }
         if (deadline.has_value() && MonotonicTime::now() >= *deadline)
             return {};
 
@@ -377,10 +399,11 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
         // assigned.) Re-entering arbitrary handlers from here can hit uninitialized state and crash. shutdown() closes
         // the transport and calls die(). That exits processes cleanly — the same as queued close_server message would.
         did_lose_peer_during_sync_request();
-    } else if (m_peer_owns_this_process && !is_open()) {
-        // NB: A peer that owns this process may also have been found gone before the wait began — e.g. by the
-        // transport's IO thread, right after the request was posted; see set_peer_owns_this_process().
-        did_lose_peer_during_sync_request();
+    } else if (!is_open()) {
+        // NB: The peer may also have been found gone before the wait began — e.g. by the transport's IO thread, right
+        // after the request was posted; see set_peer_owns_this_process(). A transport whose send failed is closed as
+        // well, even while the peer keeps writing, and no response can come then either.
+        did_find_transport_closed_during_sync_request();
     }
 
     return {};
