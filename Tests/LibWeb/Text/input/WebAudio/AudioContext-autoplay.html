@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<body>
+    <script>
+        promiseTest(async () => {
+            function waitForRunning(context, previousTime = 0) {
+                return waitForCondition(() => context.state === "running" && context.currentTime > previousTime);
+            }
+
+            internals.setAutoplayPolicy("allow-audio-and-video");
+            const startedContext = new AudioContext();
+            const started = await waitForRunning(startedContext);
+            await startedContext.suspend();
+            const suspendedTime = startedContext.currentTime;
+
+            internals.setAutoplayPolicy("block-audio");
+            await startedContext.resume();
+            const resumed = await waitForRunning(startedContext, suspendedTime);
+            println(`A previously started AudioContext resumes after autoplay is blocked: ${started && resumed}`);
+            await startedContext.close();
+        });
+    </script>
+</body>
