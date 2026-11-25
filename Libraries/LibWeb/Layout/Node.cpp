@@ -434,6 +434,11 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
         did_update_style_record();
     release_pinned_style_record();
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
+    // NB: The viewport propagation derives the new style of a source again first, so the relayout the reinherit
+    //     below decides compares it with the derived style it replaces, and not with the record the source publishes.
+    auto const* element = as_if<DOM::Element>(dom_node());
+    if (!installed_by_render_state && element && element->is_viewport_propagation_source())
+        RustFFI::render_state_propagate_root_styles_to_viewport(document_host());
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
     if (!installed_by_render_state)
@@ -444,8 +449,6 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     // keep the existing layout node.
     if (is_generated_for_pseudo_element())
         pin_style_record_for_cxx_consumers();
-    if (auto const* element = as_if<DOM::Element>(dom_node()); !installed_by_render_state && element && element->is_viewport_propagation_source())
-        RustFFI::render_state_propagate_root_styles_to_viewport(document_host());
 }
 
 static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::StyleComputer const& style_computer, CSS::StyleRecordID style_record)

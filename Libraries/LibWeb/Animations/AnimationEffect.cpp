@@ -306,10 +306,11 @@ void AnimationUpdateContext::publish()
             // NB: Publishing the composition had the style engine restyle the element's pseudo-elements and the
             //     children that compute from what the composition moved, in its next pass.
 
-            // NB: refresh_computed_style() already publishes the new record to the layout node. Only
-            // inherited values and image resources require the additional C++ style side effects.
+            // NB: refresh_computed_style() already publishes the new record to the layout node, unless the node shows a
+            //     style the arena derived from the old one. Only that, inherited values and image resources require
+            //     the additional C++ style side effects.
             auto apply_layout_node_style_side_effects = [&](Layout::NodeWithStyle& layout_node, CSS::StyleRecordID style_record) {
-                if (animated_property_invalidation.requires_layout_node_style_application)
+                if (animated_property_invalidation.requires_layout_node_style_application || layout_node.has_layout_derived_style())
                     layout_node.apply_style(style_record);
                 else if (animated_property_invalidation.requires_style_resource_update)
                     layout_node.attach_style_resources();

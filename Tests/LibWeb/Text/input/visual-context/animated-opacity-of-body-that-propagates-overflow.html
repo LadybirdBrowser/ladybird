@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    body { overflow: auto; }
+    body.animated { animation: fade-in 1s linear paused; }
+    body.transitioned { transition: opacity 1s linear; }
+    #tall { height: 2000px; }
+</style>
+<div id="tall"></div>
+<script>
+    // The body's overflow goes to the viewport, so its box shows a style derived from its record. Each new value of
+    // an animation or a transition of its opacity reaches the effect node of the box all the same, without a layout.
+    function opacityOfBody() {
+        internals.updateVisualContextsForTesting();
+        return internals.dumpVisualContextNodes(document.body).replace(/^\[e\d+\] /gm, "").trim();
+    }
+
+    test(() => {
+        document.body.classList.add("animated");
+        const animation = document.body.getAnimations()[0];
+        println(`animation at 0ms: ${opacityOfBody()}`);
+        animation.currentTime = 500;
+        println(`animation at 500ms: ${opacityOfBody()}`);
+        // Lay out the output printed so far first, so the trace holds only what the sample asks for.
+        internals.updateVisualContextsForTesting();
+        internals.beginLayoutTrace();
+        animation.currentTime = 750;
+        const opacityAt750 = opacityOfBody();
+        const layoutAt750 = internals.takeLayoutTrace().trim() || "none";
+        println(`animation at 750ms: ${opacityAt750}`);
+        println(`layout for the 750ms sample: ${layoutAt750}`);
+        document.body.classList.remove("animated");
+        println(`animation removed: ${opacityOfBody()}`);
+
+        document.body.classList.add("transitioned");
+        getComputedStyle(document.body).opacity;
+        document.body.style.opacity = "0";
+        const transition = document.body.getAnimations()[0];
+        transition.pause();
+        transition.currentTime = 250;
+        println(`transition at 250ms: ${opacityOfBody()}`);
+        transition.finish();
+        println(`transition finished: ${opacityOfBody()}`);
+
+        document.body.classList.remove("transitioned");
+        document.body.style.opacity = "";
+        println(`transition removed: ${opacityOfBody()}`);
+        document.body.style.transition = "opacity 100s linear -50s";
+        getComputedStyle(document.body).opacity;
+        document.body.style.opacity = "0";
+        println(`transition started halfway: ${opacityOfBody()}`);
+        document.body.style.transition = "";
+
+        window.scrollTo(0, 100);
+        println(`viewport scrolled to: ${window.scrollY}`);
+    });
+</script>
