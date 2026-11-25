@@ -12,7 +12,9 @@ mod keys_and_pointer;
 mod scrolling;
 mod wheel;
 
-use crate::async_scroll_update_outbox::{AsyncScrollUpdateOutbox, UserScrollGestureState};
+use crate::async_scroll_update_outbox::{
+    AsyncScrollUpdateOutbox, FIRST_OPERATION_ID_THE_MAIN_THREAD_REQUESTS, UserScrollGestureState,
+};
 use crate::context_scene::ContextScene;
 use crate::display_list_coverage_watch::{DisplayListCoverageWatch, ShownOfDisplayList};
 use crate::elastic_overscroll_controller::ElasticOverscrollController;
@@ -53,18 +55,6 @@ pub struct AsyncScrollEnqueueResult {
 pub struct AsyncScrollResult {
     pub enqueue_result: AsyncScrollEnqueueResult,
     pub frame_to_present: Option<PendingFrame>,
-}
-
-impl AsyncScrollResult {
-    pub fn declined(decision: InputRoutingDecision) -> Self {
-        Self {
-            enqueue_result: AsyncScrollEnqueueResult {
-                routing_decision: Some(decision),
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-    }
 }
 
 /// A wheel step that goes to a context nested in this one: the first step of a gesture over the content of the
