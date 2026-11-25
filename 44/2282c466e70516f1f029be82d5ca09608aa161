@@ -1,0 +1,6 @@
+Ladybird reads an empty handler name when an MP4 track has no name
+bytes. Chromium does the same in HandlerReference::Parse(). Gecko’s
+mp4parse read_hdlr() accepts the missing terminator in permissive
+mode and reports an error at higher strictness. WebKit delegates URL
+assets to AVFoundation in createAVAssetForURL(). Its source doesn’t
+establish how AVFoundation handles an empty track name.
