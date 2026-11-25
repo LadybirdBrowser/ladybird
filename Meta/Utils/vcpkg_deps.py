@@ -145,11 +145,10 @@ def vcpkg_environment() -> dict[str, str]:
         binary_sources += f";{env['VCPKG_BINARY_SOURCES']}"
     env["VCPKG_BINARY_SOURCES"] = binary_sources
 
-    sas = env.get("VCPKG_CACHE_SAS", "")
-    mode = env.get("VCPKG_CACHE_MODE", "")
-    env["X_VCPKG_ASSET_SOURCES"] = (
-        f"clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,{sas},read{mode}"
-    )
+    asset_sources = "clear;x-azurl,https://vcpkg-assets.ladybird.org/source-assets/,,read"
+    if write_url := env.get("VCPKG_ASSET_WRITE_URL"):
+        asset_sources += f";x-azurl,{write_url},,write"
+    env["X_VCPKG_ASSET_SOURCES"] = asset_sources
 
     return env
 

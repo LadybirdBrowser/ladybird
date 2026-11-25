@@ -30,7 +30,7 @@ cd ladybird
 # Install the vcpkg.json in manifest mode from the root of the repo
 # Set the binary cache directory to the one we intend to use at container runtime
 export VCPKG_BINARY_SOURCES="clear;files,${CACHE_DIR},readwrite"
-export X_VCPKG_ASSET_SOURCES="clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,,read"
+export X_VCPKG_ASSET_SOURCES="clear;x-azurl,https://vcpkg-assets.ladybird.org/source-assets/,,read"
 
 install_vcpkg()
 {
