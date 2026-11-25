@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/replaced-content-inside-border-at-fractional-dpr-ref.html">
+<style>
+    body { margin: 0; background: gray; }
+    .box { position: absolute; display: block; box-sizing: content-box; width: 18px; height: 18px; border: 1px solid white; }
+    .fit { position: absolute; display: block; width: 16px; height: 16px; border: 1px solid white; object-fit: contain; }
+</style>
+<img class="box" style="left: 2px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 30.5px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 60.3px; top: 2.7px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 90.6px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 2px; top: 30.4px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 30.5px; top: 30.5px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 60.2px; top: 60.7px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="box" style="left: 90.8px; top: 60.3px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img class="fit" style="left: 2px; top: 98px; object-position: 0 0" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<img class="fit" style="left: 30px; top: 102px; object-position: 0 0" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<img class="fit" style="left: 58px; top: 100.40625px; object-position: 100% 100%" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<img class="fit" style="left: 86px; top: 104.40625px; object-position: 100% 100%" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<script>
+    internals.setDevicePixelRatio(1.25);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

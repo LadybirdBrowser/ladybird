@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-under-a-scale-keeps-its-fractional-edge-ref.html">
+<style>
+    body { margin: 0; background: gray; }
+    .scaled { position: absolute; left: 0; top: 0; transform: scale(4); transform-origin: 0 0; }
+    iframe { position: absolute; left: 0.25px; top: 0; width: 18.5px; height: 18px; border: none; }
+</style>
+<div class="scaled"><iframe srcdoc="<style>html { background: black; }</style>"></iframe></div>
+<script>
+    document.querySelector("iframe").onload = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    };
+</script>
+</html>

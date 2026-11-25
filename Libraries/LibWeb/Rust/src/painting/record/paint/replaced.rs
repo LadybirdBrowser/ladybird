@@ -12,34 +12,77 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::replaced_sizing::{Fraction, run_default_sizing_algorithm};
+use crate::painting::border_radii::border_radii;
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::{
     CanvasId, CompositorContextId, CompositorNestedContextWheelRegion, VideoSinkHandle,
 };
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::paintable_geometry::absolute_rect;
+use crate::painting::paintable_geometry::{absolute_border_box_rect, absolute_padding_box_rect, absolute_rect};
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{paint_image_content, to_gfx_scaling_mode};
 use crate::painting::replaced_paint_facts::{ReplacedPaintFacts, VideoPaintFacts};
-use crate::painting::visual_context::node_values::padding_edge_border_radii;
-use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, ScalingMode};
+use libgfx_rust::{Color, CornerRadii, CornerRadius, FloatRect, IntRect, ScalingMode};
+
+/// The content box of a replaced box in device pixels: the inner edges of its border as the border painter draws them,
+/// inset by its padding. At a fractional device pixel ratio, a border width snapped to whole device pixels isn't exact
+/// in CSS pixels, so rounding the content box's own edges can land them a device pixel off the border's inner edges,
+/// and the replaced content then covers a row of the border or leaves a gap beside it.
+fn replaced_content_device_rect<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> IntRect {
+    let converter = &recorder.converter;
+    let border_box = absolute_border_box_rect(recorder.source, paintable);
+    let padding_box = absolute_padding_box_rect(recorder.source, paintable);
+    let content_box = absolute_rect(recorder.source, paintable);
+    let padding_edges = converter.rounded_device_rect(border_box).shrunken(
+        converter.enclosing_device_pixels(padding_box.y - border_box.y),
+        converter.enclosing_device_pixels(border_box.right() - padding_box.right()),
+        converter.enclosing_device_pixels(border_box.bottom() - padding_box.bottom()),
+        converter.enclosing_device_pixels(padding_box.x - border_box.x),
+    );
+    // Each edge of the content box is rounded where it lies, rather than inset by a padding width rounded on its own:
+    // A padding that rounds up on both sides would otherwise empty a content box that has room for a device pixel.
+    let scale = converter.device_pixels_per_css_pixel();
+    let rounded_edge =
+        |edge: i32, css_inset: CssPixels| (f64::from(edge) + css_inset.to_double() * scale).round() as i32;
+    let left = rounded_edge(padding_edges.x, content_box.x - padding_box.x);
+    let top = rounded_edge(padding_edges.y, content_box.y - padding_box.y);
+    let right = rounded_edge(padding_edges.right(), content_box.right() - padding_box.right());
+    let bottom = rounded_edge(padding_edges.bottom(), content_box.bottom() - padding_box.bottom());
+    IntRect::new(left, top, (right - left).max(0), (bottom - top).max(0))
+}
 
 fn replaced_content_clip_geometry<O: Observer>(
     recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
 ) -> (FloatRect, Option<CornerRadii>) {
-    let content_rect = recorder
+    let content_rect = replaced_content_device_rect(recorder, paintable);
+    // The clip's corners follow the border's inner curves as the border painter draws them: the border box's radii in
+    // device pixels, each inset by the device pixels between the snapped border box and the content box.
+    let border_box = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.source, paintable))
-        .to_float();
-    let corner_radii = recorder
-        .source
-        .node_style_if_live(paintable)
-        .map(|style| {
-            padding_edge_border_radii(style, recorder.source, paintable).corners_unconditionally(&recorder.converter)
+        .rounded_device_rect(absolute_border_box_rect(recorder.source, paintable));
+    let (left, top) = (content_rect.x - border_box.x, content_rect.y - border_box.y);
+    let (right, bottom) = (
+        border_box.right() - content_rect.right(),
+        border_box.bottom() - content_rect.bottom(),
+    );
+    let inset = |corner: CornerRadius, horizontal: i32, vertical: i32| CornerRadius {
+        horizontal_radius: (corner.horizontal_radius - horizontal).max(0),
+        vertical_radius: (corner.vertical_radius - vertical).max(0),
+    };
+    let corner_radii = Some(border_radii(recorder.source, paintable))
+        .filter(|radii| radii.has_any_radius())
+        .map(|radii| {
+            let outer = radii.corners_unconditionally(&recorder.converter);
+            CornerRadii {
+                top_left: inset(outer.top_left, left, top),
+                top_right: inset(outer.top_right, right, top),
+                bottom_right: inset(outer.bottom_right, right, bottom),
+                bottom_left: inset(outer.bottom_left, left, bottom),
+            }
         })
         .filter(|corner_radii| corner_radii.has_any_radius());
-    (content_rect, corner_radii)
+    (content_rect.to_float(), corner_radii)
 }
 
 pub(crate) fn get_replaced_box_painting_area<O: Observer>(
@@ -122,12 +165,36 @@ pub(crate) fn get_replaced_box_painting_area<O: Observer>(
         }
     };
 
-    converter.rounded_device_rect(CssPixelRect::new(
+    let css_draw_rect = CssPixelRect::new(
         paintable_rect.x + offset_x,
         paintable_rect.y + offset_y,
         scaled_bitmap_width,
         scaled_bitmap_height,
-    ))
+    );
+    // NB: Each edge of the content that reaches an edge of the content box moves with that edge as
+    //     replaced_content_device_rect() snaps it — so content that fills the content box fills the snapped rect,
+    //     and content placed against an edge keeps its outer row or column inside the content clip.
+    let rounded_content_rect = converter.rounded_device_rect(paintable_rect);
+    let snapped_content_rect = replaced_content_device_rect(recorder, paintable);
+    let shift_if = |reaches_edge: bool, shift: i32| if reaches_edge { shift } else { 0 };
+    converter.rounded_device_rect(css_draw_rect).inflated_edges(
+        shift_if(
+            css_draw_rect.y <= paintable_rect.y,
+            rounded_content_rect.y - snapped_content_rect.y,
+        ),
+        shift_if(
+            css_draw_rect.right() >= paintable_rect.right(),
+            snapped_content_rect.right() - rounded_content_rect.right(),
+        ),
+        shift_if(
+            css_draw_rect.bottom() >= paintable_rect.bottom(),
+            snapped_content_rect.bottom() - rounded_content_rect.bottom(),
+        ),
+        shift_if(
+            css_draw_rect.x <= paintable_rect.x,
+            rounded_content_rect.x - snapped_content_rect.x,
+        ),
+    )
 }
 
 pub(crate) fn paint_replaced_image_content<O: Observer>(
@@ -166,7 +233,7 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
         .unwrap_or_default();
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let image_rect = absolute_rect(recorder.source, paintable);
-    let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
+    let image_rect_device_pixels = replaced_content_device_rect(recorder, paintable);
     if facts.content != crate::painting::image_content::ImageContent::None {
         // https://drafts.csswg.org/css-images/#the-object-fit
         let concrete_object_size = run_default_sizing_algorithm(None, None, &facts.natural, image_rect.size());
@@ -274,9 +341,7 @@ pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<
         _ => return,
     };
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
-    let canvas_rect = recorder
-        .converter
-        .rounded_device_rect(absolute_rect(recorder.source, paintable));
+    let canvas_rect = replaced_content_device_rect(recorder, paintable);
     let zoom = recorder
         .source
         .node_style_if_live(paintable)
@@ -337,9 +402,7 @@ pub(crate) fn paint_video_foreground<O: Observer>(recorder: &mut PaintRecorder<'
         .and_then(|facts| facts.video())
         .unwrap_or_default();
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
-    let video_rect = recorder
-        .converter
-        .rounded_device_rect(absolute_rect(recorder.source, paintable));
+    let video_rect = replaced_content_device_rect(recorder, paintable);
     let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
     let mut inline_clips = vec![PendingInlineClip::intersecting_float_rect(content_rect)];
     if let Some(corner_radii) = corner_radii {
