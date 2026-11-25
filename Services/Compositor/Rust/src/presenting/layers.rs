@@ -20,7 +20,7 @@ use super::{
     apply_raster_transform, composite_inside_effects_of_frame, inflated, replay_into, replay_with_scroll_offsets,
 };
 use crate::context_scene::ReceivedLayerPlan;
-use crate::raster_host::{FfiSublayer, LiveContent, SurfaceSampling};
+use crate::raster_host::{FfiSublayer, LiveContent, RasterHost, SurfaceSampling};
 use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VideoSinkHandle,
@@ -432,6 +432,9 @@ pub struct PaintedLayers {
     pub(super) window_server_placements_of_effects: WindowServerPlacementsOfEffects,
     /// What the window server that shows the frame composites by itself, besides canvases and videos.
     pub(super) window_server_compositing: WindowServerCompositing,
+    /// From the pixels of the raster, which the layers are composited in, to those of the frame, where the frame shows
+    /// the raster through a transform.
+    pub(super) raster_to_frame: Option<AffineTransform>,
     content_hash_by_composited_node: HashMap<PlacementNodeIdentity, ContentHash>,
     media_replayed_by_identity: HashMap<LayerIdentity, MediaRecordsReplayedInFrame>,
 }
@@ -596,6 +599,27 @@ fn space_to_frame_through(raster_to_frame: AffineTransform, space_to_frame: Spac
         SpaceToFrame::Offset(offset) => raster_to_frame.translated(offset.x as f32, offset.y as f32),
         SpaceToFrame::Transform(transform) => multiply_affine(raster_to_frame, transform),
     })
+}
+
+/// Has what is drawn into the surface next go from the pixels of the raster to those of the frame, through
+/// `raster_to_frame` where the frame has one, and answers `damage_rect` of the frame in the pixels of the raster, and
+/// how tiles are sampled there.
+fn draw_from_pixels_of_raster(
+    raster: &RasterHost,
+    surface: &Rc<PaintingSurface>,
+    raster_to_frame: Option<AffineTransform>,
+    damage_rect: IntRect,
+) -> (IntRect, SurfaceSampling) {
+    match raster_to_frame {
+        Some(raster_to_frame) => {
+            apply_raster_to_frame(raster, surface, raster_to_frame);
+            (
+                SpaceToFrame::Transform(raster_to_frame).rect_in_space(damage_rect),
+                SurfaceSampling::Linear,
+            )
+        }
+        None => (damage_rect, SurfaceSampling::Nearest),
+    }
 }
 
 fn rect_in_frame_of_space(
@@ -1106,8 +1130,8 @@ impl ContextPresenting {
             world_transforms_of_frame
                 .get_or_init(|| WorldTransforms::new(tree, scroll_offsets, Some(FloatMatrix4x4::identity())))
         };
-        let window_server_may_show_media = self.why_window_server_shows_no_media_of_frame(env, frame).is_none();
-        let window_server_compositing = self.window_server_compositing(env, frame);
+        let window_server_may_show_media = self.why_window_server_shows_no_media_of_this_context(env).is_none();
+        let window_server_compositing = self.window_server_compositing(env);
         let window_server_placements_of_media = if window_server_may_show_media {
             stack.window_server_placements_of_media(storage, tree, world_of_frame, extent_of_viewport_space)
         } else {
@@ -1366,6 +1390,7 @@ impl ContextPresenting {
                 window_server_placements_of_media,
                 window_server_placements_of_effects,
                 window_server_compositing,
+                raster_to_frame: frame.frame_inputs.raster_to_frame,
                 content_hash_by_composited_node: composited_effects.content_hash_by_composited_node,
                 media_replayed_by_identity,
             },
@@ -1408,7 +1433,7 @@ impl ContextPresenting {
             name: Rc::from(""),
             nodes_named: Rc::default(),
         };
-        let why_context_shows_no_media = self.why_window_server_shows_no_media_of_frame(env, frame);
+        let why_context_shows_no_media = self.why_window_server_shows_no_media_of_this_context(env);
         let layers = layer_update
             .layers
             .compositing_of_layers
@@ -1852,18 +1877,12 @@ impl ContextPresenting {
         // The layers, and what is painted straight from the list, are in the pixels of the raster. The overlays are in
         // those of the frame.
         let save_count_outside_raster_to_frame = raster.save(surface);
-        let (damage_rect_in_raster, sampling) = match frame.frame_inputs.raster_to_frame {
-            Some(raster_to_frame) => {
-                // The layers can leave pixels of the frame uncovered at its edges.
-                raster.clear(surface, frame.surface_clear_color());
-                apply_raster_to_frame(raster, surface, raster_to_frame);
-                (
-                    SpaceToFrame::Transform(raster_to_frame).rect_in_space(damage_rect),
-                    SurfaceSampling::Linear,
-                )
-            }
-            None => (damage_rect, SurfaceSampling::Nearest),
-        };
+        if frame.frame_inputs.raster_to_frame.is_some() {
+            // The layers can leave pixels of the frame uncovered at its edges.
+            raster.clear(surface, frame.surface_clear_color());
+        }
+        let (damage_rect_in_raster, sampling) =
+            draw_from_pixels_of_raster(raster, surface, frame.frame_inputs.raster_to_frame, damage_rect);
         if let Some(base_layer_compositing) = layer_update
             .layers
             .compositing_of_layers
@@ -1929,31 +1948,32 @@ impl ContextPresenting {
         damage_rect: IntRect,
         painted: &PaintedLayers,
     ) {
+        let raster = env.raster;
+        let save_count = raster.save(surface);
+        let (damage_rect_in_raster, sampling) =
+            draw_from_pixels_of_raster(raster, surface, painted.raster_to_frame, damage_rect);
         if let Some(base_layer_compositing) = painted
             .compositing_of_layers
             .first()
             .filter(|base_layer_compositing| base_layer_compositing.shown_by_window_server)
         {
-            env.raster.clear(surface, frame.surface_clear_color());
+            raster.clear(surface, frame.surface_clear_color());
             if !self.layer_overlay.hides_layer(&base_layer_compositing.identity) {
-                self.layers.tiles.copy_into(
-                    env.raster,
-                    surface,
-                    damage_rect,
-                    base_layer_compositing,
-                    SurfaceSampling::Nearest,
-                );
+                self.layers
+                    .tiles
+                    .copy_into(raster, surface, damage_rect_in_raster, base_layer_compositing, sampling);
             }
         }
         self.composite_layers_above_base_of_stack(
             env,
             surface,
             frame,
-            damage_rect,
+            damage_rect_in_raster,
             painted,
             &[],
             LayersToComposite::ShownByWindowServer,
         );
+        raster.restore_to_count(surface, save_count);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2367,6 +2387,7 @@ mod tests {
                 window_server_placements_of_media: WindowServerPlacementsOfMedia::default(),
                 window_server_placements_of_effects: WindowServerPlacementsOfEffects::default(),
                 window_server_compositing: WindowServerCompositing::default(),
+                raster_to_frame: None,
                 content_hash_by_composited_node: HashMap::new(),
                 media_replayed_by_identity: HashMap::new(),
             },

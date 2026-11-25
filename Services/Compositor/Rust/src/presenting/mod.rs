@@ -105,13 +105,21 @@ impl FrameToPaint<'_> {
         self.display_list.surface_clear_color().unwrap_or(Color::TRANSPARENT)
     }
 
-    /// What the frame shows of the raster of the page within `viewport_rect` of its own pixels: that rect, or for a
-    /// frame that maps the raster to its pixels through a transform, the bounds of what the transform shows there.
+    /// What the frame shows of the raster of the page within `viewport_rect` of its own pixels.
     pub fn rect_of_raster_shown_in(&self, viewport_rect: IntRect) -> IntRect {
-        match self.frame_inputs.raster_to_frame {
-            Some(raster_to_frame) => SpaceToFrame::Transform(raster_to_frame).rect_in_space(viewport_rect),
-            None => viewport_rect,
-        }
+        rect_of_raster_shown_through(self.frame_inputs.raster_to_frame, viewport_rect)
+    }
+}
+
+/// What a frame shows of the raster of the page within `viewport_rect` of its own pixels: that rect, or for a frame that
+/// maps the raster to its pixels through `raster_to_frame`, the bounds of what the transform shows there.
+pub(crate) fn rect_of_raster_shown_through(
+    raster_to_frame: Option<AffineTransform>,
+    viewport_rect: IntRect,
+) -> IntRect {
+    match raster_to_frame {
+        Some(raster_to_frame) => SpaceToFrame::Transform(raster_to_frame).rect_in_space(viewport_rect),
+        None => viewport_rect,
     }
 }
 
