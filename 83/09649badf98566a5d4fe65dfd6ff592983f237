@@ -1,0 +1,5 @@
+Ladybird checks a WebGL vertex attribute offset in the order the spec
+gives: negative first, as INVALID_VALUE, then non-zero with no buffer
+bound, as INVALID_OPERATION. Chrome 158, Firefox 151, and WebKit 26.5
+all do the same, for vertexAttribPointer() and vertexAttribIPointer()
+alike, and the test’s output matches each of them line for line.
