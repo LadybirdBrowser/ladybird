@@ -738,6 +738,11 @@ impl ResolvedValueBox<'_> {
     fn resolved_transform(&self) -> StyleValueArc {
         resolved_transform(self.style.transform(), || {
             assert!(has_committed_box(self.host, self.node));
+            // NB: A non-transformable element resolves its transform against a 0x0 box.
+            //     https://github.com/w3c/csswg-drafts/issues/9121
+            if !crate::painting::ffi::render_state_paintable_is_transformable(self.host, self.node) {
+                return CssPixelRect::default();
+            }
             transform_reference_box(self.host, self.node)
         })
     }
