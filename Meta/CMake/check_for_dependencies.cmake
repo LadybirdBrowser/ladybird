@@ -36,6 +36,46 @@ else()
     find_package(FFMPEG REQUIRED)
 endif()
 
+# LibMediaCodecs loads these at runtime on Linux, rather than linking them, and the install rules ship them. CMake 3.25.0
+# also sets LINUX for Android, which links FFmpeg.
+if (LINUX AND NOT ANDROID)
+    foreach (library IN ITEMS AVCODEC LIBSWRESAMPLE)
+        # pkg-config leaves out the directory of a library in a default one, so the path it was resolved to is used.
+        set(LADYBIRD_BUNDLED_${library}_LIBRARY "${${library}_LINK_LIBRARIES}")
+        list(FILTER LADYBIRD_BUNDLED_${library}_LIBRARY INCLUDE REGEX "/lib${${library}_LIBRARIES}\\.so$")
+        if (NOT LADYBIRD_BUNDLED_${library}_LIBRARY)
+            message(FATAL_ERROR "The bundled lib${${library}_LIBRARIES} is not a shared library")
+        endif()
+        file(REAL_PATH "${LADYBIRD_BUNDLED_${library}_LIBRARY}" library_file)
+        # FFmpeg names each library's soname after its major version, which the file's name starts with.
+        cmake_path(GET library_file FILENAME library_file_name)
+        if (NOT library_file_name MATCHES "^(.+\\.so\\.[0-9]+)")
+            message(FATAL_ERROR "Cannot tell the soname of the bundled ${library_file_name}")
+        endif()
+        set(LADYBIRD_BUNDLED_${library}_SONAME "${CMAKE_MATCH_1}")
+        add_library(BundledFFmpeg::${library} SHARED IMPORTED)
+        set_target_properties(BundledFFmpeg::${library} PROPERTIES IMPORTED_LOCATION "${library_file}")
+
+        # Without vcpkg, installs do not carry the bundled FFmpeg, so binaries look for it where it was found, as they do
+        # for the libraries they link.
+        if ("${VCPKG_INSTALLED_DIR}" STREQUAL "")
+            cmake_path(GET LADYBIRD_BUNDLED_${library}_LIBRARY PARENT_PATH library_directory)
+            if (NOT library_directory IN_LIST CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES AND NOT library_directory IN_LIST CMAKE_INSTALL_RPATH)
+                list(APPEND CMAKE_INSTALL_RPATH "${library_directory}")
+            endif()
+        endif()
+    endforeach()
+endif()
+
+# Compiles a target against the bundled FFmpeg's headers without linking it, for code that calls it through the
+# functions LibMediaCodecs loads.
+function(ladybird_use_bundled_ffmpeg_headers target)
+    foreach (library IN ITEMS AVCODEC AVUTIL LIBSWRESAMPLE)
+        target_include_directories(${target} SYSTEM PRIVATE $<TARGET_PROPERTY:PkgConfig::${library},INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_options(${target} PRIVATE $<TARGET_PROPERTY:PkgConfig::${library},INTERFACE_COMPILE_OPTIONS>)
+    endforeach()
+endfunction()
+
 if (NOT APPLE AND NOT ANDROID AND NOT WIN32)
     find_package(Fontconfig REQUIRED)
     set(HAS_FONTCONFIG ON CACHE BOOL "" FORCE)

@@ -36,7 +36,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         facts.gpu = describe_gpu_through_vulkan(preferred_device);
     if constexpr (PlatformFeatures::this_build.decodes_video_through_vulkan()) {
         facts.bundled_ffmpeg = describe_bundled_ffmpeg();
-        facts.system_ffmpeg = describe_system_ffmpeg();
+        if (facts.bundled_ffmpeg.has_value())
+            facts.system_ffmpeg = describe_system_ffmpeg();
     }
 
     auto report = facts.to_json().serialized();
