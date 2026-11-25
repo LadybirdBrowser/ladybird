@@ -50,6 +50,12 @@ public:
         m_event_sink->handle_event(Event::NetworkActivity { .request_id = request_id, .activity = move(activity) });
     }
 
+    void report_violation(ContentSecurityPolicy::RequestViolation violation)
+    {
+        ASSERT(is_on_owner_thread());
+        m_event_sink->handle_event(Event::ViolationReport { .violation = move(violation) });
+    }
+
     // Those of the agent that started the fetch.
     [[nodiscard]] NetworkActivityObservers const& network_activity_observers() const { return m_network_activity_observers; }
 

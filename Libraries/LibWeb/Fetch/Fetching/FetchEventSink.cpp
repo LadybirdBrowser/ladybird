@@ -6,6 +6,7 @@
 
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -169,6 +170,9 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         },
         [&](Engine::Event::NetworkActivity const& network_activity) {
             controller->page()->did_receive_network_activity(network_activity);
+        },
+        [&](Engine::Event::ViolationReport const& report) {
+            ContentSecurityPolicy::report_a_violation_of_a_request(controller->realm(), report.violation);
         },
         [&](Engine::Event::RequestTransmissionEnded const& ended) {
             controller->control_block().settle_network_phases(ended.network_phases);
