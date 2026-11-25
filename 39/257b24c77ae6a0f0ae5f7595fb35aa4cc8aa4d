@@ -1,0 +1,11 @@
+Ladybird now clips each background layer whose background-clip is
+text to the text on its own, and paints the other layers clipped to
+their own boxes. Chrome 158 and WebKit 26.5 render the same way, in a
+probe with the text clip on the top, middle, and bottom layer, over a
+background color, with mixed origins, a border radius, a blend mode,
+and on an inline element across two lines. Blink’s BoxPainterBase::
+PaintFillLayer() calls PaintFillLayerTextFillBox() for each layer
+clipped to the text, and WebKit’s BackgroundPainter::paintFillLayer()
+masks each FillBox::Text layer by an image buffer of the text. Firefox
+151 doesn’t: In the same probe, it masks the whole stack when the
+bottom layer is clipped to the text, and masks nothing otherwise.
