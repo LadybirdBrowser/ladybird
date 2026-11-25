@@ -496,7 +496,6 @@ set(SOURCES
     HTML/MediaTrackBase.cpp
     HTML/MessageEvent.cpp
     HTML/MessagePort.cpp
-    HTML/MimeType.cpp
     HTML/MimeTypeArray.cpp
     HTML/Navigable.cpp
     HTML/NavigableContainer.cpp
@@ -529,7 +528,6 @@ set(SOURCES
     HTML/Parser/HTMLTokenizer.cpp
     HTML/Parser/IncrementalDocumentParser.cpp
     HTML/Parser/SpeculativeHTMLParser.cpp
-    HTML/Plugin.cpp
     HTML/PluginArray.cpp
     HTML/PolicyContainers.cpp
     HTML/PreparedNavigationDescriptor.cpp

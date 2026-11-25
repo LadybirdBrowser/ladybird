@@ -25,6 +25,7 @@ unsafe extern "C" {
     fn web_bindings_window_associated_document(window: *mut c_void) -> *mut c_void;
     fn web_bindings_window_realm(window: *mut c_void) -> *mut c_void;
     fn web_bindings_window_page_id(window: *mut c_void) -> u64;
+    fn web_bindings_window_pdf_viewer_supported(window: *mut c_void) -> bool;
     fn web_bindings_window_has_transient_activation(window: *mut c_void) -> bool;
     fn web_bindings_window_consume_user_activation(window: *mut c_void);
     fn web_bindings_window_give_transient_activation(window: *mut c_void);
@@ -154,6 +155,12 @@ impl CppWindow {
     pub(crate) fn page_id(&self) -> u64 {
         // SAFETY: The Window is live.
         unsafe { web_bindings_window_page_id(self.0.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-supported
+    pub(crate) fn pdf_viewer_supported(&self) -> bool {
+        // SAFETY: The Window is live.
+        unsafe { web_bindings_window_pdf_viewer_supported(self.0.as_ptr()) }
     }
 
     /// https://html.spec.whatwg.org/multipage/interaction.html#transient-activation

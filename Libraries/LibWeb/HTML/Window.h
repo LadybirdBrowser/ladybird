@@ -25,8 +25,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
-#include <LibWeb/HTML/MimeType.h>
-#include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -173,9 +171,6 @@ public:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#history-action-activation
     bool has_history_action_activation() const;
-
-    ReadonlySpan<GC::Ref<Plugin>> pdf_viewer_plugin_objects();
-    ReadonlySpan<GC::Ref<MimeType>> pdf_viewer_mime_type_objects();
 
     // JS API functions
     GC::Ref<WindowProxy> window() const;
@@ -379,12 +374,6 @@ private:
     OrderedHashMap<u32, GC::Ref<IdleCallback>> m_runnable_idle_callbacks;
     // https://w3c.github.io/requestidlecallback/#dfn-idle-callback-identifier
     u32 m_idle_callback_identifier = 0;
-
-    // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
-    Vector<GC::Ref<Plugin>> m_pdf_viewer_plugin_objects;
-
-    // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
-    Vector<GC::Ref<MimeType>> m_pdf_viewer_mime_type_objects;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#user-activation-data-model
     HighResolutionTime::DOMHighResTimeStamp m_last_activation_timestamp { AK::Infinity<double> };

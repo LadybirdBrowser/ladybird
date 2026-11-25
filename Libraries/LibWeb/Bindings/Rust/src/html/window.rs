@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The window post message steps of Window,
-//! https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
+//! The members of Window that are implemented in Rust, https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-window-object
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
@@ -23,11 +22,15 @@ use liburl_rust::origin::Origin;
 use crate::bindings::conversions::window_proxy_from_object;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::CppEventTarget;
-use crate::bindings::interface::{Interface, implementation_of, with_temporary_execution_context_and_callbacks};
+use crate::bindings::global_object::CppWindow;
+use crate::bindings::interface::{Interface, Ref, implementation_of, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
+use crate::bindings::realm_data::realm_data;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::message_event::{MessageEvent, MessageEventInit, MessageEventSource};
 use crate::html::message_port::MessagePort;
+use crate::html::mime_type::MimeType;
+use crate::html::plugin::Plugin;
 use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::{structured_deserialize_with_transfer, structured_serialize_with_transfer};
 
@@ -291,4 +294,71 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
         Some(origin.clone()),
     );
     target_window.dispatch_event(event.event());
+}
+
+/// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-names
+pub(crate) const PDF_VIEWER_PLUGIN_NAMES: [&str; 5] = [
+    "PDF Viewer",
+    "Chrome PDF Viewer",
+    "Chromium PDF Viewer",
+    "Microsoft Edge PDF Viewer",
+    "WebKit built-in PDF",
+];
+
+/// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
+pub(crate) const PDF_VIEWER_MIME_TYPES: [&str; 2] = ["application/pdf", "text/pdf"];
+
+/// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
+pub(crate) fn with_pdf_viewer_plugin_objects<R>(
+    vm: &Vm,
+    window: &CppWindow,
+    steps: impl FnOnce(&[Ref<Plugin>]) -> R,
+) -> R {
+    // Each Window object has a PDF viewer plugin objects list. If the user agent's PDF viewer supported is false, then
+    // it is the empty list.
+    if !window.pdf_viewer_supported() {
+        return steps(&[]);
+    }
+
+    // Otherwise, it is a list containing five Plugin objects, whose names are, respectively:
+    // 0. "PDF Viewer"
+    // 1. "Chrome PDF Viewer"
+    // 2. "Chromium PDF Viewer"
+    // 3. "Microsoft Edge PDF Viewer"
+    // 4. "WebKit built-in PDF"
+    // The values of the above list form the PDF viewer plugin names list.
+    let data = realm_data(vm, window.realm());
+    if data.pdf_viewer_plugin_objects.borrow().is_empty() {
+        let mut plugins = data.pdf_viewer_plugin_objects.borrow_mut(vm);
+        for name in PDF_VIEWER_PLUGIN_NAMES {
+            plugins.push(Plugin::create(vm, window.clone(), Utf16String::from_utf8(name)));
+        }
+    }
+    steps(&data.pdf_viewer_plugin_objects.borrow())
+}
+
+/// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
+pub(crate) fn with_pdf_viewer_mime_type_objects<R>(
+    vm: &Vm,
+    window: &CppWindow,
+    steps: impl FnOnce(&[Ref<MimeType>]) -> R,
+) -> R {
+    // Each Window object has a PDF viewer mime type objects list. If the user agent's PDF viewer supported is false,
+    // then it is the empty list.
+    if !window.pdf_viewer_supported() {
+        return steps(&[]);
+    }
+
+    // Otherwise, it is a list containing two MimeType objects, whose types are, respectively:
+    // 0. "application/pdf"
+    // 1. "text/pdf"
+    // The values of the above list form the PDF viewer mime types list.
+    let data = realm_data(vm, window.realm());
+    if data.pdf_viewer_mime_type_objects.borrow().is_empty() {
+        let mut mime_types = data.pdf_viewer_mime_type_objects.borrow_mut(vm);
+        for r#type in PDF_VIEWER_MIME_TYPES {
+            mime_types.push(MimeType::create(vm, window.clone(), Utf16String::from_utf8(r#type)));
+        }
+    }
+    steps(&data.pdf_viewer_mime_type_objects.borrow())
 }

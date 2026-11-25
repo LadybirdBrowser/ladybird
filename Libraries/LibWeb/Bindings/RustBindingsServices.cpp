@@ -111,6 +111,7 @@ void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTM
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
 JS::Realm* web_bindings_window_realm(HTML::Window*);
 u64 web_bindings_window_page_id(HTML::Window*);
+bool web_bindings_window_pdf_viewer_supported(HTML::Window*);
 bool web_bindings_window_has_transient_activation(HTML::Window*);
 void web_bindings_window_consume_user_activation(HTML::Window*);
 void web_bindings_window_give_transient_activation(HTML::Window*);
@@ -244,6 +245,11 @@ DOM::Document* web_bindings_window_associated_document(HTML::Window* window)
 u64 web_bindings_window_page_id(HTML::Window* window)
 {
     return window->page().client().id().value();
+}
+
+bool web_bindings_window_pdf_viewer_supported(HTML::Window* window)
+{
+    return window->page().pdf_viewer_supported();
 }
 
 bool web_bindings_window_has_transient_activation(HTML::Window* window)
