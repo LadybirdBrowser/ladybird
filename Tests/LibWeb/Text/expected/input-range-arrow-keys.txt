@@ -1,0 +1,11 @@
+Escape: value=10
+Right at the maximum: value=10
+Left: input value=9
+Left: value=9
+Shift+Left: input value=8
+Shift+Left: value=8
+Alt+Left: value=8
+Left canceled while capturing: value=8
+Left canceled while bubbling: value=8
+Left in a text field that focuses the range: value=8
+script keydown: value=8

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<input id="text">
+<input id="range" type="range" min="0" max="10" value="10">
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const text = document.getElementById("text");
+        const range = document.getElementById("range");
+        let step = "";
+        range.addEventListener("input", () => println(`${step}: input value=${range.value}`));
+
+        const press = (label, target, key, modifiers = internals.MOD_NONE) => {
+            step = label;
+            internals.sendKey(target, key, modifiers);
+            println(`${step}: value=${range.value}`);
+        };
+
+        press("Escape", range, "Escape");
+        press("Right at the maximum", range, "Right");
+        press("Left", range, "Left");
+        press("Shift+Left", range, "Left", internals.MOD_SHIFT);
+        press("Alt+Left", range, "Left", internals.MOD_ALT);
+
+        const cancel = event => event.preventDefault();
+        document.addEventListener("keydown", cancel, true);
+        press("Left canceled while capturing", range, "Left");
+        document.removeEventListener("keydown", cancel, true);
+        document.addEventListener("keydown", cancel);
+        press("Left canceled while bubbling", range, "Left");
+        document.removeEventListener("keydown", cancel);
+
+        text.addEventListener("keydown", () => range.focus(), { once: true });
+        press("Left in a text field that focuses the range", text, "Left");
+
+        step = "script keydown";
+        range.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+        println(`${step}: value=${range.value}`);
+    });
+</script>
