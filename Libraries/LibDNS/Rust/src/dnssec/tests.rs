@@ -105,6 +105,7 @@ struct Zone {
     apex: DomainName,
     signed: bool,
     use_nsec3: bool,
+    nsec3_iterations: u16,
     key_pair: Option<KeyPair>,
     dnskey: Dnskey,
     key_tag: u16,
@@ -125,6 +126,7 @@ impl Zone {
             apex: name(apex),
             signed: true,
             use_nsec3: false,
+            nsec3_iterations: 0,
             key_pair: None,
             dnskey: Dnskey::default(),
             key_tag: 0,
@@ -253,7 +255,7 @@ impl Zone {
                 RecordData::Nsec3Param(Nsec3Param {
                     hash_algorithm: Nsec3HashAlgorithm::SHA1,
                     flags: 0,
-                    iterations: 0,
+                    iterations: self.nsec3_iterations,
                     salt: Vec::new(),
                 }),
                 0,
@@ -265,7 +267,7 @@ impl Zone {
                 let nsec3 = Nsec3 {
                     hash_algorithm: Nsec3HashAlgorithm::SHA1,
                     flags: 0,
-                    iterations: 0,
+                    iterations: self.nsec3_iterations,
                     salt: Vec::new(),
                     next_hashed_owner_name: next,
                     types,
@@ -1788,4 +1790,18 @@ fn nsec3_endpoints_must_be_sha1_hashes() {
     assert!(proves_wildcard_absent(&[0x00; 20], &[0xff; 20]));
     assert!(!proves_wildcard_absent(&[0x00; 19], &[0xff; 19]));
     assert!(!proves_wildcard_absent(&[0x00; 21], &[0xff; 21]));
+}
+
+#[test]
+fn insecure_delegations_for_too_many_nsec3_iterations_expire_with_their_proof() {
+    // The NSEC3 records of "example" take too many iterations, and their signatures expire in two seconds.
+    let (mut server, mut validator) = setup(true, |server| {
+        server.zones[1].nsec3_iterations = 101;
+        server.expire_example_signatures_in(2);
+    });
+    let result = validated_lookup(&mut server, &mut validator, "www.example", ResourceType::A).unwrap();
+    assert_eq!(result.status, SecurityStatus::Insecure);
+    let cached = &validator.delegations[&name("www.example")].delegation;
+    assert_eq!(cached.kind, DelegationKind::Insecure);
+    assert_eq!(cached.expires, u64::from(NOW) + 2);
 }
