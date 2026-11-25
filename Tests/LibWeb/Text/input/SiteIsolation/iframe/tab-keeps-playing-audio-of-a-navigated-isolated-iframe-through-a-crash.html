@@ -22,6 +22,7 @@
         };
 
         const playingUrl = await echo("tab-keeps-playing-audio-through-a-crash-playing", `
+            internals.grantTransientActivation();
             const context = new AudioContext();
             const oscillator = new OscillatorNode(context);
             oscillator.connect(context.destination);

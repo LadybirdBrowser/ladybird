@@ -10,6 +10,7 @@ asyncTest(async done => {
     const b = new RTCPeerConnection();
     a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
     b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+    internals.grantTransientActivation();
     const context = new AudioContext();
     const oscillator = context.createOscillator();
     const sentByA = context.createMediaStreamDestination();
