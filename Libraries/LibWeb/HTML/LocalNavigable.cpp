@@ -5499,10 +5499,14 @@ LocalNavigable::ScrollSequence* LocalNavigable::begin_scroll_sequence(Web::Async
 
 void LocalNavigable::note_scroll_sequence_moved(Web::AsyncScrollNodeStableID stable_node_id)
 {
-    if (auto* sequence = scroll_sequence_for(stable_node_id)) {
-        sequence->moved = true;
-        sequence->last_moved_ordinal = ++m_last_scroll_move_ordinal;
-    }
+    if (auto* sequence = scroll_sequence_for(stable_node_id))
+        mark_scroll_sequence_moved(*sequence);
+}
+
+void LocalNavigable::mark_scroll_sequence_moved(ScrollSequence& sequence)
+{
+    sequence.moved = true;
+    sequence.last_moved_ordinal = ++m_last_scroll_move_ordinal;
 }
 
 bool LocalNavigable::has_user_scroll_gesture() const
@@ -5524,7 +5528,7 @@ void LocalNavigable::note_user_scroll_gesture_of(Web::AsyncScrollNodeStableID st
     if (!sequence)
         return;
     if (moved_box == UserScrollMovedBox::Yes)
-        sequence->moved = true;
+        mark_scroll_sequence_moved(*sequence);
 
     if (!sequence->user_gesture.has_value())
         sequence->user_gesture = UserScrollGesture {};
