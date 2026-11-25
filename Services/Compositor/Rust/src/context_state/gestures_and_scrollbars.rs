@@ -222,6 +222,7 @@ impl ContextState {
             state.boxes_in_user_scroll_gesture.push(id);
         }
         state.wheel_latched_scroller = self.wheel_gesture_routing.latched_scroller();
+        state.context_user_input_scroll_count = self.context_user_input_scroll_count;
         state
     }
 
@@ -448,7 +449,6 @@ impl ContextState {
             visual_viewport_scale: None,
             applied_scroll_request_id: 0,
             user_input_scroll_count: 0,
-            context_user_input_scroll_count: 0,
         });
         self.store_pending_async_scroll_offsets(&scroll_offsets, None);
         if !node.is_viewport {

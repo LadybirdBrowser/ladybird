@@ -126,6 +126,9 @@ struct PendingAsyncScrollUpdates {
     Vector<Web::AsyncScrollNodeStableID> boxes_in_user_scroll_gesture;
     Vector<Web::AsyncScrollNodeStableID> boxes_whose_user_scroll_gesture_ended;
     Optional<Web::AsyncScrollNodeStableID> wheel_latched_scroller;
+    // How many times the compositor had scrolled any box of the context for user input of its own when it published
+    // these.
+    u64 context_user_input_scroll_count { 0 };
 };
 
 // What the compositor did with a wheel event that WebContent's main thread passed on to it, as the compositor does with

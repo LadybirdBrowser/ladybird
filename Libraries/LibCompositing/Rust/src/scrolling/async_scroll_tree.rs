@@ -439,7 +439,6 @@ impl AsyncScrollTree {
                         visual_viewport_scale: None,
                         applied_scroll_request_id: 0,
                         user_input_scroll_count: 0,
-                        context_user_input_scroll_count: 0,
                     },
                     consumed_delta: delta - remaining_delta,
                 });

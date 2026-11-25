@@ -89,7 +89,6 @@ struct Compositing::AsyncScrollOffset {
     Optional<float> visual_viewport_scale;
     u64 applied_scroll_request_id;
     u64 user_input_scroll_count;
-    u64 context_user_input_scroll_count;
 }
 
 [ExistingCpp, RustDerive=Copy+Eq+Hash+Default]
@@ -147,6 +146,7 @@ struct Compositing::PendingAsyncScrollUpdates {
     Vector<Web::AsyncScrollNodeStableID> boxes_in_user_scroll_gesture;
     Vector<Web::AsyncScrollNodeStableID> boxes_whose_user_scroll_gesture_ended;
     Optional<Web::AsyncScrollNodeStableID> wheel_latched_scroller;
+    u64 context_user_input_scroll_count;
 }
 
 [ExistingCpp]

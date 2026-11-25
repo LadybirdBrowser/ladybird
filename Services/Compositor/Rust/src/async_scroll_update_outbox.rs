@@ -31,6 +31,7 @@ pub struct AsyncScrollUpdateOutbox {
 pub struct UserScrollGestureState {
     pub boxes_in_user_scroll_gesture: Vec<AsyncScrollNodeStableID>,
     pub wheel_latched_scroller: Option<AsyncScrollNodeStableID>,
+    pub context_user_input_scroll_count: u64,
 }
 
 impl AsyncScrollUpdateOutbox {
@@ -107,6 +108,7 @@ impl AsyncScrollUpdateOutbox {
             boxes_whose_user_scroll_gesture_ended: std::mem::take(&mut self.boxes_whose_user_scroll_gesture_ended),
             boxes_in_user_scroll_gesture: user_scroll_gesture_state.boxes_in_user_scroll_gesture.clone(),
             wheel_latched_scroller: user_scroll_gesture_state.wheel_latched_scroller,
+            context_user_input_scroll_count: user_scroll_gesture_state.context_user_input_scroll_count,
         };
         self.published_user_scroll_gesture_state = user_scroll_gesture_state;
         updates
