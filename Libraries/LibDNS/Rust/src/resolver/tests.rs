@@ -356,6 +356,42 @@ fn closed_tls_connection_is_replaced_and_questions_are_asked_again() {
 }
 
 #[test]
+fn udp_connection_whose_send_fails_is_replaced() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let first = harness.connects[0].connection;
+    harness.connected(first);
+    assert_eq!(harness.take_writes().len(), 1);
+
+    // A connected UDP socket keeps the source address it got when it connected, so once the network it was opened on
+    // is gone, every send on it fails. That's what the socket owner reports here.
+    harness
+        .resolver
+        .on_connect_failed(first, "Network is unreachable (errno=101)".to_owned(), harness.now);
+    harness.drain();
+    assert_eq!(harness.closes, vec![first]);
+    assert!(harness.done.is_empty());
+
+    // The next lookup goes out on a new connection.
+    let later = harness.lookup_with("ladybird.org", &[ResourceType::A], LookupOptions::default());
+    assert_eq!(harness.connects.len(), 2);
+    let second = harness.connects[1].connection;
+    assert_ne!(second, first);
+    harness.connected(second);
+
+    // And the question that was in flight goes out again on it at its next retry.
+    harness.advance(QUERY_RETRY_INTERVAL);
+    let writes = harness.take_writes();
+    assert!(writes.iter().all(|(connection, _)| *connection == second));
+    for (connection, query) in writes {
+        let response = respond(&query, |_| {});
+        harness.receive(connection, &response);
+    }
+    assert!(harness.result(lookup).is_ok());
+    assert!(harness.result(later).is_ok());
+}
+
+#[test]
 fn malformed_stream_message_leaves_the_next_one_alone() {
     let mut harness = Harness::tls("9.9.9.9");
     let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
