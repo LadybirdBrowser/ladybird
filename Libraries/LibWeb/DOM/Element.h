@@ -827,7 +827,7 @@ public:
     void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, GC::Ref<ResizeObserver::ResizeObserver>);
 
     CSSPixelPoint scroll_offset(Optional<CSS::PseudoElement> type) const;
-    void set_scroll_offset(Optional<CSS::PseudoElement> type, CSSPixelPoint offset, Painting::CompositorScrollRequest);
+    void store_scroll_offset(Badge<HTML::LocalNavigable>, Optional<CSS::PseudoElement> type, CSSPixelPoint offset);
     u8 last_relative_scroll_direction() const;
     void set_last_relative_scroll_direction(u8);
 

@@ -97,13 +97,6 @@ bool could_be_scrolled_by_wheel_event(Layout::Node const& node)
     return axes.horizontal || axes.vertical;
 }
 
-static GC::Ptr<DOM::EventTarget> scroll_event_target(Layout::Node& node)
-{
-    if (node.generated_for_pseudo_element().has_value())
-        return node.pseudo_element_generator();
-    return node.dom_node();
-}
-
 ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset, CompositorScrollRequest compositor_scroll_request)
 {
     if (!has_committed_box(node))
@@ -117,56 +110,11 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset, Compos
     if (scroll_offset(node) == offset)
         return ScrollHandled::No;
 
-    if (node.is_viewport()) {
-        auto navigable = node.document().navigable();
-        VERIFY(navigable);
-        navigable->perform_scroll_of_viewport_scrolling_box(offset, compositor_scroll_request);
-        return ScrollHandled::Yes;
-    }
-
-    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
-        auto generator = node.pseudo_element_generator();
-        if (!generator)
-            return ScrollHandled::No;
-        generator->set_scroll_offset(*pseudo_element, offset, compositor_scroll_request);
-    } else if (auto* element = as_if<DOM::Element>(node.dom_node())) {
-        element->set_scroll_offset({}, offset, compositor_scroll_request);
-    } else {
+    auto navigable = node.document().navigable();
+    auto stable_node_id = async_scroll_node_stable_id(node);
+    if (!navigable || !stable_node_id.has_value())
         return ScrollHandled::No;
-    }
-
-    // https://drafts.csswg.org/cssom-view-1/#scrolling-events
-    // Whenever an element gets scrolled (whether in response to user interaction or by an API),
-    // the user agent must run these steps:
-
-    // 1. Let doc be the element’s node document.
-    auto& document = node.document();
-
-    // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element with
-    //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
-    //           target in the inline axis as newInlineTarget.
-
-    auto event_target = scroll_event_target(node);
-    if (!event_target)
-        return ScrollHandled::Yes;
-
-    // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
-    // 4. Append (element, "scroll") to doc’s pending scroll events.
-    if (!document.append_pending_scroll_event({ *event_target, HTML::EventNames::scroll }))
-        return ScrollHandled::Yes;
-
-    set_needs_repaint(node, InvalidateDisplayList::No);
-    return ScrollHandled::Yes;
-}
-
-ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y, ScrollKind scroll_kind)
-{
-    if (!has_committed_box(node))
-        return ScrollHandled::No;
-    // A scroll by nothing is not user input: it neither takes over a scroll in flight nor keeps a gesture going.
-    if (delta_x == 0 && delta_y == 0)
-        return ScrollHandled::No;
-    return set_scroll_offset_from_user_input(node, scroll_offset(node).translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)), scroll_kind);
+    return navigable->store_scroll_offset(*stable_node_id, offset, compositor_scroll_request) ? ScrollHandled::Yes : ScrollHandled::No;
 }
 
 static Optional<Compositing::CompositorScrollNodeKind> scroll_node_kind_for(Layout::Node const& node)
@@ -213,39 +161,29 @@ Optional<Web::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node 
     };
 }
 
-ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoint offset, ScrollKind scroll_kind)
+ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y)
 {
     if (!has_committed_box(node))
         return ScrollHandled::No;
-
+    // A scroll by nothing is not user input: it neither takes over a scroll in flight nor keeps a gesture going.
+    if (delta_x == 0 && delta_y == 0)
+        return ScrollHandled::No;
     auto navigable = node.document().navigable();
     auto stable_node_id = async_scroll_node_stable_id(node);
+    if (!navigable || !stable_node_id.has_value())
+        return ScrollHandled::No;
 
     auto scroll_offset_before_scroll = scroll_offset(node);
-
-    if (navigable && stable_node_id.has_value())
-        navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
-
-    auto scroll_handled = ScrollHandled::No;
-    if (navigable && stable_node_id.has_value()) {
-        scroll_handled = set_scroll_offset(node, offset, CompositorScrollRequest::UserInputJump);
-    } else {
-        scroll_handled = set_scroll_offset(node, offset, CompositorScrollRequest::ProgrammaticJump);
-    }
-    if (scroll_handled == ScrollHandled::Yes && scroll_kind == ScrollKind::Relative)
-        node.document().scroll_state_query_containers().did_scroll_relatively(node, scroll_offset(node) - scroll_offset_before_scroll);
-    if (!navigable)
-        return scroll_handled;
-
-    if (!stable_node_id.has_value())
-        return scroll_handled;
-    if (scroll_handled == ScrollHandled::Yes) {
-        navigable->note_user_scroll_gesture_of(stable_node_id.value(), scroll_offset_before_scroll, HTML::LocalNavigable::UserScrollMovedBox::Yes);
-    } else {
+    navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
+    auto offset = scroll_offset_before_scroll.translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y));
+    if (set_scroll_offset(node, offset, CompositorScrollRequest::UserInputJump) == ScrollHandled::No) {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
-        navigable->extend_user_scroll_gesture_of(stable_node_id.value());
+        navigable->extend_user_scroll_gesture_of(*stable_node_id);
+        return ScrollHandled::No;
     }
-    return scroll_handled;
+    node.document().scroll_state_query_containers().did_scroll_relatively(node, scroll_offset(node) - scroll_offset_before_scroll);
+    navigable->note_user_scroll_gesture_of(*stable_node_id, scroll_offset_before_scroll, HTML::LocalNavigable::UserScrollMovedBox::Yes);
+    return ScrollHandled::Yes;
 }
 
 Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const& node)

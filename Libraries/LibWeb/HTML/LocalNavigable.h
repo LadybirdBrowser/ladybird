@@ -261,8 +261,8 @@ public:
     // viewport's coordinates, as its embedder last reported. None of it until then.
     Optional<CSSPixelRect> viewport_intersection() const;
     void set_viewport_intersection(CSSPixelRect);
-    void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position, Painting::CompositorScrollRequest);
-    void did_change_scroll_offset(Web::AsyncScrollNodeStableID, Painting::CompositorScrollRequest);
+    bool store_scroll_offset(Web::AsyncScrollNodeStableID, CSSPixelPoint, Painting::CompositorScrollRequest);
+    bool zoom_visual_viewport(CSSPixelPoint position, double scale_delta);
     u64 compositor_user_input_scroll_count() const { return m_compositor_context_user_input_scroll_count; }
     void adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness = Compositing::AsyncScrollUpdateFreshness::Pushed);
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
@@ -490,7 +490,7 @@ private:
 
     void reset_cursor_blink_cycle();
 
-    void scroll_offset_did_change();
+    void did_store_scroll_offset(Web::AsyncScrollNodeStableID, Painting::CompositorScrollRequest);
     void clear_parent_compositor_context();
     void destroy_compositor_context();
 
@@ -533,12 +533,11 @@ private:
     };
     PerformedScroll perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, ScrollOfScrollingBox const&);
     PerformedScroll perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind, Compositing::ScrollAnimationKind, InstantScrollRequester);
-    bool adopt_async_viewport_scroll_offset(CSSPixelPoint);
     bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset);
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
     GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Optional<CSSPixelPoint> relative_displacement, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
-    bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint, Painting::CompositorScrollRequest);
+    bool store_scroll_offset_in_scroll_range(Web::AsyncScrollNodeStableID, CSSPixelPoint, Painting::CompositorScrollRequest);
     void resolve_promises_of_finished_scroll(ReadonlySpan<GC::Ref<WebIDL::Promise>>);
     ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger, Compositing::ScrollAnimationKind);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over

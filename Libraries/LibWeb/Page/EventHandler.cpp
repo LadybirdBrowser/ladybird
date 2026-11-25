@@ -2630,12 +2630,7 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, PinchEvent con
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    auto visual_viewport = document->visual_viewport();
-    auto offset_left_before_zoom = visual_viewport->offset_left();
-    auto offset_top_before_zoom = visual_viewport->offset_top();
-    visual_viewport->zoom(point, event.scale_delta);
-    m_navigable->did_change_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::ProgrammaticJump);
-    if (visual_viewport->offset_left() != offset_left_before_zoom || visual_viewport->offset_top() != offset_top_before_zoom)
+    if (m_navigable->zoom_visual_viewport(point, event.scale_delta))
         m_navigable->note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, HTML::LocalNavigable::UserScrollMovedBox::Yes);
     return EventResult::Handled;
 }
