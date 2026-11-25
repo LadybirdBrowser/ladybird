@@ -26,6 +26,7 @@ pub mod math_table;
 pub mod matrix;
 pub mod paint_enums;
 pub mod path;
+pub mod png_encoder;
 pub mod text_layout;
 pub mod yuv;
 

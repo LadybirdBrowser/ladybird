@@ -1936,6 +1936,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "ladybird_allocator",
  "libipc_rust",
+ "png",
  "rustc-demangle",
  "yuv",
 ]
