@@ -87,12 +87,6 @@
       "platform": "linux | windows | osx"
     },
     "libjpeg-turbo",
-    {
-      "name": "libpng",
-      "features": [
-        "apng"
-      ]
-    },
     "libpsl",
     {
       "name": "libedit",

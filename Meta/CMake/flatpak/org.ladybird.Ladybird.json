@@ -70,42 +70,6 @@
       ]
     },
     {
-      "name": "libpng",
-      "buildsystem": "cmake-ninja",
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/pnggroup/libpng.git",
-          "tag": "v1.6.59"
-        },
-        {
-          "type": "file",
-          "url": "https://downloads.sourceforge.net/project/libpng-apng/libpng16/1.6.59/libpng-1.6.59-apng.patch.gz",
-          "sha512": "a27ed2769b3c8d1703267b807663aa8e543b62355237e223d7731662034dd126951b88117c1038dc976750cf515d7e0e26e4a9278bf951f96ec4ed8f74105db7"
-        },
-        {
-          "type": "shell",
-          "commands": [
-            "gunzip -k libpng-1.6.59-apng.patch.gz",
-            "patch -p1 -i libpng-1.6.59-apng.patch"
-          ]
-        }
-      ],
-      "config-opts": [
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DPNG_FRAMEWORK=OFF",
-        "-DPNG_TESTS=OFF",
-        "-DPNG_TOOLS=OFF",
-        "-DSKIP_INSTALL_EXECUTABLES=ON",
-        "-DSKIP_INSTALL_FILES=OFF",
-        "-DSKIP_INSTALL_PROGRAMS=ON"
-      ],
-      "cleanup": [
-        "/bin"
-      ]
-    },
-    {
       "name": "gn",
       "buildsystem": "simple",
       "sources": [
