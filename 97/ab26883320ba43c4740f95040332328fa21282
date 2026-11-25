@@ -1,0 +1,7 @@
+Ladybird sizes the buffer for an active uniform’s or attribute’s name by
+the program’s ACTIVE_UNIFORM_MAX_LENGTH or ACTIVE_ATTRIBUTE_MAX_LENGTH.
+Blink’s WebGLRenderingContextBase does the same for getActiveAttrib()
+and getActiveUniform(), WebKit’s GraphicsContextGLANGLE does it with
+ACTIVE_UNIFORM_MAX_LENGTH, and Gecko’s WebGLContext grows its buffer to
+that length too. And the test’s output matches Chrome 158, Firefox 151,
+and WebKit 26.5, line for line, at 256 characters and at 1024.
