@@ -4,45 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/SVG/TimeEvent.h>
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(TimeEvent);
-
-GC::Ref<TimeEvent> TimeEvent::create(Utf16FlyString const& type, GC::Ptr<HTML::WindowProxy> view, i32 detail, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-{
-    return GC::Heap::the().allocate<TimeEvent>(type, view, detail, time_stamp);
+extern "C" {
+// Defined in Bindings/Rust/src/svg/time_event.rs.
+DOM::Event* web_rust_time_event_create(JSVM*, void* realm, FlatPtr type, JSObject* view, i32 detail);
 }
 
-TimeEvent::TimeEvent(Utf16FlyString const& type, GC::Ptr<HTML::WindowProxy> view, i32 detail, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : Event(type, time_stamp)
-    , m_view(view)
-    , m_detail(detail)
+GC::Ref<DOM::Event> create_time_event(JS::Realm& realm, Utf16FlyString const& type, GC::Ptr<HTML::WindowProxy> view, i32 detail, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-}
-
-void TimeEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_view);
-}
-
-// https://svgwg.org/specs/animations/#__svg__TimeEvent__initTimeEvent
-void TimeEvent::init_time_event(Utf16FlyString const& type, GC::Ptr<HTML::WindowProxy> view, i32 detail)
-{
-    // The initTimeEvent method is used to initialize the value of a TimeEvent created with document.createEvent(). This
-    // method may only be called before the TimeEvent has been dispatched via the dispatchEvent method, though it may be
-    // called multiple times during that phase if necessary. If called multiple times, the final invocation takes
-    // precedence.
-    if (dispatched())
-        return;
-
-    // NB: Time events neither bubble nor are cancelable.
-    initialize_event(type, false, false);
-    m_view = view;
-    m_detail = detail;
+    auto* view_object = view ? JS::HostABI::object_to_abi(&view->object()) : nullptr;
+    auto& event = *web_rust_time_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.raw_identity(), view_object, detail);
+    event.set_time_stamp(time_stamp);
+    return event;
 }
 
 }

@@ -101,7 +101,12 @@ ALLOWED_REALM_MENTIONS = {
         5,
         "the C++ glue of the Rust PictureInPictureEvent creates it and wraps windows in a given realm",
     ),
-    "SVG": (2, 8, "SVG length objects still store/use realms for detached/reflected JS/CSS materialization"),
+    "SVG": (
+        4,
+        11,
+        "SVG length objects still store/use realms for detached/reflected JS/CSS materialization; the C++ glue of the "
+        "Rust TimeEvent creates it in a given realm",
+    ),
     "ServiceWorker": (
         6,
         41,
