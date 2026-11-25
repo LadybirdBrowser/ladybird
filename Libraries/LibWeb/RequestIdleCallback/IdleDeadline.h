@@ -7,25 +7,16 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/IdleDeadline.h>
+#include <LibWeb/Bindings/RustInterface.h>
 
 namespace Web::RequestIdleCallback {
 
-class IdleDeadline final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(IdleDeadline, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(IdleDeadline);
+class IdleDeadline final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(IdleDeadline, idle_deadline)
 
 public:
     [[nodiscard]] static GC::Ref<IdleDeadline> create(bool did_timeout = false);
-    virtual ~IdleDeadline() override;
-
-    double time_remaining() const;
-    bool did_timeout() const { return m_did_timeout; }
-
-private:
-    explicit IdleDeadline(bool did_timeout);
-
-    bool m_did_timeout { false };
 };
 
 }

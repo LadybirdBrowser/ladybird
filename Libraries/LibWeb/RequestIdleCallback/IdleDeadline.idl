@@ -1,5 +1,5 @@
 // https://w3c.github.io/requestidlecallback/#dom-idledeadline
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface IdleDeadline {
 
     DOMHighResTimeStamp timeRemaining();

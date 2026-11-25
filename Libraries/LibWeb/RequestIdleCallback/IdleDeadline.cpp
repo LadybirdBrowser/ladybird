@@ -5,50 +5,31 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
 
 namespace Web::RequestIdleCallback {
 
-GC_DEFINE_ALLOCATOR(IdleDeadline);
+extern "C" {
+// Defined in Bindings/Rust/src/request_idle_callback/idle_deadline.rs.
+void* web_rust_idle_deadline_create(JSVM*, bool did_timeout);
+
+// Called by Bindings/Rust/src/request_idle_callback/idle_deadline.rs.
+double web_request_idle_callback_idle_deadline_deadline(JSObject* global_object);
+}
 
 GC::Ref<IdleDeadline> IdleDeadline::create(bool did_timeout)
 {
-    return GC::Heap::the().allocate<IdleDeadline>(did_timeout);
+    return GC::Ref { *static_cast<IdleDeadline*>(web_rust_idle_deadline_create(JS::HostABI::vm_to_abi(JS::VM::the()), did_timeout)) };
 }
 
-IdleDeadline::IdleDeadline(bool did_timeout)
-    : m_did_timeout(did_timeout)
+double web_request_idle_callback_idle_deadline_deadline(JSObject* global_object)
 {
-}
-
-IdleDeadline::~IdleDeadline() = default;
-
-// https://w3c.github.io/requestidlecallback/#dom-idledeadline-timeremaining
-double IdleDeadline::time_remaining() const
-{
-    if (m_did_timeout)
-        return 0;
-
-    auto const& event_loop = HTML::main_thread_event_loop();
-    // 1. Let now be a DOMHighResTimeStamp representing current high resolution time in milliseconds.
-    auto& global = HTML::current_global_object();
-    auto now = HighResolutionTime::current_high_resolution_time(global);
-    // 2. Let deadline be the result of calling IdleDeadline's get deadline time algorithm.
     // NB: The event loop deadline uses the shared monotonic clock, while now is relative to the global's time origin.
-    auto deadline = HighResolutionTime::relative_high_resolution_time(event_loop.compute_deadline(), global);
-    // 3. Let timeRemaining be deadline - now.
-    auto time_remaining = deadline - now;
-    // 4. If timeRemaining is negative, set it to 0.
-    if (time_remaining < 0)
-        time_remaining = 0;
-    // 5. Return timeRemaining.
-    // NOTE: coarsening to milliseconds
-    return ceil(time_remaining);
+    return HighResolutionTime::relative_high_resolution_time(HTML::main_thread_event_loop().compute_deadline(), *JS::HostABI::object_from_abi(global_object));
 }
 
 }
