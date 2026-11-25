@@ -1,0 +1,6 @@
+Ladybird now converts a negative long long argument to the number that
+was passed, as WebIDL’s ConvertToInt() requires. WebKit does the same in
+its convertToInteger<IDLLongLong>(), Blink in its ToInt64(), and Gecko
+in JS::ToInt64(), which its PrimitiveConversionTraits for int64_t call.
+And the test’s output is the same, line for line, in Chrome 158,
+Firefox 151, and WebKit 26.5.
