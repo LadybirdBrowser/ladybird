@@ -156,7 +156,6 @@ jobs:
           toolchain: 'Clang'
           build_preset: 'Distribution'
           version: ${{ inputs.version }}
-          vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
           use_caches: false
 
       - name: Package
