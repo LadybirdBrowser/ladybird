@@ -23,3 +23,6 @@ pub use ico::*;
 
 pub mod jpeg_xl;
 pub use jpeg_xl::*;
+
+pub mod png;
+pub use self::png::*;
