@@ -206,6 +206,15 @@ if (vcpkg_runtime_dependencies)
         endif()
     endif()
 
+    # LibMediaCodecs loads the bundled FFmpeg at runtime on Linux. Add it to the dependency set to collect the libraries
+    # it depends on as well.
+    if (TARGET BundledFFmpeg::AVCODEC)
+        install(IMPORTED_RUNTIME_ARTIFACTS BundledFFmpeg::AVCODEC BundledFFmpeg::LIBSWRESAMPLE
+            RUNTIME_DEPENDENCY_SET ladybird_vcpkg_libraries
+            LIBRARY DESTINATION ${vcpkg_library_install_dir} COMPONENT ladybird_Runtime
+        )
+    endif()
+
     ladybird_install_vcpkg_libraries(ladybird_vcpkg_libraries
         DESTINATION ${vcpkg_library_install_dir} COMPONENT ladybird_Runtime)
 endif()

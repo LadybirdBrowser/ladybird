@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMediaCodecs/FFmpeg/BundledFFmpeg.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegVulkanVideoDecoder.h>
 #include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
@@ -19,8 +20,12 @@ static PlatformFeatures::FFmpegFacts describe_ffmpeg(Media::FFmpeg::FFmpegFuncti
     };
 }
 
-PlatformFeatures::FFmpegFacts describe_bundled_ffmpeg()
+Optional<PlatformFeatures::FFmpegFacts> describe_bundled_ffmpeg()
 {
+    if (auto result = Media::FFmpeg::load_bundled_ffmpeg(); result.is_error()) {
+        warnln("Could not load the bundled FFmpeg: {}", result.error());
+        return {};
+    }
     return describe_ffmpeg(Media::FFmpeg::FFmpegFunctions::bundled(), true);
 }
 

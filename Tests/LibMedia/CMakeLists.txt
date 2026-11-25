@@ -1,6 +1,7 @@
 ladybird_test_suite(LibMedia)
 
 set(TEST_SOURCES
+    LoadBundledFFmpeg.cpp
     TestADTSDemuxer.cpp
     TestADTSFrameHeader.cpp
     TestADTSReader.cpp
@@ -81,7 +82,11 @@ endif()
 target_sources(TestLibMedia PRIVATE ${TEST_SOURCES})
 target_link_libraries(TestLibMedia PRIVATE LibAudio LibFileSystem LibGfx LibIPC LibMedia LibMediaCodecs LibThreading)
 # The header of FFmpegChannelLayout includes FFmpeg's headers.
-target_link_libraries(TestLibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL)
+if (LINUX AND NOT ANDROID)
+    ladybird_use_bundled_ffmpeg_headers(TestLibMedia)
+else()
+    target_link_libraries(TestLibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL)
+endif()
 
 if ("TestFFmpegVulkanDecode.cpp" IN_LIST TEST_SOURCES)
     target_link_libraries(TestLibMedia PRIVATE LibPlatformFeatures Vulkan::Vulkan)
