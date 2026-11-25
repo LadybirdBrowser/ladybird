@@ -6,3 +6,7 @@ paths:
     ignore:
       # FIXME: Remove once actionlint knows the concurrency `queue` key: https://github.com/rhysd/actionlint/pull/654
       - 'unexpected key "queue" for "concurrency" section'
+  .github/workflows/*.{yml,yaml}:
+    ignore:
+      # FIXME: Remove once actionlint knows the `$/` self repository reference of `uses:`.
+      - 'specifying action "\$/[^"]*" in invalid format because ref is missing'

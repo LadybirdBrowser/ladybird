@@ -7,3 +7,4 @@
 /Libraries/LibXML @alimpfard
 /Services/RequestServer @alimpfard
 /Utilities/wasm.cpp @alimpfard
+/.github/workflows/actions.lock @gmta

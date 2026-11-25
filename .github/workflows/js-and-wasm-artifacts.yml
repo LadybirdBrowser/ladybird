@@ -58,23 +58,16 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
-      - name: 'Use latest custom actions'
-        if: ${{ inputs.reference_to_build != '' && github.sha != steps.build-commit.outputs.sha }}
-        shell: bash
-        run: |
-          git fetch origin master
-          git checkout origin/master -- .github/actions
-
       - name: "Set up environment"
         id: 'setup'
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
           build_preset: 'Distribution'
 
       - name: Restore Caches
-        uses: ./.github/actions/cache-restore
+        uses: $/.github/actions/cache-restore
         id: 'cache-restore'
         with:
           os: ${{ matrix.os_name }}
@@ -131,7 +124,7 @@ jobs:
           done
 
       - name: Save Caches
-        uses: ./.github/actions/cache-save
+        uses: $/.github/actions/cache-save
         with:
           arch: 'Lagom'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
@@ -168,14 +161,14 @@ jobs:
           fi
 
       - name: Upload js package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ladybird-js-${{ matrix.package_type }}
           path: Build/distribution/ladybird-js-*.tar.gz
           retention-days: 7
 
       - name: Upload wasm package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ladybird-wasm-${{ matrix.package_type }}
           path: Build/distribution/ladybird-wasm-*.tar.gz
