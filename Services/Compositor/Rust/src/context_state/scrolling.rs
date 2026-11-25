@@ -606,13 +606,11 @@ impl ContextState {
                 .async_scroll_tree
                 .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot)
                 .unwrap();
+            let mut instant_scroll_destination = offset_before_instant_scroll;
             if let Some(jump_offset) = scroll_request.jump_offset {
-                self.async_scroll_tree.set_scroll_offset(
-                    scroll_node_index,
-                    jump_offset,
-                    self.scene.current_visual_context_tree(),
-                    &mut self.scroll_state_snapshot,
-                );
+                instant_scroll_destination = self
+                    .async_scroll_tree
+                    .clamped_scroll_offset_for_node(scroll_node_index, jump_offset);
             }
             // A box new to this context took its offset from the frame's snapshot, which has the frame's scrolls in it.
             let offset_has_the_request_in_it = self
@@ -621,46 +619,37 @@ impl ContextState {
             if let Some(relative_scroll) = &scroll_request.relative_scroll
                 && !offset_has_the_request_in_it
             {
-                if scroll_request.relative_scroll_moves_visual_viewport_first
+                let relative_scroll_destination = if scroll_request.relative_scroll_moves_visual_viewport_first
                     && self.async_scroll_tree.scroll_node_is_viewport(scroll_node_index)
                 {
-                    self.scroll_visual_viewport_position_in_page(scroll_node_index, relative_scroll);
+                    self.scroll_visual_viewport_position_in_page(instant_scroll_destination, relative_scroll)
                 } else {
-                    let offset = self
-                        .async_scroll_tree
-                        .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot)
-                        .unwrap();
-                    self.async_scroll_tree.set_scroll_offset(
-                        scroll_node_index,
-                        relative_scroll.applied_to(offset),
-                        self.scene.current_visual_context_tree(),
-                        &mut self.scroll_state_snapshot,
-                    );
-                }
+                    relative_scroll.applied_to(instant_scroll_destination)
+                };
+                instant_scroll_destination = self
+                    .async_scroll_tree
+                    .clamped_scroll_offset_for_node(scroll_node_index, relative_scroll_destination);
             }
             if let Some(axis) = axis_held_by_scrollbar
                 && instant_scroll_is_for_script
             {
-                let mut offset = self
-                    .async_scroll_tree
-                    .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot)
-                    .unwrap();
-                offset.set_primary_offset_for_orientation(
+                instant_scroll_destination.set_primary_offset_for_orientation(
                     axis,
                     offset_before_instant_scroll.primary_offset_for_orientation(axis),
                 );
+                instant_scroll_destination = self
+                    .async_scroll_tree
+                    .clamped_scroll_offset_for_node(scroll_node_index, instant_scroll_destination);
+            }
+            if instant_scroll_destination != offset_before_instant_scroll {
                 self.async_scroll_tree.set_scroll_offset(
                     scroll_node_index,
-                    offset,
+                    instant_scroll_destination,
                     self.scene.current_visual_context_tree(),
                     &mut self.scroll_state_snapshot,
                 );
             }
-            let instant_scroll_delta = self
-                .async_scroll_tree
-                .scroll_offset_for_node(scroll_node_index, &self.scroll_state_snapshot)
-                .unwrap()
-                - offset_before_instant_scroll;
+            let instant_scroll_delta = instant_scroll_destination - offset_before_instant_scroll;
             if shifts_running_animation {
                 let animation = &mut self.smooth_scroll_animations[running_animation.unwrap()];
                 // A step that goes to an end of the scroll range still goes there.
@@ -748,17 +737,11 @@ impl ContextState {
     // The visual viewport takes as much of the scroll as it can before the layout viewport takes the rest.
     fn scroll_visual_viewport_position_in_page(
         &mut self,
-        viewport_scroll_node_index: SpatialNodeIndex,
+        layout_viewport_offset: FloatPoint,
         relative_scroll: &RequestedRelativeScroll,
-    ) {
-        let Some(layout_viewport_offset) = self
-            .async_scroll_tree
-            .scroll_offset_for_node(viewport_scroll_node_index, &self.scroll_state_snapshot)
-        else {
-            return;
-        };
+    ) -> FloatPoint {
         let Some(document_id) = self.async_scroll_tree.document_id() else {
-            return;
+            return layout_viewport_offset;
         };
         let mut transform = self.scene.visual_viewport_transform();
         let scale = transform.matrix.elements[0][0];
@@ -783,20 +766,16 @@ impl ContextState {
             ),
         };
         let visual_delta = new_visual_viewport_offset - old_visual_viewport_offset;
-        self.async_scroll_tree.set_scroll_offset(
-            viewport_scroll_node_index,
-            layout_viewport_offset + (delta - visual_delta),
-            self.scene.current_visual_context_tree(),
-            &mut self.scroll_state_snapshot,
-        );
+        let layout_viewport_destination = layout_viewport_offset + (delta - visual_delta);
         if visual_delta.is_zero() {
-            return;
+            return layout_viewport_destination;
         }
         transform.matrix.elements[0][3] = -new_visual_viewport_offset.x * scale;
         transform.matrix.elements[1][3] = -new_visual_viewport_offset.y * scale;
         self.scene.set_async_visual_viewport_transform(transform);
         self.visual_viewport_document_id = Some(document_id);
         self.record_visual_viewport_offset_report(document_id, &transform);
+        layout_viewport_destination
     }
 
     fn apply_visual_viewport_scroll_request(
