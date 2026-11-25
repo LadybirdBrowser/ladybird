@@ -434,23 +434,15 @@ impl ContextState {
         if drag.is_press_beside_thumb {
             return self.start_scrollbar_press_scroll(&node, old_scroll_offset, destination, true, now);
         }
-        let new_scroll_offset = self.async_scroll_tree.set_scroll_offset(
+        self.move_scroller(
             scroll_node_index,
             dragged_to.scroll_offset,
-            &mut self.scroll_state_snapshot,
-        );
-        self.sticky_offsets_are_stale = true;
+            ScrollerMoveCause::ScrollbarThumbDrag,
+        )?;
         self.resolve_stale_sticky_offsets();
-        self.note_user_input_scrolled(node.stable_node_id);
-        assert!(new_scroll_offset.is_some());
-        self.async_scroll_tree.mark_cached_viewport_rects_stale();
-        let new_scroll_offset = new_scroll_offset.unwrap();
-        self.record_scroll_offset_report(node.stable_node_id, new_scroll_offset);
         if !node.is_viewport {
             return Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect));
         }
-        self.async_scrolling_viewport_rect.x = new_scroll_offset.x as i32;
-        self.async_scrolling_viewport_rect.y = new_scroll_offset.y as i32;
         Some(PendingFrame::repainting_everything(self.async_scrolling_viewport_rect))
     }
 

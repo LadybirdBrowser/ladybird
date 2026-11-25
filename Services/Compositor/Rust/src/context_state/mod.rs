@@ -9,6 +9,7 @@
 mod frames_and_viewport;
 mod gestures_and_scrollbars;
 mod keys_and_pointer;
+mod scroller_moves;
 mod scrolling;
 mod wheel;
 
@@ -39,6 +40,7 @@ use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::scrolling::*;
 use libcompositing_rust::time::{Duration, MonotonicTime};
 use libgfx_rust::{FloatPoint, IntRect, IntSize, Orientation};
+use scroller_moves::ScrollerMoveCause;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 

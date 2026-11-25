@@ -117,12 +117,6 @@ pub enum ScrollChaining {
     None,
 }
 
-pub struct AppliedScrollDelta {
-    pub stable_node_id: AsyncScrollNodeStableID,
-    pub scroll_offset: FloatPoint,
-    pub consumed_delta: FloatPoint,
-}
-
 #[derive(Default)]
 pub struct AsyncScrollTree {
     state: AsyncScrollingState,
@@ -380,11 +374,10 @@ impl AsyncScrollTree {
         None
     }
 
-    fn apply_scroll_delta_to_node(
-        &self,
+    fn scroll_offset_of_node_moved_by_delta(
         node: &AsyncScrollNode,
         delta: FloatPoint,
-        scroll_state_snapshot: &mut ScrollStateSnapshot,
+        scroll_state_snapshot: &ScrollStateSnapshot,
     ) -> FloatPoint {
         let old_scroll_offset = Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot);
         let wheel_scrollable_delta = FloatPoint {
@@ -399,34 +392,17 @@ impl AsyncScrollTree {
                 0.0
             },
         };
-        let new_scroll_offset = Self::clamp_scroll_offset_to_node(node, old_scroll_offset + wheel_scrollable_delta);
-        if new_scroll_offset == old_scroll_offset {
-            return delta;
-        }
-        scroll_state_snapshot.set_device_offset_for_index(
-            node.scroll_node_index,
-            FloatPoint {
-                x: -new_scroll_offset.x,
-                y: -new_scroll_offset.y,
-            },
-        );
-        let consumed_delta = FloatPoint {
-            x: new_scroll_offset.x - old_scroll_offset.x,
-            y: new_scroll_offset.y - old_scroll_offset.y,
-        };
-        FloatPoint {
-            x: delta.x - consumed_delta.x,
-            y: delta.y - consumed_delta.y,
-        }
+        Self::clamp_scroll_offset_to_node(node, old_scroll_offset + wheel_scrollable_delta)
     }
 
-    pub fn apply_scroll_delta(
-        &mut self,
+    // The scroller a delta moves, of the given one and those it passes the delta on to, and where it moves it.
+    pub fn scroll_destination_for_delta(
+        &self,
         mut scroll_node_index: SpatialNodeIndex,
         delta: FloatPoint,
-        scroll_state_snapshot: &mut ScrollStateSnapshot,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         scroll_chaining: ScrollChaining,
-    ) -> Option<AppliedScrollDelta> {
+    ) -> Option<(SpatialNodeIndex, FloatPoint)> {
         // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
         // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
         for _ in 0..self.state.scroll_nodes.len() {
@@ -436,13 +412,9 @@ impl AsyncScrollTree {
             let Some(node) = self.scroll_node_for_index(scroll_node_index) else {
                 break;
             };
-            let remaining_delta = self.apply_scroll_delta_to_node(node, delta, scroll_state_snapshot);
-            if remaining_delta != delta {
-                return Some(AppliedScrollDelta {
-                    stable_node_id: node.stable_node_id,
-                    scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
-                    consumed_delta: delta - remaining_delta,
-                });
+            let destination = Self::scroll_offset_of_node_moved_by_delta(node, delta, scroll_state_snapshot);
+            if destination != Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot) {
+                return Some((scroll_node_index, destination));
             }
             if scroll_chaining == ScrollChaining::None {
                 break;
