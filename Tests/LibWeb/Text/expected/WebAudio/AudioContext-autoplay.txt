@@ -1,3 +1,6 @@
+First deferred resume: running
+Second deferred resume: running
+Resume after allowing autoplay: running
 A previously started AudioContext resumes after autoplay is blocked: true
 Blocked audio clock: suspended at 0
 Resume request is pending: true
