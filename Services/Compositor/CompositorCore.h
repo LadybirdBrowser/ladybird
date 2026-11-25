@@ -36,26 +36,19 @@ public:
     // Also leaves the contexts nested in it without a parent.
     void destroy_context(Web::CompositorContextId);
     ContextOwnerCheckResult check_context_owner(Web::CompositorContextId, WebContentClientId) const;
-    bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
     bool context_is_effectively_visible(Web::CompositorContextId) const;
     Optional<Web::CompositorContextId> parent_context(Web::CompositorContextId) const;
     Optional<PresentationId> bound_presentation(Web::CompositorContextId) const;
-    void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
-    void stop_presenting_to_client(Web::CompositorContextId);
     // Ends the fling of a context that is hidden, whether or not it was visible. Answers whether the context became
     // visible.
     bool set_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
-    void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&);
 
     void register_presentation(PresentationId, PresentationCapabilities const&);
     // Leaves every context bound to the presentation unbound.
     void unregister_presentation(PresentationId);
 
-    void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
-    void hurry_rendering_opportunity(Web::CompositorContextId);
-    void present_frame_of_page(Web::CompositorContextId, Gfx::IntRect viewport_rect);
     void presented_store_released(Web::CompositorContextId, i32 bitmap_id);
     void vsync(Optional<u64> display_id, MonotonicTime frame_time);
     void gpu_work_finished(u64 token);

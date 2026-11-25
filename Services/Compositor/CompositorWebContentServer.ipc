@@ -34,8 +34,8 @@ endpoint CompositorWebContentServer
     stop_animated_image(u64 frame_id) =|
     animated_image_state_for_testing(u64 frame_id) => (bool is_animating, u32 frame_index, u32 shown_frame_index, u32 loops_completed)
 
-    set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id) =|
-    stop_presenting_to_client(Web::CompositorContextId context_id) =|
+    [RustReceiver] set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id) =|
+    [RustReceiver] stop_presenting_to_client(Web::CompositorContextId context_id) =|
     destroy_context(Web::CompositorContextId context_id) =|
 
     // A font names its typeface by the id the typeface was registered under, until the typeface is unregistered.
@@ -111,10 +111,10 @@ endpoint CompositorWebContentServer
     [RustReceiver] take_input_trace_for_testing(Web::CompositorContextId context_id) => (Vector<Web::InputTraceRecord> records)
 
     [RustReceiver] take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
-    viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
-    request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
-    hurry_rendering_opportunity(Web::CompositorContextId context_id) =|
-    [RustSender] present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
+    [RustReceiver] viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
+    [RustReceiver] request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
+    [RustReceiver] hurry_rendering_opportunity(Web::CompositorContextId context_id) =|
+    [RustReceiver, RustSender] present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
     request_screenshot(Web::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) =|
     // Has the processes that own the context's descendants in other processes paint them, and answers with
     // remote_descendants_prepared_for_screenshot() once the compositor has their frames.

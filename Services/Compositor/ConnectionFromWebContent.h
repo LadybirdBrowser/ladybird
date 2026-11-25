@@ -55,8 +55,6 @@ private:
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void release_video_frame_hold(Media::VideoSinkHandle, u64 generation) override;
     virtual void bring_video_sink_up_to_date(Media::VideoSinkHandle, u64 token) override;
-    virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
-    virtual void stop_presenting_to_client(Web::CompositorContextId) override;
     virtual void destroy_context(Web::CompositorContextId) override;
     virtual void register_typeface(Compositing::TypefaceRegistration) override;
     virtual void unregister_typeface(u64 typeface_id) override;
@@ -71,11 +69,7 @@ private:
     virtual void stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription>, Vector<Compositing::ImageFrameResourceId>, Gfx::ShareableBitmap target_bitmap) override;
 
     virtual void synchronize_for_testing() override { }
-    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
-    virtual void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second) override;
-    virtual void hurry_rendering_opportunity(Web::CompositorContextId) override;
-    virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::CompositorContextId, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) override;
     virtual void prepare_remote_descendants_for_screenshot(Web::CompositorContextId, u64 request_id) override;
     virtual void did_paint_contexts_for_screenshot(u64 preparation_id) override;
