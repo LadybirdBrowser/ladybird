@@ -6,37 +6,18 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
-#include <AK/Vector.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/PluginArray.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pluginarray
-class PluginArray : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(PluginArray, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(PluginArray);
+class PluginArray final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(PluginArray, plugin_array)
 
 public:
     [[nodiscard]] static GC::Ref<PluginArray> create(Window&);
-
-    virtual ~PluginArray() override;
-
-    void refresh() const;
-    size_t length() const;
-    GC::Ptr<Plugin> item(u32 index) const;
-    GC::Ptr<Plugin> named_item(Utf16FlyString const& name) const;
-
-private:
-    PluginArray(Window&);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ref<Window> m_window;
-
-    // ^Bindings::Wrappable
-    virtual Vector<Utf16FlyString> supported_property_names() const override;
 };
 
 }

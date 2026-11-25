@@ -100,6 +100,10 @@ pub(crate) mod message_event;
 #[cfg(not(test))]
 pub(crate) mod message_port;
 #[cfg(not(test))]
+pub(crate) mod mime_type;
+#[cfg(not(test))]
+pub(crate) mod mime_type_array;
+#[cfg(not(test))]
 pub(crate) mod navigable;
 #[cfg(not(test))]
 pub(crate) mod navigator;
@@ -115,6 +119,10 @@ pub(crate) mod page_swap_event;
 pub(crate) mod page_transition_event;
 #[cfg(not(test))]
 pub(crate) mod path2d;
+#[cfg(not(test))]
+pub(crate) mod plugin;
+#[cfg(not(test))]
+pub(crate) mod plugin_array;
 #[cfg(not(test))]
 pub(crate) mod pop_state_event;
 #[cfg(not(test))]

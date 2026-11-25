@@ -12,13 +12,17 @@ use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, FunctionObject, Gc, Object, Realm, Trace, Vm};
+use libjs_rust::api::{
+    EmbedderCell, EmbedderClass, EmbedderValue, FunctionObject, Gc, GcRefCell, Object, Realm, Trace, Vm,
+};
 
 use crate::bindings::interface::Ref;
 
 use crate::bindings::services::web_bindings_wrapper_world;
 use crate::event_timing::event_timing::WindowEventTimingStateRef;
 use crate::gamepad::navigator_gamepad::NavigatorGamepadRef;
+use crate::html::mime_type::MimeType;
+use crate::html::plugin::Plugin;
 use crate::performance_timeline::performance_timeline::PerformanceTimelineRef;
 use crate::web_assembly::tag::Tag;
 
@@ -58,6 +62,10 @@ pub(crate) struct RealmData {
     pub(crate) event_timing_state: Cell<Option<WindowEventTimingStateRef>>,
     /// https://w3c.github.io/gamepad/#internal-slots
     pub(crate) navigator_gamepad: Cell<Option<NavigatorGamepadRef>>,
+    /// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
+    pub(crate) pdf_viewer_plugin_objects: GcRefCell<Vec<Ref<Plugin>>>,
+    /// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
+    pub(crate) pdf_viewer_mime_type_objects: GcRefCell<Vec<Ref<MimeType>>>,
 }
 
 static REALM_DATA_CLASS: EmbedderClass<RealmData> = EmbedderClass::new("RealmData");

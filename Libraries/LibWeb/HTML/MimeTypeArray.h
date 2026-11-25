@@ -6,36 +6,18 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
-#include <AK/Vector.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/MimeTypeArray.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#mimetypearray
-class MimeTypeArray : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(MimeTypeArray, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(MimeTypeArray);
+class MimeTypeArray final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(MimeTypeArray, mime_type_array)
 
 public:
     [[nodiscard]] static GC::Ref<MimeTypeArray> create(Window&);
-
-    virtual ~MimeTypeArray() override;
-
-    size_t length() const;
-    GC::Ptr<MimeType> item(u32 index) const;
-    GC::Ptr<MimeType> named_item(Utf16FlyString const& name) const;
-
-private:
-    MimeTypeArray(Window&);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ref<Window> m_window;
-
-    // ^Bindings::Wrappable
-    virtual Vector<Utf16FlyString> supported_property_names() const override;
 };
 
 }

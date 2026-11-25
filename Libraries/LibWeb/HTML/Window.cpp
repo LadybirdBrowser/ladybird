@@ -375,8 +375,6 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_animation_frame_callback_driver);
     visitor.visit(m_idle_request_callbacks);
     visitor.visit(m_runnable_idle_callbacks);
-    visitor.visit(m_pdf_viewer_plugin_objects);
-    visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_close_watcher_manager);
     visitor.visit(m_cookie_store);
     visitor.visit(m_speech_synthesis);
@@ -1116,51 +1114,6 @@ GC::Ptr<LocalNavigable> Window::navigable() const
 {
     // A Window's navigable is the navigable whose active document is the Window's associated Document's, or null if there is no such navigable.
     return m_associated_document->navigable();
-}
-
-// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
-ReadonlySpan<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
-{
-    // Each Window object has a PDF viewer plugin objects list. If the user agent's PDF viewer supported is false, then it is the empty list.
-    // Otherwise, it is a list containing five Plugin objects, whose names are, respectively:
-    // 0.   "PDF Viewer"
-    // 1.   "Chrome PDF Viewer"
-    // 2.   "Chromium PDF Viewer"
-    // 3.   "Microsoft Edge PDF Viewer"
-    // 4.   "WebKit built-in PDF"
-    // The values of the above list form the PDF viewer plugin names list. https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-names
-    if (!page().pdf_viewer_supported())
-        return {};
-
-    if (m_pdf_viewer_plugin_objects.is_empty()) {
-        // FIXME: Propagate errors.
-        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Chrome PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Chromium PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Microsoft Edge PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "WebKit built-in PDF"_string));
-    }
-
-    return m_pdf_viewer_plugin_objects;
-}
-
-// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
-ReadonlySpan<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
-{
-    // Each Window object has a PDF viewer mime type objects list. If the user agent's PDF viewer supported is false, then it is the empty list.
-    // Otherwise, it is a list containing two MimeType objects, whose types are, respectively:
-    // 0.   "application/pdf"
-    // 1.   "text/pdf"
-    // The values of the above list form the PDF viewer mime types list. https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
-    if (!page().pdf_viewer_supported())
-        return {};
-
-    if (m_pdf_viewer_mime_type_objects.is_empty()) {
-        m_pdf_viewer_mime_type_objects.append(MimeType::create(*this, "application/pdf"_string));
-        m_pdf_viewer_mime_type_objects.append(MimeType::create(*this, "text/pdf"_string));
-    }
-
-    return m_pdf_viewer_mime_type_objects;
 }
 
 static bool s_test_mode = false;
