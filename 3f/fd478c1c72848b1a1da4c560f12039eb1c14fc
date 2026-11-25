@@ -1,0 +1,10 @@
+Under “background-clip: text”, Ladybird clips the background to the
+glyphs and the decoration lines of the text, both painted opaque. Blink
+does the same: Its TextDecorationPainter::LineColorForPhase() paints the
+lines black in PaintPhase::kTextClip, behind the feature flag
+BackgroundClipTextDecoration, as its TextPainter does the glyphs. And
+WebKit’s TextBoxPainter paints the decorations in every phase but
+PaintPhase::Selection, so its TextClip phase takes them in too. Gecko
+leaves them out: Chrome 158 and WebKit 26.5 show the background through
+the lines of WPT’s clip-text-text-decorations.html, while Firefox 151
+shows it through the glyphs alone.
