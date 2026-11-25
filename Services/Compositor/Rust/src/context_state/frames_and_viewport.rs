@@ -289,6 +289,7 @@ impl ContextState {
     }
 
     fn frame_inputs_as_presented_now(&mut self, now: MonotonicTime) -> FrameInputs {
+        assert!(!self.sticky_offsets_are_stale);
         let stretched_scroll_state_snapshot = self.scroll_state_snapshot_stretched_by_elastic_overscrolls();
         let presented_scroll_state_snapshot =
             stretched_scroll_state_snapshot.unwrap_or_else(|| self.scroll_state_snapshot.clone());
@@ -491,13 +492,11 @@ impl ContextState {
             {
                 self.scroll_offsets_differ_from_last_frame = true;
             }
-            let kept_scroll_offset = self
-                .async_scroll_tree
-                .set_scroll_offset_leaving_sticky_offsets_unresolved(
-                    node,
-                    known_scroll_offset,
-                    &mut self.scroll_state_snapshot,
-                );
+            let kept_scroll_offset = self.async_scroll_tree.set_scroll_offset_of_node(
+                node,
+                known_scroll_offset,
+                &mut self.scroll_state_snapshot,
+            );
             kept_any_scroll_offset = true;
             if node.is_viewport {
                 viewport_scroll_offset = Some(kept_scroll_offset);
@@ -509,15 +508,24 @@ impl ContextState {
         }
         // Resolving sticky offsets walks the whole visual context tree, so it runs once, after every offset is kept.
         if kept_any_scroll_offset {
-            resolve_sticky_offsets(
-                self.scene.current_visual_context_tree(),
-                &mut self.scroll_state_snapshot,
-            );
+            self.sticky_offsets_are_stale = true;
+            self.resolve_stale_sticky_offsets();
         }
         for (stable_node_id, scroll_offset) in clamped_scroll_offsets {
             self.record_scroll_offset_report(stable_node_id, scroll_offset);
         }
         viewport_scroll_offset
+    }
+
+    pub(super) fn resolve_stale_sticky_offsets(&mut self) {
+        if !self.sticky_offsets_are_stale {
+            return;
+        }
+        resolve_sticky_offsets(
+            self.scene.current_visual_context_tree(),
+            &mut self.scroll_state_snapshot,
+        );
+        self.sticky_offsets_are_stale = false;
     }
 
     pub(super) fn record_scroll_offset_report(

@@ -304,6 +304,7 @@ pub struct ContextState {
     // The boxes the last frame brought, whose offsets came from that frame's snapshot.
     scroll_nodes_seeded_by_last_frame: HashSet<AsyncScrollNodeStableID>,
     scroll_offsets_differ_from_last_frame: bool,
+    sticky_offsets_are_stale: bool,
     // The document whose visual viewport this context zoomed or panned, which it presents as it left it from then on.
     visual_viewport_document_id: Option<UniqueNodeId>,
     pinch_gesture_was_let_through: bool,
@@ -407,6 +408,7 @@ impl ContextState {
             context_user_input_scroll_count: Default::default(),
             scroll_nodes_seeded_by_last_frame: Default::default(),
             scroll_offsets_differ_from_last_frame: Default::default(),
+            sticky_offsets_are_stale: Default::default(),
             visual_viewport_document_id: Default::default(),
             pinch_gesture_was_let_through: Default::default(),
             keyboard_scroll_controller: Default::default(),

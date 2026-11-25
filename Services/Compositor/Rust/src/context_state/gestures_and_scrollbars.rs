@@ -437,9 +437,10 @@ impl ContextState {
         let new_scroll_offset = self.async_scroll_tree.set_scroll_offset(
             scroll_node_index,
             dragged_to.scroll_offset,
-            self.scene.current_visual_context_tree(),
             &mut self.scroll_state_snapshot,
         );
+        self.sticky_offsets_are_stale = true;
+        self.resolve_stale_sticky_offsets();
         self.note_user_input_scrolled(node.stable_node_id);
         assert!(new_scroll_offset.is_some());
         self.async_scroll_tree.mark_cached_viewport_rects_stale();
@@ -454,6 +455,7 @@ impl ContextState {
     }
 
     pub(super) fn prepare_wheel_hit_test_targets(&mut self) {
+        assert!(!self.sticky_offsets_are_stale);
         if self.async_scroll_tree.cached_viewport_rects_are_stale() && self.scene.display_list().is_some() {
             self.rebuild_wheel_hit_test_targets();
         }
