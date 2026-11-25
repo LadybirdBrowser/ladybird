@@ -514,8 +514,11 @@ def rust_members(interface: Interface) -> RustMembers:
     if named_getter is None and (named_setter is not None or named_deleter is not None):
         fail("it has a named property setter or deleter and no named property getter")
     if named_getter is not None:
-        if getter is not None:
-            fail("it supports both indexed and named properties, which the Rust bindings do not handle yet")
+        if setter is not None:
+            fail(
+                "it has an indexed property setter and supports named properties, which the Rust bindings do not "
+                "handle yet"
+            )
         if interface.parent_name:
             fail("it supports named properties and inherits from another interface")
         if named_getter.operation.name and not named_getter.operation.return_type.nullable:

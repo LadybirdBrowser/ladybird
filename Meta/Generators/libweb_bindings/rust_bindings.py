@@ -237,15 +237,33 @@ public:
         )
 
 
+def write_cpp_item_value(out: TextIO, interface: Interface, indexed_interface: Interface) -> None:
+    """The legacy platform object function of a wrapper that reads its indexed properties through the entry point of
+    the Rust bindings of the interface that defines them."""
+    out.write(
+        f"""
+static Optional<JS::Value> {wrapper_name(interface)}_item_value(JS::HostObject const& wrapper, WrapperWorld&, JS::Realm& realm, size_t index)
+{{
+    JSValue value {{}};
+    if (!{item_value_entry_point(indexed_interface)}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(const_cast<JS::HostObject*>(&wrapper)), index, &value))
+        return {{}};
+    return JS::HostABI::value_from_abi(value);
+}}
+"""
+    )
+
+
 def write_cpp_named_properties(
     out: TextIO,
     includes: GeneratedIncludes,
     interface: Interface,
     parent_host_class: str,
     named_properties: RustNamedProperties,
+    indexed_interface: Optional[Interface],
 ) -> None:
-    """The legacy platform object functions of a wrapper of an interface that supports named properties, which call the
-    entry points of the Rust bindings, and the host class of the wrappers."""
+    """The legacy platform object functions of a wrapper of an interface that supports named properties, and indexed
+    properties if indexed_interface defines them, which call the entry points of the Rust bindings, and the host class
+    of the wrappers."""
     includes.add("AK/Utf16FlyString.h")
     includes.add("LibWeb/Bindings/PlatformObject.h")
     includes.add("LibWeb/WebIDL/ExceptionOr.h")
@@ -253,9 +271,10 @@ def write_cpp_named_properties(
     legacy_info = f"{name}_legacy_platform_object_info"
     setter = named_properties.setter
     deleter = named_properties.deleter
-    info_fields = [
-        "    .supports_named_properties = true,\n",
-    ]
+    info_fields = []
+    if indexed_interface is not None:
+        info_fields.append("    .supports_indexed_properties = true,\n")
+    info_fields.append("    .supports_named_properties = true,\n")
     if setter is not None:
         info_fields.append("    .has_named_property_setter = true,\n")
     if deleter is not None:
@@ -268,6 +287,8 @@ def write_cpp_named_properties(
         info_fields.append("    .named_property_setter_has_identifier = true,\n")
     if deleter is not None and deleter.operation.name:
         info_fields.append("    .named_property_deleter_has_identifier = true,\n")
+    if indexed_interface is not None:
+        info_fields.append(f"    .item_value = {name}_item_value,\n")
     info_fields.append(f"    .named_item_value = {name}_named_item_value,\n")
     setter_hooks_and_entry_points = named_property_setter_hooks_and_entry_points(interface, setter)
     info_fields.extend(f"    .{hook} = {name}_{hook},\n" for hook, _ in setter_hooks_and_entry_points)
@@ -275,10 +296,11 @@ def write_cpp_named_properties(
         info_fields.append(f"    .delete_value = {name}_delete_value,\n")
     info_fields.append(f"    .supported_property_names = {name}_supported_property_names,\n")
 
+    out.write("\n}\n")
+    if indexed_interface is not None:
+        write_cpp_item_value(out, interface, indexed_interface)
     out.write(
         f"""
-}}
-
 static JS::Value {name}_named_item_value(JS::HostObject const& wrapper, WrapperWorld&, JS::Realm& realm, Utf16FlyString const& name)
 {{
     JSValue value {{}};
@@ -321,16 +343,17 @@ static WebIDL::ExceptionOr<NamedPropertyDeletionResult> {name}_delete_value(JS::
 }}
 """
         )
+    hooks = "legacy_platform_object_hooks" if indexed_interface is None else "indexed_legacy_platform_object_hooks"
     out.write(
         f"""
 static constexpr LegacyPlatformObjectInfo {legacy_info} {{
 {"".join(info_fields)}}};
 
-// The wrappers are legacy platform objects, whose named properties the Rust bindings read, set and delete: their
-// implementation is a cell in their host data, not an implementation object in their wrappable slot, so their
-// LegacyPlatformObjectInfo gives their supported property names as well.
+// The wrappers are legacy platform objects, whose indexed properties, if any, the Rust bindings read, and whose named
+// properties they read, set and delete: their implementation is a cell in their host data, not an implementation
+// object in their wrappable slot, so their LegacyPlatformObjectInfo gives their supported property names as well.
 constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
-    &{parent_host_class}, &legacy_platform_object_hooks, &{legacy_info},
+    &{parent_host_class}, &{hooks}, &{legacy_info},
     platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
 """
     )
@@ -464,7 +487,7 @@ constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_cla
 """
             )
     elif named_properties is not None:
-        write_cpp_named_properties(out, includes, interface, parent_host_class, named_properties)
+        write_cpp_named_properties(out, includes, interface, parent_host_class, named_properties, indexed_interface)
     elif not supports_indexed_properties:
         out.write(
             f"""
@@ -499,18 +522,10 @@ constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_cla
 
 """
                 setter_info += f"    .{hook} = {function},\n"
+        out.write("\n}\n")
+        write_cpp_item_value(out, interface, indexed_interface)
         out.write(
             f"""
-}}
-
-static Optional<JS::Value> {wrapper_name(interface)}_item_value(JS::HostObject const& wrapper, WrapperWorld&, JS::Realm& realm, size_t index)
-{{
-    JSValue value {{}};
-    if (!{item_value_entry_point(indexed_interface)}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(const_cast<JS::HostObject*>(&wrapper)), index, &value))
-        return {{}};
-    return JS::HostABI::value_from_abi(value);
-}}
-
 {setter_functions}static constexpr LegacyPlatformObjectInfo {legacy_info} {{
     .supports_indexed_properties = true,
 {has_setter_info}    .item_value = {wrapper_name(interface)}_item_value,
