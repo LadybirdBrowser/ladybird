@@ -28,6 +28,12 @@
             println(`A previously started AudioContext resumes after autoplay is blocked: ${started && resumed}`);
             await startedContext.close();
 
+            const closing = new AudioContext();
+            let resumeError;
+            closing.resume().catch(error => (resumeError = error.name));
+            await closing.close();
+            println(`Closing a blocked context rejects its pending resume: ${resumeError}`);
+
             const context = new AudioContext();
             let resumeSettled = false;
             const blockedResume = context.resume().then(() => (resumeSettled = true));
