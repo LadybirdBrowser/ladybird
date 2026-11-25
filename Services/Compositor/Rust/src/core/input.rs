@@ -61,7 +61,7 @@ impl CompositorCore {
         }
 
         // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
-        self.publish_pending_async_scroll_updates(context_id, context);
+        self.publish_pending_async_scroll_updates(context);
         context.borrow().dispatch_key_event_to_web_content(&event);
         // The compositor forwarded the key event to WebContent, after performing its default action by scrolling if it says so.
         self.host.post_to_presentation(
@@ -585,7 +585,7 @@ impl CompositorCore {
             .set_pinch_gesture_was_let_through(event.async_zoom_performed_default_action);
 
         // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
-        self.publish_pending_async_scroll_updates(context_id, context);
+        self.publish_pending_async_scroll_updates(context);
         context.borrow().dispatch_pinch_event_to_web_content(&event);
         self.host.post_to_presentation(
             presentation_id,

@@ -199,10 +199,12 @@ impl ContextState {
     }
 
     pub fn publish_pending_async_scroll_updates(&mut self) {
-        if !self.has_pending_async_scroll_updates() {
+        let user_scroll_gesture_state = self.user_scroll_gesture_state();
+        if !self.async_scroll_update_outbox.has_updates(&user_scroll_gesture_state) {
             return;
         }
-        let updates = self.take_pending_async_scroll_updates();
+        let mut updates = self.async_scroll_update_outbox.take_updates(user_scroll_gesture_state);
+        updates.document_id = self.async_scroll_tree.document_id();
         self.host.post_to_web_content(
             self.web_content_client_id,
             compositor_web_content_client::messages::AsyncScrollUpdates {

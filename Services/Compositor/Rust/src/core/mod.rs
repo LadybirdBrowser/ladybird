@@ -969,7 +969,7 @@ impl CompositorCore {
 
     // Hands the context's async scroll updates to its WebContent process as soon as they exist,
     // so a rendering update reads them locally instead of asking for them over a synchronous call.
-    pub(super) fn publish_pending_async_scroll_updates(&self, _: CompositorContextId, context: &RefCell<ContextState>) {
+    pub(super) fn publish_pending_async_scroll_updates(&self, context: &RefCell<ContextState>) {
         context.borrow_mut().publish_pending_async_scroll_updates();
     }
 
@@ -1034,7 +1034,7 @@ impl CompositorCore {
         }
 
         if presents_on_display {
-            self.publish_pending_async_scroll_updates(context_id, context);
+            self.publish_pending_async_scroll_updates(context);
             let needs_frame = context.borrow_mut().visual_animations_need_frame(now);
             if needs_frame {
                 context.borrow_mut().advance_visual_animations(frame_time);
@@ -1082,7 +1082,7 @@ impl CompositorCore {
         if let Some(frame) = result.frame_to_present {
             self.request_present(context_id, &frame);
         }
-        self.publish_pending_async_scroll_updates(context_id, context);
+        self.publish_pending_async_scroll_updates(context);
         if result.should_request_rendering_update {
             context.borrow_mut().request_rendering_update();
         }
