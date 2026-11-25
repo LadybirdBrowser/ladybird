@@ -23,7 +23,7 @@ use libcompositing_rust::ipc_types::{
     compositor_web_content_server,
 };
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::{IntRect, IntSize};
+use libgfx_rust::IntSize;
 use libipc_rust::cpp_connection::RawMessage;
 use std::rc::Rc;
 
@@ -84,15 +84,6 @@ pub extern "C" fn compositor_core_destroy_context(core: &mut CompositorCore, con
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_context_can_be_nested_in(
-    core: &CompositorCore,
-    context_id: u64,
-    parent_context_id: u64,
-) -> bool {
-    core.context_can_be_nested_in(CompositorContextId(context_id), CompositorContextId(parent_context_id))
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_context_is_effectively_visible(core: &CompositorCore, context_id: u64) -> bool {
     core.context_is_effectively_visible(CompositorContextId(context_id))
 }
@@ -123,48 +114,6 @@ pub extern "C" fn compositor_core_bound_presentation(
     };
     *presentation_id = bound_presentation.0;
     true
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_parent_context(
-    core: &CompositorCore,
-    context_id: u64,
-    has_parent_context: bool,
-    parent_context_id: u64,
-    now_nanoseconds: i64,
-) {
-    core.set_parent_context(
-        CompositorContextId(context_id),
-        has_parent_context.then_some(CompositorContextId(parent_context_id)),
-        time(now_nanoseconds),
-    );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_stop_presenting_to_client(
-    core: &CompositorCore,
-    context_id: u64,
-    now_nanoseconds: i64,
-) {
-    core.stop_presenting_to_client(CompositorContextId(context_id), time(now_nanoseconds));
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_viewport_size_updated(
-    core: &CompositorCore,
-    context_id: u64,
-    viewport_size: IntSize,
-    device_pixel_ratio: f64,
-    window_resize_in_progress: bool,
-    now_nanoseconds: i64,
-) {
-    core.viewport_size_updated(
-        CompositorContextId(context_id),
-        viewport_size,
-        device_pixel_ratio,
-        window_resize_in_progress,
-        time(now_nanoseconds),
-    );
 }
 
 /// What a presentation makes of the frames and the scrolling of the contexts it shows.
@@ -208,45 +157,12 @@ pub extern "C" fn compositor_core_unregister_presentation(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_request_rendering_opportunity(
-    core: &CompositorCore,
-    context_id: u64,
-    maximum_frames_per_second: f64,
-    now_nanoseconds: i64,
-) {
-    core.request_rendering_opportunity(
-        CompositorContextId(context_id),
-        maximum_frames_per_second,
-        time(now_nanoseconds),
-    );
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_request_clock_tick(
     core: &CompositorCore,
     context_id: u64,
     maximum_frames_per_second: f64,
 ) {
     core.request_clock_tick(CompositorContextId(context_id), maximum_frames_per_second);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_hurry_rendering_opportunity(
-    core: &CompositorCore,
-    context_id: u64,
-    now_nanoseconds: i64,
-) {
-    core.hurry_rendering_opportunity(CompositorContextId(context_id), time(now_nanoseconds));
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_present_frame_of_page(
-    core: &CompositorCore,
-    context_id: u64,
-    viewport_rect: IntRect,
-    now_nanoseconds: i64,
-) {
-    core.present_frame_of_page(CompositorContextId(context_id), viewport_rect, time(now_nanoseconds));
 }
 
 #[unsafe(no_mangle)]

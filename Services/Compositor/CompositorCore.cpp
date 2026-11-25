@@ -113,11 +113,6 @@ CompositorCore::ContextOwnerCheckResult CompositorCore::check_context_owner(Web:
     return RustFFI::compositor_core_check_context_owner(m_core, context_id.value(), client.value());
 }
 
-bool CompositorCore::context_can_be_nested_in(Web::CompositorContextId context_id, Web::CompositorContextId parent_context_id) const
-{
-    return RustFFI::compositor_core_context_can_be_nested_in(m_core, context_id.value(), parent_context_id.value());
-}
-
 bool CompositorCore::context_is_effectively_visible(Web::CompositorContextId context_id) const
 {
     return RustFFI::compositor_core_context_is_effectively_visible(m_core, context_id.value());
@@ -139,24 +134,9 @@ Optional<PresentationId> CompositorCore::bound_presentation(Web::CompositorConte
     return PresentationId { presentation_id };
 }
 
-void CompositorCore::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)
-{
-    RustFFI::compositor_core_set_parent_context(m_core, context_id.value(), parent_context_id.has_value(), parent_context_id.value_or({}).value(), now().nanoseconds());
-}
-
-void CompositorCore::stop_presenting_to_client(Web::CompositorContextId context_id)
-{
-    RustFFI::compositor_core_stop_presenting_to_client(m_core, context_id.value(), now().nanoseconds());
-}
-
 bool CompositorCore::set_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     return RustFFI::compositor_core_set_visibility(m_core, context_id.value(), visibility == Compositing::ContextVisibility::Visible, now().nanoseconds());
-}
-
-void CompositorCore::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
-{
-    RustFFI::compositor_core_viewport_size_updated(m_core, context_id.value(), viewport_size, device_pixel_ratio, window_resize_in_progress == Compositing::WindowResizingInProgress::Yes, now().nanoseconds());
 }
 
 void CompositorCore::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays const& overlays)
@@ -198,24 +178,9 @@ void CompositorCore::unregister_presentation(PresentationId presentation_id)
     RustFFI::compositor_core_unregister_presentation(m_core, presentation_id.value(), now().nanoseconds());
 }
 
-void CompositorCore::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)
-{
-    RustFFI::compositor_core_request_rendering_opportunity(m_core, context_id.value(), maximum_frames_per_second, now().nanoseconds());
-}
-
 void CompositorCore::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     RustFFI::compositor_core_request_clock_tick(m_core, context_id.value(), maximum_frames_per_second);
-}
-
-void CompositorCore::hurry_rendering_opportunity(Web::CompositorContextId context_id)
-{
-    RustFFI::compositor_core_hurry_rendering_opportunity(m_core, context_id.value(), now().nanoseconds());
-}
-
-void CompositorCore::present_frame_of_page(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)
-{
-    RustFFI::compositor_core_present_frame_of_page(m_core, context_id.value(), viewport_rect, now().nanoseconds());
 }
 
 void CompositorCore::presented_store_released(Web::CompositorContextId context_id, i32 bitmap_id)

@@ -112,9 +112,6 @@ public:
     void create_context(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::CompositorContextId);
 
-    bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
-    void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
-    void stop_presenting_to_client(Web::CompositorContextId);
     [[nodiscard]] bool describe_display_list_fonts(Web::CompositorContextId, ReadonlySpan<Compositing::DisplayListFontDescription>, Compositing::RegisteredTypefaces const&);
     // The fonts and image frames that the display list of the next rasterization under the token draws, and the bitmap
     // it is rasterized into. Answers false for a token in use, for more rasterizations than a client can have
@@ -139,14 +136,8 @@ public:
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
-    void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
-    void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays);
     void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
-    void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect);
-    // Delivers the rendering opportunity a context requested now rather than at the next display tick: a
-    // viewport change that arrived while an animation's opportunity was outstanding starts its update at once.
-    void hurry_rendering_opportunity(Web::CompositorContextId);
     // Asks for the next display tick the context's maximum rate lets through, for its render clock.
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     // Paints once the video sinks that the screenshot draws have frames following their clocks, and tells the client.

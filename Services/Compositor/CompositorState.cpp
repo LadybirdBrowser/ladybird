@@ -309,24 +309,6 @@ void CompositorState::destroy_context(Web::CompositorContextId context_id)
     update_unpainted_video_update_scheduling();
 }
 
-bool CompositorState::context_can_be_nested_in(Web::CompositorContextId context_id, Web::CompositorContextId parent_context_id) const
-{
-    VERIFY(presented_context_if_present(context_id));
-    return m_core.context_can_be_nested_in(context_id, parent_context_id);
-}
-
-void CompositorState::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)
-{
-    VERIFY(presented_context_if_present(context_id));
-    m_core.set_parent_context(context_id, parent_context_id);
-}
-
-void CompositorState::stop_presenting_to_client(Web::CompositorContextId context_id)
-{
-    VERIFY(presented_context_if_present(context_id));
-    m_core.stop_presenting_to_client(context_id);
-}
-
 bool CompositorState::describe_display_list_fonts(Web::CompositorContextId context_id, ReadonlySpan<Compositing::DisplayListFontDescription> fonts, Compositing::RegisteredTypefaces const& registered_typefaces)
 {
     return presented_context(context_id).raster_targets.fonts().add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces);
@@ -710,13 +692,6 @@ bool CompositorState::context_video_sinks_require_updates(Web::CompositorContext
     return false;
 }
 
-void CompositorState::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
-}
-
 Optional<OverlayLabel> CompositorState::shape_overlay_label(Web::CompositorContextId context_id, Optional<StringView> font_family, float font_size_in_points, double device_pixel_ratio, StringView text)
 {
     auto* context = presented_context_if_present(context_id);
@@ -742,30 +717,11 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
         schedule_animated_image_update({});
 }
 
-void CompositorState::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)
-{
-    VERIFY(presented_context_if_present(context_id));
-    m_core.request_rendering_opportunity(context_id, maximum_frames_per_second);
-}
-
 void CompositorState::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     if (!presented_context_if_present(context_id))
         return;
     m_core.request_clock_tick(context_id, maximum_frames_per_second);
-}
-
-void CompositorState::hurry_rendering_opportunity(Web::CompositorContextId context_id)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.hurry_rendering_opportunity(context_id);
-}
-
-void CompositorState::present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)
-{
-    VERIFY(presented_context_if_present(context_id));
-    m_core.present_frame_of_page(context_id, viewport_rect);
 }
 
 // How long a screenshot waits for the video sinks it draws to catch up to their clocks, after which it shows the frames
