@@ -140,9 +140,8 @@ pub struct Argon2Inputs<'a> {
     pub tag_length: u32,
 }
 
-pub fn fill_with_random(bytes: &mut [u8]) {
-    // NB: As with AK's fill_with_random(), a failure to produce random bytes is not something to recover from.
-    openssl::fill_with_random(bytes).expect("OpenSSL produces random bytes");
+pub fn fill_with_random(bytes: &mut [u8]) -> Result<(), CryptoError> {
+    openssl::fill_with_random(bytes)
 }
 
 impl ShaHashKind {
