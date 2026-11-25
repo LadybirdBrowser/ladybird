@@ -1,0 +1,6 @@
+Ladybird’s Float32List, Int32List, and Uint32List typedefs now take a
+view on shared memory, as the WebGL spec’s IDL declares them. Blink’s
+webgl_rendering_context_base.idl, Gecko’s WebGLRenderingContext.webidl,
+and WebKit’s WebGLRenderingContextBase.idl (as AllowSharedFloat32List
+and the like) all declare them with [AllowShared] too. The test’s output
+is the same in Chrome 158, Firefox 151, and WebKit 26.5, line for line.
