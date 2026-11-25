@@ -30,7 +30,7 @@ with a dx in nested elements, glyphs too: 10+40 50+40 130+40 170+40; length 160;
 with a dx that takes a character back past the first: 100+20 120+20; length 40; box 100,14 40x20
 with a dx that takes a character back past the first, glyphs too: 220+40 100+40; length 80; box 100,14 160x20
 with a dx that takes a character back onto the one before, glyphs too: 132+64 196+64 100+64; length 192; box 100,14 160x20
-on a <tspan>: 10+20 30+20 50+20 70+20 90+20 110+20; length 120; box 10,14 120x20
+on a <tspan>: 10+20 30+20 50+20 130+20 210+20 230+20; length 120; box 10,14 240x20
 with text on a path: 10+20 70+20 0+20 20+20; length 80; box 10,14 130x40
 textLength set: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
 lengthAdjust set: 10+50 60+50 110+50 160+50; length 200; box 10,14 200x20

@@ -276,13 +276,11 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
     auto geometry = svg_geometry_facts(dom_node);
 
     SVG::SVGTextPositioningElement::ParsedTextPositioning text_positioning;
-    if (auto const* text_positioning_element = as_if<SVG::SVGTextPositioningElement>(dom_node))
-        text_positioning = text_positioning_element->parsed_text_positioning();
-
-    // NB: Only the text length of a <text> adjusts its text. One on a <tspan> or a <textPath> is left alone.
     SVG::SVGTextContentElement::ParsedTextLength text_length;
-    if (auto const* text_element = as_if<SVG::SVGTextElement>(dom_node))
-        text_length = text_element->parsed_text_length();
+    if (auto const* text_positioning_element = as_if<SVG::SVGTextPositioningElement>(dom_node)) {
+        text_positioning = text_positioning_element->parsed_text_positioning();
+        text_length = text_positioning_element->parsed_text_length();
+    }
 
     CSS::StyleAtomID reference_fragment;
     SVG::NumberPercentage start_offset = SVG::NumberPercentage::create_number(0);

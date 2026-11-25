@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    svg { font: 20px Ahem; }
+</style>
+<svg width="900" height="100"></svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+        const check = (name, markup, expected) => {
+            svg.innerHTML = markup;
+            const text = svg.querySelector("text");
+            const actual = Array.from({ length: text.getNumberOfChars() }, (_, index) => {
+                const cell = text.getExtentOfChar(index);
+                return [cell.x, cell.width];
+            });
+            const matches = actual.length === expected.length && actual.every((cell, index) =>
+                cell.every((value, axis) => Math.abs(value - expected[index][axis]) < 0.04));
+            println(matches ? `PASS ${name}` : `FAIL ${name}: ${JSON.stringify(actual)}`);
+        };
+        const cells = (positions, width = 20) => positions.map(x => [x, width]);
+        const wrap = content => `<text x="10" y="30">${content}</text>`;
+
+        check("expanded span", wrap('AB<tspan textLength="120">CDEF</tspan>GH'),
+            cells([10, 30, 50, 250 / 3, 350 / 3, 150, 550 / 3, 610 / 3]));
+        check("shrunk span", wrap('AB<tspan textLength="40">CDEF</tspan>GH'),
+            cells([10, 30, 50, 170 / 3, 190 / 3, 70, 230 / 3, 290 / 3]));
+        check("scaled span", wrap('AB<tspan textLength="120" lengthAdjust="spacingAndGlyphs">CDEF</tspan>GH'),
+            [...cells([10, 30]), ...cells([50, 80, 110, 140], 30), ...cells([170, 190])]);
+        check("absolute position", wrap('AB<tspan x="200" textLength="120">CDEF</tspan>GH'),
+            cells([10, 30, 200, 700 / 3, 800 / 3, 300, 1000 / 3, 1060 / 3]));
+        check("scaled absolute position", wrap('AB<tspan x="200" textLength="120" lengthAdjust="spacingAndGlyphs">CDEF</tspan>GH'),
+            [...cells([10, 30]), ...cells([200, 230, 260, 290], 30), ...cells([320, 340])]);
+        check("relative positions", wrap('AB<tspan dx="5" textLength="120">C<tspan dx="5">D</tspan><tspan dx="5">EF</tspan></tspan>GH'),
+            cells([10, 30, 55, 90, 125, 155, 185, 205]));
+        check("scaled relative positions", wrap('AB<tspan dx="5" textLength="120" lengthAdjust="spacingAndGlyphs">C<tspan dx="10">DEF</tspan></tspan>GH'),
+            [...cells([10, 30]), ...cells([55, 95, 365 / 3, 445 / 3], 80 / 3), ...cells([175, 195])]);
+        check("nested lengths", '<text x="10" y="30" textLength="300"><tspan textLength="100">ABC</tspan>DEF</text>',
+            cells([10, 50, 90, 170, 230, 290]));
+        check("nested lengths ending in a span", '<text x="10" y="30" textLength="300">ABC<tspan textLength="100">DEF</tspan></text>',
+            cells([10, 230 / 3, 430 / 3, 210, 250, 290]));
+        check("nested through an unadjusted element", '<text x="10" y="30" textLength="300"><tspan><tspan textLength="100">ABC</tspan>D</tspan>EF</text>',
+            cells([10, 50, 90, 170, 230, 290]));
+        check("nested glyph scaling", '<text x="10" y="30" textLength="300" lengthAdjust="spacingAndGlyphs"><tspan textLength="100" lengthAdjust="spacingAndGlyphs">AB</tspan>CD</text>',
+            [[10, 50], [60, 50], [1570 / 7, 300 / 7], [1870 / 7, 300 / 7]]);
+        check("spacing around a scaled child", '<text x="10" y="30" textLength="300"><tspan textLength="100" lengthAdjust="spacingAndGlyphs">AB</tspan>CD</text>',
+            [[10, 50], [60, 50], [190, 20], [290, 20]]);
+        check("scaling around a spaced child", '<text x="10" y="30" textLength="300" lengthAdjust="spacingAndGlyphs"><tspan textLength="100">AB</tspan>CD</text>',
+            [[10, 20], [90, 20], [250, 30], [280, 30]]);
+        check("single character", wrap('AB<tspan textLength="120">C</tspan>D'),
+            cells([10, 30, 50, 70]));
+        check("scaled single character", wrap('AB<tspan textLength="120" lengthAdjust="spacingAndGlyphs">C</tspan>D'),
+            [...cells([10, 30]), [50, 120], [170, 20]]);
+        check("resolved single character", '<text x="10" y="30" textLength="100"><tspan textLength="120">A</tspan>BC</text>',
+            cells([10, 50, 90]));
+        check("empty span", wrap('AB<tspan textLength="120"></tspan>CD'),
+            cells([10, 30, 50, 70]));
+        check("invalid span inherits adjustment", '<text x="10" y="30" textLength="140">AB<tspan textLength="-1">CD</tspan></text>',
+            cells([10, 50, 90, 130]));
+        check("middle anchor", '<text x="200" y="30" text-anchor="middle">AB<tspan textLength="100">CD</tspan>EF</text>',
+            cells([80, 100, 120, 200, 280, 300]));
+        check("text on a path remains independent", '<path id="path" d="M0 30H800"/><text><textPath href="#path">AB<tspan textLength="120">CD</tspan>EF</textPath></text>',
+            cells([0, 20, 40, 60, 80, 100]));
+
+        svg.innerHTML = wrap('AB<tspan textLength="120">CD</tspan>EF');
+        const span = svg.querySelector("tspan");
+        println(Math.abs(span.getBBox().width - 120) < 0.04 ? "PASS span bounds" : "FAIL span bounds");
+        span.setAttribute("lengthAdjust", "spacingAndGlyphs");
+        println(Math.abs(span.getExtentOfChar(0).width - 60) < 0.04 ? "PASS lengthAdjust mutation" : "FAIL lengthAdjust mutation");
+        span.textLength.baseVal.value = 80;
+        println(Math.abs(span.getExtentOfChar(0).width - 40) < 0.04 ? "PASS textLength mutation" : "FAIL textLength mutation");
+        span.removeAttribute("textLength");
+        println(Math.abs(span.getExtentOfChar(0).width - 20) < 0.04 ? "PASS textLength removal" : "FAIL textLength removal");
+
+        done();
+    });
+</script>
