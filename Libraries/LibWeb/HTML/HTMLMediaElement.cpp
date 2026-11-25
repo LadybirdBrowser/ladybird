@@ -3817,31 +3817,8 @@ bool HTMLMediaElement::is_allowed_to_play() const
 {
     // A media element is said to be allowed to play if the user agent and the system allow media playback in the
     // current context.
-    // NB: We allow playback once the document has been activated by the user, with an exception for inaudible media.
-    //     Gating on transient activation instead pauses audible media once the activation expires, e.g. between ads,
-    //     or media in a playlist.
-    if (auto window = document().window(); window && window->has_sticky_activation())
-        return true;
-
-    // NB: The sticky activation of an ancestor also counts if the document is allowed to use the "autoplay" feature.
-    //     A cross-origin iframe is only allowed to use it if its container allows it.
-    if (document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay)) {
-        for (auto const& ancestor : document().ancestor_navigables()) {
-            if (ancestor->active_window_has_sticky_activation())
-                return true;
-        }
-    }
-
-    switch (AutoplaySettings::the().decision_for_origin(document(), document().origin())) {
-    case AutoplayDecision::Allowed:
-        return true;
-    case AutoplayDecision::AllowedIfInaudible:
-        return effective_media_volume() == 0.0;
-    case AutoplayDecision::Blocked:
-        return false;
-    }
-
-    VERIFY_NOT_REACHED();
+    auto is_audible = effective_media_volume() == 0.0 ? IsAudible::No : IsAudible::Yes;
+    return system_allows_media_playback(document(), is_audible);
 }
 
 HTMLMediaElement::PlaybackDirection HTMLMediaElement::direction_of_playback() const
