@@ -387,17 +387,15 @@ impl AudioContext {
 
                 // 6.2. Resolve all promises from [[pending resume promises]] in order.
                 // 6.3. Clear [[pending resume promises]]. Additionally, remove those promises from [[pending promises]].
-                for pending_resume_promise in &*context.pending_resume_promises.borrow() {
-                    with_temporary_execution_context_and_callbacks(promise_realm(*pending_resume_promise), || {
-                        resolve_promise(vm, *pending_resume_promise, Value::UNDEFINED);
-                    });
-                    let mut pending = context.context.pending_promises.borrow_mut(vm);
-                    if let Some(index) = pending.iter().position(|promise| promise == pending_resume_promise) {
-                        pending.remove(index);
-                    }
-                }
-                context.pending_resume_promises.borrow_mut(vm).clear();
                 with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
+                    for pending_resume_promise in &*context.pending_resume_promises.borrow() {
+                        resolve_promise(vm, *pending_resume_promise, Value::UNDEFINED);
+                        let mut pending = context.context.pending_promises.borrow_mut(vm);
+                        if let Some(index) = pending.iter().position(|promise| promise == pending_resume_promise) {
+                            pending.remove(index);
+                        }
+                    }
+                    context.pending_resume_promises.borrow_mut(vm).clear();
                     // 6.4. Resolve promise.
                     resolve_promise(vm, promise, Value::UNDEFINED);
 
