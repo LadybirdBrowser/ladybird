@@ -564,6 +564,10 @@ public:
     [[nodiscard]] i64 nanoseconds_within_second() const { return to_timespec().tv_nsec; }
     [[nodiscard]] f64 to_seconds_f64() const { return m_offset.to_seconds_f64(); }
 
+    [[nodiscard]] timespec to_timespec() const { return m_offset.to_timespec(); }
+    // Rounds towards -inf.
+    [[nodiscard]] timeval to_timeval() const { return m_offset.to_timeval(); }
+
     constexpr bool operator==(MonotonicTime const& other) const { return this->m_offset == other.m_offset; }
     constexpr int operator<=>(MonotonicTime const& other) const { return this->m_offset <=> other.m_offset; }
 
