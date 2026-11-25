@@ -125,7 +125,8 @@ def write_constructor_steps(
     arguments_with_leading_comma = f", {arguments}" if arguments else ""
     arguments_with_vm = f"vm{arguments_with_leading_comma}"
     event_constructor_timestamp_argument = ""
-    if any(parent.name == "Event" for parent in context.inheritance_stack(interface)):
+    is_event_interface = any(parent.name == "Event" for parent in context.inheritance_stack(interface))
+    if is_event_interface:
         includes.add("LibWeb/HTML/Scripting/Environments.h")
         includes.add("LibWeb/HighResolutionTime/TimeOrigin.h")
         time_stamp_argument = (
@@ -201,6 +202,15 @@ def write_constructor_steps(
     }};
 
     auto impl = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return construct_impl(); }}));
+"""
+        )
+    if is_event_interface:
+        out.write(
+            """
+    // https://dom.spec.whatwg.org/#dom-event-istrusted
+    // When an event is created the attribute must be initialized to false.
+    impl->set_is_trusted(false);
+
 """
         )
     out.write(

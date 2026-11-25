@@ -81,9 +81,6 @@ GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, Utf16String const
                                                                                          event_init.source_element,
                                                                                      },
         HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
-
-    // NB: An event created through the constructor is not trusted.
-    event->set_is_trusted(false);
     return event;
 }
 

@@ -2562,8 +2562,20 @@ def write_rust_constructor(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
             Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
-        Ok(Value::from_object(construct_wrapper::<Implementation>(vm, realm, prototype, implementation)))
-    }}
+"""
+    )
+    if any(parent.name == "Event" for parent in context.inheritance_stack(interface)):
+        out.write(
+            """        let implementation: crate::bindings::interface::Ref<Implementation> =
+            crate::bindings::interface::ConstructedObject::into_object(implementation, vm);
+        // https://dom.spec.whatwg.org/#dom-event-istrusted
+        // When an event is created the attribute must be initialized to false.
+        implementation.event().set_is_trusted(false);
+"""
+        )
+    out.write(
+        """        Ok(Value::from_object(construct_wrapper::<Implementation>(vm, realm, prototype, implementation)))
+    }
 """
     )
 

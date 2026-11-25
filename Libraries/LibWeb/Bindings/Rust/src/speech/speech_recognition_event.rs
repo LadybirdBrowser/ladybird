@@ -65,6 +65,10 @@ impl SpeechRecognitionEvent {
         Ok(object)
     }
 
+    pub(crate) fn event(&self) -> &CppEvent {
+        &self.event
+    }
+
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-resultindex
     pub(crate) fn result_index(&self, _: &mut CallContext) -> WebIdlResult<u32> {
         Ok(self.result_index)

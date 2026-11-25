@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const events = [
+            new ErrorEvent("error"),
+            new PromiseRejectionEvent("unhandledrejection", { promise: Promise.resolve() }),
+            new SubmitEvent("submit"),
+            new ToggleEvent("toggle"),
+        ];
+        for (const event of events)
+            println(`new ${event.constructor.name}(): isTrusted=${event.isTrusted}`);
+    });
+</script>

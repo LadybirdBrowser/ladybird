@@ -1,0 +1,4 @@
+new ErrorEvent(): isTrusted=false
+new PromiseRejectionEvent(): isTrusted=false
+new SubmitEvent(): isTrusted=false
+new ToggleEvent(): isTrusted=false
