@@ -13,7 +13,8 @@ namespace Web {
 
 enum class MentionCertificateSetting : u8 {
     No,
-    Yes,
+    SelfSigned,
+    Invalid,
 };
 ErrorOr<String> load_error_page(URL::URL const&, StringView error_message, MentionCertificateSetting = MentionCertificateSetting::No);
 ErrorOr<String> load_file_directory_page(URL::URL const&);

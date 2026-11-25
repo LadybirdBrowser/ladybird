@@ -20,6 +20,9 @@
 #include <RequestServer/CertificateExceptions.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
+#ifdef AK_OS_MACOS
+#    include <RequestServer/SystemTrustMacOS.h>
+#endif
 
 #include <arpa/inet.h>
 #include <curl/curl.h>
@@ -30,6 +33,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+using Requests::CertificateError;
+
 // Generated certificate fixtures (EC/prime256v1, fixed validity 2020-2050):
 // - SELF_SIGNED_A, SELF_SIGNED_B: certificates for localhost and 127.0.0.1, as often found on local network devices.
 // - CA: "Certificate Exception Test CA", the only trusted root.
@@ -39,6 +44,7 @@
 // - NAME_TEST_CA: "Certificate Exception Name Test CA", trusted only by the name matching tests.
 // - PARTIAL_WILDCARD: issued by NAME_TEST_CA to DNS:w*.device.test.
 // - IP_AS_DNS_NAME: issued by NAME_TEST_CA to DNS:127.0.0.1, without an iPAddress name.
+// - CLIENT_ONLY_SELF_SIGNED: a self-signed certificate for device.test, for TLS client authentication only.
 static constexpr auto self_signed_a_certificate = R"PEM(-----BEGIN CERTIFICATE-----
 MIIBZDCCAQqgAwIBAgIBATAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlsb2NhbGhv
 c3QwIBcNMjAwMTAxMDAwMDAwWhgPMjA1MDAxMDEwMDAwMDBaMBQxEjAQBgNVBAMM
@@ -167,6 +173,23 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgCGpiM3wQasG6TgSv
 +VaQGipWzDAVYLm8XUONt2euLfZv8N6pHLOphiwq00eBJW6elvFlvJMu
 -----END PRIVATE KEY-----)PEM"sv;
 
+static constexpr auto client_only_self_signed_certificate = R"PEM(-----BEGIN CERTIFICATE-----
+MIIBjDCCATKgAwIBAgIUfV5fQKawzd8vdRgYI4nPiq06/4EwCgYIKoZIzj0EAwIw
+FjEUMBIGA1UEAwwLZGV2aWNlLnRlc3QwIBcNMjAwMTAxMDAwMDAwWhgPMjA1MDAx
+MDEwMDAwMDBaMBYxFDASBgNVBAMMC2RldmljZS50ZXN0MFkwEwYHKoZIzj0CAQYI
+KoZIzj0DAQcDQgAEck4VQiuKUqRILimUbg599qifBKWWHK5yX9mt4Cs4y0jsFgJ2
+7ih4yMNwnGl0wueRE2QNk+udKsK22A1bnekW+qNcMFowHQYDVR0OBBYEFC6Nujn6
+MfFyCIWDaGSnMq3R1+ISMBYGA1UdEQQPMA2CC2RldmljZS50ZXN0MBMGA1UdJQQM
+MAoGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwCgYIKoZIzj0EAwIDSAAwRQIgN6Au
+2xiIUTZYuWzYrtGBqiKoeADpaxxLMrMI7gc6awoCIQCRretMxlYEbkLxEQH0l+da
+IfB10ZH+yb6IVe6GgZevBA==
+-----END CERTIFICATE-----)PEM"sv;
+static constexpr auto client_only_self_signed_key = R"PEM(-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgK8MjHiJ3gKqXZoqk
+PlmYVN+50AdEbRuiLj47Lf+kqT+hRANCAARyThVCK4pSpEguKZRuDn32qJ8EpZYc
+rnJf2a3gKzjLSOwWAnbuKHjIw3CcaXTC55ETZA2T650qwrbYDVud6Rb6
+-----END PRIVATE KEY-----)PEM"sv;
+
 static constexpr auto host = "device.test"sv;
 
 // Serves HTTPS and WebSocket handshakes with the same certificate on a loopback port.
@@ -280,7 +303,7 @@ private:
 
 struct FetchResult {
     CURLcode code;
-    Optional<ByteString> rejected_self_signed_certificate_fingerprint;
+    Optional<RequestServer::AIACollector::RejectedCertificate> rejected_certificate;
     long verify_result { X509_V_OK };
 };
 
@@ -316,10 +339,17 @@ static FetchResult fetch(TLSServer const& server, bool connect_only = false, Str
     auto code = curl_easy_perform(curl);
     long verify_result = X509_V_OK;
     curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT, &verify_result);
+    if (code == CURLE_PEER_FAILED_VERIFICATION)
+        RequestServer::explain_system_verifier_refusal(*collector);
     curl_easy_cleanup(curl);
     curl_slist_free_all(resolve);
 
-    return { code, collector->rejected_self_signed_certificate_fingerprint, verify_result };
+    return { code, collector->rejected_certificate, verify_result };
+}
+
+static void trust(TLSServer const& server, RequestServer::AIACollector::RejectedCertificate const& rejected)
+{
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), rejected.fingerprint, rejected.errors, rejected.details);
 }
 
 static CURLcode connect_websocket(TLSServer const& server, StringView hostname = host)
@@ -360,12 +390,13 @@ TEST_CASE(self_signed_certificate_for_another_name_can_be_trusted)
 
     auto rejected = fetch(server);
     EXPECT_EQ(rejected.code, CURLE_PEER_FAILED_VERIFICATION);
-    EXPECT(rejected.rejected_self_signed_certificate_fingerprint.has_value());
+    VERIFY(rejected.rejected_certificate.has_value());
+    EXPECT_EQ(rejected.rejected_certificate->errors, CertificateError::SelfSigned | CertificateError::NameMismatch);
 
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), *rejected.rejected_self_signed_certificate_fingerprint);
+    trust(server, *rejected.rejected_certificate);
     auto trusted = fetch(server);
     EXPECT_EQ(trusted.code, CURLE_OK);
-    EXPECT(!trusted.rejected_self_signed_certificate_fingerprint.has_value());
+    EXPECT(!trusted.rejected_certificate.has_value());
 
     TLSServer same_certificate_elsewhere { self_signed_a_certificate, self_signed_a_key };
     EXPECT_EQ(fetch(same_certificate_elsewhere).code, CURLE_PEER_FAILED_VERIFICATION);
@@ -374,23 +405,24 @@ TEST_CASE(self_signed_certificate_for_another_name_can_be_trusted)
 TEST_CASE(exception_does_not_cover_another_self_signed_certificate)
 {
     TLSServer server { self_signed_b_certificate, self_signed_b_key };
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv);
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv, CertificateError::SelfSigned);
 
     // Still offered to the user, who may want to trust the new certificate instead.
     auto result = fetch(server);
     EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
-    EXPECT(result.rejected_self_signed_certificate_fingerprint.has_value());
+    EXPECT(result.rejected_certificate.has_value());
 }
 
 TEST_CASE(exception_does_not_lift_the_name_check_for_other_certificates)
 {
     TLSServer server { other_name_certificate, other_name_key };
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv);
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv, CertificateError::SelfSigned);
 
     auto result = fetch(server);
     EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
     EXPECT_EQ(result.verify_result, X509_V_ERR_HOSTNAME_MISMATCH);
-    EXPECT(!result.rejected_self_signed_certificate_fingerprint.has_value());
+    VERIFY(result.rejected_certificate.has_value());
+    EXPECT_EQ(result.rejected_certificate->errors, CertificateError::NameMismatch);
 }
 
 static ByteString fingerprint_of(StringView pem)
@@ -405,22 +437,119 @@ static ByteString fingerprint_of(StringView pem)
 }
 
 // OpenSSL reports a self-signed certificate before it checks validity periods.
-TEST_CASE(exception_does_not_accept_an_expired_certificate)
+TEST_CASE(exception_for_a_self_signed_certificate_does_not_accept_it_once_expired)
 {
     TLSServer server { expired_self_signed_certificate, expired_self_signed_key };
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), fingerprint_of(expired_self_signed_certificate));
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), fingerprint_of(expired_self_signed_certificate), CertificateError::SelfSigned | CertificateError::NameMismatch);
 
-    // Not offered to the user either, as trusting it could not make it valid.
     auto result = fetch(server);
     EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
-    EXPECT(!result.rejected_self_signed_certificate_fingerprint.has_value());
+    VERIFY(result.rejected_certificate.has_value());
+    EXPECT_EQ(result.rejected_certificate->errors, CertificateError::SelfSigned | CertificateError::Expired | CertificateError::NameMismatch);
+
+    // The user may trust it again, now that they know it has expired.
+    trust(server, *result.rejected_certificate);
+    EXPECT_EQ(fetch(server).code, CURLE_OK);
 }
+
+TEST_CASE(certificate_for_another_name_can_be_trusted)
+{
+    TLSServer server { other_name_certificate, other_name_key };
+
+    // NB: curl checks the name here, as no exception exists for the host yet.
+    auto rejected = fetch(server);
+    EXPECT_EQ(rejected.code, CURLE_PEER_FAILED_VERIFICATION);
+    VERIFY(rejected.rejected_certificate.has_value());
+    EXPECT_EQ(rejected.rejected_certificate->errors, CertificateError::NameMismatch);
+    EXPECT_EQ(rejected.rejected_certificate->fingerprint, fingerprint_of(other_name_certificate));
+
+    trust(server, *rejected.rejected_certificate);
+    EXPECT_EQ(fetch(server).code, CURLE_OK);
+
+    // The WebSocket doesn't trust the fixture's root, an error the user hasn't reviewed.
+    EXPECT_EQ(connect_websocket(server), CURLE_PEER_FAILED_VERIFICATION);
+}
+
+TEST_CASE(certificate_from_an_unknown_issuer_can_be_trusted)
+{
+    TLSServer server { device_name_certificate, device_name_key };
+
+    auto rejected = fetch(server, false, host, name_test_ca_certificate);
+    EXPECT_EQ(rejected.code, CURLE_PEER_FAILED_VERIFICATION);
+    VERIFY(rejected.rejected_certificate.has_value());
+#ifdef AK_OS_MACOS
+    // The system's verifier also holds the fixture to Apple's requirements for TLS server certificates.
+    EXPECT_EQ(rejected.rejected_certificate->errors, CertificateError::UnknownIssuer | CertificateError::Other);
+#else
+    EXPECT_EQ(rejected.rejected_certificate->errors, CertificateError::UnknownIssuer);
+#endif
+
+    trust(server, *rejected.rejected_certificate);
+    EXPECT_EQ(fetch(server, false, host, name_test_ca_certificate).code, CURLE_OK);
+}
+
+TEST_CASE(exception_does_not_cover_errors_the_user_did_not_review)
+{
+    TLSServer server { self_signed_a_certificate, self_signed_a_key };
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), fingerprint_of(self_signed_a_certificate), CertificateError::SelfSigned);
+
+    // The certificate is for localhost, which the exception doesn't say.
+    auto result = fetch(server);
+    EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
+    VERIFY(result.rejected_certificate.has_value());
+    EXPECT_EQ(result.rejected_certificate->errors, CertificateError::SelfSigned | CertificateError::NameMismatch);
+}
+
+// OpenSSL stops at an untrusted certificate before it checks its purpose.
+TEST_CASE(exception_does_not_cover_an_unreviewed_purpose)
+{
+    TLSServer server { client_only_self_signed_certificate, client_only_self_signed_key };
+    auto fingerprint = fingerprint_of(client_only_self_signed_certificate);
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), fingerprint, CertificateError::SelfSigned);
+
+    auto result = fetch(server);
+    EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
+    VERIFY(result.rejected_certificate.has_value());
+    EXPECT_EQ(result.rejected_certificate->errors, CertificateError::SelfSigned | CertificateError::Other);
+    EXPECT_EQ(result.rejected_certificate->details, "unsuitable certificate purpose"sv);
+
+    // Trusting one Other error must not cover a different one.
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), fingerprint, CertificateError::SelfSigned | CertificateError::Other, "certificate signature failure"sv);
+    EXPECT_EQ(fetch(server).code, CURLE_PEER_FAILED_VERIFICATION);
+
+    trust(server, *result.rejected_certificate);
+    EXPECT_EQ(fetch(server).code, CURLE_OK);
+}
+
+#ifdef AK_OS_MACOS
+static RequestServer::SystemTrustVerdict system_trust_verdict_of(StringView pem)
+{
+    auto* bio = BIO_new_mem_buf(pem.characters_without_null_termination(), static_cast<int>(pem.length()));
+    auto* certificate = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
+    BIO_free(bio);
+    VERIFY(certificate);
+    auto verdict = RequestServer::system_trust_verdict(certificate, {});
+    X509_free(certificate);
+    return verdict;
+}
+
+TEST_CASE(system_verifier_reasons_are_named)
+{
+    auto expired = system_trust_verdict_of(expired_self_signed_certificate);
+    EXPECT_EQ(expired.errors, CertificateError::SelfSigned | CertificateError::Expired);
+
+    // This fixture violates Apple's TLS server certificate requirements.
+    auto unknown_issuer = system_trust_verdict_of(device_name_certificate);
+    EXPECT_EQ(unknown_issuer.errors, CertificateError::UnknownIssuer | CertificateError::Other);
+    EXPECT(unknown_issuer.details.ends_with(" (OtherTrustValidityPeriod, ServerAuthEKU)"sv));
+}
+#endif
 
 // curl matches a fully qualified name without its trailing dot.
 TEST_CASE(exception_keeps_a_trailing_dot_name_working)
 {
     TLSServer server { device_name_certificate, device_name_key };
-    RequestServer::add_certificate_exception("device.test."sv, server.port(), "00"sv);
+    RequestServer::add_certificate_exception("device.test."sv, server.port(), "00"sv, CertificateError::SelfSigned);
 
     EXPECT_EQ(fetch(server, false, "device.test."sv).code, CURLE_OK);
 }
@@ -429,7 +558,7 @@ TEST_CASE(exception_keeps_a_trailing_dot_name_working)
 TEST_CASE(exception_does_not_allow_partial_wildcards_for_other_certificates)
 {
     TLSServer server { partial_wildcard_certificate, partial_wildcard_key };
-    RequestServer::add_certificate_exception("www.device.test"sv, server.port(), "00"sv);
+    RequestServer::add_certificate_exception("www.device.test"sv, server.port(), "00"sv, CertificateError::SelfSigned);
 
     auto result = fetch(server, false, "www.device.test"sv, name_test_ca_certificate);
     EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
@@ -440,7 +569,7 @@ TEST_CASE(exception_does_not_allow_partial_wildcards_for_other_certificates)
 TEST_CASE(exception_does_not_match_an_ip_address_against_dns_names)
 {
     TLSServer server { ip_as_dns_name_certificate, ip_as_dns_name_key };
-    RequestServer::add_certificate_exception("127.0.0.1"sv, server.port(), "00"sv);
+    RequestServer::add_certificate_exception("127.0.0.1"sv, server.port(), "00"sv, CertificateError::SelfSigned);
 
     auto result = fetch(server, false, "127.0.0.1"sv, name_test_ca_certificate);
     EXPECT_EQ(result.code, CURLE_PEER_FAILED_VERIFICATION);
@@ -452,7 +581,7 @@ TEST_CASE(exception_keeps_certificates_for_the_right_name_working)
     TLSServer server { device_name_certificate, device_name_key };
     EXPECT_EQ(fetch(server).code, CURLE_OK);
 
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv);
+    RequestServer::add_certificate_exception(ByteString { host }, server.port(), "00"sv, CertificateError::SelfSigned);
     EXPECT_EQ(fetch(server).code, CURLE_OK);
 }
 
@@ -461,11 +590,11 @@ TEST_CASE(certificate_exception_allows_secure_websockets_and_preconnects)
     TLSServer server { self_signed_a_certificate, self_signed_a_key };
     auto rejected = fetch(server);
     EXPECT_EQ(rejected.code, CURLE_PEER_FAILED_VERIFICATION);
-    VERIFY(rejected.rejected_self_signed_certificate_fingerprint.has_value());
+    VERIFY(rejected.rejected_certificate.has_value());
     EXPECT_EQ(connect_websocket(server), CURLE_PEER_FAILED_VERIFICATION);
     EXPECT_EQ(fetch(server, true).code, CURLE_PEER_FAILED_VERIFICATION);
 
-    RequestServer::add_certificate_exception(ByteString { host }, server.port(), *rejected.rejected_self_signed_certificate_fingerprint);
+    trust(server, *rejected.rejected_certificate);
     EXPECT_EQ(connect_websocket(server), CURLE_OK);
     EXPECT_EQ(fetch(server, true).code, CURLE_OK);
     EXPECT_EQ(connect_websocket(server, "other.test"sv), CURLE_PEER_FAILED_VERIFICATION);
@@ -479,10 +608,10 @@ TEST_CASE(certificate_exception_does_not_allow_other_websocket_or_preconnect_cer
 {
     TLSServer trusted { self_signed_a_certificate, self_signed_a_key };
     auto rejected = fetch(trusted);
-    VERIFY(rejected.rejected_self_signed_certificate_fingerprint.has_value());
+    VERIFY(rejected.rejected_certificate.has_value());
 
     TLSServer another_certificate { self_signed_b_certificate, self_signed_b_key };
-    RequestServer::add_certificate_exception(ByteString { host }, another_certificate.port(), *rejected.rejected_self_signed_certificate_fingerprint);
+    trust(another_certificate, *rejected.rejected_certificate);
     EXPECT_EQ(connect_websocket(another_certificate), CURLE_PEER_FAILED_VERIFICATION);
     EXPECT_EQ(fetch(another_certificate, true).code, CURLE_PEER_FAILED_VERIFICATION);
 }

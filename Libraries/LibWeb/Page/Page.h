@@ -272,6 +272,9 @@ public:
     // Whether the UI process replaces self-signed certificate error pages with trust prompts.
     bool offers_to_trust_self_signed_certificates() const { return m_offers_to_trust_self_signed_certificates; }
     void set_offers_to_trust_self_signed_certificates(bool b) { m_offers_to_trust_self_signed_certificates = b; }
+    // The same, for certificates that fail verification for any other reason.
+    bool offers_to_trust_invalid_certificates() const { return m_offers_to_trust_invalid_certificates; }
+    void set_offers_to_trust_invalid_certificates(bool b) { m_offers_to_trust_invalid_certificates = b; }
 
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
     u64 keyboard_scroll_state_generation() const { return m_keyboard_scroll_state_generation; }
@@ -615,6 +618,7 @@ private:
     bool m_enable_autoscroll { true };
     bool m_enable_primary_paste { true };
     bool m_offers_to_trust_self_signed_certificates { false };
+    bool m_offers_to_trust_invalid_certificates { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     u64 m_keyboard_scroll_state_generation { 0 };
     bool m_keyboard_scroll_state_is_current { false };

@@ -169,6 +169,7 @@ enum class ConfigVariableID : u8 {
     RestartStalledConnections,
     DisableHighDynamicRangeSurfaces,
     OfferToTrustSelfSignedCertificates,
+    OfferToTrustInvalidCertificates,
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     UpdateCheckInterval,
 #endif
@@ -183,6 +184,8 @@ struct ConfigVariableDefinition {
     StringView description;
     JsonValue default_value;
     Optional<JsonValue::Type> array_element_type;
+    // This variable has no effect and cannot be changed in Settings while its dependency is off.
+    Optional<ConfigVariableID> depends_on {};
 };
 
 WEBVIEW_API ReadonlySpan<ConfigVariableDefinition> config_variable_definitions();

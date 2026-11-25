@@ -37,6 +37,30 @@ ViewImplementation* CertificateUI::view() const
     return &page->view();
 }
 
+static JsonArray certificate_error_reasons(BrowsingSession::CertificateException const& certificate)
+{
+    using enum Requests::CertificateError;
+
+    JsonArray reasons;
+    if (has_flag(certificate.errors, SelfSigned))
+        reasons.must_append("It is self-signed, or its chain ends at a self-signed root that Ladybird doesn't trust."sv);
+    if (has_flag(certificate.errors, UnknownIssuer))
+        reasons.must_append("It comes from an issuer that Ladybird doesn't know or doesn't trust."sv);
+    if (has_flag(certificate.errors, Expired))
+        reasons.must_append("It has expired. If the date and time of this computer are wrong, correct them instead."sv);
+    if (has_flag(certificate.errors, NotYetValid))
+        reasons.must_append("It isn't valid yet. If the date and time of this computer are wrong, correct them instead."sv);
+    if (has_flag(certificate.errors, NameMismatch))
+        reasons.must_append(MUST(String::formatted("It was issued for another site, not for {}.", certificate.host)));
+    if (has_flag(certificate.errors, Other)) {
+        if (certificate.error_details.is_empty())
+            reasons.must_append("It failed verification."sv);
+        else
+            reasons.must_append(MUST(String::formatted("It failed verification: {}.", certificate.error_details)));
+    }
+    return reasons;
+}
+
 void CertificateUI::load_certificate_warning()
 {
     auto* view = this->view();
@@ -55,6 +79,7 @@ void CertificateUI::load_certificate_warning()
     object.set("formIsNotResent"sv, warning.form_is_not_resent);
     object.set("host"sv, MUST(String::from_byte_string(warning.certificate.host)));
     object.set("fingerprint"sv, MUST(String::from_byte_string(warning.certificate.fingerprint)));
+    object.set("reasons"sv, certificate_error_reasons(warning.certificate));
     async_send_message("loadCertificateWarning"sv, move(object));
 }
 

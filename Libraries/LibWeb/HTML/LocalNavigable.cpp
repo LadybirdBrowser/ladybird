@@ -3287,22 +3287,48 @@ GC::Ref<DocumentToCreate> DocumentToCreate::create(GC::Ref<NavigationParams> nav
     return GC::Heap::the().allocate<DocumentToCreate>(navigation_params, load_steps, move(origin));
 }
 
-static bool should_offer_to_trust_self_signed_certificate(LocalNavigable& navigable, Utf16String const& error_message)
+enum class RejectedCertificateKind : u8 {
+    None,
+    SelfSigned,
+    Invalid,
+};
+
+static RejectedCertificateKind rejected_certificate_kind(LocalNavigable& navigable, Utf16String const& error_message)
 {
     if (!navigable.is_top_level_traversable())
-        return false;
+        return RejectedCertificateKind::None;
     // NB: Only the error message survives across processes; no server-controlled message matches it exactly.
     //     A false match only requests a UI warning for an unrecorded certificate.
-    auto description = network_error_description(Requests::NetworkError::SSLSelfSignedCertificate);
-    return error_message == Fetch::Fetching::network_request_failed_error_message(description.bytes_as_string_view());
+    auto is_error = [&](Requests::NetworkError error) {
+        auto description = network_error_description(error);
+        return error_message == Fetch::Fetching::network_request_failed_error_message(description.bytes_as_string_view());
+    };
+    if (is_error(Requests::NetworkError::SSLSelfSignedCertificate))
+        return RejectedCertificateKind::SelfSigned;
+    for (auto error : { Requests::NetworkError::SSLCertificateUnknownIssuer, Requests::NetworkError::SSLCertificateExpired, Requests::NetworkError::SSLCertificateNotYetValid, Requests::NetworkError::SSLCertificateNameMismatch, Requests::NetworkError::SSLCertificateInvalid }) {
+        if (is_error(error))
+            return RejectedCertificateKind::Invalid;
+    }
+    return RejectedCertificateKind::None;
 }
 
 static GC::Ref<DOM::Document> create_navigation_error_document(NavigationParams const& navigation_params, URL::URL const& url, Utf16String const& error_message)
 {
-    auto is_self_signed_certificate_error = should_offer_to_trust_self_signed_certificate(*navigation_params.navigable, error_message);
+    auto const& page = navigation_params.navigable->page();
+    auto certificate_kind = rejected_certificate_kind(*navigation_params.navigable, error_message);
     // The UI process replaces this page with a warning only if certificate trust prompts are enabled.
-    auto offer_to_trust_certificate = is_self_signed_certificate_error && navigation_params.navigable->page().offers_to_trust_self_signed_certificates();
-    auto mention_certificate_setting = is_self_signed_certificate_error && !offer_to_trust_certificate ? MentionCertificateSetting::Yes : MentionCertificateSetting::No;
+    auto offer_to_trust_certificate = false;
+    auto mention_certificate_setting = MentionCertificateSetting::No;
+    if (certificate_kind == RejectedCertificateKind::SelfSigned) {
+        offer_to_trust_certificate = page.offers_to_trust_self_signed_certificates();
+        if (!offer_to_trust_certificate)
+            mention_certificate_setting = MentionCertificateSetting::SelfSigned;
+    } else if (certificate_kind == RejectedCertificateKind::Invalid) {
+        offer_to_trust_certificate = page.offers_to_trust_invalid_certificates();
+        // This setting requires the self-signed certificate setting to be enabled.
+        if (!offer_to_trust_certificate && page.offers_to_trust_self_signed_certificates())
+            mention_certificate_setting = MentionCertificateSetting::Invalid;
+    }
     auto error_html = load_error_page(url, error_message.to_utf8(), mention_certificate_setting).release_value_but_fixme_should_propagate_errors();
     auto document = create_document_for_inline_content(navigation_params, [&error_html, offer_to_trust_certificate, &url](auto& document) {
         auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;

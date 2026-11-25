@@ -5,7 +5,6 @@
  */
 
 #include <AK/HashMap.h>
-#include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
 #include <RequestServer/CertificateExceptions.h>
 
@@ -19,9 +18,16 @@
 
 namespace RequestServer {
 
-static HashMap<ByteString, HashTable<ByteString>>& certificate_exceptions()
+// The errors each certificate is trusted in spite of, by fingerprint.
+struct TrustedCertificate {
+    Requests::CertificateError errors { Requests::CertificateError::None };
+    ByteString error_details;
+};
+using TrustedCertificates = HashMap<ByteString, TrustedCertificate>;
+
+static HashMap<ByteString, TrustedCertificates>& certificate_exceptions()
 {
-    static HashMap<ByteString, HashTable<ByteString>> exceptions;
+    static HashMap<ByteString, TrustedCertificates> exceptions;
     return exceptions;
 }
 
@@ -43,19 +49,27 @@ ByteString certificate_fingerprint(X509* certificate)
     return builder.to_byte_string();
 }
 
-void add_certificate_exception(ByteString const& host, u16 port, ByteString fingerprint)
+void add_certificate_exception(ByteString const& host, u16 port, ByteString fingerprint, Requests::CertificateError errors, ByteString error_details)
 {
     if (fingerprint.is_empty())
         return;
-    certificate_exceptions().ensure(exception_key(host, port)).set(move(fingerprint));
+    // The latest review covers all current errors and replaces earlier approvals.
+    certificate_exceptions().ensure(exception_key(host, port)).set(move(fingerprint), { errors, move(error_details) });
 }
 
-bool has_certificate_exception(ByteString const& host, u16 port, ByteString const& fingerprint)
+bool has_certificate_exception(ByteString const& host, u16 port, ByteString const& fingerprint, Requests::CertificateError errors, StringView error_details)
 {
     if (fingerprint.is_empty())
         return false;
     auto exceptions = certificate_exceptions().get(exception_key(host, port));
-    return exceptions.has_value() && exceptions->contains(fingerprint);
+    if (!exceptions.has_value())
+        return false;
+    // A certificate that has since begun to fail for another reason goes back to the user.
+    auto trusted = exceptions->get(fingerprint);
+    if (!trusted.has_value() || has_any_flag(errors, ~trusted->errors))
+        return false;
+    // Descriptions distinguish errors sharing the Other flag.
+    return !has_flag(errors, Requests::CertificateError::Other) || error_details == trusted->error_details;
 }
 
 bool has_any_certificate_exception(ByteString const& host, u16 port)
