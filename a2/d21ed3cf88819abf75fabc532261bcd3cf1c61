@@ -1,0 +1,12 @@
+Under “text-decoration-skip-ink: auto”, Ladybird draws underlines and
+overlines through the glyphs of CJK text, and still skips them under
+“all”. Blink does the same: Its ShapeResultBloberizer leaves out of
+the intercepts every character that unicode::CanTextDecorationSkipInk()
+rejects, such as CJK ideographs, symbols, and Hangul, but only for
+“auto”. Gecko’s SkipInk() in nsCSSRendering.cpp passes over every
+glyph run whose mIsCJK is set, again under “auto” alone. And WebKit’s
+computeUnderlineType() in FontCascade.cpp draws through CJK characters
+under “all” as well. Chrome 158, Firefox 151, and WebKit 26.5 draw the
+underline of Han, kana, and Hangul unbroken, and skip the descenders of
+the Latin text beside it; under “all”, Chrome and Firefox skip the CJK
+glyphs too, while WebKit doesn’t.
