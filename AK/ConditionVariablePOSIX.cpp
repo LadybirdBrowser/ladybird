@@ -7,6 +7,7 @@
 
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
+#include <AK/Platform.h>
 #include <AK/Time.h>
 #include <errno.h>
 #include <pthread.h>
@@ -28,8 +29,20 @@ ConditionVariableBase<MutexType>::ConditionVariableBase(MutexType& to_wait_on)
     : m_to_wait_on(to_wait_on)
 {
     static_assert(sizeof(m_storage) == sizeof(pthread_cond_t));
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     int result = pthread_cond_init(to_impl(m_storage), nullptr);
     VERIFY(result == 0);
+#else
+    pthread_condattr_t attributes;
+    int result = pthread_condattr_init(&attributes);
+    VERIFY(result == 0);
+    result = pthread_condattr_setclock(&attributes, CLOCK_MONOTONIC);
+    VERIFY(result == 0);
+    result = pthread_cond_init(to_impl(m_storage), &attributes);
+    VERIFY(result == 0);
+    result = pthread_condattr_destroy(&attributes);
+    VERIFY(result == 0);
+#endif
 }
 
 template<typename MutexType>
@@ -55,8 +68,14 @@ bool ConditionVariableBase<MutexType>::wait_for(AK::Duration const& timeout)
     if (timeout <= AK::Duration::zero())
         return false;
 
-    auto absolute_timeout = (AK::UnixDateTime::now() + timeout).to_timespec();
-    int result = pthread_cond_timedwait(to_impl(m_storage), reinterpret_cast<pthread_mutex_t*>(m_to_wait_on.m_storage), &absolute_timeout);
+    auto* mutex = reinterpret_cast<pthread_mutex_t*>(m_to_wait_on.m_storage);
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+    auto relative_timeout = timeout.to_timespec();
+    int result = pthread_cond_timedwait_relative_np(to_impl(m_storage), mutex, &relative_timeout);
+#else
+    auto absolute_timeout = (MonotonicTime::now() + timeout).to_timespec();
+    int result = pthread_cond_timedwait(to_impl(m_storage), mutex, &absolute_timeout);
+#endif
     if (result == ETIMEDOUT)
         return false;
     VERIFY(result == 0);
