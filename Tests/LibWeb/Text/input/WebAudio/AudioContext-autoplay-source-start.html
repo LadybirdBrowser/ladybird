@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe></iframe>
+<script>
+    promiseTest(async () => {
+        const waitForRunning = context =>
+            waitForCondition(() => context.state === "running" && context.currentTime > 0);
+        const isSuspended = context => context.state === "suspended" && context.currentTime === 0;
+
+        internals.setAutoplayPolicy("block-audio");
+        const bufferContext = new AudioContext();
+        const oscillatorContext = new AudioContext();
+        const suspendedContext = new AudioContext();
+        bufferContext.resume().then(() => println(`Buffer context when resume resolved: ${bufferContext.state}`));
+        bufferContext.createBufferSource().start();
+        oscillatorContext.createOscillator().start();
+        await suspendedContext.suspend();
+        println(`Sources leave blocked contexts suspended: ${[bufferContext, oscillatorContext].every(isSuspended)}`);
+
+        const frame = document.querySelector("iframe");
+        const detachedBuffer = new frame.contentWindow.AudioContext().createBufferSource();
+        const detachedOscillator = new frame.contentWindow.AudioContext().createOscillator();
+        frame.contentWindow.internals.grantTransientActivation();
+        const unloaded = new Promise(resolve => frame.contentWindow.addEventListener("unload", resolve));
+        frame.remove();
+        await unloaded;
+        // The document is still fully active during its unload event.
+        await timeout(0);
+        detachedBuffer.start();
+        detachedOscillator.start();
+
+        internals.grantTransientActivation();
+        bufferContext.createBufferSource().start();
+        oscillatorContext.createOscillator().start();
+        suspendedContext.createBufferSource().start();
+        suspendedContext.createOscillator().start();
+        println(`Starting a buffer source starts the audio clock: ${await waitForRunning(bufferContext)}`);
+        println(`Starting an oscillator starts the audio clock: ${await waitForRunning(oscillatorContext)}`);
+        println(`Starting a source respects explicit suspend: ${isSuspended(suspendedContext)}`);
+
+        await suspendedContext.resume();
+        println(`Explicit resume starts the suspended context: ${await waitForRunning(suspendedContext)}`);
+        println(`Buffer source advances the removed frame's audio clock: ${detachedBuffer.context.currentTime > 0}`);
+        println(`Oscillator advances the removed frame's audio clock: ${detachedOscillator.context.currentTime > 0}`);
+        await Promise.all([bufferContext.close(), oscillatorContext.close(), suspendedContext.close()]);
+    });
+</script>
