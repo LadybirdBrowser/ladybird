@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<input id="range" type="range" min="0" max="100" value="50" style="width: 200px">
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const range = document.getElementById("range");
+        let step = "";
+        range.addEventListener("input", () => println(`${step}: input value=${range.value}`));
+
+        const rect = range.getBoundingClientRect();
+        const x = fraction => rect.left + rect.width * fraction;
+        const y = rect.top + rect.height / 2;
+        const run = async (label, action) => {
+            step = label;
+            await action();
+            println(`${step}: value=${range.value}`);
+        };
+
+        await run("script mousedown at the left end", () => range.dispatchEvent(new MouseEvent("mousedown", { clientX: x(0), clientY: y, bubbles: true })));
+
+        const cancel = event => event.preventDefault();
+        range.addEventListener("mousedown", cancel);
+        await run("press canceled by a listener on the range", () => {
+            internals.mouseDown(x(0.1), y);
+            internals.mouseUp(x(0.1), y);
+        });
+        range.removeEventListener("mousedown", cancel);
+
+        await run("press with the secondary button", () => {
+            internals.mouseDown(x(0.1), y, 1, internals.BUTTON_RIGHT);
+            internals.mouseUp(x(0.1), y, internals.BUTTON_RIGHT);
+        });
+
+        await run("press at the middle", () => internals.mouseDown(x(0.5), y));
+        await run("drag to a quarter", () => internals.mouseMove(x(0.25), y, 0, 1));
+        await run("script mouseup", () => window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true })));
+        await run("drag to three quarters and release", () => {
+            internals.mouseMove(x(0.75), y, 0, 1);
+            internals.mouseUp(x(0.75), y);
+        });
+        await run("move after the release", () => internals.mouseMove(x(1), y));
+
+        const pen = { pointerType: "pen", pointerId: 2 };
+        await run("pen press at a quarter", async () => {
+            await internals.mouseEventThroughUIProcess("mousedown", x(0.25), y, { pointer: pen });
+            await internals.mouseEventThroughUIProcess("mouseup", x(0.25), y, { pointer: pen });
+        });
+
+        const touch = { pointerType: "touch", pointerId: 3 };
+        await run("touch tap at nine tenths", async () => {
+            await internals.mouseEventThroughUIProcess("mousedown", x(0.9), y, { pointer: touch });
+            await internals.mouseEventThroughUIProcess("mouseup", x(0.9), y, { pointer: touch });
+        });
+
+        range.addEventListener("input", () => { range.disabled = true; }, { once: true });
+        await run("press at a quarter that disables the range", () => internals.mouseDown(x(0.25), y));
+        await run("drag while disabled", () => internals.mouseMove(x(0.75), y, 0, 1));
+        range.disabled = false;
+        await run("drag after enabling the range again and release", () => {
+            internals.mouseMove(x(0.6), y, 0, 1);
+            internals.mouseUp(x(0.6), y);
+        });
+
+        const captureForBody = event => {
+            if (event.button === internals.BUTTON_MIDDLE)
+                document.body.setPointerCapture(event.pointerId);
+        };
+        document.addEventListener("pointerdown", captureForBody);
+        await run("drag while the middle button holds pointer capture for the body", () => {
+            internals.mouseDown(x(0.5), y, 1, internals.BUTTON_MIDDLE, 0, 4);
+            internals.mouseDown(x(0.9), y, 1, internals.BUTTON_LEFT, 0, 5);
+            internals.mouseMove(x(0.75), y, 0, 5);
+            internals.mouseUp(x(0.75), y, internals.BUTTON_LEFT, 0, 4);
+            internals.mouseUp(x(0.75), y, internals.BUTTON_MIDDLE, 0, 0);
+        });
+        document.removeEventListener("pointerdown", captureForBody);
+    });
+</script>

@@ -414,6 +414,31 @@ static GC::Ptr<DOM::Element const> link_reached_by_click(DOM::Node const& click_
     return nullptr;
 }
 
+static bool press_opens_context_menu(u32 button, [[maybe_unused]] u32 modifiers)
+{
+    if (button == UIEvents::MouseButton::Secondary)
+        return true;
+#if defined(AK_OS_MACOS)
+    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0)
+        return true;
+#endif
+    return false;
+}
+
+// NB: Pressing a range input with the primary button starts dragging its thumb, unless the press opens the context
+//     menu.
+static void start_slider_drag_for_press(DOM::Node& pressed_node, CSSPixels client_x, u32 button, u32 modifiers)
+{
+    if (button != UIEvents::MouseButton::Primary || press_opens_context_menu(button, modifiers))
+        return;
+    for (auto* ancestor = &pressed_node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (auto* input = as_if<HTML::HTMLInputElement>(*ancestor)) {
+            input->start_slider_drag(client_x.to_double());
+            return;
+        }
+    }
+}
+
 EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
 {
     if (should_ignore_device_input_event())
@@ -509,12 +534,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
-    auto dispatch_result = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count).result;
+    auto dispatched_pointer_down = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+    auto dispatch_result = dispatched_pointer_down.result;
 
-    bool is_context_menu_trigger = button == UIEvents::MouseButton::Secondary;
-#if defined(AK_OS_MACOS)
-    is_context_menu_trigger |= button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0;
-#endif
+    auto is_context_menu_trigger = press_opens_context_menu(button, modifiers);
 
     if (is_context_menu_trigger && dispatch_result == PointerEventDispatchResult::RunDefaultActions && !pressed_on_chrome) {
         // Focus the clicked control before dispatching contextmenu so the menu acts on that control.
@@ -553,6 +576,14 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
         return EventResult::Accepted;
+
+    if (!pressed_on_chrome) {
+        auto& pressed_node = dispatched_pointer_down.pointer_capture_target ? *dispatched_pointer_down.pointer_capture_target : *node;
+        start_slider_drag_for_press(pressed_node, coordinates.viewport_position.x(), button, modifiers);
+        if (m_navigable->active_document() != document)
+            return EventResult::Accepted;
+    }
+
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!has_committed_root_box())
         return EventResult::Accepted;
@@ -5482,6 +5513,9 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
                 if (m_navigable->active_document() != document)
                     return EventResult::Handled;
                 if (allowed) {
+                    start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position.x(), UIEvents::MouseButton::Primary, pointer.modifiers);
+                    if (m_navigable->active_document() != document)
+                        return EventResult::Handled;
                     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
                     if (auto focus_target = focus_candidate_for_position(read, visual_viewport_position))
                         HTML::run_focusing_steps(focus_target, nullptr, HTML::FocusTrigger::Click);
@@ -5498,6 +5532,9 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
             if (m_navigable->active_document() != document)
                 return EventResult::Handled;
             if (allowed && mouse_name == UIEvents::EventNames::mousedown) {
+                start_slider_drag_for_press(*mouse_target, mouse_coordinates.viewport_position.x(), input.button, pointer.modifiers);
+                if (m_navigable->active_document() != document)
+                    return EventResult::Handled;
                 document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
                 if (auto focus_target = focus_candidate_for_position(read, visual_viewport_position))
                     HTML::run_focusing_steps(focus_target, nullptr, HTML::FocusTrigger::Click);
