@@ -12,6 +12,7 @@
 
 #![allow(unsafe_code)]
 
+use crate::receive_queue::PayloadBytes;
 use crate::shared_memory::create_anonymous_file;
 
 use std::io;
@@ -220,18 +221,33 @@ pub(crate) fn shutdown(socket: RawFd, how: std::net::Shutdown) {
     unsafe { libc::shutdown(socket, how) };
 }
 
-/// Copies a payload into an anonymous file, whose descriptor goes last in the frame.
+/// Copies a payload into an anonymous file, whose descriptor goes last in the frame, and seals the file where the
+/// receiver maps it.
 pub(crate) fn copy_payload_to_file(bytes: &[u8]) -> io::Result<std::fs::File> {
     use std::io::Write;
     let mut file = std::fs::File::from(create_anonymous_file()?);
     // NB: A shared memory object of the BSDs grows by truncation only, not by writing past its end.
     file.set_len(bytes.len() as u64)?;
     file.write_all(bytes)?;
+    #[cfg(target_os = "linux")]
+    crate::shared_memory::seal(&file)?;
     Ok(file)
 }
 
-/// Copies bytes before decoding, using pread so a size change reports a short read.
-pub(crate) fn copy_payload_from_file(fd: OwnedFd, size: usize) -> io::Result<Vec<u8>> {
+/// The payload of a message in the file it came in, which on Linux the sender has sealed.
+pub(crate) fn payload_from_file(fd: OwnedFd, size: usize) -> io::Result<PayloadBytes> {
+    #[cfg(target_os = "linux")]
+    return Ok(PayloadBytes::Mapped(crate::shared_memory::MappedPayload::map(
+        fd, size,
+    )?));
+    #[cfg(not(target_os = "linux"))]
+    return Ok(PayloadBytes::Inline(copy_payload_from_file(fd, size)?));
+}
+
+/// Copies bytes before decoding, using pread so a size change reports a short read. The sender can still write to an
+/// unsealed file, so the copy is what gets decoded.
+#[cfg(not(target_os = "linux"))]
+fn copy_payload_from_file(fd: OwnedFd, size: usize) -> io::Result<Vec<u8>> {
     use std::os::unix::fs::FileExt;
     let file = std::fs::File::from(fd);
     if file.metadata()?.len() < size as u64 {
@@ -270,24 +286,41 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn receiving_payloads_does_not_add_seals() {
-        for flags in [0, libc::MFD_ALLOW_SEALING] {
-            // NB: memfd_create() returns a new descriptor for a NUL-terminated name.
-            let fd = unsafe { libc::memfd_create(c"".as_ptr(), libc::MFD_CLOEXEC | flags) };
-            assert!(fd >= 0);
-            // NB: The descriptor is new and nothing else owns it.
-            let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-            let mut file = std::fs::File::from(fd);
-            std::io::Write::write_all(&mut file, b"payload").unwrap();
-            // NB: F_GET_SEALS only reads the owned object's seals.
-            let seals = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GET_SEALS) };
+    fn only_sealed_payload_files_are_mapped() {
+        let file = copy_payload_to_file(b"payload").unwrap();
+        // NB: F_GET_SEALS only reads the seals of the owned file.
+        let seals = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GET_SEALS) };
+        assert_ne!(seals & libc::F_SEAL_WRITE, 0);
+        assert_eq!(payload_from_file(file.into(), 7).unwrap().bytes(), b"payload");
+
+        // NB: memfd_create() returns a new descriptor for a NUL-terminated name.
+        let fd = unsafe { libc::memfd_create(c"".as_ptr(), libc::MFD_CLOEXEC) };
+        assert!(fd >= 0);
+        // NB: The descriptor is new and nothing else owns it.
+        let mut unsealable = std::fs::File::from(unsafe { OwnedFd::from_raw_fd(fd) });
+        std::io::Write::write_all(&mut unsealable, b"payload").unwrap();
+        let unsealed = crate::shared_memory::create_unsealed_file_holding(b"payload");
+        for file in [unsealable, unsealed] {
             assert_eq!(
-                copy_payload_from_file(file.try_clone().unwrap().into(), 7).unwrap(),
-                b"payload"
+                payload_from_file(file.into(), 7).err().unwrap().kind(),
+                io::ErrorKind::InvalidData
             );
-            // NB: The file is still owned and F_GET_SEALS does not change it.
-            assert_eq!(unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GET_SEALS) }, seals);
-            file.set_len(0).unwrap();
+        }
+
+        let sparse = std::fs::File::from(crate::shared_memory::create_anonymous_file().unwrap());
+        sparse.set_len(7).unwrap();
+        crate::shared_memory::seal(&sparse).unwrap();
+        assert_eq!(
+            payload_from_file(sparse.into(), 7).err().unwrap().kind(),
+            io::ErrorKind::InvalidData
+        );
+
+        for bytes_of_another_size in [&b"pay"[..], b"payload!"] {
+            let file = copy_payload_to_file(bytes_of_another_size).unwrap();
+            assert_eq!(
+                payload_from_file(file.into(), 7).err().unwrap().kind(),
+                io::ErrorKind::InvalidData
+            );
         }
     }
 

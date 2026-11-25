@@ -14,6 +14,7 @@
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 
+pub use crate::receive_queue::PayloadBytes;
 use crate::transport::{OwnedPayload, clock_monotonic_nanoseconds};
 
 pub type PortName = u32;
@@ -949,27 +950,6 @@ fn right_for_disposition(disposition: u32) -> PortRight {
         MACH_MSG_TYPE_MOVE_RECEIVE => PortRight::Receive,
         MACH_MSG_TYPE_MOVE_SEND_ONCE => PortRight::SendOnce,
         _ => PortRight::Send,
-    }
-}
-
-/// The bytes of a received LibIPC message, copied from the message or mapped out of line.
-pub enum PayloadBytes {
-    Inline(Vec<u8>),
-    OutOfLine(VmRegion),
-}
-
-impl AsRef<[u8]> for PayloadBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.bytes()
-    }
-}
-
-impl PayloadBytes {
-    pub fn bytes(&self) -> &[u8] {
-        match self {
-            Self::Inline(bytes) => bytes,
-            Self::OutOfLine(region) => region.bytes(),
-        }
     }
 }
 

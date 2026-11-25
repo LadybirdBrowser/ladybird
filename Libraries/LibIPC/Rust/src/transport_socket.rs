@@ -26,7 +26,7 @@ use std::time::Duration;
 
 use crate::attachment::Attachment;
 use crate::poller::{Event, Poller};
-pub use crate::receive_queue::ReceivedMessage;
+pub use crate::receive_queue::{PayloadBytes, ReceivedMessage};
 use crate::socket::{self, MAX_TRANSFER_FDS};
 use crate::transport::{
     AtomicIoThreadState, AttentionList, IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS, Inbox, Incoming,
@@ -282,8 +282,9 @@ fn parse_frames(
             PAYLOAD_FRAME | SHARED_MEMORY_PAYLOAD_FRAME => {
                 let in_shared_memory = frame_type == SHARED_MEMORY_PAYLOAD_FRAME;
                 let max_fd_count = MAX_MESSAGE_ATTACHMENT_COUNT + usize::from(in_shared_memory);
+                // NB: Only a payload too large for a frame goes in a file.
                 if payload_size > MAX_MESSAGE_PAYLOAD_SIZE
-                    || (!in_shared_memory && payload_size > MAX_INLINE_PAYLOAD_SIZE)
+                    || in_shared_memory != (payload_size > MAX_INLINE_PAYLOAD_SIZE)
                     || fd_count > max_fd_count
                     || (in_shared_memory && fd_count == 0)
                 {
@@ -305,13 +306,13 @@ fn parse_frames(
                 let attachments = fds.drain(..attachment_count).map(Attachment::from).collect();
                 let payload_start = index + HEADER_SIZE;
                 let payload = if in_shared_memory {
-                    socket::copy_payload_from_file(
+                    socket::payload_from_file(
                         fds.pop_front().expect("the frame's descriptors are queued"),
                         payload_size,
                     )
                     .map_err(|_| "shared memory payload")?
                 } else {
-                    bytes[payload_start..payload_start + payload_size].to_vec()
+                    PayloadBytes::Inline(bytes[payload_start..payload_start + payload_size].to_vec())
                 };
                 messages.push(ReceivedMessage {
                     bytes: payload,
@@ -1337,13 +1338,24 @@ mod tests {
 
     #[test]
     fn shared_memory_frames_refuse_missing_or_short_files() {
-        let frames = frame_header(SHARED_MEMORY_PAYLOAD_FRAME, 1, 0).to_vec();
+        let size = MAX_INLINE_PAYLOAD_SIZE + 2;
+        let frames = frame_header(SHARED_MEMORY_PAYLOAD_FRAME, size, 0).to_vec();
         assert!(parse_frames(&frames, &mut VecDeque::new(), &mut Vec::new()).is_err());
-        let memory = socket::copy_payload_to_file(&[1]).unwrap();
-        let frames = frame_header(SHARED_MEMORY_PAYLOAD_FRAME, 2, 1).to_vec();
+        let memory = socket::copy_payload_to_file(&vec![1; size - 1]).unwrap();
+        let frames = frame_header(SHARED_MEMORY_PAYLOAD_FRAME, size, 1).to_vec();
         let mut fds = VecDeque::from([OwnedFd::from(memory)]);
         assert!(parse_frames(&frames, &mut fds, &mut Vec::new()).is_err());
         assert!(fds.is_empty());
+    }
+
+    #[test]
+    fn shared_memory_frames_refuse_payloads_that_fit_a_frame() {
+        for size in [0, 1, MAX_INLINE_PAYLOAD_SIZE] {
+            let memory = socket::copy_payload_to_file(&vec![1; size.max(1)]).unwrap();
+            let frames = frame_header(SHARED_MEMORY_PAYLOAD_FRAME, size, 1).to_vec();
+            let mut fds = VecDeque::from([OwnedFd::from(memory)]);
+            assert!(parse_frames(&frames, &mut fds, &mut Vec::new()).is_err());
+        }
     }
 
     #[test]
@@ -1718,6 +1730,34 @@ mod tests {
             assert_pipe_closed(unclaimed_reader);
             assert_peer_sees_end(&mut peer);
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_payload_file_the_peer_did_not_seal_ends_the_messages() {
+        let (transport, mut peer) = with_raw_peer();
+        let payload = vec![7; MAX_INLINE_PAYLOAD_SIZE + 1];
+        let file = crate::shared_memory::create_unsealed_file_holding(&payload);
+        write_with_fds(
+            &peer,
+            &frame_header(SHARED_MEMORY_PAYLOAD_FRAME, payload.len(), 1),
+            &[file.as_fd()],
+        );
+        assert!(transport.receive().is_none());
+        assert_peer_sees_end(&mut peer);
+    }
+
+    #[test]
+    fn large_payloads_arrive_mapped_and_whole() {
+        let (a, b) = paired();
+        let bytes: Vec<u8> = (0..(MAX_INLINE_PAYLOAD_SIZE as u32 * 3))
+            .map(|i| (i % 251) as u8)
+            .collect();
+        a.post_message(bytes.clone(), Vec::new()).unwrap();
+        let message = b.receive().unwrap();
+        #[cfg(target_os = "linux")]
+        assert!(matches!(message.bytes, PayloadBytes::Mapped(_)));
+        assert_eq!(message.bytes(), bytes);
     }
 
     #[test]
