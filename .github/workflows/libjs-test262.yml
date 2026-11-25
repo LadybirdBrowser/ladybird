@@ -156,7 +156,7 @@ jobs:
       - name: Create libjs-data token
         id: libjs-data-token
         if: ${{ github.ref == 'refs/heads/master' }}
-        uses: actions/create-github-app-token@v3.3.0
+        uses: actions/create-github-app-token@v3.4.0
         with:
           client-id: ${{ vars.LIBJS_DATA_APP_CLIENT_ID }}
           private-key: ${{ secrets.LIBJS_DATA_APP_PRIVATE_KEY }}

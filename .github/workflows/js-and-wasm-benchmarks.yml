@@ -49,7 +49,7 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: 'Download JS repl artifact'
-        uses: dawidd6/action-download-artifact@v24
+        uses: dawidd6/action-download-artifact@v28
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-js-${{ matrix.package_type }}
@@ -69,7 +69,7 @@ jobs:
           echo "sha=${commit_hash}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Download wasm repl artifact'
-        uses: dawidd6/action-download-artifact@v24
+        uses: dawidd6/action-download-artifact@v28
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-wasm-${{ matrix.package_type }}
