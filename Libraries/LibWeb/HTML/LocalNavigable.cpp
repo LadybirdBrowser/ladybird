@@ -6050,24 +6050,17 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         page().client().request_frame();
 }
 
-bool LocalNavigable::adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset)
+bool LocalNavigable::adopt_compositor_visual_viewport_scale(Optional<float> scale)
 {
     auto document = active_document();
-    if (!document)
+    if (!document || !scale.has_value())
         return false;
-
-    Web::AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport };
     auto visual_viewport = document->visual_viewport();
     auto scale_before_adoption = visual_viewport->scale();
-    if (scale.has_value())
-        visual_viewport->set_scale_zoomed_by_compositor(scale.value());
-    bool scale_changed = visual_viewport->scale() != scale_before_adoption;
-    if (scale_changed)
-        did_store_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
-
-    if (!store_scroll_offset(visual_viewport_stable_node_id, scroll_offset, Painting::CompositorScrollRequest::None))
-        return scale_changed;
-    note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, UserScrollMovedBox::Yes);
+    visual_viewport->set_scale_zoomed_by_compositor(scale.value());
+    if (visual_viewport->scale() == scale_before_adoption)
+        return false;
+    did_store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport }, Painting::CompositorScrollRequest::None);
     return true;
 }
 
@@ -6170,14 +6163,23 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
             }
         }
 
-        if (has_in_flight_smooth_scroll) {
-            auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
-            if (store_scroll_offset_in_scroll_range(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
-                adopted_any_scroll_offset = true;
-                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async programmatic scroll offset {},{}",
-                    async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
-            }
+        if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport && async_scroll_offset.stable_node_id.node_id != document->unique_id())
+            continue;
 
+        // The compositor process reports which of its scrolling was relative, since dragging a scrollbar thumb is not.
+        if (!has_in_flight_smooth_scroll && async_scroll_offset.stable_node_id.kind != Web::AsyncScrollNodeKind::VisualViewport)
+            record_relative_scroll(*document, async_scroll_offset.stable_node_id, async_scroll_offset_to_css_pixels(async_scroll_offset.last_relative_scroll_delta, device_pixels_per_css_pixel));
+
+        auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
+        bool adopted_visual_viewport_scale = async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport && adopt_compositor_visual_viewport_scale(async_scroll_offset.visual_viewport_scale);
+        bool moved_the_box = store_scroll_offset(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None);
+        if (moved_the_box || adopted_visual_viewport_scale) {
+            adopted_any_scroll_offset = true;
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async scroll offset {},{}",
+                async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
+        }
+
+        if (has_in_flight_smooth_scroll) {
             // The input that took the scroll over goes on with the box's sequence as a gesture of its own. So does input
             // the compositor applied once the scroll was done, which these updates report along with the scroll's
             // completion when they were merged while this process was busy: The box is no longer where the scroll took
@@ -6193,39 +6195,9 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
             continue;
         }
 
-        if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
-            if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
-                continue;
-            if (adopt_async_visual_viewport_scroll(async_scroll_offset.visual_viewport_scale, css_scroll_offset)) {
-                adopted_any_scroll_offset = true;
-                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async visual viewport offset {},{}",
-                    async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
-            }
-            continue;
-        }
-
-        // The compositor process reports which of its scrolling was relative, since dragging a scrollbar thumb is not.
-        record_relative_scroll(*document, async_scroll_offset.stable_node_id, async_scroll_offset_to_css_pixels(async_scroll_offset.last_relative_scroll_delta, device_pixels_per_css_pixel));
-
-        if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
-            if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
-                continue;
-            auto scroll_offset_before_scroll = m_viewport_scroll_offset;
-            if (store_scroll_offset(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
-                adopted_any_scroll_offset = true;
-                note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
-                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
-                    async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
-            }
-            continue;
-        }
-
-        auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
-        if (store_scroll_offset(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
-            adopted_any_scroll_offset = true;
-            note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element offset {},{}",
-                async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
+        if (moved_the_box) {
+            auto gesture_start = async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport ? Optional<CSSPixelPoint> {} : scroll_offset_before_scroll;
+            note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, gesture_start, UserScrollMovedBox::Yes);
         }
     }
 
