@@ -293,7 +293,7 @@ impl AudioContext {
     }
 
     // https://webaudio.github.io/web-audio-api/#allowed-to-start
-    fn allowed_to_start(&self) -> bool {
+    pub(crate) fn allowed_to_start(&self) -> bool {
         // NB: Autoplay permission governs the first start of this context.
         self.renderer.borrow().is_some()
             || unsafe { web_audio_context_is_allowed_to_start(self.context.global_event_target().as_ptr()) }
@@ -346,10 +346,14 @@ impl AudioContext {
         self.context.set_control_state(AudioContextState::Running);
 
         // 8. Queue a control message to resume the AudioContext with promise.
-        self.run_control_message_to_resume(cx.vm(), promise);
+        self.run_control_message_to_resume(cx.vm(), Some(promise));
 
         // 9. Return promise.
         Ok(())
+    }
+
+    pub(crate) fn suspended_by_user(&self) -> bool {
+        self.suspended_by_user.get()
     }
 
     fn settle_pending_resume_promises(&self, vm: &Vm, mut settle: impl FnMut(WebIdlPromise)) {
@@ -367,7 +371,7 @@ impl AudioContext {
         resumes.clear();
     }
 
-    fn run_control_message_to_resume(&self, vm: &Vm, promise: WebIdlPromise) {
+    pub(crate) fn run_control_message_to_resume(&self, vm: &Vm, promise: Option<WebIdlPromise>) {
         // 1. Let promise be the promise passed into this algorithm.
 
         // 2. Attempt to acquire system resources.
@@ -405,12 +409,14 @@ impl AudioContext {
 
                 // 6.2. Resolve all promises from [[pending resume promises]] in order.
                 // 6.3. Clear [[pending resume promises]]. Additionally, remove those promises from [[pending promises]].
-                with_temporary_execution_context_and_callbacks(promise_realm(promise), || {
+                with_temporary_execution_context_and_callbacks(context.context.realm(), || {
                     context
                         .settle_pending_resume_promises(vm, |promise| resolve_promise(vm, promise, Value::UNDEFINED));
 
                     // 6.4. Resolve promise.
-                    resolve_promise(vm, promise, Value::UNDEFINED);
+                    if let Some(promise) = promise {
+                        resolve_promise(vm, promise, Value::UNDEFINED);
+                    }
 
                     // 6.5. If the state attribute of the AudioContext is not already "running":
                     if context.context.state_value() != AudioContextState::Running {
