@@ -38,6 +38,7 @@ public:
     virtual bool platform_reports_scroll_momentum() const = 0;
     virtual bool platform_scrolls_elastically() const = 0;
     virtual bool platform_scrollbar_track_press_jumps() const = 0;
+    virtual bool platform_scrollbars_always_shown() const = 0;
     virtual bool platform_prefers_reduced_motion() const = 0;
     virtual bool platform_prefers_more_contrast() const = 0;
     virtual Vector<String> platform_preferred_languages() const = 0;
@@ -128,6 +129,7 @@ private:
     virtual bool platform_reports_scroll_momentum() const override;
     virtual bool platform_scrolls_elastically() const override;
     virtual bool platform_scrollbar_track_press_jumps() const override;
+    virtual bool platform_scrollbars_always_shown() const override;
     virtual bool platform_prefers_reduced_motion() const override;
     virtual bool platform_prefers_more_contrast() const override;
     virtual Vector<String> platform_preferred_languages() const override;

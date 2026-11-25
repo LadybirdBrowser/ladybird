@@ -173,12 +173,31 @@ impl ScrollbarController {
     // scroller last scrolled or the pointer left it, and then fades out.
     pub const SHOWN_DURATION_AFTER_ACTIVITY: Duration = Duration::from_milliseconds(1000);
 
-    // Tests see every scrollbar at all times, as when it is shown depends on the time.
     pub fn new(scrollbars_always_shown: bool) -> Self {
         Self {
             scrollbars_always_shown,
             ..Default::default()
         }
+    }
+
+    pub fn set_scrollbars_always_shown(&mut self, always_shown: bool, now: MonotonicTime) -> bool {
+        if self.scrollbars_always_shown == always_shown {
+            return false;
+        }
+        self.scrollbars_always_shown = always_shown;
+        for i in 0..self.visibilities.len() {
+            let expanded = self.is_expanded(i);
+            let visibility = &mut self.visibilities[i];
+            visibility.fade.jump_to(1.0);
+            visibility.expansion.jump_to(if expanded { 1.0 } else { 0.0 });
+            visibility.is_held_shown = expanded;
+            visibility.fade_out_time = if always_shown || expanded {
+                None
+            } else {
+                Some(now + Self::SHOWN_DURATION_AFTER_ACTIVITY)
+            };
+        }
+        true
     }
 
     pub fn clear(&mut self) {
@@ -517,6 +536,14 @@ impl ScrollbarController {
             let scrolled = visibility.scroll_offset.is_some_and(|offset| offset != scroll_offset);
             visibility.scroll_offset = Some(scroll_offset);
 
+            if self.scrollbars_always_shown {
+                visibility.fade.jump_to(1.0);
+                visibility.expansion.jump_to(if expanded { 1.0 } else { 0.0 });
+                visibility.is_held_shown = expanded;
+                visibility.fade_out_time = None;
+                continue;
+            }
+
             let was_held_shown = visibility.is_held_shown;
             // Hovering a hidden scrollbar does not show it. Only a scroll does.
             visibility.is_held_shown = expanded && (scrolled || visibility.fade.opacity() > 0.0);
@@ -687,5 +714,46 @@ fn clamp(value: f32, min: f32, max: f32) -> f32 {
         min
     } else {
         value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libcompositing_rust::visual_context::VISUAL_VIEWPORT_NODE_INDEX;
+
+    #[test]
+    fn always_shown_scrollbars_show_at_once_and_fade_after_disabling() {
+        let snapshot = ScrollStateSnapshot::from_device_offsets(vec![FloatPoint::default()]);
+        let mut controller = ScrollbarController::new(false);
+        controller.set_scrollbars(&[AsyncScrollbar {
+            scroll_node_index: VISUAL_VIEWPORT_NODE_INDEX,
+            track_rect: IntRect::new(90, 0, 10, 100),
+            expanded_gutter_rect: IntRect::new(86, 0, 14, 100),
+            vertical: true,
+            ..Default::default()
+        }]);
+        let now = MonotonicTime::from_nanoseconds(1_000_000_000);
+        controller.update_visibility(&snapshot, now);
+        assert!(!controller.is_shown(0));
+
+        // Turning the mode on shows the scrollbar at once, so it takes pointer input, and nothing fades it out.
+        assert!(controller.set_scrollbars_always_shown(true, now));
+        assert!(controller.is_shown(0));
+        assert_eq!(controller.next_fade_out_time(), None);
+
+        // Turning it off lets the scrollbar fade as after activity, and hovering doesn't bring a faded one back.
+        assert!(controller.set_scrollbars_always_shown(false, now));
+        let fade_start = now + ScrollbarController::SHOWN_DURATION_AFTER_ACTIVITY;
+        assert_eq!(controller.next_fade_out_time(), Some(fade_start));
+        assert!(!controller.set_scrollbars_always_shown(false, fade_start));
+        controller.update_visibility(&snapshot, fade_start);
+        controller.advance_fades(fade_start);
+        assert!(controller.is_shown(0));
+        controller.advance_fades(fade_start + OverlayFade::DURATION);
+        assert!(!controller.is_shown(0));
+        controller.set_hovered_scrollbar(Some(0));
+        controller.update_visibility(&snapshot, fade_start + OverlayFade::DURATION);
+        assert!(!controller.is_shown(0));
     }
 }

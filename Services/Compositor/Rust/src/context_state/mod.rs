@@ -180,6 +180,7 @@ pub struct ScrollCapabilities {
     pub synthesizes_scroll_momentum: bool,
     pub scrolls_elastically: bool,
     pub scrollbar_track_press_jumps: bool,
+    pub scrollbars_always_shown: bool,
     pub touchpad_gesture_end: TouchpadGestureEnd,
 }
 
@@ -189,6 +190,7 @@ impl Default for ScrollCapabilities {
             synthesizes_scroll_momentum: false,
             scrolls_elastically: false,
             scrollbar_track_press_jumps: false,
+            scrollbars_always_shown: false,
             touchpad_gesture_end: TouchpadGestureEnd::AfterIdleDelay,
         }
     }

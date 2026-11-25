@@ -134,6 +134,7 @@ struct Hub::UIInfo {
     bool reports_scroll_momentum;
     bool scrolls_elastically;
     bool scrollbar_track_press_jumps;
+    bool scrollbars_always_shown;
     bool prefers_reduced_motion;
     bool prefers_more_contrast;
     Vector<String> preferred_languages;

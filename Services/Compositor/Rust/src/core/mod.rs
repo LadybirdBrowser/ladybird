@@ -218,7 +218,7 @@ impl CompositorCore {
         self.host
             .destroy_timers(|timer| matches!(timer, Timer::Context(id, _) if *id == context_id));
         self.display_list_chunk_stores.borrow_mut().forget_context(context_id);
-        self.update_scroll_capabilities();
+        self.update_scroll_capabilities(now);
         self.raster
             .set_maximum_display_refresh_rate(self.maximum_display_refresh_rate());
         self.finish_entry(now);
@@ -441,13 +441,24 @@ impl CompositorCore {
         self.finish_entry(now);
     }
 
-    pub fn set_scrollbar_track_press_jumps(&self, presentation_id: PresentationId, jumps: bool) {
+    pub fn set_scrollbar_track_press_jumps(&self, presentation_id: PresentationId, jumps: bool, now: MonotonicTime) {
         let _entered = self.enter();
 
         if let Some(capabilities) = self.presentations.borrow_mut().get_mut(&presentation_id) {
             capabilities.scrollbar_track_press_jumps = jumps;
         }
-        self.update_scroll_capabilities();
+        self.update_scroll_capabilities(now);
+        self.finish_entry(now);
+    }
+
+    pub fn set_scrollbars_always_shown(&self, presentation_id: PresentationId, always_shown: bool, now: MonotonicTime) {
+        let _entered = self.enter();
+
+        if let Some(capabilities) = self.presentations.borrow_mut().get_mut(&presentation_id) {
+            capabilities.scrollbars_always_shown = always_shown;
+        }
+        self.update_scroll_capabilities(now);
+        self.finish_entry(now);
     }
 
     fn invalidate_and_resize_backing_stores(&self, context_id: CompositorContextId, now: MonotonicTime) {
@@ -494,7 +505,7 @@ impl CompositorCore {
         }
         self.unbind_presentation_inner(context_id, now);
         context.borrow_mut().set_bound_presentation(Some(presentation_id));
-        self.update_scroll_capabilities();
+        self.update_scroll_capabilities(now);
         // The new presentation has seen none of the context's buffers, so it gets buffers of its own.
         self.invalidate_and_resize_backing_stores(context_id, now);
         self.finish_entry(now);

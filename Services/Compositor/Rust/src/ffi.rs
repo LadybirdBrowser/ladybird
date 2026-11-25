@@ -135,6 +135,7 @@ pub extern "C" fn compositor_core_register_presentation(
             synthesizes_scroll_momentum: capabilities.synthesizes_scroll_momentum,
             scrolls_elastically: capabilities.scrolls_elastically,
             scrollbar_track_press_jumps: capabilities.scrollbar_track_press_jumps,
+            scrollbars_always_shown: false,
             gpu_presentation_adapter_luid: capabilities
                 .has_gpu_presentation_adapter
                 .then_some(capabilities.gpu_presentation_adapter_luid),

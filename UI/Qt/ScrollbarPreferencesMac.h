@@ -17,4 +17,7 @@ bool scrollbar_track_press_jumps();
 // Calls the given function whenever that setting may have changed.
 void on_scrollbar_track_press_behavior_change(Function<void()>);
 
+bool scrollbars_always_shown();
+void on_scrollbar_visibility_change(Function<void()>);
+
 }
