@@ -24,7 +24,7 @@ pub(super) struct UnitPlace {
     pub(super) has_svg_root: bool,
     /// The boxes above the box, outermost first.
     pub(super) ancestor_rows: Vec<NodeSlotId>,
-    /// The marked nodes whose boxes go in the list, each once: see `append_window` and `bounded_window`.
+    /// The marked nodes whose boxes go in the list, each once: see `bounded_window`.
     pub(super) marked_children: Vec<StyleNodeID>,
 }
 
@@ -67,8 +67,7 @@ pub(super) fn update_child_list(
             == 0,
         fresh_from_entry: u32::MAX,
         verifies_kept_boxes: cfg!(debug_assertions) || kept_box_verification_is_enabled(),
-        window: append_window(host, root, element, reasons, &place.marked_children)
-            .or_else(|| bounded_window(host, root, element, reasons, &place.marked_children)),
+        window: bounded_window(host, root, element, reasons, &place.marked_children),
     };
     let mut plan = plan_child_list(host, root, element, unit, place);
     // NB: A block that goes among the inline boxes of the list wraps the boxes before the window too, or those after it
@@ -185,158 +184,6 @@ impl crate::layout::tree_plan::content_items::RetainedQuotes for UnitQuotes<'_> 
     }
 }
 
-/// Where the walk plans the child list of `root`, the box of `element`, from, where the list only gained children at
-/// its end, or inside the run of inline content its last anonymous box wraps: the last child that has a box, whose box
-/// goes last among the boxes of the list, or the first child whose box that anonymous box holds. Nothing before it asks
-/// to build again. The list's own pseudo-element boxes and the anonymous boxes of a box that lays its contents out in
-/// some need the whole list, as do the lists of shadow hosts, slots, tables and SVG.
-// OPTIMIZATION: A list that gains children at its end then costs what it gains, and what its last run of inline content
-//               holds, not what the list holds.
-fn append_window(
-    host: &TreeBuilderHost<'_>,
-    root: LayoutNode,
-    element: StyleNodeID,
-    reasons: u8,
-    marked_children: &[StyleNodeID],
-) -> Option<ListWindow> {
-    let arena = host.arena();
-    if reasons != layout_tree_update_reuse_reason::CHILD_LIST_INSERTION {
-        return None;
-    }
-    let root_data = arena.data(root);
-    let root_kind = root_data.kind.get();
-    if !matches!(
-        root_kind,
-        NodeKind::BlockContainer | NodeKind::Box | NodeKind::ListItemBox | NodeKind::InlineNode
-    ) || node_facts::has_flag(root_data, NodeFlag::UsesButtonLayout)
-        || is_tabular_container(host, root)
-        || !arena
-            .bound_pseudo_element_row(element, GENERATED_FOR_AFTER)
-            .is_invalid()
-    {
-        return None;
-    }
-    arena.with_style_store(|engine| {
-        if engine.shadow_root_of(element).is_some()
-            || engine.assigned_node_count(element) != 0
-            || engine.element_adjustment_facts(element)
-                & (element_adjustment_fact::IS_SVG_ELEMENT | element_adjustment_fact::IS_SVG_SWITCH_ELEMENT)
-                != 0
-            || engine
-                .element_published_box_facts(element)
-                .is_none_or(|facts| facts.content_visibility != content_visibility::VISIBLE)
-            || arena
-                .writing_suggestion()
-                .is_some_and(|suggestion| engine.text_parent(suggestion.text) == Some(element))
-        {
-            return None;
-        }
-        let is_in_flow = |row: NodeSlotId| {
-            !arena
-                .style_view(row)
-                .is_some_and(|style| style.is_floating() || style.is_absolutely_positioned())
-        };
-        // NB: The window starts at the child whose box is the last of the list, or, where that is an anonymous box
-        //     wrapping a run of inline content after a block of the list, at the child whose box the run starts with:
-        //     the walk plans the run again in an anonymous box that takes that one over. The children after it are in
-        //     the run or inserted, each of which holds a mark. A child without a box and without a mark, such as white
-        //     space whose parent changed how it collapses, may gain one where the window does not reach.
-        let marks = arena.layout_tree_update_marks();
-        let last = root_data.last_child.get();
-        if last.is_invalid() {
-            return None;
-        }
-        let last_data = arena.data(last);
-        let wrapper = if node_facts::has_flag(last_data, NodeFlag::Anonymous) {
-            let previous = last_data.previous_sibling.get();
-            // NB: The run follows an in-flow block, after which a fresh walk starts a run as it starts a list.
-            if !matches!(root_kind, NodeKind::BlockContainer | NodeKind::ListItemBox)
-                || last_data.kind.get() != NodeKind::BlockContainer
-                || !node_facts::has_flag(last_data, NodeFlag::ChildrenAreInline)
-                || !arena.is_list_closure_wrapper(last)
-                || previous.is_invalid()
-                || node_facts::has_flag(arena.data(previous), NodeFlag::Anonymous)
-                || !is_in_flow(previous)
-            {
-                return None;
-            }
-            Some(last)
-        } else {
-            None
-        };
-        let entry_top = match wrapper {
-            Some(wrapper) => arena.data(wrapper).first_child.get(),
-            None => last,
-        };
-        if entry_top.is_invalid() || node_facts::has_flag(arena.data(entry_top), NodeFlag::Anonymous) {
-            return None;
-        }
-        let anchor = arena.dom_node_style_node(entry_top)?;
-        let parent_of = |node: StyleNodeID| match node.text_index() {
-            Some(_) => engine.text_parent(node),
-            None => engine.dom_parent(node),
-        };
-        let row = arena.bound_row(anchor);
-        if parent_of(anchor) != Some(element) || row.is_invalid() || arena.list_entry_top_row(row) != entry_top {
-            return None;
-        }
-        let mut in_window = HashSet::default();
-        let mut gained = false;
-        let mut child = engine.next_sibling_in_dom_order(anchor);
-        while let Some(current) = child {
-            let current_row = arena.bound_row(current);
-            if current_row.is_invalid() {
-                // NB: In the run, a child without a box may be one without a box of its own, such as a hidden one.
-                if marks.needs(current) {
-                    gained = true;
-                } else if wrapper.is_none() {
-                    return None;
-                }
-            } else {
-                let current_top = arena.list_entry_top_row(current_row);
-                if wrapper.is_none_or(|wrapper| arena.data(current_top).parent.get() != wrapper) {
-                    return None;
-                }
-            }
-            in_window.insert(current);
-            child = engine.next_sibling_in_dom_order(current);
-        }
-        if !gained || (anchor.text_index().is_some() && engine.text_is_ascii_whitespace(anchor)) {
-            return None;
-        }
-        // NB: The walk does not keep the box of a text with a source range, as a `::first-letter` split leaves.
-        if anchor.text_index().is_some() && arena.text_has_source_range(row) {
-            return None;
-        }
-        // NB: The walk keeps the box of the child the window starts at. A restyle may give that child a new box,
-        //     whatever else it was marked for.
-        if marks.may_build_box_again(anchor) {
-            return None;
-        }
-        // NB: An in-flow box tells the walk what the boxes of the list before it are: inline ones where it is inline,
-        //     or blocks. An out-of-flow one tells it nothing.
-        if !is_in_flow(row) {
-            return None;
-        }
-        // NB: A child before the window whose box goes, or that gained one, needs the whole list. The marks name every
-        //     such child, and every node flattened into the list, whose box goes where it is built again or restyled,
-        //     whatever else its list was marked for, and every node whose boxes left the list for another one, such as
-        //     the viewport's for the top layer, whichever list answered its mark.
-        let earlier_child_changed = marked_children.iter().any(|&child| {
-            child != anchor
-                && !in_window.contains(&child)
-                && (arena.layout_parent_with_box(child) != Some(element)
-                    || marks.may_build_box_again(child)
-                    || (marks.needs(child) && arena.bound_row(child).is_invalid()))
-        });
-        (!earlier_child_changed).then_some(ListWindow {
-            start: Some(anchor),
-            wrapper: wrapper.unwrap_or(NodeSlotId::INVALID),
-            end: None,
-        })
-    })
-}
-
 /// Whether the child list of `root`, the box of `element`, may change in part, planned from a window of it, as far as
 /// the list's box tells: it is a block container, a box, a list item or an inline box, whose list holds blocks or inline
 /// content, and no button, part of a table, shadow host, slot, SVG element or element whose contents are skipped, nor
@@ -382,13 +229,14 @@ enum ListChangeAt {
 /// The part of the child list of `root`, the box of `element`, that the walk plans, where the list only gained or lost
 /// children: from the last box the list keeps before the changes that is like the boxes of the list, blocks in a list
 /// of blocks or inline-level boxes in a list of inline content, both in flow, or from the start of the list where none
-/// is, to the first such box after them, or to the end of the list. What a fresh walk decides after such a box reads
-/// nothing before it: a block ends a run of inline content, and white space after an inline-level box reads that box
-/// alone. A block that goes among inline content wraps the boxes before the window, which the walk notes, and a change
-/// that moves a counter or a quote depth moves them for the boxes after the window, which the plan tells: the list is
-/// then planned whole. A new list item moves the `list-item` value of the list items after it, which the plan does not
-/// tell. The lists that an append window cannot have need the whole list, as does a window that would run from the
-/// start of the list to its end.
+/// is, to the first such box after them, or to the end of the list. In a list of inline content, the window may also
+/// start at a text with more than white space. What a fresh walk decides after such a box reads nothing before it: a
+/// block ends a run of inline content, and white space after an inline-level box or a text reads that box alone. A
+/// block that goes among inline content wraps the boxes before the window, which the walk notes, and a change that moves
+/// a counter or a quote depth moves them for the boxes after the window, which the plan tells: the list is then planned
+/// whole. A new list item moves the `list-item` value of the list items after it, which the plan does not tell, so it
+/// needs a window that runs to the end of the list. The lists `list_may_change_in_part` refuses need the whole list, as
+/// does a window that would run from the start of the list to its end.
 // OPTIMIZATION: A list that gains or loses a child among others then costs what changed, not what the list holds.
 fn bounded_window(
     host: &TreeBuilderHost<'_>,
@@ -431,19 +279,19 @@ fn bounded_window(
         //     planned them, see `first_entry_after_changed_generated_content`.
         let marked: HashSet<StyleNodeID> = marked_children.iter().copied().collect();
         let mut changes = Vec::new();
+        let mut gains_list_item = false;
         for &child in marked_children {
             // NB: A node flattened into the list, such as a child of a `display: contents` child, needs the whole list.
             if parent_of(child) != Some(element) {
                 return None;
             }
-            if child.element_index().is_some()
-                && (marks.generated_content_changed(child)
-                    || marks.list_item_changed(child)
-                    || engine
-                        .element_published_box_facts(child)
-                        .is_some_and(|facts| facts.display.is_list_item()))
-            {
-                return None;
+            if child.element_index().is_some() {
+                if marks.generated_content_changed(child) || marks.list_item_changed(child) {
+                    return None;
+                }
+                gains_list_item |= engine
+                    .element_published_box_facts(child)
+                    .is_some_and(|facts| facts.display.is_list_item());
             }
             let row = arena.bound_row(child);
             if !row.is_invalid()
@@ -539,7 +387,20 @@ fn bounded_window(
             ListChangeAt::Box(row) | ListChangeAt::After(row) => arena.data(*row).next_sibling.get(),
             ListChangeAt::Start => root_data.first_child.get(),
         };
-        while !before.is_invalid() && !bounds(before) {
+        let starts_window = |row: NodeSlotId| {
+            bounds(row)
+                || (children_are_inline
+                    && !changed_boxes.contains(&row)
+                    && !arena.text_has_source_range(row)
+                    && arena.dom_node_style_node(row).is_some_and(|node| {
+                        node.text_index().is_some()
+                            && arena.bound_row(node) == row
+                            && !marks.needs(node)
+                            && engine.text_parent(node) == Some(element)
+                            && !engine.text_is_ascii_whitespace(node)
+                    }))
+        };
+        while !before.is_invalid() && !starts_window(before) {
             before = arena.data(before).previous_sibling.get();
         }
         while !after.is_invalid() && !bounds(after) {
@@ -552,6 +413,7 @@ fn bounded_window(
         let has_pseudo_element_box =
             |generated_for: u8| !arena.bound_pseudo_element_row(element, generated_for).is_invalid();
         if (from_start && to_end)
+            || (gains_list_item && !to_end)
             || (from_start
                 && (has_pseudo_element_box(GENERATED_FOR_BEFORE) || has_pseudo_element_box(GENERATED_FOR_MARKER)))
             || (to_end && has_pseudo_element_box(GENERATED_FOR_AFTER))
@@ -568,11 +430,7 @@ fn bounded_window(
         } else {
             Some(arena.dom_node_style_node(after)?)
         };
-        Some(ListWindow {
-            start,
-            wrapper: NodeSlotId::INVALID,
-            end,
-        })
+        Some(ListWindow { start, end })
     })
 }
 
@@ -1012,12 +870,9 @@ fn reconcile(
 ) -> Vec<bool> {
     let (planned, (planned_first_child, planned_last_child)) = read_planned_list(host.arena(), &plan, root);
     let root_flags_before = host.data(root).flags.get();
-    // NB: A list planned from a window starts at the box it keeps first, which is the last box the list had, or at
-    //     an anonymous box that takes over the last one, which wraps the run of inline content the list ends with, or
-    //     at the start of the list. The list keeps the boxes before that as they are.
-    let window_wrapper = window.map_or(NodeSlotId::INVALID, |window| window.wrapper);
+    // NB: A list planned from a window starts at the box it keeps first, or at the start of the list. The list keeps the
+    //     boxes before that as they are.
     let start = match window {
-        Some(_) if !window_wrapper.is_invalid() => window_wrapper,
         Some(window) if window.start.is_some() => planned.first().expect("a window starts at a kept box").slot,
         _ => host.data(root).first_child.get(),
     };
@@ -1106,10 +961,6 @@ fn reconcile(
             }
         }
     }
-    assert!(
-        window_wrapper.is_invalid() || taken.contains(&window_wrapper),
-        "the anonymous box a window starts at takes over the one the list ended with"
-    );
     let map = |slot: NodeSlotId| taken_over.get(&slot).copied().unwrap_or(slot);
     let dropped: Vec<OldRow> = old_rows
         .iter()
