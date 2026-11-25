@@ -15,6 +15,7 @@
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
+#include <LibMediaCodecs/FFmpeg/BundledFFmpeg.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMediaCodecs/FFmpeg/MallocTuning.h>
 #include <LibMediaCodecs/HardwareVideoDecoders.h>
@@ -95,9 +96,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return Error::from_string_literal("Malformed GPU device identity");
     }
 
+    // FFmpeg's libraries load before the sandbox would keep them from reading their files. H.264 and HEVC decode through
+    // the system library, whose dependencies also make syscalls the sandbox will not allow.
+    TRY(Media::FFmpeg::load_bundled_ffmpeg());
 #if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
-    // H.264 and HEVC decode through the system library, which loads before the sandbox would keep it from reading its
-    // files or making the syscalls its dependencies make.
     Media::FFmpeg::SystemFFmpeg::load();
 #endif
 

@@ -92,12 +92,20 @@ ladybird_lib(LibMediaCodecs mediacodecs EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMediaCodecs PRIVATE LibCore LibGfx LibIPC LibPlatformFeatures LibThreading)
 target_link_libraries(LibMediaCodecs PUBLIC LibAudio)
 
-if (NOT ANDROID)
-    target_link_libraries(LibMediaCodecs PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL)
-else()
+if (ANDROID)
     target_include_directories(LibMediaCodecs PRIVATE ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(LibMediaCodecs PRIVATE ${FFMPEG_LIBRARY_DIRS})
     target_link_libraries(LibMediaCodecs PRIVATE ${FFMPEG_LIBRARIES})
+elseif (LINUX)
+    # A system FFmpeg may be loaded beside the bundled one, so the bundled one is loaded with RTLD_LOCAL rather than
+    # linked, which keeps its symbols from taking the place of the system one's.
+    ladybird_use_bundled_ffmpeg_headers(LibMediaCodecs)
+    target_compile_definitions(LibMediaCodecs PRIVATE
+        LADYBIRD_BUNDLED_LIBAVCODEC="${LADYBIRD_BUNDLED_AVCODEC_SONAME}"
+        LADYBIRD_BUNDLED_LIBSWRESAMPLE="${LADYBIRD_BUNDLED_LIBSWRESAMPLE_SONAME}"
+    )
+else()
+    target_link_libraries(LibMediaCodecs PRIVATE PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::LIBSWRESAMPLE)
 endif()
 
 if (LINUX)

@@ -63,6 +63,14 @@ constexpr AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
     VERIFY_NOT_REACHED();
 }
 
+constexpr FFmpegFunctions::CodecIDTable codec_ids_of_these_headers()
+{
+    FFmpegFunctions::CodecIDTable codec_ids {};
+    for (auto codec_id : all_codec_ids)
+        codec_ids[to_underlying(codec_id)] = ffmpeg_codec_id_from_media_codec_id(codec_id);
+    return codec_ids;
+}
+
 static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
 {
     switch (codec) {

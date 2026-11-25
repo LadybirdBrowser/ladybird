@@ -40,6 +40,7 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelCustom) == 32 && offsetof(A
     F(avcodec_find_decoder)                 \
     F(avcodec_find_decoder_by_name)         \
     F(avcodec_find_encoder)                 \
+    F(avcodec_descriptor_get)               \
     F(avcodec_descriptor_get_by_name)       \
     F(avcodec_alloc_context3)               \
     F(avcodec_free_context)                 \
@@ -85,7 +86,17 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelCustom) == 32 && offsetof(A
     F(av_channel_layout_uninit)             \
     F(av_sample_fmt_is_planar)              \
     F(av_get_planar_sample_fmt)             \
-    F(av_rescale_q)
+    F(av_rescale_q)                         \
+    F(av_rescale_rnd)
+
+// Audio is only ever converted through the bundled libswresample.
+#define FFMPEG_ENUMERATE_BUNDLED_FUNCTIONS(F) \
+    F(swr_alloc_set_opts2)                    \
+    F(swr_init)                               \
+    F(swr_free)                               \
+    F(swr_get_delay)                          \
+    F(swr_get_out_samples)                    \
+    F(swr_convert)
 
 namespace FFMPEG_ABI_NAMESPACE {
 
@@ -93,6 +104,9 @@ namespace FFmpegFunctionPointers {
 
 #define FFMPEG_FUNCTION_POINTER_TYPE(name) using name = decltype(&name);
 FFMPEG_ENUMERATE_FUNCTIONS(FFMPEG_FUNCTION_POINTER_TYPE)
+#ifndef LADYBIRD_SYSTEM_FFMPEG_NAMESPACE
+FFMPEG_ENUMERATE_BUNDLED_FUNCTIONS(FFMPEG_FUNCTION_POINTER_TYPE)
+#endif
 #undef FFMPEG_FUNCTION_POINTER_TYPE
 
 }
@@ -103,6 +117,9 @@ struct MEDIACODECS_API FFmpegFunctions {
 
 #define FFMPEG_FUNCTION_POINTER(name) FFmpegFunctionPointers::name name;
     FFMPEG_ENUMERATE_FUNCTIONS(FFMPEG_FUNCTION_POINTER)
+#ifndef LADYBIRD_SYSTEM_FFMPEG_NAMESPACE
+    FFMPEG_ENUMERATE_BUNDLED_FUNCTIONS(FFMPEG_FUNCTION_POINTER)
+#endif
 #undef FFMPEG_FUNCTION_POINTER
 
     using CodecIDTable = Array<AVCodecID, all_codec_ids.size() + 1>;
@@ -113,6 +130,7 @@ struct MEDIACODECS_API FFmpegFunctions {
     // Null if the library lacks any of the functions.
     static FFmpegFunctions const* resolved_from_library(void* library_handle);
 #else
+    // Only valid once load_bundled_ffmpeg() has succeeded.
     static FFmpegFunctions const& bundled();
 #endif
 };
