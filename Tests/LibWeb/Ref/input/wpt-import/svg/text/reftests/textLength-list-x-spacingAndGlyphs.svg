@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" viewBox="0 0 400 100"
+     class="reftest-wait"
+     onload="document.fonts.ready.then(function() { document.documentElement.classList.remove('reftest-wait'); })">
+  <metadata>
+    <title>textLength with lengthAdjust=spacingAndGlyphs applies across all glyphs of the element when x is a list of values, keeping the absolute positions</title>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementTextLengthAttribute"/>
+    <h:link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=61855"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/textLength-list-x-spacingAndGlyphs-ref.svg"/>
+    <h:link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css"/>
+  </metadata>
+  <!-- The x values are the natural advance positions for 50px Ahem ("X" = 50
+       units wide), giving one chunk per glyph. textLength applies across the
+       whole element: the advances add up to 600, so each glyph is stretched by
+       300 / 600 = 0.5. The absolute x positions are applied after textLength
+       and stay where they are, so every glyph is 25 wide and starts at its x.
+       Scaling each chunk to the full textLength on its own would pile the
+       glyphs on top of each other. -->
+  <text x="0 50 100 150 200 250 300 350 400 450 500 550" y="80"
+        font-family="Ahem" font-size="50"
+        textLength="300" lengthAdjust="spacingAndGlyphs"
+        fill="black">XXXXXXXXXXXX</text>
+</svg>

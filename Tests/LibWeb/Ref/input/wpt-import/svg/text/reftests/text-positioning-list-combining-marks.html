@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/text-positioning-list-combining-marks-ref.html">
+<title>SVG text: a positioning list must not detach a combining mark from its base</title>
+<link rel="help" href="https://w3c.github.io/svgwg/master/text.html#TextLayoutAlgorithm">
+<link rel="help" href="https://crbug.com/41007184">
+<meta name="assert" content="A base letter followed by a combining mark (a + U+0301) is one addressable character, so an x list of '10 40' must place the accented letter at x=10 rather than shaping and positioning the mark on its own at x=40.">
+
+<body style="margin:20px">
+
+<svg width="200" height="60" xmlns="http://www.w3.org/2000/svg">
+  <text x="10 40" y="40" font-family="Arial" font-size="40">a&#x0301;</text>
+</svg>
+
+</body>
+</html>

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Vector.h>
 #include <LibWeb/SVG/SVGLengthValue.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
@@ -22,10 +23,10 @@ public:
     // The positioning attributes as written. A relative length follows the element's font rather than its attributes,
     // so the layout stage, not this parse, is what turns one into pixels.
     struct ParsedTextPositioning {
-        Optional<SVGLengthValue> x;
-        Optional<SVGLengthValue> y;
-        Optional<SVGLengthValue> dx;
-        Optional<SVGLengthValue> dy;
+        Vector<SVGLengthValue> x;
+        Vector<SVGLengthValue> y;
+        Vector<SVGLengthValue> dx;
+        Vector<SVGLengthValue> dy;
     };
     ParsedTextPositioning parsed_text_positioning() const;
 

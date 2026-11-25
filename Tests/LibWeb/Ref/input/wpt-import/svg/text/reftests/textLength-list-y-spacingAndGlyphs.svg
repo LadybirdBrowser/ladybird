@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" viewBox="0 0 400 100"
+     class="reftest-wait"
+     onload="document.fonts.ready.then(function() { document.documentElement.classList.remove('reftest-wait'); })">
+  <metadata>
+    <title>textLength with lengthAdjust=spacingAndGlyphs applies across all glyphs of the element when y is a list of identical values</title>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementTextLengthAttribute"/>
+    <h:link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=61855"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/textLength-list-y-spacingAndGlyphs-ref.svg"/>
+    <h:link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css"/>
+  </metadata>
+  <!-- A list-valued y attribute splits the element into one chunk per listed
+       value in WebKit's internal representation. textLength is specified on the
+       'text' element, so it must apply across all glyphs of the element, not
+       per internal chunk. This test gives y twelve identical values — the
+       visual result must be identical to supplying a single y value, since
+       every glyph is targeted at the same baseline. -->
+  <text x="0" y="80 80 80 80 80 80 80 80 80 80 80 80"
+        font-family="Ahem" font-size="50"
+        textLength="400" lengthAdjust="spacingAndGlyphs"
+        fill="black">XXXXXXXXXXXX</text>
+</svg>

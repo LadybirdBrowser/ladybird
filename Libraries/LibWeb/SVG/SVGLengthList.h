@@ -24,6 +24,8 @@ public:
     [[nodiscard]] static GC::Ref<SVGLengthList> create(GC::Ref<SVGElement>, Utf16FlyString reflected_attribute, SVGLength::Directionality, ReadOnlyList);
     virtual ~SVGLengthList() override = default;
 
+    static Vector<SVGLengthValue> parse(Utf16View);
+
     // https://svgwg.org/svg2-draft/types.html#TermSynchronizeList
     void synchronize();
 

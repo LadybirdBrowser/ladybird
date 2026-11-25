@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100">
+  <!-- Ahem "X" glyphs 50px high at baseline y=80, each stretched to 25 wide at its x. -->
+  <rect x="0" y="40" width="25" height="50"/>
+  <rect x="50" y="40" width="25" height="50"/>
+  <rect x="100" y="40" width="25" height="50"/>
+  <rect x="150" y="40" width="25" height="50"/>
+  <rect x="200" y="40" width="25" height="50"/>
+  <rect x="250" y="40" width="25" height="50"/>
+  <rect x="300" y="40" width="25" height="50"/>
+  <rect x="350" y="40" width="25" height="50"/>
+</svg>

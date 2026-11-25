@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    svg { font: 20px Ahem; }
+</style>
+<svg width="900" height="200"></svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+        const cases = [
+            ["dx list", '<text x="10" y="30" dx="5 10 15">ABCD</text>'],
+            ["tspan dx list", '<text x="10" y="70">A<tspan dx="5 10 15">BCDE</tspan>F</text>'],
+            ["x list", '<text x="10 50 90" y="110">ABCD</text>'],
+            ["dy list", '<text x="10" y="150" dy="0 5 10">ABCD</text>'],
+            ["nested override", '<text x="10 30 50" y="30">AB<tspan x="100">CD</tspan></text>'],
+            ["middle anchor", '<text x="20 60 100" y="30" text-anchor="middle">ABCD</text>'],
+            ["scaled dx list", '<text x="10" y="30" dx="5 10 15" textLength="210" lengthAdjust="spacingAndGlyphs">ABCD</text>'],
+            ["scaled x list", '<text x="10 50 90" y="30" textLength="160" lengthAdjust="spacingAndGlyphs">ABCD</text>'],
+            ["y list with spacing", '<text x="10" y="30 30 30 30" textLength="140">ABCD</text>'],
+            ["commas and units", '<text x="0.5em, 50px, 10%" y="30">ABCD</text>'],
+            ["y list after a middle anchor", '<text x="100" y="30 60" text-anchor="middle">AB</text>'],
+            ["x list over a surrogate pair", '<text x="10 50 90" y="30">A&#x1F600;B</text>'],
+            ["textPath dx list", '<path id="p" d="M0 100H800"/><text font-size="10"><textPath href="#p"><tspan dx="0 20">AB</tspan>C</textPath></text>'],
+            ["textPath dy list", '<path id="p" d="M0 100H800"/><text font-size="10"><textPath href="#p"><tspan dy="0 20">AB</tspan>C</textPath></text>'],
+            ["combining mark dx", '<text font-size="10" font-family="sans-serif" x="0" y="150" dx="0 20 0">A&#x301;B</text>'],
+            ["combining mark dy", '<text font-size="10" font-family="sans-serif" x="0" y="150" dy="0 20 0">A&#x301;B</text>'],
+            ["combining mark dx with middle anchor", '<text font-size="10" font-family="sans-serif" x="100" y="150" dx="0 20 0" text-anchor="middle">A&#x301;B</text>'],
+            ["combining mark dx with spacing", '<text font-size="10" font-family="sans-serif" x="0" y="150" dx="0 20 0" textLength="60">A&#x301;B</text>'],
+            ["combining mark dx with glyph scaling", '<text font-size="10" font-family="sans-serif" x="0" y="150" dx="0 20 0" textLength="80" lengthAdjust="spacingAndGlyphs">A&#x301;B</text>'],
+            ["combining mark dx across runs", '<text font-size="10" font-family="sans-serif" x="0" y="150"><tspan dx="0 20">A&#x301;</tspan>B</text>'],
+            ["scaled dx at a y-only chunk", '<text font-size="10" x="0" y="20 40" dx="0 10" textLength="60" lengthAdjust="spacingAndGlyphs">AB</text>'],
+            ["anchor after a scaled span", '<text font-size="10" x="100" y="20" text-anchor="middle"><tspan textLength="20" lengthAdjust="spacingAndGlyphs">A</tspan><tspan y="40">B</tspan></text>'],
+            ["anchor entering a scaled span", '<text font-size="10" x="100" y="20" text-anchor="middle">A<tspan y="40" textLength="20" lengthAdjust="spacingAndGlyphs">B</tspan></text>'],
+            ["textPath absolute x", '<path id="p" d="M0 200H800"/><text font-size="10"><textPath href="#p">A<tspan x="100">B</tspan>C</textPath></text>'],
+            ["textPath x with dx and ignored y", '<path id="p" d="M0 200H800"/><text font-size="10"><textPath href="#p">A<tspan x="100 50" y="40 60" dx="5 10">BC</tspan>D</textPath></text>'],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            const text = svg.querySelector("text");
+            const cells = Array.from({ length: text.getNumberOfChars() }, (_, index) => {
+                const cell = text.getExtentOfChar(index);
+                return `${Math.round(cell.x * 100) / 100},${Math.round(cell.y * 100) / 100}`;
+            });
+            println(`${name}: ${cells.join(" ")}`);
+        }
+        done();
+    });
+</script>
