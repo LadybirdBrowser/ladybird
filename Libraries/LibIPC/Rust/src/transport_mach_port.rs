@@ -26,14 +26,23 @@ use crate::mach::{
 pub use crate::receive_queue::ReceivedMessage;
 use crate::transport::{
     AtomicIoThreadState, AttentionList, IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS, Inbox, IncomingMessageObserver,
-    IoThreadMembership, IoThreadState, MonotonicDeadline, OutgoingPayload, SharesIoThread, is_shared_io_thread, lock,
-    release_unused_allocator_memory, start_shared_io_thread, wait_for,
+    IoThreadMembership, IoThreadState, MonotonicDeadline, OutgoingPayload, OwnedPayload, SharesIoThread,
+    is_shared_io_thread, lock, release_unused_allocator_memory, start_shared_io_thread, wait_for,
 };
 
 /// The receive right and send right that make up one end of a connection, as `IPC::TransportHandle` holds them.
 pub struct MachPortPair {
     pub receive_right: MachPort,
     pub send_right: MachPort,
+}
+
+impl OutgoingPayload<'_> {
+    fn into_owned(self) -> OwnedPayload {
+        match self {
+            Self::Owned(bytes) => Box::new(bytes),
+            Self::Lent { hand_over, .. } => hand_over(),
+        }
+    }
 }
 
 const MAX_BACKLOG_MESSAGES_SENT_PER_TURN: usize = 64;
@@ -1094,6 +1103,8 @@ impl Drop for TransportMachPort {
     fn drop(&mut self) {
         self.stop(IoThreadState::Stopped);
         self.release_send_right_to_peer();
+        // NB: The IO thread may still hold the shared state for a moment, and this end's descriptors go with this.
+        self.shared.inbox.close_read_notification_pipe();
         // NB: The observer goes here, on the owner's thread, rather than wherever the last reference to the shared state
         //     happens to be dropped.
         drop(self.set_incoming_message_observer(None));

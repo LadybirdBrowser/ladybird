@@ -6,7 +6,9 @@
 
 //! Sending and receiving bytes with file descriptors over a Unix domain socket.
 //!
-//! This is the crate's other island of unsafe code: `sendmsg()` and `recvmsg()` with `SCM_RIGHTS` control messages.
+//! This is the crate's other island of unsafe code: `sendmsg()` and `recvmsg()` with `SCM_RIGHTS` control messages, and
+//! the socket options the transport sets. None of these calls blocks, whatever mode the socket is in, as the IO thread
+//! that makes them serves every transport of the process.
 
 #![allow(unsafe_code)]
 
@@ -14,7 +16,6 @@ use crate::shared_memory::create_anonymous_file;
 
 use std::io;
 use std::os::fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
-use std::os::unix::net::UnixStream;
 
 /// The most descriptors one `sendmsg()` carries, as `Core::LocalSocket::MAX_TRANSFER_FDS`.
 pub const MAX_TRANSFER_FDS: usize = 128;
@@ -24,11 +25,15 @@ fn control_buffer_size(fd_count: usize) -> usize {
     unsafe { libc::CMSG_SPACE((fd_count * size_of::<RawFd>()) as u32) as usize }
 }
 
-/// Sends some of the bytes, with all of the descriptors, which go with the first byte. Returns how many bytes went.
-pub fn send_with_fds(socket: &UnixStream, bytes: &[io::IoSlice<'_>], fds: &[BorrowedFd<'_>]) -> io::Result<usize> {
+// NB: Room for the control message of MAX_TRANSFER_FDS descriptors, which a test checks.
+const SEND_CONTROL_BUFFER_WORDS: usize = 80;
+
+/// Sends some of the bytes, with all of the descriptors, which go with the first byte, without waiting for room. Returns
+/// how many bytes went.
+pub fn send_with_fds(socket: RawFd, bytes: &[io::IoSlice<'_>], fds: &[BorrowedFd<'_>]) -> io::Result<usize> {
     assert!(fds.len() <= MAX_TRANSFER_FDS);
     // NB: IoSlice has the same layout as iovec on Unix.
-    let mut control = vec![0u64; control_buffer_size(fds.len()).div_ceil(8)];
+    let mut control = [0u64; SEND_CONTROL_BUFFER_WORDS];
     // NB: An all-zero msghdr is a valid empty one.
     let mut message: libc::msghdr = unsafe { std::mem::zeroed() };
     message.msg_iov = bytes.as_ptr().cast_mut().cast();
@@ -50,7 +55,7 @@ pub fn send_with_fds(socket: &UnixStream, bytes: &[io::IoSlice<'_>], fds: &[Borr
         }
     }
     // NB: The message points at the bytes and the control buffer, which outlive the call.
-    let sent = unsafe { libc::sendmsg(socket.as_raw_fd(), &raw const message, libc::MSG_NOSIGNAL) };
+    let sent = unsafe { libc::sendmsg(socket, &raw const message, libc::MSG_NOSIGNAL | libc::MSG_DONTWAIT) };
     if sent < 0 {
         return Err(io::Error::last_os_error());
     }
@@ -68,10 +73,11 @@ impl Receiver {
         }
     }
 
-    /// Receives bytes and any descriptors that came with them. Zero bytes mean the peer closed its end.
+    /// Receives bytes and any descriptors that came with them, without waiting for them. Zero bytes mean the peer
+    /// closed its end.
     pub(crate) fn receive_with_fds(
         &mut self,
-        socket: &UnixStream,
+        socket: RawFd,
         buffer: &mut [u8],
         fds: &mut Vec<OwnedFd>,
     ) -> io::Result<usize> {
@@ -80,7 +86,7 @@ impl Receiver {
 
     pub(crate) fn receive_with_fd_capacity(
         &mut self,
-        socket: &UnixStream,
+        socket: RawFd,
         buffer: &mut [u8],
         fds: &mut Vec<OwnedFd>,
         fd_capacity: usize,
@@ -122,7 +128,7 @@ impl Receiver {
         )))]
         let flags = 0;
         // NB: The message points at the buffer and the control buffer, which outlive the call.
-        let received = unsafe { libc::recvmsg(socket.as_raw_fd(), &raw mut message, flags) };
+        let received = unsafe { libc::recvmsg(socket, &raw mut message, flags | libc::MSG_DONTWAIT) };
         if received < 0 {
             return Err(io::Error::last_os_error());
         }
@@ -175,10 +181,51 @@ impl Receiver {
     }
 }
 
+/// How many bytes the socket has for the next read, as far as the kernel can tell.
+pub(crate) fn readable_byte_count(socket: RawFd) -> usize {
+    let mut count: libc::c_int = 0;
+    // NB: FIONREAD writes the count to the local it points to.
+    if unsafe { libc::ioctl(socket, libc::FIONREAD, &raw mut count) } < 0 {
+        return 0;
+    }
+    usize::try_from(count).unwrap_or(0)
+}
+
+/// Asks for the buffer sizes the C++ transport has always used, which the kernel may round or cap. A socket that keeps
+/// its defaults still works.
+pub(crate) fn set_buffer_sizes(socket: RawFd, size: usize) {
+    let size = libc::c_int::try_from(size).unwrap_or(libc::c_int::MAX);
+    for option in [libc::SO_SNDBUF, libc::SO_RCVBUF] {
+        // NB: The option's value is the local the call reads.
+        unsafe {
+            libc::setsockopt(
+                socket,
+                libc::SOL_SOCKET,
+                option,
+                (&raw const size).cast(),
+                size_of::<libc::c_int>() as libc::socklen_t,
+            );
+        }
+    }
+}
+
+/// Shuts down one or both directions of the socket, which the peer sees whichever process has it.
+pub(crate) fn shutdown(socket: RawFd, how: std::net::Shutdown) {
+    let how = match how {
+        std::net::Shutdown::Read => libc::SHUT_RD,
+        std::net::Shutdown::Write => libc::SHUT_WR,
+        std::net::Shutdown::Both => libc::SHUT_RDWR,
+    };
+    // NB: shutdown() only changes the state of the socket. One that is gone already has nothing left to shut down.
+    unsafe { libc::shutdown(socket, how) };
+}
+
 /// Copies a payload into an anonymous file, whose descriptor goes last in the frame.
 pub(crate) fn copy_payload_to_file(bytes: &[u8]) -> io::Result<std::fs::File> {
     use std::io::Write;
     let mut file = std::fs::File::from(create_anonymous_file()?);
+    // NB: A shared memory object of the BSDs grows by truncation only, not by writing past its end.
+    file.set_len(bytes.len() as u64)?;
     file.write_all(bytes)?;
     Ok(file)
 }
@@ -219,6 +266,7 @@ pub(crate) fn raise_descriptor_limit() {
 mod tests {
     use super::*;
     use std::io::Read;
+    use std::os::unix::net::UnixStream;
 
     #[cfg(target_os = "linux")]
     #[test]
@@ -244,23 +292,30 @@ mod tests {
     }
 
     #[test]
-    fn transports_accept_nonblocking_sockets() {
+    fn the_send_control_buffer_has_room_for_every_descriptor() {
+        assert!(control_buffer_size(MAX_TRANSFER_FDS) <= SEND_CONTROL_BUFFER_WORDS * size_of::<u64>());
+    }
+
+    #[test]
+    fn transports_leave_the_mode_of_their_socket_alone() {
         use crate::transport_socket::TransportSocket;
 
-        let (a, b) = UnixStream::pair().unwrap();
-        a.set_nonblocking(true).unwrap();
-        b.set_nonblocking(true).unwrap();
-        let descriptor = a.try_clone().unwrap();
-        let a = TransportSocket::new(a).unwrap();
-        let b = TransportSocket::new(b).unwrap();
-        // NB: The socket is owned and F_GETFL only reads its status flags.
-        let flags = unsafe { libc::fcntl(descriptor.as_raw_fd(), libc::F_GETFL) };
-        assert!(flags >= 0);
-        assert_eq!(flags & libc::O_NONBLOCK, 0);
-        a.post_message(vec![1], Vec::new()).unwrap();
-        b.post_message(vec![2], Vec::new()).unwrap();
-        assert_eq!(a.receive().unwrap().bytes(), [2]);
-        assert_eq!(b.receive().unwrap().bytes(), [1]);
+        for nonblocking in [false, true] {
+            let (a, b) = std::os::unix::net::UnixStream::pair().unwrap();
+            a.set_nonblocking(nonblocking).unwrap();
+            b.set_nonblocking(nonblocking).unwrap();
+            let descriptor = a.as_raw_fd();
+            let a = TransportSocket::new(a.into()).unwrap();
+            let b = TransportSocket::new(b.into()).unwrap();
+            // NB: The transport owns the socket, and F_GETFL only reads its status flags.
+            let flags = unsafe { libc::fcntl(descriptor, libc::F_GETFL) };
+            assert!(flags >= 0);
+            assert_eq!(flags & libc::O_NONBLOCK != 0, nonblocking);
+            a.post_message(vec![1], Vec::new()).unwrap();
+            b.post_message(vec![2], Vec::new()).unwrap();
+            assert_eq!(a.receive().unwrap().bytes(), [2]);
+            assert_eq!(b.receive().unwrap().bytes(), [1]);
+        }
     }
 
     #[test]
@@ -269,9 +324,11 @@ mod tests {
 
         let (sender, receiver) = UnixStream::pair().unwrap();
         let file = std::fs::File::open("/dev/null").unwrap();
-        send_with_fds(&sender, &[io::IoSlice::new(&[1])], &[file.as_fd()]).unwrap();
+        send_with_fds(sender.as_raw_fd(), &[io::IoSlice::new(&[1])], &[file.as_fd()]).unwrap();
         let mut fds = Vec::new();
-        Receiver::new().receive_with_fds(&receiver, &mut [0], &mut fds).unwrap();
+        Receiver::new()
+            .receive_with_fds(receiver.as_raw_fd(), &mut [0], &mut fds)
+            .unwrap();
         assert_eq!(fds.len(), 1);
         // NB: The descriptor is owned and F_GETFD only reads its descriptor flags.
         let flags = unsafe { libc::fcntl(fds[0].as_raw_fd(), libc::F_GETFD) };
@@ -286,7 +343,7 @@ mod tests {
         let (mut reader, writer) = std::io::pipe().unwrap();
         assert_eq!(
             send_with_fds(
-                &sender,
+                sender.as_raw_fd(),
                 &[io::IoSlice::new(b"head"), io::IoSlice::new(b"payload")],
                 &[writer.as_fd()]
             )
@@ -298,7 +355,7 @@ mod tests {
         let mut fds = Vec::new();
         assert_eq!(
             Receiver::new()
-                .receive_with_fds(&receiver, &mut bytes, &mut fds)
+                .receive_with_fds(receiver.as_raw_fd(), &mut bytes, &mut fds)
                 .unwrap(),
             11
         );
@@ -313,7 +370,7 @@ mod tests {
         let (sender, receiver) = UnixStream::pair().unwrap();
         drop(receiver);
         assert_eq!(
-            send_with_fds(&sender, &[io::IoSlice::new(&[1])], &[])
+            send_with_fds(sender.as_raw_fd(), &[io::IoSlice::new(&[1])], &[])
                 .unwrap_err()
                 .kind(),
             io::ErrorKind::BrokenPipe
@@ -328,15 +385,22 @@ mod tests {
         let (mut reader, writer) = std::io::pipe().unwrap();
         let mut receiver = Receiver::new();
         let mut fds = Vec::new();
-        send_with_fds(&sender, &[io::IoSlice::new(&[1])], &[writer.as_fd()]).unwrap();
-        receiver.receive_with_fds(&socket, &mut [0], &mut fds).unwrap();
+        send_with_fds(sender.as_raw_fd(), &[io::IoSlice::new(&[1])], &[writer.as_fd()]).unwrap();
+        receiver
+            .receive_with_fds(socket.as_raw_fd(), &mut [0], &mut fds)
+            .unwrap();
         assert_eq!(fds.len(), 1);
         fds.clear();
         drop(writer);
         assert_eq!(reader.read(&mut [0]).unwrap(), 0);
-        send_with_fds(&sender, &[io::IoSlice::new(&[2])], &[]).unwrap();
+        send_with_fds(sender.as_raw_fd(), &[io::IoSlice::new(&[2])], &[]).unwrap();
         let mut byte = [0];
-        assert_eq!(receiver.receive_with_fds(&socket, &mut byte, &mut fds).unwrap(), 1);
+        assert_eq!(
+            receiver
+                .receive_with_fds(socket.as_raw_fd(), &mut byte, &mut fds)
+                .unwrap(),
+            1
+        );
         assert_eq!(byte, [2]);
         assert!(fds.is_empty());
     }
@@ -347,11 +411,11 @@ mod tests {
 
         let (sender, receiver) = UnixStream::pair().unwrap();
         let (mut reader, writer) = std::io::pipe().unwrap();
-        send_with_fds(&sender, &[io::IoSlice::new(&[1])], &[writer.as_fd(); 3]).unwrap();
+        send_with_fds(sender.as_raw_fd(), &[io::IoSlice::new(&[1])], &[writer.as_fd(); 3]).unwrap();
         drop(writer);
         let mut fds = Vec::new();
         let error = Receiver::new()
-            .receive_with_fd_capacity(&receiver, &mut [0; 1], &mut fds, 1)
+            .receive_with_fd_capacity(receiver.as_raw_fd(), &mut [0; 1], &mut fds, 1)
             .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(!fds.is_empty());

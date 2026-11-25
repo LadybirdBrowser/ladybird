@@ -157,9 +157,9 @@ fn server_flushes_posted_replies_before_returning_on_errors() {
         .0,
     ] {
         let (server, handle) = Transport::create_paired().unwrap();
-        #[cfg(target_vendor = "apple")]
+        #[cfg(unix)]
         let client = Transport::from_handle(handle).unwrap();
-        #[cfg(not(target_vendor = "apple"))]
+        #[cfg(windows)]
         let client = Transport::new(handle).unwrap();
         let thread = std::thread::spawn(move || serve(server));
         for number in 0..100u32 {

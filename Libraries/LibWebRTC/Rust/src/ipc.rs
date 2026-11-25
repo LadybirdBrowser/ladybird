@@ -10,19 +10,17 @@ use anyhow::{Result, anyhow};
 use libipc_rust::EndpointMessage;
 use libipc_rust::wire::{Encoder, Utf8String};
 
-#[cfg(target_vendor = "apple")]
-pub use libipc_rust::transport::{ReceivedMessage, TransportMachPort as Transport};
-#[cfg(all(unix, not(target_vendor = "apple")))]
-pub use libipc_rust::transport_socket::{ReceivedMessage, TransportSocket as Transport};
+#[cfg(unix)]
+pub use libipc_rust::transport::{ReceivedMessage, Transport};
 #[cfg(windows)]
 pub use libipc_rust::transport_windows::{ReceivedMessage, TransportWindows as Transport};
 
 /// Both ends of a new connection within this process.
 pub fn create_paired_transports() -> std::io::Result<(Transport, Transport)> {
     let (local, handle) = Transport::create_paired()?;
-    #[cfg(target_vendor = "apple")]
+    #[cfg(unix)]
     let remote = Transport::from_handle(handle)?;
-    #[cfg(not(target_vendor = "apple"))]
+    #[cfg(windows)]
     let remote = Transport::new(handle)?;
     Ok((local, remote))
 }
