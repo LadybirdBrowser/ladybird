@@ -40,7 +40,7 @@ use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::scrolling::*;
 use libcompositing_rust::time::{Duration, MonotonicTime};
 use libgfx_rust::{FloatPoint, IntRect, IntSize, Orientation};
-use scroller_moves::ScrollerMoveCause;
+use scroller_moves::{ScrollerMoveCause, VisualViewportMoveCause};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
