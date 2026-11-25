@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<input type="range" min="-1e308" max="1e308" id="r" style="width: 100px">
+<script>
+    const rect = document.getElementById("r").getBoundingClientRect();
+    const y = rect.top + rect.height / 2;
+    internals.mouseDown(rect.left + rect.width / 2, y);
+    internals.mouseMove(rect.right + rect.width * 2, y, 0, 1);
+    internals.mouseUp(rect.right + rect.width * 2, y);
+</script>

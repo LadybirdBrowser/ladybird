@@ -150,6 +150,8 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_slider_progress_element);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_slider_ticks_element);
+    visitor.visit(m_slider_drag_mousemove_listener);
+    visitor.visit(m_slider_drag_mouseup_listener);
     visitor.visit(m_resource_request);
 }
 
@@ -1549,62 +1551,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
     m_slider_ticks_element = nullptr;
     m_slider_tick_positions.clear();
     update_slider_shadow_tree_elements();
-
-    auto update_slider_by_mouse = GC::create_function<void(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
-        if (self.type_state() != TypeAttributeState::Range)
-            return;
-        auto event = vm.argument(0).is_object()
-            ? Bindings::impl_from<UIEvents::MouseEvent>(&vm.argument(0).as_object())
-            : nullptr;
-        if (!event)
-            return;
-        auto client_x = event->client_x();
-        if (!isfinite(client_x))
-            return;
-        auto rect = self.get_bounding_client_rect().to_type<double>();
-        if (rect.width() <= 0)
-            return;
-        double minimum = *self.min();
-        double maximum = *self.max();
-        if (minimum > maximum)
-            return;
-        auto relative_x = client_x - rect.left();
-        MUST(self.set_value_as_number(mix(minimum, maximum, relative_x / rect.width())));
-        self.user_interaction_did_change_input_value();
-    });
-
-    auto mousedown_callback_function = JS::NativeFunction::create(
-        HTML::relevant_realm(*this), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this, update_slider_by_mouse), [](HTMLInputElement& self, auto& update_slider_by_mouse, JS::VM& vm) {
-            update_slider_by_mouse->function()(vm);
-
-            auto mousemove_callback_function = JS::NativeFunction::create(
-                HTML::relevant_realm(self), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(update_slider_by_mouse), [](auto& update_slider_by_mouse, JS::VM& vm) {
-                    update_slider_by_mouse->function()(vm);
-                    return JS::js_undefined();
-                }),
-                0, Utf16FlyString {}, &HTML::relevant_realm(self));
-            auto mousemove_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mousemove_callback_function, HTML::relevant_realm(self));
-            auto mousemove_listener = DOM::IDLEventListener::create(mousemove_callback);
-            auto& window = relevant_window(self);
-            window.add_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
-
-            auto mouseup_callback_function = JS::NativeFunction::create(
-                HTML::relevant_realm(self), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(self, mousemove_listener), [](HTMLInputElement& self, auto& mousemove_listener, JS::VM&) {
-                    auto& window = relevant_window(self);
-                    window.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
-                    return JS::js_undefined();
-                }),
-                0, Utf16FlyString {}, &HTML::relevant_realm(self));
-            auto mouseup_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mouseup_callback_function, HTML::relevant_realm(self));
-            DOM::EventTarget::AddEventListenerOptions mouseup_listener_options;
-            mouseup_listener_options.once = true;
-            window.add_event_listener(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(mouseup_callback), mouseup_listener_options);
-
-            return JS::js_undefined();
-        }),
-        0, Utf16FlyString {}, &HTML::relevant_realm(*this));
-    auto mousedown_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mousedown_callback_function, HTML::relevant_realm(*this));
-    add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(mousedown_callback));
 }
 
 bool HTMLInputElement::handle_range_key(UIEvents::KeyCode key, u32 modifiers)
@@ -1637,6 +1583,75 @@ bool HTMLInputElement::handle_range_key(UIEvents::KeyCode key, u32 modifiers)
     if (value() != value_before_key)
         user_interaction_did_change_input_value();
     return true;
+}
+
+void HTMLInputElement::start_slider_drag(double client_x)
+{
+    if (type_state() != TypeAttributeState::Range || !is_mutable())
+        return;
+
+    end_slider_drag();
+    set_slider_value_from_client_x(client_x);
+
+    auto& realm = HTML::relevant_realm(*this);
+    auto mousemove_callback_function = JS::NativeFunction::create(
+        realm, GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
+            auto* event = vm.argument(0).is_object() ? Bindings::impl_from<UIEvents::MouseEvent>(&vm.argument(0).as_object()) : nullptr;
+            if (!event || !event->is_trusted())
+                return JS::js_undefined();
+            if (!self.is_mutable()) {
+                self.end_slider_drag();
+                return JS::js_undefined();
+            }
+            self.set_slider_value_from_client_x(event->client_x());
+            return JS::js_undefined();
+        }),
+        0, Utf16FlyString {}, &realm);
+    m_slider_drag_mousemove_listener = DOM::IDLEventListener::create(GC::Heap::the().allocate<WebIDL::CallbackType>(*mousemove_callback_function, realm));
+
+    auto mouseup_callback_function = JS::NativeFunction::create(
+        realm, GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
+            auto* event = vm.argument(0).is_object() ? Bindings::impl_from<DOM::Event>(&vm.argument(0).as_object()) : nullptr;
+            if (event && event->is_trusted())
+                self.end_slider_drag();
+            return JS::js_undefined();
+        }),
+        0, Utf16FlyString {}, &realm);
+    m_slider_drag_mouseup_listener = DOM::IDLEventListener::create(GC::Heap::the().allocate<WebIDL::CallbackType>(*mouseup_callback_function, realm));
+
+    auto& window = relevant_window(*this);
+    window.add_event_listener_without_options(UIEvents::EventNames::mousemove, *m_slider_drag_mousemove_listener);
+    window.add_event_listener_without_options(UIEvents::EventNames::mouseup, *m_slider_drag_mouseup_listener);
+}
+
+void HTMLInputElement::set_slider_value_from_client_x(double client_x)
+{
+    if (type_state() != TypeAttributeState::Range || !isfinite(client_x))
+        return;
+    auto rect = get_bounding_client_rect().to_type<double>();
+    if (rect.width() <= 0)
+        return;
+    double minimum = *min();
+    double maximum = *max();
+    if (minimum > maximum)
+        return;
+    auto ratio = clamp((client_x - rect.left()) / rect.width(), 0.0, 1.0);
+    auto value_before_move = value();
+    // NB: Weight the bounds rather than scale maximum - minimum, which overflows for bounds near the double limits.
+    MUST(set_value_as_number(minimum * (1 - ratio) + maximum * ratio));
+    if (value() != value_before_move)
+        user_interaction_did_change_input_value();
+}
+
+void HTMLInputElement::end_slider_drag()
+{
+    auto& window = relevant_window(*this);
+    if (m_slider_drag_mousemove_listener)
+        window.remove_event_listener_without_options(UIEvents::EventNames::mousemove, *m_slider_drag_mousemove_listener);
+    if (m_slider_drag_mouseup_listener)
+        window.remove_event_listener_without_options(UIEvents::EventNames::mouseup, *m_slider_drag_mouseup_listener);
+    m_slider_drag_mousemove_listener = nullptr;
+    m_slider_drag_mouseup_listener = nullptr;
 }
 
 void HTMLInputElement::user_interaction_did_change_input_value(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
