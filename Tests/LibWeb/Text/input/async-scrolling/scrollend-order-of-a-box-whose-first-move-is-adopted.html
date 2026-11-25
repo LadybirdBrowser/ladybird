@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .scroller {
+        position: absolute;
+        top: 0;
+        width: 150px;
+        height: 100px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+    }
+
+    #dragged {
+        left: 0;
+    }
+
+    #wheeled {
+        left: 200px;
+    }
+
+    .content {
+        height: 5000px;
+    }
+</style>
+<div class="scroller" id="dragged"><div class="content"></div></div>
+<div class="scroller" id="wheeled"><div class="content"></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const dragged = document.getElementById("dragged");
+        const wheeled = document.getElementById("wheeled");
+        const scrollendOrder = [];
+        for (const scroller of [dragged, wheeled])
+            scroller.addEventListener("scrollend", () => scrollendOrder.push(scroller.id));
+
+        // The fingers move the wheeled box twice, and the second move goes on with the scroll the first one began.
+        await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ongoing");
+        await internals.wheelThroughUIProcess(250, 50, 0, 50, true, "ongoing");
+        await animationFrame();
+        await internals.wheelThroughUIProcess(250, 50, 0, 50, true, "ongoing");
+        await animationFrame();
+
+        // The thumb of the other box then moves it once, and that move begins its scroll.
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 40, { buttons: 1 });
+        await animationFrame();
+
+        const bothScrollsEnded = Promise.all([scrollendEvent(dragged), scrollendEvent(wheeled)]);
+        await Promise.all([
+            internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended"),
+            internals.mouseEventThroughUIProcess("mouseup", 147, 40),
+        ]);
+        await bothScrollsEnded;
+        println(`scrollend order: ${scrollendOrder.join(", ")}`);
+    });
+</script>
