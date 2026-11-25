@@ -1,0 +1,9 @@
+Ladybird’s getUniform() finds the type of the uniform at a location by
+asking for the location of each element of each active uniform, then
+returns the value as that type dictates. From their source, Blink’s
+WebGLRenderingContextBase::getUniform() finds the type the same way, and
+WebKit’s matches the location against the program’s activeUniforms().
+Run, the test’s output matches Chrome 158, Firefox 151 (which returns
+the values from ClientWebGLContext::GetUniform()), and WebKit 26.5, line
+for line: An array uniform’s location gives its first element, and a
+bool vector comes back as an Array of booleans.
