@@ -46,7 +46,6 @@ public:
     // Leaves every context bound to the presentation unbound.
     void unregister_presentation(PresentationId);
 
-    void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     void presented_store_released(Web::CompositorContextId, i32 bitmap_id);
     void vsync(Optional<u64> display_id, MonotonicTime frame_time);
     void gpu_work_finished(u64 token);
@@ -67,11 +66,12 @@ public:
 
     void timer_fired(u64 timer_number);
 
-    // The messages of CompositorWebContentServer, CompositorPresentationServer and CompositorControlServer that are marked
-    // [RustReceiver].
+    // The messages of CompositorWebContentServer, CompositorPresentationServer, CompositorControlServer and
+    // RenderClockServer that are marked [RustReceiver].
     IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
     IPC::RawMessage::OutcomeInRust handle_message_from_control(IPC::RawMessage&);
+    IPC::RawMessage::OutcomeInRust handle_message_from_render_clock(WebContentClientId, IPC::RawMessage&);
 
 private:
     RustFFI::CompositorCore* m_core { nullptr };

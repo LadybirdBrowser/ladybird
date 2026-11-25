@@ -16,7 +16,7 @@ use crate::surfaces::painting_surface::PaintingSurface;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_control_server, compositor_presentation_server,
-    compositor_web_content_server,
+    compositor_web_content_server, render_clock_server,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::IntSize;
@@ -153,15 +153,6 @@ pub extern "C" fn compositor_core_unregister_presentation(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_request_clock_tick(
-    core: &CompositorCore,
-    context_id: u64,
-    maximum_frames_per_second: f64,
-) {
-    core.request_clock_tick(CompositorContextId(context_id), maximum_frames_per_second);
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_presented_store_released(
     core: &CompositorCore,
     context_id: u64,
@@ -274,6 +265,31 @@ pub unsafe extern "C" fn compositor_core_handle_web_content_message(
     // SAFETY: The caller hands over a message of that endpoint.
     unsafe {
         message.hand_to(|bytes, attachments| compositor_web_content_server::dispatch(&mut stub, bytes, attachments));
+    };
+    core.finish_message(time(now_nanoseconds));
+}
+
+/// Takes a message of the RenderClockServer endpoint that is marked [RustReceiver], from the render clock channel of a
+/// WebContent process.
+///
+/// # Safety
+///
+/// `message` must be one `IPC::RawMessage::hand_to_rust()` made.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_core_handle_render_clock_message(
+    core: &CompositorCore,
+    web_content_client_id: u64,
+    message: RawMessage<'_>,
+    now_nanoseconds: i64,
+) {
+    let mut stub = MessagesFromWebContent {
+        core,
+        client_id: WebContentClientId(web_content_client_id),
+        now: time(now_nanoseconds),
+    };
+    // SAFETY: The caller hands over a message of that endpoint.
+    unsafe {
+        message.hand_to(|bytes, attachments| render_clock_server::dispatch(&mut stub, bytes, attachments));
     };
     core.finish_message(time(now_nanoseconds));
 }

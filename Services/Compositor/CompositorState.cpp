@@ -75,6 +75,11 @@ IPC::RawMessage::OutcomeInRust CompositorState::handle_message_from_control(IPC:
     return m_core.handle_message_from_control(message);
 }
 
+IPC::RawMessage::OutcomeInRust CompositorState::handle_message_from_render_clock(WebContentClientId client_id, IPC::RawMessage& message)
+{
+    return m_core.handle_message_from_render_clock(client_id, message);
+}
+
 CompositorState::PresentedContext::PresentedContext(CompositorStateWebContentClient& web_content_client, OwnedCanvasSurfaces canvas_surfaces)
     : web_content_client(web_content_client)
     , raster_targets(canvas_surfaces)
@@ -708,13 +713,6 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
     // An image that was hidden finds its place by the clock again.
     if (m_core.set_visibility(context_id, visibility))
         schedule_animated_image_update({});
-}
-
-void CompositorState::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.request_clock_tick(context_id, maximum_frames_per_second);
 }
 
 // How long a screenshot waits for the video sinks it draws to catch up to their clocks, after which it shows the frames
