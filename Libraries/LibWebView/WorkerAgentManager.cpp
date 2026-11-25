@@ -130,11 +130,7 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(We
     bool const host_has_only_this_worker = !host;
     Optional<IPC::TransportHandle> thread_transport;
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-        // NB: Only the transport of the worker goes on the shared IO thread. The others here have owners of their own.
-        auto transport = TRY([] {
-            IPC::ScopedSharedIOThread shared_io_thread;
-            return IPC::Transport::create_paired();
-        }());
+        auto transport = TRY(IPC::Transport::create_paired());
         if (host_has_only_this_worker) {
             host = TRY(Application::the().launch_web_content_process_without_page(owner_client.session()));
             host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);
@@ -226,10 +222,7 @@ void WorkerAgentManager::register_dedicated_worker(DedicatedWorkerOwner const& o
         return;
 
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-        auto transport = TRY([&] {
-            IPC::ScopedSharedIOThread shared_io_thread;
-            return worker_transport.create_transport();
-        }());
+        auto transport = TRY(worker_transport.create_transport());
         return create_worker_client(move(transport), 0, owner.process, owner.request_server_site_bindings);
     }();
     if (client_or_error.is_error()) {

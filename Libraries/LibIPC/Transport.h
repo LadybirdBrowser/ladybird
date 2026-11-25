@@ -125,14 +125,4 @@ private:
 
 #endif
 
-class ScopedSharedIOThread {
-    AK_MAKE_NONCOPYABLE(ScopedSharedIOThread);
-    AK_MAKE_NONMOVABLE(ScopedSharedIOThread);
-
-public:
-    ScopedSharedIOThread() = default;
-    // NB: User-provided, so that clang does not see a scope guard as an unused variable.
-    ~ScopedSharedIOThread() { }
-};
-
 }

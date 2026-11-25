@@ -31,7 +31,6 @@ template<typename Callback>
 static void run_on_worker_thread(Callback const& callback)
 {
     auto thread = Threading::Thread::construct("WorkerAgent"sv, [&callback] -> intptr_t {
-        IPC::ScopedSharedIOThread shared_io_thread;
         Core::EventLoop event_loop;
         Web::Bindings::initialize_agent(Web::HTML::AgentType::SharedWorker);
         auto& agent = Web::HTML::surrounding_agent();
