@@ -11,8 +11,8 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/Forward.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
+#include <LibWebCommon/Forward.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 

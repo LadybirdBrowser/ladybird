@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 
 namespace Web::TrustedTypes {
