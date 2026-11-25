@@ -19,7 +19,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: eps1lon/actions-label-merge-conflict@v3
+      - uses: eps1lon/actions-label-merge-conflict@v3.1.0
         with:
           commentOnDirty: >
             Your pull request has conflicts that need to be resolved before it can be reviewed and merged. Make sure to

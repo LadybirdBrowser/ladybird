@@ -57,7 +57,7 @@ jobs:
 
       - name: Set up environment
         id: 'setup'
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: 'Linux'
           arch: 'x86_64'
@@ -69,7 +69,7 @@ jobs:
           pip install -r libjs-test262/requirements.txt
 
       - name: Restore Caches
-        uses: ./.github/actions/cache-restore
+        uses: $/.github/actions/cache-restore
         id: 'cache-restore'
         with:
           os: 'Linux'
@@ -100,7 +100,7 @@ jobs:
           ninja -C libjs-test262/Build test262-runner test-js test-wasm
 
       - name: Save Caches
-        uses: ./.github/actions/cache-save
+        uses: $/.github/actions/cache-save
         with:
           arch: 'x86_64'
           ccache_path: ${{ steps.setup.outputs.ccache_path }}

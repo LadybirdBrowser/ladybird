@@ -179,7 +179,7 @@ jobs:
       # No caches: This job runs the PR's code, so nothing it leaves behind goes into a cache that other workflows
       # restore.
       - name: 'Set Up Environment'
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -212,7 +212,7 @@ jobs:
 
       - name: 'Download the latest calibration'
         if: ${{ steps.calibration.outputs.run_id != '' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: bench-pr-noise-floor-${{ matrix.os_name }}-${{ matrix.arch }}
           run-id: ${{ steps.calibration.outputs.run_id }}
@@ -312,7 +312,7 @@ jobs:
 
       - name: 'Save the calibration'
         if: ${{ inputs.calibrate }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: bench-pr-noise-floor-${{ matrix.os_name }}-${{ matrix.arch }}
           path: bench-state/cache/ladybird-bench/noise-floor.json
@@ -321,7 +321,7 @@ jobs:
 
       - name: 'Save results as an artifact'
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: bench-pr-${{ matrix.os_name }}-${{ matrix.arch }}
           path: bench-pr-out/
@@ -342,7 +342,7 @@ jobs:
       # jobs ran, and the description then reports a platform without results as one that didn't finish.
       - name: 'Download the results'
         if: ${{ needs.prepare.outputs.pr != '' && needs.bench.result != 'skipped' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: bench-pr-*
           path: results

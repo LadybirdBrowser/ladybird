@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set Up Environment
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: 'Linux'
           arch: 'x86_64'
@@ -28,6 +28,20 @@ jobs:
 
       - name: Lint
         run: "${GITHUB_WORKSPACE}/Meta/lint-ci.sh"
+
+  lockfile:
+    permissions:
+      contents: read
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify the actions lockfile
+        uses: github/gh-actions-lock@verify/v0.5.1
 
   flap:
     permissions:
@@ -43,7 +57,7 @@ jobs:
           persist-credentials: false
 
       - name: Set Up Environment
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
         with:
           os: 'Linux'
           arch: 'x86_64'
