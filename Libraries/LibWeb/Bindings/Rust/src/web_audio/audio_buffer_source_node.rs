@@ -23,7 +23,7 @@ use super::audio_node::{
 };
 use super::audio_param::{AudioParam, AutomationRate, FixedAutomationRate};
 use super::audio_scheduled_source_node::AudioScheduledSourceNode;
-use super::base_audio_context::{AnyBaseAudioContext, BaseAudioContext};
+use super::base_audio_context::{AnyBaseAudioContext, AudioContextState, BaseAudioContext};
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -236,7 +236,22 @@ impl AudioBufferSourceNode {
             .context_value()
             .add_playing_source(cx.vm(), self.node.parent().this());
 
-        // FIXME: 6. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
+        // 6. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
+        //    1. The context’s [[control thread state]] is suspended.
+        //    2. The context is allowed to start.
+        //    3. [[suspended by user]] flag is false.
+        // AD-HOC: Sources in an OfflineAudioContext are scheduled by start() and rendered by startRendering().
+        if let AnyBaseAudioContext::AudioContext(context) = self.node.parent().context_value()
+            && context.parent().control_state() == AudioContextState::Suspended
+            && context.allowed_to_start()
+            && !context.suspended_by_user()
+            // AD-HOC: As in resume(), only start rendering while the context's document is fully active.
+            && context.parent().document_is_fully_active()
+        {
+            // AD-HOC: Record startup now so another source started in the same task cannot request it again.
+            context.parent().set_control_state(AudioContextState::Running);
+            context.run_control_message_to_resume(cx.vm(), None);
+        }
         Ok(())
     }
 
