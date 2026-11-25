@@ -5,8 +5,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [100.53125,16 57.46875x16] baseline: 13
               "outside"
-          ListItemMarkerBox <(anonymous)> at [34,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [34,16 13.84375x16] baseline: 13
+          ListItemMarkerBox <(anonymous)> at [29,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [29,16 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           InlineNode <(anonymous)> at [48,16] [0+0+0 52.53125 0+0+0] [0+0+0 16 0+0+0]
@@ -36,8 +36,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "after"
             GeneratedTextNode <(anonymous)> (not painted)
         ListItemBox <li.block> at [48,48] [0+0+0 744 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-          ListItemMarkerBox <(anonymous)> at [34,48] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [34,48 13.84375x16] baseline: 13
+          ListItemMarkerBox <(anonymous)> at [29,48] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [29,48 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           BlockContainer <(anonymous)> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline

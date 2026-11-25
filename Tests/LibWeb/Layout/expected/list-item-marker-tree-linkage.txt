@@ -17,8 +17,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           ListItemBox <div.nested> at [40,32] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
             frag 0 from TextNode start: 0, length: 16, rect: [40,32 124.453125x16] baseline: 13
                 "nested list item"
-            ListItemMarkerBox <(anonymous)> at [26,32] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,32 13.84375x16] baseline: 13
+            ListItemMarkerBox <(anonymous)> at [21,32] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [21,32 13.84375x16] baseline: 13
                   "• "
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)

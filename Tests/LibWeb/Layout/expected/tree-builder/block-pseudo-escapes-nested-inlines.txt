@@ -66,8 +66,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           ListItemBox <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
             frag 0 from GeneratedTextNode start: 0, length: 9, rect: [8,120 65.34375x16] baseline: 13
                 "list item"
-            ListItemMarkerBox <(anonymous)> at [-6,120] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-6,120 13.84375x16] baseline: 13
+            ListItemMarkerBox <(anonymous)> at [-11,120] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-11,120 13.84375x16] baseline: 13
                   "• "
               GeneratedTextNode <(anonymous)> (not painted)
             GeneratedTextNode <(anonymous)> (not painted)

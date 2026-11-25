@@ -1,0 +1,89 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 179 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 179 0+0+0] children: not-inline
+      BlockContainer <ul> at [40,0] [0+0+40 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [40,0] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [40,0 30.65625x16] baseline: 13
+              "disc"
+          ListItemMarkerBox <(anonymous)> at [21,0] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [21,0 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [40,16] [0+0+40 760 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        ListItemBox <li> at [40,16] [0+0+0 760 0+0+0] [0+0+0 32 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [40,16 61.3125x32] baseline: 26
+              "disc"
+          ListItemMarkerBox <(anonymous)> at [7,16] [0+0+0 27.6875 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [7,16 27.6875x32] baseline: 26
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [40,48] [0+0+40 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [40,48] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [40,48 44.125x16] baseline: 13
+              "circle"
+          ListItemMarkerBox <(anonymous)> at [21,48] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [21,48 13.84375x16] baseline: 13
+                "◦ "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [40,64] [0+0+40 760 0+0+0] [0+0+0 19 0+0+0] children: not-inline
+        ListItemBox <li> at [40,64] [0+0+0 760 0+0+0] [0+0+0 19 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [40,66 57.0625x16] baseline: 13
+              "square"
+          ListItemMarkerBox <(anonymous)> at [7,64] [0+0+0 28.3125 0+0+0] [0+0+0 19 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [7,66 20.3125x16] baseline: 13
+                "▪"
+            frag 1 from GeneratedTextNode start: 1, length: 1, rect: [27.3125,66 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [0,83] [0+0+0 760 40+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [0,83] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [740.078125,83 19.921875x16] baseline: 13
+              "rtl"
+          ListItemMarkerBox <(anonymous)> at [765,83] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [765,83 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [40,99] [0+0+40 760 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        ListItemBox <li> at [40,99] [0+0+0 760 0+0+0] [0+0+0 32 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [40,99 82.625x32] baseline: 26
+              "zoom"
+          ListItemMarkerBox <(anonymous)> at [2,99] [0+0+0 27.6875 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [2,99 27.6875x32] baseline: 26
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ol> at [40,131] [0+0+40 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [40,131] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [40,131 55.8125x16] baseline: 13
+              "decimal"
+          ListItemMarkerBox <(anonymous)> at [21,131] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [21,131 18.6875x16] baseline: 13
+                "1. "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [40,147] [0+0+40 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [40,147] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [40,147 46.765625x16] baseline: 13
+              "string"
+          ListItemMarkerBox <(anonymous)> at [26,147] [0+0+0 14.484375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,147 14.484375x16] baseline: 13
+                "- "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul.content> at [40,163] [0+0+40 760 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        ListItemBox <li> at [40,163] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [40,163 60.90625x16] baseline: 13
+              "content"
+          ListItemMarkerBox <(anonymous)> at [26,163] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [26,163 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x179] (z-index: auto)
