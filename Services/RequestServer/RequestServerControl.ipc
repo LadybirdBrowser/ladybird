@@ -9,6 +9,9 @@
 
 endpoint RequestServerControl
 {
+    // The top-level site a per-site RequestServer serves. The UI process sends it before anything else, rather than on
+    // the command line, where any local process could read it.
+    set_top_level_site(Utf16String top_level_site) =|
 
     // The client IDs let the UI process tell whose cookies a client may use.
     connect_new_client(::RequestServer::IsPrivate is_private, ::RequestServer::SiteBinding site_binding) => (IPC::TransportHandle handle, int client_id)
