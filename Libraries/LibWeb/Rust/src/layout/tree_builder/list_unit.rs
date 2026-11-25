@@ -26,9 +26,6 @@ pub(super) struct UnitPlace {
     pub(super) ancestor_rows: Vec<NodeSlotId>,
     /// The marked nodes whose boxes go in the list, each once: see `append_window` and `bounded_window`.
     pub(super) marked_children: Vec<StyleNodeID>,
-    /// The entries of the list whose nodes left the document, in the order of the list: see
-    /// [`super::note_removed_list_entries`].
-    pub(super) removed_entries: Vec<NodeSlotId>,
 }
 
 /// Plans the child list of `root`, the box of `element`, again, and reconciles the list with the boxes it had.
@@ -64,10 +61,6 @@ pub(super) fn update_child_list(
             .install_published_style_in_kept_box(host_calls, element, root);
     }
     let reasons = host.arena().layout_tree_update_reuse_reasons(element);
-    if loses_entries_in_place(host, root, element, reasons, place, &first_letter_owners) {
-        remove_entries_in_place(host, state, root, element, place);
-        return;
-    }
     let mut unit = UnitPlanning {
         keeps_pseudo_element_boxes: reasons
             & (layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE | layout_tree_update_reuse_reason::RESTYLE)
@@ -137,17 +130,7 @@ pub(super) fn update_child_list(
         .iter()
         .map(|&owner| host.arena().bound_pseudo_element_row(owner, GENERATED_FOR_FIRST_LETTER))
         .collect();
-    let changed_at_or_before = match inserted_entries_between_kept_boxes(host, root, &plan, unit.window, &first_letters)
-    {
-        Some(planned) => {
-            insert_planned_entries_in_place(host, state, root, plan, &planned);
-            if kept_box_verification_is_enabled() || cfg!(debug_assertions) {
-                verify_list_edited_in_place(host, root, element, place);
-            }
-            Vec::new()
-        }
-        None => reconcile(host, state, root, plan, unit.window, &first_letters),
-    };
+    let changed_at_or_before = reconcile(host, state, root, plan, unit.window, &first_letters);
     // NB: A style change of the list's box, or of its pseudo-elements, may change the style the first letter derives.
     let restyled = reasons
         & (layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE | layout_tree_update_reuse_reason::RESTYLE)
@@ -157,352 +140,6 @@ pub(super) fn update_child_list(
             state.first_letter_owners_to_split_again.push(owner);
         }
     }
-}
-
-/// Whether the only change of the child list of `root`, the box of `element`, is that it lost the entries
-/// `place.removed_entries`, whose boxes leave a list that a fresh walk plans with the same box for every entry that
-/// stays: the list is then edited in place (see `remove_entries_in_place`), without a walk. A fresh walk decides a box
-/// from its node, the list's box, and the box before it among the in-flow boxes of the list (see
-/// `Planner::whitespace_text_needs_box`), so the boxes that stay keep their decisions where each case below holds.
-// OPTIMIZATION: A list that loses some of its entries then costs what it loses, and reads none of the entries that stay.
-fn loses_entries_in_place(
-    host: &TreeBuilderHost<'_>,
-    root: LayoutNode,
-    element: StyleNodeID,
-    reasons: u8,
-    place: &UnitPlace,
-    first_letter_owners: &[StyleNodeID],
-) -> bool {
-    use crate::css::css_enums::positioning;
-    let arena = host.arena();
-    // NB: The list lost entries, and nothing else changed: no node of it was inserted or marked, and the list's box and
-    //     its pseudo-elements are as they were. The viewport's list holds the top layer, which moves on its own.
-    if reasons != layout_tree_update_reuse_reason::CHILD_LIST_REMOVAL
-        || !place.marked_children.is_empty()
-        || place.removed_entries.is_empty()
-        || place.is_viewport
-    {
-        return false;
-    }
-    // NB: The first letter of a box at or above the list may be in what the list holds first.
-    if !first_letter_owners.is_empty() {
-        return false;
-    }
-    if !list_may_change_in_part(host, root, element) {
-        return false;
-    }
-    let root_data = arena.data(root);
-    // NB: A list item's inside marker keeps the white space that starts its list, which a box that leaves first gives
-    //     to the white space after it.
-    if root_data.kind.get() == NodeKind::ListItemBox {
-        return false;
-    }
-    let children_are_inline = node_facts::has_flag(root_data, NodeFlag::ChildrenAreInline);
-    // NB: A box in flow like the boxes of the list: a block in a list of blocks, or an inline-level box in a list of
-    //     inline content. A list of inline content may hold a block, as an inline box that holds one does, which a list
-    //     without inline content around it would hold as a block.
-    let is_in_flow_like_list = |row: NodeSlotId| {
-        arena.style_view(row).is_some_and(|style| {
-            !style.is_floating()
-                && style.position() != positioning::ABSOLUTE
-                && style.position() != positioning::FIXED
-                && if children_are_inline {
-                    style.display().is_inline_outside()
-                } else {
-                    style.display().is_block_outside()
-                }
-        })
-    };
-    // NB: A box beside a run of entries that leave, which a fresh walk decides as it did, as it does what follows it:
-    //     the box of an element or a pseudo-element, in flow like the boxes of the list, so that a list that keeps a
-    //     box keeps its kind of children. White space text has a box after an inline-level box, which makes that text
-    //     the neighbor, and none after a block, as after what precedes the run of blocks. Two anonymous boxes that wrap
-    //     runs of inline content among blocks merge where they become neighbors, and an out of flow box passes what
-    //     precedes it on to what follows it.
-    let keeps_its_decision_beside_a_removal = |row: NodeSlotId| {
-        let data = arena.data(row);
-        !(node_facts::has_flag(data, NodeFlag::Anonymous) && data.generated_for.get() == 0)
-            && !node_facts::kind_is_text(data.kind.get())
-            && is_in_flow_like_list(row)
-    };
-    arena.with_style_store(|engine| {
-        let mut previous_entry = NodeSlotId::INVALID;
-        for (index, &entry) in place.removed_entries.iter().enumerate() {
-            if !arena.slot_is_live(entry) || arena.data(entry).parent.get() != root {
-                return false;
-            }
-            let data = arena.data(entry);
-            // NB: The box of an element: a text's box ends the white space after it in some cases and not others, and
-            //     a line break starts a line, which the white space after it collapses into.
-            if node_facts::has_flag(data, NodeFlag::Anonymous)
-                || data.generated_for.get() != 0
-                || node_facts::kind_is_text(data.kind.get())
-                || data.kind.get() == NodeKind::BreakNode
-            {
-                return false;
-            }
-            // NB: An entry of a node that is still a child of the list's element stays.
-            if arena
-                .dom_node_style_node(entry)
-                .is_some_and(|node| arena.bound_row(node) == entry && engine.dom_parent(node).is_some())
-            {
-                return false;
-            }
-            // NB: An inline box that leaves holds inline content alone.
-            if !is_in_flow_like_list(entry)
-                || (data.kind.get() == NodeKind::InlineNode
-                    && !node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
-                    && !data.first_child.get().is_invalid())
-            {
-                return false;
-            }
-            // NB: What the box did to counters, quotes and list item numbers goes with it.
-            if !matches!(box_subtree_numbering(arena, entry), BoxSubtreeNumbering::None) {
-                return false;
-            }
-            // NB: The boxes that become neighbors where a run of entries leaves.
-            let previous = data.previous_sibling.get();
-            if previous != previous_entry && !previous.is_invalid() && !keeps_its_decision_beside_a_removal(previous) {
-                return false;
-            }
-            let next = data.next_sibling.get();
-            let next_leaves = place.removed_entries.get(index + 1) == Some(&next);
-            if !next_leaves && !next.is_invalid() && !keeps_its_decision_beside_a_removal(next) {
-                return false;
-            }
-            previous_entry = entry;
-        }
-        // NB: A list that loses every box decides whether its children are inline again, as a fresh walk of an
-        //     empty list does; a node left in it without a box, such as white space, would be decided again too.
-        let first = arena
-            .data(*place.removed_entries.first().expect("an entry left the list"))
-            .previous_sibling
-            .get();
-        let last = arena
-            .data(*place.removed_entries.last().expect("an entry left the list"))
-            .next_sibling
-            .get();
-        let loses_every_box = first.is_invalid()
-            && last.is_invalid()
-            && place.removed_entries.len() == {
-                let mut count = 0;
-                let mut row = root_data.first_child.get();
-                while !row.is_invalid() && count <= place.removed_entries.len() {
-                    count += 1;
-                    row = arena.data(row).next_sibling.get();
-                }
-                count
-            };
-        !loses_every_box || engine.first_dom_child(element).is_none()
-    })
-}
-
-/// The rows of `plan`, a plan of the child list of `root` from `window`, where the plan only puts new entries between
-/// the two boxes the window starts and ends at, which are neighbors in the list: the list then takes the new boxes in
-/// place (see `insert_planned_entries_in_place`), without being reconciled with the plan as a whole. Each case below is
-/// one the reconcile handles beyond that.
-// OPTIMIZATION: A list that gains entries between two of its boxes then costs what it gains.
-fn inserted_entries_between_kept_boxes(
-    host: &TreeBuilderHost<'_>,
-    root: LayoutNode,
-    plan: &SubtreePlan,
-    window: Option<ListWindow>,
-    watched: &[NodeSlotId],
-) -> Option<Vec<PlannedRow>> {
-    let arena = host.arena();
-    // NB: The window starts and ends at boxes the list keeps, not at an anonymous box that takes over another, and no
-    //     first letter at or above the list asks where the list changed.
-    let window = window?;
-    let (Some(start), Some(end)) = (window.start, window.end) else {
-        return None;
-    };
-    if !window.wrapper.is_invalid() || !watched.is_empty() {
-        return None;
-    }
-    let (start, end) = (arena.bound_row(start), arena.bound_row(end));
-    // NB: The list had nothing between the two boxes, so no box of it goes.
-    if start.is_invalid()
-        || end.is_invalid()
-        || arena.data(start).parent.get() != root
-        || arena.data(end).parent.get() != root
-        || arena.data(start).next_sibling.get() != end
-    {
-        return None;
-    }
-    // NB: Whether the list's children are inline stays as it was.
-    if plan.tree.node(root).has_flag(NodeFlag::ChildrenAreInline)
-        != node_facts::has_flag(arena.data(root), NodeFlag::ChildrenAreInline)
-    {
-        return None;
-    }
-    // NB: The plan keeps the two boxes and puts only new boxes of nodes between them, in the list itself: no anonymous
-    //     box the list makes, such as one that wraps inline content or a table that wraps table parts, holds a kept
-    //     box or a new one. The table fixup after the commit wraps a new table part.
-    let (planned, _) = read_planned_list(arena, plan, root);
-    let [first, between @ .., last] = planned.as_slice() else {
-        return None;
-    };
-    let keeps =
-        |row: &PlannedRow, slot: NodeSlotId| row.role == PlannedRole::Kept && row.slot == slot && row.depth == 0;
-    if !keeps(first, start)
-        || !keeps(last, end)
-        || between.is_empty()
-        || between.iter().any(|row| {
-            row.role != PlannedRole::New
-                || row.depth != 0
-                || (row.flags & NodeFlag::Anonymous as u32 != 0 && plan.tree.node(row.slot).generated_for() == 0)
-                || plan.tree.node(row.slot).is_table_non_root_for_table_fixup()
-        })
-    {
-        return None;
-    }
-    Some(planned)
-}
-
-/// Puts the new boxes of `plan` between the two kept boxes `planned` starts and ends at, in the child list of `root`,
-/// where `inserted_entries_between_kept_boxes` holds: the rows are adopted, linked and committed as the reconcile
-/// does with those of any plan (see `adopt_planned_rows`, `link_planned_list` and `finish_planned_list`), and only
-/// the new boxes lay out again.
-fn insert_planned_entries_in_place(
-    host: &mut TreeBuilderHost<'_>,
-    state: &mut TreeBuilderState,
-    root: LayoutNode,
-    mut plan: SubtreePlan,
-    planned: &[PlannedRow],
-) {
-    let (start, end) = (planned[0].slot, planned[planned.len() - 1].slot);
-    let descendant_count = adopt_planned_rows(host, &mut plan);
-    {
-        let arena = host.arena_mut();
-        let before_start = arena.data(start).previous_sibling.get();
-        let after_end = arena.data(end).next_sibling.get();
-        link_planned_list(
-            arena,
-            root,
-            planned,
-            &|slot| slot,
-            (before_start, start),
-            (end, after_end, end),
-        );
-    }
-    let old_parents: HashSet<NodeSlotId> = [root].into_iter().collect();
-    let unit = UnitCommit {
-        taken_over: &HashMap::default(),
-        old_parents: &old_parents,
-        kept: &|slot| plan.tree.stands_in_for(slot),
-    };
-    commit_plan(host, state, root, &plan, descendant_count, false, Some(&unit));
-    label_planned_list(host.arena_mut(), root, start, end, &HashSet::default());
-    let new_top_rows: Vec<NodeSlotId> = planned[1..planned.len() - 1].iter().map(|row| row.slot).collect();
-    for &row in &new_top_rows {
-        host.arena_mut().note_new_layout_subtree_attached(row);
-    }
-    invalidate_layout_for_list_change(host, state, root, ListChange::InsertedOnly, &new_top_rows);
-    state.child_lists_that_gained_boxes.push((root, new_top_rows));
-    finish_planned_list(host, state, root, &plan);
-}
-
-/// Takes the entries `place.removed_entries` out of the child list of `root`, the box of `element`, where
-/// `loses_entries_in_place` holds: the boxes beside each run of them become neighbors, and the boxes leave as the
-/// boxes a walk of the list no longer plans do (see `drop_list_rows`).
-fn remove_entries_in_place(
-    host: &mut TreeBuilderHost<'_>,
-    state: &mut TreeBuilderState,
-    root: LayoutNode,
-    element: StyleNodeID,
-    place: &UnitPlace,
-) {
-    let children_were_inline = node_facts::has_flag(host.data(root), NodeFlag::ChildrenAreInline);
-    for &entry in &place.removed_entries {
-        let arena = host.arena_mut();
-        let previous = arena.data(entry).previous_sibling.get();
-        let next = arena.data(entry).next_sibling.get();
-        if previous.is_invalid() {
-            arena.write_shape(root).set_first_child(next);
-        } else {
-            arena.write_shape(previous).set_next_sibling(next);
-        }
-        if next.is_invalid() {
-            arena.write_shape(root).set_last_child(previous);
-        } else {
-            arena.write_shape(next).set_previous_sibling(previous);
-        }
-    }
-    let dropped: Vec<OldRow> = place
-        .removed_entries
-        .iter()
-        .map(|&slot| OldRow {
-            slot,
-            parent: root,
-            is_wrapper: false,
-        })
-        .collect();
-    // NB: No box of the list takes the place of one that leaves, and their nodes left the document.
-    drop_list_rows(host, &dropped);
-    // NB: A list without boxes holds no inline content, as a fresh walk of it finds.
-    let emptied = host.data(root).first_child.get().is_invalid();
-    if emptied && children_were_inline {
-        host.arena_mut().set_node_flag(root, NodeFlag::ChildrenAreInline, false);
-    }
-    let change = if emptied && children_were_inline {
-        ListChange::Restructured
-    } else {
-        ListChange::RemovedOnly
-    };
-    invalidate_layout_for_list_change(host, state, root, change, &[]);
-    if kept_box_verification_is_enabled() || cfg!(debug_assertions) {
-        verify_list_edited_in_place(host, root, element, place);
-    }
-    host.arena_mut().layout_tree_update_marks_mut().merge(element, false, 0);
-}
-
-/// Checks that the child list of `root`, the box of `element`, edited in place (see `remove_entries_in_place` and
-/// `insert_planned_entries_in_place`), is the list a walk of it plans: one that keeps every box the list has, and
-/// moves no counter or quote.
-fn verify_list_edited_in_place(
-    host: &mut TreeBuilderHost<'_>,
-    root: LayoutNode,
-    element: StyleNodeID,
-    place: &UnitPlace,
-) {
-    let unit = UnitPlanning {
-        keeps_pseudo_element_boxes: true,
-        fresh_from_entry: u32::MAX,
-        verifies_kept_boxes: true,
-        window: None,
-    };
-    let plan = plan_child_list(host, root, element, unit, place);
-    let arena = host.arena();
-    let (planned, _) = read_planned_list(arena, &plan, root);
-    let old_rows = read_old_rows_from(arena, arena.data(root).first_child.get());
-    let keeps_every_box = planned.len() == old_rows.len()
-        && planned.iter().zip(&old_rows).all(|(planned, old)| match planned.role {
-            PlannedRole::Kept => planned.slot == old.slot,
-            PlannedRole::Wrapper => old.is_wrapper && wrapper_matches(arena, old.slot, planned),
-            PlannedRole::New => false,
-        });
-    let plans_inline_children = plan.tree.node(root).has_flag(NodeFlag::ChildrenAreInline);
-    let has_inline_children = node_facts::has_flag(arena.data(root), NodeFlag::ChildrenAreInline);
-    let moves_generated_content = first_entry_after_changed_generated_content(&*host, element, &plan).is_some();
-    assert!(
-        keeps_every_box && plans_inline_children == has_inline_children && !moves_generated_content,
-        "a child list edited in place is the list a walk plans: planned {:?}, rows {:?}, inline {} / {}",
-        planned
-            .iter()
-            .map(|row| (row.kind, row.role == PlannedRole::Kept))
-            .collect::<Vec<_>>(),
-        old_rows
-            .iter()
-            .map(|row| {
-                let data = arena.data(row.slot);
-                (data.kind.get(), data.generated_for.get(), data.flags.get())
-            })
-            .collect::<Vec<_>>(),
-        plans_inline_children,
-        has_inline_children,
-    );
-    let free_slots = plan.discard();
-    host.arena_mut().give_back_free_slots(free_slots);
 }
 
 /// Whether `LIBWEB_VERIFY_KEPT_LAYOUT_BOXES=1` asks the walk to check every box it keeps against a fresh build, read once.
@@ -700,11 +337,11 @@ fn append_window(
     })
 }
 
-/// Whether the child list of `root`, the box of `element`, may change in part, planned from a window of it or edited in
-/// place, as far as the list's box tells: it is a block container, a box, a list item or an inline box, whose list holds
-/// blocks or inline content, and no button, part of a table, shadow host, slot, SVG element or element whose contents
-/// are skipped, nor the parent of the text a writing suggestion is in. The anonymous boxes of a box that lays its
-/// contents out in some, and the lists of shadow hosts and slots, which hold nodes of other parents, need the whole list.
+/// Whether the child list of `root`, the box of `element`, may change in part, planned from a window of it, as far as
+/// the list's box tells: it is a block container, a box, a list item or an inline box, whose list holds blocks or inline
+/// content, and no button, part of a table, shadow host, slot, SVG element or element whose contents are skipped, nor
+/// the parent of the text a writing suggestion is in. The anonymous boxes of a box that lays its contents out in some,
+/// and the lists of shadow hosts and slots, which hold nodes of other parents, need the whole list.
 fn list_may_change_in_part(host: &TreeBuilderHost<'_>, root: LayoutNode, element: StyleNodeID) -> bool {
     let arena = host.arena();
     let root_data = arena.data(root);

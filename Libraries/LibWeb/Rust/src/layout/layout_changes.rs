@@ -414,7 +414,6 @@ impl LayoutWrite<'_> {
                 }
             }
             Self::DetachRemainingRowsForRemoval(nodes) => {
-                super::tree_builder::note_removed_list_entries(arena, nodes);
                 for node in nodes.iter().filter_map(|&node| StyleNodeID::from_raw(node)) {
                     super::tree_builder::detach_remaining_rows_for_removal(host_calls, arena, node);
                 }

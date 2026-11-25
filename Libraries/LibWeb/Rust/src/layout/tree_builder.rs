@@ -594,40 +594,6 @@ pub(super) fn list_box_of_entry(arena: &LayoutNodeArena, entry: NodeSlotId) -> N
     parent
 }
 
-/// Notes the entries that the nodes `nodes` had in the child lists of boxes that stay, for the build that plans those
-/// lists again: `nodes` are a node that leaves the document and its shadow-including descendants, in tree order. The
-/// box of a node holds the boxes of its descendants, so a node with a box had one entry, that box. A node without one,
-/// such as a `display: contents` element, had those of its descendants whose list's box goes with none of the nodes.
-pub(crate) fn note_removed_list_entries(arena: &mut LayoutNodeArena, nodes: &[u32]) {
-    let attached_entry = |arena: &LayoutNodeArena, node: StyleNodeID| {
-        let row = arena.bound_row(node);
-        (!row.is_invalid() && !arena.data(row).parent.get().is_invalid()).then(|| arena.list_entry_top_row(row))
-    };
-    let mut nodes = nodes.iter().filter_map(|&node| StyleNodeID::from_raw(node));
-    let Some(removed_node) = nodes.next() else {
-        return;
-    };
-    if let Some(entry) = attached_entry(arena, removed_node) {
-        arena.layout_tree_update_marks_mut().note_removed_entry(entry);
-        return;
-    }
-    let mut removed: Option<HashSet<StyleNodeID>> = None;
-    for node in nodes.clone() {
-        let Some(entry) = attached_entry(arena, node) else {
-            continue;
-        };
-        let removed = removed.get_or_insert_with(|| nodes.clone().chain([removed_node]).collect());
-        let list_box = list_box_of_entry(arena, entry);
-        if arena
-            .dom_node_style_node(list_box)
-            .is_some_and(|owner| removed.contains(&owner))
-        {
-            continue;
-        }
-        arena.layout_tree_update_marks_mut().note_removed_entry(entry);
-    }
-}
-
 /// Detaches what is left of the boxes of the node `node` names as the node leaves the document, while its identity
 /// still names them. Its box is read until the parent's rebuild frees it, so its style record is pinned and its
 /// committed box cleared now. Its box's top layer placement is a viewport child rather than part of the parent's box

@@ -40,7 +40,6 @@ pub(super) fn update_marked_child_lists(
 ) {
     let marks = host.arena_mut().layout_tree_update_marks_mut();
     let dirty = marks.take_dirty();
-    let removed_entries = removed_entries_by_list_box(host.arena_mut());
 
     let mut roots = Vec::new();
     for &node in &dirty {
@@ -69,12 +68,7 @@ pub(super) fn update_marked_child_lists(
             UnitRoot::Viewport => Vec::new(),
             UnitRoot::Element(element) => marked_children.remove(&element).unwrap_or_default(),
         };
-        let first = removed_entries.partition_point(|&(list_box, _)| slot_order(list_box) < slot_order(unit.row));
-        let removed_entries = removed_entries[first..]
-            .iter()
-            .take_while(|&&(list_box, _)| list_box == unit.row)
-            .map(|&(_, entry)| entry);
-        run_unit(host, state, document, unit, marked_children, removed_entries);
+        run_unit(host, state, document, unit, marked_children);
     }
 
     retire_marks(host.arena_mut(), &dirty);
@@ -85,8 +79,6 @@ pub(super) fn update_marked_child_lists(
 pub(super) fn build_document(host: &mut TreeBuilderHost<'_>, state: &mut TreeBuilderState, document: StyleNodeID) {
     let marks = host.arena_mut().layout_tree_update_marks_mut();
     let dirty = marks.take_dirty();
-    // NB: The new viewport's lists hold none of the rows the removals left.
-    marks.take_removed_entries();
     let document_style = state
         .document_style
         .take()
@@ -101,26 +93,6 @@ pub(super) fn build_document(host: &mut TreeBuilderHost<'_>, state: &mut TreeBui
     host.arena_mut().set_layout_root(viewport);
     planned_build::build_document_descendants(host, state, viewport, document);
     retire_marks(host.arena_mut(), &dirty);
-}
-
-/// The entries the removals since the last build left in lists whose boxes stay (see
-/// [`super::note_removed_list_entries`]), each with its list's box, ordered by that box. An entry an earlier change of
-/// the tree freed since is none of them. The entries of a list go in its order.
-fn removed_entries_by_list_box(arena: &mut LayoutNodeArena) -> Vec<(NodeSlotId, NodeSlotId)> {
-    let entries = arena.layout_tree_update_marks_mut().take_removed_entries();
-    let mut entries: Vec<(NodeSlotId, NodeSlotId)> = entries
-        .into_iter()
-        .filter(|&entry| arena.slot_is_live(entry))
-        .map(|entry| (super::list_box_of_entry(arena, entry), entry))
-        .filter(|&(list_box, _)| !list_box.is_invalid())
-        .collect();
-    entries.sort_unstable_by_key(|&(list_box, entry)| (slot_order(list_box), arena.node_pre_order_label(entry)));
-    entries
-}
-
-/// An order of rows, by which [`removed_entries_by_list_box`] groups entries.
-fn slot_order(slot: NodeSlotId) -> (u32, u8) {
-    (slot.slot_index(), slot.generation())
 }
 
 /// The row of the box of `root`.
@@ -314,7 +286,6 @@ fn run_unit(
     document: StyleNodeID,
     unit: &Unit,
     marked_children: Vec<StyleNodeID>,
-    removed_entries: impl Iterator<Item = NodeSlotId>,
 ) {
     let arena = host.arena();
     if row_of(arena, unit.root) != unit.row
@@ -347,7 +318,6 @@ fn run_unit(
         has_svg_root: node_facts::kind_is_svg_content(kind),
         ancestor_rows,
         marked_children,
-        removed_entries: removed_entries.collect(),
     };
     update_child_list(host, state, unit.row, element, &place);
 }

@@ -60,10 +60,6 @@ pub(crate) struct LayoutTreeUpdateMarks {
     /// build finds the child lists it plans again from, without walking down to them. A node whose mark was retired
     /// and set again is in it again, and one whose mark was retired since is in it still.
     dirty: Vec<StyleNodeID>,
-    /// The boxes removed nodes left in the child lists of boxes that stay, since the build took them last: for each
-    /// removal, the row of each entry of such a list that the removed nodes had. Their identities are retired once they
-    /// leave the document, so these rows are what names the entries a list lost.
-    removed_entries: Vec<NodeSlotId>,
 }
 
 impl LayoutTreeUpdateMarks {
@@ -189,16 +185,6 @@ impl LayoutTreeUpdateMarks {
         }
     }
 
-    /// Notes `row`, the box of an entry of a list whose box stays, as the box of a node that left the document.
-    pub(crate) fn note_removed_entry(&mut self, row: NodeSlotId) {
-        self.removed_entries.push(row);
-    }
-
-    /// Takes the rows noted with [`Self::note_removed_entry`] since they were taken last.
-    pub(crate) fn take_removed_entries(&mut self) -> Vec<NodeSlotId> {
-        std::mem::take(&mut self.removed_entries)
-    }
-
     /// Retire the marks the node holds: the build has just answered them, or
     /// the identity has been handed to another node.
     pub(crate) fn clear(&mut self, node: StyleNodeID) {
@@ -211,7 +197,6 @@ impl LayoutTreeUpdateMarks {
         fold_column(&mut self.elements, other.elements);
         fold_column(&mut self.text, other.text);
         self.dirty.extend(other.dirty);
-        self.removed_entries.extend(other.removed_entries);
     }
 }
 
