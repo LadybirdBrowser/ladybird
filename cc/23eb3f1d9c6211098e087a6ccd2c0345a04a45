@@ -1,0 +1,13 @@
+Ladybird reuses the used user-select value when selected text inherits
+from a parent the serializer has already visited. Blink checks
+IsSelectable on the layout object in its text iterator. WebKit passes
+IgnoresUserSelectNone to plainText in DOMSelection::toString unless a
+site quirk asks for the excluded text. Gecko passes SkipInvisibleContent
+to its document encoder in Selection::Stringify.
+
+Chrome 158.0.8127.37, Firefox 151.0 and WebKit 26.5 all kept the
+selected SVG text and the tab between selected table cells. Ladybird
+matched Chrome and Firefox for nested user-select overrides and for
+slotted text. WebKit included text from the excluded ancestor in both
+cases. All nine selections produced the same strings on Ladybird master
+and with the parent value reused.
