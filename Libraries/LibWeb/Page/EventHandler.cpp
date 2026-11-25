@@ -2062,6 +2062,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     GC::Root<DOM::Document> native_command_document;
     if (native_editing_binding_resolved)
         native_command_document = m_navigable->active_document();
+    GC::Ptr<DOM::Node> focused_area_before_keydown = m_navigable->active_document()->focused_area();
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
     if (dispatch_result != EventResult::Accepted) {
         // A page that handles Tab or Escape itself gets the key, and the writing suggestion is dropped.
@@ -2117,6 +2118,10 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (input->handle_date_time_field_key(key, modifiers & ~UIEvents::Mod_Keypad, code_point))
             return EventResult::Handled;
     }
+
+    // AD-HOC: Like in other engines, the arrow and page keys step the value of a range input.
+    if (auto* input = as_if<HTML::HTMLInputElement>(document->focused_area().ptr()); input && input == focused_area_before_keydown.ptr() && input->handle_range_key(key, modifiers & ~UIEvents::Mod_Keypad))
+        return EventResult::Handled;
 
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab)

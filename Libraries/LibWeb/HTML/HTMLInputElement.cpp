@@ -1550,34 +1550,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
     m_slider_tick_positions.clear();
     update_slider_shadow_tree_elements();
 
-    auto keydown_callback_function = JS::NativeFunction::create(
-        HTML::relevant_realm(*this), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
-            if (self.type_state() != TypeAttributeState::Range)
-                return JS::js_undefined();
-            if (!self.allowed_value_step().has_value())
-                return JS::js_undefined();
-            auto key_value = MUST(vm.argument(0).get(vm, "key"_utf16_fly_string));
-            if (!key_value.is_string())
-                return JS::js_undefined();
-            auto key = key_value.as_string().utf16_string_view();
-
-            if (key == u"ArrowLeft"sv || key == u"ArrowDown"sv)
-                MUST(self.step_down());
-            if (key == u"PageDown"sv)
-                MUST(self.step_down(10));
-
-            if (key == u"ArrowRight"sv || key == u"ArrowUp"sv)
-                MUST(self.step_up());
-            if (key == u"PageUp"sv)
-                MUST(self.step_up(10));
-
-            self.user_interaction_did_change_input_value();
-            return JS::js_undefined();
-        }),
-        0, Utf16FlyString {}, &HTML::relevant_realm(*this));
-    auto keydown_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*keydown_callback_function, HTML::relevant_realm(*this));
-    add_event_listener_without_options(UIEvents::EventNames::keydown, DOM::IDLEventListener::create(keydown_callback));
-
     auto wheel_callback_function = JS::NativeFunction::create(
         HTML::relevant_realm(*this), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](HTMLInputElement& self, JS::VM& vm) {
             if (self.type_state() != TypeAttributeState::Range)
@@ -1654,6 +1626,38 @@ void HTMLInputElement::create_range_input_shadow_tree()
         0, Utf16FlyString {}, &HTML::relevant_realm(*this));
     auto mousedown_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mousedown_callback_function, HTML::relevant_realm(*this));
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(mousedown_callback));
+}
+
+bool HTMLInputElement::handle_range_key(UIEvents::KeyCode key, u32 modifiers)
+{
+    if (type_state() != TypeAttributeState::Range || !is_mutable() || !allowed_value_step().has_value())
+        return false;
+    if (modifiers & (UIEvents::Mod_Alt | UIEvents::Mod_Ctrl | UIEvents::Mod_Super))
+        return false;
+
+    auto value_before_key = value();
+    switch (key) {
+    case UIEvents::KeyCode::Key_Left:
+    case UIEvents::KeyCode::Key_Down:
+        MUST(step_down());
+        break;
+    case UIEvents::KeyCode::Key_PageDown:
+        MUST(step_down(10));
+        break;
+    case UIEvents::KeyCode::Key_Right:
+    case UIEvents::KeyCode::Key_Up:
+        MUST(step_up());
+        break;
+    case UIEvents::KeyCode::Key_PageUp:
+        MUST(step_up(10));
+        break;
+    default:
+        return false;
+    }
+
+    if (value() != value_before_key)
+        user_interaction_did_change_input_value();
+    return true;
 }
 
 void HTMLInputElement::user_interaction_did_change_input_value(Utf16FlyString const& input_type, Optional<Utf16String> const& data)

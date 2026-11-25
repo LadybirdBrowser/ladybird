@@ -130,6 +130,7 @@ public:
     void did_pick_date(Optional<Utf16String> picked_value);
     bool has_date_picker() const;
     bool handle_date_time_field_key(UIEvents::KeyCode, u32 modifiers, u32 code_point);
+    bool handle_range_key(UIEvents::KeyCode, u32 modifiers);
     void activate_last_date_time_field();
     void update_date_time_fields_for_step();
 
