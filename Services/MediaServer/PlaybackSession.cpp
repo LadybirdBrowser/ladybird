@@ -131,24 +131,26 @@ void PlaybackSession::disable_video_sink(u64 seek_request_id, Media::VideoSinkHa
     report_playback_state();
 }
 
-void PlaybackSession::add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const& demuxer)
+void PlaybackSession::add_source_buffer_demuxer(u64 source_buffer_id, u64 instance_id, NonnullRefPtr<Media::Demuxer> const& demuxer)
 {
     m_manager->add_media_source(demuxer)
-        ->when_resolved([this, source_buffer_id](Media::PlaybackManager::AddedTracks& added_tracks) {
+        ->when_resolved([this, source_buffer_id, instance_id](Media::PlaybackManager::AddedTracks& added_tracks) {
             // A source buffer's ranges reach the renderer with each append or removal that it completes.
             m_connection.async_playback_session_media_source_added(m_id, {}, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), m_manager->earliest_possible_position(), {});
-            finish_source_buffer_track_addition(source_buffer_id, TrackAdditionOutcome::Added);
+            finish_source_buffer_track_addition(source_buffer_id, instance_id, TrackAdditionOutcome::Added);
         })
-        .when_rejected([this, source_buffer_id](Media::DecoderError& error) {
+        .when_rejected([this, source_buffer_id, instance_id](Media::DecoderError& error) {
             dbgln("PlaybackSession({}): Could not add the tracks of source buffer {}: {}", m_id, source_buffer_id, error.description());
-            finish_source_buffer_track_addition(source_buffer_id, TrackAdditionOutcome::Failed);
+            finish_source_buffer_track_addition(source_buffer_id, instance_id, TrackAdditionOutcome::Failed);
         });
 }
 
-void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome outcome)
+void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, u64 instance_id, TrackAdditionOutcome outcome)
 {
+    // The renderer may have destroyed the source buffer while its tracks were being added, and may have created
+    // another with the same ID since, which has nothing to do with these tracks.
     auto* source_buffer = find_source_buffer(source_buffer_id);
-    if (!source_buffer)
+    if (!source_buffer || source_buffer->instance_id != instance_id)
         return;
     VERIFY(source_buffer->is_adding_tracks);
     source_buffer->is_adding_tracks = false;
@@ -201,7 +203,7 @@ void PlaybackSession::create_source_buffer(u64 source_buffer_id)
 
         if (!segment.audio_tracks.is_empty() || !segment.video_tracks.is_empty()) {
             source_buffer->is_adding_tracks = true;
-            add_source_buffer_demuxer(source_buffer_id, segment.demuxer);
+            add_source_buffer_demuxer(source_buffer_id, source_buffer->instance_id, segment.demuxer);
         }
         send_or_hold(*source_buffer, source_buffer->append_generation, [this, source_buffer_id, audio_tracks = move(segment.audio_tracks), video_tracks = move(segment.video_tracks), text_tracks = move(segment.text_tracks)] mutable {
             m_connection.async_source_buffer_first_initialization_segment_received(m_id, source_buffer_id, move(audio_tracks), move(video_tracks), move(text_tracks));
@@ -224,7 +226,7 @@ void PlaybackSession::create_source_buffer(u64 source_buffer_id)
             source_buffer->append_outcome = AppendOutcome::Completed;
     });
 
-    m_source_buffers.set(source_buffer_id, SourceBuffer { .processor = move(processor), .pending_append_data = {}, .append_outcome = AppendOutcome::Pending });
+    m_source_buffers.set(source_buffer_id, SourceBuffer { .processor = move(processor), .instance_id = m_next_source_buffer_instance_id++, .pending_append_data = {}, .append_outcome = AppendOutcome::Pending });
 }
 
 void PlaybackSession::destroy_source_buffer(u64 source_buffer_id)
