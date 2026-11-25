@@ -33,6 +33,7 @@ use crate::display_list::placement::{
 use crate::display_list::reach::Reach;
 use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan};
 use crate::display_list::summary::LiveContent;
+use crate::display_list::tiles::CellRange;
 use crate::display_list::window_server_placement::{
     WhyWindowServerCannotCompositeEffect, WhyWindowServerCannotShowMedia, WindowServerPlacement,
     WindowServerPlacementOfEffect, window_server_placement_of_effect,
@@ -233,6 +234,33 @@ impl SpaceToFrame {
                     enclosing_int_rect_within_extent_limit(inverse.map_rect(rect_in_frame.to_float()))
                 }),
         }
+    }
+}
+
+fn within_coordinate_limit(value: i64) -> i64 {
+    let limit = i64::from(COORDINATE_LIMIT_IN_DEVICE_PIXELS);
+    value.clamp(-limit, limit)
+}
+
+// The edges are kept within the coordinate limit, so that the size between them still fits in an `IntRect`.
+fn rect_at_raster_scale(rect: IntRect, factor: i32) -> IntRect {
+    let at_raster_scale = |coordinate: i64| within_coordinate_limit(coordinate * i64::from(factor));
+    let (left, top) = (at_raster_scale(i64::from(rect.x)), at_raster_scale(i64::from(rect.y)));
+    let right = at_raster_scale(i64::from(rect.x) + i64::from(rect.width));
+    let bottom = at_raster_scale(i64::from(rect.y) + i64::from(rect.height));
+    IntRect::new(left as i32, top as i32, (right - left) as i32, (bottom - top) as i32)
+}
+
+fn corner_radii_at_raster_scale(radii: CornerRadii, factor: i32) -> CornerRadii {
+    let scaled = |radius: libgfx_rust::CornerRadius| libgfx_rust::CornerRadius {
+        horizontal_radius: radius.horizontal_radius.saturating_mul(factor),
+        vertical_radius: radius.vertical_radius.saturating_mul(factor),
+    };
+    CornerRadii {
+        top_left: scaled(radii.top_left),
+        top_right: scaled(radii.top_right),
+        bottom_right: scaled(radii.bottom_right),
+        bottom_left: scaled(radii.bottom_left),
     }
 }
 
@@ -449,6 +477,9 @@ pub struct LayerStack {
     pub swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
     /// Per band, the innermost band at or around it whose node the compositor composites inside its effect.
     innermost_composited_band_at_or_around_band: Vec<Option<BandIndex>>,
+    /// How many raster pixels each device pixel of the plan is: 1 for a stack as planned, and the power of two a stack
+    /// from `at_raster_scale` is at.
+    pub raster_scale: i32,
 }
 
 /// What a window server composites by itself of the layers of a frame, besides the canvases and videos it shows.
@@ -791,6 +822,7 @@ impl LayerStack {
             tiles_hold_content_moving_within_space_by_space_index: vec![true],
             swept_reach_in_parent_space_by_space_index: vec![None],
             innermost_composited_band_at_or_around_band: Vec::new(),
+            raster_scale: 1,
         }
         .with_lookups()
     }
@@ -990,8 +1022,54 @@ impl LayerStack {
                 .tiles_hold_content_moving_within_space_by_space_index,
             swept_reach_in_parent_space_by_space_index: plan.swept_reach_in_parent_space_by_space_index,
             innermost_composited_band_at_or_around_band: Vec::new(),
+            raster_scale: 1,
         }
         .with_lookups()
+    }
+
+    /// The stack as frames that raster its spaces at `factor` raster pixels per device pixel of the plan draw it, where
+    /// `factor` is a power of two, which keeps whole pixels whole. Its rects in raster coordinates are `factor` times
+    /// larger, and a barrier cuts the tiles of every cell of the plan it cuts, so that each tile, a part of one cell of
+    /// the plan, takes the records the planner put in that cell.
+    pub fn at_raster_scale(&self, factor: i32) -> LayerStack {
+        debug_assert!(factor >= 1 && (factor as u32).is_power_of_two());
+        if factor == 1 {
+            return self.clone();
+        }
+        let scaled = |rect: IntRect| rect_at_raster_scale(rect, factor);
+        let scaled_reach = |reach: Reach<IntRect>| match reach {
+            Reach::Within(rect) => Reach::Within(scaled(rect)),
+            reach => reach,
+        };
+        let mut stack = self.clone();
+        stack.raster_scale = self.raster_scale.saturating_mul(factor);
+        for space in &mut stack.spaces {
+            space.extent = scaled(space.extent);
+            if let RasterSpaceAnchorKind::AnimatedTransform { raster_scale } = &mut space.anchor_kind {
+                *raster_scale *= factor as f32;
+            }
+        }
+        for node in &mut stack.nodes {
+            node.reach_in_parent_node = scaled_reach(node.reach_in_parent_node);
+            for clip in &mut node.composite_clips {
+                clip.rect = scaled(clip.rect);
+                clip.corner_radii = corner_radii_at_raster_scale(clip.corner_radii, factor);
+            }
+        }
+        for band in &mut stack.bands {
+            for cut in &mut band.cuts {
+                if let Reach::Within(cut_rect) = cut.cut_reach {
+                    cut.cut_reach = Reach::Within(rect_at_raster_scale(CellRange::touched_by(cut_rect).rect(), factor));
+                }
+            }
+        }
+        for layer in &mut stack.layers {
+            layer.reach = scaled(layer.reach);
+        }
+        for swept_reach in stack.swept_reach_in_parent_space_by_space_index.iter_mut().flatten() {
+            *swept_reach = scaled(*swept_reach);
+        }
+        stack
     }
 
     pub fn replays_whole_list(&self) -> bool {
@@ -1044,16 +1122,16 @@ impl LayerStack {
                 let anchor_translation = space_or_ancestor.anchor_translation_on_whole_device_pixels(
                     device_offset_for_index(scroll_offsets, space_or_ancestor.anchor),
                 );
+                let raster_scale = i64::from(self.raster_scale);
                 (
-                    x_so_far + i64::from(anchor_translation.x),
-                    y_so_far + i64::from(anchor_translation.y),
+                    x_so_far + i64::from(anchor_translation.x) * raster_scale,
+                    y_so_far + i64::from(anchor_translation.y) * raster_scale,
                 )
             },
         );
-        let limit = i64::from(COORDINATE_LIMIT_IN_DEVICE_PIXELS);
         IntPoint {
-            x: x.clamp(-limit, limit) as i32,
-            y: y.clamp(-limit, limit) as i32,
+            x: within_coordinate_limit(x) as i32,
+            y: within_coordinate_limit(y) as i32,
         }
     }
 
@@ -1216,11 +1294,9 @@ impl LayerStack {
                 *read_reach_by_composited_node_index[node_index.0]
                     .get_or_insert_with(|| read_reach_of_composited_node(node_index, effect))
             });
-            summed_read_reach_by_band_index.push(
-                summed_around
-                    .saturating_add(read_reach_of_node)
-                    .min(LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS),
-            );
+            summed_read_reach_by_band_index.push(summed_around.saturating_add(read_reach_of_node).min(
+                LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS.saturating_mul(self.raster_scale),
+            ));
         }
         self.layers
             .iter()
