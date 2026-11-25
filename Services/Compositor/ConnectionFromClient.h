@@ -30,20 +30,14 @@ private:
     virtual void die() override;
 
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
-    virtual void set_window_server_may_show_high_dynamic_range(bool may_show) override { m_compositor_state->set_window_server_may_show_high_dynamic_range(may_show); }
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle) override;
     virtual void connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle) override;
     virtual Messages::CompositorControlServer::CreatePresentationConnectionResponse create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid) override;
-    virtual void bind_presentation(Web::CompositorContextId, u64 presentation_id) override;
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
-    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays) override;
-    virtual void set_display_metadata(Web::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility) override;
-    virtual void set_context_presents_from_cpu_memory(Web::CompositorContextId, bool) override;
-    virtual void set_context_scales_frames_to_fit(Web::CompositorContextId, bool) override;
     virtual void crash() override;
 
     ConnectionFromWebContent* web_content_connection(i32 web_content_connection_id);

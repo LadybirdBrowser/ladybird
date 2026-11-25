@@ -53,11 +53,6 @@ public:
     void unregister_presentation(PresentationId);
     void set_presentation_gpu_capability(PresentationId, bool supported, u64 adapter_luid);
     void set_scrollbar_track_press_jumps(PresentationId, bool jumps);
-    void bind_presentation(Web::CompositorContextId, PresentationId);
-    void set_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
-    void set_window_server_may_show_high_dynamic_range(bool);
-    void set_presents_from_cpu_memory(Web::CompositorContextId, bool);
-    void set_scales_frames_to_fit(Web::CompositorContextId, bool);
 
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
