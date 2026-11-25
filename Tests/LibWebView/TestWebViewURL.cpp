@@ -257,11 +257,11 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://example.com/some%20cool%20page"sv, "https://example.com/some cool page"sv);
     expect_url_equals_sanitized_url("https://example.com/%22what%22"sv, "https://example.com/\"what\""sv);
 
-    expect_url_equals_sanitized_url("https://example.org/"sv, "example.org"sv);            // Valid domain.
-    expect_url_equals_sanitized_url("https://example.abc/"sv, "example.abc"sv);            // .abc is a recognized TLD.
-    expect_url_equals_sanitized_url("https://example.test/path"sv, "example.test/path"sv); // Reserved TLDs.
-    expect_url_equals_sanitized_url("https://example.example/path"sv, "example.example/path"sv);
-    expect_url_equals_sanitized_url("https://example.invalid/path"sv, "example.invalid/path"sv);
+    expect_url_equals_sanitized_url("https://example.org/"sv, "example.org"sv);           // Valid domain.
+    expect_url_equals_sanitized_url("https://example.abc/"sv, "example.abc"sv);           // .abc is a recognized TLD.
+    expect_url_equals_sanitized_url("http://example.test/path"sv, "example.test/path"sv); // Reserved TLDs get the http guess below.
+    expect_url_equals_sanitized_url("http://example.example/path"sv, "example.example/path"sv);
+    expect_url_equals_sanitized_url("http://example.invalid/path"sv, "example.invalid/path"sv);
     expect_url_equals_sanitized_url("http://example.localhost/path"sv, "example.localhost/path"sv); // .localhost names get the http guess below.
 
     expect_search_url_equals_sanitized_url("example.def"sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
@@ -298,6 +298,18 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("http://[fe80::1]/"sv, "[fe80::1]"sv);
     expect_url_equals_sanitized_url("http://[fd00::1]:8080/"sv, "[fd00::1]:8080"sv);
 
+    // Names without a known public suffix only resolve on a local network or the machine itself, so they get http.
+    expect_url_equals_sanitized_url("http://devbox:8080/"sv, "devbox:8080"sv);
+    expect_url_equals_sanitized_url("http://nas.local:8080/"sv, "nas.local:8080"sv);
+    expect_url_equals_sanitized_url("http://box.internal:3000/"sv, "box.internal:3000"sv);
+    expect_url_equals_sanitized_url("http://router.lan:8080/path"sv, "router.lan:8080/path"sv);
+    expect_url_equals_sanitized_url("http://box.localdomain:8000/"sv, "box.localdomain:8000"sv);
+    // Without a port, such a name is still a search.
+    expect_search_url_equals_sanitized_url("nas.local"sv);
+    // A name under a known public suffix keeps the https guess, with a port too: home.arpa is on the list.
+    expect_url_equals_sanitized_url("https://example.org:8080/"sv, "example.org:8080"sv);
+    expect_url_equals_sanitized_url("https://printer.home.arpa:631/"sv, "printer.home.arpa:631"sv);
+
     // Addresses just outside those ranges keep the https guess.
     expect_url_equals_sanitized_url("https://172.32.0.1/"sv, "172.32.0.1"sv);
     expect_url_equals_sanitized_url("https://11.0.0.1/"sv, "11.0.0.1"sv);
@@ -330,7 +342,7 @@ TEST_CASE(location_to_search_or_url)
 
     expect_search_url_equals_sanitized_url("whatever:example.com"sv);
     expect_search_url_equals_sanitized_url("site:example.com"sv);
-    expect_url_equals_sanitized_url("https://host:8080/"sv, "host:8080"sv);
+    expect_url_equals_sanitized_url("https://host:8080/"sv, "host:8080"sv); // .host is a top-level domain, so this keeps the https guess.
     expect_search_url_equals_sanitized_url("steam://launch/1536610"sv);
     expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv);
     expect_search_url_equals_sanitized_url("geo:23.4,12.4"sv);
@@ -353,7 +365,7 @@ TEST_CASE(abbreviated_ipv4_user_input)
     expect_url_equals_sanitized_url("http://0.0.0.127:8000/"sv, "0x7f:8000"sv);
     expect_url_equals_sanitized_url("http://0.0.0.127:8000/notes"sv, "0x7f:8000\\notes"sv);
     expect_context_menu_text_url("0x7f.0.0.1"sv, "http://127.0.0.1/"sv);
-    expect_url_equals_sanitized_url("https://0x7f.example/"sv, "0x7f.example"sv);
+    expect_url_equals_sanitized_url("http://0x7f.example/"sv, "0x7f.example"sv);
 }
 
 TEST_CASE(classify_user_input)
