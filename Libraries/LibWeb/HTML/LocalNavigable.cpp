@@ -1450,7 +1450,8 @@ void LocalNavigable::restore_scroll_position_data(SessionHistoryEntry const& ent
         return;
 
     // FIXME: If the document has been scrolled by the user, return.
-    perform_scroll_of_viewport_scrolling_box(*scroll_position_data.viewport_scroll_position, Painting::CompositorScrollRequest::ProgrammaticJump);
+    if (auto document = active_document())
+        store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, *scroll_position_data.viewport_scroll_position, Painting::CompositorScrollRequest::ProgrammaticJump);
     clamp_viewport_scroll_offset();
 }
 
@@ -4795,25 +4796,6 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
         WebDriver::BiDi::navigation_event(*navigable, "browsingContext.historyUpdated"sv, {}, document.url());
 }
 
-void LocalNavigable::scroll_offset_did_change()
-{
-    // https://w3c.github.io/csswg-drafts/cssom-view-1/#scrolling-events
-    // Whenever a viewport gets scrolled (whether in response to user interaction or by an API), the user agent must
-    // run these steps:
-
-    // 1. Let doc be the viewport’s associated Document.
-    auto doc = active_document();
-    VERIFY(doc);
-
-    // FIXME: 2. If doc is a snap container, run the steps to update scrollsnapchanging targets for doc with doc’s eventual
-    //    snap target in the block axis as newBlockTarget and doc’s eventual snap target in the inline axis as
-    //    newInlineTarget.
-
-    // 3. If (doc, "scroll") is already in doc’s pending scroll events, abort these steps.
-    // 4. Append (doc, "scroll") to doc’s pending scroll events.
-    doc->append_pending_scroll_event({ *doc, EventNames::scroll });
-}
-
 bool LocalNavigable::is_local_root() const
 {
     auto parent = this->parent();
@@ -5040,7 +5022,7 @@ void LocalNavigable::clamp_viewport_scroll_offset()
         clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),
     };
     if (clamped != m_viewport_scroll_offset)
-        perform_scroll_of_viewport_scrolling_box(clamped, Painting::CompositorScrollRequest::ProgrammaticJump);
+        store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, clamped, Painting::CompositorScrollRequest::ProgrammaticJump);
 }
 
 Optional<CSSPixelRect> LocalNavigable::viewport_intersection() const
@@ -5062,30 +5044,6 @@ void LocalNavigable::set_viewport_intersection(CSSPixelRect intersection)
         document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
         HTML::main_thread_event_loop().schedule();
     }
-}
-
-void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position, Painting::CompositorScrollRequest compositor_scroll_request)
-{
-    // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,
-    //     where the box is the viewport.
-    //     https://drafts.csswg.org/cssom-view/#perform-a-scroll
-    if (m_viewport_scroll_offset != new_position) {
-        m_viewport_scroll_offset = new_position;
-        scroll_offset_did_change();
-
-        if (auto document = active_document()) {
-            // The viewport's row holds the offset, which is published next to the store it mirrors rather than by each
-            // caller. A document without a layout tree is handed it when it builds one.
-            if (auto* arena = document->layout_node_arena_if_created())
-                Layout::RustFFI::render_state_set_viewport_scroll_offset(arena->host(), new_position);
-            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
-            document->inform_all_viewport_clients_about_the_current_viewport_rect();
-            did_change_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, compositor_scroll_request);
-        }
-    }
-
-    // Schedule the HTML event loop to ensure that a `resize` event gets fired.
-    HTML::main_thread_event_loop().schedule();
 }
 
 static CSSPixelPoint async_scroll_offset_to_css_pixels(Gfx::FloatPoint async_scroll_offset, double device_pixels_per_css_pixel)
@@ -5114,36 +5072,85 @@ static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& docu
     return element;
 }
 
-static GC::Ptr<DOM::Element> adopt_async_element_scroll_offset(DOM::Document& document, Web::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_offset)
+bool LocalNavigable::store_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset, Painting::CompositorScrollRequest compositor_scroll_request)
 {
-    auto* element = element_for_async_scroll_node_stable_id(document, stable_id);
-    if (!element)
-        return {};
+    auto document = active_document();
+    if (!document)
+        return false;
 
-    Optional<CSS::PseudoElement> pseudo_element;
-    switch (stable_id.kind) {
-    case Web::AsyncScrollNodeKind::Viewport:
-    case Web::AsyncScrollNodeKind::VisualViewport:
-        return {};
-    case Web::AsyncScrollNodeKind::Element:
-        break;
-    case Web::AsyncScrollNodeKind::PseudoElement:
-        pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_id);
-        if (!pseudo_element.has_value())
-            return {};
-        if (!element->get_pseudo_element(*pseudo_element).has_value())
-            return {};
+    switch (stable_node_id.kind) {
+    case Web::AsyncScrollNodeKind::Viewport: {
+        if (stable_node_id.node_id != document->unique_id() || m_viewport_scroll_offset == scroll_offset)
+            return false;
+        m_viewport_scroll_offset = scroll_offset;
+        // The viewport's row holds the offset, which is published next to the store it mirrors rather than by each
+        // caller. A document without a layout tree is handed it when it builds one.
+        if (auto* arena = document->layout_node_arena_if_created())
+            Layout::RustFFI::render_state_set_viewport_scroll_offset(arena->host(), scroll_offset);
+
+        // https://w3c.github.io/csswg-drafts/cssom-view-1/#scrolling-events
+        // Whenever a viewport gets scrolled (whether in response to user interaction or by an API), the user agent must
+        // run these steps:
+
+        // 1. Let doc be the viewport’s associated Document.
+
+        // FIXME: 2. If doc is a snap container, run the steps to update scrollsnapchanging targets for doc with doc’s
+        //    eventual snap target in the block axis as newBlockTarget and doc’s eventual snap target in the inline axis
+        //    as newInlineTarget.
+
+        // 3. If (doc, "scroll") is already in doc’s pending scroll events, abort these steps.
+        // 4. Append (doc, "scroll") to doc’s pending scroll events.
+        document->append_pending_scroll_event({ *document, EventNames::scroll });
+
+        document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
+        document->inform_all_viewport_clients_about_the_current_viewport_rect();
+        // Schedule the HTML event loop to ensure that a `resize` event gets fired.
+        HTML::main_thread_event_loop().schedule();
         break;
     }
+    case Web::AsyncScrollNodeKind::VisualViewport: {
+        if (stable_node_id.node_id != document->unique_id())
+            return false;
+        auto visual_viewport = document->visual_viewport();
+        auto delta = scroll_offset - visual_viewport->offset();
+        if (delta.is_zero())
+            return false;
+        // The visual viewport appends its "scroll" event and asks for the repaint itself.
+        visual_viewport->scroll_by(delta);
+        break;
+    }
+    case Web::AsyncScrollNodeKind::Element:
+    case Web::AsyncScrollNodeKind::PseudoElement: {
+        auto* element = element_for_async_scroll_node_stable_id(*document, stable_node_id);
+        if (!element)
+            return false;
+        auto pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_node_id);
+        if (stable_node_id.kind == Web::AsyncScrollNodeKind::PseudoElement && (!pseudo_element.has_value() || !element->get_synthetic_pseudo_element(*pseudo_element).has_value()))
+            return false;
+        if (element->scroll_offset(pseudo_element) == scroll_offset)
+            return false;
+        element->store_scroll_offset({}, pseudo_element, scroll_offset);
 
-    if (element->scroll_offset(pseudo_element) == scroll_offset)
-        return {};
+        // https://drafts.csswg.org/cssom-view-1/#scrolling-events
+        // Whenever an element gets scrolled (whether in response to user interaction or by an API), the user agent must
+        // run these steps:
 
-    element->set_scroll_offset(pseudo_element, scroll_offset, Painting::CompositorScrollRequest::None);
+        // 1. Let doc be the element’s node document.
 
-    document.append_pending_scroll_event({ *element, EventNames::scroll });
-    element->set_needs_repaint(InvalidateDisplayList::No);
-    return element;
+        // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element
+        //           with the element’s eventual snap target in the block axis as newBlockTarget and the element’s
+        //           eventual snap target in the inline axis as newInlineTarget.
+
+        // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
+        // 4. Append (element, "scroll") to doc’s pending scroll events.
+        document->append_pending_scroll_event({ *element, EventNames::scroll });
+        document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
+        break;
+    }
+    }
+
+    did_store_scroll_offset(stable_node_id, compositor_scroll_request);
+    return true;
 }
 
 static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Promise> promise)
@@ -5350,32 +5357,14 @@ static Layout::Node* layout_node_for_async_scroll_node(Layout::BegunRead const& 
     return element->layout_node(read);
 }
 
-bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset, Painting::CompositorScrollRequest compositor_scroll_request)
+bool LocalNavigable::store_scroll_offset_in_scroll_range(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset, Painting::CompositorScrollRequest compositor_scroll_request)
 {
+    if (stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport || stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport)
+        return store_scroll_offset(stable_node_id, scroll_offset, compositor_scroll_request);
+
     auto document = active_document();
     if (!document)
         return false;
-
-    if (stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
-        if (stable_node_id.node_id != document->unique_id())
-            return false;
-        auto old_scroll_offset = m_viewport_scroll_offset;
-        perform_scroll_of_viewport_scrolling_box(scroll_offset, compositor_scroll_request);
-        return old_scroll_offset != m_viewport_scroll_offset;
-    }
-
-    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
-        if (stable_node_id.node_id != document->unique_id())
-            return false;
-        auto visual_viewport = document->visual_viewport();
-        auto delta = scroll_offset - visual_viewport->offset();
-        if (delta.is_zero())
-            return false;
-        visual_viewport->scroll_by(delta);
-        did_change_scroll_offset(stable_node_id, compositor_scroll_request);
-        return true;
-    }
-
     if (!element_for_async_scroll_node_stable_id(*document, stable_node_id))
         return false;
     Layout::ForcedReadScope read { *document };
@@ -6038,7 +6027,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         smooth_scroll.elapsed += now - smooth_scroll.last_tick;
         smooth_scroll.last_tick = now;
         auto sample = smooth_scroll.animation.sample(smooth_scroll.elapsed);
-        set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>(), Painting::CompositorScrollRequest::ProgrammaticJump);
+        store_scroll_offset_in_scroll_range(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>(), Painting::CompositorScrollRequest::ProgrammaticJump);
         if (sample.complete) {
             finished_smooth_scrolls.append(finished_scroll(m_main_thread_smooth_scrolls.take(index)));
         } else {
@@ -6057,21 +6046,6 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         page().client().request_frame();
 }
 
-bool LocalNavigable::adopt_async_viewport_scroll_offset(CSSPixelPoint scroll_offset)
-{
-    auto document = active_document();
-    if (!document)
-        return false;
-
-    Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
-    auto scroll_offset_before_scroll = m_viewport_scroll_offset;
-    perform_scroll_of_viewport_scrolling_box(scroll_offset, Painting::CompositorScrollRequest::None);
-    if (m_viewport_scroll_offset == scroll_offset_before_scroll)
-        return false;
-    note_user_scroll_gesture_of(viewport_stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
-    return true;
-}
-
 bool LocalNavigable::adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset)
 {
     auto document = active_document();
@@ -6083,15 +6057,12 @@ bool LocalNavigable::adopt_async_visual_viewport_scroll(Optional<float> scale, C
     auto scale_before_adoption = visual_viewport->scale();
     if (scale.has_value())
         visual_viewport->set_scale_zoomed_by_compositor(scale.value());
-    if (visual_viewport->scale() != scale_before_adoption)
-        did_change_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
+    bool scale_changed = visual_viewport->scale() != scale_before_adoption;
+    if (scale_changed)
+        did_store_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
 
-    auto visual_delta = scroll_offset - visual_viewport->offset();
-    if (visual_delta.is_zero())
-        return visual_viewport->scale() != scale_before_adoption;
-
-    visual_viewport->scroll_by(visual_delta);
-    did_change_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
+    if (!store_scroll_offset(visual_viewport_stable_node_id, scroll_offset, Painting::CompositorScrollRequest::None))
+        return scale_changed;
     note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, UserScrollMovedBox::Yes);
     return true;
 }
@@ -6197,7 +6168,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
 
         if (has_in_flight_smooth_scroll) {
             auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
-            if (set_scroll_offset_for(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
+            if (store_scroll_offset_in_scroll_range(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
                 adopted_any_scroll_offset = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async programmatic scroll offset {},{}",
                     async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
@@ -6235,8 +6206,10 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
-            if (adopt_async_viewport_scroll_offset(css_scroll_offset)) {
+            auto scroll_offset_before_scroll = m_viewport_scroll_offset;
+            if (store_scroll_offset(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
                 adopted_any_scroll_offset = true;
+                note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
                     async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
             }
@@ -6244,7 +6217,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         }
 
         auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
-        if (auto element = adopt_async_element_scroll_offset(*document, async_scroll_offset.stable_node_id, css_scroll_offset)) {
+        if (store_scroll_offset(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
             adopted_any_scroll_offset = true;
             note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element offset {},{}",
@@ -7707,7 +7680,7 @@ void LocalNavigable::request_viewport_scroll_by_a_distance(CSSPixelPoint displac
     scroll_request.instant_scroll_is_for_user_input = trigger != ScrollTrigger::Programmatic;
 }
 
-void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id, Painting::CompositorScrollRequest compositor_scroll_request)
+void LocalNavigable::did_store_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id, Painting::CompositorScrollRequest compositor_scroll_request)
 {
     note_scroll_sequence_moved(stable_node_id);
     if (compositor_scroll_request == Painting::CompositorScrollRequest::None || !has_compositor_context())
@@ -7860,7 +7833,7 @@ LocalNavigable::PerformedScroll LocalNavigable::perform_a_scroll_of_a_scrolling_
     //    requested behavior or the associated element's computed behavior is
     //    smooth, perform a smooth scroll. Otherwise, perform an instant scroll.
     if (!should_scroll_smoothly) {
-        (void)set_scroll_offset_for(stable_node_id, position, Painting::CompositorScrollRequest::None);
+        (void)store_scroll_offset_in_scroll_range(stable_node_id, position, Painting::CompositorScrollRequest::None);
         // The compositor may have scrolled the box elsewhere since the main thread last heard, so the box jumps to the
         // position even where its offset here is unchanged.
         if (has_compositor_context() && scroll.instant_scroll_requester == InstantScrollRequester::ThisScroll) {
@@ -8259,8 +8232,6 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // 13. Let element be doc’s root element if there is one, null otherwise.
 
     CSSPixelPoint visual_delta { visual_dx, visual_dy };
-    if (visual_delta.is_zero())
-        doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
     Web::AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = doc->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport };
     Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = doc->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
 
@@ -8358,7 +8329,19 @@ void LocalNavigable::reset_zoom()
     if (!document)
         return;
     document->visual_viewport()->reset();
-    did_change_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport }, Painting::CompositorScrollRequest::ProgrammaticJump);
+    did_store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport }, Painting::CompositorScrollRequest::ProgrammaticJump);
+}
+
+bool LocalNavigable::zoom_visual_viewport(CSSPixelPoint position, double scale_delta)
+{
+    auto document = active_document();
+    if (!document)
+        return false;
+    auto visual_viewport = document->visual_viewport();
+    auto offset_before_zoom = visual_viewport->offset();
+    visual_viewport->zoom(position, scale_delta);
+    did_store_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport }, Painting::CompositorScrollRequest::ProgrammaticJump);
+    return visual_viewport->offset() != offset_before_zoom;
 }
 
 bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const

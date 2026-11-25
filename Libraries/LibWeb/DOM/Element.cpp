@@ -6019,31 +6019,18 @@ void Element::set_last_relative_scroll_direction(u8 direction)
     ensure_element_rare_data().last_relative_scroll_direction = direction;
 }
 
-// The layout arena measures a box that holds a scroll offset eagerly after a full commit, so the
-// current box re-derives that fact whenever the stored offset changes. Layout need not be up to
-// date for that: the box is only annotated, not read, and a box that a pending layout tree rebuild
-// replaces is never consulted again, while its replacement derives the fact when it is constructed.
-// That is why the unchecked layout node accessor is the right one here.
-void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset, Painting::CompositorScrollRequest compositor_scroll_request)
+void Element::store_scroll_offset(Badge<HTML::LocalNavigable>, Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
 {
-    Web::AsyncScrollNodeStableID stable_node_id { .node_id = unique_id(), .kind = Web::AsyncScrollNodeKind::Element };
     if (pseudo_element_type.has_value()) {
-        auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type);
-        if (!pseudo_element.has_value())
-            return;
-        pseudo_element->set_scroll_offset(offset);
-        stable_node_id.kind = Web::AsyncScrollNodeKind::PseudoElement;
-        stable_node_id.pseudo_element_type = static_cast<u8>(to_underlying(pseudo_element_type.value()));
-    } else {
-        if (!offset.is_zero())
-            ensure_element_rare_data().scroll_offset = offset;
-        else if (auto* rare_data = element_rare_data())
-            rare_data->scroll_offset = {};
-        Layout::publish_element_scroll_offset(*this);
+        if (auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            pseudo_element->set_scroll_offset(offset);
+        return;
     }
-
-    if (auto navigable = document().navigable())
-        navigable->did_change_scroll_offset(stable_node_id, compositor_scroll_request);
+    if (!offset.is_zero())
+        ensure_element_rare_data().scroll_offset = offset;
+    else if (auto* rare_data = element_rare_data())
+        rare_data->scroll_offset = {};
+    Layout::publish_element_scroll_offset(*this);
 }
 
 Optional<Element::Dir> Element::dir() const
