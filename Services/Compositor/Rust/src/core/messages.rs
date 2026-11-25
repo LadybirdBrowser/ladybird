@@ -28,7 +28,7 @@ use libcompositing_rust::ipc_types::compositor_control_server::messages::{
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent, PresentedBitmapReadyToPaint,
-    SetClientGpuPresentationCapability, SetScrollbarTrackPressJumps,
+    SetClientGpuPresentationCapability, SetScrollbarTrackPressJumps, SetScrollbarsAlwaysShown,
 };
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
@@ -1109,7 +1109,13 @@ impl compositor_presentation_server::Stub for MessagesFromPresentation<'_> {
 
     fn set_scrollbar_track_press_jumps(&mut self, message: SetScrollbarTrackPressJumps) -> Result<(), Misbehavior> {
         self.core
-            .set_scrollbar_track_press_jumps(self.presentation_id, message.jumps);
+            .set_scrollbar_track_press_jumps(self.presentation_id, message.jumps, self.now);
+        Ok(())
+    }
+
+    fn set_scrollbars_always_shown(&mut self, message: SetScrollbarsAlwaysShown) -> Result<(), Misbehavior> {
+        self.core
+            .set_scrollbars_always_shown(self.presentation_id, message.always_shown, self.now);
         Ok(())
     }
 }

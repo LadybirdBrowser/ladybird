@@ -154,6 +154,15 @@ public:
     virtual bool platform_scrollbar_track_press_jumps() const { return false; }
     // Tells the compositor of a change to what platform_scrollbar_track_press_jumps() returns.
     void platform_scrollbar_track_press_behavior_changed();
+    virtual bool platform_scrollbars_always_shown() const
+    {
+#if defined(AK_OS_LINUX) || defined(AK_OS_WINDOWS)
+        return true;
+#else
+        return false;
+#endif
+    }
+    void platform_scrollbar_visibility_changed();
     // Returns true if the platform's settings ask for less motion, which pages see while the motion preference is Auto.
     virtual bool platform_prefers_reduced_motion() const { return false; }
     // Tells every page of a change to what platform_prefers_reduced_motion() returns.

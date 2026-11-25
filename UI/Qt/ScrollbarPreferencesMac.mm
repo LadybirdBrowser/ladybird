@@ -31,4 +31,25 @@ void on_scrollbar_track_press_behavior_change(Function<void()> callback)
                                                            }];
 }
 
+bool scrollbars_always_shown()
+{
+    return NSScroller.preferredScrollerStyle == NSScrollerStyleLegacy;
+}
+
+void on_scrollbar_visibility_change(Function<void()> callback)
+{
+    static Function<void()> s_callback;
+    auto should_observe = !s_callback;
+    s_callback = move(callback);
+    if (!should_observe)
+        return;
+    [NSNotificationCenter.defaultCenter addObserverForName:NSPreferredScrollerStyleDidChangeNotification
+                                                    object:nil
+                                                     queue:NSOperationQueue.mainQueue
+                                                usingBlock:^(NSNotification*) {
+                                                    if (s_callback)
+                                                        s_callback();
+                                                }];
+}
+
 }

@@ -70,6 +70,7 @@ pub struct PresentationCapabilities {
     pub scrolls_elastically: bool,
     // Whether a press on a scrollbar track beside the thumb jumps there rather than paging toward it.
     pub scrollbar_track_press_jumps: bool,
+    pub scrollbars_always_shown: bool,
     // LUID of the GPU adapter the presentation can present shared GPU textures on, if any.
     pub gpu_presentation_adapter_luid: Option<u64>,
     // Whether the presentation found it cannot present the shared GPU images it was given.
@@ -916,25 +917,32 @@ impl CompositorCore {
 
     // A context scrolls elastically, takes presses on scrollbar tracks, and ends touchpad gestures as the presentation of
     // its root context does. A platform that reports the momentum of a flick reports when the fingers lift for it.
-    pub(super) fn update_scroll_capabilities(&self) {
+    pub(super) fn update_scroll_capabilities(&self, now: MonotonicTime) {
         for (&context_id, context) in &self.contexts {
             let root = self.root_context_id_of(context_id);
             let capabilities = self
                 .context_if_present(root)
                 .and_then(|root| root.borrow().bound_presentation())
                 .and_then(|presentation| self.presentations.borrow().get(&presentation).copied());
-            let mut scroll_capabilities = crate::context_state::ScrollCapabilities::default();
+            let mut scroll_capabilities = crate::context_state::ScrollCapabilities {
+                scrollbars_always_shown: self.scrollbars_always_shown,
+                ..Default::default()
+            };
             if let Some(capabilities) = capabilities {
                 scroll_capabilities.synthesizes_scroll_momentum = capabilities.synthesizes_scroll_momentum;
                 scroll_capabilities.scrolls_elastically = capabilities.scrolls_elastically;
                 scroll_capabilities.scrollbar_track_press_jumps = capabilities.scrollbar_track_press_jumps;
+                scroll_capabilities.scrollbars_always_shown |= capabilities.scrollbars_always_shown;
                 scroll_capabilities.touchpad_gesture_end = if capabilities.synthesizes_scroll_momentum {
                     TouchpadGestureEnd::AfterIdleDelay
                 } else {
                     TouchpadGestureEnd::WhenFingersLift
                 };
             }
-            context.borrow_mut().set_scroll_capabilities(&scroll_capabilities);
+            let visibility_changed = context.borrow_mut().set_scroll_capabilities(&scroll_capabilities, now);
+            if visibility_changed {
+                self.request_present_repainting_everything(context_id, context);
+            }
         }
     }
 
@@ -955,7 +963,7 @@ impl CompositorCore {
         if let Some(presenting) = self.presenting_of(context_id) {
             presenting.borrow_mut().release_all_presented_stores();
         }
-        self.update_scroll_capabilities();
+        self.update_scroll_capabilities(now);
         if let Some(presenting) = self.presenting_of(context_id) {
             presenting.borrow_mut().invalidate_backing_stores();
         }
@@ -1040,7 +1048,7 @@ impl CompositorCore {
         }
         self.clear_parent_context(context_id, now);
         context.borrow_mut().set_parent_context(parent_context_id);
-        self.update_scroll_capabilities();
+        self.update_scroll_capabilities(now);
         // The context can be shown now, or on another display.
         self.resume_display_ticks_of_contexts_nested_in(context_id, now);
         let Some(parent_context_id) = parent_context_id else {

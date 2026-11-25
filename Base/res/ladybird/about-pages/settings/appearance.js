@@ -1,4 +1,5 @@
 const showMenuBar = document.querySelector("#show-menu-bar");
+const alwaysShowScrollbars = document.querySelector("#always-show-scrollbars");
 const showMenuBarGroup = document.querySelector("#show-menu-bar-group");
 const windowDecorations = document.querySelector("#use-client-side-window-decorations");
 const windowDecorationsGroup = document.querySelector("#window-decorations-group");
@@ -39,6 +40,7 @@ const loadSettings = settings => {
     APPEARANCE = settings.appearance || {};
 
     showMenuBar.checked = !!APPEARANCE.showMenuBar;
+    alwaysShowScrollbars.checked = !!APPEARANCE.alwaysShowScrollbars;
     showBookmarksBar.value = APPEARANCE.showBookmarksBar || "never";
     setSegmentedValue(interfaceTheme, APPEARANCE.interfaceTheme || "system");
     setSegmentedValue(websiteColorScheme, APPEARANCE.websiteColorScheme || "system");
@@ -59,6 +61,11 @@ windowDecorations.addEventListener("change", () => {
         name: WINDOW_DECORATIONS_VARIABLE,
         value: windowDecorations.checked,
     });
+});
+
+alwaysShowScrollbars.addEventListener("change", () => {
+    APPEARANCE.alwaysShowScrollbars = alwaysShowScrollbars.checked;
+    saveAppearance();
 });
 
 showBookmarksBar.addEventListener("change", () => {

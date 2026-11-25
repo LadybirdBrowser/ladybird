@@ -88,13 +88,21 @@ impl ContextState {
         )
     }
 
-    pub fn set_scroll_capabilities(&mut self, capabilities: &ScrollCapabilities) {
+    pub fn set_scroll_capabilities(&mut self, capabilities: &ScrollCapabilities, now: MonotonicTime) -> bool {
         self.presentation_synthesizes_scroll_momentum = capabilities.synthesizes_scroll_momentum;
         self.elastic_overscroll_controller
             .set_enabled(capabilities.scrolls_elastically);
         self.scrollbar_track_press_jumps = capabilities.scrollbar_track_press_jumps;
         self.wheel_gesture_routing
             .set_touchpad_gesture_end(capabilities.touchpad_gesture_end);
+
+        let visibility_changed = self
+            .scrollbar_controller
+            .set_scrollbars_always_shown(capabilities.scrollbars_always_shown, now);
+        if visibility_changed {
+            self.update_scrollbar_visibility(now);
+        }
+        visibility_changed
     }
 
     pub fn advance_elastic_overscroll_rebounds(&mut self, frame_time: MonotonicTime) -> Option<IntRect> {

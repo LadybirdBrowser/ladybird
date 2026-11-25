@@ -71,11 +71,14 @@ bool Application::ui_has_translator() const
 void Application::set_ui_info(Hub::UIInfo info)
 {
     auto scrollbar_track_press_jumps_changed = !m_ui_info.has_value() || m_ui_info->scrollbar_track_press_jumps != info.scrollbar_track_press_jumps;
+    auto scrollbars_always_shown_changed = !m_ui_info.has_value() || m_ui_info->scrollbars_always_shown != info.scrollbars_always_shown;
     auto prefers_reduced_motion_changed = !m_ui_info.has_value() || m_ui_info->prefers_reduced_motion != info.prefers_reduced_motion;
     auto prefers_more_contrast_changed = !m_ui_info.has_value() || m_ui_info->prefers_more_contrast != info.prefers_more_contrast;
     m_ui_info = move(info);
     if (scrollbar_track_press_jumps_changed)
         platform_scrollbar_track_press_behavior_changed();
+    if (scrollbars_always_shown_changed)
+        platform_scrollbar_visibility_changed();
     if (prefers_reduced_motion_changed)
         platform_motion_preference_changed();
     if (prefers_more_contrast_changed)
@@ -607,6 +610,15 @@ bool Application::platform_scrollbar_track_press_jumps() const
     if (auto const* info = ui_info())
         return info->scrollbar_track_press_jumps;
     return WebView::Application::platform_scrollbar_track_press_jumps();
+}
+
+bool Application::platform_scrollbars_always_shown() const
+{
+    if (m_host)
+        return m_host->platform_scrollbars_always_shown();
+    if (auto const* info = ui_info())
+        return info->scrollbars_always_shown;
+    return WebView::Application::platform_scrollbars_always_shown();
 }
 
 bool Application::platform_prefers_reduced_motion() const

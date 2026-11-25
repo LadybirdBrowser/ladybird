@@ -34,6 +34,7 @@ static constexpr auto TRANSLATION_PREFERS_HIGHER_QUALITY_KEY = "translationPrefe
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
+static constexpr auto ALWAYS_SHOW_SCROLLBARS_KEY = "alwaysShowScrollbars"sv;
 static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
 static constexpr auto INTERFACE_THEME_KEY = "interfaceTheme"sv;
 static constexpr auto WEBSITE_COLOR_SCHEME_KEY = "websiteColorScheme"sv;
@@ -856,6 +857,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject appearance;
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
+    appearance.set(ALWAYS_SHOW_SCROLLBARS_KEY, m_appearance.always_show_scrollbars);
     appearance.set(SHOW_BOOKMARKS_BAR_KEY, show_bookmarks_bar_to_string(m_appearance.show_bookmarks_bar));
     appearance.set(INTERFACE_THEME_KEY, theme_preference_to_string(m_appearance.interface_theme));
     appearance.set(WEBSITE_COLOR_SCHEME_KEY, theme_preference_to_string(m_appearance.website_color_scheme));
@@ -1148,6 +1150,8 @@ Appearance Settings::parse_appearance(JsonValue const& settings)
 
     if (auto show_menu_bar = settings.as_object().get_bool(SHOW_MENU_BAR_KEY); show_menu_bar.has_value())
         appearance.show_menu_bar = *show_menu_bar;
+    if (auto always_show_scrollbars = settings.as_object().get_bool(ALWAYS_SHOW_SCROLLBARS_KEY); always_show_scrollbars.has_value())
+        appearance.always_show_scrollbars = *always_show_scrollbars;
     if (auto show_bookmarks_bar = settings.as_object().get_string(SHOW_BOOKMARKS_BAR_KEY); show_bookmarks_bar.has_value()) {
         if (auto parsed = bookmarks_bar_position_from_string(*show_bookmarks_bar); parsed.has_value())
             appearance.show_bookmarks_bar = *parsed;

@@ -2243,6 +2243,7 @@ ErrorOr<void> Application::launch_compositor_process()
     m_compositor_presentation_client = adopt_ref(*new CompositorPresentationClient(move(transport)));
     m_compositor_presentation_id = presentation.presentation_id();
     m_compositor_presentation_client->async_set_scrollbar_track_press_jumps(platform_scrollbar_track_press_jumps());
+    platform_scrollbar_visibility_changed();
     m_compositor_presentation_client->on_death = [this, presentation_client = m_compositor_presentation_client->make_weak_ptr<CompositorPresentationClient>()] {
         // NB: This runs on a later turn, by which time a new Compositor can have replaced the one this belonged to.
         if (!presentation_client || presentation_client.ptr() != m_compositor_presentation_client.ptr())
@@ -2284,6 +2285,12 @@ void Application::platform_scrollbar_track_press_behavior_changed()
 {
     if (m_compositor_presentation_client)
         m_compositor_presentation_client->async_set_scrollbar_track_press_jumps(platform_scrollbar_track_press_jumps());
+}
+
+void Application::platform_scrollbar_visibility_changed()
+{
+    if (m_compositor_presentation_client)
+        m_compositor_presentation_client->async_set_scrollbars_always_shown(m_settings->appearance().always_show_scrollbars || platform_scrollbars_always_shown());
 }
 
 void Application::notify_compositor_gpu_presentation_unavailable()
@@ -3216,6 +3223,7 @@ void Application::update_website_color_scheme()
 void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
 {
     update_website_color_scheme();
+    platform_scrollbar_visibility_changed();
 }
 
 void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
