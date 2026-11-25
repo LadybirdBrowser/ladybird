@@ -508,6 +508,7 @@ impl ContextState {
             self.resolve_stale_sticky_offsets();
         }
         for (stable_node_id, scroll_offset) in clamped_scroll_offsets {
+            self.scroll_snap_controller.did_move_scroller(stable_node_id);
             self.record_scroll_offset_report(stable_node_id, scroll_offset);
         }
         viewport_scroll_offset

@@ -95,9 +95,9 @@ struct NodeState {
     // burst of steps advances by the distance they asked for rather than by one snap position each.
     unsnapped_scroll_destination: Option<CssPixelPoint>,
     gesture_input_deadline: Option<MonotonicTime>,
-    // The offset this controller last left the scrolling box at; a box resting anywhere else has been scrolled by
-    // something else since, which ends the gesture.
-    expected_scroll_offset: Option<CssPixelPoint>,
+    // Whether something other than this controller has moved the scrolling box since the controller last left it,
+    // which ends the gesture.
+    moved_by_others_since_this_controller_left_it: bool,
     // The snap scroll of this controller's own that the box is scrolling under.
     snap_scroll: Option<InFlightSnapScroll>,
     gesture_start: Option<GestureStart>,
@@ -224,21 +224,27 @@ impl ScrollSnapController {
             operation_id,
             destination,
         });
-        state.expected_scroll_offset = Some(destination);
+        state.moved_by_others_since_this_controller_left_it = false;
     }
 
     pub fn did_end_snap_scroll(
         &mut self,
         stable_node_id: AsyncScrollNodeStableID,
         operation_id: AsyncScrollOperationID,
-        scroll_offset: Option<CssPixelPoint>,
+        scrolling_box_remains: bool,
     ) {
         if !self.is_snap_scroll(stable_node_id, operation_id) {
             return;
         }
         let state = self.node_state(stable_node_id);
         state.snap_scroll = None;
-        state.expected_scroll_offset = scroll_offset;
+        state.moved_by_others_since_this_controller_left_it = !scrolling_box_remains;
+    }
+
+    pub fn did_move_scroller(&mut self, stable_node_id: AsyncScrollNodeStableID) {
+        if let Some(state) = self.nodes.get_mut(&stable_node_id) {
+            state.moved_by_others_since_this_controller_left_it = true;
+        }
     }
 
     pub fn did_retarget_scroll(
@@ -360,7 +366,7 @@ impl ScrollSnapController {
         let state = self.node_state(target.stable_node_id);
         // A gesture ends once its steps stop arriving, and once anything but this controller has moved the scrolling box.
         let gesture_ended = state.gesture_input_deadline.is_some_and(|deadline| now > deadline)
-            || (state.snap_scroll.is_none() && state.expected_scroll_offset != Some(current_scroll_offset));
+            || (state.snap_scroll.is_none() && state.moved_by_others_since_this_controller_left_it);
         if gesture_ended {
             state.unsnapped_scroll_destination = None;
         }
@@ -399,7 +405,7 @@ impl ScrollSnapController {
         }
         if selection.position == in_flight_destination.unwrap_or(current_scroll_offset) {
             if state.snap_scroll.is_none() {
-                state.expected_scroll_offset = Some(current_scroll_offset);
+                state.moved_by_others_since_this_controller_left_it = false;
             }
             return Some(StepDecision::StepConsumed(StepConsumed::default()));
         }
@@ -478,7 +484,7 @@ impl ScrollSnapController {
         state.gesture_input_deadline = Some(now + USER_SCROLL_SETTLE_DELAY);
         if selection.position == in_flight_destination.unwrap_or(current_scroll_offset) {
             if state.snap_scroll.is_none() {
-                state.expected_scroll_offset = Some(current_scroll_offset);
+                state.moved_by_others_since_this_controller_left_it = false;
             }
             let updated_scroll = state.snap_scroll.as_ref().map(|snap_scroll| StartedUserScroll {
                 stable_node_id: target.stable_node_id,
