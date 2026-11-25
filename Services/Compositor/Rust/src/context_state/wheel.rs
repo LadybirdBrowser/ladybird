@@ -527,6 +527,7 @@ impl ContextState {
         if is_first_step_of_gesture && wheel_step_dispatch == WheelStepDispatch::NotYetDispatched {
             let initial_scroll_target = self.async_scroll_tree.hit_test_scroll_node_for_wheel(
                 self.scene.visual_context_tree_for_compositing(),
+                &self.scroll_state_snapshot,
                 step.position,
                 delta,
                 &|_| None,
@@ -618,18 +619,24 @@ impl ContextState {
         }
         let tree = self.scene.visual_context_tree_for_compositing();
         // NB: The main thread takes the wheel events of a nested document the compositor cannot reach.
-        self.async_scroll_tree.blocks_wheel_event_at_position(tree, position)
-            || self
-                .async_scroll_tree
-                .main_thread_wheel_event_region_contains(tree, position)
+        self.async_scroll_tree
+            .blocks_wheel_event_at_position(tree, &self.scroll_state_snapshot, position)
+            || self.async_scroll_tree.main_thread_wheel_event_region_contains(
+                tree,
+                &self.scroll_state_snapshot,
+                position,
+            )
     }
 
     pub fn nested_context_for_wheel_at(&mut self, position: FloatPoint) -> Option<NestedContextHit> {
         if !self.has_async_scrolling_state {
             return None;
         }
-        self.async_scroll_tree
-            .nested_context_for_wheel_at(self.scene.visual_context_tree_for_compositing(), position)
+        self.async_scroll_tree.nested_context_for_wheel_at(
+            self.scene.visual_context_tree_for_compositing(),
+            &self.scroll_state_snapshot,
+            position,
+        )
     }
 
     pub fn latch_wheel_gesture_to_nested_context(
@@ -664,6 +671,7 @@ impl ContextState {
                 height: nested_context_viewport_size.height as f32,
             },
             self.scene.visual_context_tree_for_compositing(),
+            &self.scroll_state_snapshot,
         )
     }
 
@@ -699,7 +707,9 @@ impl ContextState {
         // A document's wheel event listeners never see the wheel events over a document nested in it.
         let tree = self.scene.visual_context_tree_for_compositing();
         if nested_context_regions == NestedContextRegions::HandToNestedContext
-            && let Some(hit) = self.async_scroll_tree.nested_context_for_wheel_at(tree, position)
+            && let Some(hit) =
+                self.async_scroll_tree
+                    .nested_context_for_wheel_at(tree, &self.scroll_state_snapshot, position)
         {
             return route(
                 Kind::NestedContext,

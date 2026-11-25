@@ -290,6 +290,7 @@ impl ScrollbarController {
             if async_scroll_tree.is_covered_by_hit_test_target_painted_after(
                 scrollbar.paint_order_index,
                 visual_context_tree,
+                scroll_state_snapshot,
                 position,
             ) {
                 return None;
