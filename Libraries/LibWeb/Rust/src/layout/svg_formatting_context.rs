@@ -628,6 +628,17 @@ struct SvgTextDecorationLines {
     line_through: bool,
     /// The thickness the element's 'text-decoration-thickness' gives the lines, where it gives one.
     thickness: Option<f32>,
+    /// The element's 'text-decoration-style'.
+    style: u8,
+}
+
+/// Which way a decoration line that's drawn wider than its thickness (a double or a wavy one) grows: away from the
+/// text for an underline or an overline, and about its center for a line through the text.
+#[derive(Clone, Copy, PartialEq)]
+enum SvgDecorationLineGrowth {
+    Down,
+    Up,
+    AboutCenter,
 }
 
 impl SvgTextDecorationLines {
@@ -636,36 +647,165 @@ impl SvgTextDecorationLines {
     }
 
     /// The underline and the overline along `span`, which paint before the text.
-    fn rects_under_text(&self, span: &SvgTextRunSpan, rects: &mut Vec<FloatRect>) {
+    fn add_lines_under_text(&self, span: &SvgTextRunSpan, path: &mut libgfx_rust::path::Path) {
         let thickness = self.thickness_for(span);
         if self.underline {
             // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
             // The user agent may use any algorithm to determine the underline's position; however it must be placed
             // at or under the alphabetic baseline.
             let gap = (thickness / 2.0).ceil().max(1.0);
-            rects.push(FloatRect::new(span.x, span.baseline + gap, span.advance, thickness));
+            self.add_line(
+                span,
+                span.baseline + gap,
+                thickness,
+                SvgDecorationLineGrowth::Down,
+                path,
+            );
         }
         if self.overline {
-            rects.push(FloatRect::new(
-                span.x,
-                span.baseline - span.ascent - thickness,
-                span.advance,
-                thickness,
-            ));
+            let top = span.baseline - span.ascent - thickness;
+            self.add_line(span, top, thickness, SvgDecorationLineGrowth::Up, path);
         }
     }
 
     /// The line through `span`, which paints after the text.
-    fn rects_over_text(&self, span: &SvgTextRunSpan, rects: &mut Vec<FloatRect>) {
+    fn add_lines_over_text(&self, span: &SvgTextRunSpan, path: &mut libgfx_rust::path::Path) {
         if self.line_through {
             let thickness = self.thickness_for(span);
-            let center = span.baseline - span.ascent / 3.0;
-            rects.push(FloatRect::new(
-                span.x,
-                center - thickness / 2.0,
-                span.advance,
-                thickness,
-            ));
+            let top = span.baseline - span.ascent / 3.0 - thickness / 2.0;
+            self.add_line(span, top, thickness, SvgDecorationLineGrowth::AboutCenter, path);
+        }
+    }
+
+    /// Adds the outline of one decoration line along `span`, in the element's 'text-decoration-style', whose solid
+    /// form would cover the rows from `top` down to `top + thickness`. The outline is filled and stroked as the
+    /// text's glyphs are.
+    /// https://drafts.csswg.org/css-text-decor-4/#text-decoration-style-property
+    fn add_line(
+        &self,
+        span: &SvgTextRunSpan,
+        top: f32,
+        thickness: f32,
+        growth: SvgDecorationLineGrowth,
+        path: &mut libgfx_rust::path::Path,
+    ) {
+        let (x, length) = (span.x, span.advance);
+        // NB: A dashed, dotted, or wavy line takes a few segments per thickness of its length, so a line too long for
+        //     a pattern of reasonable size is drawn solid.
+        const MAX_PATTERN_LENGTH_IN_THICKNESSES: f32 = 40_000.0;
+        let style =
+            if length / thickness > MAX_PATTERN_LENGTH_IN_THICKNESSES && self.style != text_decoration_style::DOUBLE {
+                text_decoration_style::SOLID
+            } else {
+                self.style
+            };
+        match style {
+            text_decoration_style::DOUBLE => {
+                // NB: Two lines of the thickness, a thickness apart.
+                let (first_top, second_top) = match growth {
+                    SvgDecorationLineGrowth::Down => (top, top + 2.0 * thickness),
+                    SvgDecorationLineGrowth::Up => (top - 2.0 * thickness, top),
+                    SvgDecorationLineGrowth::AboutCenter => (top - thickness, top + thickness),
+                };
+                path.append_path(&path_of_rects(&[
+                    FloatRect::new(x, first_top, length, thickness),
+                    FloatRect::new(x, second_top, length, thickness),
+                ]));
+            }
+            text_decoration_style::DASHED => {
+                // NB: An odd number of dashes and gaps of equal length, a little over twice the thickness each, so
+                //     that the line starts and ends with a dash. Each end reaches half the thickness past the text.
+                let total = length + thickness;
+                let count = (total / thickness / 4.0).floor() * 2.0 + 1.0;
+                let dash = total / count;
+                let start = x - thickness / 2.0;
+                let rects: Vec<FloatRect> = (0..count as usize)
+                    .step_by(2)
+                    .map(|index| FloatRect::new(start + index as f32 * dash, top, dash, thickness))
+                    .collect();
+                path.append_path(&path_of_rects(&rects));
+            }
+            text_decoration_style::DOTTED => {
+                // NB: Round dots as wide as the line is thick, about twice that apart, with one at each end.
+                let radius = thickness / 2.0;
+                let center_y = top + radius;
+                let count = ((length - thickness) / (2.0 * thickness)).floor().max(0.0) as usize + 1;
+                let step = if count > 1 {
+                    (length - thickness) / (count - 1) as f32
+                } else {
+                    0.0
+                };
+                for index in 0..count {
+                    let center_x = x + radius + index as f32 * step;
+                    path.move_to(FloatPoint {
+                        x: center_x - radius,
+                        y: center_y,
+                    });
+                    path.arc_to(
+                        FloatPoint {
+                            x: center_x + radius,
+                            y: center_y,
+                        },
+                        radius,
+                        false,
+                        true,
+                    );
+                    path.arc_to(
+                        FloatPoint {
+                            x: center_x - radius,
+                            y: center_y,
+                        },
+                        radius,
+                        false,
+                        true,
+                    );
+                    path.close();
+                }
+            }
+            text_decoration_style::WAVY => {
+                // NB: A zigzag whose crests and troughs are one and a half times the thickness off its center line,
+                //     at 45 degrees, stroked at the thickness. It grows away from the text as a double line does.
+                let peak = 1.5 * thickness;
+                let center_y = top
+                    + thickness / 2.0
+                    + match growth {
+                        SvgDecorationLineGrowth::Down => peak,
+                        SvgDecorationLineGrowth::Up => -peak,
+                        SvgDecorationLineGrowth::AboutCenter => 0.0,
+                    };
+                // NB: The zigzag is built from the span's start and moved there afterward, so that each vertex
+                //     advances by its full step even where the span starts at a coordinate too large to add it to.
+                let mut wave = libgfx_rust::path::Path::new();
+                let mut previous = FloatPoint { x: 0.0, y: center_y };
+                wave.move_to(previous);
+                let mut vertex = FloatPoint {
+                    x: peak,
+                    y: center_y - peak,
+                };
+                while vertex.x < length {
+                    wave.line_to(vertex);
+                    previous = vertex;
+                    vertex = FloatPoint {
+                        x: vertex.x + 2.0 * peak,
+                        y: 2.0 * center_y - vertex.y,
+                    };
+                }
+                let fraction = (length - previous.x) / (vertex.x - previous.x);
+                wave.line_to(FloatPoint {
+                    x: length,
+                    y: previous.y + (vertex.y - previous.y) * fraction,
+                });
+                let wave = wave.copy_transformed([1.0, 0.0, 0.0, 1.0, x, 0.0]);
+                path.append_path(&wave.stroke_to_fill(&libgfx_rust::path::StrokeStyle {
+                    thickness,
+                    cap_style: libgfx_rust::CapStyle::Butt,
+                    join_style: libgfx_rust::JoinStyle::Miter,
+                    miter_limit: 4.0,
+                    dash_array: Vec::new(),
+                    dash_offset: 0.0,
+                }));
+            }
+            _ => path.append_path(&path_of_rects(&[FloatRect::new(x, top, length, thickness)])),
         }
     }
 }
@@ -675,7 +815,7 @@ enum SvgTextPaintPart {
     Glyphs(Vec<libgfx_rust::path::GlyphRun>),
     /// Glyphs of a color font, which have no outlines.
     ColorGlyphs(Vec<fragment_tree::SvgColorGlyphRun>),
-    DecorationLines(Vec<FloatRect>),
+    DecorationLines(libgfx_rust::path::Path),
 }
 
 /// The parts a text content element paints, each with the child element it paints after, in paint order.
@@ -711,17 +851,17 @@ impl SvgTextPaintParts {
         self.parts.push((after_child, SvgTextPaintPart::ColorGlyphs(vec![run])));
     }
 
-    fn add_decoration_lines(&mut self, after_child: Node, rects: Vec<FloatRect>) {
-        if rects.is_empty() {
+    fn add_decoration_lines(&mut self, after_child: Node, lines: libgfx_rust::path::Path) {
+        if lines.is_empty() {
             return;
         }
-        if let Some((last_after_child, SvgTextPaintPart::DecorationLines(last_rects))) = self.parts.last_mut()
+        if let Some((last_after_child, SvgTextPaintPart::DecorationLines(last_lines))) = self.parts.last_mut()
             && *last_after_child == after_child
         {
-            last_rects.extend(rects);
+            last_lines.append_path(&lines);
             return;
         }
-        self.parts.push((after_child, SvgTextPaintPart::DecorationLines(rects)));
+        self.parts.push((after_child, SvgTextPaintPart::DecorationLines(lines)));
     }
 
     /// Whether the parts are just the glyphs of text that comes before every child element, which the element's
@@ -2396,12 +2536,12 @@ impl<'pass> SvgFormattingContext<'pass> {
                         font_size,
                     }]
                 };
-                let mut lines_under = Vec::new();
-                let mut lines_over = Vec::new();
+                let mut lines_under = libgfx_rust::path::Path::new();
+                let mut lines_over = libgfx_rust::path::Path::new();
                 if let Some(lines) = &decoration_lines {
                     for span in &run_spans {
-                        lines.rects_under_text(span, &mut lines_under);
-                        lines.rects_over_text(span, &mut lines_over);
+                        lines.add_lines_under_text(span, &mut lines_under);
+                        lines.add_lines_over_text(span, &mut lines_over);
                     }
                 }
                 spans.extend(run_spans);
@@ -2459,12 +2599,12 @@ impl<'pass> SvgFormattingContext<'pass> {
                     contents.character_cells.extend(cells.iter().copied());
                 }
                 let child_spans = std::mem::take(&mut self.last_text_subtree_spans);
-                let mut lines_under = Vec::new();
-                let mut lines_over = Vec::new();
+                let mut lines_under = libgfx_rust::path::Path::new();
+                let mut lines_over = libgfx_rust::path::Path::new();
                 if let Some(lines) = decoration_lines {
                     for span in &child_spans {
-                        lines.rects_under_text(span, &mut lines_under);
-                        lines.rects_over_text(span, &mut lines_over);
+                        lines.add_lines_under_text(span, &mut lines_under);
+                        lines.add_lines_over_text(span, &mut lines_over);
                     }
                 }
                 paint_parts.add_decoration_lines(after_child, lines_under);
@@ -2501,7 +2641,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                     color_glyph_runs = runs;
                     libgfx_rust::path::Path::new()
                 }
-                SvgTextPaintPart::DecorationLines(rects) => path_of_rects(&rects),
+                SvgTextPaintPart::DecorationLines(lines) => lines,
             };
             segments.push(fragment_tree::SvgTextSegment {
                 after_child,
@@ -2522,7 +2662,6 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// The text decoration lines the given text content element declares, if it declares any.
-    /// AD-HOC: Every line is drawn solid, whatever its 'text-decoration-style' is.
     fn svg_text_decoration_lines(&self, text_box: Node) -> Option<SvgTextDecorationLines> {
         let style = self.style(text_box);
         let text_reset = style.text_reset();
@@ -2538,6 +2677,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         if !(lines.underline || lines.overline || lines.line_through) {
             return None;
         }
+        lines.style = text_reset.text_decoration_style;
         // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
         const TEXT_DECORATION_THICKNESS_KIND_LENGTH_PERCENTAGE: u8 = 2;
         if text_reset.text_decoration_thickness_kind == TEXT_DECORATION_THICKNESS_KIND_LENGTH_PERCENTAGE {
