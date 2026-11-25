@@ -413,7 +413,7 @@ impl ContextState {
         }
     }
 
-    fn apply_visual_viewport_scroll_delta(&mut self, delta: FloatPoint) -> Option<VisualViewportScrollDelta> {
+    fn apply_visual_viewport_scroll_delta(&mut self, delta: FloatPoint) -> Option<FloatPoint> {
         if delta.is_zero() {
             return None;
         }
@@ -441,37 +441,17 @@ impl ContextState {
         transform.matrix.elements[1][3] = new_y;
         self.scene.set_async_visual_viewport_transform(transform);
         self.visual_viewport_document_id = Some(document_id);
-        self.note_user_input_scrolled(AsyncScrollNodeStableID {
-            node_id: document_id,
-            kind: AsyncScrollNodeKind::VisualViewport,
-            pseudo_element_type: 0,
-        });
+        self.note_user_input_scrolled(visual_viewport_stable_node_id(document_id));
         self.rebuild_wheel_hit_test_targets();
-        Some(VisualViewportScrollDelta {
-            scroll_offset: AsyncScrollOffset {
-                stable_node_id: AsyncScrollNodeStableID {
-                    node_id: document_id,
-                    kind: AsyncScrollNodeKind::VisualViewport,
-                    pseudo_element_type: 0,
-                },
-                compositor_scroll_offset: visual_viewport_scroll_offset(&transform),
-                last_relative_scroll_delta: Default::default(),
-                visual_viewport_scale: Some(scale),
-                applied_scroll_request_id: 0,
-                user_input_scroll_count: 0,
-            },
-            consumed_delta,
-        })
+        self.record_visual_viewport_offset_report(document_id, &transform);
+        Some(consumed_delta)
     }
 
     /// Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
     /// that part of the delta.
     pub(super) fn pan_visual_viewport_by(&mut self, delta_in_screen_pixels: FloatPoint) -> FloatPoint {
-        let Some(delta) = self.apply_visual_viewport_scroll_delta(delta_in_screen_pixels) else {
-            return Default::default();
-        };
-        self.store_pending_async_scroll_offsets(&[delta.scroll_offset], None);
-        delta.consumed_delta
+        self.apply_visual_viewport_scroll_delta(delta_in_screen_pixels)
+            .unwrap_or_default()
     }
 
     pub(super) fn scroll_offsets_by_stable_id(&self) -> HashMap<AsyncScrollNodeStableID, FloatPoint> {
@@ -523,14 +503,7 @@ impl ContextState {
             }
             // A box whose scroll range shrank past its offset is told where it ended up.
             if kept_scroll_offset != known_scroll_offset {
-                clamped_scroll_offsets.push(AsyncScrollOffset {
-                    stable_node_id: node.stable_node_id,
-                    compositor_scroll_offset: kept_scroll_offset,
-                    last_relative_scroll_delta: Default::default(),
-                    visual_viewport_scale: None,
-                    applied_scroll_request_id: 0,
-                    user_input_scroll_count: 0,
-                });
+                clamped_scroll_offsets.push((node.stable_node_id, kept_scroll_offset));
             }
         }
         // Resolving sticky offsets walks the whole visual context tree, so it runs once, after every offset is kept.
@@ -540,37 +513,68 @@ impl ContextState {
                 &mut self.scroll_state_snapshot,
             );
         }
-        if !clamped_scroll_offsets.is_empty() {
-            self.store_pending_async_scroll_offsets(&clamped_scroll_offsets, None);
+        for (stable_node_id, scroll_offset) in clamped_scroll_offsets {
+            self.record_scroll_offset_report(stable_node_id, scroll_offset);
         }
         viewport_scroll_offset
     }
 
-    pub(super) fn store_pending_async_scroll_offsets(
+    pub(super) fn record_scroll_offset_report(
         &mut self,
-        scroll_offsets: &[AsyncScrollOffset],
-        operation_id: Option<AsyncScrollOperationID>,
+        stable_node_id: AsyncScrollNodeStableID,
+        compositor_scroll_offset: FloatPoint,
+    ) {
+        self.record_scroll_offset_report_of_scroll(stable_node_id, compositor_scroll_offset, Default::default(), None);
+    }
+
+    pub(super) fn record_relative_scroll_offset_report(
+        &mut self,
+        stable_node_id: AsyncScrollNodeStableID,
+        compositor_scroll_offset: FloatPoint,
+        relative_scroll_delta: FloatPoint,
+    ) {
+        self.record_scroll_offset_report_of_scroll(
+            stable_node_id,
+            compositor_scroll_offset,
+            relative_scroll_delta,
+            None,
+        );
+    }
+
+    pub(super) fn record_visual_viewport_offset_report(
+        &mut self,
+        document_id: UniqueNodeId,
+        visual_viewport_transform: &TransformWithOrigin,
+    ) {
+        self.record_scroll_offset_report_of_scroll(
+            visual_viewport_stable_node_id(document_id),
+            visual_viewport_scroll_offset(visual_viewport_transform),
+            Default::default(),
+            Some(visual_viewport_transform.matrix.elements[0][0]),
+        );
+    }
+
+    fn record_scroll_offset_report_of_scroll(
+        &mut self,
+        stable_node_id: AsyncScrollNodeStableID,
+        compositor_scroll_offset: FloatPoint,
+        last_relative_scroll_delta: FloatPoint,
+        visual_viewport_scale: Option<f32>,
     ) {
         self.scene.forget_whether_animated_content_may_affect_viewport();
-        let mut stamped_scroll_offsets = Vec::with_capacity(scroll_offsets.len());
-        for mut scroll_offset in scroll_offsets.iter().cloned() {
-            scroll_offset.applied_scroll_request_id = self
-                .applied_scroll_request_ids
-                .get(&scroll_offset.stable_node_id)
-                .copied()
-                .unwrap_or(0);
-            scroll_offset.user_input_scroll_count = self
-                .user_input_scroll_counts
-                .get(&scroll_offset.stable_node_id)
-                .copied()
-                .unwrap_or(0);
-            stamped_scroll_offsets.push(scroll_offset);
-        }
         self.async_scroll_update_outbox
-            .record_scroll_offsets(&stamped_scroll_offsets);
+            .record_scroll_offset(&AsyncScrollOffset {
+                stable_node_id,
+                compositor_scroll_offset,
+                last_relative_scroll_delta,
+                visual_viewport_scale,
+                applied_scroll_request_id: self
+                    .applied_scroll_request_ids
+                    .get(&stable_node_id)
+                    .copied()
+                    .unwrap_or(0),
+                user_input_scroll_count: self.user_input_scroll_counts.get(&stable_node_id).copied().unwrap_or(0),
+            });
         self.scroll_offsets_differ_from_last_frame = true;
-        if let Some(id) = operation_id {
-            self.async_scroll_update_outbox.complete_operation(id);
-        }
     }
 }
