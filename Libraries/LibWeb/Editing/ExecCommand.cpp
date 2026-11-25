@@ -509,7 +509,6 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         event_init.is_composing = is_input_method_composing();
 
         auto event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, event_init, {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
-        event->set_is_trusted(true);
 
         TemporaryChange preserve_selection_offsets { m_preserve_selection_offsets_during_identical_character_data_replacement, true };
         affected_editing_host->dispatch_event(event);

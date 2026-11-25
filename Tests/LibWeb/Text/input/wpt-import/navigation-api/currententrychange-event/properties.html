@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  navigation.oncurrententrychange = t.step_func_done(e => {
+    assert_equals(e.constructor, NavigationCurrentEntryChangeEvent);
+    assert_false(e.bubbles);
+    assert_false(e.cancelable);
+    assert_true(e.isTrusted);
+  });
+  location.href = "#1";
+}, "NavigationCurrentEntryChangeEvent's properties");
+</script>

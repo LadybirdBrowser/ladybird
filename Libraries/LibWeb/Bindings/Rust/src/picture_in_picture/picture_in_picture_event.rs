@@ -125,6 +125,5 @@ pub unsafe extern "C" fn web_rust_picture_in_picture_event_create(
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     // SAFETY: The caller passes a live PictureInPictureWindow.
     let event = unsafe { PictureInPictureEvent::create(vm, realm, &r#type, &event_init, window) };
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

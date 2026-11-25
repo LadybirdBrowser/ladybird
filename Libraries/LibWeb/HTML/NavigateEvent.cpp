@@ -51,16 +51,12 @@ static StringView navigation_scroll_behavior_to_string(NavigationScrollBehavior 
 
 GC::Ref<NavigateEvent> NavigateEvent::create(Window& relevant_window, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
-    event->set_is_trusted(true);
-    return event;
+    return GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
 }
 
 GC::Ref<NavigateEvent> NavigateEvent::create(Window& relevant_window, Utf16FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
-    event->set_is_trusted(true);
-    return event;
+    return GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
 }
 
 GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, Utf16String const& event_name, Bindings::NavigateEventInit const& event_init)

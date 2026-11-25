@@ -6587,7 +6587,6 @@ bool LocalNavigable::dispatch_composition_event(Utf16FlyString const& event_name
     event_init.view = document->window() ? GC::Ptr<HTML::WindowProxy> { document->window()->window() } : nullptr;
 
     auto event = UIEvents::CompositionEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*document)));
-    event->set_is_trusted(true);
     return target->dispatch_event(event);
 }
 
@@ -6710,7 +6709,6 @@ static void dispatch_composition_beforeinput(DOM::Document& document, Utf16View 
             target_ranges.append(GC::Heap::the().allocate<DOM::StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset()));
     }
     auto beforeinput = UIEvents::InputEvent::create_from_platform_event(UIEvents::EventNames::beforeinput, input_event_init, target_ranges, HighResolutionTime::current_high_resolution_time(relevant_global_object(document)));
-    beforeinput->set_is_trusted(true);
     // https://w3c.github.io/input-events/#event-order-during-composition
     // The beforeinput and input events:
     // - Are not cancellable

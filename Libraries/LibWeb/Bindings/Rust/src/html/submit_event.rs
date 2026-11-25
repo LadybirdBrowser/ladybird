@@ -107,6 +107,5 @@ pub extern "C" fn web_rust_submit_event_create(
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let submitter = submitter.map(CppCell::from_lent);
     let event = SubmitEvent::create(vm, realm, &r#type, &event_init, submitter);
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

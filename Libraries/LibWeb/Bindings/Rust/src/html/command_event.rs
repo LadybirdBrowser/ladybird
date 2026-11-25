@@ -121,6 +121,5 @@ pub extern "C" fn web_rust_command_event_create(
     let r#type: Utf16String = r#type.to_utf16_fly_string().into();
     let source = CppCell::from_lent(source);
     let event = CommandEvent::create(vm, realm, &r#type, &event_init, Some(source), command.to_utf16_string());
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

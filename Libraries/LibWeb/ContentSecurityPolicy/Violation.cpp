@@ -390,7 +390,6 @@ void Violation::report_a_violation(JS::Realm& realm)
             event_init.sample = self.m_sample;
 
             auto event = create_security_policy_violation_event(realm, HTML::EventNames::securitypolicyviolation, event_init);
-            event->set_is_trusted(true);
             event_target->dispatch_event(event);
         }
 

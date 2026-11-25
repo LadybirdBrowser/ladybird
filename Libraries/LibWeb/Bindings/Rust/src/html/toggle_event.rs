@@ -138,6 +138,5 @@ pub extern "C" fn web_rust_toggle_event_create(
     let new_state: Utf16String = new_state.to_utf16_fly_string().into();
     let source = source.map(CppCell::from_lent);
     let event = ToggleEvent::create(vm, realm, &r#type, &event_init, old_state, new_state, source);
-    event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

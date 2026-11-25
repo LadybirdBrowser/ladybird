@@ -79,7 +79,6 @@ pub(crate) fn fire_a_gamepad_event(vm: &Vm, window: &CppWindow, event_name: &str
         gamepad: Some(gamepad),
     };
     let event = GamepadEvent::create(vm, window.realm(), &Utf16String::from_utf8(event_name), event_init);
-    event.event().set_is_trusted(true);
     window.as_event_target().dispatch_event(event.event());
 }
 

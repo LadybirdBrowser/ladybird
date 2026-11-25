@@ -125,7 +125,6 @@ impl MediaQueryList {
             };
             let event =
                 MediaQueryListEvent::create(vm, self.realm, &Utf16String::from_ascii(CHANGE.as_bytes()), event_init);
-            event.event().set_is_trusted(true);
             self.event_target.dispatch_event(event.event());
         }
     }

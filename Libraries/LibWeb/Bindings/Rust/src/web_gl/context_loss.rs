@@ -98,7 +98,6 @@ pub(crate) fn fire_webgl_context_event(vm: &Vm, canvas: Canvas, event_type: &str
         status_message: Utf16String::from_utf8(""),
     };
     let event = WebGLContextEvent::create(vm, realm, &Utf16String::from_utf8(event_type), &event_init);
-    event.event().set_is_trusted(true);
     canvas.event_target().dispatch_event(event.event())
 }
 

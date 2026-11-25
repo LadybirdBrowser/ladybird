@@ -238,7 +238,6 @@ static void dispatch_history_input_event(DOM::Document& document, GC::Ref<DOM::N
     event_init.input_type = input_type;
 
     auto event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, event_init);
-    event->set_is_trusted(true);
     editing_host->dispatch_event(event);
 }
 
@@ -506,7 +505,6 @@ EventResult perform_history_action(DOM::Document& document, HistoryAction action
     event_init.cancelable = true;
     event_init.input_type = input_type;
     auto event = UIEvents::InputEvent::create_from_platform_event(UIEvents::EventNames::beforeinput, event_init);
-    event->set_is_trusted(true);
     if (!step->editing_host()->dispatch_event(event))
         return EventResult::Handled;
 

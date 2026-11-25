@@ -341,7 +341,6 @@ impl BroadcastChannel {
                 MessageEventInit::new(vm),
                 Some(message.source_origin.clone()),
             );
-            event.event().set_is_trusted(true);
             destination.event_target.dispatch_event(event.event());
             return;
         };
@@ -357,7 +356,6 @@ impl BroadcastChannel {
             event_init,
             Some(message.source_origin.clone()),
         );
-        event.event().set_is_trusted(true);
         destination.event_target.dispatch_event(event.event());
     }
 

@@ -572,7 +572,6 @@ void SVGAnimationElement::dispatch_pending_time_event(Animations::RustFFI::FfiPe
     }();
     auto& document = this->document();
     auto event = TimeEvent::create(type, document.window() ? document.window()->window().ptr() : nullptr, pending_event.detail, pending_event.time_stamp);
-    event->set_is_trusted(true);
     dispatch_event(event);
 }
 
