@@ -1,7 +1,7 @@
-Allowed iframe before the click: play() blocked, unmuting paused
+Allowed iframe before the click: play() blocked, unmuting paused, AudioContext.resume() blocked
 Embedder has been active after the click: true
-Allowed iframe after the click: play() playing, unmuting playing
-Disallowed iframe after the click: play() blocked, unmuting paused
+Allowed iframe after the click: play() playing, unmuting playing, AudioContext.resume() allowed
+Disallowed iframe after the click: play() blocked, unmuting paused, AudioContext.resume() blocked
 WebContent#0
   iframe#0: remote WebContent#1
   iframe#1: remote WebContent#1
