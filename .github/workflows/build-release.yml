@@ -366,7 +366,7 @@ jobs:
           SCRIPT
 
       - name: Build
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
         with:
           bundle: ${{ env.BUNDLE }}
           build-debug-bundle: true

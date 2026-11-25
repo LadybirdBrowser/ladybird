@@ -160,7 +160,7 @@ jobs:
     steps:
       - name: 'Create a token for the Ladybird Backport app'
         id: app-token
-        uses: actions/create-github-app-token@v3.3.0
+        uses: actions/create-github-app-token@v3.4.0
         with:
           client-id: ${{ vars.BACKPORT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BACKPORT_APP_PRIVATE_KEY }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: 'Create the backport PRs'
         id: backport
-        uses: korthout/backport-action@v4.7.1
+        uses: korthout/backport-action@v5.0.0
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           label_pattern: ''
