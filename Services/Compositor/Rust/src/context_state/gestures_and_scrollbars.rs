@@ -463,7 +463,7 @@ impl ContextState {
         );
     }
 
-    pub fn visual_animations_need_frame(&mut self, now: MonotonicTime) -> bool {
+    pub fn visual_animations_need_frame(&self, now: MonotonicTime) -> bool {
         self.scene
             .visual_animations_need_frame(&self.scroll_state_snapshot, self.viewport_size, now)
     }

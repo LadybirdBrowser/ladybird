@@ -416,6 +416,17 @@ pub struct StackLayer {
     pub reach: IntRect,
 }
 
+/// Where content whose pixels an animation of the tree changes can show, in the raster coordinates of a space. Content
+/// of a space whose anchor the compositor animates is told in the space that space is in, wherever the animation takes
+/// it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
+pub struct AnimatedContentReach {
+    /// The index of the animation among the visual animations of the tree.
+    pub animation_index: u32,
+    pub raster_space_index: RasterSpaceIndex,
+    pub reach: IntRect,
+}
+
 /// An effect that the compositor composites the layers of its content inside.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CompositedEffect {
@@ -476,6 +487,9 @@ pub struct LayerStack {
     /// Per raster space whose anchor the compositor animates and that holds content, where that content can show in
     /// the raster coordinates of the space it is in wherever the animation takes it.
     pub swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
+    /// Per animation of the tree and raster space, where content whose pixels the animation changes can show, sorted by
+    /// animation and space, or none where the plan cannot tell.
+    pub reach_of_animated_content: Option<Vec<AnimatedContentReach>>,
     /// Per band, the innermost band at or around it whose node the compositor composites inside its effect.
     innermost_composited_band_at_or_around_band: Vec<Option<BandIndex>>,
     /// How many raster pixels each device pixel of the plan is: 1 for a stack as planned, and the power of two a stack
@@ -705,6 +719,8 @@ pub struct LayeredPlan {
     tiles_hold_content_moving_within_space_by_space_index: Vec<bool>,
     #[ipc(max_size = MAXIMUM_RASTER_SPACE_COUNT)]
     swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
+    #[ipc(max_size = wire::MAXIMUM_ANIMATED_CONTENT_REACH_COUNT_OF_RECEIVED_STACK)]
+    reach_of_animated_content: Option<Vec<AnimatedContentReach>>,
 }
 
 /// A placement node without its identity, which the stack works out of the node, the node it is in and the spaces.
@@ -783,7 +799,8 @@ fn painted_layer_of_band(
 }
 
 impl LayerStack {
-    /// One layer that replays the whole list, which is always correct.
+    /// One layer that replays the whole list, which is always correct. It cannot tell where animated content shows,
+    /// but in an empty viewport or of an empty list, where none does.
     pub fn one_layer_replaying_whole_list(
         viewport_rect: IntRect,
         whole_list_span: ListSpan,
@@ -811,6 +828,11 @@ impl LayerStack {
             may_hold_content: true,
             reach: viewport_rect,
         }];
+        let reach_of_animated_content = matches!(
+            why_list_is_one_layer,
+            Some(WhyListIsOneLayer::EmptyViewport | WhyListIsOneLayer::EmptyDisplayList)
+        )
+        .then(Vec::new);
         Self {
             layers,
             bands: vec![PlacementNodeBand {
@@ -829,6 +851,7 @@ impl LayerStack {
             layering_obstacles,
             tiles_hold_content_moving_within_space_by_space_index: vec![true],
             swept_reach_in_parent_space_by_space_index: vec![None],
+            reach_of_animated_content,
             innermost_composited_band_at_or_around_band: Vec::new(),
             raster_scale: 1,
         }
@@ -1029,6 +1052,7 @@ impl LayerStack {
             tiles_hold_content_moving_within_space_by_space_index: plan
                 .tiles_hold_content_moving_within_space_by_space_index,
             swept_reach_in_parent_space_by_space_index: plan.swept_reach_in_parent_space_by_space_index,
+            reach_of_animated_content: plan.reach_of_animated_content,
             innermost_composited_band_at_or_around_band: Vec::new(),
             raster_scale: 1,
         }
@@ -1076,6 +1100,9 @@ impl LayerStack {
         }
         for swept_reach in stack.swept_reach_in_parent_space_by_space_index.iter_mut().flatten() {
             *swept_reach = scaled(*swept_reach);
+        }
+        for animated_content in stack.reach_of_animated_content.iter_mut().flatten() {
+            animated_content.reach = scaled(animated_content.reach);
         }
         stack
     }
@@ -1155,6 +1182,31 @@ impl LayerStack {
         (0..self.spaces.len())
             .map(|space_index| self.composite_offset_of_space(RasterSpaceIndex(space_index), scroll_offsets))
             .collect()
+    }
+
+    /// Whether content whose pixels an animation that `animation_is_running` takes changes can show within `rect` of
+    /// the viewport, where the frame composites each space at its offset of `composite_offsets`. A stack that cannot
+    /// tell where animated content shows answers yes.
+    pub fn running_animations_can_show_within(
+        &self,
+        animation_is_running: impl Fn(u32) -> bool,
+        composite_offsets: &[IntPoint],
+        rect: IntRect,
+    ) -> bool {
+        let Some(reach_of_animated_content) = &self.reach_of_animated_content else {
+            return true;
+        };
+        reach_of_animated_content
+            .iter()
+            .filter(|animated_content| animation_is_running(animated_content.animation_index))
+            .any(|animated_content| {
+                let offset = composite_offsets[animated_content.raster_space_index.0];
+                !animated_content
+                    .reach
+                    .translated(offset.x, offset.y)
+                    .intersected(rect)
+                    .is_empty()
+            })
     }
 
     /// Per raster space, by its index, how the frame composites its rasters: at `composite_offsets`, or for a space

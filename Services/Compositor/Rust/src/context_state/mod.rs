@@ -985,7 +985,6 @@ impl ContextState {
         scroll_offsets_of_known_nodes: &HashMap<AsyncScrollNodeStableID, FloatPoint>,
         compositor_scroll_table_changed: bool,
     ) {
-        self.scene.forget_whether_animated_content_may_affect_viewport();
         // Newly adopted stable ids must start at the offsets in the snapshot that pairs with this tree.
         self.scroll_state_snapshot = scroll_state_snapshot;
         self.scroll_state_snapshot.set_node_count(

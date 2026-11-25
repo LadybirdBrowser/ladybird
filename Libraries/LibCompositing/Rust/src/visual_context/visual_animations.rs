@@ -11,7 +11,7 @@ use super::{
     SpatialNodeIndex, VisualContextTree, WorldTransforms,
 };
 use crate::filter_bytes::filter_functions_graph;
-use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
+use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind};
 use crate::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
 use libgfx_rust::FloatPoint;
 use libgfx_rust::filter::Filter;
@@ -77,19 +77,6 @@ impl VisualAnimationTargets {
     fn effect(&self, effect: EffectNodeIndex) -> AnimatedEffect {
         self.effect_targets.get(effect.0 as usize).copied().unwrap_or_default()
     }
-}
-
-/// What a frame scheduler needs to bound the content the running animations move: the nodes of the
-/// animations whose swept area is bounded, sorted by how the bound is computed, and whether every
-/// running animation is one of them.
-pub struct VisualAnimationExtents {
-    /// Spatial nodes of the running animations that only rotate in the plane.
-    pub rotation_nodes: Vec<SpatialNodeIndex>,
-    /// Effect nodes of the running opacity animations, which never move content.
-    pub opacity_nodes: Vec<EffectNodeIndex>,
-    pub has_finished_animation: bool,
-    pub has_unfinished_finite_animation: bool,
-    pub all_running_animations_are_bounded: bool,
 }
 
 impl VisualContextTree {
@@ -287,54 +274,6 @@ impl VisualContextTree {
             .collect();
         self.spatial_nodes_in_subtrees_of(&roots)
     }
-
-    pub fn visual_animation_extents_at(&self, sample_time_ns: i64) -> VisualAnimationExtents {
-        let mut extents = VisualAnimationExtents {
-            rotation_nodes: Vec::new(),
-            opacity_nodes: Vec::new(),
-            has_finished_animation: false,
-            has_unfinished_finite_animation: false,
-            all_running_animations_are_bounded: true,
-        };
-        for animation in self.visual_animations.iter() {
-            if animation.is_finite() {
-                if animation.has_finished_at(sample_time_ns) {
-                    extents.has_finished_animation = true;
-                    continue;
-                }
-                extents.has_unfinished_finite_animation = true;
-            }
-            match animation.target_kind {
-                FfiVisualAnimationTargetKind::Opacity => extents
-                    .opacity_nodes
-                    .extend(animation.node_indices.iter().map(|&index| EffectNodeIndex(index))),
-                FfiVisualAnimationTargetKind::Transform
-                    if animation.keyframes.iter().all(only_rotates_in_the_plane) =>
-                {
-                    extents
-                        .rotation_nodes
-                        .extend(animation.node_indices.iter().map(|&index| SpatialNodeIndex(index)));
-                }
-                _ => {
-                    extents.all_running_animations_are_bounded = false;
-                    return extents;
-                }
-            }
-        }
-        extents
-    }
-}
-
-fn only_rotates_in_the_plane(keyframe: &crate::visual_animation::VisualAnimationKeyframe) -> bool {
-    match &keyframe.value {
-        VisualAnimationValue::Transform(operations) => operations.iter().all(|operation| {
-            matches!(
-                operation.kind,
-                FfiVisualAnimationTransformOperationKind::Rotate | FfiVisualAnimationTransformOperationKind::RotateZ
-            )
-        }),
-        _ => false,
-    }
 }
 
 #[cfg(test)]
@@ -342,6 +281,7 @@ mod tests {
     use super::*;
     use crate::animation_timing::{AnimationEffectTiming, TimeValue};
     use crate::easing::Easing;
+    use crate::host::FfiVisualAnimationTransformOperationKind;
     use crate::visual_animation::{VisualAnimationKeyframe, VisualAnimationTransformOperation};
     use crate::visual_context::{
         ClipNodeIndex, EffectsData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
@@ -558,73 +498,5 @@ mod tests {
 
         tree.clear_visual_animations();
         assert!(!tree.has_visual_animations());
-    }
-
-    #[test]
-    fn extents_sort_running_animations_by_how_their_content_is_bounded() {
-        let mut tree = VisualContextTree::create(transform_data(FloatMatrix4x4::identity()));
-        let rotated = tree.append_spatial(
-            SpatialData::Transform(transform_data(FloatMatrix4x4::identity())),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let effect = tree.append_effect(opacity_effect(), EffectNodeIndex::NONE, rotated, ClipNodeIndex::NONE);
-        let rotate = |angle: f32| {
-            VisualAnimationValue::Transform(vec![
-                VisualAnimationTransformOperation::new(FfiVisualAnimationTransformOperationKind::Rotate, &[angle])
-                    .unwrap(),
-            ])
-        };
-        let rotation = VisualAnimation {
-            target_kind: FfiVisualAnimationTargetKind::Transform,
-            node_indices: vec![rotated.0],
-            timing: AnimationEffectTiming {
-                iteration_duration: TimeValue::milliseconds(1000.0),
-                iteration_count: 1.0,
-                ..VisualAnimation::default().timing
-            },
-            keyframes: vec![keyframe(0.0, rotate(0.0)), keyframe(1.0, rotate(1.0))],
-            ..VisualAnimation::default()
-        };
-        let opacity = VisualAnimation {
-            target_kind: FfiVisualAnimationTargetKind::Opacity,
-            node_indices: vec![effect.0],
-            timing: AnimationEffectTiming {
-                iteration_duration: TimeValue::milliseconds(1000.0),
-                ..VisualAnimation::default().timing
-            },
-            keyframes: vec![
-                keyframe(0.0, VisualAnimationValue::Opacity(0.0)),
-                keyframe(1.0, VisualAnimationValue::Opacity(1.0)),
-            ],
-            ..VisualAnimation::default()
-        };
-        tree.set_visual_animations(vec![rotation.clone(), opacity.clone()]);
-
-        let running = tree.visual_animation_extents_at(milliseconds(500));
-        assert!(running.all_running_animations_are_bounded);
-        assert_eq!(running.rotation_nodes, vec![rotated]);
-        assert_eq!(running.opacity_nodes, vec![effect]);
-        assert!(running.has_unfinished_finite_animation);
-        assert!(!running.has_finished_animation);
-
-        let finished = tree.visual_animation_extents_at(milliseconds(1000));
-        assert!(finished.all_running_animations_are_bounded);
-        assert!(finished.rotation_nodes.is_empty());
-        assert_eq!(finished.opacity_nodes, vec![effect]);
-        assert!(!finished.has_unfinished_finite_animation);
-        assert!(finished.has_finished_animation);
-
-        tree.set_visual_animations(vec![
-            VisualAnimation {
-                keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(20.0))],
-                ..rotation
-            },
-            opacity,
-        ]);
-        assert!(
-            !tree
-                .visual_animation_extents_at(milliseconds(500))
-                .all_running_animations_are_bounded
-        );
     }
 }

@@ -55,8 +55,8 @@ pub use display_list::{AsyncScrollingMetadata, DisplayList};
 pub use libgfx_rust::Orientation;
 pub use scroll_state_snapshot::{ScrollStateSnapshot, WorldTransformsCache};
 pub use visual_context_tree::{
-    AccumulatedVisualContextTree, AnimatedContentViewportEffect, ClipBehavior, IncludeVisualViewportTransform,
-    TransformWithOrigin, animated_content_may_affect_viewport, resolve_sticky_offsets,
+    AccumulatedVisualContextTree, ClipBehavior, IncludeVisualViewportTransform, TransformWithOrigin,
+    resolve_sticky_offsets,
 };
 
 pub const USER_SCROLL_SETTLE_DELAY: crate::time::Duration = crate::time::Duration::from_milliseconds(500);

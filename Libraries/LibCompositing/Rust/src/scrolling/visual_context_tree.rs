@@ -8,7 +8,7 @@
 
 use super::{ContextRef, DisplayList, ScrollStateSnapshot, SpatialNodeIndex};
 use crate::visual_context::VisualContextTree;
-use libgfx_rust::{FloatPoint, FloatRect, IntRect};
+use libgfx_rust::{FloatPoint, FloatRect};
 use std::sync::Arc;
 
 pub use crate::visual_context::ffi_types::FfiVisualViewportTransform as TransformWithOrigin;
@@ -127,42 +127,5 @@ pub fn resolve_sticky_offsets(tree: &AccumulatedVisualContextTree, scroll_state:
     let resolved_sticky_entries = tree.0.resolve_sticky_offsets(scroll_state.device_offsets());
     for (node_index, offset) in resolved_sticky_entries {
         scroll_state.set_device_offset_for_index(node_index, offset);
-    }
-}
-
-pub struct AnimatedContentViewportEffect {
-    pub may_affect_viewport: bool,
-    // The answer holds until the scene changes: no finite animation is still running, so none can stop
-    // contributing on its own.
-    pub stable_until_scene_changes: bool,
-}
-
-impl Default for AnimatedContentViewportEffect {
-    fn default() -> Self {
-        Self {
-            may_affect_viewport: true,
-            stable_until_scene_changes: false,
-        }
-    }
-}
-
-// Whether the content the tree's animations move at the sample time can reach the viewport.
-pub fn animated_content_may_affect_viewport(
-    display_list: &DisplayList,
-    visual_context_tree: &AccumulatedVisualContextTree,
-    scroll_state: &ScrollStateSnapshot,
-    viewport_rect: IntRect,
-    sample_time_ns: i64,
-) -> AnimatedContentViewportEffect {
-    let effect = crate::display_list::animated_content::animated_content_may_affect_viewport_at(
-        &display_list.storage,
-        visual_context_tree.as_arc(),
-        scroll_state.device_offsets(),
-        viewport_rect,
-        sample_time_ns,
-    );
-    AnimatedContentViewportEffect {
-        may_affect_viewport: effect.may_affect_viewport,
-        stable_until_scene_changes: effect.stable_until_scene_changes,
     }
 }

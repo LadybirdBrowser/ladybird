@@ -11,11 +11,12 @@ use libcompositing_rust::display_list::layers::{LayerStack, UnvalidatedLayerPlan
 use libcompositing_rust::display_list::placement::spatial_nodes_whose_scroll_offset_placement_leaves_out;
 use libcompositing_rust::scrolling::{
     AccumulatedVisualContextTree, DisplayList, ScrollStateSnapshot, TransformWithOrigin,
-    animated_content_may_affect_viewport,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libcompositing_rust::visual_context::VisualContextTree;
-use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, IntSize, scale_matrix};
+use libgfx_rust::{
+    AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, IntSize, enclosing_int_rect, scale_matrix,
+};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -55,7 +56,6 @@ pub struct ContextScene {
     sampled_visual_context_tree: Option<AccumulatedVisualContextTree>,
     visual_animation_sample_time_ns: Option<i64>,
     has_active_visual_animations: bool,
-    animated_content_may_affect_viewport: Option<bool>,
     /// The published tree with its visual viewport at identity, which plans of layers are made under and checked
     /// against. It stays the same copy while the trees WebContent publishes differ from it only in the visual viewport.
     tree_of_layer_plans: Option<Arc<VisualContextTree>>,
@@ -204,7 +204,6 @@ impl ContextScene {
     ) {
         self.display_list = Some(display_list);
         self.set_aside_layer_plan();
-        self.animated_content_may_affect_viewport = None;
         self.take_visual_context_tree_unless_content_is_unchanged(visual_context_tree);
         update_visual_animation_sampling_state(
             self.visual_context_tree.as_ref().unwrap(),
@@ -574,47 +573,72 @@ impl ContextScene {
         self.has_active_visual_animations
     }
 
+    /// Whether the visual animations need a frame in a viewport of `viewport_size` scrolled as `scroll_state_snapshot`
+    /// tells: whether an animation still running at the time they were last sampled changes pixels that frames show,
+    /// as the plan of layers the scene holds tells. Without a plan made for that viewport, or where frames draw without
+    /// the plan, every active animation needs one.
     pub fn visual_animations_need_frame(
-        &mut self,
+        &self,
         scroll_state_snapshot: &ScrollStateSnapshot,
         viewport_size: IntSize,
         now: MonotonicTime,
     ) -> bool {
-        if !self.has_active_visual_animations {
+        let viewport_rect = IntRect::new(0, 0, viewport_size.width, viewport_size.height);
+        if !self.has_active_visual_animations || viewport_rect.is_empty() {
             return false;
         }
-        if let Some(affects_viewport) = self.animated_content_may_affect_viewport {
-            return affects_viewport;
-        }
-        let sample_time_ns = self.visual_animation_sample_time_ns.unwrap_or(now.nanoseconds());
-        let transformed_tree;
-        let tree = if let Some(transform) = self.async_visual_viewport_transform {
-            transformed_tree = self
-                .current_visual_context_tree()
-                .with_visual_viewport_transform(&transform);
-            &transformed_tree
-        } else {
-            self.current_visual_context_tree()
+        let Some(held) = &self.layer_plan else {
+            return true;
         };
-        let effect = animated_content_may_affect_viewport(
-            self.display_list.as_ref().unwrap(),
-            tree,
-            scroll_state_snapshot,
-            IntRect::new(0, 0, viewport_size.width, viewport_size.height),
-            sample_time_ns,
-        );
-        if effect.stable_until_scene_changes {
-            self.animated_content_may_affect_viewport = Some(effect.may_affect_viewport);
+        if held.plan.viewport_rect != viewport_rect {
+            return true;
         }
-        effect.may_affect_viewport
+        let Some(part_of_viewport_frames_show) = self.part_of_layout_viewport_frames_show(viewport_rect) else {
+            return true;
+        };
+        let sample_time_ns = self.visual_animation_sample_time_ns.unwrap_or(now.nanoseconds());
+        let animations = held.tree_of_layer_plans.visual_animations();
+        let stack = &held.plan.stack;
+        stack.running_animations_can_show_within(
+            |animation_index| {
+                animations
+                    .get(animation_index as usize)
+                    .is_none_or(|animation| !animation.has_finished_at(sample_time_ns))
+            },
+            &stack.composite_offsets(scroll_state_snapshot.device_offsets()),
+            part_of_viewport_frames_show,
+        )
     }
 
-    pub fn forget_whether_animated_content_may_affect_viewport(&mut self) {
-        self.animated_content_may_affect_viewport = None;
+    /// The part of the layout viewport, in its device pixels, that frames within `viewport_rect` show through the
+    /// visual viewport, or none for frames drawn without the plan of layers, as through a visual viewport that rotates,
+    /// skews or shrinks the page.
+    fn part_of_layout_viewport_frames_show(&self, viewport_rect: IntRect) -> Option<IntRect> {
+        let raster_scale = self.raster_scale_of_frames();
+        let shown_in_raster = match raster_to_frame_through_visual_viewport(
+            &self.visual_viewport_transform(),
+            raster_scale,
+            viewport_rect,
+        )? {
+            Some(raster_to_frame) => raster_to_frame.inverse()?.map_rect(viewport_rect.to_float()),
+            None => viewport_rect.to_float(),
+        };
+        let raster_to_layout_viewport = 1.0 / raster_scale as f32;
+        let shown = FloatRect::new(
+            shown_in_raster.x * raster_to_layout_viewport,
+            shown_in_raster.y * raster_to_layout_viewport,
+            shown_in_raster.width * raster_to_layout_viewport,
+            shown_in_raster.height * raster_to_layout_viewport,
+        );
+        // A pixel more on each side covers the rounding of the transform.
+        Some(
+            enclosing_int_rect(shown)
+                .inflated_edges(1, 1, 1, 1)
+                .intersected(viewport_rect),
+        )
     }
 
     fn invalidate_visual_context_tree_for_compositing(&mut self) {
-        self.animated_content_may_affect_viewport = None;
         self.sampled_visual_context_tree = None;
         self.visual_context_tree_for_compositing = None;
     }
@@ -623,13 +647,22 @@ impl ContextScene {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libcompositing_rust::animation_timing::{AnimationEffectTiming, TimeValue};
     use libcompositing_rust::display_list::builder::DisplayListBuilder;
     use libcompositing_rust::display_list::commands::{ContextRef, EffectNodeIndex, FillRect};
     use libcompositing_rust::display_list::layers::planning::InputsOfLayerPlan;
     use libcompositing_rust::display_list::layers::{LayerPlan, StackOnWire};
     use libcompositing_rust::display_list::storage::DisplayListStorage;
+    use libcompositing_rust::easing::Easing;
+    use libcompositing_rust::host::FfiVisualAnimationTargetKind;
     use libcompositing_rust::ipc_types::LayerPlanOnWire;
-    use libcompositing_rust::visual_context::VisualContextTree;
+    use libcompositing_rust::node_slot_id::NodeSlotId;
+    use libcompositing_rust::visual_animation::{VisualAnimation, VisualAnimationKeyframe, VisualAnimationValue};
+    use libcompositing_rust::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
+    use libcompositing_rust::visual_context::{
+        ClipNodeIndex, CompositorScrollNodeRecord, CompositorScrollTable, EffectNodeData, EffectsData, ScrollData,
+        SpatialData, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+    };
     use libgfx_rust::{Color, CompositingAndBlendingOperator};
     use libipc_rust::wire::{Decoder, Encoder};
     use std::sync::Arc;
@@ -750,5 +783,246 @@ mod tests {
             Ok(())
         );
         assert_eq!(stack_of_plan(&scene), Some(planned.stack));
+    }
+
+    const VIEWPORT_SIZE: IntSize = IntSize {
+        width: 800,
+        height: 600,
+    };
+    const DOCUMENT_SCROLL_NODE: SpatialNodeIndex = SpatialNodeIndex(1);
+    const BOX_ON_SCREEN: IntRect = IntRect::new(600, 400, 50, 50);
+    const BOX_BELOW_SCREEN: IntRect = IntRect::new(100, 1500, 50, 50);
+    const RUNS_FOREVER: f64 = f64::INFINITY;
+
+    fn fill_of(rect: IntRect) -> FillRect {
+        FillRect {
+            rect,
+            color: Color::from_rgb(0, 128, 0),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        }
+    }
+
+    // A box of the document that an animation of one-second iterations, from time zero, fades out.
+    struct FadingBox {
+        rect: IntRect,
+        iteration_count: f64,
+    }
+
+    // A scene of a document that scrolls by up to 2000 px and holds `boxes`, with the plan of its layers where
+    // `takes_plan` says so.
+    fn scene_with_fading_boxes(boxes: &[FadingBox], takes_plan: bool) -> ContextScene {
+        let mut tree = VisualContextTree::create_identity();
+        let document = tree.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert_eq!(document, DOCUMENT_SCROLL_NODE);
+        assert!(
+            tree.set_compositor_scroll_table(CompositorScrollTable {
+                nodes: vec![CompositorScrollNodeRecord {
+                    scroll_node_index: document,
+                    parent_scroll_node_index: VISUAL_VIEWPORT_NODE_INDEX,
+                    scrollport_rect: VIEWPORT,
+                    max_scroll_offset: FloatPoint { x: 0.0, y: 2000.0 },
+                    is_viewport: true,
+                    can_be_wheel_scrolled_vertically: true,
+                    ..CompositorScrollNodeRecord::default()
+                }]
+                .into(),
+                ..CompositorScrollTable::default()
+            })
+        );
+        let document_context = ContextRef {
+            spatial: document,
+            ..ContextRef::default()
+        };
+        let mut builder = DisplayListBuilder::new();
+        builder.append(&fill_of(IntRect::new(0, 0, 800, 2600)), &[], document_context);
+        let keyframe = |offset: f64, opacity: f32| VisualAnimationKeyframe {
+            offset,
+            easing: Easing::default(),
+            value: VisualAnimationValue::Opacity(opacity),
+        };
+        let mut animations = Vec::new();
+        for fading_box in boxes {
+            let effect = tree.append_effect(
+                EffectNodeData::Effects(EffectsData {
+                    isolation: false,
+                    opacity: 1.0,
+                    blend_mode: CompositingAndBlendingOperator::Normal,
+                    filter: None,
+                    backdrop_filter: None,
+                }),
+                EffectNodeIndex::NONE,
+                document,
+                ClipNodeIndex::NONE,
+            );
+            builder.append(
+                &fill_of(fading_box.rect),
+                &[],
+                ContextRef {
+                    effect,
+                    ..document_context
+                },
+            );
+            animations.push(VisualAnimation {
+                target_kind: FfiVisualAnimationTargetKind::Opacity,
+                node_indices: vec![effect.0],
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(1000.0),
+                    iteration_count: fading_box.iteration_count,
+                    ..VisualAnimation::default().timing
+                },
+                keyframes: vec![keyframe(0.0, 1.0), keyframe(1.0, 0.0)],
+                ..VisualAnimation::default()
+            });
+        }
+        tree.set_visual_animations(animations);
+        let tree = Arc::new(tree);
+        let list = DisplayListStorage::recorded(&builder.finish(), tree.clone());
+        let display_list = DisplayList::new(
+            list.clone(),
+            DISPLAY_LIST_ID,
+            tree.structural_epoch,
+            None,
+            None,
+            Default::default(),
+        );
+        let mut scene = ContextScene::default();
+        scene.install(
+            Rc::new(display_list),
+            AccumulatedVisualContextTree::from_arc(tree.clone()),
+            MonotonicTime::default(),
+        );
+        if takes_plan {
+            let planned = InputsOfLayerPlan::new(list, tree, &[], VIEWPORT).plan();
+            assert_eq!(planned.stack.why_list_is_one_layer, None);
+            assert_eq!(
+                scene.take_layer_plan_of_installed_update(Some(received(DISPLAY_LIST_ID, planned.stack_on_wire))),
+                Ok(())
+            );
+        }
+        scene
+    }
+
+    fn needs_frame(scene: &ContextScene, document_scrolled_by: f32, viewport_size: IntSize, now_ns: i64) -> bool {
+        let mut device_offsets = vec![FloatPoint::default(); 2];
+        device_offsets[DOCUMENT_SCROLL_NODE.0 as usize] = FloatPoint {
+            x: 0.0,
+            y: -document_scrolled_by,
+        };
+        scene.visual_animations_need_frame(
+            &ScrollStateSnapshot::from_device_offsets(device_offsets),
+            viewport_size,
+            MonotonicTime::from_nanoseconds(now_ns),
+        )
+    }
+
+    #[test]
+    fn every_active_animation_needs_frames_without_a_plan_made_for_the_viewport() {
+        let box_below_screen = [FadingBox {
+            rect: BOX_BELOW_SCREEN,
+            iteration_count: RUNS_FOREVER,
+        }];
+        assert!(needs_frame(
+            &scene_with_fading_boxes(&box_below_screen, false),
+            0.0,
+            VIEWPORT_SIZE,
+            0
+        ));
+        let scene = scene_with_fading_boxes(&box_below_screen, true);
+        assert!(!needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+        let wider_viewport = IntSize {
+            width: 1000,
+            height: 600,
+        };
+        assert!(needs_frame(&scene, 0.0, wider_viewport, 0));
+        let empty_viewport = IntSize { width: 0, height: 0 };
+        assert!(!needs_frame(&scene, 0.0, empty_viewport, 0));
+    }
+
+    #[test]
+    fn an_animation_below_the_viewport_needs_frames_once_scrolled_into_view() {
+        let scene = scene_with_fading_boxes(
+            &[FadingBox {
+                rect: BOX_BELOW_SCREEN,
+                iteration_count: RUNS_FOREVER,
+            }],
+            true,
+        );
+        assert!(!needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+        assert!(needs_frame(&scene, 1200.0, VIEWPORT_SIZE, 0));
+    }
+
+    #[test]
+    fn a_zoomed_in_visual_viewport_needs_frames_only_for_animations_it_shows() {
+        let mut scene = scene_with_fading_boxes(
+            &[FadingBox {
+                rect: BOX_ON_SCREEN,
+                iteration_count: RUNS_FOREVER,
+            }],
+            true,
+        );
+        assert!(needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+        // Zoomed in on the top left quarter of the layout viewport, away from the box.
+        scene.set_async_visual_viewport_transform(TransformWithOrigin {
+            matrix: scale_matrix(2.0, 2.0, 1.0),
+            origin: FloatPoint::default(),
+        });
+        assert!(!needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+        // Panned to the bottom right quarter, which shows the box.
+        let mut panned = scale_matrix(2.0, 2.0, 1.0);
+        panned.elements[0][3] = -800.0;
+        panned.elements[1][3] = -600.0;
+        scene.set_async_visual_viewport_transform(TransformWithOrigin {
+            matrix: panned,
+            origin: FloatPoint::default(),
+        });
+        assert!(needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+    }
+
+    #[test]
+    fn a_zoomed_out_visual_viewport_needs_frames_for_every_active_animation() {
+        let mut scene = scene_with_fading_boxes(
+            &[FadingBox {
+                rect: BOX_BELOW_SCREEN,
+                iteration_count: RUNS_FOREVER,
+            }],
+            true,
+        );
+        assert!(!needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+        scene.set_async_visual_viewport_transform(TransformWithOrigin {
+            matrix: scale_matrix(0.5, 0.5, 1.0),
+            origin: FloatPoint::default(),
+        });
+        assert!(needs_frame(&scene, 0.0, VIEWPORT_SIZE, 0));
+    }
+
+    #[test]
+    fn a_finite_animation_needs_one_more_frame_after_it_ends() {
+        let mut scene = scene_with_fading_boxes(
+            &[
+                FadingBox {
+                    rect: BOX_ON_SCREEN,
+                    iteration_count: 1.0,
+                },
+                FadingBox {
+                    rect: BOX_BELOW_SCREEN,
+                    iteration_count: RUNS_FOREVER,
+                },
+            ],
+            true,
+        );
+        let (before_end_ns, past_end_ns) = (900_000_000, 1_100_000_000);
+        assert!(scene.advance_visual_animations(MonotonicTime::from_nanoseconds(before_end_ns)));
+        // Sampled before it ended, the animation of the box on screen needs the frame that shows its end.
+        assert!(needs_frame(&scene, 0.0, VIEWPORT_SIZE, past_end_ns));
+        assert!(scene.advance_visual_animations(MonotonicTime::from_nanoseconds(past_end_ns)));
+        // The animation below the viewport runs on, and needs no frame.
+        assert!(!needs_frame(&scene, 0.0, VIEWPORT_SIZE, past_end_ns));
     }
 }

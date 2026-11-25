@@ -10,7 +10,6 @@ use super::{
     IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, StickyData, TransformDataRole,
     VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
-use ak::math;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -732,43 +731,6 @@ impl VisualContextTree {
         command_runs: impl IntoIterator<Item = &'a crate::display_list::commands::DisplayListCommandRun>,
     ) -> bool {
         command_runs.into_iter().all(|run| self.context_is_valid(run.context))
-    }
-
-    /// Bounds every possible angle, rather than just the current sample: content outside the viewport now may rotate
-    /// into it later. Repeatedly enclosing rectangles also conservatively handles nested rotations.
-    pub fn rect_with_rotation_bounds_to_viewport(
-        &self,
-        mut index: SpatialNodeIndex,
-        mut rect: FloatRect,
-        rotating_nodes: &[bool],
-        scroll_offsets: &[FloatPoint],
-    ) -> Option<FloatRect> {
-        loop {
-            if rotating_nodes[index.0 as usize] {
-                let SpatialData::Transform(transform) = &self.spatial_nodes[index.0 as usize].data else {
-                    return None;
-                };
-                let origin = transform.origin;
-                let dx = (rect.x - origin.x).abs().max((rect.right() - origin.x).abs());
-                let dy = (rect.y - origin.y).abs().max((rect.bottom() - origin.y).abs());
-                let radius = math::hypot(dx, dy);
-                rect = FloatRect::new(origin.x - radius, origin.y - radius, 2.0 * radius, 2.0 * radius);
-            } else {
-                let matrix = self.local_transform(index, scroll_offsets).matrix;
-                // Projecting a rectangle at each ancestor would discard depth needed by later 3D transforms.
-                if !matrix.is_2d_affine() {
-                    return None;
-                }
-                rect = matrix.extract_2d_affine().map_rect(rect);
-            }
-            if !rect.x.is_finite() || !rect.y.is_finite() || !rect.width.is_finite() || !rect.height.is_finite() {
-                return None;
-            }
-            if index == VISUAL_VIEWPORT_NODE_INDEX {
-                return Some(rect);
-            }
-            index = self.spatial_nodes[index.0 as usize].parent;
-        }
     }
 
     pub fn spatial_nodes_in_subtrees_of(&self, roots: &[SpatialNodeIndex]) -> Vec<bool> {
