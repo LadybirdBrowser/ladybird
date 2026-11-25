@@ -118,7 +118,8 @@ pub enum ScrollChaining {
 }
 
 pub struct AppliedScrollDelta {
-    pub scroll_offset: AsyncScrollOffset,
+    pub stable_node_id: AsyncScrollNodeStableID,
+    pub scroll_offset: FloatPoint,
     pub consumed_delta: FloatPoint,
 }
 
@@ -432,14 +433,8 @@ impl AsyncScrollTree {
             if remaining_delta != delta {
                 resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
                 return Some(AppliedScrollDelta {
-                    scroll_offset: AsyncScrollOffset {
-                        stable_node_id: node.stable_node_id,
-                        compositor_scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
-                        last_relative_scroll_delta: FloatPoint::default(),
-                        visual_viewport_scale: None,
-                        applied_scroll_request_id: 0,
-                        user_input_scroll_count: 0,
-                    },
+                    stable_node_id: node.stable_node_id,
+                    scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
                     consumed_delta: delta - remaining_delta,
                 });
             }

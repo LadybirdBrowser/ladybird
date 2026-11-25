@@ -207,11 +207,6 @@ struct ActiveSmoothScrollAnimation {
     heads_to_end_of_scroll_range: bool,
 }
 
-struct VisualViewportScrollDelta {
-    scroll_offset: AsyncScrollOffset,
-    consumed_delta: FloatPoint,
-}
-
 struct KeyScroll {
     step: KeyStep,
     // Empty if every box the key could scroll is at the end of its scroll range.
@@ -350,6 +345,14 @@ const SCROLLBAR_TRACK_PRESS_INVERTING_MODIFIER: KeyModifier = KeyModifier::Mod_A
 const SCROLLBAR_TRACK_PRESS_INVERTING_MODIFIER: KeyModifier = KeyModifier::Mod_Shift;
 
 // The offset of the visual viewport in the layout viewport, in device pixels of the content it scales.
+fn visual_viewport_stable_node_id(document_id: UniqueNodeId) -> AsyncScrollNodeStableID {
+    AsyncScrollNodeStableID {
+        node_id: document_id,
+        kind: AsyncScrollNodeKind::VisualViewport,
+        pseudo_element_type: 0,
+    }
+}
+
 fn visual_viewport_scroll_offset(transform: &TransformWithOrigin) -> FloatPoint {
     let scale = transform.matrix.elements[0][0];
     FloatPoint {

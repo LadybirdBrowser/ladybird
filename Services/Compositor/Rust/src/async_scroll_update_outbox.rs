@@ -71,10 +71,8 @@ fn set_or_append_pending_scroll_offset(
 }
 
 impl AsyncScrollUpdateOutbox {
-    pub fn record_scroll_offsets(&mut self, scroll_offsets: &[AsyncScrollOffset]) {
-        for scroll_offset in scroll_offsets {
-            set_or_append_pending_scroll_offset(&mut self.pending_scroll_offsets, scroll_offset);
-        }
+    pub fn record_scroll_offset(&mut self, scroll_offset: &AsyncScrollOffset) {
+        set_or_append_pending_scroll_offset(&mut self.pending_scroll_offsets, scroll_offset);
     }
 
     pub fn note_user_scroll_gesture_ended(&mut self, stable_node_ids: &[AsyncScrollNodeStableID]) {

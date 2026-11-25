@@ -442,17 +442,8 @@ impl ContextState {
         self.note_user_input_scrolled(node.stable_node_id);
         assert!(new_scroll_offset.is_some());
         self.rebuild_wheel_hit_test_targets();
-        let mut scroll_offsets = Vec::new();
         let new_scroll_offset = new_scroll_offset.unwrap();
-        scroll_offsets.push(AsyncScrollOffset {
-            stable_node_id: node.stable_node_id,
-            compositor_scroll_offset: new_scroll_offset,
-            last_relative_scroll_delta: Default::default(),
-            visual_viewport_scale: None,
-            applied_scroll_request_id: 0,
-            user_input_scroll_count: 0,
-        });
-        self.store_pending_async_scroll_offsets(&scroll_offsets, None);
+        self.record_scroll_offset_report(node.stable_node_id, new_scroll_offset);
         if !node.is_viewport {
             return Some(PendingFrame::repainting_changes(self.async_scrolling_viewport_rect));
         }
