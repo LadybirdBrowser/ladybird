@@ -72,6 +72,15 @@
                 text-align: left;
             }
 
+            .warning ul {
+                margin: 8px 0;
+                padding-left: 24px;
+            }
+
+            .warning li {
+                line-height: 1.4;
+            }
+
             .secondary {
                 color: var(--secondary-text-color);
             }
@@ -130,15 +139,19 @@
                 </svg>
                 <h1>Your connection to <span class="host"></span> is not secure</h1>
             </header>
-            <p class="warning">
-                The certificate of <strong class="host"></strong> isn't trusted by Ladybird: it's self-signed, or its
-                chain ends at a self-signed root Ladybird doesn't trust. Someone might be intercepting your connection
-                to access private information, like passwords, messages, or credit cards.
-            </p>
+            <div class="warning">
+                <p>Ladybird couldn't verify the certificate of <strong class="host"></strong>:</p>
+                <ul id="reasons"></ul>
+                <p>
+                    Someone might be intercepting your connection to access private information, like passwords,
+                    messages, or credit cards.
+                </p>
+            </div>
             <p class="secondary">
-                Only continue if you know this is a local or development server you control. Trusting lets Ladybird
-                accept this certificate from <span id="origin"></span> until Ladybird is closed. Any other certificate
-                the site presents is still verified as usual.
+                Only continue if you know why the certificate fails, as on a local or development server you control.
+                Trusting lets Ladybird accept this certificate from <span id="origin"></span>, in spite of what is
+                listed above, until Ladybird is closed. Any other certificate the site presents is still verified as
+                usual.
             </p>
             <p class="secondary" id="resends-form" hidden>Trusting sends the form you submitted again.</p>
             <p class="secondary" id="form-not-resent" hidden>
@@ -190,6 +203,13 @@
 
                 for (const host of document.querySelectorAll(".host")) host.textContent = warning.host;
                 document.getElementById("origin").textContent = warning.origin;
+                document.getElementById("reasons").replaceChildren(
+                    ...warning.reasons.map(reason => {
+                        const item = document.createElement("li");
+                        item.textContent = reason;
+                        return item;
+                    })
+                );
                 document.getElementById("fingerprint").textContent = formatFingerprint(warning.fingerprint);
                 document.getElementById("resends-form").hidden = !warning.resendsForm;
                 document.getElementById("form-not-resent").hidden = !warning.formIsNotResent;

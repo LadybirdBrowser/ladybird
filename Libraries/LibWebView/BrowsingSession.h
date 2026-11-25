@@ -15,6 +15,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibRequests/CertificateError.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -50,6 +51,10 @@ public:
         ByteString host;
         u16 port { 0 };
         ByteString fingerprint;
+        // Trust covers only the errors the user reviewed.
+        Requests::CertificateError errors { Requests::CertificateError::None };
+        // RequestServer's description of unnamed errors.
+        ByteString error_details;
 
         bool operator==(CertificateException const&) const = default;
     };
@@ -59,7 +64,7 @@ public:
         CertificateException certificate;
         MonotonicTime rejected_at;
     };
-    HashMap<ByteString, Vector<RejectedCertificate>> rejected_self_signed_certificates;
+    HashMap<ByteString, Vector<RejectedCertificate>> rejected_certificates;
 
     // Every RequestServer of the session accepts these, including those launched after the user trusted them.
     Vector<CertificateException> trusted_certificates;

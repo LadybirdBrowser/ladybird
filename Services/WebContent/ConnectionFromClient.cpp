@@ -4118,10 +4118,12 @@ void ConnectionFromClient::set_has_picture_in_picture_support(Web::PageId page_i
         page->page().picture_in_picture_controller().set_has_picture_in_picture_support(has_support);
 }
 
-void ConnectionFromClient::set_offers_to_trust_self_signed_certificates(Web::PageId page_id, bool offers)
+void ConnectionFromClient::set_offers_to_trust_certificates(Web::PageId page_id, bool self_signed, bool invalid)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().set_offers_to_trust_self_signed_certificates(offers);
+    if (auto page = this->page(page_id); page.has_value()) {
+        page->page().set_offers_to_trust_self_signed_certificates(self_signed);
+        page->page().set_offers_to_trust_invalid_certificates(invalid);
+    }
 }
 
 void ConnectionFromClient::did_open_picture_in_picture_window(Web::PageId page_id, Gfx::IntSize window_size)

@@ -220,6 +220,15 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = false,
         .array_element_type = {},
     },
+    {
+        .id = ConfigVariableID::OfferToTrustInvalidCertificates,
+        .name = "security.certificates.offer_to_trust_invalid"sv,
+        .title = "Offer to trust any certificate that fails verification"sv,
+        .description = "Also ask for certificates that fail verification for any other reason, such as one that has expired, was issued for another site, or comes from an issuer Ladybird doesn't trust. Any of these may mean someone is intercepting the connection."sv,
+        .default_value = false,
+        .array_element_type = {},
+        .depends_on = ConfigVariableID::OfferToTrustSelfSignedCertificates,
+    },
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     {
         .id = ConfigVariableID::UpdateCheckInterval,

@@ -1001,15 +1001,19 @@ void ViewImplementation::did_request_certificate_warning(Badge<WebContentPage>, 
         return;
 
     // Snapshot the rejected certificate so trusting it cannot trust a later rejection for the same host.
-    auto certificate = RequestServerManager::the().rejected_self_signed_certificate(session(), url);
-    if (!certificate.has_value())
+    auto rejection = RequestServerManager::the().rejected_certificate(session(), url);
+    if (!rejection.has_value())
+        return;
+
+    // Use RequestServer's errors so a page cannot bypass the certificate trust settings.
+    if (!Requests::is_only_self_signed(rejection->certificate.errors) && !Application::settings().config_variable_as_bool(ConfigVariableID::OfferToTrustInvalidCertificates))
         return;
 
     // Declining reloads the error page; suppress its repeated warning request.
-    if (auto declined = exchange(m_declined_certificate, {}); declined == certificate)
+    if (auto declined = exchange(m_declined_certificate, {}); declined == rejection->certificate)
         return;
 
-    CertificateWarning warning { .url = url, .certificate = certificate.release_value(), .form_submission = {}, .form_initiator_origin = URL::Origin::create_opaque(), .form_is_not_resent = false };
+    CertificateWarning warning { .url = url, .certificate = move(rejection->certificate), .form_submission = {}, .form_initiator_origin = URL::Origin::create_opaque(), .form_is_not_resent = false };
 
     // Preserve the form for resubmission before replacing the error page's history entry.
     auto const& document_state = *traversable().session_history().current_entry().document_state;
@@ -2004,9 +2008,12 @@ static void send_global_privacy_control(WebContentPage const& page)
     page.async_set_enable_global_privacy_control(Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
 }
 
-static void send_offer_to_trust_self_signed_certificates(WebContentPage const& page)
+static void send_offers_to_trust_certificates(WebContentPage const& page)
 {
-    page.async_set_offers_to_trust_self_signed_certificates(Application::settings().config_variable_as_bool(ConfigVariableID::OfferToTrustSelfSignedCertificates));
+    auto const& settings = Application::settings();
+    auto self_signed = settings.config_variable_as_bool(ConfigVariableID::OfferToTrustSelfSignedCertificates);
+    auto invalid = self_signed && settings.config_variable_as_bool(ConfigVariableID::OfferToTrustInvalidCertificates);
+    page.async_set_offers_to_trust_certificates(self_signed, invalid);
 }
 
 // Only a page hosting the tab's traversable takes this request: It applies to the page's local traversable, which a page
@@ -2028,7 +2035,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_browsing_behavior(page);
     send_autoplay_settings(page);
     send_global_privacy_control(page);
-    send_offer_to_trust_self_signed_certificates(page);
+    send_offers_to_trust_certificates(page);
     auto* spell_checker = Application::the().spell_checker();
     page.async_set_spell_checking_available(spell_checker != nullptr);
     page.async_set_writing_suggestions_available(spell_checker && spell_checker->can_suggest());
@@ -5271,8 +5278,8 @@ void ViewImplementation::global_privacy_control_changed()
 
 void ViewImplementation::config_variable_changed(ConfigVariableID id)
 {
-    if (id == ConfigVariableID::OfferToTrustSelfSignedCertificates)
-        traversable().for_each_hosting_page(send_offer_to_trust_self_signed_certificates);
+    if (id == ConfigVariableID::OfferToTrustSelfSignedCertificates || id == ConfigVariableID::OfferToTrustInvalidCertificates)
+        traversable().for_each_hosting_page(send_offers_to_trust_certificates);
 }
 
 Vector<SitePermissionRow> ViewImplementation::site_permission_rows() const

@@ -607,7 +607,7 @@ TEST_CASE(not_modified_response_that_may_rely_on_a_certificate_exception_fails_r
     connection.start_request(1, url);
     expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
 
-    RequestServer::add_certificate_exception(url.serialized_host().to_byte_string(), url.port_or_default(), "00"sv);
+    RequestServer::add_certificate_exception(url.serialized_host().to_byte_string(), url.port_or_default(), "00"sv, Requests::CertificateError::SelfSigned);
 
     // The 304 matches the stored response, but is refused; the response fetched again is not stored either.
     connection.start_request(2, url);
