@@ -6,30 +6,18 @@
 
 #pragma once
 
-#include <LibGC/CellAllocator.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/BarProp.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#barprop
-class BarProp : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(BarProp, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(BarProp);
+class BarProp final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(BarProp, bar_prop)
 
 public:
-    BarProp(Window&);
-    static GC::Ref<BarProp> create(Window&);
-
-    [[nodiscard]] Window& window() { return m_window; }
-    [[nodiscard]] Window const& window() const { return m_window; }
-    [[nodiscard]] bool visible() const;
-
-private:
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
-
-    GC::Ref<Window> m_window;
+    [[nodiscard]] static GC::Ref<BarProp> create(Window&);
 };
 
 }

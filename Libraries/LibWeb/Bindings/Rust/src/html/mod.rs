@@ -16,6 +16,8 @@ pub(crate) mod predefined_color_space;
 
 // What follows runs on the JS runtime, which the tests of the crate do not link.
 #[cfg(not(test))]
+pub(crate) mod bar_prop;
+#[cfg(not(test))]
 pub(crate) mod before_unload_event;
 #[cfg(not(test))]
 pub(crate) mod broadcast_channel;
