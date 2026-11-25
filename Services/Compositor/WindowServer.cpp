@@ -48,13 +48,4 @@ bool WindowServer::showing_tiles_of_painted_layers_is_switched_off()
     return is_switched_off;
 }
 
-WindowServer::FrameHandOff WindowServer::frame_hand_off_through_presentation()
-{
-#ifdef AK_OS_MACOS
-    return FrameHandOff::OnceGpuWorkIsScheduled;
-#else
-    return FrameHandOff::OnceGpuWorkIsFinished;
-#endif
-}
-
 }

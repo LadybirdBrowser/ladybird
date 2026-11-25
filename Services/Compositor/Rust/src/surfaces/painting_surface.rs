@@ -25,10 +25,6 @@ impl PaintingSurface {
         self.size
     }
 
-    pub fn uses_gpu(&self) -> bool {
-        !self.gpu_backend_context.is_null()
-    }
-
     pub fn shares_backend_with(&self, other: &PaintingSurface) -> bool {
         self.gpu_backend_context == other.gpu_backend_context
     }
@@ -184,8 +180,6 @@ mod tests {
         let gpu = surface_for_testing(size, 0x10);
         let same_gpu = surface_for_testing(size, 0x10);
         let cpu = surface_for_testing(size, 0);
-        assert!(gpu.uses_gpu());
-        assert!(!cpu.uses_gpu());
         assert!(gpu.shares_backend_with(&same_gpu));
         assert!(!gpu.shares_backend_with(&cpu));
     }

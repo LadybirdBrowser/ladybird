@@ -118,11 +118,6 @@ bool CompositorCore::context_can_be_nested_in(Web::CompositorContextId context_i
     return RustFFI::compositor_core_context_can_be_nested_in(m_core, context_id.value(), parent_context_id.value());
 }
 
-bool CompositorCore::presents_to_client(Web::CompositorContextId context_id) const
-{
-    return RustFFI::compositor_core_presents_to_client(m_core, context_id.value());
-}
-
 bool CompositorCore::context_is_effectively_visible(Web::CompositorContextId context_id) const
 {
     return RustFFI::compositor_core_context_is_effectively_visible(m_core, context_id.value());

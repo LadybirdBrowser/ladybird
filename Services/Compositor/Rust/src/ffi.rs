@@ -93,11 +93,6 @@ pub extern "C" fn compositor_core_context_can_be_nested_in(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_presents_to_client(core: &CompositorCore, context_id: u64) -> bool {
-    core.presents_to_client(CompositorContextId(context_id))
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_context_is_effectively_visible(core: &CompositorCore, context_id: u64) -> bool {
     core.context_is_effectively_visible(CompositorContextId(context_id))
 }

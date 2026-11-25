@@ -37,7 +37,6 @@ public:
     void destroy_context(Web::CompositorContextId);
     ContextOwnerCheckResult check_context_owner(Web::CompositorContextId, WebContentClientId) const;
     bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
-    bool presents_to_client(Web::CompositorContextId) const;
     bool context_is_effectively_visible(Web::CompositorContextId) const;
     Optional<Web::CompositorContextId> parent_context(Web::CompositorContextId) const;
     Optional<PresentationId> bound_presentation(Web::CompositorContextId) const;

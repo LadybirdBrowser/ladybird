@@ -55,7 +55,6 @@ public:
         OnceGpuWorkIsFinished,
     };
     virtual FrameHandOff frame_hand_off() const = 0;
-    static FrameHandOff frame_hand_off_through_presentation();
 
     // While held, what every remote layer of this window server shows changes nowhere on screen, and changes all at once
     // when released.
