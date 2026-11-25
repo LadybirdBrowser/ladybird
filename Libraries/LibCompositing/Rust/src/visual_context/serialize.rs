@@ -12,6 +12,7 @@ use crate::host::FfiVisualAnimationTransformOperationKind;
 use crate::visual_animation::{
     MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationTransformOperation,
 };
+use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
@@ -276,6 +277,20 @@ impl Decode for VisualContextTree {
         if !tree.node_references_are_consistent() {
             return Err(DecodeError::InvalidValue("VisualContextTree node references"));
         }
+        // The player builds the filters of the effect nodes from their bytes without checking them.
+        let filter_is_well_formed = |bytes: &Vec<u8>| Filter::deserialize(bytes).is_some();
+        if !tree.effect_nodes.iter().all(|node| match &node.data {
+            EffectNodeData::Effects(effects) => {
+                effects.filter.as_deref().is_none_or(filter_is_well_formed)
+                    && effects
+                        .backdrop_filter
+                        .as_ref()
+                        .is_none_or(|backdrop| filter_is_well_formed(&backdrop.filter))
+            }
+            _ => true,
+        }) {
+            return Err(DecodeError::InvalidValue("VisualContextTree filters"));
+        }
         // The bytes come from another process: an animation must be one the tree can sample, and
         // must name nodes of the kind it drives.
         if !visual_animations.iter().all(|animation| {
@@ -499,9 +514,9 @@ mod tests {
                 isolation: false,
                 opacity: 0.25,
                 blend_mode: CompositingAndBlendingOperator::PlusLighter,
-                filter: Some(std::sync::Arc::new(vec![1, 2, 3, 4])),
+                filter: Some(std::sync::Arc::new(Filter::hue_rotate(90.0, None).serialize())),
                 backdrop_filter: Some(BackdropFilterData {
-                    filter: std::sync::Arc::new(vec![5, 6, 7]),
+                    filter: std::sync::Arc::new(Filter::blur(2.0, 2.0, None).serialize()),
                     region: IntRect::new(9, 10, 11, 12),
                     corner_radii: CornerRadii {
                         top_left: CornerRadius {
@@ -1134,6 +1149,28 @@ mod tests {
         let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
         assert_trees_match(&tree, &decoded);
         assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn a_filter_that_the_player_cannot_build_is_rejected() {
+        let blur = Filter::blur(2.0, 2.0, None).serialize();
+        let truncated = blur[..blur.len() - 1].to_vec();
+        let tree_with = |filter: &[u8], backdrop_filter: &[u8]| {
+            let mut tree = tree_with_every_node_kind();
+            for node in &mut tree.effect_nodes {
+                if let EffectNodeData::Effects(effects) = &mut node.data
+                    && let Some(backdrop) = &mut effects.backdrop_filter
+                {
+                    effects.filter = Some(std::sync::Arc::new(filter.to_vec()));
+                    backdrop.filter = std::sync::Arc::new(backdrop_filter.to_vec());
+                }
+            }
+            tree.to_bytes()
+        };
+        assert!(VisualContextTree::from_bytes(&tree_with(&blur, &blur)).is_ok());
+        assert!(VisualContextTree::from_bytes(&tree_with(&truncated, &blur)).is_err());
+        assert!(VisualContextTree::from_bytes(&tree_with(&blur, &truncated)).is_err());
+        assert!(VisualContextTree::from_bytes(&tree_with(&blur, &[])).is_err());
     }
 
     #[test]

@@ -461,7 +461,8 @@ mod tests {
         );
         builder.begin_group_mask(&mut group);
         builder.append(&reference_to(&vector_image), &[], context);
-        let filter = builder.append_group_inline_data(&mut group, &[1, 2, 3, 4, 5]);
+        let filter_bytes = libgfx_rust::filter::Filter::blur(3.0, 3.0, None).serialize();
+        let filter = builder.append_group_inline_data(&mut group, &filter_bytes);
         let (content, mask) = (builder.group_content_span(&group), builder.group_mask_span(&group));
         builder.finish_group(
             group,
@@ -501,7 +502,7 @@ mod tests {
                 }
                 DisplayListCommandType::DrawIsolatedGroup => {
                     let command = read_command::<DrawIsolatedGroup>(payload);
-                    assert_eq!(span_bytes(payload, command.filter), &[1, 2, 3, 4, 5]);
+                    assert_eq!(span_bytes(payload, command.filter), filter_bytes);
                     filters_found += 1;
                 }
                 _ => {}

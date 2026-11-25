@@ -67,6 +67,10 @@ pub enum FilterOperationType {
     Crop,
 }
 
+/// How deeply the nodes of a serialized graph may nest. Everything that reads or plays a graph walks it
+/// recursively, so a deeper graph could overflow the stack. Nothing that decodes the bytes accepts one.
+pub const MAXIMUM_FILTER_DEPTH: usize = 1024;
+
 /// A 256-entry lookup table for one channel of a component transfer.
 pub type ChannelTable = Box<[u8; 256]>;
 
@@ -564,14 +568,31 @@ impl Filter {
         }
     }
 
+    /// Whether the graph nests no deeper than `depth` nodes.
+    fn nests_no_deeper_than(&self, depth: usize) -> bool {
+        if depth == 0 {
+            return false;
+        }
+        let mut fits = true;
+        self.for_each_input(&mut |input| fits = fits && input.nests_no_deeper_than(depth - 1));
+        fits
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         let mut encoder = Encoder::new();
         encoder.encode(self).expect("a filter encodes");
         encoder.finish().0
     }
 
+    /// The serialized graph, or `None` for a graph that nests deeper than [`MAXIMUM_FILTER_DEPTH`]. Graphs
+    /// whose depth comes from content must be serialized with this.
+    pub fn serialize_within_maximum_depth(&self) -> Option<Vec<u8>> {
+        self.nests_no_deeper_than(MAXIMUM_FILTER_DEPTH)
+            .then(|| self.serialize())
+    }
+
     /// Reads a filter back from its serialized form. Fails on any malformed input, including bytes
-    /// left over after the graph.
+    /// left over after the graph and a graph that nests deeper than [`MAXIMUM_FILTER_DEPTH`].
     pub fn deserialize(bytes: &[u8]) -> Option<Self> {
         let mut decoder = Decoder::new(bytes, []);
         let filter = decoder.decode().ok()?;
@@ -872,22 +893,43 @@ impl Decode for Filter {
     const MIN_ENCODED_SIZE: usize = FilterOperationType::MIN_ENCODED_SIZE;
 
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Self::decode_node(decoder, 0)
+    }
+}
+
+impl Filter {
+    fn decode_input(decoder: &mut Decoder<'_>, depth: usize) -> Result<Box<Self>, DecodeError> {
+        Ok(Box::new(Self::decode_node(decoder, depth + 1)?))
+    }
+
+    fn decode_optional_input(decoder: &mut Decoder<'_>, depth: usize) -> Result<Option<Box<Self>>, DecodeError> {
+        if decoder.decode()? {
+            return Ok(Some(Self::decode_input(decoder, depth)?));
+        }
+        Ok(None)
+    }
+
+    /// Decodes a node that has `depth` nodes above it, with its inputs.
+    fn decode_node(decoder: &mut Decoder<'_>, depth: usize) -> Result<Self, DecodeError> {
+        if depth == MAXIMUM_FILTER_DEPTH {
+            return Err(DecodeError::InvalidValue("Filter nested too deeply"));
+        }
         Ok(match decoder.decode()? {
             FilterOperationType::Arithmetic => Filter::Arithmetic {
-                background: decoder.decode()?,
-                foreground: decoder.decode()?,
+                background: Self::decode_optional_input(decoder, depth)?,
+                foreground: Self::decode_optional_input(decoder, depth)?,
                 k1: decoder.decode()?,
                 k2: decoder.decode()?,
                 k3: decoder.decode()?,
                 k4: decoder.decode()?,
             },
             FilterOperationType::Compose => Filter::Compose {
-                outer: decoder.decode()?,
-                inner: decoder.decode()?,
+                outer: Self::decode_input(decoder, depth)?,
+                inner: Self::decode_input(decoder, depth)?,
             },
             FilterOperationType::Blend => Filter::Blend {
-                background: decoder.decode()?,
-                foreground: decoder.decode()?,
+                background: Self::decode_optional_input(decoder, depth)?,
+                foreground: Self::decode_optional_input(decoder, depth)?,
                 mode: decoder.decode()?,
             },
             FilterOperationType::Flood => Filter::Flood {
@@ -895,8 +937,8 @@ impl Decode for Filter {
                 opacity: decoder.decode()?,
             },
             FilterOperationType::DisplacementMap => Filter::DisplacementMap {
-                color: decoder.decode()?,
-                displacement: decoder.decode()?,
+                color: Self::decode_optional_input(decoder, depth)?,
+                displacement: Self::decode_optional_input(decoder, depth)?,
                 scale: decoder.decode()?,
                 x_channel_selector: decoder.decode()?,
                 y_channel_selector: decoder.decode()?,
@@ -906,18 +948,18 @@ impl Decode for Filter {
                 offset_y: decoder.decode()?,
                 radius: decoder.decode()?,
                 color: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Blur => Filter::Blur {
                 radius_x: decoder.decode()?,
                 radius_y: decoder.decode()?,
                 mirrors_at_backdrop_edge: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::ColorFilter => Filter::ColorFilter {
                 kind: decoder.decode()?,
                 amount: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::ColorMatrix => {
                 let mut matrix = [0.0; 20];
@@ -926,7 +968,7 @@ impl Decode for Filter {
                 }
                 Filter::ColorMatrix {
                     matrix,
-                    input: decoder.decode()?,
+                    input: Self::decode_optional_input(decoder, depth)?,
                 }
             }
             FilterOperationType::ColorTable => Filter::ColorTable {
@@ -934,15 +976,15 @@ impl Decode for Filter {
                 r: decoder.decode()?,
                 g: decoder.decode()?,
                 b: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Saturate => Filter::Saturate {
                 value: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::HueRotate => Filter::HueRotate {
                 angle_degrees: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Image => Filter::Image {
                 frame_id: decoder.decode()?,
@@ -955,23 +997,34 @@ impl Decode for Filter {
                 ),
                 scaling_mode: decoder.decode()?,
             },
-            FilterOperationType::Merge => Filter::Merge {
-                inputs: decoder.decode()?,
-            },
+            FilterOperationType::Merge => {
+                let count = decoder.decode_size()?;
+                // Each input takes at least the byte that says whether it is present.
+                if count > decoder.remaining_bytes() {
+                    return Err(DecodeError::UnexpectedEnd);
+                }
+                let mut inputs = Vec::new();
+                for _ in 0..count {
+                    let input = Self::decode_optional_input(decoder, depth)?.map(|input| *input);
+                    inputs.try_reserve(1).map_err(|_| DecodeError::AllocationFailed)?;
+                    inputs.push(input);
+                }
+                Filter::Merge { inputs }
+            }
             FilterOperationType::Offset => Filter::Offset {
                 dx: decoder.decode()?,
                 dy: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Erode => Filter::Erode {
                 radius_x: decoder.decode()?,
                 radius_y: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Dilate => Filter::Dilate {
                 radius_x: decoder.decode()?,
                 radius_y: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Turbulence => Filter::Turbulence {
                 kind: decoder.decode()?,
@@ -984,7 +1037,7 @@ impl Decode for Filter {
             FilterOperationType::ColorSpaceConversion => Filter::ColorSpaceConversion {
                 source_color_space: decoder.decode()?,
                 destination_color_space: decoder.decode()?,
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
             FilterOperationType::Crop => Filter::Crop {
                 rect: FloatRect::new(
@@ -993,7 +1046,7 @@ impl Decode for Filter {
                     decoder.decode()?,
                     decoder.decode()?,
                 ),
-                input: decoder.decode()?,
+                input: Self::decode_optional_input(decoder, depth)?,
             },
         })
     }
@@ -1154,6 +1207,44 @@ mod tests {
         let mut padded = bytes.clone();
         padded.push(0);
         assert!(Filter::deserialize(&padded).is_none());
+    }
+
+    fn nested(depth: usize) -> Filter {
+        (1..depth).fold(Filter::hue_rotate(0.0, None), |input, _| {
+            Filter::hue_rotate(0.0, Some(input))
+        })
+    }
+
+    #[test]
+    fn a_graph_is_read_back_up_to_the_maximum_depth_only() {
+        // The walks of a graph this deep need more stack than a test thread has in an unoptimized build.
+        let with_a_large_stack = std::thread::Builder::new().stack_size(64 << 20);
+        let test = || {
+            let deepest = nested(MAXIMUM_FILTER_DEPTH);
+            let bytes = deepest.serialize_within_maximum_depth().unwrap();
+            assert_eq!(Filter::deserialize(&bytes), Some(deepest));
+
+            let too_deep = nested(MAXIMUM_FILTER_DEPTH + 1);
+            assert_eq!(too_deep.serialize_within_maximum_depth(), None);
+            assert_eq!(Filter::deserialize(&too_deep.serialize()), None);
+
+            // A graph that was refused does not count against the ones read after it.
+            assert_eq!(Filter::deserialize(&bytes), Some(nested(MAXIMUM_FILTER_DEPTH)));
+
+            let wide = Filter::Merge {
+                inputs: vec![Some(nested(MAXIMUM_FILTER_DEPTH - 1)), None, Some(nested(2))],
+            };
+            assert_eq!(
+                Filter::deserialize(&wide.serialize_within_maximum_depth().unwrap()),
+                Some(wide)
+            );
+            let wide_and_too_deep = Filter::Merge {
+                inputs: vec![None, Some(nested(MAXIMUM_FILTER_DEPTH))],
+            };
+            assert_eq!(wide_and_too_deep.serialize_within_maximum_depth(), None);
+            assert_eq!(Filter::deserialize(&wide_and_too_deep.serialize()), None);
+        };
+        with_a_large_stack.spawn(test).unwrap().join().unwrap();
     }
 
     #[test]

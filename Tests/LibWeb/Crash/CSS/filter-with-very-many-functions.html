@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<!-- A filter list must not become a graph so deep that building it or freeing it overflows the stack. -->
+<div id="filtered">test</div>
+<script>
+    document.getElementById("filtered").style.filter = "brightness(1) ".repeat(200000);
+    document.body.offsetWidth;
+</script>

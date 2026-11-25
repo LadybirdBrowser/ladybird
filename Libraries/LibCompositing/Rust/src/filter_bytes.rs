@@ -8,7 +8,7 @@
 //! build them from outside the style system.
 
 use libgfx_rust::FloatRect;
-use libgfx_rust::filter::Filter;
+use libgfx_rust::filter::{Filter, MAXIMUM_FILTER_DEPTH};
 use libipc_rust::wire::{Decode, Encode};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode)]
@@ -54,14 +54,20 @@ impl From<FfiFilterFunction> for Filter {
 }
 
 /// One graph applying each function to the output of the one before it, so the last function in
-/// the list ends up outermost; `None` for an empty list.
+/// the list ends up outermost; `None` for an empty list. Each function nests the graph one level
+/// deeper, so a list with more functions than a graph may nest deep has no graph either.
 pub fn filter_functions_graph(functions: impl IntoIterator<Item = Filter>) -> Option<Filter> {
-    functions.into_iter().fold(None, |inner, outer| {
-        Some(match inner {
+    let mut graph = None;
+    for (index, outer) in functions.into_iter().enumerate() {
+        if index == MAXIMUM_FILTER_DEPTH {
+            return None;
+        }
+        graph = Some(match graph {
             Some(inner) => Filter::compose(outer, inner),
             None => outer,
-        })
-    })
+        });
+    }
+    graph
 }
 
 /// Whether a serialized filter can change the painted bounds of what it is applied to.
@@ -118,6 +124,19 @@ mod tests {
                 Filter::drop_shadow(1.0, 2.0, 3.0, Color(0x7f00ff00), None)
             ))
         );
+    }
+
+    #[test]
+    fn a_list_with_too_many_functions_has_no_graph() {
+        // The walks of a graph this deep need more stack than a test thread has in an unoptimized build.
+        let with_a_large_stack = std::thread::Builder::new().stack_size(64 << 20);
+        let test = || {
+            let functions = |count| std::iter::repeat_n(Filter::hue_rotate(0.0, None), count);
+            let longest = filter_functions_graph(functions(MAXIMUM_FILTER_DEPTH)).unwrap();
+            assert!(longest.serialize_within_maximum_depth().is_some());
+            assert_eq!(filter_functions_graph(functions(MAXIMUM_FILTER_DEPTH + 1)), None);
+        };
+        with_a_large_stack.spawn(test).unwrap().join().unwrap();
     }
 
     #[test]
