@@ -48,6 +48,34 @@ struct LineRelativeAlignedSubtree {
     shift: CssPixels,
 }
 
+/// Extends the aligned subtree whose root and alignment `subtree` names to hold `start..end`, or the line box
+/// `earliest..latest` where the box is in no aligned subtree.
+fn extend_aligned_subtree_or_line_box(
+    aligned_subtrees: &mut Vec<LineRelativeAlignedSubtree>,
+    (earliest, latest): (&mut CssPixels, &mut CssPixels),
+    subtree: Option<(Node, u8)>,
+    (start, end): (CssPixels, CssPixels),
+) {
+    let Some((root, alignment)) = subtree else {
+        *earliest = (*earliest).min(start);
+        *latest = (*latest).max(end);
+        return;
+    };
+    match aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
+        Some(subtree) => {
+            subtree.block_start = subtree.block_start.min(start);
+            subtree.block_end = subtree.block_end.max(end);
+        }
+        None => aligned_subtrees.push(LineRelativeAlignedSubtree {
+            root,
+            alignment,
+            block_start: start,
+            block_end: end,
+            shift: CssPixels::default(),
+        }),
+    }
+}
+
 struct LineAlignment {
     earliest: CssPixels,
     latest: CssPixels,
@@ -2072,38 +2100,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 && self.facts(ancestor).is_fragmented_inline()
                 && ancestor != containing_block
             {
-                let ancestor_style = self.style(ancestor);
-                if line_relative_alignment(ancestor_style).is_some() {
+                if line_relative_alignment(self.style(ancestor)).is_some() {
                     inline_box_alignments.push(InlineBoxAlignment {
                         box_: ancestor,
                         vertical_shift: CssPixels::default(),
                     });
                     break;
                 }
-                if ancestor_style.vertical_align_is_keyword()
-                    && ancestor_style.vertical_align_keyword() == vertical_align::BASELINE
-                {
-                    inline_box_alignments.push(InlineBoxAlignment {
-                        box_: ancestor,
-                        vertical_shift: CssPixels::default(),
-                    });
-                    ancestor = self.context().parent_node(ancestor);
-                    continue;
-                }
-                let ancestor_metrics = self.inline_box_alignment_metrics(ancestor);
-                let ancestor_parent_style = self.parent_style(ancestor);
-                let baseline_style = ancestor_style.with_vertical_align_keyword(vertical_align::BASELINE);
-                let ancestor_vertical_shift = self.block_offset_for_alignment(
-                    ancestor_style,
-                    ancestor_parent_style,
-                    ancestor_metrics,
-                    line_box_baseline,
-                ) - self.block_offset_for_alignment(
-                    baseline_style,
-                    ancestor_parent_style,
-                    ancestor_metrics,
-                    line_box_baseline,
-                );
+                let ancestor_vertical_shift = self.vertical_shift_of_inline_box(ancestor);
                 enclosing_vertical_shift += ancestor_vertical_shift;
                 if !own_alignment_is_line_relative {
                     new_block_offset += ancestor_vertical_shift;
@@ -2132,25 +2136,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         let (box_start, box_end) =
                             (ancestor_baseline - bounds.ascent, ancestor_baseline + bounds.descent);
                         // NB: An inline box inside an aligned subtree of its own extends that subtree.
-                        if let Some((outer_root, alignment)) = self.line_relative_aligned_subtree_root(ancestor) {
-                            if let Some(subtree) =
-                                aligned_subtrees.iter_mut().find(|subtree| subtree.root == outer_root)
-                            {
-                                subtree.block_start = subtree.block_start.min(box_start);
-                                subtree.block_end = subtree.block_end.max(box_end);
-                            } else {
-                                aligned_subtrees.push(LineRelativeAlignedSubtree {
-                                    root: outer_root,
-                                    alignment,
-                                    block_start: box_start,
-                                    block_end: box_end,
-                                    shift: CssPixels::default(),
-                                });
-                            }
-                        } else {
-                            earliest = earliest.min(box_start);
-                            latest = latest.max(box_end);
-                        }
+                        extend_aligned_subtree_or_line_box(
+                            &mut aligned_subtrees,
+                            (&mut earliest, &mut latest),
+                            self.line_relative_aligned_subtree_root(ancestor),
+                            (box_start, box_end),
+                        );
                     }
                     ancestor_shift -= shift;
                 }
@@ -2180,23 +2171,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 )
             };
             if self.fragment_extends_line_box(line_index, &text, fragment_index) {
-                if let Some((root, alignment)) = aligned_subtree {
-                    if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
-                        subtree.block_start = subtree.block_start.min(inline_box_start);
-                        subtree.block_end = subtree.block_end.max(inline_box_end);
-                    } else {
-                        aligned_subtrees.push(LineRelativeAlignedSubtree {
-                            root,
-                            alignment,
-                            block_start: inline_box_start,
-                            block_end: inline_box_end,
-                            shift: CssPixels::default(),
-                        });
-                    }
-                } else {
-                    earliest = earliest.min(inline_box_start);
-                    latest = latest.max(inline_box_end);
-                }
+                extend_aligned_subtree_or_line_box(
+                    &mut aligned_subtrees,
+                    (&mut earliest, &mut latest),
+                    aligned_subtree,
+                    (inline_box_start, inline_box_end),
+                );
             }
 
             let is_text_node = self.line(line_index).fragments[fragment_index].is_block_ellipsis
@@ -2268,23 +2248,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                             inline_box_baseline - bounds.ascent,
                             inline_box_baseline + bounds.descent,
                         );
-                        if let Some((root, alignment)) = self.line_relative_aligned_subtree_root(alignment.box_) {
-                            if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
-                                subtree.block_start = subtree.block_start.min(box_start);
-                                subtree.block_end = subtree.block_end.max(box_end);
-                            } else {
-                                aligned_subtrees.push(LineRelativeAlignedSubtree {
-                                    root,
-                                    alignment,
-                                    block_start: box_start,
-                                    block_end: box_end,
-                                    shift: CssPixels::default(),
-                                });
-                            }
-                        } else {
-                            earliest = earliest.min(box_start);
-                            latest = latest.max(box_end);
-                        }
+                        extend_aligned_subtree_or_line_box(
+                            &mut aligned_subtrees,
+                            (&mut earliest, &mut latest),
+                            self.line_relative_aligned_subtree_root(alignment.box_),
+                            (box_start, box_end),
+                        );
                     }
                     inline_box_baseline -= alignment.vertical_shift;
                     remaining_vertical_shift -= alignment.vertical_shift;
