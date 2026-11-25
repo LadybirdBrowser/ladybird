@@ -18,7 +18,6 @@ using AsyncScrollOperationID = u64;
 struct AsyncScrollOffset {
     Web::AsyncScrollNodeStableID stable_node_id;
     Gfx::FloatPoint compositor_scroll_offset;
-    Gfx::FloatPoint unadopted_scroll_delta;
     // The most recent nonzero delta of a relative scroll in each axis, such as a wheel or panning scroll. Absolute
     // scrolls, such as dragging a scrollbar thumb, leave it as it is.
     Gfx::FloatPoint last_relative_scroll_delta;
@@ -40,7 +39,6 @@ struct AsyncScrollOffset {
         context_user_input_scroll_count = later.context_user_input_scroll_count;
         if (later.visual_viewport_scale.has_value())
             visual_viewport_scale = later.visual_viewport_scale;
-        unadopted_scroll_delta.translate_by(later.unadopted_scroll_delta);
         if (later.last_relative_scroll_delta.x() != 0)
             last_relative_scroll_delta.set_x(later.last_relative_scroll_delta.x());
         if (later.last_relative_scroll_delta.y() != 0)

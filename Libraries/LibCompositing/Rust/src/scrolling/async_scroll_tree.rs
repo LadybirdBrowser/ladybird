@@ -117,6 +117,11 @@ pub enum ScrollChaining {
     None,
 }
 
+pub struct AppliedScrollDelta {
+    pub scroll_offset: AsyncScrollOffset,
+    pub consumed_delta: FloatPoint,
+}
+
 #[derive(Default)]
 pub struct AsyncScrollTree {
     state: AsyncScrollingState,
@@ -413,7 +418,7 @@ impl AsyncScrollTree {
         visual_context_tree: &AccumulatedVisualContextTree,
         scroll_state_snapshot: &mut ScrollStateSnapshot,
         scroll_chaining: ScrollChaining,
-    ) -> Option<AsyncScrollOffset> {
+    ) -> Option<AppliedScrollDelta> {
         // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
         // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
         for _ in 0..self.state.scroll_nodes.len() {
@@ -426,15 +431,17 @@ impl AsyncScrollTree {
             let remaining_delta = self.apply_scroll_delta_to_node(node, delta, scroll_state_snapshot);
             if remaining_delta != delta {
                 resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
-                return Some(AsyncScrollOffset {
-                    stable_node_id: node.stable_node_id,
-                    compositor_scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
-                    unadopted_scroll_delta: delta - remaining_delta,
-                    last_relative_scroll_delta: FloatPoint::default(),
-                    visual_viewport_scale: None,
-                    applied_scroll_request_id: 0,
-                    user_input_scroll_count: 0,
-                    context_user_input_scroll_count: 0,
+                return Some(AppliedScrollDelta {
+                    scroll_offset: AsyncScrollOffset {
+                        stable_node_id: node.stable_node_id,
+                        compositor_scroll_offset: Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot),
+                        last_relative_scroll_delta: FloatPoint::default(),
+                        visual_viewport_scale: None,
+                        applied_scroll_request_id: 0,
+                        user_input_scroll_count: 0,
+                        context_user_input_scroll_count: 0,
+                    },
+                    consumed_delta: delta - remaining_delta,
                 });
             }
             if scroll_chaining == ScrollChaining::None {

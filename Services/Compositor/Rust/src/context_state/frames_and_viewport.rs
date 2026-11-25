@@ -452,7 +452,6 @@ impl ContextState {
                     pseudo_element_type: 0,
                 },
                 compositor_scroll_offset: visual_viewport_scroll_offset(&transform),
-                unadopted_scroll_delta: consumed_delta.scaled(1.0 / scale),
                 last_relative_scroll_delta: Default::default(),
                 visual_viewport_scale: Some(scale),
                 applied_scroll_request_id: 0,
@@ -525,7 +524,6 @@ impl ContextState {
                 clamped_scroll_offsets.push(AsyncScrollOffset {
                     stable_node_id: node.stable_node_id,
                     compositor_scroll_offset: kept_scroll_offset,
-                    unadopted_scroll_delta: kept_scroll_offset - known_scroll_offset,
                     last_relative_scroll_delta: Default::default(),
                     visual_viewport_scale: None,
                     applied_scroll_request_id: 0,

@@ -115,8 +115,7 @@ struct AppliedScrollRequest {
 
 struct PendingAsyncScrollUpdates {
     Optional<Web::UniqueNodeID> document_id;
-    // The publication these updates were handed out in, per context and increasing. A scroll state
-    // snapshot WebContent produces after adopting them carries it back.
+    // The publication these updates were handed out in, per context and increasing.
     u64 sequence { 0 };
     Vector<AsyncScrollOffset> scroll_offsets;
     Vector<AsyncScrollOperationID> completed_operation_ids;

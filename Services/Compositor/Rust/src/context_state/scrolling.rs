@@ -46,7 +46,6 @@ impl ContextState {
         let gesture_transform = translation_matrix(position.x, position.y, 0.0)
             .multiplied(scale_matrix(applied_scale, applied_scale, 1.0))
             .multiplied(translation_matrix(-position.x, -position.y, 0.0));
-        let old_scroll_offset = visual_viewport_scroll_offset(&transform);
         transform.matrix = gesture_transform.multiplied(transform.matrix);
         clamp_visual_viewport_transform_to_viewport(&mut transform, self.async_scrolling_viewport_rect);
         self.scene.set_async_visual_viewport_transform(transform);
@@ -66,7 +65,6 @@ impl ContextState {
                     pseudo_element_type: 0,
                 },
                 compositor_scroll_offset: new_scroll_offset,
-                unadopted_scroll_delta: new_scroll_offset - old_scroll_offset,
                 last_relative_scroll_delta: Default::default(),
                 visual_viewport_scale: Some(transform.matrix.elements[0][0]),
                 applied_scroll_request_id: 0,
@@ -397,14 +395,18 @@ impl ContextState {
         if operation_tracking == AsyncScrollOperationTracking::Yes {
             outcome.operation_id = Some(self.async_scroll_update_outbox.allocate_operation_id());
         }
-        let scroll_offset = self.async_scroll_tree.apply_scroll_delta(
+        let applied_scroll_delta = self.async_scroll_tree.apply_scroll_delta(
             scroll_node_index,
             delta,
             self.scene.current_visual_context_tree(),
             &mut self.scroll_state_snapshot,
             scroll_chaining,
         );
-        let Some(mut scroll_offset) = scroll_offset else {
+        let Some(AppliedScrollDelta {
+            mut scroll_offset,
+            consumed_delta,
+        }) = applied_scroll_delta
+        else {
             if let Some(id) = outcome.operation_id {
                 self.async_scroll_update_outbox.complete_operation(id);
             }
@@ -419,11 +421,11 @@ impl ContextState {
         let an_ancestor_scrolled = node.is_some_and(|node| scroll_offset.stable_node_id != node.stable_node_id);
         let mut delta_the_node_did_not_scroll_by = None;
         if !an_ancestor_scrolled {
-            delta_the_node_did_not_scroll_by = Some(delta - scroll_offset.unadopted_scroll_delta);
+            delta_the_node_did_not_scroll_by = Some(delta - consumed_delta);
         }
         // The box the delta moved is the one a gesture pans; on the first step of a gesture, scroll node chaining may have
         // moved an ancestor of the node the gesture latched to.
-        let scroll_offset_before_scroll = scroll_offset.compositor_scroll_offset - scroll_offset.unadopted_scroll_delta;
+        let scroll_offset_before_scroll = scroll_offset.compositor_scroll_offset - consumed_delta;
         self.scroll_snap_controller.did_scroll_node_plainly(
             scroll_offset.stable_node_id,
             scroll_gesture_phase,
@@ -432,7 +434,7 @@ impl ContextState {
         );
         // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
         // A wheel or panning scroll is relative, which scroll-state(scrolled) queries observe.
-        scroll_offset.last_relative_scroll_delta = scroll_offset.unadopted_scroll_delta;
+        scroll_offset.last_relative_scroll_delta = consumed_delta;
         self.rebuild_wheel_hit_test_targets();
         self.store_pending_async_scroll_offsets(std::slice::from_ref(&scroll_offset), outcome.operation_id);
         outcome.viewport_rect_to_present =
@@ -525,7 +527,6 @@ impl ContextState {
                     answers.push(AsyncScrollOffset {
                         stable_node_id: scroll_request.stable_node_id,
                         compositor_scroll_offset: new_offset,
-                        unadopted_scroll_delta: new_offset - old_offset,
                         last_relative_scroll_delta: Default::default(),
                         visual_viewport_scale: None,
                         applied_scroll_request_id: 0,
@@ -826,7 +827,6 @@ impl ContextState {
                 pseudo_element_type: 0,
             },
             compositor_scroll_offset: new_visual_viewport_offset,
-            unadopted_scroll_delta: visual_delta,
             last_relative_scroll_delta: Default::default(),
             visual_viewport_scale: Some(scale),
             applied_scroll_request_id: 0,
@@ -868,7 +868,6 @@ impl ContextState {
         answers.push(AsyncScrollOffset {
             stable_node_id: scroll_request.stable_node_id,
             compositor_scroll_offset: new_scroll_offset,
-            unadopted_scroll_delta: new_scroll_offset - old_scroll_offset,
             last_relative_scroll_delta: Default::default(),
             visual_viewport_scale: Some(transform.matrix.elements[0][0]),
             applied_scroll_request_id: 0,
@@ -1053,7 +1052,6 @@ impl ContextState {
                 scroll_offsets.push(AsyncScrollOffset {
                     stable_node_id: active_animation.stable_node_id,
                     compositor_scroll_offset: new_offset,
-                    unadopted_scroll_delta: scroll_delta,
                     last_relative_scroll_delta: Default::default(),
                     visual_viewport_scale: None,
                     applied_scroll_request_id: 0,
