@@ -74,9 +74,9 @@ public:
     // Fills in the capabilities, and whatever codec-specific capabilities are chained to them, for a video profile.
     ErrorOr<void> video_capabilities(VkVideoProfileInfoKHR const&, VkVideoCapabilitiesKHR&) const;
 
-    // The DRM format modifiers that images of the format can be created and exported under, among those that the
-    // Compositor can import images with.
-    Vector<u64> exportable_drm_format_modifiers(VkFormat, VkImageUsageFlags, VkImageCreateFlags, void const* video_profile_list) const;
+    // The DRM format modifiers that images of the format, and of the size if it is known, can be created and exported
+    // under, and that the Compositor can import them under.
+    Vector<u64> exportable_drm_format_modifiers(VkFormat, VkImageUsageFlags, VkImageCreateFlags, void const* video_profile_list, Optional<Gfx::IntSize>) const;
 
     // Exports an image created under a DRM format modifier, whose planes share one allocation, as a dma-buf.
     ErrorOr<Gfx::LinuxDmaBufHandle> export_image_as_dma_buf(VkImage, VkDeviceMemory, VkFormat, Gfx::IntSize, u32 drm_format) const;
