@@ -137,6 +137,7 @@ impl ContextState {
             route: self.async_scroll_tree.route_first_wheel_step(
                 self.wheel_gesture_routing.admission(),
                 self.scene.visual_context_tree_for_compositing(),
+                &self.scroll_state_snapshot,
                 position,
                 delta,
                 nested_context_regions,

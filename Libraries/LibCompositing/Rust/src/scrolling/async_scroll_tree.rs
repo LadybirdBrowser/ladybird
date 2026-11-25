@@ -130,7 +130,6 @@ pub struct AsyncScrollTree {
     cached_nested_context_wheel_regions: Vec<CachedNestedContextWheelRegion>,
     cached_blocking_wheel_event_targets: Vec<CachedBlockingWheelEventTarget>,
     visual_context_tree_structural_epoch: Option<u64>,
-    scroll_state_snapshot: ScrollStateSnapshot,
 }
 
 struct NestedContextWheelRegionHit<'a> {
@@ -217,13 +216,14 @@ impl AsyncScrollTree {
         &self,
         scroll_node_index: SpatialNodeIndex,
         delta: FloatPoint,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         in_flight_destination_for: &dyn Fn(AsyncScrollNodeStableID) -> Option<FloatPoint>,
     ) -> WheelHitTestResult {
         let can_take_step = |node: &AsyncScrollNode| {
             let in_flight_destination = in_flight_destination_for(node.stable_node_id);
             Self::can_scroll_node_from_offset_by_delta(
                 node,
-                in_flight_destination.unwrap_or(Self::scroll_offset_for_scroll_node(node, &self.scroll_state_snapshot)),
+                in_flight_destination.unwrap_or(Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot)),
                 delta,
             )
         };
@@ -510,7 +510,6 @@ impl AsyncScrollTree {
         self.cached_nested_context_wheel_regions.clear();
         self.cached_blocking_wheel_event_targets.clear();
         self.visual_context_tree_structural_epoch = None;
-        self.scroll_state_snapshot = scroll_state_snapshot.clone();
         let (Some(display_list), Some(visual_context_tree)) = (display_list, visual_context_tree) else {
             return;
         };
@@ -677,6 +676,7 @@ impl AsyncScrollTree {
     pub fn blocks_wheel_event_at_position(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
         if self.state.has_blocking_wheel_event_region_covering_viewport
@@ -694,7 +694,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 target.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Respect,
             );
             if position_in_context.is_some_and(|point| target.rect.contains_point(point)) {
@@ -707,6 +707,7 @@ impl AsyncScrollTree {
     pub fn main_thread_wheel_event_region_contains(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
         for target in &self.cached_main_thread_wheel_event_targets {
@@ -719,7 +720,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 target.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Respect,
             );
             if position_in_context.is_some_and(|point| target.rect.contains_point(point)) {
@@ -732,6 +733,7 @@ impl AsyncScrollTree {
     fn topmost_nested_context_wheel_region_at(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> Option<NestedContextWheelRegionHit<'_>> {
         for cached_region in self.cached_nested_context_wheel_regions.iter().rev() {
@@ -748,7 +750,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 region.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Respect,
             );
             if let Some(point) = position_in_context
@@ -788,14 +790,19 @@ impl AsyncScrollTree {
     pub fn nested_context_at(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> Option<NestedContextHit> {
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
             return None;
         }
-        let hit = self.topmost_nested_context_wheel_region_at(visual_context_tree, position)?;
-        if self.is_covered_by_hit_test_target_painted_after(hit.region.paint_order_index, visual_context_tree, position)
-        {
+        let hit = self.topmost_nested_context_wheel_region_at(visual_context_tree, scroll_state_snapshot, position)?;
+        if self.is_covered_by_hit_test_target_painted_after(
+            hit.region.paint_order_index,
+            visual_context_tree,
+            scroll_state_snapshot,
+            position,
+        ) {
             return None;
         }
         Some(nested_context_hit_in_region(hit.region, hit.position_in_context))
@@ -805,15 +812,16 @@ impl AsyncScrollTree {
     pub fn nested_context_for_wheel_at(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> Option<NestedContextHit> {
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
             return None;
         }
-        if self.main_thread_wheel_event_region_contains(visual_context_tree, position) {
+        if self.main_thread_wheel_event_region_contains(visual_context_tree, scroll_state_snapshot, position) {
             return None;
         }
-        self.nested_context_at(visual_context_tree, position)
+        self.nested_context_at(visual_context_tree, scroll_state_snapshot, position)
     }
 
     // Where the position lands in the content of the nested context, even outside of that content and its clips, as
@@ -822,6 +830,7 @@ impl AsyncScrollTree {
         &self,
         child_context_id: CompositorContextId,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> Option<NestedContextHit> {
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
@@ -838,7 +847,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 region.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Ignore,
             )?;
             return Some(nested_context_hit_in_region(region, position_in_context));
@@ -853,6 +862,7 @@ impl AsyncScrollTree {
         position_in_nested_context: FloatPoint,
         nested_context_viewport_size: FloatSize,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
     ) -> Option<FloatPoint> {
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch())
             || nested_context_viewport_size.is_empty()
@@ -880,7 +890,7 @@ impl AsyncScrollTree {
             let result = visual_context_tree.transform_rect_to_viewport(
                 region.context.spatial,
                 point_in_context,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 IncludeVisualViewportTransform::Yes,
             );
             return Some(FloatPoint {
@@ -891,9 +901,11 @@ impl AsyncScrollTree {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn hit_test_scroll_node_for_wheel(
         &self,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
         delta: FloatPoint,
         in_flight_destination_for: &dyn Fn(AsyncScrollNodeStableID) -> Option<FloatPoint>,
@@ -915,7 +927,9 @@ impl AsyncScrollTree {
                 ..Default::default()
             };
         }
-        if page_has_yet_to_see_the_step && self.main_thread_wheel_event_region_contains(visual_context_tree, position) {
+        if page_has_yet_to_see_the_step
+            && self.main_thread_wheel_event_region_contains(visual_context_tree, scroll_state_snapshot, position)
+        {
             return WheelHitTestResult {
                 outcome: WheelHitTestOutcome::BlockedByMainThreadRegion,
                 ..Default::default()
@@ -923,7 +937,7 @@ impl AsyncScrollTree {
         }
         if nested_context_regions == NestedContextRegions::LeaveToMainThread
             && self
-                .topmost_nested_context_wheel_region_at(visual_context_tree, position)
+                .topmost_nested_context_wheel_region_at(visual_context_tree, scroll_state_snapshot, position)
                 .is_some()
         {
             return WheelHitTestResult {
@@ -931,7 +945,9 @@ impl AsyncScrollTree {
                 ..Default::default()
             };
         }
-        if page_has_yet_to_see_the_step && self.blocks_wheel_event_at_position(visual_context_tree, position) {
+        if page_has_yet_to_see_the_step
+            && self.blocks_wheel_event_at_position(visual_context_tree, scroll_state_snapshot, position)
+        {
             return WheelHitTestResult {
                 outcome: WheelHitTestOutcome::BlockedByWheelEventRegion,
                 ..Default::default()
@@ -947,7 +963,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 target.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Respect,
             );
             if !position_in_context.is_some_and(|point| wheel_hit_test_target_contains_point(target, point)) {
@@ -959,7 +975,12 @@ impl AsyncScrollTree {
                     ..Default::default()
                 };
             };
-            return self.hit_test_result_for_scroll_node(index, delta, in_flight_destination_for);
+            return self.hit_test_result_for_scroll_node(
+                index,
+                delta,
+                scroll_state_snapshot,
+                in_flight_destination_for,
+            );
         }
         let Some(index_of_viewport_scroll_node) = self.viewport_scroll_node_index() else {
             return WheelHitTestResult {
@@ -974,7 +995,12 @@ impl AsyncScrollTree {
                 ..Default::default()
             };
         }
-        self.hit_test_result_for_scroll_node(index_of_viewport_scroll_node, delta, in_flight_destination_for)
+        self.hit_test_result_for_scroll_node(
+            index_of_viewport_scroll_node,
+            delta,
+            scroll_state_snapshot,
+            in_flight_destination_for,
+        )
     }
 
     // Leaves out what only a compositor holding a gesture decides: whether a step continues a latched gesture, which
@@ -983,6 +1009,7 @@ impl AsyncScrollTree {
         &self,
         admission: WheelRoutingAdmission,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
         delta: FloatPoint,
         nested_context_regions: NestedContextRegions,
@@ -995,6 +1022,7 @@ impl AsyncScrollTree {
         }
         let scroll_target = self.hit_test_scroll_node_for_wheel(
             visual_context_tree,
+            scroll_state_snapshot,
             position,
             delta,
             &|_| None,
@@ -1019,6 +1047,7 @@ impl AsyncScrollTree {
         &self,
         paint_order_index: u32,
         visual_context_tree: &AccumulatedVisualContextTree,
+        scroll_state_snapshot: &ScrollStateSnapshot,
         position: FloatPoint,
     ) -> bool {
         if self.visual_context_tree_structural_epoch != Some(visual_context_tree.structural_epoch()) {
@@ -1037,7 +1066,7 @@ impl AsyncScrollTree {
             let position_in_context = visual_context_tree.transform_point_for_hit_test(
                 target.context,
                 position,
-                &self.scroll_state_snapshot,
+                scroll_state_snapshot,
                 ClipBehavior::Respect,
             );
             if position_in_context.is_some_and(|point| wheel_hit_test_target_contains_point(target, point)) {

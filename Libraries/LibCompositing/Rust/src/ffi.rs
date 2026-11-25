@@ -111,6 +111,7 @@ fn recorded_scroll_tree_of(
 ) -> (
     crate::scrolling::AsyncScrollTree,
     AccumulatedVisualContextTree,
+    crate::scrolling::ScrollStateSnapshot,
     crate::scrolling::WheelRoutingAdmission,
 ) {
     let visual_context_tree = AccumulatedVisualContextTree::from_arc(visual_context_tree.clone());
@@ -124,7 +125,7 @@ fn recorded_scroll_tree_of(
     let mut scroll_tree = crate::scrolling::AsyncScrollTree::default();
     scroll_tree.set_state(async_scrolling_state);
     scroll_tree.rebuild_wheel_hit_test_targets(Some(display_list), Some(&visual_context_tree), &snapshot);
-    (scroll_tree, visual_context_tree, admission)
+    (scroll_tree, visual_context_tree, snapshot, admission)
 }
 
 /// Where the first step of a wheel gesture goes, as `Compositing::FirstWheelStepRouteForTesting` holds it.
@@ -149,7 +150,7 @@ pub fn recorded_display_list_route_first_wheel_step(
     position: FloatPoint,
     delta_in_css_pixels: FloatPoint,
 ) -> FfiFirstWheelStepRouteForTesting {
-    let (scroll_tree, visual_context_tree, admission) = recorded_scroll_tree_of(
+    let (scroll_tree, visual_context_tree, snapshot, admission) = recorded_scroll_tree_of(
         display_list,
         visual_context_tree,
         snapshot,
@@ -159,6 +160,7 @@ pub fn recorded_display_list_route_first_wheel_step(
     let first_step = scroll_tree.route_first_wheel_step(
         admission,
         &visual_context_tree,
+        &snapshot,
         position,
         delta,
         crate::scrolling::NestedContextRegions::LeaveToMainThread,
@@ -185,6 +187,7 @@ pub fn recorded_display_list_blocks_wheel_event_at(
     snapshot: crate::scrolling::ScrollStateSnapshot,
     position: FloatPoint,
 ) -> bool {
-    let (scroll_tree, visual_context_tree, _) = recorded_scroll_tree_of(display_list, visual_context_tree, snapshot, 0);
-    scroll_tree.blocks_wheel_event_at_position(&visual_context_tree, position)
+    let (scroll_tree, visual_context_tree, snapshot, _) =
+        recorded_scroll_tree_of(display_list, visual_context_tree, snapshot, 0);
+    scroll_tree.blocks_wheel_event_at_position(&visual_context_tree, &snapshot, position)
 }

@@ -41,16 +41,18 @@ impl ContextState {
         };
         for &stable_node_id in scroll_chain {
             if let Some(scroll_node_index) = self.async_scroll_tree.scroll_node_index_for_stable_id(stable_node_id) {
-                return self
-                    .async_scroll_tree
-                    .hit_test_result_for_scroll_node(scroll_node_index, delta, &|id| {
-                        in_flight_destination_for(self, id)
-                    });
+                return self.async_scroll_tree.hit_test_result_for_scroll_node(
+                    scroll_node_index,
+                    delta,
+                    &self.scroll_state_snapshot,
+                    &|id| in_flight_destination_for(self, id),
+                );
             }
         }
         let visual_context_tree = self.scene.visual_context_tree_for_compositing().clone();
         self.async_scroll_tree.hit_test_scroll_node_for_wheel(
             &visual_context_tree,
+            &self.scroll_state_snapshot,
             position,
             delta,
             &|id| in_flight_destination_for(self, id),

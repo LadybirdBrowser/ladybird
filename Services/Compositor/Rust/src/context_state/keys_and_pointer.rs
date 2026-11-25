@@ -340,7 +340,9 @@ impl ContextState {
             return None;
         }
         let tree = self.scene.visual_context_tree_for_compositing();
-        let hit = self.async_scroll_tree.nested_context_at(tree, position)?;
+        let hit = self
+            .async_scroll_tree
+            .nested_context_at(tree, &self.scroll_state_snapshot, position)?;
         if let Some(index) = self.scrollbar_controller.hit_test_scrollbar(
             &self.async_scroll_tree,
             tree,
@@ -368,6 +370,7 @@ impl ContextState {
         self.async_scroll_tree.position_in_content_of_nested_context(
             nested_context_id,
             self.scene.visual_context_tree_for_compositing(),
+            &self.scroll_state_snapshot,
             position,
         )
     }
