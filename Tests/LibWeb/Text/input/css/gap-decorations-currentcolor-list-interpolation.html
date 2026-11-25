@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<div id="target" style="color: rgb(0, 128, 0)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const div = document.getElementById("target");
+        const animation = div.animate(
+            { rowRuleColor: ["currentcolor, rgb(255, 0, 0)", "rgb(0, 0, 255), rgb(255, 0, 0)"] },
+            { duration: 1000, fill: "both" }
+        );
+
+        animation.currentTime = 500;
+        println(`progress 0.5: ${getComputedStyle(div).rowRuleColor}`);
+
+        animation.cancel();
+    });
+</script>

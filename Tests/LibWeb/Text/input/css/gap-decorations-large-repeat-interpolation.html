@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const div = document.getElementById("target");
+        for (const keyframes of [
+            ["repeat(100000, 1px)", "3px"],
+            ["repeat(9999, 1px), 1px", "repeat(7, 3px)"],
+            ["repeat(6000, 1px), repeat(auto, 1px), repeat(6000, 1px)", "repeat(6000, 3px), repeat(auto, 3px), repeat(6000, 3px)"],
+        ]) {
+            const animation = div.animate({ columnRuleWidth: keyframes }, { duration: 1000, fill: "both" });
+            animation.currentTime = 400;
+            println(`progress 0.4: ${getComputedStyle(div).columnRuleWidth.slice(0, 40)}`);
+            animation.currentTime = 600;
+            println(`progress 0.6: ${getComputedStyle(div).columnRuleWidth.slice(0, 40)}`);
+            animation.cancel();
+        }
+    });
+</script>

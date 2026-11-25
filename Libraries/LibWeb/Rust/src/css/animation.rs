@@ -6897,7 +6897,11 @@ fn resolve_root_animation_color<'a>(
         StyleValueData::ColorFunction { .. } => Some(RootAnimationColor::Borrowed(color)),
         StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::current_color_keyword() => {
             let current_color = context?.current_color?.optional_data()?;
-            let (components, missing) = legacy_srgb_components(current_color)?;
+            let Some((components, missing)) = legacy_srgb_components(current_color) else {
+                // A current color outside the legacy sRGB syntaxes, such as color(display-p3 ...), interpolates as is.
+                return matches!(current_color, StyleValueData::ColorFunction { .. })
+                    .then_some(RootAnimationColor::Borrowed(current_color));
+            };
             if missing.iter().any(|component| *component) {
                 return None;
             }
@@ -7873,6 +7877,176 @@ fn combine_scrollbar_color(
     )))
 }
 
+fn is_gap_decoration_list_property(property_id: u16) -> bool {
+    matches!(
+        property_id,
+        crate::css::property_metadata::property_id::COLUMN_RULE_COLOR
+            | crate::css::property_metadata::property_id::COLUMN_RULE_WIDTH
+            | crate::css::property_metadata::property_id::ROW_RULE_COLOR
+            | crate::css::property_metadata::property_id::ROW_RULE_WIDTH
+    )
+}
+
+/// The longest gap decoration list that animation expands or produces. Longer lists animate discretely.
+const MAX_INTERPOLATED_GAP_DECORATION_LIST_LENGTH: usize = 10000;
+
+/// A gap decoration list split around its auto repeater, with its integer repeaters expanded.
+struct GapDecorationListSegments<'a> {
+    leading: Vec<&'a StyleValueData>,
+    auto_repeated: Option<Vec<&'a StyleValueData>>,
+    trailing: Vec<&'a StyleValueData>,
+}
+
+fn gap_decoration_list_segments(value: &StyleValueData) -> Option<GapDecorationListSegments<'_>> {
+    let items: Vec<&StyleValueData> = match value {
+        StyleValueData::ValueList { values, .. } => values.as_slice().iter().map(|value| value.data()).collect(),
+        value => vec![value],
+    };
+    let mut segments = GapDecorationListSegments {
+        leading: Vec::new(),
+        auto_repeated: None,
+        trailing: Vec::new(),
+    };
+    for item in items {
+        let StyleValueData::Function(function_payload) = item else {
+            match segments.auto_repeated {
+                Some(_) => segments.trailing.push(item),
+                None => segments.leading.push(item),
+            }
+            continue;
+        };
+        let StyleValueData::ValueList { values, .. } = function_payload.value.data() else {
+            return None;
+        };
+        let (count, repeated) = values.as_slice().split_first()?;
+        let repeated: Vec<&StyleValueData> = repeated.iter().map(|value| value.data()).collect();
+        match count.data() {
+            StyleValueData::Integer { value: count } => {
+                let segment = match segments.auto_repeated {
+                    Some(_) => &mut segments.trailing,
+                    None => &mut segments.leading,
+                };
+                let expanded_length = usize::try_from(*count).ok()?.checked_mul(repeated.len())?;
+                if segment.len() + expanded_length > MAX_INTERPOLATED_GAP_DECORATION_LIST_LENGTH {
+                    return None;
+                }
+                for _ in 0..*count {
+                    segment.extend(repeated.iter().copied());
+                }
+            }
+            StyleValueData::Keyword { .. } => segments.auto_repeated = Some(repeated),
+            _ => return None,
+        }
+    }
+    Some(segments)
+}
+
+/// Combines two gap decoration lists item by item: integer repeaters are expanded, lists of differing lengths are
+/// repeated to their least common multiple, and lists with auto repeaters combine segment by segment.
+/// https://drafts.csswg.org/css-gaps-1/#interpolation-behavior
+fn combine_gap_decoration_lists(
+    from: &StyleValueData,
+    to: &StyleValueData,
+    combine: &dyn Fn(&StyleValueData, &StyleValueData) -> Option<RetainedStyleValueData>,
+) -> Option<StyleValueData> {
+    let combine_items = |from: &[&StyleValueData], to: &[&StyleValueData], allow_repetition: bool| {
+        if from.len() != to.len() && !allow_repetition {
+            return None;
+        }
+        if from.is_empty() || to.is_empty() {
+            return (from.is_empty() && to.is_empty()).then(Vec::new);
+        }
+        let (mut a, mut b) = (from.len(), to.len());
+        while b != 0 {
+            (a, b) = (b, a % b);
+        }
+        let length = (from.len() / a).checked_mul(to.len())?;
+        if length > MAX_INTERPOLATED_GAP_DECORATION_LIST_LENGTH {
+            return None;
+        }
+        (0..length)
+            .map(|index| combine(from[index % from.len()], to[index % to.len()]))
+            .collect::<Option<Vec<_>>>()
+    };
+    let comma_list = |values: Vec<RetainedStyleValueData>| StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(values),
+        separator: 1,
+        collapsible: false,
+    };
+
+    let (Some(from_segments), Some(to_segments)) =
+        (gap_decoration_list_segments(from), gap_decoration_list_segments(to))
+    else {
+        return None;
+    };
+    match (&from_segments.auto_repeated, &to_segments.auto_repeated) {
+        // Expansion, then list interpolation.
+        (None, None) => combine_items(&from_segments.leading, &to_segments.leading, true).map(|mut values| {
+            let neither_is_a_list =
+                !matches!(from, StyleValueData::ValueList { .. }) && !matches!(to, StyleValueData::ValueList { .. });
+            if neither_is_a_list && values.len() == 1 {
+                values.pop().expect("one value").data().clone()
+            } else {
+                comma_list(values)
+            }
+        }),
+        // Interpolation with auto repeaters, segment by segment.
+        (Some(from_auto), Some(to_auto)) => (|| {
+            let leading = combine_items(&from_segments.leading, &to_segments.leading, false)?;
+            let auto_repeated = combine_items(from_auto, to_auto, true)?;
+            let trailing = combine_items(&from_segments.trailing, &to_segments.trailing, false)?;
+            if leading.len() + auto_repeated.len() + trailing.len() > MAX_INTERPOLATED_GAP_DECORATION_LIST_LENGTH {
+                return None;
+            }
+            let repeat = StyleValueData::Function(crate::css::style_value::StyleValueBox::new(
+                crate::css::style_value::FunctionPayload {
+                    name: crate::css::css_string::CssString::from_utf16(&"repeat".encode_utf16().collect::<Vec<_>>()),
+                    value: RetainedStyleValueData::from_owned(comma_list(
+                        std::iter::once(RetainedStyleValueData::from_owned(StyleValueData::Keyword {
+                            keyword: crate::css::css_enums::keyword::AUTO,
+                        }))
+                        .chain(auto_repeated)
+                        .collect(),
+                    )),
+                },
+            ));
+            Some(comma_list(
+                leading
+                    .into_iter()
+                    .chain(std::iter::once(RetainedStyleValueData::from_owned(repeat)))
+                    .chain(trailing)
+                    .collect(),
+            ))
+        })(),
+        // Only one of the lists has an auto repeater.
+        _ => None,
+    }
+}
+
+fn interpolate_gap_decoration_list(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f64,
+) -> AnimationValueResult {
+    let interpolate = |from: &StyleValueData, to: &StyleValueData| {
+        // https://drafts.csswg.org/css-color-4/#interpolation
+        // Interpolating to or from currentcolor is possible. The numerical value used for this purpose is the used value.
+        if let (Some(from), Some(to)) = (
+            resolve_root_animation_color(context, from),
+            resolve_root_animation_color(context, to),
+        ) {
+            return interpolate_scalar_value(property_id, from.data(), to.data(), delta, &[]).into_value();
+        }
+        interpolate_scalar_value(property_id, from, to, delta, &[]).into_value()
+    };
+    match combine_gap_decoration_lists(from, to, &interpolate) {
+        Some(value) => owned(value),
+        None => discrete_value(context, from, to, delta),
+    }
+}
+
 pub(crate) fn interpolate_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
@@ -7954,6 +8128,9 @@ pub(crate) fn interpolate_value(
         // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
         // If either start or end compute to none or are invalid, start or end are combined using the discrete animation type.
         return discrete_value(context, from, to, delta);
+    }
+    if is_gap_decoration_list_property(property_id) {
+        return interpolate_gap_decoration_list(context, property_id, from, to, delta);
     }
     if animation_type == ANIMATION_TYPE_REPEATABLE_LIST || is_stroke_dasharray {
         // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
@@ -8282,6 +8459,17 @@ fn composite_batch_value<'a>(
         composite_offset_rotate(underlying, animated).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::TRANSFORM {
         composite_transform_list(context, underlying, animated, operation).map_or_else(handled_without_value, owned)
+    } else if is_gap_decoration_list_property(property_id) {
+        combine_gap_decoration_lists(underlying, animated, &|underlying, animated| {
+            if let (Some(underlying), Some(animated)) = (
+                resolve_root_animation_color(Some(context), underlying),
+                resolve_root_animation_color(Some(context), animated),
+            ) {
+                return composite_scalar_value(underlying.data(), animated.data(), operation).into_value();
+            }
+            composite_scalar_value(underlying, animated, operation).into_value()
+        })
+        .map_or_else(handled_without_value, owned)
     } else if is_sizing_property(property_id) {
         combine_calc_size(
             Some(context),
@@ -9358,22 +9546,52 @@ fn snap_animated_border_width(
             | prop::BORDER_TOP_WIDTH
             | prop::COLUMN_RULE_WIDTH
             | prop::OUTLINE_WIDTH
+            | prop::ROW_RULE_WIDTH
     ) || device_pixels_per_css_pixel <= 0.0
     {
         return value;
     }
-    let Some(StyleValueData::Length { value: length, unit }) = value.optional_data() else {
-        return value;
-    };
-    if *unit != crate::css::style_compute::px_length_unit() || *length < 0.0 {
-        return value;
+    snap_animated_line_width(value, device_pixels_per_css_pixel)
+}
+
+/// Snaps an animated line width, or each line width of a gap decoration width list.
+fn snap_animated_line_width(value: RetainedStyleValueData, device_pixels_per_css_pixel: f64) -> RetainedStyleValueData {
+    match value.optional_data() {
+        Some(StyleValueData::ValueList {
+            values,
+            separator,
+            collapsible,
+        }) => RetainedStyleValueData::from_owned(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(
+                values
+                    .as_slice()
+                    .iter()
+                    .map(|value| snap_animated_line_width(value.clone(), device_pixels_per_css_pixel))
+                    .collect(),
+            ),
+            separator: *separator,
+            collapsible: *collapsible,
+        }),
+        Some(StyleValueData::Function(function_payload)) => {
+            RetainedStyleValueData::from_owned(StyleValueData::Function(crate::css::style_value::StyleValueBox::new(
+                crate::css::style_value::FunctionPayload {
+                    name: function_payload.name.clone(),
+                    value: snap_animated_line_width(function_payload.value.clone(), device_pixels_per_css_pixel),
+                },
+            )))
+        }
+        Some(StyleValueData::Length { value: length, unit })
+            if *unit == crate::css::style_compute::px_length_unit() && *length >= 0.0 =>
+        {
+            let snapped = crate::css::style_compute::snap_a_length_as_a_border_width(
+                device_pixels_per_css_pixel,
+                crate::css::css_pixels::CssPixels::nearest_value_for(*length),
+            )
+            .to_double();
+            retained_length(snapped, *unit)
+        }
+        _ => value,
     }
-    let snapped = crate::css::style_compute::snap_a_length_as_a_border_width(
-        device_pixels_per_css_pixel,
-        crate::css::css_pixels::CssPixels::nearest_value_for(*length),
-    )
-    .to_double();
-    retained_length(snapped, *unit)
 }
 
 /// Complete the Rust-owned animation plan and compose every interval without

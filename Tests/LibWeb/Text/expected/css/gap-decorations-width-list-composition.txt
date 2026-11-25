@@ -1,0 +1,3 @@
+10px + 2px, 4px: 12px, 14px
+10px, 20px + 2px, 4px, 6px: 12px, 24px, 16px, 22px, 14px, 26px
+10px, 20px + repeat(2, 2px): 12px, 22px

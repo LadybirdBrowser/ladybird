@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        target.style.columnRule = "2px solid rgb(1, 2, 3)";
+        target.style.rowRule = "2px solid rgb(1 2 3)";
+        println(`rule: "${target.style.rule}"`);
+        println(`rule-color: "${target.style.ruleColor}"`);
+        target.style.rowRuleColor = "rgb(1 2 4)";
+        println(`different rule: "${target.style.rule}"`);
+        println(`different rule-color: "${target.style.ruleColor}"`);
+    });
+</script>

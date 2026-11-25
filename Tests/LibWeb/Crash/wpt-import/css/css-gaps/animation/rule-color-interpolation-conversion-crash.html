@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<title>rule-color interpolation</title>
+<link rel="author" title="Kevin Ellis" href="mailto:kevers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#column-row-rule-color">
+<style>
+  #target {
+    animation: anim 1s paused;
+  }
+
+  @keyframes anim {
+    from {
+      column-rule-color: green;
+    }
+  }
+</style>
+<script>
+  async function runTest() {
+    requestAnimationFrame(async () => {
+      const anim = document.getAnimations()[0];
+      await anim.ready;
+      document.body.style.zoom = 2;
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove('test-wait');
+      });
+    });
+  }
+
+  window.onload = runTest();
+</script>
+<body>
+  <div id="target">Hello world</div>
+</body>
+</html>

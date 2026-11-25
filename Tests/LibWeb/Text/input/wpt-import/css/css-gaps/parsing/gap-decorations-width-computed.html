@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decoration: column-rule-width getComputedStyle()</title>
+<link rel="help" href="https://kbabbitt.github.io/css-gap-decorations/pr-11115/Overview.html#column-row-rule-width">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<meta name="assert" content="*-rule-width computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+    column-rule-style: dotted;
+    row-rule-style: dashed;
+  }
+</style>
+<script>
+
+const properties = ["column-rule-width", "row-rule-width", "rule-width"];
+for (let property of properties) {
+  test_computed_value(property, "calc(10px + 0.5em)", "30px");
+  test_computed_value(property, "calc(10px - 0.5em)", "0px");
+
+  test_computed_value(property, "2px, 4px, 6px", "2px, 4px, 6px");
+
+  test_computed_value(property, "repeat(4, 2px)", "repeat(4, 2px)");
+
+  test_computed_value(property, "repeat(auto, 10px)", "repeat(auto, 10px)");
+
+  test_computed_value(property, "repeat(calc(5 + 3), 10px)", "repeat(8, 10px)");
+
+  test_computed_value(property, "repeat(5, 10px, calc(10px + 0.5em))", "repeat(5, 10px, 30px)");
+
+  test_computed_value(property, "repeat(auto, min(5px, 10px)), repeat(5, 10px), calc(10px + 0.5em)", "repeat(auto, 5px), repeat(5, 10px), 30px");
+}
+</script>
+</body>
+</html>

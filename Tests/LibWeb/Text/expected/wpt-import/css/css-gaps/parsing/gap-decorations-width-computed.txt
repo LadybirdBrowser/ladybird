@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	Property column-rule-width value 'calc(10px + 0.5em)'
+Pass	Property column-rule-width value 'calc(10px - 0.5em)'
+Pass	Property column-rule-width value '2px, 4px, 6px'
+Pass	Property column-rule-width value 'repeat(4, 2px)'
+Pass	Property column-rule-width value 'repeat(auto, 10px)'
+Pass	Property column-rule-width value 'repeat(calc(5 + 3), 10px)'
+Pass	Property column-rule-width value 'repeat(5, 10px, calc(10px + 0.5em))'
+Pass	Property column-rule-width value 'repeat(auto, min(5px, 10px)), repeat(5, 10px), calc(10px + 0.5em)'
+Pass	Property row-rule-width value 'calc(10px + 0.5em)'
+Pass	Property row-rule-width value 'calc(10px - 0.5em)'
+Pass	Property row-rule-width value '2px, 4px, 6px'
+Pass	Property row-rule-width value 'repeat(4, 2px)'
+Pass	Property row-rule-width value 'repeat(auto, 10px)'
+Pass	Property row-rule-width value 'repeat(calc(5 + 3), 10px)'
+Pass	Property row-rule-width value 'repeat(5, 10px, calc(10px + 0.5em))'
+Pass	Property row-rule-width value 'repeat(auto, min(5px, 10px)), repeat(5, 10px), calc(10px + 0.5em)'
+Pass	Property rule-width value 'calc(10px + 0.5em)'
+Pass	Property rule-width value 'calc(10px - 0.5em)'
+Pass	Property rule-width value '2px, 4px, 6px'
+Pass	Property rule-width value 'repeat(4, 2px)'
+Pass	Property rule-width value 'repeat(auto, 10px)'
+Pass	Property rule-width value 'repeat(calc(5 + 3), 10px)'
+Pass	Property rule-width value 'repeat(5, 10px, calc(10px + 0.5em))'
+Pass	Property rule-width value 'repeat(auto, min(5px, 10px)), repeat(5, 10px), calc(10px + 0.5em)'

@@ -187,8 +187,14 @@ column-count: auto
 column-fill: balance
 column-gap: normal
 column-height: auto
+column-rule-break: normal
 column-rule-color: rgb(0, 0, 0)
+column-rule-inset-cap-end: 0px
+column-rule-inset-cap-start: 0px
+column-rule-inset-junction-end: 0px
+column-rule-inset-junction-start: 0px
 column-rule-style: none
+column-rule-visibility-items: normal
 column-rule-width: 3px
 column-span: none
 column-width: auto
@@ -326,6 +332,16 @@ resize: none
 right: auto
 rotate: none
 row-gap: normal
+row-rule-break: normal
+row-rule-color: rgb(0, 0, 0)
+row-rule-inset-cap-end: 0px
+row-rule-inset-cap-start: 0px
+row-rule-inset-junction-end: 0px
+row-rule-inset-junction-start: 0px
+row-rule-style: none
+row-rule-visibility-items: normal
+row-rule-width: 3px
+rule-overlap: row-over-column
 rx: auto
 ry: auto
 scale: none

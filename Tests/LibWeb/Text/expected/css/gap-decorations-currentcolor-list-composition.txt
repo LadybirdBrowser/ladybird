@@ -1,0 +1,3 @@
+currentcolor + rgb(0, 0, 100): rgb(0, 100, 100)
+currentcolor, rgb(100, 0, 0) + rgb(0, 0, 100): rgb(0, 100, 100), rgb(100, 0, 100)
+rgb(100, 0, 0) + currentcolor, rgb(0, 0, 100): rgb(100, 100, 0), rgb(100, 0, 100)

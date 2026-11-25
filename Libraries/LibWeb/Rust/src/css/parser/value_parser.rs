@@ -32,6 +32,7 @@ use crate::css::parser::component_value::{
     consume_a_small_list_of_component_values,
 };
 use crate::css::parser::fonts_parser::parse_font_property;
+use crate::css::parser::gap_decorations_parser::{parse_gap_decorations_longhand, parse_gap_decorations_shorthand};
 use crate::css::parser::grid_parser::parse_grid_property;
 use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property, parse_image_value};
 use crate::css::parser::positions_shapes_parser::{
@@ -4188,7 +4189,6 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
             | property_id::BORDER_LEFT
             | property_id::BORDER_RIGHT
             | property_id::BORDER_TOP
-            | property_id::COLUMN_RULE
             | property_id::FLEX_FLOW
             | property_id::OUTLINE
             | property_id::TEXT_WRAP
@@ -6111,6 +6111,10 @@ fn parse_css_value_after_substitution_scan(
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
+        let outcome = parse_gap_decorations_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled) {
+            return outcome;
+        }
         let outcome = parse_line_clamp_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
@@ -6199,6 +6203,10 @@ fn parse_css_value_after_substitution_scan(
     let grid_outcome = parse_grid_property(context, property_id, values);
     if !matches!(grid_outcome, ParseOutcome::NotHandled) {
         return grid_outcome;
+    }
+    let gap_decorations_outcome = parse_gap_decorations_longhand(context, property_id, values);
+    if !matches!(gap_decorations_outcome, ParseOutcome::NotHandled) {
+        return gap_decorations_outcome;
     }
     let long_tail_outcome = parse_long_tail_property(context, property_id, values);
     if !matches!(long_tail_outcome, ParseOutcome::NotHandled) {

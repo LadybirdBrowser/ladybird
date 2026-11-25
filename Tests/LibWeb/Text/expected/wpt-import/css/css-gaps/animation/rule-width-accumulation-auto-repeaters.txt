@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	column-rule-width auto repeater with fewer animation values composites without crash (underlying: 2, animation: 1)
+Pass	column-rule-width auto repeater with more animation values expands underlying (underlying: 1, animation: 2)
+Pass	column-rule-width auto repeater aligns coprime inner counts via LCM (underlying: 2, animation: 3)
+Pass	column-rule-width auto repeater with composite: add
+Pass	row-rule-width auto repeater with fewer animation values composites without crash

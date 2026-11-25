@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>rule-width interpolation with repeaters</title>
+    <link rel="author" title="Javier Contreras" href="mailto:javiercon@chromium.org">
+    <link rel="help" href="https://drafts.csswg.org/css-gaps-1/#column-row-rule-width">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+        .parent {
+            row-rule-style: solid;
+            row-rule-width: 90px;
+        }
+
+        .target {
+            row-gap: 40px;
+            column-gap: 40px;
+            row-rule-width: 10px, repeat(2, 20px, 20px), 20px;
+            row-rule-style: solid;
+            row-rule-color: black;
+            flex-wrap: wrap;
+            column-rule-width: repeat(2, 20px, 20px);
+            column-rule-style: solid;
+            column-rule-color: black;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Valid Interpolations:
+        // Repeaters should expand.
+        test_interpolation({
+            property: 'row-rule-width',
+            from: neutralKeyframe,
+            to: '20px, repeat(2, 30px, 30px), 30px',
+        }, [
+            { at: -0.3, expect: '7px, 17px, 17px, 17px, 17px, 17px' },
+            { at: 0, expect: '10px, 20px, 20px, 20px, 20px, 20px' },
+            { at: 0.3, expect: '13px, 23px, 23px, 23px, 23px, 23px' },
+            { at: 0.6, expect: '16px, 26px, 26px, 26px, 26px, 26px' },
+            { at: 1, expect: '20px, 30px, 30px, 30px, 30px, 30px' },
+            { at: 1.5, expect: '25px, 35px, 35px, 35px, 35px, 35px' },
+        ]);
+        test_interpolation({
+            property: 'column-rule-width',
+            from: neutralKeyframe,
+            to: 'repeat(2, 30px, 30px)',
+        }, [
+            { at: -0.3, expect: '17px, 17px, 17px, 17px' },
+            { at: 0, expect: '20px, 20px, 20px, 20px' },
+            { at: 0.3, expect: '23px, 23px, 23px, 23px' },
+            { at: 0.6, expect: '26px, 26px, 26px, 26px' },
+            { at: 1, expect: '30px, 30px, 30px, 30px' },
+            { at: 1.5, expect: '35px, 35px, 35px, 35px' },
+        ]);
+
+        // Auto repeaters don't expand.
+        test_interpolation({
+            property: 'column-rule-width',
+            from: 'repeat(auto, 20px, 20px)',
+            to: 'repeat(auto, 30px, 30px)',
+        }, [
+            { at: -0.3, expect: 'repeat(auto, 17px, 17px)' },
+            { at: 0, expect: 'repeat(auto, 20px, 20px)' },
+            { at: 0.3, expect: 'repeat(auto, 23px, 23px)' },
+            { at: 0.6, expect: 'repeat(auto, 26px, 26px)' },
+            { at: 1, expect: 'repeat(auto, 30px, 30px)' },
+            { at: 1.5, expect: 'repeat(auto, 35px, 35px)' },
+        ]);
+
+        // Auto repeaters should interpolate, we apply
+        // lowest common multiple interpolation to the inner values
+        // of auto repeaters.
+        test_interpolation({
+          property: 'column-rule-width',
+          from: 'repeat(auto, 20px)',
+          to: 'repeat(auto, 30px, 30px)',
+        }, [
+          { at: -0.3, expect: 'repeat(auto, 17px, 17px)' },
+          { at: 0, expect: 'repeat(auto, 20px, 20px)' },
+          { at: 0.3, expect: 'repeat(auto, 23px, 23px)' },
+          { at: 0.6, expect: 'repeat(auto, 26px, 26px)' },
+          { at: 1, expect: 'repeat(auto, 30px, 30px)' },
+          { at: 1.5, expect: 'repeat(auto, 35px, 35px)' },
+        ]);
+
+        // Repeaters should expand.
+        test_interpolation({
+          property: 'column-rule-width',
+          from: 'repeat(1, 20px)',
+          to: 'repeat(2, 30px, 30px)',
+        }, [
+          { at: -0.3, expect: '17px, 17px, 17px, 17px' },
+          { at: 0, expect: '20px, 20px, 20px, 20px' },
+          { at: 0.3, expect: '23px, 23px, 23px, 23px' },
+          { at: 0.6, expect: '26px, 26px, 26px, 26px' },
+          { at: 1, expect: '30px, 30px, 30px, 30px' },
+          { at: 1.5, expect: '35px, 35px, 35px, 35px' },
+        ]);
+
+        // Repeaters should expand and interpolate with non repeaters.
+        test_interpolation({
+          property: 'column-rule-width',
+          from: 'repeat(2, 20px)',
+          to: '30px',
+        }, [
+          { at: -0.3, expect: '17px, 17px' },
+          { at: 0, expect: '20px, 20px' },
+          { at: 0.3, expect: '23px, 23px' },
+          { at: 0.6, expect: '26px, 26px' },
+          { at: 1, expect: '30px, 30px' },
+          { at: 1.5, expect: '35px, 35px' },
+        ]);
+
+        // When auto repeaters are present, we only interpolate if the length
+        // of the `leading` segments match, and the length of the `trailing`
+        // segments match.
+        test_interpolation({
+          property: 'column-rule-width',
+          from: 'repeat(2, 20px), repeat(auto, 20px), 20px',
+          to: '30px, 30px, repeat(auto, 30px), 30px',
+        }, [
+          { at: -0.3, expect: '17px, 17px, repeat(auto, 17px), 17px' },
+          { at: 0, expect: '20px, 20px, repeat(auto, 20px), 20px' },
+          { at: 0.3, expect: '23px, 23px, repeat(auto, 23px), 23px' },
+          { at: 0.6, expect: '26px, 26px, repeat(auto, 26px), 26px' },
+          { at: 1, expect: '30px, 30px, repeat(auto, 30px), 30px' },
+          { at: 1.5, expect: '35px, 35px, repeat(auto, 35px), 35px' },
+        ]);
+
+        // Invalid interpolations:
+        // Shouldn't interpolate, different leading lengths with present auto repeater:
+        test_no_interpolation({
+          property: 'column-rule-width',
+          from: '20px, repeat(auto, 20px)',
+          to: '30px, 30px, repeat(auto, 30px)',
+        });
+
+        // Shouldn't interpolate, different trailing lengths with present auto repeater:
+        test_no_interpolation({
+          property: 'column-rule-width',
+          from: '20px, repeat(auto, 20px)',
+          to: '30px, repeat(auto, 30px), 30px',
+        });
+    </script>
+</body>

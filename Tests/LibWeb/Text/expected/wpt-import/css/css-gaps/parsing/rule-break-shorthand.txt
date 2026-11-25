@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['rule-break'] = "intersection" should set column-rule-break
+Pass	e.style['rule-break'] = "intersection" should set row-rule-break
+Pass	e.style['rule-break'] = "intersection" should not set unrelated longhands
+Pass	e.style['rule-break'] = "none" should set column-rule-break
+Pass	e.style['rule-break'] = "none" should set row-rule-break
+Pass	e.style['rule-break'] = "none" should not set unrelated longhands
+Pass	e.style['rule-break'] = "normal" should set column-rule-break
+Pass	e.style['rule-break'] = "normal" should set row-rule-break
+Pass	e.style['rule-break'] = "normal" should not set unrelated longhands

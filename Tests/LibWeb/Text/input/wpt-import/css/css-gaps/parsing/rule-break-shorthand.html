@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Gap Decorations: rule-break sets longhands</title>
+<link rel="help" href="https://www.w3.org/TR/css-gaps-1/#propdef-rule-break">
+<meta name="assert" content="rule-break supports the full grammar '<*-rule-break>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+const rule_properties = {
+    'rule-break': ['column-rule-break',
+                    'row-rule-break'],
+};
+
+const testCases = [
+    {
+        input: 'intersection',
+        expected: {
+            column: 'intersection',
+            row: 'intersection'
+        }
+    },
+    {
+        input: 'none',
+        expected: {
+            column: 'none',
+            row: 'none'
+        }
+    },
+    {
+        input: 'normal',
+        expected: {
+            column: 'normal',
+            row: 'normal'
+        }
+    },
+  ];
+
+for(rule_property in rule_properties) {
+    const [column, row] = rule_properties[rule_property];
+
+    for (const { input, expected } of testCases) {
+            test_shorthand_value(rule_property, input, {
+                [column]: expected.column,
+                [row]: expected.row
+            });
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+Harness status: OK
+
+Found 60 tests
+
+60 Pass
+Pass	e.style['column-rule-inset-cap'] = "0px" should set column-rule-inset-cap-end
+Pass	e.style['column-rule-inset-cap'] = "0px" should set column-rule-inset-cap-start
+Pass	e.style['column-rule-inset-cap'] = "0px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-cap'] = "10px" should set column-rule-inset-cap-end
+Pass	e.style['column-rule-inset-cap'] = "10px" should set column-rule-inset-cap-start
+Pass	e.style['column-rule-inset-cap'] = "10px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-cap'] = "50%" should set column-rule-inset-cap-end
+Pass	e.style['column-rule-inset-cap'] = "50%" should set column-rule-inset-cap-start
+Pass	e.style['column-rule-inset-cap'] = "50%" should not set unrelated longhands
+Pass	e.style['column-rule-inset-cap'] = "10px 20px" should set column-rule-inset-cap-end
+Pass	e.style['column-rule-inset-cap'] = "10px 20px" should set column-rule-inset-cap-start
+Pass	e.style['column-rule-inset-cap'] = "10px 20px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-cap'] = "overlap-join" should set column-rule-inset-cap-end
+Pass	e.style['column-rule-inset-cap'] = "overlap-join" should set column-rule-inset-cap-start
+Pass	e.style['column-rule-inset-cap'] = "overlap-join" should not set unrelated longhands
+Pass	e.style['row-rule-inset-cap'] = "0px" should set row-rule-inset-cap-end
+Pass	e.style['row-rule-inset-cap'] = "0px" should set row-rule-inset-cap-start
+Pass	e.style['row-rule-inset-cap'] = "0px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-cap'] = "10px" should set row-rule-inset-cap-end
+Pass	e.style['row-rule-inset-cap'] = "10px" should set row-rule-inset-cap-start
+Pass	e.style['row-rule-inset-cap'] = "10px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-cap'] = "50%" should set row-rule-inset-cap-end
+Pass	e.style['row-rule-inset-cap'] = "50%" should set row-rule-inset-cap-start
+Pass	e.style['row-rule-inset-cap'] = "50%" should not set unrelated longhands
+Pass	e.style['row-rule-inset-cap'] = "10px 20px" should set row-rule-inset-cap-end
+Pass	e.style['row-rule-inset-cap'] = "10px 20px" should set row-rule-inset-cap-start
+Pass	e.style['row-rule-inset-cap'] = "10px 20px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-cap'] = "overlap-join" should set row-rule-inset-cap-end
+Pass	e.style['row-rule-inset-cap'] = "overlap-join" should set row-rule-inset-cap-start
+Pass	e.style['row-rule-inset-cap'] = "overlap-join" should not set unrelated longhands
+Pass	e.style['column-rule-inset-junction'] = "0px" should set column-rule-inset-junction-end
+Pass	e.style['column-rule-inset-junction'] = "0px" should set column-rule-inset-junction-start
+Pass	e.style['column-rule-inset-junction'] = "0px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-junction'] = "10px" should set column-rule-inset-junction-end
+Pass	e.style['column-rule-inset-junction'] = "10px" should set column-rule-inset-junction-start
+Pass	e.style['column-rule-inset-junction'] = "10px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-junction'] = "50%" should set column-rule-inset-junction-end
+Pass	e.style['column-rule-inset-junction'] = "50%" should set column-rule-inset-junction-start
+Pass	e.style['column-rule-inset-junction'] = "50%" should not set unrelated longhands
+Pass	e.style['column-rule-inset-junction'] = "10px 20px" should set column-rule-inset-junction-end
+Pass	e.style['column-rule-inset-junction'] = "10px 20px" should set column-rule-inset-junction-start
+Pass	e.style['column-rule-inset-junction'] = "10px 20px" should not set unrelated longhands
+Pass	e.style['column-rule-inset-junction'] = "overlap-join" should set column-rule-inset-junction-end
+Pass	e.style['column-rule-inset-junction'] = "overlap-join" should set column-rule-inset-junction-start
+Pass	e.style['column-rule-inset-junction'] = "overlap-join" should not set unrelated longhands
+Pass	e.style['row-rule-inset-junction'] = "0px" should set row-rule-inset-junction-end
+Pass	e.style['row-rule-inset-junction'] = "0px" should set row-rule-inset-junction-start
+Pass	e.style['row-rule-inset-junction'] = "0px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-junction'] = "10px" should set row-rule-inset-junction-end
+Pass	e.style['row-rule-inset-junction'] = "10px" should set row-rule-inset-junction-start
+Pass	e.style['row-rule-inset-junction'] = "10px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-junction'] = "50%" should set row-rule-inset-junction-end
+Pass	e.style['row-rule-inset-junction'] = "50%" should set row-rule-inset-junction-start
+Pass	e.style['row-rule-inset-junction'] = "50%" should not set unrelated longhands
+Pass	e.style['row-rule-inset-junction'] = "10px 20px" should set row-rule-inset-junction-end
+Pass	e.style['row-rule-inset-junction'] = "10px 20px" should set row-rule-inset-junction-start
+Pass	e.style['row-rule-inset-junction'] = "10px 20px" should not set unrelated longhands
+Pass	e.style['row-rule-inset-junction'] = "overlap-join" should set row-rule-inset-junction-end
+Pass	e.style['row-rule-inset-junction'] = "overlap-join" should set row-rule-inset-junction-start
+Pass	e.style['row-rule-inset-junction'] = "overlap-join" should not set unrelated longhands

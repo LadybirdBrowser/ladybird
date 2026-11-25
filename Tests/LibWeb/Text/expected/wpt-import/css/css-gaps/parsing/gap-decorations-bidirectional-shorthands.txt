@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	rule-color shorthand computed from longhand values
+Pass	rule-width shorthand computed from longhand values
+Pass	rule-style shorthand computed from longhand values
+Pass	rule shorthand computed from longhand values
+Pass	rule-break shorthand computed from longhand values
+Pass	rule-visibility-items shorthand computed from longhand values
+Pass	rule-inset shorthand computed from longhand values
+Pass	rule-color shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule-width shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule-style shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule-break shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule-visibility-items shorthand cannot be computed from longhand values so expect an empty string
+Pass	rule-inset shorthand cannot be computed from longhand values so expect an empty string

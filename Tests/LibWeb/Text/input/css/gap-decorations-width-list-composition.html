@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<div id="target" style="row-rule-style: solid; row-rule-width: 10px"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [underlying, keyframe] of [
+            ["10px", "2px, 4px"],
+            ["10px, 20px", "2px, 4px, 6px"],
+            ["10px, 20px", "repeat(2, 2px)"],
+        ]) {
+            target.style.rowRuleWidth = underlying;
+            const animation = target.animate({ rowRuleWidth: [keyframe, keyframe] }, { duration: 1000, fill: "both", composite: "add" });
+            animation.currentTime = 500;
+            println(`${underlying} + ${keyframe}: ${getComputedStyle(target).rowRuleWidth}`);
+            animation.cancel();
+        }
+    });
+</script>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<div>
+    <div></div>
+    <div id="target" style="row-rule-style: repeat(sibling-index(), solid); column-rule-style: dotted, repeat(sibling-count(), dashed)"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`row-rule-style: ${getComputedStyle(target).rowRuleStyle}`);
+        println(`column-rule-style: ${getComputedStyle(target).columnRuleStyle}`);
+    });
+</script>

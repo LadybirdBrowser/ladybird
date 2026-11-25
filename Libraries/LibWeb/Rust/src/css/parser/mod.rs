@@ -11,6 +11,7 @@ pub(crate) mod color_parser;
 pub(crate) mod component_value;
 pub(crate) mod descriptor_parser;
 pub(crate) mod fonts_parser;
+pub(crate) mod gap_decorations_parser;
 pub(crate) mod grid_parser;
 pub(crate) mod images_gradients_parser;
 pub(crate) mod lexer;

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Gaps: rule-width accumulation with auto repeaters</title>
+    <link rel="help" href="https://drafts.csswg.org/css-gaps-1/#column-row-rule-width">
+    <meta name="assert" content="Gap decoration rule-width auto repeaters correctly composite with differing inner value counts.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      function createTarget(t) {
+        const target = document.createElement('div');
+        document.body.appendChild(target);
+        t.add_cleanup(() => target.remove());
+        return target;
+      }
+
+      test((t) => {
+        const target = createTarget(t);
+        target.style.columnCount = '2';
+        target.style.columnRuleStyle = 'solid';
+        target.style.columnRuleWidth = 'repeat(auto, 10px, 20px)';
+        const animation = target.animate(
+          [{columnRuleWidth: 'repeat(auto, 30px)'},
+           {columnRuleWidth: 'repeat(auto, 50px)'}],
+          {composite: 'accumulate', duration: 1000, fill: 'forwards'});
+        animation.pause();
+        animation.currentTime = 500;
+        assert_equals(getComputedStyle(target).columnRuleWidth, 'repeat(auto, 50px, 60px)');
+      }, 'column-rule-width auto repeater with fewer animation values composites without crash (underlying: 2, animation: 1)');
+
+      test((t) => {
+        const target = createTarget(t);
+        target.style.columnCount = '2';
+        target.style.columnRuleStyle = 'solid';
+        target.style.columnRuleWidth = 'repeat(auto, 10px)';
+        const animation = target.animate(
+          [{columnRuleWidth: 'repeat(auto, 20px, 30px)'},
+           {columnRuleWidth: 'repeat(auto, 40px, 50px)'}],
+          {composite: 'accumulate', duration: 1000, fill: 'forwards'});
+        animation.pause();
+        animation.currentTime = 500;
+        assert_equals(getComputedStyle(target).columnRuleWidth, 'repeat(auto, 40px, 50px)');
+      }, 'column-rule-width auto repeater with more animation values expands underlying (underlying: 1, animation: 2)');
+
+      test((t) => {
+        const target = createTarget(t);
+        target.style.columnCount = '2';
+        target.style.columnRuleStyle = 'solid';
+        target.style.columnRuleWidth = 'repeat(auto, 10px, 20px)';
+        const animation = target.animate(
+          [{columnRuleWidth: 'repeat(auto, 1px, 2px, 3px)'},
+           {columnRuleWidth: 'repeat(auto, 1px, 2px, 3px)'}],
+          {composite: 'accumulate', duration: 1000, fill: 'forwards'});
+        animation.pause();
+        animation.currentTime = 500;
+        assert_equals(getComputedStyle(target).columnRuleWidth,
+                      'repeat(auto, 11px, 22px, 13px, 21px, 12px, 23px)');
+      }, 'column-rule-width auto repeater aligns coprime inner counts via LCM (underlying: 2, animation: 3)');
+
+      test((t) => {
+        const target = createTarget(t);
+        target.style.columnCount = '2';
+        target.style.columnRuleStyle = 'solid';
+        target.style.columnRuleWidth = 'repeat(auto, 10px, 20px)';
+        const animation = target.animate(
+          [{columnRuleWidth: 'repeat(auto, 30px)'},
+           {columnRuleWidth: 'repeat(auto, 50px)'}],
+          {composite: 'add', duration: 1000, fill: 'forwards'});
+        animation.pause();
+        animation.currentTime = 500;
+        assert_equals(getComputedStyle(target).columnRuleWidth, 'repeat(auto, 50px, 60px)');
+      }, 'column-rule-width auto repeater with composite: add');
+
+      test((t) => {
+        const target = createTarget(t);
+        target.style.rowGap = '20px';
+        target.style.rowRuleStyle = 'solid';
+        target.style.rowRuleWidth = 'repeat(auto, 10px, 20px)';
+        const animation = target.animate(
+          [{rowRuleWidth: 'repeat(auto, 30px)'},
+           {rowRuleWidth: 'repeat(auto, 50px)'}],
+          {composite: 'accumulate', duration: 1000, fill: 'forwards'});
+        animation.pause();
+        animation.currentTime = 500;
+        assert_equals(getComputedStyle(target).rowRuleWidth, 'repeat(auto, 50px, 60px)');
+      }, 'row-rule-width auto repeater with fewer animation values composites without crash');
+    </script>
+  </body>
+</html>

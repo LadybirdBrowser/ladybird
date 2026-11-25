@@ -1914,6 +1914,18 @@
       "column-rule-color"
     ]
   },
+  "column-rule-break": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "none",
+      "normal",
+      "intersection"
+    ]
+  },
   "column-rule-color": {
     "style-group": "MiscLayoutValues",
     "affects-layout": false,
@@ -1926,15 +1938,125 @@
       "color"
     ]
   },
+  "column-rule-inset": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-cap-end",
+      "column-rule-inset-junction-start",
+      "column-rule-inset-junction-end"
+    ]
+  },
+  "column-rule-inset-cap": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-cap-end"
+    ]
+  },
+  "column-rule-inset-cap-end": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "column-rule-inset-cap-start": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "column-rule-inset-end": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-end",
+      "column-rule-inset-junction-end"
+    ]
+  },
+  "column-rule-inset-junction": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-junction-start",
+      "column-rule-inset-junction-end"
+    ]
+  },
+  "column-rule-inset-junction-end": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "column-rule-inset-junction-start": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "column-rule-inset-start": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-junction-start"
+    ]
+  },
   "column-rule-style": {
     "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "line-style"
+    ]
+  },
+  "column-rule-visibility-items": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "all",
+      "around",
+      "between",
+      "normal"
     ]
   },
   "column-rule-width": {
@@ -4836,6 +4958,276 @@
       "normal"
     ],
     "percentages-resolve-to": "length"
+  },
+  "row-rule": {
+    "affects-layout": false,
+    "initial": "medium none currentColor",
+    "longhands": [
+      "row-rule-width",
+      "row-rule-style",
+      "row-rule-color"
+    ]
+  },
+  "row-rule-break": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "none",
+      "normal",
+      "intersection"
+    ]
+  },
+  "row-rule-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "currentColor",
+    "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "color"
+    ]
+  },
+  "row-rule-inset": {
+    "initial": "0",
+    "longhands": [
+      "row-rule-inset-cap-start",
+      "row-rule-inset-cap-end",
+      "row-rule-inset-junction-start",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "row-rule-inset-cap": {
+    "initial": "0",
+    "longhands": [
+      "row-rule-inset-cap-start",
+      "row-rule-inset-cap-end"
+    ]
+  },
+  "row-rule-inset-cap-end": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "row-rule-inset-cap-start": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "row-rule-inset-end": {
+    "initial": "0",
+    "longhands": [
+      "row-rule-inset-cap-end",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "row-rule-inset-junction": {
+    "initial": "0",
+    "longhands": [
+      "row-rule-inset-junction-start",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "row-rule-inset-junction-end": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "row-rule-inset-junction-start": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "overlap-join"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "row-rule-inset-start": {
+    "initial": "0",
+    "longhands": [
+      "row-rule-inset-cap-start",
+      "row-rule-inset-junction-start"
+    ]
+  },
+  "row-rule-style": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "row-rule-visibility-items": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "all",
+      "around",
+      "between",
+      "normal"
+    ]
+  },
+  "row-rule-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "medium",
+    "requires-computation": "non-inherited-value",
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ]
+  },
+  "rule": {
+    "affects-layout": false,
+    "initial": "medium none currentColor",
+    "longhands": [
+      "column-rule-width",
+      "column-rule-style",
+      "column-rule-color",
+      "row-rule-width",
+      "row-rule-style",
+      "row-rule-color"
+    ]
+  },
+  "rule-break": {
+    "initial": "normal",
+    "longhands": [
+      "column-rule-break",
+      "row-rule-break"
+    ]
+  },
+  "rule-color": {
+    "initial": "currentColor",
+    "longhands": [
+      "column-rule-color",
+      "row-rule-color"
+    ]
+  },
+  "rule-inset": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-cap-end",
+      "column-rule-inset-junction-start",
+      "column-rule-inset-junction-end",
+      "row-rule-inset-cap-start",
+      "row-rule-inset-cap-end",
+      "row-rule-inset-junction-start",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "rule-inset-cap": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-cap-end",
+      "row-rule-inset-cap-start",
+      "row-rule-inset-cap-end"
+    ]
+  },
+  "rule-inset-end": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-end",
+      "column-rule-inset-junction-end",
+      "row-rule-inset-cap-end",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "rule-inset-junction": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-junction-start",
+      "column-rule-inset-junction-end",
+      "row-rule-inset-junction-start",
+      "row-rule-inset-junction-end"
+    ]
+  },
+  "rule-inset-start": {
+    "initial": "0",
+    "longhands": [
+      "column-rule-inset-cap-start",
+      "column-rule-inset-junction-start",
+      "row-rule-inset-cap-start",
+      "row-rule-inset-junction-start"
+    ]
+  },
+  "rule-overlap": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "row-over-column",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "row-over-column",
+      "column-over-row"
+    ]
+  },
+  "rule-style": {
+    "initial": "none",
+    "longhands": [
+      "column-rule-style",
+      "row-rule-style"
+    ]
+  },
+  "rule-visibility-items": {
+    "initial": "normal",
+    "longhands": [
+      "column-rule-visibility-items",
+      "row-rule-visibility-items"
+    ]
+  },
+  "rule-width": {
+    "initial": "medium",
+    "longhands": [
+      "column-rule-width",
+      "row-rule-width"
+    ]
   },
   "rx": {
     "style-group": "SVGResetValues",
