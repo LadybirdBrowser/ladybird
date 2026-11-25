@@ -1233,7 +1233,6 @@ pub(crate) struct LayoutNodeArena {
     /// plan that follows it. A full layout pass covers every one of them, so its commit clears
     /// them.
     pending_rebuilt_subtree_roots: Vec<NodeSlotId>,
-    pending_layout_tree_update_escaped_rebuild_roots: bool,
     /// Every box must be recreated by the next layout tree build; set when the tree is torn down
     /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
     needs_full_layout_tree_update: bool,
@@ -1392,7 +1391,6 @@ impl LayoutNodeArena {
             active_layout_pass_depth: 0,
             layout_root: (NodeSlotId::INVALID),
             pending_rebuilt_subtree_roots: Vec::new(),
-            pending_layout_tree_update_escaped_rebuild_roots: false,
             needs_full_layout_tree_update: (false),
             forces_parallel_layout: false,
             layout_commit_count: 0,
@@ -1743,7 +1741,6 @@ impl LayoutNodeArena {
         if self.layout_root == root {
             self.layout_root = NodeSlotId::INVALID;
             self.pending_rebuilt_subtree_roots.clear();
-            self.pending_layout_tree_update_escaped_rebuild_roots = false;
             let overflow = &mut self.scrollable_overflow;
             overflow.recalculation_requests.clear();
             overflow.scroll_offset_clamp_candidates.clear();
@@ -3442,20 +3439,12 @@ impl LayoutNodeArena {
         self.layout_tree_update_marks().need_build()
     }
 
-    pub(crate) fn set_pending_rebuilt_subtree_roots(
-        &mut self,
-        roots: Vec<NodeSlotId>,
-        layout_tree_update_escaped_rebuild_roots: bool,
-    ) {
+    pub(crate) fn set_pending_rebuilt_subtree_roots(&mut self, roots: Vec<NodeSlotId>) {
         self.pending_rebuilt_subtree_roots = roots;
-        self.pending_layout_tree_update_escaped_rebuild_roots = layout_tree_update_escaped_rebuild_roots;
     }
 
-    pub(crate) fn take_pending_rebuilt_subtree_roots(&mut self) -> (Vec<NodeSlotId>, bool) {
-        (
-            std::mem::take(&mut self.pending_rebuilt_subtree_roots),
-            std::mem::replace(&mut self.pending_layout_tree_update_escaped_rebuild_roots, false),
-        )
+    pub(crate) fn take_pending_rebuilt_subtree_roots(&mut self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut self.pending_rebuilt_subtree_roots)
     }
 
     /// The DOM nodes the subtrees the last build rebuilt and left live stand for. An anonymous root stands for none.
@@ -3469,7 +3458,6 @@ impl LayoutNodeArena {
 
     pub(crate) fn clear_pending_rebuilt_subtree_roots(&mut self) {
         self.pending_rebuilt_subtree_roots.clear();
-        self.pending_layout_tree_update_escaped_rebuild_roots = false;
     }
 
     pub(crate) fn needs_full_layout_tree_update(&self) -> bool {
@@ -7484,21 +7472,21 @@ mod tests {
         let viewport = arena.allocate_unbound();
         let rebuilt = arena.allocate_unbound();
         arena.set_layout_root(viewport);
-        arena.set_pending_rebuilt_subtree_roots(vec![rebuilt], true);
+        arena.set_pending_rebuilt_subtree_roots(vec![rebuilt]);
         assert_eq!(arena.layout_root(), viewport);
 
         arena
             .free_subtree(rebuilt)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert_eq!(arena.layout_root(), viewport);
-        assert_eq!(arena.take_pending_rebuilt_subtree_roots(), (vec![rebuilt], true));
+        assert_eq!(arena.take_pending_rebuilt_subtree_roots(), vec![rebuilt]);
 
-        arena.set_pending_rebuilt_subtree_roots(vec![viewport], false);
+        arena.set_pending_rebuilt_subtree_roots(vec![viewport]);
         arena
             .free_subtree(viewport)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.layout_root().is_invalid());
-        assert_eq!(arena.take_pending_rebuilt_subtree_roots(), (Vec::new(), false));
+        assert_eq!(arena.take_pending_rebuilt_subtree_roots(), Vec::new());
     }
 
     #[test]
