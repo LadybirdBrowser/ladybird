@@ -69,7 +69,6 @@ impl ContextState {
                 visual_viewport_scale: Some(transform.matrix.elements[0][0]),
                 applied_scroll_request_id: 0,
                 user_input_scroll_count: 0,
-                context_user_input_scroll_count: 0,
             };
             self.store_pending_async_scroll_offsets(&[scroll_offset], None);
         }
@@ -531,7 +530,6 @@ impl ContextState {
                         visual_viewport_scale: None,
                         applied_scroll_request_id: 0,
                         user_input_scroll_count: 0,
-                        context_user_input_scroll_count: 0,
                     });
                 };
             // A request aborts the box's smooth scroll, unless it heads that very scroll somewhere else.
@@ -832,7 +830,6 @@ impl ContextState {
             visual_viewport_scale: Some(scale),
             applied_scroll_request_id: 0,
             user_input_scroll_count: 0,
-            context_user_input_scroll_count: 0,
         });
     }
 
@@ -873,7 +870,6 @@ impl ContextState {
             visual_viewport_scale: Some(transform.matrix.elements[0][0]),
             applied_scroll_request_id: 0,
             user_input_scroll_count: 0,
-            context_user_input_scroll_count: 0,
         });
         new_scroll_offset != old_scroll_offset
     }
@@ -1057,7 +1053,6 @@ impl ContextState {
                     visual_viewport_scale: None,
                     applied_scroll_request_id: 0,
                     user_input_scroll_count: 0,
-                    context_user_input_scroll_count: 0,
                 });
                 changed_scroll_offset = true;
                 if self.async_scroll_tree.scroll_node_is_viewport(scroll_node_index) {
@@ -1342,6 +1337,23 @@ mod tests {
             MonotonicTime::default(),
         ));
         assert_eq!(test.offset(), FloatPoint::default());
+    }
+
+    #[test]
+    fn user_input_that_moves_no_box_still_publishes_the_context_user_input_scroll_count() {
+        let mut test = WheelTest::new(AsyncScrollNodeKind::Element);
+        assert!(!test.context.has_pending_async_scroll_updates());
+
+        test.context.note_user_input_scrolled(AsyncScrollNodeStableID {
+            node_id: UniqueNodeId(1),
+            kind: AsyncScrollNodeKind::Element,
+            pseudo_element_type: 0,
+        });
+        assert!(test.context.has_pending_async_scroll_updates());
+        let updates = test.context.take_pending_async_scroll_updates();
+        assert!(updates.scroll_offsets.is_empty());
+        assert_eq!(updates.context_user_input_scroll_count, 1);
+        assert!(!test.context.has_pending_async_scroll_updates());
     }
 
     #[test]

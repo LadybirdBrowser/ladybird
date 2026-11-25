@@ -649,6 +649,7 @@ Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_
     updates.boxes_in_user_scroll_gesture = pending->boxes_in_user_scroll_gesture;
     updates.boxes_whose_user_scroll_gesture_ended = move(pending->boxes_whose_user_scroll_gesture_ended);
     updates.wheel_latched_scroller = pending->wheel_latched_scroller;
+    updates.context_user_input_scroll_count = pending->context_user_input_scroll_count;
     // Whether a gesture is in progress is a state the compositor process keeps current; the rest
     // was consumed here.
     pending->scroll_offsets.clear();
@@ -671,6 +672,7 @@ void CompositorConnection::merge_async_scroll_updates(Web::CompositorContextId c
     // Whether a gesture is in progress is a state, not an event: the newest publication decides it.
     bool const is_newest = updates.sequence >= pending.sequence;
     pending.sequence = max(pending.sequence, updates.sequence);
+    pending.context_user_input_scroll_count = max(pending.context_user_input_scroll_count, updates.context_user_input_scroll_count);
     for (auto const& scroll_offset : updates.scroll_offsets) {
         auto existing = pending.scroll_offsets.find_if([&](auto const& existing) { return existing.stable_node_id == scroll_offset.stable_node_id; });
         if (existing != pending.scroll_offsets.end()) {

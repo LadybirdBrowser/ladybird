@@ -456,7 +456,6 @@ impl ContextState {
                 visual_viewport_scale: Some(scale),
                 applied_scroll_request_id: 0,
                 user_input_scroll_count: 0,
-                context_user_input_scroll_count: 0,
             },
             consumed_delta,
         })
@@ -528,7 +527,6 @@ impl ContextState {
                     visual_viewport_scale: None,
                     applied_scroll_request_id: 0,
                     user_input_scroll_count: 0,
-                    context_user_input_scroll_count: 0,
                 });
             }
         }
@@ -563,7 +561,6 @@ impl ContextState {
                 .get(&scroll_offset.stable_node_id)
                 .copied()
                 .unwrap_or(0);
-            scroll_offset.context_user_input_scroll_count = self.context_user_input_scroll_count;
             stamped_scroll_offsets.push(scroll_offset);
         }
         self.async_scroll_update_outbox
