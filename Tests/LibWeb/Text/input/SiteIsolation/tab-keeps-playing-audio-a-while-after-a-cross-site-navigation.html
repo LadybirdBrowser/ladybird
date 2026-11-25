@@ -14,6 +14,7 @@
 
         // The popup's document plays audio in another process, and says so once its tab is heard.
         const crossSiteUrl = new URL(await echo("tab-keeps-playing-audio-cross-site", `
+            internals.grantTransientActivation();
             const context = new AudioContext();
             const oscillator = new OscillatorNode(context);
             oscillator.connect(context.destination);
