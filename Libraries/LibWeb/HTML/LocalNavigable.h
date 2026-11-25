@@ -533,7 +533,7 @@ private:
     };
     PerformedScroll perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, ScrollOfScrollingBox const&);
     PerformedScroll perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind, Compositing::ScrollAnimationKind, InstantScrollRequester);
-    bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset);
+    bool adopt_compositor_visual_viewport_scale(Optional<float> scale);
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
     GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Optional<CSSPixelPoint> relative_displacement, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
