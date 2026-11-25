@@ -10,13 +10,13 @@ endpoint CompositorControlServer
 {
     set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation) =|
 
-    set_window_server_may_show_high_dynamic_range(bool may_show) =|
+    [RustReceiver] set_window_server_may_show_high_dynamic_range(bool may_show) =|
 
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
     connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle handle) =|
     connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle handle) =|
     create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid) => (IPC::TransportHandle handle, u64 presentation_id)
-    bind_presentation(Web::CompositorContextId context_id, u64 presentation_id) => ()
+    [RustReceiver] bind_presentation(Web::CompositorContextId context_id, u64 presentation_id) => ()
     // The host handle's kind is None where the presentation has no remote layers.
     [RustReceiver] create_remote_layer(u64 presentation_id, u64 remote_layer_id) => (Compositing::RemoteLayerHostHandle host_handle)
     [RustReceiver] destroy_remote_layer(u64 remote_layer_id) =|
@@ -28,12 +28,12 @@ endpoint CompositorControlServer
 
     create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 
-    viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
+    [RustReceiver] viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
     set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays) =|
-    set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
+    [RustReceiver] set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
     set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility) =|
-    set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory) =|
-    set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit) =|
+    [RustReceiver] set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory) =|
+    [RustReceiver] set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit) =|
     crash() =|
 }

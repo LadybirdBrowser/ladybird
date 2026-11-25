@@ -172,14 +172,6 @@ void CompositorState::unregister_presentation(CompositorStateClient& presentatio
     m_presentations_by_id.remove(presentation.presentation_id());
 }
 
-void CompositorState::bind_presentation(Web::CompositorContextId context_id, CompositorStateClient& presentation)
-{
-    VERIFY(presentation_if_present(presentation.presentation_id()) == &presentation);
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.bind_presentation(context_id, presentation.presentation_id());
-}
-
 CompositorStateClient* CompositorState::presentation_for_context(Web::CompositorContextId context_id) const
 {
     auto presentation_id = m_core.bound_presentation(context_id);
@@ -740,17 +732,6 @@ void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compo
     m_core.set_ui_overlays(context_id, overlays);
 }
 
-void CompositorState::set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-
-    VERIFY(refresh_rate == refresh_rate);
-    VERIFY(refresh_rate > 0);
-    VERIFY(refresh_rate < AK::Infinity<double>);
-    m_core.set_display_metadata(context_id, display_id, refresh_rate);
-}
-
 void CompositorState::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     if (!presented_context_if_present(context_id))
@@ -759,25 +740,6 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
     // An image that was hidden finds its place by the clock again.
     if (m_core.set_visibility(context_id, visibility))
         schedule_animated_image_update({});
-}
-
-void CompositorState::set_window_server_may_show_high_dynamic_range(bool may_show)
-{
-    m_core.set_window_server_may_show_high_dynamic_range(may_show);
-}
-
-void CompositorState::set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.set_presents_from_cpu_memory(context_id, presents_from_cpu_memory);
-}
-
-void CompositorState::set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
-{
-    if (!presented_context_if_present(context_id))
-        return;
-    m_core.set_scales_frames_to_fit(context_id, scales_frames_to_fit);
 }
 
 void CompositorState::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)

@@ -5,7 +5,6 @@
  */
 
 #include <AK/IDAllocator.h>
-#include <AK/Math.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/ConnectionFromPresentation.h>
 #include <Compositor/ConnectionFromWebContent.h>
@@ -80,16 +79,6 @@ Messages::CompositorControlServer::CreatePresentationConnectionResponse Connecti
     return { move(paired_transport.remote_handle), presentation_id };
 }
 
-void ConnectionFromClient::bind_presentation(Web::CompositorContextId context_id, u64 presentation_id)
-{
-    auto connection = m_presentation_connections.get(presentation_id);
-    if (!connection.has_value()) {
-        dbgln("Compositor: Ignoring binding of context {} to presentation {}, which is already gone", context_id, presentation_id);
-        return;
-    }
-    m_compositor_state->bind_presentation(context_id, **connection);
-}
-
 ErrorOr<OwnPtr<IPC::MessageBuffer>> ConnectionFromClient::handle_raw(IPC::RawMessage& message)
 {
     auto outcome = m_compositor_state->handle_message_from_control(message);
@@ -111,38 +100,14 @@ void ConnectionFromClient::create_context(Web::CompositorContextId context_id, O
     m_compositor_state->create_context(context_id, page_id, *connection);
 }
 
-void ConnectionFromClient::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
-{
-    if (!isfinite(device_pixel_ratio) || device_pixel_ratio <= 0) {
-        did_misbehave("Invalid device pixel ratio");
-        return;
-    }
-    m_compositor_state->viewport_size_updated(context_id, viewport_size, device_pixel_ratio, window_resize_in_progress);
-}
-
 void ConnectionFromClient::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
 {
     m_compositor_state->set_ui_overlays(context_id, move(overlays));
 }
 
-void ConnectionFromClient::set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
-{
-    m_compositor_state->set_display_metadata(context_id, display_id, refresh_rate);
-}
-
 void ConnectionFromClient::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     m_compositor_state->set_context_visibility(context_id, visibility);
-}
-
-void ConnectionFromClient::set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)
-{
-    m_compositor_state->set_context_presents_from_cpu_memory(context_id, presents_from_cpu_memory);
-}
-
-void ConnectionFromClient::set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
-{
-    m_compositor_state->set_context_scales_frames_to_fit(context_id, scales_frames_to_fit);
 }
 
 void ConnectionFromClient::crash()
