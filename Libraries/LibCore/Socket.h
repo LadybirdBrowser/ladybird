@@ -330,7 +330,6 @@ public:
             notifier->set_enabled(enabled);
     }
 
-    ErrorOr<Bytes> receive_message(Bytes buffer, int flags, Vector<int>& fds);
     ErrorOr<size_t> send_message(ReadonlyBytes msg, int flags, Vector<int, 1> fds = {});
 
     ErrorOr<pid_t> peer_pid() const;

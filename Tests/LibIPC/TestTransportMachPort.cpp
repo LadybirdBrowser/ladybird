@@ -14,14 +14,14 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/Message.h>
+#include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
-static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::TransportHandle const& handle)
+static void post_transport_handle(IPC::Transport& carrier, IPC::TransportHandle const& handle)
 {
     IPC::MessageBuffer buffer;
     IPC::Encoder encoder(buffer);
@@ -31,11 +31,11 @@ static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::Transpor
     carrier.flush();
 }
 
-static OwnPtr<IPC::TransportMachPort> receive_transport(IPC::TransportMachPort& carrier)
+static OwnPtr<IPC::Transport> receive_transport(IPC::Transport& carrier)
 {
-    OwnPtr<IPC::TransportMachPort> transport;
+    OwnPtr<IPC::Transport> transport;
     carrier.wait_until_readable();
-    (void)carrier.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+    (void)carrier.read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
         FixedMemoryStream stream { message.bytes.bytes() };
         IPC::Decoder decoder { stream, message.attachments };
         transport = MUST(MUST(decoder.decode<IPC::TransportHandle>()).create_transport());
@@ -43,13 +43,13 @@ static OwnPtr<IPC::TransportMachPort> receive_transport(IPC::TransportMachPort& 
     return transport;
 }
 
-static size_t read_until_eof(IPC::TransportMachPort& transport, u8 expected_byte)
+static size_t read_until_eof(IPC::Transport& transport, u8 expected_byte)
 {
     size_t received = 0;
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (should_shutdown == IPC::Transport::ShouldShutdown::No) {
         transport.wait_until_readable();
-        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             auto bytes = message.bytes.bytes();
             EXPECT_EQ(bytes.size(), 1uz);
             if (bytes.size() == 1)
@@ -73,7 +73,7 @@ TEST_CASE(a_transport_without_a_free_file_descriptor_is_not_made)
     auto exhausted_limit = original_limit;
     exhausted_limit.rlim_cur = static_cast<rlim_t>(lowest_free_descriptor);
     VERIFY(setrlimit(RLIMIT_NOFILE, &exhausted_limit) == 0);
-    auto transport = IPC::TransportMachPort::create(move(receive_right), move(send_right));
+    auto transport = IPC::Transport::create(move(receive_right), move(send_right));
     VERIFY(setrlimit(RLIMIT_NOFILE, &original_limit) == 0);
 
     EXPECT(transport.is_error());
@@ -81,7 +81,7 @@ TEST_CASE(a_transport_without_a_free_file_descriptor_is_not_made)
 
 TEST_CASE(receive_barrier_publishes_preceding_messages)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     for (size_t i = 0; i < 32; ++i) {
@@ -93,7 +93,7 @@ TEST_CASE(receive_barrier_publishes_preceding_messages)
         peer->wait_until_incoming_is_current();
 
         size_t received = 0;
-        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             EXPECT_EQ(message.bytes.bytes()[0], static_cast<u8>(i));
             ++received;
         });
@@ -102,18 +102,18 @@ TEST_CASE(receive_barrier_publishes_preceding_messages)
 
     // A barrier with no preceding messages must also complete.
     peer->wait_until_incoming_is_current();
-    OwnPtr<IPC::TransportMachPort> sender = move(paired.local);
+    OwnPtr<IPC::Transport> sender = move(paired.local);
     sender.clear();
     peer->wait_until_readable();
     EXPECT_EQ(peer->read_as_many_messages_as_possible_without_blocking([](auto&&) { }),
-        IPC::TransportMachPort::ShouldShutdown::Yes);
+        IPC::Transport::ShouldShutdown::Yes);
 }
 
 TEST_CASE(burst_to_not_yet_started_peer_is_delivered)
 {
     constexpr size_t message_count = 32;
 
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
 
     for (size_t i = 0; i < message_count; ++i) {
         IPC::MessageDataType payload;
@@ -130,7 +130,7 @@ TEST_CASE(burst_to_not_yet_started_peer_is_delivered)
     size_t received = 0;
     while (received < message_count) {
         peer_transport->wait_until_readable();
-        (void)peer_transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        (void)peer_transport->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             auto bytes = message.bytes.bytes();
             EXPECT_EQ(bytes.size(), 1uz);
             if (bytes.size() == 1)
@@ -144,8 +144,8 @@ TEST_CASE(burst_to_not_yet_started_peer_is_delivered)
 
 TEST_CASE(endpoint_whose_peer_closed_in_flight_reads_what_was_sent_then_eof)
 {
-    auto carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
-    auto channel = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto carrier = TRY_OR_FAIL(IPC::Transport::create_paired());
+    auto channel = TRY_OR_FAIL(IPC::Transport::create_paired());
 
     IPC::MessageDataType payload;
     payload.append(42);
@@ -157,7 +157,7 @@ TEST_CASE(endpoint_whose_peer_closed_in_flight_reads_what_was_sent_then_eof)
     // Close the channel's local end while its other end is still queued on the carrier, so the send right in that
     // message names a dead port by the time the carrier's peer receives it.
     channel.local->close_after_sending_all_pending_messages();
-    OwnPtr<IPC::TransportMachPort> closed_end = move(channel.local);
+    OwnPtr<IPC::Transport> closed_end = move(channel.local);
     closed_end.clear();
 
     auto carrier_peer = TRY_OR_FAIL(carrier.remote_handle.create_transport());
@@ -171,13 +171,13 @@ TEST_CASE(endpoint_whose_peer_closed_in_flight_reads_what_was_sent_then_eof)
 
 TEST_CASE(endpoint_whose_peer_closed_can_be_transferred_again)
 {
-    auto first_carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
-    auto second_carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
-    auto channel = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto first_carrier = TRY_OR_FAIL(IPC::Transport::create_paired());
+    auto second_carrier = TRY_OR_FAIL(IPC::Transport::create_paired());
+    auto channel = TRY_OR_FAIL(IPC::Transport::create_paired());
 
     post_transport_handle(*first_carrier.local, channel.remote_handle);
 
-    OwnPtr<IPC::TransportMachPort> closed_end = move(channel.local);
+    OwnPtr<IPC::Transport> closed_end = move(channel.local);
     closed_end.clear();
 
     auto first_carrier_peer = TRY_OR_FAIL(first_carrier.remote_handle.create_transport());
@@ -200,7 +200,7 @@ TEST_CASE(endpoint_whose_peer_closed_can_be_transferred_again)
 
 TEST_CASE(explicit_close_notifies_peer_while_sender_is_alive)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
     paired.local->close();
     EXPECT_EQ(read_until_eof(*peer, 0), 0uz);
@@ -208,7 +208,7 @@ TEST_CASE(explicit_close_notifies_peer_while_sender_is_alive)
 
 TEST_CASE(close_after_sending_delivers_queued_messages_then_eof)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     for (size_t i = 0; i < 32; ++i) {
         IPC::MessageDataType payload;
         payload.append(42);
@@ -222,7 +222,7 @@ TEST_CASE(close_after_sending_delivers_queued_messages_then_eof)
 
 TEST_CASE(eof_during_read_callback_preserves_pending_messages)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     IPC::MessageDataType payload;
@@ -245,7 +245,7 @@ TEST_CASE(eof_during_read_callback_preserves_pending_messages)
         peer->wait_until_incoming_is_current();
     });
     EXPECT_EQ(received, 1uz);
-    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+    EXPECT_EQ(should_shutdown, IPC::Transport::ShouldShutdown::No);
     EXPECT_EQ(read_until_eof(*peer, 43), 1uz);
 }
 
@@ -260,7 +260,7 @@ static Vector<IPC::Attachment> make_attachments(size_t count)
 
 TEST_CASE(message_with_the_maximum_number_of_attachments_arrives_whole)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     IPC::MessageDataType payload;
@@ -271,7 +271,7 @@ TEST_CASE(message_with_the_maximum_number_of_attachments_arrives_whole)
     peer->wait_until_incoming_is_current();
 
     size_t received = 0;
-    auto should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+    auto should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
         ++received;
         EXPECT_EQ(message.bytes.bytes().size(), 1uz);
         EXPECT_EQ(message.attachments.size(), IPC::MAX_MESSAGE_FD_COUNT);
@@ -281,12 +281,12 @@ TEST_CASE(message_with_the_maximum_number_of_attachments_arrives_whole)
             MUST(Core::System::close(fd));
     });
     EXPECT_EQ(received, 1uz);
-    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+    EXPECT_EQ(should_shutdown, IPC::Transport::ShouldShutdown::No);
 }
 
 TEST_CASE(message_with_too_many_attachments_disconnects_the_peer)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     IPC::MessageDataType payload;
@@ -296,8 +296,8 @@ TEST_CASE(message_with_too_many_attachments_disconnects_the_peer)
     paired.local->flush();
 
     size_t received = 0;
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (should_shutdown == IPC::Transport::ShouldShutdown::No) {
         peer->wait_until_readable();
         should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](auto&&) { ++received; });
     }
@@ -309,7 +309,7 @@ TEST_CASE(message_with_too_many_attachments_disconnects_the_peer)
 // blocks in a send can't drain its own queue, so two of them facing each other would wait on each other for good.
 TEST_CASE(a_flood_in_both_directions_does_not_deadlock)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     // Well past MACH_PORT_QLIMIT_LARGE (1024) in each direction.
@@ -330,14 +330,14 @@ TEST_CASE(a_flood_in_both_directions_does_not_deadlock)
     while (received_by_peer < message_count || received_by_local < message_count) {
         if (received_by_peer < message_count) {
             peer->wait_until_readable();
-            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
                 EXPECT_EQ(message.bytes.bytes()[0], 1u);
                 ++received_by_peer;
             });
         }
         if (received_by_local < message_count) {
             paired.local->wait_until_readable();
-            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
                 EXPECT_EQ(message.bytes.bytes()[0], 2u);
                 ++received_by_local;
             });
@@ -352,7 +352,7 @@ TEST_CASE(a_flood_in_both_directions_does_not_deadlock)
 // destination. Every one of them has to be released again, or the peer never hears that its last sender has gone.
 TEST_CASE(closing_after_timed_out_sends_still_reaches_the_peer_as_eof)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     // Well past MACH_PORT_QLIMIT_LARGE (1024) while the peer reads nothing, so most of these time out at least once;
@@ -370,32 +370,32 @@ TEST_CASE(closing_after_timed_out_sends_still_reaches_the_peer_as_eof)
     size_t received = 0;
     while (received < message_count) {
         peer->wait_until_readable();
-        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             EXPECT_EQ(message.bytes.bytes()[0], 7u);
             ++received;
         });
     }
     EXPECT_EQ(received, message_count);
 
-    OwnPtr<IPC::TransportMachPort> closed_end = move(paired.local);
+    OwnPtr<IPC::Transport> closed_end = move(paired.local);
     closed_end.clear();
 
     // Polled, rather than waited for, so a leaked right fails the test instead of hanging it.
     auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No && MonotonicTime::now() < deadline) {
-        should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&&) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (should_shutdown == IPC::Transport::ShouldShutdown::No && MonotonicTime::now() < deadline) {
+        should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&&) {
             FAIL("nothing else was sent");
         });
-        if (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No)
+        if (should_shutdown == IPC::Transport::ShouldShutdown::No)
             usleep(10'000);
     }
-    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::Yes);
+    EXPECT_EQ(should_shutdown, IPC::Transport::ShouldShutdown::Yes);
 }
 
 TEST_CASE(a_flood_of_out_of_line_messages_in_both_directions_does_not_deadlock)
 {
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
 
     constexpr size_t message_count = 2048;
@@ -418,7 +418,7 @@ TEST_CASE(a_flood_of_out_of_line_messages_in_both_directions_does_not_deadlock)
     while (received_by_peer < message_count || received_by_local < message_count) {
         if (received_by_peer < message_count) {
             peer->wait_until_readable();
-            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
                 EXPECT_EQ(message.bytes.bytes().size(), payload_size);
                 EXPECT_EQ(message.bytes.bytes()[0], 1u);
                 ++received_by_peer;
@@ -426,7 +426,7 @@ TEST_CASE(a_flood_of_out_of_line_messages_in_both_directions_does_not_deadlock)
         }
         if (received_by_local < message_count) {
             paired.local->wait_until_readable();
-            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            (void)paired.local->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
                 EXPECT_EQ(message.bytes.bytes().size(), payload_size);
                 EXPECT_EQ(message.bytes.bytes()[0], 2u);
                 ++received_by_local;
@@ -491,7 +491,7 @@ static constexpr mach_msg_id_t IPC_INLINE_DATA_MESSAGE_ID = 0x4950C002;
 
 // A transport that this test also holds a send right to, so it can send it raw Mach messages.
 struct TransportWithRawSender {
-    NonnullOwnPtr<IPC::TransportMachPort> transport;
+    NonnullOwnPtr<IPC::Transport> transport;
     Core::MachPort send_right;
     Core::MachPort transport_peer_receive_right;
 };
@@ -502,7 +502,7 @@ static TransportWithRawSender make_transport_with_raw_sender()
     auto send_right = MUST(receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
     auto peer_receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
     auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
-    auto transport = MUST(IPC::TransportMachPort::create(move(receive_right), move(send_right_to_peer)));
+    auto transport = MUST(IPC::Transport::create(move(receive_right), move(send_right_to_peer)));
     return { move(transport), move(send_right), move(peer_receive_right) };
 }
 
@@ -556,11 +556,11 @@ static void send_raw_message(Core::MachPort const& destination, mach_msg_id_t id
     VERIFY(result == KERN_SUCCESS);
 }
 
-static void expect_disconnected_without_a_message(IPC::TransportMachPort& transport)
+static void expect_disconnected_without_a_message(IPC::Transport& transport)
 {
     size_t received = 0;
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (should_shutdown == IPC::Transport::ShouldShutdown::No) {
         transport.wait_until_readable();
         should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](auto&&) { ++received; });
     }
@@ -579,14 +579,14 @@ TEST_CASE(raw_message_built_like_the_transport_builds_one_arrives)
 
     size_t received = 0;
     raw.transport->wait_until_readable();
-    auto should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+    auto should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
         ++received;
         EXPECT_EQ(message.bytes.bytes().size(), 1uz);
         EXPECT_EQ(message.bytes.bytes()[0], 42u);
         EXPECT_EQ(message.attachments.size(), 1uz);
     });
     EXPECT_EQ(received, 1uz);
-    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+    EXPECT_EQ(should_shutdown, IPC::Transport::ShouldShutdown::No);
 }
 
 TEST_CASE(message_with_an_unknown_id_disconnects_the_peer)
@@ -676,7 +676,7 @@ TEST_CASE(transport_handle_whose_receive_right_was_sent_dead_is_a_decode_error)
 
     size_t received = 0;
     raw.transport->wait_until_readable();
-    (void)raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+    (void)raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
         ++received;
         FixedMemoryStream stream { message.bytes.bytes() };
         IPC::Decoder decoder { stream, message.attachments };
@@ -697,17 +697,17 @@ TEST_CASE(nothing_after_a_malformed_message_arrives)
     }
 
     Vector<u8> received;
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (should_shutdown == IPC::Transport::ShouldShutdown::No) {
         raw.transport->wait_until_readable();
-        should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             received.append(message.bytes.bytes()[0]);
         });
     }
     EXPECT_EQ(received, (Vector<u8> { 1 }));
 }
 
-static void post_byte_moving_a_send_right_to(IPC::TransportMachPort& transport, Core::MachPort& port, u8 value)
+static void post_byte_moving_a_send_right_to(IPC::Transport& transport, Core::MachPort& port, u8 value)
 {
     IPC::MessageDataType payload;
     payload.append(value);
@@ -791,7 +791,7 @@ TEST_CASE(transport_whose_peer_queue_is_full_of_messages_with_rights_can_be_dest
     constexpr size_t message_count = 64;
     for (size_t i = 0; i < message_count; ++i)
         post_byte_moving_a_send_right_to(*raw.transport, attached_port, static_cast<u8>(i));
-    OwnPtr<IPC::TransportMachPort> transport = move(raw.transport);
+    OwnPtr<IPC::Transport> transport = move(raw.transport);
     transport.clear();
 
     // The messages that reached the peer carry their rights, and the rights of the rest went with the transport.
@@ -803,7 +803,7 @@ TEST_CASE(transport_whose_peer_queue_is_full_of_messages_with_rights_can_be_dest
     release_send_rights(attached_port, received);
 }
 
-static void post_byte(IPC::TransportMachPort& transport, u8 value)
+static void post_byte(IPC::Transport& transport, u8 value)
 {
     IPC::MessageDataType payload;
     payload.append(value);
@@ -813,21 +813,21 @@ static void post_byte(IPC::TransportMachPort& transport, u8 value)
 
 // Reads the first byte of every message until there are at least `count`, the peer is gone, or the deadline passes, so
 // that missing messages fail a test rather than hang it.
-static Vector<u8> read_bytes(IPC::TransportMachPort& transport, size_t count)
+static Vector<u8> read_bytes(IPC::Transport& transport, size_t count)
 {
     Vector<u8> received;
     auto const deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
-    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
-    while (received.size() < count && should_shutdown == IPC::TransportMachPort::ShouldShutdown::No && MonotonicTime::now() < deadline) {
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (received.size() < count && should_shutdown == IPC::Transport::ShouldShutdown::No && MonotonicTime::now() < deadline) {
         transport.wait_until_readable(deadline);
-        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
             received.append(message.bytes.bytes()[0]);
         });
     }
     return received;
 }
 
-static Optional<u8> read_one_byte(IPC::TransportMachPort& transport)
+static Optional<u8> read_one_byte(IPC::Transport& transport)
 {
     auto received = read_bytes(transport, 1);
     EXPECT_EQ(received.size(), 1uz);
@@ -837,12 +837,12 @@ static Optional<u8> read_one_byte(IPC::TransportMachPort& transport)
 }
 
 // Waits until the peer is gone, or the deadline passes, so that a missing EOF fails a test rather than hang it.
-static bool sees_peer_go_away(IPC::TransportMachPort& transport)
+static bool sees_peer_go_away(IPC::Transport& transport)
 {
     auto const deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
     while (MonotonicTime::now() < deadline) {
         transport.wait_until_readable(deadline);
-        if (transport.read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::TransportMachPort::ShouldShutdown::Yes)
+        if (transport.read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::Transport::ShouldShutdown::Yes)
             return true;
     }
     return false;
@@ -851,10 +851,10 @@ static bool sees_peer_go_away(IPC::TransportMachPort& transport)
 // All transports of a process do their IO on one thread, which has to keep each of them to itself.
 TEST_CASE(transports_that_share_the_io_thread_work_alone)
 {
-    Vector<NonnullOwnPtr<IPC::TransportMachPort>> local_ends;
-    Vector<NonnullOwnPtr<IPC::TransportMachPort>> remote_ends;
+    Vector<NonnullOwnPtr<IPC::Transport>> local_ends;
+    Vector<NonnullOwnPtr<IPC::Transport>> remote_ends;
     for (size_t i = 0; i < 8; ++i) {
-        auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+        auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
         local_ends.append(move(paired.local));
         remote_ends.append(TRY_OR_FAIL(paired.remote_handle.create_transport()));
     }
@@ -879,7 +879,7 @@ TEST_CASE(transports_that_share_the_io_thread_work_alone)
     post_byte(*local_ends[0], 42);
     auto handle = TRY_OR_FAIL(remote_ends[0]->release_for_transfer());
     Vector<u8> received;
-    (void)remote_ends[0]->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+    (void)remote_ends[0]->read_as_many_messages_as_possible_without_blocking([&](IPC::Transport::Message&& message) {
         received.append(message.bytes.bytes()[0]);
     });
     remote_ends.remove(0);
@@ -899,7 +899,7 @@ TEST_CASE(a_peer_that_stops_reading_does_not_hold_up_other_transports)
     for (size_t i = 0; i < stalled_message_count; ++i)
         post_byte_moving_a_send_right_to(*stalled.transport, attached_port, static_cast<u8>(i));
 
-    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto paired = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
     for (u8 i = 0; i < 16; ++i) {
         post_byte(*paired.local, i);
@@ -935,7 +935,7 @@ static Optional<u8> receive_raw_byte(Core::MachPort const& receive_right, mach_m
 TEST_CASE(a_backlog_longer_than_one_turn_of_sending_arrives_whole)
 {
     auto raw = make_transport_with_raw_sender();
-    IPC::TransportMachPort::raise_receive_queue_limit(raw.transport_peer_receive_right);
+    IPC::Transport::raise_receive_queue_limit(raw.transport_peer_receive_right);
 
     // MACH_PORT_QLIMIT_MAX (1024) messages fill the peer's queue, and the rest wait with the transport.
     constexpr size_t message_count = 1024 + 300;
@@ -961,7 +961,7 @@ TEST_CASE(transports_that_send_to_the_same_port_both_get_their_backlogs_through)
     auto make_transport_sending_to_peer = [&] {
         auto receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
         auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
-        return MUST(IPC::TransportMachPort::create(move(receive_right), move(send_right_to_peer)));
+        return MUST(IPC::Transport::create(move(receive_right), move(send_right_to_peer)));
     };
     auto first = make_transport_sending_to_peer();
     auto second = make_transport_sending_to_peer();

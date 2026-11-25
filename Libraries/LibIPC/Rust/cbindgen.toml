@@ -19,3 +19,7 @@ parse_deps = false
 
 [export.mangle]
 rename_types = "PascalCase"
+
+# NB: The header has the interface of every platform's transport, each behind what the compiler defines for it.
+[defines]
+"target_vendor = apple" = "__APPLE__"

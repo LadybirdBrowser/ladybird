@@ -29,8 +29,8 @@ pub mod attachment;
 pub mod cpp_connection;
 #[cfg(all(target_os = "macos", feature = "cpp_transport"))]
 pub mod cpp_mach_bootstrap;
-#[cfg(all(target_vendor = "apple", feature = "cpp_transport"))]
-pub mod cpp_mach_transport;
+#[cfg(all(unix, feature = "cpp_transport"))]
+pub mod cpp_transport;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod poller;
 mod receive_queue;

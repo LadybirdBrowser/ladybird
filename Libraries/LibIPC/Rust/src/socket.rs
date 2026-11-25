@@ -191,7 +191,7 @@ pub(crate) fn readable_byte_count(socket: RawFd) -> usize {
     usize::try_from(count).unwrap_or(0)
 }
 
-/// Asks for the buffer sizes the C++ transport has always used, which the kernel may round or cap. A socket that keeps
+/// Asks for the buffer sizes LibIPC's sockets have always used, which the kernel may round or cap. A socket that keeps
 /// its defaults still works.
 pub(crate) fn set_buffer_sizes(socket: RawFd, size: usize) {
     let size = libc::c_int::try_from(size).unwrap_or(libc::c_int::MAX);

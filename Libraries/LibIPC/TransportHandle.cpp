@@ -68,8 +68,8 @@ ErrorOr<TransportHandlePair> TransportHandle::create_pair()
     auto port_b_send_right = TRY(port_b_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
 
     // Either end may be written to before the other has constructed its transport.
-    TransportMachPort::raise_receive_queue_limit(port_a_receive_right);
-    TransportMachPort::raise_receive_queue_limit(port_b_receive_right);
+    Transport::raise_receive_queue_limit(port_a_receive_right);
+    Transport::raise_receive_queue_limit(port_b_receive_right);
 
     return TransportHandlePair {
         TransportHandle { move(port_a_receive_right), move(port_b_send_right) },

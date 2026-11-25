@@ -2310,6 +2310,8 @@ void SeccompPolicy::allow_ipc()
 {
     // LibIPC's Rust transports shut their socket down when they stop, so the peer sees them go at once.
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, shutdown);
+    // NB: The IO thread that every transport of a process shares waits on all of their sockets with epoll.
+    allow_epoll();
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, poll);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ppoll);

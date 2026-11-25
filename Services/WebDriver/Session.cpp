@@ -682,14 +682,6 @@ void Session::remove_window(StringView window_handle)
 
 ErrorOr<void> Session::create_server()
 {
-#if defined(AK_OS_WINDOWS)
-    static_assert(IsSame<IPC::Transport, IPC::TransportWindows>, "Need to handle other IPC transports here");
-#elif defined(AK_OS_MACOS)
-    static_assert(IsSame<IPC::Transport, IPC::TransportMachPort>, "Need to handle other IPC transports here");
-#else
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
-#endif
-
     dbgln("Listening for WebDriver connection on {}", m_browser_endpoint);
 
 #if defined(AK_OS_MACOS)

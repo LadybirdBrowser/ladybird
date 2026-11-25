@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // NB: Only LibIPC's copy of the crate, which C++ calls, has the C++ interface.
-    if env::var_os("CARGO_FEATURE_CPP_TRANSPORT").is_none() || env::var("CARGO_CFG_TARGET_VENDOR")? != "apple" {
+    if env::var_os("CARGO_FEATURE_CPP_TRANSPORT").is_none() || env::var_os("CARGO_CFG_UNIX").is_none() {
         return Ok(());
     }
 
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
 
-    let mut sources = vec!["src/cpp_mach_transport.rs"];
+    let mut sources = vec!["src/cpp_transport.rs"];
     // NB: The bootstrap of a helper's transport only exists on macOS.
     if env::var("CARGO_CFG_TARGET_OS")? == "macos" {
         sources.push("src/cpp_mach_bootstrap.rs");

@@ -40,8 +40,8 @@
 #    include <AK/AtomicRefCounted.h>
 #    include <LibCore/MachPort.h>
 #    include <LibIPC/MachBootstrapListener.h>
+#    include <LibIPC/Transport.h>
 #    include <LibIPC/TransportBootstrapMach.h>
-#    include <LibIPC/TransportMachPort.h>
 #    include <LibWebView/MediaSessionPlatformBackendMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
 #    include <mach/mach.h>
@@ -910,7 +910,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
 
         // The Hub may receive startup messages before it has constructed its transport.
-        IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
+        IPC::Transport::raise_receive_queue_limit(port_b_recv);
 
         auto transport = TRY(IPC::Transport::create(move(port_a_recv), move(port_b_send)));
 
@@ -931,9 +931,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         TRY(Core::Environment::unset("SOCKET_TAKEOVER"sv));
         TRY(Core::System::close(socket_fds[1]));
 
-        auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
-        TRY(ipc_socket->set_blocking(true));
-        auto transport = make<IPC::Transport>(move(ipc_socket));
+        auto transport = TRY(IPC::Transport::adopt_fd(socket_fds[0]));
 #    endif
         m_hub_connection = adopt_ref(*new HubConnection(move(transport)));
 
