@@ -68,7 +68,7 @@ impl WindowEventTimingState {
     pub(crate) fn create(vm: &Vm) -> WindowEventTimingStateRef {
         // NB: The user interaction value is initially set to a random integer between 100 and 10000.
         let mut random_bytes = [0u8; 8];
-        libcrypto_rust::fill_with_random(&mut random_bytes);
+        libcrypto_rust::fill_with_random(&mut random_bytes).expect("OpenSSL produces random bytes");
         let user_interaction_value = 100 + u64::from_ne_bytes(random_bytes) % 9901;
 
         WINDOW_EVENT_TIMING_STATE_CLASS.allocate(vm, |_| Self {
