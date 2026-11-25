@@ -212,6 +212,9 @@ impl AudioContext {
 
         // 11. If context is allowed to start, send a control message to start processing.
         if context.allowed_to_start() {
+            // AD-HOC: Record startup now so a source started before the statechange task cannot request it again.
+            context.context.set_control_state(AudioContextState::Running);
+
             // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
             // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
             //    rendering.
