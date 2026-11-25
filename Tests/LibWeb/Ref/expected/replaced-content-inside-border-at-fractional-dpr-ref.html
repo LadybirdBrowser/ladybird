@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: gray; }
+    .box { position: absolute; display: block; box-sizing: content-box; width: 18px; height: 18px; border: 1px solid white; background: black; }
+    .fit { position: absolute; display: block; width: 16px; height: 8px; border: 1px solid white; }
+    .frame { position: absolute; width: 16px; height: 16px; border: 1px solid white; }
+</style>
+<div class="box" style="left: 2px; top: 2px"></div>
+<div class="box" style="left: 30.5px; top: 2px"></div>
+<div class="box" style="left: 60.3px; top: 2.7px"></div>
+<div class="box" style="left: 90.6px; top: 2px"></div>
+<div class="box" style="left: 2px; top: 30.4px"></div>
+<div class="box" style="left: 30.5px; top: 30.5px"></div>
+<div class="box" style="left: 60.2px; top: 60.7px"></div>
+<div class="box" style="left: 90.8px; top: 60.3px"></div>
+<img class="fit" style="left: 2px; top: 98px; border-bottom: none" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<div class="frame" style="left: 2px; top: 98px"></div>
+<img class="fit" style="left: 30px; top: 102px; border-bottom: none" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<div class="frame" style="left: 30px; top: 102px"></div>
+<img class="fit" style="left: 58px; top: 109.203125px; border-top: none" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<div class="frame" style="left: 58px; top: 100.40625px"></div>
+<img class="fit" style="left: 86px; top: 113.203125px; border-top: none" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAAAAABawyK/AAAADklEQVR42mNgAIH/QAAACgAD/V5LqKcAAAAASUVORK5CYII=">
+<div class="frame" style="left: 86px; top: 104.40625px"></div>
+<script>
+    internals.setDevicePixelRatio(1.25);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/rounded-replaced-content-meets-its-border-at-fractional-dpr-ref.html">
+<meta name="fuzzy" content="maxDifference=0-64;totalPixels=0-80">
+<style>
+    body { margin: 0; background: red; }
+    img { position: absolute; display: block; width: 18px; height: 18px; border: 1px solid white; border-radius: 5px; }
+</style>
+<img style="left: 2px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img style="left: 30.5px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<script>
+    internals.setDevicePixelRatio(1.5);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: red; }
+    img { position: absolute; display: block; width: 18px; height: 18px; border: 1px solid white; border-radius: 5px; background: black; background-clip: padding-box; }
+</style>
+<img style="left: 2px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<img style="left: 30.5px; top: 2px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==">
+<script>
+    internals.setDevicePixelRatio(1.5);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
