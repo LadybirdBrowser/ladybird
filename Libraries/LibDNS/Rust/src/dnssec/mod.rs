@@ -474,12 +474,15 @@ impl Validator {
             ds: Vec::new(),
             expires,
         };
-        if has_excessive_nsec3_iterations(&verified) {
-            return remember(insecure_or_not_a_cut(DelegationKind::Insecure, expiry(received_at, 60)));
-        }
-
         let ttl = verified.iter().map(|rrset| rrset.ttl).min().unwrap_or(0);
         let expires = expiry(received_at, ttl);
+        // The policy holds for a minute at most, and no longer than the records it is about.
+        if has_excessive_nsec3_iterations(&verified) {
+            return remember(insecure_or_not_a_cut(
+                DelegationKind::Insecure,
+                expiry(received_at, ttl.min(60)),
+            ));
+        }
 
         let proofs = DenialProofs { rrsets: &verified };
         if proofs.proves_insecure_delegation(name) {
