@@ -14,8 +14,8 @@ use core::ffi::{c_int, c_void};
 use std::os::fd::{FromRawFd, OwnedFd};
 
 use crate::cpp_connection::RawAttachment;
-use crate::mach::{MachPort, OwnedPayload, PayloadBytes, PortRight};
-use crate::transport::{IncomingMessageObserver, MonotonicDeadline, OutgoingPayload, TransportMachPort};
+use crate::mach::{MachPort, PayloadBytes, PortRight};
+use crate::transport::{IncomingMessageObserver, MonotonicDeadline, OutgoingPayload, OwnedPayload, TransportMachPort};
 
 /// A transport, which C++ owns from `ipc_mach_transport_create()` to `ipc_mach_transport_destroy()`.
 pub struct MachTransport(TransportMachPort);
