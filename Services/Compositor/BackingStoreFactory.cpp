@@ -79,10 +79,14 @@ static Vector<u64> shared_backing_store_drm_format_modifiers(Gfx::VulkanContext 
         return { DRM_FORMAT_MOD_LINEAR };
 
     auto modifiers = Gfx::renderable_drm_format_modifiers(vulkan_context, VK_FORMAT_B8G8R8A8_UNORM);
-    // NB: The presentation can still show frames that it cannot import, after the view reads them back.
+    // NB: The presentation can still show frames that it cannot import, after the view reads them back. One that only
+    //     takes dma-bufs without a modifier, such as a compositor that draws with virgl in a virtual machine, reads them
+    //     as linear.
     auto const& importable_modifiers = presentation_drm_format_modifiers();
     if (any_of(modifiers, [&](u64 modifier) { return importable_modifiers.contains_slow(modifier); }))
         modifiers.remove_all_matching([&](u64 modifier) { return !importable_modifiers.contains_slow(modifier); });
+    else if (importable_modifiers.contains_slow(DRM_FORMAT_MOD_INVALID) && modifiers.contains_slow(DRM_FORMAT_MOD_LINEAR))
+        return { DRM_FORMAT_MOD_LINEAR };
     // NB: A linear layout is the slowest to paint into, so it is only used when there is nothing else.
     if (any_of(modifiers, [](u64 modifier) { return modifier != DRM_FORMAT_MOD_LINEAR; }))
         modifiers.remove_all_matching([](u64 modifier) { return modifier == DRM_FORMAT_MOD_LINEAR; });

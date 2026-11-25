@@ -484,6 +484,7 @@ private:
     void update_page_surface(PageSurfaceContent);
     void hide_page_surface();
     bool page_surface_can_show_frames() const;
+    void give_up_on_page_surface();
     void fall_back_from_page_surface();
     void destroy_page_surface();
     void release_retired_backing_stores_no_longer_painted();

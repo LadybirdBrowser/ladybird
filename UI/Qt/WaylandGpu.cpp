@@ -105,4 +105,16 @@ Optional<WaylandCompositorDevice> wayland_compositor_main_device()
     return WaylandCompositorDevice { .device = *feedback.main_device, .xrgb8888_modifiers = move(feedback.xrgb8888_modifiers) };
 }
 
+Optional<u64> wayland_modifier_for_layout(u64 modifier, ReadonlySpan<u64> importable_modifiers)
+{
+    // NB: A compositor that does not say what it can import may import anything.
+    if (importable_modifiers.is_empty() || importable_modifiers.contains_slow(modifier))
+        return modifier;
+    // NB: A compositor that only takes dma-bufs without a modifier, such as one that draws with virgl in a virtual
+    //     machine, reads them as linear.
+    if (modifier == DRM_FORMAT_MOD_LINEAR && importable_modifiers.contains_slow(DRM_FORMAT_MOD_INVALID))
+        return DRM_FORMAT_MOD_INVALID;
+    return {};
+}
+
 }
