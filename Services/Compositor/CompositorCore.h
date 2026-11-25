@@ -51,8 +51,6 @@ public:
     void register_presentation(PresentationId, PresentationCapabilities const&);
     // Leaves every context bound to the presentation unbound.
     void unregister_presentation(PresentationId);
-    void set_presentation_gpu_capability(PresentationId, bool supported, u64 adapter_luid);
-    void set_scrollbar_track_press_jumps(PresentationId, bool jumps);
 
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);

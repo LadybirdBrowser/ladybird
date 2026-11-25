@@ -996,16 +996,6 @@ void CompositorState::presented_bitmap_ready_to_paint(Web::CompositorContextId c
     m_core.presented_store_released(context_id, bitmap_id);
 }
 
-void CompositorState::set_scrollbar_track_press_jumps(CompositorStateClient& presentation, bool jumps)
-{
-    m_core.set_scrollbar_track_press_jumps(presentation.presentation_id(), jumps);
-}
-
-void CompositorState::set_client_gpu_presentation_capability(CompositorStateClient& presentation, bool supported, u64 adapter_luid)
-{
-    m_core.set_presentation_gpu_capability(presentation.presentation_id(), supported, adapter_luid);
-}
-
 CompositorState::PresentedContext* CompositorState::presented_context_if_present(Web::CompositorContextId context_id)
 {
     auto it = m_presented_contexts.find(context_id);

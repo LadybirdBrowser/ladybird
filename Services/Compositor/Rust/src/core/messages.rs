@@ -27,7 +27,8 @@ use libcompositing_rust::ipc_types::compositor_control_server::messages::{
 };
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
-    HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
+    HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent, PresentedBitmapReadyToPaint,
+    SetClientGpuPresentationCapability, SetScrollbarTrackPressJumps,
 };
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
@@ -993,6 +994,33 @@ impl compositor_presentation_server::Stub for MessagesFromPresentation<'_> {
             self.core
                 .handle_and_dispatch_mouse_event(message.context_id, message.event, self.now);
         }
+        Ok(())
+    }
+
+    fn presented_bitmap_ready_to_paint(&mut self, message: PresentedBitmapReadyToPaint) -> Result<(), Misbehavior> {
+        if self.core.is_bound_to(message.context_id, self.presentation_id) {
+            self.core
+                .presented_store_released(message.context_id, message.bitmap_id, self.now);
+        }
+        Ok(())
+    }
+
+    fn set_client_gpu_presentation_capability(
+        &mut self,
+        message: SetClientGpuPresentationCapability,
+    ) -> Result<(), Misbehavior> {
+        self.core.set_presentation_gpu_capability(
+            self.presentation_id,
+            message.supported,
+            message.adapter_luid,
+            self.now,
+        );
+        Ok(())
+    }
+
+    fn set_scrollbar_track_press_jumps(&mut self, message: SetScrollbarTrackPressJumps) -> Result<(), Misbehavior> {
+        self.core
+            .set_scrollbar_track_press_jumps(self.presentation_id, message.jumps);
         Ok(())
     }
 }

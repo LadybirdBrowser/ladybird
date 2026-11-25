@@ -208,31 +208,6 @@ pub extern "C" fn compositor_core_unregister_presentation(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_presentation_gpu_capability(
-    core: &CompositorCore,
-    presentation_id: u64,
-    supported: bool,
-    adapter_luid: u64,
-    now_nanoseconds: i64,
-) {
-    core.set_presentation_gpu_capability(
-        PresentationId(presentation_id),
-        supported,
-        adapter_luid,
-        time(now_nanoseconds),
-    );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_scrollbar_track_press_jumps(
-    core: &CompositorCore,
-    presentation_id: u64,
-    jumps: bool,
-) {
-    core.set_scrollbar_track_press_jumps(PresentationId(presentation_id), jumps);
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_request_rendering_opportunity(
     core: &CompositorCore,
     context_id: u64,
