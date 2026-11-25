@@ -35,6 +35,7 @@
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -73,6 +74,7 @@ using Web::Fetch::Engine::Event::RequestBodySentFromSource;
 using Web::Fetch::Engine::Event::RequestTransmissionEnded;
 using Web::Fetch::Fetching::FetchEventSink;
 using Web::Fetch::Fetching::NetworkBodyPump;
+using Web::Fetch::Fetching::PendingResponse;
 using Web::Fetch::Infrastructure::FetchAlgorithms;
 using Web::Fetch::Infrastructure::FetchController;
 using Web::Fetch::Infrastructure::FetchParams;
@@ -476,6 +478,54 @@ TEST_CASE(a_fetch_whose_controller_nothing_holds_still_runs_its_algorithms)
 {
     GC::scrub_stack_for_testing();
     run_a_fetch_whose_controller_nothing_holds();
+}
+
+// The fetch params of a fetch that has run to its end, whose engine record defers work through the agent's executor.
+static NonnullRefPtr<FetchParams> fetch_params_of_a_finished_fetch(FetchHarness const& harness)
+{
+    auto request = harness.create_request();
+    auto controller = GC::make_root(harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard }));
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
+    auto fetch_params = controller->original_fetch_params();
+    VERIFY(fetch_params && fetch_params->engine_record());
+    return fetch_params.release_nonnull();
+}
+
+TEST_CASE(a_pending_response_lets_go_of_its_callback_once_the_callback_has_run)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto fetch_params = fetch_params_of_a_finished_fetch(harness);
+
+    auto reached = make_ref_counted<ReachedSteps>();
+    auto captured = make_ref_counted<ReachedSteps>();
+    auto pending_response = PendingResponse::create(*fetch_params);
+    pending_response->when_loaded([reached, captured](NonnullRefPtr<Response>) { reached->steps.append("callback"); });
+    pending_response->resolve(Response::create());
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(reached), [](auto& reached) { return !reached->steps.is_empty(); }));
+
+    EXPECT_EQ(reached->steps, (Vector<ByteString> { "callback" }));
+    EXPECT_EQ(captured->ref_count(), 1u);
+    EXPECT_EQ(pending_response->ref_count(), 1u);
+}
+
+TEST_CASE(a_pending_response_never_resolved_is_freed_with_its_last_holder)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto fetch_params = fetch_params_of_a_finished_fetch(harness);
+
+    auto reached = make_ref_counted<ReachedSteps>();
+    RefPtr pending_response = PendingResponse::create(*fetch_params);
+    pending_response->when_loaded([reached](NonnullRefPtr<Response>) { reached->steps.append("callback"); });
+    harness.settle();
+    EXPECT_EQ(pending_response->ref_count(), 1u);
+
+    pending_response = nullptr;
+    EXPECT_EQ(reached->ref_count(), 1u);
+    EXPECT(reached->steps.is_empty());
 }
 
 namespace {

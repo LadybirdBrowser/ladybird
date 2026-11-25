@@ -10,6 +10,7 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -37,6 +38,11 @@ private:
     mutable bool m_transfer_lease_was_released { false };
 };
 
+class IgnoringEventSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent) override { }
+};
+
 }
 
 TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
@@ -56,6 +62,8 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
     Web::Fetch::Infrastructure::FetchControllerRegistry controller_registry;
     auto controller = GC::make_root(Web::Fetch::Infrastructure::FetchController::create(controller_registry));
     auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(*controller, request, algorithms, Web::Fetch::Infrastructure::FetchTimingInfo::create(), Web::current_loader_config());
+    Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+    fetch_params->set_engine_record(*records.start(Web::Fetch::Engine::FetchId { 1 }, make<IgnoringEventSink>(), Web::Fetch::Engine::NetworkActivityObservers::create()));
     auto response = TransferTrackingResponse::create();
     response->set_status(302);
     response->set_header_list(HTTP::HeaderList::create({ { "Location"sv, "/redirected"sv } }));

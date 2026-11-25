@@ -55,6 +55,8 @@ private:
     NonnullOwnPtr<EngineCommandSink> m_engine;
     Mutex m_pending_work_mutex;
     Queue<PendingWork> m_pending_work;
+    u64 m_enqueued_count { 0 };
+    u64 m_dequeued_count { 0 };
     Atomic<bool> m_shut_down { false };
 };
 

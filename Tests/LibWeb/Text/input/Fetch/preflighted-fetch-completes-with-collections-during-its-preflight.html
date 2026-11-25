@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A fetch whose CORS preflight the server holds completes while the heap is collected on every turn.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const id = uniqueID();
+        const path = `/preflighted-fetch-completes-with-collections-${id}`;
+        const preflightToken = `preflighted-fetch-completes-with-collections-${id}`;
+        await server.createEcho("OPTIONS", path, {
+            status: 204,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "X-Preflighted",
+            },
+            wait_for_unblock: preflightToken,
+        });
+        const url = await server.createEcho("GET", path, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+            body: "response",
+        });
+
+        let collecting = true;
+        const collection = (async () => {
+            while (collecting) {
+                internals.gc();
+                await timeout(0);
+            }
+        })();
+
+        const response = fetch(url, { headers: { "X-Preflighted": "1" } });
+        await server.waitForRequest(url);
+        await fetch(`${server.baseURL}/unblock/${preflightToken}`);
+        println(`body: ${await (await response).text()}`);
+
+        collecting = false;
+        await collection;
+    });
+</script>

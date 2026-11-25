@@ -4,55 +4,36 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
-#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::Fetch::Fetching {
 
-GC_DEFINE_ALLOCATOR(PendingResponse);
-
-GC::Ref<PendingResponse> PendingResponse::create(GC::Ref<Infrastructure::FetchController> fetch_controller)
+NonnullRefPtr<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params)
 {
-    return GC::Heap::the().allocate<PendingResponse>(fetch_controller);
+    VERIFY(fetch_params.engine_record());
+    return adopt_ref(*new PendingResponse(*fetch_params.engine_record(), {}));
 }
 
-GC::Ref<PendingResponse> PendingResponse::create(GC::Ref<Infrastructure::FetchController> fetch_controller, NonnullRefPtr<Infrastructure::Response> response)
+NonnullRefPtr<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Response> response)
 {
-    return GC::Heap::the().allocate<PendingResponse>(fetch_controller, move(response));
+    VERIFY(fetch_params.engine_record());
+    return adopt_ref(*new PendingResponse(*fetch_params.engine_record(), move(response)));
 }
 
-GC::Ref<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params)
-{
-    return create(fetch_params.controller());
-}
-
-GC::Ref<PendingResponse> PendingResponse::create(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Response> response)
-{
-    return create(fetch_params.controller(), move(response));
-}
-
-PendingResponse::PendingResponse(GC::Ref<Infrastructure::FetchController> fetch_controller, RefPtr<Infrastructure::Response> response)
-    : m_fetch_controller(fetch_controller)
+PendingResponse::PendingResponse(NonnullRefPtr<Engine::FetchEngineRecord> engine_record, RefPtr<Infrastructure::Response> response)
+    : m_engine_record(move(engine_record))
     , m_response(move(response))
 {
-    m_fetch_controller->add_pending_response({}, *this);
 }
 
-void PendingResponse::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_callback);
-    visitor.visit(m_fetch_controller);
-}
+PendingResponse::~PendingResponse() = default;
 
 void PendingResponse::when_loaded(Callback callback)
 {
     VERIFY(!m_callback);
-    m_callback = callback;
+    m_callback = move(callback);
     if (m_response)
         run_callback();
 }
@@ -69,15 +50,14 @@ void PendingResponse::run_callback()
 {
     VERIFY(m_callback);
     VERIFY(m_response);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this), [](PendingResponse& self) {
-        VERIFY(self.m_callback);
-        VERIFY(self.m_response);
+    m_engine_record->defer([self = NonnullRefPtr { *this }] {
+        VERIFY(self->m_callback);
+        VERIFY(self->m_response);
         // NB: The callback runs only once, so let go of it as it runs. A pending response can live for as long as its
         //     fetch streams, and the callback would otherwise keep what it captured alive all that time.
-        auto callback = exchange(self.m_callback, nullptr);
-        callback->function()(*self.m_response);
-        self.m_fetch_controller->remove_pending_response({}, self);
-    }));
+        auto callback = move(self->m_callback);
+        callback(*self->m_response);
+    });
 }
 
 }
