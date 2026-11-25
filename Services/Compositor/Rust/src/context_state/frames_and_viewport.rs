@@ -230,7 +230,6 @@ impl ContextState {
     pub fn viewport_size_updated(&mut self, viewport_size: IntSize, device_pixel_ratio: f64) -> bool {
         let only_the_pixel_ratio_changed =
             viewport_size == self.viewport_size && device_pixel_ratio != self.device_pixel_ratio;
-        self.scene.forget_whether_animated_content_may_affect_viewport();
         if self.viewport_size != viewport_size {
             self.keyboard_scroll_controller.forget_target();
         }
@@ -578,7 +577,6 @@ impl ContextState {
         last_relative_scroll_delta: FloatPoint,
         visual_viewport_scale: Option<f32>,
     ) {
-        self.scene.forget_whether_animated_content_may_affect_viewport();
         self.async_scroll_update_outbox
             .record_scroll_offset(&AsyncScrollOffset {
                 stable_node_id,

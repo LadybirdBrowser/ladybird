@@ -515,6 +515,14 @@ impl RunsReachingOutsideTheirContext {
         }
     }
 
+    /// The spaces of the inline clips of the run's records that apply in spaces of their own, one per clip, which may
+    /// name nodes the tree does not hold.
+    pub fn inline_clip_spaces_of_run(&self, run_index: usize) -> &[SpatialNodeIndex] {
+        self.inline_clip_spaces_of_runs
+            .get(&run_index)
+            .map_or(&[], |clip_spaces| clip_spaces.as_slice())
+    }
+
     /// The clips rasters of the run in `space` leave to be composited, or none where the run cannot be rastered there.
     pub fn composite_clips_of_run_in(
         &self,

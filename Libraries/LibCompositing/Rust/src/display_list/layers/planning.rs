@@ -16,33 +16,40 @@
 //! not their tiles.
 
 use super::wire::{
-    CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR, plan_holds_more_than_compositor_decodes,
+    CANVAS_VIDEO_AND_NESTED_CONTEXT_LAYERS_A_BAND_LEAVES_CUTS_FOR,
+    MAXIMUM_ANIMATED_CONTENT_REACH_COUNT_OF_RECEIVED_STACK, plan_holds_more_than_compositor_decodes,
 };
 use super::{
-    BandOfPlan, BarrierCut, BarrierOfPlan, CutOfPlan, LayerIndex, LayerStack, LayeredPlan, LayeringObstacles,
-    MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeOfPlan,
-    PlacementNodeIndex, StackOnWire, WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
+    AnimatedContentReach, BandOfPlan, BarrierCut, BarrierOfPlan, CutOfPlan,
+    LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerIndex, LayerStack, LayeredPlan,
+    LayeringObstacles, MAXIMUM_LAYER_COUNT_OF_LIVE_CONTENT_DRAWN_BY_ITS_RECORD, MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS,
+    NodeOfPlan, PlacementNodeIndex, StackOnWire, WhyCompositorCannotCompositeEffect, WhyListIsOneLayer, media_name,
+    rect_at_raster_scale,
 };
 use crate::display_list::animated_transform_spaces::{effect_reads_below_it, spatial_nodes_under_transform_animations};
-use crate::display_list::builder::{bounding_rect_computed_from_payload, record_can_paint_within};
-use crate::display_list::commands::{EffectNodeIndex, SpatialNodeIndex};
+use crate::display_list::builder::{
+    bounding_rect_computed_from_payload, for_each_command, has_inline_clip_in_its_own_space, record_can_paint_within,
+};
+use crate::display_list::commands::{ClipNodeIndex, EffectNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::display_list::effect_geometry::{
     FiltersOfEffects, KeyframeFiltersOfEffects, backdrop_filter_read_reach, filter_may_spread_at_some_sample,
     filter_read_reach_in_device_pixels,
 };
 use crate::display_list::placement::{
     ANTIALIASING_MARGIN_IN_DEVICE_PIXELS, CompositeClip, FiltersAndClipsOfList, RasterSpace, RasterSpaceAnchorKind,
-    RasterSpaceIndex, RunGroupIndex, RunGroups, compositor_scroll_record_of, enclosing_int_rect_within_extent_limit,
-    is_finite_rect,
+    RasterSpaceIndex, RunGroupIndex, RunGroups, ValuesFoldedDownSpatialChains, compositor_scroll_record_of,
+    enclosing_int_rect_within_extent_limit, is_finite_rect,
 };
 use crate::display_list::reach::Reach;
+use crate::display_list::replay::{OwnSpaceClipExtent, own_space_clip_extent};
 use crate::display_list::storage::{DisplayListStorage, ListPosition, ListSpan, RunIndexInChunk, RunIndexInList};
 use crate::display_list::summary::{IndexedRecord, LiveContent};
 use crate::display_list::tiles::{CellRange, reaches_too_many_cells_to_follow_one_by_one, tile_coords_touching};
+use crate::host::FfiVisualAnimationTargetKind;
 use crate::visual_context::queries::{BackdropReader, NestingOfLiveEffects, backdrop_reader_by_reading_effect_index};
 use crate::visual_context::{EffectNodeData, VisualContextTree};
 use libgfx_rust::{FloatPoint, FloatRect, IntRect};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -437,9 +444,16 @@ fn backdrop_filter_reads_nothing_past_mirrored_edge(filter: &[u8]) -> bool {
     !reads_past_each_pixel || libgfx_rust::filter::Filter::serialized_has_mirroring_blur(filter)
 }
 
+/// What placing a list works out per raster space and per animation that a plan carries beside where the parts of the
+/// list are placed, as `LayerStack` holds it.
+struct WhatPlacingCarriesIntoPlan {
+    swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
+    tiles_hold_content_moving_within_space_by_space_index: Vec<bool>,
+    reach_of_animated_content: Option<Vec<AnimatedContentReach>>,
+}
+
 /// Where each part of the list is placed among `spaces`, given the geometry of each of them, with what the stack holds
-/// per space of them: `LayerStack::swept_reach_in_parent_space_by_space_index` and
-/// `LayerStack::tiles_hold_content_moving_within_space_by_space_index`. Canvases, videos and nested contexts past
+/// per space of them and per animation of the tree. Canvases, videos and nested contexts past
 /// `most_canvas_video_and_nested_context_layers`, in paint order, get no layers.
 fn place_list(
     inputs: &LayerStackInputs<'_>,
@@ -447,7 +461,7 @@ fn place_list(
     geometries: &[RasterSpaceGeometryForPlacing],
     nesting_of_live_effects: &NestingOfLiveEffects<'_>,
     most_canvas_video_and_nested_context_layers: Option<usize>,
-) -> (ListPlacement, Vec<Option<IntRect>>, Vec<bool>) {
+) -> (ListPlacement, WhatPlacingCarriesIntoPlan) {
     let tree = inputs.tree;
     // Placing decides for the filter that the tree holds and for each filter that an animation can give the effect.
     let filters_at_some_sample = FiltersOfEffects::of(tree, None, true);
@@ -463,6 +477,11 @@ fn place_list(
         placing.effects_composited_regardless_of_layer_content(&runs, &placed_media, &mut animations_without_layers);
     let (backdrop_read_reach_by_effect_index, backdrop_readers_in_paint_order, reads_root_group_by_effect_index) =
         placing.note_backdrop_readers(&runs, &placed_media, &mut why_composited_regardless_of_layer_content);
+    let reach_of_animated_content = placing.reach_of_animated_content(
+        &runs,
+        &backdrop_read_reach_by_effect_index,
+        &backdrop_readers_in_paint_order,
+    );
     let (placed_effects, innermost_placed_effect_at_or_around_by_effect_index) = placing.place_effects(
         &runs,
         &why_composited_regardless_of_layer_content,
@@ -487,13 +506,30 @@ fn place_list(
     };
     (
         placement,
-        runs.swept_reach_in_parent_space_by_space_index,
-        tiles_hold_content_moving_within_space_by_space_index,
+        WhatPlacingCarriesIntoPlan {
+            swept_reach_in_parent_space_by_space_index: runs.swept_reach_in_parent_space_by_space_index,
+            tiles_hold_content_moving_within_space_by_space_index,
+            reach_of_animated_content,
+        },
     )
 }
 
 fn is_animated_space(space: &RasterSpace) -> bool {
     matches!(space.anchor_kind, RasterSpaceAnchorKind::AnimatedTransform { .. })
+}
+
+fn spatial_nodes_of_clip_chain(
+    tree: &VisualContextTree,
+    mut clip: ClipNodeIndex,
+) -> impl Iterator<Item = SpatialNodeIndex> + '_ {
+    std::iter::from_fn(move || {
+        if clip.is_none() {
+            return None;
+        }
+        let clip_node = &tree.clip_nodes[clip.0 as usize];
+        clip = clip_node.parent;
+        Some(clip_node.spatial)
+    })
 }
 
 // What placing a list reads: its inputs, and what is worked out of them alone before anything is placed.
@@ -1784,6 +1820,320 @@ impl<'a> ListBeingPlaced<'a> {
         )
     }
 
+    /// Per animation of the tree and raster space, where content whose pixels the animation changes can show, sorted by
+    /// animation and space, or none past the most a plan carries or where a spatial chain of the tree breaks.
+    ///
+    /// A run depends on the opacity and filter animations of the effects around it, and on the transform animations at
+    /// or above each spatial node it is drawn, clipped or composited in: its own, those of its clips, of its effects and
+    /// their clips, and the spaces of its inline clips. A backdrop reader painted after a run reads what changes of it,
+    /// and draws that change as far past each pixel as it reads, so the reach of an animation widens by that much for
+    /// each backdrop reader painted after its first run. A background color animation can show anywhere in the
+    /// viewport.
+    fn reach_of_animated_content(
+        &self,
+        runs: &RunGroupsPlaced,
+        backdrop_read_reach_by_effect_index: &[Reach<IntRect>],
+        backdrop_readers_in_paint_order: &[EffectNodeIndex],
+    ) -> Option<Vec<AnimatedContentReach>> {
+        let (tree, list) = (self.tree, self.list);
+        let animations = tree.visual_animations();
+        if animations.is_empty() {
+            return Some(Vec::new());
+        }
+        let viewport_extent = self.geometries[RasterSpaceIndex::VIEWPORT.0].extent;
+        let mut reach_by_animation_and_space: BTreeMap<(u32, RasterSpaceIndex), IntRect> = BTreeMap::new();
+        let mut first_run_index_by_animation_index = vec![usize::MAX; animations.len()];
+        let mut opacity_and_filter_animations_by_effect_index: Vec<Vec<u32>> =
+            vec![Vec::new(); tree.effect_nodes.len()];
+        let mut transform_animations_by_spatial_index: Vec<Vec<u32>> = vec![Vec::new(); tree.spatial_nodes.len()];
+        for (animation_index, animation) in animations.iter().enumerate() {
+            let animation_index = animation_index as u32;
+            let animations_by_target_index = match animation.target_kind {
+                FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => {
+                    &mut opacity_and_filter_animations_by_effect_index
+                }
+                FfiVisualAnimationTargetKind::Transform => &mut transform_animations_by_spatial_index,
+                FfiVisualAnimationTargetKind::BackgroundColor => {
+                    reach_by_animation_and_space.insert((animation_index, RasterSpaceIndex::VIEWPORT), viewport_extent);
+                    continue;
+                }
+            };
+            for &node_index in &animation.node_indices {
+                if let Some(animations_of_target) = animations_by_target_index.get_mut(node_index as usize) {
+                    animations_of_target.push(animation_index);
+                }
+            }
+        }
+
+        let some_transform_is_animated = transform_animations_by_spatial_index
+            .iter()
+            .any(|animations_of_node| !animations_of_node.is_empty());
+        let transform_animated_node_or_none = |node: SpatialNodeIndex| {
+            transform_animations_by_spatial_index
+                .get(node.0 as usize)
+                .is_some_and(|animations_of_node| !animations_of_node.is_empty())
+                .then_some(node)
+        };
+        let mut nearest_transform_animated_node_at_or_above =
+            ValuesFoldedDownSpatialChains::<Option<SpatialNodeIndex>>::new();
+        // Answers false where the chain of `node` leaves the tree or loops.
+        let mut add_transform_animations_at_or_above = |node: SpatialNodeIndex, animations_of_run: &mut Vec<u32>| {
+            let mut node_on_chain = node;
+            loop {
+                let Some(nearest_animated_node) = nearest_transform_animated_node_at_or_above.value_of(
+                    tree,
+                    node_on_chain,
+                    transform_animated_node_or_none(VISUAL_VIEWPORT_NODE_INDEX),
+                    |node, nearest_animated_node_above| {
+                        transform_animated_node_or_none(node).or(nearest_animated_node_above)
+                    },
+                ) else {
+                    return false;
+                };
+                let Some(animated_node) = nearest_animated_node else {
+                    return true;
+                };
+                animations_of_run.extend_from_slice(&transform_animations_by_spatial_index[animated_node.0 as usize]);
+                if animated_node == VISUAL_VIEWPORT_NODE_INDEX {
+                    return true;
+                }
+                node_on_chain = tree.spatial_nodes[animated_node.0 as usize].parent;
+            }
+        };
+
+        let mut animations_of_run: Vec<u32> = Vec::new();
+        let mut spatial_nodes_of_run: Vec<SpatialNodeIndex> = Vec::new();
+        for run_index in 0..list.run_count() {
+            let context = list.run(run_index).context;
+            animations_of_run.clear();
+            spatial_nodes_of_run.clear();
+            spatial_nodes_of_run.push(context.spatial);
+            spatial_nodes_of_run.extend(spatial_nodes_of_clip_chain(tree, context.clip));
+            let mut effect = context.effect;
+            while !effect.is_none() {
+                let effect_node = &tree.effect_nodes[effect.0 as usize];
+                animations_of_run.extend_from_slice(&opacity_and_filter_animations_by_effect_index[effect.0 as usize]);
+                spatial_nodes_of_run.push(effect_node.spatial);
+                spatial_nodes_of_run.extend(spatial_nodes_of_clip_chain(tree, effect_node.local_clip));
+                effect = effect_node.parent;
+            }
+            // An inline clip in a space the tree does not hold applies in the space of its record.
+            spatial_nodes_of_run.extend(
+                self.runs_reaching_outside
+                    .inline_clip_spaces_of_run(run_index)
+                    .iter()
+                    .filter(|clip_space| (clip_space.0 as usize) < tree.spatial_nodes.len()),
+            );
+            if some_transform_is_animated {
+                spatial_nodes_of_run.sort_unstable();
+                spatial_nodes_of_run.dedup();
+                for &node in &spatial_nodes_of_run {
+                    if !add_transform_animations_at_or_above(node, &mut animations_of_run) {
+                        return None;
+                    }
+                }
+            }
+            if animations_of_run.is_empty() {
+                continue;
+            }
+            let Some((raster_space_index, reach)) =
+                self.where_content_of_run_can_show(runs, run_index, backdrop_read_reach_by_effect_index)
+            else {
+                continue;
+            };
+            animations_of_run.sort_unstable();
+            animations_of_run.dedup();
+            for &animation_index in &animations_of_run {
+                let united_reach = reach_by_animation_and_space
+                    .entry((animation_index, raster_space_index))
+                    .or_default();
+                *united_reach = united_reach.united(reach);
+                let first_run_index = &mut first_run_index_by_animation_index[animation_index as usize];
+                *first_run_index = (*first_run_index).min(run_index);
+            }
+        }
+
+        // The backdrop readers in paint order, by the first run each reads what is painted before, with how far the
+        // readers from each one on read past each pixel, summed, or none where one reads farther than is known.
+        let first_run_index_of_backdrop_readers: Vec<usize> = backdrop_readers_in_paint_order
+            .iter()
+            .map(|reader| self.first_run_index_by_effect_index[reader.0 as usize])
+            .collect();
+        let mut summed_read_spread_of_backdrop_readers_from: Vec<Option<i32>> =
+            vec![Some(0); backdrop_readers_in_paint_order.len() + 1];
+        for (position, &reader) in backdrop_readers_in_paint_order.iter().enumerate().rev() {
+            summed_read_spread_of_backdrop_readers_from[position] = summed_read_spread_of_backdrop_readers_from
+                [position + 1]
+                .zip(self.how_far_backdrop_reader_reads_past_each_pixel(runs, reader))
+                .map(|(spread_of_later_readers, spread)| spread_of_later_readers.saturating_add(spread))
+                .filter(|&summed_spread| {
+                    summed_spread <= LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS
+                });
+        }
+        let mut widened_reach_by_animation_and_space: BTreeMap<(u32, RasterSpaceIndex), IntRect> = BTreeMap::new();
+        for ((animation_index, raster_space_index), reach) in reach_by_animation_and_space {
+            let first_run_index = first_run_index_by_animation_index[animation_index as usize];
+            let position_of_first_reader_painted_after = first_run_index_of_backdrop_readers
+                .partition_point(|&reader_first_run| reader_first_run <= first_run_index);
+            let (raster_space_index, reach) =
+                match summed_read_spread_of_backdrop_readers_from[position_of_first_reader_painted_after] {
+                    Some(0) => (raster_space_index, reach),
+                    Some(spread) => (
+                        raster_space_index,
+                        rect_at_raster_scale(reach.inflated_edges(spread, spread, spread, spread), 1),
+                    ),
+                    None => (RasterSpaceIndex::VIEWPORT, viewport_extent),
+                };
+            let united_reach = widened_reach_by_animation_and_space
+                .entry((animation_index, raster_space_index))
+                .or_default();
+            *united_reach = united_reach.united(reach);
+        }
+        if widened_reach_by_animation_and_space.len() > MAXIMUM_ANIMATED_CONTENT_REACH_COUNT_OF_RECEIVED_STACK {
+            return None;
+        }
+        Some(
+            widened_reach_by_animation_and_space
+                .into_iter()
+                .filter(|(_, reach)| !reach.is_empty())
+                .map(|((animation_index, raster_space_index), reach)| AnimatedContentReach {
+                    animation_index,
+                    raster_space_index,
+                    reach,
+                })
+                .collect(),
+        )
+    }
+
+    /// Where content of a run can show, in the raster coordinates of a space, or none where it draws nothing: where the
+    /// run reaches within its inline clips in spaces of their own, and where the backdrop filters around it read, or
+    /// for a run of a space whose anchor the compositor animates, wherever the animation takes the space's content.
+    /// Where that is not known, it is the whole viewport.
+    fn where_content_of_run_can_show(
+        &self,
+        runs: &RunGroupsPlaced,
+        run_index: usize,
+        backdrop_read_reach_by_effect_index: &[Reach<IntRect>],
+    ) -> Option<(RasterSpaceIndex, IntRect)> {
+        let spaces = self.tables.spaces();
+        let anywhere_in_viewport = Some((
+            RasterSpaceIndex::VIEWPORT,
+            self.geometries[RasterSpaceIndex::VIEWPORT.0].extent,
+        ));
+        let space = self.space_of_run(runs, run_index);
+        let space_is_animated = is_animated_space(&spaces[space.0]);
+        let mut reach = self.reach_of_run_within_its_inline_clips_in_spaces_of_their_own(runs, run_index);
+        let mut effect = self.list.run(run_index).context.effect;
+        while !effect.is_none() {
+            if self.backdrop_reader_by_effect_index[effect.0 as usize].is_some() {
+                match backdrop_read_reach_by_effect_index[effect.0 as usize] {
+                    Reach::Nothing => {}
+                    Reach::Within(read_reach) if !space_is_animated && self.space_of_effect(runs, effect) == space => {
+                        reach = reach.united(read_reach);
+                    }
+                    _ => return anywhere_in_viewport,
+                }
+            }
+            effect = self.tree.effect_nodes[effect.0 as usize].parent;
+        }
+        if reach.is_empty() {
+            return None;
+        }
+        if !space_is_animated {
+            return Some((space, reach));
+        }
+        match runs.swept_reach_in_parent_space_by_space_index[space.0] {
+            Some(swept_reach) => Some((spaces[space.0].parent_index, swept_reach)),
+            None => anywhere_in_viewport,
+        }
+    }
+
+    // Where the run reaches, as `RunGroupsPlaced::reach_of_run_by_run_index` tells, within what the inline clips of its
+    // records that apply in spaces of their own leave each record to draw, where those clips stand still in the space
+    // of the run, as a replay culls what they clip away.
+    fn reach_of_run_within_its_inline_clips_in_spaces_of_their_own(
+        &self,
+        runs: &RunGroupsPlaced,
+        run_index: usize,
+    ) -> IntRect {
+        let reach_of_run = runs.reach_of_run_by_run_index[run_index];
+        let run_group = &runs.groups[self.run_groups.group_of_run(run_index).0];
+        if reach_of_run.is_empty()
+            || run_group.moves_within_space
+            || self
+                .runs_reaching_outside
+                .inline_clip_spaces_of_run(run_index)
+                .is_empty()
+        {
+            return reach_of_run;
+        }
+        let list = self.list;
+        let context = list.run(run_index).context;
+        let geometry = &self.geometries[run_group.raster_space_index.0];
+        let world = &geometry.raster.world;
+        let Some(command_to_root) = world.draw_matrix_if_known(context.spatial) else {
+            return reach_of_run;
+        };
+        let (chunk_index, run_index_in_chunk) = list.chunk_of_run(run_index);
+        let chunk = list.chunk(chunk_index);
+        let run_in_chunk = &chunk.runs()[run_index_in_chunk];
+        let records_of_run =
+            &chunk.records()[run_in_chunk.offset as usize..(run_in_chunk.offset + run_in_chunk.size) as usize];
+        let mut reach = Reach::Nothing;
+        for_each_command(records_of_run, |header, _, payload| {
+            if header.command_type.is_compositor_metadata() {
+                return;
+            }
+            let Some(bounding_rect) = bounding_rect_computed_from_payload(header, payload) else {
+                return;
+            };
+            let mut drawn_within = bounding_rect.to_float();
+            if header.inline_clip_count != 0
+                && has_inline_clip_in_its_own_space(header, payload)
+                && let Some(OwnSpaceClipExtent::Within(part_left_by_clips)) =
+                    own_space_clip_extent(header, payload, drawn_within, command_to_root, |clip_space| {
+                        world.draw_matrix_if_known(clip_space)
+                    })
+            {
+                drawn_within = part_left_by_clips;
+            }
+            reach = reach.united(geometry.reach_of_content(&self.filters_and_clips, Some(drawn_within), context));
+        });
+        geometry.part_of_extent_reached_by(reach).intersected(reach_of_run)
+    }
+
+    // How far a backdrop reader reads past each pixel it draws, in device pixels, or none where that is not known. One
+    // that only blends reads the pixel it draws.
+    fn how_far_backdrop_reader_reads_past_each_pixel(
+        &self,
+        runs: &RunGroupsPlaced,
+        reader: EffectNodeIndex,
+    ) -> Option<i32> {
+        let Some(BackdropReader {
+            effect_with_backdrop_filter: Some(effect_with_backdrop_filter),
+        }) = &self.backdrop_reader_by_effect_index[reader.0 as usize]
+        else {
+            return Some(0);
+        };
+        let effect_node = &self.tree.effect_nodes[effect_with_backdrop_filter.0 as usize];
+        let EffectNodeData::Effects(effects) = &effect_node.data else {
+            return None;
+        };
+        let backdrop_filter = effects.backdrop_filter.as_ref()?;
+        let space = runs.groups[self.run_group_of_effect(reader).0].raster_space_index;
+        if is_animated_space(&self.tables.spaces()[space.0])
+            || self
+                .tables
+                .animation_samples_move_spatial_within_space(effect_node.spatial, space)
+        {
+            return None;
+        }
+        filter_read_reach_in_device_pixels(
+            &backdrop_filter.filter,
+            &self.geometries[space.0].raster.world.draw_matrix(effect_node.spatial),
+        )
+    }
+
     fn place_effects(
         &self,
         runs: &RunGroupsPlaced,
@@ -2573,11 +2923,15 @@ impl StackBeingBuilt<'_> {
 fn assemble_plan(
     inputs: &LayerStackInputs<'_>,
     placement: &ListPlacement,
-    swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
-    tiles_hold_content_moving_within_space_by_space_index: Vec<bool>,
+    carried_into_plan: WhatPlacingCarriesIntoPlan,
     spaces: &[RasterSpace],
     layering_obstacles: &LayeringObstacles,
 ) -> Result<LayeredPlan, WhyListIsOneLayer> {
+    let WhatPlacingCarriesIntoPlan {
+        swept_reach_in_parent_space_by_space_index,
+        tiles_hold_content_moving_within_space_by_space_index,
+        reach_of_animated_content,
+    } = carried_into_plan;
     let mut stack_being_built = StackBeingBuilt {
         placement,
         spaces,
@@ -2634,6 +2988,7 @@ fn assemble_plan(
         bands,
         tiles_hold_content_moving_within_space_by_space_index,
         swept_reach_in_parent_space_by_space_index,
+        reach_of_animated_content,
     };
     if plan_holds_more_than_compositor_decodes(&plan) {
         return Err(WhyListIsOneLayer::PlanHoldsMoreThanCompositorDecodes);
@@ -2677,21 +3032,13 @@ fn contexts_sorting_planes_by_depth_hold_effects_that_read_or_are_composited(
 fn build_layer_stack(
     inputs: &LayerStackInputs<'_>,
     placement: ListPlacement,
-    swept_reach_in_parent_space_by_space_index: Vec<Option<IntRect>>,
-    tiles_hold_content_moving_within_space_by_space_index: Vec<bool>,
+    carried_into_plan: WhatPlacingCarriesIntoPlan,
     spaces: Vec<RasterSpace>,
     layering_obstacles: LayeringObstacles,
     nesting_of_live_effects: &NestingOfLiveEffects<'_>,
 ) -> PlannedLayers {
-    let stack_of_plan = assemble_plan(
-        inputs,
-        &placement,
-        swept_reach_in_parent_space_by_space_index,
-        tiles_hold_content_moving_within_space_by_space_index,
-        &spaces,
-        &layering_obstacles,
-    )
-    .and_then(|plan| {
+    let plan = assemble_plan(inputs, &placement, carried_into_plan, &spaces, &layering_obstacles);
+    let stack_of_plan = plan.and_then(|plan| {
         let stack_on_wire = StackOnWire::Layered(plan.clone());
         LayerStack::of_plan_passing_checks(
             plan,
@@ -2799,11 +3146,7 @@ fn plan_layer_stack_at_anchors(
             inputs.viewport_rect,
         );
         let spaces_of_stack = spaces.spaces().to_vec();
-        let (
-            placement,
-            swept_reach_in_parent_space_by_space_index,
-            tiles_hold_content_moving_within_space_by_space_index,
-        ) = place_list(
+        let (placement, carried_into_plan) = place_list(
             inputs,
             spaces,
             &geometries,
@@ -2813,8 +3156,7 @@ fn plan_layer_stack_at_anchors(
         build_layer_stack(
             inputs,
             placement,
-            swept_reach_in_parent_space_by_space_index,
-            tiles_hold_content_moving_within_space_by_space_index,
+            carried_into_plan,
             spaces_of_stack,
             layering_obstacles,
             &nesting_of_live_effects,
@@ -4805,5 +5147,193 @@ mod tests {
             VIEWPORT
         )));
         assert_eq!(inputs.plan().stack, list.stack(&tree, &offsets(700.0, 0.0)));
+    }
+
+    fn reach_in_viewport(animation_index: u32, reach: IntRect) -> AnimatedContentReach {
+        AnimatedContentReach {
+            animation_index,
+            raster_space_index: RasterSpaceIndex::VIEWPORT,
+            reach,
+        }
+    }
+
+    // Where the fill of `ELEMENT` can show in the viewport, antialiased.
+    const REACH_OF_ELEMENT: IntRect = IntRect::new(47, 47, 46, 46);
+
+    #[test]
+    fn an_opacity_animation_with_a_layer_reaches_where_its_content_shows() {
+        let (tree, list, _) = page_with_animated_element(Animated::OpacityFromOne, UnderAnimatedNode::Fill);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(!planned.stack.composited_effects.is_empty());
+        assert_eq!(
+            planned.stack.reach_of_animated_content,
+            Some(vec![reach_in_viewport(0, REACH_OF_ELEMENT)])
+        );
+    }
+
+    #[test]
+    fn an_opacity_animation_without_a_layer_reaches_where_its_content_shows() {
+        let (tree, list, _) = group_with_animated_element_under_blending_element(IntRect::new(0, 0, 200, 200));
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        assert!(planned.stack.composited_effects.is_empty());
+        // The blending element painted after the animated one reads only the pixels it draws.
+        assert_eq!(
+            planned.stack.reach_of_animated_content,
+            Some(vec![reach_in_viewport(0, REACH_OF_ELEMENT)])
+        );
+    }
+
+    #[test]
+    fn a_translation_with_a_space_reaches_wherever_it_takes_its_content() {
+        let (tree, list, _) = page_with_animated_element(Animated::Translation, UnderAnimatedNode::Fill);
+        let planned = layers_planned_alike_for_every_sample(&list, &tree);
+        let swept_reach = planned.stack.swept_reach_in_parent_space_by_space_index[1]
+            .expect("the translated element has a space of its own");
+        assert!(swept_reach.contains_rect(ELEMENT.translated(100, 0)));
+        assert_eq!(
+            planned.stack.reach_of_animated_content,
+            Some(vec![reach_in_viewport(0, swept_reach)])
+        );
+    }
+
+    #[test]
+    fn a_rotation_refused_a_space_reaches_wherever_its_clips_let_it_show() {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let spinner = transformed_context(&mut tree, viewport, FloatRect::new(50.0, 50.0, 40.0, 40.0));
+        tree.set_visual_animations(vec![spinning(spinner.spatial)]);
+        let planned = ListOfOneChunk::default()
+            .with(canvas(IntRect::new(0, 0, 200, 120), 1), viewport)
+            .with(fill(IntRect::new(50, 50, 40, 40), GREEN), spinner)
+            .planned(&tree, &[]);
+        assert_eq!(
+            planned.placement.animations_without_layers,
+            [(
+                AnimatedNode::Transform(spinner.spatial),
+                WhyAnimationHasNoLayer::ItCanShowOverAnEarlierCanvasOrVideo
+            )]
+        );
+        assert_eq!(
+            planned.stack.reach_of_animated_content,
+            Some(vec![reach_in_viewport(0, VIEWPORT)])
+        );
+    }
+
+    #[test]
+    fn animated_content_follows_inline_clips_in_spaces_of_their_own() {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let scroll = scroll_node(&mut tree, VISUAL_VIEWPORT_NODE_INDEX);
+        let rotating = transformed_context(&mut tree, viewport, VIEWPORT.to_float());
+        let faded = tree.append_effect_node_under(viewport, effects(1.0, CompositingAndBlendingOperator::Normal));
+        tree.set_visual_animations(vec![
+            opacity_animation_of(faded.effect, 1.0, 0.0),
+            spinning(rotating.spatial),
+        ]);
+        let (opacity_animation, rotation) = (0, 1);
+        let can_show_in_viewport =
+            |animation_index: u32, context: ContextRef, clip_space: SpatialNodeIndex, clip_rect: IntRect| {
+                let mut list = ListOfOneChunk::default();
+                list.builder.append_with_inline_clips(
+                    &fill(VIEWPORT, GREEN),
+                    &[],
+                    context,
+                    &[
+                        crate::display_list::builder::PendingInlineClip::intersecting_float_rect(clip_rect.to_float())
+                            .in_space(clip_space),
+                    ],
+                );
+                let stack = list.stack(&tree, &[]);
+                assert!(stack.why_list_is_one_layer.is_none());
+                stack.running_animations_can_show_within(
+                    |index| index == animation_index,
+                    &stack.composite_offsets(&[]),
+                    VIEWPORT,
+                )
+            };
+
+        // An animated opacity only shows where the clip lets the draw show.
+        let box_on_screen = IntRect::new(0, 10, 10, 10);
+        let box_off_screen = IntRect::new(0, 2000, 10, 10);
+        assert!(can_show_in_viewport(opacity_animation, faded, scroll, box_on_screen));
+        assert!(!can_show_in_viewport(opacity_animation, faded, scroll, box_off_screen));
+
+        // A clip in a rotating space moves the draw it clips, though the draw's own space stands still.
+        assert!(can_show_in_viewport(
+            rotation,
+            viewport,
+            rotating.spatial,
+            box_on_screen
+        ));
+    }
+
+    #[test]
+    fn a_background_color_animation_reaches_the_whole_viewport() {
+        let (mut tree, viewport, document) = tree_with_document_scroll();
+        let animated_background = tree.append_effect(
+            EffectNodeData::BackgroundColorAnimation,
+            viewport.effect,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let keyframe = |offset: f64, color: Color| crate::visual_animation::VisualAnimationKeyframe {
+            offset,
+            easing: crate::easing::Easing::default(),
+            value: crate::visual_animation::VisualAnimationValue::BackgroundColor(color),
+        };
+        tree.set_visual_animations(vec![animation_of(
+            crate::host::FfiVisualAnimationTargetKind::BackgroundColor,
+            animated_background.0,
+            vec![keyframe(0.0, GREEN), keyframe(1.0, Color::from_rgb(255, 0, 0))],
+        )]);
+        let box_far_below_the_viewport = crate::display_list::commands::FillRect {
+            background_color_animation_effect: animated_background,
+            ..fill(IntRect::new(100, 1500, 50, 50), GREEN)
+        };
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(box_far_below_the_viewport, document)
+            .stack(&tree, &[]);
+        assert!(stack.why_list_is_one_layer.is_none());
+        assert_eq!(
+            stack.reach_of_animated_content,
+            Some(vec![reach_in_viewport(0, VIEWPORT)])
+        );
+    }
+
+    // An element whose opacity is animated, and a backdrop filter away from it, painted before or after it.
+    fn reach_of_fading_element_beside_frosted_glass(glass_is_painted_after_element: bool) -> IntRect {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let element = tree.append_effect_node_under(viewport, effects(1.0, CompositingAndBlendingOperator::Normal));
+        tree.set_visual_animations(vec![opacity_animation_of(element.effect, 1.0, 0.0)]);
+        let glass_region = IntRect::new(300, 300, 100, 100);
+        let glass = frosted_glass(&mut tree, viewport, glass_region);
+        let mut list = ListOfOneChunk::default().with(fill(IntRect::new(0, 0, 800, 600), GREEN), viewport);
+        if glass_is_painted_after_element {
+            list = list
+                .with(fill(ELEMENT, GREEN), element)
+                .with(fill(glass_region, GREEN), glass);
+        } else {
+            list = list
+                .with(fill(glass_region, GREEN), glass)
+                .with(fill(ELEMENT, GREEN), element);
+        }
+        let stack = list.stack(&tree, &[]);
+        assert!(stack.why_list_is_one_layer.is_none());
+        let Some([animated_content]) = stack.reach_of_animated_content.as_deref() else {
+            panic!("the animation reaches one space: {:?}", stack.reach_of_animated_content);
+        };
+        assert_eq!(animated_content.raster_space_index, RasterSpaceIndex::VIEWPORT);
+        animated_content.reach
+    }
+
+    #[test]
+    fn a_backdrop_filter_painted_after_an_animation_widens_its_reach_by_how_far_it_reads() {
+        assert_eq!(reach_of_fading_element_beside_frosted_glass(false), REACH_OF_ELEMENT);
+        let widened_reach = reach_of_fading_element_beside_frosted_glass(true);
+        let widening = REACH_OF_ELEMENT.x - widened_reach.x;
+        assert!(widening > 0);
+        assert_eq!(
+            widened_reach,
+            REACH_OF_ELEMENT.inflated_edges(widening, widening, widening, widening)
+        );
     }
 }

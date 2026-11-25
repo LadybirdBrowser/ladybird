@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-pub mod animated_content;
 pub mod animated_transform_spaces;
 pub mod builder;
 pub mod canvas_2d;

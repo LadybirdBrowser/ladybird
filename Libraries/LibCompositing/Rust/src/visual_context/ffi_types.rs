@@ -83,13 +83,3 @@ pub struct FfiVisualAnimationSummary {
     pub share_timing_anchor: bool,
     pub targets_are_valid: bool,
 }
-
-/// Whether the content the tree's animations move can reach the viewport, and whether that answer
-/// holds until the scene changes: it does once no finite animation is still running, since none can
-/// then stop contributing on its own.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiAnimatedContentViewportEffect {
-    pub may_affect_viewport: bool,
-    pub stable_until_scene_changes: bool,
-}
