@@ -60,8 +60,10 @@ flatpak_runtime_libs = [
     "zlib",
 ]
 
-# List of build tools that vcpkg installs for its own builds, which the Flatpak SDK provides
+# List of build tools that vcpkg installs for its own builds, which the Flatpak SDK or modules provide
 vcpkg_host_tools = [
+    "ffmpeg-bin2c",
+    "glslang",
     "vcpkg-tool-meson",
 ]
 
