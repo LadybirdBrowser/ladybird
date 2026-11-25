@@ -378,7 +378,7 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoderImplementation::capabiliti
     // Decoded frames are exported as dma-bufs, but a driver may not support any modifiers for export. Check whether
     // it does to determine whether export may succeed.
     auto output_format = bit_depth == 10 ? VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 : VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
-    if (checks_exportable_format == ChecksExportableFormat::Yes && device->exportable_drm_format_modifiers(output_format, VulkanExportableImagePool::IMAGE_USAGE, 0, nullptr).is_empty())
+    if (checks_exportable_format == ChecksExportableFormat::Yes && device->exportable_drm_format_modifiers(output_format, VulkanExportableImagePool::IMAGE_USAGE, 0, nullptr, {}).is_empty())
         return {};
 
     // Before FFmpeg 7.1, a device that decodes references into the output images, but cannot keep each reference in an
@@ -583,7 +583,7 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoderImplementation::create_frames_conte
     // Decoded images that no DRM format modifier can export are copied into images that can.
     m_drm_format_modifiers = {};
     if (m_exports_directly == ExportsDirectly::Yes)
-        m_drm_format_modifiers = m_device.exportable_drm_format_modifiers(vulkan_frames_context.format[0], vulkan_frames_context.usage, vulkan_frames_context.img_flags, vulkan_frames_context.create_pnext);
+        m_drm_format_modifiers = m_device.exportable_drm_format_modifiers(vulkan_frames_context.format[0], vulkan_frames_context.usage, vulkan_frames_context.img_flags, vulkan_frames_context.create_pnext, Gfx::IntSize { frames_context.width, frames_context.height });
     if (!m_drm_format_modifiers.is_empty()) {
         // FFmpeg chains the video profile in, and leaves choosing a modifier to us.
         m_drm_format_modifier_list = {};

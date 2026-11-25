@@ -12,7 +12,7 @@ namespace Media {
 
 ErrorOr<NonnullRefPtr<VulkanExportableImagePool>> VulkanExportableImagePool::create(VulkanVideoDevice const& device, VkFormat format, Gfx::IntSize size, u32 drm_format)
 {
-    auto drm_format_modifiers = device.exportable_drm_format_modifiers(format, IMAGE_USAGE, 0, nullptr);
+    auto drm_format_modifiers = device.exportable_drm_format_modifiers(format, IMAGE_USAGE, 0, nullptr, size);
     if (drm_format_modifiers.is_empty())
         return Error::from_string_literal("No DRM format modifier can export images of this format");
     return adopt_ref(*new VulkanExportableImagePool(device, format, size, drm_format, move(drm_format_modifiers)));
