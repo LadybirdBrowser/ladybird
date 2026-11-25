@@ -200,6 +200,7 @@ struct DisplayListUpdate {
     visual_context_tree: Arc<VisualContextTree>,
     resources: DrawnResources,
     scroll_state: ScrollStateSnapshot,
+    keyboard_scroll_state: Compositing_KeyboardScrollState,
 }
 
 struct VisualContextTreeUpdate {
@@ -234,7 +235,6 @@ fn empty_async_scrolling_metadata() -> Compositing_AsyncScrollingMetadata {
         viewport_keeps_horizontal_scrolls: false,
         viewport_keeps_vertical_scrolls: false,
         device_pixels_per_css_pixel: 1.0,
-        keyboard_scroll_state: empty_keyboard_scroll_state(),
     }
 }
 
@@ -343,17 +343,17 @@ impl PresenterState {
                 fonts: command_resources.fonts.values().cloned().collect(),
                 image_frames,
             };
-            let mut async_scrolling_metadata = output
+            let async_scrolling_metadata = output
                 .async_scrolling_metadata
                 .clone()
                 .unwrap_or_else(empty_async_scrolling_metadata);
-            async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
             frame.display_list_update = Some(DisplayListUpdate {
                 properties: display_list_properties_of(&output),
                 async_scrolling_metadata,
                 visual_context_tree: visual_context_tree.clone(),
                 resources,
                 scroll_state: scroll_state.clone(),
+                keyboard_scroll_state,
                 output: output.clone(),
             });
             self.compositor_display_list = Some(CompositorDisplayList {
@@ -869,6 +869,7 @@ fn post_frame_through(
                     display_list,
                     visual_context_tree: update.visual_context_tree,
                     scroll_state: update.scroll_state,
+                    keyboard_scroll_state: update.keyboard_scroll_state,
                     layer_plan: layer_plan.as_ref().map(LayerPlanSent::on_wire),
                 };
                 if !poster.post(message) {

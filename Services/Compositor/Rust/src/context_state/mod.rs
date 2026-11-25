@@ -759,6 +759,7 @@ impl ContextState {
         display_list: Rc<DisplayList>,
         visual_context_tree: AccumulatedVisualContextTree,
         scroll_state_snapshot: ScrollStateSnapshot,
+        keyboard_scroll_state: KeyboardScrollState,
         now: MonotonicTime,
     ) -> bool {
         assert_eq!(
@@ -791,9 +792,7 @@ impl ContextState {
             self.pinch_gesture_was_let_through = false;
         }
         self.adopt_scrolling_state(async_scrolling_state, &scroll_offsets_of_known_nodes);
-        if let Some(metadata) = self.scene.display_list().as_ref().unwrap().async_scrolling_metadata() {
-            self.adopt_keyboard_scroll_state(metadata.keyboard_scroll_state.clone());
-        }
+        self.adopt_keyboard_scroll_state(keyboard_scroll_state);
         true
     }
 

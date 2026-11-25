@@ -13,7 +13,6 @@ struct Compositing::AsyncScrollingMetadata {
     bool viewport_keeps_horizontal_scrolls;
     bool viewport_keeps_vertical_scrolls;
     double device_pixels_per_css_pixel;
-    Compositing::KeyboardScrollState keyboard_scroll_state;
 }
 
 struct Compositing::DisplayListWindow {

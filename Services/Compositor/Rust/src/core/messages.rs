@@ -661,6 +661,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             Rc::new(display_list),
             AccumulatedVisualContextTree::from_arc(tree),
             scroll_state_snapshot,
+            message.keyboard_scroll_state,
             self.now,
         ) {
             return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
