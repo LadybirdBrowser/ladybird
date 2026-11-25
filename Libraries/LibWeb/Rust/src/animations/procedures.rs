@@ -1210,12 +1210,19 @@ impl Procedures<'_> {
         //    became ready.
         // FIXME: We can get a more accurate time here if we record the actual instant we became ready rather than
         //        waiting to try and run this task
+<<<<<<< HEAD
         // AD-HOC: A new CSS transition of properties the compositor may run stays pending past the rendering update of
         //         its style change event, which already rendered it, on the compositor or here. It became ready at the
         //         time of its style change event, from which the compositor runs it, so that a style change a frame
         //         later starts the next transition from the value on the screen rather than from this transition's
         //         start value.
         let ready_time = self.compositor_transition_ready_time().unwrap_or_else(|| {
+=======
+        // AD-HOC: The initial pending play task of a CSS transition whose style change event came after an animation
+        //         frame uses the time of that event, so that a later style change starts the next transition from the
+        //         value on the screen rather than from this transition's start value.
+        let ready_time = initial_transition_ready_time.unwrap_or_else(|| {
+>>>>>>> cd17d62a (LibWeb: Make transitions before the first animation frame wait for it)
             self.timeline_time()
                 .expect("an animation is ready only on an active timeline")
         });

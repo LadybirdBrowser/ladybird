@@ -47,6 +47,10 @@
     }
 
     asyncTest(async done => {
+        // A transition started before the document's first animation frame reaches the compositor only after it.
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await nextTask();
+
         for (const [from, to] of [
             ["translate(10px, 0px)", "translateX(100px)"],
             ["translateY(5px)", "translate(0px, 50px)"],
