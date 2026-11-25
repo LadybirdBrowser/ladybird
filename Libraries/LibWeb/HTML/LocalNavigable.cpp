@@ -1450,7 +1450,7 @@ void LocalNavigable::restore_scroll_position_data(SessionHistoryEntry const& ent
         return;
 
     // FIXME: If the document has been scrolled by the user, return.
-    perform_scroll_of_viewport_scrolling_box(*scroll_position_data.viewport_scroll_position);
+    perform_scroll_of_viewport_scrolling_box(*scroll_position_data.viewport_scroll_position, Painting::CompositorScrollRequest::ProgrammaticJump);
     clamp_viewport_scroll_offset();
 }
 
@@ -5040,7 +5040,7 @@ void LocalNavigable::clamp_viewport_scroll_offset()
         clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),
     };
     if (clamped != m_viewport_scroll_offset)
-        perform_scroll_of_viewport_scrolling_box(clamped);
+        perform_scroll_of_viewport_scrolling_box(clamped, Painting::CompositorScrollRequest::ProgrammaticJump);
 }
 
 Optional<CSSPixelRect> LocalNavigable::viewport_intersection() const
@@ -5064,7 +5064,7 @@ void LocalNavigable::set_viewport_intersection(CSSPixelRect intersection)
     }
 }
 
-void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
+void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position, Painting::CompositorScrollRequest compositor_scroll_request)
 {
     // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,
     //     where the box is the viewport.
@@ -5080,7 +5080,7 @@ void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_
                 Layout::RustFFI::render_state_set_viewport_scroll_offset(arena->host(), new_position);
             document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
-            did_change_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport });
+            did_change_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport }, compositor_scroll_request);
         }
     }
 
@@ -5139,7 +5139,7 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_offset(DOM::Document& do
     if (element->scroll_offset(pseudo_element) == scroll_offset)
         return {};
 
-    element->set_scroll_offset(pseudo_element, scroll_offset);
+    element->set_scroll_offset(pseudo_element, scroll_offset, Painting::CompositorScrollRequest::None);
 
     document.append_pending_scroll_event({ *element, EventNames::scroll });
     element->set_needs_repaint(InvalidateDisplayList::No);
@@ -5350,7 +5350,7 @@ static Layout::Node* layout_node_for_async_scroll_node(Layout::BegunRead const& 
     return element->layout_node(read);
 }
 
-bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
+bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset, Painting::CompositorScrollRequest compositor_scroll_request)
 {
     auto document = active_document();
     if (!document)
@@ -5360,7 +5360,7 @@ bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_n
         if (stable_node_id.node_id != document->unique_id())
             return false;
         auto old_scroll_offset = m_viewport_scroll_offset;
-        perform_scroll_of_viewport_scrolling_box(scroll_offset);
+        perform_scroll_of_viewport_scrolling_box(scroll_offset, compositor_scroll_request);
         return old_scroll_offset != m_viewport_scroll_offset;
     }
 
@@ -5369,8 +5369,11 @@ bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_n
             return false;
         auto visual_viewport = document->visual_viewport();
         auto delta = scroll_offset - visual_viewport->offset();
+        if (delta.is_zero())
+            return false;
         visual_viewport->scroll_by(delta);
-        return !delta.is_zero();
+        did_change_scroll_offset(stable_node_id, compositor_scroll_request);
+        return true;
     }
 
     if (!element_for_async_scroll_node_stable_id(*document, stable_node_id))
@@ -5380,7 +5383,7 @@ bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_n
     auto* layout_node = layout_node_for_async_scroll_node(read, *document, stable_node_id);
     if (!layout_node)
         return false;
-    return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
+    return Painting::set_scroll_offset(*layout_node, scroll_offset, compositor_scroll_request) == Painting::ScrollHandled::Yes;
 }
 
 DOM::Element* LocalNavigable::element_whose_scrollbar_is_dragged_by_compositor(Layout::BegunRead const& read, Web::ScrollbarDraggedByCompositor const& scrollbar)
@@ -6035,7 +6038,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         smooth_scroll.elapsed += now - smooth_scroll.last_tick;
         smooth_scroll.last_tick = now;
         auto sample = smooth_scroll.animation.sample(smooth_scroll.elapsed);
-        set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>());
+        set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>(), Painting::CompositorScrollRequest::ProgrammaticJump);
         if (sample.complete) {
             finished_smooth_scrolls.append(finished_scroll(m_main_thread_smooth_scrolls.take(index)));
         } else {
@@ -6062,7 +6065,7 @@ bool LocalNavigable::adopt_async_viewport_scroll_offset(CSSPixelPoint scroll_off
 
     Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
     auto scroll_offset_before_scroll = m_viewport_scroll_offset;
-    perform_scroll_of_viewport_scrolling_box(scroll_offset);
+    perform_scroll_of_viewport_scrolling_box(scroll_offset, Painting::CompositorScrollRequest::None);
     if (m_viewport_scroll_offset == scroll_offset_before_scroll)
         return false;
     note_user_scroll_gesture_of(viewport_stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::Yes);
@@ -6080,12 +6083,15 @@ bool LocalNavigable::adopt_async_visual_viewport_scroll(Optional<float> scale, C
     auto scale_before_adoption = visual_viewport->scale();
     if (scale.has_value())
         visual_viewport->set_scale_zoomed_by_compositor(scale.value());
+    if (visual_viewport->scale() != scale_before_adoption)
+        did_change_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
 
     auto visual_delta = scroll_offset - visual_viewport->offset();
     if (visual_delta.is_zero())
         return visual_viewport->scale() != scale_before_adoption;
 
     visual_viewport->scroll_by(visual_delta);
+    did_change_scroll_offset(visual_viewport_stable_node_id, Painting::CompositorScrollRequest::None);
     note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, UserScrollMovedBox::Yes);
     return true;
 }
@@ -6179,7 +6185,6 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         // what that scroll replaced. Once it applied it, the compositor has the box's offset.
         if (async_scroll_offset.applied_scroll_request_id < last_scroll_request_id_for(async_scroll_offset.stable_node_id))
             continue;
-        TemporaryChange adopting_compositor_scroll_offsets { m_scroll_offset_changes_need_no_request, true };
 
         auto css_scroll_offset = async_scroll_offset_to_css_pixels(async_scroll_offset.compositor_scroll_offset, device_pixels_per_css_pixel);
         bool has_in_flight_smooth_scroll = false;
@@ -6192,7 +6197,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
 
         if (has_in_flight_smooth_scroll) {
             auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
-            if (set_scroll_offset_for(async_scroll_offset.stable_node_id, css_scroll_offset)) {
+            if (set_scroll_offset_for(async_scroll_offset.stable_node_id, css_scroll_offset, Painting::CompositorScrollRequest::None)) {
                 adopted_any_scroll_offset = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async programmatic scroll offset {},{}",
                     async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
@@ -7702,32 +7707,12 @@ void LocalNavigable::request_viewport_scroll_by_a_distance(CSSPixelPoint displac
     scroll_request.instant_scroll_is_for_user_input = trigger != ScrollTrigger::Programmatic;
 }
 
-bool LocalNavigable::set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
-{
-    bool did_scroll = false;
-    {
-        TemporaryChange requesting_scroll { m_scroll_offset_changes_need_no_request, true };
-        did_scroll = Painting::set_scroll_offset(scrolling_box, scroll_offset) == Painting::ScrollHandled::Yes;
-    }
-    if (did_scroll && has_compositor_context())
-        request_scroll_jump(stable_node_id, ScrollTrigger::UserInput);
-    return did_scroll;
-}
-
-void LocalNavigable::set_scroll_offset_settled_by_layout(Layout::Node& scrolling_box, CSSPixelPoint scroll_offset)
-{
-    // NB: The compositor keeps the box in the same scroll range as it takes in the frame of this layout, from wherever
-    //     the user has scrolled it since. A jump to the offset this thread knows would take that scroll back.
-    TemporaryChange compositor_keeps_the_box_in_range { m_scroll_offset_changes_need_no_request, true };
-    (void)Painting::set_scroll_offset(scrolling_box, scroll_offset);
-}
-
-void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id)
+void LocalNavigable::did_change_scroll_offset(Web::AsyncScrollNodeStableID stable_node_id, Painting::CompositorScrollRequest compositor_scroll_request)
 {
     note_scroll_sequence_moved(stable_node_id);
-    if (m_scroll_offset_changes_need_no_request || !has_compositor_context())
+    if (compositor_scroll_request == Painting::CompositorScrollRequest::None || !has_compositor_context())
         return;
-    request_scroll_jump(stable_node_id, ScrollTrigger::Programmatic);
+    request_scroll_jump(stable_node_id, compositor_scroll_request == Painting::CompositorScrollRequest::UserInputJump ? ScrollTrigger::UserInput : ScrollTrigger::Programmatic);
 }
 
 Vector<Compositing::ScrollRequest> LocalNavigable::take_unsent_scroll_requests()
@@ -7875,10 +7860,7 @@ LocalNavigable::PerformedScroll LocalNavigable::perform_a_scroll_of_a_scrolling_
     //    requested behavior or the associated element's computed behavior is
     //    smooth, perform a smooth scroll. Otherwise, perform an instant scroll.
     if (!should_scroll_smoothly) {
-        {
-            TemporaryChange requesting_scroll { m_scroll_offset_changes_need_no_request, true };
-            (void)set_scroll_offset_for(stable_node_id, position);
-        }
+        (void)set_scroll_offset_for(stable_node_id, position, Painting::CompositorScrollRequest::None);
         // The compositor may have scrolled the box elsewhere since the main thread last heard, so the box jumps to the
         // position even where its offset here is unchanged.
         if (has_compositor_context() && scroll.instant_scroll_requester == InstantScrollRequester::ThisScroll) {
@@ -8376,6 +8358,7 @@ void LocalNavigable::reset_zoom()
     if (!document)
         return;
     document->visual_viewport()->reset();
+    did_change_scroll_offset({ .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport }, Painting::CompositorScrollRequest::ProgrammaticJump);
 }
 
 bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const

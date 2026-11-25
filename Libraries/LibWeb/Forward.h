@@ -89,6 +89,7 @@ namespace Web::Painting {
 class BackingStore;
 class ChromeWidget;
 class ChromeWidgetRegistry;
+enum class CompositorScrollRequest : u8;
 enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;

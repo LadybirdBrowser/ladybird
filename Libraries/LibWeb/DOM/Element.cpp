@@ -6024,7 +6024,7 @@ void Element::set_last_relative_scroll_direction(u8 direction)
 // date for that: the box is only annotated, not read, and a box that a pending layout tree rebuild
 // replaces is never consulted again, while its replacement derives the fact when it is constructed.
 // That is why the unchecked layout node accessor is the right one here.
-void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
+void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset, Painting::CompositorScrollRequest compositor_scroll_request)
 {
     Web::AsyncScrollNodeStableID stable_node_id { .node_id = unique_id(), .kind = Web::AsyncScrollNodeKind::Element };
     if (pseudo_element_type.has_value()) {
@@ -6043,7 +6043,7 @@ void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type
     }
 
     if (auto navigable = document().navigable())
-        navigable->did_change_scroll_offset(stable_node_id);
+        navigable->did_change_scroll_offset(stable_node_id, compositor_scroll_request);
 }
 
 Optional<Element::Dir> Element::dir() const

@@ -121,8 +121,6 @@ void VisualViewport::did_change_offset_or_scale(DOM::Document& document)
 {
     update_accumulated_visual_context(document);
     document.set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
-    if (auto navigable = document.navigable())
-        navigable->did_change_scroll_offset({ .node_id = document.unique_id(), .kind = Web::AsyncScrollNodeKind::VisualViewport });
 }
 
 GC::Ref<VisualViewport> VisualViewport::create(DOM::Document& document)

@@ -104,7 +104,7 @@ static GC::Ptr<DOM::EventTarget> scroll_event_target(Layout::Node& node)
     return node.dom_node();
 }
 
-ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
+ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset, CompositorScrollRequest compositor_scroll_request)
 {
     if (!has_committed_box(node))
         return ScrollHandled::No;
@@ -120,7 +120,7 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
     if (node.is_viewport()) {
         auto navigable = node.document().navigable();
         VERIFY(navigable);
-        navigable->perform_scroll_of_viewport_scrolling_box(offset);
+        navigable->perform_scroll_of_viewport_scrolling_box(offset, compositor_scroll_request);
         return ScrollHandled::Yes;
     }
 
@@ -128,9 +128,9 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
         auto generator = node.pseudo_element_generator();
         if (!generator)
             return ScrollHandled::No;
-        generator->set_scroll_offset(*pseudo_element, offset);
+        generator->set_scroll_offset(*pseudo_element, offset, compositor_scroll_request);
     } else if (auto* element = as_if<DOM::Element>(node.dom_node())) {
-        element->set_scroll_offset({}, offset);
+        element->set_scroll_offset({}, offset, compositor_scroll_request);
     } else {
         return ScrollHandled::No;
     }
@@ -228,10 +228,9 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
 
     auto scroll_handled = ScrollHandled::No;
     if (navigable && stable_node_id.has_value()) {
-        if (navigable->set_scroll_offset_for_user_input(node, *stable_node_id, offset))
-            scroll_handled = ScrollHandled::Yes;
+        scroll_handled = set_scroll_offset(node, offset, CompositorScrollRequest::UserInputJump);
     } else {
-        scroll_handled = set_scroll_offset(node, offset);
+        scroll_handled = set_scroll_offset(node, offset, CompositorScrollRequest::ProgrammaticJump);
     }
     if (scroll_handled == ScrollHandled::Yes && scroll_kind == ScrollKind::Relative)
         node.document().scroll_state_query_containers().did_scroll_relatively(node, scroll_offset(node) - scroll_offset_before_scroll);
@@ -271,7 +270,7 @@ void scroll_text_offset_into_view(Layout::BegunRead const& read, DOM::Text const
         layout_node->document_host(), Layout::Node::slot_id(layout_node), offset,
         affinity == TextAffinity::Downstream, scroll_block_direction == ScrollBlockDirection::Yes, &scroll_offset);
     if (auto* scroll_container = layout_node_for_committed_slot(read, layout_node->node_arena(), container))
-        set_scroll_offset(*scroll_container, scroll_offset);
+        set_scroll_offset(*scroll_container, scroll_offset, CompositorScrollRequest::ProgrammaticJump);
 }
 
 }

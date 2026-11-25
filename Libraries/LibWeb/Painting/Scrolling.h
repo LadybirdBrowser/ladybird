@@ -36,6 +36,12 @@ enum class ScrollBlockDirection {
     Yes,
 };
 
+enum class CompositorScrollRequest : u8 {
+    None,
+    ProgrammaticJump,
+    UserInputJump,
+};
+
 CSSPixelPoint scroll_offset(Layout::Node const&);
 CSSPixelPoint minimum_scroll_offset(Layout::Node const&);
 CSSPixelPoint maximum_scroll_offset(Layout::Node const&);
@@ -50,7 +56,7 @@ struct WheelScrollableAxes {
 WheelScrollableAxes wheel_scrollable_axes(Layout::Node const&);
 bool could_be_scrolled_by_wheel_event(Layout::Node const&);
 WEB_API Optional<Web::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node const&);
-ScrollHandled set_scroll_offset(Layout::Node&, CSSPixelPoint);
+ScrollHandled set_scroll_offset(Layout::Node&, CSSPixelPoint, CompositorScrollRequest);
 ScrollHandled set_scroll_offset_from_user_input(Layout::Node&, CSSPixelPoint, ScrollKind = ScrollKind::Relative);
 ScrollHandled scroll_by(Layout::Node&, double delta_x, double delta_y, ScrollKind = ScrollKind::Relative);
 WEB_API Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const&);

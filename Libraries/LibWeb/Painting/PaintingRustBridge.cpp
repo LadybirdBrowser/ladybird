@@ -221,9 +221,10 @@ void register_geometry_host(Layout::NodeArena& arena)
         .set_scroll_offset = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, CSSPixelPoint offset) {
             auto* layout_node = static_cast<Layout::NodeArena*>(context)->node_if_live(*read, slot);
             VERIFY(layout_node);
-            auto navigable = layout_node->document().navigable();
-            VERIFY(navigable);
-            navigable->set_scroll_offset_settled_by_layout(*layout_node, offset); },
+            // NB: The compositor keeps the box in the same scroll range as it takes in the frame of this layout, from
+            //     wherever the user has scrolled it since. A jump to the offset this thread knows would take that
+            //     scroll back.
+            (void)set_scroll_offset(*layout_node, offset, CompositorScrollRequest::None); },
     };
     Layout::RustFFI::document_host_set_geometry_host(arena.host(), callbacks);
 }
