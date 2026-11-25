@@ -1267,9 +1267,9 @@ impl Procedures<'_> {
         //    became ready.
         // FIXME: We can get a more accurate time here if we record the actual instant we became ready rather than
         //        waiting to try and run this task
-        // AD-HOC: The initial pending play task of a CSS transition uses the time of its style change event, so that a
-        //         later style change starts the next transition from the value on the screen rather than from this
-        //         transition's start value.
+        // AD-HOC: The initial pending play task of a CSS transition whose style change event came after an animation
+        //         frame uses the time of that event, so that a later style change starts the next transition from the
+        //         value on the screen rather than from this transition's start value.
         let ready_time = initial_transition_ready_time.unwrap_or_else(|| {
             self.timeline_time()
                 .expect("an animation is ready only on an active timeline")

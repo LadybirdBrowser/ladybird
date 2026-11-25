@@ -164,8 +164,8 @@ pub(crate) struct CssTransitionState {
     pub(crate) previous_phase: TransitionPhase,
     /// Whether the transition was started provisionally and is neither committed nor discarded yet.
     pub(crate) provisional: bool,
-    /// The time of the style change event that started the transition, which the play that started it becomes ready
-    /// at, until that play's pending play task runs or the play ends.
+    /// The time the play that started the transition becomes ready at, or none where its pending play task decides it.
+    /// It is cleared once that task runs or the play ends.
     pub(crate) initial_ready_time: Option<f64>,
     /// Whether the transition is one the hover of a clock lane started, which the host took in.
     pub(crate) adopted_from_lane: bool,
