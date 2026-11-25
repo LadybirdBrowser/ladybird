@@ -376,8 +376,6 @@ pub struct FfiRasterHost {
     pub begin_painting:
         unsafe extern "C" fn(*mut c_void, u64, *const PaintingSurface, PaintingResources, bool, *mut FfiRasterPainter),
     pub end_painting: unsafe extern "C" fn(*mut c_void),
-    /// Lets the raster caches of the context's page drop what the frames before the one that starts did not use.
-    pub start_raster_cache_frame: unsafe extern "C" fn(*mut c_void, u64),
 
     /// Makes a store of the context, writing what it made. Answers false where none could be made.
     /// Arguments: the context, the kind and size of the store, the window server that shows it, if one does, and where
@@ -463,6 +461,12 @@ pub struct FfiRasterHost {
     /// Arguments: the context, and the ids of the fonts that its display list draws, which are the fonts the host
     /// keeps for it.
     pub set_drawn_fonts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
+    /// Arguments: the context, and the identities of the paths that the clips of its visual context tree clip to,
+    /// which are the clip paths the host keeps for it.
+    pub set_drawn_clip_paths: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
+    /// Arguments: the context, and the keys of the layers of its visual context tree that hold a filter or a backdrop
+    /// filter, which are the layer filters the host keeps for it.
+    pub set_drawn_layer_filters: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
     /// Arguments: the context, and the ids of the fonts that a display list draws. Answers whether the host holds all
     /// of them for the context.
     pub context_holds_fonts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>) -> bool,
@@ -672,11 +676,6 @@ impl RasterHost {
         unsafe {
             PaintingSurface::adopted_from_ffi((self.0.create_surface)(self.host(), size, like, inherits_lcd_text))
         }
-    }
-
-    pub fn start_raster_cache_frame(&self, context_id: CompositorContextId) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.start_raster_cache_frame)(self.host(), context_id.0) };
     }
 
     pub fn save(&self, surface: &Rc<PaintingSurface>) -> i32 {
@@ -1068,6 +1067,16 @@ impl RasterHost {
     pub fn set_drawn_fonts(&self, context_id: CompositorContextId, font_ids: &[u64]) {
         // SAFETY: The host outlives this, and reads the ids during the call.
         unsafe { (self.0.set_drawn_fonts)(self.host(), context_id.0, ak::Span::new(font_ids)) };
+    }
+
+    pub fn set_drawn_clip_paths(&self, context_id: CompositorContextId, path_identities: &[u64]) {
+        // SAFETY: The host outlives this, and reads the identities during the call.
+        unsafe { (self.0.set_drawn_clip_paths)(self.host(), context_id.0, ak::Span::new(path_identities)) };
+    }
+
+    pub fn set_drawn_layer_filters(&self, context_id: CompositorContextId, layer_filter_cache_keys: &[u64]) {
+        // SAFETY: The host outlives this, and reads the keys during the call.
+        unsafe { (self.0.set_drawn_layer_filters)(self.host(), context_id.0, ak::Span::new(layer_filter_cache_keys)) };
     }
 
     pub fn context_holds_fonts(&self, context_id: CompositorContextId, font_ids: &[u64]) -> bool {

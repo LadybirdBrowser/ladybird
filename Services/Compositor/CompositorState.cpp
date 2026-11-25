@@ -1079,6 +1079,16 @@ void CompositorState::set_drawn_fonts(Web::CompositorContextId context_id, Reado
     presented_context(context_id).raster_targets.retain_only_fonts(font_ids);
 }
 
+void CompositorState::set_drawn_clip_paths(Web::CompositorContextId context_id, ReadonlySpan<u64> path_identities)
+{
+    presented_context(context_id).raster_targets.raster_cache().keep_only_clip_paths(path_identities);
+}
+
+void CompositorState::set_drawn_layer_filters(Web::CompositorContextId context_id, ReadonlySpan<u64> layer_filter_cache_keys)
+{
+    presented_context(context_id).raster_targets.raster_cache().keep_only_layer_filters(layer_filter_cache_keys);
+}
+
 bool CompositorState::context_holds_fonts(Web::CompositorContextId context_id, ReadonlySpan<u64> font_ids)
 {
     auto const& fonts = presented_context(context_id).raster_targets.fonts();
@@ -1610,7 +1620,6 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .flush_surface = [](Gfx::PaintingSurface const* surface) { DisplayListPlayerSkia::flush(mutable_surface(surface)); },
         .begin_painting = [](void* host, u64 context_id, Gfx::PaintingSurface const* surface, RustFFI::PaintingResources resources, bool allows_lcd_text, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, mutable_surface(surface), resources, allows_lcd_text); },
         .end_painting = [](void* host) { state_of(host).end_painting(); },
-        .start_raster_cache_frame = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.raster_cache().drop_what_was_not_used_since_last_frame(); },
         .create_store = [](void* host, u64 context_id, RustFFI::StoreKind kind, Gfx::IntSize size, void* window_server, RustFFI::FfiNewStore* new_store) { return state_of(host).create_store(Context { context_id }, kind, size, static_cast<WindowServer*>(window_server), *new_store); },
         .publish_stores = [](void* host, u64 presentation_id, u64 context_id, bool added, ReadonlySpan<i32> bitmap_ids, ReadonlySpan<void*> images) { state_of(host).publish_stores(PresentationId { presentation_id }, Context { context_id }, added, bitmap_ids, images); },
         .retire_published_stores = [](void* host, u64 presentation_id, u64 context_id, ReadonlySpan<i32> bitmap_ids) { state_of(host).retire_published_stores(PresentationId { presentation_id }, Context { context_id }, bitmap_ids); },
@@ -1712,6 +1721,8 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .set_drawn_video_sinks = [](void* host, u64 context_id, ReadonlySpan<u64> handles) { state_of(host).set_drawn_video_sinks(Context { context_id }, handles); },
         .set_drawn_vector_images = [](void* host, u64 context_id, ReadonlySpan<u64> vector_image_ids) { state_of(host).set_drawn_vector_images(Context { context_id }, vector_image_ids); },
         .set_drawn_fonts = [](void* host, u64 context_id, ReadonlySpan<u64> font_ids) { state_of(host).set_drawn_fonts(Context { context_id }, font_ids); },
+        .set_drawn_clip_paths = [](void* host, u64 context_id, ReadonlySpan<u64> path_identities) { state_of(host).set_drawn_clip_paths(Context { context_id }, path_identities); },
+        .set_drawn_layer_filters = [](void* host, u64 context_id, ReadonlySpan<u64> layer_filter_cache_keys) { state_of(host).set_drawn_layer_filters(Context { context_id }, layer_filter_cache_keys); },
         .context_holds_fonts = [](void* host, u64 context_id, ReadonlySpan<u64> font_ids) { return state_of(host).context_holds_fonts(Context { context_id }, font_ids); },
         .staged_rasterization_has_resources = [](void* host, u64 client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids) { return state_of(host).staged_rasterization_has_resources(WebContentClientId { client }, token, font_ids, image_frame_ids); },
         .begin_staged_rasterization = [](void* host, u64 client, u64 token, Compositing::RustFFI::FfiRasterPainter* painter) { return state_of(host).begin_staged_rasterization(WebContentClientId { client }, token, *painter); },
