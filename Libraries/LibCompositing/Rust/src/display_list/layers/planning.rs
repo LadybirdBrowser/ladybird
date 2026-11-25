@@ -4625,6 +4625,55 @@ mod tests {
     }
 
     #[test]
+    fn a_stack_at_a_power_of_two_of_its_raster_scale_cuts_each_tile_as_the_plan_cuts_the_cell_around_it() {
+        use crate::display_list::tiles::TileCoord;
+        let (tree, _, document) = tree_with_document_scroll();
+        let stack = ListOfOneChunk::default()
+            .with(fill(IntRect::new(0, 0, 800, 2600), GREEN), document)
+            .with(canvas(IntRect::new(500, 490, 100, 40), 1), document)
+            .with(fill(IntRect::new(400, 400, 400, 400), GREEN), document)
+            .stack(&tree, &[]);
+        let band_with_cut = stack
+            .bands
+            .iter()
+            .position(|band| !band.cuts.is_empty())
+            .expect("the canvas cuts a band");
+        let mut scroll_offsets = vec![FloatPoint::default(); tree.spatial_nodes.len()];
+        scroll_offsets[document.spatial.0 as usize] = FloatPoint { x: 0.0, y: 100.0 };
+        let composite_offsets_of_plan = stack.composite_offsets(&scroll_offsets);
+        for factor in [2, 4] {
+            let stack_at_scale = stack.at_raster_scale(factor);
+            let tiles = CellRange::touched_by(IntRect::new(0, 0, 1024 * 2 * factor, 512 * 3 * factor));
+            for coord in tiles.coords() {
+                let cell_of_plan =
+                    TileCoord::new(coord.column.div_euclid(factor), coord.row.div_euclid(factor)).cell_rect();
+                let layers_above_cuts = |stack: &LayerStack, cell: IntRect| -> Vec<LayerIndex> {
+                    CutsOfCell::of(&stack.bands[band_with_cut], cell)
+                        .cuts()
+                        .map(|cut| cut.layer_above_cut)
+                        .collect()
+                };
+                assert_eq!(
+                    layers_above_cuts(&stack_at_scale, coord.cell_rect()),
+                    layers_above_cuts(&stack, cell_of_plan),
+                    "tile {coord} at {factor} raster pixels per device pixel"
+                );
+            }
+            let composite_offsets_at_scale: Vec<libgfx_rust::IntPoint> = composite_offsets_of_plan
+                .iter()
+                .map(|offset| libgfx_rust::IntPoint {
+                    x: offset.x * factor,
+                    y: offset.y * factor,
+                })
+                .collect();
+            assert_eq!(
+                stack_at_scale.composite_offsets(&scroll_offsets),
+                composite_offsets_at_scale
+            );
+        }
+    }
+
+    #[test]
     fn a_slide_farther_than_extents_reach_reaches_the_whole_viewport() {
         let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
         let slider = transformed_context(&mut tree, viewport, FloatRect::new(0.0, 0.0, 50.0, 50.0));
