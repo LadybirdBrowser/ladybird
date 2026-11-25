@@ -240,6 +240,36 @@ fn fetched<'a>(
         })
 }
 
+// The DNAME among the RRsets whose owner is an ancestor of `name`, which a CNAME at `name` may have been synthesized
+// from.
+fn dname_above<'a>(rrsets: &'a [SignedRRSet], name: &DomainName, class: Class) -> Option<&'a SignedRRSet> {
+    rrsets.iter().find(|rrset| {
+        rrset.rtype == ResourceType::DNAME
+            && rrset.class == class
+            && rrset.owner.labels.len() < name.labels.len()
+            && rrset.owner.is_ancestor_or_equal_of(name)
+    })
+}
+
+// The target of `cname`, if it is what substituting the owner of `dname` with its target in `name` makes.
+fn synthesized_target(cname: &SignedRRSet, dname: &SignedRRSet, name: &DomainName) -> Option<DomainName> {
+    let [cname_record] = cname.records.as_slice() else {
+        return None;
+    };
+    let [dname_record] = dname.records.as_slice() else {
+        return None;
+    };
+    let (RecordData::Cname(target), RecordData::Dname(dname_target)) = (&cname_record.data, &dname_record.data) else {
+        return None;
+    };
+    let kept = name.labels.len() - dname.owner.labels.len();
+    let mut expected = DomainName {
+        labels: name.labels[..kept].to_vec(),
+    };
+    expected.labels.extend(dname_target.labels.iter().cloned());
+    expected.eq_ignore_case(target).then(|| target.clone())
+}
+
 fn expiry(received_at: u32, ttl: u32) -> u64 {
     u64::from(received_at) + u64::from(ttl)
 }
@@ -430,6 +460,18 @@ impl Validator {
         }
 
         let answers = group_rrsets(&response.answers);
+        // RFC 6672, 2.4. Names next to and below a DNAME Record
+        // Resource records MUST NOT exist at any subdomain of the owner of a DNAME RR.
+        // So no zone starts there either.
+        if let Some(dname) = dname_above(&answers, name, Class::IN) {
+            let verified = verify_rrset(dname, &parent.zone, &parent.keys, now)?
+                .ok_or(Failure::Error("DNAME RRset did not validate"))?;
+            return remember(Delegation {
+                kind: DelegationKind::NotACut,
+                ds: Vec::new(),
+                expires: expiry(received_at, verified.ttl),
+            });
+        }
         for rrset in &answers {
             if !rrset.owner.eq_ignore_case(name) {
                 continue;
@@ -683,6 +725,38 @@ impl Validator {
             let proofs = DenialProofs {
                 rrsets: &denial_records,
             };
+
+            // RFC 6672, 3.1. CNAME Synthesis
+            // The DNSSEC specification ([RFC4033] [RFC4034] [RFC4035]) says that the synthesized CNAME does not have to
+            // be signed.  The signed DNAME has an RRSIG, and a validating resolver can check the CNAME against the
+            // DNAME record and validate the signature over the DNAME RR.
+            // NB: For a question for a CNAME, the synthesized CNAME is the answer.
+            let alias = if question.rtype == ResourceType::CNAME {
+                answer
+            } else {
+                cname
+            };
+            if let Some(cname) = alias.filter(|rrset| rrset.rtype == ResourceType::CNAME)
+                && let Some(dname) = dname_above(&answers, &current, question.class)
+            {
+                let Some(target) = synthesized_target(cname, dname, &current) else {
+                    return Ok(bogus("CNAME does not follow from the DNAME above it"));
+                };
+                let dname_records = match self.accept(dname, &dname.owner, &chain, &proofs, fetches, now)? {
+                    Accepted::Records(records) => capped_to(records, chain_ttl),
+                    Accepted::Insecure(reason) => return Ok(insecure(result.records, &current, chain_ttl, reason)),
+                    Accepted::Bogus(reason) => return Ok(bogus(reason)),
+                };
+                // A CNAME RR with Time to Live (TTL) equal to the corresponding DNAME RR is synthesized
+                chain_ttl = dname_records.iter().map(|record| record.ttl).fold(chain_ttl, u32::min);
+                result.records.extend(dname_records);
+                result.records.extend(capped_to(cname.records.clone(), chain_ttl));
+                if question.rtype == ResourceType::CNAME {
+                    return Ok(result);
+                }
+                current = target;
+                continue;
+            }
 
             if let Some(answer) = answer {
                 return Ok(match self.accept(answer, &current, &chain, &proofs, fetches, now)? {
