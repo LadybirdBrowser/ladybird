@@ -1,0 +1,15 @@
+Ladybird’s text-shadow layers shadow the text’s decoration lines as
+well as its glyphs, and the lines of an outer decorating box are painted
+below those of the boxes nested in it. Blink does the same: Its
+TextDecorationPainter paints the lines in TextShadowPaintPhase::kShadow
+too, and so does Gecko’s nsTextFrame::PaintOneShadow(), which draws
+the decorations along with the run in the shadow’s color. Both paint
+the glyphs’ and the lines’ shadows one after the other, so where they
+overlap, a translucent shadow comes out darker, as it does in Ladybird.
+WebKit’s TextDecorationPainter paints the underline and overline once
+for each of its m_shadow layers, but not the line-through. Chrome 158
+and Firefox 151 shadow the underline, overline, and line-through,
+blurred or not, and the lines a decorating ancestor propagates to a
+shadowed span; WebKit 26.5 shadows the underline and overline only. None
+of them shadows the line-through that a ::selection adds with the
+originating text’s own shadow.
