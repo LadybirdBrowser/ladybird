@@ -28,7 +28,9 @@ use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
 use crate::scrollbar_controller::{Drag, ScrollbarController};
 use crate::wheel_gesture_routing::{ResolvedLatch, WheelGestureIdAllocator, WheelGestureRouting};
+use libcompositing_rust::display_list::commands::EffectNodeIndex;
 use libcompositing_rust::display_list::layers::UnvalidatedLayerPlan;
+use libcompositing_rust::display_list::replay::layer_filter_cache_key;
 use libcompositing_rust::ipc_types::{
     Compositing_AsyncScrollOperationTracking as AsyncScrollOperationTracking,
     Compositing_ContextVisibility as ContextVisibility, Compositing_RequestedRelativeScroll as RequestedRelativeScroll,
@@ -39,6 +41,7 @@ use libcompositing_rust::scrolling::smooth_scroll_animation::SmoothScrollAnimati
 use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::scrolling::*;
 use libcompositing_rust::time::{Duration, MonotonicTime};
+use libcompositing_rust::visual_context::{ClipNodeData, EffectNodeData};
 use libgfx_rust::{FloatPoint, IntRect, IntSize, Orientation};
 use scroller_moves::{ScrollerMoveCause, VisualViewportMoveCause};
 use std::collections::{HashMap, HashSet};
@@ -488,6 +491,38 @@ impl ContextState {
                 .for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
         }
         image_frame_ids
+    }
+    /// The identities of the paths that the clips of the visual context tree clip to.
+    pub fn clip_path_identities_drawn(&self) -> Vec<u64> {
+        let Some(visual_context_tree) = self.scene.visual_context_tree() else {
+            return Vec::new();
+        };
+        visual_context_tree
+            .as_arc()
+            .clip_nodes
+            .iter()
+            .filter_map(|node| match &node.data {
+                ClipNodeData::Path(clip_path) => Some(clip_path.path.identity()),
+                _ => None,
+            })
+            .collect()
+    }
+    /// The keys that replay gives the layers of the effects of the visual context tree that hold a filter or a
+    /// backdrop filter.
+    pub fn layer_filter_cache_keys_drawn(&self) -> Vec<u64> {
+        let Some(visual_context_tree) = self.scene.visual_context_tree() else {
+            return Vec::new();
+        };
+        let tree = visual_context_tree.as_arc();
+        tree.effect_nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| {
+                matches!(&node.data, EffectNodeData::Effects(effects)
+                    if effects.filter.is_some() || effects.backdrop_filter.is_some())
+            })
+            .map(|(effect_index, _)| layer_filter_cache_key(tree, EffectNodeIndex(effect_index as u32)))
+            .collect()
     }
     /// The ids of the SVG images that the display list draws.
     pub fn vector_image_ids_drawn(&self) -> Vec<u64> {

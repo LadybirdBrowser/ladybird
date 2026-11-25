@@ -806,8 +806,9 @@ impl CompositorCore {
         context.borrow_mut().take_layer_plan_of_scroll_state(layer_plan)
     }
 
-    /// Tells the host which fonts, image frames, video sinks and SVG images the context draws, now that it took a
-    /// display list or a visual context tree. The host keeps those for it, and lets go of the others.
+    /// Tells the host which fonts, image frames, video sinks, SVG images, clip paths and layer filters the context
+    /// draws, now that it took a display list or a visual context tree. The host keeps those for it, and lets go of the
+    /// others.
     pub fn keep_only_drawn_resources(&self, context_id: CompositorContextId) {
         let _entered = self.enter();
 
@@ -822,6 +823,11 @@ impl CompositorCore {
         self.raster.set_drawn_video_sinks(context_id, &video_sink_handles);
         let vector_image_ids = context.borrow().vector_image_ids_drawn();
         self.raster.set_drawn_vector_images(context_id, &vector_image_ids);
+        let clip_path_identities = context.borrow().clip_path_identities_drawn();
+        self.raster.set_drawn_clip_paths(context_id, &clip_path_identities);
+        let layer_filter_cache_keys = context.borrow().layer_filter_cache_keys_drawn();
+        self.raster
+            .set_drawn_layer_filters(context_id, &layer_filter_cache_keys);
     }
 
     // Returns false for a tree that does not fit the installed display list, of which only the scroll state is taken.

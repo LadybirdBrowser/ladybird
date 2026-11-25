@@ -102,12 +102,16 @@ public:
 
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
+    // Drops the filters of every layer but these, which are the ones whose effects the visual context tree of the
+    // context holds.
+    void keep_only_layer_filters(ReadonlySpan<u64> drawn_layer_filter_cache_keys);
 
     // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
     // the caches that are keyed on it work.
     SkPath clip_path(u64 path_identity, Gfx::PathData const&);
-    // Drops the clip paths and layer filters that were not used since the last call.
-    void drop_what_was_not_used_since_last_frame();
+    // Drops the Skia paths of every path but these, which are the ones that the clips of the visual context tree of
+    // the context clip to.
+    void keep_only_clip_paths(ReadonlySpan<u64> drawn_path_identities);
 
 private:
     struct ImageFrameImage;
@@ -131,7 +135,6 @@ private:
     size_t m_text_blob_cache_bytes { 0 };
     MonotonicTime m_text_blob_cache_sweep_time { MonotonicTime::now() };
     HashMap<u64, NonnullOwnPtr<ClipPath>> m_clip_paths;
-    HashMap<u64, NonnullOwnPtr<ClipPath>> m_clip_paths_from_last_frame;
 };
 
 }

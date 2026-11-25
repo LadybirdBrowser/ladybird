@@ -207,6 +207,8 @@ private:
     void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);
     void set_drawn_vector_images(Web::CompositorContextId, ReadonlySpan<u64> vector_image_ids);
     void set_drawn_fonts(Web::CompositorContextId, ReadonlySpan<u64> font_ids);
+    void set_drawn_clip_paths(Web::CompositorContextId, ReadonlySpan<u64> path_identities);
+    void set_drawn_layer_filters(Web::CompositorContextId, ReadonlySpan<u64> layer_filter_cache_keys);
     bool context_holds_fonts(Web::CompositorContextId, ReadonlySpan<u64> font_ids);
     struct StagedRasterization;
     StagedRasterization* staged_rasterization(WebContentClientId, u64 token);

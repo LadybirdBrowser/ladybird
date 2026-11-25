@@ -1624,7 +1624,6 @@ impl ContextPresenting {
         live_content: &LiveContent,
         paints_ui_overlays: bool,
     ) -> (IntRect, Vec<FfiSublayer>) {
-        env.raster.start_raster_cache_frame(env.context_id);
         // A store can miss the damage of several frames, which joined can reach part of what a composited effect reads.
         // A frame that maps the raster to its pixels through a transform repaints all of them, and what effects read is
         // in the pixels of the raster.
@@ -1705,7 +1704,6 @@ impl ContextPresenting {
             .layers
             .window_server
             .surface_tiles_are_made_like_without_store(env)?;
-        env.raster.start_raster_cache_frame(env.context_id);
         let rects_painted_straight =
             self.raster_tiles_of_layers(env, &surface_tiles_are_made_like, frame, layer_update);
         if !rects_painted_straight.is_empty() {

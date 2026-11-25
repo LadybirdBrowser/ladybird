@@ -758,7 +758,7 @@ fn replay_clip_of(clip: &crate::visual_context::ClipData) -> ReplayClip {
 }
 
 // An effect keeps its filters for as long as the tree keeps its structure.
-fn layer_filter_cache_key(tree: &VisualContextTree, effect: EffectNodeIndex) -> u64 {
+pub fn layer_filter_cache_key(tree: &VisualContextTree, effect: EffectNodeIndex) -> u64 {
     let mut hasher = crate::fast_hash::fast_hasher();
     hasher.write_u64(tree.structural_epoch);
     hasher.write_u32(effect.0);
