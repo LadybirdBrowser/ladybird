@@ -1,0 +1,6 @@
+Ladybird notes which kind of vertexAttrib*() call set each attribute’s
+current value, and getVertexAttrib(CURRENT_VERTEX_ATTRIB) returns it as
+that type. Blink keeps the same record in its vertex_attrib_type_,
+WebKit in each attribute’s m_vertexAttribValue[index].type, and Gecko in
+the type of each of its mGenericVertexAttribs. And the test’s output is
+the same in Chrome 158, Firefox 151, and WebKit 26.5, line for line.
