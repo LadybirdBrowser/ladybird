@@ -37,7 +37,7 @@ ErrorOr<NonnullOwnPtr<Transport>> take_over_startup_transport(StringView)
     return Transport::adopt_fd(TRY(Core::take_over_descriptor_from_system_server("ipc")));
 #    else
     auto socket = TRY(Core::take_over_socket_from_system_server("ipc"));
-    return make<Transport>(move(socket));
+    return Transport::from_socket(move(socket));
 #    endif
 }
 

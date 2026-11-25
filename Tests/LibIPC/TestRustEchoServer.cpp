@@ -33,9 +33,9 @@ static NonnullOwnPtr<IPC::Transport> start_server()
     auto server_send_right = MUST(our_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
     auto server_receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
     auto our_send_right = MUST(server_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
-    IPC::TransportMachPort::raise_receive_queue_limit(server_receive_right);
+    IPC::Transport::raise_receive_queue_limit(server_receive_right);
     rust_echo_server_serve(server_receive_right.release(), server_send_right.release());
-    return MUST(IPC::TransportMachPort::create(move(our_receive_right), move(our_send_right)));
+    return MUST(IPC::Transport::create(move(our_receive_right), move(our_send_right)));
 }
 #elif defined(AK_OS_WINDOWS)
 extern "C" void rust_echo_server_serve(int descriptor);
@@ -54,9 +54,7 @@ static NonnullOwnPtr<IPC::Transport> start_server()
     int fds[2] {};
     MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fds));
     rust_echo_server_serve(fds[1]);
-    auto socket = MUST(Core::LocalSocket::adopt_fd(fds[0]));
-    MUST(socket->set_blocking(false));
-    return make<IPC::TransportSocket>(move(socket));
+    return MUST(IPC::Transport::adopt_fd(fds[0]));
 }
 #endif
 

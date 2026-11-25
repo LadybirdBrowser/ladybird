@@ -20,7 +20,7 @@ rustc-demangle = { version = "0.1", optional = true }
 [features]
 default = []
 allocator = ["dep:ladybird_allocator"]
-# The extern "C" interface of the Mach transport, for LibIPC's copy of the crate alone.
+# The extern "C" interface of the transports, for LibIPC's copy of the crate alone.
 cpp_transport = ["dep:rustc-demangle"]
 
 [build-dependencies]

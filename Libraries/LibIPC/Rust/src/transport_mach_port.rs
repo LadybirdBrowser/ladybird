@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The Mach port transport, which speaks with `IPC::TransportMachPort` on the other end.
+//! The Mach port transport, which speaks with `IPC::Transport` on the other end.
 //!
 //! All transports of a process share one IO thread. It waits on one port set, which holds the receive right of each
 //! transport and the port on which a transport hears that its peer's full queue has room. The thread that posts a
@@ -889,7 +889,7 @@ impl TransportMachPort {
     }
 
     /// As `post_message()`, but leaves it to the peer to refuse a message with too many attachments, as
-    /// `IPC::TransportMachPort` does. Lent bytes are only handed over if the message has to wait behind others.
+    /// `IPC::Transport` does. Lent bytes are only handed over if the message has to wait behind others.
     pub fn post_message_with_any_number_of_attachments(
         &self,
         payload: OutgoingPayload<'_>,

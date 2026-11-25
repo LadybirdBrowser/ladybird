@@ -462,7 +462,7 @@ impl MessagePort {
     }
 
     fn post_port_message(this: Ref<Self>, vm: &Vm, serialize_with_transfer_result: TransferRecordRef) {
-        let sent = {
+        let failed_while_open = {
             let transport = this.transport.borrow();
             let Some(transport) = &*transport else {
                 TransferRecord::discard(serialize_with_transfer_result);
@@ -472,9 +472,11 @@ impl MessagePort {
                 TransferRecord::discard(serialize_with_transfer_result);
                 return;
             }
-            transport.send(vm, serialize_with_transfer_result)
+            // NB: A transport refuses a message once its peer is gone, which can happen after the check above. What the
+            //     peer sent before it went is still to be read then, so the port stays entangled until it has been.
+            !transport.send(vm, serialize_with_transfer_result) && transport.is_open()
         };
-        if !sent {
+        if failed_while_open {
             this.disentangle();
         }
     }

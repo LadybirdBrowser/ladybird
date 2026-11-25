@@ -1000,8 +1000,8 @@ impl TransportSocket {
         self.post_message_with_any_number_of_attachments(OutgoingPayload::Owned(bytes), attachments)
     }
 
-    /// As `post_message()`, but leaves it to the peer to refuse a message with too many attachments, as the C++
-    /// transport does. Lent bytes are only handed over if the message has to wait behind others.
+    /// As `post_message()`, but leaves it to the peer to refuse a message with too many attachments, as
+    /// `IPC::Transport` does. Lent bytes are only handed over if the message has to wait behind others.
     pub fn post_message_with_any_number_of_attachments(
         &self,
         payload: OutgoingPayload<'_>,

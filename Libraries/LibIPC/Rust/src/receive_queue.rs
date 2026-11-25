@@ -6,9 +6,9 @@
 
 use crate::attachment::Attachment;
 #[cfg(target_vendor = "apple")]
-use crate::mach::PayloadBytes;
+pub(crate) use crate::mach::PayloadBytes;
 #[cfg(not(target_vendor = "apple"))]
-type PayloadBytes = Vec<u8>;
+pub(crate) type PayloadBytes = Vec<u8>;
 
 /// A message the peer sent: its bytes and its attachments.
 pub struct ReceivedMessage {
