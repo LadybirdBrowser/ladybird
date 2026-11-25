@@ -11,11 +11,19 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/Forward.h>
 #include <LibWebCommon/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWebCommon/ContentSecurityPolicy/PolicySource.h>
+#include <LibWebCommon/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Response;
+
+}
 
 namespace Web::ContentSecurityPolicy {
+
+class PolicyList;
 
 #define ENUMERATE_DISPOSITION_TYPES                  \
     __ENUMERATE_DISPOSITION_TYPE(Enforce, "enforce") \
