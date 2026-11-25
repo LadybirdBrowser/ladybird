@@ -63,10 +63,17 @@ static bool has_valid_explicit_port(StringView input)
 //         localhost names (which the Secure Contexts spec treats as "potentially trustworthy", even over plain http),
 //         as well as the unspecified addresses 0.0.0.0 and [::] (which reach loopback in practice), and private-use and
 //         link-local addresses. Gecko and Blink likewise exempt all of those hosts from their HTTPS-upgrade machinery.
+//         Names without a known public suffix (a single label such as "devbox", or a name under .local, .internal,
+//         or .lan) are exempt too, as only a local network or the machine itself can resolve them.
 static bool should_guess_http_scheme_for_host(URL::Host const& host)
 {
     if (host.is_loopback_or_localhost())
         return true;
+
+    if (host.is_domain()) {
+        auto const& domain = host.get<String>();
+        return !URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No).has_value();
+    }
 
     // NOTE: For hosts produced by the URL parser, to_u32() is the URL spec's IPv4 number — with the first octet in the
     //       most-significant byte.
