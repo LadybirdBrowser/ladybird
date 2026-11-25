@@ -19,6 +19,7 @@
 #include <LibGfx/RustFFI.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlender.h>
+#include <core/SkCanvas.h>
 #include <core/SkColorFilter.h>
 #include <core/SkColorSpace.h>
 #include <core/SkData.h>
@@ -50,6 +51,13 @@ static_assert(to_underlying(PathVerb::Cubic) == to_underlying(SkPathVerb::kCubic
 static_assert(to_underlying(PathVerb::Close) == to_underlying(SkPathVerb::kClose));
 static_assert(sizeof(PathVerb) == sizeof(SkPathVerb));
 static_assert(sizeof(FloatPoint) == sizeof(SkPoint));
+
+void draw_tile_image_rect(SkCanvas& canvas, SkImage const& image, SkRect const& source_rect, SkRect const& target_rect, bool filtered, SkPaint const& paint)
+{
+    auto sampling = filtered ? SkSamplingOptions { SkFilterMode::kLinear } : SkSamplingOptions {};
+    auto constraint = filtered ? SkCanvas::kFast_SrcRectConstraint : SkCanvas::kStrict_SrcRectConstraint;
+    canvas.drawImageRect(&image, source_rect, target_rect, sampling, &paint, constraint);
+}
 
 SkMatrix to_skia_matrix(AffineTransform const& affine_transform)
 {

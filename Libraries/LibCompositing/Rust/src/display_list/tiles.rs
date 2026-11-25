@@ -10,6 +10,9 @@ use std::collections::BTreeMap;
 
 pub const TILE_WIDTH_IN_DEVICE_PIXELS: i32 = 1024;
 pub const TILE_HEIGHT_IN_DEVICE_PIXELS: i32 = 512;
+/// How far past its part of a cell a tile holds what lies around it, so that a tile shown scaled or at a fraction of a
+/// pixel blends its edges with the pixels of the tiles beside it instead of repeating its own edge.
+pub const TILE_BORDER_IN_DEVICE_PIXELS: i32 = 1;
 const MAXIMUM_CELLS_CONTENT_IS_FOLLOWED_INTO_ONE_BY_ONE: u64 = 4096;
 
 /// A cell of the tile grid of a layer's raster space, which starts at the space's origin.
@@ -41,6 +44,12 @@ impl TileCoord {
             TILE_HEIGHT_IN_DEVICE_PIXELS,
         )
     }
+}
+
+/// `part_of_cell` with the border its tile holds around it.
+pub const fn with_tile_border(part_of_cell: IntRect) -> IntRect {
+    let border = TILE_BORDER_IN_DEVICE_PIXELS;
+    part_of_cell.inflated_edges(border, border, border, border)
 }
 
 impl Ord for TileCoord {

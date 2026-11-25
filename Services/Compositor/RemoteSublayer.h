@@ -65,6 +65,9 @@ struct RemoteSublayer {
 
     struct Tile {
         PresentableSurface::Lease surface;
+        // What of the surface shows at the content rect. Around it, the surface of a tile holds a border of what lies
+        // beside the tile, which a filter blends the tile's edges with where the tile is shown scaled.
+        Gfx::IntRect rect_in_surface;
         bool every_pixel_is_opaque { false };
     };
 

@@ -31,6 +31,8 @@
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
 
+class SkCanvas;
+
 namespace Gfx {
 
 constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
@@ -144,6 +146,9 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
 }
 
 SkMatrix to_skia_matrix(AffineTransform const&);
+// Draws `source_rect` of the image of a tile over `target_rect`. A filter reads past the source rect, into the border
+// the tile holds of what lies beside it.
+void draw_tile_image_rect(SkCanvas&, SkImage const&, SkRect const& source_rect, SkRect const& target_rect, bool filtered, SkPaint const&);
 SkPath to_skia_path(PathData const&);
 SkPath skia_path_from_serialized_bytes(ReadonlyBytes);
 // Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the

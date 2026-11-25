@@ -17,8 +17,7 @@ use super::tiles::{
 use super::window_server::{WhyMediaIsReplayed, WindowServerLayers};
 use super::{
     ContextPresenting, FrameToPaint, NestedContexts, PresentingEnvironment, apply_raster_to_frame,
-    apply_raster_transform, composite_inside_effects_of_frame, inflated, rect_of_size, replay_into,
-    replay_with_scroll_offsets, size_of,
+    apply_raster_transform, composite_inside_effects_of_frame, inflated, replay_into, replay_with_scroll_offsets,
 };
 use crate::context_scene::ReceivedLayerPlan;
 use crate::raster_host::{FfiSublayer, LiveContent, SurfaceSampling};
@@ -2041,10 +2040,11 @@ impl ContextPresenting {
                         TileDraw::TileSurface {
                             surface,
                             rect_in_layer_space,
+                            rect_in_surface,
                             ..
                         } => compositing_session.draw_raster(
                             surface.painting_surface().as_ffi().cast_mut().cast(),
-                            rect_of_size(size_of(rect_in_layer_space)),
+                            rect_in_surface,
                             rect_in_layer_space.translated(layer_to_frame_offset.x, layer_to_frame_offset.y),
                             clips_of_layer,
                             layer_to_frame_transform,

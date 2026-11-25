@@ -26,7 +26,7 @@ use libcompositing_rust::display_list::tiles::TileCoord;
 use libcompositing_rust::display_list::window_server_placement::{
     WhyWindowServerCannotShowMedia, WindowServerPlacement,
 };
-use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
+use libgfx_rust::{AffineTransform, Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -559,6 +559,12 @@ impl ContextPresenting {
             },
         ));
         let index_of_group_of_space = sublayers.len() as i32 - 1;
+        // Scaled or moved by a fraction of a pixel, a tile is sampled at its border too, which can be transparent
+        // beside an opaque tile.
+        let window_server_samples_no_tile_border = match compositing.space_to_frame {
+            SpaceToFrame::Offset(_) => true,
+            SpaceToFrame::Transform(transform) => AffineTransform::is_whole_pixel_translation(transform),
+        };
         let mut ordinal_of_fill = 0;
         for draw in draws {
             match draw {
@@ -567,11 +573,13 @@ impl ContextPresenting {
                     surface,
                     every_pixel_is_opaque,
                     rect_in_layer_space,
+                    rect_in_surface,
                 } => sublayers.push(FfiSublayer {
                     group_index: index_of_group_of_space,
                     presentable_surface: surface.as_ffi(),
                     rect: rect_in_layer_space,
-                    every_pixel_is_opaque,
+                    rect_in_surface,
+                    every_pixel_is_opaque: every_pixel_is_opaque && window_server_samples_no_tile_border,
                     ..FfiSublayer::of_kind(
                         identity_of(PartOfTiledLayer::Tile {
                             column: coord.column,
@@ -770,6 +778,7 @@ impl ContextPresenting {
                         surface,
                         every_pixel_is_opaque: false,
                         rect_in_layer_space,
+                        rect_in_surface: rect_of_size(size_of(rect_in_layer_space)),
                     };
                     self.append_sublayers_of_tiled_layer(&mut sublayers, compositing, vec![draw], group_index);
                 }

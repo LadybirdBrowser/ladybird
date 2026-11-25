@@ -18,7 +18,9 @@ use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
 use libcompositing_rust::display_list::layers::{BarrierCutsOfCell, LayerIdentity, SpaceToFrame};
 use libcompositing_rust::display_list::tile_keys::{ContentHash, TileCoverage};
-use libcompositing_rust::display_list::tiles::{CellRange, TileCoord, entries_within};
+use libcompositing_rust::display_list::tiles::{
+    CellRange, TILE_BORDER_IN_DEVICE_PIXELS, TileCoord, entries_within, with_tile_border,
+};
 use libcompositing_rust::time::{Duration, MonotonicTime};
 use libgfx_rust::{Color, FloatPoint, FloatSize, IntRect, IntSize};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -73,7 +75,7 @@ impl SpareSurfaces {
 
     fn keep_surface_of(&mut self, tile: PooledTile, now: MonotonicTime) {
         if let TilePixels::Surface { surface, .. } = tile.pixels {
-            self.keep(surface, size_of(tile.held_part_of_cell), now);
+            self.keep(surface, size_of(with_tile_border(tile.held_part_of_cell)), now);
         }
     }
 
@@ -150,6 +152,9 @@ pub(super) enum TileDraw<'a> {
         surface: &'a Rc<PresentableSurface>,
         every_pixel_is_opaque: bool,
         rect_in_layer_space: IntRect,
+        /// What of the surface shows at `rect_in_layer_space`. Around it, the surface of a tile holds a border of what
+        /// lies beside the tile.
+        rect_in_surface: IntRect,
     },
     FillOfJoinedOneColorTiles {
         rect_in_layer_space: IntRect,
@@ -351,6 +356,8 @@ impl LayerTiles {
                     surface,
                     every_pixel_is_opaque: *every_pixel_is_opaque,
                     rect_in_layer_space,
+                    rect_in_surface: rect_of_size(size_of(rect_in_layer_space))
+                        .translated(TILE_BORDER_IN_DEVICE_PIXELS, TILE_BORDER_IN_DEVICE_PIXELS),
                 }),
                 TilePixels::OneColor(color) => one_color_fills.push((rect_in_layer_space, *color)),
             }
@@ -388,12 +395,13 @@ impl LayerTiles {
                 TileDraw::TileSurface {
                     surface,
                     rect_in_layer_space,
+                    rect_in_surface,
                     ..
                 } => {
                     raster.draw_surface(
                         target,
                         surface.painting_surface(),
-                        rect_of_size(size_of(rect_in_layer_space)),
+                        rect_in_surface,
                         rect_in_layer_space.translated(composite_offset.x, composite_offset.y),
                         SurfaceBlend::Source,
                         sampling,
@@ -712,7 +720,7 @@ impl LayerTiles {
                             TilePixels::Surface { surface, .. } => Some(surface),
                             TilePixels::OneColor(_) => None,
                         });
-                    let surface_size = size_of(tile.part_of_cell_needed);
+                    let surface_size = size_of(with_tile_border(tile.part_of_cell_needed));
                     let surface = surface_held_by_this_layer_alone
                         .or_else(|| spare_surfaces.take(surface_size, surface_can_be_drawn_and_shown))
                         .or_else(|| {
@@ -765,19 +773,22 @@ impl LayerTiles {
             };
         }
 
-        let pooled_surface_and_held_part = |tile_pool: &TilePool, tile: &TileShownInFrame| {
+        let pooled_surface_and_rect_it_holds = |tile_pool: &TilePool, tile: &TileShownInFrame| {
             let pooled = tile_pool
                 .get(&tile.content_hash)
                 .expect("a tile to raster is in the pool");
             let surface = pooled.surface().expect("a tile to raster has a surface");
-            (surface.painting_surface().clone(), pooled.held_part_of_cell)
+            (
+                surface.painting_surface().clone(),
+                with_tile_border(pooled.held_part_of_cell),
+            )
         };
         let bounds_held_by = |tile_pool: &TilePool, tiles: &[&TileShownInFrame]| {
             tiles
                 .iter()
                 .filter_map(|tile| tile_pool.get(&tile.content_hash))
                 .fold(IntRect::default(), |bounds, pooled| {
-                    bounds.united(pooled.held_part_of_cell)
+                    bounds.united(with_tile_border(pooled.held_part_of_cell))
                 })
         };
 
@@ -792,10 +803,10 @@ impl LayerTiles {
                 Some(largest.max(tile.raster_margin_in_device_pixels?))
             });
             let was_rastered = if largest_raster_margin_if_every_one_is_known == Some(0) && batch_tiles.len() == 1 {
-                let (surface, held_part_of_cell) = pooled_surface_and_held_part(&self.pool, batch_tiles[0]);
+                let (surface, rect_surface_holds) = pooled_surface_and_rect_it_holds(&self.pool, batch_tiles[0]);
                 let save_count = raster.save(&surface);
-                raster.translate(&surface, -held_part_of_cell.x as f32, -held_part_of_cell.y as f32);
-                raster.clip_rect(&surface, held_part_of_cell);
+                raster.translate(&surface, -rect_surface_holds.x as f32, -rect_surface_holds.y as f32);
+                raster.clip_rect(&surface, rect_surface_holds);
                 raster.clear(&surface, clear_color);
                 replay_tiles(&surface, &batch_tiles);
                 raster.restore_to_count(&surface, save_count);
@@ -819,7 +830,7 @@ impl LayerTiles {
                 scratch_rect_in_space = scratch_rect_in_space.united(bounds_held_by(&self.pool, &batch_tiles));
                 let target_tiles: Vec<(Rc<PaintingSurface>, IntRect)> = batch_tiles
                     .iter()
-                    .map(|tile| pooled_surface_and_held_part(&self.pool, tile))
+                    .map(|tile| pooled_surface_and_rect_it_holds(&self.pool, tile))
                     .collect();
                 let scratch = raster_scratch_surface_of_size(
                     &mut self.raster_scratch_surface,

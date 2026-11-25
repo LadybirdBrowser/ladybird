@@ -270,6 +270,8 @@ pub struct FfiSublayer {
     pub group: FfiSublayerGroup,
     /// Of a tile or a fill, in the pixels of the group it is in.
     pub rect: IntRect,
+    /// Of a tile, what of its surface shows at `rect`.
+    pub rect_in_surface: IntRect,
     pub color: Color,
     /// Of a tile.
     pub every_pixel_is_opaque: bool,
@@ -288,6 +290,7 @@ impl FfiSublayer {
             placement: FfiSublayerPlacement::default(),
             group: FfiSublayerGroup::default(),
             rect: IntRect::default(),
+            rect_in_surface: IntRect::default(),
             color: Color::TRANSPARENT,
             every_pixel_is_opaque: false,
             backdrop: FfiSublayerBackdrop::default(),
