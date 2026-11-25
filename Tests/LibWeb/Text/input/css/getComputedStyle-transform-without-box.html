@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 100px; height: 50px; }
+</style>
+<div id="with-box" style="transform: translate(-50%, 10px)"></div>
+<div id="display-none" style="display: none; transform: translate(-50%, 10px)"></div>
+<div style="display: none"><div id="in-display-none" style="transform: translate3d(-50%, 0, 0) scale(0.5)"></div></div>
+<div id="display-contents" style="display: contents; transform: translateX(10px)"></div>
+<div id="display-none-no-transform" style="display: none"></div>
+<svg><defs><rect id="svg-in-defs" width="10" height="10" style="transform: translateX(10px) scale(2)"/></defs></svg>
+<script>
+    test(() => {
+        for (const id of ["with-box", "display-none", "in-display-none", "display-contents", "display-none-no-transform", "svg-in-defs"]) {
+            const value = getComputedStyle(document.getElementById(id)).transform;
+            let matrix;
+            try {
+                matrix = new DOMMatrix(value).toString();
+            } catch (error) {
+                matrix = `${error.name}`;
+            }
+            println(`${id}: ${value} -> ${matrix}`);
+        }
+    });
+</script>

@@ -1,0 +1,6 @@
+with-box: matrix(1, 0, 0, 1, -50, 10) -> matrix(1, 0, 0, 1, -50, 10)
+display-none: none -> matrix(1, 0, 0, 1, 0, 0)
+in-display-none: none -> matrix(1, 0, 0, 1, 0, 0)
+display-contents: none -> matrix(1, 0, 0, 1, 0, 0)
+display-none-no-transform: none -> matrix(1, 0, 0, 1, 0, 0)
+svg-in-defs: matrix(2, 0, 0, 2, 10, 0) -> matrix(2, 0, 0, 2, 10, 0)
