@@ -76,6 +76,9 @@ private:
 
     struct SourceBuffer {
         NonnullRefPtr<Media::MediaSourceExtensions::SourceBufferProcessor> processor;
+        // The renderer chooses the ID and can use it again for a new source buffer after it destroys this one. Work
+        // that finishes later uses this to check that the source buffer it finds is still the one it started for.
+        u64 instance_id { 0 };
         // The data of the next append, which arrives in pieces small enough for one message each.
         ByteBuffer pending_append_data;
         AppendOutcome append_outcome { AppendOutcome::Pending };
@@ -98,8 +101,8 @@ private:
 
     SourceBuffer* find_source_buffer(u64 source_buffer_id);
     Media::MediaSourceExtensions::PublishedState published_state_for_renderer(SourceBuffer const&) const;
-    void add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const&);
-    void finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome);
+    void add_source_buffer_demuxer(u64 source_buffer_id, u64 instance_id, NonnullRefPtr<Media::Demuxer> const&);
+    void finish_source_buffer_track_addition(u64 source_buffer_id, u64 instance_id, TrackAdditionOutcome);
     static void send_or_hold(SourceBuffer&, Optional<u64> append_generation, Function<void()>);
     void report_playback_state();
 
@@ -112,6 +115,7 @@ private:
 
     HashMap<u64, MediaStreamSource> m_media_stream_sources;
     HashMap<u64, SourceBuffer> m_source_buffers;
+    u64 m_next_source_buffer_instance_id { 1 };
 };
 
 }
