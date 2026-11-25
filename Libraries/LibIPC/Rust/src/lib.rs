@@ -31,17 +31,19 @@ pub mod cpp_connection;
 pub mod cpp_mach_bootstrap;
 #[cfg(all(target_vendor = "apple", feature = "cpp_transport"))]
 pub mod cpp_mach_transport;
+#[cfg(all(unix, not(target_vendor = "apple")))]
+mod poller;
 mod receive_queue;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod socket;
-#[cfg(target_vendor = "apple")]
+#[cfg(unix)]
 pub mod transport;
 #[cfg(target_vendor = "apple")]
-pub mod transport_mach_port;
+mod transport_mach_port;
 #[cfg(all(unix, not(target_vendor = "apple")))]
-pub mod transport_socket;
+mod transport_socket;
 #[cfg(windows)]
 pub mod transport_windows;
 pub mod wire;
@@ -73,10 +75,7 @@ pub use wire::{
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    #[cfg(target_vendor = "apple")]
-    use transport::TransportMachPort as Transport;
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    use transport_socket::TransportSocket as Transport;
+    use transport::Transport;
 
     #[test]
     fn outgoing_message_size_limits() {
@@ -99,10 +98,7 @@ mod tests {
         #[cfg(all(unix, not(target_vendor = "apple")))]
         socket::raise_descriptor_limit();
         let (a, handle) = Transport::create_paired().unwrap();
-        #[cfg(target_vendor = "apple")]
         let b = Transport::from_handle(handle).unwrap();
-        #[cfg(all(unix, not(target_vendor = "apple")))]
-        let b = Transport::new(handle).unwrap();
         let (mut reader, writer) = std::io::pipe().unwrap();
         let attachments = (0..=MAX_MESSAGE_ATTACHMENT_COUNT)
             .map(|_| Attachment::from_fd(writer.try_clone().unwrap().into()).unwrap())

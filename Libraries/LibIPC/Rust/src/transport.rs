@@ -19,6 +19,14 @@ use std::time::Duration;
 pub use crate::receive_queue::ReceivedMessage;
 #[cfg(target_vendor = "apple")]
 pub use crate::transport_mach_port::{MachPortPair, TransportMachPort};
+#[cfg(all(unix, not(target_vendor = "apple")))]
+pub use crate::transport_socket::{SocketHandle, TransportSocket};
+
+/// The transport of this platform.
+#[cfg(target_vendor = "apple")]
+pub type Transport = TransportMachPort;
+#[cfg(all(unix, not(target_vendor = "apple")))]
+pub type Transport = TransportSocket;
 
 /// What the IO thread shows every message that arrives, before the transport's owner gets to see it, and empty bytes
 /// once the peer is gone.
@@ -69,13 +77,6 @@ impl OutgoingPayload<'_> {
         match self {
             Self::Owned(bytes) => bytes,
             Self::Lent { bytes, .. } => bytes,
-        }
-    }
-
-    pub(crate) fn into_owned(self) -> OwnedPayload {
-        match self {
-            Self::Owned(bytes) => Box::new(bytes),
-            Self::Lent { hand_over, .. } => hand_over(),
         }
     }
 }
@@ -239,6 +240,11 @@ impl<Barrier> Inbox<Barrier> {
         self.peer_eof.load(Ordering::Acquire)
     }
 
+    #[cfg(all(test, not(target_vendor = "apple")))]
+    pub(crate) fn has_waiters(&self) -> bool {
+        self.lock().waiter_count > 0
+    }
+
     pub(crate) fn notify_incoming_message_observer<'a>(&self, messages: impl IntoIterator<Item = &'a [u8]>) {
         // NB: The observer runs under its lock, so once a new one is set, the old one is no longer running.
         if let Some(observer) = &*lock(&self.incoming_message_observer) {
@@ -355,6 +361,11 @@ impl<Barrier> Inbox<Barrier> {
         observer: Option<IncomingMessageObserver>,
     ) -> Option<IncomingMessageObserver> {
         std::mem::replace(&mut *lock(&self.incoming_message_observer), observer)
+    }
+
+    pub(crate) fn close_read_notification_pipe(&self) {
+        let pipe = self.lock().read_notification_pipe.take();
+        drop(pipe);
     }
 
     pub(crate) fn acknowledge_read_notification(&self) {

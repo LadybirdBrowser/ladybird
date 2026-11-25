@@ -4,11 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[cfg(all(unix, not(target_vendor = "apple")))]
-use std::collections::VecDeque;
-#[cfg(all(unix, not(target_vendor = "apple")))]
-use std::sync::{Condvar, Mutex, MutexGuard};
-
 use crate::attachment::Attachment;
 #[cfg(target_vendor = "apple")]
 use crate::mach::PayloadBytes;
@@ -28,49 +23,5 @@ impl ReceivedMessage {
 
     pub fn into_parts(self) -> (PayloadBytes, Vec<Attachment>) {
         (self.bytes, self.attachments)
-    }
-}
-
-#[cfg(all(unix, not(target_vendor = "apple")))]
-#[derive(Default)]
-pub(crate) struct Incoming {
-    pub messages: VecDeque<ReceivedMessage>,
-    pub peer_eof: bool,
-}
-
-#[cfg(all(unix, not(target_vendor = "apple")))]
-#[derive(Default)]
-pub(crate) struct IncomingQueue {
-    incoming: Mutex<Incoming>,
-    changed: Condvar,
-}
-
-#[cfg(all(unix, not(target_vendor = "apple")))]
-impl IncomingQueue {
-    pub fn lock(&self) -> MutexGuard<'_, Incoming> {
-        self.incoming.lock().unwrap_or_else(|error| error.into_inner())
-    }
-
-    pub fn push(&self, messages: impl IntoIterator<Item = ReceivedMessage>) {
-        self.lock().messages.extend(messages);
-        self.changed.notify_all();
-    }
-
-    pub fn mark_peer_eof(&self) {
-        self.lock().peer_eof = true;
-        self.changed.notify_all();
-    }
-
-    pub fn receive(&self) -> Option<ReceivedMessage> {
-        let mut incoming = self.lock();
-        loop {
-            if let Some(message) = incoming.messages.pop_front() {
-                return Some(message);
-            }
-            if incoming.peer_eof {
-                return None;
-            }
-            incoming = self.changed.wait(incoming).unwrap_or_else(|error| error.into_inner());
-        }
     }
 }

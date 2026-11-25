@@ -16,13 +16,10 @@ mod rust_panic;
 use std::io::Write;
 
 use libipc_rust::EndpointMessage;
-#[cfg(all(unix, not(target_vendor = "apple")))]
-use libipc_rust::transport_socket::TransportSocket as Transport;
 #[cfg(target_vendor = "apple")]
-use libipc_rust::{
-    mach::{MachPort, PortRight},
-    transport::TransportMachPort as Transport,
-};
+use libipc_rust::mach::{MachPort, PortRight};
+#[cfg(unix)]
+use libipc_rust::transport::Transport;
 
 #[cfg(windows)]
 use libipc_rust::transport_windows::{OwnedDescriptor, TransportWindows as Transport};
@@ -116,7 +113,7 @@ pub extern "C" fn rust_echo_server_serve(socket_fd: std::os::fd::RawFd) {
     use std::os::fd::FromRawFd;
     // NB: The caller gives up its descriptor of a connected socket, which nothing else owns.
     let socket = unsafe { std::os::unix::net::UnixStream::from_raw_fd(socket_fd) };
-    let transport = Transport::new(socket).expect("the transport starts");
+    let transport = Transport::new(socket.into()).expect("the transport starts");
     std::thread::spawn(move || serve(transport));
 }
 

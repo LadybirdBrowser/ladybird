@@ -42,7 +42,7 @@ fn take_over_transport(_: &str) -> Result<Transport> {
     unsafe { std::env::remove_var("SOCKET_TAKEOVER") };
     // NB: The Browser gave this process its end of a connected socket, which nothing else here owns.
     let socket = unsafe { UnixStream::from_raw_fd(fd) };
-    Ok(Transport::new(socket)?)
+    Ok(Transport::new(socket.into())?)
 }
 
 #[cfg(windows)]
