@@ -152,14 +152,14 @@ ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instan
         if (auto instance = weak_instance.strong_ref())
             the().disk_cache_size_changed(*instance, size);
     };
-    control_client->on_rejected_self_signed_certificate = [weak_instance](ByteString const& host, u16 port, ByteString const& fingerprint) {
+    control_client->on_rejected_certificate = [weak_instance](ByteString const& host, u16 port, ByteString const& fingerprint, Requests::CertificateError errors, ByteString const& details) {
         if (auto instance = weak_instance.strong_ref())
-            the().did_reject_self_signed_certificate(instance->session(), { .host = host, .port = port, .fingerprint = fingerprint });
+            the().did_reject_certificate(instance->session(), { .host = host, .port = port, .fingerprint = fingerprint, .errors = errors, .error_details = details });
     };
     Application::the().configure_request_server_control_client(*control_client);
 
     for (auto const& exception : instance.session().trusted_certificates)
-        control_client->async_trust_certificate(exception.host, exception.port, exception.fingerprint);
+        control_client->async_trust_certificate(exception.host, exception.port, exception.fingerprint, exception.errors, exception.error_details);
 
     instance.m_control_client = move(control_client);
     instance.m_ui_client = nullptr;
@@ -286,45 +286,51 @@ static void remove_stale_rejections(Vector<BrowsingSession::RejectedCertificate>
     rejections.remove_all_matching([&](auto const& rejection) { return now - rejection.rejected_at > rejected_certificate_lifetime; });
 }
 
-void RequestServerManager::did_reject_self_signed_certificate(BrowsingSession& session, BrowsingSession::CertificateException certificate)
+void RequestServerManager::did_reject_certificate(BrowsingSession& session, BrowsingSession::CertificateException certificate)
 {
-    auto& rejections = session.rejected_self_signed_certificates.ensure(certificate_exception_key(certificate.host, certificate.port));
+    auto& rejections = session.rejected_certificates.ensure(certificate_exception_key(certificate.host, certificate.port));
     remove_stale_rejections(rejections);
-    rejections.remove_all_matching([&](auto const& rejection) { return rejection.certificate == certificate; });
+    // The latest rejection of a certificate has the errors it fails for now.
+    rejections.remove_all_matching([&](auto const& rejection) { return rejection.certificate.fingerprint == certificate.fingerprint; });
     rejections.append({ .certificate = move(certificate), .rejected_at = MonotonicTime::now_coarse() });
 }
 
 // Warnings identify only the host and port. If recent rejections disagree, offering any certificate risks trusting
 // one other than the certificate that triggered the warning.
-Optional<BrowsingSession::CertificateException> RequestServerManager::rejected_self_signed_certificate(BrowsingSession& session, URL::URL const& url) const
+Optional<BrowsingSession::RejectedCertificate> RequestServerManager::rejected_certificate(BrowsingSession& session, URL::URL const& url) const
 {
     auto key = certificate_exception_key(url.serialized_host().to_byte_string(), url.port_or_default());
-    auto rejections = session.rejected_self_signed_certificates.get(key);
+    auto rejections = session.rejected_certificates.get(key);
     if (!rejections.has_value())
         return {};
 
     remove_stale_rejections(*rejections);
     if (rejections->is_empty()) {
-        session.rejected_self_signed_certificates.remove(key);
+        session.rejected_certificates.remove(key);
         return {};
     }
     if (rejections->size() != 1)
         return {};
-    return rejections->first().certificate;
+    return rejections->first();
 }
 
 void RequestServerManager::trust_certificate(BrowsingSession& session, BrowsingSession::CertificateException const& certificate)
 {
     // A trusted certificate is no longer a candidate for a later warning about the same host and port.
-    if (auto rejections = session.rejected_self_signed_certificates.get(certificate_exception_key(certificate.host, certificate.port)); rejections.has_value())
+    if (auto rejections = session.rejected_certificates.get(certificate_exception_key(certificate.host, certificate.port)); rejections.has_value())
         rejections->remove_all_matching([&](auto const& rejection) { return rejection.certificate == certificate; });
 
     if (session.trusted_certificates.contains_slow(certificate))
         return;
 
+    // Match RequestServer's latest trusted errors for this certificate.
+    session.trusted_certificates.remove_all_matching([&](auto const& trusted) {
+        return trusted.host == certificate.host && trusted.port == certificate.port && trusted.fingerprint == certificate.fingerprint;
+    });
+
     for (auto& instance : m_instances) {
         if (&instance->session() == &session)
-            (void)send_sync_to_helper<Messages::RequestServerControl::TrustCertificate>(instance->control_client(), certificate.host, certificate.port, certificate.fingerprint);
+            (void)send_sync_to_helper<Messages::RequestServerControl::TrustCertificate>(instance->control_client(), certificate.host, certificate.port, certificate.fingerprint, certificate.errors, certificate.error_details);
     }
 
     session.trusted_certificates.append(certificate);

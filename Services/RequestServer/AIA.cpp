@@ -6,6 +6,9 @@
 
 #include <LibCrypto/OpenSSL.h>
 #include <RequestServer/AIA.h>
+#ifdef AK_OS_MACOS
+#    include <RequestServer/SystemTrustMacOS.h>
+#endif
 #include <RequestServer/CertificateExceptions.h>
 
 #include <AK/AnyOf.h>
@@ -198,14 +201,6 @@ static void promote_fetched_intermediates(X509_STORE_CTX* context, AIACollector&
     }
 }
 
-static bool is_self_signed_certificate_error(int verify_error)
-{
-    if (verify_error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
-        return true;
-    // On macOS, OpenSSL's empty trust store rejects any chain containing its root, even if SecTrust trusts it.
-    return openssl_trust_store_is_authoritative && verify_error == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
-}
-
 static bool certificate_matches_host(X509* certificate, ByteString const& host)
 {
     auto address = host.view();
@@ -225,56 +220,182 @@ static bool certificate_matches_host(X509* certificate, ByteString const& host)
     return X509_check_host(certificate, name.characters_without_null_termination(), name.length(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT | X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, nullptr) == 1;
 }
 
-// OpenSSL stops at a self-signed certificate before it checks validity periods, so check them here.
-static int validity_period_error(X509_STORE_CTX* context, X509* leaf)
-{
-    auto* chain = X509_STORE_CTX_get0_chain(context);
-    auto chain_length = chain ? sk_X509_num(chain) : 0;
-    for (int i = 0; i < max(chain_length, 1); ++i) {
-        auto* certificate = chain_length > 0 ? sk_X509_value(chain, i) : leaf;
-        auto not_before = X509_cmp_current_time(X509_get0_notBefore(certificate));
-        if (not_before == 0)
-            return X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
-        if (not_before > 0)
-            return X509_V_ERR_CERT_NOT_YET_VALID;
-        auto not_after = X509_cmp_current_time(X509_get0_notAfter(certificate));
-        if (not_after == 0)
-            return X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
-        if (not_after < 0)
-            return X509_V_ERR_CERT_HAS_EXPIRED;
+struct VerificationFailure {
+    Requests::CertificateError errors { Requests::CertificateError::None };
+    // Descriptions of errors without a dedicated CertificateError flag.
+    ByteString details;
+    // macOS decides issuer trust; curl doesn't report its reasons for rejection.
+    bool is_decided_by_system_verifier { false };
+
+    void add(int verify_error)
+    {
+        switch (verify_error) {
+        case X509_V_OK:
+            return;
+        case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+            errors |= Requests::CertificateError::SelfSigned;
+            return;
+        case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+        case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+        case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+        case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+        case X509_V_ERR_CERT_UNTRUSTED:
+            if (!openssl_trust_store_is_authoritative)
+                is_decided_by_system_verifier = true;
+            else
+                errors |= verify_error == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ? Requests::CertificateError::SelfSigned : Requests::CertificateError::UnknownIssuer;
+            return;
+        case X509_V_ERR_CERT_HAS_EXPIRED:
+            errors |= Requests::CertificateError::Expired;
+            return;
+        case X509_V_ERR_CERT_NOT_YET_VALID:
+            errors |= Requests::CertificateError::NotYetValid;
+            return;
+        case X509_V_ERR_HOSTNAME_MISMATCH:
+            errors |= Requests::CertificateError::NameMismatch;
+            return;
+        default:
+            break;
+        }
+
+        add_unnamed_error(X509_verify_cert_error_string(verify_error));
     }
-    return X509_V_OK;
+
+    void add_unnamed_error(ByteString description)
+    {
+        errors |= Requests::CertificateError::Other;
+        if (description.is_empty() || details.view().split_view("; "sv).contains_slow(description.view()))
+            return;
+        details = details.is_empty() ? move(description) : ByteString::formatted("{}; {}", details, description);
+    }
+
+#ifdef AK_OS_MACOS
+    void add_system_verdict(X509* leaf, ReadonlySpan<X509*> intermediates)
+    {
+        auto verdict = system_trust_verdict(leaf, intermediates);
+        errors |= verdict.errors & ~Requests::CertificateError::Other;
+        if (has_flag(verdict.errors, Requests::CertificateError::Other))
+            add_unnamed_error(move(verdict.details));
+        is_decided_by_system_verifier = false;
+    }
+#endif
+};
+
+static int record_verification_error(int, X509_STORE_CTX* context)
+{
+    static_cast<VerificationFailure*>(X509_STORE_CTX_get_app_data(context))->add(X509_STORE_CTX_get_error(context));
+    // Continue verification to collect later errors.
+    return 1;
 }
 
-static int apply_self_signed_certificate_exception(X509_STORE_CTX* context, AIACollector& collector)
+// Verify past OpenSSL's first error so the user can review all failures, including checks an untrusted chain
+// would skip, such as certificate purpose.
+static VerificationFailure verification_failure(X509_STORE_CTX* context, int result, X509* leaf, ByteString const& host)
 {
-    if (!is_self_signed_certificate_error(X509_STORE_CTX_get_error(context)))
-        return 0;
+    VerificationFailure failure;
 
-    // NB: The certificate may be issued to another name. Devices on a local network often come with one for localhost,
-    //     and the exception is for this certificate on this host and port only.
+    if (result <= 0) {
+        auto* full_verification = X509_STORE_CTX_new();
+        if (full_verification && X509_STORE_CTX_init(full_verification, X509_STORE_CTX_get0_store(context), leaf, X509_STORE_CTX_get0_untrusted(context)) == 1
+            && X509_VERIFY_PARAM_set1(X509_STORE_CTX_get0_param(full_verification), X509_STORE_CTX_get0_param(context)) == 1) {
+            X509_STORE_CTX_set_verify_cb(full_verification, record_verification_error);
+            X509_STORE_CTX_set_app_data(full_verification, &failure);
+            (void)X509_verify_cert(full_verification);
+        }
+        X509_STORE_CTX_free(full_verification);
+        ERR_clear_error();
+
+        // Preserve the original failure if the second pass recorded none.
+        if (failure.errors == Requests::CertificateError::None && !failure.is_decided_by_system_verifier)
+            failure.add(X509_STORE_CTX_get_error(context) == X509_V_OK ? X509_V_ERR_UNSPECIFIED : X509_STORE_CTX_get_error(context));
+    }
+
+    // curl only checks the name once the handshake is done, and doesn't say that it was the name that failed.
+    if (!host.is_empty() && !certificate_matches_host(leaf, host))
+        failure.errors |= Requests::CertificateError::NameMismatch;
+
+    return failure;
+}
+
+#ifdef AK_OS_MACOS
+static Vector<X509*> intermediates_of(X509_STORE_CTX* context)
+{
+    Vector<X509*> intermediates;
+    auto* untrusted = X509_STORE_CTX_get0_untrusted(context);
+    for (int i = 0; untrusted && i < sk_X509_num(untrusted); ++i)
+        intermediates.append(sk_X509_value(untrusted, i));
+    return intermediates;
+}
+#endif
+
+// Return whether an exception covers all failures; otherwise record the rejected certificate and errors for review.
+static bool apply_certificate_exception(X509_STORE_CTX* context, int result, AIACollector& collector)
+{
+    collector.rejected_certificate.clear();
+    collector.chain_for_system_verifier.clear();
+
     auto* leaf = X509_STORE_CTX_get0_cert(context);
     if (!leaf)
-        return 0;
+        return false;
 
-    // Neither trusted nor offered to the user: no exception could make an out-of-date certificate valid.
-    if (auto error = validity_period_error(context, leaf); error != X509_V_OK) {
-        X509_STORE_CTX_set_error(context, error);
-        return 0;
-    }
+    auto failure = verification_failure(context, result, leaf, collector.host);
+    if (result > 0 && failure.errors == Requests::CertificateError::None)
+        return false;
 
     auto fingerprint = certificate_fingerprint(leaf);
     if (fingerprint.is_empty())
-        return 0;
+        return false;
 
-    if (has_certificate_exception(collector.host, collector.port, fingerprint)) {
-        // curl checks SSL_get_verify_result() after the handshake, which reports the error left on the context.
-        X509_STORE_CTX_set_error(context, X509_V_OK);
-        return 1;
+    if (failure.is_decided_by_system_verifier) {
+#ifdef AK_OS_MACOS
+        // An exception bypasses curl's system verification, so ask here first. Otherwise, curl asks after the
+        // handshake and we collect the reasons only if it fails.
+        if (collector.checks_host_name) {
+            failure.add_system_verdict(leaf, intermediates_of(context));
+            if (failure.errors == Requests::CertificateError::None)
+                return false;
+        } else {
+            AIACollector::ChainForSystemVerifier chain { { move(fingerprint), failure.errors, move(failure.details) }, {} };
+            add_certificate(chain.certificates, leaf);
+            for (auto* intermediate : intermediates_of(context))
+                add_certificate(chain.certificates, intermediate);
+            collector.chain_for_system_verifier = move(chain);
+            return false;
+        }
+#else
+        return false;
+#endif
     }
 
-    collector.rejected_self_signed_certificate_fingerprint = move(fingerprint);
-    return 0;
+    // NB: curl still checks the name itself unless an exception existed when the connection was set up.
+    auto may_have_another_name = collector.checks_host_name || !has_flag(failure.errors, Requests::CertificateError::NameMismatch);
+    if (may_have_another_name && has_certificate_exception(collector.host, collector.port, fingerprint, failure.errors, failure.details)) {
+        // curl checks SSL_get_verify_result() after the handshake, which reports the error left on the context.
+        X509_STORE_CTX_set_error(context, X509_V_OK);
+        return true;
+    }
+
+    collector.rejected_certificate = AIACollector::RejectedCertificate { move(fingerprint), failure.errors, move(failure.details) };
+    return false;
+}
+
+void explain_system_verifier_refusal([[maybe_unused]] AIACollector& collector)
+{
+#ifdef AK_OS_MACOS
+    auto chain = exchange(collector.chain_for_system_verifier, {});
+    if (!chain.has_value() || chain->certificates.is_empty())
+        return;
+
+    VerificationFailure failure { chain->rejection.errors, move(chain->rejection.details), true };
+    Vector<X509*> intermediates;
+    for (size_t i = 1; i < chain->certificates.size(); ++i)
+        intermediates.append(chain->certificates[i].ptr());
+    failure.add_system_verdict(chain->certificates.first().ptr(), intermediates);
+    if (failure.errors == Requests::CertificateError::None)
+        return;
+
+    collector.rejected_certificate = AIACollector::RejectedCertificate { move(chain->rejection.fingerprint), failure.errors, move(failure.details) };
+#endif
 }
 
 // Installed via SSL_CTX_set_cert_verify_callback. On failure, we record the failing cert's caIssuers URLs for the
@@ -299,16 +420,15 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
 
     auto result = X509_verify_cert(context);
 
+    // Reverification needs the fetched intermediates before they are removed from the context.
+    auto accepted_by_exception = collector && apply_certificate_exception(context, result, *collector);
+
     if (untrusted) {
         X509_STORE_CTX_set0_untrusted(context, server_untrusted);
         sk_X509_free(untrusted);
     }
-
-    auto accepted_by_exception = false;
-    if (result <= 0 && collector) {
-        result = apply_self_signed_certificate_exception(context, *collector);
-        accepted_by_exception = result > 0;
-    }
+    if (accepted_by_exception)
+        result = 1;
 
     // Only the certificate the user trusted may name another host. Fail the handshake for any other, as on macOS curl
     // would otherwise go on to verify the chain with SecTrust, which then doesn't check the name either.

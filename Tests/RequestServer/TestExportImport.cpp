@@ -434,7 +434,7 @@ TEST_CASE(exporter_reports_a_response_from_a_server_with_a_certificate_exception
     auto url = http_server.url();
     auto key = navigation_key_for(url);
 
-    RequestServer::add_certificate_exception(url.serialized_host().to_byte_string(), url.port_or_default(), "00"sv);
+    RequestServer::add_certificate_exception(url.serialized_host().to_byte_string(), url.port_or_default(), "00"sv, Requests::CertificateError::SelfSigned);
 
     TestConnection navigator { server, ReadsBodies::No };
     TestConnection ui { server, ReadsBodies::No };

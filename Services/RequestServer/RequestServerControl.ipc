@@ -2,6 +2,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibHTTP/Proxy.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibRequests/CertificateError.h>
 #include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestType.h>
 #include <RequestServer/SiteBinding.h>
@@ -29,7 +30,7 @@ endpoint RequestServerControl
     set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration) =|
 
     // Synchronous so the exception applies before the UI process reloads.
-    trust_certificate(ByteString host, u16 port, ByteString fingerprint) => ()
+    trust_certificate(ByteString host, u16 port, ByteString fingerprint, Requests::CertificateError errors, ByteString error_details) => ()
 
     set_performance_monitor_enabled(bool enabled) =|
 

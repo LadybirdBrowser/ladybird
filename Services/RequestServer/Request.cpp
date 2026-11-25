@@ -759,8 +759,10 @@ void Request::handle_fetch_complete(int result_code)
         m_alternative_service.clear();
         m_dns_result = nullptr;
         // The origin may present another certificate than the alternative service did.
-        if (m_aia_collector)
-            m_aia_collector->rejected_self_signed_certificate_fingerprint.clear();
+        if (m_aia_collector) {
+            m_aia_collector->rejected_certificate.clear();
+            m_aia_collector->chain_for_system_verifier.clear();
+        }
 
         MUST(free_curl_structs());
         reset_for_retry();
@@ -953,7 +955,8 @@ void Request::retry_after_aia(Badge<ConnectionFromClient>)
     m_curl_result_code = {};
     if (m_aia_collector) {
         m_aia_collector->pending_urls.clear();
-        m_aia_collector->rejected_self_signed_certificate_fingerprint.clear();
+        m_aia_collector->rejected_certificate.clear();
+        m_aia_collector->chain_for_system_verifier.clear();
     }
     transition_to_state(State::Fetch);
 }
@@ -1688,11 +1691,15 @@ void Request::handle_complete_state()
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
 
-            if (m_network_error == Requests::NetworkError::SSLVerificationFailed && m_aia_collector && m_aia_collector->rejected_self_signed_certificate_fingerprint.has_value()) {
-                m_network_error = Requests::NetworkError::SSLSelfSignedCertificate;
+            if (m_network_error == Requests::NetworkError::SSLVerificationFailed && m_aia_collector)
+                explain_system_verifier_refusal(*m_aia_collector);
+
+            if (m_network_error == Requests::NetworkError::SSLVerificationFailed && m_aia_collector && m_aia_collector->rejected_certificate.has_value()) {
+                auto const& rejected = *m_aia_collector->rejected_certificate;
+                m_network_error = Requests::network_error_for_certificate_errors(rejected.errors);
 
                 if (auto control_connection = ControlConnectionFromClient::the(); control_connection.has_value())
-                    control_connection->async_rejected_self_signed_certificate(m_aia_collector->host, m_aia_collector->port, *m_aia_collector->rejected_self_signed_certificate_fingerprint);
+                    control_connection->async_rejected_certificate(m_aia_collector->host, m_aia_collector->port, rejected.fingerprint, rejected.errors, rejected.details);
             }
 
             if (m_network_error == Requests::NetworkError::Unknown) {
