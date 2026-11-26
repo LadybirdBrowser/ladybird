@@ -1536,6 +1536,7 @@ public:
     void register_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void republish_svg_patterns_inheriting_from(Utf16FlyString const& id);
+    void register_css_box_clip_path_referrer(Utf16FlyString const& id, Element&);
     void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope);
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
     void schedule_accumulated_visual_context_update(Layout::BegunRead const& read, Element&, AccumulatedVisualContextUpdateScope);
@@ -1924,6 +1925,7 @@ private:
     friend struct CompositorAnimationUpdatePass;
 
     void republish_svg_patterns_inheriting_from(Utf16FlyString const& id, HashTable<SVG::SVGPatternElement const*>& republished);
+    void rebuild_css_box_clip_path_referrers(Utf16FlyString const& id);
 
     void finish_animated_style_update();
     void service_compositor_animation_wakeup(double timestamp);
@@ -2482,6 +2484,10 @@ private:
     // Every connected <pattern>, which is what lets a pattern that inherits attributes from the pattern its `href` names
     // be republished when the chain changes.
     SVG::SVGPatternElement::DocumentPatternElementList m_svg_pattern_elements;
+
+    // The elements whose CSS box's `clip-path` named each id when their style was last published.
+    HashMap<Utf16FlyString, GC::WeakHashSet<Element>> m_css_box_clip_path_referrers;
+    size_t m_css_box_clip_path_referrers_sweep_size { 64 };
 
     AnchorNameMap m_anchor_name_map;
 

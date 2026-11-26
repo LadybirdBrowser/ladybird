@@ -4143,6 +4143,35 @@ fn resolve_svg_length(pass: &LayoutPass<'_>, node: Node, length: FfiSvgLengthVal
     CssPixels::nearest_value_for(absolutized.px)
 }
 
+/// Lays out the box of the `<clipPath>` that `target`, a CSS box with the physical border box size `border_box_size`,
+/// references.
+pub(crate) fn lay_out_clip_path_of_css_box(
+    run: &FormattingContextRun<'_>,
+    target: Node,
+    border_box_size: FfiCssPixelSize,
+) {
+    // The box of the clip path is planned after every other child of the box.
+    let pass = &run.pass;
+    let child = pass.last_child(target);
+    if child.is_invalid() || pass.node_data(child).kind.get() != NodeKind::SVGClipBox {
+        return;
+    }
+    // A CSS box's user space has its origin at the top left of its border box, which is also the bounding box that
+    // objectBoundingBox units are fractions of. Percentages resolve against the border box.
+    // FIXME: Scale the user space by the zoom of the box.
+    let (width, height) = (border_box_size.width, border_box_size.height);
+    let run = &run.in_frame_of(geometry::Frame::PHYSICAL);
+    let mut context = SvgFormattingContext::new_nested(run, target, false);
+    context.viewport_width = width;
+    context.viewport_height = height;
+    context.viewport_user_rect = FloatRect::new(0.0, 0.0, width.to_float(), height.to_float());
+    context.available_space = Some(AvailableSpace {
+        inline_size: AvailableSize::definite(width),
+        block_size: AvailableSize::definite(height),
+    });
+    context.layout_mask_or_clip(run, child, context.viewport_user_rect);
+}
+
 // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
 /// The natural size of an `<svg>` root's box, negotiated from what its element published.
 pub(crate) fn svg_root_natural_size(

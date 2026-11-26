@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>CSS Masking: Test ancestors update as text descendants change</title>
+<link rel="author" title="Fredrik Söderquist" href="mailto:fs@opera.com">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="issue" href="https://bugs.chromium.org/p/chromium/issues/detail?id=901851">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-descendant-text-mutated-001-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert" content="This test ensures that ancestors are updated properly when a text descendant of clip path property changes.">
+<script src="../../../common/reftest-wait.js"></script>
+<script src="../../../common/rendering-utils.js"></script>
+<style>
+#target {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+  border-right: 100px solid red;
+  clip-path: url(#clip);
+}
+</style>
+<div id="target"></div>
+<svg>
+  <clipPath id="clip">
+    <text id="text" y="80" font-family="Ahem" font-size="100">XX</text>
+  </clipPath>
+</svg>
+<script>
+  waitForAtLeastOneFrame().then(function() {
+      text.firstChild.data = 'X';
+      takeScreenshot();
+  });
+</script>

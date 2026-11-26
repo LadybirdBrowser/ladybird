@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Clip paths union all children when a path has a trailing moveto</title>
+    <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+    <style>
+      .case {
+        width: 150px;
+        height: 150px;
+      }
+      .square {
+        width: 100px;
+        height: 100px;
+        background: green;
+      }
+    </style>
+  </head>
+  <body>
+    <p>
+      Test passes if there are two green squares and no red.
+    </p>
+    <div class="case">
+      <div class="square"></div>
+    </div>
+    <div class="case">
+      <div class="square"></div>
+    </div>
+  </body>
+</html>

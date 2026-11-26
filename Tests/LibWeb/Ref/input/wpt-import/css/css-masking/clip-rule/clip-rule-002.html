@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Masking: Test clip-rule property on polygon clip rule nonzero</title>
+    <link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clipping-paths">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#propdef-clip-path">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#ClipPathElement">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-rule/reference/clip-rule-rectangle-border-ref.html">
+    <meta name="assert" content="The clipPath element takes the basic shape 'polygon' for clipping.
+        The point list for the polygon creates a 'whole' with the dimension of the background. With
+        the clip rule 'nonzero', this whole is clipped out. The clipping makes the green background
+        of the parent div box visible.
+        On pass you should see a green box with a blue border.">
+</head>
+<body>
+    <p>The test passes if there is a green box with a blue border.</p>
+    <div style="background-color: green; width: 250px;">
+       <div style="width: 150px; height: 100px; border: solid blue 50px; background-color: red; clip-path: url(#clip);"></div>
+    </div>
+
+    <svg>
+        <clipPath id="clip">
+            <polygon points="0 0, 250 0, 250 200, 0 200, 0 50, 50 50, 50 150, 200 150, 200 50, 0 50" clip-rule="nonzero" />
+        </clipPath>
+    </svg>
+</body>
+</html>

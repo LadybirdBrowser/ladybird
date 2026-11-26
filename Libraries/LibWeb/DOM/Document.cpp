@@ -9591,8 +9591,10 @@ void Document::subtree_was_moved(Badge<DOM::Node>, DOM::Node& subtree, DOM::Node
     if (moved_ids) {
         note_svg_paint_resources_changed();
         subtree.for_each_shadow_including_inclusive_descendant([&](Node& node) {
-            if (auto* element = as_if<Element>(node); element && element->id().has_value())
+            if (auto* element = as_if<Element>(node); element && element->id().has_value()) {
                 republish_svg_patterns_inheriting_from(*element->id());
+                rebuild_css_box_clip_path_referrers(*element->id());
+            }
             return TraversalDecision::Continue;
         });
     }
@@ -9619,10 +9621,14 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
         element->document_or_shadow_root_element_by_id_map().add(new_id.value(), element);
     }
     note_svg_paint_resources_changed();
-    if (old_id.has_value())
+    if (old_id.has_value()) {
         republish_svg_patterns_inheriting_from(*old_id);
-    if (new_id.has_value())
+        rebuild_css_box_clip_path_referrers(*old_id);
+    }
+    if (new_id.has_value()) {
         republish_svg_patterns_inheriting_from(*new_id);
+        rebuild_css_box_clip_path_referrers(*new_id);
+    }
 }
 
 void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -9640,6 +9646,7 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
         element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
         note_svg_paint_resources_changed();
         republish_svg_patterns_inheriting_from(*id);
+        rebuild_css_box_clip_path_referrers(*id);
     }
 }
 
@@ -9654,6 +9661,7 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
         element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
         note_svg_paint_resources_changed();
         republish_svg_patterns_inheriting_from(*id);
+        rebuild_css_box_clip_path_referrers(*id);
     }
 }
 
@@ -11193,6 +11201,43 @@ void Document::republish_svg_patterns_inheriting_from(Utf16FlyString const& id, 
         if (auto pattern_id = pattern.id(); pattern_id.has_value())
             republish_svg_patterns_inheriting_from(*pattern_id, republished);
     }
+}
+
+static void remove_stale_css_box_clip_path_referrers(Utf16FlyString const& id, GC::WeakHashSet<Element>& referrers)
+{
+    GC::RootVector<GC::Ref<Element>> stale_referrers;
+    for (auto& referrer : referrers) {
+        if (Layout::css_box_clip_path_fragment(referrer) != id)
+            stale_referrers.append(referrer);
+    }
+    for (auto& referrer : stale_referrers)
+        referrers.remove(*referrer);
+}
+
+void Document::register_css_box_clip_path_referrer(Utf16FlyString const& id, Element& element)
+{
+    m_css_box_clip_path_referrers.ensure(id).set(element);
+    if (m_css_box_clip_path_referrers.size() <= m_css_box_clip_path_referrers_sweep_size)
+        return;
+    m_css_box_clip_path_referrers.remove_all_matching([](auto const& id, auto& referrers_of_id) {
+        remove_stale_css_box_clip_path_referrers(id, referrers_of_id);
+        return referrers_of_id.is_empty();
+    });
+    m_css_box_clip_path_referrers_sweep_size = max<size_t>(64, m_css_box_clip_path_referrers.size() * 2);
+}
+
+void Document::rebuild_css_box_clip_path_referrers(Utf16FlyString const& id)
+{
+    auto referrers = m_css_box_clip_path_referrers.find(id);
+    if (referrers == m_css_box_clip_path_referrers.end())
+        return;
+    remove_stale_css_box_clip_path_referrers(id, referrers->value);
+    for (auto& referrer : referrers->value) {
+        if (referrer.is_connected())
+            referrer.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::SVGResourceReferenceChange);
+    }
+    if (referrers->value.is_empty())
+        m_css_box_clip_path_referrers.remove(referrers);
 }
 
 void Document::note_svg_paint_resources_changed()

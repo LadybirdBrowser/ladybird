@@ -1591,6 +1591,7 @@ impl<'pass> MathFormattingContext<'pass> {
                 let facts = self.facts(child);
                 facts.is_box()
                     && !facts.is_absolutely_positioned()
+                    && !facts.is_svg_resource_box()
                     && !self.run.pass.can_skip_is_anonymous_text_run(child)
             })
             .collect()

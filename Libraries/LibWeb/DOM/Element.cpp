@@ -1957,13 +1957,15 @@ void Element::apply_style_main_effects(Layout::BegunRead const& read, CSS::MainE
     if (has_flag(effects, CSS::MainEffects::SvgReferences)) {
         // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
         // attributes for the layout tree build to resolve, so they follow every record the element takes.
-        if (is<SVG::SVGGraphicsElement>(*this)) {
+        if (Layout::element_publishes_svg_style_references(*this)) {
             Layout::publish_svg_style_references(*this);
-            if (old_style && Layout::svg_style_references_differ(old_style, m_installed_style))
+            if (old_style && Layout::svg_style_references_differ(*this, old_style, m_installed_style))
                 set_needs_layout_tree_rebuild(read, SetNeedsLayoutTreeUpdateReason::SVGResourceReferenceChange, CSS::LayoutTreeRebuildRoot::Self);
         }
-        if (auto* svg_element = as_if<SVG::SVGElement>(*this))
+        if (auto* svg_element = as_if<SVG::SVGElement>(*this)) {
             svg_element->note_svg_paint_resource_description_may_have_changed();
+            svg_element->update_boxes_clipped_by_enclosing_clip_path_after_style_change(read, old_style, m_installed_style);
+        }
     }
 
     // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
@@ -2088,7 +2090,10 @@ void Element::clear_computed_style_below_display_none(Layout::BegunRead const& r
     // retaining the record as the descendant's current computed style.
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->pin_style_record_for_detachment();
+    auto const had_css_box_clip_path = !is<SVG::SVGElement>(*this) && Layout::clip_path_is_url(m_installed_style);
     m_installed_style = {};
+    if (had_css_box_clip_path)
+        Layout::publish_svg_style_references(*this);
 
     // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
     //     Restore their styles in this style update, so painting never needs to materialize
@@ -5290,11 +5295,15 @@ void Element::replace_installed_style(Layout::BegunRead const& read, CSS::Instal
         CSS::record_waiting_children_may_be_revealed(*this);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
-    if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity) {
+    auto const style_names_svg_resources = is<SVG::SVGGraphicsElement>(*this)
+        || (!is<SVG::SVGElement>(*this) && ((held_before && Layout::clip_path_is_url(held_before)) || Layout::clip_path_is_url(m_installed_style)));
+    if (style_names_svg_resources && !!style_record_identity) {
         Layout::publish_svg_style_references(*this);
-        if (held_before && Layout::svg_style_references_differ(held_before, m_installed_style))
+        if (held_before && Layout::svg_style_references_differ(*this, held_before, m_installed_style))
             set_needs_layout_tree_rebuild(read, SetNeedsLayoutTreeUpdateReason::SVGResourceReferenceChange, CSS::LayoutTreeRebuildRoot::Self);
     }
+    if (auto* svg_element = as_if<SVG::SVGElement>(*this))
+        svg_element->update_boxes_clipped_by_enclosing_clip_path_after_style_change(read, held_before, m_installed_style);
     if (timeline_declarations_changed)
         document().did_change_timeline_declarations();
 }

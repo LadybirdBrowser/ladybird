@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Hit-test of clip-path userSpaceOnUse &lt;clipPath></title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking/#the-clip-path">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+body {
+  margin: 0;
+}
+.box {
+  width: 100px;
+  height: 100px;
+  background-color: blue;
+  margin: 100px;
+  clip-path: url(#clip);
+}
+</style>
+<div class="box"></div>
+<svg height="0">
+  <clipPath id="clip" clipPathUnits="userSpaceOnUse">
+    <polygon points="50,0 100,50 50,100 0,50"/>
+  </clipPath>
+</svg>
+<script>
+function assert_element_at(element, pointlist) {
+  for (let point of pointlist) {
+    let result = document.elementFromPoint(point[0], point[1]);
+    assert_equals(result, element, point.join(','));
+  }
+}
+
+test(function() {
+  let div = document.querySelector('.box');
+
+  // Points inside clip-path.
+  assert_element_at(div, [[150, 150], [150, 125], [150, 175], [125, 150], [175, 150]]);
+
+  // Points outside clip-path.
+  assert_element_at(document.body, [[120, 120], [180, 120], [120, 180], [180, 180]]);
+});
+</script>

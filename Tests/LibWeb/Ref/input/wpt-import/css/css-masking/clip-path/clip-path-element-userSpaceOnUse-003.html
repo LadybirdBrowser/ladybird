@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Masking: Test clip-path property and external clipPath reference with userSpaceOnUse with percentage - 1</title>
+    <link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clipping-paths">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#propdef-clip-path">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#ClipPathElement">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-ref-right-green-ref.html">
+    <meta name="assert" content="The clip-path property takes a reference to a clipPath element for clipping. Percentage values
+        are relative to the viewport for userSpaceOnUse on clipPathUnits.
+        On pass the left half of the site is white and the right half of the site is green.">
+
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 100%; height: 100%; background-color: green; clip-path: url(#clip); position: absolute;"></div>
+    <p style="position: absolute;">The test passes if the left half of the site is white and the right half of the site is green.</p>
+
+    <svg>
+        <clipPath id="clip">
+            <rect x="50%" y="0" width="50%" height="100%" />
+        </clipPath>
+    </svg>
+</body>
+</html>

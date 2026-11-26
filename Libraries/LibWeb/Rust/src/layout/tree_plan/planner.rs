@@ -2613,6 +2613,16 @@ impl<'a> Planner<'a> {
                 .push((element, StaleSubtreeScope::DescendantsBoundedToRoot));
         }
 
+        // FIXME: Clip fragmented inline boxes, table boxes and replaced boxes with a clipPath element too.
+        let may_reference_clip_path = can_have_children
+            && kind != NodeKind::InlineNode
+            && facts & (box_fact::TABLE_INSIDE | box_fact::TABLE_NON_ROOT) == 0
+            && engine.element_adjustment_facts(element) & element_adjustment_fact::IS_SVG_ELEMENT == 0
+            && self
+                .tree
+                .style_of(node)
+                .is_some_and(|style| crate::painting::style_queries::clip_path_is_url(style.mask()));
+
         let lays_out_dom_children = !has_assigned_nodes && engine.first_dom_child(element).is_some();
         if (shadow_root.is_some() || lays_out_dom_children) && can_have_children && !children_are_discarded {
             self.tree.open_parent(node);
@@ -2638,9 +2648,9 @@ impl<'a> Planner<'a> {
             } else if engine.element_adjustment_facts(element) & element_adjustment_fact::IS_SVG_SWITCH_ELEMENT != 0 {
                 self.plan_svg_switch_children(element);
             } else {
-                // NB: Only the box's ::after goes after its children here, and the box's children are its own. A
-                //     fieldset or button box wraps its whole child list once the list is planned, which a run job's
-                //     children would be left out of.
+                // NB: Only the box's ::after and the box of a clip path it references go after its children here, and
+                //     the box's children are its own. A fieldset or button box wraps its whole child list once the list
+                //     is planned, which a run job's children would be left out of.
                 self.child_list_may_split = self.fork_budget.is_some()
                     && !self.in_unit_list
                     && !has_assigned_nodes
@@ -2654,6 +2664,7 @@ impl<'a> Planner<'a> {
                     && flags & NodeFlag::UsesButtonLayout as u32 == 0
                     && facts & box_fact::TABULAR_CONTAINER == 0
                     && !is_table_column_group
+                    && !may_reference_clip_path
                     && (!can_have_generated_children
                         || engine
                             .pseudo_published_style_record(element, pseudo_kind_of(GENERATED_FOR_AFTER))
@@ -2726,6 +2737,9 @@ impl<'a> Planner<'a> {
         }
         if flags & NodeFlag::UsesButtonLayout as u32 != 0 {
             self.wrap_button_contents_if_needed(node);
+        }
+        if may_reference_clip_path {
+            self.plan_css_box_clip_path(element, node);
         }
         if has_style_containment {
             self.content.note_quote_step(QuoteStep::Restore, None);
@@ -2934,18 +2948,7 @@ impl<'a> Planner<'a> {
             ),
         ];
         for resource in masks.into_iter().flatten() {
-            let enclosing_mode = self.layout_svg_mask_or_clip_path;
-            let enclosing_has_svg_root = self.has_svg_root;
-            self.layout_svg_mask_or_clip_path = true;
-            self.has_svg_root = true;
-            self.tree.open_parent(node);
-            if !self.resource_box_is_being_built(resource) {
-                self.plan_svg_resource_content(resource);
-                self.report_svg_resource_reference(resource, referrer);
-            }
-            self.tree.close_parent();
-            self.has_svg_root = enclosing_has_svg_root;
-            self.layout_svg_mask_or_clip_path = enclosing_mode;
+            self.plan_svg_mask_or_clip_path(referrer, node, resource);
         }
         let mut seen_content_elements: smallvec::SmallVec<[StyleNodeID; 2]> = smallvec::SmallVec::new();
         for pattern in patterns.into_iter().flatten() {
@@ -2971,6 +2974,40 @@ impl<'a> Planner<'a> {
             self.tree.close_parent();
             self.layout_svg_pattern = enclosing_mode;
         }
+    }
+
+    /// Plans the box of `resource`, the `<mask>` or `<clipPath>` that `referrer` references, as a child of the box of
+    /// `referrer`, `node`.
+    fn plan_svg_mask_or_clip_path(&mut self, referrer: StyleNodeID, node: NodeSlotId, resource: StyleNodeID) {
+        let enclosing_mode = self.layout_svg_mask_or_clip_path;
+        let enclosing_has_svg_root = self.has_svg_root;
+        self.layout_svg_mask_or_clip_path = true;
+        self.has_svg_root = true;
+        self.tree.open_parent(node);
+        if !self.resource_box_is_being_built(resource) {
+            self.plan_svg_resource_content(resource);
+            self.report_svg_resource_reference(resource, referrer);
+        }
+        self.tree.close_parent();
+        self.has_svg_root = enclosing_has_svg_root;
+        self.layout_svg_mask_or_clip_path = enclosing_mode;
+    }
+
+    /// Plans the box of the `<clipPath>` that the `clip-path` of `element` references, as a child of `node`, the CSS
+    /// box of `element`.
+    fn plan_css_box_clip_path(&mut self, element: StyleNodeID, node: NodeSlotId) {
+        let atom = self
+            .arena
+            .style_node_svg_attribute_facts(element)
+            .clip_path_reference_atom;
+        let Some(clip_path) = self.arena.element_by_svg_reference(element, atom).filter(|&resolved| {
+            self.engine.element_adjustment_facts(resolved) & element_adjustment_fact::IS_SVG_CLIP_PATH_ELEMENT != 0
+        }) else {
+            return;
+        };
+        let in_unit_list = std::mem::take(&mut self.in_unit_list);
+        self.plan_svg_mask_or_clip_path(element, node, clip_path);
+        self.in_unit_list = in_unit_list;
     }
 
     /// Plans `resource`, the root of SVG resource content, below the box of the element that references it, away from its

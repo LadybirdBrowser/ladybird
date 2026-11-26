@@ -12,7 +12,7 @@ use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
 use crate::painting::style_queries;
 use libgfx_rust::matrix::multiply_affine;
-use libgfx_rust::{AffineTransform, FloatRect, MaskKind};
+use libgfx_rust::{AffineTransform, FloatRect, MaskKind, WindingRule};
 
 pub(crate) fn first_child_paintable_of_kind(
     arena: &impl PaintRead,
@@ -167,6 +167,70 @@ pub(crate) fn clip_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
             object_bounding_box_content_units_transform(arena, clip_box),
             clip_path_transform,
         );
+    }
+    Some(svg_clip_path_geometry_bounds(arena, clip_box, clip_path_transform).unwrap_or_default())
+}
+
+fn css_box_clip_path_box(arena: &impl PaintRead, target: NodeSlotId) -> Option<(NodeSlotId, AffineTransform)> {
+    if arena
+        .node_kind_if_live(target)
+        .is_none_or(style_queries::kind_is_svg_element_box)
+    {
+        return None;
+    }
+    let clip_box = first_child_paintable_of_kind(arena, target, NodeKind::SVGClipBox)?;
+    let mut clip_path_transform = committed_local_transform(arena, clip_box);
+    if paintable_geometry::committed_svg_resource_content_units_are_object_bounding_box(arena, clip_box) {
+        clip_path_transform = multiply_affine(
+            object_bounding_box_content_units_transform(arena, clip_box),
+            clip_path_transform,
+        );
+    }
+    Some((clip_box, clip_path_transform))
+}
+
+fn lone_shape_of_clip_path(arena: &impl PaintRead, clip_box: NodeSlotId) -> Option<NodeSlotId> {
+    let mut contributing_children = arena.children(clip_box).filter(|&child| {
+        arena.paintable_row_is_populated(child)
+            && arena.node_kind_if_live(child).is_some_and(node_painting::is_svg)
+            && contributes_to_clip_path(arena, child)
+    });
+    let (Some(shape), None) = (contributing_children.next(), contributing_children.next()) else {
+        return None;
+    };
+    (arena.node_kind_if_live(shape) == Some(NodeKind::SVGGeometryBox)
+        && first_child_paintable_of_kind(arena, shape, NodeKind::SVGClipBox).is_none()
+        && paintable_geometry::committed_svg_path(arena, shape).is_some()
+        && arena.node_style_if_live(shape).is_some())
+    .then_some(shape)
+}
+
+/// The clipping path of the `<clipPath>` that `target`, a CSS box, references, where it is the silhouette of a single
+/// shape.
+pub(crate) fn css_box_clip_path_of_lone_shape(
+    arena: &impl PaintRead,
+    target: NodeSlotId,
+) -> Option<(libgfx_rust::path::Path, WindingRule)> {
+    let (clip_box, clip_path_transform) = css_box_clip_path_box(arena, target)?;
+    let shape = lone_shape_of_clip_path(arena, clip_box)?;
+    let path = paintable_geometry::committed_svg_path(arena, shape)?;
+    let style = arena.node_style_if_live(shape)?;
+    let transform = multiply_affine(clip_path_transform, committed_local_transform(arena, shape));
+    let winding_rule = if style.inherited_svg().clip_rule == crate::css::css_enums::fill_rule::EVENODD {
+        WindingRule::EvenOdd
+    } else {
+        WindingRule::Nonzero
+    };
+    Some((path.copy_transformed(transform.values), winding_rule))
+}
+
+/// The area, in the user space of `target`, of the content of the `<clipPath>` that `target`, a CSS box, references,
+/// where the clipping path is recorded as a mask.
+// FIXME: A clipping path that is recorded as a mask does not limit hit testing.
+pub(crate) fn css_box_clip_path_mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<CssPixelRect> {
+    let (clip_box, clip_path_transform) = css_box_clip_path_box(arena, target)?;
+    if lone_shape_of_clip_path(arena, clip_box).is_some() {
+        return None;
     }
     Some(svg_clip_path_geometry_bounds(arena, clip_box, clip_path_transform).unwrap_or_default())
 }

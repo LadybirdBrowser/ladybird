@@ -203,6 +203,28 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let device_scale = self.inputs.device_pixels_per_css_pixel as f32;
         content_units_transform_in_recorded_space.values[4] *= device_scale;
         content_units_transform_in_recorded_space.values[5] *= device_scale;
+        let mut target_to_enclosing_space = target_to_enclosing_space;
+        if self
+            .source
+            .node_kind_if_live(target)
+            .is_some_and(|kind| !crate::painting::style_queries::kind_is_svg_element_box(kind))
+        {
+            // A CSS box records in absolute layout pixels.
+            let origin = crate::painting::paintable_geometry::absolute_border_box_rect(self.source, target).location();
+            target_to_enclosing_space = multiply_affine(
+                target_to_enclosing_space,
+                AffineTransform {
+                    values: [
+                        1.0,
+                        0.0,
+                        0.0,
+                        1.0,
+                        origin.x.to_float() * device_scale,
+                        origin.y.to_float() * device_scale,
+                    ],
+                },
+            );
+        }
         let root_transform = multiply_affine(target_to_enclosing_space, content_units_transform_in_recorded_space);
         // A mask's output is coverage rather than color anyone sees, and a luminance mask's lightness is its alpha,
         // so force-dark stays out of it. Patterns keep it: they render as page content.

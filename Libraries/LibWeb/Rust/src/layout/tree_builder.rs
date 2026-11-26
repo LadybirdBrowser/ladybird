@@ -1792,7 +1792,10 @@ fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode)
                 return TraversalDecision::Continue;
             }
             let data = host.data(node);
-            if is_marker_content(data) || node_is_out_of_flow(host, node) {
+            if is_marker_content(data)
+                || node_is_out_of_flow(host, node)
+                || node_facts::kind_is_svg_resource_box(data.kind.get())
+            {
                 return TraversalDecision::SkipChildrenAndContinue;
             }
             if node_facts::kind_is_text(data.kind.get()) {
@@ -1825,7 +1828,10 @@ fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode)
     while !child.is_invalid() {
         let data = host.data(child);
         let is_anonymous = node_facts::has_flag(data, NodeFlag::Anonymous);
-        if is_marker_content(data) || node_is_out_of_flow(host, child) {
+        if is_marker_content(data)
+            || node_is_out_of_flow(host, child)
+            || node_facts::kind_is_svg_resource_box(data.kind.get())
+        {
             child = host.next_sibling(child);
             continue;
         }

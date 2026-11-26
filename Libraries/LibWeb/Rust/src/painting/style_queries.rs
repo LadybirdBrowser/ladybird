@@ -182,6 +182,10 @@ pub(crate) fn clip_path_has_value(mask: &MaskValues) -> bool {
     })
 }
 
+pub(crate) fn clip_path_is_url(mask: &MaskValues) -> bool {
+    matches!(handle_value(&mask.clip_path), Some(StyleValueData::Url { .. }))
+}
+
 fn view_transition_name_has_value(style: ComputedValuesView<'_>) -> bool {
     handle_value(&style.misc_interaction().view_transition_name)
         .is_some_and(|value| matches!(value, StyleValueData::CustomIdent { .. }))

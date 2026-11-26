@@ -125,7 +125,7 @@ static CSS::StyleAtomID svg_reference_fragment_atom(DOM::Element& element, Optio
 // written, with no base-URL resolution, so `url(other.svg#shape)` names `#shape` in this document. Reproduced here as
 // written.
 // FIXME: Complete and use the entire URL, not just the fragment.
-static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element, Optional<CSS::URL> const& url)
+static Optional<Utf16FlyString> svg_style_reference_fragment(Optional<CSS::URL> const& url)
 {
     if (!url.has_value())
         return {};
@@ -135,7 +135,15 @@ static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element,
     auto fragment = SVG::decode_fragment_identifier(url->url().substring_view(fragment_offset.value() + 1));
     if (fragment.is_empty())
         return {};
-    return element.document().style_computer().style_engine().intern_atom(Utf16FlyString::from_utf16(fragment.utf16_view()));
+    return Utf16FlyString::from_utf16(fragment.utf16_view());
+}
+
+static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element, Optional<CSS::URL> const& url)
+{
+    auto fragment = svg_style_reference_fragment(url);
+    if (!fragment.has_value())
+        return {};
+    return element.document().style_computer().style_engine().intern_atom(*fragment);
 }
 
 // The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
@@ -155,8 +163,31 @@ static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(CSS::ComputedValues
     };
 }
 
+static Optional<CSS::URL> clip_path_url(CSS::ComputedValuesFFI::StyleRecordGroups const* record_groups)
+{
+    if (!record_groups)
+        return {};
+    return CSS::style_record_group<CSS::ComputedValues::MaskValues>(record_groups).clip_path_value();
+}
+
+static Optional<CSS::URL> css_box_clip_path_url(DOM::Element const& element)
+{
+    auto url = clip_path_url(element.style_record_groups());
+    if (!url.has_value() || url->url().starts_with('#'))
+        return url;
+    auto resolved_url = element.document().encoding_parse_url(url->url());
+    if (!resolved_url.has_value() || !resolved_url->equals(element.document().url(), URL::ExcludeFragment::Yes))
+        return {};
+    return url;
+}
+
 static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& element)
 {
+    if (!is<SVG::SVGElement>(element)) {
+        Array<CSS::StyleAtomID, 4> atoms {};
+        atoms[1] = svg_style_reference_fragment_atom(element, css_box_clip_path_url(element));
+        return atoms;
+    }
     if (!is<SVG::SVGGraphicsElement>(element))
         return {};
     auto urls = svg_style_reference_urls(element.style_record_groups());
@@ -168,7 +199,22 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
     };
 }
 
-bool svg_style_references_differ(CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
+bool element_publishes_svg_style_references(DOM::Element const& element)
+{
+    return is<SVG::SVGGraphicsElement>(element) || !is<SVG::SVGElement>(element);
+}
+
+bool clip_path_is_url(CSS::InstalledStyle const& style)
+{
+    return clip_path_url(style.groups()).has_value();
+}
+
+Optional<Utf16FlyString> css_box_clip_path_fragment(DOM::Element const& element)
+{
+    return svg_style_reference_fragment(css_box_clip_path_url(element));
+}
+
+bool svg_style_references_differ(DOM::Element const& element, CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
 {
     auto const* old_groups = old_style.groups();
     auto const* new_groups = new_style.groups();
@@ -176,6 +222,12 @@ bool svg_style_references_differ(CSS::InstalledStyle const& old_style, CSS::Inst
         && CSS::style_record_group_payload<CSS::ComputedValues::MaskValues::style_group_index>(old_groups) == CSS::style_record_group_payload<CSS::ComputedValues::MaskValues::style_group_index>(new_groups)
         && CSS::style_record_group_payload<CSS::ComputedValues::InheritedSVGValues::style_group_index>(old_groups) == CSS::style_record_group_payload<CSS::ComputedValues::InheritedSVGValues::style_group_index>(new_groups))
         return false;
+
+    if (!is<SVG::SVGElement>(element)) {
+        auto old_url = clip_path_url(old_groups);
+        auto new_url = clip_path_url(new_groups);
+        return old_url.has_value() != new_url.has_value() || (old_url.has_value() && old_url->url() != new_url->url());
+    }
 
     auto old_urls = svg_style_reference_urls(old_groups);
     auto new_urls = svg_style_reference_urls(new_groups);
@@ -553,6 +605,10 @@ void publish_svg_style_references(DOM::Element& element)
 {
     VERIFY(element.style_node_id() != 0);
     auto references = svg_style_reference_atoms(element);
+    if (!is<SVG::SVGElement>(element)) {
+        if (auto fragment = css_box_clip_path_fragment(element); fragment.has_value())
+            element.document().register_css_box_clip_path_referrer(*fragment, element);
+    }
     RustFFI::render_state_set_svg_style_references(
         element.document().layout_node_arena().host(),
         element.style_node_id().value(),

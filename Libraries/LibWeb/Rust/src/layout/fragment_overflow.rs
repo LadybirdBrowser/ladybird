@@ -384,7 +384,8 @@ pub(crate) fn scrollable_overflow_of<'link>(
         let Some(child_row) = GeometryRead::node(arena, child_node) else {
             continue;
         };
-        if !node_facts::kind_is_box(child_row.kind()) {
+        // NB: The SVG boxes a box outside SVG content contains are those of an SVG resource it references.
+        if !node_facts::kind_is_box(child_row.kind()) || node_facts::kind_is_svg_box(child_row.kind()) {
             continue;
         }
 

@@ -3676,14 +3676,13 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Replace only the four names a graphics element's style carries. An element that has not
-    /// published its attributes yet has no place to put them, and will carry them itself when it
-    /// does: the publication is made when the style tree names the element.
+    /// Replace only the four names a graphics element's style carries.
     pub(crate) fn set_style_node_svg_style_references(&mut self, style_node: StyleNodeID, references: [u32; 4]) {
         let published = &mut self.style_node_tables.svg_attribute_facts;
-        let Some(facts) = published.get_mut(&style_node) else {
+        if references == [0; 4] && !published.contains_key(&style_node) {
             return;
-        };
+        }
+        let facts = published.get_or_insert_with(style_node, Default::default);
         let replaced = Self::published_reference_atoms(facts);
         [
             facts.mask_reference_atom,
@@ -7012,6 +7011,9 @@ pub(crate) fn flex_or_grid_item_flag(
 ) -> Option<Option<NodeFlag>> {
     if !super::node_facts::kind_is_box(data.kind.get()) {
         return None;
+    }
+    if super::node_facts::kind_is_svg_resource_box(data.kind.get()) {
+        return Some(None);
     }
     Some(flex_or_grid_item_flag_of_child(
         item_flag_of_children(parent_data, parent_style, parent_writing_mode),

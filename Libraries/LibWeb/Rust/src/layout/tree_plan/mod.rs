@@ -1365,7 +1365,10 @@ impl PlanTree {
         };
         let is_box = crate::layout::node_facts::kind_is_box(planned.kind());
         let mut item_flag = None;
-        if is_box && let Some(children_item_flag) = derivation.item_flag {
+        if is_box
+            && !crate::layout::node_facts::kind_is_svg_resource_box(planned.kind())
+            && let Some(children_item_flag) = derivation.item_flag
+        {
             // NB: The style of a box the walk planned is absolutely positioned where its facts say so.
             //     A table wrapper, whose style the commit makes, is where its facts say so.
             let is_absolutely_positioned = planned.has_fact(box_fact::ABSOLUTELY_POSITIONED)

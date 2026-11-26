@@ -1309,6 +1309,10 @@ impl<'pass> NodeFacts<'pass> {
         self.data().kind.get() == NodeKind::SVGClipBox
     }
 
+    pub(crate) fn is_svg_resource_box(&self) -> bool {
+        kind_is_svg_resource_box(self.data().kind.get())
+    }
+
     pub(crate) fn is_flow_layout_participant(&self) -> bool {
         self.is_box()
             && !self.is_absolutely_positioned()

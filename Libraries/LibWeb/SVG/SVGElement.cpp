@@ -23,6 +23,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
+#include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
@@ -667,6 +668,27 @@ void SVGElement::mark_resource_box_referencing_elements_for_content_change()
     m_resource_box_referencing_elements.remove_all_matching([](auto& weak_element) { return !weak_element; });
     for (auto& weak_referencing_element : m_resource_box_referencing_elements)
         weak_referencing_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGResourceContentChange);
+}
+
+void SVGElement::update_boxes_clipped_by_enclosing_clip_path_after_style_change(Layout::BegunRead const& read, CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
+{
+    auto const* old_groups = old_style.groups();
+    auto const* new_groups = new_style.groups();
+    if (!old_groups || !new_groups)
+        return;
+    auto visibility = [](auto const* groups) { return CSS::visibility_from_inherited_bits(CSS::style_record_inherited_values(groups).bits); };
+    auto clip_rule = [](auto const* groups) { return CSS::style_record_group<CSS::ComputedValues::InheritedSVGValues>(groups).clip_rule; };
+    if (visibility(old_groups) == visibility(new_groups) && clip_rule(old_groups) == clip_rule(new_groups))
+        return;
+    for (DOM::Node* node = this; node && node->is_svg_element(); node = node->parent()) {
+        auto* clip_path = as_if<SVGClipPathElement>(*node);
+        if (!clip_path)
+            continue;
+        for (auto& weak_referencing_element : clip_path->m_resource_box_referencing_elements) {
+            if (auto referencing_element = weak_referencing_element.ptr())
+                document().schedule_accumulated_visual_context_update(read, *referencing_element, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
+        }
+    }
 }
 
 void SVGElement::mark_resource_box_referencing_elements_for_layout_update()

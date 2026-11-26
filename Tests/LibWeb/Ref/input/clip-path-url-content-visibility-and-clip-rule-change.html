@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/clip-path-url-content-visibility-and-clip-rule-change-ref.html" />
+<style>
+    .case {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+        background: green;
+    }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <clipPath id="shown-later">
+        <rect width="50" height="100" />
+        <rect id="shown-later-shape" width="100" height="100" visibility="hidden" />
+    </clipPath>
+    <clipPath id="filled-later">
+        <path id="filled-later-shape" clip-rule="evenodd" d="M0 0 h100 v100 h-100 Z M25 25 h50 v50 h-50 Z" />
+    </clipPath>
+</svg>
+<div class="case" style="clip-path: url(#shown-later)"></div>
+<div class="case" style="clip-path: url(#filled-later)"></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("shown-later-shape").style.visibility = "visible";
+            document.getElementById("filled-later-shape").style.clipRule = "nonzero";
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

@@ -1056,6 +1056,17 @@ pub(super) fn mask_layer_presence(layout_arena: &impl PaintRead, slot: NodeSlotI
                 kind: libgfx_rust::MaskKind::Alpha,
             });
         }
+    } else if layout_arena
+        .node_style_if_live(slot)
+        .is_some_and(|style| style_queries::clip_path_is_url(style.mask()))
+        && let Some(clip_area) = crate::painting::svg_masking::css_box_clip_path_mask_area(layout_arena, slot)
+    {
+        let border_box = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
+        layers.push(MaskLayerPresenceEntry {
+            origin: MaskLayerOrigin::SvgClip,
+            area: clip_area.translated_by(border_box.location()),
+            kind: libgfx_rust::MaskKind::Alpha,
+        });
     }
     layers
 }

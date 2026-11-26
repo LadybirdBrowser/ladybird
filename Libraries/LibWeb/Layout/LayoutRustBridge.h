@@ -41,7 +41,10 @@ void publish_svg_attribute_facts(DOM::Element&);
 void publish_math_attribute_facts(DOM::Element const&);
 void publish_svg_style_references(DOM::Element&);
 
-bool svg_style_references_differ(CSS::InstalledStyle const&, CSS::InstalledStyle const&);
+bool element_publishes_svg_style_references(DOM::Element const&);
+bool clip_path_is_url(CSS::InstalledStyle const&);
+Optional<Utf16FlyString> css_box_clip_path_fragment(DOM::Element const&);
+bool svg_style_references_differ(DOM::Element const&, CSS::InstalledStyle const&, CSS::InstalledStyle const&);
 
 // Which shape an SVG geometry element draws, and the endpoints a <line> parses. The other fields keep their defaults.
 // Layout reads these from the published facts, and the DOM's geometry queries pass them to the same shape builders.

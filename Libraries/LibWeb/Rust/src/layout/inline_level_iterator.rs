@@ -1349,6 +1349,9 @@ impl<'pass> InlineContentPreparer<'pass> {
             code_unit_before_previous_text: None,
             code_unit_before_text: None,
         };
+        if !preparer.next_node.is_invalid() && preparer.facts(preparer.next_node).is_svg_resource_box() {
+            preparer.next_node = pass.next_sibling(preparer.next_node);
+        }
         preparer.is_unidirectional_left_to_right = preparer.compute_is_unidirectional_left_to_right();
         preparer.skip_to_next();
         while let Some(item) = preparer.prepare_next_item() {
@@ -1395,7 +1398,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             return false;
         }
 
-        let mut node = self.pass.first_child(containing_block);
+        let mut node = self.next_node;
         while !node.is_invalid() {
             let facts = self.facts(node);
             if !facts.is_text_node() {
@@ -1409,7 +1412,7 @@ impl<'pass> InlineContentPreparer<'pass> {
 
             loop {
                 node = self.next_inline_node_in_pre_order(node, containing_block);
-                if !node.is_invalid() && self.facts(node).is_svg_mask_box() {
+                if !node.is_invalid() && self.facts(node).is_svg_resource_box() {
                     node = self.pass.next_sibling(node);
                 }
                 if node.is_invalid() {
@@ -1507,7 +1510,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         loop {
             self.next_node = self.next_inline_node_in_pre_order(self.next_node, self.block_container);
-            if !self.next_node.is_invalid() && self.facts(self.next_node).is_svg_mask_box() {
+            if !self.next_node.is_invalid() && self.facts(self.next_node).is_svg_resource_box() {
                 self.next_node = self.pass.next_sibling(self.next_node);
             }
             if self.next_node.is_invalid() {
