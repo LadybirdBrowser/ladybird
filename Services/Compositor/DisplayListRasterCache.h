@@ -91,13 +91,15 @@ public:
     sk_sp<SkImage> image_for_video_sink(Media::VideoSinkHandle, Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntSize& visible_size);
     sk_sp<SkImage> repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
     void add_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>);
-    sk_sp<SkImage> vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_recorded_space, Gfx::IntRect& raster_rect_in_recorded_space);
-    bool has_rasterized_vector_image(Compositing::DisplayListResourceId) const;
+    // The rasters of an SVG image are made at a raster scale, a power of two of the size its records were recorded at.
+    // Their rects are in the pixels of the image at that scale.
+    sk_sp<SkImage> vector_image_raster(Compositing::DisplayListResourceId, int raster_scale, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_raster_pixels, Gfx::IntRect& raster_rect_in_raster_pixels);
+    bool has_rasterized_vector_image(Compositing::DisplayListResourceId, int raster_scale) const;
     // Makes room for a raster of the image, which then counts against the budget until it is finished, and answers false
     // where the rasters in use leave no room for it.
-    bool reserve_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space);
+    bool reserve_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_raster_pixels);
     // Keeps the raster that was reserved, unless it could not be made.
-    sk_sp<SkImage> finish_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space, sk_sp<SkImage>);
+    sk_sp<SkImage> finish_vector_image_raster(Compositing::DisplayListResourceId, int raster_scale, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_raster_pixels, sk_sp<SkImage>);
     sk_sp<SkTextBlob> text_blob(Gfx::Font const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing, bool uses_lcd_text = false);
 
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
