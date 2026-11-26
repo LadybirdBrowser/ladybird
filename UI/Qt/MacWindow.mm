@@ -851,8 +851,12 @@ void AppKitWindowChromeSnapshots::update()
     layer.contents = height > 0 ? (__bridge id)m_shown_surface : nil;
 
     // NB: Qt skips its flush for a surface that is on screen, so this tells the window server of the repaint instead.
+    //     The layer can hold the only reference to the surface, as when Qt has let go of it for a new one, so the
+    //     surface is kept alive while the layer lets go of it and takes it back.
+    CFRetain((__bridge CFTypeRef)contents);
     window_layer.contents = nil;
     window_layer.contents = contents;
+    CFRelease((__bridge CFTypeRef)contents);
     [CATransaction commit];
 
     reinterpret_cast<NSView*>(m_window.winId()).window.viewsNeedDisplay = YES;
