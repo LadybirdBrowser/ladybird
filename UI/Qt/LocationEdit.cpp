@@ -823,7 +823,12 @@ void LocationEdit::set_field_hovered(bool hovered)
 
 void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
 {
-    QMenu* menu = createStandardContextMenu();
+    // NB: A menu is kept until another is shown in its place, as Cocoa delivers a native menu's choice through queued
+    //     events after the menu closes.
+    if (m_context_menu)
+        delete_menu_later(*m_context_menu);
+    auto* menu = createStandardContextMenu();
+    m_context_menu = menu;
 
     auto* paste_action = menu->findChild<QAction*>(QStringLiteral("edit-paste"), Qt::FindDirectChildrenOnly);
 
@@ -862,7 +867,6 @@ void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
         menu->addAction(paste_and_go_action);
 
     execute_context_menu(*menu, event->globalPos());
-    delete menu;
 }
 
 // Leaving a tab parks its omnibox's editing session: the suggestion popup closes, but everything else is kept,
