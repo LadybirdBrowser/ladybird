@@ -11,6 +11,13 @@
         println(`1. value after clear: "${textarea.value}"`);
         println(`2. defaultValue after clear: "${textarea.defaultValue}"`);
 
+        textarea.style.whiteSpace = "pre";
+        textarea.value = "";
+        const emptyWidth = textarea.scrollWidth;
+        textarea.value = "a line long enough to overflow the textarea by a lot";
+        internals.clearElement(textarea);
+        println(`3. the cleared textarea lays out no text: ${textarea.scrollWidth === emptyWidth}`);
+
         document.body.removeChild(textarea);
     });
 </script>

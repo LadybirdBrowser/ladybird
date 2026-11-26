@@ -138,6 +138,11 @@ void HTMLTextAreaElement::clear_algorithm()
     if (*m_value_before_first_user_edit == api_value())
         m_value_before_first_user_edit.clear();
 
+    if (m_text_node) {
+        MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
+        update_placeholder_visibility();
+    }
+
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
     UIEvents::InputEventInit input_event_init;
