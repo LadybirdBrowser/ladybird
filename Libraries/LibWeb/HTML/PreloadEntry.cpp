@@ -28,6 +28,17 @@ void PreloadEntry::visit_edges(Cell::Visitor& visitor)
     visitor.visit(controller);
 }
 
+void PreloadEntry::cancel()
+{
+    if (response || cancelled)
+        return;
+    cancelled = true;
+    if (auto callback = on_response_available) {
+        on_response_available = nullptr;
+        callback->function()(nullptr);
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/links.html#create-a-preload-key
 PreloadKey create_a_preload_key(Fetch::Infrastructure::Request const& request)
 {
@@ -60,7 +71,7 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
-    GC::Ref<GC::Function<void(NonnullRefPtr<Fetch::Infrastructure::Response>)>> on_response_available,
+    GC::Ref<GC::Function<void(RefPtr<Fetch::Infrastructure::Response>)>> on_response_available,
     Fetch::Engine::BodyIntent consumer_body_intent,
     bool& preload_reports_timing)
 {
@@ -105,10 +116,8 @@ bool consume_a_preloaded_resource(
     // 8. Remove preloads[key].
     preloads.remove(it);
 
-    // AD-HOC: A preload whose fetch was stopped before its response arrived, such as by stopping the document, will
-    //         never have a response: Stopping a fetch drops its algorithms. Return false, so the consumer fetches on
-    //         its own instead of waiting forever.
-    if (!entry->response && entry->controller && entry->controller->state() == Fetch::Infrastructure::FetchController::State::Stopped)
+    // AD-HOC: A cancelled entry has no response to give. Return false, so the consumer fetches on its own.
+    if (entry->cancelled)
         return false;
 
     // AD-HOC: A preload reports its own timing to Resource Timing, but a speculative fetch does not. Let the consumer

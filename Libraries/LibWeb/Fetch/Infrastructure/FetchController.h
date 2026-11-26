@@ -110,10 +110,6 @@ public:
     void set_keepalive(bool is_keepalive) { m_is_keepalive = is_keepalive; }
 
     [[nodiscard]] bool response_arrived() const { return m_control_block->response_arrived(); }
-    // The handle in the callback of the preload entry whose response the fetch's preloaded response candidate waits for,
-    // while that callback lives.
-    [[nodiscard]] WeakPtr<Fetching::PreloadWaitHandle> const& preload_wait_handle() const { return m_preload_wait_handle; }
-    void set_preload_wait_handle(WeakPtr<Fetching::PreloadWaitHandle> preload_wait_handle) { m_preload_wait_handle = move(preload_wait_handle); }
 
     bool requires_network() const { return m_control_block->requires_network(); }
     bool has_started_request() const { return m_control_block->has_started_request(); }
@@ -199,8 +195,6 @@ private:
 
     bool m_is_keepalive { false };
     bool m_preload_reports_timing { false };
-
-    WeakPtr<Fetching::PreloadWaitHandle> m_preload_wait_handle;
 
     struct StartedFetch {
         Engine::FetchId fetch_id;
