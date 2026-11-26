@@ -10,6 +10,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
 

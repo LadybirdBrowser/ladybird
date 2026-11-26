@@ -9,7 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 
 namespace Web::Fetch::Infrastructure {
 
