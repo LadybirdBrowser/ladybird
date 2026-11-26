@@ -29,6 +29,7 @@ ladybird_test("TestFullscreenDebounce.cpp" UI/Qt
 set(TEST_SOURCES
     TestBackingStoreRelease.cpp
     TestChromeIcons.cpp
+    TestClipboardItem.cpp
     TestDownloadPresentation.cpp
     TestHiddenPageSizing.cpp
     TestJavaScriptDialog.cpp

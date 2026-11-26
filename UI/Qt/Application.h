@@ -32,6 +32,7 @@
 class QAction;
 class QMenu;
 class QMenuBar;
+class QMimeData;
 class QWidget;
 
 namespace Ladybird {
@@ -426,5 +427,7 @@ private:
     // Kept until a window shows it: on macOS, the last window can close while the system probe is still running.
     Optional<OpenSSLMismatch> m_openssl_mismatch_awaiting_window;
 };
+
+Web::Clipboard::SystemClipboardItem clipboard_item_from_mime_data(QMimeData const&);
 
 }
