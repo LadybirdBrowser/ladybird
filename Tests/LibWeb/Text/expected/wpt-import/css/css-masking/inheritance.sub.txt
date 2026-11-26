@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	Property clip has initial value auto
+Pass	Property clip does not inherit
+Pass	Property clip-path has initial value none
+Pass	Property clip-path does not inherit
+Pass	Property clip-rule has initial value nonzero
+Pass	Property clip-rule inherits
+Pass	Property mask-border-mode has initial value alpha
+Pass	Property mask-border-mode does not inherit
+Pass	Property mask-border-outset has initial value 0
+Pass	Property mask-border-outset does not inherit
+Pass	Property mask-border-repeat has initial value stretch
+Pass	Property mask-border-repeat does not inherit
+Pass	Property mask-border-slice has initial value 0
+Pass	Property mask-border-slice does not inherit
+Pass	Property mask-border-source has initial value none
+Pass	Property mask-border-source does not inherit
+Pass	Property mask-border-width has initial value auto
+Pass	Property mask-border-width does not inherit
+Pass	Property mask-clip has initial value border-box
+Pass	Property mask-clip does not inherit
+Pass	Property mask-composite has initial value add
+Pass	Property mask-composite does not inherit
+Pass	Property mask-image has initial value none
+Pass	Property mask-image does not inherit
+Pass	Property mask-mode has initial value match-source
+Pass	Property mask-mode does not inherit
+Pass	Property mask-origin has initial value border-box
+Pass	Property mask-origin does not inherit
+Pass	Property mask-position has initial value 0% 0%
+Pass	Property mask-position does not inherit
+Pass	Property mask-repeat has initial value repeat
+Pass	Property mask-repeat does not inherit
+Pass	Property mask-size has initial value auto
+Pass	Property mask-size does not inherit
+Pass	Property mask-type has initial value luminance
+Pass	Property mask-type does not inherit

@@ -2008,6 +2008,12 @@ fn build_mask_group(
             payload.mask_origin = retained(property_id::MASK_ORIGIN);
             payload.mask_size = retained(property_id::MASK_SIZE);
             payload.mask_composite = retained(property_id::MASK_COMPOSITE);
+            payload.mask_border_source = retained(property_id::MASK_BORDER_SOURCE);
+            payload.mask_border_slice = retained(property_id::MASK_BORDER_SLICE);
+            payload.mask_border_width = retained(property_id::MASK_BORDER_WIDTH);
+            payload.mask_border_outset = retained(property_id::MASK_BORDER_OUTSET);
+            payload.mask_border_repeat = retained(property_id::MASK_BORDER_REPEAT);
+            payload.mask_border_mode = retained(property_id::MASK_BORDER_MODE);
         },
         parent,
     )

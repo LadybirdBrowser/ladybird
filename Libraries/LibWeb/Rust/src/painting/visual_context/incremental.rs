@@ -430,7 +430,7 @@ fn box_keeps_no_node_whatever_its_geometry(layout_arena: &impl PaintableRowsRead
         || effects.backdrop_filter.operations.length != 0
         || effects.clip_is_rect
         || style_queries::clip_path_has_value(style.mask())
-        || style_queries::mask_layers_have_image(style.mask())
+        || style_queries::has_css_mask_image(style.mask())
         || super::node_values::may_have_clip(layout_arena, slot)
         || crate::painting::paintable_geometry::has_scrollable_overflow(layout_arena, slot)
     {

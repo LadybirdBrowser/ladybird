@@ -206,7 +206,7 @@ static void push_layer_image_paint_facts_onto(Layout::NodeWithStyle const& layou
         return;
     Vector<Layout::RustFFI::FfiLayerImagePaintFactsEntry> entries;
     Vector<Optional<Gfx::DecodedImageFrame>> current_frames;
-    current_frames.ensure_capacity(observers->background_images.size() + observers->mask_images.size() + 1);
+    current_frames.ensure_capacity(observers->background_images.size() + observers->mask_images.size() + 2);
     auto append_entry = [&](Layout::RustFFI::FfiLayerImageList list, size_t computed_index, CSS::AbstractImageStyleValue const* image, Layout::NodeWithStyle::ImageObserver const* observer) {
         if (!image)
             return;
@@ -222,6 +222,7 @@ static void push_layer_image_paint_facts_onto(Layout::NodeWithStyle const& layou
     for (size_t layer_index = 0; layer_index < observers->mask_images.size(); ++layer_index)
         append_entry(Layout::RustFFI::FfiLayerImageList::Mask, layer_index, observers->mask_images[layer_index].ptr(), observers->mask_layers[layer_index].ptr());
     append_entry(Layout::RustFFI::FfiLayerImageList::BorderImageSource, 0, observers->border_image_source_value.ptr(), observers->border_image_source.ptr());
+    append_entry(Layout::RustFFI::FfiLayerImageList::MaskBorderSource, 0, observers->mask_border_source_value.ptr(), observers->mask_border_source.ptr());
     Layout::RustFFI::render_state_set_layer_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 

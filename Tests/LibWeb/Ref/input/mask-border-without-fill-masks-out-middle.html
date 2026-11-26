@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mask-border-without-fill-masks-out-middle-ref.html" />
+<style>
+    .masked {
+        width: 150px;
+        height: 150px;
+        background-color: green;
+        mask-border: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M30 0H60V30H30Z M30 60H60V90H30Z M0 30H30V60H0Z M60 30H90V60H60Z M30 30H60V60H30Z'/%3E%3C/svg%3E") 30 / 30px;
+    }
+</style>
+<div class="masked"></div>

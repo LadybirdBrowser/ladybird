@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const style = document.getElementById("target").style;
+        const longhands = [
+            "mask-border-source",
+            "mask-border-slice",
+            "mask-border-width",
+            "mask-border-outset",
+            "mask-border-repeat",
+            "mask-border-mode",
+        ];
+        function dump(label) {
+            println(`${label}:`);
+            println(`  mask-border: "${style.maskBorder}"`);
+            println(`  -webkit-mask-box-image: "${style.webkitMaskBoxImage}"`);
+            println(`  mask: "${style.mask}"`);
+            for (const longhand of longhands)
+                println(`  ${longhand}: "${style.getPropertyValue(longhand)}"`);
+        }
+
+        style.cssText = "mask-border: url(mask.png) 30 / 30px / 2px round luminance";
+        dump("mask-border with every component");
+
+        style.cssText = "-webkit-mask-box-image: url(mask.png) 30 / 30px";
+        dump("-webkit-mask-box-image always fills");
+
+        style.cssText = "-webkit-mask-box-image: url(mask.png)";
+        dump("-webkit-mask-box-image without a slice");
+
+        style.cssText = "-webkit-mask-box-image-slice: 10";
+        dump("-webkit-mask-box-image-slice is an alias");
+
+        style.cssText = "mask-border: url(mask.png) 30 / 30px";
+        style.removeProperty("mask-border-mode");
+        dump("-webkit-mask-box-image does not serialize a slice without fill");
+        println(`  cssText: "${style.cssText}"`);
+
+        style.cssText = "mask-border: none 10 / 5";
+        dump("-webkit-mask-box-image does not serialize a slice without fill and no image");
+
+        style.cssText = "mask-border: none; mask-border-width: 5";
+        dump("-webkit-mask-box-image does not serialize a slice without fill and other values");
+
+        style.cssText = "mask-border: url(mask.png) 30; mask: none";
+        dump("mask resets mask-border");
+
+        style.cssText = "mask: none; mask-border-source: url(mask.png)";
+        dump("mask does not serialize with a mask-border");
+
+        style.cssText = "mask-border: url(mask.png) 10 luminance / 1px";
+        dump("mask-border with a component between the slice and its width is invalid");
+
+        style.cssText = "mask-border: url(mask.png) luminance / 1px";
+        dump("mask-border with a width but no slice is invalid");
+    });
+</script>

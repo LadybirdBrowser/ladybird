@@ -263,6 +263,12 @@ margin-inline-start: 8px
 margin-left: 8px
 margin-right: 8px
 margin-top: 8px
+mask-border-mode: alpha
+mask-border-outset: 0
+mask-border-repeat: stretch
+mask-border-slice: 0
+mask-border-source: none
+mask-border-width: auto
 mask-clip: border-box
 mask-composite: add
 mask-image: none

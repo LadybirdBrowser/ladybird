@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Masking properties</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('clip', 'auto', 'rect(10px, 20px, 30px, 40px)');
+assert_not_inherited('clip-path', 'none', 'url("http://wpt.live/")');
+assert_inherited('clip-rule', 'nonzero', 'evenodd');
+assert_not_inherited('mask-border-mode', 'alpha', 'luminance');
+assert_not_inherited('mask-border-outset', '0', '10px 20px 30px 40px');
+assert_not_inherited('mask-border-repeat', 'stretch', 'round space');
+assert_not_inherited('mask-border-slice', '0', '1 2 3 4 fill');
+assert_not_inherited('mask-border-source', 'none', 'url("http://wpt.live/")');
+assert_not_inherited('mask-border-width', 'auto', '10px 20px 30px 40px');
+assert_not_inherited('mask-clip', 'border-box', 'no-clip');
+assert_not_inherited('mask-composite', 'add', 'exclude');
+assert_not_inherited('mask-image', 'none', 'url("http://wpt.live/")');
+assert_not_inherited('mask-mode', 'match-source', 'luminance');
+assert_not_inherited('mask-origin', 'border-box', 'padding-box');
+assert_not_inherited('mask-position', '0% 0%', '10px 20px');
+assert_not_inherited('mask-repeat', 'repeat', 'space round');
+assert_not_inherited('mask-size', 'auto', '10px 20px');
+assert_not_inherited('mask-type', 'luminance', 'alpha');
+</script>
+</body>
+</html>

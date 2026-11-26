@@ -345,10 +345,12 @@ public:
         Vector<RefPtr<CSS::AbstractImageStyleValue const>> background_images;
         Vector<RefPtr<CSS::AbstractImageStyleValue const>> mask_images;
         RefPtr<CSS::AbstractImageStyleValue const> border_image_source_value;
+        RefPtr<CSS::AbstractImageStyleValue const> mask_border_source_value;
         Vector<OwnPtr<ImageObserver>> background_layers;
         Vector<OwnPtr<ImageObserver>> mask_layers;
         Vector<OwnPtr<ImageObserver>> cursors;
         OwnPtr<ImageObserver> border_image_source;
+        OwnPtr<ImageObserver> mask_border_source;
         OwnPtr<ImageObserver> list_style_image;
     };
 
@@ -357,6 +359,7 @@ public:
     ImageObserver const* mask_image_observer(size_t layer_index) const;
     ImageObserver const* cursor_image_observer(size_t cursor_index) const;
     ImageObserver const* border_image_source_observer() const;
+    ImageObserver const* mask_border_source_observer() const;
 
     CSS::StyleRecordID style_record_identity() const { return m_style_record_identity; }
 
@@ -445,6 +448,12 @@ public:
         if (!m_mask_images.has_value())
             m_mask_images = style_group<CSS::ComputedValues::MaskValues>().mask_images_value();
         return *m_mask_images;
+    }
+    CSS::AbstractImageStyleValue const* mask_border_source() const
+    {
+        if (!m_mask_border_source.has_value())
+            m_mask_border_source = style_group<CSS::ComputedValues::MaskValues>().mask_border_source_value();
+        return m_mask_border_source->ptr();
     }
     CSS::AbstractImageStyleValue const* list_style_image() const
     {
@@ -558,6 +567,7 @@ private:
     mutable Optional<Vector<RefPtr<CSS::AbstractImageStyleValue const>>> m_background_images;
     mutable Optional<Vector<RefPtr<CSS::AbstractImageStyleValue const>>> m_mask_images;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_border_image_source;
+    mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_mask_border_source;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_list_style_image;
 };
 

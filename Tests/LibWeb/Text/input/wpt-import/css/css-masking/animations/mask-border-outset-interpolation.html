@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>mask-border-outset interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking/#propdef-mask-border-outset">
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<meta name="assert" content="mask-border-outset supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  mask-border-outset: 10px;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  border: 25px;
+  margin-right: 50px;
+  mask-border-slice: 30%;
+  background-clip: content-box;
+  mask-border-source: linear-gradient(45deg, pink, blue, white, black, green);
+  mask-border-outset: 1px;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'mask-border-outset',
+  from: neutralKeyframe,
+  to: '2px',
+}, [
+  {at: -0.3, expect: '0.7px'},
+  {at: 0, expect: '1px'},
+  {at: 0.3, expect: '1.3px'},
+  {at: 0.6, expect: '1.6px'},
+  {at: 1, expect: '2px'},
+  {at: 1.5, expect: '2.5px'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: 'initial',
+  to: '2',
+}, [
+  {at: -0.3, expect: '0'}, // Non-negative
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '0.6'},
+  {at: 0.6, expect: '1.2'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '3'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: 'inherit',
+  to: '2px',
+}, [
+  {at: -0.3, expect: '12.4px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '7.6px'},
+  {at: 0.6, expect: '5.2px'},
+  {at: 1, expect: '2px'},
+  {at: 1.5, expect: '0px'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: 'unset',
+  to: '2',
+}, [
+  {at: -0.3, expect: '0'}, // Non-negative
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '0.6'},
+  {at: 0.6, expect: '1.2'},
+  {at: 1, expect: '2'},
+  {at: 1.5, expect: '3'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: '0px',
+  to: '5px',
+}, [
+  {at: -0.3, expect: '0px'}, // Non-negative
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '1.5px'},
+  {at: 0.6, expect: '3px'},
+  {at: 1, expect: '5px'},
+  {at: 1.5, expect: '7.5px'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: '0',
+  to: '1',
+}, [
+  {at: -0.3, expect: '0'}, // Non-negative
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '0.3'},
+  {at: 0.6, expect: '0.6'},
+  {at: 1, expect: '1'},
+  {at: 1.5, expect: '1.5'},
+]);
+
+test_interpolation({
+  property: 'mask-border-outset',
+  from: '1 2 3px 4px',
+  to: '101 102 103px 104px',
+}, [
+  {at: -0.3, expect: '0 0 0px 0px'}, // Non-negative
+  {at: 0, expect: '1 2 3px 4px'},
+  {at: 0.3, expect: '31 32 33px 34px'},
+  {at: 0.6, expect: '61 62 63px 64px'},
+  {at: 1, expect: '101 102 103px 104px'},
+  {at: 1.5, expect: '151 152 153px 154px'},
+]);
+</script>

@@ -373,6 +373,11 @@ Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_i
     return abstract_image_items(mask_image);
 }
 
+RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_border_source_value() const
+{
+    return abstract_image_value(static_cast<StyleValueFFI::StyleValueData const*>(mask_border_source.pointer));
+}
+
 ComputedValues::ComputedValues() = default;
 
 StyleRecordRef::StyleRecordRef(StyleEngineFFI::Record const* record)

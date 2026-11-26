@@ -322,6 +322,7 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
     new_observers->background_images = Vector<RefPtr<CSS::AbstractImageStyleValue const>> { background_images() };
     new_observers->mask_images = Vector<RefPtr<CSS::AbstractImageStyleValue const>> { mask_images() };
     new_observers->border_image_source_value = border_image_source();
+    new_observers->mask_border_source_value = mask_border_source();
     for (auto const& image : background_images()) {
         auto observer = observer_for(image.ptr());
         if (observer && background_image_element)
@@ -333,6 +334,7 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
     for (auto const& cursor_style_value : cursor_style_values)
         new_observers->cursors.append(cursor_style_value ? observer_for(&cursor_style_value->image()) : nullptr);
     new_observers->border_image_source = observer_for(border_image_source());
+    new_observers->mask_border_source = observer_for(mask_border_source());
     new_observers->list_style_image = observer_for(list_style_image());
     new_observers->cursor_style_values = move(cursor_style_values);
     // TODO: Observe other <image> accepting properties once we support them.
@@ -384,6 +386,12 @@ NodeWithStyle::ImageObserver const* NodeWithStyle::border_image_source_observer(
     return observers ? observers->border_image_source.ptr() : nullptr;
 }
 
+NodeWithStyle::ImageObserver const* NodeWithStyle::mask_border_source_observer() const
+{
+    auto const* observers = image_observers();
+    return observers ? observers->mask_border_source.ptr() : nullptr;
+}
+
 }
 
 namespace Web::Layout {
@@ -422,6 +430,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
+    m_mask_border_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     // OPTIMIZATION: Installing the DOM record already published a followed layout node's record. Applying its
@@ -486,6 +495,7 @@ void NodeWithStyle::attach_style_resources(CSS::StyleRecordID style_record, Pain
     for (auto const& image : mask_images())
         load_image(image.ptr());
     load_image(border_image_source());
+    load_image(mask_border_source());
     Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values;
     cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {
@@ -523,6 +533,7 @@ void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, CSS::Com
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
+    m_mask_border_source.clear();
     m_list_style_image.clear();
     did_update_style_record();
     if (should_attach_resources)
@@ -598,6 +609,7 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& style)
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
+    m_mask_border_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     if (style_record_installed_by_render_state(*this, style_record_identity))

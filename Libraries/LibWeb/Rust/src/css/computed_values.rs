@@ -874,11 +874,12 @@ impl StyleGroupImageValues for BackgroundValues {
 
 impl StyleGroupImageValues for MaskValues {
     fn holds_image_values(&self) -> bool {
-        layer_values_hold_image(&self.mask_image)
+        layer_values_hold_image(&self.mask_image) || handle_holds_image(&self.mask_border_source)
     }
 
     fn image_values_differ(&self, new: &Self) -> bool {
         image_handles_differ(&self.mask_image, &new.mask_image, layer_values_hold_image)
+            || image_handles_differ(&self.mask_border_source, &new.mask_border_source, handle_holds_image)
     }
 }
 
@@ -2781,6 +2782,12 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             MASK_ORIGIN => RequireInitialValue,
             MASK_SIZE => RequireInitialValue,
             MASK_COMPOSITE => RequireInitialValue,
+            MASK_BORDER_SOURCE => RequireKeyword(k::NONE),
+            MASK_BORDER_SLICE => RequireInitialValue,
+            MASK_BORDER_WIDTH => RequireInitialValue,
+            MASK_BORDER_OUTSET => RequireInitialValue,
+            MASK_BORDER_REPEAT => RequireInitialValue,
+            MASK_BORDER_MODE => RequireInitialValue,
         },
         // Elements without animations, timelines or transitions adopt a shared payload.
         group_index::ANIMATION => fields! { AnimationValues:
@@ -3655,7 +3662,7 @@ const PAYLOAD_TYPED_LONGHANDS: [(u16, usize, usize, u8); 18] = {
 
 /// The longhands whose computed value a handle of their group's payload holds as it is, by the
 /// handle's offset: the group's values keep no second copy of them.
-const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 54] = {
+const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 60] = {
     use crate::css::computed_value_types::{BackgroundValues, EffectsValues, FontValues, MaskValues, SVGResetValues};
     use crate::css::property_metadata::property_id as p;
     use std::mem::offset_of;
@@ -3725,6 +3732,12 @@ const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 54] = {
         (p::MASK_ORIGIN, mask, offset_of!(MaskValues, mask_origin)),
         (p::MASK_SIZE, mask, offset_of!(MaskValues, mask_size)),
         (p::MASK_COMPOSITE, mask, offset_of!(MaskValues, mask_composite)),
+        (p::MASK_BORDER_SOURCE, mask, offset_of!(MaskValues, mask_border_source)),
+        (p::MASK_BORDER_SLICE, mask, offset_of!(MaskValues, mask_border_slice)),
+        (p::MASK_BORDER_WIDTH, mask, offset_of!(MaskValues, mask_border_width)),
+        (p::MASK_BORDER_OUTSET, mask, offset_of!(MaskValues, mask_border_outset)),
+        (p::MASK_BORDER_REPEAT, mask, offset_of!(MaskValues, mask_border_repeat)),
+        (p::MASK_BORDER_MODE, mask, offset_of!(MaskValues, mask_border_mode)),
         (p::OPACITY, effects, offset_of!(EffectsValues, opacity_style_value)),
         (p::FILTER, effects, offset_of!(EffectsValues, filter_style_value)),
         (
@@ -6371,6 +6384,12 @@ impl MaskValues {
             mask_origin: initial(property_id::MASK_ORIGIN),
             mask_size: initial(property_id::MASK_SIZE),
             mask_composite: initial(property_id::MASK_COMPOSITE),
+            mask_border_source: initial(property_id::MASK_BORDER_SOURCE),
+            mask_border_slice: initial(property_id::MASK_BORDER_SLICE),
+            mask_border_width: initial(property_id::MASK_BORDER_WIDTH),
+            mask_border_outset: initial(property_id::MASK_BORDER_OUTSET),
+            mask_border_repeat: initial(property_id::MASK_BORDER_REPEAT),
+            mask_border_mode: initial(property_id::MASK_BORDER_MODE),
         }
     }
 }

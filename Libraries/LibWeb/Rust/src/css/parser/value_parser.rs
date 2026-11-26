@@ -220,6 +220,7 @@ fn property_uses_special_keyword_parser(property: u16) -> bool {
             | property_id::BORDER_END_END_RADIUS
             | property_id::BORDER_END_START_RADIUS
             | property_id::BORDER_IMAGE_SLICE
+            | property_id::MASK_BORDER_SLICE
             | property_id::BORDER_START_END_RADIUS
             | property_id::BORDER_START_START_RADIUS
             | property_id::BORDER_TOP_LEFT_RADIUS
@@ -4968,27 +4969,123 @@ fn parse_text_decoration_shorthand(context: &ParseContext, values: &[ComponentVa
     )))
 }
 
-fn assign_border_image_outer_components(
+/// The longhands of a shorthand with the grammar of border-image: border-image, mask-border and
+/// -webkit-mask-box-image.
+struct NinePieceImageShorthand {
+    shorthand: u16,
+    source: u16,
+    slice: u16,
+    width: u16,
+    outset: u16,
+    repeat: u16,
+    mode: Option<u16>,
+    // NB: -webkit-mask-box-image always fills the middle of its mask, whether its slice says fill or not.
+    slice_always_fills: bool,
+}
+
+impl NinePieceImageShorthand {
+    fn for_property(property: u16) -> Option<Self> {
+        let (source, slice, width, outset, repeat, mode) = match property {
+            property_id::BORDER_IMAGE => (
+                property_id::BORDER_IMAGE_SOURCE,
+                property_id::BORDER_IMAGE_SLICE,
+                property_id::BORDER_IMAGE_WIDTH,
+                property_id::BORDER_IMAGE_OUTSET,
+                property_id::BORDER_IMAGE_REPEAT,
+                None,
+            ),
+            property_id::MASK_BORDER | property_id::_WEBKIT_MASK_BOX_IMAGE => (
+                property_id::MASK_BORDER_SOURCE,
+                property_id::MASK_BORDER_SLICE,
+                property_id::MASK_BORDER_WIDTH,
+                property_id::MASK_BORDER_OUTSET,
+                property_id::MASK_BORDER_REPEAT,
+                (property == property_id::MASK_BORDER).then_some(property_id::MASK_BORDER_MODE),
+            ),
+            _ => return None,
+        };
+        Some(Self {
+            shorthand: property,
+            source,
+            slice,
+            width,
+            outset,
+            repeat,
+            mode,
+            slice_always_fills: property == property_id::_WEBKIT_MASK_BOX_IMAGE,
+        })
+    }
+}
+
+// Indices into the parsed components of a nine-piece image shorthand.
+const NINE_PIECE_SOURCE: usize = 0;
+const NINE_PIECE_SLICE: usize = 1;
+const NINE_PIECE_WIDTH: usize = 2;
+const NINE_PIECE_OUTSET: usize = 3;
+const NINE_PIECE_REPEAT: usize = 4;
+const NINE_PIECE_MODE: usize = 5;
+
+/// Whether the outer components of a nine-piece image shorthand may include its slice.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OuterSlice {
+    Allowed,
+    NotAllowed,
+}
+
+fn assign_nine_piece_image_outer_components(
     context: &ParseContext,
+    shorthand: &NinePieceImageShorthand,
     components: &[ComponentValue],
-    parsed: &mut [Option<StyleValueData>; 5],
+    outer_slice: OuterSlice,
+    parsed: &mut [Option<StyleValueData>; 6],
 ) -> bool {
-    let properties = [
-        property_id::BORDER_IMAGE_SOURCE,
-        property_id::BORDER_IMAGE_REPEAT,
-        property_id::BORDER_IMAGE_SLICE,
+    let mut slots = vec![
+        (shorthand.source, NINE_PIECE_SOURCE),
+        (shorthand.repeat, NINE_PIECE_REPEAT),
     ];
-    let mut outer = [parsed[0].clone(), parsed[4].clone(), parsed[1].clone()];
+    if outer_slice == OuterSlice::Allowed {
+        slots.push((shorthand.slice, NINE_PIECE_SLICE));
+    }
+    if let Some(mode) = shorthand.mode {
+        slots.push((mode, NINE_PIECE_MODE));
+    }
+    let properties = slots.iter().map(|&(property, _)| property).collect::<Vec<_>>();
+    let mut outer = slots
+        .iter()
+        .map(|&(_, index)| parsed[index].clone())
+        .collect::<Vec<_>>();
     if !assign_shorthand_components(context, components, &properties, 0, &mut outer) {
         return false;
     }
-    parsed[0] = outer[0].take();
-    parsed[4] = outer[1].take();
-    parsed[1] = outer[2].take();
+    for (&(_, index), value) in slots.iter().zip(outer) {
+        parsed[index] = value;
+    }
     true
 }
 
-fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+fn slice_with_fill(slice: StyleValueData) -> StyleValueData {
+    match slice {
+        StyleValueData::BorderImageSlice(mut payload) => {
+            payload.fill = true;
+            StyleValueData::BorderImageSlice(payload)
+        }
+        all_sides => StyleValueData::BorderImageSlice(StyleValueBox::new(BorderImageSlicePayload {
+            top: RetainedStyleValueData::from_owned(all_sides.clone()),
+            right: RetainedStyleValueData::from_owned(all_sides.clone()),
+            bottom: RetainedStyleValueData::from_owned(all_sides.clone()),
+            left: RetainedStyleValueData::from_owned(all_sides),
+            fill: true,
+        })),
+    }
+}
+
+// https://drafts.csswg.org/css-backgrounds-3/#propdef-border-image
+// https://drafts.csswg.org/css-masking-1/#propdef-mask-border
+fn parse_nine_piece_image_shorthand(
+    context: &ParseContext,
+    shorthand: &NinePieceImageShorthand,
+    values: &[ComponentValue],
+) -> ParseOutcome {
     let mut sections = Vec::new();
     let mut current = Vec::new();
     for value in values.iter().filter(|value| !value.is_whitespace()) {
@@ -5004,11 +5101,32 @@ fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue
         return ParseOutcome::Invalid;
     }
 
-    let mut base = [None, None, None, None, None];
-    if !assign_border_image_outer_components(context, &sections[0], &mut base)
-        || sections.len() > 1 && base[1].is_none()
-    {
-        return ParseOutcome::Invalid;
+    let mut base = [None, None, None, None, None, None];
+    if sections.len() == 1 {
+        if !assign_nine_piece_image_outer_components(context, shorthand, &sections[0], OuterSlice::Allowed, &mut base) {
+            return ParseOutcome::Invalid;
+        }
+    } else {
+        // NB: The slice comes right before the width and outset that follow it after a slash, so it ends the first
+        //     section, after the other components.
+        let Some(parsed) = (0..sections[0].len()).find_map(|slice_start| {
+            let slice = parse_slice_for_property(context, shorthand.slice, &sections[0][slice_start..])?;
+            let mut parsed = [None, None, None, None, None, None];
+            if !assign_nine_piece_image_outer_components(
+                context,
+                shorthand,
+                &sections[0][..slice_start],
+                OuterSlice::NotAllowed,
+                &mut parsed,
+            ) {
+                return None;
+            }
+            parsed[NINE_PIECE_SLICE] = Some(slice);
+            Some(parsed)
+        }) else {
+            return ParseOutcome::Invalid;
+        };
+        base = parsed;
     }
     let width_ends: Vec<usize> = if sections.len() == 1 {
         vec![0]
@@ -5020,14 +5138,19 @@ fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue
     for width_end in width_ends {
         let mut parsed = base.clone();
         if width_end > 0 {
-            let Some(width) =
-                parse_slice_for_property(context, property_id::BORDER_IMAGE_WIDTH, &sections[1][..width_end])
-            else {
+            let Some(width) = parse_slice_for_property(context, shorthand.width, &sections[1][..width_end]) else {
                 continue;
             };
-            parsed[2] = Some(width);
+            parsed[NINE_PIECE_WIDTH] = Some(width);
         }
-        if sections.len() > 1 && !assign_border_image_outer_components(context, &sections[1][width_end..], &mut parsed)
+        if sections.len() > 1
+            && !assign_nine_piece_image_outer_components(
+                context,
+                shorthand,
+                &sections[1][width_end..],
+                OuterSlice::Allowed,
+                &mut parsed,
+            )
         {
             continue;
         }
@@ -5039,29 +5162,56 @@ fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue
         for outset_end in outset_ends {
             let mut candidate = parsed.clone();
             if outset_end > 0 {
-                let Some(outset) =
-                    parse_slice_for_property(context, property_id::BORDER_IMAGE_OUTSET, &sections[2][..outset_end])
+                let Some(outset) = parse_slice_for_property(context, shorthand.outset, &sections[2][..outset_end])
                 else {
                     continue;
                 };
-                candidate[3] = Some(outset);
+                candidate[NINE_PIECE_OUTSET] = Some(outset);
             }
             if sections.len() == 3
-                && !assign_border_image_outer_components(context, &sections[2][outset_end..], &mut candidate)
+                && !assign_nine_piece_image_outer_components(
+                    context,
+                    shorthand,
+                    &sections[2][outset_end..],
+                    OuterSlice::Allowed,
+                    &mut candidate,
+                )
             {
                 continue;
             }
-            let longhands = longhands_for_shorthand(property_id::BORDER_IMAGE);
-            let Some(output) = candidate
-                .into_iter()
-                .zip(longhands)
-                .map(|(value, &longhand)| value.or_else(|| parse_initial_longhand(context, longhand)))
+            if shorthand.slice_always_fills {
+                // NB: Without a slice, -webkit-mask-box-image slices by 0 and fills the middle.
+                let Some(slice) = candidate[NINE_PIECE_SLICE]
+                    .take()
+                    .or_else(|| parse_initial_longhand(context, shorthand.slice))
+                else {
+                    return ParseOutcome::Invalid;
+                };
+                candidate[NINE_PIECE_SLICE] = Some(slice_with_fill(slice));
+            }
+            let longhands = longhands_for_shorthand(shorthand.shorthand);
+            let order = [
+                (shorthand.source, NINE_PIECE_SOURCE),
+                (shorthand.slice, NINE_PIECE_SLICE),
+                (shorthand.width, NINE_PIECE_WIDTH),
+                (shorthand.outset, NINE_PIECE_OUTSET),
+                (shorthand.repeat, NINE_PIECE_REPEAT),
+                (shorthand.mode.unwrap_or(u16::MAX), NINE_PIECE_MODE),
+            ];
+            let Some(output) = longhands
+                .iter()
+                .map(|&longhand| {
+                    let (_, index) = order.iter().find(|(property, _)| *property == longhand)?;
+                    candidate[*index]
+                        .take()
+                        .or_else(|| parse_initial_longhand(context, longhand))
+                })
                 .collect::<Option<Vec<_>>>()
             else {
                 return ParseOutcome::Invalid;
             };
             return ParseOutcome::Parsed(shared_style_value(shorthand_value(
-                property_id::BORDER_IMAGE,
+                shorthand.shorthand,
                 longhands.to_vec(),
                 output,
             )));
@@ -5747,7 +5897,7 @@ fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
         property_id::MASK_MODE,
     ];
     let multiple = layers.len() > 1;
-    let output = coordinated
+    let mut output: Vec<StyleValueData> = coordinated
         .into_iter()
         .map(|mut values| {
             if multiple {
@@ -5757,9 +5907,17 @@ fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             }
         })
         .collect();
+    // https://drafts.csswg.org/css-masking-1/#the-mask
+    // The mask shorthand also resets mask-border to its initial value.
+    let Some(mask_border) = shorthand_with_initial_longhands(context, property_id::MASK_BORDER) else {
+        return ParseOutcome::Invalid;
+    };
+    let mut sub_properties = output_order.to_vec();
+    sub_properties.push(property_id::MASK_BORDER);
+    output.push(mask_border);
     ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::MASK,
-        output_order.to_vec(),
+        sub_properties,
         output,
     )))
 }
@@ -6162,8 +6320,8 @@ fn parse_css_value_after_substitution_scan(
         if property_id == property_id::TEXT_DECORATION {
             return parse_text_decoration_shorthand(context, values);
         }
-        if property_id == property_id::BORDER_IMAGE {
-            return parse_border_image_shorthand(context, values);
+        if let Some(shorthand) = NinePieceImageShorthand::for_property(property_id) {
+            return parse_nine_piece_image_shorthand(context, &shorthand, values);
         }
         if property_id == property_id::FONT_SYNTHESIS {
             return parse_font_synthesis_shorthand(values);
@@ -6311,7 +6469,10 @@ fn parse_css_value_after_substitution_scan(
     if matches!(property_id, property_id::BACKGROUND_SIZE | property_id::MASK_SIZE) {
         return parse_background_size_property(context, property_id, values);
     }
-    if property_id == property_id::BORDER_IMAGE_SLICE {
+    if matches!(
+        property_id,
+        property_id::BORDER_IMAGE_SLICE | property_id::MASK_BORDER_SLICE
+    ) {
         return parse_border_image_slice_property(context, property_id, values);
     }
     if matches!(property_id, property_id::BOX_SHADOW | property_id::TEXT_SHADOW) {
@@ -7018,6 +7179,8 @@ mod tests {
             "url(border.png) 30 fill / 10px / 2 round",
             "10% / / 1 repeat",
             "stretch 20%",
+            "round fill 10 / 2",
+            "10 / 2 round",
         ] {
             let ParseOutcome::Parsed(value) = parse(property_id::BORDER_IMAGE, source) else {
                 panic!("shorthand should parse: {source}");
@@ -7028,12 +7191,29 @@ mod tests {
             let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), 5);
         }
-        for source in ["10 /", "10 / /", "10 / 2 /", "round round round"] {
-            assert!(matches!(
-                parse(property_id::BORDER_IMAGE, source),
-                ParseOutcome::Invalid
-            ));
+        for source in [
+            "10 /",
+            "10 / /",
+            "10 / 2 /",
+            "round round round",
+            "10 round / 2",
+            "10 / 2 round / 3",
+        ] {
+            assert!(
+                matches!(parse(property_id::BORDER_IMAGE, source), ParseOutcome::Invalid),
+                "{source}"
+            );
         }
+        for source in ["luminance 10 / 2", "10 / 2 luminance"] {
+            assert!(
+                matches!(parse(property_id::MASK_BORDER, source), ParseOutcome::Parsed(_)),
+                "{source}"
+            );
+        }
+        assert!(matches!(
+            parse(property_id::MASK_BORDER, "10 luminance / 2"),
+            ParseOutcome::Invalid
+        ));
         assert!(matches!(
             parse(property_id::BORDER_IMAGE, "1 / none / 1px"),
             ParseOutcome::Invalid
@@ -7090,13 +7270,13 @@ mod tests {
                 "none, linear-gradient(red, blue) center / 20px 30px",
                 8,
             ),
-            (property_id::MASK, "none", 8),
+            (property_id::MASK, "none", 9),
             (
                 property_id::MASK,
                 "url(mask.png) center / contain no-repeat border-box no-clip add luminance",
-                8,
+                9,
             ),
-            (property_id::MASK, "none, linear-gradient(black, transparent)", 8),
+            (property_id::MASK, "none, linear-gradient(black, transparent)", 9),
         ] {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");

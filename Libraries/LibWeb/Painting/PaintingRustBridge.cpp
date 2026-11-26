@@ -178,6 +178,8 @@ static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::
         return layout_node.mask_image_observer(computed_index);
     case Layout::RustFFI::FfiLayerImageList::BorderImageSource:
         return layout_node.border_image_source_observer();
+    case Layout::RustFFI::FfiLayerImageList::MaskBorderSource:
+        return layout_node.mask_border_source_observer();
     }
     VERIFY_NOT_REACHED();
 }
