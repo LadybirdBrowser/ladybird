@@ -127,6 +127,13 @@ Tabs::Tab& Tabs::tab_for(u64 tab_id)
             if (auto control_connection = m_control_connection.strong_ref())
                 control_connection->async_playback_group_audibility_changed(tab_id, group, audibility);
         };
+        mixer->on_device_lost = [this, tab_id] {
+            auto tab = m_tabs.get(tab_id);
+            if (!tab.has_value())
+                return;
+            for (auto& [client_id, connection] : tab->connections)
+                connection->device_lost();
+        };
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }

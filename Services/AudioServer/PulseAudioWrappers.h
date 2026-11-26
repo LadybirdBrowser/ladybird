@@ -75,9 +75,11 @@ public:
     void request_device_sample_specification();
 
     ErrorOr<void> enumerate_audio_devices(Vector<AudioDeviceInfo>& inputs, Vector<AudioDeviceInfo>& outputs);
-    // Invoked on the main-loop thread when a sink or source appears or disappears or a server default changes.
-    ErrorOr<void> watch_devices(Function<void()> on_devices_changed);
-    ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
+    // Invoked on the main-loop thread when a sink or source appears or disappears or a server default changes, and
+    // once when the connection to the daemon is lost along with the subscription.
+    ErrorOr<void> watch_devices(Function<void()> on_devices_changed, Function<void()> on_connection_lost);
+    // The loss callback is invoked once on the main-loop thread if the stream fails or is terminated after it is ready.
+    ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback, Function<void()> on_connection_lost);
     ErrorOr<NonnullRefPtr<PulseAudioRecordStream>> create_record_stream(SampleSpecification const&, u32 fragment_size_bytes, char const* device_name, PulseAudioRecordCallback);
 
 private:
@@ -93,6 +95,7 @@ private:
 
     SampleSpecification m_device_sample_specification;
     Function<void()> m_on_devices_changed;
+    Function<void()> m_on_connection_lost;
 };
 
 enum class PulseAudioStreamState {
@@ -158,6 +161,7 @@ private:
     SampleSpecification m_sample_specification;
     bool m_started_playback { false };
     PulseAudioDataRequestCallback m_write_callback { nullptr };
+    Function<void()> m_on_connection_lost;
     // Determines whether we will allow the write callback to run. This should only be true
     // if the stream is becoming or is already corked.
     bool m_suspended { false };

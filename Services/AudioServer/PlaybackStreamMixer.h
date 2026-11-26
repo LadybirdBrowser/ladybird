@@ -55,6 +55,10 @@ public:
     void report_every_group_inaudible();
     ~PlaybackStreamMixer();
 
+    // Control thread. The device stream was lost and every client was removed with it, since the rings are in its format;
+    // a new device stream is opening, which new clients wait for in when_device_ready().
+    Function<void()> on_device_lost;
+
     // Control thread. Runs once the device stream is open or has failed to open; at once if that is already known.
     using DeviceReadyCallback = Function<void(ErrorOr<SampleSpecification> const&)>;
     void when_device_ready(DeviceReadyCallback);
@@ -126,9 +130,11 @@ private:
         HashMap<PlaybackGroupId, i64> m_audible_until_ns;
     };
 
-    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms, AK::Duration audibility_smoothing);
+    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms, DeviceStreamFactory, AK::Duration audibility_smoothing);
 
+    void open_device_stream();
     void set_device_stream(NonnullRefPtr<PlaybackStream>);
+    void device_stream_lost();
     void set_device_error(Error);
     void run_device_ready_callbacks();
     void client_became_active();
@@ -142,6 +148,7 @@ private:
 
     NonnullRefPtr<MixState> m_state;
     u32 const m_device_target_latency_ms { 0 };
+    DeviceStreamFactory m_device_stream_factory;
     RefPtr<PlaybackStream> m_device_stream;
     Optional<SampleSpecification> m_device_sample_specification;
     Optional<Error> m_device_error;

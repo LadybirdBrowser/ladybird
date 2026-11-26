@@ -67,6 +67,17 @@ void ServerConnection::set_capture_permitted(bool permitted)
         send_device_list();
 }
 
+void ServerConnection::device_lost()
+{
+    for (auto& [stream_id, stream] : m_streams) {
+        if (stream.is_lost)
+            continue;
+        stream.is_lost = true;
+        stream.has_ring = false;
+        async_stream_lost(stream_id);
+    }
+}
+
 void ServerConnection::stop_listening_for_device_changes()
 {
     if (m_devices_changed_listener_id.has_value())
@@ -167,7 +178,7 @@ void ServerConnection::destroy_stream(u64 stream_id)
 void ServerConnection::attach_stream_ring(u64 stream_id, SharedAudioFrameRing ring)
 {
     auto* stream = find_stream(stream_id, "attach_stream_ring"sv);
-    if (!stream)
+    if (!stream || stream->is_lost)
         return;
     if (stream->has_ring) {
         did_misbehave("attach_stream_ring: stream already has a ring");
@@ -187,6 +198,10 @@ void ServerConnection::resume_stream(u64 stream_id, u64 request_id)
     auto* stream = find_stream(stream_id, "resume_stream"sv);
     if (!stream)
         return;
+    if (stream->is_lost) {
+        async_stream_request_completed(stream_id, request_id);
+        return;
+    }
     if (!stream->has_ring) {
         did_misbehave("resume_stream: stream has no ring");
         return;

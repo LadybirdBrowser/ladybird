@@ -349,6 +349,12 @@ void ClientConnection::stream_creation_failed(u64 stream_id)
     pending->promise->reject(Error::from_string_literal("Audio server could not open an output device"));
 }
 
+void ClientConnection::stream_lost(u64 stream_id)
+{
+    if (auto stream = find_live_stream(stream_id))
+        stream->connection_lost();
+}
+
 void ClientConnection::stream_request_completed(u64 stream_id, u64 request_id)
 {
     auto request = m_pending_requests.take(request_id);

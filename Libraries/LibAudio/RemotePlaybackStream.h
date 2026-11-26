@@ -42,7 +42,7 @@ public:
 
     // Control thread. The server has played this stream's ring out, or abandoned the drain for a resume or discard.
     void drain_completed();
-    // Control thread. The connection died: tell the owner.
+    // Control thread. The connection died or the server lost the stream's device: tell the owner.
     void connection_lost();
 
 private:

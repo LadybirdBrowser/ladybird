@@ -478,6 +478,32 @@ TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
     EXPECT_EQ(source.requests.load(), requests_at_loss);
 }
 
+TEST_CASE(losing_the_device_reports_output_lost_and_answers_what_was_sent_before_the_news)
+{
+    Source source;
+    Source replacement_source;
+    RemoteFixture fixture;
+    fixture.mixer->on_device_lost = [&] { fixture.server->device_lost(); };
+    auto stream = fixture.create_stream(Audio::OutputState::Suspended, source);
+
+    bool output_lost = false;
+    stream->set_on_output_lost([&] { output_lost = true; });
+
+    // The ring and the resume are on their way when the device goes, so the server finds them for a lost stream.
+    bool resumed = false;
+    stream->resume()->when_resolved([&] { resumed = true; }).when_rejected([](Error&&) { });
+    fixture.device->lose_output();
+    EXPECT(fixture.pump_until([&] { return output_lost && resumed; }));
+    EXPECT(!fixture.server_died);
+    EXPECT(!fixture.mixer->has_clients());
+
+    // The client carries on with a new stream in the new device's format, over the same connection.
+    replacement_source.value = 0.5f;
+    auto replacement = fixture.create_stream(Audio::OutputState::Playing, replacement_source);
+    EXPECT(replacement);
+    EXPECT(fixture.render_until_full_buffer_of(0.5f));
+}
+
 TEST_CASE(watching_devices_reports_the_servers_list_at_once)
 {
     RemoteFixture fixture;
@@ -674,6 +700,34 @@ TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_fligh
     // The new stream seeks to the pending target and plays on.
     EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1 && fixture.servers.size() == 1; }));
     EXPECT(fixture.pump_until([&] { return sink->time_reader().current_time() >= AK::Duration::from_seconds(1); }));
+
+    fixture.close_connections_and_wait_for_the_client_to_die();
+    sink = nullptr;
+    fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
+}
+
+TEST_CASE(audio_playback_sink_reopens_its_output_on_the_same_connection_after_the_device_is_lost)
+{
+    RemoteSinkFixture fixture;
+    fixture.mixer->on_device_lost = [&] {
+        for (auto& server : fixture.servers)
+            server->device_lost();
+    };
+    auto remote_output_factory = Media::AudioOutputFactory::create(Audio::OutputSession::create(AUTHORIZED_GROUP));
+    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus, Media::PipelineCheckpoint) { }, remote_output_factory));
+    sink->start();
+    sink->resume();
+    EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1; }));
+
+    auto lost_device = fixture.device;
+    lost_device->lose_output();
+    EXPECT_EQ(fixture.mixer->active_client_count(), 0u);
+
+    // The sink's new stream plays on the device that replaced the lost one.
+    EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1; }));
+    EXPECT(fixture.device != lost_device);
+    EXPECT(fixture.device->is_playing());
+    EXPECT_EQ(fixture.connections_requested, 1u);
 
     fixture.close_connections_and_wait_for_the_client_to_die();
     sink = nullptr;

@@ -40,23 +40,35 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamPulseAudio::create(Ou
 
     // Create an internal state for the control thread to hold on to.
     auto internal_state = MUST(adopt_nonnull_ref_or_enomem(new (nothrow) InternalState()));
-    auto playback_stream = MUST(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamPulseAudio(internal_state)));
     auto& main_thread_event_loop = Core::EventLoop::current();
 
+    auto on_connection_lost = [weak_state = internal_state->make_weak_ref(), &main_thread_event_loop] {
+        main_thread_event_loop.deferred_invoke([weak_state] {
+            if (auto state = weak_state.strong_ref())
+                state->output_lost();
+        });
+    };
+
     // Create the control thread and start it.
-    auto thread = MUST(Threading::Thread::try_create("Audio Control"sv, [=, &main_thread_event_loop, data_request_callback = move(data_request_callback)]() mutable {
+    auto thread = MUST(Threading::Thread::try_create("Audio Control"sv, [=, &main_thread_event_loop, data_request_callback = move(data_request_callback), on_connection_lost = move(on_connection_lost)]() mutable {
         auto context = TRY_OR_REJECT_AND_EXIT(PulseAudioContext::the());
-        internal_state->set_stream(TRY_OR_REJECT_AND_EXIT(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
+        auto write_callback = [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
             return data_request_callback(buffer, buffer_starts_playing_at);
-        })));
+        };
+        internal_state->set_stream(TRY_OR_REJECT_AND_EXIT(context->create_stream(initial_state, target_latency_ms, move(write_callback), move(on_connection_lost))));
 
         // PulseAudio retains the last volume it sets for an application. We want to consistently
         // start at 100% volume instead.
         TRY_OR_REJECT_AND_EXIT(internal_state->stream()->set_volume(1.0));
 
         {
-            main_thread_event_loop.deferred_invoke([promise = move(promise), playback_stream = move(playback_stream)] mutable {
-                promise->resolve(move(playback_stream));
+            // With the main loop locked, a loss of the stream can only be reported after the stream is handed over.
+            auto locker = context->main_loop_locker();
+            if (!internal_state->stream()->connection_is_good())
+                TRY_OR_REJECT_AND_EXIT(ErrorOr<void> { Error::from_string_literal("PulseAudio stream was lost while it was being created") });
+            // The stream is made on the main thread, so that it is only ever used and released there.
+            main_thread_event_loop.deferred_invoke([promise = move(promise), internal_state] mutable {
+                promise->resolve(adopt_ref(*new PlaybackStreamPulseAudio(internal_state)));
             });
         }
 
@@ -81,7 +93,13 @@ SampleSpecification PlaybackStreamPulseAudio::sample_specification() const
 
 PlaybackStreamPulseAudio::~PlaybackStreamPulseAudio()
 {
+    m_state->set_on_output_lost(nullptr);
     m_state->exit();
+}
+
+void PlaybackStreamPulseAudio::set_on_output_lost(Function<void()> on_output_lost)
+{
+    m_state->set_on_output_lost(move(on_output_lost));
 }
 
 #define TRY_OR_REJECT(expression, ...)                           \
@@ -186,6 +204,17 @@ void PlaybackStreamPulseAudio::InternalState::thread_loop()
         }
         task();
     }
+}
+
+void PlaybackStreamPulseAudio::InternalState::set_on_output_lost(Function<void()> on_output_lost)
+{
+    m_on_output_lost = move(on_output_lost);
+}
+
+void PlaybackStreamPulseAudio::InternalState::output_lost()
+{
+    if (auto on_output_lost = move(m_on_output_lost))
+        on_output_lost();
 }
 
 void PlaybackStreamPulseAudio::InternalState::exit()

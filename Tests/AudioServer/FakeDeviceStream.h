@@ -54,7 +54,7 @@ public:
 
     void notify_data_available() override { }
 
-    void set_on_output_lost(Function<void()>) override { }
+    void set_on_output_lost(Function<void()> on_output_lost) override { m_on_output_lost = move(on_output_lost); }
 
     NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override
     {
@@ -64,6 +64,13 @@ public:
     }
 
     bool is_playing() const { return m_playing; }
+
+    // The device goes away, the way a PulseAudio stream does when its daemon restarts.
+    void lose_output()
+    {
+        if (auto lost = move(m_on_output_lost))
+            lost();
+    }
 
     // One device callback worth of output.
     Vector<float> render(size_t frame_count)
@@ -83,4 +90,5 @@ public:
 private:
     bool m_playing { false };
     AudioDataRequestCallback m_callback;
+    Function<void()> m_on_output_lost;
 };

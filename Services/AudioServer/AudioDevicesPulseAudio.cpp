@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/PulseAudioWrappers.h>
@@ -42,6 +43,26 @@ static void report_devices_from_the_pool()
     });
 }
 
+// Runs on the pool, which also lets go of a lost context, since that cannot happen on the context's own main loop.
+static void subscribe_and_report_devices()
+{
+    // A loss reported before the context is stored here queues another subscription, which must wait for this one.
+    static NeverDestroyed<Mutex> subscription_mutex;
+    MutexLocker locker(*subscription_mutex);
+    s_audio_device_watch->context = nullptr;
+    auto context = Audio::PulseAudioContext::the();
+    if (!context.is_error()) {
+        auto on_devices_changed = [] { report_devices_from_the_pool(); };
+        // The daemon may come back, as it does when it restarts, with devices that may have changed in the meantime.
+        auto on_connection_lost = [] { Threading::ThreadPool::the().submit([] { subscribe_and_report_devices(); }); };
+        if (auto result = context.value()->watch_devices(move(on_devices_changed), move(on_connection_lost)); result.is_error())
+            warnln("Unable to watch PulseAudio devices for changes: {}", result.error());
+        else
+            s_audio_device_watch->context = context.value();
+    }
+    report_devices_from_the_pool();
+}
+
 void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
 {
     // Without an event loop there is nobody to tell of changes, so this is a one-off listing.
@@ -55,19 +76,7 @@ void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
     s_audio_device_watch->on_device_list = move(on_device_list);
 
     // Connecting to the daemon blocks too.
-    Threading::ThreadPool::the().submit([] {
-        auto context = Audio::PulseAudioContext::the();
-        if (!context.is_error()) {
-            if (auto result = context.value()->watch_devices([] { report_devices_from_the_pool(); }); result.is_error())
-                warnln("Unable to watch PulseAudio devices for changes: {}", result.error());
-            else
-                s_audio_device_watch->context = context.value();
-        }
-        auto enumeration = enumerate_pulse_audio_devices();
-        s_audio_device_watch->event_loop->deferred_invoke([enumeration = move(enumeration)]() mutable {
-            s_audio_device_watch->on_device_list(move(enumeration));
-        });
-    });
+    Threading::ThreadPool::the().submit([] { subscribe_and_report_devices(); });
 }
 
 }

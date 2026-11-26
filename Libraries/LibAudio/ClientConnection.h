@@ -95,6 +95,7 @@ private:
     virtual void stream_created(u64 stream_id, SampleSpecification sample_specification, u32 device_latency_ms) override;
     virtual void stream_creation_failed(u64 stream_id) override;
     virtual void stream_request_completed(u64 stream_id, u64 request_id) override;
+    virtual void stream_lost(u64 stream_id) override;
     virtual void devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs) override;
     virtual void record_stream_created(u64 stream_id, SharedAudioFrameRing ring) override;
     virtual void record_stream_creation_failed(u64 stream_id, RecordStreamFailure) override;

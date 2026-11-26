@@ -16,26 +16,16 @@ namespace Audio {
 NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory, AK::Duration audibility_smoothing)
 {
     auto state = make_ref_counted<MixState>(control_loop);
-    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms, audibility_smoothing));
+    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms, move(factory), audibility_smoothing));
     state->m_mixer = mixer.ptr();
-
-    auto promise = factory(OutputState::Suspended, target_latency_ms, [state](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
-        return state->mix_into(buffer, buffer_starts_playing_at);
-    });
-    promise->when_resolved([state](NonnullRefPtr<PlaybackStream>& stream) {
-        if (state->m_mixer)
-            state->m_mixer->set_device_stream(stream);
-    });
-    promise->when_rejected([state](Error& error) {
-        if (state->m_mixer)
-            state->m_mixer->set_device_error(move(error));
-    });
+    mixer->open_device_stream();
     return mixer;
 }
 
-PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms, AK::Duration audibility_smoothing)
+PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms, DeviceStreamFactory factory, AK::Duration audibility_smoothing)
     : m_state(move(state))
     , m_device_target_latency_ms(device_target_latency_ms)
+    , m_device_stream_factory(move(factory))
     , m_audibility_smoothing(audibility_smoothing)
     , m_audibility_timer(Core::Timer::create_single_shot(AK::Duration::zero(), [this] { expire_audibility(); }))
 {
@@ -44,13 +34,61 @@ PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 devi
 PlaybackStreamMixer::~PlaybackStreamMixer()
 {
     m_state->m_mixer = nullptr;
+    if (m_device_stream)
+        m_device_stream->set_on_output_lost(nullptr);
+}
+
+void PlaybackStreamMixer::open_device_stream()
+{
+    auto promise = m_device_stream_factory(OutputState::Suspended, m_device_target_latency_ms, [state = m_state](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
+        return state->mix_into(buffer, buffer_starts_playing_at);
+    });
+    promise->when_resolved([state = m_state](NonnullRefPtr<PlaybackStream>& stream) {
+        if (state->m_mixer)
+            state->m_mixer->set_device_stream(stream);
+    });
+    promise->when_rejected([state = m_state](Error& error) {
+        if (state->m_mixer)
+            state->m_mixer->set_device_error(move(error));
+    });
 }
 
 void PlaybackStreamMixer::set_device_stream(NonnullRefPtr<PlaybackStream> stream)
 {
     m_device_sample_specification = stream->sample_specification();
+    stream->set_on_output_lost([state = m_state] {
+        if (state->m_mixer)
+            state->m_mixer->device_stream_lost();
+    });
     m_device_stream = move(stream);
     run_device_ready_callbacks();
+}
+
+void PlaybackStreamMixer::device_stream_lost()
+{
+    m_device_stream = nullptr;
+    m_device_sample_specification.clear();
+    m_device_is_playing = false;
+    m_active_client_count = 0;
+    m_drain_timers.clear();
+
+    Vector<Function<void()>> settled_drains;
+    {
+        MutexLocker locker(m_state->m_mutex);
+        for (auto& [id, client] : m_state->m_clients) {
+            if (client.on_drained)
+                settled_drains.append(move(client.on_drained));
+        }
+        m_state->m_clients.clear();
+        m_state->m_group_mixes.clear();
+    }
+    report_every_group_inaudible();
+
+    open_device_stream();
+    for (auto& on_drained : settled_drains)
+        on_drained();
+    if (on_device_lost)
+        on_device_lost();
 }
 
 void PlaybackStreamMixer::set_device_error(Error error)
