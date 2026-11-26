@@ -226,7 +226,7 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .id = ConfigVariableID::UpdateCheckInterval,
         .name = "updates.check_interval_minutes"sv,
         .title = "Update check interval"sv,
-        .description = "How many minutes Ladybird waits after one check for a newer release before it checks again, while it checks for updates by itself. At least 5."sv,
+        .description = "Minutes between update checks after the one at startup, at least 5."sv,
         .default_value = 4 * 60,
         .array_element_type = {},
     },

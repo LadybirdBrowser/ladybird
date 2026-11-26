@@ -48,6 +48,9 @@ static constexpr auto request_timeout = AK::Duration::from_seconds(30);
 // A timer waits at most this long, and then works out again how long until the next check is due.
 static constexpr auto longest_timer_wait = AK::Duration::from_seconds(24 * 60 * 60);
 
+// Restarting Ladybird soon after a check does not check again.
+static constexpr auto shortest_wait_before_check_at_start = AK::Duration::from_seconds(5 * 60);
+
 // The system updates a package by itself, so an automatic check only reminds the user of a release that the system has
 // left uninstalled for this long.
 static constexpr auto package_update_grace_period = AK::Duration::from_seconds(14 * 24 * 60 * 60);
@@ -555,8 +558,19 @@ void UpdateChecker::start()
     if (auto state = read_state(); !state.first_start.has_value() && !state.last_check.has_value()) {
         state.first_start = m_first_start = UnixDateTime::now();
         write_state(state);
+        schedule();
+        return;
     }
-    schedule();
+
+    // Every start after the first checks right away, so that a security release is noticed as soon as Ladybird starts
+    // instead of up to an interval later.
+    auto previous_check = last_check();
+    auto recently_checked = previous_check.has_value()
+        && time_until_next_update_check(*previous_check, UnixDateTime::now(), min(update_check_interval(), shortest_wait_before_check_at_start)) > AK::Duration::zero();
+    if (!recently_checked && Application::settings().automatic_update_checks_allowed())
+        check(UpdateCheckTrigger::Automatic);
+    else
+        schedule();
 }
 
 void UpdateChecker::settings_changed()
