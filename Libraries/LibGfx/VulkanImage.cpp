@@ -11,6 +11,7 @@
 #    include <AK/ScopeGuard.h>
 #    include <AK/Vector.h>
 #    include <LibGfx/Bitmap.h>
+#    include <LibGfx/GBMAllocation.h>
 #    include <LibGfx/VulkanImage.h>
 #    include <fcntl.h>
 #    include <string.h>
@@ -37,6 +38,8 @@ VulkanImage::~VulkanImage()
     if (memory != VK_NULL_HANDLE) {
         vkFreeMemory(context.logical_device, memory, nullptr);
     }
+    if (imported_dma_buf_fd >= 0)
+        ::close(imported_dma_buf_fd);
 }
 
 void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_layout)
@@ -86,6 +89,9 @@ void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_
 
 int VulkanImage::get_dma_buf_fd() const
 {
+    if (imported_dma_buf_fd >= 0)
+        return fcntl(imported_dma_buf_fd, F_DUPFD_CLOEXEC, 0);
+
     VkMemoryGetFdInfoKHR get_fd_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
         .pNext = nullptr,
@@ -173,10 +179,9 @@ Vector<uint64_t> renderable_drm_format_modifiers(VulkanContext const& context, V
     return format_mods;
 }
 
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers)
+// The format modifiers that are both renderable, sampleable, and accepted by the caller.
+static ErrorOr<Vector<uint64_t>> shared_image_drm_format_modifiers(VulkanContext const& context, VkFormat format, ReadonlySpan<uint64_t> modifiers)
 {
-    // populate a list of all format modifiers that are both renderable, sampleable,
-    // and accepted by the caller
     Vector<uint64_t> format_mods;
     for (auto modifier : renderable_drm_format_modifiers(context, format)) {
         if (modifiers.is_empty() || modifiers.contains_slow(modifier))
@@ -187,6 +192,12 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     // code can fall back to a different backing-store type.
     if (format_mods.is_empty())
         return Error::from_string_literal("no supported DRM format modifiers for shared image");
+    return format_mods;
+}
+
+ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers)
+{
+    auto format_mods = TRY(shared_image_drm_format_modifiers(context, format, modifiers));
 
     NonnullRefPtr<VulkanImage> image = make_ref_counted<VulkanImage>(context);
     VkImageDrmFormatModifierListCreateInfoEXT image_drm_format_modifier_list_info = {
@@ -420,6 +431,43 @@ ErrorOr<ImportedDmaBufImage> import_linux_dmabuf_image(VkPhysicalDevice physical
 
     destroy_on_failure.disarm();
     return imported;
+}
+
+ErrorOr<NonnullRefPtr<VulkanImage>> create_scanout_capable_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers)
+{
+    if (!context.render_node.has_value())
+        return Error::from_string_literal("The device has no known render node");
+    auto format_mods = TRY(shared_image_drm_format_modifiers(context, format, modifiers));
+    // NB: The importers map a linear image's memory, which GBM does not promise to make visible to the CPU.
+    format_mods.remove_all_matching([](uint64_t modifier) { return modifier == DRM_FORMAT_MOD_LINEAR; });
+    if (format_mods.is_empty())
+        return Error::from_string_literal("no tiled DRM format modifiers for a scanout-capable shared image");
+    auto dmabuf = TRY(allocate_scanout_capable_linux_dmabuf(*context.render_node, { width, height }, vk_format_to_drm_format(format), format_mods));
+    // NB: Our dma-bufs name a single plane at the start of its memory, as the importers expect.
+    if (dmabuf.planes.first().offset != 0)
+        return Error::from_string_literal("image plane does not start at the start of its memory");
+
+    auto imported = TRY(import_linux_dmabuf_image(context.physical_device, context.logical_device, context.ext_procs.get_memory_fd_properties, dmabuf, format, shared_image_usage));
+    NonnullRefPtr<VulkanImage> image = make_ref_counted<VulkanImage>(context);
+    image->image = imported.image;
+    image->memory = imported.memory;
+    image->imported_dma_buf_fd = dmabuf.objects.first().take_fd();
+
+    // external APIs require general layout
+    VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL;
+    image->transition_layout(VK_IMAGE_LAYOUT_UNDEFINED, layout);
+
+    image->info = {
+        .format = format,
+        .extent = { .width = width, .height = height, .depth = 1 },
+        .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
+        .usage = shared_image_usage,
+        .sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
+        .layout = layout,
+        .row_pitch = dmabuf.planes.first().pitch,
+        .modifier = dmabuf.modifier,
+    };
+    return image;
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> read_linux_dmabuf_into_bitmap(VulkanContext const& context, LinuxDmaBufHandle const& dmabuf)
