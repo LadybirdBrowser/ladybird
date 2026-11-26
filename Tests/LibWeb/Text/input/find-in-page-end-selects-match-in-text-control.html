@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<textarea rows="6" cols="30">Line 1
+Line 2
+Target phrase</textarea>
+<input value="Before the input phrase">
+<input type="file">
+<input type="submit" value="Submit the form">
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const textarea = document.querySelector("textarea");
+        textarea.focus();
+        textarea.setSelectionRange(0, 0);
+        internals.findInPage("Target phrase");
+        internals.findInPageEnd();
+        println(`textarea selection: ${textarea.selectionStart}-${textarea.selectionEnd} "${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}"`);
+
+        const input = document.querySelector("input");
+        input.focus();
+        input.setSelectionRange(0, 0);
+        internals.findInPage("input phrase");
+        internals.findInPageEnd();
+        println(`input selection: ${input.selectionStart}-${input.selectionEnd} "${input.value.substring(input.selectionStart, input.selectionEnd)}"`);
+
+        // A file input's label isn't its value, so a match there becomes the document's selection.
+        getSelection().removeAllRanges();
+        internals.findInPage("file selected");
+        internals.findInPageEnd();
+        println(`document selection ranges after a match in a file input's label: ${getSelection().rangeCount}`);
+
+        // Nor does a submit button's label have a selection of its own.
+        getSelection().removeAllRanges();
+        internals.findInPage("the form");
+        internals.findInPageEnd();
+        println(`document selection ranges after a match in a submit button's label: ${getSelection().rangeCount}`);
+    });
+</script>
