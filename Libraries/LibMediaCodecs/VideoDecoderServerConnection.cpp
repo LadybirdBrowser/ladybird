@@ -374,6 +374,9 @@ VideoDecoderServerConnection::~VideoDecoderServerConnection()
 void VideoDecoderServerConnection::die()
 {
     revoke_weak_refs();
+    // A process that exits here does not wait for its decoders, which may be stuck on their device for good.
+    if (on_death)
+        on_death();
     // The client may still be showing frames in the slots held for it, so nothing may decode into them anymore.
     for (auto& entry : m_sessions)
         entry.value->exit_and_join();
@@ -385,9 +388,6 @@ void VideoDecoderServerConnection::die()
         held_frames = move(m_held_frames);
     }
     held_frames.clear();
-
-    if (on_death)
-        on_death();
 }
 
 void VideoDecoderServerConnection::close_after_decoded_frame_count(u32 frame_count)
