@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -25,6 +26,8 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -248,6 +251,63 @@ void HTMLTextAreaElement::set_raw_value(Utf16String value)
 
     if (m_raw_value != old_raw_value)
         relevant_value_was_changed();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-value
+Utf16String HTMLTextAreaElement::form_value() const
+{
+    // The element's value is defined to be the element's API value with the textarea wrapping transformation applied.
+    // The textarea wrapping transformation is the following algorithm, as applied to a string:
+
+    // 1. If the element's wrap attribute is in the Hard state, insert U+000A LINE FEED (LF) characters into the string
+    //    using an implementation-defined algorithm so that each line has no more than character width characters. For
+    //    the purposes of this requirement, lines are delimited by the start of the string, the end of the string, and
+    //    U+000A LINE FEED (LF) characters.
+    auto wrap = get_attribute(HTML::AttributeNames::wrap);
+    if (!wrap.has_value() || !wrap->equals_ignoring_ascii_case("hard"sv) || !m_text_node)
+        return api_value();
+
+    // AD-HOC: The line feeds go where the rendering wraps the text, rather than after every character width
+    //         characters. So, a CSS width decides where they go, and a textarea whose rendering doesn't wrap its text,
+    //         or that isn't rendered at all, gets none.
+    Layout::ForcedReadScope read { document() };
+    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*m_text_node, DOM::UpdateLayoutReason::HTMLTextAreaElementHardWrap);
+    auto const* layout_node = m_text_node->layout_node(read);
+    if (!layout_node)
+        return api_value();
+
+    Vector<Layout::RustFFI::FfiVisualLine> lines;
+    Layout::RustFFI::render_state_text_visual_lines(layout_node->document_host(), Layout::Node::slot_id(layout_node), &lines,
+        [](void* context, Layout::RustFFI::FfiVisualLine line) {
+            static_cast<Vector<Layout::RustFFI::FfiVisualLine>*>(context)->append(line);
+        });
+
+    // NB: The text node holds the raw value. A line starts a line of the value itself when a CR or an LF comes between
+    //     the end of the line before it and its start, even when the rendering collapsed white space around that line
+    //     break. Only the other lines start where the rendering wrapped the text, and the first line follows no wrap.
+    auto raw_value = m_text_node->data().utf16_view();
+    auto value_length = raw_value.length_in_code_units();
+    auto follows_line_break = [&](size_t previous_line_end, size_t line_start) {
+        for (auto offset = min(previous_line_end, line_start - 1); offset < line_start; ++offset) {
+            auto code_unit = raw_value.code_unit_at(offset);
+            if (code_unit == '\r' || code_unit == '\n')
+                return true;
+        }
+        return false;
+    };
+
+    Utf16StringBuilder builder { value_length + lines.size() };
+    size_t copied_up_to = 0;
+    for (size_t i = 1; i < lines.size(); ++i) {
+        auto line_start = lines[i].start_offset;
+        if (line_start <= copied_up_to || line_start > value_length || follows_line_break(lines[i - 1].end_offset, line_start))
+            continue;
+        builder.append(raw_value.substring_view(copied_up_to, line_start - copied_up_to));
+        builder.append_code_unit('\n');
+        copied_up_to = line_start;
+    }
+    builder.append(raw_value.substring_view(copied_up_to));
+    return Infra::normalize_newlines(builder.to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
