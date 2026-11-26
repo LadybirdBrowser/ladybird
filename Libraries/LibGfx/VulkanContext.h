@@ -13,6 +13,11 @@
 #    include <LibGfx/GpuDeviceIdentity.h>
 #    include <vulkan/vulkan.h>
 
+#    ifdef USE_VULKAN_DMABUF_IMAGES
+#        include <AK/Optional.h>
+#        include <sys/types.h>
+#    endif
+
 namespace Gfx {
 
 struct VulkanContext {
@@ -31,6 +36,8 @@ struct VulkanContext {
 #    ifdef USE_VULKAN_DMABUF_IMAGES
     VkCommandPool command_pool { VK_NULL_HANDLE };
     VkCommandBuffer command_buffer { VK_NULL_HANDLE };
+    // The DRM render node of the device, for allocating memory outside of Vulkan.
+    Optional<dev_t> render_node;
     struct
     {
         PFN_vkGetMemoryFdKHR get_memory_fd { nullptr };

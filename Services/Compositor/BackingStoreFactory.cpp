@@ -93,11 +93,28 @@ static Vector<u64> shared_backing_store_drm_format_modifiers(Gfx::VulkanContext 
     return modifiers;
 }
 
+static ErrorOr<NonnullRefPtr<Gfx::VulkanImage>> create_shared_backing_store_image(Gfx::VulkanContext const& vulkan_context, Gfx::IntSize size)
+{
+    auto const modifiers = shared_backing_store_drm_format_modifiers(vulkan_context);
+    // NB: The compositor of the desktop can scan a store out to the display, which is only safe when the memory was
+    //     allocated for that. A presentation on another GPU only composites the store.
+    if (vulkan_context.is_preferred_device) {
+        auto image = Gfx::create_scanout_capable_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, modifiers.span());
+        if (!image.is_error())
+            return image.release_value();
+        static bool reported_failure = false;
+        if (!reported_failure) {
+            dbgln("Failed to allocate a shared GPU backing store that a display can scan out ({}), allocating it through Vulkan", image.error());
+            reported_failure = true;
+        }
+    }
+    return Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, modifiers.span());
+}
+
 static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
     auto const& vulkan_context = skia_backend_context.vulkan_context();
-    auto const modifiers = shared_backing_store_drm_format_modifiers(vulkan_context);
-    auto image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, modifiers.span()));
+    auto image = TRY(create_shared_backing_store_image(vulkan_context, size));
     auto shared_image = Gfx::duplicate_shared_image(*image);
 
     return GpuBackingStore {
