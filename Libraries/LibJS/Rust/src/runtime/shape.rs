@@ -306,12 +306,17 @@ unsafe impl Trace for RareData {
             property_key.trace(visitor);
         }
         self.own_string_keys.trace(visitor);
+        // NB: The shapes are visited as owned slots, so that a collection that moves them rewrites them here rather than
+        //     keeping them where they are.
+        // SAFETY: The rare data is the shape's own, which only the shape's own methods change, and only its destructor
+        //         frees.
         if let Some(assign_copy) = &self.assign_copy {
             visitor.visit(assign_copy.prototype_validity);
-            visitor.visit(assign_copy.copy_shape);
+            unsafe { visitor.visit_owned(&assign_copy.copy_shape) };
         }
-        for shape in self.integrity_level_shapes.iter().flatten() {
-            visitor.visit(*shape);
+        for shape in &self.integrity_level_shapes {
+            // SAFETY: See above.
+            unsafe { visitor.visit_owned_option(shape) };
         }
         for watched_slot in self.watched_slots.values() {
             if let WatchedSlot::Watched(watchpoint_set) = watched_slot {
