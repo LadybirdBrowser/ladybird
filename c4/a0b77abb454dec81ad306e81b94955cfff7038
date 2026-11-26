@@ -1,0 +1,10 @@
+For an element with display: none or contents, or inside a display:
+none subtree, Ladybird resolves transform to none. Chrome 158 and WebKit
+26.5 do the same, in Blink’s ComputedStyleUtils::ResolvedTransform()
+for an element with no LayoutObject, and in WebKit’s ExtractorCustom::
+extractTransform() for one with no renderer. Firefox 151 instead returns
+a matrix() against an empty box, from Gecko’s nsComputedDOMStyle::
+GetTransformValue(), as the CSSWG resolved in w3c/csswg-drafts#9121.
+In that issue, WebKit reported that its change away from none broke a
+site, and was reverted. For any other element without a box, such as
+an SVG paint server, Ladybird follows the resolution.
