@@ -2268,6 +2268,7 @@ dependencies = [
  "cbindgen",
  "ladybird_allocator",
  "libhttp_rust",
+ "libipc_rust",
  "liburl_rust",
  "rustc-demangle",
 ]

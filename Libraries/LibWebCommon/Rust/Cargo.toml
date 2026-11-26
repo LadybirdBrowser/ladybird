@@ -10,6 +10,7 @@ crate-type = ["rlib", "staticlib"]
 ak = { path = "../../../AK/Rust" }
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libhttp_rust = { path = "../../LibHTTP/Rust" }
+libipc_rust = { path = "../../LibIPC/Rust" }
 liburl_rust = { path = "../../LibURL/Rust", default-features = false }
 rustc-demangle = "0.1"
 
