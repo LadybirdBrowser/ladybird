@@ -1,0 +1,11 @@
+Ladybird now draws every decoration line on SVG text in the element’s
+text-decoration-style, as an outline the text’s fill and stroke paint.
+Chrome 158 draws all four styles on SVG text too (Blink paints SVG text
+decorations with the same decoration painter as HTML text, from
+TextFragmentPainter), filled and stroked like the glyphs. Firefox 151
+draws the styles as well, but thin, without the given thickness for a
+wavy line. WebKit 26.5 draws only solid lines (and a double line):
+SVGTextBoxPainter::paintDecorationWithStyle() adds a single rect to
+the path it fills and strokes, whatever the style. Ladybird’s wavy
+line is the zigzag our HTML text decorations use, rather than the
+smoother wave that Chrome draws.
