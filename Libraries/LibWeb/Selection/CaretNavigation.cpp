@@ -131,6 +131,29 @@ static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text 
         && before_line->root.index == after_line->root.index && before_line->index == after_line->index;
 }
 
+// The end of one text node and the start of a later one are a single caret position only when both are on the same line,
+// and nothing between them renders or bounds the editable content: No rendered text, no non-editable element, even an
+// empty one, and no replaced or atomic inline box.
+static bool text_boundaries_are_one_position(DOM::Text const& before, DOM::Text const& after)
+{
+    if (!boundary_visual_lines_share_line(before, after))
+        return false;
+    Layout::ForcedReadScope read { before.document() };
+    for (auto const* node = before.next_in_pre_order(); node && node != &after; node = node->next_in_pre_order()) {
+        if (node->is_inclusive_ancestor_of(after))
+            continue;
+        if (auto const* text = as_if<DOM::Text>(*node)) {
+            if (text_node_has_rendered_text(*text))
+                return false;
+            continue;
+        }
+        auto const* layout_node = node->layout_node(read);
+        if (layout_node && (!node->is_editable() || layout_node->is_atomic_inline() || layout_node->is_replaced_box()))
+            return false;
+    }
+    return true;
+}
+
 static bool boundary_visual_lines_share_inline_context(DOM::Text const& before, DOM::Text const& after)
 {
     auto before_line = rendered_text_edge_line(before, true);
@@ -484,10 +507,10 @@ Optional<CaretLocation> CaretNavigator::canonical_location_for_extension(CaretLo
     auto* target_text = as_if<DOM::Text>(*target);
     if (!target_text)
         return {};
-    auto shares_line = direction == SelectionDirection::Forward
-        ? boundary_visual_lines_share_line(*text, *target_text)
-        : boundary_visual_lines_share_line(*target_text, *text);
-    if (!shares_line)
+    auto is_one_position = direction == SelectionDirection::Forward
+        ? text_boundaries_are_one_position(*text, *target_text)
+        : text_boundaries_are_one_position(*target_text, *text);
+    if (!is_one_position)
         return {};
     return CaretLocation { *target_text, direction == SelectionDirection::Forward ? 0u : target_text->length(), TextAffinity::Downstream };
 }
@@ -856,10 +879,10 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
             }
         }
         if (text && adjacent_text) {
-            auto shares_line = direction == SelectionDirection::Forward
-                ? boundary_visual_lines_share_line(*text, *adjacent_text)
-                : boundary_visual_lines_share_line(*adjacent_text, *text);
-            if (shares_line) {
+            auto is_one_position = direction == SelectionDirection::Forward
+                ? text_boundaries_are_one_position(*text, *adjacent_text)
+                : text_boundaries_are_one_position(*adjacent_text, *text);
+            if (is_one_position) {
                 if (auto position = location_after_character_step(*adjacent_text, adjacent->offset, adjacent->affinity, direction); position.has_value())
                     return position;
             }

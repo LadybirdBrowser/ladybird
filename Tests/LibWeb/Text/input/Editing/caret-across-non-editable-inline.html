@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<div contenteditable="true" id="editor">A <span contenteditable="false">★</span>B</div>
+<div contenteditable="true" id="empty">A <span contenteditable="false"></span>B</div>
+<script>
+    test(() => {
+        const selection = getSelection();
+        const name = node => node.nodeType === Node.TEXT_NODE ? `"${node.data}"` : node.nodeName;
+        const describe = () => `${name(selection.anchorNode)}@${selection.anchorOffset} to ${name(selection.focusNode)}@${selection.focusOffset}, "${selection.toString()}"`;
+
+        for (const id of ["editor", "empty"]) {
+            const editor = document.getElementById(id);
+            editor.focus();
+            println(`${id}:`);
+            for (const [alteration, direction, node, offset] of [
+                ["extend", "forward", editor.firstChild, 2],
+                ["move", "forward", editor.firstChild, 2],
+                ["extend", "backward", editor.lastChild, 0],
+                ["move", "backward", editor.lastChild, 0],
+            ]) {
+                selection.collapse(node, offset);
+                selection.modify(alteration, direction, "character");
+                println(`  ${alteration} ${direction}: ${describe()}`);
+            }
+            selection.collapse(editor.firstChild, 2);
+            internals.sendKey(editor, "Right", internals.MOD_SHIFT);
+            println(`  Shift+Right: ${describe()}`);
+        }
+    });
+</script>
