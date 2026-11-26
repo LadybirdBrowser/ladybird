@@ -68,6 +68,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn web_bindings_set_has_pending_activity(realm: *mut c_void, event_target: *mut c_void, has_pending_activity: bool);
     fn web_bindings_set_event_owner(event: *mut c_void, interface_name: u16, owner: *mut c_void);
+    fn web_bindings_set_mouse_event_owner(event: *mut c_void, interface_name: u16, owner: *mut c_void);
     fn web_bindings_event_set_is_trusted(event: *mut c_void, is_trusted: bool);
     fn web_bindings_dispatch_event(target: *mut c_void, event: *mut c_void) -> bool;
     fn web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(
@@ -270,6 +271,14 @@ impl CppEvent {
     pub(crate) fn set_owner<T: Interface>(&self, owner: Ref<T>) {
         // SAFETY: The event and the owner are live, and the owner keeps the event alive.
         unsafe { web_bindings_set_event_owner(self.as_ptr(), T::INTERFACE_NAME, cell_into_abi(owner)) };
+    }
+
+    /// # Safety
+    ///
+    /// This event must be a RustMouseEvent.
+    pub(crate) unsafe fn set_mouse_event_owner<T: Interface>(&self, owner: Ref<T>) {
+        // SAFETY: The RustMouseEvent and its owner are live.
+        unsafe { web_bindings_set_mouse_event_owner(self.as_ptr(), T::INTERFACE_NAME, cell_into_abi(owner)) };
     }
 
     pub(crate) fn as_ptr(&self) -> *mut c_void {

@@ -42,7 +42,7 @@ private:
     };
     EventResult handle_drag_end(JS::Object const& relevant_global_object, Cancelled, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
 
-    GC::Ref<HTML::DragEvent> fire_a_drag_and_drop_event(
+    GC::Ref<DOM::Event> fire_a_drag_and_drop_event(
         JS::Object const& relevant_global_object,
         GC::Ptr<DOM::EventTarget> target,
         Utf16FlyString const& name,

@@ -135,6 +135,14 @@ impl DragDataStore {
         self.mode.set(mode);
     }
 
+    pub(super) fn allowed_effects_state(&self) -> Utf16FlyString {
+        self.allowed_effects_state.borrow().clone()
+    }
+
+    pub(super) fn set_allowed_effects_state(&self, state: Utf16FlyString) {
+        *self.allowed_effects_state.borrow_mut() = state;
+    }
+
     pub(super) fn len(&self) -> usize {
         self.item_list.borrow().len()
     }
@@ -259,19 +267,6 @@ pub(super) extern "C" fn web_rust_drag_data_store_unref(_: OwnedDragDataStore) {
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn web_rust_drag_data_store_set_mode(store: &DragDataStore, mode: Mode) {
     store.set_mode(mode);
-}
-
-#[unsafe(no_mangle)]
-pub(super) extern "C" fn web_rust_drag_data_store_allowed_effects_state(store: &DragDataStore) -> usize {
-    store.allowed_effects_state.borrow().clone().into_raw()
-}
-
-#[unsafe(no_mangle)]
-pub(super) extern "C" fn web_rust_drag_data_store_set_allowed_effects_state(
-    store: &DragDataStore,
-    state: LentUtf16FlyString<'_>,
-) {
-    *store.allowed_effects_state.borrow_mut() = state.to_utf16_fly_string();
 }
 
 #[unsafe(no_mangle)]

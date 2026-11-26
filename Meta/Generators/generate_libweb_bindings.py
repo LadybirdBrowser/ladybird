@@ -305,7 +305,7 @@ def main() -> int:
 
     write_generated_file(intrinsic_definitions_header_path, write_intrinsic_definitions_header, interface_sets)
     write_generated_file(
-        intrinsic_definitions_implementation_path, write_intrinsic_definitions_implementation, interface_sets
+        intrinsic_definitions_implementation_path, write_intrinsic_definitions_implementation, interface_sets, context
     )
     output_files.extend([intrinsic_definitions_header_path, intrinsic_definitions_implementation_path])
 

@@ -23,6 +23,7 @@ namespace Web::Bindings {
 
 GC_DEFINE_ALLOCATOR(RustEventTarget);
 GC_DEFINE_ALLOCATOR(RustEvent);
+GC_DEFINE_ALLOCATOR(RustMouseEvent);
 
 static GC::Ref<JS::HostObject> wrapper_of_owner(JS::Realm& realm, InterfaceName interface_name, RustInterfaceCell& owner)
 {
@@ -77,33 +78,79 @@ RustEvent::RustEvent(Utf16FlyString const& type, DOM::EventInit const& event_ini
 {
 }
 
+void RustEventOwner::set(InterfaceName interface_name, RustInterfaceCell& owner)
+{
+    VERIFY(!m_cell);
+    m_interface_name = interface_name;
+    m_cell = owner;
+}
+
+RustInterfaceCell* RustEventOwner::get(InterfaceName interface_name) const
+{
+    return m_interface_name == interface_name ? m_cell.ptr() : nullptr;
+}
+
+GC::Ref<JS::HostObject> RustEventOwner::create_wrapper(JS::Realm& realm) const
+{
+    VERIFY(m_cell);
+    return wrapper_of_owner(realm, m_interface_name, *m_cell);
+}
+
+void RustEventOwner::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(m_cell);
+}
+
 void RustEvent::set_owner(InterfaceName interface_name, RustInterfaceCell& owner)
 {
-    VERIFY(!m_owner);
-    m_owner_interface_name = interface_name;
-    m_owner = owner;
+    m_owner.set(interface_name, owner);
 }
 
 GC::Ref<JS::HostObject> RustEvent::create_wrapper(JS::Realm& realm)
 {
-    VERIFY(m_owner);
-    return wrapper_of_owner(realm, m_owner_interface_name, *m_owner);
+    return m_owner.create_wrapper(realm);
 }
 
 void RustEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_owner);
+    m_owner.visit_edges(visitor);
 }
 
-RustInterfaceCell* rust_event_owner(DOM::Event const& event, InterfaceName interface_name)
+RustInterfaceCell* RustEvent::rust_event_owner(InterfaceName interface_name) const
 {
-    if (!event.is_owned_by_rust_interface_object())
-        return nullptr;
-    auto const& rust_event = static_cast<RustEvent const&>(event);
-    if (rust_event.m_owner_interface_name != interface_name)
-        return nullptr;
-    return rust_event.m_owner.ptr();
+    return m_owner.get(interface_name);
+}
+
+GC::Ref<RustMouseEvent> RustMouseEvent::create(Utf16FlyString const& type, UIEvents::MouseEventOptions const& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<RustMouseEvent>(type, options, page_x, page_y, offset_x, offset_y, time_stamp);
+}
+
+RustMouseEvent::RustMouseEvent(Utf16FlyString const& type, UIEvents::MouseEventOptions const& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MouseEvent(type, options, page_x, page_y, offset_x, offset_y, time_stamp)
+{
+}
+
+void RustMouseEvent::set_owner(InterfaceName interface_name, RustInterfaceCell& owner)
+{
+    m_owner.set(interface_name, owner);
+}
+
+GC::Ref<JS::HostObject> RustMouseEvent::create_wrapper(JS::Realm& realm)
+{
+    return m_owner.create_wrapper(realm);
+}
+
+void RustMouseEvent::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_owner.visit_edges(visitor);
+}
+
+RustInterfaceCell* RustMouseEvent::rust_event_owner(InterfaceName interface_name) const
+{
+    return m_owner.get(interface_name);
 }
 
 }
@@ -127,6 +174,7 @@ void web_bindings_remove_event_listener_without_options(DOM::EventTarget*, Reado
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed);
 RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed);
 void web_bindings_set_event_owner(RustEvent*, u16 interface_name, RustInterfaceCell* owner);
+void web_bindings_set_mouse_event_owner(RustMouseEvent*, u16 interface_name, RustInterfaceCell* owner);
 void web_bindings_event_set_is_trusted(DOM::Event*, bool is_trusted);
 bool web_bindings_dispatch_event(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(DOM::EventTarget*, DOM::Event*);
@@ -219,6 +267,11 @@ RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubble
 }
 
 void web_bindings_set_event_owner(RustEvent* event, u16 interface_name, RustInterfaceCell* owner)
+{
+    event->set_owner(static_cast<InterfaceName>(interface_name), *owner);
+}
+
+void web_bindings_set_mouse_event_owner(RustMouseEvent* event, u16 interface_name, RustInterfaceCell* owner)
 {
     event->set_owner(static_cast<InterfaceName>(interface_name), *owner);
 }

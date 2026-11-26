@@ -31,8 +31,6 @@ extern "C" {
 RustDragDataStore* web_rust_drag_data_store_create();
 void web_rust_drag_data_store_unref(RustDragDataStore*);
 void web_rust_drag_data_store_set_mode(RustDragDataStore const*, DragDataStore::Mode);
-FlatPtr web_rust_drag_data_store_allowed_effects_state(RustDragDataStore const*);
-void web_rust_drag_data_store_set_allowed_effects_state(RustDragDataStore const*, FlatPtr);
 size_t web_rust_drag_data_store_size(RustDragDataStore const*);
 bool web_rust_drag_data_store_has_text_item(RustDragDataStore const*);
 DragDataStoreItemView web_rust_drag_data_store_item(RustDragDataStore const*, size_t index);
@@ -77,16 +75,6 @@ void DragDataStore::set_mode(Mode mode)
     static_assert(to_underlying(Mode::ReadOnly) == 1);
     static_assert(to_underlying(Mode::Protected) == 2);
     web_rust_drag_data_store_set_mode(m_store, mode);
-}
-
-Utf16FlyString DragDataStore::allowed_effects_state() const
-{
-    return Utf16FlyString::adopt_raw(web_rust_drag_data_store_allowed_effects_state(m_store));
-}
-
-void DragDataStore::set_allowed_effects_state(Utf16FlyString const& state)
-{
-    web_rust_drag_data_store_set_allowed_effects_state(m_store, state.raw_identity());
 }
 
 void DragDataStore::add_text(Utf16FlyString const& type_string, Utf16String const& data)

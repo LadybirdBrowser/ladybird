@@ -18,8 +18,7 @@ use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
 use super::drag_data_store::{DragDataStore, LentDragDataStore, Mode};
 use crate::bindings::conversions::{ToJs, frozen_array_to_js, sequence_to_js};
-use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_into_abi};
-use crate::bindings::lent_string::LentUtf16FlyString;
+use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file_list::FileList;
@@ -43,7 +42,7 @@ pub(crate) struct DataTransfer {
 impl Wrappable for DataTransfer {}
 
 impl DataTransfer {
-    fn create(vm: &Vm, store: Rc<DragDataStore>) -> Ref<Self> {
+    pub(super) fn create(vm: &Vm, store: Rc<DragDataStore>) -> Ref<Self> {
         let count = store.len();
         let transfer = allocate(vm, |_| Self {
             store: RefCell::new(Some(store)),
@@ -84,7 +83,7 @@ impl DataTransfer {
         Ok(())
     }
 
-    fn set_drop_effect_value(&self, effect: Utf16FlyString) {
+    pub(super) fn set_drop_effect_value(&self, effect: Utf16FlyString) {
         // On setting, if the new value is one of "none", "copy", "link", or "move", then the attribute's current value
         // must be set to the new value. Other values must be ignored.
         let value = Utf16String::from(&effect);
@@ -113,7 +112,7 @@ impl DataTransfer {
         Ok(())
     }
 
-    fn set_effect_allowed_internal(&self, effect: Utf16FlyString) {
+    pub(super) fn set_effect_allowed_internal(&self, effect: Utf16FlyString) {
         // AD-HOC: We need to be able to set the effectAllowed attribute internally regardless of the state of the drag
         //         data store.
         let value = Utf16String::from(&effect);
@@ -143,6 +142,19 @@ impl DataTransfer {
             this.items.set(Some(items));
             items
         }))
+    }
+
+    pub(super) fn drop_effect_value(&self) -> Utf16FlyString {
+        self.drop_effect.borrow().clone()
+    }
+
+    pub(super) fn effect_allowed_value(&self) -> Utf16FlyString {
+        self.effect_allowed.borrow().clone()
+    }
+
+    pub(super) fn disassociate_from_store(&self) {
+        self.store.borrow_mut().take();
+        self.update_types();
     }
 
     pub(super) fn store(&self) -> Option<cell::Ref<'_, DragDataStore>> {
@@ -391,52 +403,4 @@ fn normalize_format(format: &Utf16String) -> Utf16View<'_> {
 #[unsafe(no_mangle)]
 pub extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: LentDragDataStore<'_>) -> *mut c_void {
     cell_into_abi(DataTransfer::create(vm, store.to_rc()))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_disassociate(transfer: &InterfaceCell) {
-    let transfer = transfer.object::<DataTransfer>();
-    transfer.store.borrow_mut().take();
-    transfer.update_types();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_drop_effect(transfer: &InterfaceCell) -> usize {
-    transfer
-        .object::<DataTransfer>()
-        .drop_effect
-        .borrow()
-        .clone()
-        .into_raw()
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_effect_allowed(transfer: &InterfaceCell) -> usize {
-    transfer
-        .object::<DataTransfer>()
-        .effect_allowed
-        .borrow()
-        .clone()
-        .into_raw()
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_set_drop_effect(transfer: &InterfaceCell, effect: LentUtf16FlyString<'_>) {
-    {
-        transfer
-            .object::<DataTransfer>()
-            .set_drop_effect_value(effect.to_utf16_fly_string());
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_set_effect_allowed_internal(
-    transfer: &InterfaceCell,
-    effect: LentUtf16FlyString<'_>,
-) {
-    {
-        transfer
-            .object::<DataTransfer>()
-            .set_effect_allowed_internal(effect.to_utf16_fly_string());
-    }
 }

@@ -1,5 +1,6 @@
 Event: false, own: true
 AnimationEvent: false, own: true
+DragEvent: false, own: true
 FontFaceSetLoadEvent: false, own: true
 IDBVersionChangeEvent: false, own: true
 MediaQueryListEvent: false, own: true

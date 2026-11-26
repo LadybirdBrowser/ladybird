@@ -3937,7 +3937,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
         event = Event::create(FlyString {}, time_stamp); // FIXME: Create DeviceOrientationEvent
     } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
-        event = HTML::DragEvent::create(Utf16FlyString {}, {}, 0, 0, 0, 0, time_stamp);
+        event = HTML::create_drag_event_for_create_event(time_stamp);
     } else if (interface.equals_ignoring_ascii_case("event"sv)
         || interface.equals_ignoring_ascii_case("events"sv)) {
         event = Event::create(FlyString {}, time_stamp);

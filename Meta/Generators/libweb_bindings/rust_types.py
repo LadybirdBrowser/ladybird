@@ -179,7 +179,7 @@ def rust_implemented_members(interface: Optional[Interface]) -> Optional[Interfa
 
 # The interfaces implemented in C++ that an interface implemented in Rust can inherit from
 # (Libraries/LibWeb/Bindings/RustEventTarget.h).
-CPP_PARENT_INTERFACES = ("EventTarget", "Event")
+CPP_PARENT_INTERFACES = ("EventTarget", "Event", "MouseEvent")
 
 
 def cpp_ancestor(interface: Interface, context: GenerationContext) -> Optional[Interface]:

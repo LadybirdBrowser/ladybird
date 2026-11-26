@@ -31,7 +31,7 @@ GC::Ref<DOM::Event> create_before_unload_event(JS::Realm& realm)
 
 Optional<Utf16String> before_unload_event_return_value(DOM::Event const& event)
 {
-    auto* owner = Bindings::rust_event_owner(event, Bindings::InterfaceName::BeforeUnloadEvent);
+    auto* owner = event.rust_event_owner(Bindings::InterfaceName::BeforeUnloadEvent);
     if (!owner)
         return {};
     return Utf16String::adopt_raw(web_rust_before_unload_event_return_value(owner));
@@ -39,7 +39,7 @@ Optional<Utf16String> before_unload_event_return_value(DOM::Event const& event)
 
 void set_before_unload_event_return_value(DOM::Event& event, Utf16String const& return_value)
 {
-    auto* owner = Bindings::rust_event_owner(event, Bindings::InterfaceName::BeforeUnloadEvent);
+    auto* owner = event.rust_event_owner(Bindings::InterfaceName::BeforeUnloadEvent);
     VERIFY(owner);
     web_rust_before_unload_event_set_return_value(owner, return_value.raw_identity());
 }

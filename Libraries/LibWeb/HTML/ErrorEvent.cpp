@@ -25,12 +25,12 @@ GC::Ref<DOM::Event> create_error_event(JS::Realm& realm, Utf16FlyString const& t
 
 bool is_error_event(DOM::Event const& event)
 {
-    return Bindings::rust_event_owner(event, Bindings::InterfaceName::ErrorEvent);
+    return event.rust_event_owner(Bindings::InterfaceName::ErrorEvent);
 }
 
 Optional<ErrorInformation> error_event_information(DOM::Event const& event)
 {
-    auto* owner = Bindings::rust_event_owner(event, Bindings::InterfaceName::ErrorEvent);
+    auto* owner = event.rust_event_owner(Bindings::InterfaceName::ErrorEvent);
     if (!owner)
         return {};
 
