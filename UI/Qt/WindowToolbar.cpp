@@ -1321,6 +1321,7 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     m_sidebar_slot = new QWidget(m_toolbar);
     m_sidebar_slot->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* sidebar_slot_layout = new QHBoxLayout(m_sidebar_slot);
+    sidebar_slot_layout->setAlignment(Qt::AlignLeft);
     // The Ladybird button keeps as clear of the traffic lights as on the tab strip.
     auto sidebar_slot_leading_margin = 0;
     if constexpr (use_native_macos_window_controls())
