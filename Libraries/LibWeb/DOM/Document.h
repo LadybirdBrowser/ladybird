@@ -227,6 +227,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLInputElementHeight, true)                 \
     X(HTMLInputElementWidth, true)                  \
     X(HTMLLabelElementActivationBehavior, false)    \
+    X(HTMLTextAreaElementHardWrap, false)           \
     X(HighlightRegistryHighlightsFromPoint, false)  \
     X(InspectAccessibilityTree, false)              \
     X(InspectDOMTree, false)                        \

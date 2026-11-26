@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    textarea {
+        display: block;
+        font: 16px monospace;
+    }
+</style>
+<form id="form">
+    <textarea name="hard" wrap="hard" cols="20">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="hard-uppercase" wrap="HARD" cols="20">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="soft" wrap="soft" cols="20">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="invalid" wrap="bogus" cols="20">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="hard-with-line-breaks" wrap="hard" cols="20">Short line
+One two three four five six seven eight</textarea>
+    <textarea name="hard-with-crlf" wrap="hard" cols="20"></textarea>
+    <textarea name="hard-with-crlf-and-emoji" wrap="hard" cols="20"></textarea>
+    <textarea name="hard-not-wrapping" wrap="hard" cols="20" style="white-space: pre">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="hard-not-rendered" wrap="hard" cols="20" style="display: none">One two three four five six seven eight nine ten eleven twelve.</textarea>
+    <textarea name="hard-collapsed-leading-space" wrap="hard" cols="20" style="white-space: normal">  abc def</textarea>
+    <textarea name="hard-collapsed-space-after-line-break" wrap="hard" cols="20" style="white-space: pre-line">abc
+   def</textarea>
+    <textarea name="hard-preserved-space-that-wraps" wrap="hard" cols="10" style="white-space: break-spaces">                         abc</textarea>
+    <textarea name="hard-preserved-space-that-hangs" wrap="hard" cols="10">                         abc</textarea>
+    <textarea name="hard-preserved-space-after-line-break" wrap="hard" cols="10" style="white-space: break-spaces">x
+                         abc</textarea>
+</form>
+<script>
+    test(() => {
+        const form = document.getElementById("form");
+        form.elements["hard-with-crlf"].value = "Short line\r\nOne two three four five six seven eight";
+        form.elements["hard-with-crlf-and-emoji"].value = "A\r\n\u{1F600} two three four five six seven eight";
+
+        for (const [name, value] of new FormData(form))
+            println(`${name}: ${JSON.stringify(value)}`);
+
+        const hard = form.elements["hard"];
+        println(`value IDL attribute: ${JSON.stringify(hard.value)}`);
+        println(`textLength: ${hard.textLength}`);
+
+        hard.value = "abc";
+        println(`hard, after the value changes: ${JSON.stringify(new FormData(form).get("hard"))}`);
+    });
+</script>
