@@ -66,6 +66,7 @@ enum class ColorTheme : u8 {
 
 struct Appearance {
     bool show_all_tabs_button { true };
+    bool show_sidebar_button { true };
     bool show_menu_bar { false };
     bool always_show_scrollbars { false };
     ShowBookmarksBar show_bookmarks_bar { ShowBookmarksBar::Never };

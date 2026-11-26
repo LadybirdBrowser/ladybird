@@ -2081,12 +2081,11 @@ void BrowserWindow::changeEvent(QEvent* event)
 void BrowserWindow::appearance_changed()
 {
     auto const& appearance = Application::settings().appearance();
-
     SystemAppearance::the().apply_interface_theme(appearance.interface_theme);
     SystemAppearance::the().apply_color_theme(appearance.color_theme);
 
     update_menu_bar_visibility();
-    m_tabs_container->set_show_all_tabs_button(appearance.show_all_tabs_button);
+    m_tabs_container->update_toolbar_button_visibility();
     m_tabs_container->update_bookmarks_bar_visibility();
 
     for_each_tab([](Tab& tab) {
