@@ -2293,12 +2293,24 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
         }
 
-        if ((key == UIEvents::KeyCode::Key_PageUp || key == UIEvents::KeyCode::Key_PageDown) && (modifiers & UIEvents::Mod_Shift)) {
-            if (key == UIEvents::KeyCode::Key_PageUp)
-                target->move_cursor_to_previous_page(InputEventsTarget::CollapseSelection::No);
-            else
-                target->move_cursor_to_next_page(InputEventsTarget::CollapseSelection::No);
-            return EventResult::Handled;
+        if (key == UIEvents::KeyCode::Key_PageUp || key == UIEvents::KeyCode::Key_PageDown) {
+            // Shift+Page Up/Down extends the selection by a page. A plain Page Up/Down moves the cursor by a page too in
+            // multi-line text, except on macOS, where it only scrolls, as it does in the platform's own text views. In a
+            // single-line input, it scrolls the page as if the input weren't focused.
+            Optional<InputEventsTarget::CollapseSelection> collapse;
+            if (modifiers & UIEvents::Mod_Shift)
+                collapse = InputEventsTarget::CollapseSelection::No;
+#if !defined(AK_OS_MACOS)
+            else if ((modifiers & ~UIEvents::Mod_Keypad) == UIEvents::Mod_None && !is<HTML::HTMLInputElement>(document->focused_area().ptr()))
+                collapse = InputEventsTarget::CollapseSelection::Yes;
+#endif
+            if (collapse.has_value()) {
+                if (key == UIEvents::KeyCode::Key_PageUp)
+                    target->move_cursor_to_previous_page(*collapse);
+                else
+                    target->move_cursor_to_next_page(*collapse);
+                return EventResult::Handled;
+            }
         }
 
         if (key == UIEvents::KeyCode::Key_Home) {

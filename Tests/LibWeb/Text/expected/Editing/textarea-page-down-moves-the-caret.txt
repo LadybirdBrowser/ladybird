@@ -1,0 +1,8 @@
+Page Down moves the caret as the platform does: PASS
+Page Down scrolls the textarea: PASS
+Page Down leaves the selection collapsed: PASS
+typing after Page Down inserts on the caret's line: PASS
+Page Up moves the caret back up: PASS
+Shift+Page Down extends the selection: PASS
+Page Down in a single-line input scrolls the page: PASS
+Page Down in a single-line input leaves its caret: PASS
