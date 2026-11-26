@@ -1,0 +1,2 @@
+style attribute initiator type: css
+style declaration initiator type: css

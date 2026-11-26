@@ -136,8 +136,9 @@ static RefPtr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleR
             request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
     } else {
         // AD-HOC: If the resource is not associated with a stylesheet, we must still set an initiator type in order
-        //         for this resource to be observable through a PerformanceObserver. WPT relies on this.
-        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
+        //         for this resource to be observable through a PerformanceObserver. WPT relies on this. Chrome and
+        //         Firefox report such a resource, for example one from a style attribute, as initiated by CSS.
+        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
     }
 
     // 9. Fetch req, with processresponseconsumebody set to processResponse.
