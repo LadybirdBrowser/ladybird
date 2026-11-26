@@ -422,6 +422,8 @@ pub struct Allocator {
     slot_values: Vec<Vec<Value>>,
     /// The values each loop's header keeps in their slots, though they have none yet when the header is allocated.
     header_drops: Vec<Vec<Value>>,
+    /// For each value a loop's back edge carries into a phi of its header, that phi, else NONE.
+    back_edge_phis: Vec<Value>,
 }
 
 /// The most times a function is allocated, each time with more values in their slots at loop headers.
@@ -443,6 +445,17 @@ impl Allocator {
         self.dominators.compute(func);
         self.header_drops.clear();
         self.header_drops.resize(func.loops.len(), Vec::new());
+        self.back_edge_phis.clear();
+        self.back_edge_phis.resize(func.nodes.len(), NONE);
+        for loop_ in &func.loops {
+            for phi in func.phis(loop_.header) {
+                for (index, &predecessor) in func.predecessors(loop_.header).iter().enumerate() {
+                    if predecessor >= loop_.header {
+                        self.back_edge_phis[func.inputs(phi)[index] as usize] = phi;
+                    }
+                }
+            }
+        }
         // NB: A value that a loop only carries through stays in a register at its header if it has no slot yet. If the
         //     loop then needs the register, every back edge reloads the value. Such values stay in their slots in the
         //     next pass, so that the loop has the register to itself.
@@ -758,6 +771,19 @@ impl Allocator {
             return (1, position - loop_start);
         }
         next.map_or((3, 0), |position| (2, position))
+    }
+
+    /// The register `value` should get: its phi's, if a loop's back edge carries it into a phi that has one, so that
+    /// the edge moves nothing, else its hint.
+    fn preferred_register(&self, func: &Func, allocation: &Allocation, value: Value) -> u8 {
+        let phi = self.back_edge_phis[value as usize];
+        if phi != NONE {
+            let register = allocation.nodes[phi as usize].output;
+            if register != NO_REGISTER && convention::is_fpr(register) == is_float(func.node(value).ty) {
+                return register;
+            }
+        }
+        self.liveness.hint[value as usize]
     }
 
     /// A register of the class that is not `blocked`, preferably `hint`, freeing one if necessary.
@@ -1324,26 +1350,34 @@ impl Allocator {
                 register
             }
             Output::Register => {
-                let first = inputs.first().copied().unwrap_or(NONE);
                 let float = is_float(node.ty);
-                if constraints.reuse_first
-                    && registers[0] != CONSTANT_INPUT
-                    && registers[0] != NO_REGISTER
-                    && !func.node(first).op.is_constant()
-                    && !self.liveness.is_live_after(first, self.position)
-                    && convention::is_fpr(registers[0]) == float
-                    && !inputs[1..].contains(&first)
-                {
+                // Whether input `index` dies here, in a register of the output's class that only it has.
+                let dies = |index: usize| {
+                    let input = inputs[index];
+                    !matches!(registers[index], CONSTANT_INPUT | SLOT_INPUT | NO_REGISTER)
+                        && !func.node(input).op.is_constant()
+                        && !self.liveness.is_live_after(input, self.position)
+                        && convention::is_fpr(registers[index]) == float
+                        && inputs.iter().filter(|other| **other == input).count() == 1
+                };
+                let preferred = self.preferred_register(func, allocation, value);
+                // NB: The lowerings of these write either operand's register.
+                let commutative = !float && node.op.is_commutative();
+                if constraints.reuse_first && dies(0) && registers[0] == preferred {
+                    registers[0]
+                } else if constraints.reuse_first && commutative && dies(1) && registers[1] == preferred {
+                    registers[1]
+                } else if constraints.reuse_first && dies(0) {
                     registers[0]
                 } else {
-                    self.pick(func, allocation, blocked, float, self.liveness.hint[value as usize])
+                    self.pick(func, allocation, blocked, float, preferred)
                 }
             }
         };
         self.free_dying_inputs(func, value);
         if output != NO_REGISTER {
             if self.contents[output as usize] != NONE {
-                // The first input, which dies here.
+                // An input, which dies here.
                 self.free(output);
             }
             self.define(func, allocation, value, output);
