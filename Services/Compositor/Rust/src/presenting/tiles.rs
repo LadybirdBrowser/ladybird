@@ -130,11 +130,10 @@ impl PooledTile {
 
 type TilePool = HashMap<ContentHash, PooledTile>;
 
-/// The tiles a layer holds, by cell, and a version that changes with them.
+/// The tiles a layer holds, by cell.
 #[derive(Default)]
 struct HeldTiles {
     by_cell: BTreeMap<TileCoord, ContentHash>,
-    content_version: u64,
 }
 
 fn pooled_held_tiles<'a>(
@@ -224,11 +223,6 @@ impl LayerTiles {
             .get(&content_hash)
             .filter(|pooled| pooled.holds_current_pixels_over_ignoring_backend(part_of_cell_needed))
             .map(PooledTile::coverage)
-    }
-
-    /// The content version of the tiles the layer holds, or none for a layer that holds no tiles yet.
-    pub(super) fn content_version_of(&self, identity: &LayerIdentity) -> Option<u64> {
-        Some(self.held_by_layer.get(identity)?.content_version)
     }
 
     pub(super) fn bounds_held_by(&self, identity: &LayerIdentity) -> IntRect {
@@ -755,7 +749,6 @@ impl LayerTiles {
             });
         }
         if held_tiles_changed || !tiles_to_raster.is_empty() {
-            held.content_version = held.content_version.wrapping_add(1);
             self.changed_since_eviction = true;
         }
         if tiles_to_raster.is_empty() {
@@ -1098,13 +1091,7 @@ mod tests {
             })
             .collect();
         LayerTiles {
-            held_by_layer: HashMap::from([(
-                LAYER,
-                HeldTiles {
-                    by_cell,
-                    content_version: 0,
-                },
-            )]),
+            held_by_layer: HashMap::from([(LAYER, HeldTiles { by_cell })]),
             pool,
             ..LayerTiles::default()
         }

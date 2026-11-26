@@ -303,8 +303,6 @@ void CompositionSwapChain::show_drawing()
 
 static ComPtr<ID3D11Device1> create_d3d11_device_for_composition_textures()
 {
-    if (WindowServer::showing_tiles_of_painted_layers_is_switched_off())
-        return nullptr;
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
     if (!skia_backend_context || !skia_backend_context->sk_context() || skia_backend_context->sk_context()->backend() != GrBackendApi::kDirect3D)
         return nullptr;

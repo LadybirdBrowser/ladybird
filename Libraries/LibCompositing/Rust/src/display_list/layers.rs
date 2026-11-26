@@ -503,7 +503,7 @@ pub struct WindowServerCompositing {
     /// Whether it shows each tile of a painted layer as a layer of its own, which it moves with the layer's space,
     /// through the transform of a space the compositor animates too, clips to the layer's composite clips, and
     /// composites inside the effects it can composite, so that a frame all of whose layers it shows needs no surface
-    /// of its own.
+    /// of its own. One that does not shows no layer of the frame, not even its canvases and videos.
     pub shows_tiles_of_painted_layers: bool,
     /// Whether it runs what it shows below a layer through a blur and color matrices, as a backdrop filter does.
     pub filters_what_is_below_layers: bool,
@@ -541,11 +541,8 @@ impl WindowServerPlacementsOfEffects {
 pub enum WhyFrameHoldsLayer {
     ListIsOneLayer,
     InsideAnEffectTheCompositorComposites,
-    CompositedWithinRoundedCorners,
-    InSpaceTheCompositorAnimates,
     WindowServerCannotShowItsContent,
     UnderALayerTheFrameHolds,
-    WindowServerShowsNoTiles,
 }
 
 impl std::fmt::Display for WhyFrameHoldsLayer {
@@ -555,11 +552,8 @@ impl std::fmt::Display for WhyFrameHoldsLayer {
             WhyFrameHoldsLayer::InsideAnEffectTheCompositorComposites => {
                 "it is inside an effect the compositor composites"
             }
-            WhyFrameHoldsLayer::CompositedWithinRoundedCorners => "it is composited within rounded corners",
-            WhyFrameHoldsLayer::InSpaceTheCompositorAnimates => "it is in a space the compositor animates",
             WhyFrameHoldsLayer::WindowServerCannotShowItsContent => "the window server cannot show its content",
             WhyFrameHoldsLayer::UnderALayerTheFrameHolds => "it is under a layer the frame holds",
-            WhyFrameHoldsLayer::WindowServerShowsNoTiles => "the window server shows no tiles",
         })
     }
 }
@@ -1286,22 +1280,6 @@ impl LayerStack {
             .collect()
     }
 
-    /// Whether the layer is rastered in a space whose anchor the compositor animates, which the frame composites
-    /// through the anchor's transform.
-    fn layer_is_in_animated_space(&self, layer_index: LayerIndex) -> bool {
-        matches!(
-            self.spaces[self.space_of_layer(layer_index).0].anchor_kind,
-            RasterSpaceAnchorKind::AnimatedTransform { .. }
-        )
-    }
-
-    fn layer_is_composited_within_rounded_clips(&self, layer_index: LayerIndex) -> bool {
-        self.nodes[self.layers[layer_index.0].placement_node_index.0]
-            .composite_clips
-            .iter()
-            .any(CompositeClip::is_rounded)
-    }
-
     /// The innermost band the layer is in whose node the compositor composites inside its effect, if any.
     fn innermost_composited_band_around_layer(&self, layer_index: LayerIndex) -> Option<BandIndex> {
         self.innermost_composited_band_at_or_around_band[self.layers[layer_index.0].band_index.0]
@@ -1417,25 +1395,18 @@ impl LayerStack {
         layer_index: LayerIndex,
         window_server: &WhatWindowServerShowsOfFrame<'_>,
     ) -> Option<WhyFrameHoldsLayer> {
-        let shows_tiles_of_painted_layers = window_server.compositing.shows_tiles_of_painted_layers;
         let window_server_composites_effects_around_layer = self
             .composited_bands_around_layer_innermost_first(layer_index)
             .all(|band_index| {
-                shows_tiles_of_painted_layers
-                    && (window_server.can_composite_effect_of_node)(self.bands[band_index.0].placement_node_index)
+                (window_server.can_composite_effect_of_node)(self.bands[band_index.0].placement_node_index)
             });
         let window_server_cannot_show_content = match self.layers[layer_index.0].content {
-            LayerContent::Painted => false,
-            LayerContent::Media { .. } => !(window_server.can_show_media_of_layer)(layer_index),
             // The window server shows a caret or a scroll bar from a surface of its own as it shows a tile.
-            LayerContent::OwnSurface { .. } => !shows_tiles_of_painted_layers,
+            LayerContent::Painted | LayerContent::OwnSurface { .. } => false,
+            LayerContent::Media { .. } => !(window_server.can_show_media_of_layer)(layer_index),
         };
         if !window_server_composites_effects_around_layer {
             Some(WhyFrameHoldsLayer::InsideAnEffectTheCompositorComposites)
-        } else if !shows_tiles_of_painted_layers && self.layer_is_composited_within_rounded_clips(layer_index) {
-            Some(WhyFrameHoldsLayer::CompositedWithinRoundedCorners)
-        } else if !shows_tiles_of_painted_layers && self.layer_is_in_animated_space(layer_index) {
-            Some(WhyFrameHoldsLayer::InSpaceTheCompositorAnimates)
         } else if window_server_cannot_show_content {
             Some(WhyFrameHoldsLayer::WindowServerCannotShowItsContent)
         } else {
@@ -1452,40 +1423,31 @@ impl LayerStack {
         if self.replays_whole_list() {
             return WhyFrameHoldsLayer::ListIsOneLayer;
         }
-        self.why_frame_must_hold_layer(layer_index, window_server).unwrap_or(
-            if window_server.compositing.shows_tiles_of_painted_layers {
-                WhyFrameHoldsLayer::UnderALayerTheFrameHolds
-            } else {
-                WhyFrameHoldsLayer::WindowServerShowsNoTiles
-            },
-        )
+        self.why_frame_must_hold_layer(layer_index, window_server)
+            .unwrap_or(WhyFrameHoldsLayer::UnderALayerTheFrameHolds)
     }
 
     /// Which layers the window server shows by itself, rather than the frame holding them, of the base layer and those
-    /// above it that can hold content. The frame holds every layer up to the topmost one it must hold of those that can
-    /// show in the viewport: one inside an effect the compositor composites, one composited through a transform or
-    /// within a clip the window server does not apply, or a canvas, video or nested context the window server cannot
-    /// show by itself, as `window_server` says. An effect is composited around all it holds by the frame or by the
-    /// window server, so the frame holds every layer inside an effect it holds a layer inside. Below the topmost layer
-    /// the frame holds, the window server still shows a canvas or video it can show, that is inside no composited
-    /// effect, where no layer above it that the frame holds can show over it.
+    /// above it that can hold content. A window server that shows no tiles shows none. The frame holds every layer up
+    /// to the topmost one it must hold of those that can show in the viewport: one inside an effect the compositor
+    /// composites, or a canvas, video or nested context the window server cannot show by itself, as `window_server`
+    /// says. An effect is composited around all it holds by the frame or by the window server, so the frame holds every
+    /// layer inside an effect it holds a layer inside. Below the topmost layer the frame holds, the window server still
+    /// shows a canvas or video it can show, that is inside no composited effect, where no layer above it that the frame
+    /// holds can show over it.
     ///
-    /// A window server that shows the tiles of painted layers shows every layer above the topmost one the frame must
-    /// hold, and the base layer too where the frame must hold none, so that the frame holds nothing. Any other shows a
-    /// painted layer only to keep it above a canvas or video that it shows, so the frame also holds the painted layers
-    /// below the lowest of those, and every layer where the window server shows no canvas or video.
+    /// The window server shows every layer above the topmost one the frame must hold, and the base layer too where the
+    /// frame must hold none, so that the frame holds nothing.
     pub fn layers_the_window_server_shows(
         &self,
         composite_offsets: &[IntPoint],
         window_server: &WhatWindowServerShowsOfFrame<'_>,
     ) -> Vec<bool> {
         let mut shown_by_window_server = vec![false; self.layers.len()];
-        let is_media = |layer: LayerIndex| matches!(self.layers[layer.0].content, LayerContent::Media { .. });
-        let shows_tiles_of_painted_layers = window_server.compositing.shows_tiles_of_painted_layers;
-        let has_media_above_base = (self.base_layer.0 + 1..self.layers.len()).any(|layer| is_media(LayerIndex(layer)));
-        if self.replays_whole_list() || !(shows_tiles_of_painted_layers || has_media_above_base) {
+        if self.replays_whole_list() || !window_server.compositing.shows_tiles_of_painted_layers {
             return shown_by_window_server;
         }
+        let is_media = |layer: LayerIndex| matches!(self.layers[layer.0].content, LayerContent::Media { .. });
         let layers_above_base_that_may_hold_content: Vec<LayerIndex> = (self.base_layer.0 + 1..self.layers.len())
             .map(LayerIndex)
             .filter(|&layer| self.layers[layer.0].may_hold_content)
@@ -1537,19 +1499,7 @@ impl LayerStack {
             }
             reach_in_viewport_of_held_layers_above = reach_in_viewport_of_held_layers_above.united(reach_in_viewport);
         }
-        if shows_tiles_of_painted_layers {
-            shown_by_window_server[self.base_layer.0] = position_of_topmost_layer_frame_must_hold.is_none();
-            return shown_by_window_server;
-        }
-        let lowest_media_the_window_server_shows = layers_above_base_that_may_hold_content
-            .iter()
-            .copied()
-            .find(|&layer| is_media(layer) && shown_by_window_server[layer.0]);
-        for &layer in &layers_above_base_that_may_hold_content {
-            if lowest_media_the_window_server_shows.is_none_or(|lowest_media| layer < lowest_media) {
-                shown_by_window_server[layer.0] = false;
-            }
-        }
+        shown_by_window_server[self.base_layer.0] = position_of_topmost_layer_frame_must_hold.is_none();
         shown_by_window_server
     }
 

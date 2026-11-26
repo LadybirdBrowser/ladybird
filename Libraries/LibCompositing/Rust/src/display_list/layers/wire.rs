@@ -615,7 +615,7 @@ mod tests {
         AnimatedContentReach, BandIndex, BandOfPlan, CutOfPlan, CutsOfCell,
         LARGEST_SUMMED_READ_REACH_OF_COMPOSITED_FILTERS_IN_DEVICE_PIXELS, LayerContent, LayerIdentity, LayerIndex,
         MAXIMUM_NESTING_OF_COMPOSITED_EFFECTS, NodeNamesFromIndices, PlacementNodeBand, PlacementNodeIndex,
-        WhatWindowServerShowsOfFrame, WhyCompositorCannotCompositeEffect, WhyFrameHoldsLayer, WindowServerCompositing,
+        WhatWindowServerShowsOfFrame, WhyCompositorCannotCompositeEffect, WindowServerCompositing,
         WindowServerPresentationOfMedia,
     };
     use crate::display_list::placement::{
@@ -2056,16 +2056,15 @@ mod tests {
     }
 
     // Reads the stack as the compositor reads it for a frame over the whole viewport, and as the dump reads it.
-    // A window server that shows tiles shows a caret from a surface of its own, as it shows a tile, and the base layer
-    // with it. Any other leaves the caret to the frame.
+    // The window server shows a caret from a surface of its own, as it shows a tile, and the base layer with it.
     #[test]
-    fn only_a_window_server_that_shows_tiles_shows_a_caret() {
+    fn a_window_server_shows_carets_and_the_base_layer() {
         let stack = page_with_carets().planned().stack;
         let composite_offsets = stack.composite_offsets(&[FloatPoint::default(); 4]);
-        let window_server = |shows_tiles_of_painted_layers| WhatWindowServerShowsOfFrame {
+        let window_server = WhatWindowServerShowsOfFrame {
             compositing: WindowServerCompositing {
-                shows_tiles_of_painted_layers,
-                filters_what_is_below_layers: shows_tiles_of_painted_layers,
+                shows_tiles_of_painted_layers: true,
+                filters_what_is_below_layers: true,
             },
             can_show_media_of_layer: &|_| true,
             can_composite_effect_of_node: &|_| true,
@@ -2075,20 +2074,9 @@ mod tests {
             .filter(|layer| matches!(stack.layers[layer.0].content, LayerContent::OwnSurface { .. }))
             .collect();
         assert_eq!(caret_layers.len(), 2);
-        let shown_by_window_server_that_shows_tiles =
-            stack.layers_the_window_server_shows(&composite_offsets, &window_server(true));
-        assert!(shown_by_window_server_that_shows_tiles[stack.base_layer.0]);
-        assert!(
-            caret_layers
-                .iter()
-                .all(|layer| shown_by_window_server_that_shows_tiles[layer.0])
-        );
-        for layer in caret_layers {
-            assert_eq!(
-                stack.why_frame_holds_layer(layer, &window_server(false)),
-                WhyFrameHoldsLayer::WindowServerCannotShowItsContent
-            );
-        }
+        let shown_by_window_server = stack.layers_the_window_server_shows(&composite_offsets, &window_server);
+        assert!(shown_by_window_server[stack.base_layer.0]);
+        assert!(caret_layers.iter().all(|layer| shown_by_window_server[layer.0]));
     }
 
     fn read_as_consumers_do(page: &Page, frame_tree: &VisualContextTree, planned: &PlannedLayers, stack: &LayerStack) {
@@ -2105,7 +2093,6 @@ mod tests {
                 stack.layers[layer_index.0].placement_node_index,
                 &composite_offsets,
             );
-            stack.layer_is_in_animated_space(layer_index);
             stack.name_of_layer(layer_index, &NodeNamesFromIndices);
             let space_to_frame = spaces_to_frame[stack.space_of_layer(layer_index).0];
             space_to_frame.rect_in_frame(stack.layers[layer_index.0].reach);
@@ -2115,28 +2102,25 @@ mod tests {
             stack.band_has_layer_at_or_above_base_layer(band_index);
         }
         stack.running_animations_can_show_within(|_| true, &composite_offsets, VIEWPORT);
-        let mut presentation = WindowServerPresentationOfMedia::default();
-        for shows_tiles_of_painted_layers in [false, true] {
-            let window_server_compositing = WindowServerCompositing {
-                shows_tiles_of_painted_layers,
-                filters_what_is_below_layers: shows_tiles_of_painted_layers,
-            };
-            stack.layers_the_window_server_shows(
-                &composite_offsets,
-                &WhatWindowServerShowsOfFrame {
-                    compositing: window_server_compositing,
-                    can_show_media_of_layer: &|_| true,
-                    can_composite_effect_of_node: &|_| true,
-                },
-            );
-            presentation = stack.window_server_presentation_of_media(
-                list,
-                frame_tree,
-                &scroll_offsets,
-                VIEWPORT,
-                window_server_compositing,
-            );
-        }
+        let window_server_compositing = WindowServerCompositing {
+            shows_tiles_of_painted_layers: true,
+            filters_what_is_below_layers: true,
+        };
+        stack.layers_the_window_server_shows(
+            &composite_offsets,
+            &WhatWindowServerShowsOfFrame {
+                compositing: window_server_compositing,
+                can_show_media_of_layer: &|_| true,
+                can_composite_effect_of_node: &|_| true,
+            },
+        );
+        let presentation = stack.window_server_presentation_of_media(
+            list,
+            frame_tree,
+            &scroll_offsets,
+            VIEWPORT,
+            window_server_compositing,
+        );
         let planned_with_stack = PlannedLayers {
             stack: stack.clone(),
             stack_on_wire: planned.stack_on_wire.clone(),

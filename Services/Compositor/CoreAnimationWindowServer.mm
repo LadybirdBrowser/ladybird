@@ -142,7 +142,7 @@ OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
 
 bool CoreAnimationWindowServer::shows_tiles_of_painted_layers() const
 {
-    return !showing_tiles_of_painted_layers_is_switched_off();
+    return true;
 }
 
 bool CoreAnimationWindowServer::filters_what_is_below_layers() const
