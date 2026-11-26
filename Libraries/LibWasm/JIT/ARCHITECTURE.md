@@ -209,9 +209,12 @@ edges, a loop's back edge above all, are mostly no moves at all.
 with those of the predecessor that keeps the most of its values in registers, so that a path that
 called a function, which leaves none in registers, does not make the others give theirs up; a loop
 header starts with those of the block entering the loop, without the values the loop only carries
-through that have a slot already. Their phis get registers free there, preferably the input's own
-from that predecessor. Every other edge moves its values into place, as parallel moves with cycles
-broken through a slot; back edges get theirs when their source block ends.
+through that have a slot already. A value the loop only carries through that gets its slot later,
+when the loop needs its register, would be reloaded by every back edge: the allocator then allocates
+the function again, with such values in their slots from the loop's header on (at most three
+passes). Their phis get registers free there, preferably the input's own from that predecessor.
+Every other edge moves its values into place, as parallel moves with cycles broken through a slot;
+back edges get theirs when their source block ends.
 
 **The verifier** (`regalloc/verify.rs`) simulates every register from the state each block starts
 with, checks that every input is where the allocation says, and that every edge's moves produce its
