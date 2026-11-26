@@ -206,10 +206,10 @@ bool MimeType::is_json() const
 }
 
 // https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
-String minimise_a_supported_mime_type(MimeType const& mime_type)
+String minimise_a_supported_mime_type(MimeType const& mime_type, bool is_supported_by_the_user_agent)
 {
     String minimized;
-    FFI::mime_sniff_minimize_a_supported_mime_type(mime_type.type().bytes(), mime_type.subtype().bytes(), &minimized, set_string_from_ffi);
+    FFI::mime_sniff_minimize_a_supported_mime_type(mime_type.type().bytes(), mime_type.subtype().bytes(), is_supported_by_the_user_agent, &minimized, set_string_from_ffi);
     return minimized;
 }
 
