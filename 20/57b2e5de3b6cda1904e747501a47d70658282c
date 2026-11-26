@@ -1,0 +1,12 @@
+Ladybird now applies the textLength of every text and tspan element,
+children before parents, with a resolved descendant counted as one
+typographic character of its ancestor, as the spec’s algorithm says.
+Blink does so in SvgTextLayoutAlgorithm::ApplyTextLengthAttribute().
+Run in Chrome 158 with Ahem, 8 of 10 cases give the same character
+positions in both engines, including text after an expanded or a
+squeezed tspan, spacingAndGlyphs, an x or a dx inside the tspan, and
+nested tspans. In the other two, Chrome lets the outer element’s
+spacing change a nested tspan’s length, which the spec doesn’t allow;
+Ladybird keeps it. Gecko reads textLength from the text element only,
+in SVGTextFrame::DoGlyphPositioning(), so Firefox 151 ignores it on a
+tspan. And WebKit 26.5 applies it to a tspan only partly.
